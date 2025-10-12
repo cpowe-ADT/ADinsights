@@ -19,13 +19,17 @@ services:
       dockerfile: Dockerfile
     image: ghcr.io/adinsights/backend:latest
     environment:
-      ADINSIGHTS_DATABASE_URL: postgresql+asyncpg://analytics:analytics@db:5432/adinsights
-      ADINSIGHTS_LLM_API_URL: http://llm:8000/v1/chat/completions
-      ADINSIGHTS_LLM_API_KEY: changeme
+      DJANGO_SECRET_KEY: changeme
+      DATABASE_URL: postgres://analytics:analytics@db:5432/adinsights
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      TIME_ZONE: America/Jamaica
+      DEBUG: "1"
     ports:
       - "8000:8000"
     depends_on:
       - db
+      - redis
 
   scheduler:
     build:
@@ -33,11 +37,15 @@ services:
       dockerfile: Dockerfile.scheduler
     image: ghcr.io/adinsights/scheduler:latest
     environment:
-      ADINSIGHTS_DATABASE_URL: postgresql+asyncpg://analytics:analytics@db:5432/adinsights
-      ADINSIGHTS_LLM_API_URL: http://llm:8000/v1/chat/completions
-      ADINSIGHTS_LLM_API_KEY: changeme
+      DJANGO_SECRET_KEY: changeme
+      DATABASE_URL: postgres://analytics:analytics@db:5432/adinsights
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      TIME_ZONE: America/Jamaica
+      DEBUG: "1"
     depends_on:
       - db
+      - redis
 
   superset:
     image: apache/superset:3.1.0
@@ -50,6 +58,11 @@ services:
       - "8088:8088"
     depends_on:
       - db
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
 
   db:
     image: postgres:15

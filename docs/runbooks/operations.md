@@ -13,7 +13,7 @@ This runbook documents how to operate the ADinsights stack across the frontend, 
 | Component | Check | Command |
 |-----------|-------|---------|
 | Frontend  | Vite build + smoke test | `npm run build` (from `frontend/`) |
-| Backend   | FastAPI health endpoint | `curl https://api.<env>.adinsights.com/health` |
+| Backend   | Django API health endpoint | `curl https://api.<env>.adinsights.com/api/health/` |
 | Superset  | `/health` endpoint | `curl https://bi.<env>.adinsights.com/health` |
 | Scheduler | APScheduler heartbeat logs | Check `scheduler` container logs for `Scheduler started` |
 

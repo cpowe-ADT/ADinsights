@@ -22,7 +22,7 @@ ADinsights will be a self-hosted, multi-tenant marketing analytics platform for 
 
 ### Phase 1 – Core Platform Setup (Sprint 1)
 1. **Identity & Multi-Tenancy**
-   - Scaffold backend service (FastAPI/Django) with database migrations.
+   - Scaffold backend service (Django) with database migrations.
    - Create Tenant, User, Role, PlatformCredential models with encryption for stored tokens.
    - Implement RBAC and tenant-scoped API authentication.
 2. **Connector Bootstrapping**
