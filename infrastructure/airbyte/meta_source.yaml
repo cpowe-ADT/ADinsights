@@ -1,0 +1,35 @@
+# Meta Marketing API source configuration for Airbyte
+sourceDefinitionId: 778daa7c-feaf-4db6-96f3-70fd645acc77  # Official Facebook Marketing source
+workspaceId: <replace-with-workspace-uuid>
+name: "Meta Ads Incremental"
+connectionConfiguration:
+  account_id: <encrypted-account-id>
+  access_token: {{ secrets_manager.meta_access_token }}
+  page_size: 100
+  start_date: "2023-01-01T00:00:00Z"
+  action_breakdowns: []
+  breakdowns:
+    - region
+    - impression_device
+  insights_lookback_window: 30
+  include_deleted: false
+  level: ad
+  primary_objective_for_non_objective_campaigns: true
+  report_interval: daily
+  schema_fields:
+    - spend
+    - impressions
+    - clicks
+    - actions
+    - conversions
+  window_in_days: 30
+streams:
+  - name: ads_insights
+    syncMode: incremental
+    cursorField:
+      - updated_time
+    primaryKey:
+      - - ad_id
+        - date_start
+    destinationSyncMode: append_dedup
+    transformations: []
