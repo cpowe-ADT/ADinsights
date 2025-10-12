@@ -1,0 +1,28 @@
+name: 'adinsights'
+version: '1.0'
+config-version: 2
+profile: 'adinsights'
+
+model-paths: ['models']
+seed-paths: ['seeds']
+macro-paths: ['macros']
+
+models:
+  adinsights:
+    staging:
+      materialized: view
+    marts:
+      +materialized: incremental
+      facts:
+        materialized: incremental
+        incremental_strategy: merge
+        unique_key: ['date_day', 'campaign_id', 'ad_account_id']
+      dimensions:
+        materialized: table
+    reference:
+      materialized: table
+
+seeds:
+  adinsights:
+    geo_parish_lookup:
+      quote_columns: false

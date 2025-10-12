@@ -1,0 +1,5 @@
+version: 2
+
+models:
+  - name: all_ad_performance
+    description: "Unioned performance data across all configured ad platforms."
