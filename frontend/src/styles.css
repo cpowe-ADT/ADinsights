@@ -65,6 +65,16 @@ html,
   background: #f8fafc;
 }
 
+.metrics-grid tbody tr {
+  cursor: pointer;
+  outline: none;
+}
+
+.metrics-grid tbody tr:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
 .metrics-grid tr.selected {
   background: #e0f2fe;
 }
