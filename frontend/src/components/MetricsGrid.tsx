@@ -11,17 +11,13 @@ import useDashboardStore, { MetricRow } from "../state/useDashboardStore";
 const MetricsGrid = () => {
   const { rows, selectedParish, selectedMetric, setSelectedParish } = useDashboardStore();
 
-  const sortedRows = useMemo<MetricRow[]>(() => {
+  const filteredRows = useMemo<MetricRow[]>(() => {
     if (rows.length === 0) {
       return [];
     }
 
-    return [...rows].sort((a, b) => {
-      const left = b[selectedMetric] ?? 0;
-      const right = a[selectedMetric] ?? 0;
-      return left - right;
-    });
-  }, [rows, selectedMetric]);
+    return rows;
+  }, [rows]);
 
   const handleRowSelect = useCallback(
     (parish: string) => {
