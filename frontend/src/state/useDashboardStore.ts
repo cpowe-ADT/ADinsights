@@ -24,12 +24,24 @@ interface DashboardState {
   loadSampleData: () => Promise<void>;
 }
 
-const useDashboardStore = create<DashboardState>((set) => ({
+const useDashboardStore = create<DashboardState>((set, get) => ({
   rows: [],
   selectedMetric: "impressions",
-  setSelectedParish: (parish) => set({ selectedParish: parish }),
+  setSelectedParish: (parish) => {
+    if (typeof parish === "undefined") {
+      set({ selectedParish: undefined });
+      return;
+    }
+
+    const current = get().selectedParish;
+    set({ selectedParish: current === parish ? undefined : parish });
+  },
   setSelectedMetric: (metric) => set({ selectedMetric: metric }),
   loadSampleData: async () => {
+    if (get().rows.length > 0) {
+      return;
+    }
+
     const response = await axios.get<MetricRow[]>("/sample_metrics.json");
     set({ rows: response.data });
   },
