@@ -3,6 +3,12 @@
 Django + Django REST Framework provides the tenant-aware API, credential vault, and Celery task
 runners for the stack.
 
+## Framework Decision
+
+Django is the canonical backend for ADinsights. The earlier FastAPI prototype has been removed so
+all tooling, docs, and deployment assets reference the Django stack exclusively. Use the commands
+below for local development or containerized workflows.
+
 ## Requirements
 - Python 3.11+
 - PostgreSQL 14+ (or SQLite for smoke tests)
@@ -27,6 +33,22 @@ runners for the stack.
    ```bash
    python manage.py runserver 0.0.0.0:8000
    ```
+
+## Containers
+
+Dockerfiles are provided for parity with the deploy stack.
+
+```bash
+# API
+docker build -t adinsights-backend .
+docker run --rm -p 8000:8000 --env-file .env adinsights-backend
+
+# Celery beat scheduler
+docker build -t adinsights-backend-scheduler -f Dockerfile.scheduler .
+docker run --rm --env-file .env adinsights-backend-scheduler
+```
+
+Ensure Redis and PostgreSQL are reachable from the container environment before launching workers.
 
 ## Celery
 Start workers once Redis is running:
