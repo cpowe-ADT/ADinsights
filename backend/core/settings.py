@@ -14,8 +14,12 @@ env = environ.Env(
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1"]),
     TIME_ZONE=(str, "America/Jamaica"),
+    DJANGO_SECRET_KEY=(str, "test-secret-key"),
+    CELERY_BROKER_URL=(str, "redis://localhost:6379/0"),
+    CELERY_RESULT_BACKEND=(str, "redis://localhost:6379/1"),
     SECRETS_PROVIDER=(str, "env"),
     KMS_PROVIDER=(str, "aws"),
+    KMS_KEY_ID=(str, "test-key"),
 )
 
 ENV_FILE = BASE_DIR / ".env"
