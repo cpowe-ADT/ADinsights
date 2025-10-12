@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: google_ads_raw
+    schema: raw_google_ads
+    tables:
+      - name: campaign_daily
+      - name: geographic_view
+
+models:
+  - name: stg_google_campaign_daily
+    description: "Google Ads daily performance flattened from GAQL"
+  - name: stg_google_geographic_view
+    description: "Google Ads geographic performance view"

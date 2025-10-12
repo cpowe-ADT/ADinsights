@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: meta_raw
+    schema: raw_meta
+    tables:
+      - name: ad_insights
+      - name: campaigns
+      - name: ads
+
+models:
+  - name: stg_meta_insights
+    description: "Normalized daily Meta insights metrics"
+  - name: stg_meta_campaigns
+    description: "Meta campaign metadata"
+  - name: stg_meta_ads
+    description: "Meta ad metadata"

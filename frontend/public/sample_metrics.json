@@ -1,0 +1,35 @@
+[
+  {
+    "date": "2024-09-01",
+    "platform": "Meta",
+    "campaign": "Back to School",
+    "parish": "Kingston",
+    "impressions": 120000,
+    "clicks": 3200,
+    "spend": 450.5,
+    "conversions": 120,
+    "roas": 3.4
+  },
+  {
+    "date": "2024-09-01",
+    "platform": "Google Ads",
+    "campaign": "Search - Kingston",
+    "parish": "St Catherine",
+    "impressions": 95000,
+    "clicks": 2800,
+    "spend": 390.75,
+    "conversions": 95,
+    "roas": 2.8
+  },
+  {
+    "date": "2024-09-02",
+    "platform": "Meta",
+    "campaign": "Awareness",
+    "parish": "St James",
+    "impressions": 58000,
+    "clicks": 1500,
+    "spend": 210.0,
+    "conversions": 60,
+    "roas": 3.9
+  }
+]

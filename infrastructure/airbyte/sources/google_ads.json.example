@@ -1,0 +1,17 @@
+{
+  "name": "Google Ads",
+  "sourceType": "google-ads",
+  "workspaceId": "REDACTED",
+  "configuration": {
+    "developer_token": "REDACTED",
+    "oAuthClientId": "REDACTED",
+    "oAuthClientSecret": "REDACTED",
+    "refresh_token": "REDACTED",
+    "login_customer_id": "REDACTED",
+    "customer_id": "REDACTED",
+    "query_templates": [
+      "SELECT segments.date, campaign.id, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE",
+      "SELECT segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros, segments.geo_target_region FROM geographic_view WHERE segments.date BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE"
+    ]
+  }
+}
