@@ -74,3 +74,4 @@ ADinsights will be a self-hosted, multi-tenant marketing analytics platform for 
 - [ ] Draft detailed technical design docs for connectors, data models, and frontend architecture.
 - [ ] Define secrets management strategy (e.g., AWS Secrets Manager, Vault).
 - [ ] Establish project management tracking (Jira/Linear) aligned with phases above.
+- [ ] Use [`docs/task_breakdown.md`](docs/task_breakdown.md) to assign sprint tasks and track completion.
