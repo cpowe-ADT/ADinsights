@@ -1,64 +1,60 @@
-# ADinsights Backend
+# Backend Service
 
-This FastAPI service exposes REST endpoints for dashboards, alert rules, and AI-generated insights. It also houses the SQL-driven alerting engine used by the schedulers.
+Django + Django REST Framework provides the tenant-aware API, credential vault, and Celery task
+runners for the stack.
 
-## Running locally
+## Requirements
+- Python 3.11+
+- PostgreSQL 14+ (or SQLite for smoke tests)
+- Redis (for Celery broker/result backend)
 
+## Setup
+1. Create and activate a virtual environment.
+2. Install requirements:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Copy the sample environment file and tweak values as needed:
+   ```bash
+   cp .env.sample .env
+   ```
+4. Apply migrations and create a superuser:
+   ```bash
+   python manage.py migrate
+   python manage.py createsuperuser
+   ```
+5. Run the development server:
+   ```bash
+   python manage.py runserver 0.0.0.0:8000
+   ```
+
+## Celery
+Start workers once Redis is running:
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .
-uvicorn app.main:app --reload
+celery -A core worker -l info
+celery -A core beat -l info
 ```
+Sample tasks live in `core/tasks.py` and can be invoked from the Django shell for testing.
 
-Set environment variables in `.env` or via `ADINSIGHTS_` prefixed environment variables (for example `ADINSIGHTS_DATABASE_URL`).
-This FastAPI backend provides multi-tenant onboarding, role-based access control (RBAC),
-and OAuth integrations for advertising platforms such as Meta and Google Ads.
+## Row-Level Security
+After provisioning the database, enable Postgres row-level security policies:
+```bash
+python manage.py enable_rls
+```
+The command prints the SQL used to set policies on tenant-scoped tables.
 
-## Getting started
+## Testing & Linting
+```bash
+pytest
+ruff check
+```
+Pytest spins up an in-memory settings module and validates JWT auth, credential encryption, and
+management commands.
 
-1. Install dependencies (using Poetry):
+## Useful Endpoints
+- `POST /api/auth/login/` — retrieve JWT pair.
+- `GET /api/me/` — return the authenticated user profile with tenant context.
+- `GET /api/health/` — simple health probe.
+- `GET /api/timezone/` — returns `America/Jamaica`, verifying configuration.
 
-   ```bash
-   cd backend
-   poetry install
-   ```
-
-2. Configure environment variables in `.env` or export them in your shell:
-
-   ```env
-   DATABASE_URL=postgresql+psycopg2://user:password@localhost:5432/adinsights
-   SECRET_KEY=super-secret-key
-   META_CLIENT_ID=your-meta-client-id
-   META_CLIENT_SECRET=your-meta-client-secret
-   GOOGLE_ADS_CLIENT_ID=your-google-client-id
-   GOOGLE_ADS_CLIENT_SECRET=your-google-client-secret
-   OAUTH_REDIRECT_BASE_URL=https://your-domain.com
-   ```
-
-3. Run database migrations:
-
-   ```bash
-   alembic upgrade head
-   ```
-
-4. Launch the API:
-
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-
-## Available endpoints
-
-- `GET /health` – service health check
-- `POST /rbac/tenants` – onboard a new tenant
-- `POST /rbac/tenants/{tenant_id}/users` – add a user to a tenant and optionally assign a role
-- `POST /rbac/roles` – create a reusable role
-- `POST /rbac/users/{user_id}/role/{role_id}` – assign an existing role to a user
-- `GET /oauth/{platform}/authorize` – start an OAuth flow for Meta or Google Ads
-- `POST /oauth/{platform}/callback` – handle OAuth callbacks and persist encrypted refresh tokens
-
-## Migrations
-
-Alembic is configured in `backend/alembic.ini`. The first migration that creates the RBAC and credential tables lives in
-`backend/migrations/versions/20240511_000001_initial.py`.
+Hook these endpoints into the frontend or external tools once additional resources are exposed.

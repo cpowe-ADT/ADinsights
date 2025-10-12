@@ -6,96 +6,109 @@ live in the repository.
 
 ## 1. Backend Foundations (Sprint 1 Focus)
 
-### 1.1 Choose Framework & Bootstrap Service
-- **Decision**: Select FastAPI (async, lightweight) or Django (batteries included).
-- **Actions**:
-  - Create a `backend/` service (e.g., FastAPI app) with poetry/pipenv requirements.
-  - Configure `.env` loading and secrets (see §4.1).
-  - Add initial healthcheck endpoint and run instructions.
+### 1.1 Harden Django Service
+- **Current State**: Django + DRF project with tenant-aware models, JWT auth, Celery wiring, and
+  encryption helpers is in place.
+- **Next Actions**:
+  - Implement admin and onboarding flows to invite tenants and assign roles through the API.
+  - Extend permission classes so every endpoint enforces tenant scoping by default.
+  - Integrate a secrets backend (AWS KMS/Secrets Manager or Vault) behind the `KmsClient` interface.
 
 ### 1.2 Database Schema & Migrations
-- **Models**: `Tenant`, `User`, `Role`, `UserRole`, `PlatformCredential`, `AuditLog`.
-- **Actions**:
-  - Define SQLAlchemy/ORM models and Alembic migrations (FastAPI) or Django models/migrations.
-  - Ensure `PlatformCredential` stores encrypted refresh tokens; use a KMS/Secrets Manager key.
-  - Implement row-level scoping (tenant_id foreign keys on business tables).
+- **Models**: `Tenant`, `User`, `Role`, `UserRole`, `PlatformCredential`, `AuditLog`, `TenantKey` exist.
+- **Next Actions**:
+  - Add business tables for campaign/adset/ad metadata and metrics landing zones.
+  - Wire the `enable_rls` command into deployment scripts and document Postgres grants.
+  - Create fixtures to bootstrap default roles/permissions for new installations.
 
 ### 1.3 Authentication & RBAC
-- **Actions**:
-  - Implement JWT-based session tokens with tenant context.
-  - Add endpoints for tenant onboarding, user invite, role assignment.
-  - Provide guard middleware ensuring requests are scoped to tenant permissions.
+- **Current State**: JWT login and `/api/me` endpoints exist with middleware that sets
+  `app.tenant_id`.
+- **Next Actions**:
+  - Add password reset/onboarding flows (email invite, tenant switch UI considerations).
+  - Implement API keys or service accounts for automated integrations.
+  - Surface audit log endpoints and hook key actions (login, credential changes) into the log.
 
 ## 2. Data Ingestion Layer
 
 ### 2.1 Airbyte Deployment & Configuration
-- **Actions**:
-  - Create `infrastructure/airbyte/` with `docker-compose` or helm manifests.
-  - Check in configuration templates for Meta & Google Ads sources (mask secrets with placeholders).
-  - Document sync schedules (hourly metrics, daily dimensions).
+- **Current State**: Docker Compose stack with redacted source templates and scheduling guidance.
+- **Next Actions**:
+  - Parameterise connections via environment variables or Terraform for repeatable deployments.
+  - Define destination configurations that push raw data into the warehouse selected for each tenant.
+  - Capture monitoring/alerting hooks for failed syncs (e.g., Slack webhook, email).
 
 ### 2.2 Optional Connectors
-- **Actions**:
-  - Stub custom source connectors for LinkedIn and TikTok within `airbyte/custom-sources/`.
-  - Define interface for injecting optional tenants/platforms.
+- **Next Actions**:
+  - Flesh out the custom Python connectors for LinkedIn and TikTok, aligning with the PRD field set.
+  - Establish acceptance tests (Airbyte connector test harness) so schema drift is caught quickly.
 
 ### 2.3 Sync Orchestration
-- **Actions**:
-  - Decide orchestrator (Airbyte scheduler, Temporal, Dagster, etc.).
-  - Draft cron examples for rolling 30-day backfill.
+- **Next Actions**:
+  - Decide on owning orchestration (Airbyte scheduler vs. external orchestrator) and codify cron
+    expressions in infrastructure-as-code.
+  - Integrate sync status callbacks with the backend (store last-sync timestamps per tenant).
 
 ## 3. dbt Transformation Layer
 
 ### 3.1 Project Skeleton
-- **Actions**:
-  - Initialize `dbt/` project with profiles for local & production.
-  - Create staging models (`stg_meta_*`, `stg_google_ads_*`).
+- **Current State**: dbt project with staging models, macros, and parish lookup seed committed.
+- **Next Actions**:
+  - Add source freshness checks and contracts to validate Airbyte output schemas.
+  - Document environment-specific targets (dev/staging/prod) and add invocation scripts.
 
 ### 3.2 Core Models
-- **Actions**:
-  - Build `dim_campaign`, `dim_adset`, `dim_ad`, `dim_geo`, `fact_performance`.
-  - Implement SCD2 for campaign/adset/ad with `dbt_utils`. Ensure tests for uniqueness/not_null.
-  - Seed `parish_geojson` and `geo_lookup` tables.
+- **Next Actions**:
+  - Build `dim_campaign`, `dim_adset`, `dim_ad`, `dim_geo`, and `fact_performance` with SCD2 support.
+  - Add macros to align attribution windows (Meta unified attribution, Google conversion windows).
+  - Expand the parish lookup to cover Google GeoTarget IDs and Meta region strings comprehensively.
 
 ### 3.3 Metrics Layer
-- **Actions**:
+- **Next Actions**:
   - Define metrics dictionary macros (spend, impressions, CTR, CPC, CPM, conversions, ROAS, etc.).
-  - Materialize aggregated views for dashboards (`vw_campaign_daily`, `vw_creative_daily`, `vw_pacing`).
+  - Materialize aggregated views for dashboards (`vw_campaign_daily`, `vw_creative_daily`,
+    `vw_pacing`).
+  - Document attribution nuances (Meta 13-month reach limitation, Google conversion lag) alongside
+    calculations.
 
 ## 4. Platform Services & Ops
 
 ### 4.1 Secrets & Config Management
-- **Actions**:
-  - Standardize environment variables (document in `backend/.env.example`).
-  - Choose secret store (AWS Secrets Manager, Vault) and create access pattern.
+- **Current State**: `.env.sample` enumerates required variables and a pluggable `KmsClient` exists.
+- **Next Actions**:
+  - Implement the AWS KMS client or alternative and wire it to environment-specific keys.
+  - Decide how tenants manage credential rotation (UI vs. CLI) and log these events.
 
 ### 4.2 Observability
-- **Actions**:
-  - Plan logging/metrics stack (e.g., OpenTelemetry + Prometheus).
-  - Ensure audit logs are written for login/data access events.
+- **Next Actions**:
+  - Plan logging/metrics stack (e.g., OpenTelemetry + Prometheus) and add instrumentation to Celery
+    tasks and API endpoints.
+  - Ensure audit logs are written for login/data access events and exposed via API for compliance.
 
 ## 5. Analytics Experience
 
 ### 5.1 Frontend Scaffold
-- **Actions**:
-  - Initialize `frontend/` React app with Vite/Next.js.
-  - Integrate TanStack Table for grids and Leaflet for parish map (use placeholder data until APIs ready).
+- **Current State**: React + Vite shell renders TanStack Table and Leaflet map with mock data.
+- **Next Actions**:
+  - Replace mock fetches with authenticated API calls once endpoints land.
+  - Add routing for campaign/creative detail pages and integrate Superset/Metabase embeds if used.
 
 ### 5.2 BI Tool Configuration
-- **Actions**:
-  - Create `bi/metabase/` or `bi/superset/` directory with exported dashboard JSONs.
-  - Document dashboard filters, KPIs, and refresh cadence.
+- **Next Actions**:
+  - Export baseline dashboards from Metabase/Superset into version control.
+  - Configure email/Slack subscriptions and alert thresholds tied to metrics.
 
 ### 5.3 Alerts & Summaries
-- **Actions**:
+- **Next Actions**:
   - Define SQL alert templates and schedule definitions.
   - Draft LLM prompt templates and safety guardrails; note dependency on metrics layer.
+  - Prototype Canva integration workflow for shareable summaries.
 
 ## 6. Prioritized Immediate Next Steps
-1. Decide on backend framework and secret management approach (blocks auth work).
-2. Bootstrap backend service with database migrations (enable tenant onboarding).
-3. Stand up Airbyte in infrastructure code and commit configuration templates.
-4. Initialize dbt project with staging models (allows early data validation).
-5. Create frontend skeleton to unblock UX iterations.
+1. Connect Airbyte Meta/Google sources to a development warehouse and verify incremental syncs.
+2. Extend the backend with tenant onboarding and credential CRUD endpoints surfaced via DRF viewsets.
+3. Build first-pass dbt fact/dimension models and expose them through lightweight API endpoints.
+4. Replace frontend mock fetches with live API calls for campaign listings and parish metrics.
+5. Document monitoring expectations (alerts for Airbyte failures, Celery retries, dbt freshness).
 
 Track progress via the project management tool (Jira/Linear) linked to these workstreams.

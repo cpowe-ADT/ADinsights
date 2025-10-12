@@ -75,3 +75,66 @@ ADinsights will be a self-hosted, multi-tenant marketing analytics platform for 
 - [ ] Secure secrets management integration (e.g., AWS Secrets Manager or Vault) for runtime keys.
 - [ ] Stand up Metabase/Superset dashboards connected to the API once metrics are available.
 - [ ] Use [`docs/task_breakdown.md`](docs/task_breakdown.md) to track sprint assignments and validation.
+
+## Local Development Guide
+
+Use the section below to run each component independently or orchestrate a quick end-to-end smoke
+test.
+
+### Backend API (Django + DRF)
+```bash
+cd backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.sample .env  # adjust credentials as needed
+python manage.py migrate
+python manage.py runserver 0.0.0.0:8000
+```
+- Sample endpoints: `GET /api/health/`, `GET /api/timezone/`, `POST /api/auth/login/`, `GET /api/me/`.
+- For multi-tenant RLS policies run `python manage.py enable_rls` after your database is provisioned.
+- Start Celery workers with `celery -A core worker -l info` and `celery -A core beat -l info` once Redis
+  is running.
+
+### Frontend Shell (React + Vite)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+The dev server runs on <http://localhost:5173>. The shell consumes mock data from
+`public/sample_metrics.json` until backend APIs are wired in.
+
+### Airbyte Connectors
+```bash
+cd infrastructure/airbyte
+docker compose up -d
+```
+Navigate to <http://localhost:8000> to configure sources. Use the `.example` files in `sources/` as
+templates and follow the README for recommended sync cadences.
+
+### dbt Staging Models
+```bash
+cd dbt
+cp profiles-example.yml ~/.dbt/profiles.yml  # adjust connection details
+dbt debug
+dbt seed
+dbt run --select staging
+```
+The staging models expect Airbyte raw tables to exist. Running them early validates schemas before
+fact/dim layers are added.
+
+### Quick Smoke Test
+1. Start the backend API and create a tenant/user via Django admin.
+2. Run the frontend dev server and confirm the grid and map render with mock data.
+3. Hit `GET /api/timezone/` from your browser or `curl` to confirm backend connectivity.
+4. (Optional) Trigger `celery -A core call core.tasks.sync_meta_example` from another terminal to see
+   asynchronous task logging.
+
+## Testing Matrix
+- **Backend:** `pytest`, `ruff check backend`
+- **Frontend:** `npm install && npm run build`
+- **dbt:** `dbt seed`, `dbt run --select staging`
+- **Infrastructure:** `docker compose ps` inside `infrastructure/airbyte/` to confirm containers are
+  healthy.
+
+Consider wiring these commands into CI once secrets management is settled.
