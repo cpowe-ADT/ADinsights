@@ -1,0 +1,14 @@
+# Node
+node_modules/
+frontend/dist/
+
+# Python
+backend/.venv/
+__pycache__/
+
+# Env files
+.env
+*.env
+
+# Packaging artifacts
+*.tar.gz

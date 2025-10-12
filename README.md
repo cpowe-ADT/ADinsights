@@ -3,6 +3,14 @@
 ## Project Overview
 ADinsights will be a self-hosted, multi-tenant marketing analytics platform for Jamaican agencies. It will ingest performance data from Meta, Google Ads, and optional LinkedIn/TikTok sources, normalize it with dbt, and deliver dashboards, grids, maps, alerts, and AI-generated summaries tailored to Jamaica's parishes.
 
+## Repository Structure (Sprint Bootstrap)
+
+- `frontend/` – React + Vite SPA featuring TanStack Table and Leaflet/deck.gl based parish choropleth with AI-generated summaries.
+- `backend/` – FastAPI service exposing dashboard APIs, SQL alert orchestration, and LLM integration helpers.
+- `bi/superset/` – Declarative Superset assets (datasets, dashboards, subscriptions) for campaign, creative, and budget pacing analytics.
+- `deploy/` – Docker Compose stack definitions and automation script for full platform deployments.
+- `docs/runbooks/` – Operational runbooks covering deployments, monitoring, and alerting workflows.
+
 ## Implementation Roadmap
 
 ### Phase 0 – Foundations
