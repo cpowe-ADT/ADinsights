@@ -1,3 +1,23 @@
+__pycache__/
+*.py[cod]
+*.sqlite3
+.env
+.env.*
+*.log
+*.pot
+*.pyc
+.DS_Store
+node_modules/
+.dist/
+.vscode/
+.idea/
+*.egg-info/
+/.venv/
+/.mypy_cache/
+/.pytest_cache/
+/dbt/target/
+/dbt/logs/
+.airbyte/
 # Node
 node_modules/
 frontend/dist/

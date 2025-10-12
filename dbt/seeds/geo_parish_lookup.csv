@@ -1,3 +1,9 @@
+city,region,parish_code
+Kingston,Kingston,JM01
+Portmore,St Catherine,JM04
+Spanish Town,St Catherine,JM04
+Montego Bay,St James,JM08
+Mandeville,Manchester,JM12
 region_name,parish_name,parish_code,latitude,longitude
 Corporate Area,Kingston,KIN,17.9714,-76.7936
 Corporate Area,St Andrew,SAN,18.0325,-76.7999

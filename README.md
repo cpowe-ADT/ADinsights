@@ -3,13 +3,12 @@
 ## Project Overview
 ADinsights will be a self-hosted, multi-tenant marketing analytics platform for Jamaican agencies. It will ingest performance data from Meta, Google Ads, and optional LinkedIn/TikTok sources, normalize it with dbt, and deliver dashboards, grids, maps, alerts, and AI-generated summaries tailored to Jamaica's parishes.
 
-## Repository Structure (Sprint Bootstrap)
-
-- `frontend/` – React + Vite SPA featuring TanStack Table and Leaflet/deck.gl based parish choropleth with AI-generated summaries.
-- `backend/` – FastAPI service exposing dashboard APIs, SQL alert orchestration, and LLM integration helpers.
-- `bi/superset/` – Declarative Superset assets (datasets, dashboards, subscriptions) for campaign, creative, and budget pacing analytics.
-- `deploy/` – Docker Compose stack definitions and automation script for full platform deployments.
-- `docs/runbooks/` – Operational runbooks covering deployments, monitoring, and alerting workflows.
+## Repository Structure
+- **backend/**: Django + DRF API with multi-tenant auth, Celery tasks, and encrypted credential storage.
+- **infrastructure/airbyte/**: Docker Compose stack and redacted source templates for Airbyte.
+- **dbt/**: dbt project with staging models, macros, and parish lookup seed.
+- **frontend/**: React + Vite shell featuring TanStack Table and Leaflet choropleth with mock data.
+- **docs/**: Planning artifacts including the roadmap breakdown.
 
 ## Implementation Roadmap
 
@@ -69,9 +68,10 @@ ADinsights will be a self-hosted, multi-tenant marketing analytics platform for 
    - Provide training sessions for analysts and admins.
 
 ## Next Steps Checklist
-- [ ] Choose backend framework and initialize service.
-- [ ] Provision infrastructure for Airbyte, dbt, and BI tool.
-- [ ] Draft detailed technical design docs for connectors, data models, and frontend architecture.
-- [ ] Define secrets management strategy (e.g., AWS Secrets Manager, Vault).
-- [ ] Establish project management tracking (Jira/Linear) aligned with phases above.
-- [ ] Use [`docs/task_breakdown.md`](docs/task_breakdown.md) to assign sprint tasks and track completion.
+- [x] Choose backend framework and initialize service.
+- [x] Provision infrastructure scaffolds for Airbyte, dbt, and frontend shell.
+- [ ] Configure Airbyte connections with production credentials and schedule hourly metric syncs.
+- [ ] Extend dbt models beyond staging to deliver fact tables, metrics dictionary, and parish mapping logic.
+- [ ] Secure secrets management integration (e.g., AWS Secrets Manager or Vault) for runtime keys.
+- [ ] Stand up Metabase/Superset dashboards connected to the API once metrics are available.
+- [ ] Use [`docs/task_breakdown.md`](docs/task_breakdown.md) to track sprint assignments and validation.

@@ -1,3 +1,24 @@
+name: "ads_reporting"
+version: "1.0"
+config-version: 2
+profile: "ads_reporting"
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+
+models:
+  ads_reporting:
+    staging:
+      +materialized: incremental
+      +on_schema_change: sync
+      +incremental_strategy: delete+insert
+      meta:
+        +tags: ["staging"]
+
+seeds:
+  ads_reporting:
+    +quote_columns: false
 name: 'adinsights'
 version: '1.0'
 config-version: 2

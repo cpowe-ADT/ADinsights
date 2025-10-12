@@ -1,0 +1,11 @@
+{
+  "name": "LinkedIn Ads",
+  "sourceType": "custom-python",
+  "workspaceId": "REDACTED",
+  "configuration": {
+    "client_id": "REDACTED",
+    "client_secret": "REDACTED",
+    "access_token": "REDACTED",
+    "note": "TODO: implement custom Airbyte source hitting adAnalytics with q=statistics and q=attributedRevenueMetrics"
+  }
+}

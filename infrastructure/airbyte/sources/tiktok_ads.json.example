@@ -1,0 +1,9 @@
+{
+  "name": "TikTok Transparency",
+  "sourceType": "custom-python",
+  "workspaceId": "REDACTED",
+  "configuration": {
+    "api_key": "REDACTED",
+    "note": "TODO: build connector for TikTok Commercial Content API (EU-only data)"
+  }
+}
