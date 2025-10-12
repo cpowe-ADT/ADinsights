@@ -1,0 +1,17 @@
+version: 1.0.0
+metadata:
+  import_time: 2024-07-18T00:00:00Z
+  dashboard_uuid: 22345678-1234-5678-9abc-1234567890ab
+  published: true
+dashboard:
+  dashboard_title: Budget Pacing & Parish Heatmap
+  metadata:
+    refresh_frequency: 900
+    native_filter_configuration: []
+  charts:
+    - slice_name: Budget vs Actual by Market
+      viz_type: area
+      dataset_uuid: c9b87c0a-208d-4f7a-9e4e-1234567890ab
+    - slice_name: Parish choropleth
+      viz_type: deck_gl
+      dataset_uuid: c9b87c0a-208d-4f7a-9e4e-1234567890ab

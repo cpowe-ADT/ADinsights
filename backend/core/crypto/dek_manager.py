@@ -5,10 +5,15 @@ from typing import Tuple
 
 from django.conf import settings
 
+from typing import TYPE_CHECKING
+
 from accounts.models import Tenant, TenantKey
 
 from .fields import decrypt_value, encrypt_value
 from .kms import get_kms_client
+
+if TYPE_CHECKING:
+    from integrations.models import PlatformCredential
 
 
 def _kms():
