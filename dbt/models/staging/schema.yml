@@ -1,0 +1,33 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: "Raw ingested tables from Airbyte"
+    tables:
+      - name: meta_ads_insights
+        description: "Meta Ads insights pulled from the Marketing API."
+      - name: google_ads_insights
+        description: "Google Ads performance data."
+      - name: linkedin_transparency
+        description: "LinkedIn Ads transparency export (optional)."
+      - name: tiktok_transparency
+        description: "TikTok Ads transparency data (optional)."
+
+models:
+  - name: stg_meta_ads
+    description: "Normalized Meta Ads insights with Jamaican geo enrichment."
+    columns:
+      - name: ad_account_id
+        tests:
+          - not_null
+      - name: campaign_id
+      - name: date_day
+        tests:
+          - not_null
+  - name: stg_google_ads
+    description: "Normalized Google Ads performance data."
+  - name: stg_linkedin_transparency
+    description: "Optional LinkedIn transparency staging model."
+  - name: stg_tiktok_transparency
+    description: "Optional TikTok transparency staging model."
