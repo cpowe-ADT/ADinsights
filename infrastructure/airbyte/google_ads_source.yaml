@@ -29,20 +29,20 @@ connectionConfiguration:
           segments.geo_target_region AS geo_target_region
         FROM ad_group_ad
         WHERE segments.date >= '{{ runtime_from_date }}'
-      cursor_field: segments.date
+      cursor_field: date_day
       primary_key:
-        - campaign.id
-        - ad_group.id
-        - ad_group_ad.ad.id
-        - segments.date
+        - campaign_id
+        - ad_group_id
+        - criterion_id
+        - date_day
 streams:
   - name: google_ads_insights
     syncMode: incremental
     cursorField:
-      - segments.date
+      - date_day
     primaryKey:
-      - - campaign.id
-        - ad_group.id
-        - ad_group_ad.ad.id
-        - segments.date
+      - - campaign_id
+        - ad_group_id
+        - criterion_id
+        - date_day
     destinationSyncMode: append_dedup
