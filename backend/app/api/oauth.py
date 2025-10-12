@@ -10,7 +10,6 @@ from ..security import (
     OAuthStateStore,
     TokenEncryptor,
     compute_expiry,
-    generate_state,
 )
 
 router = APIRouter(prefix="/oauth", tags=["oauth"])
@@ -22,7 +21,7 @@ oauth_state_store = OAuthStateStore()
 
 @router.get("/{platform}/authorize", response_model=schemas.OAuthAuthorizationUrl)
 async def authorize(platform: str, tenant_id: int) -> schemas.OAuthAuthorizationUrl:
-    state = generate_state()
+    state = oauth_state_store.issue(tenant_id, platform)
     scopes = [
         "public_profile",
         "ads_read",
@@ -35,7 +34,6 @@ async def authorize(platform: str, tenant_id: int) -> schemas.OAuthAuthorization
         ]
 
     url = oauth_provider.build_authorization_url(platform, state, scopes)
-    oauth_state_store.issue(state, tenant_id, platform)
     return schemas.OAuthAuthorizationUrl(authorization_url=url)
 
 

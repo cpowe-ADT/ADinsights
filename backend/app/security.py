@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
@@ -106,41 +107,55 @@ def generate_state() -> str:
 
 
 class OAuthStateStore:
-    def __init__(self, ttl_seconds: int = 600) -> None:
+    def __init__(
+        self,
+        ttl_seconds: int = 600,
+        token_encryptor: TokenEncryptor | None = None,
+    ) -> None:
         self._ttl = timedelta(seconds=ttl_seconds)
-        self._states: dict[str, tuple[int, str, datetime]] = {}
+        self._encryptor = token_encryptor or TokenEncryptor()
 
-    def issue(self, state: str, tenant_id: int, platform: str) -> None:
-        self._purge_expired()
+    def issue(self, tenant_id: int, platform: str) -> str:
         expires_at = datetime.utcnow() + self._ttl
-        self._states[state] = (tenant_id, platform, expires_at)
+        payload = {
+            "tenant_id": tenant_id,
+            "platform": platform,
+            "exp": expires_at.isoformat(),
+            "nonce": generate_state(),
+        }
+        serialized = json.dumps(payload)
+        return self._encryptor.encrypt(serialized)
 
     def validate(self, state: str, tenant_id: int, platform: str) -> bool:
-        self._purge_expired()
-        entry = self._states.get(state)
-        if entry is None:
+        try:
+            payload_raw = self._encryptor.decrypt(state)
+        except Exception:
             return False
 
-        expected_tenant, expected_platform, expires_at = entry
+        try:
+            payload = json.loads(payload_raw)
+        except json.JSONDecodeError:
+            return False
+
+        expires_at_raw = payload.get("exp")
+        if not isinstance(expires_at_raw, str):
+            return False
+
+        try:
+            expires_at = datetime.fromisoformat(expires_at_raw)
+        except ValueError:
+            return False
+
         if expires_at < datetime.utcnow():
-            self._states.pop(state, None)
             return False
 
-        if expected_tenant != tenant_id or expected_platform != platform:
+        if payload.get("tenant_id") != tenant_id:
             return False
 
-        self._states.pop(state, None)
+        if payload.get("platform") != platform:
+            return False
+
         return True
-
-    def _purge_expired(self) -> None:
-        now = datetime.utcnow()
-        expired_states = [
-            state
-            for state, (_, _, expires_at) in self._states.items()
-            if expires_at < now
-        ]
-        for state in expired_states:
-            self._states.pop(state, None)
 
 
 _password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
