@@ -18,6 +18,18 @@ const MetricsGrid = () => {
     return rows.filter((row) => row.parish === selectedParish);
   }, [rows, selectedParish]);
 
+  const sortedRows = useMemo<MetricRow[]>(() => {
+    if (filteredRows.length === 0) {
+      return [];
+    }
+
+    return [...filteredRows].sort((a, b) => {
+      const left = b[selectedMetric] ?? 0;
+      const right = a[selectedMetric] ?? 0;
+      return left - right;
+    });
+  }, [filteredRows, selectedMetric]);
+
   const columns = useMemo<ColumnDef<MetricRow>[]>(
     () => [
       { header: "Date", accessorKey: "date" },
@@ -34,7 +46,7 @@ const MetricsGrid = () => {
   );
 
   const table = useReactTable({
-    data: filteredRows,
+    data: sortedRows,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -63,7 +75,10 @@ const MetricsGrid = () => {
         </thead>
         <tbody>
           {table.getRowModel().rows.map((row) => (
-            <tr key={row.id}>
+            <tr
+              key={row.id}
+              className={row.original.parish === selectedParish ? "selected" : undefined}
+            >
               {row.getVisibleCells().map((cell) => (
                 <td key={cell.id}>{flexRender(cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()), cell.getContext())}</td>
               ))}
