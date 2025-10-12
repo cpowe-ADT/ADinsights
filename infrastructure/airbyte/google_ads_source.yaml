@@ -16,23 +16,33 @@ connectionConfiguration:
   include_zero_impressions: true
   custom_queries:
     - query: |
-        SELECT segments.date, customer.id, campaign.id, ad_group.id,
-               metrics.cost_micros, metrics.impressions, metrics.clicks,
-               metrics.conversions, segments.geo_target_region
-        FROM ad_group
+        SELECT
+          segments.date AS date_day,
+          customer.id AS customer_id,
+          campaign.id AS campaign_id,
+          ad_group.id AS ad_group_id,
+          ad_group_ad.ad.id AS criterion_id,
+          metrics.cost_micros,
+          metrics.impressions,
+          metrics.clicks,
+          metrics.conversions,
+          segments.geo_target_region AS geo_target_region
+        FROM ad_group_ad
         WHERE segments.date >= '{{ runtime_from_date }}'
       cursor_field: segments.date
       primary_key:
         - campaign.id
         - ad_group.id
+        - ad_group_ad.ad.id
         - segments.date
 streams:
-  - name: ad_group_performance
+  - name: google_ads_insights
     syncMode: incremental
     cursorField:
       - segments.date
     primaryKey:
       - - campaign.id
         - ad_group.id
+        - ad_group_ad.ad.id
         - segments.date
     destinationSyncMode: append_dedup
