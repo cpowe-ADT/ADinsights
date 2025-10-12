@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  db:
+    image: airbyte/db:1.0.0
+    container_name: airbyte-db
+    environment:
+      - POSTGRES_USER=airbyte
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=airbyte
+    volumes:
+      - airbyte-db-data:/var/lib/postgresql/data
+
+  temporal:
+    image: temporalio/auto-setup:1.25.0
+    container_name: airbyte-temporal
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=airbyte
+      - POSTGRES_PWD=password
+      - POSTGRES_SEEDS=db
+    depends_on:
+      - db
+
+  server:
+    image: airbyte/airbyte-server:0.50.22
+    container_name: airbyte-server
+    environment:
+      - AIRBYTE_ROLE=server
+      - DATABASE_USER=airbyte
+      - DATABASE_PASSWORD=password
+      - DATABASE_URL=jdbc:postgresql://db:5432/airbyte
+      - DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION=0.40.24
+    ports:
+      - "8001:8001"
+    depends_on:
+      - db
+      - temporal
+
+  webapp:
+    image: airbyte/airbyte-webapp:0.50.22
+    container_name: airbyte-webapp
+    environment:
+      - AIRBYTE_ROLE=webapp
+      - AIRBYTE_API_URL=http://server:8001
+    ports:
+      - "8000:80"
+    depends_on:
+      - server
+
+  worker:
+    image: airbyte/airbyte-worker:0.50.22
+    container_name: airbyte-worker
+    environment:
+      - AIRBYTE_ROLE=worker
+      - DATABASE_USER=airbyte
+      - DATABASE_PASSWORD=password
+      - DATABASE_URL=jdbc:postgresql://db:5432/airbyte
+      - AIRBYTE_API_URL=http://server:8001
+      - WORKER_ENVIRONMENT=DOCKER
+    depends_on:
+      - server
+      - temporal
+
+volumes:
+  airbyte-db-data:

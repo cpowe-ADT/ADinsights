@@ -1,0 +1,14 @@
+{
+  "name": "Meta Marketing",
+  "sourceType": "facebook-marketing",
+  "workspaceId": "REDACTED",
+  "configuration": {
+    "account_id": "REDACTED",
+    "app_id": "REDACTED",
+    "app_secret": "REDACTED",
+    "access_token": "REDACTED",
+    "start_date": "2024-01-01",
+    "breakdowns": ["country", "region", "city"],
+    "lookback_window_days": 3
+  }
+}
