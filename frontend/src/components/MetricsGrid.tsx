@@ -30,6 +30,18 @@ const MetricsGrid = () => {
     [setSelectedParish]
   );
 
+  const sortedRows = useMemo<MetricRow[]>(() => {
+    if (filteredRows.length === 0) {
+      return [];
+    }
+
+    return [...filteredRows].sort((a, b) => {
+      const left = b[selectedMetric] ?? 0;
+      const right = a[selectedMetric] ?? 0;
+      return left - right;
+    });
+  }, [filteredRows, selectedMetric]);
+
   const columns = useMemo<ColumnDef<MetricRow>[]>(
     () => [
       { header: "Date", accessorKey: "date" },
