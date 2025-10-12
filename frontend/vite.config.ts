@@ -1,15 +1,7 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    port: 5173,
-    host: "0.0.0.0",
-  },
-import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
 
 const childProcessShim = fileURLToPath(new URL("./src/shims/child_process.ts", import.meta.url));
 const emptyShim = fileURLToPath(new URL("./src/shims/empty.ts", import.meta.url));
@@ -20,15 +12,15 @@ export default defineConfig({
     alias: {
       child_process: childProcessShim,
       fs: emptyShim,
-      module: emptyShim
-    }
+      module: emptyShim,
+    },
   },
   define: {
     "process.env": {},
-    global: "globalThis"
+    global: "globalThis",
   },
   server: {
     port: 5173,
-    host: "0.0.0.0"
-  }
+    host: "0.0.0.0",
+  },
 });
