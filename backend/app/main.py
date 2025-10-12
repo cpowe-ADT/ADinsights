@@ -31,7 +31,7 @@ async def startup_event() -> None:
 async def shutdown_event() -> None:
   scheduler = getattr(app.state, "scheduler", None)
   if scheduler:
-    scheduler.shutdown()
+    await scheduler.shutdown()
 
 
 @app.get("/health")

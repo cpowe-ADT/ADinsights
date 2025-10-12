@@ -33,14 +33,17 @@ async def dispatch_alert(rule: AlertRule, records: Iterable[dict]) -> None:
 async def run_alert_cycle() -> None:
   settings = get_settings()
   engine = create_async_engine(settings.database_url)
-  for rule in CAMPAIGN_PACING_RULES:
-    try:
-      records = await evaluate_rule(engine, rule)
-    except Exception as exc:  # pragma: no cover - defensive logging
-      logger.exception("Failed to evaluate rule %s", rule.name)
-      continue
-    if records:
-      await dispatch_alert(rule, records)
+  try:
+    for rule in CAMPAIGN_PACING_RULES:
+      try:
+        records = await evaluate_rule(engine, rule)
+      except Exception as exc:  # pragma: no cover - defensive logging
+        logger.exception("Failed to evaluate rule %s", rule.name)
+        continue
+      if records:
+        await dispatch_alert(rule, records)
+  finally:
+    await engine.dispose()
 
 
 async def schedule_jobs() -> AsyncIOScheduler:
