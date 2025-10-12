@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: dim_campaigns
+    description: "SCD2 dimension for campaign attributes across ad platforms."
+    columns:
+      - name: source_platform
+      - name: ad_account_id
+      - name: campaign_id
+      - name: valid_from
+      - name: valid_to
+      - name: is_current
+  - name: dim_adsets
+    description: "SCD2 dimension for ad set/ad group level attributes."
+  - name: dim_ads
+    description: "SCD2 dimension for creative/ad level attributes."
+  - name: dim_geo_parishes
+    description: "Static lookup table mapping marketing regions to Jamaican parishes."
+    columns:
+      - name: parish_code
+        tests:
+          - not_null
+          - unique
+      - name: parish_name
+      - name: region_name
+  - name: fct_ad_performance
+    description: "Daily fact table for spend and performance metrics across platforms."
+    columns:
+      - name: date_day
+        tests:
+          - not_null
+      - name: source_platform
+      - name: spend
+      - name: impressions
+      - name: ctr
+      - name: conversion_rate
