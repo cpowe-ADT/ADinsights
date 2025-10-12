@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "adinsights-backend"
+version = "0.1.0"
+description = "Multi-tenant advertising insights backend"
+authors = ["ADinsights Team <team@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.111.0"
+uvicorn = {extras = ["standard"], version = "^0.30.0"}
+sqlalchemy = "^2.0.29"
+psycopg2-binary = "^2.9.9"
+alembic = "^1.13.1"
+python-dotenv = "^1.0.1"
+cryptography = "^42.0.5"
+httpx = "^0.27.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.1.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
