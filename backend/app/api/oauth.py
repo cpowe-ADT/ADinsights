@@ -5,12 +5,19 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
-from ..security import OAuthProvider, TokenEncryptor, compute_expiry, generate_state
+from ..security import (
+    OAuthProvider,
+    OAuthStateStore,
+    TokenEncryptor,
+    compute_expiry,
+    generate_state,
+)
 
 router = APIRouter(prefix="/oauth", tags=["oauth"])
 
 token_encryptor = TokenEncryptor()
 oauth_provider = OAuthProvider()
+oauth_state_store = OAuthStateStore()
 
 
 @router.get("/{platform}/authorize", response_model=schemas.OAuthAuthorizationUrl)
@@ -28,6 +35,7 @@ async def authorize(platform: str, tenant_id: int) -> schemas.OAuthAuthorization
         ]
 
     url = oauth_provider.build_authorization_url(platform, state, scopes)
+    oauth_state_store.issue(state, tenant_id, platform)
     return schemas.OAuthAuthorizationUrl(authorization_url=url)
 
 
@@ -38,6 +46,12 @@ async def oauth_callback(
     tenant_id: int,
     db: Session = Depends(get_db),
 ) -> schemas.TokenResponse:
+    if not oauth_state_store.validate(payload.state, tenant_id, platform):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired OAuth state",
+        )
+
     tenant = db.get(models.Tenant, tenant_id)
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")

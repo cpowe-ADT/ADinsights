@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 
 import httpx
 from cryptography.fernet import Fernet
+from passlib.context import CryptContext
 
 from .config import SettingsType, get_settings
 
@@ -102,3 +103,52 @@ def compute_expiry(expires_in: Optional[int]) -> Optional[datetime]:
 
 def generate_state() -> str:
     return base64.urlsafe_b64encode(os.urandom(24)).decode("utf-8")
+
+
+class OAuthStateStore:
+    def __init__(self, ttl_seconds: int = 600) -> None:
+        self._ttl = timedelta(seconds=ttl_seconds)
+        self._states: dict[str, tuple[int, str, datetime]] = {}
+
+    def issue(self, state: str, tenant_id: int, platform: str) -> None:
+        self._purge_expired()
+        expires_at = datetime.utcnow() + self._ttl
+        self._states[state] = (tenant_id, platform, expires_at)
+
+    def validate(self, state: str, tenant_id: int, platform: str) -> bool:
+        self._purge_expired()
+        entry = self._states.get(state)
+        if entry is None:
+            return False
+
+        expected_tenant, expected_platform, expires_at = entry
+        if expires_at < datetime.utcnow():
+            self._states.pop(state, None)
+            return False
+
+        if expected_tenant != tenant_id or expected_platform != platform:
+            return False
+
+        self._states.pop(state, None)
+        return True
+
+    def _purge_expired(self) -> None:
+        now = datetime.utcnow()
+        expired_states = [
+            state
+            for state, (_, _, expires_at) in self._states.items()
+            if expires_at < now
+        ]
+        for state in expired_states:
+            self._states.pop(state, None)
+
+
+_password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def hash_password(password: str) -> str:
+    return _password_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return _password_context.verify(plain_password, hashed_password)

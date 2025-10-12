@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
-from ..security import TokenEncryptor
+from ..security import hash_password
 
 router = APIRouter(prefix="/rbac", tags=["rbac"])
 
@@ -53,7 +53,7 @@ def create_user(
     user = models.User(
         email=payload.email,
         full_name=payload.full_name,
-        hashed_password=TokenEncryptor().encrypt(payload.password),
+        hashed_password=hash_password(payload.password),
         tenant=tenant,
         role=role,
     )
