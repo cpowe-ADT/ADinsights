@@ -1,0 +1,38 @@
+# Google Ads source configuration for Airbyte
+sourceDefinitionId: 0b29e8f7-f64c-4a24-9e97-07c4603f8c04  # Official Google Ads source
+workspaceId: <replace-with-workspace-uuid>
+name: "Google Ads Incremental"
+connectionConfiguration:
+  developer_token: {{ secrets_manager.google_ads_developer_token }}
+  client_id: {{ secrets_manager.google_ads_client_id }}
+  client_secret: {{ secrets_manager.google_ads_client_secret }}
+  refresh_token: {{ secrets_manager.google_ads_refresh_token }}
+  customer_id: <encrypted-customer-id>
+  login_customer_id: <mcc-id-if-needed>
+  start_date: "2023-01-01"
+  end_date: null
+  conversion_window: 30
+  lookback_window: 30
+  include_zero_impressions: true
+  custom_queries:
+    - query: |
+        SELECT segments.date, customer.id, campaign.id, ad_group.id,
+               metrics.cost_micros, metrics.impressions, metrics.clicks,
+               metrics.conversions, segments.geo_target_region
+        FROM ad_group
+        WHERE segments.date >= '{{ runtime_from_date }}'
+      cursor_field: segments.date
+      primary_key:
+        - campaign.id
+        - ad_group.id
+        - segments.date
+streams:
+  - name: ad_group_performance
+    syncMode: incremental
+    cursorField:
+      - segments.date
+    primaryKey:
+      - - campaign.id
+        - ad_group.id
+        - segments.date
+    destinationSyncMode: append_dedup
