@@ -9,6 +9,7 @@ from .models import PlatformCredential
 class PlatformCredentialSerializer(serializers.ModelSerializer):
     access_token = serializers.CharField(write_only=True, required=True)
     refresh_token = serializers.CharField(
+        write_only=True, required=False, allow_null=True, allow_blank=True
         write_only=False, required=False, allow_null=True, allow_blank=True
     )
 
