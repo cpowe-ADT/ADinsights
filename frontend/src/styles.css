@@ -61,6 +61,28 @@ html,
   font-weight: 600;
 }
 
+.metrics-grid tbody tr:hover {
+  background: #f8fafc;
+}
+
+.metrics-grid tbody tr {
+  cursor: pointer;
+  outline: none;
+}
+
+.metrics-grid tbody tr:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+.metrics-grid tr.selected {
+  background: #e0f2fe;
+}
+
+.metrics-grid tr.selected:hover {
+  background: #bfdbfe;
+}
+
 .leaflet-container {
   width: 100%;
   height: 100%;

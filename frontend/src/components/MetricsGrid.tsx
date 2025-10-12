@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
   ColumnDef,
   flexRender,
@@ -9,14 +9,26 @@ import {
 import useDashboardStore, { MetricRow } from "../state/useDashboardStore";
 
 const MetricsGrid = () => {
-  const { rows, selectedParish, selectedMetric } = useDashboardStore();
+  const { rows, selectedParish, selectedMetric, setSelectedParish } = useDashboardStore();
 
-  const filteredRows = useMemo<MetricRow[]>(() => {
-    if (!selectedParish) {
-      return rows;
+  const sortedRows = useMemo<MetricRow[]>(() => {
+    if (rows.length === 0) {
+      return [];
     }
-    return rows.filter((row) => row.parish === selectedParish);
-  }, [rows, selectedParish]);
+
+    return [...rows].sort((a, b) => {
+      const left = b[selectedMetric] ?? 0;
+      const right = a[selectedMetric] ?? 0;
+      return left - right;
+    });
+  }, [rows, selectedMetric]);
+
+  const handleRowSelect = useCallback(
+    (parish: string) => {
+      setSelectedParish(parish);
+    },
+    [setSelectedParish]
+  );
 
   const columns = useMemo<ColumnDef<MetricRow>[]>(
     () => [
@@ -34,7 +46,7 @@ const MetricsGrid = () => {
   );
 
   const table = useReactTable({
-    data: filteredRows,
+    data: sortedRows,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -42,13 +54,16 @@ const MetricsGrid = () => {
   return (
     <div className="metrics-grid">
       <h2>Performance Grid</h2>
-      {selectedParish ? (
-        <p>
-          Showing results for <strong>{selectedParish}</strong> ordered by {selectedMetric}.
-        </p>
-      ) : (
-        <p>Showing all parishes ordered by {selectedMetric}.</p>
-      )}
+      <p>
+        Sorted by <strong>{selectedMetric}</strong>
+        {selectedParish ? (
+          <>
+            {" "}— highlighting <strong>{selectedParish}</strong>.
+          </>
+        ) : (
+          "."
+        )}
+      </p>
       <table>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -63,7 +78,19 @@ const MetricsGrid = () => {
         </thead>
         <tbody>
           {table.getRowModel().rows.map((row) => (
-            <tr key={row.id}>
+            <tr
+              key={row.id}
+              className={row.original.parish === selectedParish ? "selected" : undefined}
+              tabIndex={0}
+              onClick={() => handleRowSelect(row.original.parish)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  handleRowSelect(row.original.parish);
+                }
+              }}
+              aria-selected={row.original.parish === selectedParish}
+            >
               {row.getVisibleCells().map((cell) => (
                 <td key={cell.id}>{flexRender(cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()), cell.getContext())}</td>
               ))}

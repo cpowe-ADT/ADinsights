@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GeoJSON as GeoJSONLayer, MapContainer, TileLayer } from "react-leaflet";
 import type { Feature, FeatureCollection } from "geojson";
 import L from "leaflet";
@@ -6,6 +6,15 @@ import L from "leaflet";
 import useDashboardStore from "../state/useDashboardStore";
 
 const JAMAICA_CENTER: [number, number] = [18.1096, -77.2975];
+
+function getFeatureName(feature: Feature): string {
+  const name =
+    typeof feature?.properties === "object" && feature.properties !== null
+      ? (feature.properties as { name?: unknown }).name
+      : undefined;
+
+  return typeof name === "string" && name.length > 0 ? name : "Unknown";
+}
 
 function computeBreaks(values: number[]): number[] {
   if (values.length === 0) {
@@ -31,6 +40,13 @@ function getColor(value: number, breaks: number[]): string {
 const ParishMap = () => {
   const { rows, selectedMetric, selectedParish, setSelectedParish } = useDashboardStore();
   const [geojson, setGeojson] = useState<FeatureCollection | null>(null);
+  const geoJsonRef = useRef<L.GeoJSON | null>(null);
+  const styleForParishRef = useRef<(name: string) => L.PathOptions>(() => ({
+    color: "#1e293b",
+    weight: 1,
+    fillColor: "#f1f5f9",
+    fillOpacity: 0.8,
+  }));
 
   useEffect(() => {
     fetch("/jm_parishes.json")
@@ -50,34 +66,90 @@ const ParishMap = () => {
 
   const breaks = useMemo(() => computeBreaks(Object.values(metricByParish)), [metricByParish]);
 
-  const onEachFeature = (feature: Feature, layer: L.Layer) => {
-    const name = feature.properties?.name ?? "Unknown";
-    const value = metricByParish[name] ?? 0;
+  const styleForParish = useCallback(
+    (name: string): L.PathOptions => {
+      const value = metricByParish[name] ?? 0;
 
-    if ((layer as L.Path).setStyle) {
-      (layer as L.Path).setStyle({
+      return {
         fillColor: getColor(value, breaks),
-        weight: 1,
+        weight: selectedParish === name ? 2 : 1,
         color: selectedParish === name ? "#f97316" : "#1e293b",
         fillOpacity: 0.8,
+      };
+    },
+    [breaks, metricByParish, selectedParish]
+  );
+
+  const tooltipForParish = useCallback(
+    (name: string) => {
+      const value = metricByParish[name] ?? 0;
+      return `${name}<br/>${selectedMetric.toUpperCase()}: ${value.toLocaleString()}`;
+    },
+    [metricByParish, selectedMetric]
+  );
+
+  useEffect(() => {
+    styleForParishRef.current = styleForParish;
+  }, [styleForParish]);
+
+  const onEachFeature = useCallback(
+    (feature: Feature, layer: L.Layer) => {
+      const name = getFeatureName(feature);
+
+      const pathLayer = layer as L.Path;
+      if (pathLayer.setStyle) {
+        pathLayer.setStyle(styleForParish(name));
+      }
+
+      const tooltipText = tooltipForParish(name);
+      const typedLayer = layer as L.Layer & { getTooltip?: () => L.Tooltip | undefined };
+      const existingTooltip = typedLayer.getTooltip?.();
+      if (existingTooltip) {
+        existingTooltip.setContent(tooltipText);
+      } else {
+        typedLayer.bindTooltip(tooltipText, { sticky: true });
+      }
+
+      layer.on({
+        click: () => setSelectedParish(name),
+        mouseover: () => {
+          pathLayer.setStyle({ weight: Math.max(pathLayer.options.weight ?? 1, 2) });
+        },
+        mouseout: () => {
+          pathLayer.setStyle(styleForParishRef.current(name));
+        },
       });
+    },
+    [setSelectedParish, styleForParish, tooltipForParish]
+  );
+
+  useEffect(() => {
+    if (!geoJsonRef.current) {
+      return;
     }
 
-    layer.on({
-      click: () => setSelectedParish(name),
-      mouseover: () => {
-        (layer as L.Path).setStyle({ weight: 2 });
-      },
-      mouseout: () => {
-        (layer as L.Path).setStyle({ weight: 1 });
-      },
-    });
+    geoJsonRef.current.eachLayer((layer) => {
+      const feature = (layer as L.Layer & { feature?: Feature }).feature;
+      if (!feature) {
+        return;
+      }
 
-    layer.bindTooltip(
-      `${name}<br/>${selectedMetric.toUpperCase()}: ${value.toLocaleString()}`,
-      { sticky: true }
-    );
-  };
+      const name = getFeatureName(feature);
+      const pathLayer = layer as L.Path;
+      if (pathLayer.setStyle) {
+        pathLayer.setStyle(styleForParish(name));
+      }
+
+      const tooltipText = tooltipForParish(name);
+      const typedLayer = layer as L.Layer & { getTooltip?: () => L.Tooltip | undefined };
+      const existingTooltip = typedLayer.getTooltip?.();
+      if (existingTooltip) {
+        existingTooltip.setContent(tooltipText);
+      } else {
+        typedLayer.bindTooltip(tooltipText, { sticky: true });
+      }
+    });
+  }, [styleForParish, tooltipForParish]);
 
   return (
     <MapContainer center={JAMAICA_CENTER} zoom={7} scrollWheelZoom={false} style={{ height: "100%", width: "100%" }}>
@@ -86,7 +158,11 @@ const ParishMap = () => {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {geojson ? (
-        <GeoJSONLayer data={geojson as FeatureCollection} onEachFeature={onEachFeature} />
+        <GeoJSONLayer
+          ref={geoJsonRef}
+          data={geojson as FeatureCollection}
+          onEachFeature={onEachFeature}
+        />
       ) : null}
     </MapContainer>
   );
