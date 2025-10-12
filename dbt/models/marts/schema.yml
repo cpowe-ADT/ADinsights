@@ -14,6 +14,15 @@ models:
     description: "SCD2 dimension for ad set/ad group level attributes."
   - name: dim_ads
     description: "SCD2 dimension for creative/ad level attributes."
+  - name: dim_geo_parishes
+    description: "Static lookup table mapping marketing regions to Jamaican parishes."
+    columns:
+      - name: parish_code
+        tests:
+          - not_null
+          - unique
+      - name: parish_name
+      - name: region_name
   - name: fct_ad_performance
     description: "Daily fact table for spend and performance metrics across platforms."
     columns:
