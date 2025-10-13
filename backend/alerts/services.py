@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import logging
+from datetime import date, datetime
+from decimal import Decimal
 from time import monotonic
-from typing import Iterable, Sequence
+from typing import Any, Iterable, Mapping, Sequence
+from uuid import UUID
+
+import hashlib
 
 from django.utils import timezone
 
@@ -13,6 +18,55 @@ from app.llm import LLMClient, LLMError, get_llm_client
 from .models import AlertRun
 
 logger = logging.getLogger(__name__)
+
+
+_IDENTIFIER_KEYS: frozenset[str] = frozenset(
+    {
+        "ad_account_id",
+        "campaign_id",
+        "adset_id",
+        "ad_id",
+        "creative_id",
+    }
+)
+
+
+def _mask_identifier(value: Any) -> str:
+    if value is None:
+        return "ref_unknown"
+    digest = hashlib.sha256(str(value).encode("utf-8")).hexdigest()[:10]
+    return f"ref_{digest}"
+
+
+def _normalise_value(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, UUID):
+        return str(value)
+    return value
+
+
+def _sanitise_row(row: Mapping[str, Any]) -> dict[str, Any]:
+    sanitised: dict[str, Any] = {}
+    for key, value in row.items():
+        if key == "tenant_id":
+            continue
+        if key in _IDENTIFIER_KEYS or key.endswith("_id"):
+            masked_key = key[:-3] + "_ref" if key.endswith("_id") else f"{key}_ref"
+            sanitised[masked_key] = _mask_identifier(value)
+            continue
+        sanitised[key] = _normalise_value(value)
+    return sanitised
+
+
+def _sanitise_rows(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    sanitised_rows: list[dict[str, Any]] = []
+    for row in rows:
+        if isinstance(row, Mapping):
+            sanitised_rows.append(_sanitise_row(row))
+    return sanitised_rows
 
 
 class AlertService:
@@ -35,8 +89,9 @@ class AlertService:
             started = monotonic()
             try:
                 rows = self._evaluator.run(rule)
+                sanitised_rows = _sanitise_rows(rows)
                 run.row_count = len(rows)
-                run.raw_results = rows
+                run.raw_results = sanitised_rows
                 run.error_message = ""
 
                 if not rows:
@@ -44,11 +99,11 @@ class AlertService:
                     run.llm_summary = "No rows matched this alert during the cycle."
                 else:
                     try:
-                        summary = self._llm.summarize(rule, rows)
+                        summary = self._llm.summarize(rule, sanitised_rows)
                     except LLMError as exc:
                         logger.warning("LLM summary failed for %s: %s", rule.slug, exc)
                         run.status = AlertRun.Status.PARTIAL
-                        run.llm_summary = self._llm.fallback_summary(rows)
+                        run.llm_summary = self._llm.fallback_summary(sanitised_rows)
                         run.error_message = str(exc)
                     else:
                         run.status = AlertRun.Status.SUCCESS

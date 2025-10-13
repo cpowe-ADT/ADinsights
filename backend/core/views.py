@@ -14,6 +14,12 @@ from integrations.models import TenantAirbyteSyncStatus
 AIRBYTE_STALE_THRESHOLD = timedelta(hours=1)
 DBT_STALE_THRESHOLD = timedelta(hours=24)
 RUN_RESULTS_PATH = (Path(settings.BASE_DIR).parent / "dbt" / "target" / "run_results.json")
+
+
+def health(request):
+    return JsonResponse({"status": "ok"})
+
+
 def timezone_view(request):
     return JsonResponse({"timezone": settings.TIME_ZONE})
 

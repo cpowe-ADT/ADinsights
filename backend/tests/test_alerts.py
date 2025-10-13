@@ -50,10 +50,14 @@ def test_alert_service_persists_successful_run():
     assert run.status == AlertRun.Status.SUCCESS
     assert run.row_count == 1
     assert run.llm_summary == "Actionable summary"
-    assert run.raw_results == evaluator.rows
+    assert run.raw_results != evaluator.rows
+    assert run.raw_results[0]["campaign_ref"].startswith("ref_")
+    assert "campaign_id" not in run.raw_results[0]
+    assert run.raw_results[0]["ctr"] == evaluator.rows[0]["ctr"]
     assert run.error_message == ""
     assert run.completed_at is not None
     assert llm.called_with[0] == rule.slug
+    assert llm.called_with[1] == run.raw_results
 
 
 @pytest.mark.django_db
@@ -76,6 +80,8 @@ def test_alert_service_handles_llm_failure():
     assert run.error_message == "provider unavailable"
     assert run.row_count == 1
     assert llm.fallback_called is True
+    assert run.raw_results[0]["ad_account_ref"].startswith("ref_")
+    assert "ad_account_id" not in run.raw_results[0]
 
 
 @pytest.mark.django_db
@@ -91,6 +97,7 @@ def test_alert_service_handles_no_results():
     assert "No rows" in run.llm_summary
     assert run.row_count == 0
     assert llm.called_with is None
+    assert run.raw_results == []
 
 
 @pytest.mark.django_db
