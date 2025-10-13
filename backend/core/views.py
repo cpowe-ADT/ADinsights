@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta
+from statistics import mean
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Iterable, List
 
 from django.conf import settings
 from django.http import JsonResponse
 from django.utils import timezone
 
-from integrations.models import TenantAirbyteSyncStatus
+from integrations.models import AirbyteJobTelemetry, TenantAirbyteSyncStatus
 
 AIRBYTE_STALE_THRESHOLD = timedelta(hours=1)
 DBT_STALE_THRESHOLD = timedelta(hours=24)
@@ -30,12 +31,25 @@ def health_version(request):
 
 def airbyte_health(request):
     configured = _airbyte_is_configured()
-    latest_status = TenantAirbyteSyncStatus.all_objects.order_by("-last_synced_at").first()
+    latest_status = (
+        TenantAirbyteSyncStatus.all_objects.select_related("last_connection")
+        .order_by("-last_synced_at")
+        .first()
+    )
     response_data: Dict[str, Any] = {
         "component": "airbyte",
         "configured": configured,
         "last_sync": _serialize_sync_status(latest_status),
     }
+
+    recent_jobs: list[AirbyteJobTelemetry] = []
+    if latest_status and latest_status.last_connection_id:
+        recent_jobs = list(
+            AirbyteJobTelemetry.all_objects.filter(connection=latest_status.last_connection)
+            .order_by("-started_at")[:5]
+        )
+    response_data["recent_jobs"] = [_serialize_job(job) for job in recent_jobs]
+    response_data["job_summary"] = _summarise_jobs(recent_jobs) if recent_jobs else None
 
     if not configured:
         response_data.update({"status": "misconfigured", "detail": "Airbyte API credentials are not fully configured."})
@@ -150,6 +164,53 @@ def _serialize_sync_status(status: TenantAirbyteSyncStatus | None) -> Dict[str, 
         "last_synced_at": status.last_synced_at.isoformat() if status.last_synced_at else None,
         "last_job_status": status.last_job_status,
         "last_job_id": status.last_job_id,
+    }
+
+
+def _serialize_job(job: AirbyteJobTelemetry) -> Dict[str, Any]:
+    return {
+        "job_id": job.job_id,
+        "status": job.status,
+        "started_at": job.started_at.isoformat(),
+        "duration_seconds": job.duration_seconds,
+        "records_synced": job.records_synced,
+        "bytes_synced": job.bytes_synced,
+        "api_cost": float(job.api_cost) if job.api_cost is not None else None,
+    }
+
+
+def _summarise_jobs(jobs: Iterable[AirbyteJobTelemetry]) -> Dict[str, Any]:
+    snapshots = list(jobs)
+    if not snapshots:
+        return {}
+
+    latest = snapshots[0]
+
+    def _mean(values: List[float]) -> float | None:
+        return float(mean(values)) if values else None
+
+    durations = [
+        float(job.duration_seconds)
+        for job in snapshots
+        if job.duration_seconds is not None
+    ]
+    records = [
+        float(job.records_synced)
+        for job in snapshots
+        if job.records_synced is not None
+    ]
+    costs = [
+        float(job.api_cost)
+        for job in snapshots
+        if job.api_cost is not None
+    ]
+
+    return {
+        "latest_job": _serialize_job(latest),
+        "average_duration_seconds": _mean(durations),
+        "average_records_synced": _mean(records),
+        "average_api_cost": _mean(costs),
+        "job_count": len(snapshots),
     }
 
 

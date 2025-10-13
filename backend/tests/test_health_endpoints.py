@@ -10,7 +10,12 @@ from django.test import Client, override_settings
 from django.urls import path
 from django.utils import timezone
 
-from integrations.models import AirbyteConnection, PlatformCredential, TenantAirbyteSyncStatus
+from integrations.models import (
+    AirbyteConnection,
+    AirbyteJobTelemetry,
+    PlatformCredential,
+    TenantAirbyteSyncStatus,
+)
 
 
 def _failing_view(request):  # noqa: ANN001 - test helper signature
@@ -65,12 +70,27 @@ def test_airbyte_health_ok_with_recent_sync(api_client, tenant, settings):
         last_job_id="99",
     )
     TenantAirbyteSyncStatus.update_for_connection(connection)
+    AirbyteJobTelemetry.all_objects.create(
+        tenant=tenant,
+        connection=connection,
+        job_id="99",
+        status="succeeded",
+        started_at=now - timedelta(minutes=5),
+        duration_seconds=70,
+        records_synced=150,
+        bytes_synced=4096,
+        api_cost="3.25",
+    )
 
     response = api_client.get("/api/health/airbyte/")
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["last_sync"]["last_job_status"] == "succeeded"
+    assert payload["recent_jobs"][0]["job_id"] == "99"
+    assert payload["recent_jobs"][0]["records_synced"] == 150
+    assert payload["job_summary"]["average_records_synced"] == 150.0
+    assert payload["job_summary"]["latest_job"]["duration_seconds"] == 70
 
 
 @pytest.mark.django_db
@@ -90,6 +110,16 @@ def test_airbyte_health_flags_stale_sync(api_client, tenant, settings):
         last_job_id="1",
     )
     TenantAirbyteSyncStatus.update_for_connection(connection)
+    AirbyteJobTelemetry.all_objects.create(
+        tenant=tenant,
+        connection=connection,
+        job_id="1",
+        status="succeeded",
+        started_at=stale_time - timedelta(minutes=5),
+        duration_seconds=90,
+        records_synced=200,
+        bytes_synced=8192,
+    )
 
     response = api_client.get("/api/health/airbyte/")
     assert response.status_code == 503

@@ -9,7 +9,7 @@ from django.core.management import call_command
 from django.utils import timezone
 
 from integrations.airbyte.service import AirbyteSyncService
-from integrations.models import AirbyteConnection, PlatformCredential, TenantAirbyteSyncStatus
+from integrations.models import AirbyteConnection, AirbyteJobTelemetry, PlatformCredential, TenantAirbyteSyncStatus
 from integrations.tasks import trigger_scheduled_airbyte_syncs
 
 
@@ -67,7 +67,27 @@ def test_airbyte_service_triggers_and_records(tenant):
 
         def get_job(self, job_id: int):
             assert job_id == 55
-            return {"job": {"id": job_id, "status": "succeeded", "createdAt": int(now.timestamp())}}
+            return {
+                "job": {
+                    "id": job_id,
+                    "status": "succeeded",
+                    "createdAt": int(now.timestamp()),
+                    "attempts": [
+                        {
+                            "id": 0,
+                            "status": "succeeded",
+                            "createdAt": int(now.timestamp()),
+                            "updatedAt": int((now + timedelta(seconds=12)).timestamp()),
+                            "metrics": {
+                                "recordsEmitted": 42,
+                                "bytesEmitted": 1024,
+                                "timeInMillis": 12000,
+                                "apiCallCost": 3.5,
+                            },
+                        }
+                    ],
+                }
+            }
 
     service = AirbyteSyncService(DummyClient(), now_fn=lambda: now)
     triggered = service.sync_due_connections()
@@ -83,6 +103,12 @@ def test_airbyte_service_triggers_and_records(tenant):
     assert status.last_job_id == "55"
     assert status.last_job_status == "succeeded"
     assert status.last_synced_at == connection.last_synced_at
+
+    telemetry = AirbyteJobTelemetry.all_objects.get(connection=connection, job_id="55")
+    assert telemetry.records_synced == 42
+    assert telemetry.bytes_synced == 1024
+    assert telemetry.duration_seconds == 12
+    assert float(telemetry.api_cost) == 3.5
 
 
 @pytest.mark.django_db
@@ -143,7 +169,26 @@ def test_airbyte_celery_task(monkeypatch, tenant):
             return {"job": {"id": 1}}
 
         def get_job(self, job_id: int):
-            return {"job": {"id": job_id, "status": "succeeded", "createdAt": int(now.timestamp())}}
+            return {
+                "job": {
+                    "id": job_id,
+                    "status": "succeeded",
+                    "createdAt": int(now.timestamp()),
+                    "attempts": [
+                        {
+                            "id": 0,
+                            "status": "succeeded",
+                            "createdAt": int(now.timestamp()),
+                            "updatedAt": int((now + timedelta(seconds=8)).timestamp()),
+                            "metrics": {
+                                "recordsEmitted": 10,
+                                "bytesEmitted": 512,
+                                "timeInMillis": 8000,
+                            },
+                        }
+                    ],
+                }
+            }
 
     dummy_client = DummyClient()
 
@@ -167,3 +212,7 @@ def test_airbyte_celery_task(monkeypatch, tenant):
 
     status = TenantAirbyteSyncStatus.all_objects.get(tenant=tenant)
     assert status.last_job_status == "succeeded"
+
+    telemetry = AirbyteJobTelemetry.all_objects.get(connection=connection, job_id="1")
+    assert telemetry.duration_seconds == 8
+    assert telemetry.records_synced == 10

@@ -304,6 +304,38 @@ class TenantAirbyteSyncStatus(models.Model):
         return status
 
 
+class AirbyteJobTelemetry(models.Model):
+    """Snapshot of metrics returned by an Airbyte sync attempt."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="airbyte_job_telemetry"
+    )
+    connection = models.ForeignKey(
+        AirbyteConnection, on_delete=models.CASCADE, related_name="job_telemetry"
+    )
+    job_id = models.CharField(max_length=64)
+    status = models.CharField(max_length=32)
+    started_at = models.DateTimeField()
+    duration_seconds = models.PositiveIntegerField(null=True, blank=True)
+    records_synced = models.BigIntegerField(null=True, blank=True)
+    bytes_synced = models.BigIntegerField(null=True, blank=True)
+    api_cost = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("-started_at", "-created_at")
+        unique_together = ("connection", "job_id")
+
+    def __str__(self) -> str:  # pragma: no cover - repr helper
+        return f"AirbyteJobTelemetry<{self.connection_id}:{self.job_id}>"
+
+
 class CampaignBudget(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
