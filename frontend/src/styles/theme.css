@@ -6,8 +6,9 @@
   --border-soft: rgba(15, 23, 42, 0.08);
   --border-strong: rgba(15, 23, 42, 0.14);
   --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-tertiary: #475569;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --muted: #64748b;
   --accent-primary: #2563eb;
   --accent-primary-strong: #1d4ed8;
   --accent-subtle: rgba(37, 99, 235, 0.16);
