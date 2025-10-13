@@ -7,7 +7,13 @@ export default defineConfig({
     setupFiles: ['src/test/setup.ts'],
     globals: true,
     css: true,
-    include: ['frontend/src/**/*.{test,spec}.{js,ts,jsx,tsx}'],
-    exclude: ['qa/**/*', 'integrations/**/*', 'node_modules/**/*']
+    deps: {
+      inline: ['recharts']
+    },
+    include: ['frontend/src/{lib,pages,state}/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+    exclude: ['qa/**/*', 'integrations/**/*', 'node_modules/**/*'],
+    environmentOptions: {
+      jsdom: { url: 'http://localhost' }
+    }
   }
 });
