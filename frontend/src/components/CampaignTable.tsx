@@ -40,13 +40,6 @@ const CampaignTable = ({ rows, currency }: CampaignTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([{ id: "spend", desc: true }]);
   const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({ left: ["name"] });
 
-  const filteredRows = useMemo(() => {
-    if (!selectedParish) {
-      return rows;
-    }
-    return rows.filter((row) => row.parish?.toLowerCase() === selectedParish.toLowerCase());
-  }, [rows, selectedParish]);
-
   const columns = useMemo<ColumnDef<CampaignPerformanceRow>[]>(
     () => [
       {
@@ -113,7 +106,7 @@ const CampaignTable = ({ rows, currency }: CampaignTableProps) => {
   );
 
   const table = useReactTable({
-    data: filteredRows,
+    data: rows,
     columns,
     state: { sorting, columnPinning },
     onSortingChange: setSorting,
@@ -215,7 +208,7 @@ const CampaignTable = ({ rows, currency }: CampaignTableProps) => {
           </tbody>
         </table>
       </div>
-      {filteredRows.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="status-message muted">No campaigns match the selected filters.</p>
       ) : null}
     </div>

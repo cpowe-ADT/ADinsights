@@ -133,7 +133,51 @@ describe("useDashboardStore", () => {
     expect(state.creative.data).toHaveLength(1);
     expect(state.budget.data).toHaveLength(1);
     expect(state.parish.data).toHaveLength(1);
+    expect(state.getCampaignRowsForSelectedParish()).toHaveLength(1);
+    expect(state.getCachedMetrics("tenant-123")).toBeDefined();
     expect(state.selectedParish).toBeUndefined();
+  });
+
+  it("loads aggregated metrics and reuses the tenant cache when mock mode is disabled", async () => {
+    vi.stubEnv("VITE_MOCK_MODE", "false");
+
+    const fetchMock = vi.fn<(url: RequestInfo | URL) => Promise<Response>>(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            campaign: campaignData,
+            creative: creativeData,
+            budget: budgetData,
+            parish: parishData,
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+      )
+    );
+
+    globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+    const { default: useDashboardStore } = await import("./useDashboardStore");
+
+    await useDashboardStore.getState().loadAll("tenant-xyz");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const requestUrl = fetchMock.mock.calls[0]?.[0];
+    expect(typeof requestUrl === "string" ? requestUrl : String(requestUrl)).toContain("/api/metrics/");
+
+    const state = useDashboardStore.getState();
+    expect(state.campaign.data?.rows).toHaveLength(1);
+    expect(state.getCampaignRowsForSelectedParish()).toHaveLength(1);
+    state.setSelectedParish("Kingston");
+    expect(state.getCampaignRowsForSelectedParish()).toHaveLength(1);
+    expect(state.getCachedMetrics("tenant-xyz")?.campaign.rows).toHaveLength(1);
+
+    await useDashboardStore.getState().loadAll("tenant-xyz");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("flags API errors without discarding previous data", async () => {
