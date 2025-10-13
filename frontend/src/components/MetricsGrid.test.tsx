@@ -51,6 +51,8 @@ describe("MetricsGrid", () => {
         rows: sampleRows,
         selectedMetric: "impressions",
         selectedParish: undefined,
+        status: "loaded",
+        error: undefined,
       });
     });
 
