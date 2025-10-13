@@ -10,14 +10,14 @@ This runbook documents how to operate the ADinsights stack across the frontend, 
 
 ## Health Checks
 
-| Component | Check | Command |
-|-----------|-------|---------|
-| Frontend  | Vite build + smoke test | `npm run build` (from `frontend/`) |
-| Backend   | Django API health endpoint | `curl https://api.<env>.adinsights.com/api/health/` |
-| Airbyte Orchestration | API health endpoint + status payload | `curl https://api.<env>.adinsights.com/api/health/airbyte/` |
-| dbt Orchestration | API health endpoint (exposes latest run results) | `curl https://api.<env>.adinsights.com/api/health/dbt/` |
-| Superset  | `/health` endpoint | `curl https://bi.<env>.adinsights.com/health` |
-| Scheduler | APScheduler heartbeat logs | Check `scheduler` container logs for `Scheduler started` |
+| Component             | Check                                            | Command                                                     |
+| --------------------- | ------------------------------------------------ | ----------------------------------------------------------- |
+| Frontend              | Vite build + smoke test                          | `npm run build` (from `frontend/`)                          |
+| Backend               | Django API health endpoint                       | `curl https://api.<env>.adinsights.com/api/health/`         |
+| Airbyte Orchestration | API health endpoint + status payload             | `curl https://api.<env>.adinsights.com/api/health/airbyte/` |
+| dbt Orchestration     | API health endpoint (exposes latest run results) | `curl https://api.<env>.adinsights.com/api/health/dbt/`     |
+| Superset              | `/health` endpoint                               | `curl https://bi.<env>.adinsights.com/health`               |
+| Scheduler             | APScheduler heartbeat logs                       | Check `scheduler` container logs for `Scheduler started`    |
 
 The Airbyte health endpoint surfaces the most recent sync metadata per tenant and flags jobs that
 are older than one hour. The dbt health endpoint reads the most recent `run_results.json` and marks
@@ -51,7 +51,7 @@ machine-friendly JSON payloads for dashboards or alerting rules.
   compliance requirements. Configure a nightly database task (e.g. cron job or
   managed retention policy) that deletes records older than the retention
   window: `DELETE FROM accounts_auditlog WHERE created_at < NOW() - INTERVAL '365
-  days';` Adjust the interval to meet contractual obligations.
+days';` Adjust the interval to meet contractual obligations.
 - **Export/Archival** – For deployments that require longer retention, ship
   daily exports of the table to object storage (S3/GCS) before running the
   deletion query. Ensure exported files inherit the environment's encryption

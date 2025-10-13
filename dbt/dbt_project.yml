@@ -1,15 +1,15 @@
-name: "adinsights"
-version: "1.0"
+name: 'adinsights'
+version: '1.0'
 config-version: 2
-profile: "adinsights"
+profile: 'adinsights'
 
-model-paths: ["models"]
-seed-paths: ["seeds"]
-snapshot-paths: ["snapshots"]
-macro-paths: ["macros"]
+model-paths: ['models']
+seed-paths: ['seeds']
+snapshot-paths: ['snapshots']
+macro-paths: ['macros']
 
 on-run-start:
-  - "{{ apply_ci_fixtures() }}"
+  - '{{ apply_ci_fixtures() }}'
 
 models:
   adinsights:
@@ -171,7 +171,7 @@ seeds:
           created_time: timestamp
           updated_time: timestamp
     geo_parish_lookup:
-      +delimiter: ","
+      +delimiter: ','
       +quote_columns: true
       +column_types:
         region_name: text

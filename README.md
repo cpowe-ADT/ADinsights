@@ -1,9 +1,11 @@
 # ADinsights
 
 ## Project Overview
+
 ADinsights will be a self-hosted, multi-tenant marketing analytics platform for Jamaican agencies. It will ingest performance data from Meta, Google Ads, and optional LinkedIn/TikTok sources, normalize it with dbt, and deliver dashboards, grids, maps, alerts, and AI-generated summaries tailored to Jamaica's parishes.
 
 ## Repository Structure
+
 - **backend/**: Django + DRF API with multi-tenant auth, Celery tasks, and encrypted credential storage.
 - **infrastructure/airbyte/**: Docker Compose stack and redacted source templates for Airbyte.
 - **dbt/**: dbt project with staging models, macros, and parish lookup seed.
@@ -13,6 +15,7 @@ ADinsights will be a self-hosted, multi-tenant marketing analytics platform for 
 ## Implementation Roadmap
 
 ### Phase 0 – Foundations
+
 1. **Repository & Documentation**
    - Establish coding standards, environment variables management, and secrets handling guidelines.
    - Document data protection compliance requirements (Jamaica Data Protection Act) and platform-specific terms of service.
@@ -21,6 +24,7 @@ ADinsights will be a self-hosted, multi-tenant marketing analytics platform for 
    - Select database engine (PostgreSQL + PostGIS or cloud warehouse) and sizing assumptions.
 
 ### Phase 1 – Core Platform Setup (Sprint 1)
+
 1. **Identity & Multi-Tenancy**
    - Scaffold backend service (Django) with database migrations.
    - Create Tenant, User, Role, PlatformCredential models with encryption for stored tokens.
@@ -29,13 +33,14 @@ ADinsights will be a self-hosted, multi-tenant marketing analytics platform for 
    - Deploy Airbyte and configure Meta & Google Ads sources with incremental sync and geo breakdowns.
    - Define custom connector stubs for LinkedIn Ads and TikTok transparency (even if optional).
 3. **Warehouse & dbt Skeleton**
-   - Create staging models (stg_*), core fact/dim tables without SCD2, and geo lookup scaffolding.
+   - Create staging models (stg\_\*), core fact/dim tables without SCD2, and geo lookup scaffolding.
    - Load Jamaica parish GeoJSON and seed initial mappings.
 4. **Initial Analytics UX**
    - Stand up Metabase (or Superset) and publish a basic campaign dashboard.
    - Scaffold React frontend with TanStack Table and Leaflet map components wired to mocked data.
 
 ### Phase 2 – Data Modeling & Metrics (Sprint 2)
+
 1. **SCD2 & Metrics Layer**
    - Extend dbt models for SCD2 on campaign/adset/ad dimensions and implement metrics dictionary/macros.
    - Materialize aggregated views for campaign, creative, and pacing use cases.
@@ -47,6 +52,7 @@ ADinsights will be a self-hosted, multi-tenant marketing analytics platform for 
    - Implement hourly Airbyte syncs with rolling 30-day backfill; nightly dbt transformations.
 
 ### Phase 3 – Advanced Features (Sprint 3)
+
 1. **AI Summaries & Integrations**
    - Integrate LLM provider for summary generation with guardrailed prompts.
    - Explore Canva SDK automation for templated report exports.
@@ -58,6 +64,7 @@ ADinsights will be a self-hosted, multi-tenant marketing analytics platform for 
    - Add observability (metrics/logging/alerts) for connectors and transformations.
 
 ### Phase 4 – Polish & Launch
+
 1. **User Acceptance Testing**
    - Run pilot with representative clients; collect feedback and iterate on geo mappings and dashboards.
 2. **Performance & Hardening**
@@ -68,6 +75,7 @@ ADinsights will be a self-hosted, multi-tenant marketing analytics platform for 
    - Provide training sessions for analysts and admins.
 
 ## Next Steps Checklist
+
 - [x] Choose backend framework and initialize service.
 - [x] Provision infrastructure scaffolds for Airbyte, dbt, and frontend shell.
 - [ ] Configure Airbyte connections with production credentials and schedule hourly metric syncs.
@@ -83,6 +91,7 @@ test. The project assumes `America/Jamaica` as the canonical timezone (no daylig
 `TIME_ZONE=America/Jamaica` in your environment unless a tenant explicitly requires otherwise.
 
 ### Backend API (Django + DRF)
+
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
@@ -91,6 +100,7 @@ cp .env.sample .env  # adjust credentials as needed
 python manage.py migrate
 python manage.py runserver 0.0.0.0:8000
 ```
+
 - Sample endpoints: `GET /api/health/`, `GET /api/health/airbyte/`, `GET /api/health/dbt/`,
   `GET /api/timezone/`, `POST /api/auth/login/`, `GET /api/me/`.
 - For multi-tenant RLS policies run `python manage.py enable_rls` after your database is provisioned.
@@ -98,17 +108,20 @@ python manage.py runserver 0.0.0.0:8000
   in a separate terminal) once Redis is running.
 
 ### Frontend Shell (React + Vite)
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+
 The dev server runs on <http://localhost:5173>. The shell consumes mock data from
 `public/sample_metrics.json` until backend APIs are wired in. Set `VITE_MOCK_MODE=false`
 in your Vite environment to force the frontend to load data from the `/api/metrics/`
 endpoint instead of the bundled sample payload.
 
 ### Airbyte Connectors
+
 ```bash
 cd infrastructure/airbyte
 cp env.example .env  # populate overrides for local secrets and ports
@@ -116,17 +129,18 @@ cp env.example .env  # populate overrides for local secrets and ports
 docker compose config  # render a cleaned compose file to confirm env interpolation
 docker compose up -d
 ```
+
 Navigate to <http://localhost:8000> to configure sources. Use the `.example` files in `sources/` as
 templates and follow the README for recommended sync cadences. Secrets are injected at runtime via
 environment variables—export the following before running declarative configuration or the
 bootstrap command:
 
-| Connector | Environment variables |
-| --- | --- |
-| Google Ads | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN`, `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID` |
-| Meta Ads | `AIRBYTE_META_ACCESS_TOKEN`, `AIRBYTE_META_ACCOUNT_ID` |
-| LinkedIn Transparency (stub) | `AIRBYTE_LINKEDIN_CLIENT_ID`, `AIRBYTE_LINKEDIN_CLIENT_SECRET`, `AIRBYTE_LINKEDIN_REFRESH_TOKEN` |
-| TikTok Transparency (stub) | `AIRBYTE_TIKTOK_TRANSPARENCY_TOKEN`, `AIRBYTE_TIKTOK_ADVERTISER_ID` |
+| Connector                    | Environment variables                                                                                                                                                                                                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Google Ads                   | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN`, `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID` |
+| Meta Ads                     | `AIRBYTE_META_ACCESS_TOKEN`, `AIRBYTE_META_ACCOUNT_ID`                                                                                                                                                                 |
+| LinkedIn Transparency (stub) | `AIRBYTE_LINKEDIN_CLIENT_ID`, `AIRBYTE_LINKEDIN_CLIENT_SECRET`, `AIRBYTE_LINKEDIN_REFRESH_TOKEN`                                                                                                                       |
+| TikTok Transparency (stub)   | `AIRBYTE_TIKTOK_TRANSPARENCY_TOKEN`, `AIRBYTE_TIKTOK_ADVERTISER_ID`                                                                                                                                                    |
 
 For scheduler access configure `AIRBYTE_API_URL` plus either `AIRBYTE_API_TOKEN` or the
 `AIRBYTE_USERNAME`/`AIRBYTE_PASSWORD` pair for the Airbyte deployment.
@@ -135,10 +149,12 @@ Use `python manage.py sync_airbyte` (optionally via Celery beat) to trigger due 
 `integrations_airbyteconnection` schedule metadata stored per tenant.
 
 ### dbt Transformations
+
 ```bash
 make dbt-deps
 make dbt-build
 ```
+
 The Makefile wraps common workflows (dependencies, seeds, builds, tests, and freshness checks). Use `DBT` overrides to pass `--vars` such as `enable_linkedin` or `enable_tiktok` when you want to incorporate optional connectors.
 Run only the staging models for quick validation with:
 
@@ -147,6 +163,7 @@ dbt run --project-dir dbt --profiles-dir ~/.dbt --select staging
 ```
 
 ### Quick Smoke Test
+
 1. Start the backend API and create a tenant/user via Django admin.
 2. Launch a Celery worker (`celery -A core worker -l info`) and beat scheduler (`celery -A core beat -l info`) to ensure background jobs register correctly.
 3. Run the frontend dev server and confirm the grid and map render with mock data.
@@ -158,6 +175,7 @@ dbt run --project-dir dbt --profiles-dir ~/.dbt --select staging
 ## Local Testing
 
 ### JS tests + export
+
 ```bash
 npm ci
 npx playwright install --with-deps chromium
@@ -229,6 +247,7 @@ credentials to AWS KMS and Secrets Manager once the infrastructure workstreams l
 integrations with that provider path in mind.
 
 ## Testing Matrix
+
 - **Backend:** `pytest`, `ruff check backend`
 - **Frontend:** `npm install && npm run build`
 - **dbt:** `dbt seed`, `dbt run --select staging`

@@ -31,7 +31,9 @@
   font-weight: 600;
   text-decoration: none;
   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.25);
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
 .fullMapLink:hover,
@@ -51,7 +53,10 @@
   color: #1e293b;
   cursor: pointer;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .toggleButton:hover,
@@ -59,7 +64,7 @@
   transform: translateY(-1px);
 }
 
-.toggleButton[aria-pressed="true"] {
+.toggleButton[aria-pressed='true'] {
   background: #2563eb;
   color: #f8fafc;
 }

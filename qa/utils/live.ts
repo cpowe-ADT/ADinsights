@@ -1,7 +1,7 @@
-import type { TestType } from "@playwright/test";
+import type { TestType } from '@playwright/test';
 
 function wantsLiveApi(): boolean {
-  return (process.env.MOCK_MODE ?? "true").toLowerCase() === "false";
+  return (process.env.MOCK_MODE ?? 'true').toLowerCase() === 'false';
 }
 
 function hasLiveCredentials(): boolean {
@@ -41,7 +41,7 @@ export function getLiveApiState(): LiveApiState {
 
 export function skipWhenNoLiveApi<TFixtures, TWorkerFixtures>(
   test: TestType<TFixtures, TWorkerFixtures>,
-  message?: string
+  message?: string,
 ): void {
   const state = getLiveApiState();
 
@@ -51,10 +51,10 @@ export function skipWhenNoLiveApi<TFixtures, TWorkerFixtures>(
 
   const missingParts: string[] = [];
   if (!state.baseUrl) {
-    missingParts.push("LIVE_API_BASE_URL");
+    missingParts.push('LIVE_API_BASE_URL');
   }
   if (!state.credentialsPresent) {
-    missingParts.push("LIVE_API credentials");
+    missingParts.push('LIVE_API credentials');
   }
 
   const shouldSkip = missingParts.length > 0;
@@ -62,7 +62,7 @@ export function skipWhenNoLiveApi<TFixtures, TWorkerFixtures>(
     shouldSkip,
     message ??
       (missingParts.length
-        ? `Set ${missingParts.join(", ")} to run live API tests`
-        : "Skipping live API tests")
+        ? `Set ${missingParts.join(', ')} to run live API tests`
+        : 'Skipping live API tests'),
   );
 }

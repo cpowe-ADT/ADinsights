@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const campaignData = {
   summary: {
-    currency: "JMD",
+    currency: 'JMD',
     totalSpend: 100,
     totalImpressions: 200,
     totalClicks: 30,
@@ -12,11 +12,11 @@ const campaignData = {
   trend: [],
   rows: [
     {
-      id: "cmp_test",
-      name: "Test",
-      platform: "Meta",
-      status: "Active",
-      parish: "Kingston",
+      id: 'cmp_test',
+      name: 'Test',
+      platform: 'Meta',
+      status: 'Active',
+      parish: 'Kingston',
       spend: 100,
       impressions: 200,
       clicks: 30,
@@ -28,12 +28,12 @@ const campaignData = {
 
 const creativeData = [
   {
-    id: "cr_test",
-    name: "Creative",
-    campaignId: "cmp_test",
-    campaignName: "Test",
-    platform: "Meta",
-    parish: "Kingston",
+    id: 'cr_test',
+    name: 'Creative',
+    campaignId: 'cmp_test',
+    campaignName: 'Test',
+    platform: 'Meta',
+    parish: 'Kingston',
     spend: 40,
     impressions: 120,
     clicks: 12,
@@ -44,9 +44,9 @@ const creativeData = [
 
 const budgetData = [
   {
-    id: "budget_test",
-    campaignName: "Test",
-    parishes: ["Kingston"],
+    id: 'budget_test',
+    campaignName: 'Test',
+    parishes: ['Kingston'],
     monthlyBudget: 200,
     spendToDate: 120,
     projectedSpend: 210,
@@ -56,24 +56,24 @@ const budgetData = [
 
 const parishData = [
   {
-    parish: "Kingston",
+    parish: 'Kingston',
     spend: 100,
     impressions: 200,
     clicks: 30,
     conversions: 4,
     roas: 3.2,
     campaignCount: 1,
-    currency: "JMD",
+    currency: 'JMD',
   },
 ];
 
-describe("useDashboardStore", () => {
+describe('useDashboardStore', () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllEnvs();
-    vi.stubEnv("VITE_MOCK_MODE", "true");
+    vi.stubEnv('VITE_MOCK_MODE', 'true');
   });
 
   afterEach(() => {
@@ -82,51 +82,51 @@ describe("useDashboardStore", () => {
     if (originalFetch) {
       globalThis.fetch = originalFetch;
     } else {
-      Reflect.deleteProperty(globalThis as typeof globalThis & { fetch?: unknown }, "fetch");
+      Reflect.deleteProperty(globalThis as typeof globalThis & { fetch?: unknown }, 'fetch');
     }
   });
 
-  it("loads dashboard data from the mock endpoints", async () => {
+  it('loads dashboard data from the mock endpoints', async () => {
     const fetchMock = vi.fn((url: RequestInfo | URL) => {
-      if (typeof url === "string" && url.endsWith("/sample_campaign_performance.json")) {
+      if (typeof url === 'string' && url.endsWith('/sample_campaign_performance.json')) {
         return Promise.resolve(
           new Response(JSON.stringify(campaignData), {
             status: 200,
-            headers: { "Content-Type": "application/json" },
-          })
+            headers: { 'Content-Type': 'application/json' },
+          }),
         );
       }
-      if (typeof url === "string" && url.endsWith("/sample_creative_performance.json")) {
+      if (typeof url === 'string' && url.endsWith('/sample_creative_performance.json')) {
         return Promise.resolve(
           new Response(JSON.stringify(creativeData), {
             status: 200,
-            headers: { "Content-Type": "application/json" },
-          })
+            headers: { 'Content-Type': 'application/json' },
+          }),
         );
       }
-      if (typeof url === "string" && url.endsWith("/sample_budget_pacing.json")) {
+      if (typeof url === 'string' && url.endsWith('/sample_budget_pacing.json')) {
         return Promise.resolve(
           new Response(JSON.stringify(budgetData), {
             status: 200,
-            headers: { "Content-Type": "application/json" },
-          })
+            headers: { 'Content-Type': 'application/json' },
+          }),
         );
       }
-      if (typeof url === "string" && url.endsWith("/sample_parish_aggregates.json")) {
+      if (typeof url === 'string' && url.endsWith('/sample_parish_aggregates.json')) {
         return Promise.resolve(
           new Response(JSON.stringify(parishData), {
             status: 200,
-            headers: { "Content-Type": "application/json" },
-          })
+            headers: { 'Content-Type': 'application/json' },
+          }),
         );
       }
       return Promise.reject(new Error(`Unhandled fetch: ${String(url)}`));
     });
     globalThis.fetch = fetchMock as typeof globalThis.fetch;
 
-    const { default: useDashboardStore } = await import("./useDashboardStore");
+    const { default: useDashboardStore } = await import('./useDashboardStore');
 
-    await useDashboardStore.getState().loadAll("tenant-123");
+    await useDashboardStore.getState().loadAll('tenant-123');
 
     const state = useDashboardStore.getState();
     expect(state.campaign.data?.rows).toHaveLength(1);
@@ -134,12 +134,12 @@ describe("useDashboardStore", () => {
     expect(state.budget.data).toHaveLength(1);
     expect(state.parish.data).toHaveLength(1);
     expect(state.getCampaignRowsForSelectedParish()).toHaveLength(1);
-    expect(state.getCachedMetrics("tenant-123")).toBeDefined();
+    expect(state.getCachedMetrics('tenant-123')).toBeDefined();
     expect(state.selectedParish).toBeUndefined();
   });
 
-  it("loads aggregated metrics and reuses the tenant cache when mock mode is disabled", async () => {
-    vi.stubEnv("VITE_MOCK_MODE", "false");
+  it('loads aggregated metrics and reuses the tenant cache when mock mode is disabled', async () => {
+    vi.stubEnv('VITE_MOCK_MODE', 'false');
 
     const snapshotResponse = {
       metrics: {
@@ -148,8 +148,8 @@ describe("useDashboardStore", () => {
         budget_metrics: budgetData,
         parish_metrics: parishData,
       },
-      tenant_id: "tenant-xyz",
-      generated_at: "2024-09-05T00:00:00Z",
+      tenant_id: 'tenant-xyz',
+      generated_at: '2024-09-05T00:00:00Z',
     } satisfies Record<string, unknown>;
 
     const fetchMock = vi
@@ -157,96 +157,96 @@ describe("useDashboardStore", () => {
       .mockResolvedValueOnce(
         new Response(JSON.stringify(snapshotResponse), {
           status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
+          headers: { 'Content-Type': 'application/json' },
+        }),
       )
-      .mockRejectedValueOnce(new Error("Service unavailable"));
+      .mockRejectedValueOnce(new Error('Service unavailable'));
 
     globalThis.fetch = fetchMock as typeof globalThis.fetch;
 
-    const { default: useDashboardStore } = await import("./useDashboardStore");
+    const { default: useDashboardStore } = await import('./useDashboardStore');
 
-    await useDashboardStore.getState().loadAll("tenant-xyz");
+    await useDashboardStore.getState().loadAll('tenant-xyz');
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const requestUrl = fetchMock.mock.calls[0]?.[0];
-    expect(typeof requestUrl === "string" ? requestUrl : String(requestUrl)).toContain(
-      "/api/dashboards/aggregate-snapshot/"
+    expect(typeof requestUrl === 'string' ? requestUrl : String(requestUrl)).toContain(
+      '/api/dashboards/aggregate-snapshot/',
     );
 
     let state = useDashboardStore.getState();
-    expect(state.campaign.status).toBe("loaded");
+    expect(state.campaign.status).toBe('loaded');
     expect(state.campaign.data?.rows).toHaveLength(1);
     expect(state.getCampaignRowsForSelectedParish()).toHaveLength(1);
-    state.setSelectedParish("Kingston");
+    state.setSelectedParish('Kingston');
     expect(state.getCampaignRowsForSelectedParish()).toHaveLength(1);
-    expect(state.getCachedMetrics("tenant-xyz")?.campaign.rows).toHaveLength(1);
+    expect(state.getCachedMetrics('tenant-xyz')?.campaign.rows).toHaveLength(1);
 
-    await useDashboardStore.getState().loadAll("tenant-xyz");
+    await useDashboardStore.getState().loadAll('tenant-xyz');
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    await useDashboardStore.getState().loadAll("tenant-xyz", { force: true });
+    await useDashboardStore.getState().loadAll('tenant-xyz', { force: true });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
     state = useDashboardStore.getState();
-    expect(state.campaign.status).toBe("error");
+    expect(state.campaign.status).toBe('error');
     expect(state.campaign.data?.rows).toHaveLength(1);
-    expect(state.campaign.error).toContain("Service unavailable");
+    expect(state.campaign.error).toContain('Service unavailable');
 
-    await useDashboardStore.getState().loadAll("tenant-xyz");
+    await useDashboardStore.getState().loadAll('tenant-xyz');
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
     state = useDashboardStore.getState();
-    expect(state.campaign.status).toBe("loaded");
+    expect(state.campaign.status).toBe('loaded');
     expect(state.campaign.data?.rows).toHaveLength(1);
   });
 
-  it("flags API errors without discarding previous data", async () => {
+  it('flags API errors without discarding previous data', async () => {
     const fetchMock = vi.fn((url: RequestInfo | URL) => {
-      if (typeof url === "string" && url.endsWith("/sample_campaign_performance.json")) {
+      if (typeof url === 'string' && url.endsWith('/sample_campaign_performance.json')) {
         return Promise.resolve(
-          new Response(JSON.stringify({ detail: "oops" }), {
+          new Response(JSON.stringify({ detail: 'oops' }), {
             status: 500,
-            headers: { "Content-Type": "application/json" },
-          })
+            headers: { 'Content-Type': 'application/json' },
+          }),
         );
       }
-      if (typeof url === "string" && url.endsWith("/sample_creative_performance.json")) {
+      if (typeof url === 'string' && url.endsWith('/sample_creative_performance.json')) {
         return Promise.resolve(
           new Response(JSON.stringify(creativeData), {
             status: 200,
-            headers: { "Content-Type": "application/json" },
-          })
+            headers: { 'Content-Type': 'application/json' },
+          }),
         );
       }
-      if (typeof url === "string" && url.endsWith("/sample_budget_pacing.json")) {
+      if (typeof url === 'string' && url.endsWith('/sample_budget_pacing.json')) {
         return Promise.resolve(
           new Response(JSON.stringify(budgetData), {
             status: 200,
-            headers: { "Content-Type": "application/json" },
-          })
+            headers: { 'Content-Type': 'application/json' },
+          }),
         );
       }
-      if (typeof url === "string" && url.endsWith("/sample_parish_aggregates.json")) {
+      if (typeof url === 'string' && url.endsWith('/sample_parish_aggregates.json')) {
         return Promise.resolve(
           new Response(JSON.stringify(parishData), {
             status: 200,
-            headers: { "Content-Type": "application/json" },
-          })
+            headers: { 'Content-Type': 'application/json' },
+          }),
         );
       }
       return Promise.reject(new Error(`Unhandled fetch: ${String(url)}`));
     });
     globalThis.fetch = fetchMock as typeof globalThis.fetch;
 
-    const { default: useDashboardStore } = await import("./useDashboardStore");
+    const { default: useDashboardStore } = await import('./useDashboardStore');
 
     await useDashboardStore.getState().loadAll();
 
-    expect(useDashboardStore.getState().campaign.status).toBe("error");
-    expect(useDashboardStore.getState().creative.status).toBe("loaded");
+    expect(useDashboardStore.getState().campaign.status).toBe('error');
+    expect(useDashboardStore.getState().creative.status).toBe('loaded');
   });
 });

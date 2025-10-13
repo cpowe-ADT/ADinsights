@@ -3,13 +3,7 @@
   "$id": "metrics-export.json",
   "title": "Metrics export CSV payload",
   "type": "object",
-  "required": [
-    "status",
-    "contentType",
-    "contentDisposition",
-    "headers",
-    "rows"
-  ],
+  "required": ["status", "contentType", "contentDisposition", "headers", "rows"],
   "properties": {
     "status": {
       "type": "integer",
@@ -25,29 +19,13 @@
     },
     "headers": {
       "type": "array",
-      "const": [
-        "date",
-        "parish",
-        "impressions",
-        "clicks",
-        "spend",
-        "conversions",
-        "roas"
-      ]
+      "const": ["date", "parish", "impressions", "clicks", "spend", "conversions", "roas"]
     },
     "rows": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "date",
-          "parish",
-          "impressions",
-          "clicks",
-          "spend",
-          "conversions",
-          "roas"
-        ],
+        "required": ["date", "parish", "impressions", "clicks", "spend", "conversions", "roas"],
         "properties": {
           "date": {
             "type": "string",

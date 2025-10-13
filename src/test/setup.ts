@@ -5,28 +5,38 @@ import React from 'react';
 // Polyfill ResizeObserver (jsdom doesn’t have it)
 class ResizeObserver {
   private cb: ResizeObserverCallback;
-  constructor(cb: ResizeObserverCallback) { this.cb = cb; }
-  observe() {/* no-op */}
-  unobserve() {/* no-op */}
-  disconnect() {/* no-op */}
+  constructor(cb: ResizeObserverCallback) {
+    this.cb = cb;
+  }
+  observe() {
+    /* no-op */
+  }
+  unobserve() {
+    /* no-op */
+  }
+  disconnect() {
+    /* no-op */
+  }
 }
 // @ts-ignore
 global.ResizeObserver = ResizeObserver as any;
 
 // Optional: matchMedia mock for libraries reading it
 // @ts-ignore
-global.matchMedia = global.matchMedia || function () {
-  return {
-    matches: false,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-    media: '',
-    onchange: null,
+global.matchMedia =
+  global.matchMedia ||
+  function () {
+    return {
+      matches: false,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+      media: '',
+      onchange: null,
+    };
   };
-};
 
 // Recharts & JSDOM: mock ResponsiveContainer so children get real size
 import { vi } from 'vitest';
@@ -40,7 +50,7 @@ vi.mock('recharts', async (orig) => {
     return React.createElement(
       'div',
       { style: { width: `${w}px`, height: `${h}px` } },
-      typeof children === 'function' ? children({ width: w, height: h }) : children
+      typeof children === 'function' ? children({ width: w, height: h }) : children,
     );
   };
   return { ...mod, ResponsiveContainer: MockResponsiveContainer };

@@ -6,13 +6,7 @@
   "items": {
     "type": "object",
     "additionalProperties": false,
-    "required": [
-      "parish",
-      "spend",
-      "impressions",
-      "clicks",
-      "conversions"
-    ],
+    "required": ["parish", "spend", "impressions", "clicks", "conversions"],
     "properties": {
       "parish": { "type": "string" },
       "spend": { "type": "number" },

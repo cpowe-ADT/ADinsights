@@ -3,8 +3,8 @@ name: dbt
 on:
   push:
     paths:
-      - "dbt/**"
-      - ".github/workflows/dbt.yml"
+      - 'dbt/**'
+      - '.github/workflows/dbt.yml'
   workflow_dispatch:
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install dbt (core + postgres as example)
         run: |

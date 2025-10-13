@@ -2,9 +2,9 @@ version: 2
 
 models:
   - name: all_ad_performance
-    description: "Unioned performance data across all configured ad platforms."
+    description: 'Unioned performance data across all configured ad platforms.'
   - name: metric_return_on_ad_spend_fixture
-    description: "Fixture dataset for validating the metric_return_on_ad_spend macro."
+    description: 'Fixture dataset for validating the metric_return_on_ad_spend macro.'
     tests:
       - metric_return_on_ad_spend_matches:
           arguments:

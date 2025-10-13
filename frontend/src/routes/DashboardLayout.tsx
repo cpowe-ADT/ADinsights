@@ -1,29 +1,29 @@
 // @ts-nocheck
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
-import { useAuth } from "../auth/AuthContext";
-import Breadcrumbs from "../components/Breadcrumbs";
-import FilterBar, { FilterBarState } from "../components/FilterBar";
-import { useTheme } from "../components/ThemeProvider";
-import { useToast } from "../components/ToastProvider";
-import { loadDashboardLayout, saveDashboardLayout } from "../lib/layoutPreferences";
-import useDashboardStore from "../state/useDashboardStore";
+import { useAuth } from '../auth/AuthContext';
+import Breadcrumbs from '../components/Breadcrumbs';
+import FilterBar, { FilterBarState } from '../components/FilterBar';
+import { useTheme } from '../components/ThemeProvider';
+import { useToast } from '../components/ToastProvider';
+import { loadDashboardLayout, saveDashboardLayout } from '../lib/layoutPreferences';
+import useDashboardStore from '../state/useDashboardStore';
 
 const metricOptions = [
-  { value: "spend", label: "Spend" },
-  { value: "impressions", label: "Impressions" },
-  { value: "clicks", label: "Clicks" },
-  { value: "conversions", label: "Conversions" },
-  { value: "roas", label: "ROAS" },
+  { value: 'spend', label: 'Spend' },
+  { value: 'impressions', label: 'Impressions' },
+  { value: 'clicks', label: 'Clicks' },
+  { value: 'conversions', label: 'Conversions' },
+  { value: 'roas', label: 'ROAS' },
 ];
 
 const segmentLabels: Record<string, string> = {
-  dashboards: "Dashboards",
-  campaigns: "Campaigns",
-  creatives: "Creatives",
-  budget: "Budget pacing",
+  dashboards: 'Dashboards',
+  campaigns: 'Campaigns',
+  creatives: 'Creatives',
+  budget: 'Budget pacing',
 };
 
 const DashboardLayout = () => {
@@ -71,8 +71,8 @@ const DashboardLayout = () => {
     };
 
     handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   useEffect(() => {
@@ -97,27 +97,27 @@ const DashboardLayout = () => {
 
   const errors = useMemo(() => {
     return [campaign, creative, budget, parish]
-      .filter((slice) => slice.status === "error" && slice.error)
+      .filter((slice) => slice.status === 'error' && slice.error)
       .map((slice) => slice.error as string);
   }, [budget, campaign, creative, parish]);
 
   const navLinks = useMemo(
     () => [
-      { label: "Campaigns", to: "/dashboards/campaigns", end: true },
-      { label: "Creatives", to: "/dashboards/creatives", end: true },
-      { label: "Budget pacing", to: "/dashboards/budget", end: true },
+      { label: 'Campaigns', to: '/dashboards/campaigns', end: true },
+      { label: 'Creatives', to: '/dashboards/creatives', end: true },
+      { label: 'Budget pacing', to: '/dashboards/budget', end: true },
     ],
     [],
   );
 
   const breadcrumbs = useMemo(() => {
-    const items: { label: string; to?: string }[] = [{ label: "Home", to: "/" }];
-    const segments = location.pathname.split("/").filter(Boolean);
-    let pathAccumulator = "";
+    const items: { label: string; to?: string }[] = [{ label: 'Home', to: '/' }];
+    const segments = location.pathname.split('/').filter(Boolean);
+    let pathAccumulator = '';
 
     segments.forEach((segment, index) => {
       pathAccumulator += `/${segment}`;
-      const label = segmentLabels[segment] ?? segment.replace(/-/g, " ");
+      const label = segmentLabels[segment] ?? segment.replace(/-/g, ' ');
       items.push({
         label: label.charAt(0).toUpperCase() + label.slice(1),
         to: index === segments.length - 1 ? undefined : pathAccumulator,
@@ -130,43 +130,43 @@ const DashboardLayout = () => {
   const handleSaveLayout = useCallback(() => {
     try {
       saveDashboardLayout({ metric: selectedMetric, parish: selectedParish });
-      pushToast("Saved layout", { tone: "success" });
+      pushToast('Saved layout', { tone: 'success' });
     } catch (error) {
-      pushToast("Unable to save layout", { tone: "error" });
+      pushToast('Unable to save layout', { tone: 'error' });
     }
   }, [pushToast, selectedMetric, selectedParish]);
 
   const handleCopyLink = useCallback(async () => {
-    if (typeof window === "undefined") {
-      pushToast("Unable to copy link", { tone: "error" });
+    if (typeof window === 'undefined') {
+      pushToast('Unable to copy link', { tone: 'error' });
       return;
     }
 
     const currentUrl = window.location.href;
 
     try {
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
         await navigator.clipboard.writeText(currentUrl);
       } else {
-        const textarea = document.createElement("textarea");
+        const textarea = document.createElement('textarea');
         textarea.value = currentUrl;
-        textarea.setAttribute("aria-hidden", "true");
-        textarea.style.position = "fixed";
-        textarea.style.opacity = "0";
-        textarea.style.pointerEvents = "none";
+        textarea.setAttribute('aria-hidden', 'true');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        textarea.style.pointerEvents = 'none';
         document.body.appendChild(textarea);
         textarea.focus();
         textarea.select();
-        const copied = document.execCommand("copy");
+        const copied = document.execCommand('copy');
         document.body.removeChild(textarea);
         if (!copied) {
-          throw new Error("Copy command failed");
+          throw new Error('Copy command failed');
         }
       }
 
-      pushToast("Copied link", { tone: "success" });
+      pushToast('Copied link', { tone: 'success' });
     } catch (error) {
-      pushToast("Unable to copy link", { tone: "error" });
+      pushToast('Unable to copy link', { tone: 'error' });
     }
   }, [pushToast]);
 
@@ -204,20 +204,20 @@ const DashboardLayout = () => {
     </svg>
   );
 
-  const accountLabel = (user as { email?: string } | undefined)?.email ?? "Account";
+  const accountLabel = (user as { email?: string } | undefined)?.email ?? 'Account';
 
   return (
     <div className="dashboard-shell">
-      <div className={`dashboard-top${isScrolled ? " shadow" : ""}`}>
+      <div className={`dashboard-top${isScrolled ? ' shadow' : ''}`}>
         <header className="dashboard-header">
           <div className="container dashboard-header__inner">
             <div>
               <h1>ADinsights</h1>
               <p className="muted">
-                Tenant <strong>{tenantId ?? "unknown"}</strong>
+                Tenant <strong>{tenantId ?? 'unknown'}</strong>
                 {selectedParish ? (
                   <span>
-                    {" • "}Filtering to <strong>{selectedParish}</strong>
+                    {' • '}Filtering to <strong>{selectedParish}</strong>
                   </span>
                 ) : null}
               </p>
@@ -241,18 +241,22 @@ const DashboardLayout = () => {
                 type="button"
                 className="button tertiary theme-toggle"
                 onClick={toggleTheme}
-                aria-pressed={theme === "dark"}
+                aria-pressed={theme === 'dark'}
               >
                 <span className="theme-toggle__icon" aria-hidden="true">
-                  {theme === "dark" ? "🌞" : "🌙"}
+                  {theme === 'dark' ? '🌞' : '🌙'}
                 </span>
-                <span>{theme === "dark" ? "Light" : "Dark"} mode</span>
+                <span>{theme === 'dark' ? 'Light' : 'Dark'} mode</span>
               </button>
               <button type="button" className="button secondary" onClick={handleSaveLayout}>
                 {SaveIcon}
                 Save layout
               </button>
-              <button type="button" className="button secondary" onClick={() => void handleCopyLink()}>
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => void handleCopyLink()}
+              >
                 {LinkIcon}
                 Copy link
               </button>
@@ -266,7 +270,12 @@ const DashboardLayout = () => {
         <nav className="dashboard-nav" aria-label="Dashboard sections">
           <div className="container dashboard-nav__inner">
             {navLinks.map((link) => (
-              <NavLink key={link.to} to={link.to} end={link.end} className={({ isActive }) => (isActive ? "active" : undefined)}>
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.end}
+                className={({ isActive }) => (isActive ? 'active' : undefined)}
+              >
                 {link.label}
               </NavLink>
             ))}

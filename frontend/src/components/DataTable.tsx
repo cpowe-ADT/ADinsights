@@ -1,5 +1,5 @@
-import { Fragment, ReactNode, useId, useState } from "react";
-import type { ChangeEvent } from "react";
+import { Fragment, ReactNode, useId, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import {
   ColumnDef,
   FilterFn,
@@ -10,9 +10,9 @@ import {
   Row,
   SortingState,
   useReactTable,
-} from "@tanstack/react-table";
+} from '@tanstack/react-table';
 
-type DataTableDensity = "comfortable" | "compact";
+type DataTableDensity = 'comfortable' | 'compact';
 
 type DataTableProps<TData> = {
   columns: ColumnDef<TData, unknown>[];
@@ -48,36 +48,39 @@ type DataTableProps<TData> = {
 };
 
 const classNames = (...values: Array<string | false | null | undefined>) =>
-  values.filter(Boolean).join(" ");
+  values.filter(Boolean).join(' ');
 
-const makeGlobalFilterFn = <TData,>(): FilterFn<TData> =>
+const makeGlobalFilterFn =
+  <TData,>(): FilterFn<TData> =>
   (row, _columnId, filterValue) => {
-    const raw = typeof filterValue === "string" ? filterValue : String(filterValue ?? "");
+    const raw = typeof filterValue === 'string' ? filterValue : String(filterValue ?? '');
     const search = raw.trim().toLowerCase();
 
     if (!search) {
       return true;
     }
 
-    return row
-      .getAllCells()
-      .some((cell) => {
-        const value = cell.getValue();
-        if (value === null || value === undefined) {
-          return false;
-        }
-        if (typeof value === "number") {
-          return String(value).toLowerCase().includes(search);
-        }
-        if (typeof value === "string") {
-          return value.toLowerCase().includes(search);
-        }
-        if (Array.isArray(value)) {
-          return value.some((item) => String(item ?? "").toLowerCase().includes(search));
-        }
-
+    return row.getAllCells().some((cell) => {
+      const value = cell.getValue();
+      if (value === null || value === undefined) {
+        return false;
+      }
+      if (typeof value === 'number') {
         return String(value).toLowerCase().includes(search);
-      });
+      }
+      if (typeof value === 'string') {
+        return value.toLowerCase().includes(search);
+      }
+      if (Array.isArray(value)) {
+        return value.some((item) =>
+          String(item ?? '')
+            .toLowerCase()
+            .includes(search),
+        );
+      }
+
+      return String(value).toLowerCase().includes(search);
+    });
   };
 
 const DataTable = <TData,>({
@@ -86,14 +89,14 @@ const DataTable = <TData,>({
   getRowId,
   title,
   description,
-  emptyMessage = "No records found.",
-  searchPlaceholder = "Search table",
+  emptyMessage = 'No records found.',
+  searchPlaceholder = 'Search table',
   initialSorting = [],
-  initialDensity = "comfortable",
+  initialDensity = 'comfortable',
 }: DataTableProps<TData>) => {
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
   const [density, setDensity] = useState<DataTableDensity>(initialDensity);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
 
   const table = useReactTable({
     data,
@@ -112,7 +115,7 @@ const DataTable = <TData,>({
   });
 
   const searchInputId = useId();
-  const regionLabel = typeof title === "string" ? title : "Table content";
+  const regionLabel = typeof title === 'string' ? title : 'Table content';
   const resolveHeaderLabel = (columnId: string) => {
     const header = table.getFlatHeaders().find((item) => item.column.id === columnId);
     if (!header) {
@@ -135,7 +138,7 @@ const DataTable = <TData,>({
   const rowCount = table.getRowModel().rows.length;
 
   return (
-    <div className={classNames("data-table", `data-table--${density}`)}>
+    <div className={classNames('data-table', `data-table--${density}`)}>
       <div className="data-table__header">
         {title || description ? (
           <div className="data-table__intro">
@@ -160,16 +163,16 @@ const DataTable = <TData,>({
             <button
               type="button"
               className="data-table__density-button"
-              onClick={() => handleDensityChange("comfortable")}
-              aria-pressed={density === "comfortable"}
+              onClick={() => handleDensityChange('comfortable')}
+              aria-pressed={density === 'comfortable'}
             >
               Comfortable
             </button>
             <button
               type="button"
               className="data-table__density-button"
-              onClick={() => handleDensityChange("compact")}
-              aria-pressed={density === "compact"}
+              onClick={() => handleDensityChange('compact')}
+              aria-pressed={density === 'compact'}
             >
               Compact
             </button>
@@ -187,7 +190,12 @@ const DataTable = <TData,>({
                   }
 
                   const sortState = header.column.getIsSorted();
-                  const ariaSort = sortState === "asc" ? "ascending" : sortState === "desc" ? "descending" : "none";
+                  const ariaSort =
+                    sortState === 'asc'
+                      ? 'ascending'
+                      : sortState === 'desc'
+                        ? 'descending'
+                        : 'none';
 
                   return (
                     <th
@@ -196,10 +204,11 @@ const DataTable = <TData,>({
                       aria-sort={ariaSort}
                       scope="col"
                       className={classNames(
-                        "data-table__header-cell",
-                        header.column.columnDef.meta && (header.column.columnDef.meta as { isNumeric?: boolean }).isNumeric
-                          ? "data-table__cell--numeric"
-                          : undefined
+                        'data-table__header-cell',
+                        header.column.columnDef.meta &&
+                          (header.column.columnDef.meta as { isNumeric?: boolean }).isNumeric
+                          ? 'data-table__cell--numeric'
+                          : undefined,
                       )}
                     >
                       {header.column.getCanSort() ? (
@@ -208,14 +217,14 @@ const DataTable = <TData,>({
                           onClick={header.column.getToggleSortingHandler()}
                           className="data-table__sort-button"
                           aria-label={`Sort by ${String(
-                            flexRender(header.column.columnDef.header, header.getContext())
+                            flexRender(header.column.columnDef.header, header.getContext()),
                           )}`}
                         >
                           <span className="data-table__sort-label">
                             {flexRender(header.column.columnDef.header, header.getContext())}
                           </span>
                           <span className="data-table__sort-icon" aria-hidden="true">
-                            {sortState === "asc" ? "▲" : sortState === "desc" ? "▼" : "↕"}
+                            {sortState === 'asc' ? '▲' : sortState === 'desc' ? '▼' : '↕'}
                           </span>
                         </button>
                       ) : (
@@ -236,39 +245,47 @@ const DataTable = <TData,>({
               const detailCells = cells.slice(2);
               const isZebra = index % 2 === 1;
               const firstValue = primaryCells[0]?.getValue();
-              const summaryLabel = firstValue ? `Details for ${String(firstValue)}` : "Row details";
+              const summaryLabel = firstValue ? `Details for ${String(firstValue)}` : 'Row details';
 
               return (
                 <Fragment key={row.id}>
                   <tr
-                    className={classNames("data-table__row", isZebra && "data-table__row--zebra")}
+                    className={classNames('data-table__row', isZebra && 'data-table__row--zebra')}
                     data-row-type="data"
                   >
                     {primaryCells.map((cell) => (
                       <td
                         key={cell.id}
                         className={classNames(
-                          "data-table__cell",
-                          (cell.column.columnDef.meta as { isNumeric?: boolean } | undefined)?.isNumeric
-                            ? "data-table__cell--numeric"
-                            : undefined
+                          'data-table__cell',
+                          (cell.column.columnDef.meta as { isNumeric?: boolean } | undefined)
+                            ?.isNumeric
+                            ? 'data-table__cell--numeric'
+                            : undefined,
                         )}
                       >
-                        {flexRender(cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()), cell.getContext())}
+                        {flexRender(
+                          cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()),
+                          cell.getContext(),
+                        )}
                       </td>
                     ))}
                     {detailCells.map((cell) => (
                       <td
                         key={cell.id}
                         className={classNames(
-                          "data-table__cell",
-                          "data-table__cell--hidden-mobile",
-                          (cell.column.columnDef.meta as { isNumeric?: boolean } | undefined)?.isNumeric
-                            ? "data-table__cell--numeric"
-                            : undefined
+                          'data-table__cell',
+                          'data-table__cell--hidden-mobile',
+                          (cell.column.columnDef.meta as { isNumeric?: boolean } | undefined)
+                            ?.isNumeric
+                            ? 'data-table__cell--numeric'
+                            : undefined,
                         )}
                       >
-                        {flexRender(cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()), cell.getContext())}
+                        {flexRender(
+                          cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()),
+                          cell.getContext(),
+                        )}
                       </td>
                     ))}
                   </tr>
@@ -281,14 +298,26 @@ const DataTable = <TData,>({
                             {detailCells.map((cell) => {
                               const headerLabel = resolveHeaderLabel(cell.column.id);
                               return (
-                                <div key={`${row.id}-${cell.column.id}`} className="data-table__details-item">
+                                <div
+                                  key={`${row.id}-${cell.column.id}`}
+                                  className="data-table__details-item"
+                                >
                                   <dt>{headerLabel}</dt>
-                                  <dd className={classNames(
-                                    (cell.column.columnDef.meta as { isNumeric?: boolean } | undefined)?.isNumeric
-                                      ? "data-table__cell--numeric"
-                                      : undefined
-                                  )}>
-                                    {flexRender(cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()), cell.getContext())}
+                                  <dd
+                                    className={classNames(
+                                      (
+                                        cell.column.columnDef.meta as
+                                          | { isNumeric?: boolean }
+                                          | undefined
+                                      )?.isNumeric
+                                        ? 'data-table__cell--numeric'
+                                        : undefined,
+                                    )}
+                                  >
+                                    {flexRender(
+                                      cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()),
+                                      cell.getContext(),
+                                    )}
                                   </dd>
                                 </div>
                               );

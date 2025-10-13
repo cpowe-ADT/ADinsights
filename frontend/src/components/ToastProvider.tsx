@@ -7,9 +7,9 @@ import {
   useRef,
   useState,
   type ReactNode,
-} from "react";
+} from 'react';
 
-export type ToastTone = "info" | "success" | "error";
+export type ToastTone = 'info' | 'success' | 'error';
 
 export interface ToastOptions {
   tone?: ToastTone;
@@ -42,11 +42,11 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const pushToast = useCallback<ToastContextValue["pushToast"]>(
+  const pushToast = useCallback<ToastContextValue['pushToast']>(
     (message, options) => {
       idRef.current += 1;
       const id = idRef.current;
-      const tone: ToastTone = options?.tone ?? "info";
+      const tone: ToastTone = options?.tone ?? 'info';
       const duration = options?.duration ?? 4000;
 
       setToasts((previous) => [...previous, { id, message, tone }]);
@@ -58,7 +58,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
         timersRef.current.set(id, timeoutId);
       }
     },
-    [removeToast]
+    [removeToast],
   );
 
   useEffect(() => {
@@ -95,7 +95,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
 export const useToast = (): ToastContextValue => {
   const context = useContext(ToastContext);
   if (!context) {
-    throw new Error("useToast must be used within a ToastProvider");
+    throw new Error('useToast must be used within a ToastProvider');
   }
   return context;
 };

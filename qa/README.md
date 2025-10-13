@@ -3,6 +3,7 @@
 This package houses end-to-end smoke tests for the ADinsights dashboard shell. The suite assumes the React frontend runs in mock mode by default while still allowing real API calls when a backend is available.
 
 ## Prerequisites
+
 - Node.js 18+
 - npm 9+
 
@@ -50,12 +51,12 @@ If the frontend is already hosted, append `QA_BASE_URL="https://staging-frontend
 
 ### Environment variables
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `MOCK_MODE` | `true` | When `true`, tests stub API health and export endpoints to avoid requiring the Django backend. Set to `false` to exercise live APIs. |
-| `QA_PORT` | `4173` | Port used for the ephemeral Vite dev server started by Playwright. |
-| `QA_BASE_URL` | — | Override the computed base URL (useful when pointing to an already running frontend). Leave unset to use the preview server (e.g., `http://127.0.0.1:${QA_PORT}`). |
-| `LIVE_API_BASE_URL` | — | Required for live runs (`MOCK_MODE=false`). Provide the fully qualified base (e.g., `https://staging.adinsights.local`). |
+| Variable            | Default | Purpose                                                                                                                                                            |
+| ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `MOCK_MODE`         | `true`  | When `true`, tests stub API health and export endpoints to avoid requiring the Django backend. Set to `false` to exercise live APIs.                               |
+| `QA_PORT`           | `4173`  | Port used for the ephemeral Vite dev server started by Playwright.                                                                                                 |
+| `QA_BASE_URL`       | —       | Override the computed base URL (useful when pointing to an already running frontend). Leave unset to use the preview server (e.g., `http://127.0.0.1:${QA_PORT}`). |
+| `LIVE_API_BASE_URL` | —       | Required for live runs (`MOCK_MODE=false`). Provide the fully qualified base (e.g., `https://staging.adinsights.local`).                                           |
 
 When `MOCK_MODE=false`, ensure the backend is running and reachable from the test environment. The suite expects `/api/health/`, `/api/health/airbyte/`, `/api/health/dbt/`, and `/api/metrics/export/?format=csv` to respond with production-formatted payloads.
 
@@ -93,6 +94,7 @@ they remain friendly to tooling that rejects binary assets. When intentional UI 
 3. Inspect the diff locally (Playwright surfaces pixel changes in the terminal output) before committing the refreshed assets.
 
 All snapshot updates should accompany a quick accessibility review; the specs fail automatically on any new `serious`/`critical` axe-core violations.
+
 ## CI & nightly strategy
 
 - **PR checks:** Run only the mock-mode suite (`MOCK_MODE=true`) with deterministic seeds. Failures gate merges unless tagged as `@quarantine`.

@@ -1,4 +1,4 @@
-import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
+import type { CSSProperties, HTMLAttributes, ReactNode } from 'react';
 
 interface ChartCardProps extends HTMLAttributes<HTMLElement> {
   title: string;
@@ -20,10 +20,10 @@ const ChartCard = ({
   style,
   ...sectionProps
 }: ChartCardProps) => {
-  const mergedClassName = ["panel", "chart-card", className].filter(Boolean).join(" ");
+  const mergedClassName = ['panel', 'chart-card', className].filter(Boolean).join(' ');
   const mergedStyle = {
     ...style,
-    "--chart-card-min-height": `${minHeight}px`,
+    '--chart-card-min-height': `${minHeight}px`,
   } as CSSProperties;
 
   return (

@@ -8,12 +8,12 @@ export default defineConfig({
     globals: true,
     css: true,
     deps: {
-      inline: ['recharts']
+      inline: ['recharts'],
     },
     include: ['frontend/src/{lib,pages,state}/**/*.{test,spec}.{js,ts,jsx,tsx}'],
     exclude: ['qa/**/*', 'integrations/**/*', 'node_modules/**/*'],
     environmentOptions: {
-      jsdom: { url: 'http://localhost' }
-    }
-  }
+      jsdom: { url: 'http://localhost' },
+    },
+  },
 });

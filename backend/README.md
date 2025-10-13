@@ -10,11 +10,13 @@ all tooling, docs, and deployment assets reference the Django stack exclusively.
 below for local development or containerized workflows.
 
 ## Requirements
+
 - Python 3.11+
 - PostgreSQL 14+ (or SQLite for smoke tests)
 - Redis (for Celery broker/result backend)
 
 ## Setup
+
 1. Create and activate a virtual environment.
 2. Install requirements:
    ```bash
@@ -75,29 +77,38 @@ docker run --rm --env-file .env adinsights-backend-scheduler
 Ensure Redis and PostgreSQL are reachable from the container environment before launching workers.
 
 ## Celery
+
 Start workers once Redis is running:
+
 ```bash
 celery -A core worker -l info
 celery -A core beat -l info
 ```
+
 Sample tasks live in `core/tasks.py` and can be invoked from the Django shell for testing.
 
 ## Row-Level Security
+
 After provisioning the database, enable Postgres row-level security policies:
+
 ```bash
 python manage.py enable_rls
 ```
+
 The command prints the SQL used to set policies on tenant-scoped tables.
 
 ## Testing & Linting
+
 ```bash
 pytest
 ruff check
 ```
+
 Pytest spins up an in-memory settings module and validates JWT auth, credential encryption, and
 management commands.
 
 ## Account & Tenant APIs
+
 - `POST /api/tenants/` — create a tenant and bootstrap its first administrator. Returns the
   tenant payload and the admin's user ID so provisioning scripts can assign secrets or analytics
   workspaces.

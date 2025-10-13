@@ -1,16 +1,18 @@
-import { FormEvent, useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { FormEvent, useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from '../auth/AuthContext';
 
 const LoginPage = () => {
   const { login, status, error, isAuthenticated } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = (location.state as { from?: { pathname?: string } } | undefined)?.from?.pathname ?? "/dashboards/campaigns";
+  const from =
+    (location.state as { from?: { pathname?: string } } | undefined)?.from?.pathname ??
+    '/dashboards/campaigns';
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -52,8 +54,8 @@ const LoginPage = () => {
           autoComplete="current-password"
         />
         {error ? <p className="status-message error">{error}</p> : null}
-        <button type="submit" disabled={status === "authenticating"} className="button primary">
-          {status === "authenticating" ? "Signing in…" : "Sign In"}
+        <button type="submit" disabled={status === 'authenticating'} className="button primary">
+          {status === 'authenticating' ? 'Signing in…' : 'Sign In'}
         </button>
       </form>
     </div>

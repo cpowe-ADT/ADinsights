@@ -1,4 +1,4 @@
-import { ReactNode, useId } from "react";
+import { ReactNode, useId } from 'react';
 
 interface CardProps {
   title: string;
@@ -7,14 +7,18 @@ interface CardProps {
   children?: ReactNode;
 }
 
-const joinClassNames = (...values: Array<string | undefined>) => values.filter(Boolean).join(" ");
+const joinClassNames = (...values: Array<string | undefined>) => values.filter(Boolean).join(' ');
 
 const Card = ({ title, className, titleId, children }: CardProps) => {
   const generatedId = useId();
   const headingId = titleId ?? `${generatedId}-title`;
 
   return (
-    <section role="region" aria-labelledby={headingId} className={joinClassNames("card", className)}>
+    <section
+      role="region"
+      aria-labelledby={headingId}
+      className={joinClassNames('card', className)}
+    >
       <header className="cardHeader">
         <h2 id={headingId} className="cardTitle">
           {title}

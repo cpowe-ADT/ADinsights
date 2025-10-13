@@ -1,6 +1,6 @@
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from '@playwright/test';
 
-import BasePage from "./BasePage";
+import BasePage from './BasePage';
 
 class MapPanel extends BasePage {
   constructor(page: Page) {
@@ -9,17 +9,17 @@ class MapPanel extends BasePage {
 
   private get panel(): Locator {
     return this.page
-      .getByRole("heading", { name: /Parish heatmap/i })
-      .locator("..")
-      .locator("..");
+      .getByRole('heading', { name: /Parish heatmap/i })
+      .locator('..')
+      .locator('..');
   }
 
   private get shapes(): Locator {
-    return this.panel.locator("path.leaflet-interactive");
+    return this.panel.locator('path.leaflet-interactive');
   }
 
   private get tooltip(): Locator {
-    return this.page.locator(".leaflet-tooltip");
+    return this.page.locator('.leaflet-tooltip');
   }
 
   async waitForFeatureCount(expected: number): Promise<void> {

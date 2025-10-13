@@ -1,4 +1,4 @@
-import ParishMap from "../components/ParishMap";
+import ParishMap from '../components/ParishMap';
 
 const ParishMapDetail = () => {
   return (

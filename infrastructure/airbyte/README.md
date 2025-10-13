@@ -20,12 +20,14 @@ Airbyte schedules live on each **Connection**; configure them via the UI (`Conne
 or with the API (`POST /api/v1/connections/update`).
 
 ### Hourly metrics (Meta & Google Ads)
+
 - **Cron:** `0 6-22 * * *` to run at the top of the hour between 06:00 and 22:00.
 - **Sync mode:** Incremental on `updated_time` (Meta) and `segments.date` (Google Ads) with `Additional sync lookback window = 3 days`.
 - **Why:** Captures late conversions without rerunning the entire 28-day attribution window while keeping each sync under the
   <30 minute SLA.
 
 In the API payload, set:
+
 ```json
 {
   "scheduleType": "cron",
@@ -40,6 +42,7 @@ In the API payload, set:
 ```
 
 ### Daily dimensions (Campaign/Ad/Geo catalogs)
+
 - **Cron:** `15 2 * * *` so campaign/ad set/ad metadata and geo lookups finish before the 03:00 SLA.
 - **Sync mode:** Incremental on the appropriate `updated_time`/`segments.date` cursor with a 1-day lookback to catch late metadata changes.
 - **Why:** Dimensions change slowly; a single daily run keeps downstream dbt models stable while limiting API quota usage.
@@ -81,9 +84,9 @@ Optional transparency connectors are disabled by default in dbt via the `enable_
 
 All files assume credentials are injected from environment variables using Airbyte's declarative templates. Export the variables listed below before applying the YAML snippets. Replace placeholders with the actual workspace UUIDs and connection IDs when provisioning resources.
 
-| Connector | Required environment variables |
-| --- | --- |
-| Google Ads | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN`, `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID` |
-| Meta Marketing API | `AIRBYTE_META_APP_ID`, `AIRBYTE_META_APP_SECRET`, `AIRBYTE_META_ACCESS_TOKEN`, `AIRBYTE_META_ACCOUNT_ID` |
-| LinkedIn Transparency (stub) | `AIRBYTE_LINKEDIN_CLIENT_ID`, `AIRBYTE_LINKEDIN_CLIENT_SECRET`, `AIRBYTE_LINKEDIN_REFRESH_TOKEN` |
-| TikTok Transparency (stub) | `AIRBYTE_TIKTOK_TRANSPARENCY_TOKEN`, `AIRBYTE_TIKTOK_ADVERTISER_ID` |
+| Connector                    | Required environment variables                                                                                                                                                                                         |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Google Ads                   | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN`, `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID` |
+| Meta Marketing API           | `AIRBYTE_META_APP_ID`, `AIRBYTE_META_APP_SECRET`, `AIRBYTE_META_ACCESS_TOKEN`, `AIRBYTE_META_ACCOUNT_ID`                                                                                                               |
+| LinkedIn Transparency (stub) | `AIRBYTE_LINKEDIN_CLIENT_ID`, `AIRBYTE_LINKEDIN_CLIENT_SECRET`, `AIRBYTE_LINKEDIN_REFRESH_TOKEN`                                                                                                                       |
+| TikTok Transparency (stub)   | `AIRBYTE_TIKTOK_TRANSPARENCY_TOKEN`, `AIRBYTE_TIKTOK_ADVERTISER_ID`                                                                                                                                                    |

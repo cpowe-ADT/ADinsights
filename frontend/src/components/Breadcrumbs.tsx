@@ -1,7 +1,7 @@
-import { ChangeEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { ChangeEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
-import styles from "./Breadcrumbs.module.css";
+import styles from './Breadcrumbs.module.css';
 
 type BreadcrumbItem = {
   label: string;
@@ -12,13 +12,13 @@ type BreadcrumbsProps = {
   items: BreadcrumbItem[];
 };
 
-const CURRENT_CRUMB_VALUE = "__current__";
+const CURRENT_CRUMB_VALUE = '__current__';
 
 const Breadcrumbs = ({ items }: BreadcrumbsProps) => {
   const navigate = useNavigate();
   const lastIndex = items.length - 1;
   const currentValue =
-    lastIndex >= 0 ? items[lastIndex]?.to ?? CURRENT_CRUMB_VALUE : CURRENT_CRUMB_VALUE;
+    lastIndex >= 0 ? (items[lastIndex]?.to ?? CURRENT_CRUMB_VALUE) : CURRENT_CRUMB_VALUE;
 
   const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const next = event.target.value;

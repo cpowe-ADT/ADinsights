@@ -11,13 +11,7 @@
     },
     "status": {
       "type": "string",
-      "enum": [
-        "ok",
-        "missing_run_results",
-        "invalid_run_results",
-        "failing",
-        "stale"
-      ]
+      "enum": ["ok", "missing_run_results", "invalid_run_results", "failing", "stale"]
     },
     "run_results_path": {
       "type": "string",

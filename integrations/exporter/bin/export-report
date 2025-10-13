@@ -43,9 +43,7 @@ async function run(cliArgs = process.argv.slice(2)) {
   const pdfPath = args.out || path.join(baseDir, 'out', 'report.pdf');
   const pngArg = args.png;
   const pngPath =
-    pngArg === undefined || pngArg === true
-      ? path.join(baseDir, 'out', 'report.png')
-      : pngArg;
+    pngArg === undefined || pngArg === true ? path.join(baseDir, 'out', 'report.png') : pngArg;
 
   const data = await loadData(dataPath);
   const html = await renderReport(data);

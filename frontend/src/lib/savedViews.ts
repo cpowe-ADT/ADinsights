@@ -1,12 +1,12 @@
-const STORAGE_NAMESPACE = "adinsights.table-view";
+const STORAGE_NAMESPACE = 'adinsights.table-view';
 
 export const TABLE_VIEW_KEYS = {
-  campaign: "campaign-performance",
-  creative: "creative-performance",
+  campaign: 'campaign-performance',
+  creative: 'creative-performance',
 } as const;
 
 function isBrowserEnvironment(): boolean {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 }
 
 function toStorageKey(id: string): string {

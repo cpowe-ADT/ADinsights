@@ -1,8 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const isMock =
-  process.env.MOCK === '1' ||
-  String(process.env.MOCK_MODE || '').toLowerCase() === 'true';
+  process.env.MOCK === '1' || String(process.env.MOCK_MODE || '').toLowerCase() === 'true';
 
 // Let CI override, otherwise default to the standard ports
 const devUrl = process.env.QA_BASE_URL || 'http://127.0.0.1:5173';
@@ -21,21 +20,21 @@ export default defineConfig({
       name: 'chromium-desktop',
       use: {
         ...devices['Desktop Chrome'],
-        viewport: { width: 1280, height: 720 }
-      }
-    }
+        viewport: { width: 1280, height: 720 },
+      },
+    },
   ],
   webServer: isMock
     ? {
         command: 'npm run dev -- --host --port=5173',
         url: devUrl,
         reuseExistingServer: true,
-        timeout: 120_000
+        timeout: 120_000,
       }
     : {
         command: 'npm run build && npm run preview -- --host --port=4173',
         url: previewUrl,
         reuseExistingServer: true,
-        timeout: 120_000
-      }
+        timeout: 120_000,
+      },
 });

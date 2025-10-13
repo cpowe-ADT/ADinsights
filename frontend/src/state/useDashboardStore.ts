@@ -1,18 +1,18 @@
-import { create } from "zustand";
+import { create } from 'zustand';
 
-import { MOCK_MODE } from "../lib/apiClient";
-import { clearView, loadSavedView, saveView } from "../lib/savedViews";
+import { MOCK_MODE } from '../lib/apiClient';
+import { clearView, loadSavedView, saveView } from '../lib/savedViews';
 import {
   fetchBudgetPacing,
   fetchCampaignPerformance,
   fetchCreativePerformance,
   fetchParishAggregates,
   fetchDashboardMetrics,
-} from "../lib/dataService";
+} from '../lib/dataService';
 
-export type MetricKey = "spend" | "impressions" | "clicks" | "conversions" | "roas";
+export type MetricKey = 'spend' | 'impressions' | 'clicks' | 'conversions' | 'roas';
 
-export type LoadStatus = "idle" | "loading" | "loaded" | "error";
+export type LoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 export interface CampaignPerformanceSummary {
   currency: string;
@@ -148,24 +148,28 @@ interface DashboardState {
   clearSavedTableView: (tableId: string) => void;
 }
 
-const initialSlice = <T,>(): AsyncSlice<T> => ({ status: "idle", data: undefined, error: undefined });
+const initialSlice = <T>(): AsyncSlice<T> => ({
+  status: 'idle',
+  data: undefined,
+  error: undefined,
+});
 
-const DEFAULT_TENANT_KEY = "__default__";
+const DEFAULT_TENANT_KEY = '__default__';
 
 function createInitialState(): Pick<
   DashboardState,
-  | "selectedParish"
-  | "selectedMetric"
-  | "campaign"
-  | "creative"
-  | "budget"
-  | "parish"
-  | "activeTenantId"
-  | "metricsCache"
+  | 'selectedParish'
+  | 'selectedMetric'
+  | 'campaign'
+  | 'creative'
+  | 'budget'
+  | 'parish'
+  | 'activeTenantId'
+  | 'metricsCache'
 > {
   return {
     selectedParish: undefined,
-    selectedMetric: "spend",
+    selectedMetric: 'spend',
     campaign: initialSlice(),
     creative: initialSlice(),
     budget: initialSlice(),
@@ -180,7 +184,7 @@ function resolveTenantKey(tenantId?: string): string {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return typeof value === 'object' && value !== null;
 }
 
 function resolveSnapshotSource(snapshot: TenantMetricsSnapshot): TenantMetricsSnapshot {
@@ -189,7 +193,7 @@ function resolveSnapshotSource(snapshot: TenantMetricsSnapshot): TenantMetricsSn
   }
 
   const record = snapshot as Record<string, unknown>;
-  const nestedKeys = ["metrics", "snapshot", "data", "results", "payload"];
+  const nestedKeys = ['metrics', 'snapshot', 'data', 'results', 'payload'];
 
   for (const key of nestedKeys) {
     const candidate = record[key];
@@ -209,39 +213,39 @@ function parseTenantMetrics(snapshot: TenantMetricsSnapshot): TenantMetricsResol
     source.campaign ??
     source.campaigns ??
     source.campaign_performance ??
-    (record["campaign_metrics"] as CampaignPerformanceResponse | undefined) ??
-    (record["campaignMetrics"] as CampaignPerformanceResponse | undefined) ??
-    (record["campaignPerformance"] as CampaignPerformanceResponse | undefined);
+    (record['campaign_metrics'] as CampaignPerformanceResponse | undefined) ??
+    (record['campaignMetrics'] as CampaignPerformanceResponse | undefined) ??
+    (record['campaignPerformance'] as CampaignPerformanceResponse | undefined);
 
   if (!campaign) {
-    throw new Error("Campaign metrics missing from aggregated response");
+    throw new Error('Campaign metrics missing from aggregated response');
   }
 
   const creative =
     source.creative ??
     source.creatives ??
     source.creative_performance ??
-    (record["creative_metrics"] as CreativePerformanceRow[] | undefined) ??
-    (record["creativeMetrics"] as CreativePerformanceRow[] | undefined) ??
-    (record["creativePerformance"] as CreativePerformanceRow[] | undefined) ??
+    (record['creative_metrics'] as CreativePerformanceRow[] | undefined) ??
+    (record['creativeMetrics'] as CreativePerformanceRow[] | undefined) ??
+    (record['creativePerformance'] as CreativePerformanceRow[] | undefined) ??
     [];
 
   const budget =
     source.budget ??
     source.budgets ??
     source.budget_pacing ??
-    (record["budget_metrics"] as BudgetPacingRow[] | undefined) ??
-    (record["budgetMetrics"] as BudgetPacingRow[] | undefined) ??
-    (record["budgetPacing"] as BudgetPacingRow[] | undefined) ??
+    (record['budget_metrics'] as BudgetPacingRow[] | undefined) ??
+    (record['budgetMetrics'] as BudgetPacingRow[] | undefined) ??
+    (record['budgetPacing'] as BudgetPacingRow[] | undefined) ??
     [];
 
   const parish =
     source.parish ??
     source.parishes ??
     source.parish_aggregates ??
-    (record["parish_metrics"] as ParishAggregate[] | undefined) ??
-    (record["parishMetrics"] as ParishAggregate[] | undefined) ??
-    (record["parishAggregates"] as ParishAggregate[] | undefined) ??
+    (record['parish_metrics'] as ParishAggregate[] | undefined) ??
+    (record['parishMetrics'] as ParishAggregate[] | undefined) ??
+    (record['parishAggregates'] as ParishAggregate[] | undefined) ??
     [];
 
   return {
@@ -256,7 +260,7 @@ function withTenant(path: string, tenantId?: string): string {
   if (!tenantId) {
     return path;
   }
-  const separator = path.includes("?") ? "&" : "?";
+  const separator = path.includes('?') ? '&' : '?';
   return `${path}${separator}tenant_id=${encodeURIComponent(tenantId)}`;
 }
 
@@ -264,7 +268,7 @@ function mapError(reason: unknown): string {
   if (reason instanceof Error) {
     return reason.message;
   }
-  return "Unable to load the latest insights. Please try again.";
+  return 'Unable to load the latest insights. Please try again.';
 }
 
 const useDashboardStore = create<DashboardState>((set, get) => ({
@@ -287,7 +291,10 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     const cachedMetrics = metricsCache[tenantKey];
     const isTenantChange = Boolean(tenantId && tenantId !== activeTenantId);
     const allSlicesLoaded =
-      campaign.status === "loaded" && creative.status === "loaded" && budget.status === "loaded" && parish.status === "loaded";
+      campaign.status === 'loaded' &&
+      creative.status === 'loaded' &&
+      budget.status === 'loaded' &&
+      parish.status === 'loaded';
 
     if (!options?.force) {
       if (!isTenantChange && allSlicesLoaded) {
@@ -298,20 +305,20 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         set((state) => ({
           activeTenantId: tenantId ?? state.activeTenantId,
           selectedParish: undefined,
-          campaign: { status: "loaded", data: cachedMetrics.campaign, error: undefined },
-          creative: { status: "loaded", data: cachedMetrics.creative, error: undefined },
-          budget: { status: "loaded", data: cachedMetrics.budget, error: undefined },
-          parish: { status: "loaded", data: cachedMetrics.parish, error: undefined },
+          campaign: { status: 'loaded', data: cachedMetrics.campaign, error: undefined },
+          creative: { status: 'loaded', data: cachedMetrics.creative, error: undefined },
+          budget: { status: 'loaded', data: cachedMetrics.budget, error: undefined },
+          parish: { status: 'loaded', data: cachedMetrics.parish, error: undefined },
         }));
         return;
       }
 
       if (cachedMetrics && !isTenantChange && !allSlicesLoaded) {
         set((state) => ({
-          campaign: { status: "loaded", data: cachedMetrics.campaign, error: undefined },
-          creative: { status: "loaded", data: cachedMetrics.creative, error: undefined },
-          budget: { status: "loaded", data: cachedMetrics.budget, error: undefined },
-          parish: { status: "loaded", data: cachedMetrics.parish, error: undefined },
+          campaign: { status: 'loaded', data: cachedMetrics.campaign, error: undefined },
+          creative: { status: 'loaded', data: cachedMetrics.creative, error: undefined },
+          budget: { status: 'loaded', data: cachedMetrics.budget, error: undefined },
+          parish: { status: 'loaded', data: cachedMetrics.parish, error: undefined },
         }));
         return;
       }
@@ -320,72 +327,72 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     set((state) => ({
       activeTenantId: tenantId ?? state.activeTenantId,
       selectedParish: isTenantChange ? undefined : state.selectedParish,
-      campaign: { ...state.campaign, status: "loading", error: undefined },
-      creative: { ...state.creative, status: "loading", error: undefined },
-      budget: { ...state.budget, status: "loading", error: undefined },
-      parish: { ...state.parish, status: "loading", error: undefined },
+      campaign: { ...state.campaign, status: 'loading', error: undefined },
+      creative: { ...state.creative, status: 'loading', error: undefined },
+      budget: { ...state.budget, status: 'loading', error: undefined },
+      parish: { ...state.parish, status: 'loading', error: undefined },
     }));
 
     if (!MOCK_MODE) {
-      const metricsPath = withTenant("/dashboards/aggregate-snapshot/", tenantId);
+      const metricsPath = withTenant('/dashboards/aggregate-snapshot/', tenantId);
 
       try {
         const snapshot = await fetchDashboardMetrics({
           path: metricsPath,
-          mockPath: "/sample_metrics.json",
+          mockPath: '/sample_metrics.json',
         });
         const resolved = parseTenantMetrics(snapshot);
 
         set((state) => ({
-          campaign: { status: "loaded", data: resolved.campaign, error: undefined },
-          creative: { status: "loaded", data: resolved.creative, error: undefined },
-          budget: { status: "loaded", data: resolved.budget, error: undefined },
-          parish: { status: "loaded", data: resolved.parish, error: undefined },
+          campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
+          creative: { status: 'loaded', data: resolved.creative, error: undefined },
+          budget: { status: 'loaded', data: resolved.budget, error: undefined },
+          parish: { status: 'loaded', data: resolved.parish, error: undefined },
           metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
         }));
       } catch (error) {
         const message = mapError(error);
         set((state) => ({
-          campaign: { status: "error", data: state.campaign.data, error: message },
-          creative: { status: "error", data: state.creative.data, error: message },
-          budget: { status: "error", data: state.budget.data, error: message },
-          parish: { status: "error", data: state.parish.data, error: message },
+          campaign: { status: 'error', data: state.campaign.data, error: message },
+          creative: { status: 'error', data: state.creative.data, error: message },
+          budget: { status: 'error', data: state.budget.data, error: message },
+          parish: { status: 'error', data: state.parish.data, error: message },
         }));
       }
 
       return;
     }
 
-    const campaignPath = withTenant("/dashboards/campaign-performance/", tenantId);
-    const creativePath = withTenant("/dashboards/creative-performance/", tenantId);
-    const budgetPath = withTenant("/dashboards/budget-pacing/", tenantId);
-    const parishPath = withTenant("/dashboards/parish-performance/", tenantId);
+    const campaignPath = withTenant('/dashboards/campaign-performance/', tenantId);
+    const creativePath = withTenant('/dashboards/creative-performance/', tenantId);
+    const budgetPath = withTenant('/dashboards/budget-pacing/', tenantId);
+    const parishPath = withTenant('/dashboards/parish-performance/', tenantId);
 
     const [campaignResult, creativeResult, budgetResult, parishResult] = await Promise.allSettled([
       fetchCampaignPerformance({
         path: campaignPath,
-        mockPath: "/sample_campaign_performance.json",
+        mockPath: '/sample_campaign_performance.json',
       }),
       fetchCreativePerformance({
         path: creativePath,
-        mockPath: "/sample_creative_performance.json",
+        mockPath: '/sample_creative_performance.json',
       }),
       fetchBudgetPacing({
         path: budgetPath,
-        mockPath: "/sample_budget_pacing.json",
+        mockPath: '/sample_budget_pacing.json',
       }),
       fetchParishAggregates({
         path: parishPath,
-        mockPath: "/sample_parish_aggregates.json",
+        mockPath: '/sample_parish_aggregates.json',
       }),
     ]);
 
     set((state) => {
       const fulfilled =
-        campaignResult.status === "fulfilled" &&
-        creativeResult.status === "fulfilled" &&
-        budgetResult.status === "fulfilled" &&
-        parishResult.status === "fulfilled";
+        campaignResult.status === 'fulfilled' &&
+        creativeResult.status === 'fulfilled' &&
+        budgetResult.status === 'fulfilled' &&
+        parishResult.status === 'fulfilled';
 
       const updatedCache = fulfilled
         ? {
@@ -401,34 +408,34 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
       return {
         campaign:
-          campaignResult.status === "fulfilled"
-            ? { status: "loaded", data: campaignResult.value, error: undefined }
+          campaignResult.status === 'fulfilled'
+            ? { status: 'loaded', data: campaignResult.value, error: undefined }
             : {
-                status: "error",
+                status: 'error',
                 data: state.campaign.data,
                 error: mapError(campaignResult.reason),
               },
         creative:
-          creativeResult.status === "fulfilled"
-            ? { status: "loaded", data: creativeResult.value, error: undefined }
+          creativeResult.status === 'fulfilled'
+            ? { status: 'loaded', data: creativeResult.value, error: undefined }
             : {
-                status: "error",
+                status: 'error',
                 data: state.creative.data,
                 error: mapError(creativeResult.reason),
               },
         budget:
-          budgetResult.status === "fulfilled"
-            ? { status: "loaded", data: budgetResult.value, error: undefined }
+          budgetResult.status === 'fulfilled'
+            ? { status: 'loaded', data: budgetResult.value, error: undefined }
             : {
-                status: "error",
+                status: 'error',
                 data: state.budget.data,
                 error: mapError(budgetResult.reason),
               },
         parish:
-          parishResult.status === "fulfilled"
-            ? { status: "loaded", data: parishResult.value, error: undefined }
+          parishResult.status === 'fulfilled'
+            ? { status: 'loaded', data: parishResult.value, error: undefined }
             : {
-                status: "error",
+                status: 'error',
                 data: state.parish.data,
                 error: mapError(parishResult.reason),
               },
@@ -463,7 +470,9 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     if (!selectedParish) {
       return rows;
     }
-    return rows.filter((row) => row.parishes?.some((parish) => parish.toLowerCase() === selectedParish.toLowerCase()));
+    return rows.filter((row) =>
+      row.parishes?.some((parish) => parish.toLowerCase() === selectedParish.toLowerCase()),
+    );
   },
   reset: () => {
     set({

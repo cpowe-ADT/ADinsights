@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Page } from '@playwright/test';
 
 abstract class BasePage {
   protected readonly page: Page;
@@ -13,7 +13,7 @@ abstract class BasePage {
   }
 
   protected async waitForNetworkIdle(): Promise<void> {
-    await this.page.waitForLoadState("networkidle");
+    await this.page.waitForLoadState('networkidle');
   }
 }
 

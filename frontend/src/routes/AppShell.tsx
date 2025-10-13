@@ -1,10 +1,10 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet } from 'react-router-dom';
 
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from '../auth/AuthContext';
 
 const AppShell = () => {
   const { logout, tenantId, user } = useAuth();
-  const accountLabel = (user as { email?: string } | undefined)?.email ?? "Signed in";
+  const accountLabel = (user as { email?: string } | undefined)?.email ?? 'Signed in';
   const year = new Date().getFullYear();
 
   return (
@@ -20,7 +20,7 @@ const AppShell = () => {
           <div>
             <p className="app-name">ADinsights</p>
             <p className="app-tenant">
-              Tenant <strong>{tenantId ?? "unknown"}</strong>
+              Tenant <strong>{tenantId ?? 'unknown'}</strong>
             </p>
           </div>
         </div>
@@ -34,16 +34,25 @@ const AppShell = () => {
         </div>
       </header>
       <nav className="app-nav" aria-label="Primary">
-        <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : undefined)}>
+        <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : undefined)}>
           Home
         </NavLink>
-        <NavLink to="/dashboards/campaigns" className={({ isActive }) => (isActive ? "active" : undefined)}>
+        <NavLink
+          to="/dashboards/campaigns"
+          className={({ isActive }) => (isActive ? 'active' : undefined)}
+        >
           Campaigns
         </NavLink>
-        <NavLink to="/dashboards/creatives" className={({ isActive }) => (isActive ? "active" : undefined)}>
+        <NavLink
+          to="/dashboards/creatives"
+          className={({ isActive }) => (isActive ? 'active' : undefined)}
+        >
           Creatives
         </NavLink>
-        <NavLink to="/dashboards/budget" className={({ isActive }) => (isActive ? "active" : undefined)}>
+        <NavLink
+          to="/dashboards/budget"
+          className={({ isActive }) => (isActive ? 'active' : undefined)}
+        >
           Budget pacing
         </NavLink>
       </nav>
