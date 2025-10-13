@@ -9,6 +9,7 @@ import ParishMap from '../components/ParishMap';
 import Skeleton from '../components/Skeleton';
 import Card from '../components/ui/Card';
 import StatCard from '../components/ui/StatCard';
+import type { MetricBadge } from '../components/Metric';
 import { useAuth } from '../auth/AuthContext';
 import useDashboardStore from '../state/useDashboardStore';
 import { formatCurrency, formatNumber, formatRatio } from '../lib/format';
@@ -71,7 +72,9 @@ const CampaignDashboard = () => {
   if (campaign.status === 'error' && !hasCampaignData) {
     return (
       <div>
-        <h1 className="dashboardHeading">Campaign performance</h1>
+        <h1 className="dashboardHeading" aria-label="Campaign dashboard">
+          Campaign performance
+        </h1>
         <div className="dashboardGrid">
           <Card title="Campaign insights" className="chartCard">
             <div className="status-message">
@@ -90,7 +93,9 @@ const CampaignDashboard = () => {
   if (!hasCampaignData && !isInitialLoading) {
     return (
       <div>
-        <h1 className="dashboardHeading">Campaign performance</h1>
+        <h1 className="dashboardHeading" aria-label="Campaign dashboard">
+          Campaign performance
+        </h1>
         <div className="dashboardGrid">
           <Card title="Campaign insights" className="chartCard">
             <EmptyState
@@ -182,8 +187,10 @@ const CampaignDashboard = () => {
   ) : null;
 
   return (
-    <div>
-      <h1 className="dashboardHeading">Campaign performance</h1>
+      <div>
+        <h1 className="dashboardHeading" aria-label="Campaign dashboard">
+          Campaign performance
+        </h1>
       <div className="dashboardGrid">
         <div className="kpiColumn" role="group" aria-label="Campaign KPIs">
           {kpis.map((kpi) => (
@@ -226,7 +233,7 @@ const CampaignDashboard = () => {
           </div>
         </Card>
 
-        <Card title="Campaign performance table">
+        <Card title="Campaign metrics table">
           <CampaignTable
             rows={campaignRows}
             currency={currency}

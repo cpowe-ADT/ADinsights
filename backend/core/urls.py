@@ -6,8 +6,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.schemas import get_schema_view
 
 from alerts.views import AlertRunViewSet
-from analytics.views import AdapterListView, MetricsView
-from analytics.views import MetricsExportView, MetricsViewSet
+from analytics.views import AdapterListView, MetricsExportView, MetricsView
 from accounts.views import (
     AuditLogViewSet,
     MeView,
@@ -23,7 +22,6 @@ from integrations.views import (
     CampaignBudgetViewSet,
     PlatformCredentialViewSet,
 )
-from health import views as health_views
 from . import views as core_views
 
 router = DefaultRouter()
