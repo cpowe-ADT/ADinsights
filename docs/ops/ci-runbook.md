@@ -22,9 +22,10 @@ This runbook explains how to triage and remediate failures in the repository's G
 
 ## Retrieving artifacts
 
-* From the workflow **Summary** tab, scroll to the **Artifacts** section to download bundles such as `frontend-ci-artifacts`, `dbt-staging-artifacts`, or `backend-ci-summary.json`.
-* The `frontend-ci-artifacts` bundle contains the packaged build (`frontend-dist.zip`), the raw coverage directory, and a machine-readable manifest (`frontend-ci-artifacts.json`). Use the manifest to confirm file sizes, coverage percentages, and Vitest pass counts without unpacking the artifact locally.
+* From the workflow **Summary** tab, scroll to the **Artifacts** section to download bundles such as `frontend-dist.zip`, `dbt-staging-artifacts`, or `backend-ci-summary.json`.
+* The `dbt-staging-artifacts` bundle now includes compiled SQL (`dbt/target/compiled`), run logs (`dbt/logs/dbt.log`), docs metadata (`catalog.json`, `graph_summary.json`, and `semantic_manifest.json`), the standard `manifest.json`, `run_results.json`, `graph.gpickle`, `partial_parse.msgpack`, and the machine-readable `artifact-inventory.json` manifest generated in CI.
 * Artifact names map to the validation steps in the logs. For example, the `Publish backend timings` step uploads `ci-metrics.csv`; confirm the upload succeeded before debugging runtime regressions.
+* Inspect `artifact-inventory.json` to quickly list which staging models and schema tests ran in CI along with their statuses. This is useful when validating that optional connectors executed or when triaging flaky tests.
 * If an artifact is missing, cross-check the job logs for `upload-artifact` failures (often due to size limits) and re-run the job once the issue is addressed.
 
 ### Manifest schema reference
