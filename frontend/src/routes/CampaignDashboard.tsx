@@ -123,6 +123,8 @@ const CampaignDashboard = () => {
     }),
   );
 
+  const hasTrendData = trend.length > 0;
+
   const baseBadge: MetricBadge | undefined = isInitialLoading
     ? undefined
     : !hasTrendData
@@ -175,7 +177,6 @@ const CampaignDashboard = () => {
     };
   });
 
-  const hasTrendData = trend.length > 0;
   const dateRangeFormatter = new Intl.DateTimeFormat("en-JM", { month: "short", day: "numeric" });
   const chartFooter = hasTrendData
     ? (

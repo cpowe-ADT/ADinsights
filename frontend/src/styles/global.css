@@ -51,6 +51,7 @@ a {
   .container {
     max-width: 80rem;
   }
+}
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,

@@ -21,10 +21,10 @@ const ChartCard = ({
   ...sectionProps
 }: ChartCardProps) => {
   const mergedClassName = ["panel", "chart-card", className].filter(Boolean).join(" ");
-  const mergedStyle: CSSProperties = {
+  const mergedStyle = {
     ...style,
-    ["--chart-card-min-height" as const]: `${minHeight}px`,
-  };
+    "--chart-card-min-height": `${minHeight}px`,
+  } as CSSProperties;
 
   return (
     <section className={mergedClassName} style={mergedStyle} {...sectionProps}>
