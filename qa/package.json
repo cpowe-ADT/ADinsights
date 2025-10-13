@@ -6,9 +6,11 @@
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "setup": "playwright install",
-    "setup:deps": "playwright install-deps"
+    "setup:deps": "playwright install-deps",
+    "update-snapshots": "playwright test --update-snapshots"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
     "@playwright/test": "^1.48.2",
     "@types/node": "^20.16.11",
     "ajv": "^8.17.1",

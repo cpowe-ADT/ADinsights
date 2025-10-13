@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "./fixtures/base";
 import { DashboardPage } from "../page-objects";
 
@@ -61,6 +62,17 @@ function parseNumber(text: string): number {
   return Number(text.replace(/,/g, ""));
 }
 
+const DESKTOP_VIEWPORT = { width: 1280, height: 720 } as const;
+
+async function expectNoSeriousViolations(page: import("@playwright/test").Page) {
+  const results = await new AxeBuilder({ page }).analyze();
+  const seriousViolations = results.violations.filter((violation) =>
+    ["serious", "critical"].includes(violation.impact ?? ""),
+  );
+
+  expect(seriousViolations, `Serious accessibility violations detected: ${JSON.stringify(seriousViolations, null, 2)}`).toHaveLength(0);
+}
+
 test.describe("dashboard metrics grid", () => {
   test("defaults to impressions sorting and toggles to clicks", async ({ page, mockMode }) => {
     if (mockMode) {
@@ -69,6 +81,12 @@ test.describe("dashboard metrics grid", () => {
       await page.route("**/api/metrics/**", fulfillMetrics);
     }
 
+    await page.setViewportSize(DESKTOP_VIEWPORT);
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const rows = page.locator("tbody tr");
+    await expect(rows).toHaveCount(sampleRows.length);
     const dashboard = new DashboardPage(page);
     await dashboard.open();
     await dashboard.waitForMetricsLoaded(sampleRows.length);
@@ -91,6 +109,15 @@ test.describe("dashboard metrics grid", () => {
 
     expect(parishes).toEqual(sortedByClicks.map((row) => row.parish));
     expect(clicks).toEqual(sortedByClicks.map((row) => row.clicks));
+
+    const screenshot = await page.screenshot({
+      animations: "disabled",
+      fullPage: true,
+      encoding: "base64",
+    });
+    await expect(screenshot).toMatchSnapshot("dashboard-chromium-desktop.txt");
+
+    await expectNoSeriousViolations(page);
 
     if (mockMode) {
       await page.unroute("**/sample_metrics.json");
