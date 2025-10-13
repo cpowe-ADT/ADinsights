@@ -17,7 +17,7 @@
       "dma"
     ],
     "insights_lookback_window": 28,
-    "lookback_window_days": 3
+    "window_in_days": 3
   },
   "streams": [
     {
