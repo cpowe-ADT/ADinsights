@@ -2,12 +2,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GeoJSON as GeoJSONLayer, MapContainer, TileLayer } from "react-leaflet";
 import type { Feature, FeatureCollection } from "geojson";
 import L from "leaflet";
+import { Link } from "react-router-dom";
 
 import useDashboardStore from "../state/useDashboardStore";
 import { formatCurrency, formatNumber, formatRatio } from "../lib/format";
 import EmptyState from "./EmptyState";
 import ErrorState from "./ErrorState";
 import Skeleton from "./Skeleton";
+import { useTheme } from "./ThemeProvider";
+import styles from "./ParishMap.module.css";
+
+const COLOR_RAMP = ["#dbeafe", "#bfdbfe", "#60a5fa", "#2563eb", "#1d4ed8"] as const;
+
+interface ParishMapProps {
+  height?: number;
+}
 
 const JAMAICA_CENTER: [number, number] = [18.1096, -77.2975];
 
@@ -32,13 +41,25 @@ function computeBreaks(values: number[]): number[] {
   return [quantile(0.25), quantile(0.5), quantile(0.75), quantile(0.9)];
 }
 
-function getColor(value: number, breaks: number[]): string {
-  if (value === 0) return "#f1f5f9";
-  if (value <= breaks[0]) return "#bfdbfe";
-  if (value <= breaks[1]) return "#60a5fa";
-  if (value <= breaks[2]) return "#3b82f6";
-  if (value <= breaks[3]) return "#2563eb";
-  return "#1d4ed8";
+const FALLBACK_LIGHT_PALETTE = ["#f1f5f9", "#bfdbfe", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8"] as const;
+const FALLBACK_DARK_PALETTE = ["#0f172a", "#1e3a8a", "#1d4ed8", "#2563eb", "#38bdf8", "#93c5fd"] as const;
+
+function resolveCssColor(variableName: string, fallback: string): string {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  const value = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+  return value.length > 0 ? value : fallback;
+}
+
+function getColor(value: number, breaks: number[], palette: readonly string[]): string {
+  if (value === 0) return palette[0];
+  if (value <= breaks[0]) return palette[1];
+  if (value <= breaks[1]) return palette[2];
+  if (value <= breaks[2]) return palette[3];
+  if (value <= breaks[3]) return palette[4];
+  return palette[5];
 }
 
 interface ParishMapProps {
@@ -53,6 +74,17 @@ const MapPlaceholderIcon = () => (
 );
 
 const ParishMap = ({ onRetry }: ParishMapProps) => {
+const ParishMap = () => {
+  const { theme } = useTheme();
+function getColor(value: number, breaks: number[]): string {
+  if (value <= breaks[0]) return COLOR_RAMP[0];
+  if (value <= breaks[1]) return COLOR_RAMP[1];
+  if (value <= breaks[2]) return COLOR_RAMP[2];
+  if (value <= breaks[3]) return COLOR_RAMP[3];
+  return COLOR_RAMP[4];
+}
+
+const ParishMap = ({ height = 320 }: ParishMapProps) => {
   const { parishData, parishStatus, parishError, selectedMetric, selectedParish, setSelectedParish } =
     useDashboardStore((state) => ({
       parishData: state.parish.data ?? [],
@@ -64,12 +96,32 @@ const ParishMap = ({ onRetry }: ParishMapProps) => {
     }));
   const [geojson, setGeojson] = useState<FeatureCollection | null>(null);
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
+
+  const fallbackPalette = theme === "dark" ? FALLBACK_DARK_PALETTE : FALLBACK_LIGHT_PALETTE;
+  const mapPalette = useMemo<readonly string[]>(() => {
+    return fallbackPalette.map((color, index) =>
+      resolveCssColor(`--map-fill-${index}`, color)
+    );
+  }, [fallbackPalette]);
+
+  const borderColor = useMemo(
+    () => resolveCssColor("--map-border", theme === "dark" ? "rgba(226, 232, 240, 0.75)" : "#1e293b"),
+    [theme]
+  );
+  const highlightColor = useMemo(
+    () => resolveCssColor("--map-highlight", theme === "dark" ? "#fbbf24" : "#f97316"),
+    [theme]
+  );
+
+  const mapRef = useRef<L.Map | null>(null);
   const styleForParishRef = useRef<(name: string) => L.PathOptions>(() => ({
-    color: "#1e293b",
+    color: borderColor,
     weight: 1,
-    fillColor: "#f1f5f9",
+    fillColor: mapPalette[0],
+    fillColor: COLOR_RAMP[0],
     fillOpacity: 0.8,
   }));
+  const [scrollZoomEnabled, setScrollZoomEnabled] = useState(false);
 
   useEffect(() => {
     fetch("/jm_parishes.json")
@@ -87,50 +139,101 @@ const ParishMap = ({ onRetry }: ParishMapProps) => {
     }, {});
   }, [parishData, selectedMetric]);
 
-  const breaks = useMemo(() => computeBreaks(Object.values(metricByParish)), [metricByParish]);
+  const metricValues = useMemo(() => Object.values(metricByParish), [metricByParish]);
+  const breaks = useMemo(() => computeBreaks(metricValues), [metricValues]);
+  const currency = useMemo(() => parishData[0]?.currency ?? "USD", [parishData]);
+
+  const formatMetricValue = useCallback(
+    (value: number) => {
+      if (selectedMetric === "spend") {
+        return formatCurrency(value, currency);
+      }
+      if (selectedMetric === "roas") {
+        return formatRatio(value, 2);
+      }
+      return formatNumber(value);
+    },
+    [currency, selectedMetric]
+  );
+
+  const metricLabel = useMemo(() => {
+    const labels: Record<string, string> = {
+      spend: "Spend",
+      impressions: "Impressions",
+      clicks: "Clicks",
+      conversions: "Conversions",
+      roas: "ROAS",
+    };
+    return labels[selectedMetric] ?? selectedMetric.toUpperCase();
+  }, [selectedMetric]);
+
+  const legendSteps = useMemo(() => {
+    const [q1, q2, q3, q4] = breaks;
+    const minValue = metricValues.length > 0 ? Math.min(...metricValues) : 0;
+
+    const formatRange = (low: number, high: number, mode: "first" | "middle" | "last") => {
+      if (mode === "first") {
+        return `≤ ${formatMetricValue(high)}`;
+      }
+      if (mode === "last") {
+        return `> ${formatMetricValue(high)}`;
+      }
+      if (low === high) {
+        return formatMetricValue(high);
+      }
+      return `${formatMetricValue(low)} – ${formatMetricValue(high)}`;
+    };
+
+    return [
+      { color: COLOR_RAMP[0], label: formatRange(minValue, q1, "first") },
+      { color: COLOR_RAMP[1], label: formatRange(q1, q2, "middle") },
+      { color: COLOR_RAMP[2], label: formatRange(q2, q3, "middle") },
+      { color: COLOR_RAMP[3], label: formatRange(q3, q4, "middle") },
+      { color: COLOR_RAMP[4], label: formatRange(q4, q4, "last") },
+    ];
+  }, [breaks, formatMetricValue, metricValues]);
 
   const styleForParish = useCallback(
     (name: string): L.PathOptions => {
       const value = metricByParish[name] ?? 0;
 
       return {
-        fillColor: getColor(value, breaks),
+        fillColor: getColor(value, breaks, mapPalette),
         weight: selectedParish === name ? 2 : 1,
-        color: selectedParish === name ? "#f97316" : "#1e293b",
+        color: selectedParish === name ? highlightColor : borderColor,
         fillOpacity: 0.8,
       };
     },
-    [breaks, metricByParish, selectedParish]
+    [borderColor, breaks, highlightColor, mapPalette, metricByParish, selectedParish]
   );
 
   const tooltipForParish = useCallback(
     (name: string) => {
       const value = metricByParish[name] ?? 0;
-      const currency = parishData[0]?.currency ?? "USD";
-      const labels: Record<string, string> = {
-        spend: "Spend",
-        impressions: "Impressions",
-        clicks: "Clicks",
-        conversions: "Conversions",
-        roas: "ROAS",
-      };
+      const formattedValue = formatMetricValue(value);
 
-      const formattedValue =
-        selectedMetric === "spend"
-          ? formatCurrency(value, currency)
-          : selectedMetric === "roas"
-          ? formatRatio(value, 2)
-          : formatNumber(value);
-
-      const label = labels[selectedMetric] ?? selectedMetric.toUpperCase();
-      return `${name}<br/>${label}: ${formattedValue}`;
+      return `
+        <div class="${styles.tooltipInner}">
+          <span class="${styles.tooltipName}">${name}</span>
+          <span class="${styles.tooltipMetric}">${metricLabel}: ${formattedValue}</span>
+        </div>
+      `.trim();
     },
-    [metricByParish, selectedMetric, parishData]
+    [formatMetricValue, metricByParish, metricLabel]
   );
 
   useEffect(() => {
     styleForParishRef.current = styleForParish;
   }, [styleForParish]);
+
+  const tileLayerUrl =
+    theme === "dark"
+      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+      : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+  const tileAttribution =
+    theme === "dark"
+      ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+      : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
   const onEachFeature = useCallback(
     (feature: Feature, layer: L.Layer) => {
@@ -147,7 +250,13 @@ const ParishMap = ({ onRetry }: ParishMapProps) => {
       if (existingTooltip) {
         existingTooltip.setContent(tooltipText);
       } else {
-        typedLayer.bindTooltip(tooltipText, { sticky: true });
+        typedLayer.bindTooltip(tooltipText, {
+          sticky: true,
+          direction: "top",
+          className: styles.tooltip,
+          offset: L.point(0, -8),
+          opacity: 1,
+        });
       }
 
       layer.on({
@@ -186,7 +295,13 @@ const ParishMap = ({ onRetry }: ParishMapProps) => {
       if (existingTooltip) {
         existingTooltip.setContent(tooltipText);
       } else {
-        typedLayer.bindTooltip(tooltipText, { sticky: true });
+        typedLayer.bindTooltip(tooltipText, {
+          sticky: true,
+          direction: "top",
+          className: styles.tooltip,
+          offset: L.point(0, -8),
+          opacity: 1,
+        });
       }
     });
   }, [styleForParish, tooltipForParish]);
@@ -197,6 +312,30 @@ const ParishMap = ({ onRetry }: ParishMapProps) => {
         <Skeleton height="300px" borderRadius="1rem" />
       </div>
     );
+  const mapRefCallback = useCallback((map: L.Map | null) => {
+    if (!map) {
+      return;
+    }
+
+    mapRef.current = map;
+    map.scrollWheelZoom.disable();
+  }, []);
+
+  const toggleScrollZoom = useCallback(() => {
+    if (!mapRef.current) {
+      return;
+    }
+
+    if (scrollZoomEnabled) {
+      mapRef.current.scrollWheelZoom.disable();
+    } else {
+      mapRef.current.scrollWheelZoom.enable();
+    }
+    setScrollZoomEnabled((state) => !state);
+  }, [scrollZoomEnabled]);
+
+  if (parishStatus === "loading") {
+    return <div className="status-message muted">Preparing the parish heatmap…</div>;
   }
 
   if (parishStatus === "error" && parishData.length === 0) {
@@ -224,18 +363,67 @@ const ParishMap = ({ onRetry }: ParishMapProps) => {
 
   return (
     <MapContainer center={JAMAICA_CENTER} zoom={7} scrollWheelZoom={false} style={{ height: "100%", width: "100%" }}>
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <TileLayer attribution={tileAttribution} url={tileLayerUrl} />
       {geojson ? (
         <GeoJSONLayer
           ref={geoJsonRef}
           data={geojson as FeatureCollection}
           onEachFeature={onEachFeature}
+    <div className={styles.mapShell} style={{ height }}>
+      <div className={styles.overlay}>
+        <Link to="/dashboards/map" className={styles.fullMapLink}>
+          View full map
+        </Link>
+        <button
+          type="button"
+          className={styles.toggleButton}
+          onClick={toggleScrollZoom}
+          aria-pressed={scrollZoomEnabled}
+          aria-label={scrollZoomEnabled ? "Disable scroll zoom" : "Enable scroll zoom"}
+        >
+          <span aria-hidden="true" className={styles.toggleIcon}>
+            <svg viewBox="0 0 24 24" role="img" focusable="false">
+              <path
+                d="M12 3a3 3 0 0 0-3 3v4.382a3 3 0 0 0-.879 2.12v5.5A2.998 2.998 0 0 0 10.5 21h3a2.998 2.998 0 0 0 2.379-1.498 2.998 2.998 0 0 0 .121-2.502v-5.498A3 3 0 0 0 15 10.382V6a3 3 0 0 0-3-3Zm-1.5 3a1.5 1.5 0 1 1 3 0v4.618a1.5 1.5 0 0 1-.439 1.061l-.061.06v.261h-2v-.26l-.061-.062A1.5 1.5 0 0 1 10.5 10.618Z"
+              />
+              {!scrollZoomEnabled ? (
+                <line x1="5" y1="19" x2="19" y2="5" />
+              ) : null}
+            </svg>
+          </span>
+        </button>
+      </div>
+      <div className={styles.legend} role="group" aria-label={`${metricLabel} legend`}>
+        <span className={styles.legendTitle}>{metricLabel}</span>
+        <ul>
+          {legendSteps.map((step) => (
+            <li key={`${step.color}-${step.label}`}>
+              <span className={styles.legendSwatch} style={{ backgroundColor: step.color }} aria-hidden="true" />
+              <span className={styles.legendLabel}>{step.label}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <MapContainer
+        ref={mapRefCallback}
+        center={JAMAICA_CENTER}
+        zoom={7}
+        scrollWheelZoom={scrollZoomEnabled}
+        className={styles.map}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-      ) : null}
-    </MapContainer>
+        {geojson ? (
+          <GeoJSONLayer
+            ref={geoJsonRef}
+            data={geojson as FeatureCollection}
+            onEachFeature={onEachFeature}
+          />
+        ) : null}
+      </MapContainer>
+    </div>
   );
 };
 
