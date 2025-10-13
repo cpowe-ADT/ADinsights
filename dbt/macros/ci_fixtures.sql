@@ -47,7 +47,6 @@
             identifier=fixture.identifier,
             type='view'
         ) %}
-        {% do adapter.create_schema(target_relation) %}
 
         {% set existing_relation = adapter.get_relation(
             database=seed_database,
@@ -58,6 +57,10 @@
         {% if existing_relation and not should_force %}
             {% do log('Found existing relation for ' ~ target_relation ~ '; leaving it untouched.', info=True) %}
             {% continue %}
+        {% endif %}
+
+        {% if not adapter.check_schema_exists(seed_database, fixture.schema) %}
+            {% do adapter.create_schema(target_relation) %}
         {% endif %}
 
         {% if existing_relation %}
