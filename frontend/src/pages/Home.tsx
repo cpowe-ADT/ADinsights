@@ -199,22 +199,19 @@ const Home = () => {
           </h2>
           <p className={styles.sectionSubtitle}>Ship faster with curated shortcuts</p>
         </div>
-        <div className={styles.quickActions}>
+        <ul className={styles.quickActions} role="list">
           {quickActions.map((action) => (
-            <button
-              key={action.id}
-              type="button"
-              className={styles.quickActionCard}
-              onClick={action.action}
-            >
-              <span className={styles.quickActionIcon} aria-hidden="true">
-                {action.icon}
-              </span>
-              <p className={styles.quickActionLabel}>{action.label}</p>
-              <p className={styles.quickActionDescription}>{action.description}</p>
-            </button>
+            <li key={action.id} className={styles.quickActionItem}>
+              <button type="button" className={styles.quickActionCard} onClick={action.action}>
+                <span className={styles.quickActionIcon} aria-hidden="true">
+                  {action.icon}
+                </span>
+                <p className={styles.quickActionLabel}>{action.label}</p>
+                <p className={styles.quickActionDescription}>{action.description}</p>
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
 
       <section className={styles.recentAndUpdates} aria-labelledby="recent-dashboards-title">
@@ -226,24 +223,26 @@ const Home = () => {
             <p className={styles.sectionSubtitle}>Jump back into your most-used workspaces</p>
           </div>
           {hasDashboards ? (
-            <div className={styles.dashboardGrid}>
+            <ul className={styles.dashboardGrid} role="list">
               {recentDashboards.map((dashboard) => (
-                <article key={dashboard.id} className={styles.dashboardCard}>
-                  <Sparkline points={dashboard.trend} />
-                  <div className={styles.dashboardMeta}>
-                    <h3 className={styles.dashboardName}>{dashboard.name}</h3>
-                    <p className={styles.dashboardDescription}>{dashboard.description}</p>
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.openButton}
-                    onClick={() => navigate(dashboard.href)}
-                  >
-                    Open
-                  </button>
-                </article>
+                <li key={dashboard.id} className={styles.dashboardItem}>
+                  <article className={styles.dashboardCard}>
+                    <Sparkline points={dashboard.trend} />
+                    <div className={styles.dashboardMeta}>
+                      <h3 className={styles.dashboardName}>{dashboard.name}</h3>
+                      <p className={styles.dashboardDescription}>{dashboard.description}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.openButton}
+                      onClick={() => navigate(dashboard.href)}
+                    >
+                      Open
+                    </button>
+                  </article>
+                </li>
               ))}
-            </div>
+            </ul>
           ) : (
             <div className={styles.emptyState} role="status">
               <h3 className={styles.emptyTitle}>No dashboards yet</h3>

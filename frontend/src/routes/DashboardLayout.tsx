@@ -13,7 +13,7 @@ const metricOptions = [
 ];
 
 const DashboardLayout = () => {
-  const { tenantId, logout, user } = useAuth();
+  const { tenantId, user } = useAuth();
   const {
     loadAll,
     selectedMetric,
@@ -74,12 +74,9 @@ const DashboardLayout = () => {
             ))}
           </select>
           <span className="muted user-pill">{(user as { email?: string } | undefined)?.email ?? "Account"}</span>
-          <button type="button" className="button tertiary" onClick={logout}>
-            Log out
-          </button>
         </div>
       </header>
-      <nav className="dashboard-nav">
+      <nav className="dashboard-nav" aria-label="Dashboard sections">
         <NavLink to="/dashboards/campaigns" className={({ isActive }) => (isActive ? "active" : undefined)}>
           Campaigns
         </NavLink>
