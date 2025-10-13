@@ -6,6 +6,7 @@ const includeQuarantine = (process.env.QA_INCLUDE_QUARANTINE ?? "false").toLower
 const port = Number(process.env.QA_PORT ?? 4173);
 const computedBaseUrl = `http://127.0.0.1:${port}`;
 const baseURL = process.env.QA_BASE_URL ?? computedBaseUrl;
+const shouldStartServer = !process.env.QA_BASE_URL;
 
 export default defineConfig({
   testDir: path.resolve(__dirname, "tests"),
@@ -50,16 +51,18 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    command: `npm run preview -- --host 127.0.0.1 --port ${port}`,
-    url: baseURL,
-    cwd: path.resolve(__dirname, "../frontend"),
-    timeout: 120000,
-    reuseExistingServer: true,
-    env: {
-      ...process.env,
-      MOCK_MODE: mockMode ? "true" : "false",
-      VITE_MOCK_MODE: mockMode ? "true" : "false",
-    },
-  },
+  webServer: shouldStartServer
+    ? {
+        command: `npm run preview -- --host 127.0.0.1 --port ${port}`,
+        url: baseURL,
+        cwd: path.resolve(__dirname, "../frontend"),
+        timeout: 120000,
+        reuseExistingServer: true,
+        env: {
+          ...process.env,
+          MOCK_MODE: mockMode ? "true" : "false",
+          VITE_MOCK_MODE: mockMode ? "true" : "false",
+        },
+      }
+    : undefined,
 });
