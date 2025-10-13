@@ -2,7 +2,7 @@
 
 ## Overview
 
-Alerting is driven by SQL thresholds defined in `backend/app/alerts.py`. Rules are evaluated every 15 minutes by the scheduler service and results are summarized by the LLM integration before being dispatched to Slack/email.
+Alerting is driven by SQL thresholds defined in `backend/app/alerts.py`. Rules are evaluated every 15 minutes by the Celery beat scheduler and results are summarized by the LLM integration before being dispatched to Slack/email. Each evaluation is persisted to the `alerts_alertrun` table and exposed via `GET /api/alerts/runs/` for historical analysis.
 
 ## Manual Execution
 
