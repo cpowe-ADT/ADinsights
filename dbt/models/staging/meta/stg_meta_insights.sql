@@ -3,6 +3,8 @@
     incremental_strategy='delete+insert',
 ) }}
 
+{% set json_type = 'jsonb' if target.type in ['postgres', 'redshift'] else 'json' %}
+
 with source as (
     select
         cast(account_id as text) as account_id,

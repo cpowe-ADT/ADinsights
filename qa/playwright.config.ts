@@ -29,11 +29,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run dev -- --host 127.0.0.1 --port ${port}`,
+    command: `npm run preview -- --host 127.0.0.1 --port ${port}`,
     url: baseURL,
     cwd: path.resolve(__dirname, "../frontend"),
     timeout: 120000,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     env: {
       ...process.env,
       MOCK_MODE: mockMode ? "true" : "false",

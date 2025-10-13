@@ -1,0 +1,2 @@
+account_id,campaign_id,adset_id,ad_id,date_start,country,region,city,impressions,clicks,spend,cpc,cpm,ctr,actions
+9988776655,4444444444,5555555555,6666666666,2024-01-01,Jamaica,Kingston Parish,Kingston,2000,150,175.25,1.17,87.63,0.075,"[{""action_type"": ""offsite_conversion"", ""value"": ""4""}]"
