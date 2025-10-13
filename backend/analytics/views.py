@@ -101,6 +101,49 @@ class MetricsView(APIView):
         return Response(payload)
 
 
+class CombinedMetricsView(APIView):
+    """Return a unified metrics payload for dashboards."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request) -> Response:  # noqa: D401 - DRF signature
+        registry = _build_registry()
+        if not registry:
+            return Response(
+                {"detail": "No analytics adapters are enabled."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        default_key = "fake" if "fake" in registry else next(iter(registry))
+        source = request.query_params.get("source", default_key)
+        adapter = registry.get(source)
+        if adapter is None:
+            return Response(
+                {"detail": f"Unknown adapter '{source}'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tenant_id = getattr(request.user, "tenant_id", None)
+        if tenant_id is None:
+            return Response(
+                {"detail": "Unable to resolve tenant."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        payload = adapter.fetch_metrics(
+            tenant_id=str(tenant_id),
+            options=request.query_params,
+        )
+
+        combined = {
+            "campaign": payload.get("campaign"),
+            "creative": payload.get("creative"),
+            "budget": payload.get("budget"),
+            "parish": payload.get("parish"),
+        }
+        return Response(combined)
+
+
 class MetricsViewSet(viewsets.ViewSet):
     """Serve tabular campaign metrics sourced from the warehouse."""
 
