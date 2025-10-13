@@ -13,5 +13,5 @@ models:
     description: "Normalized daily Meta insights metrics"
   - name: stg_meta_campaigns
     description: "Meta campaign metadata"
-  - name: stg_meta_ads_metadata
+  - name: stg_meta_ads
     description: "Meta ad metadata"
