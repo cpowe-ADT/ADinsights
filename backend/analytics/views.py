@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+import csv
+from typing import Any, Iterable, Sequence
 
 from django.db import connection
+from django.http import StreamingHttpResponse
 from rest_framework import permissions, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from .exporters import FakeMetricsExportAdapter
 from .serializers import MetricRecordSerializer, MetricsQueryParamsSerializer
 
 
@@ -80,3 +84,35 @@ class MetricsViewSet(viewsets.ViewSet):
     def _dictfetchall(cursor) -> list[dict[str, Any]]:
         columns: Sequence[str] = [col[0] for col in cursor.description]
         return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+
+class _Echo:
+    """Minimal buffer to adapt csv.writer for streaming responses."""
+
+    def write(self, value: str) -> str:  # pragma: no cover - trivial adapter
+        return value
+
+
+class MetricsExportView(APIView):
+    """Stream tenant metrics as a CSV attachment."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):  # noqa: ANN001
+        adapter = FakeMetricsExportAdapter()
+        headers = adapter.get_headers()
+        rows = adapter.iter_rows()
+
+        response = StreamingHttpResponse(
+            self._iter_csv_rows(headers, rows), content_type="text/csv"
+        )
+        response["Content-Disposition"] = 'attachment; filename="metrics.csv"'
+        return response
+
+    @staticmethod
+    def _iter_csv_rows(headers: Sequence[str], rows: Iterable[Sequence[Any]]):
+        pseudo_buffer = _Echo()
+        writer = csv.writer(pseudo_buffer)
+        yield writer.writerow(headers)
+        for row in rows:
+            yield writer.writerow(row)
