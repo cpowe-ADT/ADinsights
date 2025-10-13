@@ -51,9 +51,13 @@ urlpatterns = [
     path("api/me/", MeView.as_view(), name="me"),
     path("api/roles/assign/", RoleAssignmentView.as_view(), name="role-assign"),
     path("api/health/", core_views.health, name="health"),
+    path("api/health/version/", core_views.health_version, name="health-version"),
     path("api/health/airbyte/", core_views.airbyte_health, name="airbyte-health"),
     path("api/health/dbt/", core_views.dbt_health, name="dbt-health"),
     path("api/timezone/", core_views.timezone_view, name="timezone"),
     path("api/", include(router.urls)),
     path("api/admin/", include(admin_router.urls)),
 ]
+
+handler404 = "core.views.not_found"
+handler500 = "core.views.server_error"

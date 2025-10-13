@@ -1,0 +1,53 @@
+name: Lighthouse CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - 'public/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
+      - 'tsconfig.build.json'
+      - 'vitest.config.ts'
+      - '.github/workflows/lighthouse.yml'
+
+jobs:
+  lighthouse:
+    name: Lighthouse dashboards smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Run Lighthouse CI
+        env:
+          LHCI_HIDE_PSK_PROMPT: '1'
+        run: |
+          set -euo pipefail
+          VITE_MOCK_MODE=true npm run preview -- --host --port 4173 &
+          PREVIEW_PID=$!
+          trap 'kill $PREVIEW_PID 2>/dev/null || true' EXIT
+          npx --yes wait-on http://127.0.0.1:4173/dashboards/campaigns
+          npx --yes @lhci/cli@0.13.0 autorun \
+            --collect.url=http://127.0.0.1:4173/dashboards/campaigns \
+            --collect.numberOfRuns=1 \
+            --upload.target=temporary-public-storage \
+            --assert.assertions.categories:best-practices=error@>=0.95 \
+            --assert.assertions.categories:accessibility=error@>=0.9
