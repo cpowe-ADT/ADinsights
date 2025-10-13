@@ -41,6 +41,22 @@ seeds:
           clicks: numeric
           conversions: numeric
           _airbyte_emitted_at: timestamp
+          _airbyte_raw_id: text
+      meta_ads_insights:
+        +column_types:
+          ad_account_id: text
+          campaign_id: text
+          adset_id: text
+          ad_id: text
+          date_start: date
+          region: text
+          spend: numeric
+          impressions: numeric
+          clicks: numeric
+          conversions: numeric
+          updated_time: timestamp
+          _airbyte_emitted_at: timestamp
+          _airbyte_raw_id: text
     raw_google_ads:
       +schema: raw_google_ads
       +quote_columns: true
