@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from datetime import datetime, timezone as dt_timezone
 from typing import Any, Dict, Optional
 
@@ -13,9 +14,12 @@ from integrations.airbyte.client import (
     AirbyteClientConfigurationError,
     AirbyteClientError,
 )
-from .models import AirbyteConnection, PlatformCredential
-from .serializers import PlatformCredentialSerializer
-from .models import AlertRuleDefinition, CampaignBudget, PlatformCredential
+from .models import (
+    AirbyteConnection,
+    AlertRuleDefinition,
+    CampaignBudget,
+    PlatformCredential,
+)
 from .serializers import (
     AlertRuleDefinitionSerializer,
     CampaignBudgetSerializer,
@@ -83,8 +87,6 @@ class PlatformCredentialViewSet(viewsets.ModelViewSet):
 
 
 class AirbyteConnectionViewSet(viewsets.GenericViewSet):
-class CampaignBudgetViewSet(viewsets.ModelViewSet):
-    serializer_class = CampaignBudgetSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -227,10 +229,17 @@ class CampaignBudgetViewSet(viewsets.ModelViewSet):
             return None
         job_id = job.get("id") or job.get("jobId")
         return str(job_id) if job_id is not None else None
+
+
+class CampaignBudgetViewSet(viewsets.ModelViewSet):
+    serializer_class = CampaignBudgetSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user or not user.is_authenticated:
             return CampaignBudget.objects.none()
-        return CampaignBudget.objects.filter(tenant_id=user.tenant_id).order_by(
-            "name"
-        )
+        return CampaignBudget.objects.filter(tenant_id=user.tenant_id).order_by("name")
 
     def _audit_metadata(self, serializer) -> dict[str, object]:
         fields = sorted(serializer.validated_data.keys())
