@@ -1,7 +1,10 @@
 """Alert rule definitions and execution helpers."""
 
+from __future__ import annotations
+
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable
+from typing import Any
 
 from django.db import connection
 
@@ -194,7 +197,7 @@ class AlertEvaluator:
     def __init__(self, django_connection=connection) -> None:
         self._connection = django_connection
 
-    def run(self, rule: AlertRule) -> list[Dict[str, Any]]:
+    def run(self, rule: AlertRule) -> list[dict[str, Any]]:
         with self._connection.cursor() as cursor:
             cursor.execute(rule.sql, {"limit": rule.max_rows})
             columns = [meta[0] for meta in cursor.description or ()]
