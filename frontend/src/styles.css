@@ -19,6 +19,124 @@ html,
   margin: 0;
 }
 
+.app-shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0.5rem;
+  background: #facc15;
+  color: #0f172a;
+  padding: 0.6rem 1rem;
+  z-index: 100;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip-link:focus-visible {
+  left: 1rem;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-outline-offset);
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 1.25rem clamp(1.5rem, 3vw, 2.5rem);
+  background: linear-gradient(120deg, #0f172a, #1e3a8a);
+  color: #f8fafc;
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.app-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.4);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.app-name {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.app-tenant {
+  margin: 0.15rem 0 0;
+  color: rgba(248, 250, 252, 0.85);
+  font-size: 0.95rem;
+}
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.app-user {
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(248, 250, 252, 0.18);
+  color: #f8fafc;
+  font-size: 0.9rem;
+}
+
+.app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem clamp(1.5rem, 3vw, 2.5rem);
+  background: #e2e8f0;
+}
+
+.app-nav a {
+  text-decoration: none;
+  font-weight: 600;
+  color: #0f172a;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+.app-nav a.active {
+  background: #1d4ed8;
+  color: #f8fafc;
+}
+
+.app-main {
+  flex: 1;
+  padding: 2rem clamp(1.5rem, 3vw, 3rem);
+}
+
+.app-footer {
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 1rem clamp(1.5rem, 3vw, 2.5rem);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.app-footer p {
+  margin: 0;
 body {
   font-size: var(--font-size-body);
   line-height: var(--line-height-body);
@@ -98,9 +216,9 @@ label,
   font-size: 1rem;
 }
 
-.auth-form input:focus {
-  outline: 2px solid #2563eb;
-  outline-offset: 2px;
+.auth-form input:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-outline-offset);
 }
 
 .button {
@@ -131,8 +249,13 @@ label,
 .button.tertiary {
   background: transparent;
   color: #0f172a;
-  border: 1px solid rgba(15, 23, 42, 0.2);
+  border: 1px solid rgba(15, 23, 42, 0.32);
   padding: 0.5rem 0.9rem;
+}
+
+.app-header .button.tertiary {
+  color: #f8fafc;
+  border-color: rgba(248, 250, 252, 0.7);
 }
 
 .button:hover:not(:disabled) {
@@ -722,6 +845,13 @@ th {
   background: none;
   font: inherit;
   cursor: pointer;
+  border-radius: 0.45rem;
+  padding: 0.1rem 0.25rem;
+}
+
+.sort-button:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
 }
 
 td.pinned,
@@ -740,7 +870,7 @@ th.pinned {
 
 .campaign-meta {
   font-size: 0.85rem;
-  color: #64748b;
+  color: #475569;
 }
 
 .creative-thumb {
@@ -794,7 +924,7 @@ th.pinned {
 
 .budget-range {
   font-size: 0.85rem;
-  color: #64748b;
+  color: #475569;
 }
 
 .progress-track {
@@ -832,6 +962,7 @@ th.pinned {
 }
 
 .muted {
+  color: #475569;
   color: var(--muted);
 }
 .filter-bar {
