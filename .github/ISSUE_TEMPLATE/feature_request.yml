@@ -1,0 +1,47 @@
+name: Feature request
+description: Suggest an idea to improve the product or developer experience.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for sharing your idea! Tell us about the problem and how this feature would help.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: Provide a short headline for this feature request.
+      placeholder: A concise description of the feature.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem or pain point does this feature solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the solution you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you explored or tried other approaches?
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Describe who benefits and how success will be measured.
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Share any designs, references, or extra information that helps evaluate this request.
