@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from adapters.fake import FakeAdapter
+from analytics.models import TenantMetricsSnapshot
 
 
 @pytest.fixture(autouse=True)
@@ -86,3 +87,67 @@ def test_combined_metrics_requires_auth(api_client):
     response = api_client.get("/api/metrics/combined/")
 
     assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_combined_metrics_uses_snapshot(monkeypatch, api_client, user, settings):
+    settings.METRICS_SNAPSHOT_TTL = 600
+    api_client.force_authenticate(user=user)
+
+    expected = {
+        "campaign": {"summary": {"currency": "JMD"}},
+        "creative": [],
+        "budget": [],
+        "parish": [],
+    }
+
+    def fake_fetch(self, *, tenant_id, options=None):  # noqa: D401 - test helper
+        return expected
+
+    monkeypatch.setattr(FakeAdapter, "fetch_metrics", fake_fetch, raising=False)
+
+    response = api_client.get("/api/metrics/combined/")
+    assert response.status_code == 200
+    assert response.json() == expected
+
+    def fail_fetch(*args, **kwargs):  # noqa: D401 - test helper
+        raise AssertionError("adapter should not be invoked when cache is valid")
+
+    monkeypatch.setattr(FakeAdapter, "fetch_metrics", fail_fetch, raising=False)
+
+    response = api_client.get("/api/metrics/combined/")
+    assert response.status_code == 200
+    assert response.json() == expected
+    snapshot = TenantMetricsSnapshot.all_objects.get(tenant=user.tenant, source="fake")
+    assert snapshot.payload == expected
+
+
+@pytest.mark.django_db
+def test_combined_metrics_cache_bypass(monkeypatch, api_client, user):
+    api_client.force_authenticate(user=user)
+
+    first_payload = {
+        "campaign": {"summary": {"currency": "USD"}},
+        "creative": [],
+        "budget": [],
+        "parish": [],
+    }
+    second_payload = {
+        "campaign": {"summary": {"currency": "CAD"}},
+        "creative": [],
+        "budget": [],
+        "parish": [],
+    }
+
+    responses = [first_payload, second_payload]
+
+    def rotating_fetch(self, *, tenant_id, options=None):  # noqa: D401
+        return responses.pop(0)
+
+    monkeypatch.setattr(FakeAdapter, "fetch_metrics", rotating_fetch, raising=False)
+
+    response = api_client.get("/api/metrics/combined/")
+    assert response.json()["campaign"]["summary"]["currency"] == "USD"
+
+    response = api_client.get("/api/metrics/combined/", {"cache": "false"})
+    assert response.json()["campaign"]["summary"]["currency"] == "CAD"

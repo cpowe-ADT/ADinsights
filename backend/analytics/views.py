@@ -9,6 +9,7 @@ from typing import Any, Iterable, Sequence
 
 from django.conf import settings
 from django.db import connection
+from django.utils import timezone
 from django.http import StreamingHttpResponse
 from rest_framework import permissions, status, viewsets
 from rest_framework.pagination import PageNumberPagination
@@ -17,6 +18,8 @@ from rest_framework.views import APIView
 
 from adapters.base import MetricsAdapter
 from adapters.fake import FakeAdapter
+
+from .models import TenantMetricsSnapshot
 
 from .exporters import FakeMetricsExportAdapter
 from .serializers import MetricRecordSerializer, MetricsQueryParamsSerializer
@@ -130,6 +133,17 @@ class CombinedMetricsView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        ttl_seconds = getattr(settings, "METRICS_SNAPSHOT_TTL", 300)
+        cache_enabled = request.query_params.get("cache", "true").lower() != "false"
+        tenant = request.user.tenant
+        snapshot = (
+            TenantMetricsSnapshot.latest_for(tenant=tenant, source=source)
+            if cache_enabled
+            else None
+        )
+        if snapshot and snapshot.is_fresh(ttl_seconds):
+            return Response(snapshot.payload)
+
         payload = adapter.fetch_metrics(
             tenant_id=str(tenant_id),
             options=request.query_params,
@@ -141,6 +155,14 @@ class CombinedMetricsView(APIView):
             "budget": payload.get("budget"),
             "parish": payload.get("parish"),
         }
+        TenantMetricsSnapshot.all_objects.update_or_create(
+            tenant=tenant,
+            source=source,
+            defaults={
+                "payload": combined,
+                "generated_at": timezone.now(),
+            },
+        )
         return Response(combined)
 
 

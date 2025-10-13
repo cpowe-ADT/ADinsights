@@ -24,6 +24,7 @@ env = environ.Env(
     ENABLE_TENANCY=(bool, False),
     DJANGO_LOG_LEVEL=(str, "INFO"),
     APP_VERSION=(str, "0.0.0-dev"),
+    METRICS_SNAPSHOT_TTL=(int, 300),
 )
 
 ENV_FILE = BASE_DIR / ".env"
@@ -39,6 +40,7 @@ DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 ENABLE_TENANCY = env.bool("ENABLE_TENANCY")
 API_VERSION = env("API_VERSION")
+METRICS_SNAPSHOT_TTL = env.int("METRICS_SNAPSHOT_TTL")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
