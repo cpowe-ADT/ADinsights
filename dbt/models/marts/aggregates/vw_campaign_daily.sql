@@ -27,7 +27,6 @@ enriched as (
         {{ metric_ctr('cd.clicks', 'cd.impressions') }} as ctr,
         {{ metric_conversion_rate('cd.conversions', 'cd.clicks') }} as conversion_rate,
         {{ metric_cost_per_conversion('cd.spend', 'cd.conversions') }} as cost_per_conversion,
-        {{ metric_roas('cd.conversions', 'cd.spend') }} as roas,
         {{ metric_cpm('cd.spend', 'cd.impressions') }} as cpm,
         d.parish_code,
         d.parish_name,

@@ -63,7 +63,6 @@ models:
       - name: impressions
       - name: ctr
       - name: conversion_rate
-      - name: roas
   - name: agg_campaign_daily
     description: "Incremental aggregate of campaign-level performance metrics with geo enrichment from the campaign dimension."
     columns:
@@ -143,7 +142,6 @@ models:
       - name: campaign_id
       - name: spend
       - name: ctr
-      - name: roas
       - name: cpm
   - name: vw_creative_daily
     description: "Aggregated daily creative metrics with cost efficiency fields for dashboards."
@@ -151,7 +149,6 @@ models:
       - name: date_day
       - name: ad_id
       - name: cost_per_click
-      - name: roas
       - name: cpm
   - name: vw_pacing
     description: "Account level pacing view with cumulative and trailing spend indicators."
@@ -159,5 +156,4 @@ models:
       - name: date_day
       - name: ad_account_id
       - name: cumulative_spend
-      - name: roas
       - name: cpm
