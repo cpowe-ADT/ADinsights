@@ -30,7 +30,13 @@ class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        return Response(UserSerializer(request.user).data)
+        user_data = UserSerializer(request.user).data
+        tenant_id = getattr(request, "tenant_id", None)
+        if tenant_id is None:
+            tenant_id = getattr(request.user, "tenant_id", None)
+            if tenant_id is not None:
+                tenant_id = str(tenant_id)
+        return Response({"user": user_data, "tenant_id": tenant_id})
 
 
 class TenantViewSet(
