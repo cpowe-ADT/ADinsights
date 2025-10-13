@@ -169,6 +169,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
       setStatus("authenticated");
       setError(undefined);
       setStatusMessage(undefined);
+      setApiAccessToken(data.access);
       return data.access;
     } catch (refreshError) {
       console.error("Token refresh failed", refreshError);

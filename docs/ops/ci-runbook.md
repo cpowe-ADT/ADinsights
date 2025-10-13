@@ -28,6 +28,32 @@ This runbook explains how to triage and remediate failures in the repository's G
 * Inspect `artifact-inventory.json` to quickly list which staging models and schema tests ran in CI along with their statuses. This is useful when validating that optional connectors executed or when triaging flaky tests.
 * If an artifact is missing, cross-check the job logs for `upload-artifact` failures (often due to size limits) and re-run the job once the issue is addressed.
 
+### Manifest schema reference
+
+The `frontend-ci-artifacts.json` file captures the bundle contents and key metrics for downstream ingestion. The schema is:
+
+```json
+{
+  "version": 1,
+  "generatedAt": "ISO-8601 timestamp",
+  "commit": "<git sha or null>",
+  "artifactBundle": {
+    "name": "frontend-ci-artifacts",
+    "entries": [
+      { "path": "frontend-dist.zip", "type": "file", "sizeBytes": <number>, "source": "frontend/dist" },
+      { "path": "coverage/", "type": "directory", "sizeBytes": <number> }
+    ]
+  },
+  "metrics": {
+    "dist": { "uncompressedBytes": <number|null>, "zipBytes": <number|null> },
+    "coverage": { "lines": { "total": <number>, "covered": <number>, "pct": <number> }, ... },
+    "tests": { "total": <number|null>, "passed": <number|null>, "failed": <number|null> }
+  }
+}
+```
+
+Entries are omitted when the underlying files are unavailable (for example, when the build step fails). Downstream consumers should default missing numeric fields to `null`.
+
 ## Rerunning jobs
 
 * Use **Re-run failed jobs** when a transient error (network blip, GitHub outage, flaky dependency download) caused the failure. This preserves the same commit and executes only the failed jobs. In the run view, choose **Re-run jobs → Re-run failed jobs** so GitHub scopes the rerun to red steps only.

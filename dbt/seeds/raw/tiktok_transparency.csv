@@ -1,0 +1,2 @@
+advertiser_id,campaign_id,ad_group_id,ad_creative_id,report_date,region,impressions,clicks,spend,_airbyte_emitted_at
+tt-adv-001,tt-cmp-001,tt-adgrp-001,tt-ad-001,2024-01-01,Kingston,900,40,110.25,2024-01-02T00:00:00Z
