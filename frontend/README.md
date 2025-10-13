@@ -15,7 +15,8 @@ The dev server will run on <http://localhost:5173>.
 
 - Use valid tenant credentials to authenticate against `POST /api/auth/login/`.
 - The React auth provider stores the returned SimpleJWT pair, exposes the current `tenant_id`, and schedules refreshes through `POST /api/auth/refresh/`.
-- Once authenticated the dashboard requests metrics from `GET /api/campaign-metrics/` with the active bearer token. Loading, error, and empty states are surfaced across the grid and parish map.
+- Once authenticated the dashboard requests metrics from `GET /api/metrics/` with the active bearer token. Loading, error, and empty states are surfaced across the grid and parish map.
+- Use the `VITE_MOCK_MODE` toggle in your `.env` file to switch between the local mock data fixtures (`true`) and the live API (`false`).
 - Select **Log out** from the header to clear tenant context and return to the login screen.
 
 ## Libraries
