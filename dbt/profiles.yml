@@ -1,7 +1,7 @@
 adinsights:
-  target: dev
+  target: duckdb
   outputs:
-    dev:
+    duckdb:
       type: duckdb
       path: "./dbt/warehouse.duckdb"
       schema: analytics

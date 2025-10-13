@@ -1,0 +1,13 @@
+adinsights:
+  target: ci
+  outputs:
+    ci:
+      type: postgres
+      host: localhost
+      user: db_user
+      password: db_password
+      port: 5432
+      dbname: ads_reporting
+      schema: analytics
+      threads: 4
+      keepalives_idle: 0
