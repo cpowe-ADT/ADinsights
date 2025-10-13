@@ -31,6 +31,11 @@ cp sources/meta_marketing.json.example sources/meta_marketing.json
 cp sources/google_ads.json.example sources/google_ads.json
 ```
 
+The Google Ads sample uses Airbyte's `{{ runtime_from_date }}` template variable inside each custom
+query so the connector replays only the slices required by the incremental state rather than a fixed
+28-day window. Keep the cursor fields and lookback windows aligned with your desired backfill
+horizon when adapting the template.
+
 For optional connectors (LinkedIn, TikTok) provide API keys only if you have access.
 
 # Airbyte Configuration
