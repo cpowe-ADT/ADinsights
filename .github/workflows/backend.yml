@@ -50,38 +50,46 @@ jobs:
             --cov-report=html:backend/htmlcov
 
       - name: Generate backend CI summary
+        if: ${{ always() }}
         run: |
           python scripts/ci/backend-summary.py \
             --junit backend/test-results/junit.xml \
             --coverage backend/coverage.xml
 
       - name: Upload backend CI summary
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: backend-ci-summary.json
           path: backend-ci-summary.json
 
       - name: Upload backend CI metrics
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: ci-metrics.csv
           path: ci-metrics.csv
 
       - name: Upload backend test results
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: backend-tests
           path: backend/test-results/junit.xml
+          if-no-files-found: warn
 
       - name: Upload backend coverage reports
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage
           path: |
             backend/coverage.xml
             backend/htmlcov
+          if-no-files-found: warn
 
       - name: Publish coverage summary
+        if: ${{ always() }}
         run: |
           python scripts/ci/coverage-summary.py \
             --coverage backend/coverage.xml \

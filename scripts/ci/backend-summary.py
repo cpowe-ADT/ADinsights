@@ -200,8 +200,51 @@ def parse_coverage_report(path: Path) -> CoverageResult:
     )
 
 
+def load_junit_report(path: Path, warnings: list[str]) -> list[SuiteResult]:
+    if not path.exists():
+        warnings.append(f"JUnit XML report not found: {path}")
+        return []
+
+    try:
+        suites = parse_junit_report(path)
+    except ET.ParseError as exc:
+        warnings.append(f"Failed to parse JUnit XML report at {path}: {exc}")
+        return []
+
+    if not suites:
+        warnings.append("No test suites found in JUnit XML report.")
+
+    return suites
+
+
+def load_coverage_report(path: Path, warnings: list[str]) -> CoverageResult:
+    if not path.exists():
+        warnings.append(f"Coverage XML report not found: {path}")
+        return CoverageResult(
+            lines_covered=None,
+            lines_valid=None,
+            line_rate=None,
+            timestamp=None,
+        )
+
+    try:
+        return parse_coverage_report(path)
+    except ET.ParseError as exc:
+        warnings.append(f"Failed to parse coverage XML report at {path}: {exc}")
+        return CoverageResult(
+            lines_covered=None,
+            lines_valid=None,
+            line_rate=None,
+            timestamp=None,
+        )
+
+
 def build_summary(
-    suites: list[SuiteResult], coverage: CoverageResult, junit_path: Path, coverage_path: Path
+    suites: list[SuiteResult],
+    coverage: CoverageResult,
+    junit_path: Path,
+    coverage_path: Path,
+    warnings: Optional[list[str]] = None,
 ) -> dict[str, object]:
     total_tests = sum(suite.tests for suite in suites)
     total_errors = sum(suite.errors for suite in suites)
@@ -210,7 +253,10 @@ def build_summary(
     total_passed = sum(suite.passed for suite in suites)
     total_duration = sum(suite.duration for suite in suites)
 
-    status = "passed" if (total_errors + total_failures) == 0 else "failed"
+    if suites:
+        status = "passed" if (total_errors + total_failures) == 0 else "failed"
+    else:
+        status = "unknown"
 
     suites_payload = [
         {
@@ -255,6 +301,9 @@ def build_summary(
 
     if suites_payload:
         summary["timing"]["longest_suite"] = suites_payload[0]
+
+    if warnings:
+        summary["warnings"] = list(warnings)
 
     return summary
 
@@ -367,21 +416,15 @@ def main(argv: Iterable[str]) -> int:
     junit_path = Path(args.junit)
     coverage_path = Path(args.coverage)
 
-    if not junit_path.exists():
-        print(f"JUnit XML report not found: {junit_path}", file=sys.stderr)
-        return 1
-    if not coverage_path.exists():
-        print(f"Coverage XML report not found: {coverage_path}", file=sys.stderr)
-        return 1
+    warnings: list[str] = []
 
-    suites = parse_junit_report(junit_path)
-    if not suites:
-        print("No test suites found in JUnit XML report.", file=sys.stderr)
-        return 1
-
-    coverage = parse_coverage_report(coverage_path)
-    summary = build_summary(suites, coverage, junit_path, coverage_path)
+    suites = load_junit_report(junit_path, warnings)
+    coverage = load_coverage_report(coverage_path, warnings)
+    summary = build_summary(suites, coverage, junit_path, coverage_path, warnings)
     metrics_rows = build_metrics_rows(summary)
+
+    for warning in warnings:
+        print(warning, file=sys.stderr)
 
     write_json(Path(args.json_output), summary)
     write_csv(Path(args.csv_output), metrics_rows)
