@@ -12,6 +12,7 @@ The UI will be available at <http://localhost:8000> and the API at <http://local
 
 ## Scheduling Guidance
 All schedules reference the **America/Jamaica** timezone so they align with downstream SLAs documented in `AGENTS.md`. Airbyte schedules live on each **Connection**; configure them via the UI (`Connections → <Connection> → Replication`) or the API (`/api/v1/connections/update`).
+- Follow Airbyte's [incremental sync guidance](https://docs.airbyte.com/understanding-airbyte/sync-modes/incremental) so hourly metrics and daily dimensions use incremental mode with the documented lookback windows.
 
 - **sync_meta_metrics / sync_google_metrics (hourly metrics pulls):** Configure a cron such as `0 6-22 * * *` to run hourly between 06:00 and 22:00. Enable an **Additional sync lookback window** of 3 days to sweep up delayed conversions and keep each run under 30 minutes.
 - **sync_dimensions_daily (dimension refresh):** Schedule at `15 2 * * *` so campaign/ad set/ad metadata and geographic lookups finish before the 03:00 SLA.
