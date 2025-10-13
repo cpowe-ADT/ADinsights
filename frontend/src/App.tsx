@@ -44,12 +44,12 @@ function App() {
         <header className="app-header">
           <div>
             <h1>ADinsights Dashboard</h1>
-            <p>Sign in to view tenant-specific campaign performance.</p>
+            <p>Sign in to view client-specific campaign performance.</p>
           </div>
         </header>
         <div className="auth-container">
           <form className="auth-form" onSubmit={handleSubmit}>
-            <h2>Tenant Login</h2>
+            <h2>Client Login</h2>
             <label htmlFor="email">Email</label>
             <input
               id="email"
