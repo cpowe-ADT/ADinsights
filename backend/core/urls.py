@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.urls import include, path
+from rest_framework.permissions import AllowAny
 from rest_framework.routers import DefaultRouter
+from rest_framework.schemas import get_schema_view
 
 from alerts.views import AlertRunViewSet
 from analytics.views import AdapterListView, MetricsView
@@ -56,6 +58,17 @@ urlpatterns = [
     path("api/health/airbyte/", core_views.airbyte_health, name="airbyte-health"),
     path("api/health/dbt/", core_views.dbt_health, name="dbt-health"),
     path("api/timezone/", core_views.timezone_view, name="timezone"),
+    path(
+        "api/schema/",
+        get_schema_view(
+            title="ADinsights API",
+            description="OpenAPI schema for the ADinsights backend",
+            version="1.0.0",
+            public=True,
+            permission_classes=[AllowAny],
+        ),
+        name="api-schema",
+    ),
     path("api/adapters/", AdapterListView.as_view(), name="adapter-list"),
     path("api/metrics/", MetricsView.as_view(), name="metrics"),
     path("api/export/metrics.csv", MetricsExportView.as_view(), name="metrics-export"),
