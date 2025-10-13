@@ -162,6 +162,7 @@ def test_dbt_health_ok(api_client, monkeypatch, tmp_path):
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["failing_models"] == []
+    assert payload["failing_models_detail"] == []
 
 
 def test_dbt_health_flags_stale(api_client, monkeypatch, tmp_path):
@@ -186,6 +187,43 @@ def test_dbt_health_flags_stale(api_client, monkeypatch, tmp_path):
     payload = response.json()
     assert payload["status"] == "stale"
     assert payload["stale"] is True
+    assert payload["failing_models_detail"] == []
+
+
+def test_dbt_health_reports_failing_models(api_client, monkeypatch, tmp_path):
+    from core import views as core_views
+
+    run_results_path = tmp_path / "run_results.json"
+    run_results_path.write_text(
+        json.dumps(
+            {
+                "metadata": {"generated_at": timezone.now().isoformat()},
+                "results": [
+                    {
+                        "unique_id": "model.analytics.bad_model",
+                        "status": "error",
+                        "message": "Compilation error",
+                        "adapter_response": {"error": "invalid syntax"},
+                    }
+                ],
+            }
+        )
+    )
+    monkeypatch.setattr(core_views, "RUN_RESULTS_PATH", run_results_path)
+
+    response = api_client.get("/api/health/dbt/")
+    assert response.status_code == 502
+    payload = response.json()
+    assert payload["status"] == "failing"
+    assert payload["failing_models"] == ["model.analytics.bad_model"]
+    assert payload["failing_models_detail"] == [
+        {
+            "unique_id": "model.analytics.bad_model",
+            "status": "error",
+            "message": "Compilation error",
+            "adapter_response": {"error": "invalid syntax"},
+        }
+    ]
 
 
 def test_prometheus_metrics_endpoint(api_client):

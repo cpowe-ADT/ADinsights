@@ -107,16 +107,31 @@ def dbt_health(request):
 
     metadata = run_results.get("metadata", {})
     generated_at = metadata.get("generated_at")
-    failing_models = [
-        result.get("unique_id")
+    model_results = [
+        {
+            "unique_id": result.get("unique_id"),
+            "status": result.get("status"),
+            "message": result.get("message"),
+            "adapter_response": result.get("adapter_response"),
+        }
         for result in run_results.get("results", [])
-        if result.get("status") not in {"success", "skipped"}
+    ]
+    failing_models = [
+        detail["unique_id"]
+        for detail in model_results
+        if detail.get("status") not in {"success", "skipped"}
+    ]
+    failing_details = [
+        detail
+        for detail in model_results
+        if detail.get("status") not in {"success", "skipped"}
     ]
 
     response_data.update(
         {
             "generated_at": generated_at,
             "failing_models": failing_models,
+            "failing_models_detail": failing_details,
         }
     )
 
