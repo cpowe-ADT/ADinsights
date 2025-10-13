@@ -181,6 +181,7 @@ const Home = () => {
 
   return (
     <div className={styles.homePage}>
+      <div className="container">
       <section className={styles.heroBar} aria-labelledby="home-hero-title">
         <div className={styles.heroIntro}>
           <span className={styles.logoMark} aria-hidden="true">
@@ -283,6 +284,7 @@ const Home = () => {
           </a>
         </aside>
       </section>
+      </div>
     </div>
   );
 };
