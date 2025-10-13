@@ -28,8 +28,10 @@ type Fixtures = {
   liveApi: LiveApiState;
 };
 
+const mockModeDefault = process.env.MOCK === "1";
+
 export const test = base.extend<Fixtures>({
-  mockMode: [((process.env.MOCK_MODE ?? "true").toLowerCase() !== "false"), { option: true }],
+  mockMode: [mockModeDefault, { option: true }],
   liveApi: [async ({}, use) => {
     await use(getLiveApiState());
   }, { scope: "worker" }],

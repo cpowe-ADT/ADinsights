@@ -155,6 +155,16 @@ dbt run --project-dir dbt --profiles-dir ~/.dbt --select staging
    (optionally add a second argument with the triggering user UUID) from another terminal to see
    asynchronous task logging.
 
+## Local Testing
+
+### JS tests + export
+```bash
+npm ci
+npx playwright install --with-deps chromium
+npm test -- --project=chromium-desktop
+node bin/export-report --data examples/data.sample.json --out out/report.pdf --png out/report.png
+```
+
 ## Operations & Health
 
 Health checks live in [`backend/core/urls.py`](backend/core/urls.py) and

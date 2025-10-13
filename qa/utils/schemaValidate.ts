@@ -8,7 +8,6 @@ const ajv = new Ajv({ allErrors: true, strict: false });
 addMetaSchema2020.call(ajv);
 const validatorCache = new Map<string, Ajv.ValidateFunction>();
 const schemaCache = new Map<string, unknown>();
-
 const SCHEMA_DIRECTORY = path.resolve(__dirname, "..", "schemas");
 
 export class SchemaValidationError extends Error {
@@ -16,22 +15,13 @@ export class SchemaValidationError extends Error {
     readonly schemaName: string,
     readonly errors: ReadonlyArray<DefinedError>,
     readonly payload: unknown,
-  ) {
-    super(formatErrorMessage(schemaName, errors, payload));
-    this.name = "SchemaValidationError";
-  }
+  ) { super(formatErrorMessage(schemaName, errors, payload)); this.name = "SchemaValidationError"; }
 }
 
 function normalizeSchemaName(name: string): string {
-  const trimmed = name.trim();
-  const withoutSlashes = trimmed.replace(/^\/+|\/+$/g, "");
-  if (!withoutSlashes) {
-    throw new Error(`Schema name \"${name}\" resolves to an empty filename.`);
-  }
-  return withoutSlashes
-    .replace(/[\\/]+/g, "-")
-    .replace(/[^A-Za-z0-9_.-]+/g, "-")
-    .toLowerCase();
+  const withoutSlashes = name.trim().replace(/^\/+|\/+$/g, "");
+  if (!withoutSlashes) throw new Error(`Schema name "${name}" resolves to an empty filename.`);
+  return withoutSlashes.replace(/[\\/]+/g, "-").replace(/[^A-Za-z0-9_.-]+/g, "-");
 }
 
 async function loadSchema(schemaName: string): Promise<unknown> {
@@ -48,7 +38,7 @@ async function loadSchema(schemaName: string): Promise<unknown> {
     return parsed;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      throw new Error(`Schema file not found for \"${schemaName}\" at ${schemaPath}`);
+      throw new Error(`Schema file not found for "${schemaName}" at ${schemaPath}`);
     }
     throw error;
   }
@@ -85,7 +75,7 @@ function valueAtPath(payload: unknown, instancePath: string): unknown {
 }
 
 function formatErrorMessage(schemaName: string, errors: ReadonlyArray<DefinedError>, payload: unknown): string {
-  const header = `Schema validation failed for \"${schemaName}\"`;
+  const header = `Schema validation failed for "${schemaName}"`;
   const details = errors.map((error) => formatSingleError(error, payload)).join("\n");
   return `${header}\n${details}`;
 }
