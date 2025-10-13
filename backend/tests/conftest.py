@@ -10,16 +10,17 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.test")
 os.environ.setdefault("DJANGO_SECRET_KEY", "test-secret-key")
-os.environ.setdefault("CELERY_BROKER_URL", "redis://localhost:6379/0")
-os.environ.setdefault("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+os.environ.setdefault("CELERY_BROKER_URL", "memory://")
+os.environ.setdefault("CELERY_RESULT_BACKEND", "cache+memory://")
 os.environ.setdefault("SECRETS_PROVIDER", "env")
 os.environ.setdefault("KMS_PROVIDER", "aws")
 os.environ.setdefault("KMS_KEY_ID", "test-key")
 os.environ.setdefault("AWS_REGION", "us-east-1")
 os.environ.setdefault("AIRBYTE_API_URL", "http://localhost:8001")
 os.environ.setdefault("AIRBYTE_API_TOKEN", "test-token")
+os.environ.setdefault("API_VERSION", "test-version")
 
 import django
 

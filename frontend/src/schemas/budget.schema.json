@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adinsights.dev/schemas/budget.schema.json",
+  "title": "BudgetPacingRows",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "id",
+      "campaignName",
+      "monthlyBudget",
+      "spendToDate",
+      "projectedSpend",
+      "pacingPercent"
+    ],
+    "properties": {
+      "id": { "type": "string" },
+      "campaignName": { "type": "string" },
+      "parishes": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "monthlyBudget": { "type": "number" },
+      "spendToDate": { "type": "number" },
+      "projectedSpend": { "type": "number" },
+      "pacingPercent": { "type": "number" },
+      "startDate": { "type": "string", "format": "date" },
+      "endDate": { "type": "string", "format": "date" }
+    }
+  }
+}

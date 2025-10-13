@@ -1,4 +1,5 @@
 import apiClient from "./apiClient";
+import { validate, type SchemaKey } from "./validate";
 import type {
   BudgetPacingRow,
   CampaignPerformanceResponse,
@@ -17,30 +18,38 @@ export interface MetricsResponse {
 interface FetchOptions {
   path: string;
   mockPath: string;
+  schema?: SchemaKey;
 }
 
-async function fetchJson<T>({ path, mockPath }: FetchOptions): Promise<T> {
-  return apiClient.get<T>(path, { mockPath });
+async function fetchJson<T>({ path, mockPath, schema }: FetchOptions): Promise<T> {
+  const payload = await apiClient.get<T>(path, { mockPath });
+  validate(schema, payload);
+  return payload;
 }
 
 export async function fetchCampaignPerformance(options: FetchOptions): Promise<CampaignPerformanceResponse> {
-  return fetchJson<CampaignPerformanceResponse>(options);
+  return fetchJson<CampaignPerformanceResponse>({ ...options, schema: "metrics" });
 }
 
 export async function fetchCreativePerformance(options: FetchOptions): Promise<CreativePerformanceRow[]> {
-  return fetchJson<CreativePerformanceRow[]>(options);
+  return fetchJson<CreativePerformanceRow[]>({ ...options, schema: "creative" });
 }
 
 export async function fetchBudgetPacing(options: FetchOptions): Promise<BudgetPacingRow[]> {
-  return fetchJson<BudgetPacingRow[]>(options);
+  return fetchJson<BudgetPacingRow[]>({ ...options, schema: "budget" });
 }
 
 export async function fetchParishAggregates(options: FetchOptions): Promise<ParishAggregate[]> {
-  return fetchJson<ParishAggregate[]>(options);
+  return fetchJson<ParishAggregate[]>({ ...options, schema: "parish" });
 }
 
 export async function fetchMetrics(path: string): Promise<MetricsResponse> {
-  return apiClient.get<MetricsResponse>(path);
+  const payload = await apiClient.get<MetricsResponse>(path);
+  validate("metrics", payload.campaign);
+  validate("creative", payload.creative);
+  validate("budget", payload.budget);
+  validate("parish", payload.parish);
+  return payload;
 }
 
 export async function fetchDashboardMetrics(options: FetchOptions): Promise<TenantMetricsSnapshot> {

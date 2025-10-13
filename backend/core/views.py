@@ -14,14 +14,12 @@ from integrations.models import TenantAirbyteSyncStatus
 AIRBYTE_STALE_THRESHOLD = timedelta(hours=1)
 DBT_STALE_THRESHOLD = timedelta(hours=24)
 RUN_RESULTS_PATH = (Path(settings.BASE_DIR).parent / "dbt" / "target" / "run_results.json")
-
-
-def health(request):
-    return JsonResponse({"status": "ok"})
-
-
 def timezone_view(request):
     return JsonResponse({"timezone": settings.TIME_ZONE})
+
+
+def health_version(request):
+    return JsonResponse({"version": settings.APP_VERSION})
 
 
 def airbyte_health(request):
@@ -50,6 +48,24 @@ def airbyte_health(request):
 
     response_data["status"] = "ok"
     return JsonResponse(response_data)
+
+
+def not_found(request, exception):  # noqa: ANN001 - Django signature
+    return _json_error(
+        code="not_found",
+        message="The requested resource was not found.",
+        status=404,
+        path=request.path,
+    )
+
+
+def server_error(request):  # noqa: ANN001 - Django signature
+    return _json_error(
+        code="server_error",
+        message="An unexpected error occurred. Please try again later.",
+        status=500,
+        path=request.path,
+    )
 
 
 def dbt_health(request):
@@ -129,3 +145,15 @@ def _serialize_sync_status(status: TenantAirbyteSyncStatus | None) -> Dict[str, 
         "last_job_status": status.last_job_status,
         "last_job_id": status.last_job_id,
     }
+
+
+def _json_error(*, code: str, message: str, status: int, **details: Any) -> JsonResponse:
+    payload: Dict[str, Any] = {
+        "error": {
+            "code": code,
+            "message": message,
+        }
+    }
+    if details:
+        payload["error"].update(details)
+    return JsonResponse(payload, status=status)

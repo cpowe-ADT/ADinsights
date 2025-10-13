@@ -8,6 +8,8 @@ from pathlib import Path
 import environ
 from celery.schedules import crontab
 
+from backend.config.logging import build_logging_config
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from .env if present.
@@ -15,10 +17,13 @@ env = environ.Env(
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1"]),
     TIME_ZONE=(str, "America/Jamaica"),
+    API_VERSION=(str, "dev"),
     SECRETS_PROVIDER=(str, "env"),
     KMS_PROVIDER=(str, "aws"),
     LLM_TIMEOUT=(float, 10.0),
     ENABLE_TENANCY=(bool, False),
+    DJANGO_LOG_LEVEL=(str, "INFO"),
+    APP_VERSION=(str, "0.0.0-dev"),
 )
 
 ENV_FILE = BASE_DIR / ".env"
@@ -33,6 +38,7 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 ENABLE_TENANCY = env.bool("ENABLE_TENANCY")
+API_VERSION = env("API_VERSION")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -119,6 +125,7 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_SCHEMA_CLASS": "rest_framework.schemas.openapi.AutoSchema",
 }
 
 SIMPLE_JWT = {
@@ -129,28 +136,7 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "json": {
-            "()": "core.observability.JsonFormatter",
-        }
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "json",
-        }
-    },
-    "loggers": {
-        "": {"handlers": ["console"], "level": "INFO"},
-        "django": {"handlers": ["console"], "level": "INFO"},
-        "django.request": {"handlers": ["console"], "level": "INFO", "propagate": False},
-        "api.access": {"handlers": ["console"], "level": "INFO", "propagate": False},
-        "celery.tasks": {"handlers": ["console"], "level": "INFO", "propagate": False},
-    },
-}
+LOGGING = build_logging_config(env("DJANGO_LOG_LEVEL"))
 
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
@@ -180,3 +166,4 @@ LLM_API_URL = _optional(env("LLM_API_URL", default=None))
 LLM_API_KEY = _optional(env("LLM_API_KEY", default=None))
 LLM_MODEL = env("LLM_MODEL", default="gpt-5-codex")
 LLM_TIMEOUT = env.float("LLM_TIMEOUT")
+APP_VERSION = env("APP_VERSION")

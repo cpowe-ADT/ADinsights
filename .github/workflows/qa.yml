@@ -2,27 +2,19 @@ name: QA
 on: [push, pull_request]
 
 jobs:
-  qa:
+  e2e:
     runs-on: ubuntu-latest
     container: mcr.microsoft.com/playwright:v1.56.0-noble
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+        with: { node-version: '20' }
       - run: npm ci
       - run: npx playwright install chromium
-
-      # MOCKed run: dev server
-      - name: Mocked UI tests
-        env:
-          MOCK_MODE: 'true'
-          QA_BASE_URL: 'http://127.0.0.1:5173'
+      - name: Run mocked E2E (dev)
+        env: { MOCK_MODE: 'true', QA_BASE_URL: 'http://127.0.0.1:5173' }
         run: npm test -- --project=chromium-desktop
-
-      # Built run: build + preview
-      - name: Built UI tests
-        if: ${{ false }} # enable when you want the non-mock path in CI
-        run: |
-          npm run build
-          QA_BASE_URL='http://127.0.0.1:4173' npm test -- --project=chromium-desktop
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: playwright-report, path: playwright-report, if-no-files-found: ignore }
