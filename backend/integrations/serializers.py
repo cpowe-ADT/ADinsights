@@ -63,6 +63,12 @@ class PlatformCredentialSerializer(serializers.ModelSerializer):
 
 
 class CampaignBudgetSerializer(serializers.ModelSerializer):
+    def _get_tenant(self) -> Tenant:
+        request = self.context.get("request")
+        if request is None or not hasattr(request, "user"):
+            raise serializers.ValidationError("Request context is required.")
+        return request.user.tenant
+
     class Meta:
         model = CampaignBudget
         fields = [
@@ -86,11 +92,24 @@ class CampaignBudgetSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Currency must be a 3 letter code.")
         return value.upper()
 
+    def validate(self, attrs):  # type: ignore[override]
+        attrs = super().validate(attrs)
+        tenant = self._get_tenant()
+        name = attrs.get("name") or (
+            getattr(self.instance, "name", None) if self.instance else None
+        )
+        if name:
+            existing_qs = CampaignBudget.objects.filter(tenant=tenant, name=name)
+            if self.instance:
+                existing_qs = existing_qs.exclude(pk=self.instance.pk)
+            if existing_qs.exists():
+                raise serializers.ValidationError(
+                    {"name": "A campaign budget with this name already exists."}
+                )
+        return attrs
+
     def create(self, validated_data):
-        request = self.context.get("request")
-        if request is None or not hasattr(request, "user"):
-            raise serializers.ValidationError("Request context is required.")
-        tenant = request.user.tenant
+        tenant = self._get_tenant()
         return CampaignBudget.objects.create(tenant=tenant, **validated_data)
 
     def update(self, instance, validated_data):
@@ -101,6 +120,12 @@ class CampaignBudgetSerializer(serializers.ModelSerializer):
 
 
 class AlertRuleDefinitionSerializer(serializers.ModelSerializer):
+    def _get_tenant(self) -> Tenant:
+        request = self.context.get("request")
+        if request is None or not hasattr(request, "user"):
+            raise serializers.ValidationError("Request context is required.")
+        return request.user.tenant
+
     class Meta:
         model = AlertRuleDefinition
         fields = [
@@ -127,11 +152,24 @@ class AlertRuleDefinitionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Lookback hours must be positive.")
         return value
 
+    def validate(self, attrs):  # type: ignore[override]
+        attrs = super().validate(attrs)
+        tenant = self._get_tenant()
+        name = attrs.get("name") or (
+            getattr(self.instance, "name", None) if self.instance else None
+        )
+        if name:
+            existing_qs = AlertRuleDefinition.objects.filter(tenant=tenant, name=name)
+            if self.instance:
+                existing_qs = existing_qs.exclude(pk=self.instance.pk)
+            if existing_qs.exists():
+                raise serializers.ValidationError(
+                    {"name": "An alert rule with this name already exists."}
+                )
+        return attrs
+
     def create(self, validated_data):
-        request = self.context.get("request")
-        if request is None or not hasattr(request, "user"):
-            raise serializers.ValidationError("Request context is required.")
-        tenant = request.user.tenant
+        tenant = self._get_tenant()
         return AlertRuleDefinition.objects.create(
             tenant=tenant, **validated_data
         )
