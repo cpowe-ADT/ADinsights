@@ -27,3 +27,7 @@ end
 {% macro metric_roas(revenue, spend) %}
     {{ safe_divide(revenue, spend) }}
 {% endmacro %}
+
+{% macro metric_roas(revenue, spend) %}
+    {{ safe_divide(revenue, spend) }}
+{% endmacro %}
