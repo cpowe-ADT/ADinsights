@@ -211,3 +211,62 @@ class AirbyteConnection(models.Model):
                 "updated_at",
             ]
         )
+
+
+class TenantAirbyteSyncStatus(models.Model):
+    """Aggregated Airbyte sync metadata per tenant."""
+
+    tenant = models.OneToOneField(
+        Tenant, on_delete=models.CASCADE, related_name="airbyte_sync_status"
+    )
+    last_connection = models.ForeignKey(
+        "AirbyteConnection", null=True, blank=True, on_delete=models.SET_NULL, related_name="tenant_sync_statuses"
+    )
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    last_job_id = models.CharField(max_length=64, blank=True)
+    last_job_status = models.CharField(max_length=32, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        verbose_name = "Tenant Airbyte sync status"
+        verbose_name_plural = "Tenant Airbyte sync statuses"
+
+    def record_connection(self, connection: "AirbyteConnection") -> None:
+        self.last_connection = connection
+        self.last_synced_at = connection.last_synced_at
+        self.last_job_id = connection.last_job_id
+        self.last_job_status = connection.last_job_status
+        self.save(
+            update_fields=[
+                "last_connection",
+                "last_synced_at",
+                "last_job_id",
+                "last_job_status",
+                "updated_at",
+            ]
+        )
+
+    @classmethod
+    def update_for_connection(cls, connection: "AirbyteConnection") -> "TenantAirbyteSyncStatus":
+        status, created = cls.all_objects.get_or_create(tenant=connection.tenant)
+        if created:
+            status.last_connection = connection
+            status.last_synced_at = connection.last_synced_at
+            status.last_job_id = connection.last_job_id
+            status.last_job_status = connection.last_job_status
+            status.save(
+                update_fields=[
+                    "last_connection",
+                    "last_synced_at",
+                    "last_job_id",
+                    "last_job_status",
+                    "updated_at",
+                ]
+            )
+            return status
+        status.record_connection(connection)
+        return status

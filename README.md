@@ -114,12 +114,12 @@ templates and follow the README for recommended sync cadences. Secrets are injec
 environment variables—export the following before running declarative configuration or the
 bootstrap command:
 
-| Connector | Environment variable |
+| Connector | Environment variables |
 | --- | --- |
-| Google Ads | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN` |
-| Meta Ads | `AIRBYTE_META_ACCESS_TOKEN` |
+| Google Ads | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN`, `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID` |
+| Meta Ads | `AIRBYTE_META_ACCESS_TOKEN`, `AIRBYTE_META_ACCOUNT_ID` |
 | LinkedIn Transparency (stub) | `AIRBYTE_LINKEDIN_CLIENT_ID`, `AIRBYTE_LINKEDIN_CLIENT_SECRET`, `AIRBYTE_LINKEDIN_REFRESH_TOKEN` |
-| TikTok Transparency (stub) | `AIRBYTE_TIKTOK_TRANSPARENCY_TOKEN` |
+| TikTok Transparency (stub) | `AIRBYTE_TIKTOK_TRANSPARENCY_TOKEN`, `AIRBYTE_TIKTOK_ADVERTISER_ID` |
 
 For scheduler access configure `AIRBYTE_API_URL` plus either `AIRBYTE_API_TOKEN` or the
 `AIRBYTE_USERNAME`/`AIRBYTE_PASSWORD` pair for the Airbyte deployment.
@@ -127,16 +127,12 @@ For scheduler access configure `AIRBYTE_API_URL` plus either `AIRBYTE_API_TOKEN`
 Use `python manage.py sync_airbyte` (optionally via Celery beat) to trigger due syncs based on the
 `integrations_airbyteconnection` schedule metadata stored per tenant.
 
-### dbt Staging Models
+### dbt Transformations
 ```bash
-cd dbt
-cp profiles-example.yml ~/.dbt/profiles.yml  # adjust connection details
-dbt debug
-dbt seed
-dbt run --select staging
+make dbt-deps
+make dbt-build
 ```
-The staging models expect Airbyte raw tables to exist. Running them early validates schemas before
-fact/dim layers are added.
+The Makefile wraps common workflows (dependencies, seeds, builds, tests, and freshness checks). Use `DBT` overrides to pass `--vars` such as `enable_linkedin` or `enable_tiktok` when you want to incorporate optional connectors.
 
 ### Quick Smoke Test
 1. Start the backend API and create a tenant/user via Django admin.
