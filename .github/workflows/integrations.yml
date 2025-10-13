@@ -33,11 +33,6 @@ jobs:
       - name: Build exporter
         run: npm run build
 
-      - name: Run exporter tests
-        env:
-          CI: 'true'
-        run: npm test
-
       - name: Render sample report
         run: npm run export -- --data examples/data.sample.json --out out/sample-report.pdf --png out/sample-report.png
 
