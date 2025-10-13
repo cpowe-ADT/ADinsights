@@ -14,6 +14,8 @@ jobs:
   run-dbt:
     name: Validate dbt project
     runs-on: ubuntu-latest
+    env:
+      CI_USE_SEEDS: 'true'
     services:
       postgres:
         image: postgres:15
@@ -42,7 +44,11 @@ jobs:
       - name: Prepare dbt profile
         run: |
           mkdir -p "$HOME/.dbt"
-          cp dbt/profiles-example.yml "$HOME/.dbt/profiles.yml"
+          if [ -f dbt/profiles.yml ]; then
+            cp dbt/profiles.yml "$HOME/.dbt/profiles.yml"
+          else
+            cp dbt/profiles-example.yml "$HOME/.dbt/profiles.yml"
+          fi
 
       - name: Wait for Postgres
         run: |
@@ -57,6 +63,9 @@ jobs:
 
       - name: Install dbt packages
         run: make dbt-deps DBT="python -m dbt --project-dir dbt --profiles-dir $HOME/.dbt"
+
+      - name: Seed reference data
+        run: python -m dbt seed --project-dir dbt --profiles-dir $HOME/.dbt
 
       - name: Run staging models
         run: python -m dbt run --project-dir dbt --profiles-dir $HOME/.dbt --select staging
