@@ -72,15 +72,18 @@ models:
       - name: campaign_id
       - name: spend
       - name: ctr
+      - name: cpm
   - name: vw_creative_daily
     description: "Aggregated daily creative metrics with cost efficiency fields for dashboards."
     columns:
       - name: date_day
       - name: ad_id
       - name: cost_per_click
+      - name: cpm
   - name: vw_pacing
     description: "Account level pacing view with cumulative and trailing spend indicators."
     columns:
       - name: date_day
       - name: ad_account_id
       - name: cumulative_spend
+      - name: cpm
