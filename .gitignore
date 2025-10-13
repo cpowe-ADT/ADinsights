@@ -4,6 +4,7 @@ __pycache__/
 .env
 .env.*
 !backend/.env.sample
+!integrations/exporter/.env.example
 *.log
 *.pot
 *.pyc
