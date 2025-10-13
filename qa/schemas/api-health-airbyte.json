@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "api-health-airbyte.json",
+  "title": "Airbyte health response",
+  "type": "object",
+  "required": ["component", "status", "configured"],
+  "properties": {
+    "component": {
+      "type": "string",
+      "const": "airbyte"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "misconfigured",
+        "no_recent_sync",
+        "stale",
+        "failing"
+      ]
+    },
+    "configured": {
+      "type": "boolean"
+    },
+    "detail": {
+      "type": "string"
+    },
+    "stale": {
+      "type": "boolean"
+    },
+    "last_sync": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": ["tenant_id", "last_job_status"],
+          "properties": {
+            "tenant_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "last_synced_at": {
+              "type": ["string", "null"],
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T",
+              "description": "ISO 8601 timestamp for the last completed sync."
+            },
+            "last_job_status": {
+              "type": "string",
+              "minLength": 1
+            },
+            "last_job_id": {
+              "type": ["string", "null"],
+              "minLength": 1
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "metrics-export.json",
+  "title": "Metrics export CSV payload",
+  "type": "object",
+  "required": [
+    "status",
+    "contentType",
+    "contentDisposition",
+    "headers",
+    "rows"
+  ],
+  "properties": {
+    "status": {
+      "type": "integer",
+      "const": 200
+    },
+    "contentType": {
+      "type": "string",
+      "pattern": "text/csv"
+    },
+    "contentDisposition": {
+      "type": "string",
+      "pattern": "\\.csv"
+    },
+    "headers": {
+      "type": "array",
+      "const": [
+        "date",
+        "parish",
+        "impressions",
+        "clicks",
+        "spend",
+        "conversions",
+        "roas"
+      ]
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "date",
+          "parish",
+          "impressions",
+          "clicks",
+          "spend",
+          "conversions",
+          "roas"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "parish": {
+            "type": "string",
+            "minLength": 1
+          },
+          "impressions": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "clicks": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "spend": {
+            "type": "string",
+            "pattern": "^-?\\d+(?:\\.\\d+)?$"
+          },
+          "conversions": {
+            "type": "string",
+            "pattern": "^-?\\d+(?:\\.\\d+)?$"
+          },
+          "roas": {
+            "type": "string",
+            "pattern": "^-?\\d+(?:\\.\\d+)?$"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": false
+}
