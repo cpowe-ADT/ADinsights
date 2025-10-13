@@ -71,6 +71,10 @@ models:
               arguments:
                 to: ref('dim_campaign')
                 field: campaign_id
+      - name: campaign_name
+        description: "Human-readable campaign label sourced from staging when available."
+        tests:
+          - not_null
       - name: adset_id
         tests:
           - not_null
@@ -143,6 +147,8 @@ models:
         description: "Unique identifier for the ad account owning the campaign."
       - name: campaign_id
         description: "Unique identifier for the campaign receiving spend."
+      - name: campaign_name
+        description: "Human-readable campaign label favoring staging data with dimensional fallback."
       - name: spend
         description: "Total spend attributed to the campaign on the given day."
       - name: impressions
@@ -219,6 +225,8 @@ models:
               arguments:
                 to: ref('dim_campaign')
                 field: campaign_id
+      - name: campaign_name
+        description: "Human-readable campaign label favoring staging data with dimensional fallback."
       - name: parish_code
         tests:
           - relationships:
