@@ -1,0 +1,358 @@
+.header {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 2rem 0.5rem;
+  color: var(--header-text, var(--text-primary));
+}
+
+.primaryRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.brandArea {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.logoLink {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #f8fafc;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.logoMark {
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+}
+
+.titleBlock {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.appName {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-tertiary);
+}
+
+.pageTitle {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: inherit;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.subtitle {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.utilityArea {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.metricPicker {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+.metricLabel {
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.metricSelect {
+  min-width: 160px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.metricSelect:focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.searchForm {
+  position: relative;
+}
+
+.searchField {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-card);
+  min-width: 260px;
+  transition: border-color 0.2s ease;
+}
+
+.searchField:focus-within {
+  border-color: var(--accent-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.searchField input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.95rem;
+  width: 100%;
+  color: var(--text-primary);
+}
+
+.searchField input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.searchIcon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-tertiary);
+  display: flex;
+}
+
+.themeToggle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-card);
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.themeToggle:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-subtle);
+}
+
+.themeToggle svg {
+  width: 22px;
+  height: 22px;
+}
+
+.userMenu {
+  position: relative;
+}
+
+.userButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  padding: 0.3rem 0.75rem 0.3rem 0.3rem;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.userButton:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-subtle);
+}
+
+.userAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #22d3ee, #6366f1);
+  color: #0f172a;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.userLabel {
+  font-size: 0.9rem;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caret svg {
+  width: 16px;
+  height: 16px;
+}
+
+.menuList {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+  padding: 0.75rem;
+  min-width: 220px;
+  display: grid;
+  gap: 0.5rem;
+  z-index: 2;
+}
+
+.menuSection {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.menuHint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.menuIdentity {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.menuItem {
+  border: none;
+  background: var(--accent-subtle);
+  color: var(--accent-primary-strong);
+  border-radius: 12px;
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.menuItem:hover {
+  filter: brightness(0.98);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding-top: 0.25rem;
+}
+
+.navLink {
+  position: relative;
+  padding: 0.75rem 1rem;
+  border-radius: 999px;
+  text-decoration: none;
+  color: var(--nav-link-color, var(--text-secondary));
+  font-weight: 500;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.navLink:hover {
+  color: var(--nav-link-active, var(--text-primary));
+}
+
+.navLinkActive {
+  font-weight: 600;
+  color: var(--nav-link-active, var(--text-primary));
+}
+
+.navLinkActive::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 8px;
+  height: 2px;
+  background: var(--nav-link-underline, var(--accent-primary));
+  border-radius: 999px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+@media (max-width: 900px) {
+  .searchField {
+    min-width: 200px;
+  }
+
+  .utilityArea {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0.75rem 1.25rem 0.25rem;
+  }
+
+  .primaryRow {
+    align-items: stretch;
+  }
+
+  .brandArea {
+    flex: 1;
+  }
+
+  .utilityArea {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .searchForm {
+    flex: 1;
+  }
+
+  .searchField {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .nav {
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .navLink {
+    white-space: nowrap;
+    padding: 0.75rem 0.9rem;
+  }
+}

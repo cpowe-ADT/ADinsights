@@ -50,6 +50,41 @@
   --shadow-soft: 0 12px 32px rgba(15, 23, 42, 0.08);
   --shadow-subtle: 0 4px 12px rgba(15, 23, 42, 0.05);
   --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.35);
+  --app-background: #f8fafc;
+  --app-foreground: #0f172a;
+  --header-background: rgba(248, 250, 252, 0.94);
+  --header-border: rgba(15, 23, 42, 0.08);
+  --header-shadow: rgba(15, 23, 42, 0.08);
+  --nav-link-color: #475569;
+  --nav-link-active: #0f172a;
+  --nav-link-underline: #2563eb;
+}
+
+:root[data-theme="dark"] {
+  --surface-canvas: #0b1220;
+  --surface-card: #111827;
+  --surface-subtle: #111827;
+  --surface-contrast: #f1f5f9;
+  --border-soft: rgba(148, 163, 184, 0.25);
+  --border-strong: rgba(148, 163, 184, 0.45);
+  --text-primary: #e2e8f0;
+  --text-secondary: #cbd5f5;
+  --text-tertiary: #94a3b8;
+  --accent-primary: #60a5fa;
+  --accent-primary-strong: #3b82f6;
+  --accent-subtle: rgba(96, 165, 250, 0.2);
+  --positive: #34d399;
+  --shadow-soft: 0 12px 32px rgba(8, 15, 30, 0.6);
+  --shadow-subtle: 0 8px 16px rgba(8, 15, 30, 0.35);
+  --focus-ring: 0 0 0 3px rgba(96, 165, 250, 0.4);
+  --app-background: #0b1220;
+  --app-foreground: #e2e8f0;
+  --header-background: rgba(15, 23, 42, 0.88);
+  --header-border: rgba(148, 163, 184, 0.25);
+  --header-shadow: rgba(8, 15, 30, 0.6);
+  --nav-link-color: rgba(226, 232, 240, 0.7);
+  --nav-link-active: #f8fafc;
+  --nav-link-underline: #93c5fd;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
