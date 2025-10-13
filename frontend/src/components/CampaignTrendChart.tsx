@@ -8,6 +8,8 @@ import { axisTickFormatter, chartMargins, chartPalette, chartTheme, createToolti
 interface CampaignTrendChartProps {
   data: CampaignTrendPoint[];
   currency: string;
+  width: number;
+  height: number;
 }
 
 const dateFormatter = new Intl.DateTimeFormat("en-JM", { month: "short", day: "numeric" });
@@ -20,7 +22,7 @@ const formatDateLabel = (value: string | number): string => {
   return dateFormatter.format(parsed);
 };
 
-const CampaignTrendChart = ({ data, currency }: CampaignTrendChartProps) => {
+const CampaignTrendChart = ({ data, currency, width, height }: CampaignTrendChartProps) => {
   const tooltipProps = createTooltipProps({
     valueType: "currency",
     currency,
@@ -28,7 +30,7 @@ const CampaignTrendChart = ({ data, currency }: CampaignTrendChartProps) => {
   });
 
   return (
-    <AreaChart data={data} margin={chartMargins}>
+    <AreaChart data={data} margin={chartMargins} width={width} height={height}>
       <defs>
         <linearGradient id="spendAreaGradient" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={chartPalette[0]} stopOpacity={0.28} />
