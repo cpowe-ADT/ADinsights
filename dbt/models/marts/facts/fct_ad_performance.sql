@@ -30,7 +30,7 @@ enriched as (
         {{ metric_ctr('b.clicks', 'b.impressions') }} as ctr,
         {{ metric_conversion_rate('b.conversions', 'b.clicks') }} as conversion_rate,
         {{ metric_cost_per_conversion('b.spend', 'b.conversions') }} as cost_per_conversion,
-        {{ metric_roas('b.conversions', 'b.spend') }} as roas
+        {{ metric_return_on_ad_spend('b.conversions', 'b.spend') }} as roas
     from base b
 )
 

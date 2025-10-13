@@ -1,7 +1,7 @@
-{% test metric_roas_matches(model, revenue_column, spend_column, expected_column) %}
+{% test metric_return_on_ad_spend_matches(model, revenue_column, spend_column, expected_column) %}
 with calculations as (
     select
-        {{ metric_roas(revenue_column, spend_column) }} as actual_roas,
+        {{ metric_return_on_ad_spend(revenue_column, spend_column) }} as actual_roas,
         {{ expected_column }} as expected_roas
     from {{ model }}
 ), normalized as (
