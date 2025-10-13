@@ -1,3 +1,10 @@
+{{ config(
+    materialized='incremental',
+    unique_key=['source_platform', 'ad_account_id', 'campaign_id', 'valid_from'],
+    incremental_strategy='merge',
+    on_schema_change='sync_all_columns'
+) }}
+
 {% set campaign_snapshots %}
     with campaign_attributes as (
         select
@@ -13,6 +20,11 @@
             effective_from
         from {{ ref('all_ad_performance') }}
         where campaign_id is not null
+        {% if is_incremental() %}
+            and effective_from >= (
+                select coalesce(max(valid_from), '1900-01-01'::timestamp) from {{ this }}
+            )
+        {% endif %}
     )
 
     select distinct

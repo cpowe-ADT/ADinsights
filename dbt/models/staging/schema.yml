@@ -29,6 +29,8 @@ sources:
           error_after: {count: 2, period: day}
         columns:
           - name: customer_id
+            tests:
+              - not_null
           - name: _airbyte_raw_id
             tests:
               - unique
