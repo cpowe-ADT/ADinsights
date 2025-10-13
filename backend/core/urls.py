@@ -33,6 +33,8 @@ urlpatterns = [
     ),
     path("api/me/", MeView.as_view(), name="me"),
     path("api/health/", core_views.health, name="health"),
+    path("api/health/airbyte/", core_views.airbyte_health, name="airbyte-health"),
+    path("api/health/dbt/", core_views.dbt_health, name="dbt-health"),
     path("api/timezone/", core_views.timezone_view, name="timezone"),
     path("api/", include(router.urls)),
 ]

@@ -55,6 +55,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "accounts.middleware.TenantMiddleware",
+    "core.observability.APILoggingMiddleware",
 ]
 
 ROOT_URLCONF = "core.urls"
@@ -122,6 +123,29 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": False,
     "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": "core.observability.JsonFormatter",
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+        }
+    },
+    "loggers": {
+        "": {"handlers": ["console"], "level": "INFO"},
+        "django": {"handlers": ["console"], "level": "INFO"},
+        "django.request": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "api.access": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "celery.tasks": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
 }
 
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")
