@@ -8,6 +8,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from accounts import middleware as tenant_middleware
+from backend.middleware.tenant import TenantHeaderMiddleware
+from django.test import override_settings
 
 
 class DummyConnection:
@@ -90,3 +92,23 @@ def test_process_response_resets_tenant_context(monkeypatch, stub_connection):
     clear_mock.assert_called_once_with()
     assert stub_connection.statements == [("RESET app.tenant_id", None)]
     assert result is response
+
+
+@override_settings(ENABLE_TENANCY=True)
+def test_tenant_header_middleware_sets_request_attribute():
+    request = SimpleNamespace(META={"HTTP_X_TENANT_ID": "tenant-123"})
+    middleware = TenantHeaderMiddleware(lambda req: None)
+
+    middleware.process_request(request)
+
+    assert request.tenant_id == "tenant-123"
+
+
+@override_settings(ENABLE_TENANCY=False)
+def test_tenant_header_middleware_is_noop_when_disabled():
+    request = SimpleNamespace(META={"HTTP_X_TENANT_ID": "tenant-123"})
+    middleware = TenantHeaderMiddleware(lambda req: None)
+
+    middleware.process_request(request)
+
+    assert not hasattr(request, "tenant_id")
