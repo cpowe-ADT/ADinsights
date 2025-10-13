@@ -4,6 +4,7 @@ import BudgetDashboard from "./routes/BudgetDashboard";
 import CampaignDashboard from "./routes/CampaignDashboard";
 import CreativeDashboard from "./routes/CreativeDashboard";
 import DashboardLayout from "./routes/DashboardLayout";
+import ParishMapDetail from "./routes/ParishMapDetail";
 import LoginPage from "./routes/LoginPage";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import Home from "./pages/Home";
@@ -20,6 +21,7 @@ function App() {
             <Route path="campaigns" element={<CampaignDashboard />} />
             <Route path="creatives" element={<CreativeDashboard />} />
             <Route path="budget" element={<BudgetDashboard />} />
+            <Route path="map" element={<ParishMapDetail />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
