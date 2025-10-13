@@ -1,1 +1,1 @@
-from core.settings import *  # noqa
+from backend.core.settings import *  # noqa
