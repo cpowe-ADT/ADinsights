@@ -1,9 +1,11 @@
 import Ajv, { type DefinedError } from "ajv";
+import addMetaSchema2020 from "ajv/dist/refs/json-schema-2020-12";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { inspect } from "node:util";
 
 const ajv = new Ajv({ allErrors: true, strict: false });
+addMetaSchema2020.call(ajv);
 const validatorCache = new Map<string, Ajv.ValidateFunction>();
 const schemaCache = new Map<string, unknown>();
 

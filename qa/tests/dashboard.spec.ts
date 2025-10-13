@@ -1,62 +1,14 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "./fixtures/base";
 import { DashboardPage } from "../page-objects";
+import {
+  aggregatedMetricsResponse,
+  campaignSnapshot,
+  fulfillJson,
+  parishAggregates,
+} from "./support/sampleData";
 
-type MetricRow = {
-  date: string;
-  platform: string;
-  campaign: string;
-  parish: string;
-  impressions: number;
-  clicks: number;
-  spend: number;
-  conversions: number;
-  roas: number;
-};
-
-const sampleRows: MetricRow[] = [
-  {
-    date: "2024-09-01",
-    platform: "Meta",
-    campaign: "Awareness Boost",
-    parish: "Kingston",
-    impressions: 125000,
-    clicks: 3100,
-    spend: 560,
-    conversions: 118,
-    roas: 3.7,
-  },
-  {
-    date: "2024-09-02",
-    platform: "Google Ads",
-    campaign: "Search Capture",
-    parish: "St James",
-    impressions: 94000,
-    clicks: 4200,
-    spend: 430,
-    conversions: 140,
-    roas: 4.1,
-  },
-  {
-    date: "2024-09-03",
-    platform: "TikTok",
-    campaign: "GenZ Launch",
-    parish: "St Andrew",
-    impressions: 68000,
-    clicks: 2100,
-    spend: 220,
-    conversions: 95,
-    roas: 3.2,
-  },
-];
-
-function fulfillMetrics(route: import("@playwright/test").Route) {
-  void route.fulfill({
-    status: 200,
-    contentType: "application/json",
-    body: JSON.stringify(sampleRows),
-  });
-}
+const sampleRows = campaignSnapshot.rows;
 
 function parseNumber(text: string): number {
   return Number(text.replace(/,/g, ""));
@@ -75,21 +27,29 @@ async function expectNoSeriousViolations(page: import("@playwright/test").Page) 
 
 test.describe("dashboard metrics grid", () => {
   test("defaults to impressions sorting and toggles to clicks", async ({ page, mockMode }) => {
+    await page.setViewportSize(DESKTOP_VIEWPORT);
+    const dashboard = new DashboardPage(page);
     if (mockMode) {
-      await page.route("**/sample_metrics.json", fulfillMetrics);
+      await page.route("**/sample_campaign_performance.json", (route) =>
+        fulfillJson(route, campaignSnapshot)
+      );
+      await page.route("**/sample_creative_performance.json", (route) =>
+        fulfillJson(route, aggregatedMetricsResponse.creative)
+      );
+      await page.route("**/sample_budget_pacing.json", (route) =>
+        fulfillJson(route, aggregatedMetricsResponse.budget)
+      );
+      await page.route("**/sample_parish_aggregates.json", (route) =>
+        fulfillJson(route, parishAggregates)
+      );
     } else {
-      await page.route("**/api/metrics/**", fulfillMetrics);
+      await page.route("**/api/metrics/**", (route) => fulfillJson(route, aggregatedMetricsResponse));
     }
 
-    await page.setViewportSize(DESKTOP_VIEWPORT);
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    const rows = page.locator("tbody tr");
-    await expect(rows).toHaveCount(sampleRows.length);
-    const dashboard = new DashboardPage(page);
     await dashboard.open();
     await dashboard.waitForMetricsLoaded(sampleRows.length);
+
+    await expect.poll(async () => dashboard.getMetricRowCount()).toBe(sampleRows.length);
 
     const sortedByImpressions = [...sampleRows].sort((a, b) => b.impressions - a.impressions);
     const firstRow = await dashboard.getFirstRow();
@@ -120,7 +80,10 @@ test.describe("dashboard metrics grid", () => {
     await expectNoSeriousViolations(page);
 
     if (mockMode) {
-      await page.unroute("**/sample_metrics.json");
+      await page.unroute("**/sample_campaign_performance.json");
+      await page.unroute("**/sample_creative_performance.json");
+      await page.unroute("**/sample_budget_pacing.json");
+      await page.unroute("**/sample_parish_aggregates.json");
     } else {
       await page.unroute("**/api/metrics/**");
     }
