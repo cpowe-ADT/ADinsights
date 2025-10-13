@@ -1,2 +1,2 @@
 account_id,campaign_id,adset_id,ad_id,date_start,country,region,city,impressions,clicks,spend,cpc,cpm,ctr,actions
-1234567890,1111111111,2222222222,3333333333,2024-01-01,Jamaica,Kingston Parish,Kingston,1000,50,125.5,2.51,125.5,0.05,"[{\"action_type\":\"offsite_conversion\",\"value\":\"3\"}]"
+1234567890,1111111111,2222222222,3333333333,2024-01-01,Jamaica,Kingston Parish,Kingston,1000,50,125.5,2.51,125.5,0.05,"[{""action_type"":""offsite_conversion"",""value"":""3""}]"
