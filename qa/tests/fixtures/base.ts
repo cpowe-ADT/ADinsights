@@ -11,6 +11,10 @@ function createAccessToken(): string {
   return `${header}.${payload}.signature`;
 }
 
+const envMock =
+  process.env.MOCK === "1" ||
+  String(process.env.MOCK_MODE || "").toLowerCase() === "true";
+
 const defaultAuthState = {
   access: createAccessToken(),
   refresh: "refresh-token",
@@ -28,19 +32,8 @@ type Fixtures = {
   liveApi: LiveApiState;
 };
 
-function resolveMockFlag(value: string | undefined): boolean | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  return value.trim().toLowerCase() !== "false";
-}
-
-const mockModeEnvValue = process.env.MOCK_MODE ?? process.env.MOCK;
-const mockModeDefault = resolveMockFlag(mockModeEnvValue) ?? false;
-
 export const test = base.extend<Fixtures>({
-  mockMode: [mockModeDefault, { option: true }],
+  mockMode: [envMock, { option: true }],
   liveApi: [async ({}, use) => {
     await use(getLiveApiState());
   }, { scope: "worker" }],

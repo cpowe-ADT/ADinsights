@@ -1,3 +1,4 @@
+import { expect } from "@playwright/test";
 import { test } from "./fixtures/base";
 import { skipWhenNoLiveApi } from "../utils/live";
 import { DashboardPage } from "../page-objects";
@@ -17,16 +18,18 @@ test.describe("metrics CSV export", () => {
       .join("\n");
 
     if (mockMode) {
-      await page.route("**/api/metrics/export/**", (route) => {
-        void route.fulfill({
-          status: 200,
-          headers: {
-            "Content-Type": "text/csv; charset=utf-8",
-            "Content-Disposition": "attachment; filename=tenant-metrics.csv",
-          },
-          body: csvBody,
-        });
-      });
+      const csvHeaders = {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": 'attachment; filename="tenant-metrics.csv"',
+      };
+      const patterns = ["**/api/metrics/export/**", "**/*metrics*.csv"] as const;
+      await Promise.all(
+        patterns.map(async (pattern) =>
+          page.route(pattern, async (route) => {
+            await route.fulfill({ status: 200, headers: csvHeaders, body: csvBody });
+          })
+        )
+      );
     }
 
     const dashboard = new DashboardPage(page);
@@ -99,7 +102,10 @@ test.describe("metrics CSV export", () => {
     }
 
     if (mockMode) {
-      await page.unroute("**/api/metrics/export/**");
+      await Promise.all([
+        page.unroute("**/api/metrics/export/**"),
+        page.unroute("**/*metrics*.csv"),
+      ]);
     }
   });
 });

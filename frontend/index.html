@@ -10,6 +10,20 @@
       integrity="sha256-sA+4Xoe0MzdYlL2Gpw6YwHreLMQfM9Q4R0uHf5QkPcQ="
       crossorigin=""
     />
+    <script>
+      (() => {
+        const storageKey = "adinsights-theme";
+        try {
+          const stored = window.localStorage.getItem(storageKey);
+          const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          const theme = stored === "light" || stored === "dark" ? stored : systemPrefersDark ? "dark" : "light";
+          const className = theme === "dark" ? "theme-dark" : "theme-light";
+          document.documentElement.classList.add(className);
+        } catch (error) {
+          console.error("Failed to initialize theme", error);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

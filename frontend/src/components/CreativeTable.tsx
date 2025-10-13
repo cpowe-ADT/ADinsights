@@ -136,21 +136,50 @@ const CreativeTable = ({ rows, currency }: CreativeTableProps) => {
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <th key={header.id}>
-                    {header.isPlaceholder ? null : (
-                      <button
-                        type="button"
-                        onClick={header.column.getToggleSortingHandler()}
-                        className="sort-button"
-                      >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {header.column.getIsSorted() === "asc"
-                          ? " ↑"
-                          : header.column.getIsSorted() === "desc"
-                          ? " ↓"
-                          : ""}
-                      </button>
-                    )}
+                  <th
+                    key={header.id}
+                    scope={header.colSpan === 1 ? "col" : undefined}
+                    aria-sort={
+                      header.column.getCanSort()
+                        ? header.column.getIsSorted() === "desc"
+                          ? "descending"
+                          : header.column.getIsSorted() === "asc"
+                          ? "ascending"
+                          : "none"
+                        : undefined
+                    }
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : header.column.getCanSort()
+                      ? (
+                          <button
+                            type="button"
+                            onClick={header.column.getToggleSortingHandler()}
+                            className="sort-button"
+                            aria-label={`Sort by ${
+                              typeof header.column.columnDef.header === "string"
+                                ? header.column.columnDef.header
+                                : header.column.id
+                            }. Currently ${
+                              header.column.getIsSorted() === "desc"
+                                ? "sorted descending"
+                                : header.column.getIsSorted() === "asc"
+                                ? "sorted ascending"
+                                : "not sorted"
+                            }.`}
+                          >
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {header.column.getIsSorted() === "asc"
+                              ? " ↑"
+                              : header.column.getIsSorted() === "desc"
+                              ? " ↓"
+                              : ""}
+                          </button>
+                        )
+                      : (
+                          flexRender(header.column.columnDef.header, header.getContext())
+                        )}
                   </th>
                 ))}
               </tr>
