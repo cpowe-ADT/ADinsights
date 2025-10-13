@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adinsights.dev/schemas/parish.schema.json",
+  "title": "ParishAggregates",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "parish",
+      "spend",
+      "impressions",
+      "clicks",
+      "conversions"
+    ],
+    "properties": {
+      "parish": { "type": "string" },
+      "spend": { "type": "number" },
+      "impressions": { "type": "number" },
+      "clicks": { "type": "number" },
+      "conversions": { "type": "number" },
+      "roas": { "type": "number" },
+      "campaignCount": { "type": "number" },
+      "currency": { "type": "string" }
+    }
+  }
+}
