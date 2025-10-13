@@ -1,7 +1,9 @@
-import { useEffect, useMemo } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
+import Breadcrumbs from "../components/Breadcrumbs";
+import Header from "../components/Header";
 import useDashboardStore from "../state/useDashboardStore";
 
 const metricOptions = [
@@ -12,8 +14,17 @@ const metricOptions = [
   { value: "roas", label: "ROAS" },
 ];
 
+const segmentLabels: Record<string, string> = {
+  dashboards: "Dashboards",
+  campaigns: "Campaigns",
+  creatives: "Creatives",
+  budget: "Budget pacing",
+};
+
 const DashboardLayout = () => {
   const { tenantId, logout, user } = useAuth();
+  const location = useLocation();
+  const [isScrolled, setIsScrolled] = useState(false);
   const {
     loadAll,
     selectedMetric,
@@ -38,58 +49,79 @@ const DashboardLayout = () => {
     void loadAll(tenantId);
   }, [loadAll, tenantId]);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 4);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   const errors = useMemo(() => {
     return [campaign, creative, budget, parish]
       .filter((slice) => slice.status === "error" && slice.error)
       .map((slice) => slice.error as string);
   }, [budget, campaign, creative, parish]);
 
+  const navLinks = useMemo(
+    () => [
+      { label: "Campaigns", to: "/dashboards/campaigns", end: true },
+      { label: "Creatives", to: "/dashboards/creatives", end: true },
+      { label: "Budget pacing", to: "/dashboards/budget", end: true },
+    ],
+    [],
+  );
+
+  const activeNav = useMemo(
+    () => navLinks.find((link) => location.pathname.startsWith(link.to)),
+    [location.pathname, navLinks],
+  );
+
+  const breadcrumbs = useMemo(() => {
+    const items: { label: string; to?: string }[] = [{ label: "Home", to: "/" }];
+    const segments = location.pathname.split("/").filter(Boolean);
+    let pathAccumulator = "";
+
+    segments.forEach((segment, index) => {
+      pathAccumulator += `/${segment}`;
+      const label = segmentLabels[segment] ?? segment.replace(/-/g, " ");
+      items.push({
+        label: label.charAt(0).toUpperCase() + label.slice(1),
+        to: index === segments.length - 1 ? undefined : pathAccumulator,
+      });
+    });
+
+    return items;
+  }, [location.pathname]);
+
+  const subtitle = (
+    <span>
+      Tenant <strong>{tenantId ?? "unknown"}</strong>
+      {selectedParish ? (
+        <span>
+          {" • "}Filtering to <strong>{selectedParish}</strong>
+        </span>
+      ) : null}
+    </span>
+  );
+
   return (
     <div className="dashboard-shell">
-      <header className="dashboard-header">
-        <div>
-          <h1>ADinsights</h1>
-          <p className="muted">
-            Tenant <strong>{tenantId ?? "unknown"}</strong>
-            {selectedParish ? (
-              <span>
-                {" • "}Filtering to <strong>{selectedParish}</strong>
-              </span>
-            ) : null}
-          </p>
-        </div>
-        <div className="header-actions">
-          <label htmlFor="metric-select" className="muted">
-            Map metric
-          </label>
-          <select
-            id="metric-select"
-            value={selectedMetric}
-            onChange={(event) => setSelectedMetric(event.target.value as typeof selectedMetric)}
-          >
-            {metricOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <span className="muted user-pill">{(user as { email?: string } | undefined)?.email ?? "Account"}</span>
-          <button type="button" className="button tertiary" onClick={logout}>
-            Log out
-          </button>
-        </div>
-      </header>
-      <nav className="dashboard-nav">
-        <NavLink to="/dashboards/campaigns" className={({ isActive }) => (isActive ? "active" : undefined)}>
-          Campaigns
-        </NavLink>
-        <NavLink to="/dashboards/creatives" className={({ isActive }) => (isActive ? "active" : undefined)}>
-          Creatives
-        </NavLink>
-        <NavLink to="/dashboards/budget" className={({ isActive }) => (isActive ? "active" : undefined)}>
-          Budget pacing
-        </NavLink>
-      </nav>
+      <div className={`dashboard-top${isScrolled ? " shadow" : ""}`}>
+        <Header
+          title={activeNav?.label ?? "Dashboards"}
+          subtitle={subtitle}
+          navLinks={navLinks}
+          metricOptions={metricOptions}
+          selectedMetric={selectedMetric}
+          onMetricChange={(value) => setSelectedMetric(value as typeof selectedMetric)}
+          userEmail={(user as { email?: string } | undefined)?.email}
+          onLogout={logout}
+        />
+        <Breadcrumbs items={breadcrumbs} />
+      </div>
       {errors.length > 0 ? (
         <div className="status-message error" role="alert">
           {errors.map((message, index) => (
