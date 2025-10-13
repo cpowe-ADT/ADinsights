@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "./fixtures/base";
 
 const geoJson = {
@@ -63,6 +64,17 @@ const metricRows = [
   },
 ];
 
+const DESKTOP_VIEWPORT = { width: 1280, height: 720 } as const;
+
+async function expectNoSeriousViolations(page: import("@playwright/test").Page) {
+  const results = await new AxeBuilder({ page }).analyze();
+  const seriousViolations = results.violations.filter((violation) =>
+    ["serious", "critical"].includes(violation.impact ?? ""),
+  );
+
+  expect(seriousViolations, `Serious accessibility violations detected: ${JSON.stringify(seriousViolations, null, 2)}`).toHaveLength(0);
+}
+
 test.describe("parish choropleth", () => {
   test("displays tooltip data on hover", async ({ page, mockMode }) => {
     if (mockMode) {
@@ -91,7 +103,9 @@ test.describe("parish choropleth", () => {
       });
     });
 
+    await page.setViewportSize(DESKTOP_VIEWPORT);
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
 
     const shapes = page.locator(".leaflet-interactive");
     await expect(shapes).toHaveCount(geoJson.features.length);
@@ -113,6 +127,15 @@ test.describe("parish choropleth", () => {
     }
 
     expect(sawKingston).toBe(true);
+
+    const screenshot = await page.screenshot({
+      animations: "disabled",
+      fullPage: true,
+      encoding: "base64",
+    });
+    await expect(screenshot).toMatchSnapshot("map-chromium-desktop.txt");
+
+    await expectNoSeriousViolations(page);
 
     await page.unroute("**/jm_parishes.json");
     if (mockMode) {
