@@ -22,6 +22,10 @@ ENV_FILE = BASE_DIR / ".env"
 if ENV_FILE.exists():
     environ.Env.read_env(ENV_FILE)
 
+
+def _optional(value: str | None) -> str | None:
+    return value or None
+
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
@@ -125,5 +129,9 @@ CELERY_BEAT_SCHEDULE = {}
 SECRETS_PROVIDER = env("SECRETS_PROVIDER")
 KMS_PROVIDER = env("KMS_PROVIDER")
 KMS_KEY_ID = env("KMS_KEY_ID")
+AWS_REGION = _optional(env("AWS_REGION", default=None))
+AWS_ACCESS_KEY_ID = _optional(env("AWS_ACCESS_KEY_ID", default=None))
+AWS_SECRET_ACCESS_KEY = _optional(env("AWS_SECRET_ACCESS_KEY", default=None))
+AWS_SESSION_TOKEN = _optional(env("AWS_SESSION_TOKEN", default=None))
 
 TENANT_SETTING_KEY = "app.tenant_id"

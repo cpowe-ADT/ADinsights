@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Tuple
 
@@ -10,32 +11,48 @@ from typing import TYPE_CHECKING
 from accounts.models import Tenant, TenantKey
 
 from .fields import decrypt_value, encrypt_value
-from .kms import get_kms_client
+from .kms import KmsError, get_kms_client
 
 if TYPE_CHECKING:
     from integrations.models import PlatformCredential
 
 
+logger = logging.getLogger(__name__)
+
+
 def _kms():
-    return get_kms_client(settings.KMS_PROVIDER, settings.KMS_KEY_ID)
+    return get_kms_client(
+        settings.KMS_PROVIDER,
+        settings.KMS_KEY_ID,
+        region_name=settings.AWS_REGION,
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        aws_session_token=settings.AWS_SESSION_TOKEN,
+    )
 
 
 def get_dek_for_tenant(tenant: Tenant) -> Tuple[bytes, str]:
     kms_client = _kms()
     tenant_key = TenantKey.all_objects.filter(tenant=tenant).first()
-    if not tenant_key:
-        plaintext = os.urandom(32)
-        version, ciphertext = kms_client.encrypt(plaintext)
-        tenant_key = TenantKey.all_objects.create(
-            tenant=tenant,
-            dek_ciphertext=ciphertext,
-            dek_key_version=version,
+    try:
+        if not tenant_key:
+            plaintext = os.urandom(32)
+            version, ciphertext = kms_client.encrypt(plaintext)
+            tenant_key = TenantKey.all_objects.create(
+                tenant=tenant,
+                dek_ciphertext=ciphertext,
+                dek_key_version=version,
+            )
+            return plaintext, version
+        plaintext = kms_client.decrypt(
+            tenant_key.dek_ciphertext, tenant_key.dek_key_version
         )
-        return plaintext, version
-    plaintext = kms_client.decrypt(
-        tenant_key.dek_ciphertext, tenant_key.dek_key_version
-    )
-    return plaintext, tenant_key.dek_key_version
+        return plaintext, tenant_key.dek_key_version
+    except KmsError as exc:
+        logger.error(
+            "Failed to retrieve DEK for tenant %s due to KMS error", tenant.id, exc_info=True
+        )
+        raise
 
 
 def rotate_all_tenant_deks() -> int:
@@ -44,11 +61,18 @@ def rotate_all_tenant_deks() -> int:
     kms_client = _kms()
     rotated = 0
     for tenant_key in TenantKey.all_objects.select_related("tenant"):
-        old_key = kms_client.decrypt(
-            tenant_key.dek_ciphertext, tenant_key.dek_key_version
-        )
-        new_key = os.urandom(32)
-        version, ciphertext = kms_client.encrypt(new_key)
+        try:
+            old_key = kms_client.decrypt(
+                tenant_key.dek_ciphertext, tenant_key.dek_key_version
+            )
+            new_key = os.urandom(32)
+            version, ciphertext = kms_client.encrypt(new_key)
+        except KmsError as exc:
+            logger.error(
+                "Skipping DEK rotation for tenant %s due to KMS error", tenant_key.tenant_id,
+                exc_info=True,
+            )
+            continue
 
         for credential in PlatformCredential.all_objects.filter(
             tenant=tenant_key.tenant
