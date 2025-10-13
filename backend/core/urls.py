@@ -3,7 +3,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from alerts.views import AlertRunViewSet
-from analytics.views import MetricsViewSet
+from analytics.views import MetricsExportView, MetricsViewSet
 from accounts.views import (
     AuditLogViewSet,
     MeView,
@@ -54,6 +54,7 @@ urlpatterns = [
     path("api/health/airbyte/", core_views.airbyte_health, name="airbyte-health"),
     path("api/health/dbt/", core_views.dbt_health, name="dbt-health"),
     path("api/timezone/", core_views.timezone_view, name="timezone"),
+    path("api/export/metrics.csv", MetricsExportView.as_view(), name="metrics-export"),
     path("api/", include(router.urls)),
     path("api/admin/", include(admin_router.urls)),
 ]
