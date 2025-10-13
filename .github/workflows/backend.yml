@@ -40,5 +40,31 @@ jobs:
       - name: Run Ruff
         run: ruff check backend
 
-      - name: Run pytest
-        run: pytest -q backend
+      - name: Run pytest with coverage
+        run: |
+          mkdir -p backend/test-results backend/htmlcov
+          pytest backend \
+            --junitxml=backend/test-results/junit.xml \
+            --cov=backend \
+            --cov-report=xml:backend/coverage.xml \
+            --cov-report=html:backend/htmlcov
+
+      - name: Upload backend test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts/backend-tests
+          path: backend/test-results/junit.xml
+
+      - name: Upload backend coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts/backend-coverage
+          path: |
+            backend/coverage.xml
+            backend/htmlcov
+
+      - name: Publish coverage summary
+        run: |
+          python scripts/ci/coverage-summary.py \
+            --coverage backend/coverage.xml \
+            --junit backend/test-results/junit.xml
