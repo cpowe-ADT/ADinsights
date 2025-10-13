@@ -1,0 +1,9 @@
+adinsights:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "./dbt/warehouse.duckdb"
+      schema: analytics
+      threads: 4
+      extensions: []
