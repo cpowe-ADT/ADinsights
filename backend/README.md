@@ -97,7 +97,25 @@ ruff check
 Pytest spins up an in-memory settings module and validates JWT auth, credential encryption, and
 management commands.
 
-## Useful Endpoints
+## Account & Tenant APIs
+- `POST /api/tenants/` — create a tenant and bootstrap its first administrator. Returns the
+  tenant payload and the admin's user ID so provisioning scripts can assign secrets or analytics
+  workspaces.
+- `GET /api/tenants/` — list the tenants visible to the authenticated caller. Non-superusers only
+  ever see their current tenant to enforce strict scoping.
+- `GET /api/users/` — list users within the caller's tenant. Responses include the role names that
+  have been granted.
+- `POST /api/users/` — create a user directly under the authenticated tenant (admin-only).
+- `POST /api/users/invite/` — issue an invitation token for a new teammate and trigger the email
+  hook. Requests accept an optional `role` (e.g., `ADMIN`, `ANALYST`, `VIEWER`) to pre-seed RBAC.
+- `POST /api/users/accept-invite/` — exchange an invitation token for a password and profile
+  details. Successful acceptances mark the invite as redeemed and assign the requested role.
+- `GET /api/user-roles/` — inspect RBAC assignments scoped to the caller's tenant.
+- `POST /api/user-roles/` — grant a role to a tenant user (admin-only).
+- `DELETE /api/user-roles/{id}/` — revoke a role assignment (admin-only).
+
+Legacy health/authentication endpoints remain available for integrations:
+
 - `POST /api/auth/login/` — retrieve JWT pair.
 - `GET /api/me/` — return the authenticated user profile with tenant context.
 - `GET /api/health/` — simple health probe.

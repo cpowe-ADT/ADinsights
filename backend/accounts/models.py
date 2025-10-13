@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import secrets
 import uuid
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -60,6 +62,9 @@ class User(AbstractUser):
             self.username = str(self.id)
         super().save(*args, **kwargs)
 
+    def has_role(self, role_name: str) -> bool:
+        return self.user_roles.filter(role__name=role_name).exists()
+
 
 class UserRole(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -72,6 +77,48 @@ class UserRole(models.Model):
 
     class Meta:
         unique_together = ("user", "tenant", "role")
+
+
+def default_invitation_expiry():
+    return timezone.now() + timedelta(days=7)
+
+
+def generate_invitation_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+class Invitation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="invitations"
+    )
+    email = models.EmailField()
+    token = models.CharField(
+        max_length=128, unique=True, default=generate_invitation_token
+    )
+    role = models.ForeignKey(Role, null=True, blank=True, on_delete=models.SET_NULL)
+    invited_by = models.ForeignKey(
+        "User", null=True, blank=True, on_delete=models.SET_NULL, related_name="sent_invitations"
+    )
+    expires_at = models.DateTimeField(default=default_invitation_expiry)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["tenant", "email"]),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - repr helper
+        return f"Invitation<{self.email}>"
+
+    @property
+    def is_expired(self) -> bool:
+        return timezone.now() >= self.expires_at
+
+    def mark_accepted(self) -> None:
+        self.accepted_at = timezone.now()
+        self.save(update_fields=["accepted_at"])
 
 
 class AuditLog(models.Model):
