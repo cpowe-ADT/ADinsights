@@ -1,14 +1,14 @@
 # Exporter CLI
 
-This package generates printable performance reports by combining JSON data with an HTML template and rendering it with Playwright.
+This package generates printable performance reports by combining JSON data with an HTML template and rendering it with Playwright Core plus a bundled Chromium binary.
 
 ## Prerequisites
 
 - Node.js 18+
 - npm 9+
-- Playwright system dependencies (run `npx playwright install-deps` on Debian/Ubuntu images)
+- No additional system libraries are required—the CLI relies on `@sparticuz/chromium` to supply a self-contained headless Chromium build.
 
-Install dependencies (Playwright will download a headless Chromium build during install):
+Install dependencies:
 
 ```bash
 npm ci

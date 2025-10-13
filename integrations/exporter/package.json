@@ -7,13 +7,13 @@
     "export-report": "bin/export-report"
   },
   "scripts": {
-    "postinstall": "playwright install chromium",
     "build": "node -e \"console.log('No build step required for the exporter CLI.')\"",
     "export": "node bin/export-report",
     "test": "node --test"
   },
   "dependencies": {
+    "@sparticuz/chromium": "^141.0.0",
     "dotenv": "^16.4.5",
-    "playwright": "^1.41.1"
+    "playwright-core": "^1.47.2"
   }
 }
