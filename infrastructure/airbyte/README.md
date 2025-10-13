@@ -12,15 +12,20 @@ The UI will be available at <http://localhost:8000> and the API at <http://local
 
 ## Scheduling Guidance
 All schedules reference the **America/Jamaica** timezone so they align with downstream SLAs documented in `AGENTS.md`. Airbyte schedules live on each **Connection**; configure them via the UI (`Connections → <Connection> → Replication`) or the API (`/api/v1/connections/update`).
-- Follow Airbyte's [incremental sync guidance](https://docs.airbyte.com/understanding-airbyte/sync-modes/incremental) so hourly metrics and daily dimensions use incremental mode with the documented lookback windows.
 
-- **sync_meta_metrics / sync_google_metrics (hourly metrics pulls):** Configure a cron such as `0 6-22 * * *` to run hourly between 06:00 and 22:00. Enable an **Additional sync lookback window** of 3 days to sweep up delayed conversions and keep each run under 30 minutes.
-- **sync_dimensions_daily (dimension refresh):** Schedule at `15 2 * * *` so campaign/ad set/ad metadata and geographic lookups finish before the 03:00 SLA.
-- **Optional transparency connectors:** If enabled, run during low-traffic windows such as `0 2 * * 1`.
+### Hourly metric pipelines (Meta + Google Ads)
+- Use incremental sync mode with a **3-day additional lookback** to sweep delayed conversions without replaying the full 28-day insights window.
+- Cron suggestion: `0 6-22 * * *` to run hourly between 06:00 and 22:00 for both `sync_meta_metrics` and `sync_google_metrics`.
+- In the UI, set **Sync frequency → Cron** and toggle the **Additional sync lookback window** to `3` days. Via API include `scheduleData.cron` with the same expression and `scheduleData.cron.additionalParameters` for the lookback.
 
-After each metrics sync, trigger dbt's incremental staging models; schedule the aggregate marts around 05:00 so dashboards populate by 06:00.
+### Daily dimension refreshes
+- Use incremental mode on the catalog cursor fields (e.g., `updated_time`, `segments.date`) but limit cadence to once per day so slowly changing metadata does not churn warehouse storage.
+- Cron suggestion: `15 2 * * *` for `sync_dimensions_daily`, finishing before the 03:00 SLA.
 
-Document the chosen cron/anchor in your runbook so stakeholders know when fresh numbers land.
+### Optional transparency connectors
+- If enabling the LinkedIn or TikTok transparency stubs, run them in a low-traffic window such as `0 2 * * 1`.
+
+After each hourly metrics sync, trigger dbt's incremental staging models; schedule the aggregate marts around 05:00 so dashboards populate by 06:00. Capture the final cron selections in your runbook so stakeholders know when fresh numbers land.
 
 ## Source Templates
 
@@ -30,6 +35,8 @@ Copy the `.example` files in `sources/` to real JSON files before importing into
 cp sources/meta_marketing.json.example sources/meta_marketing.json
 cp sources/google_ads.json.example sources/google_ads.json
 ```
+
+If you prefer environment-based substitution, duplicate `env.example` to `.env` and export it before running `docker compose up`.
 
 The Google Ads sample uses Airbyte's `{{ runtime_from_date }}` template variable inside each custom
 query so the connector replays only the slices required by the incremental state rather than a fixed

@@ -1,13 +1,13 @@
 {
   "name": "Meta Marketing",
   "sourceType": "facebook-marketing",
-  "workspaceId": "REDACTED",
+  "workspaceId": "00000000-0000-0000-0000-000000000000",
   "configuration": {
-    "account_id": "REDACTED",
-    "app_id": "REDACTED",
-    "app_secret": "REDACTED",
-    "access_token": "REDACTED",
-    "start_date": "2024-01-01",
+    "account_id": "act_<ACCOUNT_ID>",
+    "app_id": "REDACTED_APP_ID",
+    "app_secret": "REDACTED_APP_SECRET",
+    "access_token": "REDACTED_ACCESS_TOKEN",
+    "start_date": "2024-01-01T00:00:00Z",
     "end_date": null,
     "page_size": 100,
     "include_deleted": true,
@@ -23,12 +23,20 @@
     {
       "name": "ad_insights",
       "syncMode": "incremental",
-      "cursorField": "updated_time"
+      "cursorField": "updated_time",
+      "destinationSyncMode": "append_dedup"
     },
     {
       "name": "ad_sets",
       "syncMode": "incremental",
-      "cursorField": "updated_time"
+      "cursorField": "updated_time",
+      "destinationSyncMode": "append_dedup"
+    },
+    {
+      "name": "ads",
+      "syncMode": "incremental",
+      "cursorField": "updated_time",
+      "destinationSyncMode": "append_dedup"
     }
   ]
 }
