@@ -23,3 +23,7 @@ end
 {% macro metric_cpm(spend, impressions) %}
     {{ safe_divide(spend ~ ' * 1000', impressions) }}
 {% endmacro %}
+
+{% macro metric_roas(revenue, spend) %}
+    {{ safe_divide(revenue, spend) }}
+{% endmacro %}

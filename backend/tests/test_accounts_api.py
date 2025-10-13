@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from accounts.models import Invitation, Role, Tenant, User, assign_role
+from accounts.models import AuditLog, Invitation, Role, Tenant, User, assign_role
 
 
 @pytest.mark.django_db
@@ -80,13 +80,49 @@ def test_viewer_cannot_assign_roles(api_client):
 
     api_client.force_authenticate(user=viewer)
     response = api_client.post(
-        "/api/user-roles/",
+        "/api/roles/assign/",
         {"user": str(viewer.id), "role": Role.ANALYST},
         format="json",
     )
     api_client.force_authenticate(user=None)
 
     assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_admin_assign_role_records_audit_log(api_client):
+    tenant = Tenant.objects.create(name="Role Tenant")
+
+    admin = User.objects.create_user(
+        username="admin@role.com", email="admin@role.com", tenant=tenant
+    )
+    admin.set_password("password123")
+    admin.save()
+    assign_role(admin, Role.ADMIN)
+
+    teammate = User.objects.create_user(
+        username="analyst@role.com", email="analyst@role.com", tenant=tenant
+    )
+
+    api_client.force_authenticate(user=admin)
+    response = api_client.post(
+        "/api/roles/assign/",
+        {"user": str(teammate.id), "role": Role.ANALYST},
+        format="json",
+    )
+    api_client.force_authenticate(user=None)
+
+    assert response.status_code == 201
+    teammate.refresh_from_db()
+    assert teammate.user_roles.filter(role__name=Role.ANALYST).exists()
+
+    audit_entry = AuditLog.objects.get(
+        action="role_assigned", resource_id=str(teammate.id)
+    )
+    assert audit_entry.action == "role_assigned"
+    assert audit_entry.resource_type == "role"
+    assert audit_entry.metadata == {"role": Role.ANALYST}
+    assert audit_entry.user_id == admin.id
 
 
 @pytest.mark.django_db
@@ -101,7 +137,7 @@ def test_invitation_flow(api_client):
 
     api_client.force_authenticate(user=admin)
     invite_response = api_client.post(
-        "/api/users/invite/",
+        f"/api/tenants/{tenant.id}/invite/",
         {"email": "newhire@example.com", "role": Role.ANALYST},
         format="json",
     )
