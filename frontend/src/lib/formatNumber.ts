@@ -1,7 +1,7 @@
-const DEFAULT_LOCALE = "en-JM";
+const DEFAULT_LOCALE = 'en-JM';
 
 const isFiniteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
+  typeof value === 'number' && Number.isFinite(value);
 
 const coerceNumber = (value: unknown): number | null => {
   if (isFiniteNumber(value)) {
@@ -15,15 +15,15 @@ const coerceNumber = (value: unknown): number | null => {
 export function formatCompactNumber(
   value: unknown,
   maximumFractionDigits = 1,
-  locale = DEFAULT_LOCALE
+  locale = DEFAULT_LOCALE,
 ): string {
   const numeric = coerceNumber(value);
   if (numeric === null) {
-    return "—";
+    return '—';
   }
 
   const formatter = new Intl.NumberFormat(locale, {
-    notation: "compact",
+    notation: 'compact',
     maximumFractionDigits,
   });
 
@@ -32,17 +32,17 @@ export function formatCompactNumber(
 
 export function formatCurrency(
   value: unknown,
-  currency = "JMD",
+  currency = 'JMD',
   maximumFractionDigits = 0,
-  locale = DEFAULT_LOCALE
+  locale = DEFAULT_LOCALE,
 ): string {
   const numeric = coerceNumber(value);
   if (numeric === null) {
-    return "—";
+    return '—';
   }
 
   const formatter = new Intl.NumberFormat(locale, {
-    style: "currency",
+    style: 'currency',
     currency,
     maximumFractionDigits,
   });
@@ -53,15 +53,15 @@ export function formatCurrency(
 export function formatPercent(
   value: unknown,
   maximumFractionDigits = 1,
-  locale = DEFAULT_LOCALE
+  locale = DEFAULT_LOCALE,
 ): string {
   const numeric = coerceNumber(value);
   if (numeric === null) {
-    return "—";
+    return '—';
   }
 
   const formatter = new Intl.NumberFormat(locale, {
-    style: "percent",
+    style: 'percent',
     maximumFractionDigits,
   });
 
@@ -74,7 +74,7 @@ export type ValueFormatterKey = keyof typeof valueFormatters;
 
 export const valueFormatters = {
   number: (value: unknown) => formatCompactNumber(value),
-  currency: (value: unknown, currency = "JMD") => formatCurrency(value, currency),
+  currency: (value: unknown, currency = 'JMD') => formatCurrency(value, currency),
   percent: (value: unknown) => formatPercent(value),
 };
 

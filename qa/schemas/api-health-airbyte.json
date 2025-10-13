@@ -11,13 +11,7 @@
     },
     "status": {
       "type": "string",
-      "enum": [
-        "ok",
-        "misconfigured",
-        "no_recent_sync",
-        "stale",
-        "failing"
-      ]
+      "enum": ["ok", "misconfigured", "no_recent_sync", "stale", "failing"]
     },
     "configured": {
       "type": "boolean"

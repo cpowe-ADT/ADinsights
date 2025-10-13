@@ -3,14 +3,14 @@ version: 2
 sources:
   - name: raw
     schema: "{{ var('raw_schema', 'raw') }}"
-    description: "Raw ingested tables from Airbyte"
+    description: 'Raw ingested tables from Airbyte'
     tables:
       - name: meta_ads_insights
-        description: "Meta Ads insights pulled from the Marketing API."
+        description: 'Meta Ads insights pulled from the Marketing API.'
         loaded_at_field: _airbyte_emitted_at
         freshness:
-          warn_after: {count: 1, period: day}
-          error_after: {count: 2, period: day}
+          warn_after: { count: 1, period: day }
+          error_after: { count: 2, period: day }
         columns:
           - name: ad_account_id
             tests:
@@ -22,11 +22,11 @@ sources:
             tests:
               - unique
       - name: google_ads_insights
-        description: "Google Ads performance data."
+        description: 'Google Ads performance data.'
         loaded_at_field: _airbyte_emitted_at
         freshness:
-          warn_after: {count: 1, period: day}
-          error_after: {count: 2, period: day}
+          warn_after: { count: 1, period: day }
+          error_after: { count: 2, period: day }
         columns:
           - name: customer_id
             tests:
@@ -35,27 +35,27 @@ sources:
             tests:
               - unique
       - name: linkedin_transparency
-        description: "LinkedIn Ads transparency export (optional)."
+        description: 'LinkedIn Ads transparency export (optional).'
         loaded_at_field: _airbyte_emitted_at
         freshness:
-          warn_after: {count: 7, period: day}
-          error_after: {count: 14, period: day}
+          warn_after: { count: 7, period: day }
+          error_after: { count: 14, period: day }
         enabled: "{{ var('enable_linkedin', False) }}"
         columns:
           - name: ad_account_id
             tests:
               - not_null
       - name: tiktok_transparency
-        description: "TikTok Ads transparency data (optional)."
+        description: 'TikTok Ads transparency data (optional).'
         loaded_at_field: _airbyte_emitted_at
         freshness:
-          warn_after: {count: 7, period: day}
-          error_after: {count: 14, period: day}
+          warn_after: { count: 7, period: day }
+          error_after: { count: 14, period: day }
         enabled: "{{ var('enable_tiktok', False) }}"
 
 models:
   - name: stg_meta_ads
-    description: "Normalized Meta Ads insights with Jamaican geo enrichment."
+    description: 'Normalized Meta Ads insights with Jamaican geo enrichment.'
     columns:
       - name: ad_account_id
         tests:
@@ -65,14 +65,14 @@ models:
         tests:
           - not_null
   - name: stg_google_ads
-    description: "Normalized Google Ads performance data."
+    description: 'Normalized Google Ads performance data.'
     columns:
       - name: ad_account_id
       - name: date_day
         tests:
           - not_null
   - name: stg_linkedin_transparency
-    description: "Optional LinkedIn transparency staging model."
+    description: 'Optional LinkedIn transparency staging model.'
     columns:
       - name: ad_account_id
         tests:
@@ -80,7 +80,7 @@ models:
               config:
                 enabled: "{{ var('enable_linkedin', False) }}"
   - name: stg_tiktok_transparency
-    description: "Optional TikTok transparency staging model."
+    description: 'Optional TikTok transparency staging model.'
     columns:
       - name: ad_account_id
         tests:

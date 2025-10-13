@@ -4,12 +4,12 @@ This runbook explains how to triage and remediate failures in the repository's G
 
 ## Workflow reference
 
-| Workflow | Trigger | Purpose |
-| --- | --- | --- |
-| **Backend CI** | Pull requests to `main` touching `backend/**` | Lint the Django project with Ruff and run the backend test suite. |
-| **Frontend CI** | Pull requests to `main` touching `frontend/**` | Install npm dependencies, execute unit tests, and build the production bundle. |
-| **dbt CI** | Pull requests to `main` touching `dbt/**` | Validate dbt dependencies and execute staging model builds against Postgres. |
-| **Docs CI** | Pull requests that modify docs or the root README | Run lightweight Markdown sanity checks. |
+| Workflow        | Trigger                                           | Purpose                                                                        |
+| --------------- | ------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **Backend CI**  | Pull requests to `main` touching `backend/**`     | Lint the Django project with Ruff and run the backend test suite.              |
+| **Frontend CI** | Pull requests to `main` touching `frontend/**`    | Install npm dependencies, execute unit tests, and build the production bundle. |
+| **dbt CI**      | Pull requests to `main` touching `dbt/**`         | Validate dbt dependencies and execute staging model builds against Postgres.   |
+| **Docs CI**     | Pull requests that modify docs or the root README | Run lightweight Markdown sanity checks.                                        |
 
 ## Inspecting workflow runs
 
@@ -22,11 +22,11 @@ This runbook explains how to triage and remediate failures in the repository's G
 
 ## Retrieving artifacts
 
-* From the workflow **Summary** tab, scroll to the **Artifacts** section to download bundles such as `frontend-dist.zip`, `dbt-staging-artifacts`, or `backend-ci-summary.json`.
-* The `dbt-staging-artifacts` bundle now includes compiled SQL (`dbt/target/compiled`), run logs (`dbt/logs/dbt.log`), docs metadata (`catalog.json`, `graph_summary.json`, and `semantic_manifest.json`), the standard `manifest.json`, `run_results.json`, `graph.gpickle`, `partial_parse.msgpack`, and the machine-readable `artifact-inventory.json` manifest generated in CI.
-* Artifact names map to the validation steps in the logs. For example, the `Publish backend timings` step uploads `ci-metrics.csv`; confirm the upload succeeded before debugging runtime regressions.
-* Inspect `artifact-inventory.json` to quickly list which staging models and schema tests ran in CI along with their statuses. This is useful when validating that optional connectors executed or when triaging flaky tests.
-* If an artifact is missing, cross-check the job logs for `upload-artifact` failures (often due to size limits) and re-run the job once the issue is addressed.
+- From the workflow **Summary** tab, scroll to the **Artifacts** section to download bundles such as `frontend-dist.zip`, `dbt-staging-artifacts`, or `backend-ci-summary.json`.
+- The `dbt-staging-artifacts` bundle now includes compiled SQL (`dbt/target/compiled`), run logs (`dbt/logs/dbt.log`), docs metadata (`catalog.json`, `graph_summary.json`, and `semantic_manifest.json`), the standard `manifest.json`, `run_results.json`, `graph.gpickle`, `partial_parse.msgpack`, and the machine-readable `artifact-inventory.json` manifest generated in CI.
+- Artifact names map to the validation steps in the logs. For example, the `Publish backend timings` step uploads `ci-metrics.csv`; confirm the upload succeeded before debugging runtime regressions.
+- Inspect `artifact-inventory.json` to quickly list which staging models and schema tests ran in CI along with their statuses. This is useful when validating that optional connectors executed or when triaging flaky tests.
+- If an artifact is missing, cross-check the job logs for `upload-artifact` failures (often due to size limits) and re-run the job once the issue is addressed.
 
 ### Manifest schema reference
 
@@ -56,9 +56,9 @@ Entries are omitted when the underlying files are unavailable (for example, when
 
 ## Rerunning jobs
 
-* Use **Re-run failed jobs** when a transient error (network blip, GitHub outage, flaky dependency download) caused the failure. This preserves the same commit and executes only the failed jobs. In the run view, choose **Re-run jobs → Re-run failed jobs** so GitHub scopes the rerun to red steps only.
-* Use **Re-run all jobs** after fixing a pipeline script, caching issue, or updating secrets so that you can confirm every step completes cleanly.
-* If the workflow definition itself changed, push the fix and re-open the pull request to trigger a fresh run. Re-running a job does not load the new YAML.
+- Use **Re-run failed jobs** when a transient error (network blip, GitHub outage, flaky dependency download) caused the failure. This preserves the same commit and executes only the failed jobs. In the run view, choose **Re-run jobs → Re-run failed jobs** so GitHub scopes the rerun to red steps only.
+- Use **Re-run all jobs** after fixing a pipeline script, caching issue, or updating secrets so that you can confirm every step completes cleanly.
+- If the workflow definition itself changed, push the fix and re-open the pull request to trigger a fresh run. Re-running a job does not load the new YAML.
 
 ## Common failure patterns
 
@@ -94,11 +94,11 @@ When local lockfiles diverge from what CI expects, npm or pip will fail with has
 
 ### Markdown checker errors
 
-* The Markdown sanity script flags headings without a space (e.g. `##Heading`) and empty links (for example, `[Example](missing-url)`). Edit the file to fix the syntax and rerun the Docs workflow.
+- The Markdown sanity script flags headings without a space (e.g. `##Heading`) and empty links (for example, `[Example](missing-url)`). Edit the file to fix the syntax and rerun the Docs workflow.
 
 ## Escalation
 
-* **Business hours:** notify the owning squad in `#adinsights-dev` and post a short summary with a link to the failing run.
-* **Off hours:** create an incident in PagerDuty under "CI/CD" and include log excerpts plus the PR URL.
+- **Business hours:** notify the owning squad in `#adinsights-dev` and post a short summary with a link to the failing run.
+- **Off hours:** create an incident in PagerDuty under "CI/CD" and include log excerpts plus the PR URL.
 
 Record root cause and remediation notes in the associated ticket once the run completes successfully.

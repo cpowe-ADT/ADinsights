@@ -1,14 +1,14 @@
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
-import { useAuth } from "../auth/AuthContext";
-import FullPageLoader from "../components/FullPageLoader";
+import { useAuth } from '../auth/AuthContext';
+import FullPageLoader from '../components/FullPageLoader';
 
 const ProtectedRoute = () => {
   const location = useLocation();
   const { isAuthenticated, status, statusMessage } = useAuth();
 
-  if (status === "checking" || status === "authenticating") {
-    return <FullPageLoader message={statusMessage ?? "Signing you in…"} />;
+  if (status === 'checking' || status === 'authenticating') {
+    return <FullPageLoader message={statusMessage ?? 'Signing you in…'} />;
   }
 
   if (!isAuthenticated) {

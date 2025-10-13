@@ -1,11 +1,11 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { act } from "react";
-import type { FeatureCollection } from "geojson";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { act } from 'react';
+import type { FeatureCollection } from 'geojson';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock("react-leaflet", () => {
-  const React = require("react") as typeof import("react");
+vi.mock('react-leaflet', () => {
+  const React = require('react') as typeof import('react');
   const { forwardRef, useEffect, useImperativeHandle, useRef, useState } = React;
 
   type LayerRecord = {
@@ -36,7 +36,7 @@ vi.mock("react-leaflet", () => {
         data?: FeatureCollection;
         onEachFeature?: (feature: unknown, layer: unknown) => void;
       },
-      ref: React.ForwardedRef<{ eachLayer: (callback: (layer: unknown) => void) => void }>
+      ref: React.ForwardedRef<{ eachLayer: (callback: (layer: unknown) => void) => void }>,
     ) => {
       const layersRef = useRef<LayerRecord[]>([]);
       const [, forceRender] = useState(0);
@@ -47,12 +47,15 @@ vi.mock("react-leaflet", () => {
         if (data && Array.isArray((data as FeatureCollection).features)) {
           for (const feature of (data as FeatureCollection).features) {
             const name =
-              typeof feature === "object" &&
+              typeof feature === 'object' &&
               feature !== null &&
-              typeof (feature as { properties?: { name?: unknown } }).properties === "object"
-                ? (((feature as { properties?: { name?: unknown } }).properties as { name?: unknown }).name as string) ??
-                  "Unknown"
-                : "Unknown";
+              typeof (feature as { properties?: { name?: unknown } }).properties === 'object'
+                ? (((
+                    (feature as { properties?: { name?: unknown } }).properties as {
+                      name?: unknown;
+                    }
+                  ).name as string) ?? 'Unknown')
+                : 'Unknown';
 
             const handlers: Record<string, () => void> = {};
             const tooltip = {
@@ -60,7 +63,7 @@ vi.mock("react-leaflet", () => {
                 tooltipContent = next;
               },
             };
-            let tooltipContent = "";
+            let tooltipContent = '';
 
             const layer = {
               feature,
@@ -97,7 +100,7 @@ vi.mock("react-leaflet", () => {
             }
           },
         }),
-        []
+        [],
       );
 
       return (
@@ -114,27 +117,27 @@ vi.mock("react-leaflet", () => {
           ))}
         </div>
       );
-    }
+    },
   );
 
-  GeoJSON.displayName = "MockGeoJSON";
+  GeoJSON.displayName = 'MockGeoJSON';
 
   return { MapContainer, TileLayer, GeoJSON };
 });
 
-type AppModule = typeof import("./App");
-type AuthModule = typeof import("./auth/AuthContext");
-type ThemeModule = typeof import("./components/ThemeProvider");
-type StoreModule = typeof import("./state/useDashboardStore");
+type AppModule = typeof import('./App');
+type AuthModule = typeof import('./auth/AuthContext');
+type ThemeModule = typeof import('./components/ThemeProvider');
+type StoreModule = typeof import('./state/useDashboardStore');
 
-let App: AppModule["default"];
-let AuthProvider: AuthModule["AuthProvider"];
-let ThemeProvider: ThemeModule["ThemeProvider"];
-let useDashboardStore: StoreModule["default"];
+let App: AppModule['default'];
+let AuthProvider: AuthModule['AuthProvider'];
+let ThemeProvider: ThemeModule['ThemeProvider'];
+let useDashboardStore: StoreModule['default'];
 
 const campaignPayload = {
   summary: {
-    currency: "JMD",
+    currency: 'JMD',
     totalSpend: 1000,
     totalImpressions: 2000,
     totalClicks: 300,
@@ -142,16 +145,16 @@ const campaignPayload = {
     averageRoas: 3.2,
   },
   trend: [
-    { date: "2024-09-01", spend: 100, conversions: 4, clicks: 20, impressions: 200 },
-    { date: "2024-09-02", spend: 120, conversions: 5, clicks: 22, impressions: 240 },
+    { date: '2024-09-01', spend: 100, conversions: 4, clicks: 20, impressions: 200 },
+    { date: '2024-09-02', spend: 120, conversions: 5, clicks: 22, impressions: 240 },
   ],
   rows: [
     {
-      id: "cmp_kingston",
-      name: "Kingston Awareness",
-      platform: "Meta",
-      status: "Active",
-      parish: "Kingston",
+      id: 'cmp_kingston',
+      name: 'Kingston Awareness',
+      platform: 'Meta',
+      status: 'Active',
+      parish: 'Kingston',
       spend: 500,
       impressions: 1000,
       clicks: 150,
@@ -162,11 +165,11 @@ const campaignPayload = {
       cpm: 500,
     },
     {
-      id: "cmp_montego_bay",
-      name: "Montego Bay Prospecting",
-      platform: "Google Ads",
-      status: "Active",
-      parish: "St James",
+      id: 'cmp_montego_bay',
+      name: 'Montego Bay Prospecting',
+      platform: 'Google Ads',
+      status: 'Active',
+      parish: 'St James',
       spend: 350,
       impressions: 800,
       clicks: 120,
@@ -181,12 +184,12 @@ const campaignPayload = {
 
 const creativePayload = [
   {
-    id: "cr_test",
-    name: "Hero Unit",
-    campaignId: "cmp_kingston",
-    campaignName: "Kingston Awareness",
-    platform: "Meta",
-    parish: "Kingston",
+    id: 'cr_test',
+    name: 'Hero Unit',
+    campaignId: 'cmp_kingston',
+    campaignName: 'Kingston Awareness',
+    platform: 'Meta',
+    parish: 'Kingston',
     spend: 120,
     impressions: 450,
     clicks: 40,
@@ -195,12 +198,12 @@ const creativePayload = [
     ctr: 0.089,
   },
   {
-    id: "cr_test_2",
-    name: "Carousel",
-    campaignId: "cmp_montego_bay",
-    campaignName: "Montego Bay Prospecting",
-    platform: "Google Ads",
-    parish: "St James",
+    id: 'cr_test_2',
+    name: 'Carousel',
+    campaignId: 'cmp_montego_bay',
+    campaignName: 'Montego Bay Prospecting',
+    platform: 'Google Ads',
+    parish: 'St James',
     spend: 95,
     impressions: 320,
     clicks: 30,
@@ -212,9 +215,9 @@ const creativePayload = [
 
 const budgetPayload = [
   {
-    id: "budget_test",
-    campaignName: "Test Campaign",
-    parishes: ["Kingston"],
+    id: 'budget_test',
+    campaignName: 'Test Campaign',
+    parishes: ['Kingston'],
     monthlyBudget: 200,
     spendToDate: 140,
     projectedSpend: 210,
@@ -224,24 +227,24 @@ const budgetPayload = [
 
 const parishPayload = [
   {
-    parish: "Kingston",
+    parish: 'Kingston',
     spend: 500,
     impressions: 1000,
     clicks: 150,
     conversions: 20,
     roas: 3.4,
     campaignCount: 1,
-    currency: "JMD",
+    currency: 'JMD',
   },
   {
-    parish: "St James",
+    parish: 'St James',
     spend: 350,
     impressions: 800,
     clicks: 120,
     conversions: 15,
     roas: 2.9,
     campaignCount: 1,
-    currency: "JMD",
+    currency: 'JMD',
   },
 ];
 
@@ -252,22 +255,22 @@ const metricsPayload = {
     budget_metrics: budgetPayload,
     parish_metrics: parishPayload,
   },
-  tenant_id: "tenant-123",
-  generated_at: "2024-09-05T00:00:00Z",
+  tenant_id: 'tenant-123',
+  generated_at: '2024-09-05T00:00:00Z',
 };
 
 const geojsonPayload: FeatureCollection = {
-  type: "FeatureCollection",
+  type: 'FeatureCollection',
   features: [
     {
-      type: "Feature",
-      properties: { name: "Kingston" },
-      geometry: { type: "Polygon", coordinates: [] },
+      type: 'Feature',
+      properties: { name: 'Kingston' },
+      geometry: { type: 'Polygon', coordinates: [] },
     },
     {
-      type: "Feature",
-      properties: { name: "St James" },
-      geometry: { type: "Polygon", coordinates: [] },
+      type: 'Feature',
+      properties: { name: 'St James' },
+      geometry: { type: 'Polygon', coordinates: [] },
     },
   ],
 };
@@ -275,29 +278,29 @@ const geojsonPayload: FeatureCollection = {
 const createResponse = (body: unknown, init?: ResponseInit) =>
   new Response(JSON.stringify(body), {
     status: 200,
-    headers: { "Content-Type": "application/json" },
+    headers: { 'Content-Type': 'application/json' },
     ...init,
   });
 
-describe("App integration", () => {
+describe('App integration', () => {
   beforeEach(async () => {
     vi.resetModules();
     vi.unstubAllEnvs();
-    vi.stubEnv("VITE_MOCK_MODE", "false");
+    vi.stubEnv('VITE_MOCK_MODE', 'false');
 
-    const appModule: AppModule = await import("./App");
+    const appModule: AppModule = await import('./App');
     App = appModule.default;
-    const authModule: AuthModule = await import("./auth/AuthContext");
+    const authModule: AuthModule = await import('./auth/AuthContext');
     AuthProvider = authModule.AuthProvider;
-    const themeModule: ThemeModule = await import("./components/ThemeProvider");
+    const themeModule: ThemeModule = await import('./components/ThemeProvider');
     ThemeProvider = themeModule.ThemeProvider;
-    const storeModule: StoreModule = await import("./state/useDashboardStore");
+    const storeModule: StoreModule = await import('./state/useDashboardStore');
     useDashboardStore = storeModule.default;
 
     vi.restoreAllMocks();
     vi.clearAllMocks();
     window.localStorage.clear();
-    window.history.pushState({}, "", "/");
+    window.history.pushState({}, '', '/');
     useDashboardStore.getState().reset();
 
     class ResizeObserverMock {
@@ -306,7 +309,7 @@ describe("App integration", () => {
       disconnect() {}
     }
 
-    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
   });
 
   afterEach(() => {
@@ -315,165 +318,185 @@ describe("App integration", () => {
     vi.unstubAllEnvs();
   });
 
-  it("signs in, loads live metrics, and filters by parish selection", async () => {
-    const accessToken = "access-token-123";
+  it('signs in, loads live metrics, and filters by parish selection', async () => {
+    const accessToken = 'access-token-123';
 
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-      const method = init?.method ?? (typeof input === "object" && "method" in input ? (input as Request).method : "GET");
+      const url =
+        typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+      const method =
+        init?.method ??
+        (typeof input === 'object' && 'method' in input ? (input as Request).method : 'GET');
 
-      if (url.endsWith("/api/auth/login/") && method === "POST") {
+      if (url.endsWith('/api/auth/login/') && method === 'POST') {
         return Promise.resolve(
           createResponse({
             access: accessToken,
-            refresh: "refresh-token-123",
-            tenant_id: "tenant-123",
-            user: { email: "user@example.com" },
-          })
+            refresh: 'refresh-token-123',
+            tenant_id: 'tenant-123',
+            user: { email: 'user@example.com' },
+          }),
         );
       }
 
-      if (url.includes("/api/dashboards/aggregate-snapshot/") && method === "GET") {
+      if (url.includes('/api/dashboards/aggregate-snapshot/') && method === 'GET') {
         return Promise.resolve(createResponse(metricsPayload));
       }
 
-      if (url.endsWith("/jm_parishes.json")) {
+      if (url.endsWith('/jm_parishes.json')) {
         return Promise.resolve(createResponse(geojsonPayload));
       }
 
       return Promise.reject(new Error(`Unhandled fetch: ${url}`));
     });
 
-    vi.stubGlobal("fetch", fetchMock as typeof fetch);
+    vi.stubGlobal('fetch', fetchMock as typeof fetch);
 
     render(
       <ThemeProvider>
         <AuthProvider>
           <App />
         </AuthProvider>
-      </ThemeProvider>
+      </ThemeProvider>,
     );
 
-    await userEvent.type(screen.getByLabelText(/email/i), "user@example.com");
-    await userEvent.type(screen.getByLabelText(/password/i), "password123");
-    await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+    await userEvent.type(screen.getByLabelText(/email/i), 'user@example.com');
+    await userEvent.type(screen.getByLabelText(/password/i), 'password123');
+    await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-    const heroHeading = await screen.findByRole("heading", { name: /adinsights analytics/i });
+    const heroHeading = await screen.findByRole('heading', { name: /adinsights analytics/i });
     expect(heroHeading).toBeInTheDocument();
 
-    const campaignCard = screen.getByText(/Campaign performance/i).closest("article");
+    const campaignCard = screen.getByText(/Campaign performance/i).closest('article');
     expect(campaignCard).not.toBeNull();
-    await userEvent.click(within(campaignCard as HTMLElement).getByRole("button", { name: /open/i }));
+    await userEvent.click(
+      within(campaignCard as HTMLElement).getByRole('button', { name: /open/i }),
+    );
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining("/api/dashboards/aggregate-snapshot/"),
-        expect.objectContaining({ method: "GET" })
-      )
+        expect.stringContaining('/api/dashboards/aggregate-snapshot/'),
+        expect.objectContaining({ method: 'GET' }),
+      ),
     );
 
-    const metricsCall = fetchMock.mock.calls.find((call) =>
-      typeof call[0] === "string" && call[0].includes("/api/dashboards/aggregate-snapshot/")
+    const metricsCall = fetchMock.mock.calls.find(
+      (call) =>
+        typeof call[0] === 'string' && call[0].includes('/api/dashboards/aggregate-snapshot/'),
     );
     expect(metricsCall).toBeTruthy();
     const metricsHeaders = metricsCall?.[1]?.headers as Headers | undefined;
-    expect(metricsHeaders?.get("Authorization")).toBe(`Bearer ${accessToken}`);
+    expect(metricsHeaders?.get('Authorization')).toBe(`Bearer ${accessToken}`);
 
-    const campaignOccurrences = await screen.findAllByText("Kingston Awareness");
+    const campaignOccurrences = await screen.findAllByText('Kingston Awareness');
     expect(campaignOccurrences.length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Montego Bay Prospecting").length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Montego Bay Prospecting').length).toBeGreaterThan(0);
 
-    const mapFeature = await screen.findByTestId("parish-feature-Kingston");
+    const mapFeature = await screen.findByTestId('parish-feature-Kingston');
     await userEvent.click(mapFeature);
 
-    const tableCard = screen.getByRole("heading", { name: /campaign performance/i }).closest(".table-card");
+    const tableCard = screen
+      .getByRole('heading', { name: /campaign performance/i })
+      .closest('.table-card');
     expect(tableCard).not.toBeNull();
     await waitFor(() =>
       expect(
-        within(tableCard as HTMLElement).getByText((_, element) =>
-          element?.tagName === "P" && element.textContent?.includes("Filtering to Kingston")
-        )
-      ).toBeInTheDocument()
+        within(tableCard as HTMLElement).getByText(
+          (_, element) =>
+            element?.tagName === 'P' && element.textContent?.includes('Filtering to Kingston'),
+        ),
+      ).toBeInTheDocument(),
     );
-    const filteredRows = screen.getAllByText("Kingston Awareness");
+    const filteredRows = screen.getAllByText('Kingston Awareness');
     expect(filteredRows.length).toBeGreaterThan(0);
-    expect(screen.queryByText("Montego Bay Prospecting")).not.toBeInTheDocument();
+    expect(screen.queryByText('Montego Bay Prospecting')).not.toBeInTheDocument();
 
-    const clearFilterButton = within(tableCard as HTMLElement).getByRole("button", { name: /^clear$/i });
+    const clearFilterButton = within(tableCard as HTMLElement).getByRole('button', {
+      name: /^clear$/i,
+    });
     await userEvent.click(clearFilterButton);
-    await waitFor(() => expect(screen.getAllByText("Montego Bay Prospecting").length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(screen.getAllByText('Montego Bay Prospecting').length).toBeGreaterThan(0),
+    );
 
-    await userEvent.click(screen.getByRole("link", { name: /creatives/i }));
-    expect(await screen.findByText("Top creatives")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('link', { name: /creatives/i }));
+    expect(await screen.findByText('Top creatives')).toBeInTheDocument();
     expect(screen.getByText(/Hero Unit/)).toBeInTheDocument();
   });
 
-  it("surfaces metrics API errors across the dashboard without console noise", async () => {
+  it('surfaces metrics API errors across the dashboard without console noise', async () => {
     let metricsCallCount = 0;
 
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-      const method = init?.method ?? (typeof input === "object" && "method" in input ? (input as Request).method : "GET");
+      const url =
+        typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+      const method =
+        init?.method ??
+        (typeof input === 'object' && 'method' in input ? (input as Request).method : 'GET');
 
-      if (url.endsWith("/api/auth/login/") && method === "POST") {
+      if (url.endsWith('/api/auth/login/') && method === 'POST') {
         return Promise.resolve(
           createResponse({
-            access: "access-token-456",
-            refresh: "refresh-token-456",
-            tenant_id: "tenant-123",
-            user: { email: "user@example.com" },
-          })
+            access: 'access-token-456',
+            refresh: 'refresh-token-456',
+            tenant_id: 'tenant-123',
+            user: { email: 'user@example.com' },
+          }),
         );
       }
 
-      if (url.includes("/api/dashboards/aggregate-snapshot/") && method === "GET") {
+      if (url.includes('/api/dashboards/aggregate-snapshot/') && method === 'GET') {
         metricsCallCount += 1;
         if (metricsCallCount === 1) {
           return Promise.resolve(createResponse(metricsPayload));
         }
-        return Promise.resolve(createResponse({ detail: "Metrics service unavailable" }, { status: 503 }));
+        return Promise.resolve(
+          createResponse({ detail: 'Metrics service unavailable' }, { status: 503 }),
+        );
       }
 
-      if (url.endsWith("/jm_parishes.json")) {
+      if (url.endsWith('/jm_parishes.json')) {
         return Promise.resolve(createResponse(geojsonPayload));
       }
 
       return Promise.reject(new Error(`Unhandled fetch: ${url}`));
     });
 
-    vi.stubGlobal("fetch", fetchMock as typeof fetch);
+    vi.stubGlobal('fetch', fetchMock as typeof fetch);
 
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(
       <ThemeProvider>
         <AuthProvider>
           <App />
         </AuthProvider>
-      </ThemeProvider>
+      </ThemeProvider>,
     );
 
-    await userEvent.type(screen.getByLabelText(/email/i), "user@example.com");
-    await userEvent.type(screen.getByLabelText(/password/i), "password123");
-    await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+    await userEvent.type(screen.getByLabelText(/email/i), 'user@example.com');
+    await userEvent.type(screen.getByLabelText(/password/i), 'password123');
+    await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-    const heroHeading = await screen.findByRole("heading", { name: /adinsights analytics/i });
+    const heroHeading = await screen.findByRole('heading', { name: /adinsights analytics/i });
     expect(heroHeading).toBeInTheDocument();
 
-    const campaignCard = screen.getByText(/Campaign performance/i).closest("article");
+    const campaignCard = screen.getByText(/Campaign performance/i).closest('article');
     expect(campaignCard).not.toBeNull();
-    await userEvent.click(within(campaignCard as HTMLElement).getByRole("button", { name: /open/i }));
+    await userEvent.click(
+      within(campaignCard as HTMLElement).getByRole('button', { name: /open/i }),
+    );
 
-    const initialRows = await screen.findAllByText("Kingston Awareness");
+    const initialRows = await screen.findAllByText('Kingston Awareness');
     expect(initialRows.length).toBeGreaterThan(0);
 
     await act(async () => {
       await useDashboardStore.getState().loadAll(undefined, { force: true });
     });
 
-    const errorMessage = "Metrics service unavailable";
+    const errorMessage = 'Metrics service unavailable';
 
-    const alert = await screen.findByRole("alert");
+    const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent(errorMessage);
 
     expect(consoleErrorSpy).not.toHaveBeenCalled();

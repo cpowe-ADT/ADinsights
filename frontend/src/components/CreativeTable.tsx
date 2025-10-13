@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
 import {
   ColumnDef,
   flexRender,
@@ -6,17 +6,17 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
-} from "@tanstack/react-table";
+} from '@tanstack/react-table';
 
-import useDashboardStore, { CreativePerformanceRow } from "../state/useDashboardStore";
-import { formatCurrency, formatNumber, formatPercent, formatRatio } from "../lib/format";
-import { TABLE_VIEW_KEYS } from "../lib/savedViews";
+import useDashboardStore, { CreativePerformanceRow } from '../state/useDashboardStore';
+import { formatCurrency, formatNumber, formatPercent, formatRatio } from '../lib/format';
+import { TABLE_VIEW_KEYS } from '../lib/savedViews';
 
 type CreativeTableViewState = {
   sorting?: SortingState;
 };
 
-const DEFAULT_SORTING: SortingState = [{ id: "spend", desc: true }];
+const DEFAULT_SORTING: SortingState = [{ id: 'spend', desc: true }];
 
 const createDefaultSorting = (): SortingState => DEFAULT_SORTING.map((item) => ({ ...item }));
 
@@ -42,13 +42,15 @@ const CreativeTable = ({ rows, currency }: CreativeTableProps) => {
   const columns = useMemo<ColumnDef<CreativePerformanceRow>[]>(
     () => [
       {
-        accessorKey: "thumbnail",
-        header: "Preview",
+        accessorKey: 'thumbnail',
+        header: 'Preview',
         enableSorting: false,
         cell: ({ row }) => {
           const url = row.original.thumbnailUrl;
           if (url) {
-            return <img src={url} alt={row.original.name} className="creative-thumb" loading="lazy" />;
+            return (
+              <img src={url} alt={row.original.name} className="creative-thumb" loading="lazy" />
+            );
           }
           return (
             <div className="creative-fallback" aria-hidden="true">
@@ -58,8 +60,8 @@ const CreativeTable = ({ rows, currency }: CreativeTableProps) => {
         },
       },
       {
-        accessorKey: "name",
-        header: "Creative",
+        accessorKey: 'name',
+        header: 'Creative',
         cell: ({ row }) => (
           <div className="creative-name">
             <strong>{row.original.name}</strong>
@@ -68,45 +70,45 @@ const CreativeTable = ({ rows, currency }: CreativeTableProps) => {
         ),
       },
       {
-        accessorKey: "platform",
-        header: "Platform",
+        accessorKey: 'platform',
+        header: 'Platform',
       },
       {
-        accessorKey: "parish",
-        header: "Parish",
+        accessorKey: 'parish',
+        header: 'Parish',
       },
       {
-        accessorKey: "spend",
-        header: "Spend",
+        accessorKey: 'spend',
+        header: 'Spend',
         cell: ({ getValue }) => formatCurrency(Number(getValue()), currency),
       },
       {
-        accessorKey: "impressions",
-        header: "Impressions",
+        accessorKey: 'impressions',
+        header: 'Impressions',
         cell: ({ getValue }) => formatNumber(Number(getValue())),
       },
       {
-        accessorKey: "clicks",
-        header: "Clicks",
+        accessorKey: 'clicks',
+        header: 'Clicks',
         cell: ({ getValue }) => formatNumber(Number(getValue())),
       },
       {
-        accessorKey: "conversions",
-        header: "Conversions",
+        accessorKey: 'conversions',
+        header: 'Conversions',
         cell: ({ getValue }) => formatNumber(Number(getValue())),
       },
       {
-        accessorKey: "roas",
-        header: "ROAS",
+        accessorKey: 'roas',
+        header: 'ROAS',
         cell: ({ getValue }) => formatRatio(Number(getValue()), 2),
       },
       {
-        accessorKey: "ctr",
-        header: "CTR",
+        accessorKey: 'ctr',
+        header: 'CTR',
         cell: ({ getValue }) => formatPercent(Number(getValue()), 2),
       },
     ],
-    [currency]
+    [currency],
   );
 
   const table = useReactTable({
@@ -138,48 +140,44 @@ const CreativeTable = ({ rows, currency }: CreativeTableProps) => {
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    scope={header.colSpan === 1 ? "col" : undefined}
+                    scope={header.colSpan === 1 ? 'col' : undefined}
                     aria-sort={
                       header.column.getCanSort()
-                        ? header.column.getIsSorted() === "desc"
-                          ? "descending"
-                          : header.column.getIsSorted() === "asc"
-                          ? "ascending"
-                          : "none"
+                        ? header.column.getIsSorted() === 'desc'
+                          ? 'descending'
+                          : header.column.getIsSorted() === 'asc'
+                            ? 'ascending'
+                            : 'none'
                         : undefined
                     }
                   >
-                    {header.isPlaceholder
-                      ? null
-                      : header.column.getCanSort()
-                      ? (
-                          <button
-                            type="button"
-                            onClick={header.column.getToggleSortingHandler()}
-                            className="sort-button"
-                            aria-label={`Sort by ${
-                              typeof header.column.columnDef.header === "string"
-                                ? header.column.columnDef.header
-                                : header.column.id
-                            }. Currently ${
-                              header.column.getIsSorted() === "desc"
-                                ? "sorted descending"
-                                : header.column.getIsSorted() === "asc"
-                                ? "sorted ascending"
-                                : "not sorted"
-                            }.`}
-                          >
-                            {flexRender(header.column.columnDef.header, header.getContext())}
-                            {header.column.getIsSorted() === "asc"
-                              ? " ↑"
-                              : header.column.getIsSorted() === "desc"
-                              ? " ↓"
-                              : ""}
-                          </button>
-                        )
-                      : (
-                          flexRender(header.column.columnDef.header, header.getContext())
-                        )}
+                    {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                      <button
+                        type="button"
+                        onClick={header.column.getToggleSortingHandler()}
+                        className="sort-button"
+                        aria-label={`Sort by ${
+                          typeof header.column.columnDef.header === 'string'
+                            ? header.column.columnDef.header
+                            : header.column.id
+                        }. Currently ${
+                          header.column.getIsSorted() === 'desc'
+                            ? 'sorted descending'
+                            : header.column.getIsSorted() === 'asc'
+                              ? 'sorted ascending'
+                              : 'not sorted'
+                        }.`}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getIsSorted() === 'asc'
+                          ? ' ↑'
+                          : header.column.getIsSorted() === 'desc'
+                            ? ' ↓'
+                            : ''}
+                      </button>
+                    ) : (
+                      flexRender(header.column.columnDef.header, header.getContext())
+                    )}
                   </th>
                 ))}
               </tr>
@@ -189,7 +187,12 @@ const CreativeTable = ({ rows, currency }: CreativeTableProps) => {
             {table.getRowModel().rows.map((row) => (
               <tr key={row.id}>
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id}>{flexRender(cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()), cell.getContext())}</td>
+                  <td key={cell.id}>
+                    {flexRender(
+                      cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()),
+                      cell.getContext(),
+                    )}
+                  </td>
                 ))}
               </tr>
             ))}

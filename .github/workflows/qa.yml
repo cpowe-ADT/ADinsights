@@ -10,6 +10,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
       - run: npm ci
+      - run: npm run format:check
       - run: npx playwright install chromium
       - name: Run mocked E2E (dev)
         env: { MOCK_MODE: 'true', QA_BASE_URL: 'http://127.0.0.1:5173' }

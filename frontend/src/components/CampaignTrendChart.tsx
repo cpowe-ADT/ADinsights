@@ -1,16 +1,22 @@
 // @ts-nocheck
 
-import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
 
-import type { CampaignTrendPoint } from "../state/useDashboardStore";
-import { axisTickFormatter, chartMargins, chartPalette, chartTheme, createTooltipProps } from "../styles/chartTheme";
+import type { CampaignTrendPoint } from '../state/useDashboardStore';
+import {
+  axisTickFormatter,
+  chartMargins,
+  chartPalette,
+  chartTheme,
+  createTooltipProps,
+} from '../styles/chartTheme';
 
 interface CampaignTrendChartProps {
   data: CampaignTrendPoint[];
   currency: string;
 }
 
-const dateFormatter = new Intl.DateTimeFormat("en-JM", { month: "short", day: "numeric" });
+const dateFormatter = new Intl.DateTimeFormat('en-JM', { month: 'short', day: 'numeric' });
 
 const formatDateLabel = (value: string | number): string => {
   const parsed = new Date(`${value}`);
@@ -22,7 +28,7 @@ const formatDateLabel = (value: string | number): string => {
 
 const CampaignTrendChart = ({ data, currency }: CampaignTrendChartProps) => {
   const tooltipProps = createTooltipProps({
-    valueType: "currency",
+    valueType: 'currency',
     currency,
     labelFormatter: (value) => formatDateLabel(String(value)),
   });
@@ -52,7 +58,7 @@ const CampaignTrendChart = ({ data, currency }: CampaignTrendChartProps) => {
         tickLine={false}
         tickFormatter={(value) => axisTickFormatter(value)}
         width={68}
-        domain={[0, "auto"]}
+        domain={[0, 'auto']}
       />
       <Tooltip {...tooltipProps} />
       <Area

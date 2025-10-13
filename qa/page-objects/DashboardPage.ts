@@ -1,9 +1,9 @@
-import type { Locator, Page } from "@playwright/test";
+import type { Locator, Page } from '@playwright/test';
 
-import BasePage from "./BasePage";
-import MapPanel from "./MapPanel";
+import BasePage from './BasePage';
+import MapPanel from './MapPanel';
 
-type MetricColumn = "parish" | "impressions" | "clicks";
+type MetricColumn = 'parish' | 'impressions' | 'clicks';
 
 const COLUMN_HEADERS: Record<MetricColumn, RegExp> = {
   parish: /Parish/i,
@@ -22,28 +22,28 @@ class DashboardPage extends BasePage {
   }
 
   async open(): Promise<void> {
-    await this.goto("/");
+    await this.goto('/');
   }
 
   private get metricsTable(): Locator {
     return this.page
-      .getByRole("heading", { name: /Campaign performance/i })
-      .locator("..")
-      .locator("..")
-      .locator("table");
+      .getByRole('heading', { name: /Campaign performance/i })
+      .locator('..')
+      .locator('..')
+      .locator('table');
   }
 
   private get metricRows(): Locator {
-    return this.metricsTable.locator("tbody").getByRole("row");
+    return this.metricsTable.locator('tbody').getByRole('row');
   }
 
   private async resolveColumnIndex(column: MetricColumn): Promise<number> {
     const cached = this.columnIndexCache[column];
-    if (typeof cached === "number") {
+    if (typeof cached === 'number') {
       return cached;
     }
 
-    const headers = this.metricsTable.getByRole("columnheader");
+    const headers = this.metricsTable.getByRole('columnheader');
     const headerCount = await headers.count();
     const matcher = COLUMN_HEADERS[column];
 
@@ -59,16 +59,16 @@ class DashboardPage extends BasePage {
   }
 
   async waitForMetricsLoaded(expectedRows?: number): Promise<void> {
-    await this.metricsTable.waitFor({ state: "visible" });
+    await this.metricsTable.waitFor({ state: 'visible' });
     await this.waitForNetworkIdle();
 
-    if (typeof expectedRows === "number") {
+    if (typeof expectedRows === 'number') {
       const handle = await this.metricsTable.elementHandle();
       if (handle) {
         try {
           await this.page.waitForFunction(
-            ({ table, expected }) => table.querySelectorAll("tbody tr").length >= expected,
-            { table: handle, expected: expectedRows }
+            ({ table, expected }) => table.querySelectorAll('tbody tr').length >= expected,
+            { table: handle, expected: expectedRows },
           );
         } finally {
           await handle.dispose();
@@ -88,37 +88,40 @@ class DashboardPage extends BasePage {
 
     for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
       const row = this.metricRows.nth(rowIndex);
-      const cellText = await row.getByRole("cell").nth(index).innerText();
+      const cellText = await row.getByRole('cell').nth(index).innerText();
       values.push(cellText.trim());
     }
 
     return values;
   }
 
-  async getNumericColumn(column: Exclude<MetricColumn, "parish">): Promise<number[]> {
+  async getNumericColumn(column: Exclude<MetricColumn, 'parish'>): Promise<number[]> {
     const rawValues = await this.getColumnValues(column);
-    return rawValues.map((value) => Number(value.replace(/,/g, "")));
+    return rawValues.map((value) => Number(value.replace(/,/g, '')));
   }
 
   async getFirstRow(): Promise<Record<MetricColumn, string>> {
     const columnEntries = await Promise.all(
       (Object.keys(COLUMN_HEADERS) as MetricColumn[]).map(async (column) => {
         const index = await this.resolveColumnIndex(column);
-        const value = await this.metricRows.first().getByRole("cell").nth(index).innerText();
+        const value = await this.metricRows.first().getByRole('cell').nth(index).innerText();
         return [column, value.trim()] as const;
-      })
+      }),
     );
 
     return Object.fromEntries(columnEntries) as Record<MetricColumn, string>;
   }
 
   async getSortedStatus(): Promise<string> {
-    const announcement = await this.page.getByText(/Sorted by/i).first().innerText();
+    const announcement = await this.page
+      .getByText(/Sorted by/i)
+      .first()
+      .innerText();
     return announcement.trim();
   }
 
   async toggleSortByClicks(): Promise<void> {
-    await this.page.getByRole("button", { name: /Sort by Clicks/i }).click();
+    await this.page.getByRole('button', { name: /Sort by Clicks/i }).click();
     await this.waitForNetworkIdle();
   }
 }

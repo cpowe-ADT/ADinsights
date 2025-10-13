@@ -7,7 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
-} from "react";
+} from 'react';
 
 import apiClient, {
   API_BASE_URL,
@@ -15,10 +15,10 @@ import apiClient, {
   setAccessToken as setApiAccessToken,
   setRefreshHandler as setApiRefreshHandler,
   setUnauthorizedHandler as setApiUnauthorizedHandler,
-} from "../lib/apiClient";
-import useDashboardStore from "../state/useDashboardStore";
+} from '../lib/apiClient';
+import useDashboardStore from '../state/useDashboardStore';
 
-const STORAGE_KEY = "adinsights.auth";
+const STORAGE_KEY = 'adinsights.auth';
 const REFRESH_LEEWAY_MS = 60_000;
 
 interface LoginResponse {
@@ -28,7 +28,7 @@ interface LoginResponse {
   user?: Record<string, unknown>;
 }
 
-type AuthStatus = "idle" | "checking" | "authenticating" | "authenticated" | "error";
+type AuthStatus = 'idle' | 'checking' | 'authenticating' | 'authenticated' | 'error';
 
 type AuthContextValue = {
   status: AuthStatus;
@@ -53,22 +53,22 @@ type StoredTokens = {
 
 function decodeJwtExpiration(token: string): number | null {
   try {
-    const [, payload] = token.split(".");
+    const [, payload] = token.split('.');
     if (!payload) {
       return null;
     }
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
     const decoded = atob(normalized);
     const parsed = JSON.parse(decoded) as { exp?: number };
-    return typeof parsed.exp === "number" ? parsed.exp : null;
+    return typeof parsed.exp === 'number' ? parsed.exp : null;
   } catch (error) {
-    console.warn("Unable to decode JWT payload", error);
+    console.warn('Unable to decode JWT payload', error);
     return null;
   }
 }
 
 function readStoredTokens(): StoredTokens | null {
-  if (typeof window === "undefined" || !window.localStorage) {
+  if (typeof window === 'undefined' || !window.localStorage) {
     return null;
   }
   try {
@@ -77,17 +77,17 @@ function readStoredTokens(): StoredTokens | null {
       return null;
     }
     const parsed = JSON.parse(raw) as StoredTokens;
-    if (typeof parsed?.access === "string" && typeof parsed?.refresh === "string") {
+    if (typeof parsed?.access === 'string' && typeof parsed?.refresh === 'string') {
       return parsed;
     }
   } catch (error) {
-    console.warn("Failed to parse stored auth state", error);
+    console.warn('Failed to parse stored auth state', error);
   }
   return null;
 }
 
 function writeStoredTokens(tokens: StoredTokens | null): void {
-  if (typeof window === "undefined" || !window.localStorage) {
+  if (typeof window === 'undefined' || !window.localStorage) {
     return;
   }
   if (tokens) {
@@ -98,7 +98,7 @@ function writeStoredTokens(tokens: StoredTokens | null): void {
 }
 
 export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
-  const [status, setStatus] = useState<AuthStatus>("idle");
+  const [status, setStatus] = useState<AuthStatus>('idle');
   const [error, setError] = useState<string>();
   const [statusMessage, setStatusMessage] = useState<string>();
   const [accessToken, setAccessToken] = useState<string>();
@@ -121,23 +121,20 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     setAccessToken(undefined);
     setTenantId(undefined);
     setUser(undefined);
-    setStatus("idle");
+    setStatus('idle');
     setError(undefined);
     setStatusMessage(undefined);
     writeStoredTokens(null);
     useDashboardStore.getState().reset();
   }, [clearRefreshTimer]);
 
-  const applyTokens = useCallback(
-    (next: StoredTokens) => {
-      setAccessToken(next.access);
-      setTenantId(next.tenantId);
-      setUser(next.user);
-      refreshTokenRef.current = next.refresh;
-      writeStoredTokens(next);
-    },
-    []
-  );
+  const applyTokens = useCallback((next: StoredTokens) => {
+    setAccessToken(next.access);
+    setTenantId(next.tenantId);
+    setUser(next.user);
+    refreshTokenRef.current = next.refresh;
+    writeStoredTokens(next);
+  }, []);
 
   const refreshAccessToken = useCallback(async (): Promise<string | undefined> => {
     const refresh = refreshTokenRef.current;
@@ -150,9 +147,9 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
       return accessToken;
     }
     try {
-      const response = await fetch(`${API_BASE_URL.replace(/\/$/, "")}/auth/refresh/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch(`${API_BASE_URL.replace(/\/$/, '')}/auth/refresh/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh }),
       });
       if (!response.ok) {
@@ -162,17 +159,17 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
       const nextTokens: StoredTokens = {
         access: data.access,
         refresh,
-        tenantId: tenantId ?? "",
+        tenantId: tenantId ?? '',
         user,
       };
       applyTokens(nextTokens);
-      setStatus("authenticated");
+      setStatus('authenticated');
       setError(undefined);
       setStatusMessage(undefined);
       setApiAccessToken(data.access);
       return data.access;
     } catch (refreshError) {
-      console.error("Token refresh failed", refreshError);
+      console.error('Token refresh failed', refreshError);
       logout();
       return undefined;
     }
@@ -180,7 +177,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
 
   const login = useCallback(
     async (email: string, password: string) => {
-      setStatus("authenticating");
+      setStatus('authenticating');
       setError(undefined);
       setStatusMessage(undefined);
       try {
@@ -190,18 +187,18 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
           tokens = {
             access: `mock-access-${Date.now()}`,
             refresh: `mock-refresh-${Date.now()}`,
-            tenantId: "demo",
+            tenantId: 'demo',
             user: { email },
           };
         } else {
-          const response = await fetch(`${API_BASE_URL.replace(/\/$/, "")}/auth/login/`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+          const response = await fetch(`${API_BASE_URL.replace(/\/$/, '')}/auth/login/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
           });
           if (!response.ok) {
             const detail = await response.text();
-            throw new Error(detail || "Invalid credentials");
+            throw new Error(detail || 'Invalid credentials');
           }
           const data = (await response.json()) as LoginResponse;
           tokens = {
@@ -212,28 +209,27 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
           };
         }
         applyTokens(tokens);
-        setStatus("authenticated");
+        setStatus('authenticated');
         setError(undefined);
         setStatusMessage(undefined);
       } catch (loginError) {
-        console.error("Login failed", loginError);
-        const message =
-          loginError instanceof Error ? loginError.message : "Unable to login.";
+        console.error('Login failed', loginError);
+        const message = loginError instanceof Error ? loginError.message : 'Unable to login.';
         logout();
-        setStatus("error");
+        setStatus('error');
         setError(message);
         setStatusMessage(undefined);
         throw loginError;
       }
     },
-    [applyTokens, logout]
+    [applyTokens, logout],
   );
 
   useEffect(() => {
     const stored = readStoredTokens();
     if (stored) {
       applyTokens(stored);
-      setStatus(MOCK_MODE ? "authenticated" : "checking");
+      setStatus(MOCK_MODE ? 'authenticated' : 'checking');
     }
     bootstrappedRef.current = true;
     return () => {
@@ -288,12 +284,12 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
 
     if (MOCK_MODE) {
       if (!accessToken) {
-        setStatus("idle");
+        setStatus('idle');
       }
       return;
     }
 
-    if (status !== "checking") {
+    if (status !== 'checking') {
       return;
     }
 
@@ -302,13 +298,13 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
 
     const validateSession = async () => {
       try {
-        setStatusMessage("Confirming your access…");
+        setStatusMessage('Confirming your access…');
         await Promise.all([
-          apiClient.get("/health/", { skipAuth: true, signal: controller.signal }),
-          apiClient.get("/me/", { signal: controller.signal }),
+          apiClient.get('/health/', { skipAuth: true, signal: controller.signal }),
+          apiClient.get('/me/', { signal: controller.signal }),
         ]);
         if (!cancelled) {
-          setStatus("authenticated");
+          setStatus('authenticated');
           setError(undefined);
           setStatusMessage(undefined);
         }
@@ -316,13 +312,13 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
         if (cancelled) {
           return;
         }
-        console.error("Session validation failed", validationError);
+        console.error('Session validation failed', validationError);
         const message =
           validationError instanceof Error
             ? validationError.message
-            : "Unable to verify your session.";
+            : 'Unable to verify your session.';
         logout();
-        setStatus("error");
+        setStatus('error');
         setError(message);
         setStatusMessage(undefined);
       }
@@ -339,7 +335,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
-      isAuthenticated: status === "authenticated",
+      isAuthenticated: status === 'authenticated',
       accessToken,
       tenantId,
       user,
@@ -348,7 +344,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
       logout,
       statusMessage,
     }),
-    [status, accessToken, tenantId, user, error, login, logout, statusMessage]
+    [status, accessToken, tenantId, user, error, login, logout, statusMessage],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -357,7 +353,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }

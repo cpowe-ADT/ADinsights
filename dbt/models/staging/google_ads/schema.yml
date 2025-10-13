@@ -9,6 +9,6 @@ sources:
 
 models:
   - name: stg_google_campaign_daily
-    description: "Google Ads daily performance flattened from GAQL"
+    description: 'Google Ads daily performance flattened from GAQL'
   - name: stg_google_geographic_view
-    description: "Google Ads geographic performance view"
+    description: 'Google Ads geographic performance view'

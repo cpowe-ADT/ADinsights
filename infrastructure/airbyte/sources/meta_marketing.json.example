@@ -11,59 +11,40 @@
     "end_date": null,
     "page_size": 100,
     "include_deleted": true,
-    "breakdowns": [
-      "country",
-      "region",
-      "dma"
-    ],
+    "breakdowns": ["country", "region", "dma"],
     "insights_lookback_window": "${AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS}",
     "window_in_days": "${AIRBYTE_META_HOURLY_WINDOW_DAYS}",
     "attribution_window": "default",
     "fetch_thumbnail_images": false,
-    "custom_insights_fields": [
-      "impressions",
-      "clicks",
-      "spend",
-      "actions",
-      "action_values"
-    ]
+    "custom_insights_fields": ["impressions", "clicks", "spend", "actions", "action_values"]
   },
   "streams": [
     {
       "name": "ad_insights",
       "sync_mode": "incremental",
       "cursor_field": "updated_time",
-      "primary_key": [
-        "ad_id",
-        "updated_time"
-      ],
+      "primary_key": ["ad_id", "updated_time"],
       "destination_sync_mode": "append_dedup"
     },
     {
       "name": "ads",
       "sync_mode": "incremental",
       "cursor_field": "updated_time",
-      "primary_key": [
-        "id"
-      ],
+      "primary_key": ["id"],
       "destination_sync_mode": "append_dedup"
     },
     {
       "name": "ad_sets",
       "sync_mode": "incremental",
       "cursor_field": "updated_time",
-      "primary_key": [
-        "id"
-      ],
+      "primary_key": ["id"],
       "destination_sync_mode": "append_dedup"
     },
     {
       "name": "campaigns",
       "sync_mode": "incremental",
       "cursor_field": "updated_time",
-      "primary_key": [
-        "id"
-      ],
+      "primary_key": ["id"],
       "destination_sync_mode": "append_dedup"
     }
   ]

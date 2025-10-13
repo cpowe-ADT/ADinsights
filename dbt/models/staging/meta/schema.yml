@@ -11,10 +11,10 @@ sources:
 
 models:
   - name: stg_meta_insights
-    description: "Normalized daily Meta insights metrics"
+    description: 'Normalized daily Meta insights metrics'
   - name: stg_meta_campaigns
-    description: "Meta campaign metadata"
+    description: 'Meta campaign metadata'
   - name: stg_meta_ads_metadata
-    description: "Meta ad metadata"
+    description: 'Meta ad metadata'
   - name: stg_meta_adsets
-    description: "Meta ad set metadata"
+    description: 'Meta ad set metadata'

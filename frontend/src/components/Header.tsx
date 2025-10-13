@@ -1,7 +1,7 @@
-import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, NavLink } from 'react-router-dom';
 
-import styles from "./Header.module.css";
+import styles from './Header.module.css';
 
 type HeaderNavLink = {
   label: string;
@@ -26,9 +26,9 @@ type HeaderProps = {
   onLogout: () => void;
 };
 
-type ThemeMode = "light" | "dark";
+type ThemeMode = 'light' | 'dark';
 
-const THEME_STORAGE_KEY = "adinsights:theme";
+const THEME_STORAGE_KEY = 'adinsights:theme';
 
 const Header = ({
   title,
@@ -41,28 +41,28 @@ const Header = ({
   userEmail,
   onLogout,
 }: HeaderProps) => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [theme, setTheme] = useState<ThemeMode>(() => {
-    if (typeof window === "undefined") {
-      return "light";
+    if (typeof window === 'undefined') {
+      return 'light';
     }
 
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
-    if (stored === "light" || stored === "dark") {
+    if (stored === 'light' || stored === 'dark') {
       return stored;
     }
 
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
   useEffect(() => {
-    if (typeof document === "undefined") {
+    if (typeof document === 'undefined') {
       return;
     }
 
-    document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.setAttribute('data-theme', theme);
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
@@ -78,32 +78,32 @@ const Header = ({
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         setMenuOpen(false);
       }
     };
 
-    window.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [menuOpen]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (typeof window === 'undefined') {
       return undefined;
     }
 
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (event: MediaQueryListEvent) => {
-      setTheme(event.matches ? "dark" : "light");
+      setTheme(event.matches ? 'dark' : 'light');
     };
 
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -115,12 +115,12 @@ const Header = ({
 
   const userInitials = useMemo(() => {
     if (!userEmail) {
-      return "A";
+      return 'A';
     }
 
-    const [name] = userEmail.split("@");
+    const [name] = userEmail.split('@');
     if (!name) {
-      return userEmail.charAt(0)?.toUpperCase() ?? "A";
+      return userEmail.charAt(0)?.toUpperCase() ?? 'A';
     }
 
     return name
@@ -128,12 +128,12 @@ const Header = ({
       .filter(Boolean)
       .map((token) => token.charAt(0).toUpperCase())
       .slice(0, 2)
-      .join("")
-      .padEnd(2, userEmail.charAt(0)?.toUpperCase() ?? "A");
+      .join('')
+      .padEnd(2, userEmail.charAt(0)?.toUpperCase() ?? 'A');
   }, [userEmail]);
 
   const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
   return (
@@ -152,7 +152,7 @@ const Header = ({
           </div>
         </div>
         <div className={styles.utilityArea}>
-          {metricOptions && typeof selectedMetric === "string" && onMetricChange ? (
+          {metricOptions && typeof selectedMetric === 'string' && onMetricChange ? (
             <label className={styles.metricPicker}>
               <span className={styles.metricLabel}>Map metric</span>
               <select
@@ -182,13 +182,7 @@ const Header = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
-                  <circle
-                    cx="9"
-                    cy="9"
-                    r="5.25"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  />
+                  <circle cx="9" cy="9" r="5.25" stroke="currentColor" strokeWidth="1.5" />
                 </svg>
               </span>
               <input
@@ -205,10 +199,10 @@ const Header = ({
             type="button"
             className={styles.themeToggle}
             onClick={toggleTheme}
-            aria-pressed={theme === "dark"}
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            aria-pressed={theme === 'dark'}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            {theme === "dark" ? (
+            {theme === 'dark' ? (
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M12 5.25V3"
@@ -283,10 +277,15 @@ const Header = ({
               <span className={styles.userAvatar} aria-hidden>
                 {userInitials}
               </span>
-              <span className={styles.userLabel}>{userEmail ?? "Account"}</span>
+              <span className={styles.userLabel}>{userEmail ?? 'Account'}</span>
               <span className={styles.caret} aria-hidden>
                 <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <path
+                    d="M4 6L8 10L12 6"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
                 </svg>
               </span>
             </button>
@@ -296,9 +295,16 @@ const Header = ({
                   <p className={styles.menuHint} role="none">
                     Signed in as
                   </p>
-                  <p className={styles.menuIdentity} role="none">{userEmail ?? "Account"}</p>
+                  <p className={styles.menuIdentity} role="none">
+                    {userEmail ?? 'Account'}
+                  </p>
                 </div>
-                <button type="button" className={styles.menuItem} role="menuitem" onClick={onLogout}>
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  role="menuitem"
+                  onClick={onLogout}
+                >
                   Sign out
                 </button>
               </div>
@@ -313,7 +319,9 @@ const Header = ({
             to={link.to}
             end={link.end}
             className={({ isActive }) =>
-              [styles.navLink, isActive ? styles.navLinkActive : undefined].filter(Boolean).join(" ")
+              [styles.navLink, isActive ? styles.navLinkActive : undefined]
+                .filter(Boolean)
+                .join(' ')
             }
           >
             {link.label}

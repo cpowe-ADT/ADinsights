@@ -1,27 +1,30 @@
-import Ajv, { type DefinedError } from "ajv";
-import addMetaSchema2020 from "ajv/dist/refs/json-schema-2020-12";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { inspect } from "node:util";
+import Ajv, { type DefinedError } from 'ajv';
+import addMetaSchema2020 from 'ajv/dist/refs/json-schema-2020-12';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { inspect } from 'node:util';
 
 const ajv = new Ajv({ allErrors: true, strict: false });
 addMetaSchema2020.call(ajv);
 const validatorCache = new Map<string, Ajv.ValidateFunction>();
 const schemaCache = new Map<string, unknown>();
-const SCHEMA_DIRECTORY = path.resolve(__dirname, "..", "schemas");
+const SCHEMA_DIRECTORY = path.resolve(__dirname, '..', 'schemas');
 
 export class SchemaValidationError extends Error {
   constructor(
     readonly schemaName: string,
     readonly errors: ReadonlyArray<DefinedError>,
     readonly payload: unknown,
-  ) { super(formatErrorMessage(schemaName, errors, payload)); this.name = "SchemaValidationError"; }
+  ) {
+    super(formatErrorMessage(schemaName, errors, payload));
+    this.name = 'SchemaValidationError';
+  }
 }
 
 function normalizeSchemaName(name: string): string {
-  const withoutSlashes = name.trim().replace(/^\/+|\/+$/g, "");
+  const withoutSlashes = name.trim().replace(/^\/+|\/+$/g, '');
   if (!withoutSlashes) throw new Error(`Schema name "${name}" resolves to an empty filename.`);
-  return withoutSlashes.replace(/[\\/]+/g, "-").replace(/[^A-Za-z0-9_.-]+/g, "-");
+  return withoutSlashes.replace(/[\\/]+/g, '-').replace(/[^A-Za-z0-9_.-]+/g, '-');
 }
 
 async function loadSchema(schemaName: string): Promise<unknown> {
@@ -32,12 +35,12 @@ async function loadSchema(schemaName: string): Promise<unknown> {
   const normalized = normalizeSchemaName(schemaName);
   const schemaPath = path.join(SCHEMA_DIRECTORY, `${normalized}.json`);
   try {
-    const raw = await readFile(schemaPath, "utf8");
+    const raw = await readFile(schemaPath, 'utf8');
     const parsed = JSON.parse(raw) as unknown;
     schemaCache.set(schemaName, parsed);
     return parsed;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       throw new Error(`Schema file not found for "${schemaName}" at ${schemaPath}`);
     }
     throw error;
@@ -60,9 +63,9 @@ function valueAtPath(payload: unknown, instancePath: string): unknown {
     return payload;
   }
   const segments = instancePath
-    .split("/")
+    .split('/')
     .filter(Boolean)
-    .map((segment) => segment.replace(/~1/g, "/").replace(/~0/g, "~"));
+    .map((segment) => segment.replace(/~1/g, '/').replace(/~0/g, '~'));
   let current: any = payload; // eslint-disable-line @typescript-eslint/no-explicit-any -- required for traversal
   for (const segment of segments) {
     if (current == null) {
@@ -74,20 +77,24 @@ function valueAtPath(payload: unknown, instancePath: string): unknown {
   return current;
 }
 
-function formatErrorMessage(schemaName: string, errors: ReadonlyArray<DefinedError>, payload: unknown): string {
+function formatErrorMessage(
+  schemaName: string,
+  errors: ReadonlyArray<DefinedError>,
+  payload: unknown,
+): string {
   const header = `Schema validation failed for "${schemaName}"`;
-  const details = errors.map((error) => formatSingleError(error, payload)).join("\n");
+  const details = errors.map((error) => formatSingleError(error, payload)).join('\n');
   return `${header}\n${details}`;
 }
 
 function formatSingleError(error: DefinedError, payload: unknown): string {
-  const pathLabel = error.instancePath ? error.instancePath : "/";
+  const pathLabel = error.instancePath ? error.instancePath : '/';
   const actualValue = valueAtPath(payload, error.instancePath);
   const params = Object.entries(error.params)
     .map(([key, value]) => `${key}: ${inspect(value)}`)
-    .join(", ");
-  const paramsSuffix = params ? ` (${params})` : "";
-  const message = error.message ?? "did not satisfy schema";
+    .join(', ');
+  const paramsSuffix = params ? ` (${params})` : '';
+  const message = error.message ?? 'did not satisfy schema';
   const received = inspect(actualValue, { depth: 4, maxArrayLength: 10 });
   return ` - ${pathLabel} ${message}${paramsSuffix}. Received: ${received}`;
 }

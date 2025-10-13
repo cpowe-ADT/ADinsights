@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo } from 'react';
 
-import Card from "./Card";
+import Card from './Card';
 
 export interface StatCardProps {
   label: string;
@@ -36,8 +36,8 @@ const StatCard = ({ label, value, sparkline }: StatCardProps) => {
     });
 
     const linePath = points
-      .map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`)
-      .join(" ");
+      .map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x},${point.y}`)
+      .join(' ');
 
     const areaPath = `${linePath} L100,32 L0,32 Z`;
 

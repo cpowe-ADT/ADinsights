@@ -18,10 +18,7 @@
       {
         "name": "campaign_performance_daily",
         "query": "SELECT segments.date, campaign.id, campaign.name, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '{{ runtime_from_date }}' AND '{{ runtime_to_date }}'",
-        "primary_key": [
-          "campaign.id",
-          "segments.date"
-        ],
+        "primary_key": ["campaign.id", "segments.date"],
         "cursor_field": "segments.date",
         "destination_sync_mode": "append_dedup"
       },

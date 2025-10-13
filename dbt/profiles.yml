@@ -3,7 +3,7 @@ adinsights:
   outputs:
     duckdb:
       type: duckdb
-      path: "./dbt/warehouse.duckdb"
+      path: './dbt/warehouse.duckdb'
       schema: analytics
       threads: 4
       extensions: []

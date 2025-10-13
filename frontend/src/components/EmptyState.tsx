@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react';
 
 interface EmptyStateProps {
   icon: ReactNode;
@@ -6,7 +6,7 @@ interface EmptyStateProps {
   message: string;
   actionLabel: string;
   onAction: () => void;
-  actionVariant?: "primary" | "secondary" | "tertiary";
+  actionVariant?: 'primary' | 'secondary' | 'tertiary';
   className?: string;
 }
 
@@ -16,11 +16,11 @@ const EmptyState = ({
   message,
   actionLabel,
   onAction,
-  actionVariant = "primary",
+  actionVariant = 'primary',
   className,
 }: EmptyStateProps) => {
-  const classes = ["empty-state", className].filter(Boolean).join(" ");
-  const buttonClass = ["button", actionVariant].filter(Boolean).join(" ");
+  const classes = ['empty-state', className].filter(Boolean).join(' ');
+  const buttonClass = ['button', actionVariant].filter(Boolean).join(' ');
 
   return (
     <div className={classes} role="status" aria-live="polite">

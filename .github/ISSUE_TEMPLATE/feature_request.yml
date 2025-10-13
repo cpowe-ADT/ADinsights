@@ -1,6 +1,6 @@
 name: Feature request
 description: Suggest an idea to improve the product or developer experience.
-title: "[Feature]: "
+title: '[Feature]: '
 labels:
   - enhancement
 body:

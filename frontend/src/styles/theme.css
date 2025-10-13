@@ -62,7 +62,7 @@
   --nav-link-underline: #2563eb;
 }
 
-:root[data-theme="dark"] {
+:root[data-theme='dark'] {
   --surface-canvas: #0b1220;
   --surface-card: #111827;
   --surface-subtle: #111827;

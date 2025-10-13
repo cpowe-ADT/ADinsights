@@ -1,8 +1,8 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo } from 'react';
 
-type DeltaDirection = "up" | "down" | "flat";
+type DeltaDirection = 'up' | 'down' | 'flat';
 
-type MetricBadge = "New" | "Paused" | "Limited data";
+type MetricBadge = 'New' | 'Paused' | 'Limited data';
 
 type MetricProps = {
   label: string;
@@ -26,7 +26,7 @@ const Metric = ({
   label,
   value,
   delta,
-  deltaDirection = "flat",
+  deltaDirection = 'flat',
   hint,
   trend,
   badge,
@@ -50,21 +50,28 @@ const Metric = ({
     });
 
     const linePath = points
-      .map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`)
-      .join(" ");
+      .map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x},${point.y}`)
+      .join(' ');
 
     const areaPath = `${linePath} L100,32 L0,32 Z`;
 
     return { linePath, areaPath };
   }, [sanitizedTrend]);
 
-  const tone = deltaDirection === "down" ? "negative" : deltaDirection === "up" ? "positive" : "neutral";
+  const tone =
+    deltaDirection === 'down' ? 'negative' : deltaDirection === 'up' ? 'positive' : 'neutral';
 
   return (
     <article className="metric-card">
       <header className="metric-card__header">
         <p className="metric-card__label">{label}</p>
-        {badge ? <span className={`metric-card__badge metric-card__badge--${badge.replace(/\s+/g, "-").toLowerCase()}`}>{badge}</span> : null}
+        {badge ? (
+          <span
+            className={`metric-card__badge metric-card__badge--${badge.replace(/\s+/g, '-').toLowerCase()}`}
+          >
+            {badge}
+          </span>
+        ) : null}
       </header>
 
       <div className="metric-card__value-row">
@@ -72,7 +79,7 @@ const Metric = ({
         {!sparkline && delta ? (
           <span className={`metric-card__delta metric-card__delta--${tone}`}>
             <span aria-hidden="true" className="metric-card__delta-icon">
-              {deltaDirection === "down" ? "▼" : deltaDirection === "up" ? "▲" : "–"}
+              {deltaDirection === 'down' ? '▼' : deltaDirection === 'up' ? '▲' : '–'}
             </span>
             {delta}
           </span>
@@ -88,7 +95,7 @@ const Metric = ({
           {delta ? (
             <span className={`metric-card__delta metric-card__delta--${tone}`}>
               <span aria-hidden="true" className="metric-card__delta-icon">
-                {deltaDirection === "down" ? "▼" : deltaDirection === "up" ? "▲" : "–"}
+                {deltaDirection === 'down' ? '▼' : deltaDirection === 'up' ? '▲' : '–'}
               </span>
               {delta}
             </span>

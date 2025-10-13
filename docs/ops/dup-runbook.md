@@ -2,9 +2,9 @@
 
 This runbook documents how to detect and remediate duplicate dbt artifacts that can cause merge conflicts or compilation failures. The `scripts/ci/check-duplications.sh` helper surfaces three classes of conflicts:
 
-* dbt model files that share the same filename (for example, `dim_campaign.sql` defined in two folders)
-* Macro definitions that reuse an existing macro name
-* Schema test definitions (`name:` fields under `tests:` blocks) that collide across schema YAML files
+- dbt model files that share the same filename (for example, `dim_campaign.sql` defined in two folders)
+- Macro definitions that reuse an existing macro name
+- Schema test definitions (`name:` fields under `tests:` blocks) that collide across schema YAML files
 
 ## Running the duplication check locally
 
@@ -23,9 +23,9 @@ This runbook documents how to detect and remediate duplicate dbt artifacts that 
 When the duplication checker fails:
 
 1. **Review the output** to understand the type of conflict.
-   * *Model filename conflicts*: Rename one of the models or consolidate the logic into a single definition. Update downstream `ref()` calls if the model name changes.
-   * *Macro name conflicts*: Rename the macro or delete the redundant definition. Remember to update any `{{ macro(...) }}` invocations if you rename it.
-   * *Schema test name conflicts*: Adjust the `name:` field of the data test so that it is unique across the project. If the test is obsolete, remove it instead.
+   - _Model filename conflicts_: Rename one of the models or consolidate the logic into a single definition. Update downstream `ref()` calls if the model name changes.
+   - _Macro name conflicts_: Rename the macro or delete the redundant definition. Remember to update any `{{ macro(...) }}` invocations if you rename it.
+   - _Schema test name conflicts_: Adjust the `name:` field of the data test so that it is unique across the project. If the test is obsolete, remove it instead.
 2. **Re-run the checker** (`bash scripts/ci/check-duplications.sh`) to confirm the conflict is resolved.
 3. **Commit and push** the fix so the Docs workflow (and any pre-commit hooks) pass without manual intervention.
 

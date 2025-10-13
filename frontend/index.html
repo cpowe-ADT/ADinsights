@@ -12,15 +12,16 @@
     />
     <script>
       (() => {
-        const storageKey = "adinsights-theme";
+        const storageKey = 'adinsights-theme';
         try {
           const stored = window.localStorage.getItem(storageKey);
-          const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          const theme = stored === "light" || stored === "dark" ? stored : systemPrefersDark ? "dark" : "light";
-          const className = theme === "dark" ? "theme-dark" : "theme-light";
+          const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const theme =
+            stored === 'light' || stored === 'dark' ? stored : systemPrefersDark ? 'dark' : 'light';
+          const className = theme === 'dark' ? 'theme-dark' : 'theme-light';
           document.documentElement.classList.add(className);
         } catch (error) {
-          console.error("Failed to initialize theme", error);
+          console.error('Failed to initialize theme', error);
         }
       })();
     </script>

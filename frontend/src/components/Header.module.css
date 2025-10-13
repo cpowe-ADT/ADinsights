@@ -152,7 +152,9 @@
   place-items: center;
   color: var(--text-primary);
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .themeToggle:hover {
@@ -179,7 +181,9 @@
   color: var(--text-primary);
   padding: 0.3rem 0.75rem 0.3rem 0.3rem;
   cursor: pointer;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
 .userButton:hover {
@@ -275,7 +279,9 @@
   text-decoration: none;
   color: var(--nav-link-color, var(--text-secondary));
   font-weight: 500;
-  transition: color 0.2s ease, background-color 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .navLink:hover {
@@ -288,7 +294,7 @@
 }
 
 .navLinkActive::after {
-  content: "";
+  content: '';
   position: absolute;
   left: 16px;
   right: 16px;

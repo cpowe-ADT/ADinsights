@@ -45,10 +45,14 @@ async function renderReport(data = {}) {
     '{{TITLE}}': escapeHtml(data.title ?? 'Performance Report'),
     '{{DATE_RANGE}}': escapeHtml(data.dateRange ?? ''),
     '{{KPI_SUMMARY}}': kpiSummary || '<p>No KPI data provided.</p>',
-    '{{TABLE_ROWS}}': tableRows || '        <tr><td colspan="8">No tabular data provided.</td></tr>',
+    '{{TABLE_ROWS}}':
+      tableRows || '        <tr><td colspan="8">No tabular data provided.</td></tr>',
   };
 
-  return Object.entries(replacements).reduce((html, [token, value]) => html.replace(new RegExp(token, 'g'), value), template);
+  return Object.entries(replacements).reduce(
+    (html, [token, value]) => html.replace(new RegExp(token, 'g'), value),
+    template,
+  );
 }
 
 module.exports = {

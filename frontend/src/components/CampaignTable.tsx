@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
 import {
   ColumnDef,
   ColumnPinningState,
@@ -7,21 +7,21 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
-} from "@tanstack/react-table";
+} from '@tanstack/react-table';
 
-import useDashboardStore, { CampaignPerformanceRow } from "../state/useDashboardStore";
-import { formatCurrency, formatNumber, formatPercent, formatRatio } from "../lib/format";
-import { TABLE_VIEW_KEYS } from "../lib/savedViews";
-import EmptyState from "./EmptyState";
-import Skeleton from "./Skeleton";
+import useDashboardStore, { CampaignPerformanceRow } from '../state/useDashboardStore';
+import { formatCurrency, formatNumber, formatPercent, formatRatio } from '../lib/format';
+import { TABLE_VIEW_KEYS } from '../lib/savedViews';
+import EmptyState from './EmptyState';
+import Skeleton from './Skeleton';
 
 type CampaignTableViewState = {
   sorting?: SortingState;
   columnPinning?: ColumnPinningState;
 };
 
-const DEFAULT_SORTING: SortingState = [{ id: "spend", desc: true }];
-const DEFAULT_COLUMN_PINNING: ColumnPinningState = { left: ["name"] };
+const DEFAULT_SORTING: SortingState = [{ id: 'spend', desc: true }];
+const DEFAULT_COLUMN_PINNING: ColumnPinningState = { left: ['name'] };
 
 const createDefaultSorting = (): SortingState => DEFAULT_SORTING.map((item) => ({ ...item }));
 const createDefaultColumnPinning = (): ColumnPinningState => ({
@@ -37,24 +37,31 @@ interface CampaignTableProps {
 }
 
 const TablePlaceholderIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2">
+  <svg
+    width="48"
+    height="48"
+    viewBox="0 0 48 48"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+  >
     <rect x="8" y="12" width="32" height="24" rx="3.5" />
     <path d="M8 20h32M18 12v24" strokeLinecap="round" />
   </svg>
 );
 
 const headers = [
-  "Campaign",
-  "Platform",
-  "Parish",
-  "Spend",
-  "Impressions",
-  "Clicks",
-  "Conversions",
-  "ROAS",
-  "CTR",
-  "CPC",
-  "CPM",
+  'Campaign',
+  'Platform',
+  'Parish',
+  'Spend',
+  'Impressions',
+  'Clicks',
+  'Conversions',
+  'ROAS',
+  'CTR',
+  'CPC',
+  'CPM',
 ];
 
 const CampaignTable = ({ rows, currency, isLoading = false, onReload }: CampaignTableProps) => {
@@ -79,8 +86,8 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
   const columns = useMemo<ColumnDef<CampaignPerformanceRow>[]>(
     () => [
       {
-        accessorKey: "name",
-        header: "Campaign",
+        accessorKey: 'name',
+        header: 'Campaign',
         enablePinning: true,
         cell: ({ row }) => (
           <div className="campaign-name">
@@ -90,55 +97,55 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
         ),
       },
       {
-        accessorKey: "platform",
-        header: "Platform",
+        accessorKey: 'platform',
+        header: 'Platform',
       },
       {
-        accessorKey: "parish",
-        header: "Parish",
+        accessorKey: 'parish',
+        header: 'Parish',
       },
       {
-        accessorKey: "spend",
-        header: "Spend",
+        accessorKey: 'spend',
+        header: 'Spend',
         cell: ({ getValue }) => formatCurrency(Number(getValue()), currency),
       },
       {
-        accessorKey: "impressions",
-        header: "Impressions",
+        accessorKey: 'impressions',
+        header: 'Impressions',
         cell: ({ getValue }) => formatNumber(Number(getValue())),
       },
       {
-        accessorKey: "clicks",
-        header: "Clicks",
+        accessorKey: 'clicks',
+        header: 'Clicks',
         cell: ({ getValue }) => formatNumber(Number(getValue())),
       },
       {
-        accessorKey: "conversions",
-        header: "Conversions",
+        accessorKey: 'conversions',
+        header: 'Conversions',
         cell: ({ getValue }) => formatNumber(Number(getValue())),
       },
       {
-        accessorKey: "roas",
-        header: "ROAS",
+        accessorKey: 'roas',
+        header: 'ROAS',
         cell: ({ getValue }) => formatRatio(Number(getValue()), 2),
       },
       {
-        accessorKey: "ctr",
-        header: "CTR",
+        accessorKey: 'ctr',
+        header: 'CTR',
         cell: ({ getValue }) => formatPercent(Number(getValue()), 2),
       },
       {
-        accessorKey: "cpc",
-        header: "CPC",
+        accessorKey: 'cpc',
+        header: 'CPC',
         cell: ({ getValue }) => formatCurrency(Number(getValue()), currency, 2),
       },
       {
-        accessorKey: "cpm",
-        header: "CPM",
+        accessorKey: 'cpm',
+        header: 'CPM',
         cell: ({ getValue }) => formatCurrency(Number(getValue()), currency, 2),
       },
     ],
-    [currency]
+    [currency],
   );
 
   const table = useReactTable({
@@ -152,31 +159,33 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
   });
 
   const handleExport = () => {
-    if (typeof window === "undefined") {
+    if (typeof window === 'undefined') {
       return;
     }
 
-    const csvRows = table.getRowModel().rows.map((row) => [
-      row.original.name,
-      row.original.platform,
-      row.original.parish ?? "—",
-      formatCurrency(row.original.spend, currency),
-      formatNumber(row.original.impressions),
-      formatNumber(row.original.clicks),
-      formatNumber(row.original.conversions),
-      formatRatio(row.original.roas, 2),
-      formatPercent(row.original.ctr ?? 0, 2),
-      formatCurrency(row.original.cpc ?? 0, currency, 2),
-      formatCurrency(row.original.cpm ?? 0, currency, 2),
-    ]);
+    const csvRows = table
+      .getRowModel()
+      .rows.map((row) => [
+        row.original.name,
+        row.original.platform,
+        row.original.parish ?? '—',
+        formatCurrency(row.original.spend, currency),
+        formatNumber(row.original.impressions),
+        formatNumber(row.original.clicks),
+        formatNumber(row.original.conversions),
+        formatRatio(row.original.roas, 2),
+        formatPercent(row.original.ctr ?? 0, 2),
+        formatCurrency(row.original.cpc ?? 0, currency, 2),
+        formatCurrency(row.original.cpm ?? 0, currency, 2),
+      ]);
 
     const csvContent = [headers, ...csvRows]
-      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
+      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = url;
     link.download = `campaign-performance-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
@@ -207,13 +216,13 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
   const emptyState = (
     <EmptyState
       icon={<TablePlaceholderIcon />}
-      title={selectedParish ? `No campaigns in ${selectedParish}` : "No campaign rows yet"}
+      title={selectedParish ? `No campaigns in ${selectedParish}` : 'No campaign rows yet'}
       message={
         selectedParish
-          ? "Try clearing the parish filter to see all campaigns."
-          : "Campaign rows will appear after your next sync finishes."
+          ? 'Try clearing the parish filter to see all campaigns.'
+          : 'Campaign rows will appear after your next sync finishes.'
       }
-      actionLabel={selectedParish ? "Clear filter" : "Refresh data"}
+      actionLabel={selectedParish ? 'Clear filter' : 'Refresh data'}
       onAction={() => {
         if (selectedParish) {
           setSelectedParish(undefined);
@@ -221,7 +230,7 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
           onReload?.();
         }
       }}
-      actionVariant={selectedParish ? "tertiary" : "secondary"}
+      actionVariant={selectedParish ? 'tertiary' : 'secondary'}
     />
   );
 
@@ -233,7 +242,11 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
           {selectedParish ? (
             <p className="status-message muted">
               Filtering to <strong>{selectedParish}</strong>
-              <button type="button" onClick={() => setSelectedParish(undefined)} className="link-button">
+              <button
+                type="button"
+                onClick={() => setSelectedParish(undefined)}
+                className="link-button"
+              >
                 Clear
               </button>
             </p>
@@ -257,7 +270,11 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <th key={header.id} colSpan={header.colSpan} className={header.column.getIsPinned() ? "pinned" : undefined}>
+                    <th
+                      key={header.id}
+                      colSpan={header.colSpan}
+                      className={header.column.getIsPinned() ? 'pinned' : undefined}
+                    >
                       {header.isPlaceholder ? null : (
                         <button
                           type="button"
@@ -265,11 +282,11 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
                           className="sort-button"
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
-                          {header.column.getIsSorted() === "asc"
-                            ? " ↑"
-                            : header.column.getIsSorted() === "desc"
-                            ? " ↓"
-                            : ""}
+                          {header.column.getIsSorted() === 'asc'
+                            ? ' ↑'
+                            : header.column.getIsSorted() === 'desc'
+                              ? ' ↓'
+                              : ''}
                         </button>
                       )}
                     </th>
@@ -281,8 +298,11 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
               {table.getRowModel().rows.map((row) => (
                 <tr key={row.id}>
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className={cell.column.getIsPinned() ? "pinned" : undefined}>
-                      {flexRender(cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()), cell.getContext())}
+                    <td key={cell.id} className={cell.column.getIsPinned() ? 'pinned' : undefined}>
+                      {flexRender(
+                        cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()),
+                        cell.getContext(),
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -302,49 +322,45 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
                   <th
                     key={header.id}
                     colSpan={header.colSpan}
-                    className={header.column.getIsPinned() ? "pinned" : undefined}
-                    scope={header.colSpan === 1 ? "col" : undefined}
+                    className={header.column.getIsPinned() ? 'pinned' : undefined}
+                    scope={header.colSpan === 1 ? 'col' : undefined}
                     aria-sort={
                       header.column.getCanSort()
-                        ? header.column.getIsSorted() === "desc"
-                          ? "descending"
-                          : header.column.getIsSorted() === "asc"
-                          ? "ascending"
-                          : "none"
+                        ? header.column.getIsSorted() === 'desc'
+                          ? 'descending'
+                          : header.column.getIsSorted() === 'asc'
+                            ? 'ascending'
+                            : 'none'
                         : undefined
                     }
                   >
-                    {header.isPlaceholder
-                      ? null
-                      : header.column.getCanSort()
-                      ? (
-                          <button
-                            type="button"
-                            onClick={header.column.getToggleSortingHandler()}
-                            className="sort-button"
-                            aria-label={`Sort by ${
-                              typeof header.column.columnDef.header === "string"
-                                ? header.column.columnDef.header
-                                : header.column.id
-                            }. Currently ${
-                              header.column.getIsSorted() === "desc"
-                                ? "sorted descending"
-                                : header.column.getIsSorted() === "asc"
-                                ? "sorted ascending"
-                                : "not sorted"
-                            }.`}
-                          >
-                            {flexRender(header.column.columnDef.header, header.getContext())}
-                            {header.column.getIsSorted() === "asc"
-                              ? " ↑"
-                              : header.column.getIsSorted() === "desc"
-                              ? " ↓"
-                              : ""}
-                          </button>
-                        )
-                      : (
-                          flexRender(header.column.columnDef.header, header.getContext())
-                        )}
+                    {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                      <button
+                        type="button"
+                        onClick={header.column.getToggleSortingHandler()}
+                        className="sort-button"
+                        aria-label={`Sort by ${
+                          typeof header.column.columnDef.header === 'string'
+                            ? header.column.columnDef.header
+                            : header.column.id
+                        }. Currently ${
+                          header.column.getIsSorted() === 'desc'
+                            ? 'sorted descending'
+                            : header.column.getIsSorted() === 'asc'
+                              ? 'sorted ascending'
+                              : 'not sorted'
+                        }.`}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getIsSorted() === 'asc'
+                          ? ' ↑'
+                          : header.column.getIsSorted() === 'desc'
+                            ? ' ↓'
+                            : ''}
+                      </button>
+                    ) : (
+                      flexRender(header.column.columnDef.header, header.getContext())
+                    )}
                   </th>
                 ))}
               </tr>
@@ -354,8 +370,11 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
             {table.getRowModel().rows.map((row) => (
               <tr key={row.id}>
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className={cell.column.getIsPinned() ? "pinned" : undefined}>
-                    {flexRender(cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()), cell.getContext())}
+                  <td key={cell.id} className={cell.column.getIsPinned() ? 'pinned' : undefined}>
+                    {flexRender(
+                      cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()),
+                      cell.getContext(),
+                    )}
                   </td>
                 ))}
               </tr>

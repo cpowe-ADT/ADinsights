@@ -1,6 +1,6 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
-export type DateRangePreset = "today" | "7d" | "30d" | "mtd" | "custom";
+export type DateRangePreset = 'today' | '7d' | '30d' | 'mtd' | 'custom';
 
 export type FilterBarState = {
   dateRange: DateRangePreset;
@@ -33,21 +33,21 @@ const createDefaultCustomRange = () => {
 };
 
 const createDefaultState = (): FilterBarState => ({
-  dateRange: "7d",
+  dateRange: '7d',
   customRange: createDefaultCustomRange(),
   channels: [],
-  campaignQuery: "",
+  campaignQuery: '',
 });
 
 const datePresets: { label: string; value: DateRangePreset }[] = [
-  { label: "Today", value: "today" },
-  { label: "7D", value: "7d" },
-  { label: "30D", value: "30d" },
-  { label: "MTD", value: "mtd" },
-  { label: "Custom", value: "custom" },
+  { label: 'Today', value: 'today' },
+  { label: '7D', value: '7d' },
+  { label: '30D', value: '30d' },
+  { label: 'MTD', value: 'mtd' },
+  { label: 'Custom', value: 'custom' },
 ];
 
-const defaultChannels = ["Meta Ads", "Google Ads", "LinkedIn", "TikTok"];
+const defaultChannels = ['Meta Ads', 'Google Ads', 'LinkedIn', 'TikTok'];
 
 const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps) => {
   const resolvedDefaultState = useMemo(() => defaultState ?? createDefaultState(), [defaultState]);
@@ -92,21 +92,22 @@ const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps
     };
 
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         setIsCustomOpen(false);
         customButtonRef.current?.focus();
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKey);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKey);
 
-    const firstInput = customPopoverRef.current?.querySelector<HTMLInputElement>("input[type='date']");
+    const firstInput =
+      customPopoverRef.current?.querySelector<HTMLInputElement>("input[type='date']");
     firstInput?.focus();
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKey);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKey);
     };
   }, [isCustomOpen]);
 
@@ -128,18 +129,18 @@ const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps
     };
 
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         setIsChannelOpen(false);
         channelButtonRef.current?.focus();
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKey);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKey);
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKey);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKey);
     };
   }, [isChannelOpen]);
 
@@ -150,7 +151,7 @@ const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps
       ...prev,
       dateRange: value,
     }));
-    if (value !== "custom") {
+    if (value !== 'custom') {
       setIsCustomOpen(false);
     } else {
       setIsCustomOpen((current) => !current);
@@ -160,7 +161,9 @@ const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps
   const toggleChannel = (channel: string) => {
     setFilters((prev) => {
       const exists = prev.channels.includes(channel);
-      const nextChannels = exists ? prev.channels.filter((item) => item !== channel) : [...prev.channels, channel];
+      const nextChannels = exists
+        ? prev.channels.filter((item) => item !== channel)
+        : [...prev.channels, channel];
       return {
         ...prev,
         channels: nextChannels,
@@ -168,10 +171,10 @@ const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps
     });
   };
 
-  const updateCustomRange = (field: "start" | "end", value: string) => {
+  const updateCustomRange = (field: 'start' | 'end', value: string) => {
     setFilters((prev) => ({
       ...prev,
-      dateRange: "custom",
+      dateRange: 'custom',
       customRange: {
         ...prev.customRange,
         [field]: value,
@@ -202,7 +205,7 @@ const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps
 
   const selectedChannelLabel = useMemo(() => {
     if (filters.channels.length === 0) {
-      return "All channels";
+      return 'All channels';
     }
 
     if (filters.channels.length === 1) {
@@ -217,12 +220,12 @@ const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps
       <div className="filter-group" role="group" aria-label="Date range presets">
         {datePresets.map((preset) => {
           const isActive = filters.dateRange === preset.value;
-          const isCustom = preset.value === "custom";
+          const isCustom = preset.value === 'custom';
           return (
-            <div key={preset.value} className={isCustom ? "filter-chip-wrapper" : undefined}>
+            <div key={preset.value} className={isCustom ? 'filter-chip-wrapper' : undefined}>
               <button
                 type="button"
-                className={`filter-chip${isActive ? " filter-chip--active" : ""}`}
+                className={`filter-chip${isActive ? ' filter-chip--active' : ''}`}
                 aria-pressed={isActive}
                 aria-expanded={isCustom ? isCustomOpen : undefined}
                 aria-controls={isCustom ? customPopoverId : undefined}
@@ -237,7 +240,7 @@ const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps
                   id={customPopoverId}
                   role="dialog"
                   aria-label="Custom date range"
-                  className={`filter-popover${isCustomOpen ? " filter-popover--open" : ""}`}
+                  className={`filter-popover${isCustomOpen ? ' filter-popover--open' : ''}`}
                 >
                   <div className="filter-popover__content">
                     <label className="filter-popover__field">
@@ -245,7 +248,7 @@ const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps
                       <input
                         type="date"
                         value={filters.customRange.start}
-                        onChange={(event) => updateCustomRange("start", event.target.value)}
+                        onChange={(event) => updateCustomRange('start', event.target.value)}
                       />
                     </label>
                     <label className="filter-popover__field">
@@ -253,7 +256,7 @@ const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps
                       <input
                         type="date"
                         value={filters.customRange.end}
-                        onChange={(event) => updateCustomRange("end", event.target.value)}
+                        onChange={(event) => updateCustomRange('end', event.target.value)}
                       />
                     </label>
                   </div>
@@ -282,7 +285,7 @@ const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps
           id={channelPopoverId}
           role="listbox"
           aria-multiselectable="true"
-          className={`filter-popover filter-popover--menu${isChannelOpen ? " filter-popover--open" : ""}`}
+          className={`filter-popover filter-popover--menu${isChannelOpen ? ' filter-popover--open' : ''}`}
         >
           <ul>
             {channels.map((channel) => {

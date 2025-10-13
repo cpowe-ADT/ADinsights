@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 
-import { validate } from "./validate";
+import { validate } from './validate';
 
 const metricsSample = {
   summary: {
-    currency: "USD",
+    currency: 'USD',
     totalSpend: 1190,
     totalImpressions: 282000,
     totalClicks: 9700,
@@ -13,14 +13,14 @@ const metricsSample = {
   },
   trend: [
     {
-      date: "2024-09-01",
+      date: '2024-09-01',
       spend: 540,
       conversions: 120,
       clicks: 3400,
       impressions: 120000,
     },
     {
-      date: "2024-09-02",
+      date: '2024-09-02',
       spend: 430,
       conversions: 140,
       clicks: 4200,
@@ -29,11 +29,11 @@ const metricsSample = {
   ],
   rows: [
     {
-      id: "cmp_awareness",
-      name: "Awareness Boost",
-      platform: "Meta",
-      status: "Active",
-      parish: "Kingston",
+      id: 'cmp_awareness',
+      name: 'Awareness Boost',
+      platform: 'Meta',
+      status: 'Active',
+      parish: 'Kingston',
       spend: 540,
       impressions: 120000,
       clicks: 3400,
@@ -42,14 +42,14 @@ const metricsSample = {
       ctr: 0.0283,
       cpc: 0.16,
       cpm: 4.5,
-      startDate: "2024-08-01",
-      endDate: "2024-09-30",
+      startDate: '2024-08-01',
+      endDate: '2024-09-30',
     },
   ],
 };
 
-describe("validate", () => {
-  it("accepts metrics sample data", () => {
-    expect(validate("metrics", metricsSample)).toBe(true);
+describe('validate', () => {
+  it('accepts metrics sample data', () => {
+    expect(validate('metrics', metricsSample)).toBe(true);
   });
 });

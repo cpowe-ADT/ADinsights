@@ -4,7 +4,7 @@ metadata:
 subscriptions:
   - name: Daily Campaign Pacing Digest
     type: report
-    crontab: "0 12 * * *"
+    crontab: '0 12 * * *'
     timezone: America/Chicago
     target: dashboard
     dashboard_uuid: 12345678-1234-5678-9abc-1234567890ab
@@ -15,7 +15,7 @@ subscriptions:
         - https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX
   - name: Budget Variance Alert
     type: alert
-    crontab: "*/30 * * * *"
+    crontab: '*/30 * * * *'
     timezone: America/Chicago
     target: chart
     chart_slice_name: Budget vs Actual by Market

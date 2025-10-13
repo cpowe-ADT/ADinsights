@@ -1,4 +1,4 @@
-const integerFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+const integerFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
 export function formatNumber(value: number | undefined | null): string {
   return integerFormatter.format(Number.isFinite(Number(value)) ? Number(value) : 0);
@@ -6,11 +6,11 @@ export function formatNumber(value: number | undefined | null): string {
 
 export function formatCurrency(
   value: number | undefined | null,
-  currency = "USD",
-  maximumFractionDigits = 0
+  currency = 'USD',
+  maximumFractionDigits = 0,
 ): string {
-  const formatter = new Intl.NumberFormat("en-US", {
-    style: "currency",
+  const formatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
     currency,
     maximumFractionDigits,
   });
@@ -18,8 +18,8 @@ export function formatCurrency(
 }
 
 export function formatPercent(value: number | undefined | null, maximumFractionDigits = 1): string {
-  const formatter = new Intl.NumberFormat("en-US", {
-    style: "percent",
+  const formatter = new Intl.NumberFormat('en-US', {
+    style: 'percent',
     maximumFractionDigits,
   });
   return formatter.format(Number.isFinite(Number(value)) ? Number(value) : 0);

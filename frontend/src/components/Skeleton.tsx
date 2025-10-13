@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties } from 'react';
 
 interface SkeletonProps {
   width?: number | string;
@@ -9,13 +9,19 @@ interface SkeletonProps {
 }
 
 function toCssValue(value?: number | string): string | undefined {
-  if (typeof value === "number") {
+  if (typeof value === 'number') {
     return `${value}px`;
   }
   return value;
 }
 
-const Skeleton = ({ width = "100%", height = "1rem", borderRadius = "0.75rem", className, style }: SkeletonProps) => {
+const Skeleton = ({
+  width = '100%',
+  height = '1rem',
+  borderRadius = '0.75rem',
+  className,
+  style,
+}: SkeletonProps) => {
   const resolvedStyle: CSSProperties = {
     width: toCssValue(width),
     height: toCssValue(height),
@@ -23,7 +29,7 @@ const Skeleton = ({ width = "100%", height = "1rem", borderRadius = "0.75rem", c
     ...style,
   };
 
-  const classes = ["skeleton", className].filter(Boolean).join(" ");
+  const classes = ['skeleton', className].filter(Boolean).join(' ');
 
   return <div className={classes} style={resolvedStyle} aria-hidden="true" role="presentation" />;
 };

@@ -1,21 +1,35 @@
 // @ts-nocheck
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Feature, FeatureCollection } from "geojson";
-import L from "leaflet";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Feature, FeatureCollection } from 'geojson';
+import L from 'leaflet';
+import { Link } from 'react-router-dom';
 
-import useDashboardStore from "../state/useDashboardStore";
-import { formatCurrency, formatNumber, formatRatio } from "../lib/format";
-import EmptyState from "./EmptyState";
-import ErrorState from "./ErrorState";
-import Skeleton from "./Skeleton";
-import { useTheme } from "./ThemeProvider";
-import styles from "./ParishMap.module.css";
+import useDashboardStore from '../state/useDashboardStore';
+import { formatCurrency, formatNumber, formatRatio } from '../lib/format';
+import EmptyState from './EmptyState';
+import ErrorState from './ErrorState';
+import Skeleton from './Skeleton';
+import { useTheme } from './ThemeProvider';
+import styles from './ParishMap.module.css';
 
-const COLOR_RAMP = ["#dbeafe", "#bfdbfe", "#60a5fa", "#2563eb", "#1d4ed8"] as const;
-const FALLBACK_LIGHT_PALETTE = ["#f1f5f9", "#bfdbfe", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8"] as const;
-const FALLBACK_DARK_PALETTE = ["#0f172a", "#1e3a8a", "#1d4ed8", "#2563eb", "#38bdf8", "#93c5fd"] as const;
+const COLOR_RAMP = ['#dbeafe', '#bfdbfe', '#60a5fa', '#2563eb', '#1d4ed8'] as const;
+const FALLBACK_LIGHT_PALETTE = [
+  '#f1f5f9',
+  '#bfdbfe',
+  '#60a5fa',
+  '#3b82f6',
+  '#2563eb',
+  '#1d4ed8',
+] as const;
+const FALLBACK_DARK_PALETTE = [
+  '#0f172a',
+  '#1e3a8a',
+  '#1d4ed8',
+  '#2563eb',
+  '#38bdf8',
+  '#93c5fd',
+] as const;
 const JAMAICA_CENTER: [number, number] = [18.1096, -77.2975];
 
 interface ParishMapProps {
@@ -25,11 +39,11 @@ interface ParishMapProps {
 
 function getFeatureName(feature: Feature): string {
   const name =
-    typeof feature?.properties === "object" && feature.properties !== null
+    typeof feature?.properties === 'object' && feature.properties !== null
       ? (feature.properties as { name?: unknown }).name
       : undefined;
 
-  return typeof name === "string" && name.length > 0 ? name : "Unknown";
+  return typeof name === 'string' && name.length > 0 ? name : 'Unknown';
 }
 
 function computeBreaks(values: number[]): number[] {
@@ -47,13 +61,11 @@ function computeBreaks(values: number[]): number[] {
 }
 
 function resolveCssColor(variableName: string, fallback: string): string {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return fallback;
   }
 
-  const value = getComputedStyle(document.documentElement)
-    .getPropertyValue(variableName)
-    .trim();
+  const value = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
   return value.length > 0 ? value : fallback;
 }
 
@@ -67,7 +79,14 @@ function getColor(value: number, breaks: number[], palette: readonly string[]): 
 }
 
 const MapPlaceholderIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.4">
+  <svg
+    width="48"
+    height="48"
+    viewBox="0 0 48 48"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.4"
+  >
     <path d="M16 14 8 18v18l8-4 10 4 12-6V10l-12 6-10-2Z" strokeLinejoin="round" />
     <circle cx="32" cy="16" r="3.5" fill="currentColor" stroke="none" />
   </svg>
@@ -96,32 +115,33 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const mapNodeRef = useRef<HTMLDivElement | null>(null);
   const styleForParishRef = useRef<(name: string) => L.PathOptions>(() => ({
-    color: "#1e293b",
+    color: '#1e293b',
     weight: 1,
     fillColor: COLOR_RAMP[0],
     fillOpacity: 0.8,
   }));
   const [scrollZoomEnabled, setScrollZoomEnabled] = useState(false);
 
-  const fallbackPalette = theme === "dark" ? FALLBACK_DARK_PALETTE : FALLBACK_LIGHT_PALETTE;
+  const fallbackPalette = theme === 'dark' ? FALLBACK_DARK_PALETTE : FALLBACK_LIGHT_PALETTE;
   const mapPalette = useMemo<readonly string[]>(() => {
     return fallbackPalette.map((color, index) => resolveCssColor(`--map-fill-${index}`, color));
   }, [fallbackPalette]);
 
   const borderColor = useMemo(
-    () => resolveCssColor("--map-border", theme === "dark" ? "rgba(226, 232, 240, 0.75)" : "#1e293b"),
+    () =>
+      resolveCssColor('--map-border', theme === 'dark' ? 'rgba(226, 232, 240, 0.75)' : '#1e293b'),
     [theme],
   );
   const highlightColor = useMemo(
-    () => resolveCssColor("--map-highlight", theme === "dark" ? "#fbbf24" : "#f97316"),
+    () => resolveCssColor('--map-highlight', theme === 'dark' ? '#fbbf24' : '#f97316'),
     [theme],
   );
 
   useEffect(() => {
-    fetch("/jm_parishes.json")
+    fetch('/jm_parishes.json')
       .then((res) => res.json())
       .then((data: FeatureCollection) => setGeojson(data))
-      .catch((error) => console.error("Failed to load GeoJSON", error));
+      .catch((error) => console.error('Failed to load GeoJSON', error));
   }, []);
 
   const metricByParish = useMemo(() => {
@@ -135,14 +155,14 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
 
   const metricValues = useMemo(() => Object.values(metricByParish), [metricByParish]);
   const breaks = useMemo(() => computeBreaks(metricValues), [metricValues]);
-  const currency = useMemo(() => parishData[0]?.currency ?? "USD", [parishData]);
+  const currency = useMemo(() => parishData[0]?.currency ?? 'USD', [parishData]);
 
   const formatMetricValue = useCallback(
     (value: number) => {
-      if (selectedMetric === "spend") {
+      if (selectedMetric === 'spend') {
         return formatCurrency(value, currency);
       }
-      if (selectedMetric === "roas") {
+      if (selectedMetric === 'roas') {
         return formatRatio(value, 2);
       }
       return formatNumber(value);
@@ -152,11 +172,11 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
 
   const metricLabel = useMemo(() => {
     const labels: Record<string, string> = {
-      spend: "Spend",
-      impressions: "Impressions",
-      clicks: "Clicks",
-      conversions: "Conversions",
-      roas: "ROAS",
+      spend: 'Spend',
+      impressions: 'Impressions',
+      clicks: 'Clicks',
+      conversions: 'Conversions',
+      roas: 'ROAS',
     };
     return labels[selectedMetric] ?? selectedMetric.toUpperCase();
   }, [selectedMetric]);
@@ -165,11 +185,11 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     const [q1, q2, q3, q4] = breaks;
     const minValue = metricValues.length > 0 ? Math.min(...metricValues) : 0;
 
-    const formatRange = (low: number, high: number, mode: "first" | "middle" | "last") => {
-      if (mode === "first") {
+    const formatRange = (low: number, high: number, mode: 'first' | 'middle' | 'last') => {
+      if (mode === 'first') {
         return `≤ ${formatMetricValue(high)}`;
       }
-      if (mode === "last") {
+      if (mode === 'last') {
         return `> ${formatMetricValue(high)}`;
       }
       if (low === high) {
@@ -179,11 +199,11 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     };
 
     return [
-      { color: COLOR_RAMP[0], label: formatRange(minValue, q1, "first") },
-      { color: COLOR_RAMP[1], label: formatRange(q1, q2, "middle") },
-      { color: COLOR_RAMP[2], label: formatRange(q2, q3, "middle") },
-      { color: COLOR_RAMP[3], label: formatRange(q3, q4, "middle") },
-      { color: COLOR_RAMP[4], label: formatRange(q4, q4, "last") },
+      { color: COLOR_RAMP[0], label: formatRange(minValue, q1, 'first') },
+      { color: COLOR_RAMP[1], label: formatRange(q1, q2, 'middle') },
+      { color: COLOR_RAMP[2], label: formatRange(q2, q3, 'middle') },
+      { color: COLOR_RAMP[3], label: formatRange(q3, q4, 'middle') },
+      { color: COLOR_RAMP[4], label: formatRange(q4, q4, 'last') },
     ];
   }, [breaks, formatMetricValue, metricValues]);
 
@@ -222,14 +242,14 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
 
   const tileLayerUrl = useMemo(
     () =>
-      theme === "dark"
-        ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      theme === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     [theme],
   );
   const tileAttribution = useMemo(
     () =>
-      theme === "dark"
+      theme === 'dark'
         ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     [theme],
@@ -252,7 +272,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
       } else {
         typedLayer.bindTooltip(tooltipText, {
           sticky: true,
-          direction: "top",
+          direction: 'top',
           className: styles.tooltip,
           offset: L.point(0, -8),
           opacity: 1,
@@ -273,7 +293,11 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   );
 
   useEffect(() => {
-    if (!mapRef.current || !mapNodeRef.current || mapRef.current._container !== mapNodeRef.current) {
+    if (
+      !mapRef.current ||
+      !mapNodeRef.current ||
+      mapRef.current._container !== mapNodeRef.current
+    ) {
       const node = mapNodeRef.current;
       if (!node) {
         return;
@@ -366,7 +390,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
       } else {
         typedLayer.bindTooltip(tooltipText, {
           sticky: true,
-          direction: "top",
+          direction: 'top',
           className: styles.tooltip,
           offset: L.point(0, -8),
           opacity: 1,
@@ -398,7 +422,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     setScrollZoomEnabled((state) => !state);
   }, [scrollZoomEnabled]);
 
-  if (parishStatus === "loading" && parishData.length === 0) {
+  if (parishStatus === 'loading' && parishData.length === 0) {
     return (
       <div className="widget-skeleton" aria-busy="true">
         <Skeleton height="300px" borderRadius="1rem" />
@@ -406,14 +430,14 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     );
   }
 
-  if (parishStatus === "loading") {
+  if (parishStatus === 'loading') {
     return <div className="status-message muted">Preparing the parish heatmap…</div>;
   }
 
-  if (parishStatus === "error" && parishData.length === 0) {
+  if (parishStatus === 'error' && parishData.length === 0) {
     return (
       <ErrorState
-        message={parishError ?? "Unable to render the parish map."}
+        message={parishError ?? 'Unable to render the parish map.'}
         onRetry={onRetry}
         retryLabel="Retry load"
       />
@@ -446,13 +470,11 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
           className={styles.toggleButton}
           onClick={toggleScrollZoom}
           aria-pressed={scrollZoomEnabled}
-          aria-label={scrollZoomEnabled ? "Disable scroll zoom" : "Enable scroll zoom"}
+          aria-label={scrollZoomEnabled ? 'Disable scroll zoom' : 'Enable scroll zoom'}
         >
           <span aria-hidden="true" className={styles.toggleIcon}>
             <svg viewBox="0 0 24 24" role="img" focusable="false">
-              <path
-                d="M12 3a3 3 0 0 0-3 3v4.382a3 3 0 0 0-.879 2.12v5.5A2.998 2.998 0 0 0 10.5 21h3a2.998 2.998 0 0 0 2.379-1.498 2.998 2.998 0 0 0 .121-2.502v-5.498A3 3 0 0 0 15 10.382V6a3 3 0 0 0-3-3Zm-1.5 3a1.5 1.5 0 1 1 3 0v4.618a1.5 1.5 0 0 1-.439 1.061l-.061.06v.261h-2v-.26l-.061-.062A1.5 1.5 0 0 1 10.5 10.618Z"
-              />
+              <path d="M12 3a3 3 0 0 0-3 3v4.382a3 3 0 0 0-.879 2.12v5.5A2.998 2.998 0 0 0 10.5 21h3a2.998 2.998 0 0 0 2.379-1.498 2.998 2.998 0 0 0 .121-2.502v-5.498A3 3 0 0 0 15 10.382V6a3 3 0 0 0-3-3Zm-1.5 3a1.5 1.5 0 1 1 3 0v4.618a1.5 1.5 0 0 1-.439 1.061l-.061.06v.261h-2v-.26l-.061-.062A1.5 1.5 0 0 1 10.5 10.618Z" />
               {!scrollZoomEnabled ? <line x1="5" y1="19" x2="19" y2="5" /> : null}
             </svg>
           </span>
@@ -464,7 +486,11 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
         <ul>
           {legendSteps.map((step) => (
             <li key={`${step.color}-${step.label}`}>
-              <span className={styles.legendSwatch} style={{ backgroundColor: step.color }} aria-hidden="true" />
+              <span
+                className={styles.legendSwatch}
+                style={{ backgroundColor: step.color }}
+                aria-hidden="true"
+              />
               <span className={styles.legendLabel}>{step.label}</span>
             </li>
           ))}

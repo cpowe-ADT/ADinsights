@@ -1,0 +1,14 @@
+node_modules
+dist
+build
+coverage
+.turbo
+.next
+qa/test-results
+playwright-report
+**/*.png
+**/*.zip
+**/*.ico
+**/*.snap
+infrastructure/airbyte/**/*.yaml
+.github/workflows/nightly-health.yml

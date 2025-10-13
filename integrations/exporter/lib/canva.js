@@ -5,7 +5,7 @@ function checkConfiguration(env = process.env) {
   if (missing.length > 0) {
     console.warn(
       `Canva export disabled. Missing environment variables: ${missing.join(', ')}. ` +
-        'Populate them in a local .env file based on .env.example to enable the integration.'
+        'Populate them in a local .env file based on .env.example to enable the integration.',
     );
     return false;
   }
@@ -20,7 +20,9 @@ async function exportDesignStub(payload = {}) {
   }
 
   console.info('Canva export stub invoked with payload:', JSON.stringify(payload));
-  console.info('Replace this stub with an authenticated Canva upload when the API contract is finalized.');
+  console.info(
+    'Replace this stub with an authenticated Canva upload when the API contract is finalized.',
+  );
 
   return { status: 'noop', message: 'Stub executed successfully' };
 }

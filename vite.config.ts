@@ -13,7 +13,7 @@ export default defineConfig((configEnv: ConfigEnv): UserConfig => {
     publicDir: path.resolve(__dirname, 'frontend/public'),
     build: {
       outDir: path.resolve(__dirname, 'frontend/dist'),
-      emptyOutDir: true
-    }
+      emptyOutDir: true,
+    },
   });
 });

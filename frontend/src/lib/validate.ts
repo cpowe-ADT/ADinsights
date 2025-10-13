@@ -1,12 +1,12 @@
-import Ajv2020 from "ajv/dist/2020.js";
-import type { ErrorObject, ValidateFunction } from "ajv";
+import Ajv2020 from 'ajv/dist/2020.js';
+import type { ErrorObject, ValidateFunction } from 'ajv';
 
-import budgetSchema from "../schemas/budget.schema.json";
-import creativeSchema from "../schemas/creative.schema.json";
-import metricsSchema from "../schemas/metrics.schema.json";
-import parishSchema from "../schemas/parish.schema.json";
+import budgetSchema from '../schemas/budget.schema.json';
+import creativeSchema from '../schemas/creative.schema.json';
+import metricsSchema from '../schemas/metrics.schema.json';
+import parishSchema from '../schemas/parish.schema.json';
 
-export type SchemaKey = "metrics" | "creative" | "budget" | "parish";
+export type SchemaKey = 'metrics' | 'creative' | 'budget' | 'parish';
 
 type SchemaMap = Record<SchemaKey, ValidateFunction>;
 
@@ -16,13 +16,13 @@ const ajv = new Ajv2020({
   allowUnionTypes: true,
 });
 
-ajv.addFormat("date", /^\d{4}-\d{2}-\d{2}$/);
-ajv.addFormat("uri", {
-  type: "string",
+ajv.addFormat('date', /^\d{4}-\d{2}-\d{2}$/);
+ajv.addFormat('uri', {
+  type: 'string',
   validate: (value: string) => {
     try {
       const url = new URL(value);
-      return url.protocol === "http:" || url.protocol === "https:";
+      return url.protocol === 'http:' || url.protocol === 'https:';
     } catch (error) {
       return false;
     }
@@ -36,19 +36,19 @@ const validators: SchemaMap = {
   parish: ajv.compile(parishSchema),
 };
 
-const shouldValidate = import.meta.env.MODE === "test" || import.meta.env.DEV;
+const shouldValidate = import.meta.env.MODE === 'test' || import.meta.env.DEV;
 
 function formatErrors(errors: ErrorObject[] | null | undefined): string {
   if (!errors?.length) {
-    return "";
+    return '';
   }
 
   return errors
     .map((error) => {
-      const instancePath = error.instancePath ? `${error.instancePath} ` : "";
-      return `${instancePath}${error.message ?? "is invalid"}`.trim();
+      const instancePath = error.instancePath ? `${error.instancePath} ` : '';
+      return `${instancePath}${error.message ?? 'is invalid'}`.trim();
     })
-    .join("; ");
+    .join('; ');
 }
 
 export function validate(schema: SchemaKey | undefined, payload: unknown): boolean {

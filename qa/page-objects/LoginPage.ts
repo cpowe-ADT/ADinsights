@@ -1,6 +1,6 @@
-import type { Page } from "@playwright/test";
+import type { Page } from '@playwright/test';
 
-import BasePage from "./BasePage";
+import BasePage from './BasePage';
 
 class LoginPage extends BasePage {
   constructor(page: Page) {
@@ -8,7 +8,7 @@ class LoginPage extends BasePage {
   }
 
   async open(): Promise<void> {
-    await this.goto("/login");
+    await this.goto('/login');
   }
 
   async fillEmail(value: string): Promise<void> {
@@ -20,12 +20,12 @@ class LoginPage extends BasePage {
   }
 
   async submit(): Promise<void> {
-    await this.page.getByRole("button", { name: /Sign In/i }).click();
+    await this.page.getByRole('button', { name: /Sign In/i }).click();
     await this.waitForNetworkIdle();
   }
 
   async getErrorMessage(): Promise<string | null> {
-    const error = this.page.getByRole("status").first();
+    const error = this.page.getByRole('status').first();
     if (await error.isVisible()) {
       return (await error.innerText()).trim();
     }

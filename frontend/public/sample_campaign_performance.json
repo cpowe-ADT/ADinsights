@@ -8,13 +8,55 @@
     "averageRoas": 3.4
   },
   "trend": [
-    { "date": "2024-09-01", "spend": 52000, "conversions": 42, "clicks": 1800, "impressions": 110000 },
-    { "date": "2024-09-02", "spend": 61000, "conversions": 55, "clicks": 2100, "impressions": 120500 },
-    { "date": "2024-09-03", "spend": 57500, "conversions": 49, "clicks": 2050, "impressions": 121400 },
-    { "date": "2024-09-04", "spend": 64800, "conversions": 61, "clicks": 2200, "impressions": 126700 },
-    { "date": "2024-09-05", "spend": 70200, "conversions": 68, "clicks": 2310, "impressions": 132000 },
-    { "date": "2024-09-06", "spend": 68500, "conversions": 66, "clicks": 2280, "impressions": 130500 },
-    { "date": "2024-09-07", "spend": 64000, "conversions": 62, "clicks": 2195, "impressions": 127800 }
+    {
+      "date": "2024-09-01",
+      "spend": 52000,
+      "conversions": 42,
+      "clicks": 1800,
+      "impressions": 110000
+    },
+    {
+      "date": "2024-09-02",
+      "spend": 61000,
+      "conversions": 55,
+      "clicks": 2100,
+      "impressions": 120500
+    },
+    {
+      "date": "2024-09-03",
+      "spend": 57500,
+      "conversions": 49,
+      "clicks": 2050,
+      "impressions": 121400
+    },
+    {
+      "date": "2024-09-04",
+      "spend": 64800,
+      "conversions": 61,
+      "clicks": 2200,
+      "impressions": 126700
+    },
+    {
+      "date": "2024-09-05",
+      "spend": 70200,
+      "conversions": 68,
+      "clicks": 2310,
+      "impressions": 132000
+    },
+    {
+      "date": "2024-09-06",
+      "spend": 68500,
+      "conversions": 66,
+      "clicks": 2280,
+      "impressions": 130500
+    },
+    {
+      "date": "2024-09-07",
+      "spend": 64000,
+      "conversions": 62,
+      "clicks": 2195,
+      "impressions": 127800
+    }
   ],
   "rows": [
     {

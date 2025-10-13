@@ -78,11 +78,11 @@ export type ParishAggregate = {
 
 const campaignRows: CampaignRow[] = [
   {
-    id: "cmp_awareness",
-    name: "Awareness Boost",
-    platform: "Meta",
-    status: "Active",
-    parish: "Kingston",
+    id: 'cmp_awareness',
+    name: 'Awareness Boost',
+    platform: 'Meta',
+    status: 'Active',
+    parish: 'Kingston',
     spend: 540,
     impressions: 120000,
     clicks: 3400,
@@ -91,15 +91,15 @@ const campaignRows: CampaignRow[] = [
     ctr: 0.0283,
     cpc: 0.16,
     cpm: 4.5,
-    startDate: "2024-08-01",
-    endDate: "2024-09-30",
+    startDate: '2024-08-01',
+    endDate: '2024-09-30',
   },
   {
-    id: "cmp_search",
-    name: "Search Capture",
-    platform: "Google Ads",
-    status: "Active",
-    parish: "St James",
+    id: 'cmp_search',
+    name: 'Search Capture',
+    platform: 'Google Ads',
+    status: 'Active',
+    parish: 'St James',
     spend: 430,
     impressions: 94000,
     clicks: 4200,
@@ -108,15 +108,15 @@ const campaignRows: CampaignRow[] = [
     ctr: 0.0447,
     cpc: 0.1,
     cpm: 4.57,
-    startDate: "2024-08-05",
-    endDate: "2024-09-28",
+    startDate: '2024-08-05',
+    endDate: '2024-09-28',
   },
   {
-    id: "cmp_genz",
-    name: "GenZ Launch",
-    platform: "TikTok",
-    status: "Learning",
-    parish: "St Andrew",
+    id: 'cmp_genz',
+    name: 'GenZ Launch',
+    platform: 'TikTok',
+    status: 'Learning',
+    parish: 'St Andrew',
     spend: 220,
     impressions: 68000,
     clicks: 2100,
@@ -125,8 +125,8 @@ const campaignRows: CampaignRow[] = [
     ctr: 0.0309,
     cpc: 0.1,
     cpm: 3.24,
-    startDate: "2024-08-18",
-    endDate: "2024-10-02",
+    startDate: '2024-08-18',
+    endDate: '2024-10-02',
   },
 ];
 
@@ -140,13 +140,13 @@ const campaignSummary = campaignRows.reduce(
     return acc;
   },
   {
-    currency: "USD",
+    currency: 'USD',
     totalSpend: 0,
     totalImpressions: 0,
     totalClicks: 0,
     totalConversions: 0,
     totalRoas: 0,
-  }
+  },
 );
 
 const campaignTrend: TrendPoint[] = campaignRows.map((row, index) => ({
@@ -172,12 +172,12 @@ export const campaignSnapshot: CampaignSnapshot = {
 
 export const creativeRows: CreativeRow[] = [
   {
-    id: "cr_awareness_video",
-    name: "Awareness Video",
-    campaignId: "cmp_awareness",
-    campaignName: "Awareness Boost",
-    platform: "Meta",
-    parish: "Kingston",
+    id: 'cr_awareness_video',
+    name: 'Awareness Video',
+    campaignId: 'cmp_awareness',
+    campaignName: 'Awareness Boost',
+    platform: 'Meta',
+    parish: 'Kingston',
     spend: 180,
     impressions: 58000,
     clicks: 1500,
@@ -186,12 +186,12 @@ export const creativeRows: CreativeRow[] = [
     ctr: 0.0259,
   },
   {
-    id: "cr_search_carousel",
-    name: "Search Carousel",
-    campaignId: "cmp_search",
-    campaignName: "Search Capture",
-    platform: "Google Ads",
-    parish: "St James",
+    id: 'cr_search_carousel',
+    name: 'Search Carousel',
+    campaignId: 'cmp_search',
+    campaignName: 'Search Capture',
+    platform: 'Google Ads',
+    parish: 'St James',
     spend: 140,
     impressions: 36000,
     clicks: 1320,
@@ -203,59 +203,59 @@ export const creativeRows: CreativeRow[] = [
 
 export const budgetRows: BudgetRow[] = [
   {
-    id: "budget_awareness",
-    campaignName: "Awareness Boost",
-    parishes: ["Kingston"],
+    id: 'budget_awareness',
+    campaignName: 'Awareness Boost',
+    parishes: ['Kingston'],
     monthlyBudget: 800,
     spendToDate: 540,
     projectedSpend: 760,
     pacingPercent: 95,
-    startDate: "2024-08-01",
-    endDate: "2024-09-30",
+    startDate: '2024-08-01',
+    endDate: '2024-09-30',
   },
   {
-    id: "budget_search",
-    campaignName: "Search Capture",
-    parishes: ["St James"],
+    id: 'budget_search',
+    campaignName: 'Search Capture',
+    parishes: ['St James'],
     monthlyBudget: 700,
     spendToDate: 430,
     projectedSpend: 680,
     pacingPercent: 97,
-    startDate: "2024-08-05",
-    endDate: "2024-09-28",
+    startDate: '2024-08-05',
+    endDate: '2024-09-28',
   },
 ];
 
 export const parishAggregates: ParishAggregate[] = [
   {
-    parish: "Kingston",
+    parish: 'Kingston',
     spend: 540,
     impressions: 120000,
     clicks: 3400,
     conversions: 120,
     roas: 3.5,
     campaignCount: 1,
-    currency: "USD",
+    currency: 'USD',
   },
   {
-    parish: "St James",
+    parish: 'St James',
     spend: 430,
     impressions: 94000,
     clicks: 4200,
     conversions: 140,
     roas: 4.1,
     campaignCount: 1,
-    currency: "USD",
+    currency: 'USD',
   },
   {
-    parish: "St Andrew",
+    parish: 'St Andrew',
     spend: 220,
     impressions: 68000,
     clicks: 2100,
     conversions: 95,
     roas: 3.2,
     campaignCount: 1,
-    currency: "USD",
+    currency: 'USD',
   },
 ];
 
@@ -266,10 +266,10 @@ export const aggregatedMetricsResponse = {
   parish: parishAggregates,
 };
 
-export function fulfillJson(route: import("@playwright/test").Route, payload: unknown): void {
+export function fulfillJson(route: import('@playwright/test').Route, payload: unknown): void {
   void route.fulfill({
     status: 200,
-    contentType: "application/json",
+    contentType: 'application/json',
     body: JSON.stringify(payload),
   });
 }

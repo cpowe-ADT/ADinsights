@@ -15,7 +15,7 @@ dashboard:
         targets:
           - column: campaign_type
             datasetUuid: bfbf6802-818a-4c3b-9d3f-1234567890ab
-        defaultValue: ["Prospecting"]
+        defaultValue: ['Prospecting']
     timed_refresh_immune_slices: []
     refresh_frequency: 900
   charts:
