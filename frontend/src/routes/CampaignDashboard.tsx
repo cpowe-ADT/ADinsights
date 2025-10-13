@@ -1,5 +1,6 @@
 import CampaignTable from "../components/CampaignTable";
 import CampaignTrendChart from "../components/CampaignTrendChart";
+import ChartCard from "../components/ChartCard";
 import FullPageLoader from "../components/FullPageLoader";
 import KpiCard from "../components/KpiCard";
 import ParishMap from "../components/ParishMap";
@@ -35,6 +36,24 @@ const CampaignDashboard = () => {
     { label: "Avg. ROAS", value: formatRatio(summary.averageRoas, 2) },
   ];
 
+  const hasTrendData = trend.length > 0;
+  const dateRangeFormatter = new Intl.DateTimeFormat("en-JM", { month: "short", day: "numeric" });
+  const chartFooter = hasTrendData
+    ? (
+        <div className="chart-card__footer-grid">
+          <div>
+            <span className="chart-card__footer-label">Peak daily spend</span>
+            <strong>{formatCurrency(Math.max(...trend.map((point) => point.spend)), currency)}</strong>
+          </div>
+          <div className="chart-card__footer-dates">
+            <span>{dateRangeFormatter.format(new Date(trend[0].date))}</span>
+            <span aria-hidden="true">–</span>
+            <span>{dateRangeFormatter.format(new Date(trend[trend.length - 1].date))}</span>
+          </div>
+        </div>
+      )
+    : undefined;
+
   return (
     <div className="dashboard-grid">
       <section className="kpi-grid" aria-label="Campaign KPIs">
@@ -42,12 +61,9 @@ const CampaignDashboard = () => {
           <KpiCard key={kpi.label} label={kpi.label} value={kpi.value} />
         ))}
       </section>
-      <section className="panel">
-        <header className="panel-header">
-          <h2>Daily spend trend</h2>
-        </header>
+      <ChartCard title="Daily spend trend" footer={chartFooter}>
         <CampaignTrendChart data={trend} currency={currency} />
-      </section>
+      </ChartCard>
       <section className="panel map-panel">
         <header className="panel-header">
           <h2>Parish heatmap</h2>
