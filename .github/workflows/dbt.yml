@@ -71,5 +71,58 @@ jobs:
       - name: Seed reference data
         run: python -m dbt seed --project-dir dbt --profiles-dir $HOME/.dbt
 
+      - name: Reset dbt target directory
+        run: |
+          rm -rf dbt/target
+          mkdir -p dbt/target
+
       - name: Run staging models
         run: python -m dbt run --project-dir dbt --profiles-dir $HOME/.dbt --select staging
+
+      - name: Summarize dbt run
+        if: ${{ always() }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          target_dir = Path("dbt/target")
+          run_results_path = target_dir / "run_results.json"
+          summary_path = Path(os.environ["GITHUB_STEP_SUMMARY"])
+
+          if run_results_path.exists():
+              data = json.loads(run_results_path.read_text())
+              results = data.get("results", [])
+              total_models = len(results)
+              failed_models = sum(1 for result in results if result.get("status") != "success")
+              details = [
+                  "## dbt run summary",
+                  "",
+                  f"- Models run: {total_models}",
+                  f"- Models failed: {failed_models}",
+              ]
+          else:
+              details = [
+                  "## dbt run summary",
+                  "",
+                  "- Run results not available; dbt may have failed before writing artifacts.",
+              ]
+
+          with summary_path.open("a", encoding="utf-8") as summary_file:
+              summary_file.write("\n".join(details) + "\n")
+          PY
+
+      - name: Ensure dbt target directory exists
+        if: ${{ always() }}
+        run: mkdir -p dbt/target
+
+      - name: Upload dbt artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts/dbt-run
+          path: |
+            dbt/target/manifest.json
+            dbt/target/run_results.json
+          if-no-files-found: warn
