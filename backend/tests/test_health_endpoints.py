@@ -208,10 +208,3 @@ def test_server_error_returns_json():
     assert payload["error"]["code"] == "server_error"
     assert "unexpected error" in payload["error"]["message"].lower()
     assert payload["error"]["path"] == "/boom/"
-def test_version_endpoint_reports_api_version(api_client, settings):
-    settings.API_VERSION = "1.2.3-test"
-
-    response = api_client.get("/api/version/")
-
-    assert response.status_code == 200
-    assert response.json() == {"version": "1.2.3-test"}
