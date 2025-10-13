@@ -40,7 +40,8 @@
             parish_name,
             region_name,
             first_seen_date,
-            effective_from
+            effective_from,
+            1 as snapshot_sort_key
         from ad_attributes
     )
 
@@ -56,7 +57,8 @@
             existing.parish_name,
             existing.region_name,
             existing.first_seen_date,
-            existing.valid_from as effective_from
+            existing.valid_from as effective_from,
+            0 as snapshot_sort_key
         from {{ this }} as existing
         inner join (
             select distinct source_platform, ad_account_id, ad_id
@@ -68,9 +70,9 @@
         where existing.is_current
     )
 
-    select * from new_snapshots
-    union all
     select * from latest_existing
+    union all
+    select * from new_snapshots
     {% else %}
     select * from new_snapshots
     {% endif %}
@@ -79,5 +81,6 @@
 {{ scd2_dimension(
     source_query=ad_snapshots,
     natural_key=['source_platform', 'ad_account_id', 'ad_id'],
-    tracked_columns=['adset_id', 'campaign_id', 'parish_code', 'parish_name', 'region_name', 'first_seen_date']
+    tracked_columns=['adset_id', 'campaign_id', 'parish_code', 'parish_name', 'region_name', 'first_seen_date'],
+    order_by_columns=['snapshot_sort_key']
 ) }}
