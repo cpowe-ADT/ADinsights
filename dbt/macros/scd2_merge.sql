@@ -7,7 +7,23 @@
 {% set nk_cols = natural_key if natural_key is iterable and natural_key is not string else [natural_key] %}
 {% set partition_cols = nk_cols + tracked_columns %}
 {% set change_cols = nk_cols + tracked_columns + ['effective_from'] %}
-{% set partition_expr = ', '.join('coalesce(' + col + ", '__missing__')" for col in partition_cols) %}
+{% set partition_expr_parts = [] %}
+{% for col in partition_cols %}
+  {% do partition_expr_parts.append("coalesce(" ~ col ~ ", '__missing__')") %}
+{% endfor %}
+{% set partition_expr = ', '.join(partition_expr_parts) %}
+{% set change_cols_aliases = [] %}
+{% for col in change_cols %}
+  {% do change_cols_aliases.append('o.' ~ col) %}
+{% endfor %}
+{% set nk_aliases = [] %}
+{% for col in nk_cols %}
+  {% do nk_aliases.append('c.' ~ col) %}
+{% endfor %}
+{% set tracked_aliases = [] %}
+{% for col in tracked_columns %}
+  {% do tracked_aliases.append('c.' ~ col) %}
+{% endfor %}
 
 with ordered_source as (
     select
@@ -22,7 +38,7 @@ with ordered_source as (
 ),
 
 deduped_source as (
-    select {{ ', '.join('o.' + col for col in change_cols) }}
+    select {{ ', '.join(change_cols_aliases) }}
     from ordered_source o
     where o._dbt_scd2_row = 1
 ),
@@ -37,8 +53,8 @@ changes as (
 )
 
 select
-    {{ ', '.join('c.' + col for col in nk_cols) }},
-    {{ ', '.join('c.' + col for col in tracked_columns) }},
+    {{ ', '.join(nk_aliases) }},
+    {{ ', '.join(tracked_aliases) }},
     c.effective_from as {{ valid_from_column }},
     coalesce(c.next_effective_from - interval '1 second', {{ end_of_time }}) as {{ valid_to_column }},
     case when c.next_effective_from is null then true else false end as {{ is_current_column }}
