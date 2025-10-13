@@ -133,6 +133,24 @@ const MetricsGrid = () => {
     getSortedRowModel: getSortedRowModel(),
   });
 
+  const sortedMetricLabel = useMemo(() => {
+    const sortedId = sorting[0]?.id;
+
+    if (sortedId) {
+      const sortedHeader = table.getColumn(sortedId)?.columnDef.header;
+      if (typeof sortedHeader === "string") {
+        return sortedHeader;
+      }
+    }
+
+    const fallbackHeader = table.getColumn(selectedMetric)?.columnDef.header;
+    if (typeof fallbackHeader === "string") {
+      return fallbackHeader;
+    }
+
+    return selectedMetric;
+  }, [selectedMetric, sorting, table]);
+
   return (
     <div className="metrics-grid">
       <h2>Performance Grid</h2>
@@ -148,7 +166,7 @@ const MetricsGrid = () => {
       {table.getRowModel().rows.length > 0 ? (
         <>
           <p>
-            Sorted by <strong>{selectedMetric}</strong>
+            Sorted by <strong>{sortedMetricLabel}</strong>
             {selectedParish ? (
               <>
                 {" "}— highlighting <strong>{selectedParish}</strong>.

@@ -15,7 +15,7 @@ describe("useDashboardStore loadMetrics", () => {
     vi.unstubAllEnvs();
     vi.doUnmock("../lib/apiClient");
     if (typeof originalFetch === "undefined") {
-      delete (globalThis as typeof globalThis & { fetch?: unknown }).fetch;
+      Reflect.deleteProperty(globalThis as typeof globalThis & { fetch?: unknown }, "fetch");
     } else {
       globalThis.fetch = originalFetch;
     }
