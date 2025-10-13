@@ -41,7 +41,7 @@ enriched as (
         on cd.source_platform = d.source_platform
         and cd.ad_account_id = d.ad_account_id
         and cd.ad_id = d.ad_id
-        and cd.date_day between coalesce(d.first_seen_date, date(d.valid_from))
+        and cd.date_day between coalesce(date(d.valid_from), d.first_seen_date)
             and coalesce(date(d.valid_to), date '9999-12-31')
 )
 
