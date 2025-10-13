@@ -185,6 +185,7 @@ const DataTable = <TData,>({
                   const headerRowDepth = headerGroup.depth ?? headerGroupIndex;
                   const headerCellStyle = {
                     ["--data-table-header-depth" as const]: String(headerRowDepth),
+                    zIndex: 2 + headerRowDepth,
                   } as CSSProperties;
 
                   if (header.isPlaceholder) {

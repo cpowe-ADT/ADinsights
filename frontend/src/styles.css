@@ -468,7 +468,7 @@ th {
 .data-table__header-cell {
   position: sticky;
   top: calc(var(--data-table-header-row-height, 0px) * var(--data-table-header-depth, 0));
-  z-index: calc(2 + var(--data-table-header-depth, 0));
+  z-index: 2;
   background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
   border-bottom: 1px solid #cbd5f5;
   color: #1e293b;
