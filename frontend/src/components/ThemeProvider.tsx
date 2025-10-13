@@ -17,6 +17,10 @@ function getSystemTheme(): Theme {
     return "light";
   }
 
+  if (typeof window.matchMedia !== "function") {
+    return "light";
+  }
+
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
@@ -42,6 +46,10 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   }, [isManual, theme]);
 
   useEffect(() => {
+    if (typeof window.matchMedia !== "function") {
+      return;
+    }
+
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = (event: MediaQueryListEvent) => {
       if (!isManual) {

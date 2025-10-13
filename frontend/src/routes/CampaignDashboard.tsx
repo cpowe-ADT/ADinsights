@@ -111,6 +111,17 @@ const CampaignDashboard = () => {
     }),
   );
 
+  const hasTrendData = trend.length > 0;
+
+  const baseBadge: MetricBadge | undefined = isInitialLoading
+    ? undefined
+    : !hasTrendData
+    ? "Limited data"
+    : trend.length <= 3
+    ? "New"
+    : undefined;
+  const spendBadge: MetricBadge | undefined = summary && summary.totalSpend === 0 ? "Paused" : baseBadge;
+
   const kpis = [
     {
       label: "Spend",
@@ -139,7 +150,6 @@ const CampaignDashboard = () => {
     },
   ];
 
-  const hasTrendData = trend.length > 0;
   const dateRangeFormatter = new Intl.DateTimeFormat("en-JM", { month: "short", day: "numeric" });
 
   const chartFooter = hasTrendData ? (

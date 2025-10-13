@@ -30,6 +30,7 @@ html,
 body {
   background: var(--app-background, #f8fafc);
   color: var(--app-foreground, #0f172a);
+}
 .app-shell {
   min-height: 100%;
   display: flex;
@@ -148,6 +149,7 @@ body {
 
 .app-footer p {
   margin: 0;
+}
 body {
   font-size: var(--font-size-body);
   line-height: var(--line-height-body);
@@ -235,6 +237,7 @@ label,
 .auth-form input:focus {
   outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
+}
 .auth-form input:focus-visible {
   outline: var(--focus-outline);
   outline-offset: var(--focus-outline-offset);
@@ -747,6 +750,7 @@ label,
 .trend-chart {
   display: grid;
   gap: var(--space-2);
+}
 .chart-card {
   display: flex;
   flex-direction: column;
@@ -797,6 +801,7 @@ label,
   border-top: 1px solid rgba(148, 163, 184, 0.25);
   margin-top: 0.5rem;
   padding-top: 0.75rem;
+}
 .trend-area {
   fill: var(--chart-area);
 }
@@ -1520,6 +1525,7 @@ th.pinned {
   margin: 0;
   max-width: 360px;
   color: #b91c1c;
+}
 [data-motion="modal"],
 [data-motion="popover"] {
   opacity: 0;
@@ -1664,6 +1670,7 @@ th.pinned {
   .full-page-loader .spinner {
     animation: none;
   }
+}
 .filter-field__value {
   font-size: 0.95rem;
   font-weight: 600;

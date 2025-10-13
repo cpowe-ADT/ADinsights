@@ -1,4 +1,5 @@
-import Ajv, { type ErrorObject, type ValidateFunction } from "ajv/dist/2020";
+import Ajv2020 from "ajv/dist/2020.js";
+import type { ErrorObject, ValidateFunction } from "ajv";
 
 import budgetSchema from "../schemas/budget.schema.json";
 import creativeSchema from "../schemas/creative.schema.json";
@@ -9,7 +10,7 @@ export type SchemaKey = "metrics" | "creative" | "budget" | "parish";
 
 type SchemaMap = Record<SchemaKey, ValidateFunction>;
 
-const ajv = new Ajv({
+const ajv = new Ajv2020({
   allErrors: true,
   strict: false,
   allowUnionTypes: true,
