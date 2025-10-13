@@ -121,12 +121,15 @@ models:
               arguments:
                 expression: "coalesce(ctr, 0) >= 0"
       - name: conversion_rate
-      - name: roas
         tests:
           - expression_is_true:
               arguments:
                 expression: "coalesce(conversion_rate, 0) >= 0"
       - name: roas
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: "coalesce(roas, 0) >= 0"
   - name: agg_campaign_daily
     description: "Incremental aggregate of campaign-level performance metrics with geo enrichment from the campaign dimension."
     columns:
