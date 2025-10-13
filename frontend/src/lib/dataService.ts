@@ -41,6 +41,8 @@ export async function fetchParishAggregates(options: FetchOptions): Promise<Pari
 
 export async function fetchMetrics(path: string): Promise<MetricsResponse> {
   return apiClient.get<MetricsResponse>(path);
+}
+
 export async function fetchDashboardMetrics(options: FetchOptions): Promise<TenantMetricsSnapshot> {
   return fetchJson<TenantMetricsSnapshot>(options);
 }

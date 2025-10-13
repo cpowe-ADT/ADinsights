@@ -41,7 +41,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts/frontend-build
+          name: frontend-build
           if-no-files-found: warn
           path: |
             frontend/dist

@@ -121,7 +121,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts/dbt-run
+          name: dbt-run
           path: |
             dbt/target/manifest.json
             dbt/target/run_results.json
