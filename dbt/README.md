@@ -62,3 +62,14 @@ vars:
 ```
 
 When enabled, freshness checks and staging model tests for the optional connectors are activated automatically.
+
+## Continuous integration fixtures
+
+The repository ships lightweight CSV seeds under `dbt/seeds/` that emulate the
+raw Airbyte tables referenced by the staging layer. CI jobs can run the staging
+models without connecting to Airbyte by seeding these fixtures and setting the
+`CI_USE_SEEDS=true` environment variable before invoking `dbt run`. An on-run-
+start macro creates (and replaces) views in the expected raw schemas that point
+to the seeded relations, so the process is idempotent and safe to rerun. Teams
+can override the raw schema names with dbt variables such as `raw_schema`,
+`raw_google_ads_schema`, or `raw_meta_schema` when needed.

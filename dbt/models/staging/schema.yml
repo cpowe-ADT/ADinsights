@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: raw
-    schema: raw
+    schema: "{{ var('raw_schema', 'raw') }}"
     description: "Raw ingested tables from Airbyte"
     tables:
       - name: meta_ads_insights

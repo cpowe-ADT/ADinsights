@@ -3,6 +3,8 @@
     incremental_strategy='delete+insert',
 ) }}
 
+{% set json_type = 'jsonb' if target.type in ['postgres', 'redshift'] else 'json' %}
+
 with source as (
     select
         account_id::text as account_id,
@@ -45,7 +47,7 @@ flattened as (
         coalesce(sum((action ->> 'value')::numeric) filter (where action ->> 'action_type' = 'offsite_conversion'), 0) as conversions,
         coalesce(sum((action ->> 'value')::numeric) filter (where action ->> 'action_type' in ('offsite_conversion', 'purchase')), 0) as conv_value
     from source
-    left join lateral jsonb_array_elements(coalesce(actions::jsonb, '[]'::jsonb)) as action on true
+    left join lateral jsonb_array_elements(coalesce(actions::{{ json_type }}, '[]'::{{ json_type }})) as action on true
     group by 1,2,3,4,5,6,7,8,9,10,11,12,13,14
 )
 
