@@ -1,7 +1,7 @@
 {{ config(
     unique_key="date_day || '|' || source_platform || '|' || ad_account_id || '|' || campaign_id || '|' || coalesce(adset_id, 'NO_ADSET') || '|' || coalesce(ad_id, 'NO_AD')",
     incremental_strategy='merge',
-    on_schema_change='sync_all_columns'
+    on_schema_change='append_new_columns'
 ) }}
 
 with base as (
