@@ -9,8 +9,8 @@ const svgHeight = 180;
 const svgWidth = 520;
 
 const CampaignTrendChart = ({ data, currency }: CampaignTrendChartProps) => {
-  if (!data.length) {
-    return <p className="status-message muted">Trend data will appear once we have daily results.</p>;
+  if (data.length === 0) {
+    return null;
   }
 
   const maxValue = Math.max(...data.map((point) => point.spend));
