@@ -47,58 +47,68 @@ const DashboardLayout = () => {
   return (
     <div className="dashboard-shell">
       <header className="dashboard-header">
-        <div>
-          <h1>ADinsights</h1>
-          <p className="muted">
-            Tenant <strong>{tenantId ?? "unknown"}</strong>
-            {selectedParish ? (
-              <span>
-                {" • "}Filtering to <strong>{selectedParish}</strong>
-              </span>
-            ) : null}
-          </p>
-        </div>
-        <div className="header-actions">
-          <label htmlFor="metric-select" className="muted">
-            Map metric
-          </label>
-          <select
-            id="metric-select"
-            value={selectedMetric}
-            onChange={(event) => setSelectedMetric(event.target.value as typeof selectedMetric)}
-          >
-            {metricOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <span className="muted user-pill">{(user as { email?: string } | undefined)?.email ?? "Account"}</span>
-          <button type="button" className="button tertiary" onClick={logout}>
-            Log out
-          </button>
+        <div className="container dashboard-header__inner">
+          <div>
+            <h1>ADinsights</h1>
+            <p className="muted">
+              Tenant <strong>{tenantId ?? "unknown"}</strong>
+              {selectedParish ? (
+                <span>
+                  {" • "}Filtering to <strong>{selectedParish}</strong>
+                </span>
+              ) : null}
+            </p>
+          </div>
+          <div className="header-actions">
+            <label htmlFor="metric-select" className="muted">
+              Map metric
+            </label>
+            <select
+              id="metric-select"
+              value={selectedMetric}
+              onChange={(event) => setSelectedMetric(event.target.value as typeof selectedMetric)}
+            >
+              {metricOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <span className="muted user-pill">{(user as { email?: string } | undefined)?.email ?? "Account"}</span>
+            <button type="button" className="button tertiary" onClick={logout}>
+              Log out
+            </button>
+          </div>
         </div>
       </header>
       <nav className="dashboard-nav">
-        <NavLink to="/dashboards/campaigns" className={({ isActive }) => (isActive ? "active" : undefined)}>
-          Campaigns
-        </NavLink>
-        <NavLink to="/dashboards/creatives" className={({ isActive }) => (isActive ? "active" : undefined)}>
-          Creatives
-        </NavLink>
-        <NavLink to="/dashboards/budget" className={({ isActive }) => (isActive ? "active" : undefined)}>
-          Budget pacing
-        </NavLink>
+        <div className="container dashboard-nav__inner">
+          <NavLink to="/dashboards/campaigns" className={({ isActive }) => (isActive ? "active" : undefined)}>
+            Campaigns
+          </NavLink>
+          <NavLink to="/dashboards/creatives" className={({ isActive }) => (isActive ? "active" : undefined)}>
+            Creatives
+          </NavLink>
+          <NavLink to="/dashboards/budget" className={({ isActive }) => (isActive ? "active" : undefined)}>
+            Budget pacing
+          </NavLink>
+        </div>
       </nav>
       {errors.length > 0 ? (
-        <div className="status-message error" role="alert">
-          {errors.map((message, index) => (
-            <span key={`${message}-${index}`}>{message}</span>
-          ))}
+        <div className="dashboard-status">
+          <div className="container">
+            <div className="status-message error" role="alert">
+              {errors.map((message, index) => (
+                <span key={`${message}-${index}`}>{message}</span>
+              ))}
+            </div>
+          </div>
         </div>
       ) : null}
       <main className="dashboard-content">
-        <Outlet />
+        <div className="container">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

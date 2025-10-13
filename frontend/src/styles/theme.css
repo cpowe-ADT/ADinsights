@@ -17,4 +17,10 @@
   --shadow-soft: 0 12px 32px rgba(15, 23, 42, 0.08);
   --shadow-subtle: 0 4px 12px rgba(15, 23, 42, 0.05);
   --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.35);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
 }
