@@ -17,6 +17,7 @@ os.environ.setdefault("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 os.environ.setdefault("SECRETS_PROVIDER", "env")
 os.environ.setdefault("KMS_PROVIDER", "aws")
 os.environ.setdefault("KMS_KEY_ID", "test-key")
+os.environ.setdefault("AWS_REGION", "us-east-1")
 
 import django
 
@@ -48,3 +49,28 @@ def user(tenant) -> User:
 @pytest.fixture
 def api_client() -> APIClient:
     return APIClient()
+
+
+@pytest.fixture(autouse=True)
+def stub_kms(monkeypatch):
+    class StubKmsClient:
+        def __init__(self) -> None:
+            self._counter = 0
+
+        def encrypt(self, plaintext: bytes) -> tuple[str, bytes]:
+            self._counter += 1
+            version = f"test-key|{self._counter:016x}"
+            return version, plaintext[::-1]
+
+        def decrypt(self, ciphertext: bytes, key_version: str) -> bytes:  # noqa: ARG002
+            return ciphertext[::-1]
+
+        def rewrap(
+            self, ciphertext: bytes, current_version: str
+        ) -> tuple[str, bytes]:  # noqa: ARG002
+            plaintext = self.decrypt(ciphertext, current_version)
+            return self.encrypt(plaintext)
+
+    client = StubKmsClient()
+    monkeypatch.setattr("core.crypto.dek_manager._kms", lambda: client)
+    yield

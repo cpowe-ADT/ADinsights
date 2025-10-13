@@ -34,6 +34,30 @@ below for local development or containerized workflows.
    python manage.py runserver 0.0.0.0:8000
    ```
 
+## AWS KMS Configuration
+
+Data encryption keys (DEKs) are wrapped by AWS Key Management Service. Provision a symmetric
+customer managed key (CMK) and expose its ARN to the backend via environment variables:
+
+1. Create the key and alias:
+   ```bash
+   aws kms create-key --description "ADinsights application key"
+   aws kms create-alias --alias-name alias/adinsights/app --target-key-id <key-id>
+   ```
+2. Grant the IAM principal used by the backend the `kms:Encrypt`, `kms:Decrypt`, and
+   `kms:ReEncrypt*` permissions on the key.
+3. Configure the service with the key identifier and region:
+   ```bash
+   export KMS_KEY_ID=arn:aws:kms:us-east-1:123456789012:key/abcd-1234
+   export AWS_REGION=us-east-1
+   ```
+4. When running outside AWS or without an instance profile, also export `AWS_ACCESS_KEY_ID`,
+   `AWS_SECRET_ACCESS_KEY`, and optionally `AWS_SESSION_TOKEN`.
+
+The `.env.sample` file lists these variables. Leaving the credential values blank allows the
+default AWS credential provider chain (instance profiles, `~/.aws/credentials`, etc.) to supply
+them.
+
 ## Containers
 
 Dockerfiles are provided for parity with the deploy stack.
