@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   db:
+    # Dedicated Postgres backing store. Allocate at least 1 vCPU / 2 GiB RAM for stability.
     image: airbyte/db:1.0.0
     container_name: airbyte-db
     environment:
@@ -12,6 +13,7 @@ services:
       - airbyte-db-data:/var/lib/postgresql/data
 
   temporal:
+    # Temporal orchestrates jobs; ensure shared network bandwidth with server/worker nodes.
     image: temporalio/auto-setup:1.25.0
     container_name: airbyte-temporal
     environment:
@@ -24,6 +26,7 @@ services:
       - db
 
   server:
+    # Airbyte API; expect ~512 MiB RAM usage under typical dev loads.
     image: airbyte/airbyte-server:0.50.22
     container_name: airbyte-server
     environment:
@@ -39,6 +42,7 @@ services:
       - temporal
 
   webapp:
+    # React admin UI served via Nginx; light footprint (<256 MiB RAM).
     image: airbyte/airbyte-webapp:0.50.22
     container_name: airbyte-webapp
     environment:
@@ -50,6 +54,7 @@ services:
       - server
 
   worker:
+    # Execute sync jobs; provision at least 2 vCPU / 4 GiB RAM for parallel destinations.
     image: airbyte/airbyte-worker:0.50.22
     container_name: airbyte-worker
     environment:
