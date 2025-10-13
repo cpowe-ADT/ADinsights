@@ -1,99 +1,184 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { MetricRow } from "./useDashboardStore";
+const campaignData = {
+  summary: {
+    currency: "JMD",
+    totalSpend: 100,
+    totalImpressions: 200,
+    totalClicks: 30,
+    totalConversions: 4,
+    averageRoas: 3.2,
+  },
+  trend: [],
+  rows: [
+    {
+      id: "cmp_test",
+      name: "Test",
+      platform: "Meta",
+      status: "Active",
+      parish: "Kingston",
+      spend: 100,
+      impressions: 200,
+      clicks: 30,
+      conversions: 4,
+      roas: 3.2,
+    },
+  ],
+};
 
-const originalFetch = globalThis.fetch;
+const creativeData = [
+  {
+    id: "cr_test",
+    name: "Creative",
+    campaignId: "cmp_test",
+    campaignName: "Test",
+    platform: "Meta",
+    parish: "Kingston",
+    spend: 40,
+    impressions: 120,
+    clicks: 12,
+    conversions: 2,
+    roas: 2.5,
+  },
+];
 
-describe("useDashboardStore loadMetrics", () => {
+const budgetData = [
+  {
+    id: "budget_test",
+    campaignName: "Test",
+    parishes: ["Kingston"],
+    monthlyBudget: 200,
+    spendToDate: 120,
+    projectedSpend: 210,
+    pacingPercent: 1.05,
+  },
+];
+
+const parishData = [
+  {
+    parish: "Kingston",
+    spend: 100,
+    impressions: 200,
+    clicks: 30,
+    conversions: 4,
+    roas: 3.2,
+    campaignCount: 1,
+    currency: "JMD",
+  },
+];
+
+describe("useDashboardStore", () => {
+  const originalFetch = globalThis.fetch;
+
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllEnvs();
+    vi.stubEnv("VITE_MOCK_MODE", "true");
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
-    vi.doUnmock("../lib/apiClient");
-    if (typeof originalFetch === "undefined") {
-      Reflect.deleteProperty(globalThis as typeof globalThis & { fetch?: unknown }, "fetch");
-    } else {
+    if (originalFetch) {
       globalThis.fetch = originalFetch;
+    } else {
+      Reflect.deleteProperty(globalThis as typeof globalThis & { fetch?: unknown }, "fetch");
     }
   });
 
-  it("loads metrics from mock data when mock mode is enabled", async () => {
-    const sampleRows: MetricRow[] = [
-      {
-        date: "2024-01-01",
-        platform: "Meta",
-        campaign: "Awareness",
-        parish: "Kingston",
-        impressions: 1200,
-        clicks: 120,
-        spend: 300,
-        conversions: 12,
-        roas: 4,
-      },
-    ];
-
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(sampleRows),
+  it("loads dashboard data from the mock endpoints", async () => {
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      if (typeof url === "string" && url.endsWith("/sample_campaign_performance.json")) {
+        return Promise.resolve(
+          new Response(JSON.stringify(campaignData), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      }
+      if (typeof url === "string" && url.endsWith("/sample_creative_performance.json")) {
+        return Promise.resolve(
+          new Response(JSON.stringify(creativeData), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      }
+      if (typeof url === "string" && url.endsWith("/sample_budget_pacing.json")) {
+        return Promise.resolve(
+          new Response(JSON.stringify(budgetData), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      }
+      if (typeof url === "string" && url.endsWith("/sample_parish_aggregates.json")) {
+        return Promise.resolve(
+          new Response(JSON.stringify(parishData), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      }
+      return Promise.reject(new Error(`Unhandled fetch: ${String(url)}`));
     });
-
-    const apiGetMock = vi.fn();
-
-    vi.stubEnv("VITE_MOCK_MODE", "true");
     globalThis.fetch = fetchMock as typeof globalThis.fetch;
-    vi.doMock("../lib/apiClient", () => ({
-      default: {
-        get: apiGetMock,
-      },
-    }));
 
     const { default: useDashboardStore } = await import("./useDashboardStore");
 
-    await useDashboardStore.getState().loadMetrics();
+    await useDashboardStore.getState().loadAll("tenant-123");
 
-    expect(fetchMock).toHaveBeenCalledWith("/sample_metrics.json");
-    expect(apiGetMock).not.toHaveBeenCalled();
-    expect(useDashboardStore.getState().rows).toEqual(sampleRows);
-    expect(useDashboardStore.getState().status).toBe("loaded");
+    const state = useDashboardStore.getState();
+    expect(state.campaign.data?.rows).toHaveLength(1);
+    expect(state.creative.data).toHaveLength(1);
+    expect(state.budget.data).toHaveLength(1);
+    expect(state.parish.data).toHaveLength(1);
+    expect(state.selectedParish).toBeUndefined();
   });
 
-  it("loads metrics from the API when mock mode is disabled", async () => {
-    const apiRows: MetricRow[] = [
-      {
-        date: "2024-02-01",
-        platform: "Google",
-        campaign: "Search",
-        parish: "Montego Bay",
-        impressions: 900,
-        clicks: 90,
-        spend: 250,
-        conversions: 10,
-        roas: 3.2,
-      },
-    ];
-
-    const fetchMock = vi.fn();
-    const apiGetMock = vi.fn().mockResolvedValue({ data: apiRows });
-
-    vi.stubEnv("VITE_MOCK_MODE", "false");
+  it("flags API errors without discarding previous data", async () => {
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      if (typeof url === "string" && url.endsWith("/sample_campaign_performance.json")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ detail: "oops" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      }
+      if (typeof url === "string" && url.endsWith("/sample_creative_performance.json")) {
+        return Promise.resolve(
+          new Response(JSON.stringify(creativeData), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      }
+      if (typeof url === "string" && url.endsWith("/sample_budget_pacing.json")) {
+        return Promise.resolve(
+          new Response(JSON.stringify(budgetData), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      }
+      if (typeof url === "string" && url.endsWith("/sample_parish_aggregates.json")) {
+        return Promise.resolve(
+          new Response(JSON.stringify(parishData), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      }
+      return Promise.reject(new Error(`Unhandled fetch: ${String(url)}`));
+    });
     globalThis.fetch = fetchMock as typeof globalThis.fetch;
-    vi.doMock("../lib/apiClient", () => ({
-      default: {
-        get: apiGetMock,
-      },
-    }));
 
     const { default: useDashboardStore } = await import("./useDashboardStore");
 
-    await useDashboardStore.getState().loadMetrics();
+    await useDashboardStore.getState().loadAll();
 
-    expect(apiGetMock).toHaveBeenCalledWith("/metrics/");
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(useDashboardStore.getState().rows).toEqual(apiRows);
-    expect(useDashboardStore.getState().status).toBe("loaded");
+    expect(useDashboardStore.getState().campaign.status).toBe("error");
+    expect(useDashboardStore.getState().creative.status).toBe("loaded");
   });
 });

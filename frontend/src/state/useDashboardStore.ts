@@ -1,112 +1,256 @@
 import { create } from "zustand";
 
-import apiClient from "../lib/apiClient";
+import { MOCK_MODE } from "../lib/apiClient";
+import {
+  fetchBudgetPacing,
+  fetchCampaignPerformance,
+  fetchCreativePerformance,
+  fetchParishAggregates,
+} from "../lib/dataService";
 
-const useMockData = (import.meta.env.VITE_MOCK_MODE ?? "true") !== "false";
+export type MetricKey = "spend" | "impressions" | "clicks" | "conversions" | "roas";
 
-export type MetricRow = {
+export type LoadStatus = "idle" | "loading" | "loaded" | "error";
+
+export interface CampaignPerformanceSummary {
+  currency: string;
+  totalSpend: number;
+  totalImpressions: number;
+  totalClicks: number;
+  totalConversions: number;
+  averageRoas: number;
+}
+
+export interface CampaignTrendPoint {
   date: string;
-  platform: string;
-  campaign: string;
-  parish: string;
-  impressions: number;
-  clicks: number;
   spend: number;
   conversions: number;
+  clicks: number;
+  impressions: number;
+}
+
+export interface CampaignPerformanceRow {
+  id: string;
+  name: string;
+  platform: string;
+  status: string;
+  objective?: string;
+  parish?: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
   roas: number;
+  ctr?: number;
+  cpc?: number;
+  cpm?: number;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface CampaignPerformanceResponse {
+  summary: CampaignPerformanceSummary;
+  trend: CampaignTrendPoint[];
+  rows: CampaignPerformanceRow[];
+}
+
+export interface CreativePerformanceRow {
+  id: string;
+  name: string;
+  campaignId: string;
+  campaignName: string;
+  platform: string;
+  parish?: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  roas: number;
+  ctr?: number;
+  thumbnailUrl?: string;
+}
+
+export interface BudgetPacingRow {
+  id: string;
+  campaignName: string;
+  parishes?: string[];
+  monthlyBudget: number;
+  spendToDate: number;
+  projectedSpend: number;
+  pacingPercent: number;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface ParishAggregate {
+  parish: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  roas?: number;
+  campaignCount?: number;
+  currency?: string;
+}
+
+type AsyncSlice<T> = {
+  status: LoadStatus;
+  data?: T;
+  error?: string;
 };
 
-export type MetricKey = "impressions" | "clicks" | "spend" | "conversions" | "roas";
-
-type LoadStatus = "idle" | "loading" | "loaded" | "error";
-
 interface DashboardState {
-  rows: MetricRow[];
   selectedParish?: string;
   selectedMetric: MetricKey;
-  status: LoadStatus;
-  error?: string;
+  campaign: AsyncSlice<CampaignPerformanceResponse>;
+  creative: AsyncSlice<CreativePerformanceRow[]>;
+  budget: AsyncSlice<BudgetPacingRow[]>;
+  parish: AsyncSlice<ParishAggregate[]>;
   activeTenantId?: string;
   setSelectedParish: (parish?: string) => void;
   setSelectedMetric: (metric: MetricKey) => void;
-  loadMetrics: (tenantId?: string, options?: { force?: boolean }) => Promise<void>;
+  loadAll: (tenantId?: string, options?: { force?: boolean }) => Promise<void>;
   reset: () => void;
 }
 
-const initialState: Pick<DashboardState, "rows" | "selectedMetric" | "selectedParish" | "status" | "error" | "activeTenantId"> = {
-  rows: [],
-  selectedMetric: "impressions",
+const initialSlice = <T,>(): AsyncSlice<T> => ({ status: "idle", data: undefined, error: undefined });
+
+const initialState: Pick<
+  DashboardState,
+  | "selectedParish"
+  | "selectedMetric"
+  | "campaign"
+  | "creative"
+  | "budget"
+  | "parish"
+  | "activeTenantId"
+> = {
   selectedParish: undefined,
-  status: "idle",
-  error: undefined,
+  selectedMetric: "spend",
+  campaign: initialSlice(),
+  creative: initialSlice(),
+  budget: initialSlice(),
+  parish: initialSlice(),
   activeTenantId: undefined,
 };
+
+function withTenant(path: string, tenantId?: string): string {
+  if (!tenantId) {
+    return path;
+  }
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}tenant_id=${encodeURIComponent(tenantId)}`;
+}
+
+function mapError(reason: unknown): string {
+  if (reason instanceof Error) {
+    return reason.message;
+  }
+  return "Unable to load the latest insights. Please try again.";
+}
 
 const useDashboardStore = create<DashboardState>((set, get) => ({
   ...initialState,
   setSelectedParish: (parish) => {
-    if (typeof parish === "undefined") {
+    if (!parish) {
       set({ selectedParish: undefined });
       return;
     }
-
     const current = get().selectedParish;
     set({ selectedParish: current === parish ? undefined : parish });
   },
   setSelectedMetric: (metric) => set({ selectedMetric: metric }),
-  loadMetrics: async (tenantId, options) => {
-    const { rows, status, activeTenantId } = get();
-    const isSameTenant = tenantId ? tenantId === activeTenantId : true;
+  loadAll: async (tenantId, options) => {
+    const { campaign, creative, budget, parish, activeTenantId } = get();
+    const isTenantChange = tenantId && tenantId !== activeTenantId;
+    const alreadyLoaded =
+      !isTenantChange &&
+      campaign.status === "loaded" &&
+      creative.status === "loaded" &&
+      budget.status === "loaded" &&
+      parish.status === "loaded";
 
-    if (!options?.force && status === "loaded" && rows.length > 0 && isSameTenant) {
+    if (!options?.force && alreadyLoaded) {
       return;
     }
 
-    const isTenantChange = tenantId && tenantId !== activeTenantId;
+    set((state) => ({
+      activeTenantId: tenantId ?? state.activeTenantId,
+      selectedParish: isTenantChange ? undefined : state.selectedParish,
+      campaign: { ...state.campaign, status: "loading", error: undefined },
+      creative: { ...state.creative, status: "loading", error: undefined },
+      budget: { ...state.budget, status: "loading", error: undefined },
+      parish: { ...state.parish, status: "loading", error: undefined },
+    }));
 
-    set({
-      status: "loading",
-      error: undefined,
-      ...(isTenantChange
-        ? {
-            rows: [],
-            selectedParish: undefined,
-          }
-        : {}),
-      activeTenantId: tenantId ?? activeTenantId,
-    });
+    const campaignPath = withTenant("/dashboards/campaign-performance/", tenantId);
+    const creativePath = withTenant("/dashboards/creative-performance/", tenantId);
+    const budgetPath = withTenant("/dashboards/budget-pacing/", tenantId);
+    const parishPath = withTenant("/dashboards/parish-performance/", tenantId);
 
-    try {
-      let metrics: MetricRow[] = [];
+    const [campaignResult, creativeResult, budgetResult, parishResult] = await Promise.allSettled([
+      fetchCampaignPerformance({
+        path: campaignPath,
+        mockPath: "/sample_campaign_performance.json",
+      }),
+      fetchCreativePerformance({
+        path: creativePath,
+        mockPath: "/sample_creative_performance.json",
+      }),
+      fetchBudgetPacing({
+        path: budgetPath,
+        mockPath: "/sample_budget_pacing.json",
+      }),
+      fetchParishAggregates({
+        path: parishPath,
+        mockPath: "/sample_parish_aggregates.json",
+      }),
+    ]);
 
-      if (useMockData) {
-        const response = await fetch("/sample_metrics.json");
-        const payload = await response.json();
-
-        if (!response.ok) {
-          const message =
-            payload && typeof payload.detail === "string"
-              ? payload.detail
-              : "Unable to load campaign metrics. Please try again.";
-          throw new Error(message);
-        }
-
-        metrics = payload as MetricRow[];
-      } else {
-        const response = await apiClient.get<MetricRow[]>("/metrics/");
-        metrics = response.data;
-      }
-
-      set({ rows: metrics, status: "loaded", error: undefined });
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to load campaign metrics. Please try again.";
-      set({ rows: [], status: "error", error: message });
-    }
+    set((state) => ({
+      campaign:
+        campaignResult.status === "fulfilled"
+          ? { status: "loaded", data: campaignResult.value, error: undefined }
+          : {
+              status: "error",
+              data: state.campaign.data,
+              error: mapError(campaignResult.reason),
+            },
+      creative:
+        creativeResult.status === "fulfilled"
+          ? { status: "loaded", data: creativeResult.value, error: undefined }
+          : {
+              status: "error",
+              data: state.creative.data,
+              error: mapError(creativeResult.reason),
+            },
+      budget:
+        budgetResult.status === "fulfilled"
+          ? { status: "loaded", data: budgetResult.value, error: undefined }
+          : {
+              status: "error",
+              data: state.budget.data,
+              error: mapError(budgetResult.reason),
+            },
+      parish:
+        parishResult.status === "fulfilled"
+          ? { status: "loaded", data: parishResult.value, error: undefined }
+          : {
+              status: "error",
+              data: state.parish.data,
+              error: mapError(parishResult.reason),
+            },
+    }));
   },
-  reset: () => set({ ...initialState }),
+  reset: () => {
+    set({
+      ...initialState,
+    });
+  },
 }));
+
+export function isMockMode(): boolean {
+  return MOCK_MODE;
+}
 
 export default useDashboardStore;
