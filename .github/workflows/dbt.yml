@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI_USE_SEEDS: 'true'
+      DBT_PROFILES_DIR: ${{ runner.temp }}/dbt-profiles
+      DBT_TARGET: ci
     services:
       postgres:
         image: postgres:15
@@ -39,20 +41,13 @@ jobs:
       - name: Install dbt dependencies
         run: |
           python -m pip install --upgrade pip
-          # dbt-core 1.10 introduced schema test argument support used in our project,
-          # but the duckdb adapter has not yet published a matching 1.10 build.
-          # Installing the latest 1.9 adapters keeps duckdb + postgres available while
-          # allowing the 1.10 core features we rely on.
-          python -m pip install "dbt-core==1.10.13" "dbt-postgres==1.9.1" "dbt-duckdb==1.9.6"
+          # Pin the adapter to the 1.10-compatible build so it matches dbt-core.
+          python -m pip install "dbt-core==1.10.13" "dbt-postgres==1.10.0b1"
 
       - name: Prepare dbt profile
         run: |
-          mkdir -p "$HOME/.dbt"
-          if [ -f dbt/profiles.yml ]; then
-            cp dbt/profiles.yml "$HOME/.dbt/profiles.yml"
-          else
-            cp dbt/profiles-example.yml "$HOME/.dbt/profiles.yml"
-          fi
+          mkdir -p "$DBT_PROFILES_DIR"
+          cp dbt/profiles-ci.yml "$DBT_PROFILES_DIR/profiles.yml"
 
       - name: Wait for Postgres
         run: |
@@ -66,10 +61,10 @@ jobs:
           exit 1
 
       - name: Install dbt packages
-        run: make dbt-deps DBT="python -m dbt --project-dir dbt --profiles-dir $HOME/.dbt"
+        run: make dbt-deps DBT="python -m dbt" DBT_PROJECT_DIR=dbt
 
       - name: Seed reference data
-        run: python -m dbt seed --project-dir dbt --profiles-dir $HOME/.dbt
+        run: python -m dbt seed --project-dir dbt
 
       - name: Reset dbt target directory
         run: |
@@ -77,7 +72,7 @@ jobs:
           mkdir -p dbt/target
 
       - name: Run staging models
-        run: python -m dbt run --project-dir dbt --profiles-dir $HOME/.dbt --select staging
+        run: python -m dbt run --project-dir dbt --select staging
 
       - name: Generate dbt docs artifacts
         if: ${{ always() }}
