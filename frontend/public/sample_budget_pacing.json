@@ -1,0 +1,46 @@
+[
+  {
+    "id": "budget_cmp_ja_splash",
+    "campaignName": "Summer Splash Awareness",
+    "parishes": ["Kingston", "Saint Andrew"],
+    "monthlyBudget": 820000,
+    "spendToDate": 612000,
+    "projectedSpend": 805000,
+    "pacingPercent": 0.98,
+    "startDate": "2024-09-01",
+    "endDate": "2024-09-30"
+  },
+  {
+    "id": "budget_cmp_resort",
+    "campaignName": "Island Resort Getaway",
+    "parishes": ["Saint James", "Trelawny"],
+    "monthlyBudget": 540000,
+    "spendToDate": 398000,
+    "projectedSpend": 562000,
+    "pacingPercent": 1.04,
+    "startDate": "2024-09-01",
+    "endDate": "2024-09-30"
+  },
+  {
+    "id": "budget_cmp_coffee",
+    "campaignName": "Blue Mountain Coffee Launch",
+    "parishes": ["Saint Andrew", "Portland"],
+    "monthlyBudget": 310000,
+    "spendToDate": 182000,
+    "projectedSpend": 245000,
+    "pacingPercent": 0.79,
+    "startDate": "2024-09-01",
+    "endDate": "2024-09-30"
+  },
+  {
+    "id": "budget_cmp_boutique",
+    "campaignName": "Kingston Boutique Week",
+    "parishes": ["Kingston"],
+    "monthlyBudget": 260000,
+    "spendToDate": 221000,
+    "projectedSpend": 276000,
+    "pacingPercent": 1.06,
+    "startDate": "2024-09-01",
+    "endDate": "2024-09-30"
+  }
+]

@@ -4,6 +4,7 @@ import type { Feature, FeatureCollection } from "geojson";
 import L from "leaflet";
 
 import useDashboardStore from "../state/useDashboardStore";
+import { formatCurrency, formatNumber, formatRatio } from "../lib/format";
 
 const JAMAICA_CENTER: [number, number] = [18.1096, -77.2975];
 
@@ -38,7 +39,15 @@ function getColor(value: number, breaks: number[]): string {
 }
 
 const ParishMap = () => {
-  const { rows, selectedMetric, selectedParish, setSelectedParish, status, error } = useDashboardStore();
+  const { parishData, parishStatus, parishError, selectedMetric, selectedParish, setSelectedParish } =
+    useDashboardStore((state) => ({
+      parishData: state.parish.data ?? [],
+      parishStatus: state.parish.status,
+      parishError: state.parish.error,
+      selectedMetric: state.selectedMetric,
+      selectedParish: state.selectedParish,
+      setSelectedParish: state.setSelectedParish,
+    }));
   const [geojson, setGeojson] = useState<FeatureCollection | null>(null);
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
   const styleForParishRef = useRef<(name: string) => L.PathOptions>(() => ({
@@ -56,13 +65,13 @@ const ParishMap = () => {
   }, []);
 
   const metricByParish = useMemo(() => {
-    return rows.reduce<Record<string, number>>((acc, row) => {
+    return parishData.reduce<Record<string, number>>((acc, row) => {
       const key = row.parish;
-      const value = row[selectedMetric];
-      acc[key] = (acc[key] ?? 0) + value;
+      const value = Number(row[selectedMetric as keyof typeof row] ?? 0);
+      acc[key] = value;
       return acc;
     }, {});
-  }, [rows, selectedMetric]);
+  }, [parishData, selectedMetric]);
 
   const breaks = useMemo(() => computeBreaks(Object.values(metricByParish)), [metricByParish]);
 
@@ -83,9 +92,26 @@ const ParishMap = () => {
   const tooltipForParish = useCallback(
     (name: string) => {
       const value = metricByParish[name] ?? 0;
-      return `${name}<br/>${selectedMetric.toUpperCase()}: ${value.toLocaleString()}`;
+      const currency = parishData[0]?.currency ?? "USD";
+      const labels: Record<string, string> = {
+        spend: "Spend",
+        impressions: "Impressions",
+        clicks: "Clicks",
+        conversions: "Conversions",
+        roas: "ROAS",
+      };
+
+      const formattedValue =
+        selectedMetric === "spend"
+          ? formatCurrency(value, currency)
+          : selectedMetric === "roas"
+          ? formatRatio(value, 2)
+          : formatNumber(value);
+
+      const label = labels[selectedMetric] ?? selectedMetric.toUpperCase();
+      return `${name}<br/>${label}: ${formattedValue}`;
     },
-    [metricByParish, selectedMetric]
+    [metricByParish, selectedMetric, parishData]
   );
 
   useEffect(() => {
@@ -151,15 +177,15 @@ const ParishMap = () => {
     });
   }, [styleForParish, tooltipForParish]);
 
-  if (status === "loading") {
+  if (parishStatus === "loading") {
     return <div className="status-message muted">Preparing the parish heatmap…</div>;
   }
 
-  if (status === "error") {
-    return <div className="status-message error">{error ?? "Unable to render the parish map."}</div>;
+  if (parishStatus === "error") {
+    return <div className="status-message error">{parishError ?? "Unable to render the parish map."}</div>;
   }
 
-  if (rows.length === 0) {
+  if (parishData.length === 0) {
     return <div className="status-message muted">Map insights will appear once this tenant has campaign data.</div>;
   }
 
