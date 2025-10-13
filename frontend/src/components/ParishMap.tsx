@@ -1,7 +1,6 @@
 // @ts-nocheck
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GeoJSON as GeoJSONLayer, MapContainer, TileLayer } from "react-leaflet";
 import type { Feature, FeatureCollection } from "geojson";
 import L from "leaflet";
 import { Link } from "react-router-dom";
@@ -92,8 +91,10 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     setSelectedParish: state.setSelectedParish,
   }));
   const [geojson, setGeojson] = useState<FeatureCollection | null>(null);
-  const geoJsonRef = useRef<L.GeoJSON | null>(null);
+  const geoJsonLayerRef = useRef<L.GeoJSON | null>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const mapNodeRef = useRef<HTMLDivElement | null>(null);
   const styleForParishRef = useRef<(name: string) => L.PathOptions>(() => ({
     color: "#1e293b",
     weight: 1,
@@ -219,14 +220,20 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     styleForParishRef.current = styleForParish;
   }, [styleForParish]);
 
-  const tileLayerUrl =
-    theme === "dark"
-      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-  const tileAttribution =
-    theme === "dark"
-      ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-      : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  const tileLayerUrl = useMemo(
+    () =>
+      theme === "dark"
+        ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    [theme],
+  );
+  const tileAttribution = useMemo(
+    () =>
+      theme === "dark"
+        ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    [theme],
+  );
 
   const onEachFeature = useCallback(
     (feature: Feature, layer: L.Layer) => {
@@ -266,11 +273,80 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   );
 
   useEffect(() => {
-    if (!geoJsonRef.current) {
+    if (!mapRef.current || !mapNodeRef.current || mapRef.current._container !== mapNodeRef.current) {
+      const node = mapNodeRef.current;
+      if (!node) {
+        return;
+      }
+
+      const map = L.map(node, {
+        center: JAMAICA_CENTER,
+        zoom: 7,
+        dragging: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        keyboard: false,
+        zoomControl: false,
+      });
+
+      mapRef.current = map;
+      requestAnimationFrame(() => {
+        map.invalidateSize();
+      });
+    } else {
+      requestAnimationFrame(() => {
+        mapRef.current?.invalidateSize();
+      });
+    }
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        tileLayerRef.current = null;
+        geoJsonLayerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current) {
       return;
     }
 
-    geoJsonRef.current.eachLayer((layer) => {
+    if (tileLayerRef.current) {
+      tileLayerRef.current.remove();
+    }
+
+    const layer = L.tileLayer(tileLayerUrl, { attribution: tileAttribution });
+    layer.addTo(mapRef.current);
+    tileLayerRef.current = layer;
+  }, [tileAttribution, tileLayerUrl]);
+
+  useEffect(() => {
+    if (!mapRef.current || !geojson) {
+      return;
+    }
+
+    if (geoJsonLayerRef.current) {
+      geoJsonLayerRef.current.remove();
+    }
+
+    const layer = L.geoJSON(geojson as FeatureCollection, {
+      onEachFeature,
+    });
+
+    geoJsonLayerRef.current = layer;
+    layer.addTo(mapRef.current);
+  }, [geojson, onEachFeature]);
+
+  useEffect(() => {
+    if (!geoJsonLayerRef.current) {
+      return;
+    }
+
+    geoJsonLayerRef.current.eachLayer((layer) => {
       const feature = (layer as L.Layer & { feature?: Feature }).feature;
       if (!feature) {
         return;
@@ -299,13 +375,15 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     });
   }, [styleForParish, tooltipForParish]);
 
-  const handleMapCreated = useCallback((map: L.Map) => {
-    mapRef.current = map;
-    map.scrollWheelZoom.disable();
+  useEffect(() => {
+    if (!mapRef.current) {
+      return;
+    }
+
     requestAnimationFrame(() => {
-      map.invalidateSize();
+      mapRef.current?.invalidateSize();
     });
-  }, []);
+  }, [height, geojson]);
 
   const toggleScrollZoom = useCallback(() => {
     if (!mapRef.current) {
@@ -319,16 +397,6 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     }
     setScrollZoomEnabled((state) => !state);
   }, [scrollZoomEnabled]);
-
-  useEffect(() => {
-    if (!mapRef.current) {
-      return;
-    }
-
-    requestAnimationFrame(() => {
-      mapRef.current?.invalidateSize();
-    });
-  }, [height, geojson]);
 
   if (parishStatus === "loading" && parishData.length === 0) {
     return (
@@ -367,22 +435,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
 
   return (
     <div className={styles.mapShell} style={{ height }}>
-      <MapContainer
-        whenCreated={handleMapCreated}
-        center={JAMAICA_CENTER}
-        zoom={7}
-        scrollWheelZoom={scrollZoomEnabled}
-        className={styles.map}
-      >
-        <TileLayer attribution={tileAttribution} url={tileLayerUrl} />
-        {geojson ? (
-          <GeoJSONLayer
-            ref={geoJsonRef}
-            data={geojson as FeatureCollection}
-            onEachFeature={onEachFeature}
-          />
-        ) : null}
-      </MapContainer>
+      <div ref={mapNodeRef} className={`leaflet-container ${styles.map}`} />
 
       <div className={styles.overlay}>
         <Link to="/dashboards/map" className={styles.fullMapLink}>
