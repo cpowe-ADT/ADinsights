@@ -34,26 +34,24 @@ sources:
           - name: _airbyte_raw_id
             tests:
               - unique
-{% if var('enable_linkedin', False) %}
       - name: linkedin_transparency
         description: "LinkedIn Ads transparency export (optional)."
         loaded_at_field: _airbyte_emitted_at
         freshness:
           warn_after: {count: 7, period: day}
           error_after: {count: 14, period: day}
+        enabled: "{{ var('enable_linkedin', False) }}"
         columns:
           - name: ad_account_id
             tests:
               - not_null
-{% endif %}
-{% if var('enable_tiktok', False) %}
       - name: tiktok_transparency
         description: "TikTok Ads transparency data (optional)."
         loaded_at_field: _airbyte_emitted_at
         freshness:
           warn_after: {count: 7, period: day}
           error_after: {count: 14, period: day}
-{% endif %}
+        enabled: "{{ var('enable_tiktok', False) }}"
 
 models:
   - name: stg_meta_ads
