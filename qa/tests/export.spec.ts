@@ -1,5 +1,6 @@
-import { expect, test } from "./fixtures/base";
+import { test } from "./fixtures/base";
 import { skipWhenNoLiveApi } from "../utils/live";
+import { schemaValidate } from "../utils/schemaValidate";
 
 test.describe("metrics CSV export", () => {
   skipWhenNoLiveApi(test);
@@ -40,25 +41,27 @@ test.describe("metrics CSV export", () => {
       };
     });
 
-    expect(response.status).toBe(200);
-    expect(response.contentType ?? "").toMatch(/text\/csv/i);
-    expect(response.contentDisposition ?? "").toMatch(/\.csv/i);
+    const lines = response.body
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    const [headerLine, ...dataLines] = lines;
+    const headers = headerLine?.split(",") ?? [];
+    const rows = dataLines.map((line) => {
+      const values = line.split(",");
+      return headers.reduce<Record<string, string>>((acc, header, index) => {
+        acc[header] = values[index] ?? "";
+        return acc;
+      }, {});
+    });
 
-    const [headerLine, dataLine] = response.body.trim().split("\n");
-    const headers = headerLine.split(",");
-    const data = dataLine.split(",");
-
-    expect(headers).toEqual([
-      "date",
-      "parish",
-      "impressions",
-      "clicks",
-      "spend",
-      "conversions",
-      "roas",
-    ]);
-    expect(data[0]).toMatch(/\d{4}-\d{2}-\d{2}/);
-    expect(Number(data[2])).toBeGreaterThan(0);
+    await schemaValidate("metrics-export", {
+      status: response.status,
+      contentType: response.contentType ?? "",
+      contentDisposition: response.contentDisposition ?? "",
+      headers,
+      rows,
+    });
 
     if (mockMode) {
       await page.unroute("**/api/metrics/export/**");
