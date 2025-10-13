@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import csv
+import logging
+from functools import lru_cache
 from typing import Any, Iterable, Sequence
 
 from django.conf import settings
@@ -19,7 +21,7 @@ from adapters.fake import FakeAdapter
 from .exporters import FakeMetricsExportAdapter
 from .serializers import MetricRecordSerializer, MetricsQueryParamsSerializer
 
-
+logger = logging.getLogger(__name__)
 def _build_registry() -> dict[str, MetricsAdapter]:
     """Return the enabled analytics adapters keyed by their slug."""
 
@@ -28,6 +30,28 @@ def _build_registry() -> dict[str, MetricsAdapter]:
         fake = FakeAdapter()
         registry[fake.key] = fake
     return registry
+
+
+@lru_cache(maxsize=1)
+def _campaign_view_has_tenant_column() -> bool:
+    """Return True when vw_campaign_daily exposes a tenant_id column."""
+
+    with connection.cursor() as cursor:
+        if connection.vendor == "sqlite":
+            cursor.execute("PRAGMA table_info('vw_campaign_daily')")
+            columns = {row[1] for row in cursor.fetchall()}
+            return "tenant_id" in columns
+
+        cursor.execute(
+            """
+            select 1
+            from information_schema.columns
+            where table_schema = current_schema()
+              and table_name = 'vw_campaign_daily'
+              and column_name = 'tenant_id'
+            """
+        )
+        return cursor.fetchone() is not None
 
 
 class AdapterListView(APIView):
@@ -107,16 +131,23 @@ class MetricsViewSet(viewsets.ViewSet):
             "    conversions,",
             "    roas",
             "from vw_campaign_daily",
-            "where tenant_id = %(tenant_id)s",
-            "  and date_day >= %(start_date)s",
+            "where date_day >= %(start_date)s",
             "  and date_day <= %(end_date)s",
         ]
 
         query_params: dict[str, Any] = {
-            "tenant_id": str(tenant_id),
             "start_date": filters["start_date"],
             "end_date": filters["end_date"],
         }
+
+        if _campaign_view_has_tenant_column():
+            sql.insert(-1, "  and tenant_id = %(tenant_id)s")
+            query_params["tenant_id"] = str(tenant_id)
+        else:
+            logger.debug(
+                "vw_campaign_daily missing tenant column; relying on RLS",
+                extra={"tenant_id": str(tenant_id)},
+            )
 
         parish = filters.get("parish")
         if parish:
@@ -173,4 +204,3 @@ class MetricsExportView(APIView):
         yield writer.writerow(headers)
         for row in rows:
             yield writer.writerow(row)
-
