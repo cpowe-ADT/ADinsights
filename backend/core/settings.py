@@ -15,6 +15,7 @@ env = environ.Env(
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1"]),
     TIME_ZONE=(str, "America/Jamaica"),
+    API_VERSION=(str, "dev"),
     SECRETS_PROVIDER=(str, "env"),
     KMS_PROVIDER=(str, "aws"),
     LLM_TIMEOUT=(float, 10.0),
@@ -31,6 +32,7 @@ def _optional(value: str | None) -> str | None:
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
+API_VERSION = env("API_VERSION")
 
 INSTALLED_APPS = [
     "django.contrib.admin",

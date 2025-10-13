@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 
 from alerts.views import AlertRunViewSet
 from analytics.views import AdapterListView, MetricsView
+from analytics.views import MetricsExportView, MetricsViewSet
 from accounts.views import (
     AuditLogViewSet,
     MeView,
@@ -19,6 +20,7 @@ from integrations.views import (
     CampaignBudgetViewSet,
     PlatformCredentialViewSet,
 )
+from health import views as health_views
 from . import views as core_views
 
 router = DefaultRouter()
@@ -49,12 +51,14 @@ urlpatterns = [
     ),
     path("api/me/", MeView.as_view(), name="me"),
     path("api/roles/assign/", RoleAssignmentView.as_view(), name="role-assign"),
-    path("api/health/", core_views.health, name="health"),
+    path("api/health/", health_views.health, name="health"),
+    path("api/version/", health_views.version, name="version"),
     path("api/health/airbyte/", core_views.airbyte_health, name="airbyte-health"),
     path("api/health/dbt/", core_views.dbt_health, name="dbt-health"),
     path("api/timezone/", core_views.timezone_view, name="timezone"),
     path("api/adapters/", AdapterListView.as_view(), name="adapter-list"),
     path("api/metrics/", MetricsView.as_view(), name="metrics"),
+    path("api/export/metrics.csv", MetricsExportView.as_view(), name="metrics-export"),
     path("api/", include(router.urls)),
     path("api/admin/", include(admin_router.urls)),
 ]
