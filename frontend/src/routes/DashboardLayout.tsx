@@ -1,9 +1,10 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
 import { useTheme } from "../components/ThemeProvider";
 import useDashboardStore from "../state/useDashboardStore";
+import FilterBar, { FilterBarState } from "../components/FilterBar";
 
 const metricOptions = [
   { value: "spend", label: "Spend" },
@@ -17,6 +18,9 @@ const DashboardLayout = () => {
   const { tenantId, logout, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
+  const handleFilterChange = useCallback((_: FilterBarState) => {
+    // TODO: Connect filters to dashboard data fetching once APIs support it.
+  }, []);
   const {
     loadAll,
     selectedMetric,
@@ -104,6 +108,7 @@ const DashboardLayout = () => {
           Budget pacing
         </NavLink>
       </nav>
+      <FilterBar onChange={handleFilterChange} />
       {errors.length > 0 ? (
         <div className="status-message error" role="alert">
           {errors.map((message, index) => (
