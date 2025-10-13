@@ -5,7 +5,8 @@
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",
-    "setup": "playwright install"
+    "setup": "playwright install",
+    "setup:deps": "playwright install-deps"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.2",
