@@ -14,8 +14,15 @@ This runbook documents how to operate the ADinsights stack across the frontend, 
 |-----------|-------|---------|
 | Frontend  | Vite build + smoke test | `npm run build` (from `frontend/`) |
 | Backend   | Django API health endpoint | `curl https://api.<env>.adinsights.com/api/health/` |
+| Airbyte Orchestration | API health endpoint + status payload | `curl https://api.<env>.adinsights.com/api/health/airbyte/` |
+| dbt Orchestration | API health endpoint (exposes latest run results) | `curl https://api.<env>.adinsights.com/api/health/dbt/` |
 | Superset  | `/health` endpoint | `curl https://bi.<env>.adinsights.com/health` |
 | Scheduler | APScheduler heartbeat logs | Check `scheduler` container logs for `Scheduler started` |
+
+The Airbyte health endpoint surfaces the most recent sync metadata per tenant and flags jobs that
+are older than one hour. The dbt health endpoint reads the most recent `run_results.json` and marks
+the service as stale when no run has completed within the past 24 hours. Both responses return
+machine-friendly JSON payloads for dashboards or alerting rules.
 
 ## Deployments
 
@@ -49,6 +56,24 @@ This runbook documents how to operate the ADinsights stack across the frontend, 
   daily exports of the table to object storage (S3/GCS) before running the
   deletion query. Ensure exported files inherit the environment's encryption
   and access controls.
+
+## Observability & Alerting
+
+- **Structured logging** – API and Celery workloads emit JSON logs (`api.access`,
+  `celery.tasks`) that include duration, tenant identifiers, and task metadata. Ingest
+  these streams into your log platform with at least 30 days of retention for incident
+  reconstruction.
+- **Metrics baselines** – Treat an Airbyte sync as healthy when the freshest job is
+  < 60 minutes old and has a `succeeded` status. dbt pipelines are healthy when the
+  latest run completed successfully within 24 hours and all models report `success`
+  or `skipped` in the run results payload.
+- **Alerting targets** – Configure alerts when API request error rate exceeds 2% over
+  5 minutes, Airbyte health responds `stale`/`no_recent_sync`, or dbt health responds
+  `stale`/`failing`. Set SLA expectations at 99.5% API availability, Airbyte sync freshness
+  under 60 minutes, and dbt transformations under 24 hours.
+- **Dashboards** – Plot `/api/health/airbyte/` and `/api/health/dbt/` responses alongside
+  Celery task durations to visualize orchestration performance trends and catch regressions
+  before they breach SLAs.
 
 ## Data Refresh Failures
 
