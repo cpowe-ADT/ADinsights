@@ -14,6 +14,16 @@ This guide documents how to respond when dashboards or alerts indicate that the 
 2. Confirm the reported timestamp versus the current time. The nightly pipeline should complete by 06:00, with alerts firing at 06:30 if no fresh rows arrive.
 3. Review the latest deployments or configuration changes that may have landed since the last successful run.
 
+## Step 0 — Check the nightly health workflow
+
+1. Open the **Nightly Health** GitHub Actions workflow run that corresponds to the alert window.
+2. Download the `observability-health.csv` artifact and confirm the failing probe name.
+3. If the workflow logs show HTTP errors (4xx/5xx) when calling health endpoints:
+   * Validate the endpoint URL in `infrastructure/monitoring/health-checks.yml` and retry the request manually with `curl` to confirm reachability.
+   * Coordinate with the owning service team if the API recently changed or requires maintenance mode.
+4. If secrets are missing or access is denied, inspect the `Load secrets` step. Regenerate or re-authorize the secret in the secrets manager, then re-run the **Nightly Health** workflow.
+5. When endpoint paths changed, update both the monitoring configuration and any reverse-proxy routing rules before re-running the workflow to collect a clean set of checks.
+
 ## Step 1 — Inspect Airbyte sync jobs
 
 1. Open the Airbyte UI (`https://airbyte.example.internal`) and sign in with your platform account.

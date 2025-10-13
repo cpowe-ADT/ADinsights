@@ -5,7 +5,9 @@ import { schemaValidate } from "../utils/schemaValidate";
 test.describe("health endpoints", () => {
   skipWhenNoLiveApi(test);
 
-  test("respond with healthy payloads", async ({ page, mockMode }) => {
+  test("respond with healthy payloads", async ({ page, mockMode, liveApi }) => {
+    test.skip(!mockMode && !liveApi.ready, "Live API is not configured");
+
     const mockedResponses: Record<string, unknown> = {
       "/api/health/": { status: "ok" },
       "/api/health/airbyte/": {
@@ -69,6 +71,18 @@ test.describe("health endpoints", () => {
       await schemaValidate(endpoint, body);
       const parsed = body as Record<string, unknown>;
       expect(parsed.status).toBe("ok");
+    }
+
+    if (mockMode) {
+      const airbytePayload = results.find((item) => item.endpoint.endsWith("/api/health/airbyte/"));
+      expect(airbytePayload?.body).toMatchObject({
+        latest_sync: expect.objectContaining({ status: expect.stringMatching(/succeeded|ok/i) }),
+      });
+
+      const dbtPayload = results.find((item) => item.endpoint.endsWith("/api/health/dbt/"));
+      expect(dbtPayload?.body).toMatchObject({
+        latest_run: expect.objectContaining({ status: expect.stringMatching(/success|ok/i) }),
+      });
     }
 
     if (mockMode) {
