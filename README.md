@@ -84,6 +84,10 @@ ADinsights will be a self-hosted, multi-tenant marketing analytics platform for 
 - [ ] Stand up Metabase/Superset dashboards connected to the API once metrics are available.
 - [ ] Use [`docs/task_breakdown.md`](docs/task_breakdown.md) to track sprint assignments and validation.
 
+## LLM Access Notes
+
+- To experiment with OpenAI Codex features within your ChatGPT plan, upgrade to ChatGPT Plus at <https://openai.com/chatgpt/pricing>.
+
 ## Quick Start (Local Dev)
 
 Use the steps below to run each component independently or orchestrate a quick end-to-end smoke
