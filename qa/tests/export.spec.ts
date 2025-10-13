@@ -1,5 +1,6 @@
 import { test } from "./fixtures/base";
 import { skipWhenNoLiveApi } from "../utils/live";
+import { DashboardPage } from "../page-objects";
 import { schemaValidate } from "../utils/schemaValidate";
 
 test.describe("metrics CSV export", () => {
@@ -28,7 +29,8 @@ test.describe("metrics CSV export", () => {
       });
     }
 
-    await page.goto("/");
+    const dashboard = new DashboardPage(page);
+    await dashboard.open();
 
     const response = await page.evaluate(async () => {
       const result = await fetch("/api/metrics/export/?format=csv", {

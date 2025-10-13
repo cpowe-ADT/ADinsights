@@ -1,5 +1,6 @@
 import { expect, test } from "./fixtures/base";
 import { skipWhenNoLiveApi } from "../utils/live";
+import { DashboardPage } from "../page-objects";
 import { schemaValidate } from "../utils/schemaValidate";
 
 test.describe("health endpoints", () => {
@@ -48,7 +49,8 @@ test.describe("health endpoints", () => {
       });
     }
 
-    await page.goto("/");
+    const dashboard = new DashboardPage(page);
+    await dashboard.open();
 
     const results = await page.evaluate(async () => {
       const endpoints = ["/api/health/", "/api/health/airbyte/", "/api/health/dbt/"];

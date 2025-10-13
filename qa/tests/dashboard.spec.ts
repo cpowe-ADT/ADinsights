@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures/base";
+import { DashboardPage } from "../page-objects";
 
 type MetricRow = {
   date: string;
@@ -68,37 +69,28 @@ test.describe("dashboard metrics grid", () => {
       await page.route("**/api/metrics/**", fulfillMetrics);
     }
 
-    await page.goto("/");
-
-    const rows = page.locator("tbody tr");
-    await expect(rows).toHaveCount(sampleRows.length);
+    const dashboard = new DashboardPage(page);
+    await dashboard.open();
+    await dashboard.waitForMetricsLoaded(sampleRows.length);
 
     const sortedByImpressions = [...sampleRows].sort((a, b) => b.impressions - a.impressions);
-    const firstRowParish = await rows.first().locator("td").nth(3).innerText();
-    const firstRowImpressions = parseNumber(await rows.first().locator("td").nth(4).innerText());
-    expect(firstRowParish).toBe(sortedByImpressions[0].parish);
-    expect(firstRowImpressions).toBe(sortedByImpressions[0].impressions);
+    const firstRow = await dashboard.getFirstRow();
+    expect(firstRow.parish).toBe(sortedByImpressions[0].parish);
+    expect(parseNumber(firstRow.impressions)).toBe(sortedByImpressions[0].impressions);
 
-    await expect(page.getByText(/Sorted by Impressions/i)).toBeVisible();
+    await expect.poll(async () => dashboard.getSortedStatus()).toContain("Impressions");
 
-    const clicksToggle = page.getByRole("button", { name: /Sort by Clicks/i });
-    await clicksToggle.click();
-    await clicksToggle.click();
+    await dashboard.toggleSortByClicks();
+    await dashboard.toggleSortByClicks();
 
-    await expect(page.getByText(/Sorted by Clicks/i)).toBeVisible();
+    await expect.poll(async () => dashboard.getSortedStatus()).toContain("Clicks");
 
     const sortedByClicks = [...sampleRows].sort((a, b) => b.clicks - a.clicks);
-    const reorderedParishes: string[] = [];
-    const reorderedClicks: number[] = [];
-    const count = await rows.count();
-    for (let index = 0; index < count; index += 1) {
-      const row = rows.nth(index);
-      reorderedParishes.push(await row.locator("td").nth(3).innerText());
-      reorderedClicks.push(parseNumber(await row.locator("td").nth(5).innerText()));
-    }
+    const parishes = await dashboard.getColumnValues("parish");
+    const clicks = await dashboard.getNumericColumn("clicks");
 
-    expect(reorderedParishes).toEqual(sortedByClicks.map((row) => row.parish));
-    expect(reorderedClicks).toEqual(sortedByClicks.map((row) => row.clicks));
+    expect(parishes).toEqual(sortedByClicks.map((row) => row.parish));
+    expect(clicks).toEqual(sortedByClicks.map((row) => row.clicks));
 
     if (mockMode) {
       await page.unroute("**/sample_metrics.json");
