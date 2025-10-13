@@ -180,21 +180,32 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function resolveSnapshotSource(snapshot: TenantMetricsSnapshot): TenantMetricsSnapshot {
-  if (!isRecord(snapshot)) {
-    return snapshot;
-  }
-
-  const record = snapshot as Record<string, unknown>;
   const nestedKeys = ["metrics", "snapshot", "data", "results", "payload"];
+  const visited = new Set<unknown>();
 
-  for (const key of nestedKeys) {
-    const candidate = record[key];
-    if (isRecord(candidate)) {
-      return candidate as TenantMetricsSnapshot;
+  let current: unknown = snapshot;
+
+  while (isRecord(current) && !visited.has(current)) {
+    visited.add(current);
+
+    const record = current as Record<string, unknown>;
+    let unwrapped = false;
+
+    for (const key of nestedKeys) {
+      const candidate = record[key];
+      if (isRecord(candidate)) {
+        current = candidate;
+        unwrapped = true;
+        break;
+      }
+    }
+
+    if (!unwrapped) {
+      break;
     }
   }
 
-  return snapshot;
+  return current as TenantMetricsSnapshot;
 }
 
 function parseTenantMetrics(snapshot: TenantMetricsSnapshot): TenantMetricsResolved {
