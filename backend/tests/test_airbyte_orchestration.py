@@ -63,7 +63,13 @@ def test_airbyte_service_triggers_and_records(tenant):
 
         def get_job(self, job_id: int):
             assert job_id == 55
-            return {"job": {"id": job_id, "status": "succeeded", "createdAt": int(now.timestamp())}}
+            return {
+                "job": {
+                    "id": job_id,
+                    "status": "succeeded",
+                    "createdAt": int(now.timestamp() * 1000),
+                }
+            }
 
     service = AirbyteSyncService(DummyClient(), now_fn=lambda: now)
     triggered = service.sync_due_connections()
