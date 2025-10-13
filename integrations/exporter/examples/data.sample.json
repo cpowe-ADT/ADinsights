@@ -1,0 +1,42 @@
+{
+  "title": "Demo Campaign Performance",
+  "dateRange": "2024-01-01 to 2024-01-07",
+  "kpis": [
+    { "label": "Total Spend", "value": "$12,345", "change": "+5.4% vs. prior" },
+    { "label": "Impressions", "value": "1,234,567", "change": "+2.1% vs. prior" },
+    { "label": "Clicks", "value": "45,678", "change": "+8.0% vs. prior" },
+    { "label": "Conversions", "value": "1,234", "change": "+3.3% vs. prior" }
+  ],
+  "rows": [
+    {
+      "channel": "Meta",
+      "campaign": "Spring Launch",
+      "impressions": 523456,
+      "clicks": 15678,
+      "ctr": "3.0%",
+      "spend": "$4,200",
+      "conversions": 410,
+      "cpa": "$10.24"
+    },
+    {
+      "channel": "Google Ads",
+      "campaign": "Always On Search",
+      "impressions": 387654,
+      "clicks": 20678,
+      "ctr": "5.3%",
+      "spend": "$5,900",
+      "conversions": 640,
+      "cpa": "$9.22"
+    },
+    {
+      "channel": "TikTok",
+      "campaign": "Creator Spotlight",
+      "impressions": 323457,
+      "clicks": 9430,
+      "ctr": "2.9%",
+      "spend": "$2,245",
+      "conversions": 184,
+      "cpa": "$12.20"
+    }
+  ]
+}

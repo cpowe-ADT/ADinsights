@@ -1,0 +1,18 @@
+{
+  "name": "@adinsights/exporter",
+  "version": "0.1.0",
+  "description": "Internal tooling for generating PDF reports from advertising data.",
+  "main": "bin/export-report",
+  "bin": {
+    "export-report": "bin/export-report"
+  },
+  "scripts": {
+    "postinstall": "playwright install chromium",
+    "build": "node -e \"console.log('No build step required for the exporter CLI.')\"",
+    "export": "node bin/export-report"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "playwright": "^1.41.1"
+  }
+}
