@@ -2,81 +2,67 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence
-
-from django.db import connection
-from rest_framework import permissions, viewsets
-from rest_framework.pagination import PageNumberPagination
+from django.conf import settings
+from rest_framework import permissions, status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .serializers import MetricRecordSerializer, MetricsQueryParamsSerializer
-
-
-class MetricsPagination(PageNumberPagination):
-    """Pagination class for metrics responses."""
-
-    page_size = 100
-    page_size_query_param = "page_size"
-    max_page_size = 500
+from adapters.base import MetricsAdapter
+from adapters.fake import FakeAdapter
 
 
-class MetricsViewSet(viewsets.ViewSet):
-    """Expose aggregated campaign metrics."""
+def _build_registry() -> dict[str, MetricsAdapter]:
+    """Return the enabled adapters keyed by their slug."""
+
+    registry: dict[str, MetricsAdapter] = {}
+    if getattr(settings, "ENABLE_FAKE_ADAPTER", False):
+        fake = FakeAdapter()
+        registry[fake.key] = fake
+    return registry
+
+
+class AdapterListView(APIView):
+    """Expose the catalog of enabled adapters."""
 
     permission_classes = [permissions.IsAuthenticated]
-    pagination_class = MetricsPagination
 
-    def list(self, request) -> Response:
-        params_serializer = MetricsQueryParamsSerializer(data=request.query_params)
-        params_serializer.is_valid(raise_exception=True)
-        filters = params_serializer.validated_data
+    def get(self, request) -> Response:  # noqa: D401 - DRF signature
+        registry = _build_registry()
+        payload = [adapter.metadata() for adapter in registry.values()]
+        return Response(payload)
+
+
+class MetricsView(APIView):
+    """Dispatch metrics requests to the configured adapter."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request) -> Response:  # noqa: D401 - DRF signature
+        registry = _build_registry()
+        if not registry:
+            return Response(
+                {"detail": "No analytics adapters are enabled."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        default_key = "fake" if "fake" in registry else next(iter(registry))
+        source = request.query_params.get("source", default_key)
+        adapter = registry.get(source)
+        if adapter is None:
+            return Response(
+                {"detail": f"Unknown adapter '{source}'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         tenant_id = getattr(request.user, "tenant_id", None)
         if tenant_id is None:
-            return Response({"detail": "Unable to resolve tenant."}, status=403)
+            return Response(
+                {"detail": "Unable to resolve tenant."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-        sql = [
-            "select",
-            "    date_day as date,",
-            "    source_platform as platform,",
-            "    campaign_name as campaign,",
-            "    parish_name as parish,",
-            "    impressions,",
-            "    clicks,",
-            "    spend,",
-            "    conversions,",
-            "    roas",
-            "from vw_campaign_daily",
-            "where tenant_id = %(tenant_id)s",
-            "  and date_day >= %(start_date)s",
-            "  and date_day <= %(end_date)s",
-        ]
-        query_params: dict[str, Any] = {
-            "tenant_id": str(tenant_id),
-            "start_date": filters["start_date"],
-            "end_date": filters["end_date"],
-        }
-
-        parish = filters.get("parish")
-        if parish:
-            sql.append("  and parish_name = %(parish)s")
-            query_params["parish"] = parish
-
-        sql.append("order by date desc")
-        sql_query = "\n".join(sql)
-
-        with connection.cursor() as cursor:
-            cursor.execute(sql_query, query_params)
-            rows = self._dictfetchall(cursor)
-
-        paginator = self.pagination_class()
-        page = paginator.paginate_queryset(rows, request, view=self)
-        serializer = MetricRecordSerializer(page if page is not None else rows, many=True)
-        if page is not None:
-            return paginator.get_paginated_response(serializer.data)
-        return Response(serializer.data)
-
-    @staticmethod
-    def _dictfetchall(cursor) -> list[dict[str, Any]]:
-        columns: Sequence[str] = [col[0] for col in cursor.description]
-        return [dict(zip(columns, row)) for row in cursor.fetchall()]
+        payload = adapter.fetch_metrics(
+            tenant_id=str(tenant_id),
+            options=request.query_params,
+        )
+        return Response(payload)
