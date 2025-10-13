@@ -296,3 +296,76 @@ class TenantAirbyteSyncStatus(models.Model):
             return status
         status.record_connection(connection)
         return status
+
+
+class CampaignBudget(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="campaign_budgets"
+    )
+    name = models.CharField(max_length=255)
+    monthly_target = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "name")
+        ordering = ("name",)
+
+    def __str__(self) -> str:  # pragma: no cover - repr helper
+        return f"CampaignBudget<{self.name}>"
+
+
+class AlertRuleDefinition(models.Model):
+    OPERATOR_GREATER_THAN = "gt"
+    OPERATOR_GREATER_THAN_EQUAL = "gte"
+    OPERATOR_LESS_THAN = "lt"
+    OPERATOR_LESS_THAN_EQUAL = "lte"
+    COMPARISON_CHOICES = [
+        (OPERATOR_GREATER_THAN, "greater_than"),
+        (OPERATOR_GREATER_THAN_EQUAL, "greater_than_equal"),
+        (OPERATOR_LESS_THAN, "less_than"),
+        (OPERATOR_LESS_THAN_EQUAL, "less_than_equal"),
+    ]
+
+    SEVERITY_LOW = "low"
+    SEVERITY_MEDIUM = "medium"
+    SEVERITY_HIGH = "high"
+    SEVERITY_CHOICES = [
+        (SEVERITY_LOW, "low"),
+        (SEVERITY_MEDIUM, "medium"),
+        (SEVERITY_HIGH, "high"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="alert_rule_definitions"
+    )
+    name = models.CharField(max_length=255)
+    metric = models.CharField(max_length=64)
+    comparison_operator = models.CharField(
+        max_length=3, choices=COMPARISON_CHOICES, default=OPERATOR_GREATER_THAN
+    )
+    threshold = models.DecimalField(max_digits=12, decimal_places=2)
+    lookback_hours = models.PositiveIntegerField(default=24)
+    severity = models.CharField(
+        max_length=6, choices=SEVERITY_CHOICES, default=SEVERITY_MEDIUM
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "name")
+        ordering = ("name",)
+
+    def __str__(self) -> str:  # pragma: no cover - repr helper
+        return f"AlertRuleDefinition<{self.name}>"
