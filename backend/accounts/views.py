@@ -227,6 +227,32 @@ class UserRoleViewSet(
         )
 
 
+class RoleAssignmentView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsTenantAdmin]
+
+    def post(self, request):
+        serializer = UserRoleSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        user_role = serializer.save()
+
+        log_audit_event(
+            tenant=user_role.tenant,
+            user=request.user,
+            action="role_assigned",
+            resource_type="role",
+            resource_id=user_role.user_id,
+            metadata={"role": user_role.role.name},
+        )
+
+        response_serializer = UserRoleSerializer(
+            user_role, context={"request": request}
+        )
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+
 class AuditLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = AuditLogSerializer
     permission_classes = [permissions.IsAuthenticated]
