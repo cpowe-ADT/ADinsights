@@ -6,22 +6,45 @@
 ) }}
 
 {% set campaign_snapshots %}
-    with campaign_attributes as (
-        select
-            source_platform,
-            ad_account_id,
+    with campaign_metadata as (
+        select distinct
+            'meta_ads' as source_platform,
+            account_id as ad_account_id,
             campaign_id,
-            coalesce(parish_code, 'UNK') as parish_code,
-            coalesce(parish_name, region_name, 'Unknown') as parish_name,
-            coalesce(region_name, 'Unknown') as region_name,
-            min(date_day) over (
-                partition by source_platform, ad_account_id, campaign_id
+            name as campaign_name
+        from {{ ref('stg_meta_campaigns') }}
+
+        union all
+
+        select distinct
+            'google_ads' as source_platform,
+            customer_id as ad_account_id,
+            campaign_id,
+            null as campaign_name
+        from {{ ref('stg_google_campaign_daily') }}
+    ),
+
+    campaign_attributes as (
+        select
+            a.source_platform,
+            a.ad_account_id,
+            a.campaign_id,
+            coalesce(cm.campaign_name, a.campaign_id::text) as campaign_name,
+            coalesce(a.parish_code, 'UNK') as parish_code,
+            coalesce(a.parish_name, a.region_name, 'Unknown') as parish_name,
+            coalesce(a.region_name, 'Unknown') as region_name,
+            min(a.date_day) over (
+                partition by a.source_platform, a.ad_account_id, a.campaign_id
             ) as first_seen_date,
-            effective_from
-        from {{ ref('all_ad_performance') }}
-        where campaign_id is not null
+            a.effective_from
+        from {{ ref('all_ad_performance') }} a
+        left join campaign_metadata cm
+            on a.source_platform = cm.source_platform
+            and a.ad_account_id = cm.ad_account_id
+            and a.campaign_id = cm.campaign_id
+        where a.campaign_id is not null
         {% if is_incremental() %}
-            and effective_from >= (
+            and a.effective_from >= (
                 select coalesce(max(valid_from), '1900-01-01'::timestamp) from {{ this }}
             )
         {% endif %}
@@ -31,6 +54,7 @@
         source_platform,
         ad_account_id,
         campaign_id,
+        campaign_name,
         parish_code,
         parish_name,
         region_name,
@@ -42,5 +66,5 @@
 {{ scd2_dimension(
     source_query=campaign_snapshots,
     natural_key=['source_platform', 'ad_account_id', 'campaign_id'],
-    tracked_columns=['parish_code', 'parish_name', 'region_name', 'first_seen_date']
+    tracked_columns=['campaign_name', 'parish_code', 'parish_name', 'region_name', 'first_seen_date']
 ) }}
