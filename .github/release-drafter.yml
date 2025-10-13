@@ -1,0 +1,37 @@
+name-template: 'v$NEXT_PATCH_VERSION'
+tag-template: 'v$NEXT_PATCH_VERSION'
+change-template: '- $TITLE (#$NUMBER)'
+categories:
+  - title: '🚀 Features'
+    labels:
+      - feature
+      - enhancement
+  - title: '🐛 Bug Fixes'
+    labels:
+      - bug
+      - fix
+  - title: '🧰 Maintenance'
+    labels:
+      - chore
+      - maintenance
+      - refactor
+  - title: '📚 Documentation'
+    labels:
+      - docs
+      - documentation
+  - title: '🧪 Tests'
+    labels:
+      - test
+      - tests
+  - title: '⬆️ Dependencies'
+    labels:
+      - dependencies
+      - dependabot
+template: |
+  ## What changed
+
+  $CHANGES
+
+  ## Contributors
+
+  $CONTRIBUTORS

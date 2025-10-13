@@ -1,0 +1,19 @@
+name: Update draft release notes
+
+on:
+  push:
+    branches:
+      - main
+    tags-ignore:
+      - '*'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Draft release notes
+        uses: release-drafter/release-drafter@v6
+        with:
+          config-name: release-drafter.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
