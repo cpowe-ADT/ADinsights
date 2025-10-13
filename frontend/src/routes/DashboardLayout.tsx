@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
+import { useTheme } from "../components/ThemeProvider";
 import useDashboardStore from "../state/useDashboardStore";
 import { loadDashboardLayout, saveDashboardLayout } from "../lib/layoutPreferences";
 import { useToast } from "../components/ToastProvider";
@@ -17,6 +18,8 @@ const metricOptions = [
 
 const DashboardLayout = () => {
   const { tenantId, logout, user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+
   const handleFilterChange = useCallback((_: FilterBarState) => {
     // TODO: Connect filters to dashboard data fetching once APIs support it.
   }, []);
@@ -180,6 +183,20 @@ const DashboardLayout = () => {
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            className="button tertiary theme-toggle"
+            onClick={toggleTheme}
+            aria-pressed={theme === "dark"}
+          >
+            <span className="theme-toggle__icon" aria-hidden="true">
+              {theme === "dark" ? "🌞" : "🌙"}
+            </span>
+            <span>{theme === "dark" ? "Light" : "Dark"} mode</span>
+          </button>
+          <span className="muted user-pill">{(user as { email?: string } | undefined)?.email ?? "Account"}</span>
+          <button type="button" className="button tertiary" onClick={logout}>
+            Log out
           <button type="button" className="button secondary" onClick={handleSaveLayout}>
             {SaveIcon}
             Save layout
