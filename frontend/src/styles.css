@@ -557,6 +557,150 @@ label,
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
+.metric-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-subtle);
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  overflow: hidden;
+  padding: 1.25rem;
+  transition: transform 160ms ease, box-shadow 220ms ease;
+}
+
+.metric-card:hover,
+.metric-card:focus-within {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+
+.metric-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.metric-card__label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  margin: 0;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.metric-card__badge {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.65rem;
+  font-weight: 600;
+  gap: 0.25rem;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  padding: 0.25rem 0.55rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.metric-card__badge--new {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--accent-primary-strong);
+}
+
+.metric-card__badge--paused {
+  background: var(--status-muted-bg);
+  color: var(--muted);
+}
+
+.metric-card__badge--limited-data {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--warning);
+}
+
+.metric-card__value-row {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.metric-card__value {
+  color: var(--text-primary);
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.metric-card__delta {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.85rem;
+  font-weight: 600;
+  gap: 0.35rem;
+  line-height: 1;
+  padding: 0.3rem 0.6rem;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.metric-card__delta-icon {
+  font-size: 0.75rem;
+}
+
+.metric-card__delta--positive {
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--positive);
+}
+
+.metric-card__delta--negative {
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--negative);
+}
+
+.metric-card__delta--neutral {
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--text-tertiary);
+}
+
+.metric-card__sparkline {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.metric-card__sparkline svg {
+  flex: 1 1 auto;
+  height: 40px;
+  width: 100%;
+}
+
+.metric-card__sparkline-line {
+  fill: none;
+  stroke: var(--accent-primary-strong);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.metric-card__sparkline-area {
+  fill: var(--accent-subtle);
+}
+
+.metric-card__hint {
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  margin: 0;
+}
+
 .kpi-card {
   background: linear-gradient(135deg, #eff6ff, #e0f2fe);
   border-radius: var(--radius);

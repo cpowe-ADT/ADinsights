@@ -5,13 +5,44 @@ import CampaignTrendChart from "../components/CampaignTrendChart";
 import EmptyState from "../components/EmptyState";
 import ErrorState from "../components/ErrorState";
 import ChartCard from "../components/ChartCard";
-import FullPageLoader from "../components/FullPageLoader";
-import KpiCard from "../components/KpiCard";
+import Metric from "../components/Metric";
 import ParishMap from "../components/ParishMap";
 import Skeleton from "../components/Skeleton";
 import { useAuth } from "../auth/AuthContext";
 import useDashboardStore from "../state/useDashboardStore";
 import { formatCurrency, formatNumber, formatRatio } from "../lib/format";
+
+type MetricBadge = "New" | "Paused" | "Limited data";
+
+const sanitizeSeries = (series: Array<number | undefined>): number[] =>
+  series.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+
+const computeDeltaFromSeries = (
+  series?: number[],
+): { delta?: string; deltaDirection: "up" | "down" | "flat" } => {
+  if (!series || series.length < 2) {
+    return { delta: undefined, deltaDirection: "flat" };
+  }
+
+  const current = series[series.length - 1];
+  const previous = series[series.length - 2];
+
+  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) {
+    return { delta: undefined, deltaDirection: "flat" };
+  }
+
+  const change = ((current - previous) / Math.abs(previous)) * 100;
+
+  if (!Number.isFinite(change)) {
+    return { delta: undefined, deltaDirection: "flat" };
+  }
+
+  const direction = change === 0 ? "flat" : change > 0 ? "up" : "down";
+  const magnitude = Math.abs(change);
+  const formatted = `${change > 0 ? "+" : change < 0 ? "-" : ""}${magnitude >= 100 ? magnitude.toFixed(0) : magnitude.toFixed(1)}%`;
+
+  return { delta: formatted, deltaDirection: direction };
+};
 
 const CampaignEmptyIcon = () => (
   <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.4">
@@ -77,13 +108,72 @@ const CampaignDashboard = () => {
   const trend = campaign.data?.trend ?? [];
   const currency = summary?.currency ?? "USD";
 
+  const spendSeries = sanitizeSeries(trend.map((point) => point.spend));
+  const impressionsSeries = sanitizeSeries(trend.map((point) => point.impressions));
+  const clicksSeries = sanitizeSeries(trend.map((point) => point.clicks));
+  const conversionsSeries = sanitizeSeries(trend.map((point) => point.conversions));
+  const roasSeries = sanitizeSeries(
+    trend.map((point) => {
+      if (!point.spend) {
+        return undefined;
+      }
+
+      const ratio = point.conversions / point.spend;
+      return Number.isFinite(ratio) ? ratio : undefined;
+    }),
+  );
+
+  const baseBadge: MetricBadge | undefined = isInitialLoading
+    ? undefined
+    : !hasTrendData
+    ? "Limited data"
+    : trend.length <= 3
+    ? "New"
+    : undefined;
+  const spendBadge: MetricBadge | undefined = summary && summary.totalSpend === 0 ? "Paused" : baseBadge;
+
   const kpis = [
-    { label: "Spend", value: summary ? formatCurrency(summary.totalSpend, currency) : "—" },
-    { label: "Impressions", value: summary ? formatNumber(summary.totalImpressions) : "—" },
-    { label: "Clicks", value: summary ? formatNumber(summary.totalClicks) : "—" },
-    { label: "Conversions", value: summary ? formatNumber(summary.totalConversions) : "—" },
-    { label: "Avg. ROAS", value: summary ? formatRatio(summary.averageRoas, 2) : "—" },
-  ];
+    {
+      label: "Spend",
+      value: summary ? formatCurrency(summary.totalSpend, currency) : "—",
+      trend: spendSeries,
+      badge: spendBadge,
+    },
+    {
+      label: "Impressions",
+      value: summary ? formatNumber(summary.totalImpressions) : "—",
+      trend: impressionsSeries,
+      badge: baseBadge,
+    },
+    {
+      label: "Clicks",
+      value: summary ? formatNumber(summary.totalClicks) : "—",
+      trend: clicksSeries,
+      badge: baseBadge,
+    },
+    {
+      label: "Conversions",
+      value: summary ? formatNumber(summary.totalConversions) : "—",
+      trend: conversionsSeries,
+      badge: baseBadge,
+    },
+    {
+      label: "Avg. ROAS",
+      value: summary ? formatRatio(summary.averageRoas, 2) : "—",
+      trend: roasSeries,
+      badge: baseBadge,
+      hint: summary ? "Return on ad spend across the selected period." : undefined,
+    },
+  ].map((metric) => {
+    const { delta, deltaDirection } = computeDeltaFromSeries(metric.trend);
+
+    return {
+      ...metric,
+      delta,
+      deltaDirection,
+      hint: metric.hint ?? (delta ? "vs previous day" : undefined),
+    };
+  });
 
   const hasTrendData = trend.length > 0;
   const dateRangeFormatter = new Intl.DateTimeFormat("en-JM", { month: "short", day: "numeric" });
@@ -107,7 +197,16 @@ const CampaignDashboard = () => {
     <div className="dashboard-grid">
       <section className="kpi-grid" aria-label="Campaign KPIs">
         {kpis.map((kpi) => (
-          <KpiCard key={kpi.label} label={kpi.label} value={kpi.value} isLoading={isInitialLoading} />
+          <Metric
+            key={kpi.label}
+            label={kpi.label}
+            value={kpi.value}
+            delta={kpi.delta}
+            deltaDirection={kpi.deltaDirection}
+            hint={kpi.hint}
+            trend={kpi.trend}
+            badge={kpi.badge}
+          />
         ))}
       </section>
       <section className="panel">
