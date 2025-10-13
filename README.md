@@ -111,6 +111,9 @@ endpoint instead of the bundled sample payload.
 ### Airbyte Connectors
 ```bash
 cd infrastructure/airbyte
+cp env.example .env  # populate overrides for local secrets and ports
+# Review the declarative templates (e.g., google_ads_source.yaml) before launching the stack
+docker compose config  # render a cleaned compose file to confirm env interpolation
 docker compose up -d
 ```
 Navigate to <http://localhost:8000> to configure sources. Use the `.example` files in `sources/` as

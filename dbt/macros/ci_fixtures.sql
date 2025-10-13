@@ -21,6 +21,8 @@
     {% set fixtures = [
         {'schema': raw_schema, 'identifier': 'google_ads_insights', 'seed_identifier': 'raw__google_ads_insights'},
         {'schema': raw_schema, 'identifier': 'meta_ads_insights', 'seed_identifier': 'raw__meta_ads_insights'},
+        {'schema': raw_schema, 'identifier': 'linkedin_transparency', 'seed_identifier': 'raw__linkedin_transparency'},
+        {'schema': raw_schema, 'identifier': 'tiktok_transparency', 'seed_identifier': 'raw__tiktok_transparency'},
         {'schema': raw_google_ads_schema, 'identifier': 'campaign_daily', 'seed_identifier': 'raw_google_ads__campaign_daily'},
         {'schema': raw_google_ads_schema, 'identifier': 'geographic_view', 'seed_identifier': 'raw_google_ads__geographic_view'},
         {'schema': raw_meta_schema, 'identifier': 'ad_insights', 'seed_identifier': 'raw_meta__ad_insights'},

@@ -2,6 +2,8 @@
 
 Use these API endpoints to observe connector health from automation or dashboards. All paths are relative to the OSS server (`http://localhost:8001` in local compose).
 
+> **Configuration validation:** Render the cleaned compose file with `docker compose config` after copying `env.example` to `.env` so you can confirm the sample environment resolves before starting services.
+
 ## Quick status checks
 ## Quick runbook
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ColumnDef,
   ColumnPinningState,
@@ -11,6 +11,21 @@ import {
 
 import useDashboardStore, { CampaignPerformanceRow } from "../state/useDashboardStore";
 import { formatCurrency, formatNumber, formatPercent, formatRatio } from "../lib/format";
+import { TABLE_VIEW_KEYS } from "../lib/savedViews";
+
+type CampaignTableViewState = {
+  sorting?: SortingState;
+  columnPinning?: ColumnPinningState;
+};
+
+const DEFAULT_SORTING: SortingState = [{ id: "spend", desc: true }];
+const DEFAULT_COLUMN_PINNING: ColumnPinningState = { left: ["name"] };
+
+const createDefaultSorting = (): SortingState => DEFAULT_SORTING.map((item) => ({ ...item }));
+const createDefaultColumnPinning = (): ColumnPinningState => ({
+  left: DEFAULT_COLUMN_PINNING.left ? [...DEFAULT_COLUMN_PINNING.left] : undefined,
+  right: DEFAULT_COLUMN_PINNING.right ? [...DEFAULT_COLUMN_PINNING.right] : undefined,
+});
 
 interface CampaignTableProps {
   rows: CampaignPerformanceRow[];
@@ -32,13 +47,23 @@ const headers = [
 ];
 
 const CampaignTable = ({ rows, currency }: CampaignTableProps) => {
-  const { selectedParish, setSelectedParish } = useDashboardStore((state) => ({
-    selectedParish: state.selectedParish,
-    setSelectedParish: state.setSelectedParish,
-  }));
+  const selectedParish = useDashboardStore((state) => state.selectedParish);
+  const setSelectedParish = useDashboardStore((state) => state.setSelectedParish);
+  const loadView = useDashboardStore((state) => state.getSavedTableView);
+  const persistView = useDashboardStore((state) => state.setSavedTableView);
 
-  const [sorting, setSorting] = useState<SortingState>([{ id: "spend", desc: true }]);
-  const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({ left: ["name"] });
+  const [sorting, setSorting] = useState<SortingState>(() => {
+    const stored = loadView<CampaignTableViewState>(TABLE_VIEW_KEYS.campaign);
+    return stored?.sorting ?? createDefaultSorting();
+  });
+  const [columnPinning, setColumnPinning] = useState<ColumnPinningState>(() => {
+    const stored = loadView<CampaignTableViewState>(TABLE_VIEW_KEYS.campaign);
+    return stored?.columnPinning ?? createDefaultColumnPinning();
+  });
+
+  useEffect(() => {
+    persistView(TABLE_VIEW_KEYS.campaign, { sorting, columnPinning });
+  }, [sorting, columnPinning, persistView]);
 
   const columns = useMemo<ColumnDef<CampaignPerformanceRow>[]>(
     () => [

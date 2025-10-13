@@ -1,37 +1,26 @@
 {
   "name": "Google Ads (Incremental Template)",
   "sourceType": "google-ads",
-  "workspaceId": "REPLACE_WITH_WORKSPACE_ID",
+  "workspaceId": "00000000-0000-0000-0000-000000000000",
   "configuration": {
     "developer_token": "${AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN}",
     "client_id": "${AIRBYTE_GOOGLE_ADS_CLIENT_ID}",
     "client_secret": "${AIRBYTE_GOOGLE_ADS_CLIENT_SECRET}",
     "refresh_token": "${AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN}",
-    "login_customer_id": "REPLACE_WITH_MANAGER_ID",
-    "customer_id": "REPLACE_WITH_ACCOUNT_ID",
-  "workspaceId": "00000000-0000-0000-0000-000000000000",
-  "configuration": {
-    "developer_token": "REDACTED_DEVELOPER_TOKEN",
-    "client_id": "REDACTED_OAUTH_CLIENT_ID",
-    "client_secret": "REDACTED_OAUTH_CLIENT_SECRET",
-    "refresh_token": "REDACTED_REFRESH_TOKEN",
-    "login_customer_id": "REDACTED_MANAGER_ID",
-    "customer_id": "REDACTED_CUSTOMER_ID",
+    "login_customer_id": "${AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID}",
+    "customer_id": "${AIRBYTE_GOOGLE_ADS_CUSTOMER_ID}",
     "start_date": "2024-01-01",
     "end_date": null,
-    "conversion_window": 30,
-    "lookback_window": 3,
+    "conversion_window": "${AIRBYTE_GOOGLE_ADS_CONVERSION_WINDOW_DAYS}",
+    "lookback_window": "${AIRBYTE_GOOGLE_ADS_LOOKBACK_DAYS}",
     "use_resource_custom_queries": true,
     "custom_queries": [
       {
-        "name": "campaign_performance_hourly",
-        "query": "SELECT segments.date, segments.hour, campaign.id, campaign.name, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign_hourly_view WHERE segments.date BETWEEN '{{ runtime_from_date }}' AND '{{ runtime_to_date }}'",
-        "name": "campaign_performance",
+        "name": "campaign_performance_daily",
         "query": "SELECT segments.date, campaign.id, campaign.name, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '{{ runtime_from_date }}' AND '{{ runtime_to_date }}'",
         "primary_key": [
           "campaign.id",
-          "segments.date",
-          "segments.hour"
+          "segments.date"
         ],
         "cursor_field": "segments.date",
         "destination_sync_mode": "append_dedup"
@@ -53,14 +42,16 @@
   },
   "streams": [
     {
-      "name": "campaign_performance_hourly",
-      "syncMode": "incremental",
-      "cursorField": "segments.date"
+      "name": "campaign_performance_daily",
+      "sync_mode": "incremental",
+      "cursor_field": "segments.date",
+      "destination_sync_mode": "append_dedup"
     },
     {
       "name": "geo_performance_daily",
-      "syncMode": "incremental",
-      "cursorField": "segments.date"
+      "sync_mode": "incremental",
+      "cursor_field": "segments.date",
+      "destination_sync_mode": "append_dedup"
     }
   ]
 }
