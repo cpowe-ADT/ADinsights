@@ -33,36 +33,24 @@ with source as (
 
 flattened as (
     select
-        s.account_id,
-        s.campaign_id,
-        s.adset_id,
-        s.ad_id,
-        s.date,
-        s.country,
-        s.region,
-        s.city,
-        s.impressions,
-        s.clicks,
-        s.spend,
-        s.cpc,
-        s.cpm,
-        s.ctr,
-        coalesce(
-            sum(cast({{ json_get_text('action.action_json', "'value'") }} as numeric))
-            filter (
-                where {{ json_get_text('action.action_json', "'action_type'") }} = 'offsite_conversion'
-            ),
-            0
-        ) as conversions,
-        coalesce(
-            sum(cast({{ json_get_text('action.action_json', "'value'") }} as numeric))
-            filter (
-                where {{ json_get_text('action.action_json', "'action_type'") }} in ('offsite_conversion', 'purchase')
-            ),
-            0
-        ) as conv_value
-    from source as s
-    left join lateral {{ json_array_elements_subquery(json_array_coalesce('s.actions')) }} as action(action_json) on true
+        account_id,
+        campaign_id,
+        adset_id,
+        ad_id,
+        date,
+        country,
+        region,
+        city,
+        impressions,
+        clicks,
+        spend,
+        cpc,
+        cpm,
+        ctr,
+        coalesce(sum((action ->> 'value')::numeric) filter (where action ->> 'action_type' = 'offsite_conversion'), 0) as conversions,
+        coalesce(sum((action ->> 'value')::numeric) filter (where action ->> 'action_type' in ('offsite_conversion', 'purchase')), 0) as conv_value
+    from source
+    left join lateral jsonb_array_elements(coalesce(actions::{{ json_type }}, '[]'::{{ json_type }})) as action on true
     group by 1,2,3,4,5,6,7,8,9,10,11,12,13,14
 )
 

@@ -40,7 +40,9 @@ seeds:
         +column_types:
           customer_id: text
           campaign_id: text
+          campaign_name: text
           ad_group_id: text
+          ad_name: text
           criterion_id: text
           date_day: date
           geo_target_region: text
@@ -54,8 +56,10 @@ seeds:
         +column_types:
           ad_account_id: text
           campaign_id: text
+          campaign_name: text
           adset_id: text
           ad_id: text
+          ad_name: text
           date_start: date
           region: text
           spend: numeric
