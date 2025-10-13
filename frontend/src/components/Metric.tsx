@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react';
 
 type DeltaDirection = 'up' | 'down' | 'flat';
 
-type MetricBadge = 'New' | 'Paused' | 'Limited data';
+export type MetricBadge = 'New' | 'Paused' | 'Limited data';
 
 type MetricProps = {
   label: string;

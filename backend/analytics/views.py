@@ -2,29 +2,26 @@
 
 from __future__ import annotations
 
+import csv
+from typing import Any, Iterable, Sequence
+
 from django.conf import settings
-from rest_framework import permissions, status
+from django.db import connection
+from django.http import StreamingHttpResponse
+from rest_framework import permissions, status, viewsets
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from adapters.base import MetricsAdapter
 from adapters.fake import FakeAdapter
 
-
-def _build_registry() -> dict[str, MetricsAdapter]:
-    """Return the enabled adapters keyed by their slug."""
-import csv
-from typing import Any, Iterable, Sequence
-
-from django.db import connection
-from django.http import StreamingHttpResponse
-from rest_framework import permissions, viewsets
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
 from .exporters import FakeMetricsExportAdapter
 from .serializers import MetricRecordSerializer, MetricsQueryParamsSerializer
+
+
+def _build_registry() -> dict[str, MetricsAdapter]:
+    """Return the enabled analytics adapters keyed by their slug."""
 
     registry: dict[str, MetricsAdapter] = {}
     if getattr(settings, "ENABLE_FAKE_ADAPTER", False):
@@ -78,7 +75,25 @@ class MetricsView(APIView):
             options=request.query_params,
         )
         return Response(payload)
-            return Response({"detail": "Unable to resolve tenant."}, status=403)
+
+
+class MetricsViewSet(viewsets.ViewSet):
+    """Serve tabular campaign metrics sourced from the warehouse."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = PageNumberPagination
+
+    def list(self, request) -> Response:  # noqa: D401 - DRF signature
+        serializer = MetricsQueryParamsSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        filters = serializer.validated_data
+
+        tenant_id = getattr(request.user, "tenant_id", None)
+        if tenant_id is None:
+            return Response(
+                {"detail": "Unable to resolve tenant."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         sql = [
             "select",
@@ -96,6 +111,7 @@ class MetricsView(APIView):
             "  and date_day >= %(start_date)s",
             "  and date_day <= %(end_date)s",
         ]
+
         query_params: dict[str, Any] = {
             "tenant_id": str(tenant_id),
             "start_date": filters["start_date"],
@@ -157,3 +173,4 @@ class MetricsExportView(APIView):
         yield writer.writerow(headers)
         for row in rows:
             yield writer.writerow(row)
+

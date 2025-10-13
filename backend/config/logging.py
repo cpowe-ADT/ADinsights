@@ -1,9 +1,9 @@
-from __future__ import annotations
-
 """Logging configuration helpers for the backend service."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict
+from typing import Any
 
 DEFAULT_LOG_LEVEL = "INFO"
 
@@ -24,7 +24,7 @@ def _normalize_level(level: str) -> str:
     return DEFAULT_LOG_LEVEL
 
 
-def build_logging_config(level: str = DEFAULT_LOG_LEVEL) -> Dict[str, Any]:
+def build_logging_config(level: str = DEFAULT_LOG_LEVEL) -> dict[str, Any]:
     """Produce a ``dictConfig`` logging payload that emits JSON to stdout."""
 
     log_level = _normalize_level(level)

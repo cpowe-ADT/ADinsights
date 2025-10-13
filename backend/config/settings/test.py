@@ -10,7 +10,7 @@ os.environ.setdefault("SECRETS_PROVIDER", "env")
 os.environ.setdefault("KMS_PROVIDER", "aws")
 os.environ.setdefault("API_VERSION", "test")
 
-from .base import *  # noqa: F403
+from .base import *  # noqa: F403,E402
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "test")
 DEBUG = True

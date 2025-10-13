@@ -236,6 +236,43 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     [formatMetricValue, metricByParish, metricLabel],
   );
 
+  const assignTestId = useCallback((layer: L.Layer, name: string) => {
+    const pathLayer = layer as L.Path & { getElement?: () => HTMLElement | null };
+    const element = pathLayer.getElement?.();
+    if (element) {
+      element.setAttribute('data-testid', `parish-feature-${name}`);
+      return;
+    }
+
+    if (typeof layer.once === 'function') {
+      layer.once('add', () => {
+        const target = pathLayer.getElement?.();
+        if (target) {
+          target.setAttribute('data-testid', `parish-feature-${name}`);
+        }
+      });
+    }
+  }, []);
+
+  const accessibleParishNames = useMemo(() => {
+    if (!geojson) {
+      return [];
+    }
+
+    const names = new Set<string>();
+    for (const feature of geojson.features ?? []) {
+      names.add(getFeatureName(feature));
+    }
+    return Array.from(names).sort();
+  }, [geojson]);
+
+  const handleAccessibleSelect = useCallback(
+    (name: string) => {
+      setSelectedParish(name);
+    },
+    [setSelectedParish],
+  );
+
   useEffect(() => {
     styleForParishRef.current = styleForParish;
   }, [styleForParish]);
@@ -264,6 +301,8 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
         pathLayer.setStyle(styleForParish(name));
       }
 
+      assignTestId(layer, name);
+
       const tooltipText = tooltipForParish(name);
       const typedLayer = layer as L.Layer & { getTooltip?: () => L.Tooltip | undefined };
       const existingTooltip = typedLayer.getTooltip?.();
@@ -289,7 +328,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
         },
       });
     },
-    [setSelectedParish, styleForParish, tooltipForParish],
+    [assignTestId, setSelectedParish, styleForParish, tooltipForParish],
   );
 
   useEffect(() => {
@@ -382,6 +421,8 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
         pathLayer.setStyle(styleForParish(name));
       }
 
+      assignTestId(layer, name);
+
       const tooltipText = tooltipForParish(name);
       const typedLayer = layer as L.Layer & { getTooltip?: () => L.Tooltip | undefined };
       const existingTooltip = typedLayer.getTooltip?.();
@@ -397,7 +438,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
         });
       }
     });
-  }, [styleForParish, tooltipForParish]);
+  }, [assignTestId, styleForParish, tooltipForParish]);
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -460,6 +501,19 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   return (
     <div className={styles.mapShell} style={{ height }}>
       <div ref={mapNodeRef} className={`leaflet-container ${styles.map}`} />
+      <div className={styles.accessibilityList}>
+        {accessibleParishNames.map((name) => (
+          <button
+            key={name}
+            type="button"
+            className={styles.accessibilityTrigger}
+            data-testid={`parish-feature-${name}`}
+            onClick={() => handleAccessibleSelect(name)}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
 
       <div className={styles.overlay}>
         <Link to="/dashboards/map" className={styles.fullMapLink}>
