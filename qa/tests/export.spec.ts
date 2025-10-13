@@ -1,10 +1,14 @@
-import { expect, test } from "./fixtures/base";
+import { test } from "./fixtures/base";
 import { skipWhenNoLiveApi } from "../utils/live";
+import { DashboardPage } from "../page-objects";
+import { schemaValidate } from "../utils/schemaValidate";
 
 test.describe("metrics CSV export", () => {
   skipWhenNoLiveApi(test);
 
-  test("returns a CSV attachment", async ({ page, mockMode }) => {
+  test("returns a CSV attachment", async ({ page, mockMode, liveApi }) => {
+    test.skip(!mockMode && !liveApi.ready, "Live API is not configured");
+
     const csvBody = [
       ["date", "parish", "impressions", "clicks", "spend", "conversions", "roas"],
       ["2024-09-01", "Kingston", "120000", "3400", "540.00", "120", "3.5"],
@@ -25,7 +29,8 @@ test.describe("metrics CSV export", () => {
       });
     }
 
-    await page.goto("/");
+    const dashboard = new DashboardPage(page);
+    await dashboard.open();
 
     const response = await page.evaluate(async () => {
       const result = await fetch("/api/metrics/export/?format=csv", {
@@ -40,14 +45,35 @@ test.describe("metrics CSV export", () => {
       };
     });
 
+    const lines = response.body
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    const [headerLine, ...dataLines] = lines;
+    const headers = headerLine?.split(",") ?? [];
+    const rows = dataLines.map((line) => {
+      const values = line.split(",");
+      return headers.reduce<Record<string, string>>((acc, header, index) => {
+        acc[header] = values[index] ?? "";
+        return acc;
+      }, {});
+    });
+
+    await schemaValidate("metrics-export", {
+      status: response.status,
+      contentType: response.contentType ?? "",
+      contentDisposition: response.contentDisposition ?? "",
+      headers,
+      rows,
+    });
     expect(response.status).toBe(200);
     expect(response.contentType ?? "").toMatch(/text\/csv/i);
     expect(response.contentDisposition ?? "").toMatch(/\.csv/i);
 
-    const [headerLine, dataLine] = response.body.trim().split("\n");
-    const headers = headerLine.split(",");
-    const data = dataLine.split(",");
+    const lines = response.body.trim().split("\n");
+    expect(lines.length).toBeGreaterThan(0);
 
+    const headers = lines[0].split(",");
     expect(headers).toEqual([
       "date",
       "parish",
@@ -57,8 +83,22 @@ test.describe("metrics CSV export", () => {
       "conversions",
       "roas",
     ]);
-    expect(data[0]).toMatch(/\d{4}-\d{2}-\d{2}/);
-    expect(Number(data[2])).toBeGreaterThan(0);
+
+    if (mockMode) {
+      expect(lines.length).toBeGreaterThan(1);
+      const data = lines[1].split(",");
+      expect(data).toEqual([
+        "2024-09-01",
+        "Kingston",
+        "120000",
+        "3400",
+        "540.00",
+        "120",
+        "3.5",
+      ]);
+    } else {
+      expect(lines.length).toBeGreaterThan(1);
+    }
 
     if (mockMode) {
       await page.unroute("**/api/metrics/export/**");

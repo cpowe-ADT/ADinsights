@@ -1,25 +1,35 @@
 import { expect, test } from "./fixtures/base";
 import { skipWhenNoLiveApi } from "../utils/live";
+import { DashboardPage } from "../page-objects";
+import { schemaValidate } from "../utils/schemaValidate";
 
 test.describe("health endpoints", () => {
   skipWhenNoLiveApi(test);
 
-  test("respond with healthy payloads", async ({ page, mockMode }) => {
+  test("respond with healthy payloads", async ({ page, mockMode, liveApi }) => {
+    test.skip(!mockMode && !liveApi.ready, "Live API is not configured");
+
     const mockedResponses: Record<string, unknown> = {
       "/api/health/": { status: "ok" },
       "/api/health/airbyte/": {
+        component: "airbyte",
         status: "ok",
-        latest_sync: {
-          status: "succeeded",
-          seconds_since_finished: 180,
+        configured: true,
+        stale: false,
+        last_sync: {
+          tenant_id: "11111111-1111-1111-1111-111111111111",
+          last_synced_at: "2024-09-01T08:00:00Z",
+          last_job_status: "succeeded",
+          last_job_id: "123",
         },
       },
       "/api/health/dbt/": {
+        component: "dbt",
         status: "ok",
-        latest_run: {
-          status: "success",
-          finished_at: "2024-09-01T08:00:00Z",
-        },
+        run_results_path: "/srv/dbt/run_results.json",
+        generated_at: "2024-09-01T08:00:00Z",
+        failing_models: [],
+        stale: false,
       },
     };
 
@@ -39,7 +49,8 @@ test.describe("health endpoints", () => {
       });
     }
 
-    await page.goto("/");
+    const dashboard = new DashboardPage(page);
+    await dashboard.open();
 
     const results = await page.evaluate(async () => {
       const endpoints = ["/api/health/", "/api/health/airbyte/", "/api/health/dbt/"];
@@ -59,20 +70,22 @@ test.describe("health endpoints", () => {
 
     for (const { endpoint, status, body } of results) {
       expect(status, `${endpoint} status`).toBe(200);
-      expect(body).toBeTruthy();
+      await schemaValidate(endpoint, body);
       const parsed = body as Record<string, unknown>;
       expect(parsed.status).toBe("ok");
     }
 
-    const airbytePayload = results.find((item) => item.endpoint.endsWith("/api/health/airbyte/"));
-    expect(airbytePayload?.body).toMatchObject({
-      latest_sync: expect.objectContaining({ status: expect.stringMatching(/succeeded|ok/i) }),
-    });
+    if (mockMode) {
+      const airbytePayload = results.find((item) => item.endpoint.endsWith("/api/health/airbyte/"));
+      expect(airbytePayload?.body).toMatchObject({
+        latest_sync: expect.objectContaining({ status: expect.stringMatching(/succeeded|ok/i) }),
+      });
 
-    const dbtPayload = results.find((item) => item.endpoint.endsWith("/api/health/dbt/"));
-    expect(dbtPayload?.body).toMatchObject({
-      latest_run: expect.objectContaining({ status: expect.stringMatching(/success|ok/i) }),
-    });
+      const dbtPayload = results.find((item) => item.endpoint.endsWith("/api/health/dbt/"));
+      expect(dbtPayload?.body).toMatchObject({
+        latest_run: expect.objectContaining({ status: expect.stringMatching(/success|ok/i) }),
+      });
+    }
 
     if (mockMode) {
       await page.unroute("**/api/health/**");

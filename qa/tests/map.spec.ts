@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "./fixtures/base";
+import { DashboardPage } from "../page-objects";
 
 const geoJson = {
   type: "FeatureCollection",
@@ -106,27 +107,14 @@ test.describe("parish choropleth", () => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
+    const dashboard = new DashboardPage(page);
+    await dashboard.open();
+    await dashboard.mapPanel.waitForFeatureCount(geoJson.features.length);
 
-    const shapes = page.locator(".leaflet-interactive");
-    await expect(shapes).toHaveCount(geoJson.features.length);
-
-    const tooltip = page.locator(".leaflet-tooltip");
-    const count = await shapes.count();
-    let sawKingston = false;
-
-    for (let index = 0; index < count; index += 1) {
-      await shapes.nth(index).hover();
-      await expect(tooltip).toBeVisible();
-      const text = await tooltip.innerText();
-      if (text.includes("Kingston")) {
-        expect(text).toContain("IMPRESSIONS");
-        expect(text.replace(/[,\s]/g, "")).toContain("IMPRESSIONS:120000");
-        sawKingston = true;
-        break;
-      }
-    }
-
-    expect(sawKingston).toBe(true);
+    const tooltipText = await dashboard.mapPanel.hoverEachFeatureUntil((text) => text.includes("Kingston"));
+    expect(tooltipText).toBeTruthy();
+    expect(tooltipText ?? "").toContain("IMPRESSIONS");
+    expect((tooltipText ?? "").replace(/[,\s]/g, "")).toContain("IMPRESSIONS:120000");
 
     const screenshot = await page.screenshot({
       animations: "disabled",

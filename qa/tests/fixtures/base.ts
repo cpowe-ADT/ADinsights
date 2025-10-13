@@ -1,5 +1,6 @@
 import { test as base, expect } from "@playwright/test";
 import { Buffer } from "node:buffer";
+import { getLiveApiState, type LiveApiState } from "../../utils/live";
 
 const STORAGE_KEY = "adinsights.auth";
 
@@ -24,10 +25,14 @@ const TRANSPARENT_TILE = Buffer.from(
 
 type Fixtures = {
   mockMode: boolean;
+  liveApi: LiveApiState;
 };
 
 export const test = base.extend<Fixtures>({
   mockMode: [((process.env.MOCK_MODE ?? "true").toLowerCase() !== "false"), { option: true }],
+  liveApi: [async ({}, use) => {
+    await use(getLiveApiState());
+  }, { scope: "worker" }],
   page: async ({ page, mockMode }, use) => {
     await page.addInitScript(({ storageKey, state }) => {
       window.localStorage.setItem(storageKey, JSON.stringify(state));
