@@ -111,7 +111,8 @@ management commands.
 - `POST /api/users/accept-invite/` — exchange an invitation token for a password and profile
   details. Successful acceptances mark the invite as redeemed and assign the requested role.
 - `GET /api/user-roles/` — inspect RBAC assignments scoped to the caller's tenant.
-- `POST /api/user-roles/` — grant a role to a tenant user (admin-only).
+- `POST /api/roles/assign/` — grant a role to a tenant user (admin-only) while emitting an
+  audit log entry.
 - `DELETE /api/user-roles/{id}/` — revoke a role assignment (admin-only).
 
 Legacy health/authentication endpoints remain available for integrations:

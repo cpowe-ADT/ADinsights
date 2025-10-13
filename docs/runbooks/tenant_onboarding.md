@@ -30,7 +30,7 @@ within the tenant.
 
 ## 4. Manage RBAC Assignments
 - **List**: `GET /api/user-roles/` (any authenticated tenant member; scoped to their tenant).
-- **Grant**: `POST /api/user-roles/` with `{ "user": "<uuid>", "role": "VIEWER" }` (admin-only).
+- **Grant**: `POST /api/roles/assign/` with `{ "user": "<uuid>", "role": "VIEWER" }` (admin-only).
 - **Revoke**: `DELETE /api/user-roles/{id}/` (admin-only).
 
 ## 5. Troubleshooting Tips

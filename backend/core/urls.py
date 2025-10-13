@@ -6,6 +6,7 @@ from alerts.views import AlertRunViewSet
 from accounts.views import (
     AuditLogViewSet,
     MeView,
+    RoleAssignmentView,
     TenantTokenObtainPairView,
     TenantViewSet,
     UserRoleViewSet,
@@ -32,6 +33,7 @@ urlpatterns = [
         "api/auth/login/", TenantTokenObtainPairView.as_view(), name="token_obtain_pair"
     ),
     path("api/me/", MeView.as_view(), name="me"),
+    path("api/roles/assign/", RoleAssignmentView.as_view(), name="role-assign"),
     path("api/health/", core_views.health, name="health"),
     path("api/health/airbyte/", core_views.airbyte_health, name="airbyte-health"),
     path("api/health/dbt/", core_views.dbt_health, name="dbt-health"),
