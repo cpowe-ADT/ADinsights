@@ -1,26 +1,31 @@
 DBT_PROJECT_DIR ?= dbt
 DBT_PROFILES_DIR ?= $(DBT_PROJECT_DIR)
-DBT ?= dbt --project-dir $(DBT_PROJECT_DIR) --profiles-dir $(DBT_PROFILES_DIR)
+DBT ?= dbt
+DBT_WRAPPER := ./scripts/dbt-wrapper.sh
+
+define RUN_DBT
+$(DBT_WRAPPER) '$(DBT)' '$(DBT_PROJECT_DIR)' '$(DBT_PROFILES_DIR)' $(1)
+endef
 
 .PHONY: dbt-deps dbt-seed dbt-build dbt-test dbt-freshness dbt-docs dbt-build-full
 
 dbt-deps:
-	$(DBT) deps
+	$(call RUN_DBT,deps)
 
 dbt-seed:
-	$(DBT) seed
+	$(call RUN_DBT,seed)
 
 dbt-build:
-	$(DBT) build
+	$(call RUN_DBT,build)
 
 dbt-test:
-	$(DBT) test
+	$(call RUN_DBT,test)
 
 dbt-freshness:
-	$(DBT) source freshness --select source:raw
+	$(call RUN_DBT,source freshness --select source:raw)
 
 dbt-docs:
-	$(DBT) docs generate
+	$(call RUN_DBT,docs generate)
 
 dbt-build-full:
-	$(DBT) build --full-refresh
+	$(call RUN_DBT,build --full-refresh)
