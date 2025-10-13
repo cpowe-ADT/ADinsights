@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+import uuid
+
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .hooks import send_invitation_email
 from .models import Invitation, Role, Tenant, User, UserRole, assign_role
+
+
+def generate_unique_username() -> str:
+    """Return a username that does not collide with existing users."""
+
+    while True:
+        candidate = uuid.uuid4().hex
+        if not User.objects.filter(username=candidate).exists():
+            return candidate
 
 
 class RoleNameField(serializers.ChoiceField):
@@ -88,7 +99,7 @@ class TenantSignupSerializer(serializers.Serializer):
 
         tenant = Tenant.objects.create(**validated_data)
         user = User.objects.create_user(
-            username=admin_email,
+            username=generate_unique_username(),
             email=admin_email,
             tenant=tenant,
             first_name=admin_first_name,
@@ -132,7 +143,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
         password = validated_data.pop("password")
         user = User.objects.create_user(
-            username=validated_data["email"],
+            username=generate_unique_username(),
             tenant=tenant,
             **validated_data,
         )
@@ -224,7 +235,7 @@ class InvitationAcceptSerializer(serializers.Serializer):
         last_name = validated_data.get("last_name", "")
 
         user = User.objects.create_user(
-            username=invitation.email,
+            username=generate_unique_username(),
             email=invitation.email,
             tenant=tenant,
             first_name=first_name,
@@ -260,6 +271,18 @@ class UserRoleSerializer(serializers.ModelSerializer):
         tenant = attrs.get("tenant") or self.context.get("tenant")
         if tenant is None:
             raise serializers.ValidationError("Tenant context is required.")
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request else None
+        if (
+            user
+            and user.is_authenticated
+            and not getattr(user, "is_superuser", False)
+            and getattr(user, "tenant_id", None) != tenant.id
+        ):
+            raise serializers.ValidationError(
+                {"tenant": "You cannot assign roles for another tenant."}
+            )
 
         user = attrs.get("user")
         if user and user.tenant_id != tenant.id:
