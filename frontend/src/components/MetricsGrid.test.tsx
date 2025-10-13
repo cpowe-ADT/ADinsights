@@ -59,6 +59,9 @@ describe("MetricsGrid", () => {
 
     render(<MetricsGrid />);
 
+    const sortBanner = screen.getByText(/Sorted by/i);
+    expect(sortBanner).toHaveTextContent("Sorted by Impressions.");
+
     const renderedRows = screen.getAllByRole("row");
     expect(renderedRows).toHaveLength(sampleRows.length + 1);
 
@@ -72,6 +75,8 @@ describe("MetricsGrid", () => {
 
     const parishSortButton = screen.getByRole("button", { name: /sort by parish/i });
     fireEvent.click(parishSortButton);
+
+    expect(sortBanner).toHaveTextContent("Sorted by Parish.");
 
     const resortedParishes = screen
       .getAllByRole("row")
