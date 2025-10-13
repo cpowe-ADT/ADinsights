@@ -160,6 +160,11 @@ def get_or_create_role(name: str) -> Role:
     return role
 
 
+def seed_default_roles() -> None:
+    for role_name, _label in Role.ROLE_CHOICES:
+        Role.objects.get_or_create(name=role_name)
+
+
 def assign_role(user: User, role_name: str):
     role = get_or_create_role(role_name)
     return UserRole.objects.get_or_create(user=user, tenant=user.tenant, role=role)[0]

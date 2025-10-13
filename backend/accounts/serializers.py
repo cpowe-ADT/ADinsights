@@ -5,7 +5,16 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .audit import log_audit_event
 from .hooks import send_invitation_email
-from .models import AuditLog, Invitation, Role, Tenant, User, UserRole, assign_role
+from .models import (
+    AuditLog,
+    Invitation,
+    Role,
+    Tenant,
+    User,
+    UserRole,
+    assign_role,
+    seed_default_roles,
+)
 
 
 class RoleNameField(serializers.ChoiceField):
@@ -122,6 +131,7 @@ class TenantSignupSerializer(serializers.Serializer):
         admin_last_name = validated_data.pop("admin_last_name", "")
 
         tenant = Tenant.objects.create(**validated_data)
+        seed_default_roles()
         user = User.objects.create_user(
             username=admin_email,
             email=admin_email,

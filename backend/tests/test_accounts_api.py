@@ -29,6 +29,23 @@ def test_tenant_signup_creates_admin(api_client):
 
 
 @pytest.mark.django_db
+def test_tenant_signup_seeds_default_roles(api_client):
+    Role.objects.all().delete()
+
+    payload = {
+        "name": "Beta LLC",
+        "admin_email": "admin@beta.com",
+        "admin_password": "changeme123",
+    }
+
+    response = api_client.post("/api/tenants/", payload, format="json")
+
+    assert response.status_code == 201
+    role_names = set(Role.objects.values_list("name", flat=True))
+    assert role_names.issuperset({Role.ADMIN, Role.ANALYST, Role.VIEWER})
+
+
+@pytest.mark.django_db
 def test_user_list_scoped_to_tenant(api_client):
     tenant_one = Tenant.objects.create(name="Tenant One")
     tenant_two = Tenant.objects.create(name="Tenant Two")
