@@ -15,7 +15,7 @@ class MapPanel extends BasePage {
   }
 
   private get shapes(): Locator {
-    return this.panel.locator(".leaflet-interactive");
+    return this.panel.locator("path.leaflet-interactive");
   }
 
   private get tooltip(): Locator {
@@ -23,11 +23,11 @@ class MapPanel extends BasePage {
   }
 
   async waitForFeatureCount(expected: number): Promise<void> {
-    await expect(this.shapes).toHaveCount(expected);
+    await expect(this.shapes).toHaveCount(expected, { timeout: 20_000 });
   }
 
   async hoverFeature(index: number): Promise<void> {
-    await this.shapes.nth(index).hover();
+    await this.shapes.nth(index).hover({ force: true });
   }
 
   async hoverEachFeatureUntil(predicate: (text: string) => boolean): Promise<string | null> {

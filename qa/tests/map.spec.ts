@@ -36,7 +36,7 @@ test.describe("parish choropleth", () => {
       await page.route("**/api/metrics/**", route => fulfillJson(route, aggregatedMetricsResponse));
     }
 
-    await page.route("**/jm_parishes.json", route => fulfillJson(route, geoJson));
+    await page.route("**/*parishes*.json", route => fulfillJson(route, geoJson));
     await page.setViewportSize(DESKTOP_VIEWPORT);
 
     const dashboard = new DashboardPage(page);
@@ -55,7 +55,7 @@ test.describe("parish choropleth", () => {
     await expect(screenshot).toMatchSnapshot("map-chromium-desktop.txt");
     await expectNoSeriousViolations(page);
 
-    await page.unroute("**/jm_parishes.json");
+    await page.unroute("**/*parishes*.json");
     if (mockMode) {
       await page.unroute("**/sample_metrics.json");
       await page.unroute("**/sample_campaign_performance.json");
