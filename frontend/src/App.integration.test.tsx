@@ -244,10 +244,14 @@ const parishPayload = [
 ];
 
 const metricsPayload = {
-  campaign: campaignPayload,
-  creative: creativePayload,
-  budget: budgetPayload,
-  parish: parishPayload,
+  metrics: {
+    campaign_metrics: campaignPayload,
+    creative_metrics: creativePayload,
+    budget_metrics: budgetPayload,
+    parish_metrics: parishPayload,
+  },
+  tenant_id: "tenant-123",
+  generated_at: "2024-09-05T00:00:00Z",
 };
 
 const geojsonPayload: FeatureCollection = {
@@ -317,7 +321,7 @@ describe("App integration", () => {
         );
       }
 
-      if (url.includes("/api/metrics/") && method === "GET") {
+      if (url.includes("/api/dashboards/aggregate-snapshot/") && method === "GET") {
         return Promise.resolve(createResponse(metricsPayload));
       }
 
@@ -342,13 +346,13 @@ describe("App integration", () => {
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining("/api/metrics/"),
+        expect.stringContaining("/api/dashboards/aggregate-snapshot/"),
         expect.objectContaining({ method: "GET" })
       )
     );
 
     const metricsCall = fetchMock.mock.calls.find((call) =>
-      typeof call[0] === "string" && call[0].includes("/api/metrics/")
+      typeof call[0] === "string" && call[0].includes("/api/dashboards/aggregate-snapshot/")
     );
     expect(metricsCall).toBeTruthy();
     const metricsHeaders = metricsCall?.[1]?.headers as Headers | undefined;
@@ -398,7 +402,7 @@ describe("App integration", () => {
         );
       }
 
-      if (url.includes("/api/metrics/") && method === "GET") {
+      if (url.includes("/api/dashboards/aggregate-snapshot/") && method === "GET") {
         metricsCallCount += 1;
         if (metricsCallCount === 1) {
           return Promise.resolve(createResponse(metricsPayload));

@@ -179,17 +179,70 @@ function resolveTenantKey(tenantId?: string): string {
   return tenantId ?? DEFAULT_TENANT_KEY;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function resolveSnapshotSource(snapshot: TenantMetricsSnapshot): TenantMetricsSnapshot {
+  if (!isRecord(snapshot)) {
+    return snapshot;
+  }
+
+  const record = snapshot as Record<string, unknown>;
+  const nestedKeys = ["metrics", "snapshot", "data", "results", "payload"];
+
+  for (const key of nestedKeys) {
+    const candidate = record[key];
+    if (isRecord(candidate)) {
+      return candidate as TenantMetricsSnapshot;
+    }
+  }
+
+  return snapshot;
+}
+
 function parseTenantMetrics(snapshot: TenantMetricsSnapshot): TenantMetricsResolved {
+  const source = resolveSnapshotSource(snapshot);
+  const record = source as Record<string, unknown>;
+
   const campaign =
-    snapshot.campaign ?? snapshot.campaigns ?? snapshot.campaign_performance;
+    source.campaign ??
+    source.campaigns ??
+    source.campaign_performance ??
+    (record["campaign_metrics"] as CampaignPerformanceResponse | undefined) ??
+    (record["campaignMetrics"] as CampaignPerformanceResponse | undefined) ??
+    (record["campaignPerformance"] as CampaignPerformanceResponse | undefined);
 
   if (!campaign) {
     throw new Error("Campaign metrics missing from aggregated response");
   }
 
-  const creative = snapshot.creative ?? snapshot.creatives ?? snapshot.creative_performance ?? [];
-  const budget = snapshot.budget ?? snapshot.budgets ?? snapshot.budget_pacing ?? [];
-  const parish = snapshot.parish ?? snapshot.parishes ?? snapshot.parish_aggregates ?? [];
+  const creative =
+    source.creative ??
+    source.creatives ??
+    source.creative_performance ??
+    (record["creative_metrics"] as CreativePerformanceRow[] | undefined) ??
+    (record["creativeMetrics"] as CreativePerformanceRow[] | undefined) ??
+    (record["creativePerformance"] as CreativePerformanceRow[] | undefined) ??
+    [];
+
+  const budget =
+    source.budget ??
+    source.budgets ??
+    source.budget_pacing ??
+    (record["budget_metrics"] as BudgetPacingRow[] | undefined) ??
+    (record["budgetMetrics"] as BudgetPacingRow[] | undefined) ??
+    (record["budgetPacing"] as BudgetPacingRow[] | undefined) ??
+    [];
+
+  const parish =
+    source.parish ??
+    source.parishes ??
+    source.parish_aggregates ??
+    (record["parish_metrics"] as ParishAggregate[] | undefined) ??
+    (record["parishMetrics"] as ParishAggregate[] | undefined) ??
+    (record["parishAggregates"] as ParishAggregate[] | undefined) ??
+    [];
 
   return {
     campaign,
@@ -274,7 +327,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     }));
 
     if (!MOCK_MODE) {
-      const metricsPath = withTenant("/metrics/", tenantId);
+      const metricsPath = withTenant("/dashboards/aggregate-snapshot/", tenantId);
 
       try {
         const snapshot = await fetchDashboardMetrics({

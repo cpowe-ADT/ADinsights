@@ -141,22 +141,26 @@ describe("useDashboardStore", () => {
   it("loads aggregated metrics and reuses the tenant cache when mock mode is disabled", async () => {
     vi.stubEnv("VITE_MOCK_MODE", "false");
 
-    const fetchMock = vi.fn<(url: RequestInfo | URL) => Promise<Response>>(() =>
-      Promise.resolve(
-        new Response(
-          JSON.stringify({
-            campaign: campaignData,
-            creative: creativeData,
-            budget: budgetData,
-            parish: parishData,
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          }
-        )
+    const snapshotResponse = {
+      metrics: {
+        campaign_metrics: campaignData,
+        creative_metrics: creativeData,
+        budget_metrics: budgetData,
+        parish_metrics: parishData,
+      },
+      tenant_id: "tenant-xyz",
+      generated_at: "2024-09-05T00:00:00Z",
+    } satisfies Record<string, unknown>;
+
+    const fetchMock = vi
+      .fn<(url: RequestInfo | URL) => Promise<Response>>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(snapshotResponse), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
       )
-    );
+      .mockRejectedValueOnce(new Error("Service unavailable"));
 
     globalThis.fetch = fetchMock as typeof globalThis.fetch;
 
@@ -166,9 +170,12 @@ describe("useDashboardStore", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const requestUrl = fetchMock.mock.calls[0]?.[0];
-    expect(typeof requestUrl === "string" ? requestUrl : String(requestUrl)).toContain("/api/metrics/");
+    expect(typeof requestUrl === "string" ? requestUrl : String(requestUrl)).toContain(
+      "/api/dashboards/aggregate-snapshot/"
+    );
 
-    const state = useDashboardStore.getState();
+    let state = useDashboardStore.getState();
+    expect(state.campaign.status).toBe("loaded");
     expect(state.campaign.data?.rows).toHaveLength(1);
     expect(state.getCampaignRowsForSelectedParish()).toHaveLength(1);
     state.setSelectedParish("Kingston");
@@ -178,6 +185,23 @@ describe("useDashboardStore", () => {
     await useDashboardStore.getState().loadAll("tenant-xyz");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await useDashboardStore.getState().loadAll("tenant-xyz", { force: true });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    state = useDashboardStore.getState();
+    expect(state.campaign.status).toBe("error");
+    expect(state.campaign.data?.rows).toHaveLength(1);
+    expect(state.campaign.error).toContain("Service unavailable");
+
+    await useDashboardStore.getState().loadAll("tenant-xyz");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    state = useDashboardStore.getState();
+    expect(state.campaign.status).toBe("loaded");
+    expect(state.campaign.data?.rows).toHaveLength(1);
   });
 
   it("flags API errors without discarding previous data", async () => {
