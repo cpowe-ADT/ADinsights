@@ -22,8 +22,11 @@ This runbook explains how to triage and remediate failures in the repository's G
 
 ## Retrieving artifacts
 
-* From the workflow **Summary** tab, scroll to the **Artifacts** section to download bundles such as `frontend-dist.zip`, `dbt-staging-artifacts`, or `backend-ci-summary.json`.
-* Artifact names map to the validation steps in the logs. For example, the `Publish backend timings` step uploads `ci-metrics.csv`; confirm the upload succeeded before debugging runtime regressions.
+* From the workflow **Summary** tab, scroll to the **Artifacts** section to download bundles such as `frontend-dist.zip`, `dbt-staging-artifacts`, `backend-ci-summary.json`, or `ci-metrics.csv`.
+* The `Generate backend CI summary` step writes two observability artifacts:
+  * `backend-ci-summary.json` captures an overall pass/fail status, aggregate test counts, timing totals, per-suite breakdowns, and coverage metadata sourced from `backend/test-results/junit.xml` and `backend/coverage.xml`.
+  * `ci-metrics.csv` exposes the timing metrics in a tabular format with the columns `scope`, `metric`, `value`, `unit`, and `notes`. The `scope=total` row carries the overall runtime, while rows prefixed with `scope=suite:` describe individual pytest suites.
+* Artifact names map to the validation steps in the logs. Confirm the upload steps for these summaries succeeded before debugging runtime regressions so downstream SLO monitors remain healthy.
 * If an artifact is missing, cross-check the job logs for `upload-artifact` failures (often due to size limits) and re-run the job once the issue is addressed.
 
 ## Rerunning jobs

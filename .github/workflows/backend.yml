@@ -49,6 +49,24 @@ jobs:
             --cov-report=xml:backend/coverage.xml \
             --cov-report=html:backend/htmlcov
 
+      - name: Generate backend CI summary
+        run: |
+          python scripts/ci/backend-summary.py \
+            --junit backend/test-results/junit.xml \
+            --coverage backend/coverage.xml
+
+      - name: Upload backend CI summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-ci-summary.json
+          path: backend-ci-summary.json
+
+      - name: Upload backend CI metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-metrics.csv
+          path: ci-metrics.csv
+
       - name: Upload backend test results
         uses: actions/upload-artifact@v4
         with:
