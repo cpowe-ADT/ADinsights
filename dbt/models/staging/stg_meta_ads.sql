@@ -9,8 +9,10 @@ cleaned as (
     select
         cast(ad_account_id as text) as ad_account_id,
         cast(campaign_id as text) as campaign_id,
+        coalesce(nullif(trim(campaign_name), ''), cast(campaign_id as text)) as campaign_name,
         cast(adset_id as text) as adset_id,
         cast(ad_id as text) as ad_id,
+        coalesce(nullif(trim(ad_name), ''), cast(ad_id as text)) as ad_name,
         date(date_start) as date_day,
         coalesce(region, 'Unknown') as region_name,
         cast(spend as numeric) as spend,
