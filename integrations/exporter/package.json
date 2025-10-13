@@ -9,7 +9,8 @@
   "scripts": {
     "postinstall": "playwright install chromium",
     "build": "node -e \"console.log('No build step required for the exporter CLI.')\"",
-    "export": "node bin/export-report"
+    "export": "node bin/export-report",
+    "test": "node --test"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
