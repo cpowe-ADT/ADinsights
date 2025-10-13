@@ -12,11 +12,13 @@ The UI will be available at <http://localhost:8000> and the API at <http://local
 
 ## Scheduling Guidance
 
-- **Hourly**: Performance/insights tables (Meta `ad_insights`, Google Ads GAQL metrics). Re-pull a rolling 3-day lookback to catch late conversions.
-- **Daily**: Dimension tables (accounts, campaigns, ad sets, ads, creatives) and Google GeoTarget constants.
-- **Weekly**: Transparency/optional connectors (TikTok Commercial Content, LinkedIn revenue metrics) when configured.
+Airbyte schedules live on each **Connection**. From the UI (`Connections → <Connection> → Replication`) or the API (`/api/v1/connections/update`), align cadences to the downstream warehouse refresh windows:
 
-Use Airbyte's connection scheduling to set cron expressions that align with the above cadence.
+- **Hourly metrics pulls** – Insight tables (Meta `ad_insights`, Google Ads GAQL metric queries). Configure a cron such as `0 * * * *` with an **Additional sync lookback window** of 3 days to sweep up delayed conversions.
+- **Daily dimension refresh** – Entities (accounts, campaigns, ad sets/sets, ads, creatives) and geographic lookups. Use `0 6 * * *` so dbt transformations see stable dimensions before the Jamaica business day starts.
+- **Weekly transparency jobs** – Optional disclosure connectors (TikTok Commercial Content, LinkedIn revenue transparency). Schedule for low-traffic windows like `0 2 * * 1`.
+
+Document the chosen cron/anchor in your runbook so stakeholders know when fresh numbers land.
 
 ## Source Templates
 
@@ -28,6 +30,7 @@ cp sources/google_ads.json.example sources/google_ads.json
 ```
 
 For optional connectors (LinkedIn, TikTok) provide API keys only if you have access.
+
 # Airbyte Configuration
 
 This directory contains declarative configuration snippets for the ingestion layer.
