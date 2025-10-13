@@ -89,8 +89,9 @@
 .openButton:focus-visible,
 .emptyCta:focus-visible,
 .whatsNewLink:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-outline-offset);
+  box-shadow: none;
 }
 
 .secondaryAction {
@@ -104,9 +105,16 @@
 }
 
 .quickActions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 1.25rem;
+}
+
+.quickActionItem {
+  list-style: none;
 }
 
 .quickActionCard {
@@ -179,9 +187,16 @@
 }
 
 .dashboardGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1.25rem;
+}
+
+.dashboardItem {
+  list-style: none;
 }
 
 .dashboardCard {
