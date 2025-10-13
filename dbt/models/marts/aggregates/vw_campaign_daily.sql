@@ -21,7 +21,7 @@ enriched as (
         cd.source_platform,
         cd.ad_account_id,
         cd.campaign_id,
-        coalesce(cd.campaign_name, d.campaign_name, cd.campaign_id) as campaign_name,
+        coalesce(d.campaign_name, cd.campaign_id::text) as campaign_name,
         cd.spend,
         cd.impressions,
         cd.clicks,
