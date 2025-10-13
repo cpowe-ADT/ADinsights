@@ -28,7 +28,7 @@ async function renderToFiles(html, { pdfPath, pngPath }) {
 
     const page = await browser.newPage();
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.setContent(html, { waitUntil: 'networkidle' });
 
     if (pdfPath) {
       await ensureDir(pdfPath);
