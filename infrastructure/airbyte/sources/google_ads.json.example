@@ -4,20 +4,20 @@
   "workspaceId": "REDACTED",
   "configuration": {
     "developer_token": "REDACTED",
-    "oAuthClientId": "REDACTED",
-    "oAuthClientSecret": "REDACTED",
+    "client_id": "REDACTED",
+    "client_secret": "REDACTED",
     "refresh_token": "REDACTED",
     "login_customer_id": "REDACTED",
     "customer_id": "REDACTED",
     "start_date": "2024-01-01",
     "end_date": null,
-    "conversion_window_days": 30,
-    "lookback_window_days": 3,
+    "conversion_window": 30,
+    "lookback_window": 3,
     "use_resource_custom_queries": true,
     "custom_queries": [
       {
         "name": "campaign_performance",
-        "query": "SELECT segments.date, campaign.id, campaign.name, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN CURRENT_DATE - 28 AND CURRENT_DATE",
+        "query": "SELECT segments.date, campaign.id, campaign.name, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date >= '{{ runtime_from_date }}'",
         "primary_key": [
           "campaign.id",
           "segments.date"
@@ -26,7 +26,7 @@
       },
       {
         "name": "geo_performance",
-        "query": "SELECT segments.date, campaign.id, segments.geo_target_city, segments.geo_target_region, segments.geo_target_country, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM geographic_view WHERE segments.date BETWEEN CURRENT_DATE - 28 AND CURRENT_DATE",
+        "query": "SELECT segments.date, campaign.id, segments.geo_target_city, segments.geo_target_region, segments.geo_target_country, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM geographic_view WHERE segments.date >= '{{ runtime_from_date }}'",
         "primary_key": [
           "campaign.id",
           "segments.date",

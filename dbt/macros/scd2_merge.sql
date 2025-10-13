@@ -1,4 +1,4 @@
-{% macro scd2_dimension(source_query, natural_key, tracked_columns, valid_from_column='valid_from', valid_to_column='valid_to', is_current_column='is_current', end_of_time="to_timestamp('9999-12-31', 'YYYY-MM-DD')") %}
+{% macro scd2_dimension(source_query, natural_key, tracked_columns, valid_from_column='valid_from', valid_to_column='valid_to', is_current_column='is_current', end_of_time="cast('9999-12-31 23:59:59' as timestamp)") %}
 -- Macro to build SCD Type 2 dimensions.
 -- source_query: SQL string that returns the latest snapshot with an "effective_from" column.
 -- natural_key: string or list of columns representing natural key

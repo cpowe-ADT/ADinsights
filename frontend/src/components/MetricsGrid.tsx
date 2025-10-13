@@ -1,8 +1,10 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  getSortedRowModel,
+  SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 
@@ -11,13 +13,13 @@ import useDashboardStore, { MetricRow } from "../state/useDashboardStore";
 const MetricsGrid = () => {
   const { rows, selectedParish, selectedMetric, setSelectedParish, status, error } = useDashboardStore();
 
-  const filteredRows = useMemo<MetricRow[]>(() => {
-    if (rows.length === 0) {
-      return [];
-    }
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: selectedMetric, desc: true },
+  ]);
 
-    return rows;
-  }, [rows]);
+  useEffect(() => {
+    setSorting([{ id: selectedMetric, desc: true }]);
+  }, [selectedMetric]);
 
   const handleRowSelect = useCallback(
     (parish: string) => {
@@ -26,37 +28,109 @@ const MetricsGrid = () => {
     [setSelectedParish]
   );
 
-  const sortedRows = useMemo<MetricRow[]>(() => {
-    if (filteredRows.length === 0) {
-      return [];
-    }
-
-    return [...filteredRows].sort((a, b) => {
-      const left = b[selectedMetric] ?? 0;
-      const right = a[selectedMetric] ?? 0;
-      return left - right;
-    });
-  }, [filteredRows, selectedMetric]);
-
   const columns = useMemo<ColumnDef<MetricRow>[]>(
     () => [
-      { header: "Date", accessorKey: "date" },
-      { header: "Platform", accessorKey: "platform" },
-      { header: "Campaign", accessorKey: "campaign" },
-      { header: "Parish", accessorKey: "parish" },
-      { header: "Impressions", accessorKey: "impressions" },
-      { header: "Clicks", accessorKey: "clicks" },
-      { header: "Spend", accessorKey: "spend" },
-      { header: "Conversions", accessorKey: "conversions" },
-      { header: "ROAS", accessorKey: "roas" },
+      {
+        header: "Date",
+        accessorKey: "date",
+        enableSorting: true,
+        sortingFn: (rowA, rowB, columnId) => {
+          const valueA = (rowA.getValue(columnId) as string | undefined) ?? "";
+          const valueB = (rowB.getValue(columnId) as string | undefined) ?? "";
+          return valueA.localeCompare(valueB);
+        },
+      },
+      {
+        header: "Platform",
+        accessorKey: "platform",
+        enableSorting: true,
+        sortingFn: (rowA, rowB, columnId) => {
+          const valueA = (rowA.getValue(columnId) as string | undefined) ?? "";
+          const valueB = (rowB.getValue(columnId) as string | undefined) ?? "";
+          return valueA.localeCompare(valueB);
+        },
+      },
+      {
+        header: "Campaign",
+        accessorKey: "campaign",
+        enableSorting: true,
+        sortingFn: (rowA, rowB, columnId) => {
+          const valueA = (rowA.getValue(columnId) as string | undefined) ?? "";
+          const valueB = (rowB.getValue(columnId) as string | undefined) ?? "";
+          return valueA.localeCompare(valueB);
+        },
+      },
+      {
+        header: "Parish",
+        accessorKey: "parish",
+        enableSorting: true,
+        sortingFn: (rowA, rowB, columnId) => {
+          const valueA = (rowA.getValue(columnId) as string | undefined) ?? "";
+          const valueB = (rowB.getValue(columnId) as string | undefined) ?? "";
+          return valueA.localeCompare(valueB);
+        },
+      },
+      {
+        header: "Impressions",
+        accessorKey: "impressions",
+        enableSorting: true,
+        sortingFn: (rowA, rowB, columnId) => {
+          const valueA = Number(rowA.getValue(columnId) ?? 0);
+          const valueB = Number(rowB.getValue(columnId) ?? 0);
+          return valueA - valueB;
+        },
+      },
+      {
+        header: "Clicks",
+        accessorKey: "clicks",
+        enableSorting: true,
+        sortingFn: (rowA, rowB, columnId) => {
+          const valueA = Number(rowA.getValue(columnId) ?? 0);
+          const valueB = Number(rowB.getValue(columnId) ?? 0);
+          return valueA - valueB;
+        },
+      },
+      {
+        header: "Spend",
+        accessorKey: "spend",
+        enableSorting: true,
+        sortingFn: (rowA, rowB, columnId) => {
+          const valueA = Number(rowA.getValue(columnId) ?? 0);
+          const valueB = Number(rowB.getValue(columnId) ?? 0);
+          return valueA - valueB;
+        },
+      },
+      {
+        header: "Conversions",
+        accessorKey: "conversions",
+        enableSorting: true,
+        sortingFn: (rowA, rowB, columnId) => {
+          const valueA = Number(rowA.getValue(columnId) ?? 0);
+          const valueB = Number(rowB.getValue(columnId) ?? 0);
+          return valueA - valueB;
+        },
+      },
+      {
+        header: "ROAS",
+        accessorKey: "roas",
+        enableSorting: true,
+        sortingFn: (rowA, rowB, columnId) => {
+          const valueA = Number(rowA.getValue(columnId) ?? 0);
+          const valueB = Number(rowB.getValue(columnId) ?? 0);
+          return valueA - valueB;
+        },
+      },
     ],
     []
   );
 
   const table = useReactTable({
-    data: sortedRows,
+    data: rows,
     columns,
+    state: { sorting },
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   return (
@@ -89,7 +163,20 @@ const MetricsGrid = () => {
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
                     <th key={header.id}>
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      {header.isPlaceholder ? null : (
+                        <button
+                          type="button"
+                          onClick={header.column.getToggleSortingHandler()}
+                          aria-label={`Sort by ${String(header.column.columnDef.header)}`}
+                        >
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          {header.column.getIsSorted() === "asc"
+                            ? " ↑"
+                            : header.column.getIsSorted() === "desc"
+                            ? " ↓"
+                            : ""}
+                        </button>
+                      )}
                     </th>
                   ))}
                 </tr>

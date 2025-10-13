@@ -5,6 +5,7 @@ profile: "adinsights"
 
 model-paths: ["models"]
 seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
 macro-paths: ["macros"]
 
 models:
@@ -123,6 +124,16 @@ seeds:
           account_id: text
           name: text
           status: text
+          created_time: timestamp
+          updated_time: timestamp
+      adsets:
+        +column_types:
+          id: text
+          campaign_id: text
+          account_id: text
+          name: text
+          status: text
+          daily_budget: numeric
           created_time: timestamp
           updated_time: timestamp
     geo_parish_lookup:

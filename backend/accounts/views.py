@@ -52,7 +52,19 @@ class TenantViewSet(
     def get_serializer_class(self):
         if self.action == "create":
             return TenantSignupSerializer
+        if self.action == "invite":
+            return InvitationCreateSerializer
         return TenantSerializer
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        if self.action == "invite":
+            if "tenant" not in context and self.kwargs.get(self.lookup_field):
+                context["tenant"] = self.get_object()
+            user = getattr(self.request, "user", None)
+            if user and user.is_authenticated:
+                context.setdefault("invited_by", user)
+        return context
 
     def get_queryset(self):  # type: ignore[override]
         user = self.request.user
@@ -72,6 +84,19 @@ class TenantViewSet(
         output["admin_user_id"] = str(admin_user.id)
         headers = self.get_success_headers(output)
         return Response(output, status=status.HTTP_201_CREATED, headers=headers)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="invite",
+        permission_classes=[permissions.IsAuthenticated, IsTenantAdmin],
+    )
+    def invite(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        invitation = serializer.save()
+        response_serializer = InvitationCreateSerializer(invitation)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
 class UserViewSet(
@@ -200,6 +225,32 @@ class UserRoleViewSet(
             resource_id=user_id,
             metadata={"role": role_name},
         )
+
+
+class RoleAssignmentView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsTenantAdmin]
+
+    def post(self, request):
+        serializer = UserRoleSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        user_role = serializer.save()
+
+        log_audit_event(
+            tenant=user_role.tenant,
+            user=request.user,
+            action="role_assigned",
+            resource_type="role",
+            resource_id=user_role.user_id,
+            metadata={"role": user_role.role.name},
+        )
+
+        response_serializer = UserRoleSerializer(
+            user_role, context={"request": request}
+        )
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
 class AuditLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
