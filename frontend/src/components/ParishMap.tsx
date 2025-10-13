@@ -38,7 +38,7 @@ function getColor(value: number, breaks: number[]): string {
 }
 
 const ParishMap = () => {
-  const { rows, selectedMetric, selectedParish, setSelectedParish } = useDashboardStore();
+  const { rows, selectedMetric, selectedParish, setSelectedParish, status, error } = useDashboardStore();
   const [geojson, setGeojson] = useState<FeatureCollection | null>(null);
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
   const styleForParishRef = useRef<(name: string) => L.PathOptions>(() => ({
@@ -150,6 +150,18 @@ const ParishMap = () => {
       }
     });
   }, [styleForParish, tooltipForParish]);
+
+  if (status === "loading") {
+    return <div className="status-message muted">Preparing the parish heatmap…</div>;
+  }
+
+  if (status === "error") {
+    return <div className="status-message error">{error ?? "Unable to render the parish map."}</div>;
+  }
+
+  if (rows.length === 0) {
+    return <div className="status-message muted">Map insights will appear once this tenant has campaign data.</div>;
+  }
 
   return (
     <MapContainer center={JAMAICA_CENTER} zoom={7} scrollWheelZoom={false} style={{ height: "100%", width: "100%" }}>
