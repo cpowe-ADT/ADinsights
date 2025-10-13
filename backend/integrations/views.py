@@ -174,6 +174,7 @@ class AirbyteConnectionViewSet(viewsets.GenericViewSet):
             "name": connection.name,
             "connection_id": str(connection.connection_id),
             "workspace_id": str(connection.workspace_id) if connection.workspace_id else None,
+            "provider": connection.provider,
             "last_synced_at": self._format_datetime(connection.last_synced_at),
             "last_job_id": connection.last_job_id or (job_summary.get("id") if job_summary else ""),
             "last_job_status": connection.last_job_status or (job_summary.get("status") if job_summary else ""),

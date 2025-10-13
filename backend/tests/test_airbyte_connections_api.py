@@ -12,7 +12,7 @@ from integrations.airbyte.client import (
     AirbyteClientConfigurationError,
     AirbyteClientError,
 )
-from integrations.models import AirbyteConnection
+from integrations.models import AirbyteConnection, PlatformCredential
 
 
 class _BaseStubClient:
@@ -35,6 +35,7 @@ def test_airbyte_connections_health_success(api_client, user, tenant, monkeypatc
         name="Marketing Sync",
         connection_id=uuid.uuid4(),
         workspace_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
         last_synced_at=datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc),
         last_job_id="abc123",
         last_job_status="succeeded",
@@ -74,6 +75,7 @@ def test_airbyte_connections_health_success(api_client, user, tenant, monkeypatc
     assert info["name"] == connection.name
     assert info["connection_id"] == str(connection.connection_id)
     assert info["workspace_id"] == str(connection.workspace_id)
+    assert info["provider"] == connection.provider
     assert info["last_synced_at"] == connection.last_synced_at.isoformat()
     assert info["last_job_id"] == connection.last_job_id
     assert info["last_job_status"] == connection.last_job_status
@@ -92,6 +94,7 @@ def test_airbyte_connections_health_configuration_error(
         tenant=tenant,
         name="Marketing Sync",
         connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
     )
 
     def raise_config_error(cls):
@@ -113,6 +116,7 @@ def test_airbyte_connections_health_timeout(api_client, user, tenant, monkeypatc
         tenant=tenant,
         name="Analytics Sync",
         connection_id=uuid.uuid4(),
+        provider=PlatformCredential.GOOGLE,
     )
 
     class TimeoutClient(_BaseStubClient):
@@ -142,6 +146,7 @@ def test_airbyte_connection_sync_success(api_client, user, tenant, monkeypatch):
         tenant=tenant,
         name="Sync",
         connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
     )
 
     class SyncClient(_BaseStubClient):
@@ -181,6 +186,7 @@ def test_airbyte_connection_sync_upstream_error(api_client, user, tenant, monkey
         tenant=tenant,
         name="Sync",
         connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
     )
 
     class ErrorClient(_BaseStubClient):

@@ -178,6 +178,12 @@ class AirbyteConnection(models.Model):
     tenant = models.ForeignKey(
         Tenant, on_delete=models.CASCADE, related_name="airbyte_connections"
     )
+    provider = models.CharField(
+        max_length=16,
+        choices=PlatformCredential.PROVIDER_CHOICES,
+        null=True,
+        blank=True,
+    )
     name = models.CharField(max_length=255)
     connection_id = models.UUIDField()
     workspace_id = models.UUIDField(null=True, blank=True)

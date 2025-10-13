@@ -10,7 +10,7 @@ from django.test import Client, override_settings
 from django.urls import path
 from django.utils import timezone
 
-from integrations.models import AirbyteConnection, TenantAirbyteSyncStatus
+from integrations.models import AirbyteConnection, PlatformCredential, TenantAirbyteSyncStatus
 
 
 def _failing_view(request):  # noqa: ANN001 - test helper signature
@@ -57,6 +57,7 @@ def test_airbyte_health_ok_with_recent_sync(api_client, tenant, settings):
         tenant=tenant,
         name="Meta",
         connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
         schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
         interval_minutes=30,
         last_synced_at=now,
@@ -81,6 +82,7 @@ def test_airbyte_health_flags_stale_sync(api_client, tenant, settings):
         tenant=tenant,
         name="Google",
         connection_id=uuid.uuid4(),
+        provider=PlatformCredential.GOOGLE,
         schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
         interval_minutes=30,
         last_synced_at=stale_time,

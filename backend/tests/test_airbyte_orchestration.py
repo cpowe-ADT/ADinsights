@@ -9,7 +9,7 @@ from django.core.management import call_command
 from django.utils import timezone
 
 from integrations.airbyte.service import AirbyteSyncService
-from integrations.models import AirbyteConnection, TenantAirbyteSyncStatus
+from integrations.models import AirbyteConnection, PlatformCredential, TenantAirbyteSyncStatus
 from integrations.tasks import trigger_scheduled_airbyte_syncs
 
 
@@ -20,6 +20,7 @@ def test_interval_schedule_due(tenant):
         tenant=tenant,
         name="Hourly Meta",
         connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
         schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
         interval_minutes=60,
         last_synced_at=now - timedelta(hours=2),
@@ -36,6 +37,7 @@ def test_cron_schedule_due(tenant):
         tenant=tenant,
         name="Hourly Google",
         connection_id=uuid.uuid4(),
+        provider=PlatformCredential.GOOGLE,
         schedule_type=AirbyteConnection.SCHEDULE_CRON,
         cron_expression="0 * * * *",
         last_synced_at=now - timedelta(hours=2),
@@ -52,6 +54,7 @@ def test_airbyte_service_triggers_and_records(tenant):
         tenant=tenant,
         name="Meta",
         connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
         schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
         interval_minutes=30,
         last_synced_at=now - timedelta(hours=1),
@@ -121,6 +124,7 @@ def test_airbyte_celery_task(monkeypatch, tenant):
         tenant=tenant,
         name="Meta",
         connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
         schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
         interval_minutes=30,
     )

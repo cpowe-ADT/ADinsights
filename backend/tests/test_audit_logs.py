@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import uuid
+from datetime import timedelta
+
 from django.urls import reverse
 
 from accounts.models import AuditLog, Role, Tenant, User, assign_role
-from integrations.models import PlatformCredential
-from core.tasks import sync_meta_example
+from django.utils import timezone
+from integrations.models import AirbyteConnection, PlatformCredential
+from core.tasks import sync_meta_metrics
 
 
 def authenticate(api_client, user):
@@ -100,17 +104,57 @@ def test_role_assignment_logs(api_client, user, tenant):
     assert "role_revoked" in actions
 
 
-def test_sync_trigger_logs(api_client, user, tenant):
+def test_sync_trigger_logs(api_client, user, tenant, monkeypatch):
     authenticate(api_client, user)
 
-    result = sync_meta_example(tenant_id=str(tenant.id), triggered_by_user_id=str(user.id))
-    assert result == "meta_sync_triggered"
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta hourly",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=60,
+        last_synced_at=timezone.now() - timedelta(hours=2),
+        is_active=True,
+    )
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN002, ANN003
+            return None
+
+    dummy_client = DummyClient()
+
+    def fake_from_settings(cls):  # noqa: ANN001
+        return dummy_client
+
+    def sync_connections(self, connections, *, triggered_at=None):  # noqa: ANN001
+        assert connections == [connection]
+        job_time = triggered_at or timezone.now()
+        connections[0].record_sync(
+            job_id=42,
+            job_status="pending",
+            job_created_at=job_time,
+        )
+        return 1
+
+    monkeypatch.setattr("core.tasks.AirbyteClient.from_settings", classmethod(fake_from_settings))
+    monkeypatch.setattr("core.tasks.AirbyteSyncService.sync_connections", sync_connections)
+
+    result = sync_meta_metrics.run(tenant_id=str(tenant.id), triggered_by_user_id=str(user.id))
+    assert result.startswith("triggered 1")
 
     log = AuditLog.all_objects.get(
         tenant=tenant, resource_type="sync", resource_id=PlatformCredential.META
     )
     assert log.action == "sync_triggered"
     assert log.user_id == user.id
+    metadata = log.metadata
+    assert metadata["provider"] == PlatformCredential.META
+    assert metadata["triggered"] == 1
+    assert metadata["connection_ids"] == [str(connection.connection_id)]
 
 
 def test_audit_log_endpoint_is_tenant_scoped(api_client, user, tenant, db):

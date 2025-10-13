@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone as dt_timezone
-from typing import Callable
+from typing import Callable, Iterable
 
 from django.utils import timezone
 
@@ -23,27 +23,42 @@ class AirbyteSyncService:
     def sync_due_connections(self) -> int:
         """Trigger syncs for all connections that are due."""
 
-        triggered = 0
         now = self._now()
-        for connection in AirbyteConnection.objects.filter(is_active=True).select_related("tenant"):
-            if not connection.should_trigger(now):
-                continue
+        connections = [
+            connection
+            for connection in AirbyteConnection.objects.filter(is_active=True).select_related("tenant")
+            if connection.should_trigger(now)
+        ]
+        return self.sync_connections(connections, triggered_at=now)
+
+    def sync_connections(
+        self,
+        connections: Iterable[AirbyteConnection],
+        *,
+        triggered_at: datetime | None = None,
+    ) -> int:
+        """Trigger syncs for a provided iterable of connections."""
+
+        triggered = 0
+        base_time = triggered_at or self._now()
+        for connection in connections:
             logger.info(
                 "Triggering Airbyte sync",
                 extra={
-                    "tenant": str(connection.tenant_id),
+                    "tenant_id": str(connection.tenant_id),
                     "connection_id": str(connection.connection_id),
                     "schedule_type": connection.schedule_type,
+                    "provider": connection.provider,
                 },
             )
             job_payload = self.client.trigger_sync(str(connection.connection_id))
             job_id = _extract_job_id(job_payload)
             job_status = "pending"
-            job_created_at = now
+            job_created_at = base_time
             if job_id is not None:
                 job_detail = self.client.get_job(job_id)
                 job_status = _extract_job_status(job_detail) or job_status
-                job_created_at = _extract_job_created_at(job_detail) or now
+                job_created_at = _extract_job_created_at(job_detail) or base_time
             connection.record_sync(job_id, job_status, job_created_at)
             TenantAirbyteSyncStatus.update_for_connection(connection)
             triggered += 1
