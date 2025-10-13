@@ -60,6 +60,30 @@ def test_airbyte_health_ok_with_recent_sync(api_client, tenant, settings):
 
 
 @pytest.mark.django_db
+def test_airbyte_health_flags_failed_sync(api_client, tenant, settings):
+    settings.AIRBYTE_API_URL = "http://airbyte.local"
+    settings.AIRBYTE_API_TOKEN = "token"
+    now = timezone.now()
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta",
+        connection_id=uuid.uuid4(),
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=30,
+        last_synced_at=now,
+        last_job_status="failed",
+        last_job_id="100",
+    )
+    TenantAirbyteSyncStatus.update_for_connection(connection)
+
+    response = api_client.get("/api/health/airbyte/")
+    assert response.status_code == 502
+    payload = response.json()
+    assert payload["status"] == "sync_failed"
+    assert "failed" in payload["detail"]
+
+
+@pytest.mark.django_db
 def test_airbyte_health_flags_stale_sync(api_client, tenant, settings):
     settings.AIRBYTE_API_URL = "http://airbyte.local"
     settings.AIRBYTE_API_TOKEN = "token"

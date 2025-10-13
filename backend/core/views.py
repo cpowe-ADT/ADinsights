@@ -48,6 +48,17 @@ def airbyte_health(request):
         response_data.update({"status": "stale", "detail": "Latest Airbyte sync is older than the freshness threshold."})
         return JsonResponse(response_data, status=503)
 
+    job_status = (latest_status.last_job_status or "").strip().lower()
+    if job_status != "succeeded":
+        detail_status = latest_status.last_job_status or "unknown"
+        response_data.update(
+            {
+                "status": "sync_failed",
+                "detail": f"Latest Airbyte sync finished with status '{detail_status}'.",
+            }
+        )
+        return JsonResponse(response_data, status=502)
+
     response_data["status"] = "ok"
     return JsonResponse(response_data)
 
