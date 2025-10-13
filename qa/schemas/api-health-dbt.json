@@ -3,7 +3,7 @@
   "$id": "api-health-dbt.json",
   "title": "dbt health response",
   "type": "object",
-  "required": ["component", "status", "run_results_path", "failing_models"],
+  "required": ["component", "status", "run_results_path"],
   "properties": {
     "component": {
       "type": "string",
@@ -42,5 +42,17 @@
       "type": "string"
     }
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {"const": "failing"}
+        }
+      },
+      "then": {
+        "required": ["failing_models"]
+      }
+    }
+  ]
 }
