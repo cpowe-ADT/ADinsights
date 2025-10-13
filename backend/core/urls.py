@@ -12,8 +12,8 @@ from accounts.views import (
     UserRoleViewSet,
     UserViewSet,
 )
-from integrations.views import AirbyteConnectionViewSet, PlatformCredentialViewSet
 from integrations.views import (
+    AirbyteConnectionViewSet,
     AlertRuleDefinitionViewSet,
     CampaignBudgetViewSet,
     PlatformCredentialViewSet,
