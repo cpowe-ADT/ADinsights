@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const isMock = process.env.MOCK_MODE === 'true';
+const isMock = (process.env.MOCK_MODE ?? 'true') === 'true';
 
 // Allow overriding via QA_BASE_URL; otherwise use defaults.
 const devUrl = process.env.QA_BASE_URL || 'http://127.0.0.1:5173';
