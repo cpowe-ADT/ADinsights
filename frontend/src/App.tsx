@@ -6,6 +6,7 @@ import CreativeDashboard from "./routes/CreativeDashboard";
 import DashboardLayout from "./routes/DashboardLayout";
 import LoginPage from "./routes/LoginPage";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import Home from "./pages/Home";
 
 function App() {
   return (
@@ -13,7 +14,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<Navigate to="/dashboards/campaigns" replace />} />
+          <Route path="/" element={<Home />} />
           <Route path="/dashboards" element={<DashboardLayout />}>
             <Route index element={<Navigate to="campaigns" replace />} />
             <Route path="campaigns" element={<CampaignDashboard />} />
@@ -21,7 +22,7 @@ function App() {
             <Route path="budget" element={<BudgetDashboard />} />
           </Route>
         </Route>
-        <Route path="*" element={<Navigate to="/dashboards/campaigns" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
