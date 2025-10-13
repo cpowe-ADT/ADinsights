@@ -18,6 +18,7 @@ from rest_framework.views import APIView
 
 from adapters.base import MetricsAdapter
 from adapters.fake import FakeAdapter
+from adapters.warehouse import WarehouseAdapter
 
 from .models import TenantMetricsSnapshot
 
@@ -29,6 +30,9 @@ def _build_registry() -> dict[str, MetricsAdapter]:
     """Return the enabled analytics adapters keyed by their slug."""
 
     registry: dict[str, MetricsAdapter] = {}
+    if getattr(settings, "ENABLE_WAREHOUSE_ADAPTER", False):
+        warehouse = WarehouseAdapter()
+        registry[warehouse.key] = warehouse
     if getattr(settings, "ENABLE_FAKE_ADAPTER", False):
         fake = FakeAdapter()
         registry[fake.key] = fake
@@ -81,7 +85,12 @@ class MetricsView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        default_key = "fake" if "fake" in registry else next(iter(registry))
+        if "warehouse" in registry:
+            default_key = "warehouse"
+        elif "fake" in registry:
+            default_key = "fake"
+        else:
+            default_key = next(iter(registry))
         source = request.query_params.get("source", default_key)
         adapter = registry.get(source)
         if adapter is None:
@@ -117,7 +126,12 @@ class CombinedMetricsView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        default_key = "fake" if "fake" in registry else next(iter(registry))
+        if "warehouse" in registry:
+            default_key = "warehouse"
+        elif "fake" in registry:
+            default_key = "fake"
+        else:
+            default_key = next(iter(registry))
         source = request.query_params.get("source", default_key)
         adapter = registry.get(source)
         if adapter is None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from django.utils import timezone
 
 from adapters.fake import FakeAdapter
 from analytics.models import TenantMetricsSnapshot
@@ -9,6 +10,11 @@ from analytics.models import TenantMetricsSnapshot
 @pytest.fixture(autouse=True)
 def enable_fake_adapter(settings):
     settings.ENABLE_FAKE_ADAPTER = True
+
+
+@pytest.fixture
+def enable_warehouse_adapter(settings):
+    settings.ENABLE_WAREHOUSE_ADAPTER = True
 
 
 @pytest.mark.django_db
@@ -151,3 +157,38 @@ def test_combined_metrics_cache_bypass(monkeypatch, api_client, user):
 
     response = api_client.get("/api/metrics/combined/", {"cache": "false"})
     assert response.json()["campaign"]["summary"]["currency"] == "CAD"
+
+
+@pytest.mark.django_db
+def test_combined_metrics_defaults_to_warehouse(api_client, user, settings, enable_warehouse_adapter):
+    settings.ENABLE_FAKE_ADAPTER = False
+    api_client.force_authenticate(user=user)
+
+    snapshot_payload = {
+        "campaign": {"summary": {"currency": "JMD"}, "trend": [], "rows": []},
+        "creative": [],
+        "budget": [],
+        "parish": [],
+    }
+
+    TenantMetricsSnapshot.all_objects.create(
+        tenant=user.tenant,
+        source="warehouse",
+        payload=snapshot_payload,
+        generated_at=timezone.now(),
+    )
+
+    response = api_client.get("/api/metrics/combined/")
+    assert response.status_code == 200
+    assert response.json() == snapshot_payload
+
+
+@pytest.mark.django_db
+def test_fake_adapter_requires_flag(api_client, user, settings):
+    settings.ENABLE_FAKE_ADAPTER = False
+    api_client.force_authenticate(user=user)
+
+    response = api_client.get("/api/metrics/", {"source": "fake"})
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "No analytics adapters are enabled."

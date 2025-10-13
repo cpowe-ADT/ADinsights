@@ -25,6 +25,8 @@ env = environ.Env(
     DJANGO_LOG_LEVEL=(str, "INFO"),
     APP_VERSION=(str, "0.0.0-dev"),
     METRICS_SNAPSHOT_TTL=(int, 300),
+    ENABLE_FAKE_ADAPTER=(bool, False),
+    ENABLE_WAREHOUSE_ADAPTER=(bool, False),
 )
 
 ENV_FILE = BASE_DIR / ".env"
@@ -41,6 +43,8 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 ENABLE_TENANCY = env.bool("ENABLE_TENANCY")
 API_VERSION = env("API_VERSION")
 METRICS_SNAPSHOT_TTL = env.int("METRICS_SNAPSHOT_TTL")
+ENABLE_FAKE_ADAPTER = env.bool("ENABLE_FAKE_ADAPTER", default=False)
+ENABLE_WAREHOUSE_ADAPTER = env.bool("ENABLE_WAREHOUSE_ADAPTER", default=False)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
