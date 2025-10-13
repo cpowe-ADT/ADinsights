@@ -87,10 +87,12 @@ class CampaignBudgetSerializer(serializers.ModelSerializer):
         return value.upper()
 
     def create(self, validated_data):
-        request = self.context.get("request")
-        if request is None or not hasattr(request, "user"):
-            raise serializers.ValidationError("Request context is required.")
-        tenant = request.user.tenant
+        tenant = validated_data.pop("tenant", None)
+        if tenant is None:
+            request = self.context.get("request")
+            if request is None or not hasattr(request, "user"):
+                raise serializers.ValidationError("Request context is required.")
+            tenant = request.user.tenant
         return CampaignBudget.objects.create(tenant=tenant, **validated_data)
 
     def update(self, instance, validated_data):

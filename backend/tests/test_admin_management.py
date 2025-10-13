@@ -22,7 +22,7 @@ def list_results(response):
     return body.get("results", [])
 
 
-def test_create_and_list_campaign_budget(api_client, user, tenant):
+def test_campaign_budget_crud_and_audit_log(api_client, user, tenant):
     authenticate(api_client, user)
 
     payload = {
@@ -36,8 +36,9 @@ def test_create_and_list_campaign_budget(api_client, user, tenant):
         reverse("campaignbudget-list"), payload, format="json"
     )
     assert create_response.status_code == 201
-    data = create_response.json()
-    assert data["currency"] == "USD"
+    created = create_response.json()
+    budget_id = created["id"]
+    assert created["currency"] == "USD"
 
     list_response = api_client.get(reverse("campaignbudget-list"))
     assert list_response.status_code == 200
@@ -45,6 +46,44 @@ def test_create_and_list_campaign_budget(api_client, user, tenant):
     assert len(results) == 1
     assert results[0]["name"] == "Brand Awareness"
     assert results[0]["monthly_target"] == "1000.50"
+
+    created_log = AuditLog.all_objects.get(
+        tenant=tenant,
+        action="campaign_budget_created",
+        resource_id=str(budget_id),
+    )
+    assert created_log.metadata == {
+        "redacted": True,
+        "fields": ["currency", "is_active", "monthly_target", "name"],
+    }
+
+    update_response = api_client.patch(
+        reverse("campaignbudget-detail", args=[budget_id]),
+        {"is_active": False},
+        format="json",
+    )
+    assert update_response.status_code == 200
+    updated_log = AuditLog.all_objects.get(
+        tenant=tenant,
+        action="campaign_budget_updated",
+        resource_id=str(budget_id),
+    )
+    assert updated_log.metadata == {
+        "redacted": True,
+        "fields": ["is_active"],
+    }
+
+    delete_response = api_client.delete(
+        reverse("campaignbudget-detail", args=[budget_id])
+    )
+    assert delete_response.status_code == 204
+    assert not CampaignBudget.objects.filter(id=budget_id).exists()
+    deleted_log = AuditLog.all_objects.get(
+        tenant=tenant,
+        action="campaign_budget_deleted",
+        resource_id=str(budget_id),
+    )
+    assert deleted_log.metadata == {"redacted": True, "fields": []}
 
 
 def test_campaign_budget_rls_enforced(api_client, user, tenant):
@@ -87,50 +126,6 @@ def test_campaign_budget_validation(api_client, user):
     )
     assert response.status_code == 400
     assert "monthly_target" in response.json()
-
-
-def test_campaign_budget_audit_logging(api_client, user, tenant):
-    authenticate(api_client, user)
-
-    create_response = api_client.post(
-        reverse("campaignbudget-list"),
-        {
-            "name": "Log Budget",
-            "monthly_target": "750.00",
-            "currency": "usd",
-        },
-        format="json",
-    )
-    assert create_response.status_code == 201
-    budget_id = create_response.json()["id"]
-
-    audit_entries = AuditLog.all_objects.filter(
-        tenant=tenant,
-        action="campaign_budget_created",
-        resource_id=str(budget_id),
-    )
-    assert audit_entries.count() == 1
-    metadata = audit_entries.first().metadata
-    assert metadata["redacted"] is True
-    assert "monthly_target" in metadata["fields"]
-    assert "750.00" not in str(metadata)
-
-    update_response = api_client.patch(
-        reverse("campaignbudget-detail", args=[budget_id]),
-        {"is_active": False},
-        format="json",
-    )
-    assert update_response.status_code == 200
-
-    update_entries = AuditLog.all_objects.filter(
-        tenant=tenant,
-        action="campaign_budget_updated",
-        resource_id=str(budget_id),
-    )
-    assert update_entries.count() == 1
-    update_metadata = update_entries.first().metadata
-    assert update_metadata["redacted"] is True
-    assert update_metadata["fields"] == ["is_active"]
 
 
 def test_create_and_list_alert_rule(api_client, user, tenant):
