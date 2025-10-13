@@ -1,20 +1,15 @@
 // @ts-nocheck
 
-import { useEffect, useMemo, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
 import Breadcrumbs from "../components/Breadcrumbs";
-import Header from "../components/Header";
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { NavLink, Outlet } from "react-router-dom";
-
-import { useAuth } from "../auth/AuthContext";
-import { useTheme } from "../components/ThemeProvider";
-import useDashboardStore from "../state/useDashboardStore";
-import { loadDashboardLayout, saveDashboardLayout } from "../lib/layoutPreferences";
-import { useToast } from "../components/ToastProvider";
 import FilterBar, { FilterBarState } from "../components/FilterBar";
+import { useTheme } from "../components/ThemeProvider";
+import { useToast } from "../components/ToastProvider";
+import { loadDashboardLayout, saveDashboardLayout } from "../lib/layoutPreferences";
+import useDashboardStore from "../state/useDashboardStore";
 
 const metricOptions = [
   { value: "spend", label: "Spend" },
@@ -34,12 +29,14 @@ const segmentLabels: Record<string, string> = {
 const DashboardLayout = () => {
   const { tenantId, logout, user } = useAuth();
   const location = useLocation();
-  const [isScrolled, setIsScrolled] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { pushToast } = useToast();
+  const [isScrolled, setIsScrolled] = useState(false);
 
   const handleFilterChange = useCallback((_: FilterBarState) => {
     // TODO: Connect filters to dashboard data fetching once APIs support it.
   }, []);
+
   const {
     loadAll,
     selectedMetric,
@@ -77,6 +74,8 @@ const DashboardLayout = () => {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
     if (layoutHydratedRef.current) {
       return;
     }
@@ -111,11 +110,6 @@ const DashboardLayout = () => {
     [],
   );
 
-  const activeNav = useMemo(
-    () => navLinks.find((link) => location.pathname.startsWith(link.to)),
-    [location.pathname, navLinks],
-  );
-
   const breadcrumbs = useMemo(() => {
     const items: { label: string; to?: string }[] = [{ label: "Home", to: "/" }];
     const segments = location.pathname.split("/").filter(Boolean);
@@ -133,15 +127,6 @@ const DashboardLayout = () => {
     return items;
   }, [location.pathname]);
 
-  const subtitle = (
-    <span>
-      Tenant <strong>{tenantId ?? "unknown"}</strong>
-      {selectedParish ? (
-        <span>
-          {" • "}Filtering to <strong>{selectedParish}</strong>
-        </span>
-      ) : null}
-    </span>
   const handleSaveLayout = useCallback(() => {
     try {
       saveDashboardLayout({ metric: selectedMetric, parish: selectedParish });
@@ -219,130 +204,76 @@ const DashboardLayout = () => {
     </svg>
   );
 
+  const accountLabel = (user as { email?: string } | undefined)?.email ?? "Account";
+
   return (
     <div className="dashboard-shell">
       <div className={`dashboard-top${isScrolled ? " shadow" : ""}`}>
-        <Header
-          title={activeNav?.label ?? "Dashboards"}
-          subtitle={subtitle}
-          navLinks={navLinks}
-          metricOptions={metricOptions}
-          selectedMetric={selectedMetric}
-          onMetricChange={(value) => setSelectedMetric(value as typeof selectedMetric)}
-          userEmail={(user as { email?: string } | undefined)?.email}
-          onLogout={logout}
-        />
+        <header className="dashboard-header">
+          <div className="container dashboard-header__inner">
+            <div>
+              <h1>ADinsights</h1>
+              <p className="muted">
+                Tenant <strong>{tenantId ?? "unknown"}</strong>
+                {selectedParish ? (
+                  <span>
+                    {" • "}Filtering to <strong>{selectedParish}</strong>
+                  </span>
+                ) : null}
+              </p>
+            </div>
+            <div className="header-actions">
+              <label htmlFor="metric-select" className="muted">
+                Map metric
+              </label>
+              <select
+                id="metric-select"
+                value={selectedMetric}
+                onChange={(event) => setSelectedMetric(event.target.value as typeof selectedMetric)}
+              >
+                {metricOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="button tertiary theme-toggle"
+                onClick={toggleTheme}
+                aria-pressed={theme === "dark"}
+              >
+                <span className="theme-toggle__icon" aria-hidden="true">
+                  {theme === "dark" ? "🌞" : "🌙"}
+                </span>
+                <span>{theme === "dark" ? "Light" : "Dark"} mode</span>
+              </button>
+              <button type="button" className="button secondary" onClick={handleSaveLayout}>
+                {SaveIcon}
+                Save layout
+              </button>
+              <button type="button" className="button secondary" onClick={() => void handleCopyLink()}>
+                {LinkIcon}
+                Copy link
+              </button>
+              <span className="muted user-pill">{accountLabel}</span>
+              <button type="button" className="button tertiary" onClick={logout}>
+                Log out
+              </button>
+            </div>
+          </div>
+        </header>
+        <nav className="dashboard-nav" aria-label="Dashboard sections">
+          <div className="container dashboard-nav__inner">
+            {navLinks.map((link) => (
+              <NavLink key={link.to} to={link.to} end={link.end} className={({ isActive }) => (isActive ? "active" : undefined)}>
+                {link.label}
+              </NavLink>
+            ))}
+          </div>
+        </nav>
         <Breadcrumbs items={breadcrumbs} />
       </div>
-      <header className="dashboard-header">
-        <div className="container dashboard-header__inner">
-          <div>
-            <h1>ADinsights</h1>
-            <p className="muted">
-              Tenant <strong>{tenantId ?? "unknown"}</strong>
-              {selectedParish ? (
-                <span>
-                  {" • "}Filtering to <strong>{selectedParish}</strong>
-                </span>
-              ) : null}
-            </p>
-          </div>
-          <div className="header-actions">
-            <label htmlFor="metric-select" className="muted">
-              Map metric
-            </label>
-            <select
-              id="metric-select"
-              value={selectedMetric}
-              onChange={(event) => setSelectedMetric(event.target.value as typeof selectedMetric)}
-            >
-              {metricOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <span className="muted user-pill">{(user as { email?: string } | undefined)?.email ?? "Account"}</span>
-            <button type="button" className="button tertiary" onClick={logout}>
-              Log out
-            </button>
-          </div>
-        </div>
-      </header>
-      <nav className="dashboard-nav">
-        <div className="container dashboard-nav__inner">
-          <NavLink to="/dashboards/campaigns" className={({ isActive }) => (isActive ? "active" : undefined)}>
-            Campaigns
-          </NavLink>
-          <NavLink to="/dashboards/creatives" className={({ isActive }) => (isActive ? "active" : undefined)}>
-            Creatives
-          </NavLink>
-          <NavLink to="/dashboards/budget" className={({ isActive }) => (isActive ? "active" : undefined)}>
-            Budget pacing
-          </NavLink>
-        </div>
-        <div>
-          <h1>ADinsights</h1>
-          <p className="muted">
-            Tenant <strong>{tenantId ?? "unknown"}</strong>
-            {selectedParish ? (
-              <span>
-                {" • "}Filtering to <strong>{selectedParish}</strong>
-              </span>
-            ) : null}
-          </p>
-        </div>
-        <div className="header-actions">
-          <label htmlFor="metric-select" className="muted">
-            Map metric
-          </label>
-          <select
-            id="metric-select"
-            value={selectedMetric}
-            onChange={(event) => setSelectedMetric(event.target.value as typeof selectedMetric)}
-          >
-            {metricOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="button tertiary theme-toggle"
-            onClick={toggleTheme}
-            aria-pressed={theme === "dark"}
-          >
-            <span className="theme-toggle__icon" aria-hidden="true">
-              {theme === "dark" ? "🌞" : "🌙"}
-            </span>
-            <span>{theme === "dark" ? "Light" : "Dark"} mode</span>
-          </button>
-          <span className="muted user-pill">{(user as { email?: string } | undefined)?.email ?? "Account"}</span>
-          <button type="button" className="button tertiary" onClick={logout}>
-            Log out
-          <button type="button" className="button secondary" onClick={handleSaveLayout}>
-            {SaveIcon}
-            Save layout
-          </button>
-          <button type="button" className="button secondary" onClick={() => void handleCopyLink()}>
-            {LinkIcon}
-            Copy link
-          </button>
-          <span className="muted user-pill">{(user as { email?: string } | undefined)?.email ?? "Account"}</span>
-        </div>
-      </header>
-      <nav className="dashboard-nav" aria-label="Dashboard sections">
-        <NavLink to="/dashboards/campaigns" className={({ isActive }) => (isActive ? "active" : undefined)}>
-          Campaigns
-        </NavLink>
-        <NavLink to="/dashboards/creatives" className={({ isActive }) => (isActive ? "active" : undefined)}>
-          Creatives
-        </NavLink>
-        <NavLink to="/dashboards/budget" className={({ isActive }) => (isActive ? "active" : undefined)}>
-          Budget pacing
-        </NavLink>
-      </nav>
       <FilterBar onChange={handleFilterChange} />
       {errors.length > 0 ? (
         <div className="dashboard-status">
