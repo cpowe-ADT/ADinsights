@@ -6,6 +6,13 @@ import type {
   ParishAggregate,
 } from "../state/useDashboardStore";
 
+export interface MetricsResponse {
+  campaign: CampaignPerformanceResponse;
+  creative: CreativePerformanceRow[];
+  budget: BudgetPacingRow[];
+  parish: ParishAggregate[];
+}
+
 interface FetchOptions {
   path: string;
   mockPath: string;
@@ -29,4 +36,8 @@ export async function fetchBudgetPacing(options: FetchOptions): Promise<BudgetPa
 
 export async function fetchParishAggregates(options: FetchOptions): Promise<ParishAggregate[]> {
   return fetchJson<ParishAggregate[]>(options);
+}
+
+export async function fetchMetrics(path: string): Promise<MetricsResponse> {
+  return apiClient.get<MetricsResponse>(path);
 }
