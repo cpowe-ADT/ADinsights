@@ -34,6 +34,8 @@ class PlatformCredentialSerializer(serializers.ModelSerializer):
         refresh_token = validated_data.pop("refresh_token", None)
         tenant: Tenant = self.context["request"].user.tenant
         credential = PlatformCredential(tenant=tenant, **validated_data)
+        if refresh_token is None:
+            credential.mark_refresh_token_for_clear()
         credential.set_raw_tokens(access_token, refresh_token)
         credential.save()
         return credential
@@ -43,6 +45,8 @@ class PlatformCredentialSerializer(serializers.ModelSerializer):
         refresh_token = validated_data.pop("refresh_token", serializers.empty)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        if refresh_token is None:
+            instance.mark_refresh_token_for_clear()
         if access_token is not serializers.empty or refresh_token is not serializers.empty:
             instance.set_raw_tokens(
                 None if access_token is serializers.empty else access_token,
