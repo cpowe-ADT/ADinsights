@@ -29,3 +29,6 @@ dev = [
 [build-system]
 requires = ["setuptools>=65"]
 build-backend = "setuptools.build_meta"
+
+[tool.ruff.lint.per-file-ignores]
+"backend/config/settings/*.py" = ["F403", "F405"]
