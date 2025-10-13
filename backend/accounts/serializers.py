@@ -211,6 +211,13 @@ class InvitationCreateSerializer(InvitationSerializer):
     def create(self, validated_data):
         tenant = self.context.get("tenant")
         invited_by = self.context.get("invited_by")
+        request = self.context.get("request")
+        if tenant is None and request is not None:
+            tenant = getattr(getattr(request, "user", None), "tenant", None)
+        if invited_by is None and request is not None:
+            user = getattr(request, "user", None)
+            if user and user.is_authenticated:
+                invited_by = user
         if tenant is None:
             raise serializers.ValidationError("Tenant context is required.")
 

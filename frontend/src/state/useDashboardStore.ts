@@ -2,6 +2,8 @@ import { create } from "zustand";
 
 import apiClient from "../lib/apiClient";
 
+const useMockData = (import.meta.env.VITE_MOCK_MODE ?? "true") !== "false";
+
 export type MetricRow = {
   date: string;
   platform: string;
@@ -75,8 +77,27 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     });
 
     try {
-      const response = await apiClient.get<MetricRow[]>("/campaign-metrics/");
-      set({ rows: response.data, status: "loaded", error: undefined });
+      let metrics: MetricRow[] = [];
+
+      if (useMockData) {
+        const response = await fetch("/sample_metrics.json");
+        const payload = await response.json();
+
+        if (!response.ok) {
+          const message =
+            payload && typeof payload.detail === "string"
+              ? payload.detail
+              : "Unable to load campaign metrics. Please try again.";
+          throw new Error(message);
+        }
+
+        metrics = payload as MetricRow[];
+      } else {
+        const response = await apiClient.get<MetricRow[]>("/metrics/");
+        metrics = response.data;
+      }
+
+      set({ rows: metrics, status: "loaded", error: undefined });
     } catch (error) {
       const message =
         error instanceof Error
