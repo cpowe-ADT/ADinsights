@@ -67,6 +67,16 @@ class TenantTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
+        username_value = attrs.get(self.username_field)
+        if username_value and "@" in username_value:
+            matched_user = (
+                User.objects.filter(email__iexact=username_value)
+                .order_by("date_joined")
+                .first()
+            )
+            if matched_user:
+                attrs[self.username_field] = matched_user.username
+
         data = super().validate(attrs)
         data["tenant_id"] = str(self.user.tenant_id)
         data["user"] = UserSerializer(self.user).data

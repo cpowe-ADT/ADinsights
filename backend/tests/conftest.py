@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+import uuid
 from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -37,7 +38,7 @@ def tenant(db) -> Tenant:
 @pytest.fixture
 def user(tenant) -> User:
     user = User.objects.create_user(
-        username="user@example.com",
+        username=uuid.uuid4().hex,
         email="user@example.com",
         tenant=tenant,
     )
