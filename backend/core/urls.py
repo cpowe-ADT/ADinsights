@@ -12,6 +12,7 @@ from accounts.views import (
     UserRoleViewSet,
     UserViewSet,
 )
+from integrations.views import AirbyteConnectionViewSet, PlatformCredentialViewSet
 from integrations.views import (
     AlertRuleDefinitionViewSet,
     CampaignBudgetViewSet,
@@ -24,6 +25,11 @@ router.register(
     r"platform-credentials",
     PlatformCredentialViewSet,
     basename="platformcredential",
+)
+router.register(
+    r"airbyte/connections",
+    AirbyteConnectionViewSet,
+    basename="airbyte-connection",
 )
 router.register(r"tenants", TenantViewSet, basename="tenant")
 router.register(r"users", UserViewSet, basename="user")
