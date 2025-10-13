@@ -190,11 +190,13 @@ class AirbyteConnection(models.Model):
             if not self.cron_expression:
                 return False
             try:
-                iterator = croniter(self.cron_expression, now)
-                previous_run = iterator.get_prev(datetime)
+                if self.last_synced_at is None:
+                    return True
+                iterator = croniter(self.cron_expression, self.last_synced_at)
+                next_run = iterator.get_next(datetime)
             except (ValueError, TypeError):
                 return False
-            return self.last_synced_at is None or self.last_synced_at < previous_run
+            return next_run <= now
         return False
 
     def record_sync(self, job_id: int | None, job_status: str, job_created_at: datetime) -> None:

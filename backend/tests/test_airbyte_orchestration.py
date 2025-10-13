@@ -43,6 +43,17 @@ def test_cron_schedule_due(tenant):
     connection.last_synced_at = now
     assert not connection.should_trigger(now)
 
+    on_schedule = now.replace(minute=0)
+    exact_connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Hourly Google Exact",
+        connection_id=uuid.uuid4(),
+        schedule_type=AirbyteConnection.SCHEDULE_CRON,
+        cron_expression="0 * * * *",
+        last_synced_at=on_schedule - timedelta(hours=1),
+    )
+    assert exact_connection.should_trigger(on_schedule)
+
 
 @pytest.mark.django_db
 def test_airbyte_service_triggers_and_records(tenant):
