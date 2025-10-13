@@ -3,8 +3,9 @@ from __future__ import annotations
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from .audit import log_audit_event
 from .hooks import send_invitation_email
-from .models import Invitation, Role, Tenant, User, UserRole, assign_role
+from .models import AuditLog, Invitation, Role, Tenant, User, UserRole, assign_role
 
 
 class RoleNameField(serializers.ChoiceField):
@@ -59,7 +60,41 @@ class TenantTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)
         data["tenant_id"] = str(self.user.tenant_id)
         data["user"] = UserSerializer(self.user).data
+        log_audit_event(
+            tenant=self.user.tenant,
+            user=self.user,
+            action="login",
+            resource_type="auth",
+            resource_id=self.user.id,
+        )
         return data
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AuditLog
+        fields = [
+            "id",
+            "tenant",
+            "user",
+            "action",
+            "resource_type",
+            "resource_id",
+            "metadata",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+    def get_user(self, obj: AuditLog):
+        user = obj.user
+        if user is None:
+            return None
+        return {
+            "id": str(user.id),
+            "email": user.email,
+        }
 
 
 class TenantSerializer(serializers.ModelSerializer):
@@ -255,9 +290,14 @@ class UserRoleSerializer(serializers.ModelSerializer):
         model = UserRole
         fields = ["id", "user", "tenant", "role", "created_at"]
         read_only_fields = ["id", "created_at"]
+        validators: list = []
 
     def validate(self, attrs):
         tenant = attrs.get("tenant") or self.context.get("tenant")
+        if tenant is None:
+            request = self.context.get("request")
+            if request is not None and getattr(request.user, "is_authenticated", False):
+                tenant = getattr(request.user, "tenant", None)
         if tenant is None:
             raise serializers.ValidationError("Tenant context is required.")
 
