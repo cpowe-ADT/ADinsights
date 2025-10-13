@@ -4,6 +4,7 @@ import type {
   CampaignPerformanceResponse,
   CreativePerformanceRow,
   ParishAggregate,
+  TenantMetricsSnapshot,
 } from "../state/useDashboardStore";
 
 interface FetchOptions {
@@ -29,4 +30,8 @@ export async function fetchBudgetPacing(options: FetchOptions): Promise<BudgetPa
 
 export async function fetchParishAggregates(options: FetchOptions): Promise<ParishAggregate[]> {
   return fetchJson<ParishAggregate[]>(options);
+}
+
+export async function fetchDashboardMetrics(options: FetchOptions): Promise<TenantMetricsSnapshot> {
+  return fetchJson<TenantMetricsSnapshot>(options);
 }

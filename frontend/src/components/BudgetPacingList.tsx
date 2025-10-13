@@ -1,5 +1,3 @@
-import { useMemo } from "react";
-
 import useDashboardStore, { BudgetPacingRow } from "../state/useDashboardStore";
 import { formatCurrency, formatPercent } from "../lib/format";
 
@@ -11,19 +9,16 @@ interface BudgetPacingListProps {
 const BudgetPacingList = ({ rows, currency }: BudgetPacingListProps) => {
   const { selectedParish } = useDashboardStore((state) => ({ selectedParish: state.selectedParish }));
 
-  const filteredRows = useMemo(() => {
-    if (!selectedParish) {
-      return rows;
-    }
-    return rows.filter((row) => row.parishes?.some((parish) => parish.toLowerCase() === selectedParish.toLowerCase()));
-  }, [rows, selectedParish]);
-
   return (
     <div className="budget-list">
-      {filteredRows.length === 0 ? (
-        <p className="status-message muted">No campaigns have pacing data for the selected parish yet.</p>
+      {rows.length === 0 ? (
+        <p className="status-message muted">
+          {selectedParish
+            ? `No campaigns have pacing data for ${selectedParish} yet.`
+            : "No campaigns have pacing data for the selected parish yet."}
+        </p>
       ) : null}
-      {filteredRows.map((row) => {
+      {rows.map((row) => {
         const pacingPercent = Math.max(0, Math.min(200, row.pacingPercent * 100));
         const status =
           pacingPercent < 95 ? "under" : pacingPercent > 110 ? "over" : "on-track";

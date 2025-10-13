@@ -11,6 +11,7 @@ with aggregated as (
         f.source_platform,
         f.ad_account_id,
         f.campaign_id,
+        max(f.campaign_name) as campaign_name,
         sum(f.spend) as spend,
         sum(f.impressions) as impressions,
         sum(f.clicks) as clicks,

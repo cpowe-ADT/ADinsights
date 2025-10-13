@@ -9,6 +9,7 @@ with base as (
         source_platform,
         ad_account_id,
         campaign_id,
+        campaign_name,
         adset_id,
         ad_id,
         parish_code,

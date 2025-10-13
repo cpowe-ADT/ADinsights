@@ -6,6 +6,7 @@ with campaign_daily as (
         source_platform,
         ad_account_id,
         campaign_id,
+        max(campaign_name) as campaign_name,
         sum(spend) as spend,
         sum(impressions) as impressions,
         sum(clicks) as clicks,

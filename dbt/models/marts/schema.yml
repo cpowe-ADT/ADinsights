@@ -78,6 +78,10 @@ models:
               arguments:
                 to: ref('dim_campaign')
                 field: campaign_id
+      - name: campaign_name
+        description: "Human-readable campaign label sourced from staging when available."
+        tests:
+          - not_null
       - name: adset_id
         tests:
           - not_null
