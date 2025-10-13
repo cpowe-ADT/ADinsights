@@ -4,15 +4,15 @@
   "workspaceId": "REDACTED",
   "configuration": {
     "developer_token": "REDACTED",
-    "oAuthClientId": "REDACTED",
-    "oAuthClientSecret": "REDACTED",
+    "client_id": "REDACTED",
+    "client_secret": "REDACTED",
     "refresh_token": "REDACTED",
     "login_customer_id": "REDACTED",
     "customer_id": "REDACTED",
     "start_date": "2024-01-01",
     "end_date": null,
-    "conversion_window_days": 30,
-    "lookback_window_days": 3,
+    "conversion_window": 30,
+    "lookback_window": 3,
     "use_resource_custom_queries": true,
     "custom_queries": [
       {
