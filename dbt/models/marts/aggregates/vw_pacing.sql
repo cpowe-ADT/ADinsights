@@ -35,6 +35,7 @@ windowed as (
         {{ metric_ctr('ad.clicks', 'ad.impressions') }} as ctr,
         {{ metric_conversion_rate('ad.conversions', 'ad.clicks') }} as conversion_rate,
         {{ metric_cost_per_conversion('ad.spend', 'ad.conversions') }} as cost_per_conversion,
+        {{ metric_roas('ad.conversions', 'ad.spend') }} as roas,
         {{ metric_cpm('ad.spend', 'ad.impressions') }} as cpm
     from account_daily ad
 )
