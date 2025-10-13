@@ -140,8 +140,13 @@ def parse_lcov_coverage(path: Path) -> tuple[Optional[int], Optional[int], Optio
         for line in handle:
             line = line.strip()
             if line.startswith("DA:"):
+                payload = line.split(":", 1)[1]
+                parts = payload.split(",", 2)
+                if len(parts) < 2:
+                    continue
+                _, count = parts[:2]
+                count = count.strip()
                 try:
-                    _, count = line.split(":", 1)[1].split(",")
                     executions = int(count)
                 except ValueError:
                     continue
