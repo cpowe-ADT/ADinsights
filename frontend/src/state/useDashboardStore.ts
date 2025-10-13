@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { MOCK_MODE } from "../lib/apiClient";
+import { clearView, loadSavedView, saveView } from "../lib/savedViews";
 import {
   fetchBudgetPacing,
   fetchCampaignPerformance,
@@ -142,6 +143,9 @@ interface DashboardState {
   getCreativeRowsForSelectedParish: () => CreativePerformanceRow[];
   getBudgetRowsForSelectedParish: () => BudgetPacingRow[];
   reset: () => void;
+  getSavedTableView: <T = unknown>(tableId: string) => T | undefined;
+  setSavedTableView: (tableId: string, view: unknown) => void;
+  clearSavedTableView: (tableId: string) => void;
 }
 
 const initialSlice = <T,>(): AsyncSlice<T> => ({ status: "idle", data: undefined, error: undefined });
@@ -212,6 +216,9 @@ function mapError(reason: unknown): string {
 
 const useDashboardStore = create<DashboardState>((set, get) => ({
   ...createInitialState(),
+  getSavedTableView: (tableId) => loadSavedView(tableId),
+  setSavedTableView: (tableId, view) => saveView(tableId, view),
+  clearSavedTableView: (tableId) => clearView(tableId),
   setSelectedParish: (parish) => {
     if (!parish) {
       set({ selectedParish: undefined });
