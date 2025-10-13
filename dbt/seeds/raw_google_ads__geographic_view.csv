@@ -1,0 +1,2 @@
+customer_id,segments_date,geo_target_id,geo_target_country,geo_target_state,geo_target_city_name,metrics_impressions,metrics_clicks,metrics_cost_micros
+1234567890,2024-01-01,JM-001,Jamaica,Kingston Parish,Kingston,800,60,150000000

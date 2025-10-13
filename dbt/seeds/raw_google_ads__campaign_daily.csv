@@ -1,0 +1,2 @@
+customer_id,campaign_id,ad_group_id,ad_id,segments_date,metrics_impressions,metrics_clicks,metrics_conversions,metrics_conversions_value,metrics_cost_micros,metrics_average_cpc,metrics_average_cpm
+1234567890,1111111111,2222222222,3333333333,2024-01-01,1500,120,6,900.0,300000000,2500000,200000000

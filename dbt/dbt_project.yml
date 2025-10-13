@@ -8,6 +8,9 @@ seed-paths: ["seeds"]
 snapshot-paths: ["snapshots"]
 macro-paths: ["macros"]
 
+on-run-start:
+  - "{{ apply_ci_fixtures() }}"
+
 models:
   adinsights:
     staging:
@@ -23,6 +26,10 @@ models:
     reference:
       materialized: table
 
+snapshots:
+  adinsights:
+    +target_schema: "{{ var('snapshot_schema', target.schema) }}"
+
 seeds:
   adinsights:
     +quote_columns: false
@@ -33,7 +40,9 @@ seeds:
         +column_types:
           customer_id: text
           campaign_id: text
+          campaign_name: text
           ad_group_id: text
+          ad_name: text
           criterion_id: text
           date_day: date
           geo_target_region: text
@@ -47,8 +56,10 @@ seeds:
         +column_types:
           ad_account_id: text
           campaign_id: text
+          campaign_name: text
           adset_id: text
           ad_id: text
+          ad_name: text
           date_start: date
           region: text
           spend: numeric
@@ -145,3 +156,116 @@ seeds:
         parish_code: text
         latitude: numeric
         longitude: numeric
+    raw__google_ads_insights:
+      +quote_columns: true
+      +column_types:
+        customer_id: text
+        campaign_id: text
+        campaign_name: text
+        ad_group_id: text
+        ad_name: text
+        criterion_id: text
+        date_day: date
+        geo_target_region: text
+        cost_micros: numeric
+        impressions: numeric
+        clicks: numeric
+        conversions: numeric
+        _airbyte_emitted_at: timestamp
+        _airbyte_raw_id: text
+    raw__meta_ads_insights:
+      +quote_columns: true
+      +column_types:
+        ad_account_id: text
+        campaign_id: text
+        campaign_name: text
+        adset_id: text
+        ad_id: text
+        ad_name: text
+        date_start: date
+        region: text
+        spend: numeric
+        impressions: numeric
+        clicks: numeric
+        conversions: numeric
+        updated_time: timestamp
+        _airbyte_emitted_at: timestamp
+        _airbyte_raw_id: text
+    raw_google_ads__campaign_daily:
+      +quote_columns: true
+      +column_types:
+        customer_id: text
+        campaign_id: text
+        ad_group_id: text
+        ad_id: text
+        segments_date: date
+        metrics_impressions: numeric
+        metrics_clicks: numeric
+        metrics_conversions: numeric
+        metrics_conversions_value: numeric
+        metrics_cost_micros: numeric
+        metrics_average_cpc: numeric
+        metrics_average_cpm: numeric
+    raw_google_ads__geographic_view:
+      +quote_columns: true
+      +column_types:
+        customer_id: text
+        segments_date: date
+        geo_target_id: text
+        geo_target_country: text
+        geo_target_state: text
+        geo_target_city_name: text
+        metrics_impressions: numeric
+        metrics_clicks: numeric
+        metrics_cost_micros: numeric
+    raw_meta__ad_insights:
+      +quote_columns: true
+      +column_types:
+        account_id: text
+        campaign_id: text
+        adset_id: text
+        ad_id: text
+        date_start: date
+        country: text
+        region: text
+        city: text
+        impressions: numeric
+        clicks: numeric
+        spend: numeric
+        cpc: numeric
+        cpm: numeric
+        ctr: numeric
+        actions: text
+    raw_meta__ads:
+      +quote_columns: true
+      +column_types:
+        id: text
+        adset_id: text
+        campaign_id: text
+        account_id: text
+        name: text
+        status: text
+        created_time: timestamp
+        updated_time: timestamp
+    raw_meta__adsets:
+      +quote_columns: true
+      +column_types:
+        id: text
+        campaign_id: text
+        account_id: text
+        name: text
+        status: text
+        daily_budget: numeric
+        created_time: timestamp
+        updated_time: timestamp
+    raw_meta__campaigns:
+      +quote_columns: true
+      +column_types:
+        id: text
+        account_id: text
+        name: text
+        status: text
+        effective_status: text
+        objective: text
+        created_time: timestamp
+        updated_time: timestamp
