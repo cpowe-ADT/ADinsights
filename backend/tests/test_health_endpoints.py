@@ -6,9 +6,22 @@ import uuid
 from datetime import timedelta
 
 import pytest
+from django.test import Client, override_settings
+from django.urls import path
 from django.utils import timezone
 
 from integrations.models import AirbyteConnection, TenantAirbyteSyncStatus
+
+
+def _failing_view(request):  # noqa: ANN001 - test helper signature
+    raise RuntimeError("boom")
+
+
+urlpatterns = [
+    path("boom/", _failing_view),
+]
+
+handler500 = "core.views.server_error"
 
 
 @pytest.mark.django_db
@@ -165,6 +178,36 @@ def test_api_logging_middleware_emits_structured_context(api_client):
     assert latest.duration_ms >= 0
 
 
+def test_health_version_endpoint(api_client, settings):
+    settings.APP_VERSION = "1.2.3"
+
+    response = api_client.get("/api/health/version/")
+
+    assert response.status_code == 200
+    assert response.json() == {"version": "1.2.3"}
+
+
+def test_not_found_returns_json(api_client, settings):
+    settings.DEBUG = False
+
+    response = api_client.get("/api/does-not-exist/")
+
+    assert response.status_code == 404
+    payload = response.json()
+    assert payload["error"]["code"] == "not_found"
+    assert payload["error"]["path"] == "/api/does-not-exist/"
+
+
+@override_settings(ROOT_URLCONF="backend.tests.test_health_endpoints", DEBUG=False)
+def test_server_error_returns_json():
+    client = Client(raise_request_exception=False)
+    response = client.get("/boom/")
+
+    assert response.status_code == 500
+    payload = response.json()
+    assert payload["error"]["code"] == "server_error"
+    assert "unexpected error" in payload["error"]["message"].lower()
+    assert payload["error"]["path"] == "/boom/"
 def test_version_endpoint_reports_api_version(api_client, settings):
     settings.API_VERSION = "1.2.3-test"
 
