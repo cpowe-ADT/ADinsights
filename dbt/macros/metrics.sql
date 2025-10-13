@@ -24,6 +24,6 @@ end
     {{ safe_divide(spend ~ ' * 1000', impressions) }}
 {% endmacro %}
 
-{% macro metric_roas(revenue, spend) %}
+{% macro metric_return_on_ad_spend(revenue, spend) %}
     {{ safe_divide(revenue, spend) }}
 {% endmacro %}
