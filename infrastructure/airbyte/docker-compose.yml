@@ -69,6 +69,24 @@ services:
       timeout: 5s
       retries: 12
     logging: *airbyte-logging
+      - TEMPORAL_HOST=temporal:7233
+    ports:
+      # Exposes the Airbyte HTTP API on localhost:8001.
+      - "8001:8001"
+    depends_on:
+      - db
+      - temporal
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/api/v1/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   webapp:
     # React admin UI served via Nginx; light footprint (<256 MiB RAM).
@@ -85,6 +103,21 @@ services:
       server:
         condition: service_healthy
     logging: *airbyte-logging
+      # Maps the UI to localhost:8000.
+      - "8000:80"
+    depends_on:
+      - server
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   worker:
     # Execute sync jobs; provision at least 2 vCPU / 4 GiB RAM for parallel destinations.
@@ -97,6 +130,7 @@ services:
       - DATABASE_PASSWORD=${AIRBYTE_DB_PASSWORD:-password}
       - DATABASE_URL=jdbc:postgresql://db:5432/${AIRBYTE_DB_NAME:-airbyte}
       - AIRBYTE_API_URL=http://server:8001
+      - TEMPORAL_HOST=temporal:7233
       - WORKER_ENVIRONMENT=DOCKER
     depends_on:
       server:
@@ -104,6 +138,13 @@ services:
       temporal:
         condition: service_started
     logging: *airbyte-logging
+      - server
+      - temporal
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
 volumes:
   airbyte-db-data:

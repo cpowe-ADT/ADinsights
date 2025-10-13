@@ -59,6 +59,12 @@ cp sources/google_ads.json.example sources/google_ads.json
 The Meta Marketing template configures incremental streams on `updated_time` with an Insights lookback window of 3 days across a 28-day
 attribution horizon. The Google Ads template uses Airbyte's `{{ runtime_from_date }}` / `{{ runtime_to_date }}` variables so custom
 GAQL queries only replay the slices required by the incremental state.
+If you prefer environment-based substitution, duplicate `env.example` to `.env` and export it before running `docker compose up`.
+
+The Google Ads sample uses Airbyte's `{{ runtime_from_date }}` template variable inside each custom
+query so the connector replays only the slices required by the incremental state rather than a fixed
+28-day window. Keep the cursor fields and lookback windows aligned with your desired backfill
+horizon when adapting the template.
 
 For optional connectors (LinkedIn, TikTok) provide API keys only if you have access.
 
