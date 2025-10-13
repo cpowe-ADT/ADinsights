@@ -1,7 +1,16 @@
-from .base import *  # noqa: F403
 import os
 
 # ruff: noqa: F405  # allow names brought in via star-imports in settings files
+
+os.environ.setdefault("DJANGO_SECRET_KEY", "test")
+os.environ.setdefault("CELERY_BROKER_URL", "memory://")
+os.environ.setdefault("CELERY_RESULT_BACKEND", "cache+memory://")
+os.environ.setdefault("KMS_KEY_ID", "test-key")
+os.environ.setdefault("SECRETS_PROVIDER", "env")
+os.environ.setdefault("KMS_PROVIDER", "aws")
+os.environ.setdefault("API_VERSION", "test")
+
+from .base import *  # noqa: F403
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "test")
 DEBUG = True

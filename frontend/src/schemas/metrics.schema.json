@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adinsights.dev/schemas/metrics.schema.json",
+  "title": "CampaignPerformanceResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "trend", "rows"],
+  "properties": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currency",
+        "totalSpend",
+        "totalImpressions",
+        "totalClicks",
+        "totalConversions",
+        "averageRoas"
+      ],
+      "properties": {
+        "currency": { "type": "string" },
+        "totalSpend": { "type": "number" },
+        "totalImpressions": { "type": "number" },
+        "totalClicks": { "type": "number" },
+        "totalConversions": { "type": "number" },
+        "averageRoas": { "type": "number" }
+      }
+    },
+    "trend": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["date", "spend", "conversions", "clicks", "impressions"],
+        "properties": {
+          "date": { "type": "string", "format": "date" },
+          "spend": { "type": "number" },
+          "conversions": { "type": "number" },
+          "clicks": { "type": "number" },
+          "impressions": { "type": "number" }
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "platform",
+          "status",
+          "parish",
+          "spend",
+          "impressions",
+          "clicks",
+          "conversions",
+          "roas"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "platform": { "type": "string" },
+          "status": { "type": "string" },
+          "objective": { "type": "string" },
+          "parish": { "type": "string" },
+          "spend": { "type": "number" },
+          "impressions": { "type": "number" },
+          "clicks": { "type": "number" },
+          "conversions": { "type": "number" },
+          "roas": { "type": "number" },
+          "ctr": { "type": "number" },
+          "cpc": { "type": "number" },
+          "cpm": { "type": "number" },
+          "startDate": { "type": "string", "format": "date" },
+          "endDate": { "type": "string", "format": "date" }
+        }
+      }
+    }
+  }
+}
