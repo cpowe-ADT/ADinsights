@@ -27,9 +27,9 @@ with base as (
 enriched as (
     select
         b.*,
-        case when impressions > 0 then clicks / impressions::numeric else 0 end as ctr,
-        case when clicks > 0 then conversions / clicks::numeric else 0 end as conversion_rate,
-        case when conversions > 0 then spend / conversions::numeric else null end as cost_per_conversion
+        {{ metric_ctr('b.clicks', 'b.impressions') }} as ctr,
+        {{ metric_conversion_rate('b.conversions', 'b.clicks') }} as conversion_rate,
+        {{ metric_cost_per_conversion('b.spend', 'b.conversions') }} as cost_per_conversion
     from base b
 )
 

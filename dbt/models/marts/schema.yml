@@ -1,21 +1,50 @@
 version: 2
 
 models:
-  - name: dim_campaigns
-    description: "SCD2 dimension for campaign attributes across ad platforms."
+  - name: dim_campaign
+    description: "SCD2 dimension capturing campaign level attributes and geo enrichment."
+    columns:
+      - name: source_platform
+        tests:
+          - not_null
+      - name: ad_account_id
+        tests:
+          - not_null
+      - name: campaign_id
+        tests:
+          - not_null
+      - name: parish_code
+      - name: valid_from
+        tests:
+          - not_null
+      - name: valid_to
+      - name: is_current
+  - name: dim_adset
+    description: "SCD2 dimension for ad sets/ad groups mapped back to campaigns and locations."
     columns:
       - name: source_platform
       - name: ad_account_id
+      - name: adset_id
+        tests:
+          - not_null
       - name: campaign_id
+      - name: parish_code
       - name: valid_from
       - name: valid_to
-      - name: is_current
-  - name: dim_adsets
-    description: "SCD2 dimension for ad set/ad group level attributes."
-  - name: dim_ads
-    description: "SCD2 dimension for creative/ad level attributes."
-  - name: dim_geo_parishes
-    description: "Static lookup table mapping marketing regions to Jamaican parishes."
+  - name: dim_ad
+    description: "SCD2 dimension for creatives with ad set, campaign, and geo attributes."
+    columns:
+      - name: source_platform
+      - name: ad_account_id
+      - name: ad_id
+        tests:
+          - not_null
+      - name: adset_id
+      - name: campaign_id
+      - name: parish_code
+      - name: valid_from
+  - name: dim_geo
+    description: "Static lookup table mapping Jamaican parishes to geographic metadata."
     columns:
       - name: parish_code
         tests:
@@ -34,3 +63,24 @@ models:
       - name: impressions
       - name: ctr
       - name: conversion_rate
+  - name: vw_campaign_daily
+    description: "Aggregated daily campaign metrics joined to current campaign attributes."
+    columns:
+      - name: date_day
+        tests:
+          - not_null
+      - name: campaign_id
+      - name: spend
+      - name: ctr
+  - name: vw_creative_daily
+    description: "Aggregated daily creative metrics with cost efficiency fields for dashboards."
+    columns:
+      - name: date_day
+      - name: ad_id
+      - name: cost_per_click
+  - name: vw_pacing
+    description: "Account level pacing view with cumulative and trailing spend indicators."
+    columns:
+      - name: date_day
+      - name: ad_account_id
+      - name: cumulative_spend
