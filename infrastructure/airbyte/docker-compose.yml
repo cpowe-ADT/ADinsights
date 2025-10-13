@@ -5,17 +5,30 @@ services:
     # Dedicated Postgres backing store. Allocate at least 1 vCPU / 2 GiB RAM for stability.
     image: airbyte/db:1.0.0
     container_name: airbyte-db
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=airbyte
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=airbyte
     volumes:
       - airbyte-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   temporal:
     # Temporal orchestrates jobs; ensure shared network bandwidth with server/worker nodes.
     image: temporalio/auto-setup:1.25.0
     container_name: airbyte-temporal
+    restart: unless-stopped
     environment:
       - DB=postgresql
       - DB_PORT=5432
@@ -24,49 +37,88 @@ services:
       - POSTGRES_SEEDS=db
     depends_on:
       - db
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   server:
     # Airbyte API; expect ~512 MiB RAM usage under typical dev loads.
     image: airbyte/airbyte-server:0.50.22
     container_name: airbyte-server
+    restart: unless-stopped
     environment:
       - AIRBYTE_ROLE=server
       - DATABASE_USER=airbyte
       - DATABASE_PASSWORD=password
       - DATABASE_URL=jdbc:postgresql://db:5432/airbyte
       - DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION=0.40.24
+      - TEMPORAL_HOST=temporal:7233
     ports:
+      # Exposes the Airbyte HTTP API on localhost:8001.
       - "8001:8001"
     depends_on:
       - db
       - temporal
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/api/v1/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   webapp:
     # React admin UI served via Nginx; light footprint (<256 MiB RAM).
     image: airbyte/airbyte-webapp:0.50.22
     container_name: airbyte-webapp
+    restart: unless-stopped
     environment:
       - AIRBYTE_ROLE=webapp
       - AIRBYTE_API_URL=http://server:8001
     ports:
+      # Maps the UI to localhost:8000.
       - "8000:80"
     depends_on:
       - server
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   worker:
     # Execute sync jobs; provision at least 2 vCPU / 4 GiB RAM for parallel destinations.
     image: airbyte/airbyte-worker:0.50.22
     container_name: airbyte-worker
+    restart: unless-stopped
     environment:
       - AIRBYTE_ROLE=worker
       - DATABASE_USER=airbyte
       - DATABASE_PASSWORD=password
       - DATABASE_URL=jdbc:postgresql://db:5432/airbyte
       - AIRBYTE_API_URL=http://server:8001
+      - TEMPORAL_HOST=temporal:7233
       - WORKER_ENVIRONMENT=DOCKER
     depends_on:
       - server
       - temporal
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
 volumes:
   airbyte-db-data:
