@@ -4,7 +4,7 @@
 The report exporter turns aggregated advertising metrics into printable deliverables. It merges JSON payloads with the HTML template in `integrations/exporter/templates/`, renders the report in headless Chromium, and emits an A4 PDF plus a first-page PNG preview. This makes it easy to hand off consistent performance summaries without opening the full BI stack.
 
 ## Setup
-1. Install prerequisites (Node.js 18+ and Playwright system libraries). If the first run complains about missing libraries, run `npx playwright install-deps` or install the packages listed in the error message.
+1. Install prerequisites (Node.js 18+). The CLI bundles a Chromium build via `@sparticuz/chromium`, so no extra system packages are required for headless rendering.
 2. Install dependencies:
    ```bash
    cd integrations/exporter
