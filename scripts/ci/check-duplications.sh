@@ -16,7 +16,7 @@ macros_dir = repo_root / 'dbt' / 'macros'
 
 failures = []
 
-# Check for duplicate model filenames
+# Check for duplicate model identifiers
 if models_dir.exists():
     model_names = collections.defaultdict(list)
     for path in models_dir.rglob('*'):
@@ -24,10 +24,10 @@ if models_dir.exists():
             continue
         if path.suffix.lower() not in {'.sql', '.py'}:
             continue
-        model_names[path.name].append(path.relative_to(repo_root))
+        model_names[path.stem].append(path.relative_to(repo_root))
     duplicate_models = {name: sorted(paths) for name, paths in model_names.items() if len(paths) > 1}
     if duplicate_models:
-        lines = ['Duplicate dbt model filenames detected:']
+        lines = ['Duplicate dbt model identifiers detected:']
         for name in sorted(duplicate_models):
             lines.append(f'  {name}')
             for loc in duplicate_models[name]:
