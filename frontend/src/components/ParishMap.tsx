@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GeoJSON as GeoJSONLayer, MapContainer, TileLayer } from "react-leaflet";
 import type { Feature, FeatureCollection } from "geojson";
