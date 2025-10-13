@@ -2,6 +2,14 @@
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #0f172a;
   background-color: #f8fafc;
+  --font-size-h1: 22px;
+  --line-height-h1: 28px;
+  --font-size-h2: 16px;
+  --line-height-h2: 22px;
+  --font-size-body: 14px;
+  --line-height-body: 20px;
+  --font-size-label: 12px;
+  --line-height-label: 18px;
 }
 
 body,
@@ -9,6 +17,42 @@ html,
 #root {
   height: 100%;
   margin: 0;
+}
+
+body {
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  color: var(--text-primary);
+}
+
+p,
+.text-body {
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+h1,
+.text-h1 {
+  font-size: var(--font-size-h1);
+  line-height: var(--line-height-h1);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+h2,
+.text-h2 {
+  font-size: var(--font-size-h2);
+  line-height: var(--line-height-h2);
+  font-weight: 600;
+  margin: 0;
+}
+
+label,
+.text-label {
+  font-size: var(--font-size-label);
+  line-height: var(--line-height-label);
+  font-weight: 600;
 }
 
 .auth-shell {
@@ -33,14 +77,13 @@ html,
 .auth-form h1 {
   margin: 0 0 0.25rem;
   text-align: center;
-  font-size: 1.6rem;
   color: #0f172a;
 }
 
 .auth-form .muted {
   text-align: center;
   margin-bottom: 0.5rem;
-  color: #475569;
+  color: var(--muted);
 }
 
 .auth-form label {
@@ -119,7 +162,7 @@ html,
 }
 
 .status-message.muted {
-  color: #475569;
+  color: var(--muted);
   background: rgba(15, 23, 42, 0.03);
 }
 
@@ -163,7 +206,6 @@ html,
 
 .dashboard-header h1 {
   margin: 0;
-  font-size: 1.5rem;
 }
 
 .dashboard-header .muted {
@@ -256,9 +298,10 @@ html,
 .kpi-label {
   margin: 0;
   color: #1d4ed8;
-  font-size: 0.85rem;
+  font-size: var(--font-size-label);
+  line-height: var(--line-height-label);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .kpi-value {
@@ -266,6 +309,7 @@ html,
   font-size: 1.5rem;
   font-weight: 700;
   color: #0f172a;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .trend-chart {
@@ -296,8 +340,21 @@ html,
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #475569;
-  font-size: 0.9rem;
+  color: var(--muted);
+  font-size: var(--font-size-label);
+  line-height: var(--line-height-label);
+}
+
+.trend-footer strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+.trend-dates {
+  display: flex;
+  gap: 0.75rem;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .table-card {
@@ -448,5 +505,5 @@ th.pinned {
 }
 
 .muted {
-  color: #64748b;
+  color: var(--muted);
 }
