@@ -1,0 +1,7 @@
+{
+  "extends": "./frontend/tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client", "vitest", "node"],
+    "typeRoots": ["./node_modules/@types", "./frontend/node_modules/@types"]
+  }
+}
