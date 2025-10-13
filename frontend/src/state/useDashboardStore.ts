@@ -5,6 +5,7 @@ import {
   fetchBudgetPacing,
   fetchCampaignPerformance,
   fetchCreativePerformance,
+  fetchMetrics,
   fetchParishAggregates,
   fetchDashboardMetrics,
 } from "../lib/dataService";
@@ -267,6 +268,22 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     }));
 
     if (!MOCK_MODE) {
+      const metricsPath = withTenant("/metrics/", tenantId);
+      try {
+        const metrics = await fetchMetrics(metricsPath);
+        set({
+          campaign: { status: "loaded", data: metrics.campaign, error: undefined },
+          creative: { status: "loaded", data: metrics.creative, error: undefined },
+          budget: { status: "loaded", data: metrics.budget, error: undefined },
+          parish: { status: "loaded", data: metrics.parish, error: undefined },
+        });
+      } catch (error) {
+        const message = mapError(error);
+        set((state) => ({
+          campaign: { status: "error", data: state.campaign.data, error: message },
+          creative: { status: "error", data: state.creative.data, error: message },
+          budget: { status: "error", data: state.budget.data, error: message },
+          parish: { status: "error", data: state.parish.data, error: message },
       try {
         const metricsPath = withTenant("/metrics/", tenantId);
         const snapshot = await fetchDashboardMetrics({

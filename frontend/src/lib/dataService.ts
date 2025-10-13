@@ -7,6 +7,13 @@ import type {
   TenantMetricsSnapshot,
 } from "../state/useDashboardStore";
 
+export interface MetricsResponse {
+  campaign: CampaignPerformanceResponse;
+  creative: CreativePerformanceRow[];
+  budget: BudgetPacingRow[];
+  parish: ParishAggregate[];
+}
+
 interface FetchOptions {
   path: string;
   mockPath: string;
@@ -32,6 +39,8 @@ export async function fetchParishAggregates(options: FetchOptions): Promise<Pari
   return fetchJson<ParishAggregate[]>(options);
 }
 
+export async function fetchMetrics(path: string): Promise<MetricsResponse> {
+  return apiClient.get<MetricsResponse>(path);
 export async function fetchDashboardMetrics(options: FetchOptions): Promise<TenantMetricsSnapshot> {
   return fetchJson<TenantMetricsSnapshot>(options);
 }
