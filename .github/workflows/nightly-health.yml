@@ -1,0 +1,30 @@
+name: Nightly health check
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  curl-health:
+    name: Curl staging health endpoints
+    runs-on: ubuntu-latest
+    env:
+      STAGING_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Execute health checks
+        run: scripts/ci/curl-health.sh
+
+      - name: Upload health logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-health-logs
+          path: health-logs
+          if-no-files-found: warn
