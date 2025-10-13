@@ -7,7 +7,10 @@
 {% set nk_cols = natural_key if natural_key is iterable and natural_key is not string else [natural_key] %}
 {% set partition_cols = nk_cols + tracked_columns %}
 {% set change_cols = nk_cols + tracked_columns + ['effective_from'] %}
-{% set partition_expr = ', '.join('coalesce(' + col + ", '__missing__')" for col in partition_cols) %}
+{% set partition_expr = ', '.join(
+    "coalesce(cast(" + col + " as text), '__missing__')"
+    for col in partition_cols
+) %}
 
 with ordered_source as (
     select

@@ -36,7 +36,8 @@ enriched as (
         on cd.source_platform = d.source_platform
         and cd.ad_account_id = d.ad_account_id
         and cd.campaign_id = d.campaign_id
-        and cd.date_day between d.valid_from and d.valid_to
+        and cd.date_day between coalesce(d.first_seen_date, date(d.valid_from))
+            and coalesce(date(d.valid_to), date '9999-12-31')
 )
 
 select * from enriched
