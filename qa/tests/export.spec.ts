@@ -70,10 +70,8 @@ test.describe("metrics CSV export", () => {
     expect(response.contentType ?? "").toMatch(/text\/csv/i);
     expect(response.contentDisposition ?? "").toMatch(/\.csv/i);
 
-    const lines = response.body.trim().split("\n");
     expect(lines.length).toBeGreaterThan(0);
 
-    const headers = lines[0].split(",");
     expect(headers).toEqual([
       "date",
       "parish",
@@ -86,7 +84,7 @@ test.describe("metrics CSV export", () => {
 
     if (mockMode) {
       expect(lines.length).toBeGreaterThan(1);
-      const data = lines[1].split(",");
+      const data = dataLines[0]?.split(",") ?? [];
       expect(data).toEqual([
         "2024-09-01",
         "Kingston",
