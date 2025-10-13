@@ -7,21 +7,21 @@ with source as (
 
 cleaned as (
     select
-        cast(ad_account_id as text) as ad_account_id,
-        cast(campaign_id as text) as campaign_id,
-        coalesce(nullif(trim(campaign_name), ''), cast(campaign_id as text)) as campaign_name,
-        cast(adset_id as text) as adset_id,
-        cast(ad_id as text) as ad_id,
-        coalesce(nullif(trim(ad_name), ''), cast(ad_id as text)) as ad_name,
-        date(date_start) as date_day,
-        coalesce(region, 'Unknown') as region_name,
-        cast(spend as numeric) as spend,
-        cast(impressions as numeric) as impressions,
-        cast(clicks as numeric) as clicks,
-        cast(conversions as numeric) as conversions,
-        cast(coalesce(updated_time, _airbyte_emitted_at) as timestamp) as effective_from,
-        _airbyte_raw_id
-    from source
+        cast(s.ad_account_id as text) as ad_account_id,
+        cast(s.campaign_id as text) as campaign_id,
+        coalesce(nullif(trim(s.campaign_name), ''), cast(s.campaign_id as text)) as campaign_name,
+        cast(s.adset_id as text) as adset_id,
+        cast(s.ad_id as text) as ad_id,
+        coalesce(nullif(trim(s.ad_name), ''), cast(s.ad_id as text)) as ad_name,
+        date(s.date_start) as date_day,
+        coalesce(s.region, 'Unknown') as region_name,
+        cast(s.spend as numeric) as spend,
+        cast(s.impressions as numeric) as impressions,
+        cast(s.clicks as numeric) as clicks,
+        cast(s.conversions as numeric) as conversions,
+        cast(coalesce(s.updated_time, s._airbyte_emitted_at) as timestamp) as effective_from,
+        s._airbyte_raw_id
+    from source as s
 ),
 
 final as (

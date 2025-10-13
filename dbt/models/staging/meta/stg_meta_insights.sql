@@ -7,24 +7,27 @@
 
 with source as (
     select
-        account_id::text as account_id,
-        campaign_id::text as campaign_id,
-        adset_id::text as adset_id,
-        ad_id::text as ad_id,
-        date_start::date as date,
-        country::text as country,
-        region::text as region,
-        city::text as city,
-        impressions::numeric as impressions,
-        clicks::numeric as clicks,
-        spend::numeric as spend,
-        cpc::numeric as cpc,
-        cpm::numeric as cpm,
-        ctr::numeric as ctr,
+        cast(account_id as text) as account_id,
+        cast(campaign_id as text) as campaign_id,
+        cast(adset_id as text) as adset_id,
+        cast(ad_id as text) as ad_id,
+        cast(date_start as date) as date,
+        cast(country as text) as country,
+        cast(region as text) as region,
+        cast(city as text) as city,
+        cast(impressions as numeric) as impressions,
+        cast(clicks as numeric) as clicks,
+        cast(spend as numeric) as spend,
+        cast(cpc as numeric) as cpc,
+        cast(cpm as numeric) as cpm,
+        cast(ctr as numeric) as ctr,
         actions
     from {{ source('meta_raw', 'ad_insights') }}
     {% if is_incremental() %}
-    where date_start >= (select coalesce(max(date), '1900-01-01'::date) from {{ this }}) - interval '30 day'
+    where date_start >= (
+        select coalesce(max(date), cast('1900-01-01' as date))
+        from {{ this }}
+    ) - interval '30 day'
     {% endif %}
 ),
 
