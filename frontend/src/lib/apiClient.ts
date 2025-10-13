@@ -116,6 +116,7 @@ async function requestInternal<T>(
         try {
           const refreshedToken = await refreshHandler();
           if (refreshedToken) {
+            accessToken = refreshedToken;
             return requestInternal<T>(path, { method, body, headers, mockPath, skipAuth, signal }, attempt + 1);
           }
         } catch (refreshError) {
