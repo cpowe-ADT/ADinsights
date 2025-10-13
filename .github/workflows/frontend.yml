@@ -26,12 +26,27 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Run unit tests
+      - name: Run unit tests with coverage
+        id: test
         working-directory: frontend
         env:
           CI: 'true'
-        run: npm test -- --run
+        run: npm test -- --run --coverage --reporter=default --reporter=json --outputFile=test-results/vitest-report.json
 
       - name: Build frontend
         working-directory: frontend
         run: npm run build
+
+      - name: Upload frontend artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts/frontend-build
+          if-no-files-found: warn
+          path: |
+            frontend/dist
+            frontend/coverage
+
+      - name: Post coverage summary
+        if: ${{ always() }}
+        run: node scripts/ci/coverage-summary-helper.mjs
