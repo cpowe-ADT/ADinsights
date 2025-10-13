@@ -1,0 +1,2 @@
+customer_id,campaign_id,ad_group_id,criterion_id,date_day,geo_target_region,cost_micros,impressions,clicks,conversions,_airbyte_emitted_at,_airbyte_raw_id
+1234567890,1111111111,2222222222,3333333333,2024-01-01,Kingston,2500000,1000,50,5,2024-01-02T00:00:00Z,airbyte-google-1

@@ -46,7 +46,7 @@ flattened as (
         coalesce(sum((action ->> 'value')::numeric) filter (where action ->> 'action_type' in ('offsite_conversion', 'purchase')), 0) as conv_value
     from source
     left join lateral jsonb_array_elements(coalesce(actions::jsonb, '[]'::jsonb)) as action on true
-    group by 1,2,3,4,5,6,7,8,9,10,11,12,13
+    group by 1,2,3,4,5,6,7,8,9,10,11,12,13,14
 )
 
 select * from flattened

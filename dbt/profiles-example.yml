@@ -1,23 +1,37 @@
+postgres_local: &postgres_local
+  type: postgres
+  host: localhost
+  user: db_user
+  password: db_password
+  port: 5432
+  dbname: ads_reporting
+  schema: analytics
+  threads: 4
+  keepalives_idle: 0
+
+postgres_prod: &postgres_prod
+  type: postgres
+  host: "{{ env_var('DB_HOST') }}"
+  user: "{{ env_var('DB_USER') }}"
+  password: "{{ env_var('DB_PASSWORD') }}"
+  port: "{{ env_var('DB_PORT', '5432') }}"
+  dbname: "{{ env_var('DB_NAME') }}"
+  schema: "{{ env_var('DB_SCHEMA', 'analytics') }}"
+  threads: 8
+  sslmode: require
+
 ads_reporting:
   target: local
   outputs:
     local:
-      type: postgres
-      host: localhost
-      user: db_user
-      password: db_password
-      port: 5432
-      dbname: ads_reporting
-      schema: analytics
-      threads: 4
-      keepalives_idle: 0
+      <<: *postgres_local
     prod:
-      type: postgres
-      host: "{{ env_var('DB_HOST') }}"
-      user: "{{ env_var('DB_USER') }}"
-      password: "{{ env_var('DB_PASSWORD') }}"
-      port: "{{ env_var('DB_PORT', '5432') }}"
-      dbname: "{{ env_var('DB_NAME') }}"
-      schema: "{{ env_var('DB_SCHEMA', 'analytics') }}"
-      threads: 8
-      sslmode: require
+      <<: *postgres_prod
+
+adinsights:
+  target: local
+  outputs:
+    local:
+      <<: *postgres_local
+    prod:
+      <<: *postgres_prod
