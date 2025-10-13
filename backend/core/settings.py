@@ -27,6 +27,7 @@ env = environ.Env(
     METRICS_SNAPSHOT_TTL=(int, 300),
     ENABLE_FAKE_ADAPTER=(bool, False),
     ENABLE_WAREHOUSE_ADAPTER=(bool, False),
+    CREDENTIAL_ROTATION_REMINDER_DAYS=(int, 7),
 )
 
 ENV_FILE = BASE_DIR / ".env"
@@ -45,6 +46,7 @@ API_VERSION = env("API_VERSION")
 METRICS_SNAPSHOT_TTL = env.int("METRICS_SNAPSHOT_TTL")
 ENABLE_FAKE_ADAPTER = env.bool("ENABLE_FAKE_ADAPTER", default=False)
 ENABLE_WAREHOUSE_ADAPTER = env.bool("ENABLE_WAREHOUSE_ADAPTER", default=False)
+CREDENTIAL_ROTATION_REMINDER_DAYS = env.int("CREDENTIAL_ROTATION_REMINDER_DAYS")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -151,7 +153,11 @@ CELERY_BEAT_SCHEDULE = {
     "alerts-quarter-hourly": {
         "task": "alerts.tasks.run_alert_cycle",
         "schedule": crontab(minute="*/15"),
-    }
+    },
+    "credential-rotation-reminders": {
+        "task": "integrations.tasks.remind_expiring_credentials",
+        "schedule": crontab(hour=2, minute=0),
+    },
 }
 
 SECRETS_PROVIDER = env("SECRETS_PROVIDER")
