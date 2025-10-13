@@ -3,3 +3,10 @@ version: 2
 models:
   - name: all_ad_performance
     description: "Unioned performance data across all configured ad platforms."
+  - name: metric_roas_fixture
+    description: "Fixture dataset for validating the metric_roas macro."
+    tests:
+      - metric_roas_matches:
+          revenue_column: revenue
+          spend_column: spend
+          expected_column: expected_roas
