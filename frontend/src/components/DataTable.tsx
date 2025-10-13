@@ -1,5 +1,5 @@
 import { Fragment, ReactNode, useId, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, CSSProperties } from "react";
 import {
   ColumnDef,
   FilterFn,
@@ -179,11 +179,23 @@ const DataTable = <TData,>({
       <div className="data-table__scroll-area" role="region" aria-label={regionLabel}>
         <table className="data-table__table">
           <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
+            {table.getHeaderGroups().map((headerGroup, headerGroupIndex) => (
               <tr key={headerGroup.id} className="data-table__header-row">
                 {headerGroup.headers.map((header) => {
+                  const headerRowDepth = headerGroup.depth ?? headerGroupIndex;
+                  const headerCellStyle = {
+                    ["--data-table-header-depth" as const]: String(headerRowDepth),
+                  } as CSSProperties;
+
                   if (header.isPlaceholder) {
-                    return <th key={header.id} />;
+                    return (
+                      <th
+                        key={header.id}
+                        className="data-table__header-cell"
+                        aria-hidden="true"
+                        style={headerCellStyle}
+                      />
+                    );
                   }
 
                   const sortState = header.column.getIsSorted();
@@ -201,6 +213,7 @@ const DataTable = <TData,>({
                           ? "data-table__cell--numeric"
                           : undefined
                       )}
+                      style={headerCellStyle}
                     >
                       {header.column.getCanSort() ? (
                         <button

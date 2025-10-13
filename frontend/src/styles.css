@@ -446,6 +446,15 @@ th {
   max-height: clamp(320px, 60vh, 640px);
 }
 
+
+.data-table {
+  --data-table-header-row-height: 3rem;
+}
+
+.data-table--compact {
+  --data-table-header-row-height: 2.5rem;
+}
+
 .data-table__table {
   width: 100%;
   border-collapse: separate;
@@ -458,8 +467,8 @@ th {
 
 .data-table__header-cell {
   position: sticky;
-  top: 0;
-  z-index: 2;
+  top: calc(var(--data-table-header-row-height, 0px) * var(--data-table-header-depth, 0));
+  z-index: calc(2 + var(--data-table-header-depth, 0));
   background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
   border-bottom: 1px solid #cbd5f5;
   color: #1e293b;
