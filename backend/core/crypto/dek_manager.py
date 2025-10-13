@@ -1,3 +1,7 @@
+"""Helpers for managing tenant data-encryption keys."""
+
+from __future__ import annotations
+
 import logging
 import os
 
@@ -58,10 +62,11 @@ def rotate_all_tenant_deks() -> int:
             )
             new_key = os.urandom(32)
             version, ciphertext = kms_client.encrypt(new_key)
-        except KmsError:
+        except KmsError as error:
             logger.exception(
-                "Skipping DEK rotation for tenant %s due to KMS error",
+                "Skipping DEK rotation for tenant %s due to KMS error: %s",
                 tenant_key.tenant_id,
+                error,
             )
             continue
 

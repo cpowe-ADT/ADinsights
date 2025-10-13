@@ -1,14 +1,18 @@
 """Utilities for summarising alert payloads with an LLM provider."""
 
+from __future__ import annotations
+
 import json
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any, TYPE_CHECKING
 
 import httpx
 from django.conf import settings
 
-from app.alerts import AlertRule
+if TYPE_CHECKING:  # pragma: no cover - imported for typing only
+    from app.alerts import AlertRule
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +40,7 @@ class LLMClient:
     def is_enabled(self) -> bool:
         return bool(self.base_url and self.api_key and self.model)
 
-    def summarize(self, rule: AlertRule, rows: Iterable[dict[str, Any]]) -> str:
+    def summarize(self, rule: "AlertRule", rows: Iterable[dict[str, Any]]) -> str:
         rows = list(rows)
         if not rows:
             return "No results matched this alert; nothing to summarise."
