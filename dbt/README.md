@@ -15,7 +15,15 @@ make dbt-seed
 
 ## Building the warehouse
 
-The repository includes a `Makefile` with common workflows.
+The repository includes a `Makefile` with common workflows. Operators running
+the project locally can also execute the canonical build sequence manually if
+they prefer to see each phase complete before moving on to the next. Run these
+commands from the repository root so dbt can find the project under `dbt/`:
+
+1. Load seed data: `dbt seed`
+2. Build the staging layer: `dbt run --select staging`
+3. Capture snapshot tables: `dbt snapshot`
+4. Build the mart models: `dbt run --select marts`
 
 ```bash
 # Run the full build (staging, marts, tests)
