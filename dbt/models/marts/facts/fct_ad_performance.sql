@@ -1,5 +1,5 @@
 {{ config(
-    unique_key=['date_day', 'source_platform', 'campaign_id', 'ad_account_id'],
+    unique_key="date_day || '|' || source_platform || '|' || ad_account_id || '|' || campaign_id || '|' || coalesce(adset_id, 'NO_ADSET') || '|' || coalesce(ad_id, 'NO_AD')",
     incremental_strategy='merge'
 ) }}
 
