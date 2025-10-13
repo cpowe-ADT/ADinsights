@@ -17,7 +17,7 @@ connectionConfiguration:
         requester:
           path: "open_api/v1.2/creative/transparent_ads"
           request_parameters:
-            advertiser_id: <advertiser-id>
+            advertiser_id: {{ env['AIRBYTE_TIKTOK_ADVERTISER_ID'] }}
             start_date: "{{ runtime_from_date }}"
             end_date: "{{ runtime_to_date }}"
         record_selector:
