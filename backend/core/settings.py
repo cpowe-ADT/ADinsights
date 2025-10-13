@@ -135,3 +135,8 @@ AWS_SECRET_ACCESS_KEY = _optional(env("AWS_SECRET_ACCESS_KEY", default=None))
 AWS_SESSION_TOKEN = _optional(env("AWS_SESSION_TOKEN", default=None))
 
 TENANT_SETTING_KEY = "app.tenant_id"
+
+AIRBYTE_API_URL = _optional(env("AIRBYTE_API_URL", default=None))
+AIRBYTE_API_TOKEN = _optional(env("AIRBYTE_API_TOKEN", default=None))
+AIRBYTE_USERNAME = _optional(env("AIRBYTE_USERNAME", default=None))
+AIRBYTE_PASSWORD = _optional(env("AIRBYTE_PASSWORD", default=None))

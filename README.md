@@ -110,7 +110,22 @@ cd infrastructure/airbyte
 docker compose up -d
 ```
 Navigate to <http://localhost:8000> to configure sources. Use the `.example` files in `sources/` as
-templates and follow the README for recommended sync cadences.
+templates and follow the README for recommended sync cadences. Secrets are injected at runtime via
+environment variables—export the following before running declarative configuration or the
+bootstrap command:
+
+| Connector | Environment variable |
+| --- | --- |
+| Google Ads | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN` |
+| Meta Ads | `AIRBYTE_META_ACCESS_TOKEN` |
+| LinkedIn Transparency (stub) | `AIRBYTE_LINKEDIN_CLIENT_ID`, `AIRBYTE_LINKEDIN_CLIENT_SECRET`, `AIRBYTE_LINKEDIN_REFRESH_TOKEN` |
+| TikTok Transparency (stub) | `AIRBYTE_TIKTOK_TRANSPARENCY_TOKEN` |
+
+For scheduler access configure `AIRBYTE_API_URL` plus either `AIRBYTE_API_TOKEN` or the
+`AIRBYTE_USERNAME`/`AIRBYTE_PASSWORD` pair for the Airbyte deployment.
+
+Use `python manage.py sync_airbyte` (optionally via Celery beat) to trigger due syncs based on the
+`integrations_airbyteconnection` schedule metadata stored per tenant.
 
 ### dbt Staging Models
 ```bash
