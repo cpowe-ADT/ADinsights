@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "api-health-dbt.json",
+  "title": "dbt health response",
+  "type": "object",
+  "required": ["component", "status", "run_results_path", "failing_models"],
+  "properties": {
+    "component": {
+      "type": "string",
+      "const": "dbt"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "missing_run_results",
+        "invalid_run_results",
+        "failing",
+        "stale"
+      ]
+    },
+    "run_results_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": ["string", "null"],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T",
+      "description": "Timestamp indicating when dbt last finished running."
+    },
+    "failing_models": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "stale": {
+      "type": "boolean"
+    },
+    "detail": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

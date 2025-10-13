@@ -14,14 +14,21 @@ This runbook explains how to triage and remediate failures in the repository's G
 ## Inspecting workflow runs
 
 1. Navigate to **GitHub → Actions** and filter by the workflow name that corresponds to the failing PR.
-2. Open the most recent run and select the red ❌ job.
-3. Expand the failing step to review console output. Look for the command that exited with a non-zero code and copy any stack traces or error messages.
+2. Open the most recent run and review the **Summary** tab first. The summary shows which jobs were skipped, which completed, and any outputs published by workflow commands.
+3. Select the red ❌ job to drill in further.
+4. Expand the failing step to review console output. Look for the command that exited with a non-zero code and copy any stack traces or error messages.
 
 > Tip: Use the "Download log archive" link from the job summary when sharing logs in Slack or in incident tickets.
 
+## Retrieving artifacts
+
+* From the workflow **Summary** tab, scroll to the **Artifacts** section to download bundles such as `frontend-dist.zip`, `dbt-staging-artifacts`, or `backend-ci-summary.json`.
+* Artifact names map to the validation steps in the logs. For example, the `Publish backend timings` step uploads `ci-metrics.csv`; confirm the upload succeeded before debugging runtime regressions.
+* If an artifact is missing, cross-check the job logs for `upload-artifact` failures (often due to size limits) and re-run the job once the issue is addressed.
+
 ## Rerunning jobs
 
-* Use **Re-run failed jobs** when a transient error (network blip, GitHub outage, flaky dependency download) caused the failure. This preserves the same commit and executes only the failed jobs.
+* Use **Re-run failed jobs** when a transient error (network blip, GitHub outage, flaky dependency download) caused the failure. This preserves the same commit and executes only the failed jobs. In the run view, choose **Re-run jobs → Re-run failed jobs** so GitHub scopes the rerun to red steps only.
 * Use **Re-run all jobs** after fixing a pipeline script, caching issue, or updating secrets so that you can confirm every step completes cleanly.
 * If the workflow definition itself changed, push the fix and re-open the pull request to trigger a fresh run. Re-running a job does not load the new YAML.
 
