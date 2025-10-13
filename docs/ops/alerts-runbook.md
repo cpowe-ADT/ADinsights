@@ -17,12 +17,13 @@ This guide documents how to respond when dashboards or alerts indicate that the 
 ## Step 0 — Check the nightly health workflow
 
 1. Open the **Nightly Health** GitHub Actions workflow run that corresponds to the alert window.
-2. Download the `observability-health.csv` artifact and confirm the failing probe name.
-3. If the workflow logs show HTTP errors (4xx/5xx) when calling health endpoints:
+2. Review the `Observability health summary` section in the run summary. It renders the rows from `observability-health.csv` so you can spot failing probes without downloading artifacts.
+3. Download the `nightly-health-logs` artifact. The zip contains `observability-health.csv` at the root for spreadsheet import plus the `health-logs/` directory with per-attempt bodies, headers, and stderr captures.
+4. If the workflow logs show HTTP errors (4xx/5xx) when calling health endpoints:
    * Validate the endpoint URL in `infrastructure/monitoring/health-checks.yml` and retry the request manually with `curl` to confirm reachability.
    * Coordinate with the owning service team if the API recently changed or requires maintenance mode.
-4. If secrets are missing or access is denied, inspect the `Load secrets` step. Regenerate or re-authorize the secret in the secrets manager, then re-run the **Nightly Health** workflow.
-5. When endpoint paths changed, update both the monitoring configuration and any reverse-proxy routing rules before re-running the workflow to collect a clean set of checks.
+5. If secrets are missing or access is denied, inspect the `Load secrets` step. Regenerate or re-authorize the secret in the secrets manager, then re-run the **Nightly Health** workflow.
+6. When endpoint paths changed, update both the monitoring configuration and any reverse-proxy routing rules before re-running the workflow to collect a clean set of checks.
 
 ## Step 1 — Inspect Airbyte sync jobs
 
