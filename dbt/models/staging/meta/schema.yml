@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: meta_raw
-    schema: raw_meta
+    schema: "{{ var('raw_meta_schema', 'raw_meta') }}"
     tables:
       - name: ad_insights
       - name: campaigns
