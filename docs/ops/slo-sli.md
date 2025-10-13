@@ -19,7 +19,7 @@ The service level objectives (SLOs) below ensure our delivery pipelines and supp
 ## dbt CI
 
 * **SLO:** All dbt workflow runs triggered by PRs produce the `dbt-staging-artifacts` bundle (target 100%).
-  * **SLI source:** Presence flag in the `artifact-inventory.json` step output.
+  * **SLI source:** Presence flag in the `artifact-inventory.json` file stored within the `dbt-staging-artifacts` upload; downstream automation parses the `models` and `tests` arrays to verify coverage.
 * **SLO:** No more than 3% of dbt CI runs fail due to schema drift within a 30-day window.
   * **SLI source:** Tagged failure reason in the `dbt-ci-summary.ndjson` log emitted at the end of each run.
 

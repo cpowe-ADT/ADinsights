@@ -79,6 +79,15 @@ jobs:
       - name: Run staging models
         run: python -m dbt run --project-dir dbt --profiles-dir $HOME/.dbt --select staging
 
+      - name: Generate dbt docs artifacts
+        if: ${{ always() }}
+        run: |
+          if [ -f dbt/target/manifest.json ]; then
+            python -m dbt docs generate --project-dir dbt --profiles-dir $HOME/.dbt
+          else
+            echo "manifest.json missing; skipping docs generation"
+          fi
+
       - name: Summarize dbt run
         if: ${{ always() }}
         run: |
@@ -117,12 +126,104 @@ jobs:
         if: ${{ always() }}
         run: mkdir -p dbt/target
 
+      - name: Build artifact inventory
+        if: ${{ always() }}
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          target_dir = Path("dbt/target")
+          run_results_path = target_dir / "run_results.json"
+          manifest_path = target_dir / "manifest.json"
+          inventory_path = target_dir / "artifact-inventory.json"
+
+          inventory = {
+              "generated_at": None,
+              "project_name": None,
+              "adapter_type": None,
+              "models": [],
+              "tests": [],
+          }
+
+          if run_results_path.exists():
+              try:
+                  run_results = json.loads(run_results_path.read_text())
+              except json.JSONDecodeError:
+                  run_results = {}
+              metadata = run_results.get("metadata", {})
+              inventory.update(
+                  {
+                      "generated_at": run_results.get("generated_at"),
+                      "project_name": metadata.get("project_id"),
+                      "adapter_type": metadata.get("adapter_type"),
+                  }
+              )
+              results = run_results.get("results", [])
+          else:
+              results = []
+
+          manifest_nodes = {}
+          if manifest_path.exists():
+              try:
+                  manifest_nodes = json.loads(manifest_path.read_text()).get("nodes", {})
+              except json.JSONDecodeError:
+                  manifest_nodes = {}
+
+          for result in results:
+              unique_id = result.get("unique_id", "")
+              node = manifest_nodes.get(unique_id, {})
+              entry = {
+                  "name": node.get("name") or unique_id.split(".")[-1],
+                  "unique_id": unique_id,
+                  "status": result.get("status"),
+                  "execution_time": result.get("execution_time"),
+              }
+
+              resource_type = node.get("resource_type") or unique_id.split(".")[0]
+              if resource_type == "model":
+                  entry.update(
+                      {
+                          "materialization": (node.get("config") or {}).get("materialized"),
+                          "path": node.get("path"),
+                      }
+                  )
+                  inventory["models"].append(entry)
+              elif resource_type == "test":
+                  test_metadata = node.get("test_metadata") or {}
+                  entry.update(
+                      {
+                          "test_type": test_metadata.get("name"),
+                          "severity": (node.get("config") or {}).get("severity"),
+                          "failures": result.get("failures"),
+                          "message": result.get("message"),
+                      }
+                  )
+                  inventory["tests"].append(entry)
+
+          if inventory["generated_at"] is None:
+              inventory["generated_at"] = datetime.now(timezone.utc).isoformat()
+
+          inventory_path.write_text(json.dumps(inventory, indent=2), encoding="utf-8")
+          print(json.dumps(inventory, indent=2))
+          PY
+
       - name: Upload dbt artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: dbt-run
+          name: dbt-staging-artifacts
           path: |
+            dbt/target/artifact-inventory.json
+            dbt/target/catalog.json
             dbt/target/manifest.json
             dbt/target/run_results.json
+            dbt/target/graph.gpickle
+            dbt/target/graph_summary.json
+            dbt/target/partial_parse.msgpack
+            dbt/target/semantic_manifest.json
+            dbt/target/compiled
+            dbt/target/run
+            dbt/logs
           if-no-files-found: warn
