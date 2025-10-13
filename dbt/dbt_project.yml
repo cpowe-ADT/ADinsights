@@ -52,6 +52,29 @@ seeds:
           conversions: numeric
           _airbyte_emitted_at: timestamp
           _airbyte_raw_id: text
+      linkedin_transparency:
+        +column_types:
+          account_id: text
+          campaign_id: text
+          ad_creative_id: text
+          activity_date: date
+          region: text
+          impressions: numeric
+          clicks: numeric
+          spend: numeric
+          _airbyte_emitted_at: timestamp
+      tiktok_transparency:
+        +column_types:
+          advertiser_id: text
+          campaign_id: text
+          ad_group_id: text
+          ad_creative_id: text
+          report_date: date
+          region: text
+          impressions: numeric
+          clicks: numeric
+          spend: numeric
+          _airbyte_emitted_at: timestamp
       meta_ads_insights:
         +column_types:
           ad_account_id: text
@@ -191,6 +214,31 @@ seeds:
         updated_time: timestamp
         _airbyte_emitted_at: timestamp
         _airbyte_raw_id: text
+    raw__linkedin_transparency:
+      +quote_columns: true
+      +column_types:
+        account_id: text
+        campaign_id: text
+        ad_creative_id: text
+        activity_date: date
+        region: text
+        impressions: numeric
+        clicks: numeric
+        spend: numeric
+        _airbyte_emitted_at: timestamp
+    raw__tiktok_transparency:
+      +quote_columns: true
+      +column_types:
+        advertiser_id: text
+        campaign_id: text
+        ad_group_id: text
+        ad_creative_id: text
+        report_date: date
+        region: text
+        impressions: numeric
+        clicks: numeric
+        spend: numeric
+        _airbyte_emitted_at: timestamp
     raw_google_ads__campaign_daily:
       +quote_columns: true
       +column_types:
