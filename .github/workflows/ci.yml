@@ -111,4 +111,4 @@ jobs:
         run: make dbt-seed DBT="python -m dbt --project-dir dbt --profiles-dir $HOME/.dbt"
 
       - name: Run dbt staging models
-        run: python -m dbt --project-dir dbt --profiles-dir $HOME/.dbt run --select staging
+        run: python -m dbt run --project-dir dbt --profiles-dir $HOME/.dbt --select staging

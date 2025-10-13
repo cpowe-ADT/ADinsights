@@ -1,0 +1,2 @@
+ad_account_id,campaign_id,adset_id,ad_id,date_start,region,spend,impressions,clicks,conversions,updated_time,_airbyte_emitted_at,_airbyte_raw_id
+1234567890,1111111111,2222222222,3333333333,2024-01-01,Kingston Parish,125.50,1000,50,5,2024-01-02T00:00:00Z,2024-01-02T00:05:00Z,airbyte-meta-1
