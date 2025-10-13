@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import secrets
 import uuid
 from datetime import timedelta
@@ -119,6 +121,74 @@ class Invitation(models.Model):
     def mark_accepted(self) -> None:
         self.accepted_at = timezone.now()
         self.save(update_fields=["accepted_at"])
+
+
+class ServiceAccountKey(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="service_account_keys"
+    )
+    name = models.CharField(max_length=128)
+    role = models.ForeignKey(Role, null=True, blank=True, on_delete=models.SET_NULL)
+    prefix = models.CharField(max_length=12, unique=True)
+    secret_hash = models.CharField(max_length=128)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"ServiceAccountKey<{self.tenant_id}:{self.name}>"
+
+    @classmethod
+    def _generate_prefix(cls) -> str:
+        while True:
+            prefix = secrets.token_hex(4)
+            if not cls.all_objects.filter(prefix=prefix).exists():
+                return prefix
+
+    @classmethod
+    def create_key(
+        cls,
+        *,
+        tenant: Tenant,
+        name: str,
+        role: Role | None = None,
+    ) -> tuple["ServiceAccountKey", str]:
+        secret = secrets.token_urlsafe(32)
+        prefix = cls._generate_prefix()
+        secret_hash = cls._hash_secret(secret)
+        instance = cls.all_objects.create(
+            tenant=tenant,
+            name=name,
+            role=role,
+            prefix=prefix,
+            secret_hash=secret_hash,
+        )
+        token = f"sa_{prefix}.{secret}"
+        return instance, token
+
+    @staticmethod
+    def _hash_secret(secret: str) -> str:
+        return hashlib.sha256(secret.encode("utf-8")).hexdigest()
+
+    def verify(self, secret: str) -> bool:
+        candidate = self._hash_secret(secret)
+        return hmac.compare_digest(self.secret_hash, candidate)
+
+    def mark_used(self) -> None:
+        self.last_used_at = timezone.now()
+        self.save(update_fields=["last_used_at"])
+
+    def has_role(self, role_name: str) -> bool:
+        if not self.role:
+            return False
+        return self.role.name == role_name
 
 
 class AuditLog(models.Model):

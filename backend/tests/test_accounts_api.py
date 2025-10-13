@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import pytest
 
-from accounts.models import AuditLog, Invitation, Role, Tenant, User, assign_role
+from accounts.models import (
+    AuditLog,
+    Invitation,
+    Role,
+    ServiceAccountKey,
+    Tenant,
+    User,
+    assign_role,
+    seed_default_roles,
+)
 
 
 @pytest.mark.django_db
@@ -181,3 +190,69 @@ def test_invitation_flow(api_client):
 
     invitation = Invitation.objects.get(token=token)
     assert invitation.accepted_at is not None
+
+
+@pytest.mark.django_db
+def test_service_account_creation_returns_token(api_client, tenant, user):
+    seed_default_roles()
+    assign_role(user, Role.ADMIN)
+    payload = {
+        "name": "CI Pipeline",
+        "role": Role.VIEWER,
+    }
+
+    api_client.force_authenticate(user=user)
+    response = api_client.post("/api/service-accounts/", payload, format="json")
+    api_client.force_authenticate(user=None)
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["name"] == payload["name"]
+    assert body["role"] == Role.VIEWER
+    assert body["token"].startswith("sa_")
+
+    key = ServiceAccountKey.objects.get(id=body["id"])
+    assert key.is_active is True
+    assert key.secret_hash != body["token"]
+
+
+@pytest.mark.django_db
+def test_service_account_authentication_allows_api_access(api_client, tenant, settings):
+    settings.ENABLE_FAKE_ADAPTER = True
+    seed_default_roles()
+    role = Role.objects.get(name=Role.ADMIN)
+    key, token = ServiceAccountKey.create_key(tenant=tenant, name="Robot", role=role)
+
+    response = api_client.get(
+        "/api/metrics/",
+        {"source": "fake"},
+        HTTP_AUTHORIZATION=f"ApiKey {token}",
+    )
+
+    assert response.status_code == 200
+    key.refresh_from_db()
+    assert key.last_used_at is not None
+
+
+@pytest.mark.django_db
+def test_service_account_deactivation(api_client, tenant, user, settings):
+    settings.ENABLE_FAKE_ADAPTER = True
+    seed_default_roles()
+    assign_role(user, Role.ADMIN)
+    role = Role.objects.get(name=Role.VIEWER)
+    key, token = ServiceAccountKey.create_key(tenant=tenant, name="Temp", role=role)
+
+    api_client.force_authenticate(user=user)
+    response = api_client.delete(f"/api/service-accounts/{key.id}/")
+    api_client.force_authenticate(user=None)
+    assert response.status_code == 204
+    key.refresh_from_db()
+    assert key.is_active is False
+
+    response = api_client.get(
+        "/api/metrics/",
+        {"source": "fake"},
+        HTTP_AUTHORIZATION=f"ApiKey {token}",
+    )
+
+    assert response.status_code == 401

@@ -15,6 +15,7 @@ from accounts.views import (
     TenantViewSet,
     UserRoleViewSet,
     UserViewSet,
+    ServiceAccountKeyViewSet,
 )
 from integrations.views import (
     AirbyteConnectionViewSet,
@@ -40,6 +41,7 @@ router.register(r"users", UserViewSet, basename="user")
 router.register(r"user-roles", UserRoleViewSet, basename="userrole")
 router.register(r"audit-logs", AuditLogViewSet, basename="auditlog")
 router.register(r"alerts/runs", AlertRunViewSet, basename="alert-run")
+router.register(r"service-accounts", ServiceAccountKeyViewSet, basename="service-account")
 
 admin_router = DefaultRouter()
 admin_router.register(r"budgets", CampaignBudgetViewSet, basename="campaignbudget")

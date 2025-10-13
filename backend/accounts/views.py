@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .audit import log_audit_event
-from .models import AuditLog, Tenant, User, UserRole
+from .models import AuditLog, ServiceAccountKey, Tenant, User, UserRole
 from .permissions import IsTenantAdmin
 from .serializers import (
     AuditLogSerializer,
@@ -19,6 +19,7 @@ from .serializers import (
     UserCreateSerializer,
     UserRoleSerializer,
     UserSerializer,
+    ServiceAccountKeySerializer,
 )
 
 
@@ -231,6 +232,42 @@ class UserRoleViewSet(
             resource_id=user_id,
             metadata={"role": role_name},
         )
+
+
+class ServiceAccountKeyViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    serializer_class = ServiceAccountKeySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):  # noqa: D401
+        """Restrict mutating operations to tenant admins."""
+
+        if self.action in {"create", "update", "partial_update", "destroy"}:
+            return [permissions.IsAuthenticated(), IsTenantAdmin()]
+        return super().get_permissions()
+
+    def get_queryset(self):  # type: ignore[override]
+        user = self.request.user
+        if not user or not getattr(user, "is_authenticated", False):
+            return ServiceAccountKey.objects.none()
+        return ServiceAccountKey.objects.filter(tenant_id=user.tenant_id).order_by("-created_at")
+
+    def get_serializer_context(self):  # type: ignore[override]
+        context = super().get_serializer_context()
+        user = self.request.user
+        tenant = getattr(user, "tenant", None)
+        if tenant is not None:
+            context.setdefault("tenant", tenant)
+        return context
+
+    def perform_destroy(self, instance):
+        instance.is_active = False
+        instance.save(update_fields=["is_active"])
 
 
 class RoleAssignmentView(APIView):

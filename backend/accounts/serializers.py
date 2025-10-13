@@ -9,6 +9,7 @@ from .models import (
     AuditLog,
     Invitation,
     Role,
+    ServiceAccountKey,
     Tenant,
     User,
     UserRole,
@@ -334,3 +335,56 @@ class UserRoleSerializer(serializers.ModelSerializer):
             tenant=tenant, user=user, role=role
         )
         return user_role
+
+
+class ServiceAccountKeySerializer(serializers.ModelSerializer):
+    role = RoleNameField(required=False, allow_null=True)
+    token = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = ServiceAccountKey
+        fields = [
+            "id",
+            "name",
+            "role",
+            "is_active",
+            "created_at",
+            "last_used_at",
+            "token",
+        ]
+        read_only_fields = ["id", "created_at", "last_used_at", "token"]
+
+    def create(self, validated_data):
+        tenant = self.context.get("tenant")
+        if tenant is None:
+            raise serializers.ValidationError("Tenant context is required.")
+        role = validated_data.pop("role", None)
+        instance, token = ServiceAccountKey.create_key(
+            tenant=tenant,
+            role=role,
+            **validated_data,
+        )
+        self._provisioned_token = token
+        return instance
+
+    def update(self, instance: ServiceAccountKey, validated_data):
+        dirty_fields = []
+        if "name" in validated_data:
+            instance.name = validated_data["name"]
+            dirty_fields.append("name")
+        if "is_active" in validated_data:
+            instance.is_active = bool(validated_data["is_active"])
+            dirty_fields.append("is_active")
+        if "role" in validated_data:
+            instance.role = validated_data["role"]
+            dirty_fields.append("role")
+        if dirty_fields:
+            instance.save(update_fields=dirty_fields)
+        return instance
+
+    def to_representation(self, instance):  # type: ignore[override]
+        data = super().to_representation(instance)
+        token = getattr(self, "_provisioned_token", None)
+        if token:
+            data["token"] = token
+        return data
