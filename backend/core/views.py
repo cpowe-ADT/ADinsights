@@ -7,9 +7,10 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 
+from core.metrics import render_metrics
 from integrations.models import AirbyteJobTelemetry, TenantAirbyteSyncStatus
 
 AIRBYTE_STALE_THRESHOLD = timedelta(hours=1)
@@ -212,6 +213,11 @@ def _summarise_jobs(jobs: Iterable[AirbyteJobTelemetry]) -> Dict[str, Any]:
         "average_api_cost": _mean(costs),
         "job_count": len(snapshots),
     }
+
+
+def prometheus_metrics(request):
+    payload, content_type = render_metrics()
+    return HttpResponse(payload, content_type=content_type)
 
 
 def _json_error(*, code: str, message: str, status: int, **details: Any) -> JsonResponse:

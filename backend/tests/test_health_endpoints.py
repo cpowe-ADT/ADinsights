@@ -10,6 +10,7 @@ from django.test import Client, override_settings
 from django.urls import path
 from django.utils import timezone
 
+from core.metrics import observe_task, reset_metrics
 from integrations.models import (
     AirbyteConnection,
     AirbyteJobTelemetry,
@@ -185,6 +186,17 @@ def test_dbt_health_flags_stale(api_client, monkeypatch, tmp_path):
     payload = response.json()
     assert payload["status"] == "stale"
     assert payload["stale"] is True
+
+
+def test_prometheus_metrics_endpoint(api_client):
+    reset_metrics()
+    observe_task("core.tasks.rotate_deks", "SUCCESS", 0.42)
+
+    response = api_client.get("/metrics/app/")
+    assert response.status_code == 200
+    body = response.content.decode("utf-8")
+    assert "celery_task_executions_total" in body
+    assert "celery_task_duration_seconds" in body
 
 
 def test_api_logging_middleware_emits_structured_context(api_client):

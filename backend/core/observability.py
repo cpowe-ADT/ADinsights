@@ -11,6 +11,8 @@ from typing import Any, Dict
 from celery import Task
 from django.conf import settings
 
+from core.metrics import observe_task
+
 
 class JsonFormatter(logging.Formatter):
     """Render log records as structured JSON."""
@@ -117,6 +119,7 @@ class InstrumentedTask(Task):
     def after_return(self, status, retval, task_id, args, kwargs, einfo):  # noqa: ANN001 - celery hook
         start_time = getattr(self.request, "_start_time", None)
         duration_ms = round((time.perf_counter() - start_time) * 1000, 2) if start_time else None
+        duration_seconds = (duration_ms / 1000) if duration_ms is not None else None
         extra = self._task_extra(task_id, args, kwargs)
         extra.update(
             {
@@ -129,6 +132,7 @@ class InstrumentedTask(Task):
             self.logger.error("task.failed", extra=extra)
         else:
             self.logger.info("task.succeeded", extra=extra)
+        observe_task(self.name, status, duration_seconds)
         super().after_return(status, retval, task_id, args, kwargs, einfo)
 
     def _task_extra(self, task_id, args, kwargs) -> Dict[str, Any]:  # noqa: ANN001
@@ -140,4 +144,3 @@ class InstrumentedTask(Task):
                 "kwargs_keys": sorted(kwargs.keys()),
             }
         }
-

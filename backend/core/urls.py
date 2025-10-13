@@ -73,6 +73,7 @@ urlpatterns = [
     path("api/adapters/", AdapterListView.as_view(), name="adapter-list"),
     path("api/metrics/", MetricsView.as_view(), name="metrics"),
     path("api/export/metrics.csv", MetricsExportView.as_view(), name="metrics-export"),
+    path("metrics/app/", core_views.prometheus_metrics, name="metrics-app"),
     path("api/", include(router.urls)),
     path("api/admin/", include(admin_router.urls)),
 ]
