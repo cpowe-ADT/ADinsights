@@ -7,7 +7,6 @@ models:
     description: "Fixture dataset for validating the metric_return_on_ad_spend macro."
     tests:
       - metric_return_on_ad_spend_matches:
-          arguments:
-            revenue_column: revenue
-            spend_column: spend
-            expected_column: expected_roas
+          revenue_column: revenue
+          spend_column: spend
+          expected_column: expected_roas
