@@ -1,6 +1,12 @@
 {
-  "name": "Meta Marketing",
+  "name": "Meta Marketing (Incremental Template)",
   "sourceType": "facebook-marketing",
+  "workspaceId": "REPLACE_WITH_WORKSPACE_ID",
+  "configuration": {
+    "account_id": "act_<PRIMARY_ACCOUNT_ID>",
+    "access_token": "${AIRBYTE_META_ACCESS_TOKEN}",
+    "app_id": "${AIRBYTE_META_APP_ID}",
+    "app_secret": "${AIRBYTE_META_APP_SECRET}",
   "workspaceId": "00000000-0000-0000-0000-000000000000",
   "configuration": {
     "account_id": "act_<ACCOUNT_ID>",
@@ -16,20 +22,52 @@
       "region",
       "dma"
     ],
-    "insights_lookback_window": 28,
-    "window_in_days": 3
+    "insights_lookback_window": 3,
+    "window_in_days": 28,
+    "attribution_window": "default",
+    "fetch_thumbnail_images": false,
+    "custom_insights_fields": [
+      "impressions",
+      "clicks",
+      "spend",
+      "actions",
+      "action_values"
+    ]
   },
   "streams": [
     {
       "name": "ad_insights",
       "syncMode": "incremental",
       "cursorField": "updated_time",
+      "primaryKey": [
+        "ad_id",
+        "updated_time"
+      ]
+    },
+    {
+      "name": "ads",
+      "syncMode": "incremental",
+      "cursorField": "updated_time",
+      "primaryKey": [
+        "id"
+      ]
       "destinationSyncMode": "append_dedup"
     },
     {
       "name": "ad_sets",
       "syncMode": "incremental",
       "cursorField": "updated_time",
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "campaigns",
+      "syncMode": "incremental",
+      "cursorField": "updated_time",
+      "primaryKey": [
+        "id"
+      ]
       "destinationSyncMode": "append_dedup"
     },
     {
