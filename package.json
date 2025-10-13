@@ -9,12 +9,18 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.build.json && vite build",
     "preview": "vite preview --host --port 4173",
-    "test": "playwright test -c qa/playwright.config.ts"
+    "test": "playwright test -c qa/playwright.config.ts",
+    "prepare": "husky",
+    "lint": "npm --workspace frontend run lint",
+    "lint:fix": "npm --workspace frontend run lint:fix",
+    "format": "npm --workspace frontend run format",
+    "check": "npm --workspace frontend run check"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",
     "@types/node": "^24.7.2",
     "@vitejs/plugin-react": "^4.3.3",
+    "husky": "^9.1.7",
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
     "vitest": "^2.1.3"

@@ -1,38 +1,44 @@
-import { FormEvent, useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { FormEvent, useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 
-import { useAuth } from "../auth/AuthContext";
+import Button from '../components/ui/Button'
+import StatusMessage from '../components/ui/StatusMessage'
+import { useAuth } from '../features/auth/AuthContext'
+
+import styles from './LoginPage.module.css'
 
 const LoginPage = () => {
-  const { login, status, error, isAuthenticated } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { login, status, error, isAuthenticated } = useAuth()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const navigate = useNavigate()
+  const location = useLocation()
 
-  const from = (location.state as { from?: { pathname?: string } } | undefined)?.from?.pathname ?? "/dashboards/campaigns";
+  const from =
+    (location.state as { from?: { pathname?: string } } | undefined)?.from?.pathname ??
+    '/dashboards/campaigns'
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(from, { replace: true });
+      navigate(from, { replace: true })
     }
-  }, [from, isAuthenticated, navigate]);
+  }, [from, isAuthenticated, navigate])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+    event.preventDefault()
     try {
-      await login(email, password);
-      navigate(from, { replace: true });
+      await login(email, password)
+      navigate(from, { replace: true })
     } catch {
       // handled via auth state
     }
-  };
+  }
 
   return (
-    <div className="auth-shell">
-      <form className="auth-form" onSubmit={handleSubmit} noValidate>
+    <div className={styles.shell}>
+      <form className={styles.form} onSubmit={handleSubmit} noValidate>
         <h1>ADinsights</h1>
-        <p className="muted">Sign in to access client dashboards.</p>
+        <p className={styles.subtitle}>Sign in to access client dashboards.</p>
         <label htmlFor="email">Email</label>
         <input
           id="email"
@@ -41,6 +47,7 @@ const LoginPage = () => {
           onChange={(event) => setEmail(event.target.value)}
           required
           autoComplete="email"
+          className={styles.input}
         />
         <label htmlFor="password">Password</label>
         <input
@@ -50,14 +57,15 @@ const LoginPage = () => {
           onChange={(event) => setPassword(event.target.value)}
           required
           autoComplete="current-password"
+          className={styles.input}
         />
-        {error ? <p className="status-message error">{error}</p> : null}
-        <button type="submit" disabled={status === "authenticating"} className="button primary">
-          {status === "authenticating" ? "Signing in…" : "Sign In"}
-        </button>
+        {error ? <StatusMessage variant="error">{error}</StatusMessage> : null}
+        <Button type="submit" disabled={status === 'authenticating'}>
+          {status === 'authenticating' ? 'Signing in…' : 'Sign In'}
+        </Button>
       </form>
     </div>
-  );
-};
+  )
+}
 
-export default LoginPage;
+export default LoginPage

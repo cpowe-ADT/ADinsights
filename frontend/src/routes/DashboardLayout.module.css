@@ -1,0 +1,77 @@
+.shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: calc(var(--space) * 0.75) var(--space);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--brand) 70%, #0f766e 30%),
+    color-mix(in srgb, var(--brand) 35%, #0b3d54 65%)
+  );
+  color: #ffffff;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.headerMuted {
+  margin: 0.25rem 0 0;
+  color: color-mix(in srgb, #ffffff 80%, rgba(255, 255, 255, 0.6) 20%);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space) / 3);
+}
+
+.select {
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, #ffffff 30%, transparent);
+  background: color-mix(in srgb, #ffffff 12%, transparent);
+  color: #ffffff;
+  padding: 0.5rem 0.75rem;
+}
+
+.userPill {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, #000000 20%, transparent 80%);
+  font-size: 0.9rem;
+}
+
+.nav {
+  display: flex;
+  gap: calc(var(--space) / 4);
+  padding: 0 var(--space) calc(var(--space) / 2);
+}
+
+.navLink {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--brand) 12%, var(--card) 88%);
+  color: var(--text);
+}
+
+.navLinkActive {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.content {
+  flex: 1;
+  padding: var(--space);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space) / 2);
+}

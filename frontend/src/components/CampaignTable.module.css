@@ -1,0 +1,68 @@
+.card {
+  display: grid;
+  gap: calc(var(--space) / 2);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: calc(var(--space) / 3);
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.table th,
+.table td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+
+.table th {
+  background: color-mix(in srgb, var(--brand) 6%, var(--card) 94%);
+  font-weight: 600;
+}
+
+.sortButton {
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+}
+
+.pinned {
+  position: sticky;
+  left: 0;
+  box-shadow: 2px 0 0 color-mix(in srgb, var(--border) 70%, #000000 5%);
+}
+
+.name {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.meta {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.linkButton {
+  border: none;
+  background: none;
+  color: var(--brand);
+  font: inherit;
+  cursor: pointer;
+  margin-left: 0.5rem;
+}

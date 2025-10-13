@@ -1,14 +1,16 @@
+import styles from './FullPageLoader.module.css'
+
 interface FullPageLoaderProps {
-  message?: string;
+  message?: string
 }
 
-const FullPageLoader = ({ message = "Loading…" }: FullPageLoaderProps) => {
+const FullPageLoader = ({ message = 'Loading…' }: FullPageLoaderProps) => {
   return (
-    <div className="full-page-loader" role="status" aria-live="polite">
-      <div className="spinner" aria-hidden="true" />
+    <div className={styles.loader} role="status" aria-live="polite">
+      <div className={styles.spinner} aria-hidden="true" />
       <p>{message}</p>
     </div>
-  );
-};
+  )
+}
 
-export default FullPageLoader;
+export default FullPageLoader

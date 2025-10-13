@@ -1,0 +1,52 @@
+.shell {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space) calc(var(--space) / 1.5);
+  background: radial-gradient(
+    circle at top,
+    color-mix(in srgb, var(--brand) 60%, #0f766e 40%),
+    #0b3d54 70%
+  );
+}
+
+.form {
+  background: var(--card);
+  padding: calc(var(--space) * 0.9) var(--space);
+  border-radius: calc(var(--radius) * 1.1);
+  box-shadow: 0 24px 60px rgba(16, 24, 40, 0.16);
+  display: grid;
+  gap: calc(var(--space) / 3);
+  width: min(360px, 100%);
+}
+
+.form h1 {
+  margin: 0 0 0.25rem;
+  text-align: center;
+  font-size: 1.6rem;
+  color: var(--text);
+}
+
+.subtitle {
+  text-align: center;
+  margin-bottom: 0.5rem;
+  color: var(--muted);
+}
+
+.form label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.input {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+}
+
+.input:focus {
+  outline: 2px solid color-mix(in srgb, var(--brand) 60%, transparent);
+  outline-offset: 2px;
+}

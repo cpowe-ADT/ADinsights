@@ -1,0 +1,29 @@
+.card {
+  background: color-mix(in srgb, var(--brand) 8%, #ffffff 92%);
+  border-radius: var(--radius);
+  padding: calc(var(--space) / 1.5);
+  display: grid;
+  gap: calc(var(--space) / 6);
+  box-shadow: var(--shadow);
+}
+
+.label {
+  margin: 0;
+  color: var(--brand);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.value {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.description {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}

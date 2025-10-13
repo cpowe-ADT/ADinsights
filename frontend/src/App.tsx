@@ -1,12 +1,12 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
-import BudgetDashboard from "./routes/BudgetDashboard";
-import CampaignDashboard from "./routes/CampaignDashboard";
-import CreativeDashboard from "./routes/CreativeDashboard";
-import DashboardLayout from "./routes/DashboardLayout";
-import LoginPage from "./routes/LoginPage";
-import ProtectedRoute from "./routes/ProtectedRoute";
-import Home from "./pages/Home";
+import Home from './pages/Home'
+import BudgetDashboard from './routes/BudgetDashboard'
+import CampaignDashboard from './routes/CampaignDashboard'
+import CreativeDashboard from './routes/CreativeDashboard'
+import DashboardLayout from './routes/DashboardLayout'
+import LoginPage from './routes/LoginPage'
+import ProtectedRoute from './routes/ProtectedRoute'
 
 function App() {
   return (
@@ -25,7 +25,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
-  );
+  )
 }
 
-export default App;
+export default App

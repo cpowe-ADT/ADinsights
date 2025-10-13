@@ -1,0 +1,23 @@
+.message {
+  padding: calc(var(--space) / 3) calc(var(--space) / 2);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--text) 6%, #ffffff 94%);
+  color: var(--text);
+  margin: 0;
+  box-shadow: var(--shadow);
+}
+
+.muted {
+  background: color-mix(in srgb, var(--muted) 8%, #ffffff 92%);
+  color: var(--muted);
+}
+
+.error {
+  background: color-mix(in srgb, #f04438 16%, #ffffff 84%);
+  color: #b42318;
+}
+
+.success {
+  background: color-mix(in srgb, #12b76a 16%, #ffffff 84%);
+  color: #027a48;
+}

@@ -1,57 +1,57 @@
-const STORAGE_NAMESPACE = "adinsights.table-view";
+const STORAGE_NAMESPACE = 'adinsights.table-view'
 
 export const TABLE_VIEW_KEYS = {
-  campaign: "campaign-performance",
-  creative: "creative-performance",
-} as const;
+  campaign: 'campaign-performance',
+  creative: 'creative-performance',
+} as const
 
 function isBrowserEnvironment(): boolean {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
 }
 
 function toStorageKey(id: string): string {
-  return `${STORAGE_NAMESPACE}.${id}`;
+  return `${STORAGE_NAMESPACE}.${id}`
 }
 
 export function loadSavedView<T = unknown>(id: string): T | undefined {
   if (!isBrowserEnvironment()) {
-    return undefined;
+    return undefined
   }
 
-  const key = toStorageKey(id);
+  const key = toStorageKey(id)
 
   try {
-    const raw = window.localStorage.getItem(key);
+    const raw = window.localStorage.getItem(key)
     if (!raw) {
-      return undefined;
+      return undefined
     }
-    return JSON.parse(raw) as T;
-  } catch (error) {
-    window.localStorage.removeItem(key);
-    return undefined;
+    return JSON.parse(raw) as T
+  } catch {
+    window.localStorage.removeItem(key)
+    return undefined
   }
 }
 
 export function saveView<T = unknown>(id: string, view: T): void {
   if (!isBrowserEnvironment()) {
-    return;
+    return
   }
 
   try {
-    window.localStorage.setItem(toStorageKey(id), JSON.stringify(view));
-  } catch (error) {
+    window.localStorage.setItem(toStorageKey(id), JSON.stringify(view))
+  } catch {
     // Swallow write errors to keep the tables functional even if storage is unavailable.
   }
 }
 
 export function clearView(id: string): void {
   if (!isBrowserEnvironment()) {
-    return;
+    return
   }
 
   try {
-    window.localStorage.removeItem(toStorageKey(id));
-  } catch (error) {
+    window.localStorage.removeItem(toStorageKey(id))
+  } catch {
     // Ignore failures triggered by storage restrictions.
   }
 }

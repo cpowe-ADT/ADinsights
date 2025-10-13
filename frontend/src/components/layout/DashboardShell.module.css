@@ -1,0 +1,23 @@
+.shell {
+  display: grid;
+  gap: calc(var(--space) * 0.75);
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: start;
+}
+
+.singleColumn {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.panel {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: calc(var(--space) * 0.75);
+  display: grid;
+  gap: calc(var(--space) / 2);
+}
+
+.fullWidth {
+  grid-column: 1 / -1;
+}
