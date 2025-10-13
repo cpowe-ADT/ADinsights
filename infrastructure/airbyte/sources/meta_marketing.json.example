@@ -8,7 +8,27 @@
     "app_secret": "REDACTED",
     "access_token": "REDACTED",
     "start_date": "2024-01-01",
-    "breakdowns": ["country", "region", "city"],
+    "end_date": null,
+    "page_size": 100,
+    "include_deleted": true,
+    "breakdowns": [
+      "country",
+      "region",
+      "dma"
+    ],
+    "insights_lookback_window": 28,
     "lookback_window_days": 3
-  }
+  },
+  "streams": [
+    {
+      "name": "ad_insights",
+      "syncMode": "incremental",
+      "cursorField": "updated_time"
+    },
+    {
+      "name": "ad_sets",
+      "syncMode": "incremental",
+      "cursorField": "updated_time"
+    }
+  ]
 }

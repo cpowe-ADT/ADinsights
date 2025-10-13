@@ -9,9 +9,31 @@
     "refresh_token": "REDACTED",
     "login_customer_id": "REDACTED",
     "customer_id": "REDACTED",
-    "query_templates": [
-      "SELECT segments.date, campaign.id, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE",
-      "SELECT segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros, segments.geo_target_region FROM geographic_view WHERE segments.date BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE"
+    "start_date": "2024-01-01",
+    "end_date": null,
+    "conversion_window_days": 30,
+    "lookback_window_days": 3,
+    "use_resource_custom_queries": true,
+    "custom_queries": [
+      {
+        "name": "campaign_performance",
+        "query": "SELECT segments.date, campaign.id, campaign.name, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN CURRENT_DATE - 28 AND CURRENT_DATE",
+        "primary_key": [
+          "campaign.id",
+          "segments.date"
+        ],
+        "cursor_field": "segments.date"
+      },
+      {
+        "name": "geo_performance",
+        "query": "SELECT segments.date, campaign.id, segments.geo_target_city, segments.geo_target_region, segments.geo_target_country, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM geographic_view WHERE segments.date BETWEEN CURRENT_DATE - 28 AND CURRENT_DATE",
+        "primary_key": [
+          "campaign.id",
+          "segments.date",
+          "segments.geo_target_city"
+        ],
+        "cursor_field": "segments.date"
+      }
     ]
   }
 }

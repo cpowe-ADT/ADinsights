@@ -11,12 +11,15 @@ docker compose up -d
 The UI will be available at <http://localhost:8000> and the API at <http://localhost:8001>.
 
 ## Scheduling Guidance
+All schedules reference the **America/Jamaica** timezone so they align with downstream SLAs documented in `AGENTS.md`. Airbyte schedules live on each **Connection**; configure them via the UI (`Connections → <Connection> → Replication`) or the API (`/api/v1/connections/update`).
 
-- **Hourly**: Performance/insights tables (Meta `ad_insights`, Google Ads GAQL metrics). Re-pull a rolling 3-day lookback to catch late conversions.
-- **Daily**: Dimension tables (accounts, campaigns, ad sets, ads, creatives) and Google GeoTarget constants.
-- **Weekly**: Transparency/optional connectors (TikTok Commercial Content, LinkedIn revenue metrics) when configured.
+- **sync_meta_metrics / sync_google_metrics (hourly metrics pulls):** Configure a cron such as `0 6-22 * * *` to run hourly between 06:00 and 22:00. Enable an **Additional sync lookback window** of 3 days to sweep up delayed conversions and keep each run under 30 minutes.
+- **sync_dimensions_daily (dimension refresh):** Schedule at `15 2 * * *` so campaign/ad set/ad metadata and geographic lookups finish before the 03:00 SLA.
+- **Optional transparency connectors:** If enabled, run during low-traffic windows such as `0 2 * * 1`.
 
-Use Airbyte's connection scheduling to set cron expressions that align with the above cadence.
+After each metrics sync, trigger dbt's incremental staging models; schedule the aggregate marts around 05:00 so dashboards populate by 06:00.
+
+Document the chosen cron/anchor in your runbook so stakeholders know when fresh numbers land.
 
 ## Source Templates
 
@@ -28,6 +31,7 @@ cp sources/google_ads.json.example sources/google_ads.json
 ```
 
 For optional connectors (LinkedIn, TikTok) provide API keys only if you have access.
+
 # Airbyte Configuration
 
 This directory contains declarative configuration snippets for the ingestion layer.
