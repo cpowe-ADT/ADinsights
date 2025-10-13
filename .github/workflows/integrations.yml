@@ -1,0 +1,56 @@
+name: Integrations Exporter CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'integrations/**'
+      - 'docs/ops/exports.md'
+      - '.github/workflows/integrations.yml'
+  workflow_dispatch:
+
+jobs:
+  exporter:
+    name: Validate integrations exporter
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integrations/exporter
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: integrations/exporter/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build exporter
+        run: npm run build
+
+      - name: Run exporter tests
+        env:
+          CI: 'true'
+        run: npm test
+
+      - name: Render sample report
+        run: npm run export -- --data examples/data.sample.json --out out/sample-report.pdf --png out/sample-report.png
+
+      - name: Upload exporter artifacts
+        if: ${{ always() && env.ACTIONS_RUNTIME_TOKEN != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: exporter-artifacts
+          if-no-files-found: ignore
+          path: |
+            integrations/exporter/out/**
+            integrations/exporter/test-results/**
+
+      - name: Skip artifact upload
+        if: ${{ always() && env.ACTIONS_RUNTIME_TOKEN == '' }}
+        run: echo 'Artifact upload skipped: ACTIONS_RUNTIME_TOKEN is unavailable.'
