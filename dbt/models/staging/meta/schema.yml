@@ -7,6 +7,7 @@ sources:
       - name: ad_insights
       - name: campaigns
       - name: ads
+      - name: adsets
 
 models:
   - name: stg_meta_insights
@@ -15,3 +16,5 @@ models:
     description: "Meta campaign metadata"
   - name: stg_meta_ads_metadata
     description: "Meta ad metadata"
+  - name: stg_meta_adsets
+    description: "Meta ad set metadata"
