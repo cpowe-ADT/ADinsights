@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import include, path
 from rest_framework.permissions import AllowAny
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.schemas import get_schema_view
 
 from alerts.views import AlertRunViewSet
@@ -48,6 +49,8 @@ admin_router.register(r"alerts", AlertRuleDefinitionViewSet, basename="alertrule
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/token/", TokenObtainPairView.as_view(), name="jwt_token_obtain_pair"),
+    path("api/token/refresh/", TokenRefreshView.as_view(), name="jwt_token_refresh"),
     path(
         "api/auth/login/", TenantTokenObtainPairView.as_view(), name="token_obtain_pair"
     ),

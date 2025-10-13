@@ -21,6 +21,7 @@ env = environ.Env(
     SECRETS_PROVIDER=(str, "env"),
     KMS_PROVIDER=(str, "aws"),
     LLM_TIMEOUT=(float, 10.0),
+    ENABLE_TENANCY=(bool, False),
     DJANGO_LOG_LEVEL=(str, "INFO"),
     APP_VERSION=(str, "0.0.0-dev"),
 )
@@ -36,6 +37,7 @@ def _optional(value: str | None) -> str | None:
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
+ENABLE_TENANCY = env.bool("ENABLE_TENANCY")
 API_VERSION = env("API_VERSION")
 
 INSTALLED_APPS = [
@@ -61,6 +63,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "backend.middleware.tenant.TenantHeaderMiddleware",
     "accounts.middleware.TenantMiddleware",
     "core.observability.APILoggingMiddleware",
 ]
