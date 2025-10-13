@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Alert rule definitions and execution helpers."""
 
 from dataclasses import dataclass
