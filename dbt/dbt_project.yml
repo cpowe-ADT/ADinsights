@@ -25,6 +25,90 @@ models:
 seeds:
   adinsights:
     +quote_columns: false
+    raw:
+      +schema: raw
+      +quote_columns: true
+      google_ads_insights:
+        +column_types:
+          customer_id: text
+          campaign_id: text
+          ad_group_id: text
+          criterion_id: text
+          date_day: date
+          geo_target_region: text
+          cost_micros: numeric
+          impressions: numeric
+          clicks: numeric
+          conversions: numeric
+          _airbyte_emitted_at: timestamp
+    raw_google_ads:
+      +schema: raw_google_ads
+      +quote_columns: true
+      campaign_daily:
+        +column_types:
+          customer_id: text
+          campaign_id: text
+          ad_group_id: text
+          ad_id: text
+          segments_date: date
+          metrics_impressions: numeric
+          metrics_clicks: numeric
+          metrics_conversions: numeric
+          metrics_conversions_value: numeric
+          metrics_cost_micros: numeric
+          metrics_average_cpc: numeric
+          metrics_average_cpm: numeric
+      geographic_view:
+        +column_types:
+          customer_id: text
+          segments_date: date
+          geo_target_id: text
+          geo_target_country: text
+          geo_target_state: text
+          geo_target_city_name: text
+          metrics_impressions: numeric
+          metrics_clicks: numeric
+          metrics_cost_micros: numeric
+    raw_meta:
+      +schema: raw_meta
+      +quote_columns: true
+      ad_insights:
+        +column_types:
+          account_id: text
+          campaign_id: text
+          adset_id: text
+          ad_id: text
+          date_start: date
+          country: text
+          region: text
+          city: text
+          impressions: numeric
+          clicks: numeric
+          spend: numeric
+          cpc: numeric
+          cpm: numeric
+          ctr: numeric
+          actions: text
+      campaigns:
+        +column_types:
+          id: text
+          account_id: text
+          name: text
+          status: text
+          effective_status: text
+          objective: text
+          created_time: timestamp
+          updated_time: timestamp
+      ads:
+        +column_types:
+          id: text
+          adset_id: text
+          campaign_id: text
+          account_id: text
+          name: text
+          status: text
+          created_time: timestamp
+          updated_time: timestamp
     geo_parish_lookup:
       +delimiter: ","
       +quote_columns: true
