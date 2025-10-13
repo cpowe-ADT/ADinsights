@@ -15,12 +15,14 @@ import { useTheme } from "./ThemeProvider";
 import styles from "./ParishMap.module.css";
 
 const COLOR_RAMP = ["#dbeafe", "#bfdbfe", "#60a5fa", "#2563eb", "#1d4ed8"] as const;
+const FALLBACK_LIGHT_PALETTE = ["#f1f5f9", "#bfdbfe", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8"] as const;
+const FALLBACK_DARK_PALETTE = ["#0f172a", "#1e3a8a", "#1d4ed8", "#2563eb", "#38bdf8", "#93c5fd"] as const;
+const JAMAICA_CENTER: [number, number] = [18.1096, -77.2975];
 
 interface ParishMapProps {
   height?: number;
+  onRetry?: () => void;
 }
-
-const JAMAICA_CENTER: [number, number] = [18.1096, -77.2975];
 
 function getFeatureName(feature: Feature): string {
   const name =
@@ -35,23 +37,24 @@ function computeBreaks(values: number[]): number[] {
   if (values.length === 0) {
     return [0, 0, 0, 0];
   }
+
   const sorted = [...values].sort((a, b) => a - b);
   const quantile = (p: number) => {
     const idx = Math.floor(p * (sorted.length - 1));
     return sorted[idx];
   };
+
   return [quantile(0.25), quantile(0.5), quantile(0.75), quantile(0.9)];
 }
-
-const FALLBACK_LIGHT_PALETTE = ["#f1f5f9", "#bfdbfe", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8"] as const;
-const FALLBACK_DARK_PALETTE = ["#0f172a", "#1e3a8a", "#1d4ed8", "#2563eb", "#38bdf8", "#93c5fd"] as const;
 
 function resolveCssColor(variableName: string, fallback: string): string {
   if (typeof window === "undefined") {
     return fallback;
   }
 
-  const value = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue(variableName)
+    .trim();
   return value.length > 0 ? value : fallback;
 }
 
@@ -64,10 +67,6 @@ function getColor(value: number, breaks: number[], palette: readonly string[]): 
   return palette[5];
 }
 
-interface ParishMapProps {
-  onRetry?: () => void;
-}
-
 const MapPlaceholderIcon = () => (
   <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.4">
     <path d="M16 14 8 18v18l8-4 10 4 12-6V10l-12 6-10-2Z" strokeLinejoin="round" />
@@ -75,55 +74,47 @@ const MapPlaceholderIcon = () => (
   </svg>
 );
 
-const ParishMap = ({ onRetry }: ParishMapProps) => {
-const ParishMap = () => {
+const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   const { theme } = useTheme();
-function getColor(value: number, breaks: number[]): string {
-  if (value <= breaks[0]) return COLOR_RAMP[0];
-  if (value <= breaks[1]) return COLOR_RAMP[1];
-  if (value <= breaks[2]) return COLOR_RAMP[2];
-  if (value <= breaks[3]) return COLOR_RAMP[3];
-  return COLOR_RAMP[4];
-}
-
-const ParishMap = ({ height = 320 }: ParishMapProps) => {
-  const { parishData, parishStatus, parishError, selectedMetric, selectedParish, setSelectedParish } =
-    useDashboardStore((state) => ({
-      parishData: state.parish.data ?? [],
-      parishStatus: state.parish.status,
-      parishError: state.parish.error,
-      selectedMetric: state.selectedMetric,
-      selectedParish: state.selectedParish,
-      setSelectedParish: state.setSelectedParish,
-    }));
+  const {
+    parishData,
+    parishStatus,
+    parishError,
+    selectedMetric,
+    selectedParish,
+    setSelectedParish,
+  } = useDashboardStore((state) => ({
+    parishData: state.parish.data ?? [],
+    parishStatus: state.parish.status,
+    parishError: state.parish.error,
+    selectedMetric: state.selectedMetric,
+    selectedParish: state.selectedParish,
+    setSelectedParish: state.setSelectedParish,
+  }));
   const [geojson, setGeojson] = useState<FeatureCollection | null>(null);
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
-
-  const fallbackPalette = theme === "dark" ? FALLBACK_DARK_PALETTE : FALLBACK_LIGHT_PALETTE;
-  const mapPalette = useMemo<readonly string[]>(() => {
-    return fallbackPalette.map((color, index) =>
-      resolveCssColor(`--map-fill-${index}`, color)
-    );
-  }, [fallbackPalette]);
-
-  const borderColor = useMemo(
-    () => resolveCssColor("--map-border", theme === "dark" ? "rgba(226, 232, 240, 0.75)" : "#1e293b"),
-    [theme]
-  );
-  const highlightColor = useMemo(
-    () => resolveCssColor("--map-highlight", theme === "dark" ? "#fbbf24" : "#f97316"),
-    [theme]
-  );
-
   const mapRef = useRef<L.Map | null>(null);
   const styleForParishRef = useRef<(name: string) => L.PathOptions>(() => ({
-    color: borderColor,
+    color: "#1e293b",
     weight: 1,
-    fillColor: mapPalette[0],
     fillColor: COLOR_RAMP[0],
     fillOpacity: 0.8,
   }));
   const [scrollZoomEnabled, setScrollZoomEnabled] = useState(false);
+
+  const fallbackPalette = theme === "dark" ? FALLBACK_DARK_PALETTE : FALLBACK_LIGHT_PALETTE;
+  const mapPalette = useMemo<readonly string[]>(() => {
+    return fallbackPalette.map((color, index) => resolveCssColor(`--map-fill-${index}`, color));
+  }, [fallbackPalette]);
+
+  const borderColor = useMemo(
+    () => resolveCssColor("--map-border", theme === "dark" ? "rgba(226, 232, 240, 0.75)" : "#1e293b"),
+    [theme],
+  );
+  const highlightColor = useMemo(
+    () => resolveCssColor("--map-highlight", theme === "dark" ? "#fbbf24" : "#f97316"),
+    [theme],
+  );
 
   useEffect(() => {
     fetch("/jm_parishes.json")
@@ -155,7 +146,7 @@ const ParishMap = ({ height = 320 }: ParishMapProps) => {
       }
       return formatNumber(value);
     },
-    [currency, selectedMetric]
+    [currency, selectedMetric],
   );
 
   const metricLabel = useMemo(() => {
@@ -206,7 +197,7 @@ const ParishMap = ({ height = 320 }: ParishMapProps) => {
         fillOpacity: 0.8,
       };
     },
-    [borderColor, breaks, highlightColor, mapPalette, metricByParish, selectedParish]
+    [borderColor, breaks, highlightColor, mapPalette, metricByParish, selectedParish],
   );
 
   const tooltipForParish = useCallback(
@@ -221,7 +212,7 @@ const ParishMap = ({ height = 320 }: ParishMapProps) => {
         </div>
       `.trim();
     },
-    [formatMetricValue, metricByParish, metricLabel]
+    [formatMetricValue, metricByParish, metricLabel],
   );
 
   useEffect(() => {
@@ -271,7 +262,7 @@ const ParishMap = ({ height = 320 }: ParishMapProps) => {
         },
       });
     },
-    [setSelectedParish, styleForParish, tooltipForParish]
+    [setSelectedParish, styleForParish, tooltipForParish],
   );
 
   useEffect(() => {
@@ -308,19 +299,12 @@ const ParishMap = ({ height = 320 }: ParishMapProps) => {
     });
   }, [styleForParish, tooltipForParish]);
 
-  if (parishStatus === "loading" && parishData.length === 0) {
-    return (
-      <div className="widget-skeleton" aria-busy="true">
-        <Skeleton height="300px" borderRadius="1rem" />
-      </div>
-    );
-  const mapRefCallback = useCallback((map: L.Map | null) => {
-    if (!map) {
-      return;
-    }
-
+  const handleMapCreated = useCallback((map: L.Map) => {
     mapRef.current = map;
     map.scrollWheelZoom.disable();
+    requestAnimationFrame(() => {
+      map.invalidateSize();
+    });
   }, []);
 
   const toggleScrollZoom = useCallback(() => {
@@ -335,6 +319,24 @@ const ParishMap = ({ height = 320 }: ParishMapProps) => {
     }
     setScrollZoomEnabled((state) => !state);
   }, [scrollZoomEnabled]);
+
+  useEffect(() => {
+    if (!mapRef.current) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      mapRef.current?.invalidateSize();
+    });
+  }, [height, geojson]);
+
+  if (parishStatus === "loading" && parishData.length === 0) {
+    return (
+      <div className="widget-skeleton" aria-busy="true">
+        <Skeleton height="300px" borderRadius="1rem" />
+      </div>
+    );
+  }
 
   if (parishStatus === "loading") {
     return <div className="status-message muted">Preparing the parish heatmap…</div>;
@@ -364,17 +366,27 @@ const ParishMap = ({ height = 320 }: ParishMapProps) => {
   }
 
   return (
-    <MapContainer center={JAMAICA_CENTER} zoom={7} scrollWheelZoom={false} style={{ height: "100%", width: "100%" }}>
-      <TileLayer attribution={tileAttribution} url={tileLayerUrl} />
-      {geojson ? (
-        <GeoJSONLayer
-          ref={geoJsonRef}
-          data={geojson as FeatureCollection}
-          onEachFeature={onEachFeature}
     <div className={styles.mapShell} style={{ height }}>
+      <MapContainer
+        whenCreated={handleMapCreated}
+        center={JAMAICA_CENTER}
+        zoom={7}
+        scrollWheelZoom={scrollZoomEnabled}
+        className={styles.map}
+      >
+        <TileLayer attribution={tileAttribution} url={tileLayerUrl} />
+        {geojson ? (
+          <GeoJSONLayer
+            ref={geoJsonRef}
+            data={geojson as FeatureCollection}
+            onEachFeature={onEachFeature}
+          />
+        ) : null}
+      </MapContainer>
+
       <div className={styles.overlay}>
         <Link to="/dashboards/map" className={styles.fullMapLink}>
-          View full map
+          Open full map
         </Link>
         <button
           type="button"
@@ -388,13 +400,12 @@ const ParishMap = ({ height = 320 }: ParishMapProps) => {
               <path
                 d="M12 3a3 3 0 0 0-3 3v4.382a3 3 0 0 0-.879 2.12v5.5A2.998 2.998 0 0 0 10.5 21h3a2.998 2.998 0 0 0 2.379-1.498 2.998 2.998 0 0 0 .121-2.502v-5.498A3 3 0 0 0 15 10.382V6a3 3 0 0 0-3-3Zm-1.5 3a1.5 1.5 0 1 1 3 0v4.618a1.5 1.5 0 0 1-.439 1.061l-.061.06v.261h-2v-.26l-.061-.062A1.5 1.5 0 0 1 10.5 10.618Z"
               />
-              {!scrollZoomEnabled ? (
-                <line x1="5" y1="19" x2="19" y2="5" />
-              ) : null}
+              {!scrollZoomEnabled ? <line x1="5" y1="19" x2="19" y2="5" /> : null}
             </svg>
           </span>
         </button>
       </div>
+
       <div className={styles.legend} role="group" aria-label={`${metricLabel} legend`}>
         <span className={styles.legendTitle}>{metricLabel}</span>
         <ul>
@@ -406,25 +417,6 @@ const ParishMap = ({ height = 320 }: ParishMapProps) => {
           ))}
         </ul>
       </div>
-      <MapContainer
-        ref={mapRefCallback}
-        center={JAMAICA_CENTER}
-        zoom={7}
-        scrollWheelZoom={scrollZoomEnabled}
-        className={styles.map}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        {geojson ? (
-          <GeoJSONLayer
-            ref={geoJsonRef}
-            data={geojson as FeatureCollection}
-            onEachFeature={onEachFeature}
-          />
-        ) : null}
-      </MapContainer>
     </div>
   );
 };
