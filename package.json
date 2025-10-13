@@ -1,0 +1,22 @@
+{
+  "name": "adinsights",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "qa"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.build.json && vite build",
+    "preview": "vite preview --host --port 4173",
+    "test": "playwright test -c qa/playwright.config.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^24.7.2",
+    "@vitejs/plugin-react": "^4.3.3",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.3"
+  }
+}

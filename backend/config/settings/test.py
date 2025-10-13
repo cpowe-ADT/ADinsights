@@ -1,8 +1,7 @@
-# Settings for tests. Wildcard import is intentional for Django settings.
 from .base import *  # noqa: F403
 import os
 
-# ruff: noqa: F405  # allow names originating from the wildcard import
+# ruff: noqa: F405  # allow names brought in via star-imports in settings files
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "test")
 DEBUG = True
