@@ -127,16 +127,12 @@ For scheduler access configure `AIRBYTE_API_URL` plus either `AIRBYTE_API_TOKEN`
 Use `python manage.py sync_airbyte` (optionally via Celery beat) to trigger due syncs based on the
 `integrations_airbyteconnection` schedule metadata stored per tenant.
 
-### dbt Staging Models
+### dbt Transformations
 ```bash
-cd dbt
-cp profiles-example.yml ~/.dbt/profiles.yml  # adjust connection details
-dbt debug
-dbt seed
-dbt run --select staging
+make dbt-deps
+make dbt-build
 ```
-The staging models expect Airbyte raw tables to exist. Running them early validates schemas before
-fact/dim layers are added.
+The Makefile wraps common workflows (dependencies, seeds, builds, tests, and freshness checks). Use `DBT` overrides to pass `--vars` such as `enable_linkedin` or `enable_tiktok` when you want to incorporate optional connectors.
 
 ### Quick Smoke Test
 1. Start the backend API and create a tenant/user via Django admin.
