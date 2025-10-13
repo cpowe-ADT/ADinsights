@@ -21,10 +21,39 @@ jobs:
       - name: Execute health checks
         run: scripts/ci/curl-health.sh
 
+      - name: Publish health summary
+        if: ${{ always() }}
+        run: |
+          if [ -f observability-health.csv ]; then
+            {
+              echo "## Observability health summary"
+              echo ""
+              python3 - <<'PY'
+import csv
+from pathlib import Path
+
+path = Path("observability-health.csv")
+with path.open() as handle:
+    rows = list(csv.reader(handle))
+
+if len(rows) <= 1:
+    print("_No probe results recorded._")
+else:
+    header = rows[0]
+    print("| " + " | ".join(header) + " |")
+    print("|" + "|".join([" --- "] * len(header)) + "|")
+    for row in rows[1:]:
+        print("| " + " | ".join(row) + " |")
+PY
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Upload health logs
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: nightly-health-logs
-          path: health-logs
+          path: |
+            health-logs
+            observability-health.csv
           if-no-files-found: warn

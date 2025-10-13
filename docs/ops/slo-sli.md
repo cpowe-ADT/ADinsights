@@ -28,4 +28,4 @@ The service level objectives (SLOs) below ensure our delivery pipelines and supp
 * **SLO:** Docs CI maintains a 99.5% success rate for lint-only runs on `main`.
   * **SLI source:** Workflow conclusion field collected via the nightly GitHub Actions export and filtered by workflow name.
 * **SLO:** Observability smoke tests finish in under 8 minutes 95% of the time.
-  * **SLI source:** Duration column in the `observability-health.csv` artifact produced by the monitoring job.
+  * **SLI source:** Duration column in `observability-health.csv`, emitted by the Nightly Health workflow (available both in the run summary and inside the `nightly-health-logs` artifact).
