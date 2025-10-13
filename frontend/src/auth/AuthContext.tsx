@@ -9,7 +9,13 @@ import {
   useState,
 } from "react";
 
-import apiClient from "../lib/apiClient";
+import apiClient, {
+  API_BASE_URL,
+  MOCK_MODE,
+  setAccessToken as setApiAccessToken,
+  setRefreshHandler as setApiRefreshHandler,
+  setUnauthorizedHandler as setApiUnauthorizedHandler,
+} from "../lib/apiClient";
 import useDashboardStore from "../state/useDashboardStore";
 
 const STORAGE_KEY = "adinsights.auth";
@@ -22,7 +28,7 @@ interface LoginResponse {
   user?: Record<string, unknown>;
 }
 
-type AuthStatus = "idle" | "authenticating" | "authenticated" | "error";
+type AuthStatus = "idle" | "checking" | "authenticating" | "authenticated" | "error";
 
 type AuthContextValue = {
   status: AuthStatus;
@@ -33,6 +39,7 @@ type AuthContextValue = {
   error?: string;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  statusMessage?: string;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -93,11 +100,13 @@ function writeStoredTokens(tokens: StoredTokens | null): void {
 export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
   const [status, setStatus] = useState<AuthStatus>("idle");
   const [error, setError] = useState<string>();
+  const [statusMessage, setStatusMessage] = useState<string>();
   const [accessToken, setAccessToken] = useState<string>();
   const [tenantId, setTenantId] = useState<string>();
   const [user, setUser] = useState<Record<string, unknown> | undefined>();
   const refreshTokenRef = useRef<string>();
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bootstrappedRef = useRef(false);
 
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimeoutRef.current) {
@@ -114,6 +123,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     setUser(undefined);
     setStatus("idle");
     setError(undefined);
+    setStatusMessage(undefined);
     writeStoredTokens(null);
     useDashboardStore.getState().reset();
   }, [clearRefreshTimer]);
@@ -129,14 +139,18 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     []
   );
 
-  const refreshAccessToken = useCallback(async () => {
+  const refreshAccessToken = useCallback(async (): Promise<string | undefined> => {
     const refresh = refreshTokenRef.current;
     if (!refresh) {
       logout();
-      return;
+      return undefined;
+    }
+
+    if (MOCK_MODE && accessToken) {
+      return accessToken;
     }
     try {
-      const response = await fetch("/api/auth/refresh/", {
+      const response = await fetch(`${API_BASE_URL.replace(/\/$/, "")}/auth/refresh/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh }),
@@ -154,36 +168,52 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
       applyTokens(nextTokens);
       setStatus("authenticated");
       setError(undefined);
+      setStatusMessage(undefined);
+      return data.access;
     } catch (refreshError) {
       console.error("Token refresh failed", refreshError);
       logout();
+      return undefined;
     }
-  }, [applyTokens, logout, tenantId, user]);
+  }, [accessToken, applyTokens, logout, tenantId, user]);
 
   const login = useCallback(
     async (email: string, password: string) => {
       setStatus("authenticating");
       setError(undefined);
+      setStatusMessage(undefined);
       try {
-        const response = await fetch("/api/auth/login/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        if (!response.ok) {
-          const detail = await response.text();
-          throw new Error(detail || "Invalid credentials");
+        let tokens: StoredTokens;
+
+        if (MOCK_MODE) {
+          tokens = {
+            access: `mock-access-${Date.now()}`,
+            refresh: `mock-refresh-${Date.now()}`,
+            tenantId: "demo",
+            user: { email },
+          };
+        } else {
+          const response = await fetch(`${API_BASE_URL.replace(/\/$/, "")}/auth/login/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          if (!response.ok) {
+            const detail = await response.text();
+            throw new Error(detail || "Invalid credentials");
+          }
+          const data = (await response.json()) as LoginResponse;
+          tokens = {
+            access: data.access,
+            refresh: data.refresh,
+            tenantId: data.tenant_id,
+            user: data.user,
+          };
         }
-        const data = (await response.json()) as LoginResponse;
-        const tokens: StoredTokens = {
-          access: data.access,
-          refresh: data.refresh,
-          tenantId: data.tenant_id,
-          user: data.user,
-        };
         applyTokens(tokens);
         setStatus("authenticated");
         setError(undefined);
+        setStatusMessage(undefined);
       } catch (loginError) {
         console.error("Login failed", loginError);
         const message =
@@ -191,6 +221,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
         logout();
         setStatus("error");
         setError(message);
+        setStatusMessage(undefined);
         throw loginError;
       }
     },
@@ -201,8 +232,9 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     const stored = readStoredTokens();
     if (stored) {
       applyTokens(stored);
-      setStatus("authenticated");
+      setStatus(MOCK_MODE ? "authenticated" : "checking");
     }
+    bootstrappedRef.current = true;
     return () => {
       clearRefreshTimer();
     };
@@ -229,12 +261,79 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
   }, [accessToken, clearRefreshTimer, refreshAccessToken]);
 
   useEffect(() => {
-    if (accessToken) {
-      apiClient.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-    } else {
-      delete apiClient.defaults.headers.common.Authorization;
-    }
+    setApiAccessToken(accessToken);
   }, [accessToken]);
+
+  useEffect(() => {
+    setApiRefreshHandler(async () => refreshAccessToken());
+    return () => {
+      setApiRefreshHandler(undefined);
+    };
+  }, [refreshAccessToken]);
+
+  useEffect(() => {
+    setApiUnauthorizedHandler(() => {
+      logout();
+    });
+    return () => {
+      setApiUnauthorizedHandler(undefined);
+    };
+  }, [logout]);
+
+  useEffect(() => {
+    if (!bootstrappedRef.current) {
+      return;
+    }
+
+    if (MOCK_MODE) {
+      if (!accessToken) {
+        setStatus("idle");
+      }
+      return;
+    }
+
+    if (status !== "checking") {
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const validateSession = async () => {
+      try {
+        setStatusMessage("Confirming your access…");
+        await Promise.all([
+          apiClient.get("/health/", { skipAuth: true, signal: controller.signal }),
+          apiClient.get("/me/", { signal: controller.signal }),
+        ]);
+        if (!cancelled) {
+          setStatus("authenticated");
+          setError(undefined);
+          setStatusMessage(undefined);
+        }
+      } catch (validationError) {
+        if (cancelled) {
+          return;
+        }
+        console.error("Session validation failed", validationError);
+        const message =
+          validationError instanceof Error
+            ? validationError.message
+            : "Unable to verify your session.";
+        logout();
+        setStatus("error");
+        setError(message);
+        setStatusMessage(undefined);
+      }
+    };
+
+    void validateSession();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [status, logout, accessToken]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -246,8 +345,9 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
       error,
       login,
       logout,
+      statusMessage,
     }),
-    [status, accessToken, tenantId, user, error, login, logout]
+    [status, accessToken, tenantId, user, error, login, logout, statusMessage]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

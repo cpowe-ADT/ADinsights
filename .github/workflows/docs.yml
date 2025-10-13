@@ -1,0 +1,23 @@
+name: Docs CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'AGENT.md'
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+      - 'scripts/ci/check-markdown.sh'
+
+jobs:
+  markdown:
+    name: Check documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run markdown checks
+        run: scripts/ci/check-markdown.sh README.md docs

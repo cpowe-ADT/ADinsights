@@ -1,0 +1,62 @@
+name: dbt CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'dbt/**'
+      - 'Makefile'
+      - 'scripts/dbt-wrapper.sh'
+      - '.github/workflows/dbt.yml'
+
+jobs:
+  run-dbt:
+    name: Validate dbt project
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: ads_reporting
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U db_user -d ads_reporting" --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dbt dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --pre "dbt-core==1.10.13" "dbt-postgres==1.10.0b1"
+
+      - name: Prepare dbt profile
+        run: |
+          mkdir -p "$HOME/.dbt"
+          cp dbt/profiles-example.yml "$HOME/.dbt/profiles.yml"
+
+      - name: Wait for Postgres
+        run: |
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            if pg_isready -h localhost -p 5432 -U db_user -d ads_reporting; then
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Postgres failed to become ready" >&2
+          exit 1
+
+      - name: Install dbt packages
+        run: make dbt-deps DBT="python -m dbt --project-dir dbt --profiles-dir $HOME/.dbt"
+
+      - name: Run staging models
+        run: python -m dbt run --project-dir dbt --profiles-dir $HOME/.dbt --select staging

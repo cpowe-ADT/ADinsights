@@ -13,6 +13,7 @@ cd qa
 npm ci
 npm run setup          # installs Playwright browsers
 npm run setup:deps     # optional: installs Chromium system deps on Linux
+npx playwright install-deps  # optional on fresh Linux machines
 npm test
 ```
 

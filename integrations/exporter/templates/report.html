@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>{{TITLE}}</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+      }
+      body {
+        margin: 32px;
+        background: #f9fafb;
+        color: #1f2933;
+      }
+      header {
+        border-bottom: 2px solid #e4e7eb;
+        margin-bottom: 24px;
+        padding-bottom: 12px;
+      }
+      h1 {
+        font-size: 28px;
+        margin: 0;
+      }
+      .date-range {
+        color: #52606d;
+        margin-top: 4px;
+      }
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 16px;
+        margin-bottom: 32px;
+      }
+      .kpi-card {
+        background: #ffffff;
+        border: 1px solid #d2d6dc;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+      }
+      .kpi-card h2 {
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin: 0 0 8px 0;
+        color: #3e4c59;
+      }
+      .kpi-card .value {
+        font-size: 22px;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      .kpi-card .change {
+        font-size: 12px;
+        color: #0f9157;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+      }
+      thead {
+        background: #0b69a3;
+        color: #f5f7fa;
+      }
+      th,
+      td {
+        padding: 12px 16px;
+        font-size: 13px;
+        text-align: left;
+        border-bottom: 1px solid #e4e7eb;
+      }
+      tbody tr:nth-child(even) {
+        background: #f1f5f9;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>{{TITLE}}</h1>
+      <div class="date-range">{{DATE_RANGE}}</div>
+    </header>
+    <section class="kpi-grid">
+      {{KPI_SUMMARY}}
+    </section>
+    <section>
+      <table>
+        <thead>
+          <tr>
+            <th>Channel</th>
+            <th>Campaign</th>
+            <th>Impressions</th>
+            <th>Clicks</th>
+            <th>CTR</th>
+            <th>Spend</th>
+            <th>Conversions</th>
+            <th>CPA</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{TABLE_ROWS}}
+        </tbody>
+      </table>
+    </section>
+  </body>
+</html>

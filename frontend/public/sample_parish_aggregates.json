@@ -1,0 +1,62 @@
+[
+  {
+    "parish": "Kingston",
+    "spend": 478000,
+    "impressions": 310000,
+    "clicks": 10950,
+    "conversions": 690,
+    "roas": 3.1,
+    "campaignCount": 2,
+    "currency": "JMD"
+  },
+  {
+    "parish": "Saint Andrew",
+    "spend": 352000,
+    "impressions": 240000,
+    "clicks": 9100,
+    "conversions": 640,
+    "roas": 3.0,
+    "campaignCount": 2,
+    "currency": "JMD"
+  },
+  {
+    "parish": "Saint James",
+    "spend": 415000,
+    "impressions": 286000,
+    "clicks": 10120,
+    "conversions": 820,
+    "roas": 4.0,
+    "campaignCount": 2,
+    "currency": "JMD"
+  },
+  {
+    "parish": "Saint Elizabeth",
+    "spend": 198000,
+    "impressions": 124000,
+    "clicks": 5550,
+    "conversions": 430,
+    "roas": 2.5,
+    "campaignCount": 1,
+    "currency": "JMD"
+  },
+  {
+    "parish": "Portland",
+    "spend": 122000,
+    "impressions": 88000,
+    "clicks": 3200,
+    "conversions": 210,
+    "roas": 2.7,
+    "campaignCount": 1,
+    "currency": "JMD"
+  },
+  {
+    "parish": "Manchester",
+    "spend": 94000,
+    "impressions": 72000,
+    "clicks": 2600,
+    "conversions": 160,
+    "roas": 2.2,
+    "campaignCount": 1,
+    "currency": "JMD"
+  }
+]
