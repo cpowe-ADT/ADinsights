@@ -5,7 +5,7 @@ import path from "node:path";
 import { inspect } from "node:util";
 
 const ajv = new Ajv({ allErrors: true, strict: false });
-addMetaSchema2020.call(ajv);
+addMetaSchema2020(ajv);
 const validatorCache = new Map<string, Ajv.ValidateFunction>();
 const schemaCache = new Map<string, unknown>();
 
