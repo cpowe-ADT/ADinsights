@@ -4,16 +4,29 @@ This document outlines how ADinsights keeps paid media data synchronized and mod
 
 ## Airbyte Syncs (Hourly)
 
-- **Scheduler**: `cron` entry on the orchestration host or a Celery beat schedule that triggers the Airbyte API.
-- **Cadence**: Every hour on the half hour to avoid top-of-the-hour API contention.
+- **Scheduler**: Celery beat (preferred) or a cron entry that runs the Django management command below.
+- **Bootstrap**:
+  1. Export the environment variables listed in the root README so Airbyte source templates resolve secrets (`AIRBYTE_*`).
+  2. Insert `integrations.AirbyteConnection` rows per tenant via Django admin or the shell:
+     ```python
+     from integrations.models import AirbyteConnection
+     AirbyteConnection.objects.create(
+         tenant=<tenant>,
+         name="Meta Incremental",
+         connection_id="<airbyte-connection-uuid>",
+         schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+         interval_minutes=60,
+     )
+     ```
+  3. Configure `AIRBYTE_API_URL` and `AIRBYTE_API_TOKEN` (or username/password) so the backend can authenticate with Airbyte.
 - **Command**:
   ```bash
-  0 * * * * curl -X POST "$AIRBYTE_API_URL/api/v1/jobs/runs" \
-      -H "Content-Type: application/json" \
-      -d '{"connectionId": "<UUID>", "jobType": "sync"}'
+  python manage.py sync_airbyte
   ```
+  The command calls the Airbyte API for each due connection, triggers a sync job, and persists the `last_synced_at`, job ID, and status on the `AirbyteConnection` record for observability.
+- **Cadence**: For hourly feeds schedule the command at `5 * * * *` to start after the hour. Lower-frequency connections can use cron expressions or longer intervals in their respective model rows.
 - **Backfill strategy**: Each incremental stream keeps a 30-day lookback window via the configured start date cursors. Airbyte's state management ensures only new slices are processed.
-- **Monitoring**: Ship job events to CloudWatch/Stackdriver and configure alerts for repeated failures or API quota errors.
+- **Monitoring**: Ship job events to CloudWatch/Stackdriver and configure alerts for repeated failures or API quota errors. The `AirbyteConnection` table acts as the source of truth for the last successful attempt per tenant.
 
 ## dbt Transformations (Nightly)
 
