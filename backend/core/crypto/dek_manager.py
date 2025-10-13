@@ -1,20 +1,11 @@
-from __future__ import annotations
-
 import logging
 import os
-from typing import Tuple
 
 from django.conf import settings
-
-from typing import TYPE_CHECKING
-
 from accounts.models import Tenant, TenantKey
 
 from .fields import decrypt_value, encrypt_value
 from .kms import KmsError, get_kms_client
-
-if TYPE_CHECKING:
-    from integrations.models import PlatformCredential
 
 
 logger = logging.getLogger(__name__)
@@ -31,7 +22,7 @@ def _kms():
     )
 
 
-def get_dek_for_tenant(tenant: Tenant) -> Tuple[bytes, str]:
+def get_dek_for_tenant(tenant: Tenant) -> tuple[bytes, str]:
     kms_client = _kms()
     tenant_key = TenantKey.all_objects.filter(tenant=tenant).first()
     try:
@@ -48,9 +39,9 @@ def get_dek_for_tenant(tenant: Tenant) -> Tuple[bytes, str]:
             tenant_key.dek_ciphertext, tenant_key.dek_key_version
         )
         return plaintext, tenant_key.dek_key_version
-    except KmsError as exc:
-        logger.error(
-            "Failed to retrieve DEK for tenant %s due to KMS error", tenant.id, exc_info=True
+    except KmsError:
+        logger.exception(
+            "Failed to retrieve DEK for tenant %s due to KMS error", tenant.id
         )
         raise
 
@@ -67,10 +58,10 @@ def rotate_all_tenant_deks() -> int:
             )
             new_key = os.urandom(32)
             version, ciphertext = kms_client.encrypt(new_key)
-        except KmsError as exc:
-            logger.error(
-                "Skipping DEK rotation for tenant %s due to KMS error", tenant_key.tenant_id,
-                exc_info=True,
+        except KmsError:
+            logger.exception(
+                "Skipping DEK rotation for tenant %s due to KMS error",
+                tenant_key.tenant_id,
             )
             continue
 

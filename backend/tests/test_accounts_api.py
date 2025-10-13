@@ -40,7 +40,7 @@ def test_user_list_scoped_to_tenant(api_client):
     admin.save()
     assign_role(admin, Role.ADMIN)
 
-    peer_same_tenant = User.objects.create_user(
+    User.objects.create_user(
         username="alice@one.com",
         email="alice@one.com",
         tenant=tenant_one,

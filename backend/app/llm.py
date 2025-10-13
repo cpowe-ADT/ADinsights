@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Utilities for summarising alert payloads with an LLM provider."""
 
 import json
