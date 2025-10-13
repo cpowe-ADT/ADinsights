@@ -127,7 +127,8 @@ fact/dim layers are added.
 1. Start the backend API and create a tenant/user via Django admin.
 2. Run the frontend dev server and confirm the grid and map render with mock data.
 3. Hit `GET /api/timezone/` from your browser or `curl` to confirm backend connectivity.
-4. (Optional) Trigger `celery -A core call core.tasks.sync_meta_example` from another terminal to see
+4. (Optional) Trigger `celery -A core call core.tasks.sync_meta_example --args='["<tenant_uuid>"]'`
+   (optionally add a second argument with the triggering user UUID) from another terminal to see
    asynchronous task logging.
 
 ## Testing Matrix

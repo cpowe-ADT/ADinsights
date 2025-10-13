@@ -6,9 +6,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import Tenant, User, UserRole
+from .audit import log_audit_event
+from .models import AuditLog, Tenant, User, UserRole
 from .permissions import IsTenantAdmin
 from .serializers import (
+    AuditLogSerializer,
     InvitationAcceptSerializer,
     InvitationCreateSerializer,
     TenantSerializer,
@@ -169,3 +171,52 @@ class UserRoleViewSet(
         if user and user.is_authenticated:
             context.setdefault("tenant", getattr(user, "tenant", None))
         return context
+
+    def perform_create(self, serializer):
+        user_role = serializer.save()
+        actor = self.request.user if self.request.user.is_authenticated else None
+        log_audit_event(
+            tenant=user_role.tenant,
+            user=actor,
+            action="role_assigned",
+            resource_type="role",
+            resource_id=user_role.user_id,
+            metadata={
+                "role": user_role.role.name,
+            },
+        )
+
+    def perform_destroy(self, instance):
+        tenant = instance.tenant
+        user_id = instance.user_id
+        role_name = instance.role.name
+        actor = self.request.user if self.request.user.is_authenticated else None
+        super().perform_destroy(instance)
+        log_audit_event(
+            tenant=tenant,
+            user=actor,
+            action="role_revoked",
+            resource_type="role",
+            resource_id=user_id,
+            metadata={"role": role_name},
+        )
+
+
+class AuditLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    serializer_class = AuditLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return AuditLog.objects.none()
+        queryset = AuditLog.objects.filter(tenant_id=user.tenant_id).order_by(
+            "-created_at"
+        )
+        action = self.request.query_params.get("action")
+        if action:
+            queryset = queryset.filter(action=action)
+        resource_type = self.request.query_params.get("resource_type")
+        if resource_type:
+            queryset = queryset.filter(resource_type=resource_type)
+        return queryset

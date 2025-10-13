@@ -3,6 +3,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from accounts.views import (
+    AuditLogViewSet,
     MeView,
     TenantTokenObtainPairView,
     TenantViewSet,
@@ -21,6 +22,7 @@ router.register(
 router.register(r"tenants", TenantViewSet, basename="tenant")
 router.register(r"users", UserViewSet, basename="user")
 router.register(r"user-roles", UserRoleViewSet, basename="userrole")
+router.register(r"audit-logs", AuditLogViewSet, basename="auditlog")
 
 urlpatterns = [
     path("admin/", admin.site.urls),

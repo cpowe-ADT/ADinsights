@@ -31,6 +31,25 @@ This runbook documents how to operate the ADinsights stack across the frontend, 
 3. Use `/alerts/run` endpoint to re-trigger evaluation after remediation.
 4. Document root cause analysis in the incident ticket.
 
+## Audit Logging
+
+- **What is logged** – The backend persists `AuditLog` rows for every user
+  authentication, platform credential create/update/delete, role assignment
+  change, and manual sync trigger. Operators can review entries via the
+  `/api/audit-logs/` endpoint (filterable by `action` or `resource_type`).
+- **Storage** – Audit events live in the primary Postgres database under the
+  `accounts_auditlog` table. Each row is tenant-scoped to prevent cross-tenant
+  access.
+- **Retention** – Maintain at least 365 days of audit history to satisfy common
+  compliance requirements. Configure a nightly database task (e.g. cron job or
+  managed retention policy) that deletes records older than the retention
+  window: `DELETE FROM accounts_auditlog WHERE created_at < NOW() - INTERVAL '365
+  days';` Adjust the interval to meet contractual obligations.
+- **Export/Archival** – For deployments that require longer retention, ship
+  daily exports of the table to object storage (S3/GCS) before running the
+  deletion query. Ensure exported files inherit the environment's encryption
+  and access controls.
+
 ## Data Refresh Failures
 
 - Validate warehouse connectors via Superset → Data → Databases.
