@@ -11,6 +11,8 @@ __pycache__/
 node_modules/
 .turbo/
 frontend/dist/
+frontend/coverage/
+frontend/test-results/
 .dist/
 .vscode/
 .idea/
