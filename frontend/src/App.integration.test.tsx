@@ -72,11 +72,14 @@ afterEach(() => {
       if (typeof url === "string" && url.endsWith("/jm_parishes.json")) {
         return Promise.resolve(createJsonResponse({ type: "FeatureCollection", features: [] }));
       }
+      if (typeof url === "string" && url.endsWith("/sample_metrics.json")) {
+        return Promise.resolve(createJsonResponse(sampleMetrics));
+      }
       return Promise.reject(new Error(`Unhandled fetch: ${String(url)}`));
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValue({ data: sampleMetrics });
+    const getSpy = vi.spyOn(apiClient, "get");
 
     render(
       <AuthProvider>
@@ -93,7 +96,8 @@ afterEach(() => {
     await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/auth/login/", expect.any(Object)));
-    await waitFor(() => expect(getSpy).toHaveBeenCalledWith("/campaign-metrics/"));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/sample_metrics.json"));
+    expect(getSpy).not.toHaveBeenCalled();
 
     expect(await screen.findByText("Kingston")).toBeInTheDocument();
     expect(screen.getByText(/tenant-123/)).toBeInTheDocument();
@@ -111,12 +115,14 @@ afterEach(() => {
       if (typeof url === "string" && url.endsWith("/jm_parishes.json")) {
         return Promise.resolve(createJsonResponse({ type: "FeatureCollection", features: [] }));
       }
+      if (typeof url === "string" && url.endsWith("/sample_metrics.json")) {
+        return Promise.resolve(createJsonResponse({ detail: "Server unavailable" }, 503));
+      }
       return Promise.reject(new Error(`Unhandled fetch: ${String(url)}`));
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const error = new Error("Server unavailable");
-    vi.spyOn(apiClient, "get").mockRejectedValue(error);
+    const getSpy = vi.spyOn(apiClient, "get");
 
     render(
       <AuthProvider>
@@ -130,5 +136,6 @@ afterEach(() => {
 
     expect(await screen.findByText(/server unavailable/i)).toBeInTheDocument();
     expect(screen.getAllByText(/server unavailable/i).length).toBeGreaterThan(0);
+    expect(getSpy).not.toHaveBeenCalled();
   });
 });

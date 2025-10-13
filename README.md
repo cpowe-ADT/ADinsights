@@ -104,7 +104,9 @@ npm install
 npm run dev
 ```
 The dev server runs on <http://localhost:5173>. The shell consumes mock data from
-`public/sample_metrics.json` until backend APIs are wired in.
+`public/sample_metrics.json` until backend APIs are wired in. Set `VITE_MOCK_MODE=false`
+in your Vite environment to force the frontend to load data from the `/api/metrics/`
+endpoint instead of the bundled sample payload.
 
 ### Airbyte Connectors
 ```bash
