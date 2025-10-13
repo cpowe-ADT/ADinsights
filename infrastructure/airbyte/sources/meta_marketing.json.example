@@ -22,8 +22,8 @@
       "region",
       "dma"
     ],
-    "insights_lookback_window": 3,
-    "window_in_days": 28,
+    "insights_lookback_window": 28,
+    "window_in_days": 3,
     "attribution_window": "default",
     "fetch_thumbnail_images": false,
     "custom_insights_fields": [
