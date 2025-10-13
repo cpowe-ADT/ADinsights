@@ -33,7 +33,7 @@ export const test = base.extend<Fixtures>({
       window.localStorage.setItem(storageKey, JSON.stringify(state));
     }, { storageKey: STORAGE_KEY, state: defaultAuthState });
 
-    await page.route("https://{a-c}.tile.openstreetmap.org/**", (route) => {
+    await page.route("https://*.tile.openstreetmap.org/**", (route) => {
       void route.fulfill({ status: 200, body: TRANSPARENT_TILE, contentType: "image/png" });
     });
 
@@ -57,7 +57,7 @@ export const test = base.extend<Fixtures>({
 
     await use(page);
 
-    await page.unroute("https://{a-c}.tile.openstreetmap.org/**");
+    await page.unroute("https://*.tile.openstreetmap.org/**");
     if (mockMode) {
       await page.unroute("**/api/auth/refresh/**");
       await page.unroute("**/api/auth/login/**");
