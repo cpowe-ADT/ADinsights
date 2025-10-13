@@ -4,6 +4,8 @@ import BudgetDashboard from "./routes/BudgetDashboard";
 import CampaignDashboard from "./routes/CampaignDashboard";
 import CreativeDashboard from "./routes/CreativeDashboard";
 import DashboardLayout from "./routes/DashboardLayout";
+import AppShell from "./routes/AppShell";
+import ParishMapDetail from "./routes/ParishMapDetail";
 import LoginPage from "./routes/LoginPage";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import Home from "./pages/Home";

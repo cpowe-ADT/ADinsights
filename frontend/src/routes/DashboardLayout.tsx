@@ -5,6 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import useDashboardStore from "../state/useDashboardStore";
 import { loadDashboardLayout, saveDashboardLayout } from "../lib/layoutPreferences";
 import { useToast } from "../components/ToastProvider";
+import FilterBar, { FilterBarState } from "../components/FilterBar";
 
 const metricOptions = [
   { value: "spend", label: "Spend" },
@@ -16,7 +17,9 @@ const metricOptions = [
 
 const DashboardLayout = () => {
   const { tenantId, logout, user } = useAuth();
-  const { pushToast } = useToast();
+  const handleFilterChange = useCallback((_: FilterBarState) => {
+    // TODO: Connect filters to dashboard data fetching once APIs support it.
+  }, []);
   const {
     loadAll,
     selectedMetric,
@@ -186,12 +189,9 @@ const DashboardLayout = () => {
             Copy link
           </button>
           <span className="muted user-pill">{(user as { email?: string } | undefined)?.email ?? "Account"}</span>
-          <button type="button" className="button tertiary" onClick={logout}>
-            Log out
-          </button>
         </div>
       </header>
-      <nav className="dashboard-nav">
+      <nav className="dashboard-nav" aria-label="Dashboard sections">
         <NavLink to="/dashboards/campaigns" className={({ isActive }) => (isActive ? "active" : undefined)}>
           Campaigns
         </NavLink>
@@ -202,6 +202,7 @@ const DashboardLayout = () => {
           Budget pacing
         </NavLink>
       </nav>
+      <FilterBar onChange={handleFilterChange} />
       {errors.length > 0 ? (
         <div className="status-message error" role="alert">
           {errors.map((message, index) => (
