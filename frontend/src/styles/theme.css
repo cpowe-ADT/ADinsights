@@ -15,7 +15,7 @@
   --muted: #64748b;
   --accent-primary: #2563eb;
   --accent-primary-strong: #1d4ed8;
-  --accent-subtle: rgba(37, 99, 235, 0.1);
+  --accent-subtle: rgba(37, 99, 235, 0.16);
   --positive: #16a34a;
   --kpi-gradient-start: #eff6ff;
   --kpi-gradient-end: #e0f2fe;
@@ -50,6 +50,8 @@
   --shadow-soft: 0 12px 32px rgba(15, 23, 42, 0.08);
   --shadow-subtle: 0 4px 12px rgba(15, 23, 42, 0.05);
   --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.35);
+  --focus-outline: 3px solid #facc15;
+  --focus-outline-offset: 3px;
 }
 
 .theme-dark {
