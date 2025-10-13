@@ -1,4 +1,4 @@
-{{ config(unique_key='id', incremental_strategy='delete+insert') }}
+{{ config(unique_key='adset_id', incremental_strategy='delete+insert') }}
 
 select
     id::text as adset_id,
