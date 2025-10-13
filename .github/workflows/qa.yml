@@ -5,10 +5,13 @@ on:
     paths:
       - 'frontend/**'
       - 'backend/**'
+  schedule:
+    - cron: '0 6 * * *'
 
 jobs:
-  playwright:
-    name: Playwright QA
+  playwright-pr:
+    name: Playwright QA (PR)
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -47,7 +50,7 @@ jobs:
         run: npm ci
 
       - name: Cache Playwright browsers
-        id: playwright-cache
+        id: playwright-cache-pr
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
@@ -56,17 +59,101 @@ jobs:
             playwright-${{ runner.os }}-
 
       - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        if: steps.playwright-cache-pr.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps
 
       - name: Run Playwright tests
-        run: npm test -- --project=chromium
+        run: npm test -- --project=chromium-desktop
 
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-artifacts
+          name: playwright-artifacts-pr
+          if-no-files-found: ignore
+          path: |
+            qa/test-results/**/*
+            qa/playwright-report/**/*
+
+  playwright-nightly:
+    name: Playwright QA (nightly)
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chromium
+            device: desktop
+            project: chromium-desktop
+          - browser: chromium
+            device: mobile
+            project: chromium-mobile
+          - browser: firefox
+            device: desktop
+            project: firefox-desktop
+          - browser: firefox
+            device: mobile
+            project: firefox-mobile
+    defaults:
+      run:
+        working-directory: qa
+    env:
+      MOCK_MODE: "false"
+      QA_INCLUDE_QUARANTINE: "true"
+      LIVE_API_BASE_URL: ${{ secrets.LIVE_API_BASE_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+          cache-dependency-path: |
+            qa/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        id: playwright-cache-nightly
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('qa/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache-nightly.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: npm test -- --project=${{ matrix.project }}
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts-${{ matrix.browser }}-${{ matrix.device }}
           if-no-files-found: ignore
           path: |
             qa/test-results/**/*
