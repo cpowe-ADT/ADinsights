@@ -5,7 +5,8 @@ from rest_framework.routers import DefaultRouter
 from rest_framework.schemas import get_schema_view
 
 from alerts.views import AlertRunViewSet
-from analytics.views import MetricsViewSet
+from analytics.views import AdapterListView, MetricsView
+from analytics.views import MetricsExportView, MetricsViewSet
 from accounts.views import (
     AuditLogViewSet,
     MeView,
@@ -21,6 +22,7 @@ from integrations.views import (
     CampaignBudgetViewSet,
     PlatformCredentialViewSet,
 )
+from health import views as health_views
 from . import views as core_views
 
 router = DefaultRouter()
@@ -39,7 +41,6 @@ router.register(r"users", UserViewSet, basename="user")
 router.register(r"user-roles", UserRoleViewSet, basename="userrole")
 router.register(r"audit-logs", AuditLogViewSet, basename="auditlog")
 router.register(r"alerts/runs", AlertRunViewSet, basename="alert-run")
-router.register(r"metrics", MetricsViewSet, basename="metric")
 
 admin_router = DefaultRouter()
 admin_router.register(r"budgets", CampaignBudgetViewSet, basename="campaignbudget")
@@ -53,6 +54,7 @@ urlpatterns = [
     path("api/me/", MeView.as_view(), name="me"),
     path("api/roles/assign/", RoleAssignmentView.as_view(), name="role-assign"),
     path("api/health/", core_views.health, name="health"),
+    path("api/health/version/", core_views.health_version, name="health-version"),
     path("api/health/airbyte/", core_views.airbyte_health, name="airbyte-health"),
     path("api/health/dbt/", core_views.dbt_health, name="dbt-health"),
     path("api/timezone/", core_views.timezone_view, name="timezone"),
@@ -67,6 +69,12 @@ urlpatterns = [
         ),
         name="api-schema",
     ),
+    path("api/adapters/", AdapterListView.as_view(), name="adapter-list"),
+    path("api/metrics/", MetricsView.as_view(), name="metrics"),
+    path("api/export/metrics.csv", MetricsExportView.as_view(), name="metrics-export"),
     path("api/", include(router.urls)),
     path("api/admin/", include(admin_router.urls)),
 ]
+
+handler404 = "core.views.not_found"
+handler500 = "core.views.server_error"
