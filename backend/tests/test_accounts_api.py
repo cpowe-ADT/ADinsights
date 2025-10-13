@@ -101,7 +101,7 @@ def test_invitation_flow(api_client):
 
     api_client.force_authenticate(user=admin)
     invite_response = api_client.post(
-        "/api/users/invite/",
+        f"/api/tenants/{tenant.id}/invite/",
         {"email": "newhire@example.com", "role": Role.ANALYST},
         format="json",
     )
