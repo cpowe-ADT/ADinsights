@@ -1,6 +1,9 @@
 import { expect, test } from "./fixtures/base";
+import { skipWhenNoLiveApi } from "../utils/live";
 
 test.describe("health endpoints", () => {
+  skipWhenNoLiveApi(test);
+
   test("respond with healthy payloads", async ({ page, mockMode }) => {
     const mockedResponses: Record<string, unknown> = {
       "/api/health/": { status: "ok" },

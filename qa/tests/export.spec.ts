@@ -1,6 +1,9 @@
 import { expect, test } from "./fixtures/base";
+import { skipWhenNoLiveApi } from "../utils/live";
 
 test.describe("metrics CSV export", () => {
+  skipWhenNoLiveApi(test);
+
   test("returns a CSV attachment", async ({ page, mockMode }) => {
     const csvBody = [
       ["date", "parish", "impressions", "clicks", "spend", "conversions", "roas"],
