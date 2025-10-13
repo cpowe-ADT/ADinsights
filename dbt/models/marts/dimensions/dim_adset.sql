@@ -26,19 +26,51 @@
                 select coalesce(max(valid_from), '1900-01-01'::timestamp) from {{ this }}
             )
         {% endif %}
+    ),
+
+    new_snapshots as (
+        select distinct
+            source_platform,
+            ad_account_id,
+            adset_id,
+            campaign_id,
+            parish_code,
+            parish_name,
+            region_name,
+            first_seen_date,
+            effective_from
+        from adset_attributes
     )
 
-    select distinct
-        source_platform,
-        ad_account_id,
-        adset_id,
-        campaign_id,
-        parish_code,
-        parish_name,
-        region_name,
-        first_seen_date,
-        effective_from
-    from adset_attributes
+    {% if is_incremental() %}
+    , latest_existing as (
+        select
+            existing.source_platform,
+            existing.ad_account_id,
+            existing.adset_id,
+            existing.campaign_id,
+            existing.parish_code,
+            existing.parish_name,
+            existing.region_name,
+            existing.first_seen_date,
+            existing.valid_from as effective_from
+        from {{ this }} as existing
+        inner join (
+            select distinct source_platform, ad_account_id, adset_id
+            from new_snapshots
+        ) as changed_keys
+            on existing.source_platform = changed_keys.source_platform
+            and existing.ad_account_id = changed_keys.ad_account_id
+            and existing.adset_id = changed_keys.adset_id
+        where existing.is_current
+    )
+
+    select * from new_snapshots
+    union all
+    select * from latest_existing
+    {% else %}
+    select * from new_snapshots
+    {% endif %}
 {% endset %}
 
 {{ scd2_dimension(
