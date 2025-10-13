@@ -4,7 +4,7 @@ workspaceId: <replace-with-workspace-uuid>
 name: "Meta Ads Incremental"
 connectionConfiguration:
   account_id: <encrypted-account-id>
-  access_token: {{ secrets_manager.meta_access_token }}
+  access_token: {{ env['AIRBYTE_META_ACCESS_TOKEN'] }}
   page_size: 100
   start_date: "2023-01-01T00:00:00Z"
   action_breakdowns: []

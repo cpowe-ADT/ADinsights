@@ -6,7 +6,7 @@ name: "TikTok Transparency (Stub)"
 connectionConfiguration:
   provider:
     auth_type: api_key
-    api_token: {{ secrets_manager.tiktok_transparency_token }}
+    api_token: {{ env['AIRBYTE_TIKTOK_TRANSPARENCY_TOKEN'] }}
   requester:
     name: http
     url_base: "https://ads.tiktok.com/marketing_api/v1/"

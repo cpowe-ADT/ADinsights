@@ -18,6 +18,8 @@ os.environ.setdefault("SECRETS_PROVIDER", "env")
 os.environ.setdefault("KMS_PROVIDER", "aws")
 os.environ.setdefault("KMS_KEY_ID", "test-key")
 os.environ.setdefault("AWS_REGION", "us-east-1")
+os.environ.setdefault("AIRBYTE_API_URL", "http://localhost:8001")
+os.environ.setdefault("AIRBYTE_API_TOKEN", "test-token")
 
 import django
 

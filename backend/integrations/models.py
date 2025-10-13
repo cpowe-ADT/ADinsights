@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta
 from typing import Optional
 
+from croniter import croniter
 from django.db import models
 from django.utils import timezone
 
@@ -129,6 +131,83 @@ class PlatformCredential(models.Model):
                 "refresh_token_nonce",
                 "refresh_token_tag",
                 "dek_key_version",
+                "updated_at",
+            ]
+        )
+
+
+class AirbyteConnection(models.Model):
+    """Configuration and sync metadata for an Airbyte connection."""
+
+    SCHEDULE_MANUAL = "manual"
+    SCHEDULE_INTERVAL = "interval"
+    SCHEDULE_CRON = "cron"
+    SCHEDULE_CHOICES = [
+        (SCHEDULE_MANUAL, "Manual"),
+        (SCHEDULE_INTERVAL, "Interval"),
+        (SCHEDULE_CRON, "Cron"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="airbyte_connections"
+    )
+    name = models.CharField(max_length=255)
+    connection_id = models.UUIDField()
+    workspace_id = models.UUIDField(null=True, blank=True)
+    schedule_type = models.CharField(
+        max_length=16, choices=SCHEDULE_CHOICES, default=SCHEDULE_INTERVAL
+    )
+    interval_minutes = models.PositiveIntegerField(null=True, blank=True)
+    cron_expression = models.CharField(max_length=128, blank=True)
+    is_active = models.BooleanField(default=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    last_job_id = models.CharField(max_length=64, blank=True)
+    last_job_status = models.CharField(max_length=32, blank=True)
+    last_job_created_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "connection_id")
+        ordering = ["tenant", "name"]
+
+    def should_trigger(self, now: datetime) -> bool:
+        if not self.is_active:
+            return False
+        if self.schedule_type == self.SCHEDULE_MANUAL:
+            return False
+        if self.schedule_type == self.SCHEDULE_INTERVAL:
+            if not self.interval_minutes:
+                return False
+            if self.last_synced_at is None:
+                return True
+            return self.last_synced_at + timedelta(minutes=self.interval_minutes) <= now
+        if self.schedule_type == self.SCHEDULE_CRON:
+            if not self.cron_expression:
+                return False
+            try:
+                iterator = croniter(self.cron_expression, now)
+                previous_run = iterator.get_prev(datetime)
+            except (ValueError, TypeError):
+                return False
+            return self.last_synced_at is None or self.last_synced_at < previous_run
+        return False
+
+    def record_sync(self, job_id: int | None, job_status: str, job_created_at: datetime) -> None:
+        self.last_synced_at = job_created_at
+        self.last_job_created_at = job_created_at
+        self.last_job_id = str(job_id) if job_id is not None else ""
+        self.last_job_status = job_status or ""
+        self.save(
+            update_fields=[
+                "last_synced_at",
+                "last_job_created_at",
+                "last_job_id",
+                "last_job_status",
                 "updated_at",
             ]
         )
