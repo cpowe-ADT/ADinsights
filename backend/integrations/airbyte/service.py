@@ -85,7 +85,11 @@ def _extract_job_created_at(payload) -> datetime | None:
     if candidate is None:
         return None
     if isinstance(candidate, (int, float)):
-        return datetime.fromtimestamp(candidate, tz=dt_timezone.utc)
+        timestamp = float(candidate)
+        # Airbyte returns milliseconds for createdAt; normalise to seconds for datetime
+        if timestamp > 1e12:  # assume millisecond precision
+            timestamp /= 1000
+        return datetime.fromtimestamp(timestamp, tz=dt_timezone.utc)
     if isinstance(candidate, str):
         cleaned = candidate.replace("Z", "+00:00")
         try:
