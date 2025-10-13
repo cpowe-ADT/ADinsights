@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "alerts",
     "accounts",
     "integrations",
+    "analytics",
 ]
 
 MIDDLEWARE = [

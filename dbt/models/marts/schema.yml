@@ -13,6 +13,13 @@ models:
       - name: campaign_id
         tests:
           - not_null
+      - name: campaign_name
+        description: "Human friendly campaign name sourced from platform metadata, falling back to the campaign ID when unavailable."
+        tests:
+          - not_null
+          - expression_is_true:
+              arguments:
+                expression: "length(trim(campaign_name)) > 0"
       - name: parish_code
       - name: valid_from
         tests:
@@ -71,6 +78,10 @@ models:
               arguments:
                 to: ref('dim_campaign')
                 field: campaign_id
+      - name: campaign_name
+        description: "Human-readable campaign label sourced from staging when available."
+        tests:
+          - not_null
       - name: adset_id
         tests:
           - not_null
@@ -143,6 +154,13 @@ models:
         description: "Unique identifier for the ad account owning the campaign."
       - name: campaign_id
         description: "Unique identifier for the campaign receiving spend."
+      - name: campaign_name
+        description: "Human friendly campaign name, falling back to the campaign ID when metadata is missing."
+        tests:
+          - not_null
+          - expression_is_true:
+              arguments:
+                expression: "length(trim(campaign_name)) > 0"
       - name: spend
         description: "Total spend attributed to the campaign on the given day."
       - name: impressions
@@ -219,6 +237,13 @@ models:
               arguments:
                 to: ref('dim_campaign')
                 field: campaign_id
+      - name: campaign_name
+        description: "Human friendly campaign name, falling back to the campaign ID when metadata is missing."
+        tests:
+          - not_null
+          - expression_is_true:
+              arguments:
+                expression: "length(trim(campaign_name)) > 0"
       - name: parish_code
         tests:
           - relationships:

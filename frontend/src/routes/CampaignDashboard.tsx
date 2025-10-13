@@ -7,7 +7,10 @@ import useDashboardStore from "../state/useDashboardStore";
 import { formatCurrency, formatNumber, formatRatio } from "../lib/format";
 
 const CampaignDashboard = () => {
-  const { campaign } = useDashboardStore((state) => ({ campaign: state.campaign }));
+  const { campaign, campaignRows } = useDashboardStore((state) => ({
+    campaign: state.campaign,
+    campaignRows: state.getCampaignRowsForSelectedParish(),
+  }));
 
   if (campaign.status === "loading" && !campaign.data) {
     return <FullPageLoader message="Loading campaign performance…" />;
@@ -21,7 +24,7 @@ const CampaignDashboard = () => {
     return <div className="status-message muted">Campaign performance will appear once metrics are ingested.</div>;
   }
 
-  const { summary, trend, rows } = campaign.data;
+  const { summary, trend } = campaign.data;
   const currency = summary.currency ?? "USD";
 
   const kpis = [
@@ -53,7 +56,7 @@ const CampaignDashboard = () => {
         <ParishMap />
       </section>
       <section className="panel full-width">
-        <CampaignTable rows={rows} currency={currency} />
+        <CampaignTable rows={campaignRows} currency={currency} />
       </section>
     </div>
   );

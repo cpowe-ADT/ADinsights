@@ -241,32 +241,59 @@ class CampaignBudgetViewSet(viewsets.ModelViewSet):
             return CampaignBudget.objects.none()
         return CampaignBudget.objects.filter(tenant_id=user.tenant_id).order_by("name")
 
-    def _audit_metadata(self, serializer) -> dict[str, object]:
-        fields = sorted(serializer.validated_data.keys())
-        return {"redacted": True, "fields": fields}
+    def _actor(self):
+        user = self.request.user
+        return user if user and user.is_authenticated else None
+
+    def _audit_metadata(self, fields: list[str]) -> dict[str, object]:
+        return {"redacted": True, "fields": sorted(fields)}
 
     def perform_create(self, serializer):
-        budget = serializer.save()
-        actor = self.request.user if self.request.user.is_authenticated else None
+        validated_fields = list(serializer.validated_data.keys())
+        actor = self._actor()
+        tenant = getattr(actor, "tenant", None) if actor is not None else None
+        if tenant is not None:
+            budget = serializer.save(tenant=tenant)
+        else:  # pragma: no cover - permission guards ensure actor exists
+            budget = serializer.save()
         log_audit_event(
             tenant=budget.tenant,
             user=actor,
             action="campaign_budget_created",
             resource_type="campaign_budget",
             resource_id=budget.id,
-            metadata=self._audit_metadata(serializer),
+            metadata=self._audit_metadata(validated_fields),
         )
 
     def perform_update(self, serializer):
+        instance = serializer.instance
+        validated_data = serializer.validated_data
+        changed_fields = [
+            field
+            for field, value in validated_data.items()
+            if getattr(instance, field) != value
+        ]
         budget = serializer.save()
-        actor = self.request.user if self.request.user.is_authenticated else None
         log_audit_event(
             tenant=budget.tenant,
-            user=actor,
+            user=self._actor(),
             action="campaign_budget_updated",
             resource_type="campaign_budget",
             resource_id=budget.id,
-            metadata=self._audit_metadata(serializer),
+            metadata=self._audit_metadata(changed_fields),
+        )
+
+    def perform_destroy(self, instance):
+        tenant = instance.tenant
+        budget_id = instance.id
+        super().perform_destroy(instance)
+        log_audit_event(
+            tenant=tenant,
+            user=self._actor(),
+            action="campaign_budget_deleted",
+            resource_type="campaign_budget",
+            resource_id=budget_id,
+            metadata=self._audit_metadata([]),
         )
 
 
