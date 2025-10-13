@@ -47,41 +47,67 @@ class PlatformCredential(models.Model):
 
     _raw_access_token: Optional[str] = None
     _raw_refresh_token: Optional[str] = None
+    _refresh_token_cleared: bool = False
 
     class Meta:
         unique_together = ("tenant", "provider", "account_id")
+
+    def mark_refresh_token_for_clear(self) -> None:
+        self._refresh_token_cleared = True
+        self._raw_refresh_token = None
 
     def set_raw_tokens(
         self, access_token: Optional[str], refresh_token: Optional[str]
     ) -> None:
         self._raw_access_token = access_token
-        self._raw_refresh_token = refresh_token
+        if refresh_token is not None:
+            self._raw_refresh_token = refresh_token
+            self._refresh_token_cleared = False
+        elif self._refresh_token_cleared:
+            self._raw_refresh_token = None
+        else:
+            self._raw_refresh_token = refresh_token
 
     def save(self, *args, **kwargs):
         if self.tenant_id is None:
             raise ValueError("Tenant must be set before saving PlatformCredential")
-        if (
+        refresh_cleared = getattr(self, "_refresh_token_cleared", False)
+        should_process_tokens = (
             self._raw_access_token is not None
             or self._raw_refresh_token is not None
+            or refresh_cleared
             or not self.dek_key_version
-        ):
-            key, version = get_dek_for_tenant(self.tenant)
-            if self._raw_access_token is not None:
+        )
+        if should_process_tokens:
+            key = version = None
+            if (
+                self._raw_access_token is not None
+                or self._raw_refresh_token is not None
+                or (not self.dek_key_version and not refresh_cleared)
+            ):
+                key, version = get_dek_for_tenant(self.tenant)
+            if self._raw_access_token is not None and key is not None:
                 encrypted = encrypt_value(self._raw_access_token, key)
                 if encrypted:
                     self.access_token_enc = encrypted.ciphertext
                     self.access_token_nonce = encrypted.nonce
                     self.access_token_tag = encrypted.tag
-            if self._raw_refresh_token is not None:
+            if self._raw_refresh_token is not None and key is not None:
                 encrypted_refresh = encrypt_value(self._raw_refresh_token, key)
                 if encrypted_refresh:
                     self.refresh_token_enc = encrypted_refresh.ciphertext
                     self.refresh_token_nonce = encrypted_refresh.nonce
                     self.refresh_token_tag = encrypted_refresh.tag
-            self.dek_key_version = version
+            elif refresh_cleared:
+                self.refresh_token_enc = None
+                self.refresh_token_nonce = None
+                self.refresh_token_tag = None
+            if version is not None:
+                self.dek_key_version = version
         super().save(*args, **kwargs)
         self._raw_access_token = None
         self._raw_refresh_token = None
+        self._refresh_token_cleared = False
 
     def decrypt_access_token(self) -> Optional[str]:
         key, _ = get_dek_for_tenant(self.tenant)
