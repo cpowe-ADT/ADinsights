@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ColumnDef,
   flexRender,
@@ -10,6 +10,15 @@ import {
 
 import useDashboardStore, { CreativePerformanceRow } from "../state/useDashboardStore";
 import { formatCurrency, formatNumber, formatPercent, formatRatio } from "../lib/format";
+import { TABLE_VIEW_KEYS } from "../lib/savedViews";
+
+type CreativeTableViewState = {
+  sorting?: SortingState;
+};
+
+const DEFAULT_SORTING: SortingState = [{ id: "spend", desc: true }];
+
+const createDefaultSorting = (): SortingState => DEFAULT_SORTING.map((item) => ({ ...item }));
 
 interface CreativeTableProps {
   rows: CreativePerformanceRow[];
@@ -17,11 +26,18 @@ interface CreativeTableProps {
 }
 
 const CreativeTable = ({ rows, currency }: CreativeTableProps) => {
-  const { selectedParish } = useDashboardStore((state) => ({
-    selectedParish: state.selectedParish,
-  }));
+  const selectedParish = useDashboardStore((state) => state.selectedParish);
+  const loadView = useDashboardStore((state) => state.getSavedTableView);
+  const persistView = useDashboardStore((state) => state.setSavedTableView);
 
-  const [sorting, setSorting] = useState<SortingState>([{ id: "spend", desc: true }]);
+  const [sorting, setSorting] = useState<SortingState>(() => {
+    const stored = loadView<CreativeTableViewState>(TABLE_VIEW_KEYS.creative);
+    return stored?.sorting ?? createDefaultSorting();
+  });
+
+  useEffect(() => {
+    persistView(TABLE_VIEW_KEYS.creative, { sorting });
+  }, [sorting, persistView]);
 
   const columns = useMemo<ColumnDef<CreativePerformanceRow>[]>(
     () => [
