@@ -109,7 +109,7 @@ class CampaignBudgetViewSet(viewsets.ModelViewSet):
                     self._serialize_connection(connection, airbyte)
                     for connection in queryset
                 ]
-        except AirbyteClientError as exc:  # pragma: no cover - handled in helper
+        except (AirbyteClientError, httpx.RequestError) as exc:  # pragma: no cover - handled in helper
             return self._error_response(exc)
 
         return Response({"connections": connections})
@@ -124,7 +124,7 @@ class CampaignBudgetViewSet(viewsets.ModelViewSet):
         try:
             with client as airbyte:
                 payload = airbyte.trigger_sync(str(connection.connection_id))
-        except AirbyteClientError as exc:  # pragma: no cover - handled in helper
+        except (AirbyteClientError, httpx.RequestError) as exc:  # pragma: no cover - handled in helper
             return self._error_response(exc)
 
         job_id = self._extract_job_id(payload)
@@ -154,13 +154,20 @@ class CampaignBudgetViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-    def _error_response(self, exc: AirbyteClientError) -> Response:
+    def _error_response(self, exc: Exception) -> Response:
+        detail: str
+        cause = exc
+        if isinstance(exc, AirbyteClientError):
+            cause = exc.__cause__ or exc
+            detail = str(exc)
+        else:
+            detail = f"Airbyte request failed: {exc}"
         status_code = (
             status.HTTP_504_GATEWAY_TIMEOUT
-            if isinstance(exc.__cause__, httpx.TimeoutException)
+            if isinstance(cause, httpx.TimeoutException)
             else status.HTTP_502_BAD_GATEWAY
         )
-        return Response({"detail": str(exc)}, status=status_code)
+        return Response({"detail": detail}, status=status_code)
 
     def _serialize_connection(
         self, connection: AirbyteConnection, client: AirbyteClient
@@ -197,7 +204,14 @@ class CampaignBudgetViewSet(viewsets.ModelViewSet):
         if value is None:
             return None
         if isinstance(value, (int, float)):
-            return datetime.fromtimestamp(value, tz=dt_timezone.utc).isoformat()
+            timestamp = float(value)
+            if abs(timestamp) >= 1_000_000_000_000:
+                timestamp /= 1000.0
+            try:
+                parsed = datetime.fromtimestamp(timestamp, tz=dt_timezone.utc)
+            except (OverflowError, OSError, ValueError):
+                return None
+            return parsed.isoformat()
         if isinstance(value, str):
             cleaned = value.replace("Z", "+00:00")
             try:
