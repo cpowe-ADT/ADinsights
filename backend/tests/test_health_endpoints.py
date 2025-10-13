@@ -163,3 +163,12 @@ def test_api_logging_middleware_emits_structured_context(api_client):
     latest = captured_records[-1]
     assert latest.http["path"] == "/api/health/"
     assert latest.duration_ms >= 0
+
+
+def test_version_endpoint_reports_api_version(api_client, settings):
+    settings.API_VERSION = "1.2.3-test"
+
+    response = api_client.get("/api/version/")
+
+    assert response.status_code == 200
+    assert response.json() == {"version": "1.2.3-test"}
