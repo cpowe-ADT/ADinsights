@@ -2,37 +2,82 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from django.conf import settings
+from rest_framework import permissions, status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from adapters.base import MetricsAdapter
+from adapters.fake import FakeAdapter
+
+
+def _build_registry() -> dict[str, MetricsAdapter]:
+    """Return the enabled adapters keyed by their slug."""
+import csv
+from typing import Any, Iterable, Sequence
 
 from django.db import connection
+from django.http import StreamingHttpResponse
 from rest_framework import permissions, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from .exporters import FakeMetricsExportAdapter
 from .serializers import MetricRecordSerializer, MetricsQueryParamsSerializer
 
-
-class MetricsPagination(PageNumberPagination):
-    """Pagination class for metrics responses."""
-
-    page_size = 100
-    page_size_query_param = "page_size"
-    max_page_size = 500
+    registry: dict[str, MetricsAdapter] = {}
+    if getattr(settings, "ENABLE_FAKE_ADAPTER", False):
+        fake = FakeAdapter()
+        registry[fake.key] = fake
+    return registry
 
 
-class MetricsViewSet(viewsets.ViewSet):
-    """Expose aggregated campaign metrics."""
+class AdapterListView(APIView):
+    """Expose the catalog of enabled adapters."""
 
     permission_classes = [permissions.IsAuthenticated]
-    pagination_class = MetricsPagination
 
-    def list(self, request) -> Response:
-        params_serializer = MetricsQueryParamsSerializer(data=request.query_params)
-        params_serializer.is_valid(raise_exception=True)
-        filters = params_serializer.validated_data
+    def get(self, request) -> Response:  # noqa: D401 - DRF signature
+        registry = _build_registry()
+        payload = [adapter.metadata() for adapter in registry.values()]
+        return Response(payload)
+
+
+class MetricsView(APIView):
+    """Dispatch metrics requests to the configured adapter."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request) -> Response:  # noqa: D401 - DRF signature
+        registry = _build_registry()
+        if not registry:
+            return Response(
+                {"detail": "No analytics adapters are enabled."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        default_key = "fake" if "fake" in registry else next(iter(registry))
+        source = request.query_params.get("source", default_key)
+        adapter = registry.get(source)
+        if adapter is None:
+            return Response(
+                {"detail": f"Unknown adapter '{source}'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         tenant_id = getattr(request.user, "tenant_id", None)
         if tenant_id is None:
+            return Response(
+                {"detail": "Unable to resolve tenant."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        payload = adapter.fetch_metrics(
+            tenant_id=str(tenant_id),
+            options=request.query_params,
+        )
+        return Response(payload)
             return Response({"detail": "Unable to resolve tenant."}, status=403)
 
         sql = [
@@ -80,3 +125,35 @@ class MetricsViewSet(viewsets.ViewSet):
     def _dictfetchall(cursor) -> list[dict[str, Any]]:
         columns: Sequence[str] = [col[0] for col in cursor.description]
         return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+
+class _Echo:
+    """Minimal buffer to adapt csv.writer for streaming responses."""
+
+    def write(self, value: str) -> str:  # pragma: no cover - trivial adapter
+        return value
+
+
+class MetricsExportView(APIView):
+    """Stream tenant metrics as a CSV attachment."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):  # noqa: ANN001
+        adapter = FakeMetricsExportAdapter()
+        headers = adapter.get_headers()
+        rows = adapter.iter_rows()
+
+        response = StreamingHttpResponse(
+            self._iter_csv_rows(headers, rows), content_type="text/csv"
+        )
+        response["Content-Disposition"] = 'attachment; filename="metrics.csv"'
+        return response
+
+    @staticmethod
+    def _iter_csv_rows(headers: Sequence[str], rows: Iterable[Sequence[Any]]):
+        pseudo_buffer = _Echo()
+        writer = csv.writer(pseudo_buffer)
+        yield writer.writerow(headers)
+        for row in rows:
+            yield writer.writerow(row)

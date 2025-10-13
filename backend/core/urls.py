@@ -3,7 +3,8 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from alerts.views import AlertRunViewSet
-from analytics.views import MetricsViewSet
+from analytics.views import AdapterListView, MetricsView
+from analytics.views import MetricsExportView, MetricsViewSet
 from accounts.views import (
     AuditLogViewSet,
     MeView,
@@ -19,6 +20,7 @@ from integrations.views import (
     CampaignBudgetViewSet,
     PlatformCredentialViewSet,
 )
+from health import views as health_views
 from . import views as core_views
 
 router = DefaultRouter()
@@ -37,7 +39,6 @@ router.register(r"users", UserViewSet, basename="user")
 router.register(r"user-roles", UserRoleViewSet, basename="userrole")
 router.register(r"audit-logs", AuditLogViewSet, basename="auditlog")
 router.register(r"alerts/runs", AlertRunViewSet, basename="alert-run")
-router.register(r"metrics", MetricsViewSet, basename="metric")
 
 admin_router = DefaultRouter()
 admin_router.register(r"budgets", CampaignBudgetViewSet, basename="campaignbudget")
@@ -55,6 +56,9 @@ urlpatterns = [
     path("api/health/airbyte/", core_views.airbyte_health, name="airbyte-health"),
     path("api/health/dbt/", core_views.dbt_health, name="dbt-health"),
     path("api/timezone/", core_views.timezone_view, name="timezone"),
+    path("api/adapters/", AdapterListView.as_view(), name="adapter-list"),
+    path("api/metrics/", MetricsView.as_view(), name="metrics"),
+    path("api/export/metrics.csv", MetricsExportView.as_view(), name="metrics-export"),
     path("api/", include(router.urls)),
     path("api/admin/", include(admin_router.urls)),
 ]
