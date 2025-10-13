@@ -344,6 +344,13 @@ describe("App integration", () => {
     await userEvent.type(screen.getByLabelText(/password/i), "password123");
     await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
+    const heroHeading = await screen.findByRole("heading", { name: /adinsights analytics/i });
+    expect(heroHeading).toBeInTheDocument();
+
+    const campaignCard = screen.getByText(/Campaign performance/i).closest("article");
+    expect(campaignCard).not.toBeNull();
+    await userEvent.click(within(campaignCard as HTMLElement).getByRole("button", { name: /open/i }));
+
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining("/api/dashboards/aggregate-snapshot/"),
@@ -430,6 +437,13 @@ describe("App integration", () => {
     await userEvent.type(screen.getByLabelText(/email/i), "user@example.com");
     await userEvent.type(screen.getByLabelText(/password/i), "password123");
     await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+    const heroHeading = await screen.findByRole("heading", { name: /adinsights analytics/i });
+    expect(heroHeading).toBeInTheDocument();
+
+    const campaignCard = screen.getByText(/Campaign performance/i).closest("article");
+    expect(campaignCard).not.toBeNull();
+    await userEvent.click(within(campaignCard as HTMLElement).getByRole("button", { name: /open/i }));
 
     expect(await screen.findByText("Kingston Awareness")).toBeInTheDocument();
 
