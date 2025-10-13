@@ -37,15 +37,27 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+      - name: Archive frontend dist
+        if: ${{ success() }}
+        working-directory: frontend
+        run: |
+          rm -f frontend-dist.zip
+          zip -r frontend-dist.zip dist
+
+      - name: Generate frontend artifact manifest
+        if: ${{ always() }}
+        run: node scripts/ci/frontend-artifact-manifest.mjs
+
       - name: Upload frontend artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-build
+          name: frontend-ci-artifacts
           if-no-files-found: warn
           path: |
-            frontend/dist
+            frontend/frontend-dist.zip
             frontend/coverage
+            frontend/frontend-ci-artifacts.json
 
       - name: Post coverage summary
         if: ${{ always() }}

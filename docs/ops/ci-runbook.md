@@ -22,12 +22,36 @@ This runbook explains how to triage and remediate failures in the repository's G
 
 ## Retrieving artifacts
 
-* From the workflow **Summary** tab, scroll to the **Artifacts** section to download bundles such as `frontend-dist.zip`, `dbt-staging-artifacts`, `backend-ci-summary.json`, or `ci-metrics.csv`.
-* The `Generate backend CI summary` step writes two observability artifacts:
-  * `backend-ci-summary.json` captures an overall pass/fail status, aggregate test counts, timing totals, per-suite breakdowns, and coverage metadata sourced from `backend/test-results/junit.xml` and `backend/coverage.xml`.
-  * `ci-metrics.csv` exposes the timing metrics in a tabular format with the columns `scope`, `metric`, `value`, `unit`, and `notes`. The `scope=total` row carries the overall runtime, while rows prefixed with `scope=suite:` describe individual pytest suites.
-* Artifact names map to the validation steps in the logs. Confirm the upload steps for these summaries succeeded before debugging runtime regressions so downstream SLO monitors remain healthy.
+* From the workflow **Summary** tab, scroll to the **Artifacts** section to download bundles such as `frontend-ci-artifacts`, `dbt-staging-artifacts`, or `backend-ci-summary.json`.
+* The `frontend-ci-artifacts` bundle contains the packaged build (`frontend-dist.zip`), the raw coverage directory, and a machine-readable manifest (`frontend-ci-artifacts.json`). Use the manifest to confirm file sizes, coverage percentages, and Vitest pass counts without unpacking the artifact locally.
+* Artifact names map to the validation steps in the logs. For example, the `Publish backend timings` step uploads `ci-metrics.csv`; confirm the upload succeeded before debugging runtime regressions.
 * If an artifact is missing, cross-check the job logs for `upload-artifact` failures (often due to size limits) and re-run the job once the issue is addressed.
+
+### Manifest schema reference
+
+The `frontend-ci-artifacts.json` file captures the bundle contents and key metrics for downstream ingestion. The schema is:
+
+```json
+{
+  "version": 1,
+  "generatedAt": "ISO-8601 timestamp",
+  "commit": "<git sha or null>",
+  "artifactBundle": {
+    "name": "frontend-ci-artifacts",
+    "entries": [
+      { "path": "frontend-dist.zip", "type": "file", "sizeBytes": <number>, "source": "frontend/dist" },
+      { "path": "coverage/", "type": "directory", "sizeBytes": <number> }
+    ]
+  },
+  "metrics": {
+    "dist": { "uncompressedBytes": <number|null>, "zipBytes": <number|null> },
+    "coverage": { "lines": { "total": <number>, "covered": <number>, "pct": <number> }, ... },
+    "tests": { "total": <number|null>, "passed": <number|null>, "failed": <number|null> }
+  }
+}
+```
+
+Entries are omitted when the underlying files are unavailable (for example, when the build step fails). Downstream consumers should default missing numeric fields to `null`.
 
 ## Rerunning jobs
 

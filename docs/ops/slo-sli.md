@@ -11,7 +11,7 @@ The service level objectives (SLOs) below ensure our delivery pipelines and supp
 
 ## Frontend CI
 
-* **SLO:** 98% of Frontend CI runs upload the `frontend-dist.zip` artifact without warnings.
+* **SLO:** 98% of Frontend CI runs upload the `frontend-ci-artifacts` bundle (containing `frontend-dist.zip`) without warnings.
   * **SLI source:** Artifact manifest recorded in the `frontend-ci-artifacts.json` output published in each run summary.
 * **SLO:** P95 job duration remains under 18 minutes during peak PR hours (14:00–22:00 UTC).
   * **SLI source:** GitHub Actions usage export enriched by the `ci-usage-normalizer` script, ingested nightly.
