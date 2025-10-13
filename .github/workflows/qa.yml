@@ -102,6 +102,11 @@ jobs:
       MOCK_MODE: "false"
       QA_INCLUDE_QUARANTINE: "true"
       LIVE_API_BASE_URL: ${{ secrets.LIVE_API_BASE_URL }}
+      LIVE_API_AUTHORIZATION: ${{ secrets.LIVE_API_AUTHORIZATION }}
+      LIVE_API_TOKEN: ${{ secrets.LIVE_API_TOKEN }}
+      LIVE_API_API_KEY: ${{ secrets.LIVE_API_API_KEY }}
+      LIVE_API_USERNAME: ${{ secrets.LIVE_API_USERNAME }}
+      LIVE_API_PASSWORD: ${{ secrets.LIVE_API_PASSWORD }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
