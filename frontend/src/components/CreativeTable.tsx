@@ -23,13 +23,6 @@ const CreativeTable = ({ rows, currency }: CreativeTableProps) => {
 
   const [sorting, setSorting] = useState<SortingState>([{ id: "spend", desc: true }]);
 
-  const filteredRows = useMemo(() => {
-    if (!selectedParish) {
-      return rows;
-    }
-    return rows.filter((row) => row.parish?.toLowerCase() === selectedParish.toLowerCase());
-  }, [rows, selectedParish]);
-
   const columns = useMemo<ColumnDef<CreativePerformanceRow>[]>(
     () => [
       {
@@ -101,7 +94,7 @@ const CreativeTable = ({ rows, currency }: CreativeTableProps) => {
   );
 
   const table = useReactTable({
-    data: filteredRows,
+    data: rows,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
@@ -158,7 +151,7 @@ const CreativeTable = ({ rows, currency }: CreativeTableProps) => {
           </tbody>
         </table>
       </div>
-      {filteredRows.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="status-message muted">No creatives match the current filters.</p>
       ) : null}
     </div>

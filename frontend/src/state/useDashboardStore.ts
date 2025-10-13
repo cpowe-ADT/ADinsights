@@ -6,6 +6,7 @@ import {
   fetchCampaignPerformance,
   fetchCreativePerformance,
   fetchParishAggregates,
+  fetchDashboardMetrics,
 } from "../lib/dataService";
 
 export type MetricKey = "spend" | "impressions" | "clicks" | "conversions" | "roas";
@@ -93,6 +94,31 @@ export interface ParishAggregate {
   currency?: string;
 }
 
+export interface TenantMetricsSnapshot {
+  campaign?: CampaignPerformanceResponse;
+  campaigns?: CampaignPerformanceResponse;
+  campaign_performance?: CampaignPerformanceResponse;
+  creative?: CreativePerformanceRow[];
+  creatives?: CreativePerformanceRow[];
+  creative_performance?: CreativePerformanceRow[];
+  budget?: BudgetPacingRow[];
+  budgets?: BudgetPacingRow[];
+  budget_pacing?: BudgetPacingRow[];
+  parish?: ParishAggregate[];
+  parishes?: ParishAggregate[];
+  parish_aggregates?: ParishAggregate[];
+  tenant_id?: string;
+  generated_at?: string;
+  [key: string]: unknown;
+}
+
+export interface TenantMetricsResolved {
+  campaign: CampaignPerformanceResponse;
+  creative: CreativePerformanceRow[];
+  budget: BudgetPacingRow[];
+  parish: ParishAggregate[];
+}
+
 type AsyncSlice<T> = {
   status: LoadStatus;
   data?: T;
@@ -107,15 +133,22 @@ interface DashboardState {
   budget: AsyncSlice<BudgetPacingRow[]>;
   parish: AsyncSlice<ParishAggregate[]>;
   activeTenantId?: string;
+  metricsCache: Record<string, TenantMetricsResolved>;
   setSelectedParish: (parish?: string) => void;
   setSelectedMetric: (metric: MetricKey) => void;
   loadAll: (tenantId?: string, options?: { force?: boolean }) => Promise<void>;
+  getCachedMetrics: (tenantId?: string) => TenantMetricsResolved | undefined;
+  getCampaignRowsForSelectedParish: () => CampaignPerformanceRow[];
+  getCreativeRowsForSelectedParish: () => CreativePerformanceRow[];
+  getBudgetRowsForSelectedParish: () => BudgetPacingRow[];
   reset: () => void;
 }
 
 const initialSlice = <T,>(): AsyncSlice<T> => ({ status: "idle", data: undefined, error: undefined });
 
-const initialState: Pick<
+const DEFAULT_TENANT_KEY = "__default__";
+
+function createInitialState(): Pick<
   DashboardState,
   | "selectedParish"
   | "selectedMetric"
@@ -124,15 +157,43 @@ const initialState: Pick<
   | "budget"
   | "parish"
   | "activeTenantId"
-> = {
-  selectedParish: undefined,
-  selectedMetric: "spend",
-  campaign: initialSlice(),
-  creative: initialSlice(),
-  budget: initialSlice(),
-  parish: initialSlice(),
-  activeTenantId: undefined,
-};
+  | "metricsCache"
+> {
+  return {
+    selectedParish: undefined,
+    selectedMetric: "spend",
+    campaign: initialSlice(),
+    creative: initialSlice(),
+    budget: initialSlice(),
+    parish: initialSlice(),
+    activeTenantId: undefined,
+    metricsCache: {},
+  };
+}
+
+function resolveTenantKey(tenantId?: string): string {
+  return tenantId ?? DEFAULT_TENANT_KEY;
+}
+
+function parseTenantMetrics(snapshot: TenantMetricsSnapshot): TenantMetricsResolved {
+  const campaign =
+    snapshot.campaign ?? snapshot.campaigns ?? snapshot.campaign_performance;
+
+  if (!campaign) {
+    throw new Error("Campaign metrics missing from aggregated response");
+  }
+
+  const creative = snapshot.creative ?? snapshot.creatives ?? snapshot.creative_performance ?? [];
+  const budget = snapshot.budget ?? snapshot.budgets ?? snapshot.budget_pacing ?? [];
+  const parish = snapshot.parish ?? snapshot.parishes ?? snapshot.parish_aggregates ?? [];
+
+  return {
+    campaign,
+    creative,
+    budget,
+    parish,
+  };
+}
 
 function withTenant(path: string, tenantId?: string): string {
   if (!tenantId) {
@@ -150,7 +211,7 @@ function mapError(reason: unknown): string {
 }
 
 const useDashboardStore = create<DashboardState>((set, get) => ({
-  ...initialState,
+  ...createInitialState(),
   setSelectedParish: (parish) => {
     if (!parish) {
       set({ selectedParish: undefined });
@@ -161,17 +222,39 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
   },
   setSelectedMetric: (metric) => set({ selectedMetric: metric }),
   loadAll: async (tenantId, options) => {
-    const { campaign, creative, budget, parish, activeTenantId } = get();
-    const isTenantChange = tenantId && tenantId !== activeTenantId;
-    const alreadyLoaded =
-      !isTenantChange &&
-      campaign.status === "loaded" &&
-      creative.status === "loaded" &&
-      budget.status === "loaded" &&
-      parish.status === "loaded";
+    const { campaign, creative, budget, parish, activeTenantId, metricsCache } = get();
+    const tenantKey = resolveTenantKey(tenantId);
+    const cachedMetrics = metricsCache[tenantKey];
+    const isTenantChange = Boolean(tenantId && tenantId !== activeTenantId);
+    const allSlicesLoaded =
+      campaign.status === "loaded" && creative.status === "loaded" && budget.status === "loaded" && parish.status === "loaded";
 
-    if (!options?.force && alreadyLoaded) {
-      return;
+    if (!options?.force) {
+      if (!isTenantChange && allSlicesLoaded) {
+        return;
+      }
+
+      if (cachedMetrics && isTenantChange) {
+        set((state) => ({
+          activeTenantId: tenantId ?? state.activeTenantId,
+          selectedParish: undefined,
+          campaign: { status: "loaded", data: cachedMetrics.campaign, error: undefined },
+          creative: { status: "loaded", data: cachedMetrics.creative, error: undefined },
+          budget: { status: "loaded", data: cachedMetrics.budget, error: undefined },
+          parish: { status: "loaded", data: cachedMetrics.parish, error: undefined },
+        }));
+        return;
+      }
+
+      if (cachedMetrics && !isTenantChange && !allSlicesLoaded) {
+        set((state) => ({
+          campaign: { status: "loaded", data: cachedMetrics.campaign, error: undefined },
+          creative: { status: "loaded", data: cachedMetrics.creative, error: undefined },
+          budget: { status: "loaded", data: cachedMetrics.budget, error: undefined },
+          parish: { status: "loaded", data: cachedMetrics.parish, error: undefined },
+        }));
+        return;
+      }
     }
 
     set((state) => ({
@@ -182,6 +265,33 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       budget: { ...state.budget, status: "loading", error: undefined },
       parish: { ...state.parish, status: "loading", error: undefined },
     }));
+
+    if (!MOCK_MODE) {
+      try {
+        const metricsPath = withTenant("/metrics/", tenantId);
+        const snapshot = await fetchDashboardMetrics({
+          path: metricsPath,
+          mockPath: "/sample_metrics.json",
+        });
+        const resolved = parseTenantMetrics(snapshot);
+
+        set((state) => ({
+          campaign: { status: "loaded", data: resolved.campaign, error: undefined },
+          creative: { status: "loaded", data: resolved.creative, error: undefined },
+          budget: { status: "loaded", data: resolved.budget, error: undefined },
+          parish: { status: "loaded", data: resolved.parish, error: undefined },
+          metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
+        }));
+      } catch (error) {
+        set((state) => ({
+          campaign: { status: "error", data: state.campaign.data, error: mapError(error) },
+          creative: { status: "error", data: state.creative.data, error: mapError(error) },
+          budget: { status: "error", data: state.budget.data, error: mapError(error) },
+          parish: { status: "error", data: state.parish.data, error: mapError(error) },
+        }));
+      }
+      return;
+    }
 
     const campaignPath = withTenant("/dashboards/campaign-performance/", tenantId);
     const creativePath = withTenant("/dashboards/creative-performance/", tenantId);
@@ -207,44 +317,94 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       }),
     ]);
 
-    set((state) => ({
-      campaign:
-        campaignResult.status === "fulfilled"
-          ? { status: "loaded", data: campaignResult.value, error: undefined }
-          : {
-              status: "error",
-              data: state.campaign.data,
-              error: mapError(campaignResult.reason),
+    set((state) => {
+      const fulfilled =
+        campaignResult.status === "fulfilled" &&
+        creativeResult.status === "fulfilled" &&
+        budgetResult.status === "fulfilled" &&
+        parishResult.status === "fulfilled";
+
+      const updatedCache = fulfilled
+        ? {
+            ...state.metricsCache,
+            [tenantKey]: {
+              campaign: campaignResult.value,
+              creative: creativeResult.value,
+              budget: budgetResult.value,
+              parish: parishResult.value,
             },
-      creative:
-        creativeResult.status === "fulfilled"
-          ? { status: "loaded", data: creativeResult.value, error: undefined }
-          : {
-              status: "error",
-              data: state.creative.data,
-              error: mapError(creativeResult.reason),
-            },
-      budget:
-        budgetResult.status === "fulfilled"
-          ? { status: "loaded", data: budgetResult.value, error: undefined }
-          : {
-              status: "error",
-              data: state.budget.data,
-              error: mapError(budgetResult.reason),
-            },
-      parish:
-        parishResult.status === "fulfilled"
-          ? { status: "loaded", data: parishResult.value, error: undefined }
-          : {
-              status: "error",
-              data: state.parish.data,
-              error: mapError(parishResult.reason),
-            },
-    }));
+          }
+        : state.metricsCache;
+
+      return {
+        campaign:
+          campaignResult.status === "fulfilled"
+            ? { status: "loaded", data: campaignResult.value, error: undefined }
+            : {
+                status: "error",
+                data: state.campaign.data,
+                error: mapError(campaignResult.reason),
+              },
+        creative:
+          creativeResult.status === "fulfilled"
+            ? { status: "loaded", data: creativeResult.value, error: undefined }
+            : {
+                status: "error",
+                data: state.creative.data,
+                error: mapError(creativeResult.reason),
+              },
+        budget:
+          budgetResult.status === "fulfilled"
+            ? { status: "loaded", data: budgetResult.value, error: undefined }
+            : {
+                status: "error",
+                data: state.budget.data,
+                error: mapError(budgetResult.reason),
+              },
+        parish:
+          parishResult.status === "fulfilled"
+            ? { status: "loaded", data: parishResult.value, error: undefined }
+            : {
+                status: "error",
+                data: state.parish.data,
+                error: mapError(parishResult.reason),
+              },
+        metricsCache: updatedCache,
+      };
+    });
+  },
+  getCachedMetrics: (tenantId) => {
+    const state = get();
+    const tenantKey = resolveTenantKey(tenantId ?? state.activeTenantId);
+    return state.metricsCache[tenantKey];
+  },
+  getCampaignRowsForSelectedParish: () => {
+    const { campaign: campaignSlice, selectedParish } = get();
+    const rows = campaignSlice.data?.rows ?? [];
+    if (!selectedParish) {
+      return rows;
+    }
+    return rows.filter((row) => row.parish?.toLowerCase() === selectedParish.toLowerCase());
+  },
+  getCreativeRowsForSelectedParish: () => {
+    const { creative: creativeSlice, selectedParish } = get();
+    const rows = creativeSlice.data ?? [];
+    if (!selectedParish) {
+      return rows;
+    }
+    return rows.filter((row) => row.parish?.toLowerCase() === selectedParish.toLowerCase());
+  },
+  getBudgetRowsForSelectedParish: () => {
+    const { budget: budgetSlice, selectedParish } = get();
+    const rows = budgetSlice.data ?? [];
+    if (!selectedParish) {
+      return rows;
+    }
+    return rows.filter((row) => row.parishes?.some((parish) => parish.toLowerCase() === selectedParish.toLowerCase()));
   },
   reset: () => {
     set({
-      ...initialState,
+      ...createInitialState(),
     });
   },
 }));

@@ -3,9 +3,10 @@ import FullPageLoader from "../components/FullPageLoader";
 import useDashboardStore from "../state/useDashboardStore";
 
 const BudgetDashboard = () => {
-  const { budget, campaign } = useDashboardStore((state) => ({
+  const { budget, campaign, budgetRows } = useDashboardStore((state) => ({
     budget: state.budget,
     campaign: state.campaign,
+    budgetRows: state.getBudgetRowsForSelectedParish(),
   }));
 
   const currency = campaign.data?.summary.currency ?? "USD";
@@ -29,7 +30,7 @@ const BudgetDashboard = () => {
           <h2>Monthly pacing</h2>
           <p className="muted">Compare current spend against planned budgets.</p>
         </header>
-        <BudgetPacingList rows={budget.data} currency={currency} />
+        <BudgetPacingList rows={budgetRows} currency={currency} />
       </section>
     </div>
   );

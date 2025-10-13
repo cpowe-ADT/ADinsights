@@ -3,9 +3,10 @@ import FullPageLoader from "../components/FullPageLoader";
 import useDashboardStore from "../state/useDashboardStore";
 
 const CreativeDashboard = () => {
-  const { creative, campaign } = useDashboardStore((state) => ({
+  const { creative, campaign, creativeRows } = useDashboardStore((state) => ({
     creative: state.creative,
     campaign: state.campaign,
+    creativeRows: state.getCreativeRowsForSelectedParish(),
   }));
 
   const currency = campaign.data?.summary.currency ?? "USD";
@@ -25,7 +26,7 @@ const CreativeDashboard = () => {
   return (
     <div className="dashboard-grid single-panel">
       <section className="panel full-width">
-        <CreativeTable rows={creative.data} currency={currency} />
+        <CreativeTable rows={creativeRows} currency={currency} />
       </section>
     </div>
   );
