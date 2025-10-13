@@ -3,7 +3,7 @@ sourceDefinitionId: 778daa7c-feaf-4db6-96f3-70fd645acc77  # Official Facebook Ma
 workspaceId: <replace-with-workspace-uuid>
 name: "Meta Ads Incremental"
 connectionConfiguration:
-  account_id: <encrypted-account-id>
+  account_id: {{ env['AIRBYTE_META_ACCOUNT_ID'] }}
   access_token: {{ env['AIRBYTE_META_ACCESS_TOKEN'] }}
   page_size: 100
   start_date: "2023-01-01T00:00:00Z"

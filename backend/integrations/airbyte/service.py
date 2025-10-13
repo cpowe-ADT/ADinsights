@@ -8,7 +8,7 @@ from typing import Callable
 
 from django.utils import timezone
 
-from integrations.models import AirbyteConnection
+from integrations.models import AirbyteConnection, TenantAirbyteSyncStatus
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,7 @@ class AirbyteSyncService:
                 job_status = _extract_job_status(job_detail) or job_status
                 job_created_at = _extract_job_created_at(job_detail) or now
             connection.record_sync(job_id, job_status, job_created_at)
+            TenantAirbyteSyncStatus.update_for_connection(connection)
             triggered += 1
         return triggered
 
