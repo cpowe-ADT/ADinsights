@@ -76,10 +76,11 @@ ADinsights will be a self-hosted, multi-tenant marketing analytics platform for 
 - [ ] Stand up Metabase/Superset dashboards connected to the API once metrics are available.
 - [ ] Use [`docs/task_breakdown.md`](docs/task_breakdown.md) to track sprint assignments and validation.
 
-## Local Development Guide
+## Quick Start (Local Dev)
 
-Use the section below to run each component independently or orchestrate a quick end-to-end smoke
-test.
+Use the steps below to run each component independently or orchestrate a quick end-to-end smoke
+test. The project assumes `America/Jamaica` as the canonical timezone (no daylight saving), so keep
+`TIME_ZONE=America/Jamaica` in your environment unless a tenant explicitly requires otherwise.
 
 ### Backend API (Django + DRF)
 ```bash
@@ -90,10 +91,11 @@ cp .env.sample .env  # adjust credentials as needed
 python manage.py migrate
 python manage.py runserver 0.0.0.0:8000
 ```
-- Sample endpoints: `GET /api/health/`, `GET /api/timezone/`, `POST /api/auth/login/`, `GET /api/me/`.
+- Sample endpoints: `GET /api/health/`, `GET /api/health/airbyte/`, `GET /api/health/dbt/`,
+  `GET /api/timezone/`, `POST /api/auth/login/`, `GET /api/me/`.
 - For multi-tenant RLS policies run `python manage.py enable_rls` after your database is provisioned.
-- Start Celery workers with `celery -A core worker -l info` and `celery -A core beat -l info` once Redis
-  is running.
+- Start Celery workers with `celery -A core worker -l info` and `celery -A core beat -l info` (run each
+  in a separate terminal) once Redis is running.
 
 ### Frontend Shell (React + Vite)
 ```bash
@@ -133,14 +135,83 @@ make dbt-deps
 make dbt-build
 ```
 The Makefile wraps common workflows (dependencies, seeds, builds, tests, and freshness checks). Use `DBT` overrides to pass `--vars` such as `enable_linkedin` or `enable_tiktok` when you want to incorporate optional connectors.
+Run only the staging models for quick validation with:
+
+```bash
+dbt run --project-dir dbt --profiles-dir ~/.dbt --select staging
+```
 
 ### Quick Smoke Test
 1. Start the backend API and create a tenant/user via Django admin.
-2. Run the frontend dev server and confirm the grid and map render with mock data.
-3. Hit `GET /api/timezone/` from your browser or `curl` to confirm backend connectivity.
-4. (Optional) Trigger `celery -A core call core.tasks.sync_meta_example --args='["<tenant_uuid>"]'`
+2. Launch a Celery worker (`celery -A core worker -l info`) and beat scheduler (`celery -A core beat -l info`) to ensure background jobs register correctly.
+3. Run the frontend dev server and confirm the grid and map render with mock data.
+4. Hit `GET /api/health/`, `GET /api/health/airbyte/`, and `GET /api/health/dbt/` to verify status JSON and HTTP codes match expectations; use `GET /api/timezone/` to confirm the Jamaica timezone is reported.
+5. (Optional) Trigger `celery -A core call core.tasks.sync_meta_example --args='["<tenant_uuid>"]'`
    (optionally add a second argument with the triggering user UUID) from another terminal to see
    asynchronous task logging.
+
+## Operations & Health
+
+Health checks live in [`backend/core/urls.py`](backend/core/urls.py) and
+[`backend/core/views.py`](backend/core/views.py) and drive synthetic monitoring and deployment
+readiness probes:
+
+- `GET /api/health/` returns `{"status": "ok"}` with HTTP 200 for a simple liveness signal.
+- `GET /api/health/airbyte/` inspects the most recent `TenantAirbyteSyncStatus` record. A 200
+  response marks the connector as healthy, while HTTP 503 denotes a misconfigured API credential,
+  no completed syncs, or a sync older than the one-hour freshness threshold. The payload includes the
+  last job metadata to help differentiate "stale" (sync overdue) from "misconfigured" (credentials or
+  scheduler missing).
+- `GET /api/health/dbt/` reads `dbt/target/run_results.json`. HTTP 200 indicates the latest run is
+  within 24 hours and all models succeeded. HTTP 503 highlights missing or stale run results, and HTTP
+  502 flags failing models in the most recent execution.
+- `GET /api/timezone/` exposes the configured timezone so operators can ensure Jamaica-based
+  scheduling is intact.
+
+The Airbyte health route treats the lack of a recent sync as unhealthy to catch stale data before it
+hits dashboards. dbt health follows a similar freshness heuristic but also checks for failed models to
+avoid publishing incomplete aggregates.
+
+## Background Tasks
+
+Celery is integrated with Django for asynchronous ingestion and transformation hand-offs. Consult the
+official "First steps with Django" guide for task routing, worker monitoring, and retries before
+introducing new job types: <https://docs.celeryq.dev/en/stable/django/first-steps-with-django.html>.
+
+## Frontend Notes
+
+The TanStack Table grid uses the v8 APIs for sorting and filtering. When wiring real endpoints, rely on
+`getSortedRowModel()` (and its companion utilities) to keep client-side interactions consistent with the
+official recommendations: <https://tanstack.com/table/v8/docs/guide/sorting>. The current grid still
+loads mock data from `public/sample_metrics.json`; swap in real API calls by replacing the fetch layer
+in the table provider once backend list routes are ready.
+
+## Maps
+
+Leaflet renders the parish choropleth via GeoJSON layers with hover tooltips, a legend, and drill-through
+links to analyst grids. Follow the reference choropleth pattern in the Leaflet documentation when
+extending interactivity or styling: <https://leafletjs.com/examples/choropleth/>.
+
+## dbt Modeling
+
+SCD Type-2 history for campaign, ad set, and ad dimensions will be captured through dbt snapshots and
+the accompanying merge macros in this repo. Review the official dbt snapshot documentation before
+adding new slowly changing dimensions or altering snapshot strategies:
+<https://docs.getdbt.com/docs/build/snapshots>.
+
+## CI Overview
+
+GitHub Actions runs on Python 3.11 and Node 20 to mirror local tooling. The workflow installs backend
+dependencies, executes `ruff check backend`, runs `pytest`, installs and tests the frontend (`npm test`
+and `npm run build`), and finishes by seeding and running staging models with dbt (`make dbt-deps`,
+`make dbt-seed`, and `dbt run --select staging`). This keeps API, UI, and transformation checks aligned
+on every push and pull request.
+
+## Security & Secrets
+
+Environment variables back local development secrets today. Production hardening will shift sensitive
+credentials to AWS KMS and Secrets Manager once the infrastructure workstreams land, so design new
+integrations with that provider path in mind.
 
 ## Testing Matrix
 - **Backend:** `pytest`, `ruff check backend`
