@@ -12,7 +12,11 @@ from accounts.views import (
     UserRoleViewSet,
     UserViewSet,
 )
-from integrations.views import PlatformCredentialViewSet
+from integrations.views import (
+    AlertRuleDefinitionViewSet,
+    CampaignBudgetViewSet,
+    PlatformCredentialViewSet,
+)
 from . import views as core_views
 
 router = DefaultRouter()
@@ -27,6 +31,10 @@ router.register(r"user-roles", UserRoleViewSet, basename="userrole")
 router.register(r"audit-logs", AuditLogViewSet, basename="auditlog")
 router.register(r"alerts/runs", AlertRunViewSet, basename="alert-run")
 
+admin_router = DefaultRouter()
+admin_router.register(r"budgets", CampaignBudgetViewSet, basename="campaignbudget")
+admin_router.register(r"alerts", AlertRuleDefinitionViewSet, basename="alertruledefinition")
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path(
@@ -39,4 +47,5 @@ urlpatterns = [
     path("api/health/dbt/", core_views.dbt_health, name="dbt-health"),
     path("api/timezone/", core_views.timezone_view, name="timezone"),
     path("api/", include(router.urls)),
+    path("api/admin/", include(admin_router.urls)),
 ]
