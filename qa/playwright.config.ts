@@ -1,10 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
 import path from "path";
 
-const mockMode = (process.env.MOCK_MODE ?? "true").toLowerCase() !== "false";
+const isMockRun = process.env.MOCK === "1";
+const mockMode = isMockRun || (process.env.MOCK_MODE ?? "true").toLowerCase() !== "false";
 const includeQuarantine = (process.env.QA_INCLUDE_QUARANTINE ?? "false").toLowerCase() === "true";
-const port = Number(process.env.QA_PORT ?? 4173);
-const computedBaseUrl = `http://127.0.0.1:${port}`;
+const DEV_SERVER_PORT = 5173;
+const PREVIEW_PORT = Number(process.env.QA_PORT ?? 4173);
+const computedPort = isMockRun ? DEV_SERVER_PORT : PREVIEW_PORT;
+const computedBaseUrl = `http://127.0.0.1:${computedPort}`;
 const baseURL = process.env.QA_BASE_URL ?? computedBaseUrl;
 const shouldStartServer = !process.env.QA_BASE_URL;
 
@@ -52,17 +55,30 @@ export default defineConfig({
     },
   ],
   webServer: shouldStartServer
-    ? {
-        command: `npm run preview -- --host 127.0.0.1 --port ${port}`,
-        url: baseURL,
-        cwd: path.resolve(__dirname, "../frontend"),
-        timeout: 120000,
-        reuseExistingServer: true,
-        env: {
-          ...process.env,
-          MOCK_MODE: mockMode ? "true" : "false",
-          VITE_MOCK_MODE: mockMode ? "true" : "false",
-        },
-      }
+    ? (isMockRun
+        ? {
+            command: "npm run dev -- --host --port=5173",
+            url: "http://localhost:5173",
+            cwd: path.resolve(__dirname, "../frontend"),
+            reuseExistingServer: true,
+            timeout: 120000,
+            env: {
+              ...process.env,
+              MOCK_MODE: mockMode ? "true" : "false",
+              VITE_MOCK_MODE: mockMode ? "true" : "false",
+            },
+          }
+        : {
+            command: "npm run build && npm run preview -- --host --port=4173",
+            url: "http://localhost:4173",
+            cwd: path.resolve(__dirname, "../frontend"),
+            reuseExistingServer: true,
+            timeout: 120000,
+            env: {
+              ...process.env,
+              MOCK_MODE: mockMode ? "true" : "false",
+              VITE_MOCK_MODE: mockMode ? "true" : "false",
+            },
+          })
     : undefined,
 });

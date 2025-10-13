@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
+    "build": "tsc -p tsconfig.build.json && vite build",
+    "preview": "vite preview --host --port 4173",
     "test": "vitest"
   },
   "dependencies": {
