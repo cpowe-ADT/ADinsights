@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
+import EmptyState from "../components/EmptyState";
 import styles from "./Home.module.css";
 
 type QuickAction = {
@@ -85,6 +86,16 @@ const BookIcon = () => (
 const ArrowIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
     <path d="m8 5 8 7-8 7" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const DashboardPlaceholderIcon = () => (
+  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2">
+    <rect x="8" y="12" width="32" height="24" rx="3.5" />
+    <path d="M8 22h32" strokeLinecap="round" />
+    <path d="M18 12v24" strokeLinecap="round" />
+    <circle cx="14" cy="18" r="1.8" fill="currentColor" stroke="none" />
+    <circle cx="26" cy="30" r="1.8" fill="currentColor" stroke="none" />
   </svg>
 );
 
@@ -244,15 +255,13 @@ const Home = () => {
               ))}
             </ul>
           ) : (
-            <div className={styles.emptyState} role="status">
-              <h3 className={styles.emptyTitle}>No dashboards yet</h3>
-              <p className={styles.emptyDescription}>
-                Create your first dashboard to unlock forecasting, pacing, and creative diagnostics in minutes.
-              </p>
-              <button type="button" className={styles.emptyCta} onClick={handleCreateReport}>
-                Build a dashboard
-              </button>
-            </div>
+            <EmptyState
+              icon={<DashboardPlaceholderIcon />}
+              title="No dashboards yet"
+              message="Create your first dashboard to unlock forecasting, pacing, and creative diagnostics in minutes."
+              actionLabel="Build a dashboard"
+              onAction={handleCreateReport}
+            />
           )}
         </div>
 

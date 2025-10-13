@@ -257,6 +257,13 @@ label,
   cursor: wait;
 }
 
+.button.secondary:disabled,
+.button.tertiary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .button.secondary {
   background: var(--surface-subtle);
   color: var(--text-primary);
@@ -319,6 +326,42 @@ label,
   background: var(--status-muted-bg);
   color: var(--muted);
   background: rgba(15, 23, 42, 0.03);
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, #e2e8f0 0%, #f1f5f9 50%, #e2e8f0 100%);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-stack {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.widget-skeleton {
+  display: grid;
+  gap: 1rem;
+}
+
+.table-skeleton {
+  display: grid;
+  gap: 0.6rem;
 }
 
 .full-page-loader {
@@ -1202,6 +1245,82 @@ th.pinned {
   color: #64748b;
 }
 
+.empty-state {
+  display: grid;
+  gap: 0.9rem;
+  justify-items: center;
+  text-align: center;
+  background: rgba(226, 232, 240, 0.5);
+  border: 1px dashed rgba(148, 163, 184, 0.7);
+  border-radius: 1rem;
+  padding: 2rem 2.25rem;
+  color: #0f172a;
+}
+
+.empty-state__icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  display: grid;
+  place-items: center;
+}
+
+.empty-state__icon svg {
+  width: 60%;
+  height: 60%;
+}
+
+.empty-state__content h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.empty-state__content p {
+  margin: 0;
+  max-width: 360px;
+  color: #475569;
+}
+
+.error-state {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+  text-align: center;
+  background: rgba(254, 226, 226, 0.6);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 1rem;
+  padding: 1.75rem 2rem;
+  color: #991b1b;
+}
+
+.error-state__icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  display: grid;
+  place-items: center;
+}
+
+.error-state__icon svg {
+  width: 60%;
+  height: 60%;
+}
+
+.error-state__content h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.error-state__content p {
+  margin: 0;
+  max-width: 360px;
+  color: #b91c1c;
 [data-motion="modal"],
 [data-motion="popover"] {
   opacity: 0;

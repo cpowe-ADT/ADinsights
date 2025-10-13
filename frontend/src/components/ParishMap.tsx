@@ -6,6 +6,9 @@ import { Link } from "react-router-dom";
 
 import useDashboardStore from "../state/useDashboardStore";
 import { formatCurrency, formatNumber, formatRatio } from "../lib/format";
+import EmptyState from "./EmptyState";
+import ErrorState from "./ErrorState";
+import Skeleton from "./Skeleton";
 import { useTheme } from "./ThemeProvider";
 import styles from "./ParishMap.module.css";
 
@@ -59,6 +62,18 @@ function getColor(value: number, breaks: number[], palette: readonly string[]): 
   return palette[5];
 }
 
+interface ParishMapProps {
+  onRetry?: () => void;
+}
+
+const MapPlaceholderIcon = () => (
+  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.4">
+    <path d="M16 14 8 18v18l8-4 10 4 12-6V10l-12 6-10-2Z" strokeLinejoin="round" />
+    <circle cx="32" cy="16" r="3.5" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+const ParishMap = ({ onRetry }: ParishMapProps) => {
 const ParishMap = () => {
   const { theme } = useTheme();
 function getColor(value: number, breaks: number[]): string {
@@ -291,6 +306,12 @@ const ParishMap = ({ height = 320 }: ParishMapProps) => {
     });
   }, [styleForParish, tooltipForParish]);
 
+  if (parishStatus === "loading" && parishData.length === 0) {
+    return (
+      <div className="widget-skeleton" aria-busy="true">
+        <Skeleton height="300px" borderRadius="1rem" />
+      </div>
+    );
   const mapRefCallback = useCallback((map: L.Map | null) => {
     if (!map) {
       return;
@@ -317,12 +338,27 @@ const ParishMap = ({ height = 320 }: ParishMapProps) => {
     return <div className="status-message muted">Preparing the parish heatmap…</div>;
   }
 
-  if (parishStatus === "error") {
-    return <div className="status-message error">{parishError ?? "Unable to render the parish map."}</div>;
+  if (parishStatus === "error" && parishData.length === 0) {
+    return (
+      <ErrorState
+        message={parishError ?? "Unable to render the parish map."}
+        onRetry={onRetry}
+        retryLabel="Retry load"
+      />
+    );
   }
 
   if (parishData.length === 0) {
-    return <div className="status-message muted">Map insights will appear once this tenant has campaign data.</div>;
+    return (
+      <EmptyState
+        icon={<MapPlaceholderIcon />}
+        title="No map insights yet"
+        message="Map insights will appear once this tenant has campaign data."
+        actionLabel="Refresh data"
+        onAction={() => onRetry?.()}
+        actionVariant="secondary"
+      />
+    );
   }
 
   return (

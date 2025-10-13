@@ -19,6 +19,8 @@ const formatDateLabel = (value: string | number): string => {
 };
 
 const CampaignTrendChart = ({ data, currency }: CampaignTrendChartProps) => {
+  if (data.length === 0) {
+    return null;
   if (!data.length) {
     return (
       <div className="chart-card__empty" role="status">
