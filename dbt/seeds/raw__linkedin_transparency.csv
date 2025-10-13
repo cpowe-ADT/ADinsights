@@ -1,0 +1,2 @@
+account_id,campaign_id,ad_creative_id,activity_date,region,impressions,clicks,spend,_airbyte_emitted_at
+ln-001,cmp-001,ad-001,2024-01-01,Kingston,1000,50,123.45,2024-01-02T00:00:00Z
