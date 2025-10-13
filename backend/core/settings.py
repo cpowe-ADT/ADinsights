@@ -6,6 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -16,6 +17,7 @@ env = environ.Env(
     TIME_ZONE=(str, "America/Jamaica"),
     SECRETS_PROVIDER=(str, "env"),
     KMS_PROVIDER=(str, "aws"),
+    LLM_TIMEOUT=(float, 10.0),
 )
 
 ENV_FILE = BASE_DIR / ".env"
@@ -39,6 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework_simplejwt",
+    "alerts",
     "accounts",
     "integrations",
 ]
@@ -124,7 +127,12 @@ SIMPLE_JWT = {
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
 CELERY_TASK_DEFAULT_QUEUE = "default"
-CELERY_BEAT_SCHEDULE = {}
+CELERY_BEAT_SCHEDULE = {
+    "alerts-quarter-hourly": {
+        "task": "alerts.tasks.run_alert_cycle",
+        "schedule": crontab(minute="*/15"),
+    }
+}
 
 SECRETS_PROVIDER = env("SECRETS_PROVIDER")
 KMS_PROVIDER = env("KMS_PROVIDER")
@@ -140,3 +148,7 @@ AIRBYTE_API_URL = _optional(env("AIRBYTE_API_URL", default=None))
 AIRBYTE_API_TOKEN = _optional(env("AIRBYTE_API_TOKEN", default=None))
 AIRBYTE_USERNAME = _optional(env("AIRBYTE_USERNAME", default=None))
 AIRBYTE_PASSWORD = _optional(env("AIRBYTE_PASSWORD", default=None))
+LLM_API_URL = _optional(env("LLM_API_URL", default=None))
+LLM_API_KEY = _optional(env("LLM_API_KEY", default=None))
+LLM_MODEL = env("LLM_MODEL", default="gpt-5-codex")
+LLM_TIMEOUT = env.float("LLM_TIMEOUT")
