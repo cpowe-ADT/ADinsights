@@ -37,3 +37,6 @@ __pycache__/
 
 # Packaging artifacts
 *.tar.gz
+
+# Exporter generated reports
+integrations/exporter/out/
