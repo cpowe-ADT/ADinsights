@@ -5,8 +5,9 @@ import budgetSchema from '../schemas/budget.schema.json';
 import creativeSchema from '../schemas/creative.schema.json';
 import metricsSchema from '../schemas/metrics.schema.json';
 import parishSchema from '../schemas/parish.schema.json';
+import parishGeometrySchema from '../schemas/parish-geometry.schema.json';
 
-export type SchemaKey = 'metrics' | 'creative' | 'budget' | 'parish';
+export type SchemaKey = 'metrics' | 'creative' | 'budget' | 'parish' | 'parishGeometry';
 
 type SchemaMap = Record<SchemaKey, ValidateFunction>;
 
@@ -34,6 +35,7 @@ const validators: SchemaMap = {
   creative: ajv.compile(creativeSchema),
   budget: ajv.compile(budgetSchema),
   parish: ajv.compile(parishSchema),
+  parishGeometry: ajv.compile(parishGeometrySchema),
 };
 
 const shouldValidate = import.meta.env.MODE === 'test' || import.meta.env.DEV;

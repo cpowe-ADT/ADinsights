@@ -1,12 +1,11 @@
-// @ts-nocheck
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Feature, FeatureCollection } from 'geojson';
 import L from 'leaflet';
 import { Link } from 'react-router-dom';
 
-import useDashboardStore from '../state/useDashboardStore';
+import useDashboardStore, { type LoadStatus } from '../state/useDashboardStore';
 import { formatCurrency, formatNumber, formatRatio } from '../lib/format';
+import { fetchParishGeometry } from '../lib/dataService';
 import EmptyState from './EmptyState';
 import ErrorState from './ErrorState';
 import Skeleton from './Skeleton';
@@ -35,6 +34,14 @@ const JAMAICA_CENTER: [number, number] = [18.1096, -77.2975];
 interface ParishMapProps {
   height?: number;
   onRetry?: () => void;
+}
+
+function withTenant(path: string, tenantId?: string): string {
+  if (!tenantId) {
+    return path;
+  }
+  const separator = path.includes('?') ? '&' : '?';
+  return `${path}${separator}tenant_id=${encodeURIComponent(tenantId)}`;
 }
 
 function getFeatureName(feature: Feature): string {
@@ -101,15 +108,19 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     selectedMetric,
     selectedParish,
     setSelectedParish,
+    activeTenantId,
   } = useDashboardStore((state) => ({
     parishData: state.parish.data ?? [],
     parishStatus: state.parish.status,
     parishError: state.parish.error,
     selectedMetric: state.selectedMetric,
     selectedParish: state.selectedParish,
-    setSelectedParish: state.setSelectedParish,
+     setSelectedParish: state.setSelectedParish,
+    activeTenantId: state.activeTenantId,
   }));
   const [geojson, setGeojson] = useState<FeatureCollection | null>(null);
+  const [geometryStatus, setGeometryStatus] = useState<LoadStatus>('idle');
+  const [geometryError, setGeometryError] = useState<string>();
   const geoJsonLayerRef = useRef<L.GeoJSON | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
@@ -121,6 +132,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     fillOpacity: 0.8,
   }));
   const [scrollZoomEnabled, setScrollZoomEnabled] = useState(false);
+  const geometryControllerRef = useRef<AbortController | null>(null);
 
   const fallbackPalette = theme === 'dark' ? FALLBACK_DARK_PALETTE : FALLBACK_LIGHT_PALETTE;
   const mapPalette = useMemo<readonly string[]>(() => {
@@ -137,12 +149,50 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     [theme],
   );
 
+  const loadGeometry = useCallback(
+    (tenant?: string) => {
+      geometryControllerRef.current?.abort();
+      const controller = new AbortController();
+      geometryControllerRef.current = controller;
+
+      setGeometryStatus('loading');
+      setGeometryError(undefined);
+
+      fetchParishGeometry({
+        path: withTenant('/dashboards/parish-geometry/', tenant),
+        mockPath: '/jm_parishes.json',
+        signal: controller.signal,
+      })
+        .then((data) => {
+          setGeojson(data);
+          setGeometryStatus('loaded');
+          geometryControllerRef.current = null;
+        })
+        .catch((error: unknown) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+
+          console.error('Failed to load parish geometry', error);
+          setGeometryStatus('error');
+          setGeometryError(
+            error instanceof Error ? error.message : 'Failed to load parish boundaries.',
+          );
+          geometryControllerRef.current = null;
+        });
+    },
+    [],
+  );
+
   useEffect(() => {
-    fetch('/jm_parishes.json')
-      .then((res) => res.json())
-      .then((data: FeatureCollection) => setGeojson(data))
-      .catch((error) => console.error('Failed to load GeoJSON', error));
-  }, []);
+    loadGeometry(activeTenantId);
+    return () => {
+      if (geometryControllerRef.current) {
+        geometryControllerRef.current.abort();
+        geometryControllerRef.current = null;
+      }
+    };
+  }, [activeTenantId, loadGeometry]);
 
   const metricByParish = useMemo(() => {
     return parishData.reduce<Record<string, number>>((acc, row) => {
@@ -335,7 +385,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     if (
       !mapRef.current ||
       !mapNodeRef.current ||
-      mapRef.current._container !== mapNodeRef.current
+      mapRef.current.getContainer() !== mapNodeRef.current
     ) {
       const node = mapNodeRef.current;
       if (!node) {
@@ -463,7 +513,14 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     setScrollZoomEnabled((state) => !state);
   }, [scrollZoomEnabled]);
 
-  if (parishStatus === 'loading' && parishData.length === 0) {
+  const handleRetry = useCallback(() => {
+    onRetry?.();
+    loadGeometry(activeTenantId);
+  }, [activeTenantId, loadGeometry, onRetry]);
+
+  const noDataLoaded = parishData.length === 0 && !geojson;
+
+  if ((parishStatus === 'loading' || geometryStatus === 'loading') && noDataLoaded) {
     return (
       <div className="widget-skeleton" aria-busy="true">
         <Skeleton height="300px" borderRadius="1rem" />
@@ -471,18 +528,32 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     );
   }
 
-  if (parishStatus === 'loading') {
-    return <div className="status-message muted">Preparing the parish heatmap…</div>;
+  if (geometryStatus === 'error' && noDataLoaded) {
+    return (
+      <ErrorState
+        message={geometryError ?? 'Unable to load parish boundaries.'}
+        onRetry={handleRetry}
+        retryLabel="Retry load"
+      />
+    );
   }
 
   if (parishStatus === 'error' && parishData.length === 0) {
     return (
       <ErrorState
         message={parishError ?? 'Unable to render the parish map.'}
-        onRetry={onRetry}
+        onRetry={handleRetry}
         retryLabel="Retry load"
       />
     );
+  }
+
+  if (parishStatus === 'loading') {
+    return <div className="status-message muted">Preparing the parish heatmap…</div>;
+  }
+
+  if (geometryStatus === 'loading' && !geojson) {
+    return <div className="status-message muted">Loading parish boundaries…</div>;
   }
 
   if (parishData.length === 0) {
@@ -492,7 +563,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
         title="No map insights yet"
         message="Map insights will appear once this tenant has campaign data."
         actionLabel="Refresh data"
-        onAction={() => onRetry?.()}
+        onAction={handleRetry}
         actionVariant="secondary"
       />
     );

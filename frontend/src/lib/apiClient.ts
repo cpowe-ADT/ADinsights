@@ -8,7 +8,28 @@ export type RequestOptions = {
 };
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
-export const MOCK_MODE = (import.meta.env.VITE_MOCK_MODE ?? 'true') !== 'false';
+
+function resolveBooleanFlag(value: unknown, defaultValue: boolean): boolean {
+  if (typeof value !== 'string') {
+    return defaultValue;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'y', 'on'].includes(normalized)) {
+    return true;
+  }
+  if (['0', 'false', 'no', 'n', 'off'].includes(normalized)) {
+    return false;
+  }
+
+  return defaultValue;
+}
+
+export const MOCK_MODE = resolveBooleanFlag(import.meta.env.VITE_MOCK_MODE, false);
+export const MOCK_ASSETS_ENABLED = resolveBooleanFlag(
+  import.meta.env.VITE_MOCK_ASSETS,
+  MOCK_MODE,
+);
 
 type RefreshHandler = () => Promise<string | undefined>;
 type UnauthorizedHandler = () => void;
@@ -30,7 +51,7 @@ export function setUnauthorizedHandler(handler?: UnauthorizedHandler): void {
 }
 
 function resolveUrl(path: string, mockPath?: string): string {
-  if (MOCK_MODE && mockPath) {
+  if (MOCK_ASSETS_ENABLED && mockPath) {
     return mockPath;
   }
 
