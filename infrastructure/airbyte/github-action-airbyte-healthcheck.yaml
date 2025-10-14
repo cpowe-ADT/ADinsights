@@ -1,0 +1,23 @@
+name: Airbyte Health Check
+
+on:
+  schedule:
+    # America/Jamaica is UTC-5 year-round; run 10 minutes past the hour between 06:00–22:00 local.
+    - cron: '10 11-23 * * *'
+    - cron: '10 0-3 * * *'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      AIRBYTE_BASE_URL: ${{ secrets.AIRBYTE_BASE_URL }}
+      AIRBYTE_WORKSPACE_ID: ${{ secrets.AIRBYTE_WORKSPACE_ID }}
+      AIRBYTE_API_AUTH_HEADER: ${{ secrets.AIRBYTE_API_AUTH_HEADER }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Probe Airbyte connections
+        run: python infrastructure/airbyte/scripts/airbyte_health_check.py

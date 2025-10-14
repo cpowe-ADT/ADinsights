@@ -1,6 +1,21 @@
+{% set default_google_ads_metrics_query -%}
+SELECT
+  segments.date,
+  customer.id,
+  campaign.id,
+  ad_group.id,
+  metrics.cost_micros,
+  metrics.impressions,
+  metrics.clicks,
+  metrics.conversions,
+  segments.geo_target_region
+FROM ad_group
+WHERE segments.date BETWEEN '{{ runtime_from_date }}' AND '{{ runtime_to_date }}'
+{%- endset %}
+
 # Google Ads source configuration for Airbyte
 sourceDefinitionId: 0b29e8f7-f64c-4a24-9e97-07c4603f8c04  # Official Google Ads source
-workspaceId: <replace-with-workspace-uuid>
+workspaceId: {{ env['AIRBYTE_WORKSPACE_ID'] }}
 name: "Google Ads Incremental"
 connectionConfiguration:
   developer_token: {{ env['AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN'] }}
@@ -16,11 +31,7 @@ connectionConfiguration:
   include_zero_impressions: true
   custom_queries:
     - query: |
-        SELECT segments.date, customer.id, campaign.id, ad_group.id,
-               metrics.cost_micros, metrics.impressions, metrics.clicks,
-               metrics.conversions, segments.geo_target_region
-        FROM ad_group
-        WHERE segments.date >= '{{ runtime_from_date }}'
+        {{ env.get('AIRBYTE_GOOGLE_ADS_CUSTOM_QUERY', default_google_ads_metrics_query) | trim | indent(8, true) }}
       cursor_field: segments.date
       primary_key:
         - campaign.id
