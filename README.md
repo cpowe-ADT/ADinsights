@@ -176,6 +176,28 @@ dbt run --project-dir dbt --profiles-dir ~/.dbt --select staging
    (optionally add a second argument with the triggering user UUID) from another terminal to see
    asynchronous task logging.
 
+### Default Admin (Local Dev)
+
+To quickly log in during development, a management command can create or update a default admin user.
+
+Defaults (safe for local only):
+
+- Username: `admin`
+- Email: `admin@example.com`
+- Password: `admin1`
+
+Run:
+
+```bash
+cd backend
+python manage.py create_admin
+```
+
+Notes:
+
+- By default this only runs when `DEBUG=True`. To force in non-debug environments, set `ALLOW_DEFAULT_ADMIN=1` (not recommended in production).
+- You can override credentials via env vars: `DJANGO_DEFAULT_ADMIN_USERNAME`, `DJANGO_DEFAULT_ADMIN_EMAIL`, `DJANGO_DEFAULT_ADMIN_PASSWORD`.
+
 ## Local Testing
 
 ### JS tests + export

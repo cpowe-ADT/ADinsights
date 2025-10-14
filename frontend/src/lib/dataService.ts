@@ -1,3 +1,5 @@
+import type { FeatureCollection } from 'geojson';
+
 import apiClient from './apiClient';
 import { validate, type SchemaKey } from './validate';
 import type {
@@ -19,10 +21,11 @@ interface FetchOptions {
   path: string;
   mockPath: string;
   schema?: SchemaKey;
+  signal?: AbortSignal;
 }
 
-async function fetchJson<T>({ path, mockPath, schema }: FetchOptions): Promise<T> {
-  const payload = await apiClient.get<T>(path, { mockPath });
+async function fetchJson<T>({ path, mockPath, schema, signal }: FetchOptions): Promise<T> {
+  const payload = await apiClient.get<T>(path, { mockPath, signal });
   validate(schema, payload);
   return payload;
 }
@@ -58,4 +61,8 @@ export async function fetchMetrics(path: string): Promise<MetricsResponse> {
 
 export async function fetchDashboardMetrics(options: FetchOptions): Promise<TenantMetricsSnapshot> {
   return fetchJson<TenantMetricsSnapshot>(options);
+}
+
+export async function fetchParishGeometry(options: FetchOptions): Promise<FeatureCollection> {
+  return fetchJson<FeatureCollection>({ ...options, schema: 'parishGeometry' });
 }

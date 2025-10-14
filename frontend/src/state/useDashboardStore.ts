@@ -9,6 +9,8 @@ import {
   fetchParishAggregates,
   fetchDashboardMetrics,
 } from '../lib/dataService';
+import { validate } from '../lib/validate';
+import type { SchemaKey } from '../lib/validate';
 
 export type MetricKey = 'spend' | 'impressions' | 'clicks' | 'conversions' | 'roas';
 
@@ -118,6 +120,8 @@ export interface TenantMetricsResolved {
   creative: CreativePerformanceRow[];
   budget: BudgetPacingRow[];
   parish: ParishAggregate[];
+  tenantId?: string;
+  currency: string;
 }
 
 type AsyncSlice<T> = {
@@ -205,6 +209,146 @@ function resolveSnapshotSource(snapshot: TenantMetricsSnapshot): TenantMetricsSn
   return snapshot;
 }
 
+function normalizeCurrencyCode(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw new Error('Currency code is missing or invalid');
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error('Currency code is empty');
+  }
+
+  return trimmed.toUpperCase();
+}
+
+function normalizeTenantId(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : undefined;
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return undefined;
+}
+
+function extractTenantId(snapshot: TenantMetricsSnapshot, fallback?: string): string | undefined {
+  if (!isRecord(snapshot)) {
+    return fallback;
+  }
+
+  const searchKeys = ['tenant_id', 'tenantId', 'tenant', 'tenantID'];
+  for (const key of searchKeys) {
+    const candidate = normalizeTenantId(snapshot[key]);
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  const metadata = snapshot['metadata'];
+  if (isRecord(metadata)) {
+    for (const key of searchKeys) {
+      const candidate = normalizeTenantId(metadata[key]);
+      if (candidate) {
+        return candidate;
+      }
+    }
+  }
+
+  return fallback;
+}
+
+function assertValidSchema<T>(schema: SchemaKey, payload: T, message: string): T {
+  const valid = validate(schema, payload);
+  if (!valid) {
+    throw new Error(message);
+  }
+  return payload;
+}
+
+function ensureArray<T>(value: unknown, message: string): T[] {
+  if (typeof value === 'undefined' || value === null) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value as T[];
+  }
+
+  throw new Error(message);
+}
+
+function normalizeCampaignResponse(response: CampaignPerformanceResponse): CampaignPerformanceResponse {
+  const currency = normalizeCurrencyCode(response.summary.currency);
+  return {
+    ...response,
+    summary: {
+      ...response.summary,
+      currency,
+    },
+  };
+}
+
+function determineParishCurrency(rows: ParishAggregate[], fallback?: string): string {
+  if (typeof fallback === 'string' && fallback.trim()) {
+    return normalizeCurrencyCode(fallback);
+  }
+
+  for (const row of rows) {
+    if (typeof row.currency === 'string' && row.currency.trim()) {
+      return normalizeCurrencyCode(row.currency);
+    }
+  }
+
+  throw new Error('Parish aggregates missing currency information');
+}
+
+function normalizeParishAggregates(
+  rows: ParishAggregate[],
+  currencyHint?: string,
+): ParishAggregate[] {
+  const currency = determineParishCurrency(rows, currencyHint);
+  return rows.map((row) => {
+    if (typeof row.currency === 'string') {
+      const rowCurrency = normalizeCurrencyCode(row.currency);
+      if (rowCurrency !== currency) {
+        console.warn(
+          `Parish currency mismatch detected (expected ${currency}, received ${rowCurrency}). Normalizing to ${currency}.`,
+        );
+      }
+    }
+
+    return {
+      ...row,
+      currency,
+    };
+  });
+}
+
+function normalizeResolvedMetrics(input: {
+  campaign: CampaignPerformanceResponse;
+  creative: CreativePerformanceRow[];
+  budget: BudgetPacingRow[];
+  parish: ParishAggregate[];
+  tenantId?: string;
+}): TenantMetricsResolved {
+  const campaign = normalizeCampaignResponse(input.campaign);
+  const parish = normalizeParishAggregates(input.parish, campaign.summary.currency);
+  const currency = campaign.summary.currency;
+
+  return {
+    campaign,
+    creative: input.creative,
+    budget: input.budget,
+    parish,
+    tenantId: input.tenantId,
+    currency,
+  };
+}
+
 function parseTenantMetrics(snapshot: TenantMetricsSnapshot): TenantMetricsResolved {
   const source = resolveSnapshotSource(snapshot);
   const record = source as Record<string, unknown>;
@@ -248,12 +392,37 @@ function parseTenantMetrics(snapshot: TenantMetricsSnapshot): TenantMetricsResol
     (record['parishAggregates'] as ParishAggregate[] | undefined) ??
     [];
 
-  return {
+  const normalizedCampaign = assertValidSchema(
+    'metrics',
     campaign,
-    creative,
-    budget,
-    parish,
-  };
+    'Campaign metrics invalid in aggregated response',
+  );
+  const normalizedCreative = assertValidSchema(
+    'creative',
+    ensureArray<CreativePerformanceRow>(
+      creative,
+      'Creative metrics invalid in aggregated response',
+    ),
+    'Creative metrics invalid in aggregated response',
+  );
+  const normalizedBudget = assertValidSchema(
+    'budget',
+    ensureArray<BudgetPacingRow>(budget, 'Budget metrics invalid in aggregated response'),
+    'Budget metrics invalid in aggregated response',
+  );
+  const normalizedParish = assertValidSchema(
+    'parish',
+    ensureArray<ParishAggregate>(parish, 'Parish metrics invalid in aggregated response'),
+    'Parish metrics invalid in aggregated response',
+  );
+
+  return normalizeResolvedMetrics({
+    campaign: normalizedCampaign,
+    creative: normalizedCreative,
+    budget: normalizedBudget,
+    parish: normalizedParish,
+    tenantId: extractTenantId(source),
+  });
 }
 
 function withTenant(path: string, tenantId?: string): string {
@@ -303,7 +472,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
       if (cachedMetrics && isTenantChange) {
         set((state) => ({
-          activeTenantId: tenantId ?? state.activeTenantId,
+          activeTenantId: cachedMetrics.tenantId ?? tenantId ?? state.activeTenantId,
           selectedParish: undefined,
           campaign: { status: 'loaded', data: cachedMetrics.campaign, error: undefined },
           creative: { status: 'loaded', data: cachedMetrics.creative, error: undefined },
@@ -315,6 +484,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
       if (cachedMetrics && !isTenantChange && !allSlicesLoaded) {
         set((state) => ({
+          activeTenantId: cachedMetrics.tenantId ?? state.activeTenantId,
           campaign: { status: 'loaded', data: cachedMetrics.campaign, error: undefined },
           creative: { status: 'loaded', data: cachedMetrics.creative, error: undefined },
           budget: { status: 'loaded', data: cachedMetrics.budget, error: undefined },
@@ -344,6 +514,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         const resolved = parseTenantMetrics(snapshot);
 
         set((state) => ({
+          activeTenantId: resolved.tenantId ?? state.activeTenantId,
           campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
           creative: { status: 'loaded', data: resolved.creative, error: undefined },
           budget: { status: 'loaded', data: resolved.budget, error: undefined },
@@ -387,29 +558,66 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       }),
     ]);
 
-    set((state) => {
-      const fulfilled =
-        campaignResult.status === 'fulfilled' &&
-        creativeResult.status === 'fulfilled' &&
-        budgetResult.status === 'fulfilled' &&
-        parishResult.status === 'fulfilled';
+    const normalizedCampaign =
+      campaignResult.status === 'fulfilled'
+        ? normalizeCampaignResponse(campaignResult.value)
+        : undefined;
+    const normalizedCreative =
+      creativeResult.status === 'fulfilled' ? creativeResult.value : undefined;
+    const normalizedBudget =
+      budgetResult.status === 'fulfilled' ? budgetResult.value : undefined;
+    let normalizedParish: ParishAggregate[] | undefined;
+    let normalizedParishError: unknown;
+    if (parishResult.status === 'fulfilled') {
+      try {
+        normalizedParish = normalizeParishAggregates(
+          parishResult.value,
+          normalizedCampaign?.summary.currency,
+        );
+      } catch (error) {
+        normalizedParishError = error;
+        console.error('Failed to normalize parish aggregates', error);
+      }
+    }
+    const resolvedTenantId = normalizeTenantId(tenantId);
+    let normalizedResolved: TenantMetricsResolved | undefined;
+    if (
+      normalizedCampaign &&
+      normalizedCreative &&
+      normalizedBudget &&
+      normalizedParish
+    ) {
+      try {
+        normalizedResolved = normalizeResolvedMetrics({
+          campaign: normalizedCampaign,
+          creative: normalizedCreative,
+          budget: normalizedBudget,
+          parish: normalizedParish,
+          tenantId: resolvedTenantId,
+        });
+      } catch (error) {
+        normalizedParishError = normalizedParishError ?? error;
+        console.error('Failed to normalize aggregate snapshot payload', error);
+        normalizedResolved = undefined;
+      }
+    }
 
-      const updatedCache = fulfilled
+    set((state) => {
+      const updatedCache = normalizedResolved
         ? {
             ...state.metricsCache,
-            [tenantKey]: {
-              campaign: campaignResult.value,
-              creative: creativeResult.value,
-              budget: budgetResult.value,
-              parish: parishResult.value,
-            },
+            [tenantKey]: normalizedResolved,
           }
         : state.metricsCache;
+      const parishErrorReason =
+        normalizedParishError ??
+        (parishResult.status === 'rejected' ? parishResult.reason : undefined);
 
       return {
+        activeTenantId: normalizedResolved?.tenantId ?? state.activeTenantId,
         campaign:
           campaignResult.status === 'fulfilled'
-            ? { status: 'loaded', data: campaignResult.value, error: undefined }
+            ? { status: 'loaded', data: normalizedCampaign!, error: undefined }
             : {
                 status: 'error',
                 data: state.campaign.data,
@@ -417,7 +625,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
               },
         creative:
           creativeResult.status === 'fulfilled'
-            ? { status: 'loaded', data: creativeResult.value, error: undefined }
+            ? { status: 'loaded', data: normalizedCreative!, error: undefined }
             : {
                 status: 'error',
                 data: state.creative.data,
@@ -425,19 +633,19 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
               },
         budget:
           budgetResult.status === 'fulfilled'
-            ? { status: 'loaded', data: budgetResult.value, error: undefined }
+            ? { status: 'loaded', data: normalizedBudget!, error: undefined }
             : {
                 status: 'error',
                 data: state.budget.data,
                 error: mapError(budgetResult.reason),
               },
         parish:
-          parishResult.status === 'fulfilled'
-            ? { status: 'loaded', data: parishResult.value, error: undefined }
+          normalizedParish
+            ? { status: 'loaded', data: normalizedParish, error: undefined }
             : {
                 status: 'error',
                 data: state.parish.data,
-                error: mapError(parishResult.reason),
+                error: mapError(parishErrorReason),
               },
         metricsCache: updatedCache,
       };
