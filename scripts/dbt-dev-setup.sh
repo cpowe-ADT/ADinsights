@@ -33,4 +33,5 @@ export DBT_PROFILE="adinsights_duckdb"
 "$VENV_DIR/bin/dbt" run --select staging --profile "$DBT_PROFILE" || true
 "$VENV_DIR/bin/dbt" run --select reference --profile "$DBT_PROFILE" || true
 "$VENV_DIR/bin/dbt" snapshot --profile "$DBT_PROFILE" || true
-"$VENV_DIR/bin/dbt" run --select marts --profile "$DBT_PROFILE" || true
+# DuckDB does not support the default merge incremental strategy; force a full refresh for marts.
+"$VENV_DIR/bin/dbt" run --select marts --full-refresh --profile "$DBT_PROFILE" || true
