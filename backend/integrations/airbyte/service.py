@@ -223,7 +223,11 @@ def _coerce_timestamp(value: Any) -> datetime | None:
     if isinstance(value, datetime):
         return value if value.tzinfo else value.replace(tzinfo=dt_timezone.utc)
     if isinstance(value, (int, float)):
-        return datetime.fromtimestamp(value, tz=dt_timezone.utc)
+        timestamp = float(value)
+        # Airbyte often reports millisecond precision; normalise to seconds when needed.
+        if timestamp > 1e12:
+            timestamp /= 1000
+        return datetime.fromtimestamp(timestamp, tz=dt_timezone.utc)
     if isinstance(value, str):
         cleaned = value.replace("Z", "+00:00")
         try:
