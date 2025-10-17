@@ -6,3 +6,4 @@ Tracking legacy branches that have been reviewed as part of the consolidation ef
 | --- | --- | --- | --- |
 | `codex/implement-metrics-csv-export-endpoint` | Replayed & deleted | Warehouse-backed CSV export reimplemented on `main` (`feat(analytics): export metrics from warehouse instead of fake fixture`) | 2025-10-17 |
 | `codex/fix-high-priority-bug-in-airbyte-service` | Replayed & deleted | Millisecond timestamp handling folded into `_coerce_timestamp` (`fix(airbyte): normalise millisecond timestamps`) | 2025-10-17 |
+| `feat/frontend-admin-bootstrap` | Deleted (obsolete) | Branch removed harness scripts and broke health endpoints; existing `main` already includes frontend GeoJSON/loading fixes. No salvageable additions beyond current state. | 2025-10-17 |
