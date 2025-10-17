@@ -96,6 +96,8 @@ test. The project assumes `America/Jamaica` as the canonical timezone (no daylig
 
 ### Backend API (Django + DRF)
 
+For a quick lint + test baseline (without touching production secrets), run `./scripts/backend-dev-setup.sh` from the repo root. It bootstraps a disposable virtualenv, installs pinned test-only dependencies, and executes `ruff` plus `pytest` against the backend suite.
+
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
@@ -153,6 +155,8 @@ Use `python manage.py sync_airbyte` (optionally via Celery beat) to trigger due 
 `integrations_airbyteconnection` schedule metadata stored per tenant.
 
 ### dbt Transformations
+
+Local smoke tests can be executed without a running Postgres instance via `./scripts/dbt-dev-setup.sh`, which installs `dbt-core` with the DuckDB adapter, seeds the sample warehouse (`dbt/warehouse.duckdb`), and runs staging ➝ reference ➝ marts with the bundled profile.
 
 ```bash
 make dbt-deps
@@ -218,7 +222,9 @@ readiness probes:
 - `GET /api/health/` returns `{"status": "ok"}` with HTTP 200 for a simple liveness signal.
 - `GET /api/health/airbyte/` inspects the most recent `TenantAirbyteSyncStatus` record. A 200
   response marks the connector as healthy, while HTTP 503 denotes a misconfigured API credential,
-  no completed syncs, or a sync older than the one-hour freshness threshold. The payload includes the
+  no completed syncs, or a sync older than the one-hour freshness threshold. HTTP 502 flags a recent
+  job that completed in a failure state, and HTTP 200 + `status=pending` indicates the latest job is
+  still running. The payload includes the
   last job metadata to help differentiate "stale" (sync overdue) from "misconfigured" (credentials or
   scheduler missing).
 - `GET /api/health/dbt/` reads `dbt/target/run_results.json`. HTTP 200 indicates the latest run is

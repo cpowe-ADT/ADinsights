@@ -97,6 +97,7 @@ A healthy incremental sync should show `recordsEmitted` increasing over time, wi
 ## Stale vs failing
 
 - **Failing:** The latest job's `status` is `failed`. Page immediately if two consecutive jobs fail between 06:00 and 22:00 America/Jamaica.
+- **Pending:** Airbyte reports `running`/`pending` for the most recent job; continue monitoring and escalate if runtime exceeds twice the historical average.
 - **Stale:** The latest successful job `updatedAt` timestamp is older than the expected cadence (e.g., >90 minutes for hourly metrics or >26 hours for daily dimensions) even though no failure is reported. Investigate upstream auth/quota issues or stuck jobs in Temporal.
 
 Correlate the timestamps returned by `jobs/list` with dbt freshness dashboards to confirm whether downstream models are catching up.
@@ -105,6 +106,7 @@ Correlate the timestamps returned by `jobs/list` with dbt freshness dashboards t
 
 - `GET /api/v1/health` – Lightweight service probe confirming the server process is up.
 - `GET /api/v1/openapi` – Returns the OpenAPI schema; availability implies routing through Temporal and the database is functioning.
+- `GET /api/health/airbyte/` (ADinsights backend) – Mirrors the sync summary recorded in `TenantAirbyteSyncStatus`, returning `sync_failed`, `stale`, or `pending` states alongside recent job telemetry.
 
 ## Observability signals
 
