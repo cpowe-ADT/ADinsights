@@ -59,8 +59,8 @@ cp sources/meta_marketing.json.example sources/meta_marketing.json
 cp sources/google_ads.json.example sources/google_ads.json
 ```
 
-The Meta Marketing template configures incremental streams on `updated_time` with an Insights lookback window of 3 days across a 28-day
-attribution horizon. The Google Ads template uses Airbyte's `{{ runtime_from_date }}` / `{{ runtime_to_date }}` variables so custom
+The Meta Marketing template configures incremental streams on `updated_time` with an Insights lookback window (default 3 days) across a 28-day
+attribution horizon, both of which are controlled by `AIRBYTE_META_HOURLY_WINDOW_DAYS` and `AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS`. The Google Ads template uses Airbyte's `{{ runtime_from_date }}` / `{{ runtime_to_date }}` variables so custom
 GAQL queries only replay the slices required by the incremental state.
 If you prefer environment-based substitution, duplicate `env.example` to `.env` and export it before running `docker compose up`.
 
@@ -87,6 +87,6 @@ All files assume credentials are injected from environment variables using Airby
 | Connector                    | Required environment variables                                                                                                                                                                                         |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Google Ads                   | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN`, `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID` |
-| Meta Marketing API           | `AIRBYTE_META_APP_ID`, `AIRBYTE_META_APP_SECRET`, `AIRBYTE_META_ACCESS_TOKEN`, `AIRBYTE_META_ACCOUNT_ID`                                                                                                               |
+| Meta Marketing API           | `AIRBYTE_META_APP_ID`, `AIRBYTE_META_APP_SECRET`, `AIRBYTE_META_ACCESS_TOKEN`, `AIRBYTE_META_ACCOUNT_ID`, `AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS`, `AIRBYTE_META_HOURLY_WINDOW_DAYS`                                    |
 | LinkedIn Transparency (stub) | `AIRBYTE_LINKEDIN_CLIENT_ID`, `AIRBYTE_LINKEDIN_CLIENT_SECRET`, `AIRBYTE_LINKEDIN_REFRESH_TOKEN`                                                                                                                       |
 | TikTok Transparency (stub)   | `AIRBYTE_TIKTOK_TRANSPARENCY_TOKEN`, `AIRBYTE_TIKTOK_ADVERTISER_ID`                                                                                                                                                    |
