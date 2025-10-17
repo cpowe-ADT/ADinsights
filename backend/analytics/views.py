@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import logging
+from datetime import timedelta
 from functools import lru_cache
 from typing import Any, Iterable, Sequence
 
@@ -22,10 +23,22 @@ from adapters.warehouse import WarehouseAdapter
 
 from .models import TenantMetricsSnapshot
 
-from .exporters import FakeMetricsExportAdapter
 from .serializers import MetricRecordSerializer, MetricsQueryParamsSerializer
 
 logger = logging.getLogger(__name__)
+
+
+METRIC_EXPORT_HEADERS = [
+    "date",
+    "platform",
+    "campaign",
+    "parish",
+    "impressions",
+    "clicks",
+    "spend",
+    "conversions",
+    "roas",
+]
 def _build_registry() -> dict[str, MetricsAdapter]:
     """Return the enabled analytics adapters keyed by their slug."""
 
@@ -198,47 +211,7 @@ class MetricsViewSet(viewsets.ViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        sql = [
-            "select",
-            "    date_day as date,",
-            "    source_platform as platform,",
-            "    campaign_name as campaign,",
-            "    parish_name as parish,",
-            "    impressions,",
-            "    clicks,",
-            "    spend,",
-            "    conversions,",
-            "    roas",
-            "from vw_campaign_daily",
-            "where date_day >= %(start_date)s",
-            "  and date_day <= %(end_date)s",
-        ]
-
-        query_params: dict[str, Any] = {
-            "start_date": filters["start_date"],
-            "end_date": filters["end_date"],
-        }
-
-        if _campaign_view_has_tenant_column():
-            sql.insert(-1, "  and tenant_id = %(tenant_id)s")
-            query_params["tenant_id"] = str(tenant_id)
-        else:
-            logger.debug(
-                "vw_campaign_daily missing tenant column; relying on RLS",
-                extra={"tenant_id": str(tenant_id)},
-            )
-
-        parish = filters.get("parish")
-        if parish:
-            sql.append("  and parish_name = %(parish)s")
-            query_params["parish"] = parish
-
-        sql.append("order by date desc")
-        sql_query = "\n".join(sql)
-
-        with connection.cursor() as cursor:
-            cursor.execute(sql_query, query_params)
-            rows = self._dictfetchall(cursor)
+        rows = _fetch_metric_rows(tenant_id=str(tenant_id), filters=filters)
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(rows, request, view=self)
@@ -246,12 +219,6 @@ class MetricsViewSet(viewsets.ViewSet):
         if page is not None:
             return paginator.get_paginated_response(serializer.data)
         return Response(serializer.data)
-
-    @staticmethod
-    def _dictfetchall(cursor) -> list[dict[str, Any]]:
-        columns: Sequence[str] = [col[0] for col in cursor.description]
-        return [dict(zip(columns, row)) for row in cursor.fetchall()]
-
 
 class _Echo:
     """Minimal buffer to adapt csv.writer for streaming responses."""
@@ -266,20 +233,84 @@ class MetricsExportView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):  # noqa: ANN001
-        adapter = FakeMetricsExportAdapter()
-        headers = adapter.get_headers()
-        rows = adapter.iter_rows()
+        query_params = request.query_params.copy()
+        now = timezone.now().date()
+        if "end_date" not in query_params:
+            query_params = query_params.copy()
+            query_params["end_date"] = now.isoformat()
+        if "start_date" not in query_params:
+            query_params = query_params.copy()
+            query_params["start_date"] = (now - timedelta(days=30)).isoformat()
+
+        serializer = MetricsQueryParamsSerializer(data=query_params)
+        serializer.is_valid(raise_exception=True)
+        filters = serializer.validated_data
+
+        tenant_id = getattr(request.user, "tenant_id", None)
+        if tenant_id is None:
+            return Response(
+                {"detail": "Unable to resolve tenant."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        rows = _fetch_metric_rows(tenant_id=str(tenant_id), filters=filters)
+        data = MetricRecordSerializer(rows, many=True).data
 
         response = StreamingHttpResponse(
-            self._iter_csv_rows(headers, rows), content_type="text/csv"
+            self._iter_csv_rows(METRIC_EXPORT_HEADERS, data), content_type="text/csv"
         )
         response["Content-Disposition"] = 'attachment; filename="metrics.csv"'
         return response
 
     @staticmethod
-    def _iter_csv_rows(headers: Sequence[str], rows: Iterable[Sequence[Any]]):
+    def _iter_csv_rows(headers: Sequence[str], rows: Iterable[dict[str, Any]]):
         pseudo_buffer = _Echo()
         writer = csv.writer(pseudo_buffer)
         yield writer.writerow(headers)
         for row in rows:
-            yield writer.writerow(row)
+            yield writer.writerow([row.get(header) for header in headers])
+
+
+def _fetch_metric_rows(*, tenant_id: str, filters: dict[str, Any]) -> list[dict[str, Any]]:
+    sql = [
+        "select",
+        "    date_day as date,",
+        "    source_platform as platform,",
+        "    campaign_name as campaign,",
+        "    parish_name as parish,",
+        "    impressions,",
+        "    clicks,",
+        "    spend,",
+        "    conversions,",
+        "    roas",
+        "from vw_campaign_daily",
+        "where date_day >= %(start_date)s",
+        "  and date_day <= %(end_date)s",
+    ]
+
+    query_params: dict[str, Any] = {
+        "start_date": filters["start_date"],
+        "end_date": filters["end_date"],
+    }
+
+    if _campaign_view_has_tenant_column():
+        sql.insert(-1, "  and tenant_id = %(tenant_id)s")
+        query_params["tenant_id"] = tenant_id
+    else:
+        logger.debug(
+            "vw_campaign_daily missing tenant column; relying on RLS",
+            extra={"tenant_id": tenant_id},
+        )
+
+    parish = filters.get("parish")
+    if parish:
+        sql.append("  and parish_name = %(parish)s")
+        query_params["parish"] = parish
+
+    sql.append("order by date desc")
+    sql_query = "\n".join(sql)
+
+    with connection.cursor() as cursor:
+        cursor.execute(sql_query, query_params)
+        columns: Sequence[str] = [col[0] for col in cursor.description]
+        return [dict(zip(columns, row)) for row in cursor.fetchall()]
