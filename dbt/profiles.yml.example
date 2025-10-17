@@ -1,0 +1,21 @@
+adinsights:
+  outputs:
+    dev:
+      type: postgres
+      host: 127.0.0.1
+      user: ${DBT_USER}
+      password: ${DBT_PASSWORD}
+      dbname: ${DBT_DB}
+      schema: analytics
+      port: 5432
+      threads: 4
+  target: dev
+
+adinsights_duckdb:
+  outputs:
+    local:
+      type: duckdb
+      path: dbt/warehouse.duckdb
+      schema: analytics
+      threads: 4
+  target: local

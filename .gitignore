@@ -25,6 +25,9 @@ frontend/frontend-ci-artifacts.json
 /.pytest_cache/
 /dbt/target/
 /dbt/logs/
+/dbt/.profiles/
+/dbt/warehouse.duckdb
+/dbt/.user.yml
 .airbyte/
 # Node
 node_modules/
@@ -32,7 +35,11 @@ frontend/dist/
 
 # Python
 backend/.venv/
+backend/.venv-tests/
 __pycache__/
+
+# Local tooling
+/.venv-dbt/
 
 # Env files
 .env
