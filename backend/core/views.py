@@ -17,6 +17,15 @@ AIRBYTE_STALE_THRESHOLD = timedelta(hours=1)
 DBT_STALE_THRESHOLD = timedelta(hours=24)
 RUN_RESULTS_PATH = (Path(settings.BASE_DIR).parent / "dbt" / "target" / "run_results.json")
 
+AIRBYTE_SUCCESS_STATUSES = {"succeeded", "success"}
+AIRBYTE_FAILURE_STATUSES = {
+    "failed",
+    "error",
+    "errored",
+    "cancelled",
+    "canceled",
+}
+
 
 def health(request):
     return JsonResponse({"status": "ok"})
@@ -66,6 +75,22 @@ def airbyte_health(request):
     if is_stale:
         response_data.update({"status": "stale", "detail": "Latest Airbyte sync is older than the freshness threshold."})
         return JsonResponse(response_data, status=503)
+
+    job_status = (latest_status.last_job_status or "").strip().lower()
+    if job_status:
+        if job_status in AIRBYTE_FAILURE_STATUSES:
+            detail_status = latest_status.last_job_status or "unknown"
+            response_data.update(
+                {
+                    "status": "sync_failed",
+                    "detail": f"Latest Airbyte sync finished with status '{detail_status}'.",
+                }
+            )
+            return JsonResponse(response_data, status=502)
+        if job_status not in AIRBYTE_SUCCESS_STATUSES:
+            response_data["status"] = "pending"
+            response_data["detail"] = f"Latest Airbyte sync is in status '{latest_status.last_job_status}'."
+            return JsonResponse(response_data, status=200)
 
     response_data["status"] = "ok"
     return JsonResponse(response_data)

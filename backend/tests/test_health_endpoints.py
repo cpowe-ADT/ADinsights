@@ -95,6 +95,73 @@ def test_airbyte_health_ok_with_recent_sync(api_client, tenant, settings):
 
 
 @pytest.mark.django_db
+def test_airbyte_health_reports_failed_sync(api_client, tenant, settings):
+    settings.AIRBYTE_API_URL = "http://airbyte.local"
+    settings.AIRBYTE_API_TOKEN = "token"
+    now = timezone.now()
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=30,
+        last_synced_at=now,
+        last_job_status="failed",
+        last_job_id="100",
+    )
+    TenantAirbyteSyncStatus.update_for_connection(connection)
+    AirbyteJobTelemetry.all_objects.create(
+        tenant=tenant,
+        connection=connection,
+        job_id="100",
+        status="failed",
+        started_at=now - timedelta(minutes=10),
+        duration_seconds=120,
+        records_synced=0,
+        bytes_synced=0,
+    )
+
+    response = api_client.get("/api/health/airbyte/")
+    assert response.status_code == 502
+    payload = response.json()
+    assert payload["status"] == "sync_failed"
+    assert "failed" in payload["detail"].lower()
+
+
+@pytest.mark.django_db
+def test_airbyte_health_reports_pending_sync(api_client, tenant, settings):
+    settings.AIRBYTE_API_URL = "http://airbyte.local"
+    settings.AIRBYTE_API_TOKEN = "token"
+    now = timezone.now()
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=30,
+        last_synced_at=now,
+        last_job_status="running",
+        last_job_id="101",
+    )
+    TenantAirbyteSyncStatus.update_for_connection(connection)
+    AirbyteJobTelemetry.all_objects.create(
+        tenant=tenant,
+        connection=connection,
+        job_id="101",
+        status="running",
+        started_at=now - timedelta(minutes=2),
+    )
+
+    response = api_client.get("/api/health/airbyte/")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "pending"
+    assert "running" in payload["detail"].lower()
+
+
+@pytest.mark.django_db
 def test_airbyte_health_flags_stale_sync(api_client, tenant, settings):
     settings.AIRBYTE_API_URL = "http://airbyte.local"
     settings.AIRBYTE_API_TOKEN = "token"
