@@ -1,16 +1,17 @@
 {% set default_google_ads_metrics_query -%}
 SELECT
-  segments.date,
-  customer.id,
-  campaign.id,
-  ad_group.id,
+  segments.date              AS date_day,
+  customer.id                AS customer_id,
+  campaign.id                AS campaign_id,
+  ad_group.id                AS ad_group_id,
+  ad_group_ad.ad.id          AS criterion_id,
   metrics.cost_micros,
   metrics.impressions,
   metrics.clicks,
   metrics.conversions,
-  segments.geo_target_region
-FROM ad_group
-WHERE segments.date BETWEEN '{{ runtime_from_date }}' AND '{{ runtime_to_date }}'
+  segments.geo_target_region AS geo_target_region
+FROM ad_group_ad
+WHERE segments.date >= '{{ runtime_from_date }}'
 {%- endset %}
 
 # Google Ads source configuration for Airbyte
@@ -32,18 +33,20 @@ connectionConfiguration:
   custom_queries:
     - query: |
         {{ env.get('AIRBYTE_GOOGLE_ADS_CUSTOM_QUERY', default_google_ads_metrics_query) | trim | indent(8, true) }}
-      cursor_field: segments.date
+      cursor_field: date_day
       primary_key:
-        - campaign.id
-        - ad_group.id
-        - segments.date
+        - campaign_id
+        - ad_group_id
+        - criterion_id
+        - date_day
 streams:
   - name: ad_group_performance
     syncMode: incremental
     cursorField:
-      - segments.date
+      - date_day
     primaryKey:
-      - - campaign.id
-        - ad_group.id
-        - segments.date
+      - - campaign_id
+        - ad_group_id
+        - criterion_id
+        - date_day
     destinationSyncMode: append_dedup
