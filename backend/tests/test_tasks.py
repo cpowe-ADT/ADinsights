@@ -7,8 +7,9 @@ from django.conf import settings
 from django.utils import timezone
 
 from alerts.models import AlertRun
-from core.tasks import rotate_deks
-from integrations.models import PlatformCredential
+from accounts.tenant_context import get_current_tenant_id
+from core.tasks import rotate_deks, _sync_provider_connections
+from integrations.models import AirbyteConnection, PlatformCredential
 from integrations.tasks import remind_expiring_credentials
 
 
@@ -66,3 +67,30 @@ def test_rotate_deks_schedule_present():
     assert "rotate-tenant-deks" in schedule
     entry = schedule["rotate-tenant-deks"]
     assert entry["task"] == "core.tasks.rotate_deks"
+
+
+def test_sync_provider_sets_tenant_context(monkeypatch, tenant):
+    recorded: list[str | None] = []
+
+    class DummyQueryset(list):
+        def select_related(self, *args, **kwargs):
+            return self
+
+    def fake_filter(*args, **kwargs):
+        recorded.append(get_current_tenant_id())
+        return DummyQueryset()
+
+    monkeypatch.setattr(AirbyteConnection.objects, "filter", fake_filter, raising=False)
+
+    dummy_task = type("Task", (), {"request": type("Req", (), {"id": "task-123"})()})()
+
+    outcome = _sync_provider_connections(
+        dummy_task,
+        tenant=tenant,
+        user=None,
+        provider=PlatformCredential.META,
+    )
+
+    assert outcome == "no_connections"
+    assert recorded and recorded[0] == str(tenant.id)
+    assert get_current_tenant_id() is None
