@@ -8,7 +8,7 @@ from pathlib import Path
 import environ
 from celery.schedules import crontab
 
-from backend.config.logging import build_logging_config
+from config.logging import build_logging_config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
