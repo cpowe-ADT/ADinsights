@@ -160,6 +160,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "integrations.tasks.remind_expiring_credentials",
         "schedule": crontab(hour=2, minute=0),
     },
+    "rotate-tenant-deks": {
+        "task": "core.tasks.rotate_deks",
+        "schedule": crontab(hour=1, minute=30, day_of_week="sun"),
+    },
 }
 
 SECRETS_PROVIDER = env("SECRETS_PROVIDER")

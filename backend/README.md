@@ -91,6 +91,10 @@ celery -A core beat -l info
 
 Sample tasks live in `core/tasks.py` and can be invoked from the Django shell for testing.
 
+Celery beat ships with a weekly `rotate_deks` schedule (Sundays at 01:30 Jamaica time) so tenant
+data-encryption keys are re-wrapped via the configured KMS provider. Adjust `CELERY_BEAT_SCHEDULE`
+if your operations cadence differs.
+
 ## Row-Level Security
 
 After provisioning the database, enable Postgres row-level security policies:

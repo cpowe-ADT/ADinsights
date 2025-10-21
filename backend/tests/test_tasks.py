@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
+from django.conf import settings
 from django.utils import timezone
 
 from alerts.models import AlertRun
@@ -58,3 +59,10 @@ def test_remind_expiring_credentials_without_matches():
 
     assert result == {"processed": 0}
     assert AlertRun.objects.count() == 0
+
+
+def test_rotate_deks_schedule_present():
+    schedule = settings.CELERY_BEAT_SCHEDULE
+    assert "rotate-tenant-deks" in schedule
+    entry = schedule["rotate-tenant-deks"]
+    assert entry["task"] == "core.tasks.rotate_deks"
