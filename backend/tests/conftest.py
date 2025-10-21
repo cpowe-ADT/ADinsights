@@ -11,16 +11,20 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.test")
-os.environ.setdefault("DJANGO_SECRET_KEY", "test-secret-key")
-os.environ.setdefault("CELERY_BROKER_URL", "memory://")
-os.environ.setdefault("CELERY_RESULT_BACKEND", "cache+memory://")
-os.environ.setdefault("SECRETS_PROVIDER", "env")
-os.environ.setdefault("KMS_PROVIDER", "aws")
-os.environ.setdefault("KMS_KEY_ID", "test-key")
-os.environ.setdefault("AWS_REGION", "us-east-1")
-os.environ.setdefault("AIRBYTE_API_URL", "http://localhost:8001")
-os.environ.setdefault("AIRBYTE_API_TOKEN", "test-token")
-os.environ.setdefault("API_VERSION", "test-version")
+os.environ.update(
+    {
+        "DJANGO_SECRET_KEY": "test-secret-key",
+        "CELERY_BROKER_URL": "memory://",
+        "CELERY_RESULT_BACKEND": "cache+memory://",
+        "SECRETS_PROVIDER": "env",
+        "KMS_PROVIDER": "local",
+        "KMS_KEY_ID": "test-key",
+        "AWS_REGION": "us-east-1",
+        "AIRBYTE_API_URL": "http://localhost:8001",
+        "AIRBYTE_API_TOKEN": "test-token",
+        "API_VERSION": "test-version",
+    }
+)
 
 import django
 
@@ -55,25 +59,11 @@ def api_client() -> APIClient:
 
 
 @pytest.fixture(autouse=True)
-def stub_kms(monkeypatch):
-    class StubKmsClient:
-        def __init__(self) -> None:
-            self._counter = 0
+def reset_local_kms(monkeypatch):
+    from core.crypto.kms import LocalKmsClient
+    from django.conf import settings
 
-        def encrypt(self, plaintext: bytes) -> tuple[str, bytes]:
-            self._counter += 1
-            version = f"test-key|{self._counter:016x}"
-            return version, plaintext[::-1]
-
-        def decrypt(self, ciphertext: bytes, key_version: str) -> bytes:  # noqa: ARG002
-            return ciphertext[::-1]
-
-        def rewrap(
-            self, ciphertext: bytes, current_version: str
-        ) -> tuple[str, bytes]:  # noqa: ARG002
-            plaintext = self.decrypt(ciphertext, current_version)
-            return self.encrypt(plaintext)
-
-    client = StubKmsClient()
-    monkeypatch.setattr("core.crypto.dek_manager._kms", lambda: client)
+    LocalKmsClient._store.clear()
+    settings.KMS_PROVIDER = "local"
+    settings.AWS_REGION = "us-east-1"
     yield

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Protocol, Tuple
+from typing import ClassVar, Dict, Protocol, Tuple
 
 import boto3
 import hashlib
@@ -19,6 +19,30 @@ class KmsClient(Protocol):
     def decrypt(self, ciphertext: bytes, key_version: str) -> bytes: ...
 
     def rewrap(self, ciphertext: bytes, current_version: str) -> Tuple[str, bytes]: ...
+
+
+@dataclass
+class LocalKmsClient:
+    """Ephemeral in-process KMS implementation for development/tests."""
+
+    key_id: str
+    _store: ClassVar[Dict[str, bytes]] = {}
+
+    def encrypt(self, plaintext: bytes) -> Tuple[str, bytes]:
+        version = _build_version(self.key_id, plaintext)
+        self._store[version] = plaintext
+        # ciphertext is identical to plaintext for local usage.
+        return version, plaintext
+
+    def decrypt(self, ciphertext: bytes, key_version: str) -> bytes:  # noqa: ARG002 - ciphertext unused
+        try:
+            return self._store[key_version]
+        except KeyError as exc:  # pragma: no cover - defensive path
+            raise KmsError(f"Unknown key version {key_version}") from exc
+
+    def rewrap(self, ciphertext: bytes, current_version: str) -> Tuple[str, bytes]:  # noqa: ARG002 - ciphertext unused
+        plaintext = self.decrypt(ciphertext, current_version)
+        return self.encrypt(plaintext)
 
 
 @dataclass
@@ -92,6 +116,8 @@ def get_kms_client(
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
         )
+    if provider == "local":
+        return LocalKmsClient(key_id)
     raise ValueError(f"Unsupported KMS provider: {provider}")
 
 

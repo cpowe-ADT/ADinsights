@@ -32,6 +32,11 @@ def build_logging_config(level: str = DEFAULT_LOG_LEVEL) -> dict[str, Any]:
     return {
         "version": 1,
         "disable_existing_loggers": False,
+        "filters": {
+            "context": {
+                "()": "core.observability.ContextFilter",
+            }
+        },
         "formatters": {
             "json": {
                 "()": "core.observability.JsonFormatter",
@@ -41,6 +46,7 @@ def build_logging_config(level: str = DEFAULT_LOG_LEVEL) -> dict[str, Any]:
             "console": {
                 "class": "logging.StreamHandler",
                 "formatter": "json",
+                "filters": ["context"],
             }
         },
         "loggers": {
@@ -63,4 +69,3 @@ def build_logging_config(level: str = DEFAULT_LOG_LEVEL) -> dict[str, Any]:
             },
         },
     }
-

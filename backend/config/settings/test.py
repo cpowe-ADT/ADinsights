@@ -7,7 +7,7 @@ os.environ.setdefault("CELERY_BROKER_URL", "memory://")
 os.environ.setdefault("CELERY_RESULT_BACKEND", "cache+memory://")
 os.environ.setdefault("KMS_KEY_ID", "test-key")
 os.environ.setdefault("SECRETS_PROVIDER", "env")
-os.environ.setdefault("KMS_PROVIDER", "aws")
+os.environ.setdefault("KMS_PROVIDER", "local")
 os.environ.setdefault("API_VERSION", "test")
 
 from .base import *  # noqa: F403,E402
@@ -20,3 +20,4 @@ CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "memory://")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "cache+memory://")
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+KMS_PROVIDER = "local"

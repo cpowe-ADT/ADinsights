@@ -2,16 +2,41 @@
 
 from __future__ import annotations
 
+import contextvars
 import json
 import logging
 import time
+import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from celery import Task
 from django.conf import settings
 
 from core.metrics import observe_task
+from accounts.tenant_context import get_current_tenant_id
+
+_correlation_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "correlation_id", default=None
+)
+
+
+def set_correlation_id(value: Optional[str]) -> None:
+    """Persist the correlation identifier for the current context."""
+
+    _correlation_id_var.set(value)
+
+
+def get_correlation_id() -> Optional[str]:
+    """Return the active correlation identifier, if any."""
+
+    return _correlation_id_var.get()
+
+
+def clear_correlation_id() -> None:
+    """Remove any correlation identifier bound to this context."""
+
+    _correlation_id_var.set(None)
 
 
 class JsonFormatter(logging.Formatter):
@@ -63,6 +88,41 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, default=str)
 
 
+class ContextFilter(logging.Filter):
+    """Attach per-request/task context (correlation, tenant) to log records."""
+
+    def filter(self, record: logging.LogRecord) -> bool:  # noqa: D401 - interface contract
+        correlation_id = get_correlation_id()
+        if correlation_id:
+            record.correlation_id = correlation_id
+
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            record.tenant_id = str(tenant_id)
+
+        return True
+
+
+class RequestCorrelationMiddleware:
+    """Assign correlation IDs to incoming HTTP requests and responses."""
+
+    HEADER_NAME = "X-Correlation-ID"
+
+    def __init__(self, get_response):  # noqa: ANN001 - middleware signature
+        self.get_response = get_response
+
+    def __call__(self, request):  # noqa: ANN001 - middleware signature
+        incoming = request.headers.get(self.HEADER_NAME)
+        correlation_id = incoming or str(uuid.uuid4())
+        set_correlation_id(correlation_id)
+        try:
+            response = self.get_response(request)
+        finally:
+            clear_correlation_id()
+        response[self.HEADER_NAME] = correlation_id
+        return response
+
+
 class APILoggingMiddleware:
     """Middleware that emits structured access logs for API requests."""
 
@@ -110,6 +170,7 @@ class InstrumentedTask(Task):
 
     def before_start(self, task_id, args, kwargs):  # noqa: ANN001 - celery hook
         self.request._start_time = time.perf_counter()
+        set_correlation_id(task_id)
         self.logger.info(
             "task.started",
             extra=self._task_extra(task_id, args, kwargs),
@@ -133,7 +194,10 @@ class InstrumentedTask(Task):
         else:
             self.logger.info("task.succeeded", extra=extra)
         observe_task(self.name, status, duration_seconds)
-        super().after_return(status, retval, task_id, args, kwargs, einfo)
+        try:
+            super().after_return(status, retval, task_id, args, kwargs, einfo)
+        finally:
+            clear_correlation_id()
 
     def _task_extra(self, task_id, args, kwargs) -> Dict[str, Any]:  # noqa: ANN001
         return {

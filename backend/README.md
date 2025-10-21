@@ -36,10 +36,14 @@ below for local development or containerized workflows.
    python manage.py runserver 0.0.0.0:8000
    ```
 
-## AWS KMS Configuration
+## KMS Configuration
 
-Data encryption keys (DEKs) are wrapped by AWS Key Management Service. Provision a symmetric
-customer managed key (CMK) and expose its ARN to the backend via environment variables:
+In local development the service defaults to an in-process KMS provider (`KMS_PROVIDER=local`).
+Keys are kept in memory and reset between test runs so you do not need real AWS credentials.
+
+For staging/production environments, set `KMS_PROVIDER=aws` and supply a Key Management Service
+customer managed key (CMK). Provision the key and expose its ARN to the backend via environment
+variables:
 
 1. Create the key and alias:
    ```bash

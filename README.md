@@ -110,6 +110,9 @@ python manage.py runserver 0.0.0.0:8000
 - Sample endpoints: `GET /api/health/`, `GET /api/health/airbyte/`, `GET /api/health/dbt/`,
   `GET /api/timezone/`, `POST /api/auth/login/`, `GET /api/me/`.
 - For multi-tenant RLS policies run `python manage.py enable_rls` after your database is provisioned.
+- The backend defaults to an in-memory KMS provider for local development (`KMS_PROVIDER=local`).
+  Production deployments should switch to `KMS_PROVIDER=aws` and supply the appropriate AWS
+  credentials plus `KMS_KEY_ID`.
 - Start Celery workers with `celery -A core worker -l info` and `celery -A core beat -l info` (run each
   in a separate terminal) once Redis is running.
 
@@ -232,6 +235,9 @@ readiness probes:
   502 flags failing models in the most recent execution.
 - `GET /api/timezone/` exposes the configured timezone so operators can ensure Jamaica-based
   scheduling is intact.
+- Every API response includes an `X-Correlation-ID` header. Clients may pass their own value when
+  calling the platform; otherwise the backend generates one. All structured logs include the same
+  identifier so you can trace a request across Celery workers, Airbyte syncs, and downstream jobs.
 
 The Airbyte health route treats the lack of a recent sync as unhealthy to catch stale data before it
 hits dashboards. dbt health follows a similar freshness heuristic but also checks for failed models to
