@@ -86,6 +86,8 @@ def airbyte_health(request):
                     "detail": f"Latest Airbyte sync finished with status '{detail_status}'.",
                 }
             )
+            if latest_status.last_job_error:
+                response_data["error"] = latest_status.last_job_error
             return JsonResponse(response_data, status=502)
         if job_status not in AIRBYTE_SUCCESS_STATUSES:
             response_data["status"] = "pending"
@@ -205,6 +207,13 @@ def _serialize_sync_status(status: TenantAirbyteSyncStatus | None) -> Dict[str, 
         "last_synced_at": status.last_synced_at.isoformat() if status.last_synced_at else None,
         "last_job_status": status.last_job_status,
         "last_job_id": status.last_job_id,
+        "last_job_updated_at": status.last_job_updated_at.isoformat()
+        if status.last_job_updated_at
+        else None,
+        "last_job_completed_at": status.last_job_completed_at.isoformat()
+        if status.last_job_completed_at
+        else None,
+        "last_job_error": status.last_job_error or None,
     }
 
 

@@ -5,6 +5,20 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+_otel_instrumented = False
+
+
+def _instrument_logging_if_available() -> None:
+    global _otel_instrumented
+    if _otel_instrumented:
+        return
+    try:  # pragma: no cover - optional dependency
+        from opentelemetry.instrumentation.logging import LoggingInstrumentor  # type: ignore
+    except ImportError:
+        return
+    LoggingInstrumentor().instrument(set_logging_format=False)
+    _otel_instrumented = True
+
 DEFAULT_LOG_LEVEL = "INFO"
 
 
@@ -28,6 +42,8 @@ def build_logging_config(level: str = DEFAULT_LOG_LEVEL) -> dict[str, Any]:
     """Produce a ``dictConfig`` logging payload that emits JSON to stdout."""
 
     log_level = _normalize_level(level)
+
+    _instrument_logging_if_available()
 
     return {
         "version": 1,
