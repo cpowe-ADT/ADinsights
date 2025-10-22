@@ -86,6 +86,12 @@ class TenantSwitchView(APIView):
         serializer.is_valid(raise_exception=True)
         tenant = serializer.save()
         tenant_id = str(tenant.id)
+        user = request.user
+
+        if getattr(user, "tenant_id", None) != tenant.id:
+            user.tenant = tenant
+            user.save(update_fields=["tenant"])
+            request.user = user
 
         set_current_tenant_id(tenant_id)
         if connection.vendor == "postgresql":
