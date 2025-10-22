@@ -1,0 +1,6 @@
+version: 0.1.0
+name: tiktok-ads-custom
+sourceDefinitionId: e0f8b506-3a32-45c3-9e36-b66d5a8c1f5f
+releaseStage: alpha
+pythonModule: infrastructure.airbyte.sources.tiktok_ads.source
+specPath: ./spec.json

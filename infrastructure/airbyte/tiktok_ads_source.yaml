@@ -1,0 +1,32 @@
+{
+  "sourceDefinitionId": "e0f8b506-3a32-45c3-9e36-b66d5a8c1f5f",
+  "workspaceId": "{{ env['AIRBYTE_WORKSPACE_ID'] }}",
+  "name": "TikTok Ads Incremental",
+  "connectionConfiguration": {
+    "advertiser_id": "{{ env['AIRBYTE_TIKTOK_ADVERTISER_ID'] }}",
+    "access_token": "{{ env['AIRBYTE_TIKTOK_ACCESS_TOKEN'] }}",
+    "start_date": "{{ env.get('AIRBYTE_TIKTOK_START_DATE', '2023-01-01') }}",
+    "lookback_window_days": {{ env.get('AIRBYTE_TIKTOK_LOOKBACK_DAYS', 1) }},
+    "slice_span_days": 7,
+    "page_size": 500,
+    "timezone": "America/Jamaica"
+  },
+  "streams": [
+    {
+      "name": "tiktok_ads_performance",
+      "syncMode": "incremental",
+      "cursorField": [
+        "date"
+      ],
+      "primaryKey": [
+        [
+          "ad_id"
+        ],
+        [
+          "date"
+        ]
+      ],
+      "destinationSyncMode": "append_dedup"
+    }
+  ]
+}

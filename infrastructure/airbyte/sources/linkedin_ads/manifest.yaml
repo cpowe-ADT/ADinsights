@@ -1,0 +1,6 @@
+version: 0.1.0
+name: linkedin-ads-custom
+sourceDefinitionId: b1e6d0be-65fa-4b40-9a3f-0c1b5fd59732
+releaseStage: alpha
+pythonModule: infrastructure.airbyte.sources.linkedin_ads.source
+specPath: ./spec.json

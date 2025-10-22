@@ -1,35 +1,61 @@
-# Meta Marketing API source configuration for Airbyte
-sourceDefinitionId: 778daa7c-feaf-4db6-96f3-70fd645acc77  # Official Facebook Marketing source
-workspaceId: <replace-with-workspace-uuid>
-name: "Meta Ads Incremental"
-connectionConfiguration:
-  account_id: {{ env['AIRBYTE_META_ACCOUNT_ID'] }}
-  access_token: {{ env['AIRBYTE_META_ACCESS_TOKEN'] }}
-  page_size: 100
-  start_date: "2023-01-01T00:00:00Z"
-  action_breakdowns: []
-  breakdowns:
-    - region
-    - impression_device
-  insights_lookback_window: 30
-  include_deleted: false
-  level: ad
-  primary_objective_for_non_objective_campaigns: true
-  report_interval: daily
-  schema_fields:
-    - spend
-    - impressions
-    - clicks
-    - actions
-    - conversions
-  window_in_days: 30
-streams:
-  - name: ads_insights
-    syncMode: incremental
-    cursorField:
-      - updated_time
-    primaryKey:
-      - - ad_id
-        - date_start
-    destinationSyncMode: append_dedup
-    transformations: []
+{
+  "sourceDefinitionId": "778daa7c-feaf-4db6-96f3-70fd645acc77",
+  "workspaceId": "{{ env['AIRBYTE_WORKSPACE_ID'] }}",
+  "name": "Meta Ads Incremental",
+  "connectionConfiguration": {
+    "account_id": "{{ env['AIRBYTE_META_ACCOUNT_ID'] }}",
+    "access_token": "{{ env['AIRBYTE_META_ACCESS_TOKEN'] }}",
+    "page_size": 100,
+    "start_date": "{{ env.get('AIRBYTE_META_START_DATE', '2023-01-01T00:00:00Z') }}",
+    "action_breakdowns": [
+      "action_type"
+    ],
+    "breakdowns": [
+      "region",
+      "impression_device"
+    ],
+    "insights_lookback_window": {{ env.get('AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS', 3) }},
+    "include_deleted": false,
+    "level": "ad",
+    "primary_objective_for_non_objective_campaigns": true,
+    "report_interval": "daily",
+    "schema_fields": [
+      "date_start",
+      "date_stop",
+      "ad_id",
+      "adset_id",
+      "campaign_id",
+      "account_id",
+      "impressions",
+      "clicks",
+      "spend",
+      "actions",
+      "action_values",
+      "unique_clicks",
+      "reach",
+      "frequency",
+      "cpc",
+      "ctr",
+      "cpm"
+    ],
+    "window_in_days": {{ env.get('AIRBYTE_META_ATTRIBUTION_WINDOW_DAYS', 30) }}
+  },
+  "streams": [
+    {
+      "name": "ads_insights",
+      "syncMode": "incremental",
+      "cursorField": [
+        "updated_time"
+      ],
+      "primaryKey": [
+        [
+          "ad_id"
+        ],
+        [
+          "date_start"
+        ]
+      ],
+      "destinationSyncMode": "append_dedup"
+    }
+  ]
+}
