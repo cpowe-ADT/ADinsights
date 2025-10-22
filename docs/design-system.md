@@ -45,6 +45,13 @@ Key semantic groups:
 By layering primitives and semantics, the shell now switches themes entirely through CSS custom properties, keeping React components
 free from theme-specific logic.
 
+## Tenant switcher accessibility
+
+- The dashboard header now includes an accessible tenant switcher built on a listbox pattern. Keyboard support covers <kbd>Tab</kbd>, <kbd>Arrow</kbd>, <kbd>Home/End</kbd>, <kbd>Enter</kbd>, and <kbd>Escape</kbd> with focus returning to the trigger.
+- Live updates announce loading states (“Loading tenants…”), fetch results, and tenant changes via an `aria-live="polite"` region so assistive technologies stay synchronized.
+- Menu surfaces reuse shell tokens for contrast (`--header-select-bg`, `--surface-subtle`, `--shell-filterchip-active`) and inherit the global focus ring to satisfy WCAG 2.1 AA contrast targets in light and dark themes.
+- Storybook exercises the component in light/dark themes with mocked tenant data so Chromatic can snapshot focus styling and aria-live copy without relying on the API.
+
 ## Dashboard spacing & typography refresh (2024-10)
 
 - Dashboard shell spacing now uses `--space-*` tokens exclusively. Primary gutters are `clamp(var(--space-6), 3vw, var(--space-10))` on the layout, while card padding steps up from `var(--space-5)` mobile to `var(--space-6)` at ≥768 px.

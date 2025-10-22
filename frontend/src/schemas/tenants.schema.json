@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tenants",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "name"],
+    "properties": {
+      "id": {
+        "oneOf": [
+          { "type": "string", "minLength": 1 },
+          { "type": "number" }
+        ]
+      },
+      "name": { "type": "string", "minLength": 1 },
+      "slug": { "type": "string", "minLength": 1 },
+      "status": { "type": "string", "minLength": 1 },
+      "metadata": { "type": "object", "additionalProperties": true }
+    },
+    "additionalProperties": true
+  }
+}

@@ -39,6 +39,7 @@ export type AuthContextValue = {
   error?: string;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  setActiveTenant: (tenantId?: string, tenantLabel?: string) => void;
   statusMessage?: string;
 };
 
@@ -107,6 +108,17 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
   const refreshTokenRef = useRef<string>();
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bootstrappedRef = useRef(false);
+  const tokensRef = useRef<StoredTokens | null>(null);
+
+  const syncActiveTenant = useCallback(
+    (nextTenantId?: string, tenantLabel?: string) => {
+      const normalizedTenantId =
+        typeof nextTenantId === 'string' && nextTenantId.trim() ? nextTenantId.trim() : undefined;
+      setTenantId(normalizedTenantId);
+      useDashboardStore.getState().setActiveTenant(normalizedTenantId, tenantLabel);
+    },
+    [],
+  );
 
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimeoutRef.current) {
@@ -118,23 +130,55 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
   const logout = useCallback(() => {
     clearRefreshTimer();
     refreshTokenRef.current = undefined;
+    tokensRef.current = null;
     setAccessToken(undefined);
-    setTenantId(undefined);
     setUser(undefined);
+    syncActiveTenant(undefined);
     setStatus('idle');
     setError(undefined);
     setStatusMessage(undefined);
     writeStoredTokens(null);
     useDashboardStore.getState().reset();
-  }, [clearRefreshTimer]);
+  }, [clearRefreshTimer, syncActiveTenant]);
 
-  const applyTokens = useCallback((next: StoredTokens) => {
-    setAccessToken(next.access);
-    setTenantId(next.tenantId);
-    setUser(next.user);
-    refreshTokenRef.current = next.refresh;
-    writeStoredTokens(next);
-  }, []);
+  const applyTokens = useCallback(
+    (next: StoredTokens) => {
+      setAccessToken(next.access);
+      setUser(next.user);
+      refreshTokenRef.current = next.refresh;
+      tokensRef.current = next;
+      writeStoredTokens(next);
+      syncActiveTenant(next.tenantId);
+    },
+    [syncActiveTenant],
+  );
+
+  const setActiveTenantId = useCallback(
+    (nextTenantId?: string, tenantLabel?: string) => {
+      const normalizedTenantId =
+        typeof nextTenantId === 'string' && nextTenantId.trim() ? nextTenantId.trim() : undefined;
+      syncActiveTenant(normalizedTenantId, tenantLabel);
+
+      if (tokensRef.current) {
+        const updatedTokens: StoredTokens = {
+          ...tokensRef.current,
+          tenantId: normalizedTenantId ?? '',
+        };
+        tokensRef.current = updatedTokens;
+        writeStoredTokens(updatedTokens);
+      } else if (normalizedTenantId && accessToken && refreshTokenRef.current) {
+        const updatedTokens: StoredTokens = {
+          access: accessToken,
+          refresh: refreshTokenRef.current,
+          tenantId: normalizedTenantId,
+          user,
+        };
+        tokensRef.current = updatedTokens;
+        writeStoredTokens(updatedTokens);
+      }
+    },
+    [accessToken, syncActiveTenant, user],
+  );
 
   const refreshAccessToken = useCallback(async (): Promise<string | undefined> => {
     const refresh = refreshTokenRef.current;
@@ -342,9 +386,10 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
       error,
       login,
       logout,
+      setActiveTenant: setActiveTenantId,
       statusMessage,
     }),
-    [status, accessToken, tenantId, user, error, login, logout, statusMessage],
+    [status, accessToken, tenantId, user, error, login, logout, setActiveTenantId, statusMessage],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

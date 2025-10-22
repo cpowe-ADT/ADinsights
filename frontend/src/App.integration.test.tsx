@@ -259,6 +259,12 @@ const metricsPayload = {
   generated_at: '2024-09-05T00:00:00Z',
 };
 
+const tenantFixtures = [
+  { id: 'demo', name: 'Demo Retail Co.', status: 'active' },
+  { id: 'tenant-123', name: 'Tenant 123 Holdings', status: 'active' },
+  { id: 'sandbox', name: 'Sandbox Marketing Group', status: 'inactive' },
+];
+
 const geojsonPayload: FeatureCollection = {
   type: 'FeatureCollection',
   features: [
@@ -363,6 +369,10 @@ describe('App integration', () => {
 
       if (url.includes('/api/metrics/combined/') && method === 'GET') {
         return Promise.resolve(createResponse(metricsPayload));
+      }
+
+      if (url.includes('/api/tenants/') && method === 'GET') {
+        return Promise.resolve(createResponse(tenantFixtures));
       }
 
       if (url.endsWith('/jm_parishes.json') || url.includes('/api/dashboards/parish-geometry/')) {
@@ -473,6 +483,10 @@ describe('App integration', () => {
         return Promise.resolve(
           createResponse({ detail: 'Metrics service unavailable' }, { status: 503 }),
         );
+      }
+
+      if (url.includes('/api/tenants/') && method === 'GET') {
+        return Promise.resolve(createResponse(tenantFixtures));
       }
 
       if (url.endsWith('/jm_parishes.json') || url.includes('/api/dashboards/parish-geometry/')) {

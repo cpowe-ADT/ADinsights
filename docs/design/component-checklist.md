@@ -12,7 +12,7 @@ Design Tokens & Themes
 Navigation & Shell
 
 - [x] SidebarNav (sections: Overview, Campaigns, Ad Sets, Ads, Geography, Dimensions, Data Health, Settings) — nav pills share `--shell-nav-*`
-- [x] TopBar with: ClientSwitcher, DateRangePicker, CompareToggle, TimezoneBadge, ChannelFilter, CurrencySelect, SearchField — header buttons use shell tokens
+- [~] TopBar with: ClientSwitcher, DateRangePicker, CompareToggle, TimezoneBadge, ChannelFilter, CurrencySelect, SearchField — ClientSwitcher listbox + aria-live complete; remaining controls pending
 - [x] StatusStrip showing Last Sync + Data Freshness with link to Data Health — status banners rely on `--shell-status-*`
 
 Core Components
@@ -68,8 +68,8 @@ Copy & Definitions
 
 Accessibility
 
-- [ ] Keyboard navigation for tables, filters, map focusable features
-- [ ] Focus-visible styles consistent and obvious
+- [~] Keyboard navigation for tables, filters, map focusable features — tenant switcher supports full keyboard flow
+- [~] Focus-visible styles consistent and obvious — header tenant menu reuses global focus ring and AA tokens
 - [ ] ARIA/alt text guidance for charts (summary table or description)
 - [ ] Color contrast passes AA/AAA for key text and UI
 
