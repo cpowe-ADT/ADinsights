@@ -11,12 +11,18 @@ x-airbyte-logging: &airbyte-logging
     max-size: 50m
     max-file: '5'
 
+x-airbyte-service-defaults: &airbyte-service-defaults
+  env_file:
+    - .env
+  logging: *airbyte-logging
+
 services:
   db:
     # Dedicated Postgres backing store. Allocate at least 1 vCPU / 2 GiB RAM for stability.
     image: airbyte/db:1.0.0
     container_name: airbyte-db
     restart: unless-stopped
+    <<: *airbyte-service-defaults
     environment:
       <<: *airbyte-db-env
     volumes:
@@ -26,13 +32,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    logging: *airbyte-logging
-
   temporal:
     # Temporal orchestrates jobs; ensure shared network bandwidth with server/worker nodes. Reserve ~1 vCPU / 1 GiB RAM.
     image: temporalio/auto-setup:1.25.0
     container_name: airbyte-temporal
     restart: unless-stopped
+    <<: *airbyte-service-defaults
     environment:
       - DB=postgresql
       - DB_PORT=5432
@@ -42,7 +47,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    logging: *airbyte-logging
     healthcheck:
       test: ['CMD', 'tctl', 'cluster', 'health']
       interval: 15s
@@ -55,6 +59,7 @@ services:
     image: airbyte/airbyte-server:0.50.22
     container_name: airbyte-server
     restart: unless-stopped
+    <<: *airbyte-service-defaults
     environment:
       - AIRBYTE_ROLE=server
       - DATABASE_USER=${AIRBYTE_DB_USER:-airbyte}
@@ -75,13 +80,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-    logging: *airbyte-logging
 
   webapp:
     # React admin UI served via Nginx; light footprint (<256 MiB RAM).
     image: airbyte/airbyte-webapp:0.50.22
     container_name: airbyte-webapp
     restart: unless-stopped
+    <<: *airbyte-service-defaults
     environment:
       - AIRBYTE_ROLE=webapp
       - AIRBYTE_API_URL=http://server:8001
@@ -91,7 +96,6 @@ services:
     depends_on:
       server:
         condition: service_healthy
-    logging: *airbyte-logging
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost/ >/dev/null || exit 1']
       interval: 30s
@@ -104,6 +108,7 @@ services:
     image: airbyte/airbyte-worker:0.50.22
     container_name: airbyte-worker
     restart: unless-stopped
+    <<: *airbyte-service-defaults
     environment:
       - AIRBYTE_ROLE=worker
       - DATABASE_USER=${AIRBYTE_DB_USER:-airbyte}
@@ -117,7 +122,6 @@ services:
         condition: service_healthy
       temporal:
         condition: service_started
-    logging: *airbyte-logging
     healthcheck:
       test:
         - CMD-SHELL
