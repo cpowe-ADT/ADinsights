@@ -39,7 +39,7 @@ make dbt-test
 make dbt-freshness
 ```
 
-Generated marts include slowly changing dimensions (`dim_campaign`, `dim_adset`, `dim_ad`) built via the shared `scd2_dimension` macro, the static `dim_geo` lookup, the `fct_ad_performance` fact, and aggregate views (`vw_campaign_daily`, `vw_creative_daily`, `vw_pacing`). Metric calculations such as CTR, CPM, and cost efficiency leverage the reusable helpers in `dbt/macros/metrics.sql`.
+Generated marts include slowly changing dimensions (`dim_campaign`, `dim_adset`, `dim_ad`) built via the shared `scd2_dimension` macro, the static `dim_geo` lookup, the normalized `fact_performance` fact, and aggregate views (`vw_campaign_daily`, `vw_creative_daily`, `vw_pacing`). Metric calculations such as CTR, CPM, and cost efficiency leverage the reusable helpers in `dbt/macros/metrics.sql`, while attribution alignment macros standardize conversion windows across platforms.
 
 ## Optional connectors
 
