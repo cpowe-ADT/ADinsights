@@ -304,8 +304,7 @@ const DashboardLayout = () => {
         <div className="dashboard-status">
           <div className="container">
             <div className="status-message" role="alert">
-              Live warehouse metrics are unavailable. Switch to demo data to explore the
-              interface.
+              Live warehouse metrics are unavailable. Switch to demo data to explore the interface.
             </div>
           </div>
         </div>

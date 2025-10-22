@@ -15,15 +15,15 @@
 
 ## 2. Identity Object Model
 
-| Layer | Entity | Description |
-| ----- | ------ | ----------- |
-| Software Management | **Agency** | Represents a partner agency granted delegated admin over managed tenants. Holds branding, entitlements, managed tenant list. |
-| Software Management | **Adtelligent User** | Platform staff with portfolio responsibilities. Claims include `managed_agencies[]`, `managed_tenants[]`. |
-| Agency | **Managed Tenant** | Client organisation created under an agency; inherits agency entitlements unless overridden. |
-| Tenant | **Workspace** | Brand/region slice within a tenant. Workflows (dashboards, budgets, jobs) scoped here. |
-| Identity | **User / Service Account** | Principal authenticated via SSO/JWT; session stores `current_tenant_id`, `recent_tenants`, `role_bindings[]`. |
-| Resource | Dashboards, Reports, Budgets, Alerts, Pipelines, Connectors, API Keys, Board Packs, Audit Log, Billing, Comments. |
-| Action verbs | `view`, `create`, `edit`, `publish`, `delete`, `export`, `propose`, `approve`, `execute`, `configure`, `share`, `comment`, `impersonate`. |
+| Layer               | Entity                                                                                                                                    | Description                                                                                                                  |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Software Management | **Agency**                                                                                                                                | Represents a partner agency granted delegated admin over managed tenants. Holds branding, entitlements, managed tenant list. |
+| Software Management | **Adtelligent User**                                                                                                                      | Platform staff with portfolio responsibilities. Claims include `managed_agencies[]`, `managed_tenants[]`.                    |
+| Agency              | **Managed Tenant**                                                                                                                        | Client organisation created under an agency; inherits agency entitlements unless overridden.                                 |
+| Tenant              | **Workspace**                                                                                                                             | Brand/region slice within a tenant. Workflows (dashboards, budgets, jobs) scoped here.                                       |
+| Identity            | **User / Service Account**                                                                                                                | Principal authenticated via SSO/JWT; session stores `current_tenant_id`, `recent_tenants`, `role_bindings[]`.                |
+| Resource            | Dashboards, Reports, Budgets, Alerts, Pipelines, Connectors, API Keys, Board Packs, Audit Log, Billing, Comments.                         |
+| Action verbs        | `view`, `create`, `edit`, `publish`, `delete`, `export`, `propose`, `approve`, `execute`, `configure`, `share`, `comment`, `impersonate`. |
 
 All API requests carry a tenant context header derived from `current_tenant_id`. Portfolio endpoints aggregate only over tenants listed in the caller’s bindings and deny drill-through to raw tables.
 
@@ -31,57 +31,57 @@ All API requests carry a tenant context header derived from `current_tenant_id`.
 
 ### 3.1 Software Management (Adtelligent)
 
-| Role | Summary |
-| ---- | ------- |
-| **Super Admin** | Full platform control (create/disable agencies & tenants, global policies, entitlements). Break-glass only with 2FA + justification. |
-| **Admin (Portfolio Ops Lead)** | Assigned agencies/tenants. Manages users/roles, rotations (masked), approvals, job control, Board Pack scheduling. No access to other agencies. |
-| **Support (Time-boxed)** | Consent-based impersonation (read-only unless escalated). Banners + watermark + audit trail. Auto-expires. |
-| **White-label Configuration Admin** | Custom domain, branding, email templates. No data access. |
-| **Entitlements Manager** | Adjusts feature toggles/plan tiers (CSV, Portfolio Mode, Board Pack). Changes audited. |
+| Role                                | Summary                                                                                                                                         |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Super Admin**                     | Full platform control (create/disable agencies & tenants, global policies, entitlements). Break-glass only with 2FA + justification.            |
+| **Admin (Portfolio Ops Lead)**      | Assigned agencies/tenants. Manages users/roles, rotations (masked), approvals, job control, Board Pack scheduling. No access to other agencies. |
+| **Support (Time-boxed)**            | Consent-based impersonation (read-only unless escalated). Banners + watermark + audit trail. Auto-expires.                                      |
+| **White-label Configuration Admin** | Custom domain, branding, email templates. No data access.                                                                                       |
+| **Entitlements Manager**            | Adjusts feature toggles/plan tiers (CSV, Portfolio Mode, Board Pack). Changes audited.                                                          |
 
 ### 3.2 Agency (White-label Partner)
 
-| Role | Summary |
-| ---- | ------- |
-| **Agency Owner** | Appoints Agency Admins; reviews entitlements; no raw data by default. |
-| **Agency Admin (Delegated)** | Creates managed tenants, invites users, seeds workspaces, rotates connectors (masked), approves publish. Portfolio aggregate across managed tenants (PDF only). |
-| **Agency Team Lead** | Day-to-day lead across assigned managed tenants/workspaces. Approves publish, co-approves budgets, runs jobs. |
-| **Agency Senior Analyst** | NEW. Builds/edits dashboards across assigned tenants; proposes budget/pacing; workspace job control; PNG/PDF export (CSV via entitlement). Cannot publish. |
-| **Agency Analyst (Jr)** | Drafts + annotations; PNG export only; no budgets/publish. |
-| *(Optional)* Finance, Auditor, Data Engineer — scoped to billing, audit export, or ETL respectively. |
+| Role                                                                                                 | Summary                                                                                                                                                         |
+| ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Agency Owner**                                                                                     | Appoints Agency Admins; reviews entitlements; no raw data by default.                                                                                           |
+| **Agency Admin (Delegated)**                                                                         | Creates managed tenants, invites users, seeds workspaces, rotates connectors (masked), approves publish. Portfolio aggregate across managed tenants (PDF only). |
+| **Agency Team Lead**                                                                                 | Day-to-day lead across assigned managed tenants/workspaces. Approves publish, co-approves budgets, runs jobs.                                                   |
+| **Agency Senior Analyst**                                                                            | NEW. Builds/edits dashboards across assigned tenants; proposes budget/pacing; workspace job control; PNG/PDF export (CSV via entitlement). Cannot publish.      |
+| **Agency Analyst (Jr)**                                                                              | Drafts + annotations; PNG export only; no budgets/publish.                                                                                                      |
+| _(Optional)_ Finance, Auditor, Data Engineer — scoped to billing, audit export, or ETL respectively. |
 
 ### 3.3 Client/Tenant
 
-| Role | Summary |
-| ---- | ------- |
-| **Client Team Lead (Tenant Admin)** | Manages users, approvals, budgets, connectors, invoices, audit access. |
-| **Client Senior Lead** | Creates/edits dashboards, runs workspace jobs, proposes budget/pacing. Requires TL approval to publish/budget. |
-| **Client Junior** | Drafts/comments; PNG only; no publish budgets or connectors. |
-| **Executive View** | Tenant-wide aggregate dashboards; PDF/PNG export only; masked identifiers; no jobs/budgets. |
-| **Non-Executive View** | Workspace-scoped masked dashboards; comment + PNG; no budgets/connectors. |
-| *(Optional)* Finance-only, Compliance/Auditor, Data Engineer. |
+| Role                                                          | Summary                                                                                                        |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Client Team Lead (Tenant Admin)**                           | Manages users, approvals, budgets, connectors, invoices, audit access.                                         |
+| **Client Senior Lead**                                        | Creates/edits dashboards, runs workspace jobs, proposes budget/pacing. Requires TL approval to publish/budget. |
+| **Client Junior**                                             | Drafts/comments; PNG only; no publish budgets or connectors.                                                   |
+| **Executive View**                                            | Tenant-wide aggregate dashboards; PDF/PNG export only; masked identifiers; no jobs/budgets.                    |
+| **Non-Executive View**                                        | Workspace-scoped masked dashboards; comment + PNG; no budgets/connectors.                                      |
+| _(Optional)_ Finance-only, Compliance/Auditor, Data Engineer. |
 
 Role bindings follow `(user_id, role_id, tenant_id, workspace_id | null, agency_id | null)` composite keys; multiple rows allow cross-tenant service. IdP groups map to bindings via SCIM.
 
 ## 4. Permission Overview
 
-| Capability | Super Admin | Adtelligent Admin | Agency Admin | Agency Sr Analyst | Client TL | Client Sr | Exec | Non-Exec |
-|-----------|-------------|-------------------|--------------|-------------------|-----------|-----------|------|---------|
-| Create tenant | ✅ | ⚠️ (assigned) | ✅ (managed only) | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
-| Tenant settings | ✅ | ⚠️ | ⚠️ (branding only) | 🔒 | ✅ | 🔒 | 🔒 | 🔒 |
-| Workspace create/delete | ✅ | ✅ | ✅ (managed) | 🔒 | ✅ | 🔒 | 🔒 | 🔒 |
-| Dashboard view | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (agg) | ✅ (masked) |
-| Dashboard create/edit | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 🔒 | 🔒 |
-| Publish dashboard/report | ✅ | ✅ | ⚠️ (agency TL) | 🔒 | ✅ | ⚠️ (needs TL) | 🔒 | 🔒 |
-| Budgets & pacing edit | ✅ | ⚠️ (needs client TL) | ⚠️ (needs client TL) | ⚠️ (propose) | ✅ | ⚠️ (propose) | 🔒 | 🔒 |
-| Connector rotation | ✅ | ✅ (masked) | ✅ (masked) | 🔒 | ✅ (masked) | 🔒 | 🔒 | 🔒 |
-| Job run/pause | ✅ | ✅ | ✅ (managed) | ✅ (workspace) | ✅ | ✅ (workspace) | 🔒 | 🔒 |
-| CSV export | ✅ | ⚠️ (entitled tenants) | ⚠️ (entitled tenants) | ⚠️ (agg only) | ⚠️ (policy) | ⚠️ (agg) | 🔒 | 🔒 |
-| PNG/PDF export | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (PDF/PNG) | ✅ (PNG) |
-| Portfolio dashboard | ✅ | ✅ (assigned) | ✅ (managed) | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
-| Billing & invoices | ✅ (platform + tenant) | 🔒 | 🔒 | 🔒 | ✅ (tenant) | 🔒 | 🔒 | 🔒 |
-| Audit log export | ✅ | ✅ | ⚠️ (managed) | 🔒 | ✅ | ⚠️ (view only) | 🔒 | 🔒 |
-| Impersonation | ✅ (break-glass) | ⚠️ (consent) | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
+| Capability               | Super Admin            | Adtelligent Admin     | Agency Admin          | Agency Sr Analyst | Client TL   | Client Sr      | Exec         | Non-Exec    |
+| ------------------------ | ---------------------- | --------------------- | --------------------- | ----------------- | ----------- | -------------- | ------------ | ----------- |
+| Create tenant            | ✅                     | ⚠️ (assigned)         | ✅ (managed only)     | 🔒                | 🔒          | 🔒             | 🔒           | 🔒          |
+| Tenant settings          | ✅                     | ⚠️                    | ⚠️ (branding only)    | 🔒                | ✅          | 🔒             | 🔒           | 🔒          |
+| Workspace create/delete  | ✅                     | ✅                    | ✅ (managed)          | 🔒                | ✅          | 🔒             | 🔒           | 🔒          |
+| Dashboard view           | ✅                     | ✅                    | ✅                    | ✅                | ✅          | ✅             | ✅ (agg)     | ✅ (masked) |
+| Dashboard create/edit    | ✅                     | ✅                    | ✅                    | ✅                | ✅          | ✅             | 🔒           | 🔒          |
+| Publish dashboard/report | ✅                     | ✅                    | ⚠️ (agency TL)        | 🔒                | ✅          | ⚠️ (needs TL)  | 🔒           | 🔒          |
+| Budgets & pacing edit    | ✅                     | ⚠️ (needs client TL)  | ⚠️ (needs client TL)  | ⚠️ (propose)      | ✅          | ⚠️ (propose)   | 🔒           | 🔒          |
+| Connector rotation       | ✅                     | ✅ (masked)           | ✅ (masked)           | 🔒                | ✅ (masked) | 🔒             | 🔒           | 🔒          |
+| Job run/pause            | ✅                     | ✅                    | ✅ (managed)          | ✅ (workspace)    | ✅          | ✅ (workspace) | 🔒           | 🔒          |
+| CSV export               | ✅                     | ⚠️ (entitled tenants) | ⚠️ (entitled tenants) | ⚠️ (agg only)     | ⚠️ (policy) | ⚠️ (agg)       | 🔒           | 🔒          |
+| PNG/PDF export           | ✅                     | ✅                    | ✅                    | ✅                | ✅          | ✅             | ✅ (PDF/PNG) | ✅ (PNG)    |
+| Portfolio dashboard      | ✅                     | ✅ (assigned)         | ✅ (managed)          | 🔒                | 🔒          | 🔒             | 🔒           | 🔒          |
+| Billing & invoices       | ✅ (platform + tenant) | 🔒                    | 🔒                    | 🔒                | ✅ (tenant) | 🔒             | 🔒           | 🔒          |
+| Audit log export         | ✅                     | ✅                    | ⚠️ (managed)          | 🔒                | ✅          | ⚠️ (view only) | 🔒           | 🔒          |
+| Impersonation            | ✅ (break-glass)       | ⚠️ (consent)          | 🔒                    | 🔒                | 🔒          | 🔒             | 🔒           | 🔒          |
 
 Legend: ✅ allowed · ⚠️ requires approval/entitlement · 🔒 denied. High-risk actions (CSV enablement, secret rotation, destructive operations) demand step-up auth and justification; results recorded in audit log.
 
@@ -124,10 +124,24 @@ Audit logs must be tenant-aware, immutable for ≥12 months, and exportable for 
   "current_tenant_id": "tenant_alpha",
   "managed_agencies": ["agency_west"],
   "role_bindings": [
-    {"tenant": "tenant_alpha", "agency": "agency_west", "role": "agency_team_lead", "workspaces": ["ws_a", "ws_b"]},
-    {"tenant": "tenant_beta", "agency": "agency_west", "role": "agency_senior_analyst", "workspaces": ["ws_c"]}
+    {
+      "tenant": "tenant_alpha",
+      "agency": "agency_west",
+      "role": "agency_team_lead",
+      "workspaces": ["ws_a", "ws_b"]
+    },
+    {
+      "tenant": "tenant_beta",
+      "agency": "agency_west",
+      "role": "agency_senior_analyst",
+      "workspaces": ["ws_c"]
+    }
   ],
-  "entitlements": {"portfolio_mode": true, "csv_export": "aggregated_only", "board_pack": true}
+  "entitlements": {
+    "portfolio_mode": true,
+    "csv_export": "aggregated_only",
+    "board_pack": true
+  }
 }
 ```
 
@@ -164,4 +178,3 @@ Detailed rollout steps are maintained in `docs/project/workplan.md`.
 ---
 
 For questions or change proposals, start a doc PR and tag @security, @product, and @platform. Significant modifications require security review and an access model regression plan.
-

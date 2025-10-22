@@ -115,7 +115,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     parishError: state.parish.error,
     selectedMetric: state.selectedMetric,
     selectedParish: state.selectedParish,
-     setSelectedParish: state.setSelectedParish,
+    setSelectedParish: state.setSelectedParish,
     activeTenantId: state.activeTenantId,
   }));
   const [geojson, setGeojson] = useState<FeatureCollection | null>(null);
@@ -149,53 +149,50 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     [theme],
   );
 
-  const loadGeometry = useCallback(
-    (tenant?: string) => {
-      geometryControllerRef.current?.abort();
-      const controller = new AbortController();
-      geometryControllerRef.current = controller;
+  const loadGeometry = useCallback((tenant?: string) => {
+    geometryControllerRef.current?.abort();
+    const controller = new AbortController();
+    geometryControllerRef.current = controller;
 
-      setGeometryStatus('loading');
-      setGeometryError(undefined);
+    setGeometryStatus('loading');
+    setGeometryError(undefined);
 
-      fetchParishGeometry({
-        path: withTenant('/dashboards/parish-geometry/', tenant),
-        mockPath: '/jm_parishes.json',
-        signal: controller.signal,
+    fetchParishGeometry({
+      path: withTenant('/dashboards/parish-geometry/', tenant),
+      mockPath: '/jm_parishes.json',
+      signal: controller.signal,
+    })
+      .then((data) => {
+        setGeojson(data);
+        setGeometryStatus('loaded');
+        geometryControllerRef.current = null;
       })
-        .then((data) => {
-          setGeojson(data);
-          setGeometryStatus('loaded');
-          geometryControllerRef.current = null;
-        })
-        .catch(async (error: unknown) => {
-          if (controller.signal.aborted) {
+      .catch(async (error: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        try {
+          const response = await fetch('/jm_parishes.json');
+          if (response.ok) {
+            const data = (await response.json()) as FeatureCollection;
+            setGeojson(data);
+            setGeometryStatus('loaded');
+            geometryControllerRef.current = null;
             return;
           }
+        } catch (fallbackError) {
+          console.warn('Fallback parish geometry load failed', fallbackError);
+        }
 
-          try {
-            const response = await fetch('/jm_parishes.json');
-            if (response.ok) {
-              const data = (await response.json()) as FeatureCollection;
-              setGeojson(data);
-              setGeometryStatus('loaded');
-              geometryControllerRef.current = null;
-              return;
-            }
-          } catch (fallbackError) {
-            console.warn('Fallback parish geometry load failed', fallbackError);
-          }
-
-          console.error('Failed to load parish geometry', error);
-          setGeometryStatus('error');
-          setGeometryError(
-            error instanceof Error ? error.message : 'Failed to load parish boundaries.',
-          );
-          geometryControllerRef.current = null;
-        });
-    },
-    [],
-  );
+        console.error('Failed to load parish geometry', error);
+        setGeometryStatus('error');
+        setGeometryError(
+          error instanceof Error ? error.message : 'Failed to load parish boundaries.',
+        );
+        geometryControllerRef.current = null;
+      });
+  }, []);
 
   useEffect(() => {
     loadGeometry(activeTenantId);

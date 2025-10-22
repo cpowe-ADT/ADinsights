@@ -265,12 +265,34 @@ const geojsonPayload: FeatureCollection = {
     {
       type: 'Feature',
       properties: { name: 'Kingston' },
-      geometry: { type: 'Polygon', coordinates: [[[-76.8,17.9],[-76.7,17.9],[-76.7,18.0],[-76.8,18.0],[-76.8,17.9]]] },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [-76.8, 17.9],
+            [-76.7, 17.9],
+            [-76.7, 18.0],
+            [-76.8, 18.0],
+            [-76.8, 17.9],
+          ],
+        ],
+      },
     },
     {
       type: 'Feature',
       properties: { name: 'St James' },
-      geometry: { type: 'Polygon', coordinates: [[[-77.0,18.3],[-76.9,18.3],[-76.9,18.4],[-77.0,18.4],[-77.0,18.3]]] },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [-77.0, 18.3],
+            [-76.9, 18.3],
+            [-76.9, 18.4],
+            [-77.0, 18.4],
+            [-77.0, 18.3],
+          ],
+        ],
+      },
     },
   ],
 };
@@ -381,8 +403,7 @@ describe('App integration', () => {
     );
 
     const metricsCall = fetchMock.mock.calls.find(
-      (call) =>
-        typeof call[0] === 'string' && call[0].includes('/api/metrics/combined/'),
+      (call) => typeof call[0] === 'string' && call[0].includes('/api/metrics/combined/'),
     );
     expect(metricsCall).toBeTruthy();
     const metricsHeaders = metricsCall?.[1]?.headers as Headers | undefined;

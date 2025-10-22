@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import boto3
 import pytest
 
 pytest.importorskip("moto")
 
-from moto import mock_aws  # noqa: E402  (import after skip)
-import boto3  # noqa: E402
+from moto import mock_aws
 
 from core.crypto.kms import AwsKmsClient
 

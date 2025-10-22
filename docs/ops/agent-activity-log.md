@@ -20,4 +20,3 @@ One-line, timestamped notes of agent-driven changes to help preserve context bet
 
 - Pruned all remote legacy branches on origin to reduce notification noise; only `origin/main` remains.
 - Deleted stray local branch `feat/frontend-admin-bootstrap` and refreshed local remotes (`git remote prune origin`).
-

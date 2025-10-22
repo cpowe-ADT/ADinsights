@@ -9,6 +9,7 @@ This plan decomposes the requested deliverables into executable work packages. E
 ---
 
 ## Phase F0 – Discovery & Foundations (Week 0)
+
 1. **Confirm design source**
    - Request actual Figma public link + component library page references.
    - Export typography scale, spacing, color palette, motion specs.
@@ -23,6 +24,7 @@ Deliverable: short tech-spec (Google Doc or repo ADR) confirming decisions + mig
 ---
 
 ## Phase F1 – Tokens & Theming (Weeks 1–2)
+
 1. **Design Tokens**
    - Create `frontend/src/design/tokens.json` (DTCG-like structure) with primitive + semantic tokens: colors (brand, surfaces, text, status), typography scale (font families, sizes, line heights), spacing (4/8px steps), radii, shadows, z-index, motion durations/curves.
    - Define brand-neutral default; allow overrides via tenant brand theme.
@@ -38,6 +40,7 @@ Acceptance Gate: No component should reference raw hex/spacing once Phase F1 com
 ---
 
 ## Phase F2 – Build Setup & Linting (Weeks 2–3)
+
 1. **Tailwind Integration**
    - Install `tailwindcss`, `postcss`, `autoprefixer`.
    - Configure `tailwind.config.ts` to read CSS variables (`extend.colors`, `spacing`, `borderRadius`, `boxShadow`, `zIndex`, `fontSize`).
@@ -51,6 +54,7 @@ Acceptance Gate: No component should reference raw hex/spacing once Phase F1 com
 ---
 
 ## Phase F3 – Component System (Weeks 3–6)
+
 Break into smaller epics per component cluster. Each component leverages semantic tokens, Tailwind utilities, and exposes light/dark stories.
 
 1. **Primitives**
@@ -66,12 +70,14 @@ Break into smaller epics per component cluster. Each component leverages semanti
    - Install Storybook 8; create stories for each component (light + dark + all states). Enable Storybook test runner.
 
 Acceptance Gates:
+
 - Components consume tokens only; pass Axe accessibility audit.
 - Stories documented with controls/args and usage notes.
 
 ---
 
 ## Phase F4 – Data Visualization & Maps (Weeks 6–7)
+
 1. **Chart Theme**
    - Define palette (series, axis, grid, tooltip) based on tokens for both themes.
    - Implement chart wrappers using theme (e.g., Recharts/Victory/d3 wrappers).
@@ -84,6 +90,7 @@ Acceptance Gates:
 ---
 
 ## Phase F5 – Layout Templates & Board Pack (Weeks 7–8)
+
 1. **Layouts**
    - Dashboard, Reports, Data Sources, Alerts, Users/Roles, Billing templates with consistent 8px spacing, gutters, and max-width.
 2. **Board Pack Printable View**
@@ -94,6 +101,7 @@ Acceptance Gate: Dashboard + one additional page match Figma metrics ±2px.
 ---
 
 ## Phase F6 – Multi-tenant UX Hooks (Weeks 8–9)
+
 1. **Tenant Context**
    - Implement Tenant Switcher shell (mock API until backend ready). Ensure assets filtered by context.
 2. **Per-tenant Branding**
@@ -102,6 +110,7 @@ Acceptance Gate: Dashboard + one additional page match Figma metrics ±2px.
 ---
 
 ## Phase F7 – Accessibility, Motion & Quality Gates (Weeks 9–10)
+
 1. **A11y**
    - Ensure focus-visible rings, aria labels, and color contrast (≥4.5:1) across components.
    - Provide `prefers-reduced-motion` fallbacks for transitions/charts.
@@ -116,6 +125,7 @@ Acceptance Gate: CI blocks on lint, a11y, and visual diff failures.
 ---
 
 ## Phase F8 – Performance Optimisations (Weeks 10–11)
+
 - Route-level lazy loading (React.lazy/Suspense) for heavy pages.
 - Chart library code-splitting; ensure icon libraries tree-shake.
 - Preload fonts with `font-display: swap`; evaluate bundling fonts locally if allowed.
@@ -124,6 +134,7 @@ Acceptance Gate: CI blocks on lint, a11y, and visual diff failures.
 ---
 
 ## Phase F9 – Backend Integration Toggle & Docs (Weeks 11–12)
+
 1. **Integration Toggle**
    - Ensure `VITE_MOCK_MODE` toggling requires no code change. Add script to switch to `/api/*` endpoints.
    - Document metrics endpoint contracts (shape, required fields) in `docs/design-system.md` or `docs/api/frontend-metrics.md`.
@@ -134,16 +145,19 @@ Acceptance Gate: CI blocks on lint, a11y, and visual diff failures.
 ---
 
 ## Dependencies & Coordination
+
 - Coordinate with backend team on tenant context API + metrics contract.
 - Ensure design tokens align with final Figma library (need actual link and measurement notes).
 - For visual regression baseline, capture initial Storybook snapshots post-Phase F3.
 
 ## Risk & Mitigation
+
 - **Missing Figma link:** request ASAP; otherwise, use placeholder tokens subject to redesign.
 - **Team adoption:** plan enablement sessions, pair with feature SMEs to convert first pages together.
 - **Regression risk:** rely on Storybook visual tests + ESLint/Stylelint token enforcement.
 
 ## Questions / Inputs Needed
+
 1. Provide the actual Figma public view link and confirm version to reference.
 2. Confirm charting library preference (existing or migrating).
 3. Clarify whether Tailwind adoption has constraints (e.g., design team preference).

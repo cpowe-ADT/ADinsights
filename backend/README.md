@@ -32,9 +32,9 @@ below for local development or containerized workflows.
    python manage.py createsuperuser
    ```
 5. (Optional) Auto-provision a local admin
-   
+
    Add this to your `.env` to auto-create a default admin on startup:
-   
+
    ```env
    ALLOW_DEFAULT_ADMIN=1
    DJANGO_DEFAULT_ADMIN_USERNAME=admin
@@ -43,6 +43,7 @@ below for local development or containerized workflows.
    ```
 
 6. Run the development server:
+
 ```bash
 python manage.py runserver 0.0.0.0:8000
 ```

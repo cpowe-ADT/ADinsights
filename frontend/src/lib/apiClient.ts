@@ -26,10 +26,7 @@ function resolveBooleanFlag(value: unknown, defaultValue: boolean): boolean {
 }
 
 export const MOCK_MODE = resolveBooleanFlag(import.meta.env.VITE_MOCK_MODE, false);
-export const MOCK_ASSETS_ENABLED = resolveBooleanFlag(
-  import.meta.env.VITE_MOCK_ASSETS,
-  MOCK_MODE,
-);
+export const MOCK_ASSETS_ENABLED = resolveBooleanFlag(import.meta.env.VITE_MOCK_ASSETS, MOCK_MODE);
 
 type RefreshHandler = () => Promise<string | undefined>;
 type UnauthorizedHandler = () => void;

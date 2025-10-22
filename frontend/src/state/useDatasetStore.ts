@@ -61,7 +61,10 @@ export const useDatasetStore = create<DatasetState>()(
         }
 
         if (next === 'live' && !adapters.includes(WAREHOUSE_KEY)) {
-          set({ error: 'Live warehouse metrics are unavailable.', source: computeSource(mode, adapters) });
+          set({
+            error: 'Live warehouse metrics are unavailable.',
+            source: computeSource(mode, adapters),
+          });
           return mode;
         }
 
@@ -82,7 +85,11 @@ export const useDatasetStore = create<DatasetState>()(
 
           if (currentMode === 'dummy' && !keys.includes(FAKE_KEY)) {
             resolvedMode = 'live';
-          } else if (currentMode === 'live' && !keys.includes(WAREHOUSE_KEY) && keys.includes(FAKE_KEY)) {
+          } else if (
+            currentMode === 'live' &&
+            !keys.includes(WAREHOUSE_KEY) &&
+            keys.includes(FAKE_KEY)
+          ) {
             resolvedMode = 'dummy';
           }
 
@@ -95,7 +102,11 @@ export const useDatasetStore = create<DatasetState>()(
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unable to load datasets.';
-          set({ status: 'error', error: message, source: computeSource(get().mode, get().adapters) });
+          set({
+            status: 'error',
+            error: message,
+            source: computeSource(get().mode, get().adapters),
+          });
         }
       },
     }),

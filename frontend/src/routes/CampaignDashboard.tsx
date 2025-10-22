@@ -187,10 +187,10 @@ const CampaignDashboard = () => {
   ) : null;
 
   return (
-      <div>
-        <h1 className="dashboardHeading" aria-label="Campaign dashboard">
-          Campaign performance
-        </h1>
+    <div>
+      <h1 className="dashboardHeading" aria-label="Campaign dashboard">
+        Campaign performance
+      </h1>
       <div className="dashboardGrid">
         <div className="kpiColumn" role="group" aria-label="Campaign KPIs">
           {kpis.map((kpi) => (

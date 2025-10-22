@@ -135,6 +135,7 @@ Track progress via the project management tool (Jira/Linear) linked to these wor
 See `docs/security/uac-spec.md` for the authoritative privilege model. This section breaks the rollout into sequenced engineering/ops slices. Each slice maps to one or more GitHub milestones and should be executed in order; individual tasks should stay within a single top-level folder per AGENTS guidelines.
 
 ### Phase U0 – Schema & Plumbing (Weeks 1–2)
+
 - Backend (`backend/`)
   - Add `Agency`, `RoleBinding` (supports agency/tenant/workspace scope), `EntitlementPlan` models + migrations.
   - Extend JWT claims/session storage (`current_tenant_id`, `managed_tenants[]`).
@@ -146,6 +147,7 @@ See `docs/security/uac-spec.md` for the authoritative privilege model. This sect
   - Update seed fixtures with new roles and entitlements.
 
 ### Phase U1 – Agency Delegated Admin (Weeks 3–4)
+
 - Backend
   - CRUD APIs for agencies & managed tenants; RBAC enforcement linking agency admins to tenants.
   - Portfolio KPI endpoint (aggregate-only, PDF export stub).
@@ -158,6 +160,7 @@ See `docs/security/uac-spec.md` for the authoritative privilege model. This sect
   - Document support playbook for delegated admin escalations.
 
 ### Phase U2 – Client Controls & Approvals (Weeks 5–7)
+
 - Backend
   - Workflow engine for Draft → Review → Publish and budget proposals (dual approval states).
   - Board Pack generator service (PDF with watermarks, SLA tracking).
@@ -169,6 +172,7 @@ See `docs/security/uac-spec.md` for the authoritative privilege model. This sect
   - Data marts supporting Board Pack KPIs, plan-versus-actual logic, anomaly detection.
 
 ### Phase U3 – Security Hardening (Weeks 8–9)
+
 - Backend
   - Step-up MFA enforcement decorator for high-risk endpoints (CSV enablement, secret rotation, destructive ops).
   - Impersonation session API (consent, duration, audit log).
@@ -180,6 +184,7 @@ See `docs/security/uac-spec.md` for the authoritative privilege model. This sect
   - Update incident/break-glass runbooks.
 
 ### Phase U4 – Compliance & UX Polish (Weeks 10–12)
+
 - Backend/Frontend
   - “Why denied?” trace endpoint/UI for privilege decisions.
   - Access review exports for quarterly attestation.
@@ -189,6 +194,7 @@ See `docs/security/uac-spec.md` for the authoritative privilege model. This sect
   - Add privacy/PII handling appendix.
 
 ### Acceptance & Regression Checklist
+
 - Execute UAT scenarios defined in `docs/security/uac-spec.md` §12.
 - Pen-test focus on tenant isolation, impersonation, export leaks.
 - Sign-off from security, product, and support prior to enabling CSV or Board Pack entitlements for production tenants.

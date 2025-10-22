@@ -283,7 +283,9 @@ function ensureArray<T>(value: unknown, message: string): T[] {
   throw new Error(message);
 }
 
-function normalizeCampaignResponse(response: CampaignPerformanceResponse): CampaignPerformanceResponse {
+function normalizeCampaignResponse(
+  response: CampaignPerformanceResponse,
+): CampaignPerformanceResponse {
   const currency = normalizeCurrencyCode(response.summary.currency);
   return {
     ...response,
@@ -515,10 +517,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
     if (!MOCK_MODE) {
       const sourceOverride = getDatasetSource();
-      const metricsPath = withSource(
-        withTenant('/metrics/combined/', tenantId),
-        sourceOverride,
-      );
+      const metricsPath = withSource(withTenant('/metrics/combined/', tenantId), sourceOverride);
 
       try {
         const snapshot = await fetchDashboardMetrics({
@@ -591,8 +590,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         : undefined;
     const normalizedCreative =
       creativeResult.status === 'fulfilled' ? creativeResult.value : undefined;
-    const normalizedBudget =
-      budgetResult.status === 'fulfilled' ? budgetResult.value : undefined;
+    const normalizedBudget = budgetResult.status === 'fulfilled' ? budgetResult.value : undefined;
     let normalizedParish: ParishAggregate[] | undefined;
     let normalizedParishError: unknown;
     if (parishResult.status === 'fulfilled') {
@@ -608,12 +606,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     }
     const resolvedTenantId = normalizeTenantId(tenantId);
     let normalizedResolved: TenantMetricsResolved | undefined;
-    if (
-      normalizedCampaign &&
-      normalizedCreative &&
-      normalizedBudget &&
-      normalizedParish
-    ) {
+    if (normalizedCampaign && normalizedCreative && normalizedBudget && normalizedParish) {
       try {
         normalizedResolved = normalizeResolvedMetrics({
           campaign: normalizedCampaign,
@@ -666,14 +659,13 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
                 data: state.budget.data,
                 error: mapError(budgetResult.reason),
               },
-        parish:
-          normalizedParish
-            ? { status: 'loaded', data: normalizedParish, error: undefined }
-            : {
-                status: 'error',
-                data: state.parish.data,
-                error: mapError(parishErrorReason),
-              },
+        parish: normalizedParish
+          ? { status: 'loaded', data: normalizedParish, error: undefined }
+          : {
+              status: 'error',
+              data: state.parish.data,
+              error: mapError(parishErrorReason),
+            },
         metricsCache: updatedCache,
       };
     });
