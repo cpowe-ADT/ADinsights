@@ -69,24 +69,50 @@ query so the connector replays only the slices required by the incremental state
 28-day window. Keep the cursor fields and lookback windows aligned with your desired backfill
 horizon when adapting the template.
 
-For optional connectors (LinkedIn, TikTok) provide API keys only if you have access.
+Custom connectors for LinkedIn and TikTok live under `sources/linkedin_ads/` and `sources/tiktok_ads/`. Export the required environment variables (documented below) before packaging them with `airbyte-ci` or when importing the specs via the Airbyte UI.
 
 ## Airbyte Configuration
 
 This directory contains declarative configuration snippets for the ingestion layer.
 
-- `meta_source.yaml` – Production-ready Meta Marketing API source configured for incremental syncs on `updated_time`.
-- `google_ads_source.yaml` – Google Ads source leveraging a custom query with incremental cursor on `segments.date`.
-- `linkedin_transparency_stub.yaml` – HTTP-based placeholder for LinkedIn transparency data until a certified connector is available.
-- `tiktok_transparency_stub.yaml` – HTTP-based placeholder for TikTok transparency data.
+- `meta_source.yaml` – Meta Marketing API source configured for incremental syncs on `updated_time` with lookback tuning knobs.
+- `google_ads_source.yaml` – Google Ads source leveraging a custom GAQL query with incremental cursor on `segments.date`.
+- `linkedin_ads_source.yaml` – Connection payload for the custom LinkedIn Ads connector in `sources/linkedin_ads/`.
+- `tiktok_ads_source.yaml` – Connection payload for the custom TikTok Ads connector in `sources/tiktok_ads/`.
 
-Optional transparency connectors are disabled by default in dbt via the `enable_linkedin` and `enable_tiktok` variables. When Airbyte jobs for these feeds become available, set the variables to `true` in the target profile to incorporate the additional metrics into the warehouse models.
+Optional connectors are disabled by default in dbt via the `enable_linkedin` and `enable_tiktok` variables. Toggle the variables to `true` in the target profile once the corresponding Airbyte connections are enabled so the warehouse models pick up the new feeds.
 
 All files assume credentials are injected from environment variables using Airbyte's declarative templates. Export the variables listed below before applying the YAML snippets. Replace placeholders with the actual workspace UUIDs and connection IDs when provisioning resources.
 
-| Connector                    | Required environment variables                                                                                                                                                                                         |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Google Ads                   | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN`, `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID` |
-| Meta Marketing API           | `AIRBYTE_META_APP_ID`, `AIRBYTE_META_APP_SECRET`, `AIRBYTE_META_ACCESS_TOKEN`, `AIRBYTE_META_ACCOUNT_ID`, `AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS`, `AIRBYTE_META_HOURLY_WINDOW_DAYS`                                     |
-| LinkedIn Transparency (stub) | `AIRBYTE_LINKEDIN_CLIENT_ID`, `AIRBYTE_LINKEDIN_CLIENT_SECRET`, `AIRBYTE_LINKEDIN_REFRESH_TOKEN`                                                                                                                       |
-| TikTok Transparency (stub)   | `AIRBYTE_TIKTOK_TRANSPARENCY_TOKEN`, `AIRBYTE_TIKTOK_ADVERTISER_ID`                                                                                                                                                    |
+| Connector             | Required environment variables |
+| --------------------- | -------------------------------- |
+| Google Ads            | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN`, `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_START_DATE` (optional), `AIRBYTE_GOOGLE_ADS_CUSTOM_QUERY` (optional) |
+| Meta Marketing API    | `AIRBYTE_META_ACCOUNT_ID`, `AIRBYTE_META_ACCESS_TOKEN`, `AIRBYTE_META_START_DATE` (optional), `AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS` (optional), `AIRBYTE_META_ATTRIBUTION_WINDOW_DAYS` (optional) |
+| LinkedIn Ads (custom) | `AIRBYTE_LINKEDIN_ACCOUNT_ID`, `AIRBYTE_LINKEDIN_ACCESS_TOKEN`, `AIRBYTE_LINKEDIN_START_DATE` (optional), `AIRBYTE_LINKEDIN_LOOKBACK_DAYS` (optional) |
+| TikTok Ads (custom)   | `AIRBYTE_TIKTOK_ADVERTISER_ID`, `AIRBYTE_TIKTOK_ACCESS_TOKEN`, `AIRBYTE_TIKTOK_START_DATE` (optional), `AIRBYTE_TIKTOK_LOOKBACK_DAYS` (optional) |
+
+### Authentication & Rollout Notes
+
+- **Meta Marketing API:** Generate a long-lived access token scoped for the Ad Insights API and inject it through `AIRBYTE_META_ACCESS_TOKEN`. The connector honours the 28-day attribution window via `AIRBYTE_META_ATTRIBUTION_WINDOW_DAYS` and will replay late conversions as long as the lookback exceeds your expected delay profile.
+- **Google Ads:** Service account OAuth credentials must be refreshed through the provided refresh token. Set `AIRBYTE_GOOGLE_ADS_CUSTOM_QUERY` only when custom GAQL slices are required; otherwise the default query projects the PRD field set.
+- **LinkedIn Ads:** Provision a reporting-only OAuth token with the `r_ads_reporting` scope and copy the numeric account identifier. The connector automatically requests seven-day slices with a two-day lookback to capture late attributions.
+- **TikTok Ads:** Generate an advertiser-scoped token with access to `report/integrated` and store it in `AIRBYTE_TIKTOK_ACCESS_TOKEN`. TikTok returns spend in account currency; downstream dbt models cast to standard currency types.
+
+### Acceptance Tests
+
+Connector manifests ship with Airbyte's connector test harness. Run the incremental discovery suite before shipping changes:
+
+```bash
+pytest infrastructure/airbyte/sources/tests -q
+```
+
+The harness uses mocked HTTP responses so the tests execute without contacting upstream APIs.
+
+### Rollout Checklist
+
+1. Export the environment variables listed above and verify `docker compose --env-file .env config` renders without unresolved templates.
+2. Import each `{platform}_ads_source.yaml` file into Airbyte (UI or API) and complete the OAuth consent flows where applicable.
+3. Run the acceptance tests locally (`pytest infrastructure/airbyte/sources/tests -q`) and validate discovery in the Airbyte UI.
+4. Create destinations/connection pairs, enable incremental sync with the documented cron schedule, and monitor the first run for quota or schema issues.
+5. Flip the corresponding dbt feature flags (`enable_linkedin`, `enable_tiktok`) once the first sync succeeds.
+

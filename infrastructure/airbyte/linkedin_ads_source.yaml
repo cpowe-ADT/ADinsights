@@ -1,0 +1,32 @@
+{
+  "sourceDefinitionId": "b1e6d0be-65fa-4b40-9a3f-0c1b5fd59732",
+  "workspaceId": "{{ env['AIRBYTE_WORKSPACE_ID'] }}",
+  "name": "LinkedIn Ads Incremental",
+  "connectionConfiguration": {
+    "account_id": "{{ env['AIRBYTE_LINKEDIN_ACCOUNT_ID'] }}",
+    "access_token": "{{ env['AIRBYTE_LINKEDIN_ACCESS_TOKEN'] }}",
+    "start_date": "{{ env.get('AIRBYTE_LINKEDIN_START_DATE', '2023-01-01') }}",
+    "lookback_window_days": {{ env.get('AIRBYTE_LINKEDIN_LOOKBACK_DAYS', 2) }},
+    "slice_span_days": 7,
+    "page_size": 500,
+    "timezone": "America/Jamaica"
+  },
+  "streams": [
+    {
+      "name": "linkedin_ads_performance",
+      "syncMode": "incremental",
+      "cursorField": [
+        "date"
+      ],
+      "primaryKey": [
+        [
+          "ad_id"
+        ],
+        [
+          "date"
+        ]
+      ],
+      "destinationSyncMode": "append_dedup"
+    }
+  ]
+}
