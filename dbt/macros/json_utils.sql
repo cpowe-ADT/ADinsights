@@ -27,6 +27,62 @@
   from_json(coalesce(nullif({{ expr }}, ''), '[]'))
 {% endmacro %}
 
+{% macro json_build_object(pairs) %}
+  {{ adapter.dispatch('json_build_object', 'adinsights')(pairs) }}
+{% endmacro %}
+
+{% macro default__json_build_object(pairs) %}
+  jsonb_build_object(
+    {%- for key, value in pairs.items() -%}
+      '{{ key }}', {{ value }}{% if not loop.last %}, {% endif %}
+    {%- endfor -%}
+  )
+{% endmacro %}
+
+{% macro duckdb__json_build_object(pairs) %}
+  json_object(
+    {%- for key, value in pairs.items() -%}
+      '{{ key }}', {{ value }}{% if not loop.last %}, {% endif %}
+    {%- endfor -%}
+  )
+{% endmacro %}
+
+{% macro json_array_agg(expression, distinct=false) %}
+  {{ adapter.dispatch('json_array_agg', 'adinsights')(expression, distinct) }}
+{% endmacro %}
+
+{% macro default__json_array_agg(expression, distinct=false) %}
+  jsonb_agg({% if distinct %}distinct {% endif %}{{ expression }})
+{% endmacro %}
+
+{% macro duckdb__json_array_agg(expression, distinct=false) %}
+  json_group_array({% if distinct %}distinct {% endif %}{{ expression }})
+{% endmacro %}
+
+{% macro json_empty_array() %}
+  {{ adapter.dispatch('json_empty_array', 'adinsights')() }}
+{% endmacro %}
+
+{% macro default__json_empty_array() %}
+  '[]'::jsonb
+{% endmacro %}
+
+{% macro duckdb__json_empty_array() %}
+  json('[]')
+{% endmacro %}
+
+{% macro json_typeof(expression) %}
+  {{ adapter.dispatch('json_typeof', 'adinsights')(expression) }}
+{% endmacro %}
+
+{% macro default__json_typeof(expression) %}
+  jsonb_typeof({{ expression }})
+{% endmacro %}
+
+{% macro duckdb__json_typeof(expression) %}
+  lower(json_type({{ expression }}))
+{% endmacro %}
+
 {% macro json_get_text(json_expr, key) %}
   {{ adapter.dispatch('json_get_text', 'adinsights')(json_expr, key) }}
 {% endmacro %}
