@@ -10,10 +10,12 @@ from functools import lru_cache
 from typing import Any, Iterable, Mapping, Sequence
 
 from django.conf import settings
-from django.db import connection
+from django.db import DatabaseError, connection
+from django.db import connection, OperationalError, ProgrammingError
 from django.utils import timezone
 from django.http import StreamingHttpResponse
 from rest_framework import permissions, status, viewsets
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -22,11 +24,21 @@ from adapters.base import MetricsAdapter
 from adapters.fake import FakeAdapter
 from adapters.warehouse import WarehouseAdapter
 
-from .models import TenantMetricsSnapshot
+from .models import (
+    Ad,
+    AdSet,
+    Campaign,
+    RawPerformanceRecord,
+    TenantMetricsSnapshot,
+)
 from .serializers import (
+    AdSerializer,
+    AdSetSerializer,
     AggregateSnapshotSerializer,
+    CampaignSerializer,
     MetricRecordSerializer,
     MetricsQueryParamsSerializer,
+    RawPerformanceRecordSerializer,
 )
 
 from accounts.audit import log_audit_event
@@ -45,6 +57,65 @@ METRIC_EXPORT_HEADERS = [
     "conversions",
     "roas",
 ]
+
+
+class TenantScopedModelViewSet(viewsets.ModelViewSet):
+    """Base viewset enforcing tenant scoped CRUD operations."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):  # type: ignore[override]
+        queryset = super().get_queryset()
+        tenant = getattr(self.request.user, "tenant", None)
+        if tenant is None:
+            return queryset.none()
+        return queryset.filter(tenant=tenant)
+
+    def perform_create(self, serializer):  # noqa: D401 - DRF signature
+        tenant = getattr(self.request.user, "tenant", None)
+        if tenant is None:
+            raise PermissionDenied("Unable to resolve tenant.")
+        serializer.save(tenant=tenant)
+
+    def perform_update(self, serializer):  # noqa: D401 - DRF signature
+        tenant = getattr(self.request.user, "tenant", None)
+        if tenant is None:
+            raise PermissionDenied("Unable to resolve tenant.")
+        serializer.save(tenant=tenant)
+
+
+class CampaignViewSet(TenantScopedModelViewSet):
+    queryset = Campaign.all_objects.all().order_by("name", "external_id")
+    serializer_class = CampaignSerializer
+
+
+class AdSetViewSet(TenantScopedModelViewSet):
+    queryset = (
+        AdSet.all_objects.all()
+        .select_related("campaign")
+        .order_by("name", "external_id")
+    )
+    serializer_class = AdSetSerializer
+
+
+class AdViewSet(TenantScopedModelViewSet):
+    queryset = (
+        Ad.all_objects.all()
+        .select_related("adset", "adset__campaign")
+        .order_by("name", "external_id")
+    )
+    serializer_class = AdSerializer
+
+
+class RawPerformanceRecordViewSet(TenantScopedModelViewSet):
+    queryset = (
+        RawPerformanceRecord.all_objects.all()
+        .select_related("campaign", "adset", "ad")
+        .order_by("-date", "-ingested_at")
+    )
+    serializer_class = RawPerformanceRecordSerializer
+
+
 def _build_registry() -> dict[str, MetricsAdapter]:
     """Return the enabled analytics adapters keyed by their slug."""
 
@@ -297,7 +368,7 @@ def _coerce_json_payload(value: Any) -> Any:
 def _default_campaign_metrics() -> dict[str, Any]:
     return {
         "summary": {
-            "currency": None,
+            "currency": "USD",
             "totalSpend": 0.0,
             "totalImpressions": 0,
             "totalClicks": 0,
@@ -309,15 +380,30 @@ def _default_campaign_metrics() -> dict[str, Any]:
     }
 
 
+def _default_parish_metrics() -> list[dict[str, Any]]:
+    return [
+        {
+            "parish": "Unknown",
+            "spend": 0.0,
+            "impressions": 0,
+            "clicks": 0,
+            "conversions": 0,
+            "roas": 0.0,
+            "campaignCount": 0,
+            "currency": "USD",
+        }
+    ]
+
+
 def _default_snapshot_payload(*, tenant_id: str) -> dict[str, Any]:
     return {
         "tenant_id": tenant_id,
         "generated_at": timezone.now(),
         "metrics": {
-            "campaign_metrics": _default_campaign_metrics(),
-            "creative_metrics": [],
-            "budget_metrics": [],
-            "parish_metrics": [],
+            "campaign": _default_campaign_metrics(),
+            "creative": [],
+            "budget": [],
+            "parish": _default_parish_metrics(),
         },
     }
 
@@ -336,20 +422,38 @@ def _fetch_aggregate_snapshot(*, tenant_id: str) -> Mapping[str, Any] | None:
         order by generated_at desc
         limit 1
     """
-    with connection.cursor() as cursor:
-        cursor.execute(sql, {"tenant_id": tenant_id})
-        row = cursor.fetchone()
-        if not row:
-            return None
-        columns = [col[0] for col in cursor.description]
-        record = dict(zip(columns, row))
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(sql, {"tenant_id": tenant_id})
+            row = cursor.fetchone()
+            if not row:
+                return None
+            columns = [col[0] for col in cursor.description]
+            record = dict(zip(columns, row))
+    except DatabaseError:
+        logger.warning(
+            "vw_dashboard_aggregate_snapshot unavailable; returning empty payload",
+            extra={"tenant_id": tenant_id},
+        )
+        return None
+
+    campaign_metrics = _coerce_json_payload(record.get("campaign_metrics"))
+    creative_metrics = _coerce_json_payload(record.get("creative_metrics"))
+    budget_metrics = _coerce_json_payload(record.get("budget_metrics"))
+    parish_metrics = _coerce_json_payload(record.get("parish_metrics"))
+    except (ProgrammingError, OperationalError) as exc:
+        logger.warning(
+            "aggregate snapshot view unavailable; returning default payload",
+            extra={"tenant_id": tenant_id},
+            exc_info=exc,
+        )
+        return None
 
     metrics = {
-        "campaign_metrics": _coerce_json_payload(record.get("campaign_metrics"))
-        or _default_campaign_metrics(),
-        "creative_metrics": _coerce_json_payload(record.get("creative_metrics")) or [],
-        "budget_metrics": _coerce_json_payload(record.get("budget_metrics")) or [],
-        "parish_metrics": _coerce_json_payload(record.get("parish_metrics")) or [],
+        "campaign": campaign_metrics or _default_campaign_metrics(),
+        "creative": creative_metrics or [],
+        "budget": budget_metrics or [],
+        "parish": parish_metrics or _default_parish_metrics(),
     }
 
     payload: dict[str, Any] = {
@@ -378,6 +482,7 @@ class AggregateSnapshotView(APIView):
             snapshot = _default_snapshot_payload(tenant_id=tenant_id_str)
 
         serializer = AggregateSnapshotSerializer(snapshot)
+        metrics_payload = serializer.data.get("metrics", {})
 
         log_audit_event(
             tenant=tenant,
@@ -391,7 +496,7 @@ class AggregateSnapshotView(APIView):
             },
         )
 
-        return Response(serializer.data)
+        return Response(metrics_payload)
 
 
 def _fetch_metric_rows(*, tenant_id: str, filters: dict[str, Any]) -> list[dict[str, Any]]:

@@ -1,0 +1,68 @@
+{
+  "documentationUrl": "https://docs.adinsights.example.com/airbyte/linkedin",
+  "supportsIncremental": true,
+  "supportsNamespaces": false,
+  "connectionSpecification": {
+    "type": "object",
+    "title": "LinkedIn Ads Source Spec",
+    "additionalProperties": false,
+    "required": [
+      "account_id",
+      "access_token",
+      "start_date"
+    ],
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "title": "Account ID",
+        "description": "Numeric LinkedIn Ads account identifier (without the urn prefix)."
+      },
+      "access_token": {
+        "type": "string",
+        "title": "Access Token",
+        "airbyte_secret": true,
+        "description": "OAuth access token with r_ads_reporting scope."
+      },
+      "start_date": {
+        "type": "string",
+        "format": "date",
+        "title": "Start Date",
+        "description": "UTC date to begin incremental collection (YYYY-MM-DD)."
+      },
+      "lookback_window_days": {
+        "type": "integer",
+        "title": "Lookback Window",
+        "default": 2,
+        "description": "Days to subtract from the last synced date when constructing incremental slices."
+      },
+      "slice_span_days": {
+        "type": "integer",
+        "title": "Slice Span",
+        "default": 7,
+        "description": "Number of days to request per API call."
+      },
+      "page_size": {
+        "type": "integer",
+        "title": "Page Size",
+        "default": 500,
+        "description": "Number of rows to request per page from the analytics endpoint."
+      },
+      "time_granularity": {
+        "type": "string",
+        "title": "Time Granularity",
+        "default": "DAILY",
+        "enum": [
+          "DAILY",
+          "HOURLY"
+        ],
+        "description": "Aggregation granularity for the analytics export."
+      },
+      "timezone": {
+        "type": "string",
+        "title": "Timezone",
+        "default": "America/Jamaica",
+        "description": "Timezone used to anchor the reporting window."
+      }
+    }
+  }
+}

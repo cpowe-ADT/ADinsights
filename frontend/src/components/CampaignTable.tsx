@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ColumnDef,
   ColumnPinningState,
@@ -91,7 +92,14 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
         enablePinning: true,
         cell: ({ row }) => (
           <div className="campaign-name">
-            <strong>{row.original.name}</strong>
+            <strong>
+              <Link
+                to={`/dashboards/campaigns/${encodeURIComponent(row.original.id)}`}
+                className="table-link"
+              >
+                {row.original.name}
+              </Link>
+            </strong>
             <span className="campaign-meta">{row.original.status}</span>
           </div>
         ),

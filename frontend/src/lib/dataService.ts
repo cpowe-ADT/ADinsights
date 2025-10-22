@@ -10,6 +10,14 @@ import type {
   TenantMetricsSnapshot,
 } from '../state/useDashboardStore';
 
+export interface TenantRecord {
+  id: string | number;
+  name: string;
+  slug?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
 export interface MetricsResponse {
   campaign: CampaignPerformanceResponse;
   creative: CreativePerformanceRow[];
@@ -48,6 +56,10 @@ export async function fetchBudgetPacing(options: FetchOptions): Promise<BudgetPa
 
 export async function fetchParishAggregates(options: FetchOptions): Promise<ParishAggregate[]> {
   return fetchJson<ParishAggregate[]>({ ...options, schema: 'parish' });
+}
+
+export async function fetchTenants(options: FetchOptions): Promise<TenantRecord[]> {
+  return fetchJson<TenantRecord[]>({ ...options, schema: 'tenants' });
 }
 
 export async function fetchMetrics(path: string): Promise<MetricsResponse> {

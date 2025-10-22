@@ -9,6 +9,7 @@
 
 with campaign_daily as (
     select
+        tenant_id,
         date_day,
         source_platform,
         ad_account_id,
@@ -17,23 +18,16 @@ with campaign_daily as (
         sum(spend) as spend,
         sum(impressions) as impressions,
         sum(clicks) as clicks,
-        sum(conversions) as conversions
-    from {{ ref('fct_ad_performance') }}
-    where campaign_id is not null
-    {% if is_incremental() %}
-        and date_day >= (
-            select coalesce(
-                max(date_day) - interval '{{ lookback_days }} day',
-                cast('1900-01-01' as date)
-            )
-            from {{ this }}
-        )
-    {% endif %}
-    group by 1, 2, 3, 4
+        sum(conversions) as conversions,
+        sum(reported_conversions) as reported_conversions,
+        max(attribution_window_days) as attribution_window_days
+    from {{ ref('fact_performance') }}
+    group by 1,2,3,4,5
 ),
 
 enriched as (
     select
+        cd.tenant_id,
         cd.date_day,
         cd.source_platform,
         cd.ad_account_id,
@@ -43,6 +37,8 @@ enriched as (
         cd.impressions,
         cd.clicks,
         cd.conversions,
+        cd.reported_conversions,
+        cd.attribution_window_days,
         {{ metric_ctr('cd.clicks', 'cd.impressions') }} as ctr,
         {{ metric_conversion_rate('cd.conversions', 'cd.clicks') }} as conversion_rate,
         {{ metric_cost_per_click('cd.spend', 'cd.clicks') }} as cost_per_click,
@@ -52,13 +48,14 @@ enriched as (
         d.parish_code,
         d.parish_name,
         d.region_name,
-        d.first_seen_date
+        d.first_seen_at
     from campaign_daily cd
     left join {{ ref('dim_campaign') }} d
-        on cd.source_platform = d.source_platform
+        on cd.tenant_id = d.tenant_id
+        and cd.source_platform = d.source_platform
         and cd.ad_account_id = d.ad_account_id
         and cd.campaign_id = d.campaign_id
-        and cd.date_day between cast(d.valid_from as date) and cast(d.valid_to as date)
+        and cd.date_day::timestamp between d.dbt_valid_from and coalesce(d.dbt_valid_to, cast('9999-12-31 23:59:59' as timestamp))
 )
 
 select *

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "demo",
+    "name": "Demo Retail Co.",
+    "status": "active"
+  },
+  {
+    "id": "jam-market",
+    "name": "Jamaica Marketplaces",
+    "status": "active"
+  },
+  {
+    "id": "meta-latam",
+    "name": "Meta LATAM Sandbox",
+    "status": "inactive"
+  }
+]

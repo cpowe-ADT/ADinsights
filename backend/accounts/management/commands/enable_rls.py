@@ -9,6 +9,10 @@ TENANT_TABLES = [
     "accounts_auditlog",
     "integrations_platformcredential",
     "accounts_tenantkey",
+    "analytics_campaign",
+    "analytics_adset",
+    "analytics_ad",
+    "analytics_rawperformancerecord",
 ]
 
 

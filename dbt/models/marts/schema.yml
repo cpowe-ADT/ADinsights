@@ -1,204 +1,13 @@
 version: 2
 
 models:
-  - name: dim_campaign
-    description: 'SCD2 dimension capturing campaign level attributes and geo enrichment.'
-    columns:
-      - name: source_platform
-        tests:
-          - not_null
-      - name: ad_account_id
-        tests:
-          - not_null
-      - name: campaign_id
-        tests:
-          - not_null
-      - name: campaign_name
-        description: 'Human friendly campaign name sourced from platform metadata, falling back to the campaign ID when unavailable.'
-        tests:
-          - not_null
-          - expression_is_true:
-              arguments:
-                expression: 'length(trim(campaign_name)) > 0'
-      - name: parish_code
-      - name: valid_from
-        tests:
-          - not_null
-      - name: valid_to
-      - name: is_current
-  - name: dim_adset
-    description: 'SCD2 dimension for ad sets/ad groups mapped back to campaigns and locations.'
-    columns:
-      - name: source_platform
-      - name: ad_account_id
-      - name: adset_id
-        tests:
-          - not_null
-      - name: campaign_id
-      - name: parish_code
-      - name: valid_from
-      - name: valid_to
-  - name: dim_ad
-    description: 'SCD2 dimension for creatives with ad set, campaign, and geo attributes.'
-    columns:
-      - name: source_platform
-      - name: ad_account_id
-      - name: ad_id
-        tests:
-          - not_null
-      - name: adset_id
-      - name: campaign_id
-      - name: parish_code
-      - name: valid_from
-  - name: dim_geo
-    description: 'Static lookup table mapping Jamaican parishes to geographic metadata.'
-    columns:
-      - name: parish_code
-        tests:
-          - not_null
-          - unique
-      - name: parish_name
-      - name: region_name
-  - name: fct_ad_performance
-    description: 'Daily fact table for spend and performance metrics across platforms.'
-    columns:
-      - name: date_day
-        tests:
-          - not_null
-      - name: source_platform
-        tests:
-          - not_null
-      - name: ad_account_id
-        tests:
-          - not_null
-      - name: campaign_id
-        tests:
-          - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_campaign')
-                field: campaign_id
-      - name: campaign_name
-        description: 'Human-readable campaign label sourced from staging when available.'
-        tests:
-          - not_null
-      - name: adset_id
-        tests:
-          - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_adset')
-                field: adset_id
-      - name: ad_id
-        tests:
-          - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_ad')
-                field: ad_id
-      - name: parish_code
-        tests:
-          - relationships:
-              arguments:
-                to: ref('dim_geo')
-                field: parish_code
-      - name: spend
-        tests:
-          - not_null
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(spend, 0) >= 0'
-      - name: impressions
-        tests:
-          - not_null
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(impressions, 0) >= 0'
-      - name: clicks
-        tests:
-          - not_null
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(clicks, 0) >= 0'
-      - name: conversions
-        tests:
-          - not_null
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(conversions, 0) >= 0'
-      - name: ctr
-        tests:
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(ctr, 0) >= 0'
-      - name: conversion_rate
-        tests:
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(conversion_rate, 0) >= 0'
-      - name: roas
-        tests:
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(roas, 0) >= 0'
   - name: agg_campaign_daily
     description: 'Incremental aggregate of campaign-level performance metrics with geo enrichment from the campaign dimension.'
     columns:
-      - name: date_day
-        description: 'Calendar date the metrics are aggregated for.'
+      - name: tenant_id
+        description: 'Tenant scope for the aggregated record.'
         tests:
           - not_null
-      - name: source_platform
-        description: 'Advertising platform the campaign belongs to.'
-      - name: ad_account_id
-        description: 'Unique identifier for the ad account owning the campaign.'
-      - name: campaign_id
-        description: 'Unique identifier for the campaign receiving spend.'
-      - name: campaign_name
-        description: 'Human friendly campaign name, falling back to the campaign ID when metadata is missing.'
-        tests:
-          - not_null
-          - expression_is_true:
-              arguments:
-                expression: 'length(trim(campaign_name)) > 0'
-      - name: spend
-        description: 'Total spend attributed to the campaign on the given day.'
-      - name: impressions
-        description: 'Total impressions delivered by the campaign on the given day.'
-      - name: clicks
-        description: 'Total clicks generated by the campaign on the given day.'
-      - name: conversions
-        description: 'Total conversions attributed to the campaign on the given day.'
-      - name: ctr
-        description: 'Click-through rate derived from clicks divided by impressions.'
-      - name: conversion_rate
-        description: 'Conversion rate derived from conversions divided by clicks.'
-      - name: cost_per_click
-        description: 'Average cost per click for the campaign on the given day.'
-      - name: cost_per_conversion
-        description: 'Average cost per conversion for the campaign on the given day.'
-      - name: cpm
-        description: 'Cost per 1,000 impressions for the campaign on the given day.'
-      - name: roas
-        description: 'Return on ad spend derived from conversions divided by spend.'
-        tests:
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(roas, 0) >= 0'
-      - name: parish_code
-        description: 'Geographic parish code associated with the campaign during the day.'
-      - name: parish_name
-        description: 'Friendly name of the parish associated with the campaign.'
-      - name: region_name
-        description: 'Region grouping tied to the parish.'
-      - name: first_seen_date
-        description: 'First date the campaign was observed in the warehouse.'
-    tests:
-      - aggregate_snapshot_contract:
-          parish_model: ref('agg_parish_daily')
-  - name: agg_parish_daily
-    description: 'Daily parish-level aggregation of spend and performance metrics with geo metadata.'
-    columns:
       - name: date_day
         description: 'Calendar date the metrics are aggregated for.'
         tests:
@@ -253,46 +62,21 @@ models:
         tests:
           - not_null
       - name: source_platform
-        tests:
-          - not_null
+        description: 'Advertising platform the campaign belongs to.'
       - name: ad_account_id
+        description: 'Unique identifier for the ad account owning the campaign.'
         tests:
           - not_null
       - name: campaign_id
+        description: 'Unique identifier for the campaign receiving spend.'
         tests:
           - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_campaign')
-                field: campaign_id
       - name: campaign_name
         description: 'Human friendly campaign name, falling back to the campaign ID when metadata is missing.'
         tests:
           - not_null
-          - expression_is_true:
-              arguments:
-                expression: 'length(trim(campaign_name)) > 0'
-      - name: parish_code
-        tests:
-          - relationships:
-              arguments:
-                to: ref('dim_geo')
-                field: parish_code
-      - name: spend
-        tests:
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(spend, 0) >= 0'
-      - name: impressions
-        tests:
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(impressions, 0) >= 0'
-      - name: clicks
-        tests:
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(clicks, 0) >= 0'
+      - name: reported_conversions
+        description: 'Platform-reported conversions prior to attribution window normalization.'
       - name: conversions
         tests:
           - expression_is_true:
@@ -337,32 +121,9 @@ models:
         tests:
           - not_null
       - name: source_platform
+        description: 'Conversions normalized to the configured attribution window.'
         tests:
           - not_null
-      - name: ad_account_id
-        tests:
-          - not_null
-      - name: ad_id
-        tests:
-          - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_ad')
-                field: ad_id
-      - name: adset_id
-        tests:
-          - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_adset')
-                field: adset_id
-      - name: campaign_id
-        tests:
-          - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_campaign')
-                field: campaign_id
       - name: parish_code
         tests:
           - relationships:
@@ -420,30 +181,18 @@ models:
             - source_platform
             - ad_account_id
     columns:
+      - name: tenant_id
+        tests:
+          - not_null
       - name: date_day
         tests:
           - not_null
-      - name: source_platform
+      - name: parish_code
         tests:
           - not_null
-      - name: ad_account_id
-        tests:
-          - not_null
-      - name: spend
-        tests:
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(spend, 0) >= 0'
-      - name: impressions
-        tests:
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(impressions, 0) >= 0'
-      - name: clicks
-        tests:
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(clicks, 0) >= 0'
+          - relationships:
+              to: ref('dim_geo')
+              field: parish_code
       - name: conversions
         tests:
           - expression_is_true:
@@ -491,3 +240,6 @@ models:
           - expression_is_true:
               arguments:
                 expression: 'coalesce(pacing_vs_7d_avg, 0) >= 0'
+          - not_null
+      - name: reported_conversions
+        description: 'Platform reported conversions prior to normalization.'

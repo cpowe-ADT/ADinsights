@@ -139,9 +139,12 @@ interface DashboardState {
   budget: AsyncSlice<BudgetPacingRow[]>;
   parish: AsyncSlice<ParishAggregate[]>;
   activeTenantId?: string;
+  activeTenantLabel?: string;
+  lastLoadedTenantId?: string;
   metricsCache: Record<string, TenantMetricsResolved>;
   setSelectedParish: (parish?: string) => void;
   setSelectedMetric: (metric: MetricKey) => void;
+  setActiveTenant: (tenantId?: string, tenantLabel?: string) => void;
   loadAll: (tenantId?: string, options?: { force?: boolean }) => Promise<void>;
   getCachedMetrics: (tenantId?: string) => TenantMetricsResolved | undefined;
   getCampaignRowsForSelectedParish: () => CampaignPerformanceRow[];
@@ -170,6 +173,8 @@ function createInitialState(): Pick<
   | 'budget'
   | 'parish'
   | 'activeTenantId'
+  | 'activeTenantLabel'
+  | 'lastLoadedTenantId'
   | 'metricsCache'
 > {
   return {
@@ -180,6 +185,8 @@ function createInitialState(): Pick<
     budget: initialSlice(),
     parish: initialSlice(),
     activeTenantId: undefined,
+    activeTenantLabel: undefined,
+    lastLoadedTenantId: undefined,
     metricsCache: {},
   };
 }
@@ -466,11 +473,40 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     set({ selectedParish: current === parish ? undefined : parish });
   },
   setSelectedMetric: (metric) => set({ selectedMetric: metric }),
+  setActiveTenant: (tenantId, tenantLabel) => {
+    const normalizedTenantId = normalizeTenantId(tenantId);
+    const normalizedLabel =
+      typeof tenantLabel === 'string' && tenantLabel.trim() ? tenantLabel.trim() : undefined;
+
+    set((state) => {
+      const currentTenantId = normalizeTenantId(state.activeTenantId);
+      const hasChanged = normalizedTenantId !== currentTenantId;
+
+      return {
+        activeTenantId: normalizedTenantId,
+        activeTenantLabel: normalizedLabel ?? (hasChanged ? undefined : state.activeTenantLabel),
+        selectedParish: hasChanged ? undefined : state.selectedParish,
+      };
+    });
+  },
   loadAll: async (tenantId, options) => {
-    const { campaign, creative, budget, parish, activeTenantId, metricsCache } = get();
-    const tenantKey = resolveTenantKey(tenantId);
+    const {
+      campaign,
+      creative,
+      budget,
+      parish,
+      activeTenantId,
+      lastLoadedTenantId,
+      metricsCache,
+    } = get();
+    const requestedTenantId =
+      typeof tenantId === 'undefined' ? activeTenantId : tenantId ?? activeTenantId;
+    const normalizedTenantId = normalizeTenantId(requestedTenantId);
+    const tenantKey = resolveTenantKey(normalizedTenantId);
     const cachedMetrics = metricsCache[tenantKey];
-    const isTenantChange = Boolean(tenantId && tenantId !== activeTenantId);
+    const normalizedLastLoaded = normalizeTenantId(lastLoadedTenantId);
+    const isTenantChange =
+      typeof normalizedTenantId !== 'undefined' && normalizedTenantId !== normalizedLastLoaded;
     const allSlicesLoaded =
       campaign.status === 'loaded' &&
       creative.status === 'loaded' &&
@@ -484,7 +520,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
       if (cachedMetrics && isTenantChange) {
         set((state) => ({
-          activeTenantId: cachedMetrics.tenantId ?? tenantId ?? state.activeTenantId,
+          activeTenantId: cachedMetrics.tenantId ?? normalizedTenantId ?? state.activeTenantId,
+          lastLoadedTenantId: cachedMetrics.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
           selectedParish: undefined,
           campaign: { status: 'loaded', data: cachedMetrics.campaign, error: undefined },
           creative: { status: 'loaded', data: cachedMetrics.creative, error: undefined },
@@ -497,6 +534,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       if (cachedMetrics && !isTenantChange && !allSlicesLoaded) {
         set((state) => ({
           activeTenantId: cachedMetrics.tenantId ?? state.activeTenantId,
+          lastLoadedTenantId: cachedMetrics.tenantId ?? state.lastLoadedTenantId,
           campaign: { status: 'loaded', data: cachedMetrics.campaign, error: undefined },
           creative: { status: 'loaded', data: cachedMetrics.creative, error: undefined },
           budget: { status: 'loaded', data: cachedMetrics.budget, error: undefined },
@@ -507,7 +545,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     }
 
     set((state) => ({
-      activeTenantId: tenantId ?? state.activeTenantId,
+      activeTenantId: normalizedTenantId ?? state.activeTenantId,
+      lastLoadedTenantId: state.lastLoadedTenantId,
       selectedParish: isTenantChange ? undefined : state.selectedParish,
       campaign: { ...state.campaign, status: 'loading', error: undefined },
       creative: { ...state.creative, status: 'loading', error: undefined },
@@ -517,7 +556,10 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
     if (!MOCK_MODE) {
       const sourceOverride = getDatasetSource();
-      const metricsPath = withSource(withTenant('/metrics/combined/', tenantId), sourceOverride);
+      const metricsPath = withSource(
+        withTenant('/metrics/combined/', normalizedTenantId),
+        sourceOverride,
+      );
 
       try {
         const snapshot = await fetchDashboardMetrics({
@@ -549,19 +591,19 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
     const sourceOverride = getDatasetSource();
     const campaignPath = withSource(
-      withTenant('/dashboards/campaign-performance/', tenantId),
+      withTenant('/analytics/campaign-performance/', tenantId),
       sourceOverride,
     );
     const creativePath = withSource(
-      withTenant('/dashboards/creative-performance/', tenantId),
+      withTenant('/analytics/creative-performance/', tenantId),
       sourceOverride,
     );
     const budgetPath = withSource(
-      withTenant('/dashboards/budget-pacing/', tenantId),
+      withTenant('/analytics/budget-pacing/', tenantId),
       sourceOverride,
     );
     const parishPath = withSource(
-      withTenant('/dashboards/parish-performance/', tenantId),
+      withTenant('/analytics/parish-performance/', tenantId),
       sourceOverride,
     );
 
@@ -604,7 +646,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         console.error('Failed to normalize parish aggregates', error);
       }
     }
-    const resolvedTenantId = normalizeTenantId(tenantId);
+    const resolvedTenantId = normalizeTenantId(normalizedTenantId);
     let normalizedResolved: TenantMetricsResolved | undefined;
     if (normalizedCampaign && normalizedCreative && normalizedBudget && normalizedParish) {
       try {
@@ -634,7 +676,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         (parishResult.status === 'rejected' ? parishResult.reason : undefined);
 
       return {
-        activeTenantId: normalizedResolved?.tenantId ?? state.activeTenantId,
+        activeTenantId: normalizedResolved?.tenantId ?? normalizedTenantId ?? state.activeTenantId,
+        lastLoadedTenantId: normalizedResolved?.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
         campaign:
           campaignResult.status === 'fulfilled'
             ? { status: 'loaded', data: normalizedCampaign!, error: undefined }
@@ -672,7 +715,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
   },
   getCachedMetrics: (tenantId) => {
     const state = get();
-    const tenantKey = resolveTenantKey(tenantId ?? state.activeTenantId);
+    const normalizedTenantId = normalizeTenantId(tenantId ?? state.activeTenantId);
+    const tenantKey = resolveTenantKey(normalizedTenantId);
     return state.metricsCache[tenantKey];
   },
   getCampaignRowsForSelectedParish: () => {

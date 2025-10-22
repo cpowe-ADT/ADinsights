@@ -125,6 +125,61 @@ vi.mock('react-leaflet', () => {
   return { MapContainer, TileLayer, GeoJSON };
 });
 
+vi.mock('leaflet', () => {
+  type Feature = import('geojson').Feature;
+
+  const createLayerStub = (feature: Feature) => {
+    return {
+      feature,
+      options: { weight: 1 },
+      setStyle: () => {},
+      bindTooltip: () => ({ setContent: () => {} }),
+      getTooltip: () => undefined,
+      on: () => {},
+      once: (_event: string, callback: () => void) => callback(),
+      getElement: () => ({ setAttribute: () => {} }),
+    } as unknown;
+  };
+
+  const api = {
+    map: (node: HTMLElement) => {
+      return {
+        _container: node,
+        invalidateSize: () => {},
+        remove: () => {},
+        getContainer: () => node,
+        scrollWheelZoom: {
+          enable: () => {},
+          disable: () => {},
+        },
+      } as unknown;
+    },
+    tileLayer: () => ({
+      addTo: () => {},
+      remove: () => {},
+    }),
+    geoJSON: (data: import('geojson').FeatureCollection, options?: { onEachFeature?: (feature: Feature, layer: unknown) => void }) => {
+      return {
+        addTo: () => {},
+        remove: () => {},
+        eachLayer: (callback: (layer: unknown) => void) => {
+          for (const feature of data?.features ?? []) {
+            const layer = createLayerStub(feature);
+            options?.onEachFeature?.(feature, layer);
+            callback(layer);
+          }
+        },
+      };
+    },
+    point: (x: number, y: number) => ({ x, y }),
+  };
+
+  return {
+    ...api,
+    default: api,
+  };
+});
+
 type AppModule = typeof import('./App');
 type AuthModule = typeof import('./auth/AuthContext');
 type ThemeModule = typeof import('./components/ThemeProvider');
@@ -259,6 +314,12 @@ const metricsPayload = {
   generated_at: '2024-09-05T00:00:00Z',
 };
 
+const tenantFixtures = [
+  { id: 'demo', name: 'Demo Retail Co.', status: 'active' },
+  { id: 'tenant-123', name: 'Tenant 123 Holdings', status: 'active' },
+  { id: 'sandbox', name: 'Sandbox Marketing Group', status: 'inactive' },
+];
+
 const geojsonPayload: FeatureCollection = {
   type: 'FeatureCollection',
   features: [
@@ -304,6 +365,39 @@ const createResponse = (body: unknown, init?: ResponseInit) =>
     ...init,
   });
 
+const resolveRequestUrl = (input: RequestInfo | URL): string => {
+  if (typeof input === 'string') {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.toString();
+  }
+  if (
+    typeof input === 'object' &&
+    input !== null &&
+    'url' in input &&
+    typeof (input as { url?: unknown }).url === 'string'
+  ) {
+    return (input as Request).url;
+  }
+  return '';
+};
+
+const resolveRequestMethod = (input: RequestInfo | URL, init?: RequestInit): string => {
+  if (init?.method) {
+    return init.method;
+  }
+  if (
+    typeof input === 'object' &&
+    input !== null &&
+    'method' in input &&
+    typeof (input as { method?: unknown }).method === 'string'
+  ) {
+    return (input as Request).method;
+  }
+  return 'GET';
+};
+
 describe('App integration', () => {
   beforeEach(async () => {
     vi.resetModules();
@@ -344,11 +438,8 @@ describe('App integration', () => {
     const accessToken = 'access-token-123';
 
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url =
-        typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-      const method =
-        init?.method ??
-        (typeof input === 'object' && 'method' in input ? (input as Request).method : 'GET');
+      const url = resolveRequestUrl(input);
+      const method = resolveRequestMethod(input, init);
 
       if (url.endsWith('/api/auth/login/') && method === 'POST') {
         return Promise.resolve(
@@ -361,8 +452,12 @@ describe('App integration', () => {
         );
       }
 
-      if (url.includes('/api/metrics/combined/') && method === 'GET') {
+      if (url.includes('/api/analytics/combined/') && method === 'GET') {
         return Promise.resolve(createResponse(metricsPayload));
+      }
+
+      if (url.includes('/api/tenants/') && method === 'GET') {
+        return Promise.resolve(createResponse(tenantFixtures));
       }
 
       if (url.endsWith('/jm_parishes.json') || url.includes('/api/dashboards/parish-geometry/')) {
@@ -397,13 +492,13 @@ describe('App integration', () => {
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('/api/metrics/combined/'),
+        expect.stringContaining('/api/analytics/combined/'),
         expect.objectContaining({ method: 'GET' }),
       ),
     );
 
     const metricsCall = fetchMock.mock.calls.find(
-      (call) => typeof call[0] === 'string' && call[0].includes('/api/metrics/combined/'),
+      (call) => typeof call[0] === 'string' && call[0].includes('/api/analytics/combined/'),
     );
     expect(metricsCall).toBeTruthy();
     const metricsHeaders = metricsCall?.[1]?.headers as Headers | undefined;
@@ -439,20 +534,53 @@ describe('App integration', () => {
       expect(screen.getAllByText('Montego Bay Prospecting').length).toBeGreaterThan(0),
     );
 
-    await userEvent.click(screen.getByRole('link', { name: /creatives/i }));
+    const campaignDetailLinks = within(tableCard as HTMLElement).getAllByRole('link', {
+      name: 'Kingston Awareness',
+    });
+    await userEvent.click(campaignDetailLinks[0]!);
+
+    const campaignDetailHeading = await screen.findByRole('heading', {
+      level: 1,
+      name: 'Kingston Awareness',
+    });
+    expect(campaignDetailHeading).toBeInTheDocument();
+
+    const campaignBreadcrumb = screen.getByLabelText(/breadcrumb/i);
+    expect(within(campaignBreadcrumb).getAllByText('Kingston Awareness')[0]).toBeInTheDocument();
+
+    const heroLinks = await screen.findAllByRole('link', { name: 'Hero Unit' });
+    await userEvent.click(heroLinks[0]!);
+
+    const creativeDetailHeading = await screen.findByRole('heading', {
+      level: 1,
+      name: 'Hero Unit',
+    });
+    expect(creativeDetailHeading).toBeInTheDocument();
+
+    const creativeBreadcrumb = screen.getByLabelText(/breadcrumb/i);
+    expect(within(creativeBreadcrumb).getAllByText('Hero Unit')[0]).toBeInTheDocument();
+
+    const creativeOverview = screen.getByRole('region', { name: /creative overview/i });
+    expect(
+      within(creativeOverview).getByRole('link', { name: 'Kingston Awareness' }),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('link', { name: /back to creatives/i }));
     expect(await screen.findByText('Top creatives')).toBeInTheDocument();
     expect(screen.getByText(/Hero Unit/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('link', { name: /campaigns/i }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /campaign performance/i }),
+    ).toBeInTheDocument();
   });
 
   it('surfaces metrics API errors across the dashboard without console noise', async () => {
     let metricsCallCount = 0;
 
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url =
-        typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-      const method =
-        init?.method ??
-        (typeof input === 'object' && 'method' in input ? (input as Request).method : 'GET');
+      const url = resolveRequestUrl(input);
+      const method = resolveRequestMethod(input, init);
 
       if (url.endsWith('/api/auth/login/') && method === 'POST') {
         return Promise.resolve(
@@ -465,7 +593,7 @@ describe('App integration', () => {
         );
       }
 
-      if (url.includes('/api/metrics/combined/') && method === 'GET') {
+      if (url.includes('/api/analytics/combined/') && method === 'GET') {
         metricsCallCount += 1;
         if (metricsCallCount === 1) {
           return Promise.resolve(createResponse(metricsPayload));
@@ -473,6 +601,10 @@ describe('App integration', () => {
         return Promise.resolve(
           createResponse({ detail: 'Metrics service unavailable' }, { status: 503 }),
         );
+      }
+
+      if (url.includes('/api/tenants/') && method === 'GET') {
+        return Promise.resolve(createResponse(tenantFixtures));
       }
 
       if (url.endsWith('/jm_parishes.json') || url.includes('/api/dashboards/parish-geometry/')) {

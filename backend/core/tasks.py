@@ -20,6 +20,7 @@ from integrations.airbyte import (
     AirbyteSyncService,
 )
 from integrations.models import AirbyteConnection, PlatformCredential
+from core.metrics import observe_airbyte_sync
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ def _sync_provider_connections(
         try:
             with AirbyteClient.from_settings() as client:
                 service = AirbyteSyncService(client)
-                triggered = service.sync_connections(due_connections, triggered_at=now)
+                updates = service.sync_connections(due_connections, triggered_at=now)
         except AirbyteClientConfigurationError as exc:
             logger.error(
                 "Airbyte client misconfigured",
@@ -104,22 +105,51 @@ def _sync_provider_connections(
             )
             raise task.retry(exc=exc)
 
-        if triggered == 0:
+        if not updates:
             logger.info(
                 "Airbyte sync service returned without triggering connections",
                 extra=base_extra,
             )
             return "no_due_connections"
 
-        connections_meta = [
-            {
-                "connection_id": str(connection.connection_id),
-                "name": connection.name,
-                "job_id": connection.last_job_id or None,
-                "job_status": connection.last_job_status or None,
-            }
-            for connection in due_connections
-        ]
+        persisted_connections = AirbyteConnection.persist_sync_updates(updates)
+        triggered = len(updates)
+
+        connections_meta = []
+        for update in updates:
+            connection = update.connection
+            connections_meta.append(
+                {
+                    "connection_id": str(connection.connection_id),
+                    "name": connection.name,
+                    "job_id": update.job_id,
+                    "job_status": update.status,
+                    "duration_seconds": update.duration_seconds,
+                    "records_synced": update.records_synced,
+                    "error": update.error,
+                }
+            )
+            observe_airbyte_sync(
+                tenant_id=str(connection.tenant_id),
+                provider=connection.provider,
+                connection_id=str(connection.connection_id),
+                duration_seconds=float(update.duration_seconds)
+                if update.duration_seconds is not None
+                else None,
+                records_synced=update.records_synced,
+                status=update.status,
+            )
+
+        if persisted_connections:
+            last_updated = persisted_connections[-1]
+            logger.debug(
+                "Airbyte connections persisted",
+                extra={
+                    **base_extra,
+                    "persisted_count": len(persisted_connections),
+                    "last_connection_id": str(last_updated.connection_id),
+                },
+            )
 
         logger.info(
             "Airbyte connections triggered",
@@ -141,6 +171,8 @@ def _sync_provider_connections(
                 "triggered": triggered,
                 "connection_ids": [meta["connection_id"] for meta in connections_meta],
                 "job_ids": [meta["job_id"] for meta in connections_meta if meta["job_id"]],
+                "error_count": sum(1 for meta in connections_meta if meta["error"]),
+                "duration_seconds": [meta["duration_seconds"] for meta in connections_meta if meta["duration_seconds"] is not None],
                 "task_id": str(task_id) if task_id else None,
             },
         )
