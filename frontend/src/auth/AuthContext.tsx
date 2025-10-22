@@ -147,7 +147,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
       return accessToken;
     }
     try {
-      const response = await fetch(`${API_BASE_URL.replace(/\/$/, '')}/auth/refresh/`, {
+      const response = await fetch(`${API_BASE_URL.replace(/\/$/, '')}/token/refresh/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh }),

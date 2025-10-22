@@ -168,9 +168,22 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
           setGeometryStatus('loaded');
           geometryControllerRef.current = null;
         })
-        .catch((error: unknown) => {
+        .catch(async (error: unknown) => {
           if (controller.signal.aborted) {
             return;
+          }
+
+          try {
+            const response = await fetch('/jm_parishes.json');
+            if (response.ok) {
+              const data = (await response.json()) as FeatureCollection;
+              setGeojson(data);
+              setGeometryStatus('loaded');
+              geometryControllerRef.current = null;
+              return;
+            }
+          } catch (fallbackError) {
+            console.warn('Fallback parish geometry load failed', fallbackError);
           }
 
           console.error('Failed to load parish geometry', error);
