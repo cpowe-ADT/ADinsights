@@ -60,6 +60,17 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class TenantTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def to_internal_value(self, data):  # type: ignore[override]
+        # Accept either `email` or `username` from clients. If `username` is
+        # missing but `email` is supplied, map it before DRF field validation
+        # so the parent serializer sees the expected field.
+        if isinstance(data, dict):
+            username_field = getattr(self, "username_field", "username")
+            if username_field not in data and "email" in data:
+                data = data.copy()
+                data[username_field] = data.get("email")
+        return super().to_internal_value(data)
+
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
@@ -67,6 +78,19 @@ class TenantTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
+        # Keep a defensive mapping here as well in case a custom parser mutates
+        # the initial payload before field validation.
+        try:
+            incoming = self.initial_data
+        except Exception:  # pragma: no cover - defensive
+            incoming = {}
+        username_field = getattr(self, "username_field", "username")
+        missing_username = username_field not in attrs or not attrs.get(username_field)
+        if missing_username and isinstance(incoming, dict):
+            email_value = incoming.get("email")
+            if email_value:
+                attrs[username_field] = email_value
+
         data = super().validate(attrs)
         data["tenant_id"] = str(self.user.tenant_id)
         data["user"] = UserSerializer(self.user).data
