@@ -129,6 +129,12 @@ The dev server runs on <http://localhost:5173>. The shell consumes mock data fro
 in your Vite environment to force the frontend to load data from the `/api/metrics/`
 endpoint instead of the bundled sample payload.
 
+- When `VITE_MOCK_MODE=false`, the dashboard header exposes a “Use dummy data” toggle. It
+  calls `/api/adapters/` to detect which adapters are available and switches between the fake
+  demo dataset and the live warehouse metrics without editing environment variables. The
+  choice is persisted locally so you can flip between the two modes while testing tenant
+  isolation.
+
 ### Airbyte Connectors
 
 ```bash

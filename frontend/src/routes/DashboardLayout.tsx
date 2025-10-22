@@ -9,7 +9,9 @@ import FilterBar, { FilterBarState } from '../components/FilterBar';
 import { useTheme } from '../components/ThemeProvider';
 import { useToast } from '../components/ToastProvider';
 import { loadDashboardLayout, saveDashboardLayout } from '../lib/layoutPreferences';
+import DatasetToggle from '../components/DatasetToggle';
 import useDashboardStore from '../state/useDashboardStore';
+import { useDatasetStore } from '../state/useDatasetStore';
 
 const metricOptions = [
   { value: 'spend', label: 'Spend' },
@@ -32,6 +34,10 @@ const DashboardLayout = () => {
   const { theme, toggleTheme } = useTheme();
   const { pushToast } = useToast();
   const [isScrolled, setIsScrolled] = useState(false);
+  const datasetMode = useDatasetStore((state) => state.mode);
+  const availableAdapters = useDatasetStore((state) => state.adapters);
+  const hasDemoData = availableAdapters.includes('fake');
+  const hasLiveData = availableAdapters.includes('warehouse');
 
   const handleFilterChange = useCallback((_: FilterBarState) => {
     // TODO: Connect filters to dashboard data fetching once APIs support it.
@@ -223,6 +229,7 @@ const DashboardLayout = () => {
               </p>
             </div>
             <div className="header-actions">
+              <DatasetToggle />
               <label htmlFor="metric-select" className="muted">
                 Map metric
               </label>
@@ -284,6 +291,25 @@ const DashboardLayout = () => {
         <Breadcrumbs items={breadcrumbs} />
       </div>
       <FilterBar onChange={handleFilterChange} />
+      {datasetMode === 'dummy' ? (
+        <div className="dashboard-status">
+          <div className="container">
+            <div className="status-message" role="status">
+              Demo dataset is active. Toggle to view live warehouse metrics.
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {datasetMode === 'live' && !hasLiveData ? (
+        <div className="dashboard-status">
+          <div className="container">
+            <div className="status-message" role="alert">
+              Live warehouse metrics are unavailable. Switch to demo data to explore the
+              interface.
+            </div>
+          </div>
+        </div>
+      ) : null}
       {errors.length > 0 ? (
         <div className="dashboard-status">
           <div className="container">

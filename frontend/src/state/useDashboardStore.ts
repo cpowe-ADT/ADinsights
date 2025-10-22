@@ -11,6 +11,7 @@ import {
 } from '../lib/dataService';
 import { validate } from '../lib/validate';
 import type { SchemaKey } from '../lib/validate';
+import { getDatasetMode, getDatasetSource } from './useDatasetStore';
 
 export type MetricKey = 'spend' | 'impressions' | 'clicks' | 'conversions' | 'roas';
 
@@ -184,7 +185,8 @@ function createInitialState(): Pick<
 }
 
 function resolveTenantKey(tenantId?: string): string {
-  return tenantId ?? DEFAULT_TENANT_KEY;
+  const datasetKey = getDatasetMode();
+  return `${tenantId ?? DEFAULT_TENANT_KEY}::${datasetKey}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -433,6 +435,14 @@ function withTenant(path: string, tenantId?: string): string {
   return `${path}${separator}tenant_id=${encodeURIComponent(tenantId)}`;
 }
 
+function withSource(path: string, source?: string | undefined): string {
+  if (!source) {
+    return path;
+  }
+  const separator = path.includes('?') ? '&' : '?';
+  return `${path}${separator}source=${encodeURIComponent(source)}`;
+}
+
 function mapError(reason: unknown): string {
   if (reason instanceof Error) {
     return reason.message;
@@ -504,7 +514,11 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     }));
 
     if (!MOCK_MODE) {
-      const metricsPath = withTenant('/dashboards/aggregate-snapshot/', tenantId);
+      const sourceOverride = getDatasetSource();
+      const metricsPath = withSource(
+        withTenant('/dashboards/aggregate-snapshot/', tenantId),
+        sourceOverride,
+      );
 
       try {
         const snapshot = await fetchDashboardMetrics({
@@ -534,10 +548,23 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       return;
     }
 
-    const campaignPath = withTenant('/dashboards/campaign-performance/', tenantId);
-    const creativePath = withTenant('/dashboards/creative-performance/', tenantId);
-    const budgetPath = withTenant('/dashboards/budget-pacing/', tenantId);
-    const parishPath = withTenant('/dashboards/parish-performance/', tenantId);
+    const sourceOverride = getDatasetSource();
+    const campaignPath = withSource(
+      withTenant('/dashboards/campaign-performance/', tenantId),
+      sourceOverride,
+    );
+    const creativePath = withSource(
+      withTenant('/dashboards/creative-performance/', tenantId),
+      sourceOverride,
+    );
+    const budgetPath = withSource(
+      withTenant('/dashboards/budget-pacing/', tenantId),
+      sourceOverride,
+    );
+    const parishPath = withSource(
+      withTenant('/dashboards/parish-performance/', tenantId),
+      sourceOverride,
+    );
 
     const [campaignResult, creativeResult, budgetResult, parishResult] = await Promise.allSettled([
       fetchCampaignPerformance({

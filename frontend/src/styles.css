@@ -483,6 +483,24 @@ label,
   padding: var(--space-2) var(--space-3);
 }
 
+.dataset-toggle {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 10rem;
+}
+
+.dataset-toggle__badge {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dataset-toggle__error {
+  font-size: 0.75rem;
+}
+
 .theme-toggle {
   display: inline-flex;
   align-items: center;

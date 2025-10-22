@@ -496,8 +496,8 @@ describe('App integration', () => {
 
     const errorMessage = 'Metrics service unavailable';
 
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent(errorMessage);
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts.some((node) => node.textContent?.includes(errorMessage))).toBe(true);
 
     expect(consoleErrorSpy).not.toHaveBeenCalled();
     consoleErrorSpy.mockRestore();
