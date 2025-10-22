@@ -57,7 +57,7 @@ def test_aggregate_snapshot_returns_tenant_scoped_payload(api_client, user, aggr
 
     generated_at = timezone.now().isoformat()
     tenant_payload = {
-        "campaign_metrics": {
+        "campaign": {
             "summary": {
                 "currency": "JMD",
                 "totalSpend": 1250.55,
@@ -85,7 +85,7 @@ def test_aggregate_snapshot_returns_tenant_scoped_payload(api_client, user, aggr
                 }
             ],
         },
-        "creative_metrics": [
+        "creative": [
             {
                 "id": "cr_1",
                 "name": "Carousel",
@@ -100,7 +100,7 @@ def test_aggregate_snapshot_returns_tenant_scoped_payload(api_client, user, aggr
                 "roas": 3.1,
             }
         ],
-        "budget_metrics": [
+        "budget": [
             {
                 "id": "budget_1",
                 "campaignName": "Kingston Awareness",
@@ -111,7 +111,7 @@ def test_aggregate_snapshot_returns_tenant_scoped_payload(api_client, user, aggr
                 "pacingPercent": 1.02,
             }
         ],
-        "parish_metrics": [
+        "parish": [
             {
                 "parish": "Kingston",
                 "spend": 400.0,
@@ -142,18 +142,18 @@ def test_aggregate_snapshot_returns_tenant_scoped_payload(api_client, user, aggr
                 (
                     str(user.tenant_id),
                     generated_at,
-                    json.dumps(tenant_payload["campaign_metrics"]),
-                    json.dumps(tenant_payload["creative_metrics"]),
-                    json.dumps(tenant_payload["budget_metrics"]),
-                    json.dumps(tenant_payload["parish_metrics"]),
+                    json.dumps(tenant_payload["campaign"]),
+                    json.dumps(tenant_payload["creative"]),
+                    json.dumps(tenant_payload["budget"]),
+                    json.dumps(tenant_payload["parish"]),
                 ),
                 (
                     "other-tenant",
                     datetime.now(dt_timezone.utc).isoformat(),
-                    json.dumps(other_payload["campaign_metrics"]),
-                    json.dumps(other_payload["creative_metrics"]),
-                    json.dumps(other_payload["budget_metrics"]),
-                    json.dumps(other_payload["parish_metrics"]),
+                    json.dumps(other_payload["campaign"]),
+                    json.dumps(other_payload["creative"]),
+                    json.dumps(other_payload["budget"]),
+                    json.dumps(other_payload["parish"]),
                 ),
             ],
         )
@@ -162,15 +162,12 @@ def test_aggregate_snapshot_returns_tenant_scoped_payload(api_client, user, aggr
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["tenant_id"] == str(user.tenant_id)
-    assert _parse_iso(payload["generated_at"]) == _parse_iso(generated_at)
-
-    metrics = payload["metrics"]
-    assert metrics["campaign_metrics"]["summary"]["totalSpend"] == pytest.approx(1250.55)
-    assert metrics["campaign_metrics"]["rows"][0]["id"] == "cmp_1"
-    assert metrics["creative_metrics"][0]["campaignId"] == "cmp_1"
-    assert metrics["budget_metrics"][0]["monthlyBudget"] == pytest.approx(2000.0)
-    assert metrics["parish_metrics"][0]["parish"] == "Kingston"
+    assert set(payload.keys()) == {"campaign", "creative", "budget", "parish"}
+    assert payload["campaign"]["summary"]["totalSpend"] == pytest.approx(1250.55)
+    assert payload["campaign"]["rows"][0]["id"] == "cmp_1"
+    assert payload["creative"][0]["campaignId"] == "cmp_1"
+    assert payload["budget"][0]["monthlyBudget"] == pytest.approx(2000.0)
+    assert payload["parish"][0]["parish"] == "Kingston"
 
 
 @pytest.mark.django_db

@@ -112,6 +112,7 @@ urlpatterns = [
         name="dashboard-aggregate-snapshot",
     ),
     path("api/export/metrics.csv", MetricsExportView.as_view(), name="metrics-export"),
+    path("api/analytics/", include("analytics.urls")),
     path("metrics/app/", core_views.prometheus_metrics, name="metrics-app"),
     path("api/", include(router.urls)),
     path("api/airbyte/webhook/", AirbyteWebhookView.as_view(), name="airbyte-webhook"),
