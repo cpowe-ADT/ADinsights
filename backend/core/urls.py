@@ -107,11 +107,11 @@ urlpatterns = [
     path("api/metrics/combined/", CombinedMetricsView.as_view(), name="metrics-combined"),
     path(
         "api/dashboards/aggregate-snapshot/",
-        CombinedMetricsView.as_view(),
         AggregateSnapshotView.as_view(),
         name="dashboard-aggregate-snapshot",
     ),
     path("api/export/metrics.csv", MetricsExportView.as_view(), name="metrics-export"),
+    path("api/analytics/", include("analytics.urls")),
     path("metrics/app/", core_views.prometheus_metrics, name="metrics-app"),
     path("api/", include(router.urls)),
     path("api/admin/", include(admin_router.urls)),
