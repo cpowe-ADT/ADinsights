@@ -127,3 +127,70 @@ live in the repository.
 5. Document monitoring expectations (alerts for Airbyte failures, Celery retries, dbt freshness).
 
 Track progress via the project management tool (Jira/Linear) linked to these workstreams.
+
+---
+
+## 7. User Access Control (UAC) Rollout Plan
+
+See `docs/security/uac-spec.md` for the authoritative privilege model. This section breaks the rollout into sequenced engineering/ops slices. Each slice maps to one or more GitHub milestones and should be executed in order; individual tasks should stay within a single top-level folder per AGENTS guidelines.
+
+### Phase U0 – Schema & Plumbing (Weeks 1–2)
+- Backend (`backend/`)
+  - Add `Agency`, `RoleBinding` (supports agency/tenant/workspace scope), `EntitlementPlan` models + migrations.
+  - Extend JWT claims/session storage (`current_tenant_id`, `managed_tenants[]`).
+  - Implement `ScopeFilterBackend` and `HasPrivilege` DRF permission scaffold.
+- Frontend (`frontend/`)
+  - Introduce global tenant context store with placeholders for tenant switcher.
+- Docs/DevOps (`docs/`, `scripts/`)
+  - Publish migration runbook for role binding changes.
+  - Update seed fixtures with new roles and entitlements.
+
+### Phase U1 – Agency Delegated Admin (Weeks 3–4)
+- Backend
+  - CRUD APIs for agencies & managed tenants; RBAC enforcement linking agency admins to tenants.
+  - Portfolio KPI endpoint (aggregate-only, PDF export stub).
+  - Audit events for agency admin operations.
+- Frontend
+  - Tenant/agency switcher UI (searchable, keyboard shortcuts).
+  - Portfolio dashboard shell (no drill-through).
+- Infrastructure/Docs
+  - Update SCIM integration guide for new group-to-role mappings.
+  - Document support playbook for delegated admin escalations.
+
+### Phase U2 – Client Controls & Approvals (Weeks 5–7)
+- Backend
+  - Workflow engine for Draft → Review → Publish and budget proposals (dual approval states).
+  - Board Pack generator service (PDF with watermarks, SLA tracking).
+  - Blackout window enforcement for publish operations.
+- Frontend
+  - Draft/review UI with approval states, comments, embargo banners.
+  - Board Pack scheduling interface for TL roles.
+- dbt / Analytics
+  - Data marts supporting Board Pack KPIs, plan-versus-actual logic, anomaly detection.
+
+### Phase U3 – Security Hardening (Weeks 8–9)
+- Backend
+  - Step-up MFA enforcement decorator for high-risk endpoints (CSV enablement, secret rotation, destructive ops).
+  - Impersonation session API (consent, duration, audit log).
+  - Export watermarking service + registry.
+- Frontend
+  - Impersonation banners, export confirmation dialogs, reason capture modals.
+- Ops
+  - Audit log retention policy enforcement; integration with SIEM.
+  - Update incident/break-glass runbooks.
+
+### Phase U4 – Compliance & UX Polish (Weeks 10–12)
+- Backend/Frontend
+  - “Why denied?” trace endpoint/UI for privilege decisions.
+  - Access review exports for quarterly attestation.
+  - Persona-based onboarding tours, role badges, context banners.
+- Docs
+  - Finalize enterprise onboarding guide (agencies + clients).
+  - Add privacy/PII handling appendix.
+
+### Acceptance & Regression Checklist
+- Execute UAT scenarios defined in `docs/security/uac-spec.md` §12.
+- Pen-test focus on tenant isolation, impersonation, export leaks.
+- Sign-off from security, product, and support prior to enabling CSV or Board Pack entitlements for production tenants.
+
+Track UAC tasks under the `MVP-ops-observability`, `MVP-backend-api`, and new `MVP-security-uac` milestones. Update this plan as we refine scope or add future personas (e.g., privacy reviewer, read-only service accounts).
