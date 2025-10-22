@@ -115,7 +115,9 @@ const DataTable = <TData,>({
   });
 
   const searchInputId = useId();
+  const titleId = useId();
   const regionLabel = typeof title === 'string' ? title : 'Table content';
+  const labelledBy = typeof title === 'string' ? `${titleId}-title` : undefined;
   const resolveHeaderLabel = (columnId: string) => {
     const header = table.getFlatHeaders().find((item) => item.column.id === columnId);
     if (!header) {
@@ -137,12 +139,18 @@ const DataTable = <TData,>({
 
   const rowCount = table.getRowModel().rows.length;
 
+  const regionProps = labelledBy ? { 'aria-labelledby': labelledBy } : { 'aria-label': regionLabel };
+
   return (
     <div className={classNames('data-table', `data-table--${density}`)}>
       <div className="data-table__header">
         {title || description ? (
           <div className="data-table__intro">
-            {title ? <h3 className="data-table__title">{title}</h3> : null}
+            {title ? (
+              <h3 className="data-table__title" id={labelledBy}>
+                {title}
+              </h3>
+            ) : null}
             {description ? <p className="data-table__description">{description}</p> : null}
           </div>
         ) : null}
@@ -179,7 +187,7 @@ const DataTable = <TData,>({
           </div>
         </div>
       </div>
-      <div className="data-table__scroll-area" role="region" aria-label={regionLabel}>
+      <div className="data-table__scroll-area" role="region" {...regionProps}>
         <table className="data-table__table">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (

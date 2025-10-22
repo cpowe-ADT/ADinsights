@@ -44,3 +44,25 @@ Key semantic groups:
 
 By layering primitives and semantics, the shell now switches themes entirely through CSS custom properties, keeping React components
 free from theme-specific logic.
+
+## Dashboard spacing & typography refresh (2024-10)
+
+- Dashboard shell spacing now uses `--space-*` tokens exclusively. Primary gutters are `clamp(var(--space-6), 3vw, var(--space-10))` on the layout, while card padding steps up from `var(--space-5)` mobile to `var(--space-6)` at ≥768 px.
+- Heading hierarchy follows semantic tokens: eyebrow labels use `--font-size-label` with uppercase tracking, page `h1` clamps between design values, and card titles use `--font-size-h2` at `var(--font-weight-semibold)`.
+- KPI grid aligns to Figma with `var(--space-4)` gaps and ensures tiles land on an 8 px rhythm (±2 px tolerance verified in Chromatic once updated).
+- Chart footer typography uses muted tokens for helper text and primary text tokens for values to maintain a 3:1 contrast in both themes.
+
+## Semantic tokens for analytics table & parish map
+
+- Added table semantic tokens in `theme.css` (`--table-surface`, `--table-toolbar-surface`, `--table-control-active`, etc.) to standardize zebra striping, hover, selected, and focus states. Hover/focus states meet ≥3:1 contrast against the base row tone.
+- Density toggles use `--table-control-text` and `--table-control-text-active` to keep text legible against pill backgrounds across themes.
+- Map legend, tooltip, and control surfaces now consume `--map-*` tokens. Both Leaflet layers and legends source fills from `--map-fill-0…5` while outlines and highlight states reference `--map-border`/`--map-highlight` for keyboard focus visibility.
+- Removed hard-coded hex ramps from `ParishMap` and DataTable styles; all state cues resolve through semantic CSS variables for consistency with Branch 1 tokens.
+
+## Component checklist (dashboard refresh)
+
+| Component | Light theme | Dark theme | Notes |
+| --- | --- | --- | --- |
+| KPI stat cards | ✅ | ✅ | Uses `--stat-card-*` tokens and matches spacing guidance above. |
+| Parish map | ✅ | ✅ | Legend/tooltips consume `--map-*` tokens; hover/focus contrast ≥3:1. |
+| Campaign data table | ✅ | ✅ | Tokenized rows, hover, selected, and density controls; focus rings preserved. |

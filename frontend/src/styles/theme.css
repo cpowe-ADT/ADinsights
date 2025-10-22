@@ -69,6 +69,43 @@
     --shell-nav-link-active: var(--color-blue-600);
     --shell-nav-link-active-text: var(--color-white);
 
+    --table-surface: var(--color-surface-card);
+    --table-heading-surface: var(--color-surface-subtle);
+    --table-border: var(--color-border-subtle);
+    --table-divider: rgba(15, 23, 42, 0.08);
+    --table-text: var(--color-text-primary);
+    --table-text-muted: var(--color-text-muted);
+    --table-heading-text: var(--color-text-secondary);
+    --table-toolbar-surface: var(--color-surface-card);
+    --table-toolbar-border: var(--color-border-field);
+    --table-toolbar-pill: rgba(15, 23, 42, 0.08);
+    --table-control-text: var(--color-text-secondary);
+    --table-control-text-active: var(--color-white);
+    --table-control-active: var(--color-blue-600);
+    --table-control-shadow: 0 10px 20px rgba(15, 23, 42, 0.15);
+    --table-row-zebra: rgba(15, 23, 42, 0.04);
+    --table-row-hover: rgba(37, 99, 235, 0.08);
+    --table-row-selected: rgba(37, 99, 235, 0.16);
+    --table-sort-icon: var(--color-blue-600);
+
+    --map-shell-surface: linear-gradient(180deg, var(--color-slate-75) 0%, var(--color-slate-150) 100%);
+    --map-shell-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    --map-control-surface: rgba(248, 250, 252, 0.9);
+    --map-control-border: rgba(15, 23, 42, 0.12);
+    --map-control-text: var(--color-slate-900);
+    --map-control-text-active: var(--color-white);
+    --map-control-hover: rgba(37, 99, 235, 0.12);
+    --map-control-active: var(--color-blue-600);
+    --map-control-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+    --map-legend-surface: rgba(248, 250, 252, 0.95);
+    --map-legend-border: rgba(15, 23, 42, 0.12);
+    --map-legend-text: var(--color-slate-900);
+    --map-legend-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
+    --map-tooltip-surface: rgba(15, 23, 42, 0.92);
+    --map-tooltip-text: var(--color-white);
+    --map-tooltip-muted: rgba(248, 250, 252, 0.8);
+    --map-tooltip-shadow: 0 16px 32px rgba(15, 23, 42, 0.35);
+
     --shell-status-surface: rgba(37, 99, 235, 0.1);
     --shell-status-surface-error: rgba(239, 68, 68, 0.12);
     --shell-status-text: var(--color-slate-700);
@@ -218,6 +255,43 @@
     --shell-filterchip-clear-text: rgba(226, 232, 240, 0.95);
     --shell-filterchip-shadow-hover: 0 12px 24px rgba(8, 15, 30, 0.6);
     --shell-filterchip-shadow-active: 0 18px 36px rgba(8, 15, 30, 0.65);
+
+    --table-surface: var(--color-surface-card);
+    --table-heading-surface: rgba(15, 23, 42, 0.78);
+    --table-border: rgba(148, 163, 184, 0.35);
+    --table-divider: rgba(148, 163, 184, 0.22);
+    --table-text: var(--color-text-primary);
+    --table-text-muted: var(--color-text-muted);
+    --table-heading-text: rgba(226, 232, 240, 0.82);
+    --table-toolbar-surface: rgba(15, 23, 42, 0.85);
+    --table-toolbar-border: rgba(148, 163, 184, 0.35);
+    --table-toolbar-pill: rgba(148, 163, 184, 0.25);
+    --table-control-text: rgba(226, 232, 240, 0.85);
+    --table-control-text-active: var(--color-slate-950);
+    --table-control-active: var(--color-blue-400);
+    --table-control-shadow: 0 12px 24px rgba(2, 6, 23, 0.55);
+    --table-row-zebra: rgba(148, 163, 184, 0.14);
+    --table-row-hover: rgba(59, 130, 246, 0.28);
+    --table-row-selected: rgba(56, 189, 248, 0.32);
+    --table-sort-icon: var(--color-blue-200);
+
+    --map-shell-surface: linear-gradient(180deg, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0.65) 100%);
+    --map-shell-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.3);
+    --map-control-surface: rgba(15, 23, 42, 0.78);
+    --map-control-border: rgba(148, 163, 184, 0.35);
+    --map-control-text: rgba(226, 232, 240, 0.9);
+    --map-control-text-active: var(--color-slate-950);
+    --map-control-hover: rgba(96, 165, 250, 0.35);
+    --map-control-active: var(--color-blue-400);
+    --map-control-shadow: 0 14px 28px rgba(2, 6, 23, 0.55);
+    --map-legend-surface: rgba(15, 23, 42, 0.92);
+    --map-legend-border: rgba(148, 163, 184, 0.3);
+    --map-legend-text: rgba(226, 232, 240, 0.92);
+    --map-legend-shadow: 0 18px 36px rgba(2, 6, 23, 0.6);
+    --map-tooltip-surface: rgba(15, 23, 42, 0.96);
+    --map-tooltip-text: rgba(226, 232, 240, 0.95);
+    --map-tooltip-muted: rgba(148, 163, 184, 0.85);
+    --map-tooltip-shadow: 0 20px 40px rgba(2, 6, 23, 0.6);
 
     --shell-nav-surface: rgba(148, 163, 184, 0.15);
     --shell-nav-link: rgba(226, 232, 240, 0.7);

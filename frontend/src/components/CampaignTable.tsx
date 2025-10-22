@@ -238,7 +238,6 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
     <div className="table-card" aria-busy={isLoading}>
       <div className="table-card__header">
         <div>
-          <h3 className="srOnly">Campaign performance</h3>
           <h3>Performance breakdown</h3>
           {selectedParish ? (
             <p className="status-message muted">

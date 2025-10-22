@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useId, type ReactNode } from 'react';
 import { ResponsiveContainer } from 'recharts';
 
 import CampaignTable from '../components/CampaignTable';
@@ -60,6 +60,7 @@ const CampaignDashboard = () => {
     campaignRows: state.getCampaignRowsForSelectedParish(),
     loadAll: state.loadAll,
   }));
+  const headingId = useId();
 
   const isInitialLoading = campaign.status === 'loading' && !campaign.data;
   const hasCampaignData = Boolean(campaign.data);
@@ -68,45 +69,47 @@ const CampaignDashboard = () => {
     void loadAll(tenantId, { force: true });
   }, [loadAll, tenantId]);
 
-  if (campaign.status === 'error' && !hasCampaignData) {
-    return (
-      <div>
-        <h1 className="dashboardHeading" aria-label="Campaign dashboard">
+  const pageShell = (content: ReactNode) => (
+    <section className="dashboardPage" aria-labelledby={headingId}>
+      <header className="dashboardPageHeader">
+        <p className="dashboardEyebrow">Campaign dashboard</p>
+        <h1 className="dashboardHeading" id={headingId}>
           Campaign performance
         </h1>
-        <div className="dashboardGrid">
-          <Card title="Campaign insights" className="chartCard">
-            <div className="status-message">
-              <ErrorState
-                message={campaign.error ?? 'Unable to load campaign performance.'}
-                onRetry={handleRetry}
-                retryLabel="Retry load"
-              />
-            </div>
-          </Card>
-        </div>
-      </div>
+      </header>
+      {content}
+    </section>
+  );
+
+  if (campaign.status === 'error' && !hasCampaignData) {
+    return pageShell(
+      <div className="dashboardGrid">
+        <Card title="Campaign insights" className="chartCard">
+          <div className="status-message">
+            <ErrorState
+              message={campaign.error ?? 'Unable to load campaign performance.'}
+              onRetry={handleRetry}
+              retryLabel="Retry load"
+            />
+          </div>
+        </Card>
+      </div>,
     );
   }
 
   if (!hasCampaignData && !isInitialLoading) {
-    return (
-      <div>
-        <h1 className="dashboardHeading" aria-label="Campaign dashboard">
-          Campaign performance
-        </h1>
-        <div className="dashboardGrid">
-          <Card title="Campaign insights" className="chartCard">
-            <EmptyState
-              icon={<CampaignEmptyIcon />}
-              title="No campaign insights yet"
-              message="Campaign performance will appear once metrics are ingested."
-              actionLabel="Refresh data"
-              onAction={handleRetry}
-            />
-          </Card>
-        </div>
-      </div>
+    return pageShell(
+      <div className="dashboardGrid">
+        <Card title="Campaign insights" className="chartCard">
+          <EmptyState
+            icon={<CampaignEmptyIcon />}
+            title="No campaign insights yet"
+            message="Campaign performance will appear once metrics are ingested."
+            actionLabel="Refresh data"
+            onAction={handleRetry}
+          />
+        </Card>
+      </div>,
     );
   }
 
@@ -174,63 +177,58 @@ const CampaignDashboard = () => {
     </div>
   ) : null;
 
-  return (
-    <div>
-      <h1 className="dashboardHeading" aria-label="Campaign dashboard">
-        Campaign performance
-      </h1>
-      <div className="dashboardGrid">
-        <div className="kpiColumn" role="group" aria-label="Campaign KPIs">
-          {kpis.map((kpi) => (
-            <StatCard
-              key={kpi.label}
-              label={kpi.label}
-              value={kpi.value}
-              sparkline={kpi.sparkline}
-            />
-          ))}
-        </div>
-
-        <Card className="chartCard" title="Daily spend trend">
-          {isInitialLoading ? (
-            <div className="widget-skeleton" aria-busy="true">
-              <Skeleton height={220} borderRadius="1rem" />
-              <Skeleton width="45%" height="0.85rem" />
-            </div>
-          ) : hasTrendData ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <CampaignTrendChart data={trend} currency={currency} />
-            </ResponsiveContainer>
-          ) : (
-            <EmptyState
-              icon={<TrendPlaceholderIcon />}
-              title="No trend data yet"
-              message="Trend insights will appear once we have daily results."
-              actionLabel="Refresh data"
-              onAction={handleRetry}
-              actionVariant="secondary"
-            />
-          )}
-          {chartFooter}
-        </Card>
-
-        <Card className="mapCard" title="Parish heatmap">
-          <p className="muted">Click a parish to filter the performance tables below.</p>
-          <div className="mapViewport">
-            <ParishMap onRetry={handleRetry} />
-          </div>
-        </Card>
-
-        <Card title="Campaign metrics table">
-          <CampaignTable
-            rows={campaignRows}
-            currency={currency}
-            isLoading={campaign.status === 'loading'}
-            onReload={handleRetry}
+  return pageShell(
+    <div className="dashboardGrid">
+      <div className="kpiColumn" role="group" aria-label="Campaign KPIs">
+        {kpis.map((kpi) => (
+          <StatCard
+            key={kpi.label}
+            label={kpi.label}
+            value={kpi.value}
+            sparkline={kpi.sparkline}
           />
-        </Card>
+        ))}
       </div>
-    </div>
+
+      <Card className="chartCard" title="Daily spend trend">
+        {isInitialLoading ? (
+          <div className="widget-skeleton" aria-busy="true">
+            <Skeleton height={220} borderRadius="1rem" />
+            <Skeleton width="45%" height="0.85rem" />
+          </div>
+        ) : hasTrendData ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <CampaignTrendChart data={trend} currency={currency} />
+          </ResponsiveContainer>
+        ) : (
+          <EmptyState
+            icon={<TrendPlaceholderIcon />}
+            title="No trend data yet"
+            message="Trend insights will appear once we have daily results."
+            actionLabel="Refresh data"
+            onAction={handleRetry}
+            actionVariant="secondary"
+          />
+        )}
+        {chartFooter}
+      </Card>
+
+      <Card className="mapCard" title="Parish heatmap">
+        <p className="muted">Click a parish to filter the performance tables below.</p>
+        <div className="mapViewport">
+          <ParishMap onRetry={handleRetry} />
+        </div>
+      </Card>
+
+      <Card title="Campaign metrics table">
+        <CampaignTable
+          rows={campaignRows}
+          currency={currency}
+          isLoading={campaign.status === 'loading'}
+          onReload={handleRetry}
+        />
+      </Card>
+    </div>,
   );
 };
 
