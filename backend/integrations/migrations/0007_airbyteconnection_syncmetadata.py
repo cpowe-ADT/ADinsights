@@ -16,7 +16,8 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="airbyteconnection",
             name="last_job_error",
-            field=models.TextField(blank=True),
+            field=models.TextField(blank=True, default=""),
+            preserve_default=False,
         ),
         migrations.AddField(
             model_name="airbyteconnection",
@@ -31,7 +32,8 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="tenantairbytesyncstatus",
             name="last_job_error",
-            field=models.TextField(blank=True),
+            field=models.TextField(blank=True, default=""),
+            preserve_default=False,
         ),
         migrations.AddField(
             model_name="tenantairbytesyncstatus",

@@ -77,8 +77,9 @@ class AirbyteSyncService:
                 bytes_synced=None,
                 api_cost=None,
             )
+            job_detail: dict[str, Any] = {}
             if job_id is not None:
-                job_detail = self.client.get_job(job_id)
+                job_detail = self.client.get_job(job_id) or {}
                 job_status = extract_job_status(job_detail) or job_status
                 job_created_at = extract_job_created_at(job_detail) or base_time
                 attempt_snapshot = extract_attempt_snapshot(job_detail) or attempt_snapshot
