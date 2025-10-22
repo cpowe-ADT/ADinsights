@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import useDashboardStore, { type LoadStatus } from '../state/useDashboardStore';
 import { formatCurrency, formatNumber, formatRatio } from '../lib/format';
 import { fetchParishGeometry } from '../lib/dataService';
+import { MOCK_MODE } from '../lib/apiClient';
 import EmptyState from './EmptyState';
 import ErrorState from './ErrorState';
 import Skeleton from './Skeleton';
@@ -119,7 +120,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     setGeometryError(undefined);
 
     fetchParishGeometry({
-      path: withTenant('/dashboards/parish-geometry/', tenant),
+      path: withTenant('/analytics/parish-geometry/', tenant),
       mockPath: '/jm_parishes.json',
       signal: controller.signal,
     })
@@ -133,17 +134,19 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
           return;
         }
 
-        try {
-          const response = await fetch('/jm_parishes.json');
-          if (response.ok) {
-            const data = (await response.json()) as FeatureCollection;
-            setGeojson(data);
-            setGeometryStatus('loaded');
-            geometryControllerRef.current = null;
-            return;
+        if (MOCK_MODE) {
+          try {
+            const response = await fetch('/jm_parishes.json');
+            if (response.ok) {
+              const data = (await response.json()) as FeatureCollection;
+              setGeojson(data);
+              setGeometryStatus('loaded');
+              geometryControllerRef.current = null;
+              return;
+            }
+          } catch (fallbackError) {
+            console.warn('Fallback parish geometry load failed', fallbackError);
           }
-        } catch (fallbackError) {
-          console.warn('Fallback parish geometry load failed', fallbackError);
         }
 
         console.error('Failed to load parish geometry', error);

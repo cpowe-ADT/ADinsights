@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react';
 import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
 
 import type { CampaignTrendPoint } from '../state/useDashboardStore';
@@ -8,6 +9,12 @@ import {
   chartTheme,
   createTooltipProps,
 } from '../styles/chartTheme';
+
+const CartesianGridComponent = CartesianGrid as unknown as ComponentType<any>;
+const XAxisComponent = XAxis as unknown as ComponentType<any>;
+const YAxisComponent = YAxis as unknown as ComponentType<any>;
+const TooltipComponent = Tooltip as unknown as ComponentType<any>;
+const AreaComponent = Area as unknown as ComponentType<any>;
 
 interface CampaignTrendChartProps {
   data: CampaignTrendPoint[];
@@ -31,7 +38,8 @@ const CampaignTrendChart = ({ data, currency }: CampaignTrendChartProps) => {
     labelFormatter: (value) => formatDateLabel(String(value)),
   });
 
-  return (
+  const chart =
+    // @ts-expect-error - Recharts' component types are incompatible with strict JSX element checks
     <AreaChart data={data} margin={chartMargins}>
       <defs>
         <linearGradient id="spendAreaGradient" x1="0" y1="0" x2="0" y2="1">
@@ -39,27 +47,27 @@ const CampaignTrendChart = ({ data, currency }: CampaignTrendChartProps) => {
           <stop offset="100%" stopColor={chartPalette[0]} stopOpacity={0.04} />
         </linearGradient>
       </defs>
-      <CartesianGrid
+      <CartesianGridComponent
         stroke={chartTheme.grid.stroke}
         strokeDasharray={chartTheme.grid.strokeDasharray}
         vertical={false}
       />
-      <XAxis
+      <XAxisComponent
         dataKey="date"
         axisLine={false}
         tickLine={false}
         tickMargin={12}
-        tickFormatter={(value) => formatDateLabel(value)}
+        tickFormatter={(value: string | number) => formatDateLabel(value)}
       />
-      <YAxis
+      <YAxisComponent
         axisLine={false}
         tickLine={false}
-        tickFormatter={(value) => axisTickFormatter(value)}
+        tickFormatter={(value: number) => axisTickFormatter(value)}
         width={68}
         domain={[0, 'auto']}
       />
-      <Tooltip {...tooltipProps} />
-      <Area
+      <TooltipComponent {...tooltipProps} />
+      <AreaComponent
         type="monotone"
         dataKey="spend"
         stroke={chartPalette[0]}
@@ -68,8 +76,9 @@ const CampaignTrendChart = ({ data, currency }: CampaignTrendChartProps) => {
         dot={{ r: chartTheme.point.radius, strokeWidth: 0, fill: chartPalette[0] }}
         activeDot={{ r: chartTheme.point.activeRadius }}
       />
-    </AreaChart>
-  );
+    </AreaChart>;
+
+  return chart;
 };
 
 export default CampaignTrendChart;

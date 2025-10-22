@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ColumnDef,
   flexRender,
@@ -64,8 +65,23 @@ const CreativeTable = ({ rows, currency }: CreativeTableProps) => {
         header: 'Creative',
         cell: ({ row }) => (
           <div className="creative-name">
-            <strong>{row.original.name}</strong>
-            <span className="creative-meta">Campaign: {row.original.campaignName}</span>
+            <strong>
+              <Link
+                to={`/dashboards/creatives/${encodeURIComponent(row.original.id)}`}
+                className="table-link"
+              >
+                {row.original.name}
+              </Link>
+            </strong>
+            <span className="creative-meta">
+              Campaign:{' '}
+              <Link
+                to={`/dashboards/campaigns/${encodeURIComponent(row.original.campaignId)}`}
+                className="table-link"
+              >
+                {row.original.campaignName}
+              </Link>
+            </span>
           </div>
         ),
       },

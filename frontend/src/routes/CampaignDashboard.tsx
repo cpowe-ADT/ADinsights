@@ -197,6 +197,7 @@ const CampaignDashboard = () => {
             <Skeleton width="45%" height="0.85rem" />
           </div>
         ) : hasTrendData ? (
+          // @ts-expect-error - Recharts ResponsiveContainer typing is incompatible with our usage
           <ResponsiveContainer width="100%" height="100%">
             <CampaignTrendChart data={trend} currency={currency} />
           </ResponsiveContainer>
