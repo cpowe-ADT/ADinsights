@@ -1,6 +1,6 @@
 .dashboardGrid {
   display: grid;
-  gap: 24px;
+  gap: var(--space-6);
   grid-auto-rows: minmax(220px, auto);
 }
 
@@ -19,15 +19,15 @@
 
 @media (max-width: 767px) {
   .dashboardGrid {
-    gap: 16px;
+    gap: var(--space-4);
     grid-template-columns: 1fr;
   }
 }
 
 .card {
-  background: #fff;
-  border: 1px solid #e9edf3;
-  border-radius: 12px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
   display: flex;
   flex-direction: column;
@@ -35,8 +35,8 @@
 }
 
 .cardHeader {
-  padding: 16px;
-  border-bottom: 1px solid #e9edf3;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .cardTitle {
@@ -44,11 +44,11 @@
   font-size: 16px;
   line-height: 1.4;
   font-weight: 600;
-  color: #101828;
+  color: var(--color-text-primary);
 }
 
 .card > .content {
-  padding: 16px;
+  padding: var(--space-4);
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -56,11 +56,11 @@
 
 @media (min-width: 768px) {
   .cardHeader {
-    padding: 24px;
+    padding: var(--space-6);
   }
 
   .card > .content {
-    padding: 24px;
+    padding: var(--space-6);
   }
 }
 
@@ -69,7 +69,7 @@
 }
 
 .chartCard .content {
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .chartCard .content > .recharts-responsive-container {
@@ -81,8 +81,8 @@
   position: relative;
   min-height: 260px;
   overflow: hidden;
-  border-radius: 12px;
-  background: #fff;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-card);
 }
 
 .mapCard .leaflet-container {
@@ -92,7 +92,7 @@
 
 .mapViewport {
   flex: 1;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   min-height: 220px;
 }
@@ -101,33 +101,29 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
   margin-top: auto;
   font-size: 13px;
-  color: #475467;
+  color: var(--color-text-muted);
 }
 
 .chartFooter strong {
   display: block;
   font-size: 16px;
   font-weight: 600;
-  color: #101828;
+  color: var(--color-text-primary);
 }
 
 .chartFooterDates {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   font-variant-numeric: tabular-nums;
-  color: #667085;
-}
-
-body {
-  background: #f7f8fa;
+  color: var(--color-text-muted);
 }
 
 .kpiColumn {
   display: grid;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 @media (min-width: 1280px) {
@@ -152,35 +148,37 @@ body {
 
 .statCard {
   min-height: 120px;
+  background: var(--stat-card-surface);
+  border: 1px solid var(--stat-card-border);
 }
 
 .statCard .cardHeader {
-  padding-bottom: 12px;
+  padding-bottom: var(--space-3);
 }
 
 .statCard .cardTitle {
   font-size: 14px;
   font-weight: 500;
-  color: #475467;
+  color: var(--stat-card-title);
 }
 
 .statCard .content {
   padding-top: 0;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .statCardBody {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .statCardValue {
   font-size: 22px;
   font-weight: 600;
   line-height: 1.3;
-  color: #101828;
+  color: var(--stat-card-value);
 }
 
 .statCardSparkline {
@@ -194,11 +192,11 @@ body {
 }
 
 .statCardSparklineArea {
-  fill: rgba(29, 78, 216, 0.16);
+  fill: var(--stat-card-sparkline-area);
 }
 
 .statCardSparklineLine {
-  stroke: #1d4ed8;
+  stroke: var(--stat-card-sparkline-line);
   stroke-width: 2;
   fill: none;
 }
@@ -207,13 +205,13 @@ body {
   font-size: 22px;
   line-height: 1.3;
   font-weight: 600;
-  margin: 0 0 24px;
-  color: #101828;
+  margin: 0 0 var(--space-6);
+  color: var(--color-text-primary);
 }
 
 @media (max-width: 767px) {
   .dashboardHeading {
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
   }
 }
 

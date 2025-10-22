@@ -34,7 +34,7 @@ export function loadDashboardLayout(): DashboardLayoutPreferences | undefined {
           ? parsed.parish
           : undefined,
     };
-  } catch (error) {
+  } catch {
     window.localStorage.removeItem(STORAGE_KEY);
     return undefined;
   }
@@ -50,7 +50,7 @@ export function saveDashboardLayout(preferences: DashboardLayoutPreferences): vo
       STORAGE_KEY,
       JSON.stringify({ metric: preferences.metric, parish: preferences.parish ?? null }),
     );
-  } catch (error) {
+  } catch {
     // Silently ignore write failures caused by storage quotas or privacy modes.
   }
 }

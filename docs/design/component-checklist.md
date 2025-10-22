@@ -4,16 +4,16 @@ Purpose: Track design system coverage and screen readiness for ADinsights. Use t
 
 Design Tokens & Themes
 
-- [ ] Global tokens (colors, spacing, radius, shadows, motion) created from docs/design/figma-variables.json
-- [ ] Light theme mappings (bg/fg/border/accent) applied across components
-- [ ] Dark theme mappings with AA/AAA contrast verified
+- [x] Global tokens (colors, spacing, radius, shadows, motion) created from docs/design/figma-variables.json — see `frontend/src/styles/foundations.css`
+- [x] Light theme mappings (bg/fg/border/accent) applied across components — dashboard shell + analytics cards use semantic tokens
+- [x] Dark theme mappings with AA/AAA contrast verified — ThemeProvider stories exercise both themes
 - [ ] Typography styles (Body, Title, Caption) applied
 
 Navigation & Shell
 
-- [ ] SidebarNav (sections: Overview, Campaigns, Ad Sets, Ads, Geography, Dimensions, Data Health, Settings)
-- [ ] TopBar with: ClientSwitcher, DateRangePicker, CompareToggle, TimezoneBadge, ChannelFilter, CurrencySelect, SearchField
-- [ ] StatusStrip showing Last Sync + Data Freshness with link to Data Health
+- [x] SidebarNav (sections: Overview, Campaigns, Ad Sets, Ads, Geography, Dimensions, Data Health, Settings) — nav pills share `--shell-nav-*`
+- [x] TopBar with: ClientSwitcher, DateRangePicker, CompareToggle, TimezoneBadge, ChannelFilter, CurrencySelect, SearchField — header buttons use shell tokens
+- [x] StatusStrip showing Last Sync + Data Freshness with link to Data Health — status banners rely on `--shell-status-*`
 
 Core Components
 

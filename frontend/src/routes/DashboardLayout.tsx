@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
@@ -36,10 +34,10 @@ const DashboardLayout = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const datasetMode = useDatasetStore((state) => state.mode);
   const availableAdapters = useDatasetStore((state) => state.adapters);
-  const hasDemoData = availableAdapters.includes('fake');
   const hasLiveData = availableAdapters.includes('warehouse');
 
-  const handleFilterChange = useCallback((_: FilterBarState) => {
+  const handleFilterChange = useCallback((state: FilterBarState) => {
+    void state;
     // TODO: Connect filters to dashboard data fetching once APIs support it.
   }, []);
 
@@ -137,7 +135,7 @@ const DashboardLayout = () => {
     try {
       saveDashboardLayout({ metric: selectedMetric, parish: selectedParish });
       pushToast('Saved layout', { tone: 'success' });
-    } catch (error) {
+    } catch {
       pushToast('Unable to save layout', { tone: 'error' });
     }
   }, [pushToast, selectedMetric, selectedParish]);
@@ -171,7 +169,7 @@ const DashboardLayout = () => {
       }
 
       pushToast('Copied link', { tone: 'success' });
-    } catch (error) {
+    } catch {
       pushToast('Unable to copy link', { tone: 'error' });
     }
   }, [pushToast]);

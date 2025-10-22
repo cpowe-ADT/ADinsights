@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
 
 import type { CampaignTrendPoint } from '../state/useDashboardStore';
