@@ -5,6 +5,10 @@ from __future__ import annotations
 import boto3
 import pytest
 
+try:  # pragma: no cover - import guard for optional dependency
+    from moto import mock_aws
+except ImportError:  # pragma: no cover - skip tests when moto missing
+    pytest.skip("moto is required for KMS tests", allow_module_level=True)
 pytest.importorskip("moto")
 
 # ruff: noqa: E402 - moto must be imported after pytest.importorskip

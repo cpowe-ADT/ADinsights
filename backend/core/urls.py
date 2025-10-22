@@ -6,7 +6,13 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.schemas import get_schema_view
 
 from alerts.views import AlertRunViewSet
-from analytics.views import AdapterListView, CombinedMetricsView, MetricsExportView, MetricsView
+from analytics.views import (
+    AdapterListView,
+    AggregateSnapshotView,
+    CombinedMetricsView,
+    MetricsExportView,
+    MetricsView,
+)
 from accounts.views import (
     AuditLogViewSet,
     MeView,
@@ -99,6 +105,11 @@ urlpatterns = [
     path("api/adapters/", AdapterListView.as_view(), name="adapter-list"),
     path("api/metrics/", MetricsView.as_view(), name="metrics"),
     path("api/metrics/combined/", CombinedMetricsView.as_view(), name="metrics-combined"),
+    path(
+        "api/dashboards/aggregate-snapshot/",
+        AggregateSnapshotView.as_view(),
+        name="dashboard-aggregate-snapshot",
+    ),
     path("api/export/metrics.csv", MetricsExportView.as_view(), name="metrics-export"),
     path("metrics/app/", core_views.prometheus_metrics, name="metrics-app"),
     path("api/", include(router.urls)),
