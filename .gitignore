@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 *.sqlite3
+test.db
 .env
 .env.*
 !backend/.env.sample
