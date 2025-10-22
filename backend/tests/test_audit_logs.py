@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from accounts.models import AuditLog, Role, Tenant, User, assign_role
 from django.utils import timezone
-from integrations.models import AirbyteConnection, PlatformCredential
+from integrations.models import AirbyteConnection, ConnectionSyncUpdate, PlatformCredential
 from core.tasks import sync_meta_metrics
 
 
@@ -133,12 +133,21 @@ def test_sync_trigger_logs(api_client, user, tenant, monkeypatch):
     def sync_connections(self, connections, *, triggered_at=None):  # noqa: ANN001
         assert connections == [connection]
         job_time = triggered_at or timezone.now()
-        connections[0].record_sync(
-            job_id=42,
-            job_status="pending",
-            job_created_at=job_time,
-        )
-        return 1
+        return [
+            ConnectionSyncUpdate(
+                connection=connection,
+                job_id="42",
+                status="pending",
+                created_at=job_time,
+                updated_at=job_time,
+                completed_at=None,
+                duration_seconds=None,
+                records_synced=None,
+                bytes_synced=None,
+                api_cost=None,
+                error=None,
+            )
+        ]
 
     monkeypatch.setattr("core.tasks.AirbyteClient.from_settings", classmethod(fake_from_settings))
     monkeypatch.setattr("core.tasks.AirbyteSyncService.sync_connections", sync_connections)

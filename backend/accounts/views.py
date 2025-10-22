@@ -10,11 +10,13 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .audit import log_audit_event
 from .models import AuditLog, ServiceAccountKey, Tenant, User, UserRole
-from .permissions import IsTenantAdmin
+from .permissions import IsTenantAdmin, IsTenantUser
 from .serializers import (
     AuditLogSerializer,
     InvitationAcceptSerializer,
     InvitationCreateSerializer,
+    InvitationResendSerializer,
+    InvitationSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     TenantSerializer,
@@ -77,7 +79,7 @@ class PasswordResetConfirmView(APIView):
 
 
 class TenantSwitchView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsTenantUser]
 
     def post(self, request):
         serializer = TenantSwitchSerializer(
@@ -106,7 +108,7 @@ class TenantSwitchView(APIView):
 
 
 class MeView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsTenantUser]
 
     def get(self, request):
         user_data = UserSerializer(request.user).data
@@ -125,7 +127,7 @@ class TenantViewSet(
     viewsets.GenericViewSet,
 ):
     queryset = Tenant.objects.all().order_by("created_at")
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsTenantUser]
 
     def get_permissions(self):  # noqa: D401 - DRF API
         """Allow unauthenticated access for tenant creation."""
@@ -139,11 +141,13 @@ class TenantViewSet(
             return TenantSignupSerializer
         if self.action == "invite":
             return InvitationCreateSerializer
+        if self.action == "resend_invite":
+            return InvitationResendSerializer
         return TenantSerializer
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        if self.action == "invite":
+        if self.action in {"invite", "resend_invite"}:
             if "tenant" not in context and self.kwargs.get(self.lookup_field):
                 context["tenant"] = self.get_object()
             user = getattr(self.request, "user", None)
@@ -174,14 +178,31 @@ class TenantViewSet(
         detail=True,
         methods=["post"],
         url_path="invite",
-        permission_classes=[permissions.IsAuthenticated, IsTenantAdmin],
+        permission_classes=[IsTenantUser, IsTenantAdmin],
     )
     def invite(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         invitation = serializer.save()
-        response_serializer = InvitationCreateSerializer(invitation)
+        response_serializer = InvitationCreateSerializer(
+            invitation, context=self.get_serializer_context()
+        )
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="invite/resend",
+        permission_classes=[IsTenantUser, IsTenantAdmin],
+    )
+    def resend_invite(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        invitation = serializer.save()
+        response_serializer = InvitationSerializer(
+            invitation, context=self.get_serializer_context()
+        )
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 
 class UserViewSet(
@@ -195,13 +216,13 @@ class UserViewSet(
         .prefetch_related("user_roles__role")
         .order_by("email")
     )
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsTenantUser]
 
     def get_permissions(self):  # noqa: D401 - DRF API
         """RBAC enforcement for mutating operations."""
 
-        if self.action in {"create", "invite"}:
-            return [permissions.IsAuthenticated(), IsTenantAdmin()]
+        if self.action in {"create", "invite", "resend_invite"}:
+            return [IsTenantUser(), IsTenantAdmin()]
         if self.action == "accept_invite":
             return [permissions.AllowAny()]
         return super().get_permissions()
@@ -211,6 +232,8 @@ class UserViewSet(
             return UserCreateSerializer
         if self.action == "invite":
             return InvitationCreateSerializer
+        if self.action == "resend_invite":
+            return InvitationResendSerializer
         if self.action == "accept_invite":
             return InvitationAcceptSerializer
         return UserSerializer
@@ -236,8 +259,20 @@ class UserViewSet(
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         invitation = serializer.save()
-        response_serializer = InvitationCreateSerializer(invitation)
+        response_serializer = InvitationCreateSerializer(
+            invitation, context=self.get_serializer_context()
+        )
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["post"], url_path="invite/resend")
+    def resend_invite(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        invitation = serializer.save()
+        response_serializer = InvitationSerializer(
+            invitation, context=self.get_serializer_context()
+        )
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["post"], url_path="accept-invite")
     def accept_invite(self, request):
@@ -257,14 +292,14 @@ class UserRoleViewSet(
     queryset = UserRole.objects.select_related("user", "tenant", "role").order_by(
         "created_at"
     )
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsTenantUser]
     serializer_class = UserRoleSerializer
 
     def get_permissions(self):  # noqa: D401 - DRF API
         """Admins manage assignments; all users may list."""
 
         if self.action in {"create", "destroy"}:
-            return [permissions.IsAuthenticated(), IsTenantAdmin()]
+            return [IsTenantUser(), IsTenantAdmin()]
         return super().get_permissions()
 
     def get_queryset(self):  # type: ignore[override]
@@ -320,13 +355,13 @@ class ServiceAccountKeyViewSet(
     viewsets.GenericViewSet,
 ):
     serializer_class = ServiceAccountKeySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsTenantUser]
 
     def get_permissions(self):  # noqa: D401
         """Restrict mutating operations to tenant admins."""
 
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            return [permissions.IsAuthenticated(), IsTenantAdmin()]
+            return [IsTenantUser(), IsTenantAdmin()]
         return super().get_permissions()
 
     def get_queryset(self):  # type: ignore[override]
@@ -349,7 +384,7 @@ class ServiceAccountKeyViewSet(
 
 
 class RoleAssignmentView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsTenantAdmin]
+    permission_classes = [IsTenantUser, IsTenantAdmin]
 
     def post(self, request):
         serializer = UserRoleSerializer(
@@ -376,7 +411,7 @@ class RoleAssignmentView(APIView):
 
 class AuditLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = AuditLogSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsTenantUser]
 
     def get_queryset(self):
         user = self.request.user

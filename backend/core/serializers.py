@@ -39,6 +39,9 @@ class TenantAirbyteSyncStatusSerializer(serializers.ModelSerializer):
             "last_synced_at",
             "last_job_id",
             "last_job_status",
+            "last_job_updated_at",
+            "last_job_completed_at",
+            "last_job_error",
             "connection",
         )
         read_only_fields = fields

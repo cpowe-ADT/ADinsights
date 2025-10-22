@@ -15,6 +15,12 @@ exposures:
     depends_on:
       - ref('agg_campaign_daily')
       - ref('agg_parish_daily')
+      - ref('fact_performance')
+      - ref('dim_campaign')
+      - ref('dim_geo')
+    meta:
+      tenant_scope: tenant_id
+      default_tenant: "{{ var('tenant_id', 'tenant_demo') }}"
     tags:
       - dashboard
       - aggregate_snapshot

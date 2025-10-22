@@ -8,6 +8,7 @@ from integrations.airbyte import (
     AirbyteClientError,
     AirbyteSyncService,
 )
+from integrations.models import AirbyteConnection
 
 
 class Command(BaseCommand):
@@ -17,7 +18,9 @@ class Command(BaseCommand):
         try:
             with AirbyteClient.from_settings() as client:
                 service = AirbyteSyncService(client)
-                triggered = service.sync_due_connections()
+                updates = service.sync_due_connections()
+                AirbyteConnection.persist_sync_updates(updates)
+                triggered = len(updates)
         except AirbyteClientConfigurationError as exc:
             raise CommandError(str(exc)) from exc
         except AirbyteClientError as exc:

@@ -28,6 +28,7 @@ from accounts.views import (
 )
 from integrations.views import (
     AirbyteConnectionViewSet,
+    AirbyteWebhookView,
     AlertRuleDefinitionViewSet,
     CampaignBudgetViewSet,
     PlatformCredentialViewSet,
@@ -114,6 +115,7 @@ urlpatterns = [
     path("api/analytics/", include("analytics.urls")),
     path("metrics/app/", core_views.prometheus_metrics, name="metrics-app"),
     path("api/", include(router.urls)),
+    path("api/airbyte/webhook/", AirbyteWebhookView.as_view(), name="airbyte-webhook"),
     path("api/admin/", include(admin_router.urls)),
 ]
 

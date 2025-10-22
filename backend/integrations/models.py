@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Optional
+from decimal import Decimal
+from typing import Iterable, Optional
 
 from croniter import croniter
 from django.db import models
@@ -197,6 +199,9 @@ class AirbyteConnection(models.Model):
     last_job_id = models.CharField(max_length=64, blank=True)
     last_job_status = models.CharField(max_length=32, blank=True)
     last_job_created_at = models.DateTimeField(null=True, blank=True)
+    last_job_updated_at = models.DateTimeField(null=True, blank=True)
+    last_job_completed_at = models.DateTimeField(null=True, blank=True)
+    last_job_error = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -229,20 +234,80 @@ class AirbyteConnection(models.Model):
             return self.last_synced_at is None or self.last_synced_at < previous_run
         return False
 
+    SYNC_SUCCESS_STATUSES = {"succeeded", "success", "completed"}
+
     def record_sync(self, job_id: int | None, job_status: str, job_created_at: datetime) -> None:
-        self.last_synced_at = job_created_at
-        self.last_job_created_at = job_created_at
-        self.last_job_id = str(job_id) if job_id is not None else ""
-        self.last_job_status = job_status or ""
-        self.save(
-            update_fields=[
-                "last_synced_at",
-                "last_job_created_at",
-                "last_job_id",
-                "last_job_status",
-                "updated_at",
-            ]
+        update = ConnectionSyncUpdate(
+            connection=self,
+            job_id=str(job_id) if job_id is not None else None,
+            status=job_status or "",
+            created_at=job_created_at,
+            updated_at=job_created_at,
+            completed_at=None,
+            duration_seconds=None,
+            records_synced=None,
+            bytes_synced=None,
+            api_cost=None,
+            error=None,
         )
+        AirbyteConnection.persist_sync_updates([update])
+
+    @classmethod
+    def persist_sync_updates(
+        cls, updates: Iterable["ConnectionSyncUpdate"]
+    ) -> list["AirbyteConnection"]:
+        """Persist sync metadata for the provided connections atomically."""
+
+        persisted: list[AirbyteConnection] = []
+        seen: set[int] = set()
+        now = timezone.now()
+
+        for update in updates:
+            connection = update.connection
+            if not isinstance(connection, AirbyteConnection) or connection.pk is None:
+                continue
+
+            created_at = update.created_at or connection.last_job_created_at
+            updated_at = update.updated_at or created_at
+            completed_at = update.completed_at
+
+            status_value = (update.status or "").strip()
+            status_lower = status_value.lower()
+
+            if completed_at is None and status_lower in cls.SYNC_SUCCESS_STATUSES and updated_at:
+                completed_at = updated_at
+
+            fields: dict[str, object] = {
+                "last_job_id": update.job_id or "",
+                "last_job_status": status_value,
+                "last_job_created_at": created_at,
+                "last_job_updated_at": updated_at,
+                "last_job_completed_at": completed_at,
+                "last_job_error": (update.error or ""),
+                "updated_at": now,
+            }
+
+            last_synced_at = connection.last_synced_at
+            if completed_at is not None:
+                last_synced_at = completed_at
+            elif status_lower in cls.SYNC_SUCCESS_STATUSES and updated_at:
+                last_synced_at = updated_at
+            if last_synced_at is not None:
+                fields["last_synced_at"] = last_synced_at
+
+            cls.all_objects.filter(pk=connection.pk).update(**fields)
+
+            for field_name, value in fields.items():
+                setattr(connection, field_name, value)
+
+            if connection.pk not in seen:
+                persisted.append(connection)
+                seen.add(connection.pk)
+
+        for connection in persisted:
+            TenantAirbyteSyncStatus.update_for_connection(connection)
+
+        return persisted
 
 
 class TenantAirbyteSyncStatus(models.Model):
@@ -257,6 +322,9 @@ class TenantAirbyteSyncStatus(models.Model):
     last_synced_at = models.DateTimeField(null=True, blank=True)
     last_job_id = models.CharField(max_length=64, blank=True)
     last_job_status = models.CharField(max_length=32, blank=True)
+    last_job_updated_at = models.DateTimeField(null=True, blank=True)
+    last_job_completed_at = models.DateTimeField(null=True, blank=True)
+    last_job_error = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -272,12 +340,18 @@ class TenantAirbyteSyncStatus(models.Model):
         self.last_synced_at = connection.last_synced_at
         self.last_job_id = connection.last_job_id
         self.last_job_status = connection.last_job_status
+        self.last_job_updated_at = connection.last_job_updated_at
+        self.last_job_completed_at = connection.last_job_completed_at
+        self.last_job_error = connection.last_job_error
         self.save(
             update_fields=[
                 "last_connection",
                 "last_synced_at",
                 "last_job_id",
                 "last_job_status",
+                "last_job_updated_at",
+                "last_job_completed_at",
+                "last_job_error",
                 "updated_at",
             ]
         )
@@ -290,18 +364,41 @@ class TenantAirbyteSyncStatus(models.Model):
             status.last_synced_at = connection.last_synced_at
             status.last_job_id = connection.last_job_id
             status.last_job_status = connection.last_job_status
+            status.last_job_updated_at = connection.last_job_updated_at
+            status.last_job_completed_at = connection.last_job_completed_at
+            status.last_job_error = connection.last_job_error
             status.save(
                 update_fields=[
                     "last_connection",
                     "last_synced_at",
                     "last_job_id",
                     "last_job_status",
+                    "last_job_updated_at",
+                    "last_job_completed_at",
+                    "last_job_error",
                     "updated_at",
                 ]
             )
             return status
         status.record_connection(connection)
         return status
+
+
+@dataclass(frozen=True)
+class ConnectionSyncUpdate:
+    """Persisted Airbyte sync metadata for a specific connection."""
+
+    connection: "AirbyteConnection"
+    job_id: str | None
+    status: str | None
+    created_at: datetime
+    updated_at: datetime | None
+    completed_at: datetime | None
+    duration_seconds: int | None
+    records_synced: int | None
+    bytes_synced: int | None
+    api_cost: Decimal | None
+    error: str | None
 
 
 class AirbyteJobTelemetry(models.Model):

@@ -1,12 +1,14 @@
+{% set using_duckdb = target.type == 'duckdb' %}
 {{ config(
-    materialized='incremental',
-    unique_key=['date_day', 'source_platform', 'ad_account_id', 'campaign_id'],
-    incremental_strategy='merge',
+    materialized='table' if using_duckdb else 'incremental',
+    unique_key=['tenant_id', 'date_day', 'source_platform', 'ad_account_id', 'campaign_id'],
+    incremental_strategy='merge' if not using_duckdb else none,
     on_schema_change='sync_all_columns'
 ) }}
 
 with aggregated as (
     select
+        f.tenant_id,
         f.date_day,
         f.source_platform,
         f.ad_account_id,
@@ -15,19 +17,22 @@ with aggregated as (
         sum(f.spend) as spend,
         sum(f.impressions) as impressions,
         sum(f.clicks) as clicks,
-        sum(f.conversions) as conversions
-    from {{ ref('fct_ad_performance') }} f
+        sum(f.conversions) as conversions,
+        sum(f.reported_conversions) as reported_conversions,
+        max(f.attribution_window_days) as attribution_window_days
+    from {{ ref('fact_performance') }} f
     where f.campaign_id is not null
     {% if is_incremental() %}
       and f.date_day >= (
           select coalesce(max(date_day), '1900-01-01') from {{ this }}
       )
     {% endif %}
-    group by 1, 2, 3, 4
+    group by 1, 2, 3, 4, 5
 ),
 
 enriched as (
     select
+        a.tenant_id,
         a.date_day,
         a.source_platform,
         a.ad_account_id,
@@ -37,6 +42,8 @@ enriched as (
         a.impressions,
         a.clicks,
         a.conversions,
+        a.reported_conversions,
+        a.attribution_window_days,
         {{ metric_ctr('a.clicks', 'a.impressions') }} as ctr,
         {{ metric_conversion_rate('a.conversions', 'a.clicks') }} as conversion_rate,
         {{ metric_cost_per_click('a.spend', 'a.clicks') }} as cost_per_click,
@@ -46,13 +53,14 @@ enriched as (
         dc.parish_code,
         dc.parish_name,
         dc.region_name,
-        dc.first_seen_date
+        dc.first_seen_at as first_seen_at
     from aggregated a
     left join {{ ref('dim_campaign') }} dc
-        on a.source_platform = dc.source_platform
+        on a.tenant_id = dc.tenant_id
+        and a.source_platform = dc.source_platform
         and a.ad_account_id = dc.ad_account_id
         and a.campaign_id = dc.campaign_id
-        and a.date_day between dc.valid_from and dc.valid_to
+        and a.date_day::timestamp between dc.dbt_valid_from and coalesce(dc.dbt_valid_to, cast('9999-12-31 23:59:59' as timestamp))
 )
 
 select *

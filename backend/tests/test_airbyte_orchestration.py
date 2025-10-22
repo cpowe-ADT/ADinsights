@@ -90,19 +90,26 @@ def test_airbyte_service_triggers_and_records(tenant):
             }
 
     service = AirbyteSyncService(DummyClient(), now_fn=lambda: now)
-    triggered = service.sync_due_connections()
-    assert triggered == 1
-
+    updates = service.sync_due_connections()
+    assert len(updates) == 1
+    AirbyteConnection.persist_sync_updates(updates)
     connection.refresh_from_db()
     assert connection.last_job_id == "55"
     assert connection.last_job_status == "succeeded"
-    assert abs((connection.last_synced_at or now) - now) <= timedelta(seconds=1)
+    assert connection.last_job_completed_at is not None
+    assert abs((connection.last_synced_at or now) - connection.last_job_completed_at) <= timedelta(seconds=1)
+    assert connection.last_job_updated_at is not None
+    assert connection.last_job_completed_at is not None
+    assert connection.last_job_error == ""
 
     status = TenantAirbyteSyncStatus.all_objects.get(tenant=tenant)
     assert status.last_connection_id == connection.id
     assert status.last_job_id == "55"
     assert status.last_job_status == "succeeded"
     assert status.last_synced_at == connection.last_synced_at
+    assert status.last_job_updated_at == connection.last_job_updated_at
+    assert status.last_job_completed_at == connection.last_job_completed_at
+    assert status.last_job_error == ""
 
     telemetry = AirbyteJobTelemetry.all_objects.get(connection=connection, job_id="55")
     assert telemetry.records_synced == 42
@@ -131,17 +138,30 @@ def test_sync_airbyte_command(monkeypatch, settings):
     def fake_from_settings(cls):  # noqa: ANN001
         return dummy_client
 
+    updates_payload = [object(), object()]
+    captured_updates: dict[str, list[object]] = {}
+
     def fake_service(client):
         captured_client["client"] = client
-        return type("Svc", (), {"sync_due_connections": lambda self=None: 2})()
+        return type("Svc", (), {"sync_due_connections": lambda self=None: updates_payload})()
+
+    def fake_persist(cls, updates):  # noqa: ANN001
+        captured_updates["updates"] = list(updates)
+        return []
 
     monkeypatch.setattr(command_module.AirbyteClient, "from_settings", classmethod(fake_from_settings))
     monkeypatch.setattr(command_module, "AirbyteSyncService", fake_service)
+    monkeypatch.setattr(
+        command_module.AirbyteConnection,
+        "persist_sync_updates",
+        classmethod(fake_persist),
+    )
 
     output = io.StringIO()
     call_command("sync_airbyte", stdout=output)
     assert "Triggered 2 Airbyte sync(s)." in output.getvalue()
     assert captured_client["client"] is dummy_client
+    assert captured_updates["updates"] == updates_payload
 
 
 @pytest.mark.django_db
