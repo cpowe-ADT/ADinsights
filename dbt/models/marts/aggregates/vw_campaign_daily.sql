@@ -1,4 +1,11 @@
-{{ config(materialized='view') }}
+{{ config(
+    materialized='incremental',
+    unique_key=['date_day', 'source_platform', 'ad_account_id', 'campaign_id'],
+    incremental_strategy='merge',
+    on_schema_change='sync_all_columns'
+) }}
+
+{% set lookback_days = 7 %}
 
 with campaign_daily as (
     select
@@ -25,7 +32,7 @@ enriched as (
         cd.source_platform,
         cd.ad_account_id,
         cd.campaign_id,
-        coalesce(d.campaign_name, cd.campaign_id::text) as campaign_name,
+        coalesce(d.campaign_name, cd.campaign_name, cd.campaign_id::text) as campaign_name,
         cd.spend,
         cd.impressions,
         cd.clicks,
@@ -34,9 +41,10 @@ enriched as (
         cd.attribution_window_days,
         {{ metric_ctr('cd.clicks', 'cd.impressions') }} as ctr,
         {{ metric_conversion_rate('cd.conversions', 'cd.clicks') }} as conversion_rate,
+        {{ metric_cost_per_click('cd.spend', 'cd.clicks') }} as cost_per_click,
         {{ metric_cost_per_conversion('cd.spend', 'cd.conversions') }} as cost_per_conversion,
-        {{ metric_return_on_ad_spend('cd.conversions', 'cd.spend') }} as roas,
         {{ metric_cpm('cd.spend', 'cd.impressions') }} as cpm,
+        {{ metric_return_on_ad_spend('cd.conversions', 'cd.spend') }} as roas,
         d.parish_code,
         d.parish_name,
         d.region_name,
@@ -50,4 +58,5 @@ enriched as (
         and cd.date_day::timestamp between d.dbt_valid_from and coalesce(d.dbt_valid_to, cast('9999-12-31 23:59:59' as timestamp))
 )
 
-select * from enriched
+select *
+from enriched

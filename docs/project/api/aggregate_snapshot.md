@@ -30,7 +30,7 @@ Top-level fields:
 ## Field reuse and naming
 
 - Spend, impression, click, conversion, CTR, conversion rate, CPC, CPA, CPM, and ROAS values reuse the
-  metric macros in `dbt/macros/metrics.sql` to avoid drift between marts and contract projections.
+  metric macros in `dbt/macros/metrics/` to avoid drift between marts and contract projections.
 - `campaignCount` and `parishCount` are counts of distinct campaign identifiers grouped at the
   parish level and rolled up for the summary, enabling UI filter pills to display accurate totals.
 - Geographic fields (`parishCode`, `parishName`, `regionName`) reuse the enrichment performed in

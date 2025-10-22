@@ -12,6 +12,55 @@ models:
         description: 'Calendar date the metrics are aggregated for.'
         tests:
           - not_null
+      - name: parish_code
+        description: 'Geographic parish code receiving the spend.'
+      - name: parish_name
+        description: 'Friendly parish name from the geo dimension.'
+      - name: region_name
+        description: 'Region grouping for the parish.'
+      - name: spend
+        description: 'Total spend attributed to the parish on the given day.'
+      - name: impressions
+        description: 'Total impressions served within the parish on the given day.'
+      - name: clicks
+        description: 'Total clicks generated within the parish on the given day.'
+      - name: conversions
+        description: 'Total conversions attributed to the parish on the given day.'
+      - name: campaign_count
+        description: 'Number of distinct campaigns contributing to the parish totals on the given day.'
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(campaign_count, 0) >= 0'
+      - name: ctr
+        description: 'Click-through rate derived from parish clicks divided by impressions.'
+      - name: conversion_rate
+        description: 'Conversion rate derived from parish conversions divided by clicks.'
+      - name: cost_per_click
+        description: 'Average cost per click within the parish.'
+      - name: cost_per_conversion
+        description: 'Average cost per conversion within the parish.'
+      - name: cpm
+        description: 'Cost per 1,000 impressions within the parish.'
+      - name: roas
+        description: 'Return on ad spend for the parish derived from conversions divided by spend.'
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(roas, 0) >= 0'
+  - name: vw_campaign_daily
+    description: 'Aggregated daily campaign metrics joined to current campaign attributes.'
+    tests:
+      - unique_combination_of_columns:
+          combination:
+            - date_day
+            - source_platform
+            - ad_account_id
+            - campaign_id
+    columns:
+      - name: date_day
+        tests:
+          - not_null
       - name: source_platform
         description: 'Advertising platform the campaign belongs to.'
       - name: ad_account_id
@@ -29,16 +78,108 @@ models:
       - name: reported_conversions
         description: 'Platform-reported conversions prior to attribution window normalization.'
       - name: conversions
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(conversions, 0) >= 0'
+      - name: cost_per_click
+        description: 'Average cost per click for the campaign on the given day.'
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(cost_per_click, 0) >= 0'
+      - name: ctr
+      - name: roas
+      - name: cpm
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(cpm, 0) >= 0'
+      - name: conversion_rate
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(conversion_rate, 0) >= 0'
+      - name: cost_per_conversion
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(cost_per_conversion, 0) >= 0'
+  - name: vw_creative_daily
+    description: 'Aggregated daily creative metrics with cost efficiency fields for dashboards.'
+    tests:
+      - unique_combination_of_columns:
+          combination:
+            - date_day
+            - source_platform
+            - ad_account_id
+            - campaign_id
+            - adset_id
+            - ad_id
+    columns:
+      - name: date_day
+        tests:
+          - not_null
+      - name: source_platform
         description: 'Conversions normalized to the configured attribution window.'
         tests:
           - not_null
       - name: parish_code
         tests:
           - relationships:
-              to: ref('dim_geo')
-              field: parish_code
-  - name: agg_parish_daily
-    description: 'Incremental aggregate of parish-level performance metrics enriched with geo dimension data.'
+              arguments:
+                to: ref('dim_geo')
+                field: parish_code
+      - name: spend
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(spend, 0) >= 0'
+      - name: impressions
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(impressions, 0) >= 0'
+      - name: clicks
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(clicks, 0) >= 0'
+      - name: conversions
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(conversions, 0) >= 0'
+      - name: cost_per_click
+        description: 'Average cost per click for the account on the given day.'
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(cost_per_click, 0) >= 0'
+      - name: conversion_rate
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(conversion_rate, 0) >= 0'
+      - name: cost_per_conversion
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(cost_per_conversion, 0) >= 0'
+      - name: roas
+      - name: cpm
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(cpm, 0) >= 0'
+  - name: vw_pacing
+    description: 'Account level pacing view with cumulative and trailing spend indicators.'
+    tests:
+      - unique_combination_of_columns:
+          combination:
+            - date_day
+            - source_platform
+            - ad_account_id
     columns:
       - name: tenant_id
         tests:
@@ -54,6 +195,51 @@ models:
               field: parish_code
       - name: conversions
         tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(conversions, 0) >= 0'
+      - name: cost_per_click
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(cost_per_click, 0) >= 0'
+      - name: cumulative_spend
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(cumulative_spend, 0) >= 0'
+      - name: trailing_7d_avg_spend
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(trailing_7d_avg_spend, 0) >= 0'
+      - name: ctr
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(ctr, 0) >= 0'
+      - name: roas
+      - name: cpm
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(cpm, 0) >= 0'
+      - name: conversion_rate
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(conversion_rate, 0) >= 0'
+      - name: cost_per_conversion
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(cost_per_conversion, 0) >= 0'
+      - name: pacing_vs_7d_avg
+        description: 'Ratio of current spend to the trailing seven day average spend.'
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(pacing_vs_7d_avg, 0) >= 0'
           - not_null
       - name: reported_conversions
         description: 'Platform reported conversions prior to normalization.'

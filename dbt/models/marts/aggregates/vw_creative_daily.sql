@@ -1,4 +1,11 @@
-{{ config(materialized='view') }}
+{{ config(
+    materialized='incremental',
+    unique_key=['date_day', 'source_platform', 'ad_account_id', 'campaign_id', 'adset_id', 'ad_id'],
+    incremental_strategy='merge',
+    on_schema_change='sync_all_columns'
+) }}
+
+{% set lookback_days = 7 %}
 
 with creative_daily as (
     select
@@ -53,4 +60,5 @@ enriched as (
         and cd.date_day::timestamp between d.dbt_valid_from and coalesce(d.dbt_valid_to, cast('9999-12-31 23:59:59' as timestamp))
 )
 
-select * from enriched
+select *
+from enriched

@@ -1,4 +1,11 @@
-{{ config(materialized='view') }}
+{{ config(
+    materialized='incremental',
+    unique_key=['date_day', 'source_platform', 'ad_account_id'],
+    incremental_strategy='merge',
+    on_schema_change='sync_all_columns'
+) }}
+
+{% set lookback_days = 7 %}
 
 with account_daily as (
     select
@@ -35,13 +42,30 @@ windowed as (
             partition by ad.tenant_id, ad.source_platform, ad.ad_account_id
             order by ad.date_day
             rows between 6 preceding and current row
-        ) as trailing_7d_avg_spend,
-        {{ metric_ctr('ad.clicks', 'ad.impressions') }} as ctr,
-        {{ metric_conversion_rate('ad.conversions', 'ad.clicks') }} as conversion_rate,
-        {{ metric_cost_per_conversion('ad.spend', 'ad.conversions') }} as cost_per_conversion,
-        {{ metric_return_on_ad_spend('ad.conversions', 'ad.spend') }} as roas,
-        {{ metric_cpm('ad.spend', 'ad.impressions') }} as cpm
+        ) as trailing_7d_avg_spend
     from account_daily ad
+),
+
+enriched as (
+    select
+        w.date_day,
+        w.source_platform,
+        w.ad_account_id,
+        w.spend,
+        w.impressions,
+        w.clicks,
+        w.conversions,
+        w.cumulative_spend,
+        w.trailing_7d_avg_spend,
+        {{ metric_ctr('w.clicks', 'w.impressions') }} as ctr,
+        {{ metric_conversion_rate('w.conversions', 'w.clicks') }} as conversion_rate,
+        {{ metric_cost_per_click('w.spend', 'w.clicks') }} as cost_per_click,
+        {{ metric_cost_per_conversion('w.spend', 'w.conversions') }} as cost_per_conversion,
+        {{ metric_return_on_ad_spend('w.conversions', 'w.spend') }} as roas,
+        {{ metric_cpm('w.spend', 'w.impressions') }} as cpm,
+        {{ metric_pacing('w.spend', 'w.trailing_7d_avg_spend') }} as pacing_vs_7d_avg
+    from windowed w
 )
 
-select * from windowed
+select *
+from enriched
