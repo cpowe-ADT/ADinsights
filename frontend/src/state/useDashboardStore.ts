@@ -570,6 +570,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
         set((state) => ({
           activeTenantId: resolved.tenantId ?? state.activeTenantId,
+          lastLoadedTenantId:
+            resolved.tenantId ?? normalizedTenantId ?? state.activeTenantId,
           campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
           creative: { status: 'loaded', data: resolved.creative, error: undefined },
           budget: { status: 'loaded', data: resolved.budget, error: undefined },
