@@ -1,0 +1,76 @@
+[
+  {
+    "model": "accounts.tenant",
+    "pk": "11111111-2222-3333-4444-555555555555",
+    "fields": {
+      "name": "Telemetry Tenant",
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "integrations.airbyteconnection",
+    "pk": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "fields": {
+      "tenant": "11111111-2222-3333-4444-555555555555",
+      "provider": "META",
+      "name": "Demo Telemetry Connection",
+      "connection_id": "99999999-aaaa-bbbb-cccc-111111111111",
+      "workspace_id": null,
+      "schedule_type": "interval",
+      "interval_minutes": 30,
+      "cron_expression": "",
+      "is_active": true,
+      "last_synced_at": "2024-01-01T00:00:00Z",
+      "last_job_id": "2001",
+      "last_job_status": "succeeded",
+      "last_job_created_at": "2024-01-01T00:00:00Z",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "integrations.tenantairbytesyncstatus",
+    "pk": 1,
+    "fields": {
+      "tenant": "11111111-2222-3333-4444-555555555555",
+      "last_connection": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "last_synced_at": "2024-01-01T00:00:00Z",
+      "last_job_id": "2001",
+      "last_job_status": "succeeded",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "integrations.airbytejobtelemetry",
+    "pk": "12345678-aaaa-bbbb-cccc-1234567890ab",
+    "fields": {
+      "tenant": "11111111-2222-3333-4444-555555555555",
+      "connection": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "job_id": "2001",
+      "status": "succeeded",
+      "started_at": "2024-01-01T00:00:00Z",
+      "duration_seconds": 90,
+      "records_synced": 150,
+      "bytes_synced": 4096,
+      "api_cost": "3.25",
+      "created_at": "2024-01-01T00:05:00Z"
+    }
+  },
+  {
+    "model": "integrations.airbytejobtelemetry",
+    "pk": "abcdefab-cdef-1234-5678-abcdefabcdef",
+    "fields": {
+      "tenant": "11111111-2222-3333-4444-555555555555",
+      "connection": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "job_id": "1999",
+      "status": "succeeded",
+      "started_at": "2023-12-31T23:40:00Z",
+      "duration_seconds": 120,
+      "records_synced": 175,
+      "bytes_synced": 8192,
+      "api_cost": "4.10",
+      "created_at": "2023-12-31T23:45:00Z"
+    }
+  }
+]

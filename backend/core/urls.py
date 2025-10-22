@@ -107,6 +107,7 @@ urlpatterns = [
     path("api/metrics/combined/", CombinedMetricsView.as_view(), name="metrics-combined"),
     path(
         "api/dashboards/aggregate-snapshot/",
+        CombinedMetricsView.as_view(),
         AggregateSnapshotView.as_view(),
         name="dashboard-aggregate-snapshot",
     ),

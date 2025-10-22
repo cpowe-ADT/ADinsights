@@ -60,6 +60,8 @@ Release cadence: weekly sprint cut for staging, bi-weekly (or on-demand) for pro
 
 1. **CI (GitHub Actions)**
    - Lint + tests: `ruff check backend && pytest -q backend`, `npm test -- --run && npm run build`, `make dbt-build`.
+   - Telemetry schema guard: see [Backend Telemetry CI](./ci-telemetry.md) for
+     schema validations and artifact interpretation.
    - Build docker images for backend, worker, frontend, Airbyte extensions.
    - Push to ECR with tags `main-<gitsha>` and `release-<semver>`.
 2. **Artifact Promotion**

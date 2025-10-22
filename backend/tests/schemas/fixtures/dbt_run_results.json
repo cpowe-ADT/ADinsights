@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "generated_at": "1970-01-01T00:00:00Z",
+    "dbt_version": "1.7.0",
+    "invocation_id": "11111111-2222-3333-4444-555555555555",
+    "env": {
+      "environment": "ci"
+    }
+  },
+  "results": [
+    {
+      "unique_id": "model.analytics.aggregate_snapshot",
+      "status": "success",
+      "message": null,
+      "adapter_response": {
+        "rows_affected": 128
+      }
+    }
+  ]
+}
