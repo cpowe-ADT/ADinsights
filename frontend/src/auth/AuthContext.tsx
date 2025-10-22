@@ -30,7 +30,7 @@ interface LoginResponse {
 
 type AuthStatus = 'idle' | 'checking' | 'authenticating' | 'authenticated' | 'error';
 
-type AuthContextValue = {
+export type AuthContextValue = {
   status: AuthStatus;
   isAuthenticated: boolean;
   accessToken?: string;
@@ -42,7 +42,7 @@ type AuthContextValue = {
   statusMessage?: string;
 };
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 type StoredTokens = {
   access: string;

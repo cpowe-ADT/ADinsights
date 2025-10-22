@@ -1,0 +1,61 @@
+{
+  "endpoint": "GET /api/airbyte/telemetry/",
+  "description": "Return paginated Airbyte job telemetry scoped to the authenticated tenant, alongside the latest tenant-level sync status.",
+  "authentication": "JWT access token required.",
+  "query_parameters": {
+    "page": "Optional page number (defaults to 1).",
+    "page_size": "Optional page size. Defaults to 5 and cannot exceed 100."
+  },
+  "response": {
+    "count": 2,
+    "next": null,
+    "previous": null,
+    "sync_status": {
+      "tenant_id": "0f4c6f48-2e0c-4ba7-9e48-5fdc5a5be9d2",
+      "last_synced_at": "2024-04-03T15:42:10.125000Z",
+      "last_job_id": "job-123",
+      "last_job_status": "succeeded",
+      "connection": {
+        "id": "c1fd01dd-6f43-4b79-8a54-3bb4d9b4b2cf",
+        "name": "Meta Ads Incremental",
+        "connection_id": "83c2c674-8d24-4da8-86f8-8385dff8c0f5",
+        "workspace_id": "8cc20e83-9b0a-4473-bf2f-89e8d0e9a434",
+        "provider": "META"
+      }
+    },
+    "results": [
+      {
+        "job_id": "job-123",
+        "status": "succeeded",
+        "started_at": "2024-04-03T15:41:00.125000Z",
+        "duration_seconds": 58,
+        "records_synced": 1200,
+        "bytes_synced": 1048576,
+        "api_cost": 3.5,
+        "connection": {
+          "id": "c1fd01dd-6f43-4b79-8a54-3bb4d9b4b2cf",
+          "name": "Meta Ads Incremental",
+          "connection_id": "83c2c674-8d24-4da8-86f8-8385dff8c0f5",
+          "workspace_id": "8cc20e83-9b0a-4473-bf2f-89e8d0e9a434",
+          "provider": "META"
+        }
+      },
+      {
+        "job_id": "job-122",
+        "status": "failed",
+        "started_at": "2024-04-03T14:40:00.125000Z",
+        "duration_seconds": 45,
+        "records_synced": null,
+        "bytes_synced": null,
+        "api_cost": null,
+        "connection": {
+          "id": "c1fd01dd-6f43-4b79-8a54-3bb4d9b4b2cf",
+          "name": "Meta Ads Incremental",
+          "connection_id": "83c2c674-8d24-4da8-86f8-8385dff8c0f5",
+          "workspace_id": "8cc20e83-9b0a-4473-bf2f-89e8d0e9a434",
+          "provider": "META"
+        }
+      }
+    ]
+  }
+}

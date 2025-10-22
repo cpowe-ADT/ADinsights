@@ -191,6 +191,69 @@ class ServiceAccountKey(models.Model):
         return self.role.name == role_name
 
 
+class PasswordResetToken(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="password_reset_tokens"
+    )
+    token_hash = models.CharField(max_length=128)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "expires_at"]),
+        ]
+
+    @staticmethod
+    def _hash_token(raw_value: str) -> str:
+        return hashlib.sha256(raw_value.encode("utf-8")).hexdigest()
+
+    @classmethod
+    def issue(
+        cls,
+        *,
+        user: User,
+        ttl: timedelta | None = None,
+    ) -> tuple["PasswordResetToken", str]:
+        """Create a new password reset token for the user.
+
+        Any existing active tokens are expired to prevent parallel reuse. The
+        helper returns both the stored instance and the raw token value so it can
+        be delivered out of band (e.g. via email).
+        """
+
+        expires_at = timezone.now() + (ttl or timedelta(hours=1))
+        cls.objects.filter(
+            user=user,
+            used_at__isnull=True,
+            expires_at__gt=timezone.now(),
+        ).update(expires_at=timezone.now())
+
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = cls._hash_token(raw_token)
+
+        instance = cls.objects.create(
+            user=user,
+            token_hash=token_hash,
+            expires_at=expires_at,
+        )
+        return instance, raw_token
+
+    def mark_used(self) -> None:
+        self.used_at = timezone.now()
+        self.save(update_fields=["used_at"])
+
+    def is_valid(self, raw_token: str) -> bool:
+        if self.used_at is not None:
+            return False
+        if timezone.now() >= self.expires_at:
+            return False
+        candidate = self._hash_token(raw_token)
+        return hmac.compare_digest(self.token_hash, candidate)
+
+
 class AuditLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(

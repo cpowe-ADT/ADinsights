@@ -214,9 +214,9 @@ const DashboardLayout = () => {
     <div className="dashboard-shell">
       <div className={`dashboard-top${isScrolled ? ' shadow' : ''}`}>
         <header className="dashboard-header">
-          <div className="container dashboard-header__inner">
-            <div>
-              <h1>ADinsights</h1>
+          <div className="dashboard-boundary dashboard-header__inner">
+            <div className="dashboard-header__brand">
+              <p className="dashboard-header__title">ADinsights</p>
               <p className="muted">
                 Tenant <strong>{tenantId ?? 'unknown'}</strong>
                 {selectedParish ? (
@@ -273,7 +273,7 @@ const DashboardLayout = () => {
           </div>
         </header>
         <nav className="dashboard-nav" aria-label="Dashboard sections">
-          <div className="container dashboard-nav__inner">
+          <div className="dashboard-boundary dashboard-nav__inner">
             {navLinks.map((link) => (
               <NavLink
                 key={link.to}
@@ -286,12 +286,14 @@ const DashboardLayout = () => {
             ))}
           </div>
         </nav>
-        <Breadcrumbs items={breadcrumbs} />
+        <div className="dashboard-boundary">
+          <Breadcrumbs items={breadcrumbs} />
+        </div>
       </div>
       <FilterBar onChange={handleFilterChange} />
       {datasetMode === 'dummy' ? (
         <div className="dashboard-status">
-          <div className="container">
+          <div className="dashboard-boundary">
             <div className="status-message" role="status">
               Demo dataset is active. Toggle to view live warehouse metrics.
             </div>
@@ -300,7 +302,7 @@ const DashboardLayout = () => {
       ) : null}
       {datasetMode === 'live' && !hasLiveData ? (
         <div className="dashboard-status">
-          <div className="container">
+          <div className="dashboard-boundary">
             <div className="status-message" role="alert">
               Live warehouse metrics are unavailable. Switch to demo data to explore the interface.
             </div>
@@ -309,7 +311,7 @@ const DashboardLayout = () => {
       ) : null}
       {errors.length > 0 ? (
         <div className="dashboard-status">
-          <div className="container">
+          <div className="dashboard-boundary">
             <div className="status-message error" role="alert">
               {errors.map((message, index) => (
                 <span key={`${message}-${index}`}>{message}</span>
@@ -319,7 +321,7 @@ const DashboardLayout = () => {
         </div>
       ) : null}
       <main className="dashboard-content">
-        <div className="container">
+        <div className="dashboard-boundary">
           <Outlet />
         </div>
       </main>

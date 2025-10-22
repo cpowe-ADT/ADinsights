@@ -10,7 +10,7 @@ export default defineConfig({
     deps: {
       inline: ['recharts'],
     },
-    include: ['frontend/src/{lib,pages,state}/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+    include: ['frontend/src/{lib,pages,routes,state}/**/*.{test,spec}.{js,ts,jsx,tsx}'],
     exclude: ['qa/**/*', 'integrations/**/*', 'node_modules/**/*'],
     environmentOptions: {
       jsdom: { url: 'http://localhost' },

@@ -1,19 +1,45 @@
+.dashboardPage {
+  display: grid;
+  gap: clamp(var(--space-5), 2vw, var(--space-7));
+}
+
+.dashboardPageHeader {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.dashboardEyebrow {
+  font-size: var(--font-size-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.dashboardHeading {
+  margin: 0;
+  font-size: clamp(var(--font-size-h1), 2vw + 1rem, 2.25rem);
+  line-height: var(--line-height-h1);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
 .dashboardGrid {
   display: grid;
-  gap: var(--space-6);
-  grid-auto-rows: minmax(220px, auto);
+  gap: clamp(var(--space-5), 2vw, var(--space-7));
+  grid-auto-rows: minmax(240px, auto);
 }
 
 @media (min-width: 1280px) {
   .dashboardGrid {
-    grid-template-columns: 280px 1fr 1fr;
+    grid-template-columns: minmax(260px, 320px) repeat(2, minmax(0, 1fr));
     align-items: start;
   }
 }
 
 @media (min-width: 768px) and (max-width: 1279px) {
   .dashboardGrid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -27,74 +53,66 @@
 .card {
   background: var(--color-surface-card);
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-subtle);
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
 .cardHeader {
-  padding: var(--space-4);
+  padding: var(--space-5) var(--space-5) var(--space-4);
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .cardTitle {
   margin: 0;
-  font-size: 16px;
-  line-height: 1.4;
-  font-weight: 600;
+  font-size: var(--font-size-h2);
+  line-height: var(--line-height-h2);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
 }
 
 .card > .content {
-  padding: var(--space-4);
+  padding: 0 var(--space-5) var(--space-5);
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
+  gap: var(--space-4);
 }
 
 @media (min-width: 768px) {
   .cardHeader {
-    padding: var(--space-6);
+    padding: var(--space-6) var(--space-6) var(--space-4);
   }
 
   .card > .content {
-    padding: var(--space-6);
+    padding: 0 var(--space-6) var(--space-6);
   }
 }
 
 .chartCard {
-  min-height: 260px;
-}
-
-.chartCard .content {
-  gap: var(--space-4);
+  min-height: 280px;
 }
 
 .chartCard .content > .recharts-responsive-container {
   flex: 1;
-  min-height: 200px;
+  min-height: 220px;
 }
 
 .mapCard {
   position: relative;
-  min-height: 260px;
+  min-height: 280px;
   overflow: hidden;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-surface-card);
-}
-
-.mapCard .leaflet-container {
-  width: 100%;
-  height: 100%;
 }
 
 .mapViewport {
   flex: 1;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  min-height: 220px;
+  min-height: 240px;
 }
 
 .chartFooter {
@@ -103,14 +121,14 @@
   align-items: center;
   gap: var(--space-4);
   margin-top: auto;
-  font-size: 13px;
+  font-size: 0.85rem;
   color: var(--color-text-muted);
 }
 
 .chartFooter strong {
   display: block;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
 }
 
@@ -147,9 +165,10 @@
 }
 
 .statCard {
-  min-height: 120px;
+  min-height: 132px;
   background: var(--stat-card-surface);
   border: 1px solid var(--stat-card-border);
+  border-radius: var(--radius-md);
 }
 
 .statCard .cardHeader {
@@ -157,9 +176,11 @@
 }
 
 .statCard .cardTitle {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-medium);
   color: var(--stat-card-title);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .statCard .content {
@@ -175,15 +196,15 @@
 }
 
 .statCardValue {
-  font-size: 22px;
-  font-weight: 600;
-  line-height: 1.3;
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.25;
   color: var(--stat-card-value);
 }
 
 .statCardSparkline {
-  width: 100px;
-  height: 48px;
+  width: 108px;
+  height: 52px;
 }
 
 .statCardSparkline svg {
@@ -199,20 +220,6 @@
   stroke: var(--stat-card-sparkline-line);
   stroke-width: 2;
   fill: none;
-}
-
-.dashboardHeading {
-  font-size: 22px;
-  line-height: 1.3;
-  font-weight: 600;
-  margin: 0 0 var(--space-6);
-  color: var(--color-text-primary);
-}
-
-@media (max-width: 767px) {
-  .dashboardHeading {
-    margin-bottom: var(--space-4);
-  }
 }
 
 .srOnly {

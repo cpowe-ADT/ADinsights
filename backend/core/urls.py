@@ -6,10 +6,19 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.schemas import get_schema_view
 
 from alerts.views import AlertRunViewSet
-from analytics.views import AdapterListView, CombinedMetricsView, MetricsExportView, MetricsView
+from analytics.views import (
+    AdapterListView,
+    AggregateSnapshotView,
+    CombinedMetricsView,
+    MetricsExportView,
+    MetricsView,
+)
 from accounts.views import (
     AuditLogViewSet,
     MeView,
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
+    TenantSwitchView,
     RoleAssignmentView,
     TenantTokenObtainPairView,
     TenantViewSet,
@@ -24,6 +33,7 @@ from integrations.views import (
     PlatformCredentialViewSet,
 )
 from . import views as core_views
+from .viewsets import AirbyteTelemetryViewSet
 
 router = DefaultRouter()
 router.register(
@@ -35,6 +45,11 @@ router.register(
     r"airbyte/connections",
     AirbyteConnectionViewSet,
     basename="airbyte-connection",
+)
+router.register(
+    r"airbyte/telemetry",
+    AirbyteTelemetryViewSet,
+    basename="airbyte-telemetry",
 )
 router.register(r"tenants", TenantViewSet, basename="tenant")
 router.register(r"users", UserViewSet, basename="user")
@@ -53,6 +68,21 @@ urlpatterns = [
     path("api/token/refresh/", TokenRefreshView.as_view(), name="jwt_token_refresh"),
     path(
         "api/auth/login/", TenantTokenObtainPairView.as_view(), name="token_obtain_pair"
+    ),
+    path(
+        "api/auth/password-reset/",
+        PasswordResetRequestView.as_view(),
+        name="password-reset-request",
+    ),
+    path(
+        "api/auth/password-reset/confirm/",
+        PasswordResetConfirmView.as_view(),
+        name="password-reset-confirm",
+    ),
+    path(
+        "api/auth/switch-tenant/",
+        TenantSwitchView.as_view(),
+        name="tenant-switch",
     ),
     path("api/me/", MeView.as_view(), name="me"),
     path("api/roles/assign/", RoleAssignmentView.as_view(), name="role-assign"),
@@ -75,6 +105,12 @@ urlpatterns = [
     path("api/adapters/", AdapterListView.as_view(), name="adapter-list"),
     path("api/metrics/", MetricsView.as_view(), name="metrics"),
     path("api/metrics/combined/", CombinedMetricsView.as_view(), name="metrics-combined"),
+    path(
+        "api/dashboards/aggregate-snapshot/",
+        CombinedMetricsView.as_view(),
+        AggregateSnapshotView.as_view(),
+        name="dashboard-aggregate-snapshot",
+    ),
     path("api/export/metrics.csv", MetricsExportView.as_view(), name="metrics-export"),
     path("metrics/app/", core_views.prometheus_metrics, name="metrics-app"),
     path("api/", include(router.urls)),

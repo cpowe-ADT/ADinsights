@@ -8,6 +8,7 @@ from .hooks import send_invitation_email
 from .models import (
     AuditLog,
     Invitation,
+    PasswordResetToken,
     Role,
     ServiceAccountKey,
     Tenant,
@@ -359,6 +360,117 @@ class UserRoleSerializer(serializers.ModelSerializer):
             tenant=tenant, user=user, role=role
         )
         return user_role
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    default_error_messages = {
+        "unknown_email": "No user found with this email.",
+    }
+
+    def validate_email(self, value: str) -> str:
+        user = (
+            User.objects.filter(email__iexact=value)
+            .select_related("tenant")
+            .first()
+        )
+        if not user:
+            raise serializers.ValidationError(self.error_messages["unknown_email"])
+        self.context["user"] = user
+        return value
+
+    def create(self, validated_data):
+        user: User = self.context["user"]
+        token, raw_value = PasswordResetToken.issue(user=user)
+        self.context["token"] = token
+        self.context["raw_token"] = raw_value
+        return token
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    password = serializers.CharField(write_only=True, min_length=8)
+
+    default_error_messages = {
+        "invalid": "Invalid or expired password reset token.",
+    }
+
+    def validate_token(self, value: str) -> str:
+        hashed = PasswordResetToken._hash_token(value)
+        try:
+            token = PasswordResetToken.objects.select_related("user").get(
+                token_hash=hashed
+            )
+        except PasswordResetToken.DoesNotExist as exc:
+            raise serializers.ValidationError(self.error_messages["invalid"]) from exc
+
+        if not token.is_valid(value):
+            raise serializers.ValidationError(self.error_messages["invalid"])
+
+        self.context["token"] = token
+        return value
+
+    def create(self, validated_data):
+        token: PasswordResetToken = self.context["token"]
+        password = validated_data["password"]
+        user = token.user
+        user.set_password(password)
+        user.save(update_fields=["password"])
+        token.mark_used()
+        return user
+
+    def to_representation(self, instance):  # type: ignore[override]
+        return {}
+
+
+class TenantSwitchSerializer(serializers.Serializer):
+    tenant_id = serializers.UUIDField()
+
+    default_error_messages = {
+        "not_found": "Tenant not found.",
+        "not_member": "You do not belong to this tenant.",
+        "unauthenticated": "Authentication is required.",
+    }
+
+    def validate_tenant_id(self, value):
+        try:
+            tenant = Tenant.objects.get(id=value)
+        except Tenant.DoesNotExist as exc:
+            raise serializers.ValidationError(self.error_messages["not_found"]) from exc
+        self.context["tenant"] = tenant
+        return value
+
+    def validate(self, attrs):
+        tenant = self.context.get("tenant")
+        request = self.context.get("request")
+        user = self.context.get("user")
+        if user is None and request is not None:
+            user = getattr(request, "user", None)
+
+        if user is None or not getattr(user, "is_authenticated", False):
+            raise serializers.ValidationError(self.error_messages["unauthenticated"])
+
+        if tenant is None:
+            raise serializers.ValidationError(self.error_messages["not_found"])
+
+        tenant_id = tenant.id
+        if getattr(user, "is_superuser", False):
+            attrs["tenant"] = tenant
+            return attrs
+
+        if getattr(user, "tenant_id", None) == tenant_id:
+            attrs["tenant"] = tenant
+            return attrs
+
+        if UserRole.objects.filter(user=user, tenant=tenant).exists():
+            attrs["tenant"] = tenant
+            return attrs
+
+        raise serializers.ValidationError({"tenant_id": self.error_messages["not_member"]})
+
+    def create(self, validated_data):
+        return validated_data["tenant"]
 
 
 class ServiceAccountKeySerializer(serializers.ModelSerializer):
