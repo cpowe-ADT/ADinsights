@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal
 from typing import Any, Callable, Iterable
 
 from django.utils import timezone
 
-from integrations.models import AirbyteConnection, AirbyteJobTelemetry, TenantAirbyteSyncStatus
+from integrations.models import (
+    AirbyteConnection,
+    AirbyteJobTelemetry,
+    ConnectionSyncUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +35,7 @@ class AirbyteSyncService:
         self.client = client
         self._now = now_fn or timezone.now
 
-    def sync_due_connections(self) -> int:
+    def sync_due_connections(self) -> list[ConnectionSyncUpdate]:
         """Trigger syncs for all connections that are due."""
 
         now = self._now()
@@ -47,10 +51,10 @@ class AirbyteSyncService:
         connections: Iterable[AirbyteConnection],
         *,
         triggered_at: datetime | None = None,
-    ) -> int:
+    ) -> list[ConnectionSyncUpdate]:
         """Trigger syncs for a provided iterable of connections."""
 
-        triggered = 0
+        updates: list[ConnectionSyncUpdate] = []
         base_time = triggered_at or self._now()
         for connection in connections:
             logger.info(
@@ -63,7 +67,7 @@ class AirbyteSyncService:
                 },
             )
             job_payload = self.client.trigger_sync(str(connection.connection_id))
-            job_id = _extract_job_id(job_payload)
+            job_id = extract_job_id(job_payload)
             job_status = "pending"
             job_created_at = base_time
             attempt_snapshot = AttemptSnapshot(
@@ -75,11 +79,26 @@ class AirbyteSyncService:
             )
             if job_id is not None:
                 job_detail = self.client.get_job(job_id)
-                job_status = _extract_job_status(job_detail) or job_status
-                job_created_at = _extract_job_created_at(job_detail) or base_time
-                attempt_snapshot = _extract_attempt_snapshot(job_detail) or attempt_snapshot
-            connection.record_sync(job_id, job_status, job_created_at)
-            TenantAirbyteSyncStatus.update_for_connection(connection)
+                job_status = extract_job_status(job_detail) or job_status
+                job_created_at = extract_job_created_at(job_detail) or base_time
+                attempt_snapshot = extract_attempt_snapshot(job_detail) or attempt_snapshot
+            job_updated_at = extract_job_updated_at(job_detail)
+            completed_at = infer_completion_time(job_detail, attempt_snapshot)
+            error_message = extract_job_error(job_detail)
+            update = ConnectionSyncUpdate(
+                connection=connection,
+                job_id=str(job_id) if job_id is not None else None,
+                status=job_status,
+                created_at=job_created_at,
+                updated_at=job_updated_at,
+                completed_at=completed_at,
+                duration_seconds=attempt_snapshot.duration_seconds,
+                records_synced=attempt_snapshot.records_synced,
+                bytes_synced=attempt_snapshot.bytes_synced,
+                api_cost=attempt_snapshot.api_cost,
+                error=error_message,
+            )
+            updates.append(update)
             if job_id is not None:
                 _persist_job_snapshot(
                     connection=connection,
@@ -87,11 +106,10 @@ class AirbyteSyncService:
                     status=job_status,
                     snapshot=attempt_snapshot,
                 )
-            triggered += 1
-        return triggered
+        return updates
 
 
-def _extract_job_id(payload) -> int | None:
+def extract_job_id(payload) -> int | None:
     if not payload:
         return None
     if isinstance(payload, dict):
@@ -104,7 +122,7 @@ def _extract_job_id(payload) -> int | None:
     return None
 
 
-def _extract_job_status(payload) -> str | None:
+def extract_job_status(payload) -> str | None:
     if not payload:
         return None
     job = payload.get("job") if isinstance(payload, dict) else None
@@ -115,7 +133,7 @@ def _extract_job_status(payload) -> str | None:
     return None
 
 
-def _extract_job_created_at(payload) -> datetime | None:
+def extract_job_created_at(payload) -> datetime | None:
     if not payload:
         return None
     job = payload.get("job") if isinstance(payload, dict) else None
@@ -127,7 +145,7 @@ def _extract_job_created_at(payload) -> datetime | None:
     return _coerce_timestamp(candidate)
 
 
-def _extract_attempt_snapshot(payload: dict[str, Any]) -> AttemptSnapshot | None:
+def extract_attempt_snapshot(payload: dict[str, Any]) -> AttemptSnapshot | None:
     job = payload.get("job") if isinstance(payload, dict) else None
     if not isinstance(job, dict):
         return None
@@ -192,6 +210,53 @@ def _extract_attempt_snapshot(payload: dict[str, Any]) -> AttemptSnapshot | None
         bytes_synced=bytes_synced,
         api_cost=api_cost,
     )
+
+
+def infer_completion_time(payload: dict[str, Any], snapshot: AttemptSnapshot) -> datetime | None:
+    job = payload.get("job") if isinstance(payload, dict) else None
+    candidates = []
+    if isinstance(job, dict):
+        candidates.append(job.get("updatedAt"))
+        candidates.append(job.get("endedAt"))
+    if isinstance(payload, dict):
+        candidates.append(payload.get("updatedAt"))
+        candidates.append(payload.get("endedAt"))
+    for candidate in candidates:
+        ts = _coerce_timestamp(candidate)
+        if ts is not None:
+            return ts
+    if snapshot.started_at and snapshot.duration_seconds is not None:
+        return snapshot.started_at + timedelta(seconds=snapshot.duration_seconds)
+    return None
+
+
+def extract_job_updated_at(payload) -> datetime | None:
+    if not isinstance(payload, dict):
+        return None
+    job = payload.get("job") if isinstance(payload.get("job"), dict) else payload
+    if not isinstance(job, dict):
+        return None
+    return _coerce_timestamp(
+        job.get("updatedAt")
+        or job.get("updated_at")
+        or job.get("endedAt")
+        or job.get("ended_at")
+    )
+
+
+def extract_job_error(payload) -> str | None:
+    if not isinstance(payload, dict):
+        return None
+    job = payload.get("job") if isinstance(payload.get("job"), dict) else payload
+    if not isinstance(job, dict):
+        return None
+    failure_summary = job.get("failureSummary") or job.get("failure")
+    if isinstance(failure_summary, dict):
+        reason = failure_summary.get("failureReason") or failure_summary.get("stacktrace")
+        if reason:
+            return str(reason)
+    error_message = job.get("errorMessage") or job.get("error")
+    return str(error_message) if error_message else None
 
 
 def _persist_job_snapshot(

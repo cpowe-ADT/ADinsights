@@ -221,3 +221,23 @@ def test_aggregate_snapshot_emits_audit_log(api_client, user, aggregate_snapshot
     assert log.resource_id == str(user.tenant_id)
     assert log.metadata.get("path") == ENDPOINT
     assert "access_token" not in json.dumps(log.metadata)
+
+
+@pytest.mark.django_db
+def test_aggregate_snapshot_missing_view_returns_default(api_client, user):
+    api_client.force_authenticate(user=user)
+
+    with connection.cursor() as cursor:
+        cursor.execute("DROP TABLE IF EXISTS vw_dashboard_aggregate_snapshot")
+
+    response = api_client.get(ENDPOINT)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["tenant_id"] == str(user.tenant_id)
+
+    metrics = payload["metrics"]
+    summary = metrics["campaign_metrics"]["summary"]
+    assert summary["totalSpend"] == 0.0
+    assert summary["totalImpressions"] == 0
+    assert metrics["campaign_metrics"]["rows"] == []

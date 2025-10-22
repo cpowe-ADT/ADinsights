@@ -18,7 +18,7 @@ from integrations.airbyte import (
     AirbyteClientError,
     AirbyteSyncService,
 )
-from integrations.models import PlatformCredential
+from integrations.models import AirbyteConnection, PlatformCredential
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +28,11 @@ def trigger_scheduled_airbyte_syncs(self):  # noqa: ANN001
     """Trigger due Airbyte syncs using the shared scheduling service."""
 
     try:
-        with AirbyteClient.from_settings() as client:
-            service = AirbyteSyncService(client)
-            triggered = service.sync_due_connections()
+            with AirbyteClient.from_settings() as client:
+                service = AirbyteSyncService(client)
+                updates = service.sync_due_connections()
+                AirbyteConnection.persist_sync_updates(updates)
+                triggered = len(updates)
     except AirbyteClientConfigurationError as exc:
         logger.error("Airbyte client misconfigured", exc_info=exc)
         raise self.retry(exc=exc, countdown=60)

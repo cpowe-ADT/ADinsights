@@ -11,6 +11,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from django.conf import settings
 from django.db import DatabaseError, connection
+from django.db import connection, OperationalError, ProgrammingError
 from django.utils import timezone
 from django.http import StreamingHttpResponse
 from rest_framework import permissions, status, viewsets
@@ -440,6 +441,13 @@ def _fetch_aggregate_snapshot(*, tenant_id: str) -> Mapping[str, Any] | None:
     creative_metrics = _coerce_json_payload(record.get("creative_metrics"))
     budget_metrics = _coerce_json_payload(record.get("budget_metrics"))
     parish_metrics = _coerce_json_payload(record.get("parish_metrics"))
+    except (ProgrammingError, OperationalError) as exc:
+        logger.warning(
+            "aggregate snapshot view unavailable; returning default payload",
+            extra={"tenant_id": tenant_id},
+            exc_info=exc,
+        )
+        return None
 
     metrics = {
         "campaign": campaign_metrics or _default_campaign_metrics(),

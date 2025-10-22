@@ -1,0 +1,141 @@
+version: 2
+
+models:
+  - name: dim_campaign
+    description: 'SCD2 dimension capturing campaign level attributes and geo enrichment.'
+    tests:
+      - unique_combination:
+          combination: ['tenant_id', 'source_platform', 'ad_account_id', 'campaign_id', 'dbt_valid_from']
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null
+      - name: source_platform
+        tests:
+          - not_null
+      - name: ad_account_id
+        tests:
+          - not_null
+      - name: campaign_id
+        tests:
+          - not_null
+      - name: campaign_name
+        description: 'Human friendly campaign name sourced from platform metadata, falling back to the campaign ID when unavailable.'
+        tests:
+          - not_null
+      - name: dbt_valid_from
+        tests:
+          - not_null
+      - name: dbt_valid_to
+      - name: is_current
+      - name: first_seen_at
+  - name: dim_adset
+    description: 'SCD2 dimension for ad sets/ad groups mapped back to campaigns and locations.'
+    tests:
+      - unique_combination:
+          combination: ['tenant_id', 'source_platform', 'ad_account_id', 'adset_id', 'dbt_valid_from']
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null
+      - name: source_platform
+      - name: ad_account_id
+      - name: adset_id
+        tests:
+          - not_null
+      - name: campaign_id
+      - name: dbt_valid_from
+        tests:
+          - not_null
+      - name: dbt_valid_to
+      - name: first_seen_at
+  - name: dim_ad
+    description: 'SCD2 dimension for creatives with ad set, campaign, and geo attributes.'
+    tests:
+      - unique_combination:
+          combination: ['tenant_id', 'source_platform', 'ad_account_id', 'ad_id', 'dbt_valid_from']
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null
+      - name: source_platform
+      - name: ad_account_id
+      - name: ad_id
+        tests:
+          - not_null
+      - name: ad_name
+        tests:
+          - not_null
+      - name: dbt_valid_from
+        tests:
+          - not_null
+      - name: dbt_valid_to
+      - name: first_seen_at
+  - name: dim_geo
+    description: 'Static lookup table mapping Jamaican parishes to geographic metadata.'
+    tests:
+      - unique_combination:
+          combination: ['tenant_id', 'parish_code']
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null
+      - name: parish_code
+        tests:
+          - not_null
+      - name: parish_name
+      - name: region_name
+  - name: fact_performance
+    description: 'Daily fact table for spend and performance metrics across platforms with normalized attribution windows.'
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null
+      - name: date_day
+        tests:
+          - not_null
+      - name: source_platform
+        tests:
+          - not_null
+      - name: ad_account_id
+        tests:
+          - not_null
+      - name: campaign_id
+        tests:
+          - not_null
+          - relationships_multi_column:
+              to: ref('dim_campaign')
+              from_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'campaign_id']
+              to_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'campaign_id']
+      - name: adset_id
+        tests:
+          - relationships_multi_column:
+              to: ref('dim_adset')
+              from_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'adset_id']
+              to_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'adset_id']
+      - name: ad_id
+        tests:
+          - relationships_multi_column:
+              to: ref('dim_ad')
+              from_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'ad_id']
+              to_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'ad_id']
+      - name: parish_code
+        tests:
+          - relationships:
+              to: ref('dim_geo')
+              field: parish_code
+      - name: spend
+        tests:
+          - not_null
+      - name: impressions
+        tests:
+          - not_null
+      - name: clicks
+        tests:
+          - not_null
+      - name: conversions
+        tests:
+          - not_null
+      - name: reported_conversions
+        tests:
+          - not_null
