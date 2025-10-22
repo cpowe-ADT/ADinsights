@@ -19,3 +19,37 @@ exposures:
       - dashboard
       - aggregate_snapshot
       - api
+  - name: superset_campaign_overview
+    type: dashboard
+    maturity: high
+    url: https://superset.adinsights.dev/superset/dashboard/campaign-overview/
+    description: >-
+      Superset dashboard used by marketing stakeholders to track campaign and creative
+      performance metrics alongside geo context.
+    owner:
+      name: Business Intelligence
+      email: bi-team@adinsights.dev
+    depends_on:
+      - ref('vw_campaign_daily')
+      - ref('vw_creative_daily')
+    tags:
+      - dashboard
+      - superset
+      - marketing
+  - name: metabase_pacing_monitor
+    type: dashboard
+    maturity: medium
+    url: https://metabase.adinsights.dev/dashboard/ads-pacing
+    description: >-
+      Metabase collection tracking account-level pacing health using trailing spend
+      averages for operations and finance reviews.
+    owner:
+      name: Business Intelligence
+      email: bi-team@adinsights.dev
+    depends_on:
+      - ref('vw_pacing')
+      - ref('vw_campaign_daily')
+    tags:
+      - dashboard
+      - metabase
+      - pacing

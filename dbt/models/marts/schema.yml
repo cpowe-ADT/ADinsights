@@ -241,6 +241,13 @@ models:
                 expression: 'coalesce(roas, 0) >= 0'
   - name: vw_campaign_daily
     description: 'Aggregated daily campaign metrics joined to current campaign attributes.'
+    tests:
+      - unique_combination_of_columns:
+          combination:
+            - date_day
+            - source_platform
+            - ad_account_id
+            - campaign_id
     columns:
       - name: date_day
         tests:
@@ -291,6 +298,12 @@ models:
           - expression_is_true:
               arguments:
                 expression: 'coalesce(conversions, 0) >= 0'
+      - name: cost_per_click
+        description: 'Average cost per click for the campaign on the given day.'
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(cost_per_click, 0) >= 0'
       - name: ctr
       - name: roas
       - name: cpm
@@ -310,6 +323,15 @@ models:
                 expression: 'coalesce(cost_per_conversion, 0) >= 0'
   - name: vw_creative_daily
     description: 'Aggregated daily creative metrics with cost efficiency fields for dashboards.'
+    tests:
+      - unique_combination_of_columns:
+          combination:
+            - date_day
+            - source_platform
+            - ad_account_id
+            - campaign_id
+            - adset_id
+            - ad_id
     columns:
       - name: date_day
         tests:
@@ -368,6 +390,7 @@ models:
               arguments:
                 expression: 'coalesce(conversions, 0) >= 0'
       - name: cost_per_click
+        description: 'Average cost per click for the account on the given day.'
         tests:
           - expression_is_true:
               arguments:
@@ -390,6 +413,12 @@ models:
                 expression: 'coalesce(cpm, 0) >= 0'
   - name: vw_pacing
     description: 'Account level pacing view with cumulative and trailing spend indicators.'
+    tests:
+      - unique_combination_of_columns:
+          combination:
+            - date_day
+            - source_platform
+            - ad_account_id
     columns:
       - name: date_day
         tests:
@@ -420,6 +449,11 @@ models:
           - expression_is_true:
               arguments:
                 expression: 'coalesce(conversions, 0) >= 0'
+      - name: cost_per_click
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(cost_per_click, 0) >= 0'
       - name: cumulative_spend
         tests:
           - expression_is_true:
@@ -451,3 +485,9 @@ models:
           - expression_is_true:
               arguments:
                 expression: 'coalesce(cost_per_conversion, 0) >= 0'
+      - name: pacing_vs_7d_avg
+        description: 'Ratio of current spend to the trailing seven day average spend.'
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(pacing_vs_7d_avg, 0) >= 0'

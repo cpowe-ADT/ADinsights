@@ -1,4 +1,11 @@
-{{ config(materialized='view') }}
+{{ config(
+    materialized='incremental',
+    unique_key=['date_day', 'source_platform', 'ad_account_id', 'campaign_id', 'adset_id', 'ad_id'],
+    incremental_strategy='merge',
+    on_schema_change='sync_all_columns'
+) }}
+
+{% set lookback_days = 7 %}
 
 with creative_daily as (
     select
@@ -13,7 +20,17 @@ with creative_daily as (
         sum(clicks) as clicks,
         sum(conversions) as conversions
     from {{ ref('fct_ad_performance') }}
-    group by 1,2,3,4,5,6
+    where ad_id is not null
+    {% if is_incremental() %}
+        and date_day >= (
+            select coalesce(
+                max(date_day) - interval '{{ lookback_days }} day',
+                cast('1900-01-01' as date)
+            )
+            from {{ this }}
+        )
+    {% endif %}
+    group by 1, 2, 3, 4, 5, 6
 ),
 
 enriched as (
@@ -43,7 +60,8 @@ enriched as (
         on cd.source_platform = d.source_platform
         and cd.ad_account_id = d.ad_account_id
         and cd.ad_id = d.ad_id
-        and cd.date_day between d.valid_from and d.valid_to
+        and cd.date_day between cast(d.valid_from as date) and cast(d.valid_to as date)
 )
 
-select * from enriched
+select *
+from enriched
