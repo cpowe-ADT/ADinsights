@@ -416,9 +416,8 @@ describe('App integration', () => {
     const mapFeature = await screen.findByTestId('parish-feature-Kingston');
     await userEvent.click(mapFeature);
 
-    const tableCard = screen
-      .getByRole('heading', { name: /campaign performance/i })
-      .closest('.table-card');
+    const tableRegion = screen.getByRole('region', { name: /campaign metrics table/i });
+    const tableCard = tableRegion.querySelector('.table-card');
     expect(tableCard).not.toBeNull();
     await waitFor(() =>
       expect(

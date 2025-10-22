@@ -11,24 +11,6 @@ import ErrorState from './ErrorState';
 import Skeleton from './Skeleton';
 import { useTheme } from './ThemeProvider';
 import styles from './ParishMap.module.css';
-
-const COLOR_RAMP = ['#dbeafe', '#bfdbfe', '#60a5fa', '#2563eb', '#1d4ed8'] as const;
-const FALLBACK_LIGHT_PALETTE = [
-  '#f1f5f9',
-  '#bfdbfe',
-  '#60a5fa',
-  '#3b82f6',
-  '#2563eb',
-  '#1d4ed8',
-] as const;
-const FALLBACK_DARK_PALETTE = [
-  '#0f172a',
-  '#1e3a8a',
-  '#1d4ed8',
-  '#2563eb',
-  '#38bdf8',
-  '#93c5fd',
-] as const;
 const JAMAICA_CENTER: [number, number] = [18.1096, -77.2975];
 
 interface ParishMapProps {
@@ -67,22 +49,13 @@ function computeBreaks(values: number[]): number[] {
   return [quantile(0.25), quantile(0.5), quantile(0.75), quantile(0.9)];
 }
 
-function resolveCssColor(variableName: string, fallback: string): string {
-  if (typeof window === 'undefined') {
-    return fallback;
-  }
-
-  const value = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
-  return value.length > 0 ? value : fallback;
-}
-
-function getColor(value: number, breaks: number[], palette: readonly string[]): string {
-  if (value === 0) return palette[0];
-  if (value <= breaks[0]) return palette[1];
-  if (value <= breaks[1]) return palette[2];
-  if (value <= breaks[2]) return palette[3];
-  if (value <= breaks[3]) return palette[4];
-  return palette[5];
+function getColor(value: number, breaks: number[]): string {
+  if (value === 0) return 'var(--map-fill-0)';
+  if (value <= breaks[0]) return 'var(--map-fill-1)';
+  if (value <= breaks[1]) return 'var(--map-fill-2)';
+  if (value <= breaks[2]) return 'var(--map-fill-3)';
+  if (value <= breaks[3]) return 'var(--map-fill-4)';
+  return 'var(--map-fill-5)';
 }
 
 const MapPlaceholderIcon = () => (
@@ -126,28 +99,16 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const mapNodeRef = useRef<HTMLDivElement | null>(null);
   const styleForParishRef = useRef<(name: string) => L.PathOptions>(() => ({
-    color: '#1e293b',
+    color: 'var(--map-border)',
     weight: 1,
-    fillColor: COLOR_RAMP[0],
+    fillColor: 'var(--map-fill-0)',
     fillOpacity: 0.8,
   }));
   const [scrollZoomEnabled, setScrollZoomEnabled] = useState(false);
   const geometryControllerRef = useRef<AbortController | null>(null);
 
-  const fallbackPalette = theme === 'dark' ? FALLBACK_DARK_PALETTE : FALLBACK_LIGHT_PALETTE;
-  const mapPalette = useMemo<readonly string[]>(() => {
-    return fallbackPalette.map((color, index) => resolveCssColor(`--map-fill-${index}`, color));
-  }, [fallbackPalette]);
-
-  const borderColor = useMemo(
-    () =>
-      resolveCssColor('--map-border', theme === 'dark' ? 'rgba(226, 232, 240, 0.75)' : '#1e293b'),
-    [theme],
-  );
-  const highlightColor = useMemo(
-    () => resolveCssColor('--map-highlight', theme === 'dark' ? '#fbbf24' : '#f97316'),
-    [theme],
-  );
+  const borderColor = 'var(--map-border)';
+  const highlightColor = 'var(--map-highlight)';
 
   const loadGeometry = useCallback((tenant?: string) => {
     geometryControllerRef.current?.abort();
@@ -259,11 +220,11 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     };
 
     return [
-      { color: COLOR_RAMP[0], label: formatRange(minValue, q1, 'first') },
-      { color: COLOR_RAMP[1], label: formatRange(q1, q2, 'middle') },
-      { color: COLOR_RAMP[2], label: formatRange(q2, q3, 'middle') },
-      { color: COLOR_RAMP[3], label: formatRange(q3, q4, 'middle') },
-      { color: COLOR_RAMP[4], label: formatRange(q4, q4, 'last') },
+      { color: 'var(--map-fill-0)', label: formatRange(minValue, q1, 'first') },
+      { color: 'var(--map-fill-1)', label: formatRange(q1, q2, 'middle') },
+      { color: 'var(--map-fill-2)', label: formatRange(q2, q3, 'middle') },
+      { color: 'var(--map-fill-3)', label: formatRange(q3, q4, 'middle') },
+      { color: 'var(--map-fill-4)', label: formatRange(q4, q4, 'last') },
     ];
   }, [breaks, formatMetricValue, metricValues]);
 
@@ -272,13 +233,13 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
       const value = metricByParish[name] ?? 0;
 
       return {
-        fillColor: getColor(value, breaks, mapPalette),
+        fillColor: getColor(value, breaks),
         weight: selectedParish === name ? 2 : 1,
         color: selectedParish === name ? highlightColor : borderColor,
         fillOpacity: 0.8,
       };
     },
-    [borderColor, breaks, highlightColor, mapPalette, metricByParish, selectedParish],
+    [borderColor, breaks, highlightColor, metricByParish, selectedParish],
   );
 
   const tooltipForParish = useCallback(
