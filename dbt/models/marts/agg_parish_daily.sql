@@ -20,7 +20,9 @@ with aggregated as (
     from {{ ref('fact_performance') }} f
     {% if is_incremental() %}
       where f.date_day >= (
-          select coalesce(max(date_day), '1900-01-01') from {{ this }}
+          select coalesce(max(date_day), '1900-01-01')
+          from {{ this }} as existing
+          where existing.tenant_id = f.tenant_id
       )
     {% endif %}
     group by 1, 2, 3

@@ -24,7 +24,9 @@ with aggregated as (
     where f.campaign_id is not null
     {% if is_incremental() %}
       and f.date_day >= (
-          select coalesce(max(date_day), '1900-01-01') from {{ this }}
+          select coalesce(max(date_day), '1900-01-01')
+          from {{ this }} as existing
+          where existing.tenant_id = f.tenant_id
       )
     {% endif %}
     group by 1, 2, 3, 4, 5

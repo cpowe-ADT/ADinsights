@@ -8,8 +8,8 @@
         'source_platform',
         'ad_account_id',
         'campaign_id',
-        "coalesce(adset_id, 'NO_ADSET')",
-        "coalesce(ad_id, 'NO_AD')"
+        'adset_id_key',
+        'ad_id_key'
     ],
     incremental_strategy=fact_incremental_strategy,
     on_schema_change='sync_all_columns'
@@ -26,6 +26,8 @@ with base as (
         adset_id,
         ad_id,
         ad_name,
+        coalesce(adset_id, 'NO_ADSET') as adset_id_key,
+        coalesce(ad_id, 'NO_AD') as ad_id_key,
         coalesce(parish_code, 'UNK') as parish_code,
         coalesce(parish_name, region_name, 'Unknown') as parish_name,
         coalesce(region_name, 'Unknown') as region_name,
@@ -36,8 +38,11 @@ with base as (
         effective_from
     from {{ ref('all_ad_performance') }}
     {% if is_incremental() %}
-    where date_day >= (
-        select coalesce(max(date_day), '1900-01-01'::date) from {{ this }}
+    where {{ tenant_id_expr('tenant_id') }} = {{ tenant_id_expr() }}
+      and date_day >= (
+        select coalesce(max(date_day), '1900-01-01'::date)
+        from {{ this }}
+        where tenant_id = {{ tenant_id_expr() }}
     )
     {% endif %}
 ), normalized as (
@@ -58,6 +63,8 @@ select
     n.adset_id,
     n.ad_id,
     n.ad_name,
+    n.adset_id_key,
+    n.ad_id_key,
     n.parish_code,
     n.parish_name,
     n.region_name,
