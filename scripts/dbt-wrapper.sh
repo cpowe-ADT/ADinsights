@@ -86,6 +86,36 @@ if [[ ${#clean_cmd[@]} -eq 0 ]]; then
   exit 9
 fi
 
+dbt_exec="${clean_cmd[0]}"
+dbt_path=""
+if command -v -- "$dbt_exec" >/dev/null 2>&1; then
+  dbt_path="$(command -v -- "$dbt_exec")"
+fi
+
+if [[ -z "$dbt_path" ]]; then
+  repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+  candidate="$repo_root/.venv-dbt/bin/$dbt_exec"
+  if [[ -x "$candidate" ]]; then
+    dbt_path="$candidate"
+  fi
+fi
+
+if [[ -z "$dbt_path" ]]; then
+  cat >&2 <<'ERR'
+dbt executable not found on PATH. Install dbt (e.g. via scripts/dbt-dev-setup.sh)
+or set the DBT environment variable to the desired command before invoking make.
+ERR
+  exit 10
+fi
+
+if [[ -d "$dbt_path" ]]; then
+  echo "dbt executable resolved to a directory: $dbt_path" >&2
+  echo "Set DBT to a valid executable or run scripts/dbt-dev-setup.sh." >&2
+  exit 11
+fi
+
+clean_cmd[0]="$dbt_path"
+
 if [[ -n "$project_dir" ]]; then
   export DBT_PROJECT_DIR="$project_dir"
 fi

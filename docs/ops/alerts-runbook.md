@@ -52,6 +52,12 @@ Document any remediation in the incident ticket, especially if you contacted the
 - Re-run the reporting jobs or API webhooks that consume the aggregates, if they are part of the automated schedule.
 - Communicate the updated completion time to stakeholders once metrics are backfill complete.
 
+## Contract validation
+
+- When the dashboard API returns malformed aggregate payloads (missing campaign or parish keys), run `dbt test --project-dir dbt --select test_type:aggregate_snapshot_contract` to verify the warehouse side of the `/api/dashboards/aggregate-snapshot/` contract before escalating to the backend team.
+- Compare responses against [`docs/project/api/aggregate_snapshot.schema.json`](../project/api/aggregate_snapshot.schema.json) to confirm the expected fields and naming conventions.
+- Capture any contract regressions in the incident timeline so frontend engineers understand which keys or metrics were impacted.
+
 ## Escalation and follow-up
 
 - Escalate to the on-call data engineer if:

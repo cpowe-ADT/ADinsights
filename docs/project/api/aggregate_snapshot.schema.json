@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adinsights.dev/schemas/aggregate_snapshot.schema.json",
+  "title": "AggregateSnapshotResponse",
+  "description": "Contract for /api/dashboards/aggregate-snapshot/ responses consumed by dashboard clients.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generatedAt", "summary", "campaigns", "parishes", "filters"],
+  "properties": {
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the snapshot payload was assembled."
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currency",
+        "totalSpend",
+        "totalImpressions",
+        "totalClicks",
+        "totalConversions",
+        "ctr",
+        "conversionRate",
+        "costPerClick",
+        "costPerConversion",
+        "cpm",
+        "roas",
+        "campaignCount",
+        "parishCount"
+      ],
+      "properties": {
+        "currency": { "type": "string", "description": "Tenant currency code applied to downstream visualisations." },
+        "totalSpend": { "type": "number", "minimum": 0 },
+        "totalImpressions": { "type": "number", "minimum": 0 },
+        "totalClicks": { "type": "number", "minimum": 0 },
+        "totalConversions": { "type": "number", "minimum": 0 },
+        "ctr": { "type": "number", "minimum": 0 },
+        "conversionRate": { "type": "number", "minimum": 0 },
+        "costPerClick": { "type": "number", "minimum": 0 },
+        "costPerConversion": { "type": "number", "minimum": 0 },
+        "cpm": { "type": "number", "minimum": 0 },
+        "roas": { "type": "number", "minimum": 0 },
+        "campaignCount": { "type": "integer", "minimum": 0 },
+        "parishCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "campaigns": {
+      "type": "array",
+      "description": "Per-campaign aggregates scoped to a single platform and ad account for tenant isolation.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "date",
+          "sourcePlatform",
+          "adAccountId",
+          "campaignId",
+          "campaignName",
+          "spend",
+          "impressions",
+          "clicks",
+          "conversions",
+          "ctr",
+          "conversionRate",
+          "costPerClick",
+          "costPerConversion",
+          "cpm",
+          "roas",
+          "parishCode",
+          "parishName",
+          "regionName",
+          "firstSeenDate"
+        ],
+        "properties": {
+          "date": { "type": "string", "format": "date" },
+          "sourcePlatform": { "type": "string" },
+          "adAccountId": { "type": "string" },
+          "campaignId": { "type": "string" },
+          "campaignName": { "type": "string" },
+          "spend": { "type": "number" },
+          "impressions": { "type": "number" },
+          "clicks": { "type": "number" },
+          "conversions": { "type": "number" },
+          "ctr": { "type": "number" },
+          "conversionRate": { "type": "number" },
+          "costPerClick": { "type": "number" },
+          "costPerConversion": { "type": "number" },
+          "cpm": { "type": "number" },
+          "roas": { "type": "number" },
+          "parishCode": { "type": "string" },
+          "parishName": { "type": "string" },
+          "regionName": { "type": "string" },
+          "firstSeenDate": { "type": "string", "format": "date" }
+        }
+      }
+    },
+    "parishes": {
+      "type": "array",
+      "description": "Aggregations grouped by Jamaican parish for map and table rollups.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "date",
+          "parishCode",
+          "parishName",
+          "regionName",
+          "spend",
+          "impressions",
+          "clicks",
+          "conversions",
+          "campaignCount",
+          "ctr",
+          "conversionRate",
+          "costPerClick",
+          "costPerConversion",
+          "cpm",
+          "roas"
+        ],
+        "properties": {
+          "date": { "type": "string", "format": "date" },
+          "parishCode": { "type": "string" },
+          "parishName": { "type": "string" },
+          "regionName": { "type": "string" },
+          "spend": { "type": "number" },
+          "impressions": { "type": "number" },
+          "clicks": { "type": "number" },
+          "conversions": { "type": "number" },
+          "campaignCount": { "type": "integer", "minimum": 0 },
+          "ctr": { "type": "number" },
+          "conversionRate": { "type": "number" },
+          "costPerClick": { "type": "number" },
+          "costPerConversion": { "type": "number" },
+          "cpm": { "type": "number" },
+          "roas": { "type": "number" }
+        }
+      }
+    },
+    "filters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourcePlatforms", "adAccountIds"],
+      "properties": {
+        "sourcePlatforms": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Distinct platforms present in the campaign aggregates."
+        },
+        "adAccountIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Distinct ad account identifiers available for filtering."
+        }
+      }
+    }
+  }
+}
