@@ -6,7 +6,13 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.schemas import get_schema_view
 
 from alerts.views import AlertRunViewSet
-from analytics.views import AdapterListView, CombinedMetricsView, MetricsExportView, MetricsView
+from analytics.views import (
+    AdapterListView,
+    AggregateSnapshotView,
+    CombinedMetricsView,
+    MetricsExportView,
+    MetricsView,
+)
 from accounts.views import (
     AuditLogViewSet,
     MeView,
@@ -102,6 +108,7 @@ urlpatterns = [
     path(
         "api/dashboards/aggregate-snapshot/",
         CombinedMetricsView.as_view(),
+        AggregateSnapshotView.as_view(),
         name="dashboard-aggregate-snapshot",
     ),
     path("api/export/metrics.csv", MetricsExportView.as_view(), name="metrics-export"),

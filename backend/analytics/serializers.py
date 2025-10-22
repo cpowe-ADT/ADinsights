@@ -34,3 +34,89 @@ class MetricRecordSerializer(serializers.Serializer):
     spend = serializers.FloatField()
     conversions = serializers.IntegerField()
     roas = serializers.FloatField()
+
+
+class CampaignSummarySerializer(serializers.Serializer):
+    currency = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    totalSpend = serializers.FloatField()
+    totalImpressions = serializers.IntegerField()
+    totalClicks = serializers.IntegerField()
+    totalConversions = serializers.IntegerField()
+    averageRoas = serializers.FloatField()
+
+
+class CampaignTrendPointSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    spend = serializers.FloatField()
+    impressions = serializers.IntegerField()
+    clicks = serializers.IntegerField()
+    conversions = serializers.IntegerField()
+
+
+class CampaignRowSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    name = serializers.CharField()
+    platform = serializers.CharField()
+    status = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    parish = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    spend = serializers.FloatField()
+    impressions = serializers.IntegerField()
+    clicks = serializers.IntegerField()
+    conversions = serializers.IntegerField()
+    roas = serializers.FloatField()
+
+
+class CampaignPerformanceSerializer(serializers.Serializer):
+    summary = CampaignSummarySerializer()
+    trend = CampaignTrendPointSerializer(many=True)
+    rows = CampaignRowSerializer(many=True)
+
+
+class CreativePerformanceRowSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    name = serializers.CharField()
+    campaignId = serializers.CharField()
+    campaignName = serializers.CharField()
+    platform = serializers.CharField()
+    parish = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    spend = serializers.FloatField()
+    impressions = serializers.IntegerField()
+    clicks = serializers.IntegerField()
+    conversions = serializers.IntegerField()
+    roas = serializers.FloatField()
+
+
+class BudgetPacingRowSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    campaignName = serializers.CharField()
+    parishes = serializers.ListField(
+        child=serializers.CharField(), allow_empty=True
+    )
+    monthlyBudget = serializers.FloatField()
+    spendToDate = serializers.FloatField()
+    projectedSpend = serializers.FloatField()
+    pacingPercent = serializers.FloatField()
+
+
+class ParishAggregateSerializer(serializers.Serializer):
+    parish = serializers.CharField()
+    spend = serializers.FloatField()
+    impressions = serializers.IntegerField()
+    clicks = serializers.IntegerField()
+    conversions = serializers.IntegerField()
+    roas = serializers.FloatField()
+    campaignCount = serializers.IntegerField()
+    currency = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+
+
+class AggregateMetricsSerializer(serializers.Serializer):
+    campaign_metrics = CampaignPerformanceSerializer()
+    creative_metrics = CreativePerformanceRowSerializer(many=True)
+    budget_metrics = BudgetPacingRowSerializer(many=True)
+    parish_metrics = ParishAggregateSerializer(many=True)
+
+
+class AggregateSnapshotSerializer(serializers.Serializer):
+    tenant_id = serializers.UUIDField()
+    generated_at = serializers.DateTimeField()
+    metrics = AggregateMetricsSerializer()

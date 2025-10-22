@@ -26,7 +26,7 @@ export function loadSavedView<T = unknown>(id: string): T | undefined {
       return undefined;
     }
     return JSON.parse(raw) as T;
-  } catch (error) {
+  } catch {
     window.localStorage.removeItem(key);
     return undefined;
   }
@@ -39,7 +39,7 @@ export function saveView<T = unknown>(id: string, view: T): void {
 
   try {
     window.localStorage.setItem(toStorageKey(id), JSON.stringify(view));
-  } catch (error) {
+  } catch {
     // Swallow write errors to keep the tables functional even if storage is unavailable.
   }
 }
@@ -51,7 +51,7 @@ export function clearView(id: string): void {
 
   try {
     window.localStorage.removeItem(toStorageKey(id));
-  } catch (error) {
+  } catch {
     // Ignore failures triggered by storage restrictions.
   }
 }
