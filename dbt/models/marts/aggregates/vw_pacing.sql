@@ -7,7 +7,7 @@
 
 {% set lookback_days = 7 %}
 
-with account_daily as (
+with base_account_daily as (
     select
         tenant_id,
         date_day,
@@ -19,8 +19,45 @@ with account_daily as (
         sum(conversions) as conversions,
         sum(reported_conversions) as reported_conversions
     from {{ ref('fact_performance') }}
+    {% if is_incremental() %}
+    where date_day >= (
+        select coalesce(max(date_day), cast('1900-01-01' as date))
+        from {{ this }}
+    ) - interval '{{ lookback_days }} day'
+    {% endif %}
     group by 1,2,3,4
-),
+)
+{% if is_incremental() %}
+, historical_account_daily as (
+    select
+        existing.tenant_id,
+        existing.date_day,
+        existing.source_platform,
+        existing.ad_account_id,
+        existing.spend,
+        existing.impressions,
+        existing.clicks,
+        existing.conversions,
+        existing.reported_conversions
+    from {{ this }} existing
+    left join base_account_daily latest
+        on existing.tenant_id = latest.tenant_id
+        and existing.source_platform = latest.source_platform
+        and existing.ad_account_id = latest.ad_account_id
+        and existing.date_day = latest.date_day
+    where latest.date_day is null
+)
+, account_daily as (
+    select * from base_account_daily
+    union all
+    select * from historical_account_daily
+)
+{% else %}
+, account_daily as (
+    select * from base_account_daily
+)
+{% endif %}
+,
 
 windowed as (
     select
