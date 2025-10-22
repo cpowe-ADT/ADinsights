@@ -3,9 +3,10 @@ from __future__ import annotations
 import boto3
 import pytest
 
-pytest.importorskip("moto")
-
-from moto import mock_aws
+try:  # pragma: no cover - import guard for optional dependency
+    from moto import mock_aws
+except ImportError:  # pragma: no cover - skip tests when moto missing
+    pytest.skip("moto is required for KMS tests", allow_module_level=True)
 
 from core.crypto.kms import AwsKmsClient
 

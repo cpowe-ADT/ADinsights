@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import csv
+import json
 import logging
 from datetime import timedelta
 from functools import lru_cache
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 from django.conf import settings
 from django.db import connection
@@ -22,8 +23,13 @@ from adapters.fake import FakeAdapter
 from adapters.warehouse import WarehouseAdapter
 
 from .models import TenantMetricsSnapshot
+from .serializers import (
+    AggregateSnapshotSerializer,
+    MetricRecordSerializer,
+    MetricsQueryParamsSerializer,
+)
 
-from .serializers import MetricRecordSerializer, MetricsQueryParamsSerializer
+from accounts.audit import log_audit_event
 
 logger = logging.getLogger(__name__)
 
@@ -269,6 +275,123 @@ class MetricsExportView(APIView):
         yield writer.writerow(headers)
         for row in rows:
             yield writer.writerow([row.get(header) for header in headers])
+
+
+def _coerce_json_payload(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, (dict, list)):
+        return value
+    if isinstance(value, memoryview):
+        value = value.tobytes()
+    if isinstance(value, bytes):
+        value = value.decode("utf-8")
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return None
+        return json.loads(value)
+    return value
+
+
+def _default_campaign_metrics() -> dict[str, Any]:
+    return {
+        "summary": {
+            "currency": None,
+            "totalSpend": 0.0,
+            "totalImpressions": 0,
+            "totalClicks": 0,
+            "totalConversions": 0,
+            "averageRoas": 0.0,
+        },
+        "trend": [],
+        "rows": [],
+    }
+
+
+def _default_snapshot_payload(*, tenant_id: str) -> dict[str, Any]:
+    return {
+        "tenant_id": tenant_id,
+        "generated_at": timezone.now(),
+        "metrics": {
+            "campaign_metrics": _default_campaign_metrics(),
+            "creative_metrics": [],
+            "budget_metrics": [],
+            "parish_metrics": [],
+        },
+    }
+
+
+def _fetch_aggregate_snapshot(*, tenant_id: str) -> Mapping[str, Any] | None:
+    sql = """
+        select
+            tenant_id,
+            generated_at,
+            campaign_metrics,
+            creative_metrics,
+            budget_metrics,
+            parish_metrics
+        from vw_dashboard_aggregate_snapshot
+        where tenant_id = %(tenant_id)s
+        order by generated_at desc
+        limit 1
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, {"tenant_id": tenant_id})
+        row = cursor.fetchone()
+        if not row:
+            return None
+        columns = [col[0] for col in cursor.description]
+        record = dict(zip(columns, row))
+
+    metrics = {
+        "campaign_metrics": _coerce_json_payload(record.get("campaign_metrics"))
+        or _default_campaign_metrics(),
+        "creative_metrics": _coerce_json_payload(record.get("creative_metrics")) or [],
+        "budget_metrics": _coerce_json_payload(record.get("budget_metrics")) or [],
+        "parish_metrics": _coerce_json_payload(record.get("parish_metrics")) or [],
+    }
+
+    payload: dict[str, Any] = {
+        "tenant_id": record.get("tenant_id", tenant_id),
+        "generated_at": record.get("generated_at", timezone.now()),
+        "metrics": metrics,
+    }
+    return payload
+
+
+class AggregateSnapshotView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request) -> Response:  # noqa: D401 - DRF signature
+        tenant_id = getattr(request.user, "tenant_id", None)
+        tenant = getattr(request.user, "tenant", None)
+        if tenant_id is None or tenant is None:
+            return Response(
+                {"detail": "Unable to resolve tenant."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        tenant_id_str = str(tenant_id)
+        snapshot = _fetch_aggregate_snapshot(tenant_id=tenant_id_str)
+        if snapshot is None:
+            snapshot = _default_snapshot_payload(tenant_id=tenant_id_str)
+
+        serializer = AggregateSnapshotSerializer(snapshot)
+
+        log_audit_event(
+            tenant=tenant,
+            user=request.user,
+            action="aggregate_snapshot_viewed",
+            resource_type="dashboard",
+            resource_id=tenant_id_str,
+            metadata={
+                "path": request.path,
+                "tenant_id": tenant_id_str,
+            },
+        )
+
+        return Response(serializer.data)
 
 
 def _fetch_metric_rows(*, tenant_id: str, filters: dict[str, Any]) -> list[dict[str, Any]]:
