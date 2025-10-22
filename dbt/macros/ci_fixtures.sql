@@ -31,17 +31,22 @@
         {'schema': raw_meta_schema, 'identifier': 'adsets', 'seed_identifier': 'raw_meta__adsets'}
     ] %}
 
+    {% set os = modules.os %}
+    {% set cwd = os.getcwd() %}
+    {% set project_dir = env_var('DBT_PROJECT_DIR', 'dbt') %}
+    {% if os.path.isabs(project_dir) %}
+        {% set project_root = project_dir %}
+    {% else %}
+        {% set project_root = os.path.normpath(os.path.join(cwd, project_dir)) %}
+    {% endif %}
+    {% set seed_root = os.path.join(project_root, 'seeds') %}
+
     {% for fixture in fixtures %}
         {% set seed_relation = adapter.get_relation(
             database=seed_database,
             schema=seed_schema,
             identifier=fixture.seed_identifier
         ) %}
-
-        {% if not seed_relation %}
-            {% do log('Skipping CI fixture view for ' ~ fixture.identifier ~ ' because seed relation was not found.', info=True) %}
-            {% continue %}
-        {% endif %}
 
         {% set target_relation = api.Relation.create(
             database=seed_database,
@@ -66,9 +71,31 @@
             {% do adapter.drop_relation(existing_relation) %}
         {% endif %}
 
+        {% set source_sql = None %}
+        {% if seed_relation %}
+            {% set source_sql %}
+                select * from {{ seed_relation }}
+            {% endset %}
+        {% elif target.type == 'duckdb' %}
+            {% set seed_file = os.path.join(seed_root, fixture.seed_identifier ~ '.csv') %}
+            {% if os.path.exists(seed_file) %}
+                {% set seed_literal = seed_file.replace("'", "''") %}
+                {% set source_sql %}
+                    select * from read_csv_auto('{{ seed_literal }}', HEADER=TRUE)
+                {% endset %}
+                {% do log('Seed relation for ' ~ fixture.identifier ~ ' not found; using CSV fixture at ' ~ seed_file ~ '.', info=True) %}
+            {% else %}
+                {% do log('Skipping CI fixture view for ' ~ fixture.identifier ~ ' because neither a seed relation nor CSV fixture was found.', info=True) %}
+                {% continue %}
+            {% endif %}
+        {% else %}
+            {% do log('Skipping CI fixture view for ' ~ fixture.identifier ~ ' because seed relation was not found.', info=True) %}
+            {% continue %}
+        {% endif %}
+
         {% set statement %}
             create view {{ target_relation }} as
-            select * from {{ seed_relation }}
+            {{ source_sql }}
         {% endset %}
 
         {% do run_query(statement) %}

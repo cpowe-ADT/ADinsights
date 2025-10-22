@@ -1,0 +1,21 @@
+version: 2
+
+exposures:
+  - name: aggregate_snapshot_endpoint
+    type: application
+    maturity: high
+    url: https://adinsights.dev/api/dashboards/aggregate-snapshot/
+    description: >-
+      API endpoint providing combined campaign and parish aggregates for dashboard clients.
+      Depends on the agg_campaign_daily and agg_parish_daily marts to render the
+      `/api/dashboards/aggregate-snapshot/` payload.
+    owner:
+      name: Analytics Platform
+      email: data-platform@adinsights.dev
+    depends_on:
+      - ref('agg_campaign_daily')
+      - ref('agg_parish_daily')
+    tags:
+      - dashboard
+      - aggregate_snapshot
+      - api

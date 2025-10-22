@@ -179,6 +179,12 @@ models:
         description: 'Average cost per conversion for the campaign on the given day.'
       - name: cpm
         description: 'Cost per 1,000 impressions for the campaign on the given day.'
+      - name: roas
+        description: 'Return on ad spend derived from conversions divided by spend.'
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(roas, 0) >= 0'
       - name: parish_code
         description: 'Geographic parish code associated with the campaign during the day.'
       - name: parish_name
@@ -187,6 +193,9 @@ models:
         description: 'Region grouping tied to the parish.'
       - name: first_seen_date
         description: 'First date the campaign was observed in the warehouse.'
+    tests:
+      - aggregate_snapshot_contract:
+          parish_model: ref('agg_parish_daily')
   - name: agg_parish_daily
     description: 'Daily parish-level aggregation of spend and performance metrics with geo metadata.'
     columns:
@@ -208,6 +217,12 @@ models:
         description: 'Total clicks generated within the parish on the given day.'
       - name: conversions
         description: 'Total conversions attributed to the parish on the given day.'
+      - name: campaign_count
+        description: 'Number of distinct campaigns contributing to the parish totals on the given day.'
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(campaign_count, 0) >= 0'
       - name: ctr
         description: 'Click-through rate derived from parish clicks divided by impressions.'
       - name: conversion_rate
@@ -218,6 +233,12 @@ models:
         description: 'Average cost per conversion within the parish.'
       - name: cpm
         description: 'Cost per 1,000 impressions within the parish.'
+      - name: roas
+        description: 'Return on ad spend for the parish derived from conversions divided by spend.'
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(roas, 0) >= 0'
   - name: vw_campaign_daily
     description: 'Aggregated daily campaign metrics joined to current campaign attributes.'
     columns:

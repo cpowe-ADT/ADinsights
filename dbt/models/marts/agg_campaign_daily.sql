@@ -42,6 +42,7 @@ enriched as (
         {{ metric_cost_per_click('a.spend', 'a.clicks') }} as cost_per_click,
         {{ metric_cost_per_conversion('a.spend', 'a.conversions') }} as cost_per_conversion,
         {{ metric_cpm('a.spend', 'a.impressions') }} as cpm,
+        {{ metric_return_on_ad_spend('a.conversions', 'a.spend') }} as roas,
         dc.parish_code,
         dc.parish_name,
         dc.region_name,
