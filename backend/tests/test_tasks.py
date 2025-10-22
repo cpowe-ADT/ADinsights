@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+import uuid
 
 import pytest
 from django.conf import settings
@@ -10,6 +11,7 @@ from alerts.models import AlertRun
 from accounts.tenant_context import get_current_tenant_id
 from core.tasks import rotate_deks, _sync_provider_connections
 from integrations.models import AirbyteConnection, PlatformCredential
+from integrations.airbyte import AirbyteClientError, AirbyteClientConfigurationError
 from integrations.tasks import remind_expiring_credentials
 
 
@@ -94,3 +96,86 @@ def test_sync_provider_sets_tenant_context(monkeypatch, tenant):
     assert outcome == "no_connections"
     assert recorded and recorded[0] == str(tenant.id)
     assert get_current_tenant_id() is None
+
+
+class RetryCalled(Exception):
+    pass
+
+
+@pytest.mark.django_db
+def test_sync_provider_retries_on_client_error(monkeypatch, tenant):
+    class DummyTask:
+        def __init__(self):
+            self.request = type("Req", (), {"id": "task-42"})()
+            self.retry_args = None
+
+        def retry(self, exc=None, countdown=None):  # noqa: ANN001
+            self.retry_args = {"exc": exc, "countdown": countdown}
+            raise RetryCalled
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN002, ANN003
+            return None
+
+    def fake_from_settings(cls):  # noqa: ANN001
+        return DummyClient()
+
+    def fake_sync(self, connections, *, triggered_at=None):  # noqa: ANN001
+        raise AirbyteClientError("upstream timeout")
+
+    monkeypatch.setattr("core.tasks.AirbyteClient.from_settings", classmethod(fake_from_settings))
+    monkeypatch.setattr("core.tasks.AirbyteSyncService.sync_connections", fake_sync)
+
+    AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta Sync",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=60,
+        last_synced_at=timezone.now() - timedelta(hours=2),
+    )
+
+    task = DummyTask()
+    with pytest.raises(RetryCalled):
+        _sync_provider_connections(task, tenant=tenant, user=None, provider=PlatformCredential.META)
+
+    assert isinstance(task.retry_args["exc"], AirbyteClientError)
+    assert task.retry_args["countdown"] is None
+
+
+@pytest.mark.django_db
+def test_sync_provider_configuration_error_backoff(monkeypatch, tenant):
+    class DummyTask:
+        def __init__(self):
+            self.request = type("Req", (), {"id": "task-99"})()
+            self.retry_args = None
+
+        def retry(self, exc=None, countdown=None):  # noqa: ANN001
+            self.retry_args = {"exc": exc, "countdown": countdown}
+            raise RetryCalled
+
+    def fake_from_settings(cls):  # noqa: ANN001
+        raise AirbyteClientConfigurationError("missing api token")
+
+    monkeypatch.setattr("core.tasks.AirbyteClient.from_settings", classmethod(fake_from_settings))
+
+    AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Google Sync",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.GOOGLE,
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=30,
+        last_synced_at=timezone.now() - timedelta(hours=3),
+    )
+
+    task = DummyTask()
+    with pytest.raises(RetryCalled):
+        _sync_provider_connections(task, tenant=tenant, user=None, provider=PlatformCredential.GOOGLE)
+
+    assert isinstance(task.retry_args["exc"], AirbyteClientConfigurationError)
+    assert task.retry_args["countdown"] == 300

@@ -10,7 +10,7 @@ from functools import lru_cache
 from typing import Any, Iterable, Mapping, Sequence
 
 from django.conf import settings
-from django.db import connection
+from django.db import connection, OperationalError, ProgrammingError
 from django.utils import timezone
 from django.http import StreamingHttpResponse
 from rest_framework import permissions, status, viewsets
@@ -336,13 +336,21 @@ def _fetch_aggregate_snapshot(*, tenant_id: str) -> Mapping[str, Any] | None:
         order by generated_at desc
         limit 1
     """
-    with connection.cursor() as cursor:
-        cursor.execute(sql, {"tenant_id": tenant_id})
-        row = cursor.fetchone()
-        if not row:
-            return None
-        columns = [col[0] for col in cursor.description]
-        record = dict(zip(columns, row))
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(sql, {"tenant_id": tenant_id})
+            row = cursor.fetchone()
+            if not row:
+                return None
+            columns = [col[0] for col in cursor.description]
+            record = dict(zip(columns, row))
+    except (ProgrammingError, OperationalError) as exc:
+        logger.warning(
+            "aggregate snapshot view unavailable; returning default payload",
+            extra={"tenant_id": tenant_id},
+            exc_info=exc,
+        )
+        return None
 
     metrics = {
         "campaign_metrics": _coerce_json_payload(record.get("campaign_metrics"))
