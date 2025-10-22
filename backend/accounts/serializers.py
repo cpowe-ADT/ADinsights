@@ -15,6 +15,8 @@ from .models import (
     User,
     UserRole,
     assign_role,
+    default_invitation_expiry,
+    generate_invitation_token,
     seed_default_roles,
 )
 
@@ -261,6 +263,46 @@ class InvitationCreateSerializer(InvitationSerializer):
             tenant=tenant, invited_by=invited_by, **validated_data
         )
         send_invitation_email(invitation)
+        return invitation
+
+
+class InvitationResendSerializer(serializers.Serializer):
+    invitation_id = serializers.UUIDField()
+
+    default_error_messages = {
+        "not_found": "Invitation not found.",
+        "accepted": "Invitation has already been accepted.",
+    }
+
+    def validate_invitation_id(self, value):
+        tenant = self.context.get("tenant")
+        if tenant is None:
+            request = self.context.get("request")
+            if request is not None and getattr(request.user, "is_authenticated", False):
+                tenant = getattr(request.user, "tenant", None)
+        if tenant is None:
+            raise serializers.ValidationError("Tenant context is required.")
+
+        invitation = (
+            Invitation.objects.filter(id=value, tenant=tenant)
+            .select_related("tenant", "role")
+            .first()
+        )
+        if invitation is None:
+            raise serializers.ValidationError(self.error_messages["not_found"])
+        if invitation.accepted_at is not None:
+            raise serializers.ValidationError(self.error_messages["accepted"])
+
+        self.context["invitation"] = invitation
+        return value
+
+    def create(self, validated_data):
+        invitation: Invitation = self.context["invitation"]
+        invitation.token = generate_invitation_token()
+        invitation.expires_at = default_invitation_expiry()
+        invitation.save(update_fields=["token", "expires_at"])
+
+        send_invitation_email(invitation, is_resend=True)
         return invitation
 
 

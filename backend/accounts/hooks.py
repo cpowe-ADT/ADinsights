@@ -7,7 +7,7 @@ from .models import Invitation
 logger = logging.getLogger(__name__)
 
 
-def send_invitation_email(invitation: Invitation) -> None:
+def send_invitation_email(invitation: Invitation, *, is_resend: bool = False) -> None:
     """Placeholder hook for sending invitation emails.
 
     Real deployments should replace this function with an integration that
@@ -15,7 +15,8 @@ def send_invitation_email(invitation: Invitation) -> None:
     """
 
     logger.info(
-        "Invitation issued",
+        "Invitation %s",
+        "resent" if is_resend else "issued",
         extra={
             "tenant_id": str(invitation.tenant_id),
             "email": invitation.email,
