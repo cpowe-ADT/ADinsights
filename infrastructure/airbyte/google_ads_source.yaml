@@ -16,6 +16,7 @@ SELECT
 FROM ad_group_ad
 WHERE segments.date BETWEEN '{{ runtime_from_date }}' AND '{{ runtime_to_date }}'
 {%- endset %}
+{% set google_ads_metrics_query = env.get('AIRBYTE_GOOGLE_ADS_CUSTOM_QUERY', default_google_ads_metrics_query) | trim %}
 {
   "sourceDefinitionId": "0b29e8f7-f64c-4a24-9e97-07c4603f8c04",
   "workspaceId": "{{ env['AIRBYTE_WORKSPACE_ID'] }}",
@@ -33,7 +34,7 @@ WHERE segments.date BETWEEN '{{ runtime_from_date }}' AND '{{ runtime_to_date }}
     "include_zero_impressions": true,
     "custom_queries": [
       {
-        "query": "{{ env.get('AIRBYTE_GOOGLE_ADS_CUSTOM_QUERY', default_google_ads_metrics_query) | trim | replace('"', '\\"') }}",
+        "query": {{ google_ads_metrics_query | tojson }},
         "cursor_field": "date_day",
         "primary_key": [
           "campaign_id",
