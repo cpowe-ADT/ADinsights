@@ -1,9 +1,11 @@
+@import './foundations.css' layer(tokens);
+
 :root {
-  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: var(--font-family-sans);
   line-height: 1.5;
-  font-weight: 400;
-  color: var(--app-foreground, #1f2933);
-  background-color: var(--app-background, #f7fafc);
+  font-weight: var(--font-weight-regular);
+  color: var(--app-foreground);
+  background-color: var(--app-background);
   transition:
     background-color 0.3s ease,
     color 0.3s ease;
@@ -14,13 +16,15 @@ html,
 #root {
   margin: 0;
   height: 100%;
-  background-color: var(--surface-canvas);
-  color: var(--text-primary);
+  background-color: var(--color-surface-canvas);
+  color: var(--color-text-primary);
 }
 
 body {
-  background: var(--app-background, #f7fafc);
-  color: var(--app-foreground, #1f2933);
+  background: var(--app-background);
+  color: var(--app-foreground);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
 }
 
 * {
@@ -29,6 +33,7 @@ body {
 
 a {
   color: inherit;
+  text-decoration-color: currentColor;
 }
 
 .container {
@@ -54,6 +59,7 @@ a {
     max-width: 80rem;
   }
 }
+
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,

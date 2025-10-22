@@ -1,11 +1,11 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import * as React from 'react';
 import { act } from 'react';
 import type { FeatureCollection } from 'geojson';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('react-leaflet', () => {
-  const React = require('react') as typeof import('react');
   const { forwardRef, useEffect, useImperativeHandle, useRef, useState } = React;
 
   type LayerRecord = {

@@ -24,7 +24,7 @@ ajv.addFormat('uri', {
     try {
       const url = new URL(value);
       return url.protocol === 'http:' || url.protocol === 'https:';
-    } catch (error) {
+    } catch {
       return false;
     }
   },

@@ -10,31 +10,44 @@ const DATASET_LABELS: Record<'live' | 'dummy', string> = {
 };
 
 const DatasetToggle = (): JSX.Element | null => {
+  const {
+    mode,
+    status,
+    adapters,
+    error,
+    source,
+    loadAdapters,
+    toggleMode,
+  } = useDatasetStore((state) => ({
+    mode: state.mode,
+    status: state.status,
+    adapters: state.adapters,
+    error: state.error,
+    source: state.source,
+    loadAdapters: state.loadAdapters,
+    toggleMode: state.toggleMode,
+  }));
+
+  const { activeTenantId, loadAll } = useDashboardStore((state) => ({
+    activeTenantId: state.activeTenantId,
+    loadAll: state.loadAll,
+  }));
+
+  useEffect(() => {
+    if (MOCK_MODE || status !== 'idle') {
+      return;
+    }
+
+    void loadAdapters();
+  }, [status, loadAdapters]);
+
   if (MOCK_MODE) {
     return null;
   }
 
-  const mode = useDatasetStore((state) => state.mode);
-  const status = useDatasetStore((state) => state.status);
-  const adapters = useDatasetStore((state) => state.adapters);
-  const error = useDatasetStore((state) => state.error);
-  const source = useDatasetStore((state) => state.source);
-  const loadAdapters = useDatasetStore((state) => state.loadAdapters);
-  const toggleMode = useDatasetStore((state) => state.toggleMode);
-
-  const activeTenantId = useDashboardStore((state) => state.activeTenantId);
-  const loadAll = useDashboardStore((state) => state.loadAll);
-
-  useEffect(() => {
-    if (status === 'idle') {
-      void loadAdapters();
-    }
-  }, [status, loadAdapters]);
-
   const hasDemoData = adapters.includes('fake');
   const hasLiveData = adapters.includes('warehouse');
 
-  const nextMode = mode === 'live' ? 'dummy' : 'live';
   const nextLabel = mode === 'live' ? 'Use dummy data' : 'Use live data';
   const badge = DATASET_LABELS[mode];
 
