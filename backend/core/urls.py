@@ -24,6 +24,7 @@ from integrations.views import (
     PlatformCredentialViewSet,
 )
 from . import views as core_views
+from .viewsets import AirbyteTelemetryViewSet
 
 router = DefaultRouter()
 router.register(
@@ -35,6 +36,11 @@ router.register(
     r"airbyte/connections",
     AirbyteConnectionViewSet,
     basename="airbyte-connection",
+)
+router.register(
+    r"airbyte/telemetry",
+    AirbyteTelemetryViewSet,
+    basename="airbyte-telemetry",
 )
 router.register(r"tenants", TenantViewSet, basename="tenant")
 router.register(r"users", UserViewSet, basename="user")
