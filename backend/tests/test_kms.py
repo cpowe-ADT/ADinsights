@@ -5,6 +5,7 @@ import pytest
 
 pytest.importorskip("moto")
 
+# ruff: noqa: E402 - moto must be imported after pytest.importorskip
 from moto import mock_aws
 
 from core.crypto.kms import AwsKmsClient
