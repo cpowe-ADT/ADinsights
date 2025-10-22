@@ -591,19 +591,19 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
     const sourceOverride = getDatasetSource();
     const campaignPath = withSource(
-      withTenant('/dashboards/campaign-performance/', tenantId),
+      withTenant('/analytics/campaign-performance/', tenantId),
       sourceOverride,
     );
     const creativePath = withSource(
-      withTenant('/dashboards/creative-performance/', tenantId),
+      withTenant('/analytics/creative-performance/', tenantId),
       sourceOverride,
     );
     const budgetPath = withSource(
-      withTenant('/dashboards/budget-pacing/', tenantId),
+      withTenant('/analytics/budget-pacing/', tenantId),
       sourceOverride,
     );
     const parishPath = withSource(
-      withTenant('/dashboards/parish-performance/', tenantId),
+      withTenant('/analytics/parish-performance/', tenantId),
       sourceOverride,
     );
 

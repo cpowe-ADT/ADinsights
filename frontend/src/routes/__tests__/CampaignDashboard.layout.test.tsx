@@ -122,7 +122,7 @@ describe('CampaignDashboard layout', () => {
       .spyOn(global, 'fetch')
       .mockImplementation(async (input: RequestInfo | URL) => {
         const url = typeof input === 'string' ? input : input.url;
-        if (url.includes('/dashboards/parish-geometry') || url.endsWith('/jm_parishes.json')) {
+        if (url.includes('/analytics/parish-geometry') || url.endsWith('/jm_parishes.json')) {
           return new Response(JSON.stringify(geometryFixture), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },

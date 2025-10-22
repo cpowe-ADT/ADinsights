@@ -133,9 +133,27 @@ const StoreBootstrap = ({ children }: { children: ReactNode }) => {
     );
     const initialSnapshot = storeSnapshot.current;
 
+    const resolveUrl = (input: RequestInfo | URL): string => {
+      if (typeof input === 'string') {
+        return input;
+      }
+      if (input instanceof URL) {
+        return input.toString();
+      }
+      if (
+        typeof input === 'object' &&
+        input !== null &&
+        'url' in input &&
+        typeof (input as { url?: unknown }).url === 'string'
+      ) {
+        return (input as Request).url;
+      }
+      return '';
+    };
+
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === 'string' ? input : input.url;
-      if (url.includes('/dashboards/parish-geometry/')) {
+      const url = resolveUrl(input);
+      if (url.includes('/analytics/parish-geometry/')) {
         return originalFetch('/jm_parishes.json', init);
       }
       return originalFetch(input, init);

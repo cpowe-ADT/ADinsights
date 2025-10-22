@@ -25,7 +25,17 @@ const segmentLabels: Record<string, string> = {
   campaigns: 'Campaigns',
   creatives: 'Creatives',
   budget: 'Budget pacing',
+  map: 'Map',
 };
+
+function decodeSegmentValue(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch (error) {
+    console.warn('Failed to decode route segment', error);
+    return value;
+  }
+}
 
 const DashboardLayout = () => {
   const { tenantId, logout, user } = useAuth();
@@ -110,12 +120,28 @@ const DashboardLayout = () => {
 
   const navLinks = useMemo(
     () => [
-      { label: 'Campaigns', to: '/dashboards/campaigns', end: true },
-      { label: 'Creatives', to: '/dashboards/creatives', end: true },
-      { label: 'Budget pacing', to: '/dashboards/budget', end: true },
+      { label: 'Campaigns', to: '/dashboards/campaigns', end: false },
+      { label: 'Creatives', to: '/dashboards/creatives', end: false },
+      { label: 'Budget pacing', to: '/dashboards/budget', end: false },
     ],
     [],
   );
+
+  const campaignLookup = useMemo(() => {
+    const rows = campaign.data?.rows ?? [];
+    return rows.reduce<Record<string, string>>((acc, row) => {
+      acc[row.id] = row.name;
+      return acc;
+    }, {});
+  }, [campaign.data]);
+
+  const creativeLookup = useMemo(() => {
+    const rows = creative.data ?? [];
+    return rows.reduce<Record<string, string>>((acc, row) => {
+      acc[row.id] = row.name;
+      return acc;
+    }, {});
+  }, [creative.data]);
 
   const breadcrumbs = useMemo(() => {
     const items: { label: string; to?: string }[] = [{ label: 'Home', to: '/' }];
@@ -123,8 +149,19 @@ const DashboardLayout = () => {
     let pathAccumulator = '';
 
     segments.forEach((segment, index) => {
+      const decodedSegment = decodeSegmentValue(segment);
       pathAccumulator += `/${segment}`;
-      const label = segmentLabels[segment] ?? segment.replace(/-/g, ' ');
+      let label = segmentLabels[decodedSegment] ?? decodedSegment.replace(/-/g, ' ');
+
+      if (index > 0) {
+        const previous = decodeSegmentValue(segments[index - 1]);
+        if (previous === 'campaigns') {
+          label = campaignLookup[decodedSegment] ?? label;
+        } else if (previous === 'creatives') {
+          label = creativeLookup[decodedSegment] ?? label;
+        }
+      }
+
       items.push({
         label: label.charAt(0).toUpperCase() + label.slice(1),
         to: index === segments.length - 1 ? undefined : pathAccumulator,
@@ -132,7 +169,7 @@ const DashboardLayout = () => {
     });
 
     return items;
-  }, [location.pathname]);
+  }, [campaignLookup, creativeLookup, location.pathname]);
 
   const handleSaveLayout = useCallback(() => {
     try {
