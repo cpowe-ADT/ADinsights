@@ -3,8 +3,6 @@ from __future__ import annotations
 import os
 from typing import Tuple
 
-from django.conf import settings
-
 from .models import Tenant, User, Role, assign_role
 
 
@@ -50,4 +48,3 @@ def ensure_default_admin() -> Tuple[bool, str]:
     assign_role(user, Role.ADMIN)
 
     return True, ("created" if created else "updated")
-

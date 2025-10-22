@@ -171,7 +171,7 @@ describe('useDashboardStore', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const requestUrl = fetchMock.mock.calls[0]?.[0];
     expect(typeof requestUrl === 'string' ? requestUrl : String(requestUrl)).toContain(
-      '/api/dashboards/aggregate-snapshot/',
+      '/api/metrics/combined/',
     );
 
     let state = useDashboardStore.getState();

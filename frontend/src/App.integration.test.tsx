@@ -339,7 +339,7 @@ describe('App integration', () => {
         );
       }
 
-      if (url.includes('/api/dashboards/aggregate-snapshot/') && method === 'GET') {
+      if (url.includes('/api/metrics/combined/') && method === 'GET') {
         return Promise.resolve(createResponse(metricsPayload));
       }
 
@@ -375,14 +375,14 @@ describe('App integration', () => {
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('/api/dashboards/aggregate-snapshot/'),
+        expect.stringContaining('/api/metrics/combined/'),
         expect.objectContaining({ method: 'GET' }),
       ),
     );
 
     const metricsCall = fetchMock.mock.calls.find(
       (call) =>
-        typeof call[0] === 'string' && call[0].includes('/api/dashboards/aggregate-snapshot/'),
+        typeof call[0] === 'string' && call[0].includes('/api/metrics/combined/'),
     );
     expect(metricsCall).toBeTruthy();
     const metricsHeaders = metricsCall?.[1]?.headers as Headers | undefined;
@@ -445,7 +445,7 @@ describe('App integration', () => {
         );
       }
 
-      if (url.includes('/api/dashboards/aggregate-snapshot/') && method === 'GET') {
+      if (url.includes('/api/metrics/combined/') && method === 'GET') {
         metricsCallCount += 1;
         if (metricsCallCount === 1) {
           return Promise.resolve(createResponse(metricsPayload));

@@ -516,7 +516,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     if (!MOCK_MODE) {
       const sourceOverride = getDatasetSource();
       const metricsPath = withSource(
-        withTenant('/dashboards/aggregate-snapshot/', tenantId),
+        withTenant('/metrics/combined/', tenantId),
         sourceOverride,
       );
 
