@@ -1,0 +1,36 @@
+{
+  "endpoint": {
+    "method": "POST",
+    "path": "/api/auth/switch-tenant/",
+    "description": "Switch the authenticated request context to another tenant the user belongs to.",
+    "request": {
+      "content_type": "application/json",
+      "body": {
+        "tenant_id": "<tenant-uuid>"
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Connection scoped to the requested tenant.",
+        "example": {
+          "tenant_id": "<tenant-uuid>"
+        }
+      },
+      "400": {
+        "description": "Payload failed validation (unknown tenant or missing membership).",
+        "example": {
+          "tenant_id": [
+            "You do not belong to this tenant."
+          ]
+        }
+      },
+      "401": {
+        "description": "Authentication required."
+      }
+    },
+    "notes": [
+      "The backend executes `SET app.tenant_id` for PostgreSQL connections and records an audit log entry.",
+      "Membership includes the user's primary tenant or any secondary tenant via role assignments."
+    ]
+  }
+}

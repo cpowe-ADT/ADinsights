@@ -10,6 +10,9 @@ from analytics.views import AdapterListView, CombinedMetricsView, MetricsExportV
 from accounts.views import (
     AuditLogViewSet,
     MeView,
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
+    TenantSwitchView,
     RoleAssignmentView,
     TenantTokenObtainPairView,
     TenantViewSet,
@@ -53,6 +56,21 @@ urlpatterns = [
     path("api/token/refresh/", TokenRefreshView.as_view(), name="jwt_token_refresh"),
     path(
         "api/auth/login/", TenantTokenObtainPairView.as_view(), name="token_obtain_pair"
+    ),
+    path(
+        "api/auth/password-reset/",
+        PasswordResetRequestView.as_view(),
+        name="password-reset-request",
+    ),
+    path(
+        "api/auth/password-reset/confirm/",
+        PasswordResetConfirmView.as_view(),
+        name="password-reset-confirm",
+    ),
+    path(
+        "api/auth/switch-tenant/",
+        TenantSwitchView.as_view(),
+        name="tenant-switch",
     ),
     path("api/me/", MeView.as_view(), name="me"),
     path("api/roles/assign/", RoleAssignmentView.as_view(), name="role-assign"),
