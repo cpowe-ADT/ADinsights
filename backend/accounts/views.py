@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from django.conf import settings
+from django.db import connection
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -13,7 +15,10 @@ from .serializers import (
     AuditLogSerializer,
     InvitationAcceptSerializer,
     InvitationCreateSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
     TenantSerializer,
+    TenantSwitchSerializer,
     TenantSignupSerializer,
     TenantTokenObtainPairSerializer,
     UserCreateSerializer,
@@ -21,10 +26,83 @@ from .serializers import (
     UserSerializer,
     ServiceAccountKeySerializer,
 )
+from .tasks import send_password_reset_email
+from .tenant_context import set_current_tenant_id
 
 
 class TenantTokenObtainPairView(TokenObtainPairView):
     serializer_class = TenantTokenObtainPairSerializer
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        token = serializer.save()
+        raw_token = serializer.context["raw_token"]
+        user = serializer.context["user"]
+
+        send_password_reset_email.delay(str(token.id), raw_token)
+
+        log_audit_event(
+            tenant=user.tenant,
+            user=user,
+            action="password_reset_requested",
+            resource_type="user",
+            resource_id=user.id,
+        )
+
+        return Response(status=status.HTTP_202_ACCEPTED)
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        log_audit_event(
+            tenant=user.tenant,
+            user=user,
+            action="password_reset_completed",
+            resource_type="user",
+            resource_id=user.id,
+        )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TenantSwitchView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = TenantSwitchSerializer(
+            data=request.data, context={"request": request, "user": request.user}
+        )
+        serializer.is_valid(raise_exception=True)
+        tenant = serializer.save()
+        tenant_id = str(tenant.id)
+
+        set_current_tenant_id(tenant_id)
+        if connection.vendor == "postgresql":
+            with connection.cursor() as cursor:
+                cursor.execute("SET app.tenant_id = %s", [tenant_id])
+        else:
+            setattr(connection, settings.TENANT_SETTING_KEY, tenant_id)
+
+        log_audit_event(
+            tenant=tenant,
+            user=request.user,
+            action="tenant_switched",
+            resource_type="tenant",
+            resource_id=tenant_id,
+        )
+
+        return Response({"tenant_id": tenant_id}, status=status.HTTP_200_OK)
 
 
 class MeView(APIView):
