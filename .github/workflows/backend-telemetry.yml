@@ -1,0 +1,170 @@
+name: Backend Telemetry CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'scripts/ci/**'
+      - 'docs/runbooks/**'
+      - '.github/workflows/backend-telemetry.yml'
+  schedule:
+    - cron: '15 11 * * *'
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Ruff telemetry
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_SECRET_KEY: test-secret-key
+      CELERY_BROKER_URL: redis://localhost:6379/0
+      CELERY_RESULT_BACKEND: redis://localhost:6379/1
+      SECRETS_PROVIDER: env
+      KMS_PROVIDER: aws
+      KMS_KEY_ID: local-ci-key
+      AWS_REGION: us-east-1
+      AIRBYTE_API_URL: http://localhost:8001
+      AIRBYTE_API_TOKEN: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run Ruff
+        run: ruff check backend
+
+  tests:
+    name: Pytest telemetry
+    needs: lint
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_SECRET_KEY: test-secret-key
+      CELERY_BROKER_URL: redis://localhost:6379/0
+      CELERY_RESULT_BACKEND: redis://localhost:6379/1
+      SECRETS_PROVIDER: env
+      KMS_PROVIDER: aws
+      KMS_KEY_ID: local-ci-key
+      AWS_REGION: us-east-1
+      AIRBYTE_API_URL: http://localhost:8001
+      AIRBYTE_API_TOKEN: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run pytest with coverage
+        run: |
+          mkdir -p backend/test-results backend/htmlcov
+          pytest backend \
+            --junitxml=backend/test-results/junit.xml \
+            --cov=backend \
+            --cov-report=xml:backend/coverage.xml \
+            --cov-report=html:backend/htmlcov
+
+      - name: Generate backend CI summary
+        run: |
+          python scripts/ci/backend-summary.py \
+            --junit backend/test-results/junit.xml \
+            --coverage backend/coverage.xml
+
+      - name: Upload backend CI summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-ci-summary.json
+          path: backend-ci-summary.json
+
+      - name: Upload backend CI metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-metrics.csv
+          path: ci-metrics.csv
+
+      - name: Upload backend test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-tests
+          path: backend/test-results/junit.xml
+
+      - name: Upload backend coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: |
+            backend/coverage.xml
+            backend/htmlcov
+
+      - name: Publish coverage summary
+        run: |
+          python scripts/ci/coverage-summary.py \
+            --coverage backend=backend/coverage.xml \
+            --junit backend=backend/test-results/junit.xml
+
+  schema-guard:
+    name: Telemetry schema guard
+    needs: tests
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_SECRET_KEY: test-secret-key
+      CELERY_BROKER_URL: redis://localhost:6379/0
+      CELERY_RESULT_BACKEND: redis://localhost:6379/1
+      SECRETS_PROVIDER: env
+      KMS_PROVIDER: aws
+      KMS_KEY_ID: local-ci-key
+      AWS_REGION: us-east-1
+      AIRBYTE_API_URL: http://localhost:8001
+      AIRBYTE_API_TOKEN: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run telemetry schema guard
+        run: |
+          python scripts/ci/check_backend_telemetry.py \
+            --schema-dir backend/tests/schemas \
+            --fixture backend/tests/schemas/fixtures/telemetry.json \
+            --dbt-template backend/tests/schemas/fixtures/dbt_run_results.json
+
+      - name: Upload telemetry summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-telemetry-summary.md
+          path: backend-telemetry-summary.md
+
+      - name: Upload telemetry structured log
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-telemetry-summary.json
+          path: backend-telemetry-summary.json

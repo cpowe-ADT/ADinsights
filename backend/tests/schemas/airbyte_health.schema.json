@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Airbyte Health Response",
+  "type": "object",
+  "required": [
+    "component",
+    "configured",
+    "last_sync",
+    "recent_jobs",
+    "job_summary",
+    "status"
+  ],
+  "properties": {
+    "component": {"enum": ["airbyte"]},
+    "configured": {"type": "boolean"},
+    "last_sync": {
+      "type": "object",
+      "required": ["tenant_id", "last_synced_at", "last_job_id", "last_job_status"],
+      "properties": {
+        "tenant_id": {"type": "string"},
+        "last_synced_at": {"type": "string"},
+        "last_job_id": {"type": "string"},
+        "last_job_status": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "recent_jobs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "status",
+          "started_at",
+          "duration_seconds",
+          "records_synced",
+          "bytes_synced",
+          "api_cost"
+        ],
+        "properties": {
+          "job_id": {"type": "string"},
+          "status": {"type": "string"},
+          "started_at": {"type": "string"},
+          "duration_seconds": {"type": ["integer", "null"]},
+          "records_synced": {"type": ["number", "null"]},
+          "bytes_synced": {"type": ["number", "null"]},
+          "api_cost": {"type": ["number", "null"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "job_summary": {
+      "type": "object",
+      "required": [
+        "latest_job",
+        "average_duration_seconds",
+        "average_records_synced",
+        "average_api_cost",
+        "job_count"
+      ],
+      "properties": {
+        "latest_job": {
+          "type": "object",
+          "required": [
+            "job_id",
+            "status",
+            "started_at",
+            "duration_seconds",
+            "records_synced",
+            "bytes_synced",
+            "api_cost"
+          ],
+          "properties": {
+            "job_id": {"type": "string"},
+            "status": {"type": "string"},
+            "started_at": {"type": "string"},
+            "duration_seconds": {"type": ["integer", "null"]},
+            "records_synced": {"type": ["number", "null"]},
+            "bytes_synced": {"type": ["number", "null"]},
+            "api_cost": {"type": ["number", "null"]}
+          },
+          "additionalProperties": false
+        },
+        "average_duration_seconds": {"type": ["number", "null"]},
+        "average_records_synced": {"type": ["number", "null"]},
+        "average_api_cost": {"type": ["number", "null"]},
+        "job_count": {"type": "integer"}
+      },
+      "additionalProperties": false
+    },
+    "status": {"enum": ["ok"]},
+    "stale": {"type": "boolean"},
+    "detail": {"type": "string"}
+  },
+  "additionalProperties": true
+}

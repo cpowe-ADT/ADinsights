@@ -16,6 +16,7 @@ dependencies = [
   "httpx>=0.28,<0.29",
   "croniter>=6.0,<7.0",
   "prometheus-client>=0.20,<0.21",
+  "jsonschema>=4.22,<5.0",
 ]
 
 [project.optional-dependencies]
