@@ -482,7 +482,6 @@ class AggregateSnapshotView(APIView):
             snapshot = _default_snapshot_payload(tenant_id=tenant_id_str)
 
         serializer = AggregateSnapshotSerializer(snapshot)
-        metrics_payload = serializer.data.get("metrics", {})
 
         log_audit_event(
             tenant=tenant,
@@ -496,7 +495,7 @@ class AggregateSnapshotView(APIView):
             },
         )
 
-        return Response(metrics_payload)
+        return Response(serializer.data)
 
 
 def _fetch_metric_rows(*, tenant_id: str, filters: dict[str, Any]) -> list[dict[str, Any]]:
