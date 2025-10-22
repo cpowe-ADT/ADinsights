@@ -9,7 +9,6 @@ import ParishMap from '../components/ParishMap';
 import Skeleton from '../components/Skeleton';
 import Card from '../components/ui/Card';
 import StatCard from '../components/ui/StatCard';
-import type { MetricBadge } from '../components/Metric';
 import { useAuth } from '../auth/AuthContext';
 import useDashboardStore from '../state/useDashboardStore';
 import { formatCurrency, formatNumber, formatRatio } from '../lib/format';
@@ -131,17 +130,6 @@ const CampaignDashboard = () => {
   );
 
   const hasTrendData = trend.length > 0;
-
-  const baseBadge: MetricBadge | undefined = isInitialLoading
-    ? undefined
-    : !hasTrendData
-      ? 'Limited data'
-      : trend.length <= 3
-        ? 'New'
-        : undefined;
-  const spendBadge: MetricBadge | undefined =
-    summary && summary.totalSpend === 0 ? 'Paused' : baseBadge;
-
   const kpis = [
     {
       label: 'Spend',
