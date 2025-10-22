@@ -81,3 +81,35 @@ def test_tenant_switch_view_sets_tenant_and_logs_audit(
         action="tenant_switched", resource_id=str(user.tenant_id)
     )
     assert audit_entry.user_id == user.id
+
+
+@pytest.mark.django_db
+def test_tenant_switch_view_updates_default_tenant(
+    api_client, user, monkeypatch
+):
+    other_tenant = Tenant.objects.create(name="Other")
+    role, _ = Role.objects.get_or_create(name=Role.ADMIN)
+    UserRole.objects.create(user=user, tenant=other_tenant, role=role)
+
+    connection = DummyConnection()
+    monkeypatch.setattr("accounts.views.connection", connection, raising=False)
+
+    api_client.force_authenticate(user=user)
+    response = api_client.post(
+        "/api/auth/switch-tenant/",
+        {"tenant_id": str(other_tenant.id)},
+        format="json",
+    )
+    api_client.force_authenticate(user=None)
+
+    assert response.status_code == 200
+    user.refresh_from_db()
+    assert user.tenant_id == other_tenant.id
+    assert connection.statements == [
+        ("SET app.tenant_id = %s", [str(other_tenant.id)])
+    ]
+
+    audit_entry = AuditLog.objects.get(
+        action="tenant_switched", resource_id=str(other_tenant.id)
+    )
+    assert audit_entry.user_id == user.id
