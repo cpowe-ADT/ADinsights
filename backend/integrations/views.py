@@ -2,22 +2,41 @@ from __future__ import annotations
 
 from datetime import datetime, timezone as dt_timezone
 from typing import Any, Dict, Optional
+import logging
+import uuid
 
 import httpx
+from django.conf import settings
+from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from accounts.audit import log_audit_event
+from core.metrics import observe_airbyte_sync
 from integrations.airbyte.client import (
     AirbyteClient,
     AirbyteClientConfigurationError,
     AirbyteClientError,
 )
+from integrations.airbyte.service import (
+    AttemptSnapshot,
+    extract_attempt_snapshot,
+    extract_job_created_at,
+    extract_job_error,
+    extract_job_id,
+    extract_job_status,
+    extract_job_updated_at,
+    infer_completion_time,
+)
 from .models import (
     AirbyteConnection,
+    AirbyteJobTelemetry,
     AlertRuleDefinition,
     CampaignBudget,
+    ConnectionSyncUpdate,
     PlatformCredential,
 )
 from .serializers import (
@@ -25,6 +44,9 @@ from .serializers import (
     CampaignBudgetSerializer,
     PlatformCredentialSerializer,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class PlatformCredentialViewSet(viewsets.ModelViewSet):
@@ -178,6 +200,9 @@ class AirbyteConnectionViewSet(viewsets.GenericViewSet):
             "last_synced_at": self._format_datetime(connection.last_synced_at),
             "last_job_id": connection.last_job_id or (job_summary.get("id") if job_summary else ""),
             "last_job_status": connection.last_job_status or (job_summary.get("status") if job_summary else ""),
+            "last_job_updated_at": self._format_datetime(connection.last_job_updated_at),
+            "last_job_completed_at": self._format_datetime(connection.last_job_completed_at),
+            "last_job_error": connection.last_job_error or "",
             "latest_job": job_summary,
         }
 
@@ -230,6 +255,219 @@ class AirbyteConnectionViewSet(viewsets.GenericViewSet):
             return None
         job_id = job.get("id") or job.get("jobId")
         return str(job_id) if job_id is not None else None
+
+
+class AirbyteWebhookView(APIView):
+    """Handle Airbyte job lifecycle callbacks."""
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):  # noqa: ANN001 - DRF signature
+        secret_response = self._verify_secret(request)
+        if secret_response is not None:
+            return secret_response
+
+        payload = request.data or {}
+        connection_or_response = self._resolve_connection(payload)
+        if isinstance(connection_or_response, Response):
+            return connection_or_response
+        connection = connection_or_response
+
+        job_payload = payload.get("job") if isinstance(payload, dict) else None
+        job_envelope = job_payload if isinstance(job_payload, dict) else payload
+
+        job_id = extract_job_id(job_envelope)
+        job_status = extract_job_status(job_envelope) or payload.get("status")
+        created_at = (
+            extract_job_created_at(job_envelope)
+            or timezone.now()
+        )
+        snapshot = (
+            extract_attempt_snapshot(job_envelope)
+            or AttemptSnapshot(
+                started_at=created_at,
+                duration_seconds=None,
+                records_synced=None,
+                bytes_synced=None,
+                api_cost=None,
+            )
+        )
+        updated_at = extract_job_updated_at(job_envelope) or created_at
+        completed_at = infer_completion_time(job_envelope, snapshot)
+        error_message = extract_job_error(job_envelope)
+
+        metrics_payload: dict[str, Any] = {}
+        if isinstance(job_envelope, dict):
+            attempts = job_envelope.get("attempts") or []
+            if attempts:
+                latest = attempts[-1]
+                metrics_payload = (
+                    latest.get("metrics")
+                    or latest.get("attempt", {}).get("metrics")
+                    or {}
+                )
+
+        duration_seconds = snapshot.duration_seconds
+        if duration_seconds is None:
+            time_candidate = (
+                metrics_payload.get("timeInMillis")
+                or metrics_payload.get("processingTimeInMillis")
+                or metrics_payload.get("totalTimeInMillis")
+            )
+            if time_candidate is not None:
+                try:
+                    duration_seconds = max(int(int(time_candidate) / 1000), 0)
+                except (TypeError, ValueError):  # pragma: no cover - defensive
+                    duration_seconds = None
+
+        records_synced = snapshot.records_synced
+        if records_synced is None:
+            candidate = (
+                metrics_payload.get("recordsSynced")
+                or metrics_payload.get("recordsEmitted")
+                or metrics_payload.get("recordsCommitted")
+            )
+            if candidate is not None:
+                try:
+                    records_synced = int(candidate)
+                except (TypeError, ValueError):  # pragma: no cover - defensive
+                    records_synced = None
+
+        bytes_synced = snapshot.bytes_synced
+        if bytes_synced is None:
+            candidate_bytes = metrics_payload.get("bytesSynced") or metrics_payload.get("bytesEmitted")
+            if candidate_bytes is not None:
+                try:
+                    bytes_synced = int(candidate_bytes)
+                except (TypeError, ValueError):  # pragma: no cover - defensive
+                    bytes_synced = None
+
+        update = ConnectionSyncUpdate(
+            connection=connection,
+            job_id=str(job_id) if job_id is not None else None,
+            status=job_status,
+            created_at=created_at,
+            updated_at=updated_at,
+            completed_at=completed_at,
+            duration_seconds=duration_seconds,
+            records_synced=records_synced,
+            bytes_synced=bytes_synced,
+            api_cost=snapshot.api_cost,
+            error=error_message,
+        )
+        AirbyteConnection.persist_sync_updates([update])
+
+        if update.job_id:
+            started_at = snapshot.started_at or created_at
+            AirbyteJobTelemetry.all_objects.update_or_create(
+                connection=connection,
+                job_id=update.job_id,
+                defaults={
+                    "tenant": connection.tenant,
+                    "status": job_status or "",
+                    "started_at": started_at,
+                    "duration_seconds": duration_seconds,
+                    "records_synced": records_synced,
+                    "bytes_synced": bytes_synced,
+                    "api_cost": snapshot.api_cost,
+                },
+            )
+
+        observe_airbyte_sync(
+            tenant_id=str(connection.tenant_id),
+            provider=connection.provider,
+            connection_id=str(connection.connection_id),
+            duration_seconds=float(duration_seconds)
+            if duration_seconds is not None
+            else None,
+            records_synced=records_synced,
+            status=job_status,
+        )
+
+        log_audit_event(
+            tenant=connection.tenant,
+            user=None,
+            action="airbyte_job_webhook",
+            resource_type="airbyte_connection",
+            resource_id=connection.id,
+            metadata={
+                "connection_id": str(connection.connection_id),
+                "job_id": update.job_id,
+                "status": job_status,
+                "records_synced": records_synced,
+                "duration_seconds": duration_seconds,
+                "error": error_message,
+            },
+        )
+
+        logger.info(
+            "Airbyte webhook processed",
+            extra={
+                "tenant_id": str(connection.tenant_id),
+                "connection_id": str(connection.connection_id),
+                "job_id": update.job_id,
+                "status": job_status,
+            },
+        )
+
+        status_code = (
+            status.HTTP_202_ACCEPTED
+            if job_status and job_status.lower() not in {"succeeded", "success"}
+            else status.HTTP_200_OK
+        )
+        return Response(
+            {
+                "connection_id": str(connection.connection_id),
+                "job_id": update.job_id,
+                "status": job_status,
+                "received_at": timezone.now().isoformat(),
+            },
+            status=status_code,
+        )
+
+    def _verify_secret(self, request) -> Response | None:
+        expected = getattr(settings, "AIRBYTE_WEBHOOK_SECRET", None)
+        if not expected:
+            return None
+        provided = request.headers.get("X-Airbyte-Webhook-Secret")
+        if provided == expected:
+            return None
+        return Response({"detail": "invalid webhook secret"}, status=status.HTTP_403_FORBIDDEN)
+
+    def _resolve_connection(self, payload: dict) -> AirbyteConnection | Response:
+        identifier = self._extract_connection_id(payload)
+        if identifier is None:
+            return Response({"detail": "connection_id missing"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            connection_uuid = uuid.UUID(str(identifier))
+        except ValueError:
+            return Response({"detail": "invalid connection_id"}, status=status.HTTP_400_BAD_REQUEST)
+        connection = (
+            AirbyteConnection.all_objects.select_related("tenant")
+            .filter(connection_id=connection_uuid)
+            .first()
+        )
+        if connection is None:
+            return Response({"detail": "connection not found"}, status=status.HTTP_404_NOT_FOUND)
+        return connection
+
+    def _extract_connection_id(self, payload: dict) -> str | None:
+        if not isinstance(payload, dict):
+            return None
+        job_payload = payload.get("job") if isinstance(payload.get("job"), dict) else None
+        candidates = [
+            payload.get("connectionId"),
+            payload.get("connection_id"),
+        ]
+        if isinstance(job_payload, dict):
+            candidates.extend(
+                [job_payload.get("connectionId"), job_payload.get("connection_id")]
+            )
+        for candidate in candidates:
+            if candidate:
+                return candidate
+        return None
 
 
 class CampaignBudgetViewSet(viewsets.ModelViewSet):

@@ -19,6 +19,9 @@ from accounts.tenant_context import get_current_tenant_id
 _correlation_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "correlation_id", default=None
 )
+_task_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "task_id", default=None
+)
 
 
 def set_correlation_id(value: Optional[str]) -> None:
@@ -37,6 +40,24 @@ def clear_correlation_id() -> None:
     """Remove any correlation identifier bound to this context."""
 
     _correlation_id_var.set(None)
+
+
+def set_task_id(value: Optional[str]) -> None:
+    """Persist the current Celery task identifier for structured logging."""
+
+    _task_id_var.set(value)
+
+
+def get_task_id() -> Optional[str]:
+    """Return the active Celery task identifier, if any."""
+
+    return _task_id_var.get()
+
+
+def clear_task_id() -> None:
+    """Clear any task identifier bound to the context."""
+
+    _task_id_var.set(None)
 
 
 class JsonFormatter(logging.Formatter):
@@ -99,6 +120,10 @@ class ContextFilter(logging.Filter):
         tenant_id = get_current_tenant_id()
         if tenant_id:
             record.tenant_id = str(tenant_id)
+
+        task_id = get_task_id()
+        if task_id:
+            record.task_id = task_id
 
         return True
 
@@ -171,6 +196,7 @@ class InstrumentedTask(Task):
     def before_start(self, task_id, args, kwargs):  # noqa: ANN001 - celery hook
         self.request._start_time = time.perf_counter()
         set_correlation_id(task_id)
+        set_task_id(task_id)
         self.logger.info(
             "task.started",
             extra=self._task_extra(task_id, args, kwargs),
@@ -198,6 +224,7 @@ class InstrumentedTask(Task):
             super().after_return(status, retval, task_id, args, kwargs, einfo)
         finally:
             clear_correlation_id()
+            clear_task_id()
 
     def _task_extra(self, task_id, args, kwargs) -> Dict[str, Any]:  # noqa: ANN001
         return {
