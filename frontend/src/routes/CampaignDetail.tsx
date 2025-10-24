@@ -80,7 +80,7 @@ const CampaignDetail = (): JSX.Element => {
 
   useEffect(() => {
     const hasLoadedRows = campaignRows.length > 0;
-    if (!hasLoadedRows && campaign.status !== 'loading') {
+    if (!hasLoadedRows && campaign.status === 'idle') {
       void loadAll(tenantId);
     }
   }, [campaign.status, campaignRows.length, loadAll, tenantId]);

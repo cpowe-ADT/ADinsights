@@ -58,7 +58,7 @@ const CreativeDetail = (): JSX.Element => {
 
   useEffect(() => {
     const hasCreativeRows = creatives.length > 0;
-    if (!hasCreativeRows && creative.status !== 'loading') {
+    if (!hasCreativeRows && creative.status === 'idle') {
       void loadAll(tenantId);
     }
   }, [creative.status, creatives.length, loadAll, tenantId]);
