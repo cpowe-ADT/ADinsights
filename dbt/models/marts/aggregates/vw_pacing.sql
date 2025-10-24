@@ -85,6 +85,7 @@ windowed as (
 
 enriched as (
     select
+        w.tenant_id,
         w.date_day,
         w.source_platform,
         w.ad_account_id,
@@ -92,6 +93,7 @@ enriched as (
         w.impressions,
         w.clicks,
         w.conversions,
+        w.reported_conversions,
         w.cumulative_spend,
         w.trailing_7d_avg_spend,
         {{ metric_ctr('w.clicks', 'w.impressions') }} as ctr,
