@@ -111,6 +111,7 @@ const authValue: AuthContextValue = {
   user: { email: 'analyst@example.com' },
   login: async () => undefined,
   logout: () => undefined,
+  setActiveTenant: () => undefined,
   statusMessage: undefined,
 };
 

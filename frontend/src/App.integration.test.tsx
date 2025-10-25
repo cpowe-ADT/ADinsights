@@ -452,15 +452,28 @@ describe('App integration', () => {
         );
       }
 
-      if (url.includes('/api/analytics/combined/') && method === 'GET') {
+      if (url.includes('/api/metrics/combined/') && method === 'GET') {
         return Promise.resolve(createResponse(metricsPayload));
+      }
+
+      if (url.endsWith('/api/adapters/') && method === 'GET') {
+        return Promise.resolve(
+          createResponse([
+            { key: 'warehouse', name: 'Warehouse', interfaces: [] },
+            { key: 'fake', name: 'Demo dataset', interfaces: [] },
+          ]),
+        );
       }
 
       if (url.includes('/api/tenants/') && method === 'GET') {
         return Promise.resolve(createResponse(tenantFixtures));
       }
 
-      if (url.endsWith('/jm_parishes.json') || url.includes('/api/dashboards/parish-geometry/')) {
+      if (
+        url.endsWith('/jm_parishes.json') ||
+        url.includes('/api/analytics/parish-geometry/') ||
+        url.includes('/api/dashboards/parish-geometry/')
+      ) {
         return Promise.resolve(createResponse(geojsonPayload));
       }
 
@@ -492,13 +505,13 @@ describe('App integration', () => {
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('/api/analytics/combined/'),
+        expect.stringContaining('/api/metrics/combined/'),
         expect.objectContaining({ method: 'GET' }),
       ),
     );
 
     const metricsCall = fetchMock.mock.calls.find(
-      (call) => typeof call[0] === 'string' && call[0].includes('/api/analytics/combined/'),
+      (call) => typeof call[0] === 'string' && call[0].includes('/api/metrics/combined/'),
     );
     expect(metricsCall).toBeTruthy();
     const metricsHeaders = metricsCall?.[1]?.headers as Headers | undefined;
@@ -593,7 +606,7 @@ describe('App integration', () => {
         );
       }
 
-      if (url.includes('/api/analytics/combined/') && method === 'GET') {
+      if (url.includes('/api/metrics/combined/') && method === 'GET') {
         metricsCallCount += 1;
         if (metricsCallCount === 1) {
           return Promise.resolve(createResponse(metricsPayload));
@@ -603,11 +616,24 @@ describe('App integration', () => {
         );
       }
 
+      if (url.endsWith('/api/adapters/') && method === 'GET') {
+        return Promise.resolve(
+          createResponse([
+            { key: 'warehouse', name: 'Warehouse', interfaces: [] },
+            { key: 'fake', name: 'Demo dataset', interfaces: [] },
+          ]),
+        );
+      }
+
       if (url.includes('/api/tenants/') && method === 'GET') {
         return Promise.resolve(createResponse(tenantFixtures));
       }
 
-      if (url.endsWith('/jm_parishes.json') || url.includes('/api/dashboards/parish-geometry/')) {
+      if (
+        url.endsWith('/jm_parishes.json') ||
+        url.includes('/api/analytics/parish-geometry/') ||
+        url.includes('/api/dashboards/parish-geometry/')
+      ) {
         return Promise.resolve(createResponse(geojsonPayload));
       }
 
