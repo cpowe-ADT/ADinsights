@@ -159,6 +159,32 @@ Optional connectors are disabled by default in dbt via the `enable_linkedin` and
 
 All files assume credentials are injected from environment variables using Airbyte's declarative templates. Export the variables listed below before applying the YAML snippets. Replace placeholders with the actual workspace UUIDs and connection IDs when provisioning resources.
 
+### Meta Ads secrets & tuning knobs
+
+| Variable | Description |
+| --- | --- |
+| `AIRBYTE_META_ACCOUNT_ID` | Ads account to query (prefixed with `act_`). |
+| `AIRBYTE_META_ACCESS_TOKEN` | Long-lived system token with `ads_read` scope. |
+| `AIRBYTE_META_APP_ID` / `AIRBYTE_META_APP_SECRET` | App credentials used for token refreshes. |
+| `AIRBYTE_META_START_DATE` | ISO timestamp for the initial backfill (defaults to `2023-01-01T00:00:00Z`). |
+| `AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS` | Rolling attribution window (default `3` days). |
+| `AIRBYTE_META_HOURLY_WINDOW_DAYS` | Additional sync window applied to incremental jobs (default `3`). |
+| `AIRBYTE_META_ATTRIBUTION_WINDOW_DAYS` | Horizon for attribution metrics (default `30`). |
+
+### Google Ads secrets & tuning knobs
+
+| Variable | Description |
+| --- | --- |
+| `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN` | Manager account developer token. |
+| `AIRBYTE_GOOGLE_ADS_CLIENT_ID` / `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET` | OAuth client configured for API access. |
+| `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN` | Refresh token tied to the Ads manager. |
+| `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID` | Customer ID (without dashes) that owns the campaigns. |
+| `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID` | Login customer for MCC hierarchies. |
+| `AIRBYTE_GOOGLE_ADS_START_DATE` | YYYY-MM-DD start date for backfills (default `2023-01-01`). |
+| `AIRBYTE_GOOGLE_ADS_CONVERSION_WINDOW_DAYS` | Conversion lag considered during syncs (default `30`). |
+| `AIRBYTE_GOOGLE_ADS_LOOKBACK_WINDOW_DAYS` | Additional incremental replay window (default `3`). |
+| `AIRBYTE_GOOGLE_ADS_CUSTOM_QUERY` | Optional override for the GAQL metrics query (defaults to packaged query). |
+
 | Connector             | Required environment variables |
 | --------------------- | -------------------------------- |
 | Google Ads            | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN`, `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_START_DATE` (optional), `AIRBYTE_GOOGLE_ADS_CUSTOM_QUERY` (optional) |
@@ -190,4 +216,3 @@ The harness uses mocked HTTP responses so the tests execute without contacting u
 3. Run the acceptance tests locally (`pytest infrastructure/airbyte/sources/tests -q`) and validate discovery in the Airbyte UI.
 4. Create destinations/connection pairs, enable incremental sync with the documented cron schedule, and monitor the first run for quota or schema issues.
 5. Flip the corresponding dbt feature flags (`enable_linkedin`, `enable_tiktok`) once the first sync succeeds.
-
