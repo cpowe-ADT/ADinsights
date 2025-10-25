@@ -109,9 +109,12 @@ def test_dashboard_snapshot_schema(telemetry_setup, dbt_run_results):
     payload = response.json()
 
     validate(instance=payload, schema=load_schema("dashboard_aggregate_snapshot.schema.json"))
-    assert set(payload.keys()) == {"campaign", "creative", "budget", "parish"}
-    assert payload["campaign"]["summary"]["currency"]
-    assert payload["parish"], "Expected parish aggregates to be populated"
+    assert payload["tenant_id"] == TELEMETRY_TENANT_ID
+    assert payload["generated_at"]
+    metrics = payload["metrics"]
+    assert set(metrics.keys()) == {"campaign_metrics", "creative_metrics", "budget_metrics", "parish_metrics"}
+    assert metrics["campaign_metrics"]["summary"]["currency"]
+    assert metrics["parish_metrics"], "Expected parish aggregates to be populated"
 
 
 def test_airbyte_health_schema(telemetry_setup, dbt_run_results):

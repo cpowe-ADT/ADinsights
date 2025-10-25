@@ -257,10 +257,10 @@ class ParishAggregateSerializer(serializers.Serializer):
 
 
 class AggregateMetricsSerializer(serializers.Serializer):
-    campaign = CampaignPerformanceSerializer()
-    creative = CreativePerformanceRowSerializer(many=True)
-    budget = BudgetPacingRowSerializer(many=True)
-    parish = ParishAggregateSerializer(many=True)
+    campaign_metrics = CampaignPerformanceSerializer()
+    creative_metrics = CreativePerformanceRowSerializer(many=True)
+    budget_metrics = BudgetPacingRowSerializer(many=True)
+    parish_metrics = ParishAggregateSerializer(many=True)
 
 
 class AggregateSnapshotSerializer(serializers.Serializer):

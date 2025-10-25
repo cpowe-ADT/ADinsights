@@ -130,6 +130,27 @@ Track progress via the project management tool (Jira/Linear) linked to these wor
 
 ---
 
+## 6.1 Corrections & Follow-Up Tasks
+
+The vertical slice surfaced a handful of outstanding gaps. Document them here so they can be
+scheduled deliberately instead of rediscovered during reviews:
+
+- **Warehouse snapshots** – add a Celery task/management command that copies warehouse aggregates
+  (e.g., `vw_dashboard_aggregate_snapshot`) into `analytics.TenantMetricsSnapshot` so the warehouse
+  adapter serves real payloads.
+- **Airbyte connection lifecycle APIs** – expose list/create/update endpoints for
+  `AirbyteConnection` and wire them into the onboarding flows so tenants can manage schedules
+  without touching the database.
+- **dbt incremental keys** – update the marts (`vw_campaign_daily`, `vw_creative_daily`,
+  `vw_pacing`, etc.) to include `tenant_id` in their incremental `unique_key` definitions to
+  preserve tenant isolation.
+- **Frontend live mode** – switch the dashboard stores to hit `/metrics/combined/` by default and
+  guard mock fixtures behind an opt-in flag only.
+- **Secrets & observability** – plumb the production KMS client, rotation reminders, and monitoring
+  hooks called out in the README checklist.
+
+---
+
 ## 7. User Access Control (UAC) Rollout Plan
 
 See `docs/security/uac-spec.md` for the authoritative privilege model. This section breaks the rollout into sequenced engineering/ops slices. Each slice maps to one or more GitHub milestones and should be executed in order; individual tasks should stay within a single top-level folder per AGENTS guidelines.

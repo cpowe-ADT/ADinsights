@@ -399,10 +399,10 @@ def _default_snapshot_payload(*, tenant_id: str) -> dict[str, Any]:
         "tenant_id": tenant_id,
         "generated_at": timezone.now(),
         "metrics": {
-            "campaign": _default_campaign_metrics(),
-            "creative": [],
-            "budget": [],
-            "parish": _default_parish_metrics(),
+            "campaign_metrics": _default_campaign_metrics(),
+            "creative_metrics": [],
+            "budget_metrics": [],
+            "parish_metrics": _default_parish_metrics(),
         },
     }
 
@@ -449,10 +449,10 @@ def _fetch_aggregate_snapshot(*, tenant_id: str) -> Mapping[str, Any] | None:
     parish_metrics = _coerce_json_payload(record.get("parish_metrics"))
 
     metrics = {
-        "campaign": campaign_metrics or _default_campaign_metrics(),
-        "creative": creative_metrics or [],
-        "budget": budget_metrics or [],
-        "parish": parish_metrics or _default_parish_metrics(),
+        "campaign_metrics": campaign_metrics or _default_campaign_metrics(),
+        "creative_metrics": creative_metrics or [],
+        "budget_metrics": budget_metrics or [],
+        "parish_metrics": parish_metrics or _default_parish_metrics(),
     }
 
     payload: dict[str, Any] = {
@@ -481,7 +481,6 @@ class AggregateSnapshotView(APIView):
             snapshot = _default_snapshot_payload(tenant_id=tenant_id_str)
 
         serializer = AggregateSnapshotSerializer(snapshot)
-        metrics_payload = serializer.data.get("metrics", {})
 
         log_audit_event(
             tenant=tenant,
@@ -495,7 +494,7 @@ class AggregateSnapshotView(APIView):
             },
         )
 
-        return Response(metrics_payload)
+        return Response(serializer.data)
 
 
 def _fetch_metric_rows(*, tenant_id: str, filters: dict[str, Any]) -> list[dict[str, Any]]:

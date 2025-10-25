@@ -77,14 +77,16 @@ class AirbyteSyncService:
                 bytes_synced=None,
                 api_cost=None,
             )
+            job_detail: dict[str, Any] = {}
             if job_id is not None:
                 job_detail = self.client.get_job(job_id)
                 job_status = extract_job_status(job_detail) or job_status
                 job_created_at = extract_job_created_at(job_detail) or base_time
                 attempt_snapshot = extract_attempt_snapshot(job_detail) or attempt_snapshot
-            job_updated_at = extract_job_updated_at(job_detail)
-            completed_at = infer_completion_time(job_detail, attempt_snapshot)
-            error_message = extract_job_error(job_detail)
+            job_context = job_detail or {}
+            job_updated_at = extract_job_updated_at(job_context)
+            completed_at = infer_completion_time(job_context, attempt_snapshot)
+            error_message = extract_job_error(job_context)
             update = ConnectionSyncUpdate(
                 connection=connection,
                 job_id=str(job_id) if job_id is not None else None,

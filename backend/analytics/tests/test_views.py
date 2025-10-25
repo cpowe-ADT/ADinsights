@@ -162,12 +162,16 @@ def test_aggregate_snapshot_returns_tenant_scoped_payload(api_client, user, aggr
 
     assert response.status_code == 200
     payload = response.json()
-    assert set(payload.keys()) == {"campaign", "creative", "budget", "parish"}
-    assert payload["campaign"]["summary"]["totalSpend"] == pytest.approx(1250.55)
-    assert payload["campaign"]["rows"][0]["id"] == "cmp_1"
-    assert payload["creative"][0]["campaignId"] == "cmp_1"
-    assert payload["budget"][0]["monthlyBudget"] == pytest.approx(2000.0)
-    assert payload["parish"][0]["parish"] == "Kingston"
+    assert payload["tenant_id"] == str(user.tenant_id)
+    assert payload["generated_at"]
+
+    metrics = payload["metrics"]
+    assert set(metrics.keys()) == {"campaign_metrics", "creative_metrics", "budget_metrics", "parish_metrics"}
+    assert metrics["campaign_metrics"]["summary"]["totalSpend"] == pytest.approx(1250.55)
+    assert metrics["campaign_metrics"]["rows"][0]["id"] == "cmp_1"
+    assert metrics["creative_metrics"][0]["campaignId"] == "cmp_1"
+    assert metrics["budget_metrics"][0]["monthlyBudget"] == pytest.approx(2000.0)
+    assert metrics["parish_metrics"][0]["parish"] == "Kingston"
 
 
 @pytest.mark.django_db
