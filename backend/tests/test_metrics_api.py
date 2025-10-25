@@ -3,6 +3,9 @@ from __future__ import annotations
 import pytest
 from django.utils import timezone
 
+from django.conf import settings
+
+from adapters.demo import DemoAdapter
 from adapters.fake import FakeAdapter
 from analytics.models import TenantMetricsSnapshot
 
@@ -10,6 +13,7 @@ from analytics.models import TenantMetricsSnapshot
 @pytest.fixture(autouse=True)
 def enable_fake_adapter(settings):
     settings.ENABLE_FAKE_ADAPTER = True
+    settings.ENABLE_DEMO_ADAPTER = False
 
 
 @pytest.fixture
@@ -18,7 +22,7 @@ def enable_warehouse_adapter(settings):
 
 
 @pytest.mark.django_db
-def test_adapters_endpoint_lists_fake_adapter(api_client, user):
+def test_adapters_endpoint_lists_enabled_adapters(api_client, user):
     api_client.force_authenticate(user=user)
 
     response = api_client.get("/api/adapters/")
@@ -26,6 +30,25 @@ def test_adapters_endpoint_lists_fake_adapter(api_client, user):
     assert response.status_code == 200
     payload = response.json()
     assert payload == [FakeAdapter().metadata()]
+
+
+@pytest.fixture
+def enable_demo_adapter(settings):
+    settings.ENABLE_DEMO_ADAPTER = True
+
+
+@pytest.mark.django_db
+def test_adapters_endpoint_includes_demo_options(api_client, user, enable_demo_adapter):
+    api_client.force_authenticate(user=user)
+
+    response = api_client.get("/api/adapters/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    demo_metadata = DemoAdapter().metadata()
+    fake_metadata = FakeAdapter().metadata()
+    assert payload == [demo_metadata, fake_metadata]
+    assert demo_metadata["options"]["demo_tenants"]  # type: ignore[index]
 
 
 @pytest.mark.django_db
@@ -186,9 +209,26 @@ def test_combined_metrics_defaults_to_warehouse(api_client, user, settings, enab
 @pytest.mark.django_db
 def test_fake_adapter_requires_flag(api_client, user, settings):
     settings.ENABLE_FAKE_ADAPTER = False
+    settings.ENABLE_DEMO_ADAPTER = False
     api_client.force_authenticate(user=user)
 
     response = api_client.get("/api/metrics/", {"source": "fake"})
 
     assert response.status_code == 503
     assert response.json()["detail"] == "No analytics adapters are enabled."
+
+
+@pytest.mark.django_db
+def test_demo_adapter_returns_curated_payload(api_client, user, enable_demo_adapter):
+    settings.ENABLE_FAKE_ADAPTER = False
+    api_client.force_authenticate(user=user)
+
+    response = api_client.get(
+        "/api/metrics/",
+        {"source": "demo", "demo_tenant": "grace-kennedy"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["tenant_id"] == "grace-kennedy"
+    assert payload["campaign"]["summary"]["currency"] == "USD"

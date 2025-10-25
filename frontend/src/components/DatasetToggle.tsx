@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, type ChangeEvent } from 'react';
 
 import { MOCK_MODE } from '../lib/apiClient';
 import { useDatasetStore } from '../state/useDatasetStore';
@@ -18,6 +18,9 @@ const DatasetToggle = (): JSX.Element | null => {
     source,
     loadAdapters,
     toggleMode,
+    demoTenants,
+    demoTenantId,
+    setDemoTenantId,
   } = useDatasetStore((state) => ({
     mode: state.mode,
     status: state.status,
@@ -26,6 +29,9 @@ const DatasetToggle = (): JSX.Element | null => {
     source: state.source,
     loadAdapters: state.loadAdapters,
     toggleMode: state.toggleMode,
+    demoTenants: state.demoTenants,
+    demoTenantId: state.demoTenantId,
+    setDemoTenantId: state.setDemoTenantId,
   }));
 
   const { activeTenantId, loadAll } = useDashboardStore((state) => ({
@@ -45,7 +51,7 @@ const DatasetToggle = (): JSX.Element | null => {
     return null;
   }
 
-  const hasDemoData = adapters.includes('fake');
+  const hasDemoData = adapters.includes('demo') || adapters.includes('fake');
   const hasLiveData = adapters.includes('warehouse');
 
   const nextLabel = mode === 'live' ? 'Use dummy data' : 'Use live data';
@@ -64,6 +70,12 @@ const DatasetToggle = (): JSX.Element | null => {
     void loadAll(activeTenantId, { force: true });
   };
 
+  const handleDemoTenantChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const nextTenant = event.target.value;
+    setDemoTenantId(nextTenant);
+    void loadAll(activeTenantId, { force: true });
+  };
+
   return (
     <div className="dataset-toggle">
       <span className="muted dataset-toggle__badge">{badge}</span>
@@ -75,6 +87,22 @@ const DatasetToggle = (): JSX.Element | null => {
       >
         {nextLabel}
       </button>
+      {mode === 'dummy' && demoTenants.length > 0 ? (
+        <label className="muted dataset-toggle__selector">
+          Demo tenant
+          <select
+            value={demoTenantId ?? demoTenants[0]?.id}
+            onChange={handleDemoTenantChange}
+            className="dataset-toggle__select"
+          >
+            {demoTenants.map((tenant) => (
+              <option key={tenant.id} value={tenant.id}>
+                {tenant.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       {error ? (
         <span className="muted dataset-toggle__error" role="status">
           {error}

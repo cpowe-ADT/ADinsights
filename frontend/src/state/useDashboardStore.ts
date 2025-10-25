@@ -11,7 +11,7 @@ import {
 } from '../lib/dataService';
 import { validate } from '../lib/validate';
 import type { SchemaKey } from '../lib/validate';
-import { getDatasetMode, getDatasetSource } from './useDatasetStore';
+import { getDatasetMode, getDatasetSource, getDemoTenantId } from './useDatasetStore';
 
 export type MetricKey = 'spend' | 'impressions' | 'clicks' | 'conversions' | 'roas';
 
@@ -452,6 +452,14 @@ function withSource(path: string, source?: string | undefined): string {
   return `${path}${separator}source=${encodeURIComponent(source)}`;
 }
 
+function withQueryParam(path: string, key: string, value?: string): string {
+  if (!value) {
+    return path;
+  }
+  const separator = path.includes('?') ? '&' : '?';
+  return `${path}${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+}
+
 function mapError(reason: unknown): string {
   if (reason instanceof Error) {
     return reason.message;
@@ -556,10 +564,14 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
     if (!MOCK_MODE) {
       const sourceOverride = getDatasetSource();
-      const metricsPath = withSource(
+      const metricsSource = sourceOverride;
+      let metricsPath = withSource(
         withTenant('/metrics/combined/', normalizedTenantId),
         sourceOverride,
       );
+      if (metricsSource === 'demo') {
+        metricsPath = withQueryParam(metricsPath, 'demo_tenant', getDemoTenantId());
+      }
 
       try {
         const snapshot = await fetchDashboardMetrics({

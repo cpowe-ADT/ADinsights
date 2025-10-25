@@ -1,138 +1,31 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 
 import CampaignDashboard from './CampaignDashboard';
 import { AuthContext, type AuthContextValue } from '../auth/AuthContext';
 import { useTheme } from '../components/ThemeProvider';
 import useDashboardStore from '../state/useDashboardStore';
+import { useDatasetStore } from '../state/useDatasetStore';
+import {
+  defaultDemoTenant,
+  demoTenants,
+  getDemoSnapshot,
+  type DemoTenantKey,
+} from '../storyData/demoSnapshots';
 
-const sampleCampaign = {
-  summary: {
-    currency: 'USD',
-    totalSpend: 12890,
-    totalImpressions: 420000,
-    totalClicks: 1840,
-    totalConversions: 265,
-    averageRoas: 3.42,
-  },
-  trend: [
-    {
-      date: '2024-10-01',
-      spend: 540,
-      conversions: 12,
-      clicks: 180,
-      impressions: 24000,
-    },
-    {
-      date: '2024-10-02',
-      spend: 620,
-      conversions: 15,
-      clicks: 210,
-      impressions: 26000,
-    },
-    {
-      date: '2024-10-03',
-      spend: 710,
-      conversions: 18,
-      clicks: 240,
-      impressions: 28000,
-    },
-    {
-      date: '2024-10-04',
-      spend: 680,
-      conversions: 22,
-      clicks: 260,
-      impressions: 30500,
-    },
-  ],
-  rows: [
-    {
-      id: 'cmp-1',
-      name: 'Awareness Boost',
-      platform: 'Meta',
-      status: 'Active',
-      objective: 'Awareness',
-      parish: 'Kingston',
-      spend: 4800,
-      impressions: 152000,
-      clicks: 620,
-      conversions: 88,
-      roas: 2.4,
-      ctr: 0.041,
-      cpc: 3.87,
-      cpm: 31.58,
-    },
-    {
-      id: 'cmp-2',
-      name: 'Conversion Surge',
-      platform: 'Google',
-      status: 'Paused',
-      objective: 'Leads',
-      parish: 'St. Andrew',
-      spend: 2200,
-      impressions: 98000,
-      clicks: 420,
-      conversions: 65,
-      roas: 3.1,
-      ctr: 0.043,
-      cpc: 5.24,
-      cpm: 22.45,
-    },
-    {
-      id: 'cmp-3',
-      name: 'Remarketing Push',
-      platform: 'TikTok',
-      status: 'Active',
-      objective: 'Conversions',
-      parish: 'St. James',
-      spend: 1650,
-      impressions: 72000,
-      clicks: 310,
-      conversions: 52,
-      roas: 3.8,
-      ctr: 0.043,
-      cpc: 5.32,
-      cpm: 22.92,
-    },
-  ],
-};
+interface StoreBootstrapProps {
+  tenantId: DemoTenantKey;
+  children: ReactNode;
+}
 
-const sampleParishAggregates = [
-  { parish: 'Kingston', spend: 5400, impressions: 120000, clicks: 4200, conversions: 85, roas: 3.6 },
-  { parish: 'St. Andrew', spend: 4200, impressions: 98000, clicks: 3600, conversions: 74, roas: 3.2 },
-  { parish: 'St. James', spend: 3100, impressions: 76000, clicks: 2850, conversions: 62, roas: 3.4 },
-];
-
-const authValue: AuthContextValue = {
-  status: 'authenticated',
-  isAuthenticated: true,
-  accessToken: 'story-token',
-  tenantId: 'demo',
-  user: { email: 'analyst@example.com' },
-  login: async () => undefined,
-  logout: () => undefined,
-  setActiveTenant: () => undefined,
-  statusMessage: undefined,
-};
-
-const ThemeWrapper = ({ theme, children }: { theme: 'light' | 'dark'; children: ReactNode }) => {
-  const { setTheme } = useTheme();
+const StoreBootstrap = ({ tenantId, children }: StoreBootstrapProps) => {
+  const datasetSnapshot = useRef(useDatasetStore.getState());
+  const dashboardSnapshot = useRef(useDashboardStore.getState());
 
   useEffect(() => {
-    setTheme(theme);
-  }, [setTheme, theme]);
-
-  return <>{children}</>;
-};
-
-const StoreBootstrap = ({ children }: { children: ReactNode }) => {
-  const storeSnapshot = useRef(useDashboardStore.getState());
-
-  useEffect(() => {
-    const originalFetch = window.fetch?.bind(window) ?? ((input: RequestInfo | URL, init?: RequestInit) =>
-      fetch(input, init)
-    );
-    const initialSnapshot = storeSnapshot.current;
+    const originalFetch =
+      window.fetch?.bind(window) ??
+      ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
 
     const resolveUrl = (input: RequestInfo | URL): string => {
       if (typeof input === 'string') {
@@ -160,29 +53,124 @@ const StoreBootstrap = ({ children }: { children: ReactNode }) => {
       return originalFetch(input, init);
     };
 
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, []);
+
+  useEffect(() => {
+    const initialDatasetState = datasetSnapshot.current;
+    const initialDashboardState = dashboardSnapshot.current;
+
+    return () => {
+      useDatasetStore.setState(initialDatasetState, true);
+      useDashboardStore.setState(initialDashboardState, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    const snapshot = getDemoSnapshot(tenantId);
+
+    useDatasetStore.setState({
+      adapters: ['warehouse', 'demo'],
+      mode: 'dummy',
+      status: 'loaded',
+      error: undefined,
+      source: 'demo',
+      demoTenants,
+      demoTenantId: snapshot.id,
+    });
+
     useDashboardStore.setState((state) => ({
       ...state,
+      activeTenantId: snapshot.id,
+      activeTenantLabel: snapshot.label,
+      lastLoadedTenantId: snapshot.id,
       selectedParish: undefined,
       selectedMetric: 'spend',
       loadAll: async () => undefined,
-      campaign: { status: 'loaded', data: sampleCampaign },
-      creative: { status: 'loaded', data: [] },
-      budget: { status: 'loaded', data: [] },
-      parish: { status: 'loaded', data: sampleParishAggregates },
+      campaign: { status: 'loaded', data: snapshot.metrics.campaign, error: undefined },
+      creative: { status: 'loaded', data: snapshot.metrics.creative, error: undefined },
+      budget: { status: 'loaded', data: snapshot.metrics.budget, error: undefined },
+      parish: { status: 'loaded', data: snapshot.metrics.parish, error: undefined },
+      metricsCache: {
+        ...state.metricsCache,
+        [`${snapshot.id}::dummy`]: {
+          campaign: snapshot.metrics.campaign,
+          creative: snapshot.metrics.creative,
+          budget: snapshot.metrics.budget,
+          parish: snapshot.metrics.parish,
+          tenantId: snapshot.id,
+          currency: snapshot.metrics.campaign.summary.currency,
+        },
+      },
     }));
-
-    return () => {
-      window.fetch = originalFetch;
-      useDashboardStore.setState(initialSnapshot, true);
-    };
-  }, []);
+  }, [tenantId]);
 
   return <>{children}</>;
 };
 
-const meta: Meta<typeof CampaignDashboard> = {
+interface DashboardStoryProps {
+  tenantId: DemoTenantKey;
+  theme: 'light' | 'dark';
+}
+
+const DashboardStory = ({ tenantId, theme }: DashboardStoryProps) => {
+  const { setTheme } = useTheme();
+  const snapshot = getDemoSnapshot(tenantId);
+
+  useEffect(() => {
+    setTheme(theme);
+  }, [setTheme, theme]);
+
+  const authValue = useMemo<AuthContextValue>(() => {
+    const setTenant = useDashboardStore.getState().setActiveTenant;
+    const setDemoTenantId = useDatasetStore.getState().setDemoTenantId;
+
+    return {
+      status: 'authenticated',
+      isAuthenticated: true,
+      accessToken: 'story-token',
+      tenantId: snapshot.id,
+      user: { email: 'analyst@example.com' },
+      login: async () => undefined,
+      logout: () => undefined,
+      setActiveTenant: (nextTenantId?: string, nextTenantLabel?: string) => {
+        setTenant(nextTenantId, nextTenantLabel);
+        if (nextTenantId) {
+          setDemoTenantId(nextTenantId);
+        }
+      },
+      statusMessage: undefined,
+    };
+  }, [snapshot.id, snapshot.label]);
+
+  return (
+    <AuthContext.Provider value={authValue}>
+      <StoreBootstrap tenantId={snapshot.id}>
+        <CampaignDashboard />
+      </StoreBootstrap>
+    </AuthContext.Provider>
+  );
+};
+
+const meta: Meta<typeof DashboardStory> = {
   title: 'Routes/CampaignDashboard',
-  component: CampaignDashboard,
+  component: DashboardStory,
+  args: {
+    tenantId: defaultDemoTenant,
+    theme: 'light',
+  },
+  argTypes: {
+    tenantId: {
+      control: 'select',
+      options: demoTenants.map((tenant) => tenant.id),
+    },
+    theme: {
+      control: 'inline-radio',
+      options: ['light', 'dark'],
+    },
+  },
   parameters: {
     layout: 'fullscreen',
     chromatic: { viewports: [375, 1280] },
@@ -191,20 +179,33 @@ const meta: Meta<typeof CampaignDashboard> = {
 
 export default meta;
 
-type Story = StoryObj<typeof CampaignDashboard>;
+type Story = StoryObj<typeof DashboardStory>;
 
-const renderDashboard = () => (
-  <AuthContext.Provider value={authValue}>
-    <StoreBootstrap>
-      <CampaignDashboard />
-    </StoreBootstrap>
-  </AuthContext.Provider>
-);
+export const BankOfJamaica: Story = {
+  args: {
+    tenantId: 'bank-of-jamaica',
+    theme: 'light',
+  },
+};
 
-export const Light: Story = {
-  render: renderDashboard,
+export const GraceKennedy: Story = {
+  args: {
+    tenantId: 'grace-kennedy',
+    theme: 'light',
+  },
+};
+
+export const JDIC: Story = {
+  args: {
+    tenantId: 'jdic',
+    theme: 'light',
+  },
 };
 
 export const Dark: Story = {
-  render: () => <ThemeWrapper theme="dark">{renderDashboard()}</ThemeWrapper>,
+  args: {
+    tenantId: 'bank-of-jamaica',
+    theme: 'dark',
+  },
 };
+

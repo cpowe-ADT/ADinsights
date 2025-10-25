@@ -20,6 +20,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from adapters.base import MetricsAdapter
+from adapters.demo import DemoAdapter
 from adapters.fake import FakeAdapter
 from adapters.warehouse import WarehouseAdapter
 
@@ -122,6 +123,9 @@ def _build_registry() -> dict[str, MetricsAdapter]:
     if getattr(settings, "ENABLE_WAREHOUSE_ADAPTER", False):
         warehouse = WarehouseAdapter()
         registry[warehouse.key] = warehouse
+    if getattr(settings, "ENABLE_DEMO_ADAPTER", False):
+        demo = DemoAdapter()
+        registry[demo.key] = demo
     if getattr(settings, "ENABLE_FAKE_ADAPTER", False):
         fake = FakeAdapter()
         registry[fake.key] = fake

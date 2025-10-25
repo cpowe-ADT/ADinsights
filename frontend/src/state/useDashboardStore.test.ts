@@ -76,7 +76,7 @@ describe('useDashboardStore', () => {
     vi.stubEnv('VITE_MOCK_MODE', 'true');
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     if (originalFetch) {
@@ -84,6 +84,17 @@ describe('useDashboardStore', () => {
     } else {
       Reflect.deleteProperty(globalThis as typeof globalThis & { fetch?: unknown }, 'fetch');
     }
+
+    const { useDatasetStore } = await import('./useDatasetStore');
+    useDatasetStore.setState({
+      mode: 'live',
+      adapters: [],
+      status: 'idle',
+      error: undefined,
+      source: undefined,
+      demoTenants: [],
+      demoTenantId: undefined,
+    });
   });
 
   it('loads dashboard data from the mock endpoints', async () => {
@@ -248,5 +259,57 @@ describe('useDashboardStore', () => {
 
     expect(useDashboardStore.getState().campaign.status).toBe('error');
     expect(useDashboardStore.getState().creative.status).toBe('loaded');
+  });
+
+  it('appends the demo tenant option when requesting curated datasets', async () => {
+    vi.stubEnv('VITE_MOCK_MODE', 'false');
+
+    const { useDatasetStore } = await import('./useDatasetStore');
+    useDatasetStore.setState({
+      mode: 'dummy',
+      adapters: ['demo'],
+      status: 'loaded',
+      error: undefined,
+      source: 'demo',
+      demoTenants: [
+        { id: 'bank-of-jamaica', label: 'Bank of Jamaica' },
+        { id: 'grace-kennedy', label: 'GraceKennedy' },
+      ],
+      demoTenantId: 'grace-kennedy',
+    });
+
+    const snapshotResponse = {
+      campaign: campaignData,
+      creative: creativeData,
+      budget: budgetData,
+      parish: parishData,
+      tenant_id: 'grace-kennedy',
+    };
+
+    const fetchMock = vi
+      .fn<(url: RequestInfo | URL) => Promise<Response>>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(snapshotResponse), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+
+    globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+    const { default: useDashboardStore } = await import('./useDashboardStore');
+
+    await useDashboardStore.getState().loadAll('tenant-xyz', { force: true });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const requestUrl = fetchMock.mock.calls[0]?.[0];
+    const serializedUrl = typeof requestUrl === 'string' ? requestUrl : String(requestUrl);
+    expect(serializedUrl).toContain('source=demo');
+    expect(serializedUrl).toContain('demo_tenant=grace-kennedy');
+
+    const state = useDashboardStore.getState();
+    expect(state.campaign.status).toBe('loaded');
+    expect(state.campaign.data?.summary.currency).toBe('JMD');
+    expect(state.activeTenantId).toBe('grace-kennedy');
   });
 });

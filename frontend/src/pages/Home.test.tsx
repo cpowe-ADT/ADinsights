@@ -4,10 +4,14 @@ import { MemoryRouter } from 'react-router-dom';
 
 import Home from './Home';
 
+const routerFuture = {
+  v7_startTransition: true,
+} as const;
+
 describe('Home', () => {
   const renderHome = () =>
     render(
-      <MemoryRouter>
+      <MemoryRouter future={routerFuture}>
         <Home />
       </MemoryRouter>,
     );

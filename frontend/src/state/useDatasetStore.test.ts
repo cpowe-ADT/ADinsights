@@ -12,6 +12,9 @@ type AdapterMetadata = {
   name: string;
   description?: string | null;
   interfaces: Array<{ key: string; label: string; description?: string | null }>;
+  options?: {
+    demo_tenants?: Array<{ id: string; label: string }>;
+  };
 };
 
 describe('useDatasetStore', () => {
@@ -35,6 +38,8 @@ describe('useDatasetStore', () => {
       status: 'idle',
       error: undefined,
       source: undefined,
+      demoTenants: [],
+      demoTenantId: undefined,
     });
 
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -52,6 +57,18 @@ describe('useDatasetStore', () => {
     key: 'warehouse',
     name: 'Warehouse metrics',
     interfaces: [],
+  };
+
+  const demoAdapter: AdapterMetadata = {
+    key: 'demo',
+    name: 'Demo tenants',
+    interfaces: [],
+    options: {
+      demo_tenants: [
+        { id: 'bank-of-jamaica', label: 'Bank of Jamaica' },
+        { id: 'grace-kennedy', label: 'GraceKennedy' },
+      ],
+    },
   };
 
   it('switches to the demo dataset when only the fake adapter is available', async () => {
@@ -125,5 +142,29 @@ describe('useDatasetStore', () => {
     expect(state.mode).toBe('live');
     expect(state.source).toBe('warehouse');
     expect(state.error).toBeUndefined();
+  });
+
+  it('prefers the curated demo adapter when available and selects the first tenant', async () => {
+    apiGetMock.mockResolvedValueOnce([warehouseAdapter, demoAdapter]);
+
+    await useDatasetStore.getState().loadAdapters();
+
+    let state = useDatasetStore.getState();
+    expect(state.adapters).toEqual(['warehouse', 'demo']);
+    expect(state.mode).toBe('live');
+    expect(state.source).toBe('warehouse');
+    expect(state.demoTenants).toHaveLength(2);
+    expect(state.demoTenantId).toBe('bank-of-jamaica');
+
+    const switched = useDatasetStore.getState().toggleMode();
+    state = useDatasetStore.getState();
+    expect(switched).toBe('dummy');
+    expect(state.mode).toBe('dummy');
+    expect(state.source).toBe('demo');
+    expect(state.demoTenantId).toBe('bank-of-jamaica');
+
+    useDatasetStore.getState().setDemoTenantId('grace-kennedy');
+    state = useDatasetStore.getState();
+    expect(state.demoTenantId).toBe('grace-kennedy');
   });
 });

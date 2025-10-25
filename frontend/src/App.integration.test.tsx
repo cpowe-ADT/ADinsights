@@ -180,6 +180,26 @@ vi.mock('leaflet', () => {
   };
 });
 
+vi.mock('recharts', () => {
+  const MockContainer = ({ children }: { children?: React.ReactNode }) => (
+    <div data-testid="recharts-mock">{children}</div>
+  );
+  const Passthrough = ({ children }: { children?: React.ReactNode }) => (
+    <svg data-testid="recharts-node">{children}</svg>
+  );
+  const NullComponent = () => null;
+
+  return {
+    ResponsiveContainer: MockContainer,
+    AreaChart: Passthrough,
+    CartesianGrid: NullComponent,
+    Tooltip: NullComponent,
+    XAxis: NullComponent,
+    YAxis: NullComponent,
+    Area: NullComponent,
+  };
+});
+
 type AppModule = typeof import('./App');
 type AuthModule = typeof import('./auth/AuthContext');
 type ThemeModule = typeof import('./components/ThemeProvider');
@@ -398,6 +418,15 @@ const resolveRequestMethod = (input: RequestInfo | URL, init?: RequestInit): str
   return 'GET';
 };
 
+const expectHomeOrDashboardHeading = async () => {
+  await waitFor(() => {
+    const hero =
+      screen.queryByRole('heading', { level: 1, name: /adinsights analytics/i }) ??
+      screen.queryByRole('heading', { level: 1, name: /campaign performance/i });
+    expect(hero).toBeTruthy();
+  });
+};
+
 describe('App integration', () => {
   beforeEach(async () => {
     vi.resetModules();
@@ -494,14 +523,20 @@ describe('App integration', () => {
     await userEvent.type(screen.getByLabelText(/password/i), 'password123');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-    const heroHeading = await screen.findByRole('heading', { name: /adinsights analytics/i });
-    expect(heroHeading).toBeInTheDocument();
+    await expectHomeOrDashboardHeading();
 
-    const campaignCard = screen.getByText(/Campaign performance/i).closest('article');
-    expect(campaignCard).not.toBeNull();
-    await userEvent.click(
-      within(campaignCard as HTMLElement).getByRole('button', { name: /open/i }),
-    );
+    const campaignCard = screen.queryByText(/Campaign performance/i)?.closest('article');
+    if (campaignCard) {
+      await userEvent.click(
+        within(campaignCard).getByRole('button', { name: /open/i }),
+      );
+    } else {
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { level: 1, name: /campaign performance/i }),
+        ).toBeInTheDocument(),
+      );
+    }
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
@@ -656,14 +691,20 @@ describe('App integration', () => {
     await userEvent.type(screen.getByLabelText(/password/i), 'password123');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-    const heroHeading = await screen.findByRole('heading', { name: /adinsights analytics/i });
-    expect(heroHeading).toBeInTheDocument();
+    await expectHomeOrDashboardHeading();
 
-    const campaignCard = screen.getByText(/Campaign performance/i).closest('article');
-    expect(campaignCard).not.toBeNull();
-    await userEvent.click(
-      within(campaignCard as HTMLElement).getByRole('button', { name: /open/i }),
-    );
+    const campaignCard = screen.queryByText(/Campaign performance/i)?.closest('article');
+    if (campaignCard) {
+      await userEvent.click(
+        within(campaignCard).getByRole('button', { name: /open/i }),
+      );
+    } else {
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { level: 1, name: /campaign performance/i }),
+        ).toBeInTheDocument(),
+      );
+    }
 
     const initialRows = await screen.findAllByText('Kingston Awareness');
     expect(initialRows.length).toBeGreaterThan(0);

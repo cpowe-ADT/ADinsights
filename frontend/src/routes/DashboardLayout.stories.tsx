@@ -6,6 +6,7 @@ import DashboardLayout from './DashboardLayout';
 import { useTheme } from '../components/ThemeProvider';
 import useDashboardStore from '../state/useDashboardStore';
 import { useDatasetStore } from '../state/useDatasetStore';
+import { demoTenants, defaultDemoTenant } from '../storyData/demoSnapshots';
 
 const ThemeWrapper = ({ theme, children }: { theme: 'light' | 'dark'; children: ReactNode }) => {
   const { setTheme } = useTheme();
@@ -26,11 +27,13 @@ const StoreBootstrap = ({ children }: { children: ReactNode }) => {
     const initialDashboardState = dashboardSnapshot.current;
 
     useDatasetStore.setState({
-      adapters: ['fake', 'warehouse'],
-      mode: 'live',
+      adapters: ['warehouse', 'demo'],
+      mode: 'dummy',
       status: 'loaded',
       error: undefined,
-      source: 'warehouse',
+      source: 'demo',
+      demoTenants,
+      demoTenantId: defaultDemoTenant,
     });
 
     useDashboardStore.setState((state) => ({
