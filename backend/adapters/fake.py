@@ -5,6 +5,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Mapping
 
+from django.utils import timezone
+
 from .base import AdapterInterface, MetricsAdapter, get_default_interfaces
 
 
@@ -197,4 +199,6 @@ class FakeAdapter(MetricsAdapter):
         tenant_id: str,
         options: Mapping[str, Any] | None = None,
     ) -> Mapping[str, Any]:  # noqa: ARG002 - options reserved for future use
-        return deepcopy(self._PAYLOAD)
+        payload = deepcopy(self._PAYLOAD)
+        payload.setdefault("snapshot_generated_at", timezone.now().isoformat())
+        return payload

@@ -10,6 +10,10 @@ from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 
+from accounts.tenant_context import tenant_context
+
+from analytics.models import TenantMetricsSnapshot
+
 from core.metrics import render_metrics
 from integrations.models import AirbyteJobTelemetry, TenantAirbyteSyncStatus
 
@@ -41,11 +45,12 @@ def health_version(request):
 
 def airbyte_health(request):
     configured = _airbyte_is_configured()
-    latest_status = (
-        TenantAirbyteSyncStatus.all_objects.select_related("last_connection")
-        .order_by("-last_synced_at")
-        .first()
-    )
+    with tenant_context(None):
+        latest_status = (
+            TenantAirbyteSyncStatus.objects.select_related("last_connection")
+            .order_by("-last_synced_at")
+            .first()
+        )
     response_data: Dict[str, Any] = {
         "component": "airbyte",
         "configured": configured,
@@ -54,10 +59,11 @@ def airbyte_health(request):
 
     recent_jobs: list[AirbyteJobTelemetry] = []
     if latest_status and latest_status.last_connection_id:
-        recent_jobs = list(
-            AirbyteJobTelemetry.all_objects.filter(connection=latest_status.last_connection)
-            .order_by("-started_at")[:5]
-        )
+        with tenant_context(str(latest_status.tenant_id) if latest_status.tenant_id else None):
+            recent_jobs = list(
+                AirbyteJobTelemetry.objects.filter(connection=latest_status.last_connection)
+                .order_by("-started_at")[:5]
+            )
     response_data["recent_jobs"] = [_serialize_job(job) for job in recent_jobs]
     response_data["job_summary"] = _summarise_jobs(recent_jobs) if recent_jobs else None
 
@@ -95,6 +101,13 @@ def airbyte_health(request):
             return JsonResponse(response_data, status=200)
 
     response_data["status"] = "ok"
+    snapshot = (
+        TenantMetricsSnapshot.objects.filter(source="warehouse")
+        .order_by("-generated_at", "-created_at")
+        .first()
+    )
+    if snapshot:
+        response_data["latest_snapshot_generated_at"] = snapshot.generated_at.isoformat()
     return JsonResponse(response_data)
 
 

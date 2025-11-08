@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import csv
-import json
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Any, Iterable, Mapping, Sequence
 
 from django.conf import settings
-from django.db import DatabaseError, OperationalError, ProgrammingError, connection
+from django.db import connection
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.http import StreamingHttpResponse
 from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import PermissionDenied
@@ -42,6 +42,11 @@ from .serializers import (
 )
 
 from accounts.audit import log_audit_event
+from analytics.snapshots import (
+    default_snapshot_metrics,
+    fetch_snapshot_metrics,
+    snapshot_metrics_to_serializer_payload,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -85,13 +90,13 @@ class TenantScopedModelViewSet(viewsets.ModelViewSet):
 
 
 class CampaignViewSet(TenantScopedModelViewSet):
-    queryset = Campaign.all_objects.all().order_by("name", "external_id")
+    queryset = Campaign.objects.all().order_by("name", "external_id")
     serializer_class = CampaignSerializer
 
 
 class AdSetViewSet(TenantScopedModelViewSet):
     queryset = (
-        AdSet.all_objects.all()
+        AdSet.objects.all()
         .select_related("campaign")
         .order_by("name", "external_id")
     )
@@ -100,7 +105,7 @@ class AdSetViewSet(TenantScopedModelViewSet):
 
 class AdViewSet(TenantScopedModelViewSet):
     queryset = (
-        Ad.all_objects.all()
+        Ad.objects.all()
         .select_related("adset", "adset__campaign")
         .order_by("name", "external_id")
     )
@@ -109,7 +114,7 @@ class AdViewSet(TenantScopedModelViewSet):
 
 class RawPerformanceRecordViewSet(TenantScopedModelViewSet):
     queryset = (
-        RawPerformanceRecord.all_objects.all()
+        RawPerformanceRecord.objects.all()
         .select_related("campaign", "adset", "ad")
         .order_by("-date", "-ingested_at")
     )
@@ -249,25 +254,21 @@ class CombinedMetricsView(APIView):
             else None
         )
         if snapshot and snapshot.is_fresh(ttl_seconds):
-            return Response(snapshot.payload)
+            cached_payload = dict(snapshot.payload)
+            cached_payload["snapshot_generated_at"] = snapshot.generated_at.isoformat()
+            return Response(cached_payload)
 
         payload = adapter.fetch_metrics(
             tenant_id=str(tenant_id),
             options=request.query_params,
         )
-
-        combined = {
-            "campaign": payload.get("campaign"),
-            "creative": payload.get("creative"),
-            "budget": payload.get("budget"),
-            "parish": payload.get("parish"),
-        }
-        TenantMetricsSnapshot.all_objects.update_or_create(
+        combined, generated_at = _normalize_combined_payload(payload)
+        TenantMetricsSnapshot.objects.update_or_create(
             tenant=tenant,
             source=source,
             defaults={
                 "payload": combined,
-                "generated_at": timezone.now(),
+                "generated_at": generated_at,
             },
         )
         return Response(combined)
@@ -351,120 +352,16 @@ class MetricsExportView(APIView):
             yield writer.writerow([row.get(header) for header in headers])
 
 
-def _coerce_json_payload(value: Any) -> Any:
-    if value is None:
-        return None
-    if isinstance(value, (dict, list)):
-        return value
-    if isinstance(value, memoryview):
-        value = value.tobytes()
-    if isinstance(value, bytes):
-        value = value.decode("utf-8")
-    if isinstance(value, str):
-        value = value.strip()
-        if not value:
-            return None
-        return json.loads(value)
-    return value
-
-
-def _default_campaign_metrics() -> dict[str, Any]:
-    return {
-        "summary": {
-            "currency": "USD",
-            "totalSpend": 0.0,
-            "totalImpressions": 0,
-            "totalClicks": 0,
-            "totalConversions": 0,
-            "averageRoas": 0.0,
-        },
-        "trend": [],
-        "rows": [],
-    }
-
-
-def _default_parish_metrics() -> list[dict[str, Any]]:
-    return [
-        {
-            "parish": "Unknown",
-            "spend": 0.0,
-            "impressions": 0,
-            "clicks": 0,
-            "conversions": 0,
-            "roas": 0.0,
-            "campaignCount": 0,
-            "currency": "USD",
-        }
-    ]
-
-
 def _default_snapshot_payload(*, tenant_id: str) -> dict[str, Any]:
-    return {
-        "tenant_id": tenant_id,
-        "generated_at": timezone.now(),
-        "metrics": {
-            "campaign_metrics": _default_campaign_metrics(),
-            "creative_metrics": [],
-            "budget_metrics": [],
-            "parish_metrics": _default_parish_metrics(),
-        },
-    }
+    metrics = default_snapshot_metrics(tenant_id=tenant_id)
+    return snapshot_metrics_to_serializer_payload(metrics)
 
 
 def _fetch_aggregate_snapshot(*, tenant_id: str) -> Mapping[str, Any] | None:
-    sql = """
-        select
-            tenant_id,
-            generated_at,
-            campaign_metrics,
-            creative_metrics,
-            budget_metrics,
-            parish_metrics
-        from vw_dashboard_aggregate_snapshot
-        where tenant_id = %(tenant_id)s
-        order by generated_at desc
-        limit 1
-    """
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute(sql, {"tenant_id": tenant_id})
-            row = cursor.fetchone()
-            if not row:
-                return None
-            columns = [col[0] for col in cursor.description]
-            record = dict(zip(columns, row))
-    except (ProgrammingError, OperationalError) as exc:
-        logger.warning(
-            "aggregate snapshot view unavailable; returning default payload",
-            extra={"tenant_id": tenant_id},
-            exc_info=exc,
-        )
+    metrics = fetch_snapshot_metrics(tenant_id=tenant_id)
+    if metrics is None:
         return None
-    except DatabaseError:
-        logger.warning(
-            "vw_dashboard_aggregate_snapshot unavailable; returning empty payload",
-            extra={"tenant_id": tenant_id},
-        )
-        return None
-
-    campaign_metrics = _coerce_json_payload(record.get("campaign_metrics"))
-    creative_metrics = _coerce_json_payload(record.get("creative_metrics"))
-    budget_metrics = _coerce_json_payload(record.get("budget_metrics"))
-    parish_metrics = _coerce_json_payload(record.get("parish_metrics"))
-
-    metrics = {
-        "campaign_metrics": campaign_metrics or _default_campaign_metrics(),
-        "creative_metrics": creative_metrics or [],
-        "budget_metrics": budget_metrics or [],
-        "parish_metrics": parish_metrics or _default_parish_metrics(),
-    }
-
-    payload: dict[str, Any] = {
-        "tenant_id": record.get("tenant_id", tenant_id),
-        "generated_at": record.get("generated_at", timezone.now()),
-        "metrics": metrics,
-    }
-    return payload
+    return snapshot_metrics_to_serializer_payload(metrics)
 
 
 class AggregateSnapshotView(APIView):
@@ -544,3 +441,35 @@ def _fetch_metric_rows(*, tenant_id: str, filters: dict[str, Any]) -> list[dict[
         cursor.execute(sql_query, query_params)
         columns: Sequence[str] = [col[0] for col in cursor.description]
         return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+
+def _resolve_snapshot_timestamp(candidate: Any) -> datetime:
+    if isinstance(candidate, datetime):
+        resolved = candidate
+    elif isinstance(candidate, str):
+        parsed = parse_datetime(candidate)
+        resolved = parsed if parsed is not None else None
+    else:
+        resolved = None
+    if resolved is None:
+        resolved = timezone.now()
+    if timezone.is_naive(resolved):  # pragma: no cover - depends on db backend
+        resolved = timezone.make_aware(resolved)
+    return resolved
+
+
+def _normalize_combined_payload(payload: Mapping[str, Any]) -> tuple[dict[str, Any], datetime]:
+    normalized: dict[str, Any] = dict(payload)
+    metrics = normalized.get("metrics")
+    if isinstance(metrics, Mapping):
+        normalized.setdefault("campaign", metrics.get("campaign_metrics"))
+        normalized.setdefault("creative", metrics.get("creative_metrics") or [])
+        normalized.setdefault("budget", metrics.get("budget_metrics") or [])
+        normalized.setdefault("parish", metrics.get("parish_metrics") or [])
+
+    generated_at = _resolve_snapshot_timestamp(
+        normalized.get("snapshot_generated_at") or normalized.get("generated_at")
+    )
+    normalized["snapshot_generated_at"] = generated_at.isoformat()
+    normalized.pop("generated_at", None)
+    return normalized, generated_at

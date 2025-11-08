@@ -9,6 +9,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from accounts.audit import log_audit_event
+from analytics.models import TenantMetricsSnapshot
 from integrations.models import AirbyteJobTelemetry, TenantAirbyteSyncStatus
 
 from .serializers import (
@@ -67,6 +68,9 @@ class AirbyteTelemetryViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             if sync_status
             else None
         )
+        snapshot_ts = self._latest_snapshot_timestamp(request)
+        if snapshot_ts is not None:
+            response.data["snapshot_generated_at"] = snapshot_ts
 
         self._log_fetch(request, response)
         return response
@@ -77,10 +81,23 @@ class AirbyteTelemetryViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         if tenant_id is None:
             return None
         return (
-            TenantAirbyteSyncStatus.all_objects.select_related("last_connection")
+            TenantAirbyteSyncStatus.objects.select_related("last_connection")
             .filter(tenant_id=tenant_id)
             .first()
         )
+
+    def _latest_snapshot_timestamp(self, request: Request) -> str | None:
+        tenant_id = getattr(request.user, "tenant_id", None)
+        if tenant_id is None:
+            return None
+        snapshot = (
+            TenantMetricsSnapshot.objects.filter(tenant_id=tenant_id, source="warehouse")
+            .order_by("-generated_at")
+            .first()
+        )
+        if snapshot is None:
+            return None
+        return snapshot.generated_at.isoformat()
 
     def _log_fetch(self, request: Request, response: Response) -> None:
         user = request.user

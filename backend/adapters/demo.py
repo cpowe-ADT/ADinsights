@@ -579,5 +579,5 @@ class DemoAdapter(MetricsAdapter):
         payload = deepcopy(dataset["payload"])
         payload.setdefault("tenant_id", slug)
         payload.setdefault("tenant_label", dataset["label"])
-        payload.setdefault("generated_at", timezone.now().isoformat())
+        payload.setdefault("snapshot_generated_at", timezone.now().isoformat())
         return payload

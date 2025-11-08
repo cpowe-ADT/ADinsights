@@ -61,12 +61,17 @@ def test_adapters_endpoint_requires_authentication(api_client):
 @pytest.mark.django_db
 def test_metrics_fake_adapter_returns_static_payload(api_client, user):
     api_client.force_authenticate(user=user)
-    adapter = FakeAdapter()
 
     response = api_client.get("/api/metrics/", {"source": "fake"})
 
     assert response.status_code == 200
-    assert response.json() == adapter.fetch_metrics(tenant_id=str(user.tenant_id))
+    payload = response.json()
+    expected = FakeAdapter().fetch_metrics(tenant_id=str(user.tenant_id))
+    assert payload["campaign"] == expected["campaign"]
+    assert payload["creative"] == expected["creative"]
+    assert payload["budget"] == expected["budget"]
+    assert payload["parish"] == expected["parish"]
+    assert "snapshot_generated_at" in payload
 
 
 @pytest.mark.django_db
@@ -109,6 +114,7 @@ def test_combined_metrics_endpoint_returns_sections(api_client, user):
     assert payload["creative"] == adapter_payload["creative"]
     assert payload["budget"] == adapter_payload["budget"]
     assert payload["parish"] == adapter_payload["parish"]
+    assert "snapshot_generated_at" in payload
 
 
 @pytest.mark.django_db
@@ -123,7 +129,7 @@ def test_combined_metrics_uses_snapshot(monkeypatch, api_client, user, settings)
     settings.METRICS_SNAPSHOT_TTL = 600
     api_client.force_authenticate(user=user)
 
-    expected = {
+    base_payload = {
         "campaign": {"summary": {"currency": "JMD"}},
         "creative": [],
         "budget": [],
@@ -131,13 +137,15 @@ def test_combined_metrics_uses_snapshot(monkeypatch, api_client, user, settings)
     }
 
     def fake_fetch(self, *, tenant_id, options=None):  # noqa: D401 - test helper
-        return expected
+        return base_payload
 
     monkeypatch.setattr(FakeAdapter, "fetch_metrics", fake_fetch, raising=False)
 
     response = api_client.get("/api/metrics/combined/")
     assert response.status_code == 200
-    assert response.json() == expected
+    first_payload = response.json()
+    assert first_payload["campaign"]["summary"]["currency"] == "JMD"
+    assert "snapshot_generated_at" in first_payload
 
     def fail_fetch(*args, **kwargs):  # noqa: D401 - test helper
         raise AssertionError("adapter should not be invoked when cache is valid")
@@ -146,9 +154,10 @@ def test_combined_metrics_uses_snapshot(monkeypatch, api_client, user, settings)
 
     response = api_client.get("/api/metrics/combined/")
     assert response.status_code == 200
-    assert response.json() == expected
-    snapshot = TenantMetricsSnapshot.all_objects.get(tenant=user.tenant, source="fake")
-    assert snapshot.payload == expected
+    cached_payload = response.json()
+    assert cached_payload == first_payload
+    snapshot = TenantMetricsSnapshot.objects.get(tenant=user.tenant, source="fake")
+    assert snapshot.payload == first_payload
 
 
 @pytest.mark.django_db
@@ -192,9 +201,10 @@ def test_combined_metrics_defaults_to_warehouse(api_client, user, settings, enab
         "creative": [],
         "budget": [],
         "parish": [],
+        "snapshot_generated_at": timezone.now().isoformat(),
     }
 
-    TenantMetricsSnapshot.all_objects.create(
+    TenantMetricsSnapshot.objects.create(
         tenant=user.tenant,
         source="warehouse",
         payload=snapshot_payload,
@@ -203,7 +213,12 @@ def test_combined_metrics_defaults_to_warehouse(api_client, user, settings, enab
 
     response = api_client.get("/api/metrics/combined/")
     assert response.status_code == 200
-    assert response.json() == snapshot_payload
+    payload = response.json()
+    assert payload["campaign"] == snapshot_payload["campaign"]
+    assert payload["creative"] == snapshot_payload["creative"]
+    assert payload["budget"] == snapshot_payload["budget"]
+    assert payload["parish"] == snapshot_payload["parish"]
+    assert "snapshot_generated_at" in payload
 
 
 @pytest.mark.django_db

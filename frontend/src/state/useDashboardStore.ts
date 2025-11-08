@@ -113,6 +113,7 @@ export interface TenantMetricsSnapshot {
   parish_aggregates?: ParishAggregate[];
   tenant_id?: string;
   generated_at?: string;
+  snapshot_generated_at?: string;
   [key: string]: unknown;
 }
 
@@ -123,6 +124,7 @@ export interface TenantMetricsResolved {
   parish: ParishAggregate[];
   tenantId?: string;
   currency: string;
+  snapshotGeneratedAt?: string;
 }
 
 type AsyncSlice<T> = {
@@ -141,6 +143,7 @@ interface DashboardState {
   activeTenantId?: string;
   activeTenantLabel?: string;
   lastLoadedTenantId?: string;
+  lastSnapshotGeneratedAt?: string;
   metricsCache: Record<string, TenantMetricsResolved>;
   setSelectedParish: (parish?: string) => void;
   setSelectedMetric: (metric: MetricKey) => void;
@@ -175,6 +178,7 @@ function createInitialState(): Pick<
   | 'activeTenantId'
   | 'activeTenantLabel'
   | 'lastLoadedTenantId'
+  | 'lastSnapshotGeneratedAt'
   | 'metricsCache'
 > {
   return {
@@ -187,6 +191,7 @@ function createInitialState(): Pick<
     activeTenantId: undefined,
     activeTenantLabel: undefined,
     lastLoadedTenantId: undefined,
+    lastSnapshotGeneratedAt: undefined,
     metricsCache: {},
   };
 }
@@ -270,6 +275,32 @@ function extractTenantId(snapshot: TenantMetricsSnapshot, fallback?: string): st
   return fallback;
 }
 
+function extractSnapshotTimestamp(
+  snapshot: TenantMetricsSnapshot,
+  fallback?: string,
+): string | undefined {
+  if (!isRecord(snapshot)) {
+    return fallback;
+  }
+  const keys = ['snapshot_generated_at', 'snapshotGeneratedAt', 'generated_at', 'generatedAt'];
+  for (const key of keys) {
+    const value = snapshot[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value;
+    }
+  }
+  const metadata = snapshot['metadata'];
+  if (isRecord(metadata)) {
+    for (const key of keys) {
+      const value = metadata[key];
+      if (typeof value === 'string' && value.trim()) {
+        return value;
+      }
+    }
+  }
+  return fallback;
+}
+
 function assertValidSchema<T>(schema: SchemaKey, payload: T, message: string): T {
   const valid = validate(schema, payload);
   if (!valid) {
@@ -345,6 +376,7 @@ function normalizeResolvedMetrics(input: {
   budget: BudgetPacingRow[];
   parish: ParishAggregate[];
   tenantId?: string;
+  snapshotGeneratedAt?: string;
 }): TenantMetricsResolved {
   const campaign = normalizeCampaignResponse(input.campaign);
   const parish = normalizeParishAggregates(input.parish, campaign.summary.currency);
@@ -357,6 +389,7 @@ function normalizeResolvedMetrics(input: {
     parish,
     tenantId: input.tenantId,
     currency,
+    snapshotGeneratedAt: input.snapshotGeneratedAt,
   };
 }
 
@@ -432,7 +465,11 @@ function parseTenantMetrics(snapshot: TenantMetricsSnapshot): TenantMetricsResol
     creative: normalizedCreative,
     budget: normalizedBudget,
     parish: normalizedParish,
-    tenantId: extractTenantId(source),
+    tenantId: extractTenantId(source, extractTenantId(snapshot)),
+    snapshotGeneratedAt: extractSnapshotTimestamp(
+      source,
+      extractSnapshotTimestamp(snapshot, snapshot.generated_at),
+    ),
   });
 }
 
@@ -530,6 +567,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         set((state) => ({
           activeTenantId: cachedMetrics.tenantId ?? normalizedTenantId ?? state.activeTenantId,
           lastLoadedTenantId: cachedMetrics.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
+          lastSnapshotGeneratedAt:
+            cachedMetrics.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
           selectedParish: undefined,
           campaign: { status: 'loaded', data: cachedMetrics.campaign, error: undefined },
           creative: { status: 'loaded', data: cachedMetrics.creative, error: undefined },
@@ -543,6 +582,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         set((state) => ({
           activeTenantId: cachedMetrics.tenantId ?? state.activeTenantId,
           lastLoadedTenantId: cachedMetrics.tenantId ?? state.lastLoadedTenantId,
+          lastSnapshotGeneratedAt:
+            cachedMetrics.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
           campaign: { status: 'loaded', data: cachedMetrics.campaign, error: undefined },
           creative: { status: 'loaded', data: cachedMetrics.creative, error: undefined },
           budget: { status: 'loaded', data: cachedMetrics.budget, error: undefined },
@@ -582,6 +623,9 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
         set((state) => ({
           activeTenantId: resolved.tenantId ?? state.activeTenantId,
+          lastLoadedTenantId: resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
+          lastSnapshotGeneratedAt:
+            resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
           campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
           creative: { status: 'loaded', data: resolved.creative, error: undefined },
           budget: { status: 'loaded', data: resolved.budget, error: undefined },
@@ -690,6 +734,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       return {
         activeTenantId: normalizedResolved?.tenantId ?? normalizedTenantId ?? state.activeTenantId,
         lastLoadedTenantId: normalizedResolved?.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
+        lastSnapshotGeneratedAt:
+          normalizedResolved?.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
         campaign:
           campaignResult.status === 'fulfilled'
             ? { status: 'loaded', data: normalizedCampaign!, error: undefined }

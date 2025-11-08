@@ -40,6 +40,7 @@ class DummyConnection:
 def stub_connection(monkeypatch):
     connection = DummyConnection()
     monkeypatch.setattr(tenant_middleware, "connection", connection)
+    monkeypatch.setattr("accounts.tenant_context.connection", connection)
     return connection
 
 
@@ -77,6 +78,22 @@ def test_process_request_falls_back_to_header_for_unauthenticated_user(
 
     set_mock.assert_called_once_with(header_tenant)
     assert stub_connection.statements == [("SET app.tenant_id = %s", [header_tenant])]
+
+
+def test_process_request_without_tenant_sets_default(monkeypatch, stub_connection):
+    set_mock = MagicMock()
+    monkeypatch.setattr(tenant_middleware, "set_current_tenant_id", set_mock)
+
+    request = SimpleNamespace(
+        user=SimpleNamespace(is_authenticated=False, tenant_id=None),
+        META={},
+    )
+
+    middleware = tenant_middleware.TenantMiddleware(lambda req: None)
+    middleware.process_request(request)
+
+    set_mock.assert_called_once_with(None)
+    assert stub_connection.statements == [("SET app.tenant_id = DEFAULT", None)]
 
 
 def test_process_response_resets_tenant_context(monkeypatch, stub_connection):

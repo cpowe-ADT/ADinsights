@@ -111,15 +111,15 @@ export const useDatasetStore = create<DatasetState>()(
           const demoTenants = demoMetadata?.options?.demo_tenants ?? [];
 
           const currentMode = get().mode;
-          let resolvedMode = currentMode;
-          if (currentMode === 'dummy' && !(keys.includes(DEMO_KEY) || keys.includes(FAKE_KEY))) {
+          const liveAvailable = keys.includes(WAREHOUSE_KEY);
+          const demoAvailable = keys.includes(DEMO_KEY) || keys.includes(FAKE_KEY);
+          let resolvedMode: DatasetMode = currentMode;
+          if (liveAvailable) {
             resolvedMode = 'live';
-          } else if (
-            currentMode === 'live' &&
-            !keys.includes(WAREHOUSE_KEY) &&
-            (keys.includes(DEMO_KEY) || keys.includes(FAKE_KEY))
-          ) {
+          } else if (demoAvailable) {
             resolvedMode = 'dummy';
+          } else if (!liveAvailable) {
+            resolvedMode = 'live';
           }
 
           const resolvedSource = computeSource(resolvedMode, keys);

@@ -167,4 +167,19 @@ describe('useDatasetStore', () => {
     state = useDatasetStore.getState();
     expect(state.demoTenantId).toBe('grace-kennedy');
   });
+
+  it('defaults to live mode when the warehouse adapter is available even if dummy was persisted', async () => {
+    useDatasetStore.setState({
+      mode: 'dummy',
+      adapters: [],
+      source: 'fake',
+    });
+    apiGetMock.mockResolvedValueOnce([warehouseAdapter, fakeAdapter]);
+
+    await useDatasetStore.getState().loadAdapters();
+
+    const state = useDatasetStore.getState();
+    expect(state.mode).toBe('live');
+    expect(state.source).toBe('warehouse');
+  });
 });

@@ -21,7 +21,7 @@ env = environ.Env(
     SECRETS_PROVIDER=(str, "env"),
     KMS_PROVIDER=(str, "aws"),
     LLM_TIMEOUT=(float, 10.0),
-    ENABLE_TENANCY=(bool, False),
+    ENABLE_TENANCY=(bool, True),
     DJANGO_LOG_LEVEL=(str, "INFO"),
     APP_VERSION=(str, "0.0.0-dev"),
     METRICS_SNAPSHOT_TTL=(int, 300),
@@ -42,7 +42,7 @@ def _optional(value: str | None) -> str | None:
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
-ENABLE_TENANCY = env.bool("ENABLE_TENANCY")
+ENABLE_TENANCY = env.bool("ENABLE_TENANCY", default=True)
 API_VERSION = env("API_VERSION")
 METRICS_SNAPSHOT_TTL = env.int("METRICS_SNAPSHOT_TTL")
 ENABLE_FAKE_ADAPTER = env.bool("ENABLE_FAKE_ADAPTER", default=False)
@@ -165,6 +165,10 @@ CELERY_BEAT_SCHEDULE = {
     "rotate-tenant-deks": {
         "task": "core.tasks.rotate_deks",
         "schedule": crontab(hour=1, minute=30, day_of_week="sun"),
+    },
+    "metrics-snapshot-sync": {
+        "task": "analytics.tasks.sync_metrics_snapshots",
+        "schedule": crontab(minute="*/30"),
     },
 }
 

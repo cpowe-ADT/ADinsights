@@ -7,10 +7,7 @@ from celery import shared_task
 from django.utils import timezone
 
 from core.crypto.dek_manager import rotate_all_tenant_deks
-from accounts.tenant_context import (
-    set_current_tenant_id,
-    clear_current_tenant,
-)
+from accounts.tenant_context import tenant_context
 from accounts.audit import log_audit_event
 from accounts.models import Tenant, User
 from integrations.airbyte import (
@@ -54,8 +51,7 @@ def _sync_provider_connections(
         "provider": provider,
         "task_id": str(task_id) if task_id else None,
     }
-    set_current_tenant_id(tenant_id_str)
-    try:
+    with tenant_context(tenant_id_str):
         connections = list(
             AirbyteConnection.objects.filter(
                 tenant=tenant,
@@ -177,8 +173,6 @@ def _sync_provider_connections(
             },
         )
         return f"triggered {triggered} {provider.lower()} connection(s)"
-    finally:
-        clear_current_tenant()
 
 
 @shared_task(bind=True, max_retries=5)

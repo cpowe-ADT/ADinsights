@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.audit import log_audit_event
+from accounts.tenant_context import tenant_context
 from core.metrics import observe_airbyte_sync
 from integrations.airbyte.client import (
     AirbyteClient,
@@ -343,63 +344,64 @@ class AirbyteWebhookView(APIView):
                 except (TypeError, ValueError):  # pragma: no cover - defensive
                     bytes_synced = None
 
-        update = ConnectionSyncUpdate(
-            connection=connection,
-            job_id=str(job_id) if job_id is not None else None,
-            status=job_status,
-            created_at=created_at,
-            updated_at=updated_at,
-            completed_at=completed_at,
-            duration_seconds=duration_seconds,
-            records_synced=records_synced,
-            bytes_synced=bytes_synced,
-            api_cost=snapshot.api_cost,
-            error=error_message,
-        )
-        AirbyteConnection.persist_sync_updates([update])
-
-        if update.job_id:
-            started_at = snapshot.started_at or created_at
-            AirbyteJobTelemetry.all_objects.update_or_create(
+        with tenant_context(str(connection.tenant_id)):
+            update = ConnectionSyncUpdate(
                 connection=connection,
-                job_id=update.job_id,
-                defaults={
-                    "tenant": connection.tenant,
-                    "status": job_status or "",
-                    "started_at": started_at,
-                    "duration_seconds": duration_seconds,
-                    "records_synced": records_synced,
-                    "bytes_synced": bytes_synced,
-                    "api_cost": snapshot.api_cost,
-                },
+                job_id=str(job_id) if job_id is not None else None,
+                status=job_status,
+                created_at=created_at,
+                updated_at=updated_at,
+                completed_at=completed_at,
+                duration_seconds=duration_seconds,
+                records_synced=records_synced,
+                bytes_synced=bytes_synced,
+                api_cost=snapshot.api_cost,
+                error=error_message,
+            )
+            AirbyteConnection.persist_sync_updates([update])
+
+            if update.job_id:
+                started_at = snapshot.started_at or created_at
+                AirbyteJobTelemetry.objects.update_or_create(
+                    connection=connection,
+                    job_id=update.job_id,
+                    defaults={
+                        "tenant": connection.tenant,
+                        "status": job_status or "",
+                        "started_at": started_at,
+                        "duration_seconds": duration_seconds,
+                        "records_synced": records_synced,
+                        "bytes_synced": bytes_synced,
+                        "api_cost": snapshot.api_cost,
+                    },
+                )
+
+            observe_airbyte_sync(
+                tenant_id=str(connection.tenant_id),
+                provider=connection.provider,
+                connection_id=str(connection.connection_id),
+                duration_seconds=float(duration_seconds)
+                if duration_seconds is not None
+                else None,
+                records_synced=records_synced,
+                status=job_status,
             )
 
-        observe_airbyte_sync(
-            tenant_id=str(connection.tenant_id),
-            provider=connection.provider,
-            connection_id=str(connection.connection_id),
-            duration_seconds=float(duration_seconds)
-            if duration_seconds is not None
-            else None,
-            records_synced=records_synced,
-            status=job_status,
-        )
-
-        log_audit_event(
-            tenant=connection.tenant,
-            user=None,
-            action="airbyte_job_webhook",
-            resource_type="airbyte_connection",
-            resource_id=connection.id,
-            metadata={
-                "connection_id": str(connection.connection_id),
-                "job_id": update.job_id,
-                "status": job_status,
-                "records_synced": records_synced,
-                "duration_seconds": duration_seconds,
-                "error": error_message,
-            },
-        )
+            log_audit_event(
+                tenant=connection.tenant,
+                user=None,
+                action="airbyte_job_webhook",
+                resource_type="airbyte_connection",
+                resource_id=connection.id,
+                metadata={
+                    "connection_id": str(connection.connection_id),
+                    "job_id": update.job_id,
+                    "status": job_status,
+                    "records_synced": records_synced,
+                    "duration_seconds": duration_seconds,
+                    "error": error_message,
+                },
+            )
 
         logger.info(
             "Airbyte webhook processed",

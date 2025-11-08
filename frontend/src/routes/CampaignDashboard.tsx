@@ -11,7 +11,8 @@ import Card from '../components/ui/Card';
 import StatCard from '../components/ui/StatCard';
 import { useAuth } from '../auth/AuthContext';
 import useDashboardStore from '../state/useDashboardStore';
-import { formatCurrency, formatNumber, formatRatio } from '../lib/format';
+import { useDatasetStore } from '../state/useDatasetStore';
+import { formatCurrency, formatNumber, formatRatio, formatRelativeTime, isTimestampStale } from '../lib/format';
 
 import '../styles/dashboard.css';
 
@@ -55,11 +56,18 @@ const TrendPlaceholderIcon = () => (
 
 const CampaignDashboard = () => {
   const { tenantId } = useAuth();
-  const { campaign, campaignRows, loadAll } = useDashboardStore((state) => ({
+  const { campaign, campaignRows, loadAll, lastSnapshotGeneratedAt } = useDashboardStore((state) => ({
     campaign: state.campaign,
     campaignRows: state.getCampaignRowsForSelectedParish(),
     loadAll: state.loadAll,
+    lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
   }));
+  const datasetMode = useDatasetStore((state) => state.mode);
+  const snapshotRelative = lastSnapshotGeneratedAt
+    ? formatRelativeTime(lastSnapshotGeneratedAt)
+    : null;
+  const snapshotIsStale =
+    datasetMode === 'live' && isTimestampStale(lastSnapshotGeneratedAt, 60);
   const headingId = useId();
 
   const isInitialLoading = campaign.status === 'loading' && !campaign.data;
@@ -76,6 +84,15 @@ const CampaignDashboard = () => {
         <h1 className="dashboardHeading" id={headingId}>
           Campaign performance
         </h1>
+        <p
+          className={`snapshot-banner${
+            snapshotIsStale ? ' snapshot-banner--warning' : ''
+          }`}
+        >
+          {datasetMode === 'live'
+            ? snapshotRelative ?? 'Waiting for live snapshot…'
+            : 'Demo dataset active'}
+        </p>
       </header>
       {content}
     </section>

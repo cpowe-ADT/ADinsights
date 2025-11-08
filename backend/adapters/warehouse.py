@@ -23,13 +23,15 @@ class WarehouseAdapter(MetricsAdapter):
         tenant_id: str,
         options: Mapping[str, Any] | None = None,
     ) -> Mapping[str, Any]:  # noqa: ARG002 - options reserved for filter hooks
-        snapshot = TenantMetricsSnapshot.all_objects.filter(
+        snapshot = TenantMetricsSnapshot.objects.filter(
             tenant_id=tenant_id,
             source=self.key,
         ).order_by("-generated_at", "-created_at").first()
 
         if snapshot and snapshot.payload:
-            return snapshot.payload
+            payload = dict(snapshot.payload)
+            payload.setdefault("snapshot_generated_at", snapshot.generated_at.isoformat())
+            return payload
 
         return {
             "campaign": {
@@ -47,5 +49,5 @@ class WarehouseAdapter(MetricsAdapter):
             "creative": [],
             "budget": [],
             "parish": [],
-            "generated_at": timezone.now().isoformat(),
+            "snapshot_generated_at": timezone.now().isoformat(),
         }

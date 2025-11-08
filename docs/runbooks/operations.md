@@ -81,6 +81,45 @@ days';` Adjust the interval to meet contractual obligations.
 - Re-run `dbt` transformation job via the scheduler container (`make run-dbt`).
 - Escalate to Data Engineering if source pipelines show latency over 60 minutes.
 
+## Tenant Safety Checklist
+
+Run this checklist before every release that touches the backend or ingestion
+surface area.
+
+1. **Settings guardrail** – `ENABLE_TENANCY` defaults to `True` in
+   `backend/core/settings.py` and the environment override is present in the
+   deployment manifests.
+2. **HTTP traversal** – Hit `/api/analytics/campaigns/` and
+   `/api/airbyte/telemetry/` with two test tenants; confirm responses contain
+   only the authenticated tenant’s data (see `backend/tests/test_analytics_endpoints.py`).
+3. **Warehouse adapter** – Verify `WarehouseAdapter.fetch_metrics` returns the
+   correct tenant snapshot and does not leak other tenants’ payloads (also
+   covered by tests).
+4. **Background tasks** – Ensure Celery workers run with the latest code so
+   `tenant_context(...)` is applied; spot check logs for missing `tenant_id`
+   fields.
+5. **Audit trail** – Confirm new endpoints/actions emit `log_audit_event(...)`
+   with the current tenant and that `/api/audit-logs/` returns scoped results.
+
+## Snapshot Lag Troubleshooting
+
+1. **Inspect freshness** – Call `/api/metrics/combined/?source=warehouse` for
+   an affected tenant. The payload now returns `snapshot_generated_at`. Treat
+   any value older than the dbt SLA (60 minutes by default) as stale.
+2. **Manual refresh** – Run `python manage.py snapshot_metrics --tenant-id <UUID>`
+   to refresh a single tenant, or omit `--tenant-id` to rebuild every snapshot.
+   The Celery task `analytics.sync_metrics_snapshots` is also available via
+   Flower or `celery control broadcast run-task`.
+3. **Beat schedule** – Ensure the `metrics-snapshot-sync` entry in
+   `CELERY_BEAT_SCHEDULE` is enabled (30-minute cadence). Worker logs should
+   include `metrics.snapshot.persisted` for each tenant.
+4. **Alerts** – Configure monitoring to fire when
+   `snapshot_generated_at` is older than 60 minutes or missing entirely.
+   Pair this with the Airbyte/dbt health checks to pinpoint upstream causes.
+5. **Dashboards** – The “Warehouse Snapshot Health” Grafana/Superset view plots
+   snapshot recency per tenant. Use it to verify manual refreshes before
+   closing an incident.
+
 ## Contact
 
 - Marketing Operations On-Call: `marketing-ops@example.com`

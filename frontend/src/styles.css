@@ -1515,6 +1515,33 @@ th.pinned {
   color: var(--text-tertiary);
   color: var(--muted);
 }
+
+.snapshot-indicator {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 140px;
+}
+
+.snapshot-indicator__text {
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.snapshot-indicator--stale .snapshot-indicator__text {
+  color: #b45309;
+}
+
+.snapshot-banner {
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.snapshot-banner--warning {
+  color: #b45309;
+}
 .filter-bar {
   position: sticky;
   top: 0;

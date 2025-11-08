@@ -10,6 +10,8 @@ from typing import Any, Callable, Iterable
 
 from django.utils import timezone
 
+from accounts.tenant_context import tenant_context
+
 from integrations.models import (
     AirbyteConnection,
     AirbyteJobTelemetry,
@@ -57,57 +59,59 @@ class AirbyteSyncService:
         updates: list[ConnectionSyncUpdate] = []
         base_time = triggered_at or self._now()
         for connection in connections:
+            tenant_id = str(connection.tenant_id)
             logger.info(
                 "Triggering Airbyte sync",
                 extra={
-                    "tenant_id": str(connection.tenant_id),
+                    "tenant_id": tenant_id,
                     "connection_id": str(connection.connection_id),
                     "schedule_type": connection.schedule_type,
                     "provider": connection.provider,
                 },
             )
-            job_payload = self.client.trigger_sync(str(connection.connection_id))
-            job_id = extract_job_id(job_payload)
-            job_status = "pending"
-            job_created_at = base_time
-            attempt_snapshot = AttemptSnapshot(
-                started_at=base_time,
-                duration_seconds=None,
-                records_synced=None,
-                bytes_synced=None,
-                api_cost=None,
-            )
-            job_detail: dict[str, Any] = {}
-            if job_id is not None:
-                job_detail = self.client.get_job(job_id)
-                job_status = extract_job_status(job_detail) or job_status
-                job_created_at = extract_job_created_at(job_detail) or base_time
-                attempt_snapshot = extract_attempt_snapshot(job_detail) or attempt_snapshot
-            job_context = job_detail or {}
-            job_updated_at = extract_job_updated_at(job_context)
-            completed_at = infer_completion_time(job_context, attempt_snapshot)
-            error_message = extract_job_error(job_context)
-            update = ConnectionSyncUpdate(
-                connection=connection,
-                job_id=str(job_id) if job_id is not None else None,
-                status=job_status,
-                created_at=job_created_at,
-                updated_at=job_updated_at,
-                completed_at=completed_at,
-                duration_seconds=attempt_snapshot.duration_seconds,
-                records_synced=attempt_snapshot.records_synced,
-                bytes_synced=attempt_snapshot.bytes_synced,
-                api_cost=attempt_snapshot.api_cost,
-                error=error_message,
-            )
-            updates.append(update)
-            if job_id is not None:
-                _persist_job_snapshot(
-                    connection=connection,
-                    job_id=str(job_id),
-                    status=job_status,
-                    snapshot=attempt_snapshot,
+            with tenant_context(tenant_id):
+                job_payload = self.client.trigger_sync(str(connection.connection_id))
+                job_id = extract_job_id(job_payload)
+                job_status = "pending"
+                job_created_at = base_time
+                attempt_snapshot = AttemptSnapshot(
+                    started_at=base_time,
+                    duration_seconds=None,
+                    records_synced=None,
+                    bytes_synced=None,
+                    api_cost=None,
                 )
+                job_detail: dict[str, Any] = {}
+                if job_id is not None:
+                    job_detail = self.client.get_job(job_id)
+                    job_status = extract_job_status(job_detail) or job_status
+                    job_created_at = extract_job_created_at(job_detail) or base_time
+                    attempt_snapshot = extract_attempt_snapshot(job_detail) or attempt_snapshot
+                job_context = job_detail or {}
+                job_updated_at = extract_job_updated_at(job_context)
+                completed_at = infer_completion_time(job_context, attempt_snapshot)
+                error_message = extract_job_error(job_context)
+                update = ConnectionSyncUpdate(
+                    connection=connection,
+                    job_id=str(job_id) if job_id is not None else None,
+                    status=job_status,
+                    created_at=job_created_at,
+                    updated_at=job_updated_at,
+                    completed_at=completed_at,
+                    duration_seconds=attempt_snapshot.duration_seconds,
+                    records_synced=attempt_snapshot.records_synced,
+                    bytes_synced=attempt_snapshot.bytes_synced,
+                    api_cost=attempt_snapshot.api_cost,
+                    error=error_message,
+                )
+                updates.append(update)
+                if job_id is not None:
+                    _persist_job_snapshot(
+                        connection=connection,
+                        job_id=str(job_id),
+                        status=job_status,
+                        snapshot=attempt_snapshot,
+                    )
         return updates
 
 
@@ -277,7 +281,7 @@ def _persist_job_snapshot(
         "bytes_synced": snapshot.bytes_synced,
         "api_cost": snapshot.api_cost,
     }
-    AirbyteJobTelemetry.all_objects.update_or_create(
+    AirbyteJobTelemetry.objects.update_or_create(
         connection=connection,
         job_id=job_id,
         defaults=defaults,

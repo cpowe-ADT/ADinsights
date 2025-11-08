@@ -7,6 +7,7 @@ import FilterBar, { FilterBarState } from '../components/FilterBar';
 import { useTheme } from '../components/ThemeProvider';
 import { useToast } from '../components/ToastProvider';
 import { loadDashboardLayout, saveDashboardLayout } from '../lib/layoutPreferences';
+import { formatRelativeTime, isTimestampStale } from '../lib/format';
 import DatasetToggle from '../components/DatasetToggle';
 import TenantSwitcher from '../components/TenantSwitcher';
 import useDashboardStore from '../state/useDashboardStore';
@@ -63,6 +64,7 @@ const DashboardLayout = () => {
     budget,
     parish,
     activeTenantLabel,
+    lastSnapshotGeneratedAt,
   } = useDashboardStore((state) => ({
     loadAll: state.loadAll,
     selectedMetric: state.selectedMetric,
@@ -74,6 +76,7 @@ const DashboardLayout = () => {
     budget: state.budget,
     parish: state.parish,
     activeTenantLabel: state.activeTenantLabel,
+    lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
   }));
 
   const layoutHydratedRef = useRef(false);
@@ -249,6 +252,21 @@ const DashboardLayout = () => {
   );
 
   const accountLabel = (user as { email?: string } | undefined)?.email ?? 'Account';
+  const snapshotRelative = useMemo(
+    () => (lastSnapshotGeneratedAt ? formatRelativeTime(lastSnapshotGeneratedAt) : null),
+    [lastSnapshotGeneratedAt],
+  );
+  const snapshotIsStale =
+    datasetMode === 'live' && isTimestampStale(lastSnapshotGeneratedAt, 60);
+  const snapshotStatusLabel = useMemo(() => {
+    if (datasetMode !== 'live') {
+      return 'Demo dataset active';
+    }
+    if (!lastSnapshotGeneratedAt) {
+      return 'Waiting for live snapshot…';
+    }
+    return snapshotRelative ? `Updated ${snapshotRelative}` : 'Live snapshot available';
+  }, [datasetMode, lastSnapshotGeneratedAt, snapshotRelative]);
 
   return (
     <div className="dashboard-shell">
@@ -270,6 +288,13 @@ const DashboardLayout = () => {
             <div className="header-actions">
               <TenantSwitcher />
               <DatasetToggle />
+              <div
+                className={`snapshot-indicator${
+                  snapshotIsStale ? ' snapshot-indicator--stale' : ''
+                }`}
+              >
+                <span className="snapshot-indicator__text">{snapshotStatusLabel}</span>
+              </div>
               <label htmlFor="metric-select" className="muted">
                 Map metric
               </label>

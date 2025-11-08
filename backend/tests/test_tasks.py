@@ -5,6 +5,7 @@ import uuid
 
 import pytest
 from django.conf import settings
+from django.db import connection
 from django.utils import timezone
 
 from alerts.models import AlertRun
@@ -86,6 +87,8 @@ def test_sync_provider_sets_tenant_context(monkeypatch, tenant):
 
     dummy_task = type("Task", (), {"request": type("Req", (), {"id": "task-123"})()})()
 
+    previous = getattr(connection, settings.TENANT_SETTING_KEY, None)
+
     outcome = _sync_provider_connections(
         dummy_task,
         tenant=tenant,
@@ -96,6 +99,7 @@ def test_sync_provider_sets_tenant_context(monkeypatch, tenant):
     assert outcome == "no_connections"
     assert recorded and recorded[0] == str(tenant.id)
     assert get_current_tenant_id() is None
+    assert getattr(connection, settings.TENANT_SETTING_KEY, None) == previous
 
 
 class RetryCalled(Exception):

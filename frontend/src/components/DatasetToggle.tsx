@@ -39,6 +39,7 @@ const DatasetToggle = (): JSX.Element | null => {
     loadAll: state.loadAll,
   }));
 
+  const isLoading = status === 'loading';
   useEffect(() => {
     if (MOCK_MODE || status !== 'idle') {
       return;
@@ -57,7 +58,7 @@ const DatasetToggle = (): JSX.Element | null => {
   const nextLabel = mode === 'live' ? 'Use dummy data' : 'Use live data';
   const badge = DATASET_LABELS[mode];
 
-  const disabled = (mode === 'dummy' && !hasLiveData) || (mode === 'live' && !hasDemoData);
+  const disabled = isLoading || (mode === 'dummy' && !hasLiveData) || (mode === 'live' && !hasDemoData);
 
   const handleClick = () => {
     if (mode === 'live' && !hasDemoData) {
@@ -83,9 +84,9 @@ const DatasetToggle = (): JSX.Element | null => {
         type="button"
         className="button secondary"
         onClick={handleClick}
-        disabled={status === 'loading' || disabled}
+        disabled={disabled}
       >
-        {nextLabel}
+        {isLoading ? 'Checking datasets…' : nextLabel}
       </button>
       {mode === 'dummy' && demoTenants.length > 0 ? (
         <label className="muted dataset-toggle__selector">
@@ -102,6 +103,11 @@ const DatasetToggle = (): JSX.Element | null => {
             ))}
           </select>
         </label>
+      ) : null}
+      {isLoading ? (
+        <span className="muted dataset-toggle__error" role="status">
+          Loading dataset availability…
+        </span>
       ) : null}
       {error ? (
         <span className="muted dataset-toggle__error" role="status">

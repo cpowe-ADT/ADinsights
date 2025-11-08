@@ -12,6 +12,8 @@ from django.conf import settings
 from django.utils import timezone
 
 from alerts.models import AlertRun
+from accounts.tenant_context import tenant_context
+
 from integrations.airbyte import (
     AirbyteClient,
     AirbyteClientConfigurationError,
@@ -27,15 +29,17 @@ logger = logging.getLogger(__name__)
 def trigger_scheduled_airbyte_syncs(self):  # noqa: ANN001
     """Trigger due Airbyte syncs using the shared scheduling service."""
 
-    try:
+    triggered = 0
+    with tenant_context(None):
+        try:
             with AirbyteClient.from_settings() as client:
                 service = AirbyteSyncService(client)
                 updates = service.sync_due_connections()
                 AirbyteConnection.persist_sync_updates(updates)
                 triggered = len(updates)
-    except AirbyteClientConfigurationError as exc:
-        logger.error("Airbyte client misconfigured", exc_info=exc)
-        raise self.retry(exc=exc, countdown=60)
+        except AirbyteClientConfigurationError as exc:
+            logger.error("Airbyte client misconfigured", exc_info=exc)
+            raise self.retry(exc=exc, countdown=60)
     return triggered
 
 
@@ -47,12 +51,13 @@ def remind_expiring_credentials(self):  # noqa: ANN001
     now = timezone.now()
     window_end = now + timedelta(days=window_days)
 
-    credentials = list(
-        PlatformCredential.all_objects.filter(
-            expires_at__isnull=False,
-            expires_at__lte=window_end,
-        ).select_related("tenant")
-    )
+    with tenant_context(None):
+        credentials = list(
+            PlatformCredential.all_objects.filter(
+                expires_at__isnull=False,
+                expires_at__lte=window_end,
+            ).select_related("tenant")
+        )
 
     if not credentials:
         return {"processed": 0}
@@ -62,17 +67,19 @@ def remind_expiring_credentials(self):  # noqa: ANN001
         expires_at = credential.expires_at
         if expires_at is None:
             continue
-        delta = (expires_at - now).days
-        rows.append(
-            {
-                "tenant_id": str(credential.tenant_id),
-                "provider": credential.provider,
-                "credential_ref": _mask_identifier(credential.account_id),
-                "expires_at": expires_at.isoformat(),
-                "days_until_expiry": delta,
-                "status": "expired" if expires_at <= now else "expiring",
-            }
-        )
+        tenant_id = str(credential.tenant_id)
+        with tenant_context(tenant_id):
+            delta = (expires_at - now).days
+            rows.append(
+                {
+                    "tenant_id": tenant_id,
+                    "provider": credential.provider,
+                    "credential_ref": _mask_identifier(credential.account_id),
+                    "expires_at": expires_at.isoformat(),
+                    "days_until_expiry": delta,
+                    "status": "expired" if expires_at <= now else "expiring",
+                }
+            )
 
     AlertRun.objects.create(
         rule_slug="credential_rotation_due",

@@ -74,6 +74,9 @@ Deliver a working end-to-end analytics slice that ingests advertising data throu
 3. **Go/No-Go Checklist**
    - All canonical commands pass.
    - Sample tenant walkthrough documented with screenshots and metric validation.
+4. **Warehouse Snapshots**
+   - Automate `TenantMetricsSnapshot` generation via Celery + management command so
+     `/api/metrics/combined/` always serves fresh warehouse data.
 
 ## Iterative Workflow Prompt for Codex
 ```
