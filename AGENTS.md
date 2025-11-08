@@ -6,7 +6,7 @@ These instructions apply to the entire repository unless a more specific `AGENTS
 
 ## Purpose
 
-This file serves as the operational prompt for any agent working on ADinsights. Read it before making changes so the guardrails, schedules, and workflow expectations stay consistent across parallel tracks.
+This file serves as the operational prompt for any agent working on ADinsights. Read it before making changes so the guardrails, schedules, and workflow expectations stay consistent across parallel tracks. Stream-specific KPIs, owners, and Definition-of-Done checklists live in `docs/workstreams.md`—use it alongside this guide when executing a track.
 
 ## Architecture Guardrails
 
