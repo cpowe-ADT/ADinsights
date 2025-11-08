@@ -41,6 +41,7 @@ This file serves as the operational prompt for any agent working on ADinsights. 
 - Keep each change isolated to a single top-level folder to allow independent PRs per sprint track.
 - Use short-lived feature branches and prefer squash merges.
 - Follow conventional commit messages such as `feat(backend): …` or `docs(airbyte): …`.
+- When a change must touch multiple folders, loop in the Cross-Stream Integration Lead (Raj) so each stream owner co-reviews, and involve the Architecture/Refactor engineer (Mira) whenever the work is a codebase-wide refactor. Both roles keep cross-stream PRs aligned with the guardrails in `docs/workstreams.md`.
 
 ## Testing Matrix
 
