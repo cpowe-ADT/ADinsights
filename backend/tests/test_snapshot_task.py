@@ -6,10 +6,11 @@ import pytest
 from django.core.management import call_command
 from django.db import connection
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from accounts.models import Tenant
 from analytics.models import TenantMetricsSnapshot
-from analytics.tasks import generate_snapshots_for_tenants
+from analytics.tasks import generate_snapshots_for_tenants, sync_metrics_snapshots
 
 
 def _seed_dashboard_snapshot_view(records: list[dict[str, object]]):
@@ -110,3 +111,38 @@ def test_snapshot_management_command_limits_to_single_tenant(tenant):
 
     snapshot = TenantMetricsSnapshot.objects.get(tenant=tenant, source="warehouse")
     assert snapshot.payload["campaign"]["summary"]["totalSpend"] == 75
+
+
+@pytest.mark.django_db
+def test_generate_snapshots_normalizes_generated_at_timezone(tenant):
+    naive_timestamp = "2024-01-02T13:00:00"
+    _seed_dashboard_snapshot_view(
+        [
+            {
+                "tenant_id": str(tenant.id),
+                "generated_at": naive_timestamp,
+                "campaign_metrics": {
+                    "summary": {"currency": "USD", "totalSpend": 42},
+                    "trend": [],
+                    "rows": [],
+                },
+                "creative_metrics": [],
+                "budget_metrics": [],
+                "parish_metrics": [],
+            }
+        ]
+    )
+
+    outcomes = generate_snapshots_for_tenants([str(tenant.id)])
+
+    assert len(outcomes) == 1
+    snapshot = TenantMetricsSnapshot.objects.get(tenant=tenant, source="warehouse")
+    assert timezone.is_aware(snapshot.generated_at)
+    parsed = parse_datetime(snapshot.payload["snapshot_generated_at"])
+    assert parsed is not None and timezone.is_aware(parsed)
+
+
+def test_sync_metrics_snapshots_has_retry_policy():
+    assert sync_metrics_snapshots.max_retries == 5
+    assert sync_metrics_snapshots.retry_backoff == 2
+    assert sync_metrics_snapshots.retry_jitter is True

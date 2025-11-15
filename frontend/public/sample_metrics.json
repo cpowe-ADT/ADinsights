@@ -1,35 +1,240 @@
-[
-  {
-    "date": "2024-09-01",
-    "platform": "Meta",
-    "campaign": "Back to School",
-    "parish": "Kingston",
-    "impressions": 120000,
-    "clicks": 3200,
-    "spend": 450.5,
-    "conversions": 120,
-    "roas": 3.4
+{
+  "tenant_id": "demo-tenant-001",
+  "snapshot_generated_at": "2024-09-03T10:15:00-05:00",
+  "campaign": {
+    "summary": {
+      "currency": "JMD",
+      "totalSpend": 195000.5,
+      "totalImpressions": 385000,
+      "totalClicks": 10250,
+      "totalConversions": 620,
+      "averageRoas": 4.2
+    },
+    "trend": [
+      {
+        "date": "2024-08-29",
+        "spend": 47000.25,
+        "conversions": 140,
+        "clicks": 2400,
+        "impressions": 92000
+      },
+      {
+        "date": "2024-08-30",
+        "spend": 51000,
+        "conversions": 165,
+        "clicks": 2650,
+        "impressions": 98000
+      },
+      {
+        "date": "2024-08-31",
+        "spend": 48000.75,
+        "conversions": 155,
+        "clicks": 2550,
+        "impressions": 102000
+      },
+      {
+        "date": "2024-09-01",
+        "spend": 49000.5,
+        "conversions": 160,
+        "clicks": 2650,
+        "impressions": 99000
+      }
+    ],
+    "rows": [
+      {
+        "id": "cmp_kingston_launch",
+        "name": "Kingston Launch",
+        "platform": "Meta",
+        "status": "ACTIVE",
+        "objective": "CONVERSIONS",
+        "parish": "Kingston",
+        "spend": 63000,
+        "impressions": 150000,
+        "clicks": 4100,
+        "conversions": 250,
+        "roas": 4.5,
+        "ctr": 2.73,
+        "cpc": 15.36,
+        "cpm": 420,
+        "startDate": "2024-08-15",
+        "endDate": "2024-09-30"
+      },
+      {
+        "id": "cmp_montego_ret",
+        "name": "Montego Remarketing",
+        "platform": "Google Ads",
+        "status": "ACTIVE",
+        "objective": "RETARGETING",
+        "parish": "St James",
+        "spend": 52000,
+        "impressions": 90000,
+        "clicks": 2800,
+        "conversions": 180,
+        "roas": 3.8,
+        "ctr": 3.11,
+        "cpc": 18.57,
+        "cpm": 577.78,
+        "startDate": "2024-08-10",
+        "endDate": "2024-09-15"
+      },
+      {
+        "id": "cmp_mobile_discovery",
+        "name": "Mobile Discovery",
+        "platform": "Meta",
+        "status": "PAUSED",
+        "objective": "AWARENESS",
+        "parish": "St Catherine",
+        "spend": 36000,
+        "impressions": 78000,
+        "clicks": 1900,
+        "conversions": 95,
+        "roas": 4.0,
+        "ctr": 2.44,
+        "cpc": 18.95,
+        "cpm": 461.54,
+        "startDate": "2024-08-01",
+        "endDate": "2024-08-31"
+      },
+      {
+        "id": "cmp_ocho_river",
+        "name": "Ocho Rios Expansion",
+        "platform": "Google Ads",
+        "status": "ACTIVE",
+        "objective": "LEADS",
+        "parish": "St Ann",
+        "spend": 44000.75,
+        "impressions": 67000,
+        "clicks": 1450,
+        "conversions": 95,
+        "roas": 4.6,
+        "ctr": 2.16,
+        "cpc": 30.35,
+        "cpm": 656.72,
+        "startDate": "2024-08-20",
+        "endDate": "2024-09-10"
+      }
+    ]
   },
-  {
-    "date": "2024-09-01",
-    "platform": "Google Ads",
-    "campaign": "Search - Kingston",
-    "parish": "St Catherine",
-    "impressions": 95000,
-    "clicks": 2800,
-    "spend": 390.75,
-    "conversions": 95,
-    "roas": 2.8
-  },
-  {
-    "date": "2024-09-02",
-    "platform": "Meta",
-    "campaign": "Awareness",
-    "parish": "St James",
-    "impressions": 58000,
-    "clicks": 1500,
-    "spend": 210.0,
-    "conversions": 60,
-    "roas": 3.9
-  }
-]
+  "creative": [
+    {
+      "id": "cr_unity_video",
+      "name": "Unity Video 15s",
+      "campaignId": "cmp_kingston_launch",
+      "campaignName": "Kingston Launch",
+      "platform": "Meta",
+      "parish": "Kingston",
+      "spend": 25000,
+      "impressions": 62000,
+      "clicks": 1800,
+      "conversions": 120,
+      "roas": 4.9,
+      "ctr": 2.9,
+      "thumbnailUrl": "/mock/assets/unity-video-thumb.jpg"
+    },
+    {
+      "id": "cr_search_kw",
+      "name": "Search - Brand Core",
+      "campaignId": "cmp_montego_ret",
+      "campaignName": "Montego Remarketing",
+      "platform": "Google Ads",
+      "parish": "St James",
+      "spend": 27000,
+      "impressions": 41000,
+      "clicks": 1250,
+      "conversions": 85,
+      "roas": 3.7,
+      "ctr": 3.05
+    },
+    {
+      "id": "cr_carousel_daily",
+      "name": "Carousel - Daily Deals",
+      "campaignId": "cmp_mobile_discovery",
+      "campaignName": "Mobile Discovery",
+      "platform": "Meta",
+      "parish": "St Catherine",
+      "spend": 18000,
+      "impressions": 43000,
+      "clicks": 900,
+      "conversions": 45,
+      "roas": 3.6,
+      "ctr": 2.09
+    }
+  ],
+  "budget": [
+    {
+      "id": "bdg_kingston",
+      "campaignName": "Kingston Launch",
+      "parishes": ["Kingston", "St Andrew"],
+      "monthlyBudget": 80000,
+      "spendToDate": 63000,
+      "projectedSpend": 79000,
+      "pacingPercent": 99,
+      "startDate": "2024-08-15",
+      "endDate": "2024-09-30"
+    },
+    {
+      "id": "bdg_montego",
+      "campaignName": "Montego Remarketing",
+      "parishes": ["St James"],
+      "monthlyBudget": 70000,
+      "spendToDate": 52000,
+      "projectedSpend": 68000,
+      "pacingPercent": 97,
+      "startDate": "2024-08-10",
+      "endDate": "2024-09-15"
+    },
+    {
+      "id": "bdg_ocho",
+      "campaignName": "Ocho Rios Expansion",
+      "parishes": ["St Ann", "St Mary"],
+      "monthlyBudget": 60000,
+      "spendToDate": 44000.75,
+      "projectedSpend": 61000,
+      "pacingPercent": 101,
+      "startDate": "2024-08-20",
+      "endDate": "2024-09-10"
+    }
+  ],
+  "parish": [
+    {
+      "parish": "Kingston",
+      "spend": 70000,
+      "impressions": 160000,
+      "clicks": 4300,
+      "conversions": 260,
+      "roas": 4.6,
+      "campaignCount": 2,
+      "currency": "JMD"
+    },
+    {
+      "parish": "St James",
+      "spend": 52000,
+      "impressions": 90000,
+      "clicks": 2800,
+      "conversions": 180,
+      "roas": 3.9,
+      "campaignCount": 1,
+      "currency": "JMD"
+    },
+    {
+      "parish": "St Catherine",
+      "spend": 38000,
+      "impressions": 80000,
+      "clicks": 1950,
+      "conversions": 100,
+      "roas": 4.1,
+      "campaignCount": 1,
+      "currency": "JMD"
+    },
+    {
+      "parish": "St Ann",
+      "spend": 35000,
+      "impressions": 55000,
+      "clicks": 1200,
+      "conversions": 80,
+      "roas": 4.4,
+      "campaignCount": 1,
+      "currency": "JMD"
+    }
+  ]
+}

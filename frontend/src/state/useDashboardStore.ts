@@ -504,6 +504,14 @@ function mapError(reason: unknown): string {
   return 'Unable to load the latest insights. Please try again.';
 }
 
+async function fetchDummySnapshot(path = '/sample_metrics.json'): Promise<TenantMetricsSnapshot> {
+  const response = await fetch(path, { credentials: 'same-origin' });
+  if (!response.ok) {
+    throw new Error('Unable to load demo metrics snapshot.');
+  }
+  return (await response.json()) as TenantMetricsSnapshot;
+}
+
 const useDashboardStore = create<DashboardState>((set, get) => ({
   ...createInitialState(),
   getSavedTableView: (tableId) => loadSavedView(tableId),
@@ -603,17 +611,18 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       parish: { ...state.parish, status: 'loading', error: undefined },
     }));
 
-    if (!MOCK_MODE) {
-      const sourceOverride = getDatasetSource();
-      const metricsSource = sourceOverride;
-      let metricsPath = withSource(
-        withTenant('/metrics/combined/', normalizedTenantId),
-        sourceOverride,
-      );
-      if (metricsSource === 'demo') {
-        metricsPath = withQueryParam(metricsPath, 'demo_tenant', getDemoTenantId());
-      }
+    const datasetMode = getDatasetMode();
+    const sourceOverride = getDatasetSource();
+    const metricsSource = sourceOverride;
+    let metricsPath = withSource(
+      withTenant('/metrics/combined/', normalizedTenantId),
+      sourceOverride,
+    );
+    if (metricsSource === 'demo') {
+      metricsPath = withQueryParam(metricsPath, 'demo_tenant', getDemoTenantId());
+    }
 
+    if (!MOCK_MODE && datasetMode !== 'dummy') {
       try {
         const snapshot = await fetchDashboardMetrics({
           path: metricsPath,
@@ -645,7 +654,43 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       return;
     }
 
-    const sourceOverride = getDatasetSource();
+    if (datasetMode === 'dummy') {
+      try {
+        let dummyPath = '/sample_metrics.json';
+        if (metricsSource) {
+          dummyPath = withSource(dummyPath, metricsSource);
+        }
+        if (metricsSource === 'demo') {
+          dummyPath = withQueryParam(dummyPath, 'demo_tenant', getDemoTenantId());
+        }
+
+        const snapshot = await fetchDummySnapshot(dummyPath);
+        const resolved = parseTenantMetrics(snapshot);
+
+        set((state) => ({
+          activeTenantId: resolved.tenantId ?? state.activeTenantId,
+          lastLoadedTenantId: resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
+          lastSnapshotGeneratedAt:
+            resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+          campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
+          creative: { status: 'loaded', data: resolved.creative, error: undefined },
+          budget: { status: 'loaded', data: resolved.budget, error: undefined },
+          parish: { status: 'loaded', data: resolved.parish, error: undefined },
+          metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
+        }));
+      } catch (error) {
+        const message = mapError(error);
+        set((state) => ({
+          campaign: { status: 'error', data: state.campaign.data, error: message },
+          creative: { status: 'error', data: state.creative.data, error: message },
+          budget: { status: 'error', data: state.budget.data, error: message },
+          parish: { status: 'error', data: state.parish.data, error: message },
+        }));
+      }
+
+      return;
+    }
+
     const campaignPath = withSource(
       withTenant('/analytics/campaign-performance/', tenantId),
       sourceOverride,
