@@ -46,9 +46,10 @@ def _snapshot_payload_for_tenant(tenant_id: str) -> tuple[dict, datetime, str]:
         status = "default"
     else:
         status = "fetched"
-    metrics.generated_at = _ensure_aware(metrics.generated_at)
+    generated_at = _ensure_aware(metrics.generated_at)
     payload = snapshot_metrics_to_combined_payload(metrics)
-    return payload, metrics.generated_at, status
+    payload["snapshot_generated_at"] = generated_at.isoformat()
+    return payload, generated_at, status
 
 
 def generate_snapshots_for_tenants(tenant_ids: Sequence[str] | None = None) -> list[SnapshotOutcome]:
