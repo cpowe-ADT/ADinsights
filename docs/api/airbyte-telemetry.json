@@ -4,12 +4,13 @@
   "authentication": "JWT access token required.",
   "query_parameters": {
     "page": "Optional page number (defaults to 1).",
-    "page_size": "Optional page size. Defaults to 5 and cannot exceed 100."
+    "page_size": "Optional page size (1-100). Defaults to 5 and cannot exceed 100, even if a larger value is supplied."
   },
   "response": {
     "count": 2,
     "next": null,
     "previous": null,
+    "snapshot_generated_at": "2024-04-03T15:42:10.125000Z",
     "sync_status": {
       "tenant_id": "0f4c6f48-2e0c-4ba7-9e48-5fdc5a5be9d2",
       "last_synced_at": "2024-04-03T15:42:10.125000Z",

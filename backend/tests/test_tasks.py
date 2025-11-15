@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from decimal import Decimal
 import uuid
 
 import pytest
@@ -10,9 +11,10 @@ from django.utils import timezone
 
 from alerts.models import AlertRun
 from accounts.tenant_context import get_current_tenant_id
-from core.tasks import rotate_deks, _sync_provider_connections
-from integrations.models import AirbyteConnection, PlatformCredential
+from core.tasks import rotate_deks, _sync_provider_connections, sync_meta_metrics
 from integrations.airbyte import AirbyteClientError, AirbyteClientConfigurationError
+from integrations.airbyte.service import emit_airbyte_sync_metrics
+from integrations.models import AirbyteConnection, ConnectionSyncUpdate, PlatformCredential
 from integrations.tasks import remind_expiring_credentials
 
 
@@ -102,6 +104,24 @@ def test_sync_provider_sets_tenant_context(monkeypatch, tenant):
     assert getattr(connection, settings.TENANT_SETTING_KEY, None) == previous
 
 
+@pytest.mark.django_db
+def test_sync_meta_metrics_task_applies_tenant_context(monkeypatch, tenant):
+    recorded: dict[str, str | None] = {}
+
+    def fake_sync(task, *, tenant, user, provider):  # noqa: ANN001
+        recorded["tenant"] = str(tenant.id)
+        recorded["context"] = get_current_tenant_id()
+        return "ok"
+
+    monkeypatch.setattr("core.tasks._sync_provider_connections", fake_sync)
+
+    result = sync_meta_metrics.apply(args=(str(tenant.id),))
+    assert result.get() == "ok"
+    assert recorded["tenant"] == str(tenant.id)
+    assert recorded["context"] == str(tenant.id)
+    assert get_current_tenant_id() is None
+
+
 class RetryCalled(Exception):
     pass
 
@@ -183,3 +203,105 @@ def test_sync_provider_configuration_error_backoff(monkeypatch, tenant):
 
     assert isinstance(task.retry_args["exc"], AirbyteClientConfigurationError)
     assert task.retry_args["countdown"] == 300
+
+
+@pytest.mark.django_db
+def test_emit_airbyte_sync_metrics_records_observations(monkeypatch, tenant):
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=15,
+    )
+    update = ConnectionSyncUpdate(
+        connection=connection,
+        job_id="99",
+        status="succeeded",
+        created_at=timezone.now(),
+        updated_at=None,
+        completed_at=None,
+        duration_seconds=12,
+        records_synced=5,
+        bytes_synced=None,
+        api_cost=Decimal("0"),
+        error=None,
+    )
+    recorded: list[dict[str, object]] = []
+
+    def fake_observe(**kwargs):  # noqa: ANN003
+        recorded.append(kwargs)
+
+    monkeypatch.setattr("integrations.airbyte.service.observe_airbyte_sync", fake_observe)
+
+    emit_airbyte_sync_metrics([update])
+
+    assert recorded
+    payload = recorded[0]
+    assert payload["tenant_id"] == str(tenant.id)
+    assert payload["status"] == "succeeded"
+    assert payload["records_synced"] == 5
+
+
+@pytest.mark.django_db
+def test_sync_provider_connections_emits_metrics(monkeypatch, tenant):
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta Sync",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=10,
+        last_synced_at=timezone.now() - timedelta(minutes=90),
+    )
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN002, ANN003
+            return None
+
+    monkeypatch.setattr("core.tasks.AirbyteClient.from_settings", classmethod(lambda cls: DummyClient()))
+
+    def fake_service_init(self, client):  # noqa: ANN001
+        assert isinstance(client, DummyClient)
+
+    def fake_sync(self, due_connections, *, triggered_at=None):  # noqa: ANN001
+        connection_obj = due_connections[0]
+        return [
+            ConnectionSyncUpdate(
+                connection=connection_obj,
+                job_id="123",
+                status="succeeded",
+                created_at=timezone.now(),
+                updated_at=None,
+                completed_at=timezone.now(),
+                duration_seconds=9,
+                records_synced=11,
+                bytes_synced=None,
+                api_cost=Decimal("0"),
+                error=None,
+            )
+        ]
+
+    monkeypatch.setattr("core.tasks.AirbyteSyncService.__init__", fake_service_init, raising=False)
+    monkeypatch.setattr("core.tasks.AirbyteSyncService.sync_connections", fake_sync, raising=False)
+
+    captured: dict[str, list[ConnectionSyncUpdate]] = {}
+
+    def fake_emit(updates):  # noqa: ANN001
+        captured["updates"] = list(updates)
+
+    monkeypatch.setattr("core.tasks.emit_airbyte_sync_metrics", fake_emit)
+
+    dummy_task = type("Task", (), {"request": type("Req", (), {"id": "task-555"})()})()
+
+    result = _sync_provider_connections(dummy_task, tenant=tenant, user=None, provider=PlatformCredential.META)
+
+    assert result.startswith("triggered 1")
+    assert "updates" in captured
+    assert len(captured["updates"]) == 1
+    assert captured["updates"][0].connection.tenant_id == tenant.id
+    assert captured["updates"][0].connection.id == connection.id

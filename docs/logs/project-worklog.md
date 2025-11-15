@@ -1,0 +1,19 @@
+# Project Worklog
+
+| Date       | Author                   | Change                                                                                                     | Notes                                                                                  |
+| ---------- | ------------------------ | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 2025-01-05 | Codex (program manager)  | Added `docs/project/phase0-backlog-validation.md` to document the sprint Phase 0 backlog validation plan. | Aligns with AGENTS/workstreams guardrails; pending team walkthrough per checklist.     |
+| 2025-01-05 | Codex (program manager)  | Added AI persona simulation prompt to the Phase 0 guide so we can validate backlogs even without live ops. | Remember to log each simulated review outcome here for transparency.                   |
+| 2025-01-05 | Maya (simulated)         | Completed Phase 0 review for Airbyte Ingestion & Telemetry; captured findings in `docs/project/phase0-simulated-reviews.md`. | Tenant-aware Celery base task + telemetry backlog items added.                         |
+| 2025-01-05 | Priya (simulated)        | Completed Phase 0 review for dbt Modeling & Warehouse Views.                                               | Added tickets for tenant filters + freshness alerts.                                    |
+| 2025-01-05 | Sofia (simulated)        | Completed Phase 0 review for Backend Metrics & Snapshots.                                                  | Highlighted need for snapshot timezone handling + retry instrumentation.               |
+| 2025-01-05 | Lina (simulated)         | Completed Phase 0 review for Frontend Experience.                                                          | Logged tasks for freshness banner + Playwright smoke tests.                             |
+| 2025-01-05 | Nina (simulated)         | Completed Phase 0 review for Secrets & KMS.                                                                | Scheduled rotation CLI + outage runbook work.                                           |
+| 2025-01-05 | Omar (simulated)         | Completed Phase 0 review for Observability & Alerts.                                                       | Planned metrics endpoint expansion + alert matrix docs.                                 |
+| 2025-01-05 | Carlos (simulated)       | Completed Phase 0 review for BI & Deployment.                                                              | Documented Superset export + CI smoke test backlog.                                     |
+| 2025-01-05 | Codex (program manager)  | Created single-engineer backlog `docs/project/phase1-execution-backlog.md` mapping all actions to Codex + personas. | Use this as the canonical to-do list; update Status column as tasks progress.          |
+| 2025-01-05 | Codex (Maya persona)     | Delivered S1-A (tenant-aware Celery base + Airbyte metrics helper).                                         | Updated `backend/core/tasks.py`, `backend/integrations/airbyte/service.py`, and tests; backlog row marked Done. |
+| 2025-01-05 | Codex (Leo persona)      | Delivered S1-B (telemetry API contract tests + OpenAPI refresh).                                            | Added snapshot/page-size tests in `backend/core/tests/test_airbyte_telemetry.py` and updated `docs/api/airbyte-telemetry.json`. |
+| 2025-01-05 | Codex (Maya persona)     | Delivered S1-C (webhook ops runbook + secret placeholder).                                                  | Added guidance to `docs/runbooks/operations.md` and updated `backend/.env.sample` with `AIRBYTE_WEBHOOK_SECRET`. |
+
+> Log significant project/process documentation updates here to retain historical context.

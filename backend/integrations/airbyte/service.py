@@ -11,6 +11,7 @@ from typing import Any, Callable, Iterable
 from django.utils import timezone
 
 from accounts.tenant_context import tenant_context
+from core.metrics import observe_airbyte_sync
 
 from integrations.models import (
     AirbyteConnection,
@@ -113,6 +114,23 @@ class AirbyteSyncService:
                         snapshot=attempt_snapshot,
                     )
         return updates
+
+
+def emit_airbyte_sync_metrics(updates: Iterable[ConnectionSyncUpdate]) -> None:
+    """Emit Prometheus/OTel metrics for each sync update."""
+
+    for update in updates:
+        connection = update.connection
+        observe_airbyte_sync(
+            tenant_id=str(connection.tenant_id),
+            provider=connection.provider,
+            connection_id=str(connection.connection_id),
+            duration_seconds=float(update.duration_seconds)
+            if update.duration_seconds is not None
+            else None,
+            records_synced=update.records_synced,
+            status=update.status,
+        )
 
 
 def extract_job_id(payload) -> int | None:

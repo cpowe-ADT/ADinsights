@@ -8,6 +8,7 @@ import pytest
 from django.utils import timezone
 
 from accounts.models import AuditLog, Tenant
+from analytics.models import TenantMetricsSnapshot
 from integrations.models import (
     AirbyteConnection,
     AirbyteJobTelemetry,
@@ -152,3 +153,83 @@ def test_airbyte_telemetry_paginates_results(api_client, user, tenant):
 
     audit_events = AuditLog.all_objects.filter(action="airbyte_telemetry_viewed", tenant=tenant)
     assert audit_events.count() == 2
+
+
+@pytest.mark.django_db
+def test_airbyte_telemetry_includes_snapshot_timestamp(api_client, user, tenant):
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Primary Sync",
+        provider=None,
+        connection_id=uuid.uuid4(),
+        workspace_id=uuid.uuid4(),
+    )
+    TenantAirbyteSyncStatus.all_objects.create(
+        tenant=tenant,
+        last_connection=connection,
+        last_synced_at=timezone.now(),
+        last_job_id="job-123",
+        last_job_status="succeeded",
+    )
+    AirbyteJobTelemetry.all_objects.create(
+        tenant=tenant,
+        connection=connection,
+        job_id="job-123",
+        status="succeeded",
+        started_at=timezone.now(),
+    )
+    snapshot_time = timezone.now().replace(microsecond=0)
+    TenantMetricsSnapshot.objects.create(
+        tenant=tenant,
+        source="warehouse",
+        payload={"summary": "ok"},
+        generated_at=snapshot_time,
+    )
+
+    api_client.force_authenticate(user=user)
+    response = api_client.get("/api/airbyte/telemetry/")
+    api_client.force_authenticate(user=None)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["snapshot_generated_at"] == snapshot_time.isoformat()
+
+
+@pytest.mark.django_db
+def test_airbyte_telemetry_caps_page_size(api_client, user, tenant):
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Primary Sync",
+        provider=None,
+        connection_id=uuid.uuid4(),
+        workspace_id=uuid.uuid4(),
+    )
+    TenantAirbyteSyncStatus.all_objects.create(
+        tenant=tenant,
+        last_connection=connection,
+        last_synced_at=timezone.now(),
+        last_job_id="job-0",
+        last_job_status="succeeded",
+    )
+    for index in range(120):
+        AirbyteJobTelemetry.all_objects.create(
+            tenant=tenant,
+            connection=connection,
+            job_id=f"job-{index}",
+            status="succeeded",
+            started_at=timezone.now() - timedelta(minutes=index),
+            duration_seconds=20,
+        )
+
+    api_client.force_authenticate(user=user)
+    oversized = api_client.get("/api/airbyte/telemetry/?page_size=500")
+    assert oversized.status_code == 200
+    oversized_payload = oversized.json()
+    assert oversized_payload["count"] == 120
+    assert len(oversized_payload["results"]) == 100  # capped by max_page_size
+
+    custom = api_client.get("/api/airbyte/telemetry/?page_size=3&page=2")
+    assert custom.status_code == 200
+    custom_payload = custom.json()
+    assert len(custom_payload["results"]) == 3
+    assert custom_payload["previous"] is not None

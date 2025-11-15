@@ -22,7 +22,7 @@ This triggers the `run_alert_cycle` task and posts results to the configured cha
 ## LLM Summaries
 
 - Endpoint: `ADINSIGHTS_LLM_API_URL`
-- Model: `gpt-5-codex`
+- Model: `gpt-5.1`
 - Prompt: Summaries capped at 120 words with tactical next steps.
 - Fallback: If the LLM request fails, alerts still log the raw payload for manual review.
 

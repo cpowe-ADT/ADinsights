@@ -75,6 +75,34 @@ days';` Adjust the interval to meet contractual obligations.
   Celery task durations to visualize orchestration performance trends and catch regressions
   before they breach SLAs.
 
+## Airbyte Webhook Operations
+
+Airbyte emits job-completion webhooks to `/api/airbyte/webhook/` so the platform can persist
+latency/records metadata immediately after a sync. Keep the following guardrails in place:
+
+- **Authentication** – Every request must include the header `X-Airbyte-Webhook-Secret`. The backend
+  compares the header to `AIRBYTE_WEBHOOK_SECRET` (see `backend/core/settings.py`). Missing or wrong
+  secrets return `403` without touching tenant data. When onboarding a new environment, place the
+  shared secret in the secret manager AND in Airbyte’s destination settings so they match.
+- **Rotation** – Rotate the secret quarterly or after any suspected exposure:
+  1. Generate a new 32+ character value (e.g., `openssl rand -hex 32`).
+  2. Update the environment’s secret store / `AIRBYTE_WEBHOOK_SECRET` variable.
+  3. Update the Airbyte Cloud/OSS webhook configuration.
+  4. Deploy the backend; confirm `/api/airbyte/webhook/` rejects the previous secret and accepts the new one.
+  5. Record the rotation in the on-call log. The placeholder in `backend/.env.sample` must stay redacted.
+- **Replay / Troubleshooting**
+  - Use the Airbyte UI → Connections → Job History to re-send the webhook payload (copy as cURL and include the header).
+  - Watch `backend` logs for `Airbyte webhook processed` messages; they include `tenant_id`, `connection_id`, and `job_id`.
+  - If a webhook repeatedly fails with `404 connection not found`, ensure the connection ID matches the UUID stored in ADinsights (Admins can list via `/api/integrations/airbyte/connections/`).
+  - For 500s, capture the payload and raise an incident; malformed JSON should be retried from Airbyte after the fix.
+- **Monitoring**
+  - Alerts are triggered when `airbyte_job_webhook` audit events stop arriving for >30 minutes while Airbyte jobs exist.
+  - Grafana dashboard “Airbyte Webhook Health” tracks webhook count, success rate, and median latency between sync completion and webhook ingestion.
+  - Structured logs always include `correlation_id` matching the Celery task when the webhook links to a scheduled sync.
+- **Disaster Recovery** – If webhooks are down, scheduled syncs still run via Celery; metrics will be delayed until
+  the webhook endpoint accepts payloads again. Use `manage.py sync_airbyte --tenant` to backfill and then replay the
+  missed webhooks from Airbyte so telemetry stays accurate.
+
 ## Data Refresh Failures
 
 - Validate warehouse connectors via Superset → Data → Databases.

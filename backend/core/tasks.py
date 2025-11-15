@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 from celery import shared_task
 from django.utils import timezone
@@ -15,11 +15,47 @@ from integrations.airbyte import (
     AirbyteClientConfigurationError,
     AirbyteClientError,
     AirbyteSyncService,
+    emit_airbyte_sync_metrics,
 )
 from integrations.models import AirbyteConnection, PlatformCredential
-from core.metrics import observe_airbyte_sync
+from core.observability import InstrumentedTask
 
 logger = logging.getLogger(__name__)
+
+
+class BaseAdInsightsTask(InstrumentedTask):
+    """Celery task base that applies tenant context automatically."""
+
+    abstract = True
+    tenant_kwarg = "tenant_id"
+    tenant_arg_index = 0
+
+    def __call__(self, *args, **kwargs):  # noqa: D401 - Celery interface
+        tenant_identifier = self._resolve_tenant_identifier(args, kwargs)
+        if tenant_identifier is None:
+            return super().__call__(*args, **kwargs)
+        tenant_id = self._normalize_tenant_identifier(tenant_identifier)
+        if tenant_id is None:
+            return super().__call__(*args, **kwargs)
+        with tenant_context(tenant_id):
+            return super().__call__(*args, **kwargs)
+
+    def _resolve_tenant_identifier(self, args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+        """Return the raw tenant identifier supplied to the task, if any."""
+
+        if self.tenant_kwarg and self.tenant_kwarg in kwargs:
+            return kwargs[self.tenant_kwarg]
+        if 0 <= self.tenant_arg_index < len(args):
+            return args[self.tenant_arg_index]
+        return None
+
+    def _normalize_tenant_identifier(self, value: Any) -> str | None:
+        """Convert Tenant / UUID / string values into a string identifier."""
+
+        if value is None:
+            return None
+        candidate = getattr(value, "id", value)
+        return str(candidate)
 
 
 @shared_task
@@ -111,6 +147,8 @@ def _sync_provider_connections(
         persisted_connections = AirbyteConnection.persist_sync_updates(updates)
         triggered = len(updates)
 
+        emit_airbyte_sync_metrics(updates)
+
         connections_meta = []
         for update in updates:
             connection = update.connection
@@ -124,16 +162,6 @@ def _sync_provider_connections(
                     "records_synced": update.records_synced,
                     "error": update.error,
                 }
-            )
-            observe_airbyte_sync(
-                tenant_id=str(connection.tenant_id),
-                provider=connection.provider,
-                connection_id=str(connection.connection_id),
-                duration_seconds=float(update.duration_seconds)
-                if update.duration_seconds is not None
-                else None,
-                records_synced=update.records_synced,
-                status=update.status,
             )
 
         if persisted_connections:
@@ -175,14 +203,14 @@ def _sync_provider_connections(
         return f"triggered {triggered} {provider.lower()} connection(s)"
 
 
-@shared_task(bind=True, max_retries=5)
+@shared_task(bind=True, max_retries=5, base=BaseAdInsightsTask)
 def sync_meta_metrics(self, tenant_id: str, triggered_by_user_id: Optional[str] = None) -> str:
     tenant = Tenant.objects.get(id=tenant_id)
     user = _resolve_user(triggered_by_user_id)
     return _sync_provider_connections(self, tenant=tenant, user=user, provider=PlatformCredential.META)
 
 
-@shared_task(bind=True, max_retries=5)
+@shared_task(bind=True, max_retries=5, base=BaseAdInsightsTask)
 def sync_google_metrics(self, tenant_id: str, triggered_by_user_id: Optional[str] = None) -> str:
     tenant = Tenant.objects.get(id=tenant_id)
     user = _resolve_user(triggered_by_user_id)

@@ -17,17 +17,20 @@
     "test": "playwright test -c qa/playwright.config.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.0",
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.2",
-    "@playwright/test": "^1.56.0",
+    "@types/jsdom": "^21.1.0",
     "@types/node": "^24.7.2",
     "@vitejs/plugin-react": "^4.3.3",
-    "@types/jsdom": "^21.1.0",
     "jsdom": "^24.0.0",
     "prettier": "^3.3.3",
     "typescript": "^5.6.3",
     "vite": "^7.1.11",
     "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "openai": "^6.9.0"
   }
 }
