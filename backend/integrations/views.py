@@ -429,12 +429,23 @@ class AirbyteWebhookView(APIView):
         )
 
     def _verify_secret(self, request) -> Response | None:
+        required = getattr(settings, "AIRBYTE_WEBHOOK_SECRET_REQUIRED", True)
         expected = getattr(settings, "AIRBYTE_WEBHOOK_SECRET", None)
         if not expected:
+            if required:
+                logger.error("Airbyte webhook secret required but not configured")
+                return Response(
+                    {"detail": "webhook secret not configured"},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
             return None
         provided = request.headers.get("X-Airbyte-Webhook-Secret")
         if provided == expected:
             return None
+        logger.warning(
+            "Airbyte webhook secret mismatch",
+            extra={"provided": bool(provided)},
+        )
         return Response({"detail": "invalid webhook secret"}, status=status.HTTP_403_FORBIDDEN)
 
     def _resolve_connection(self, payload: dict) -> AirbyteConnection | Response:

@@ -484,6 +484,12 @@ label,
   letter-spacing: 0.05em;
 }
 
+.dataset-toggle__status {
+  font-size: 0.75rem;
+  color: var(--color-slate-600);
+  margin: 0;
+}
+
 .dataset-toggle__selector {
   display: inline-flex;
   flex-direction: column;

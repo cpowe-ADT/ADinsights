@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from alerts.models import AlertRun
 from accounts.tenant_context import get_current_tenant_id
-from core.tasks import rotate_deks, _sync_provider_connections, sync_meta_metrics
+from core.tasks import BaseAdInsightsTask, rotate_deks, _sync_provider_connections, sync_meta_metrics
 from integrations.airbyte import AirbyteClientError, AirbyteClientConfigurationError
 from integrations.airbyte.service import emit_airbyte_sync_metrics
 from integrations.models import AirbyteConnection, ConnectionSyncUpdate, PlatformCredential
@@ -129,13 +129,22 @@ class RetryCalled(Exception):
 @pytest.mark.django_db
 def test_sync_provider_retries_on_client_error(monkeypatch, tenant):
     class DummyTask:
+        name = "dummy.task"
+        retry_backoff_base_seconds = BaseAdInsightsTask.retry_backoff_base_seconds
+        retry_backoff_max_seconds = BaseAdInsightsTask.retry_backoff_max_seconds
+
         def __init__(self):
-            self.request = type("Req", (), {"id": "task-42"})()
+            self.request = type("Req", (), {"id": "task-42", "retries": 0})()
             self.retry_args = None
 
         def retry(self, exc=None, countdown=None):  # noqa: ANN001
             self.retry_args = {"exc": exc, "countdown": countdown}
             raise RetryCalled
+
+        def retry_with_backoff(self, *, exc=None, base_delay=None, max_delay=None):
+            return BaseAdInsightsTask.retry_with_backoff(
+                self, exc=exc, base_delay=base_delay, max_delay=max_delay
+            )
 
     class DummyClient:
         def __enter__(self):
@@ -152,6 +161,7 @@ def test_sync_provider_retries_on_client_error(monkeypatch, tenant):
 
     monkeypatch.setattr("core.tasks.AirbyteClient.from_settings", classmethod(fake_from_settings))
     monkeypatch.setattr("core.tasks.AirbyteSyncService.sync_connections", fake_sync)
+    monkeypatch.setattr("core.tasks.random.randint", lambda *_args, **_kwargs: 0)
 
     AirbyteConnection.objects.create(
         tenant=tenant,
@@ -168,24 +178,34 @@ def test_sync_provider_retries_on_client_error(monkeypatch, tenant):
         _sync_provider_connections(task, tenant=tenant, user=None, provider=PlatformCredential.META)
 
     assert isinstance(task.retry_args["exc"], AirbyteClientError)
-    assert task.retry_args["countdown"] is None
+    assert task.retry_args["countdown"] == 60
 
 
 @pytest.mark.django_db
 def test_sync_provider_configuration_error_backoff(monkeypatch, tenant):
     class DummyTask:
+        name = "dummy.task"
+        retry_backoff_base_seconds = BaseAdInsightsTask.retry_backoff_base_seconds
+        retry_backoff_max_seconds = BaseAdInsightsTask.retry_backoff_max_seconds
+
         def __init__(self):
-            self.request = type("Req", (), {"id": "task-99"})()
+            self.request = type("Req", (), {"id": "task-99", "retries": 0})()
             self.retry_args = None
 
         def retry(self, exc=None, countdown=None):  # noqa: ANN001
             self.retry_args = {"exc": exc, "countdown": countdown}
             raise RetryCalled
 
+        def retry_with_backoff(self, *, exc=None, base_delay=None, max_delay=None):
+            return BaseAdInsightsTask.retry_with_backoff(
+                self, exc=exc, base_delay=base_delay, max_delay=max_delay
+            )
+
     def fake_from_settings(cls):  # noqa: ANN001
         raise AirbyteClientConfigurationError("missing api token")
 
     monkeypatch.setattr("core.tasks.AirbyteClient.from_settings", classmethod(fake_from_settings))
+    monkeypatch.setattr("core.tasks.random.randint", lambda *_args, **_kwargs: 0)
 
     AirbyteConnection.objects.create(
         tenant=tenant,
@@ -203,6 +223,89 @@ def test_sync_provider_configuration_error_backoff(monkeypatch, tenant):
 
     assert isinstance(task.retry_args["exc"], AirbyteClientConfigurationError)
     assert task.retry_args["countdown"] == 300
+
+
+def test_base_task_retry_with_backoff(monkeypatch):
+    class DummyTask:
+        name = "dummy.task"
+        retry_backoff_base_seconds = BaseAdInsightsTask.retry_backoff_base_seconds
+        retry_backoff_max_seconds = BaseAdInsightsTask.retry_backoff_max_seconds
+
+        def __init__(self):
+            self.request = type("Req", (), {"id": "task-lookup", "retries": 1})()
+            self.retry_args = None
+
+        def retry(self, exc=None, countdown=None):  # noqa: ANN001
+            self.retry_args = {"exc": exc, "countdown": countdown}
+            raise RetryCalled
+
+        def retry_with_backoff(self, *, exc=None, base_delay=None, max_delay=None):
+            return BaseAdInsightsTask.retry_with_backoff(
+                self, exc=exc, base_delay=base_delay, max_delay=max_delay
+            )
+
+    monkeypatch.setattr("core.tasks.random.randint", lambda *_args, **_kwargs: 5)
+    task = DummyTask()
+    with pytest.raises(RetryCalled):
+        task.retry_with_backoff(exc=RuntimeError("boom"), base_delay=10, max_delay=120)
+
+    assert isinstance(task.retry_args["exc"], RuntimeError)
+    assert task.retry_args["countdown"] == 25
+
+
+@pytest.mark.django_db
+def test_sync_provider_retry_backoff_grows_with_attempts(monkeypatch, tenant):
+    class DummyTask:
+        name = "dummy.task"
+        retry_backoff_base_seconds = BaseAdInsightsTask.retry_backoff_base_seconds
+        retry_backoff_max_seconds = BaseAdInsightsTask.retry_backoff_max_seconds
+
+        def __init__(self):
+            self.request = type("Req", (), {"id": "task-200", "retries": 2})()
+            self.retry_args = None
+
+        def retry(self, exc=None, countdown=None):  # noqa: ANN001
+            self.retry_args = {"exc": exc, "countdown": countdown}
+            raise RetryCalled
+
+        def retry_with_backoff(self, *, exc=None, base_delay=None, max_delay=None):
+            return BaseAdInsightsTask.retry_with_backoff(
+                self, exc=exc, base_delay=base_delay, max_delay=max_delay
+            )
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN002, ANN003
+            return None
+
+    def fake_from_settings(cls):  # noqa: ANN001
+        return DummyClient()
+
+    def fake_sync(self, connections, *, triggered_at=None):  # noqa: ANN001
+        raise AirbyteClientError("timeout")
+
+    monkeypatch.setattr("core.tasks.AirbyteClient.from_settings", classmethod(fake_from_settings))
+    monkeypatch.setattr("core.tasks.AirbyteSyncService.sync_connections", fake_sync)
+    monkeypatch.setattr("core.tasks.random.randint", lambda *_args, **_kwargs: 5)
+
+    AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta Sync",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=120,
+        last_synced_at=timezone.now() - timedelta(hours=5),
+    )
+
+    task = DummyTask()
+    with pytest.raises(RetryCalled):
+        _sync_provider_connections(task, tenant=tenant, user=None, provider=PlatformCredential.META)
+
+    assert isinstance(task.retry_args["exc"], AirbyteClientError)
+    assert task.retry_args["countdown"] == 245
 
 
 @pytest.mark.django_db

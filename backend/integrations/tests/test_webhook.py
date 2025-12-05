@@ -6,6 +6,7 @@ from datetime import timedelta
 import pytest
 from django.urls import reverse
 from django.utils import timezone
+from rest_framework import status
 
 from accounts.models import AuditLog
 from integrations.models import (
@@ -88,6 +89,7 @@ def test_airbyte_webhook_updates_status_and_telemetry(api_client, tenant, settin
 @pytest.mark.django_db
 def test_airbyte_webhook_secret_required(api_client, tenant, settings):
     settings.AIRBYTE_WEBHOOK_SECRET = "expected"
+    settings.AIRBYTE_WEBHOOK_SECRET_REQUIRED = True
     connection = AirbyteConnection.objects.create(
         tenant=tenant,
         name="Meta",
@@ -101,6 +103,25 @@ def test_airbyte_webhook_secret_required(api_client, tenant, settings):
     response = api_client.post(reverse("airbyte-webhook"), payload, format="json")
     assert response.status_code == 403
     assert response.json()["detail"] == "invalid webhook secret"
+
+
+@pytest.mark.django_db
+def test_airbyte_webhook_rejects_when_secret_missing(api_client, tenant, settings):
+    settings.AIRBYTE_WEBHOOK_SECRET = None
+    settings.AIRBYTE_WEBHOOK_SECRET_REQUIRED = True
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_MANUAL,
+    )
+
+    payload = {"connectionId": str(connection.connection_id), "job": {"id": 1, "status": "succeeded"}}
+
+    response = api_client.post(reverse("airbyte-webhook"), payload, format="json")
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["detail"] == "webhook secret not configured"
 
 
 @pytest.mark.django_db

@@ -7,7 +7,7 @@ import os
 import pytest
 
 from accounts.models import Tenant, TenantKey
-from core.crypto.dek_manager import rotate_all_tenant_deks
+from core.crypto.dek_manager import rotate_all_tenant_deks, rotate_tenant_dek
 from core.crypto.fields import decrypt_value, encrypt_value
 from core.crypto.kms import KmsError
 from integrations.models import PlatformCredential
@@ -129,3 +129,45 @@ def test_rotate_all_tenant_deks_skips_failed_tenant(db, monkeypatch: pytest.Monk
 
     kms_client.encrypt.assert_called_once()
     assert kms_client.decrypt.call_count == 2
+
+
+@pytest.mark.django_db
+def test_rotate_tenant_dek_updates_single_tenant(monkeypatch: pytest.MonkeyPatch) -> None:
+    tenant = Tenant.objects.create(name="Tenant Single")
+    tenant_key = TenantKey.all_objects.create(
+        tenant=tenant,
+        dek_ciphertext=b"legacy",
+        dek_key_version="legacy-version",
+    )
+    old_key = b"\x09" * 32
+    credential = _create_credential(tenant, old_key, "legacy-version")
+
+    kms_client = Mock()
+    kms_client.decrypt.return_value = old_key
+    kms_client.encrypt.return_value = ("rotated", b"rotatedcipher")
+    monkeypatch.setattr("core.crypto.dek_manager._kms", lambda: kms_client)
+    _patch_urandom(monkeypatch, [b"\x08" * 32])
+
+    success = rotate_tenant_dek(str(tenant.id))
+
+    assert success
+    tenant_key.refresh_from_db()
+    credential.refresh_from_db()
+    assert tenant_key.dek_key_version == "rotated"
+    assert credential.dek_key_version == "rotated"
+
+
+@pytest.mark.django_db
+def test_rotate_tenant_dek_missing_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    called = {"kms": False}
+
+    def fake_kms():
+        called["kms"] = True
+        return Mock()
+
+    monkeypatch.setattr("core.crypto.dek_manager._kms", fake_kms)
+
+    success = rotate_tenant_dek("00000000-0000-0000-0000-000000000000")
+
+    assert called["kms"] is True
+    assert success is False

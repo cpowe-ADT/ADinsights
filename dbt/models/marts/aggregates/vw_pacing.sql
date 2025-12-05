@@ -1,6 +1,6 @@
 {{ config(
     materialized='incremental',
-    unique_key=['date_day', 'source_platform', 'ad_account_id'],
+    unique_key=['tenant_id', 'date_day', 'source_platform', 'ad_account_id'],
     incremental_strategy='merge',
     on_schema_change='sync_all_columns'
 ) }}
@@ -48,6 +48,7 @@ windowed as (
 
 enriched as (
     select
+        w.tenant_id,
         w.date_day,
         w.source_platform,
         w.ad_account_id,

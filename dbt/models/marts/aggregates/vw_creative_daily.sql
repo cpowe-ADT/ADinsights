@@ -1,6 +1,6 @@
 {{ config(
     materialized='incremental',
-    unique_key=['date_day', 'source_platform', 'ad_account_id', 'campaign_id', 'adset_id', 'ad_id'],
+    unique_key=['tenant_id', 'date_day', 'source_platform', 'ad_account_id', 'campaign_id', 'adset_id', 'ad_id'],
     incremental_strategy='merge',
     on_schema_change='sync_all_columns'
 ) }}

@@ -31,3 +31,20 @@ This triggers the `run_alert_cycle` task and posts results to the configured cha
 - Slack webhook(s) managed in 1Password.
 - Email distribution lists maintained in Google Workspace (`marketing-ops@example.com`).
 - DB credentials rotate via Vault every 90 days.
+
+## Freshness & Webhook Alerts
+
+- **Airbyte webhook silence** – Alert when no `airbyte_job_webhook` audit entries arrive for >30 minutes while
+  Airbyte jobs exist. Secondary signal: `airbyte_sync_errors_total` or `/api/health/airbyte/` returning `stale`.
+- **Snapshot recency** – Monitor `/api/metrics/combined/` responses: if `snapshot_generated_at` is older than 60 minutes
+  per tenant, raise a `metrics_snapshot_stale` alert. Pair with Celery task metrics (`celery_task_executions_total`)
+  to confirm the snapshot worker is running.
+- **dbt freshness** – Alert when `/api/health/dbt/` reports `stale` or `failing`, and include the failing models list
+  from the endpoint in the notification.
+
+## Structured Logging Checks
+
+- Structured logs already include `tenant_id`, `task_id`, and `correlation_id` via `core.observability.ContextFilter`.
+  Dashboard panels should filter on these fields to trace tenant-specific issues.
+- When deploying new tasks or webhooks, validate logs in Datadog/Loki by searching for
+  `correlation_id=<celery task id>` to confirm the context filter is attached.

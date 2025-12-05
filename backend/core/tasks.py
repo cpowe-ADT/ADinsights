@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import random
 from typing import Any, Optional
 
 from celery import shared_task
@@ -29,6 +30,8 @@ class BaseAdInsightsTask(InstrumentedTask):
     abstract = True
     tenant_kwarg = "tenant_id"
     tenant_arg_index = 0
+    retry_backoff_base_seconds = 60
+    retry_backoff_max_seconds = 15 * 60
 
     def __call__(self, *args, **kwargs):  # noqa: D401 - Celery interface
         tenant_identifier = self._resolve_tenant_identifier(args, kwargs)
@@ -56,6 +59,33 @@ class BaseAdInsightsTask(InstrumentedTask):
             return None
         candidate = getattr(value, "id", value)
         return str(candidate)
+
+    def retry_with_backoff(
+        self,
+        *,
+        exc: Exception | None = None,
+        base_delay: int | None = None,
+        max_delay: int | None = None,
+    ):
+        """Retry the task using exponential backoff with jitter."""
+
+        attempt = getattr(self.request, "retries", 0)
+        base = base_delay or self.retry_backoff_base_seconds
+        maximum = max_delay or self.retry_backoff_max_seconds
+        delay = min(base * (2**attempt), maximum)
+        jitter = random.randint(0, base)
+        countdown = delay + jitter
+        logger.warning(
+            "task.retry.scheduled",
+            extra={
+                "task": self.name,
+                "attempt": attempt + 1,
+                "countdown": countdown,
+                "base_delay": base,
+                "max_delay": maximum,
+            },
+        )
+        return self.retry(exc=exc, countdown=countdown)
 
 
 @shared_task
@@ -125,7 +155,7 @@ def _sync_provider_connections(
                 extra=base_extra,
                 exc_info=exc,
             )
-            raise task.retry(exc=exc, countdown=300)
+            raise _retry_task(task, exc=exc, base_delay=300, max_delay=900)
         except AirbyteClientError as exc:
             logger.warning(
                 "Airbyte sync failed",
@@ -135,7 +165,7 @@ def _sync_provider_connections(
                 },
                 exc_info=exc,
             )
-            raise task.retry(exc=exc)
+            raise _retry_task(task, exc=exc)
 
         if not updates:
             logger.info(
@@ -215,3 +245,12 @@ def sync_google_metrics(self, tenant_id: str, triggered_by_user_id: Optional[str
     tenant = Tenant.objects.get(id=tenant_id)
     user = _resolve_user(triggered_by_user_id)
     return _sync_provider_connections(self, tenant=tenant, user=user, provider=PlatformCredential.GOOGLE)
+
+
+def _retry_task(task, *, exc: Exception, base_delay: int | None = None, max_delay: int | None = None):
+    helper = getattr(task, "retry_with_backoff", None)
+    if callable(helper):
+        return helper(exc=exc, base_delay=base_delay, max_delay=max_delay)
+    # Fallback for tasks/tests that bypass BaseAdInsightsTask
+    countdown = base_delay or getattr(task, "default_retry_delay", None)
+    return task.retry(exc=exc, countdown=countdown)

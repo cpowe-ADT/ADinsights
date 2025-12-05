@@ -66,6 +66,14 @@ free from theme-specific logic.
 - Map legend, tooltip, and control surfaces now consume `--map-*` tokens. Both Leaflet layers and legends source fills from `--map-fill-0…5` while outlines and highlight states reference `--map-border`/`--map-highlight` for keyboard focus visibility.
 - Removed hard-coded hex ramps from `ParishMap` and DataTable styles; all state cues resolve through semantic CSS variables for consistency with Branch 1 tokens.
 
+## Dataset toggle & freshness indicator
+
+- Dataset toggle button exposes the current mode via `aria-pressed` and surfaces contextual guidance through `dataset-toggle__status`
+  (aria-live region). Live warehouse data remains the default; demo/dummy mode is an explicit opt-in for QA.
+- Error, loading, and availability states share the same muted token styling so accessibility is preserved in both themes.
+- Snapshot indicator in `DashboardLayout` uses relative timestamps; Storybook exercises fresh, stale (>60 minutes), and pending
+  states so Chromatic can track the warning variant.
+
 ## Component checklist (dashboard refresh)
 
 | Component | Light theme | Dark theme | Notes |

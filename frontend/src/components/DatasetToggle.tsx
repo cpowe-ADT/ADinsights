@@ -1,4 +1,4 @@
-import { useEffect, type ChangeEvent } from 'react';
+import { useEffect, useId, type ChangeEvent } from 'react';
 
 import { MOCK_MODE } from '../lib/apiClient';
 import { useDatasetStore } from '../state/useDatasetStore';
@@ -40,6 +40,7 @@ const DatasetToggle = (): JSX.Element | null => {
   }));
 
   const isLoading = status === 'loading';
+  const statusDescriptionId = useId();
   useEffect(() => {
     if (MOCK_MODE || status !== 'idle') {
       return;
@@ -55,10 +56,14 @@ const DatasetToggle = (): JSX.Element | null => {
   const hasDemoData = adapters.includes('demo') || adapters.includes('fake');
   const hasLiveData = adapters.includes('warehouse');
 
-  const nextLabel = mode === 'live' ? 'Use dummy data' : 'Use live data';
+  const nextLabel = mode === 'live' ? 'Use demo data' : 'Use live data';
   const badge = DATASET_LABELS[mode];
 
   const disabled = isLoading || (mode === 'dummy' && !hasLiveData) || (mode === 'live' && !hasDemoData);
+  const statusMessage =
+    mode === 'live'
+      ? 'Live warehouse metrics (default).'
+      : 'Demo dataset loaded for QA and training.';
 
   const handleClick = () => {
     if (mode === 'live' && !hasDemoData) {
@@ -85,9 +90,19 @@ const DatasetToggle = (): JSX.Element | null => {
         className="button secondary"
         onClick={handleClick}
         disabled={disabled}
+        aria-pressed={mode === 'dummy'}
+        aria-describedby={statusDescriptionId}
       >
         {isLoading ? 'Checking datasets…' : nextLabel}
       </button>
+      <p
+        id={statusDescriptionId}
+        className="dataset-toggle__status"
+        aria-live="polite"
+        role="status"
+      >
+        {statusMessage}
+      </p>
       {mode === 'dummy' && demoTenants.length > 0 ? (
         <label className="muted dataset-toggle__selector">
           Demo tenant

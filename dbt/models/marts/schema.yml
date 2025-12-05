@@ -53,11 +53,16 @@ models:
     tests:
       - unique_combination_of_columns:
           combination:
+            - tenant_id
             - date_day
             - source_platform
             - ad_account_id
             - campaign_id
     columns:
+      - name: tenant_id
+        description: 'Tenant identifier for row-level isolation.'
+        tests:
+          - not_null
       - name: date_day
         tests:
           - not_null
@@ -110,6 +115,7 @@ models:
     tests:
       - unique_combination_of_columns:
           combination:
+            - tenant_id
             - date_day
             - source_platform
             - ad_account_id
@@ -117,6 +123,9 @@ models:
             - adset_id
             - ad_id
     columns:
+      - name: tenant_id
+        tests:
+          - not_null
       - name: date_day
         tests:
           - not_null
@@ -177,6 +186,7 @@ models:
     tests:
       - unique_combination_of_columns:
           combination:
+            - tenant_id
             - date_day
             - source_platform
             - ad_account_id

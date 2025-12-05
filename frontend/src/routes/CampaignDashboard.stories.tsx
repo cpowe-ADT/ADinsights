@@ -15,10 +15,12 @@ import {
 
 interface StoreBootstrapProps {
   tenantId: DemoTenantKey;
+  datasetMode?: 'live' | 'dummy';
+  snapshotVariant?: 'fresh' | 'stale' | 'pending';
   children: ReactNode;
 }
 
-const StoreBootstrap = ({ tenantId, children }: StoreBootstrapProps) => {
+const StoreBootstrap = ({ tenantId, datasetMode = 'dummy', snapshotVariant = 'fresh', children }: StoreBootstrapProps) => {
   const datasetSnapshot = useRef(useDatasetStore.getState());
   const dashboardSnapshot = useRef(useDashboardStore.getState());
 
@@ -70,13 +72,19 @@ const StoreBootstrap = ({ tenantId, children }: StoreBootstrapProps) => {
 
   useEffect(() => {
     const snapshot = getDemoSnapshot(tenantId);
+    const now = new Date();
+    const snapshotAgeMinutes = snapshotVariant === 'stale' ? 120 : 5;
+    const computedSnapshotGeneratedAt =
+      snapshotVariant === 'pending'
+        ? undefined
+        : new Date(now.getTime() - snapshotAgeMinutes * 60 * 1000).toISOString();
 
     useDatasetStore.setState({
       adapters: ['warehouse', 'demo'],
-      mode: 'dummy',
+      mode: datasetMode,
       status: 'loaded',
       error: undefined,
-      source: 'demo',
+      source: datasetMode === 'live' ? 'warehouse' : 'demo',
       demoTenants,
       demoTenantId: snapshot.id,
     });
@@ -86,6 +94,7 @@ const StoreBootstrap = ({ tenantId, children }: StoreBootstrapProps) => {
       activeTenantId: snapshot.id,
       activeTenantLabel: snapshot.label,
       lastLoadedTenantId: snapshot.id,
+      lastSnapshotGeneratedAt: computedSnapshotGeneratedAt,
       selectedParish: undefined,
       selectedMetric: 'spend',
       loadAll: async () => undefined,
@@ -102,10 +111,11 @@ const StoreBootstrap = ({ tenantId, children }: StoreBootstrapProps) => {
           parish: snapshot.metrics.parish,
           tenantId: snapshot.id,
           currency: snapshot.metrics.campaign.summary.currency,
+          snapshotGeneratedAt: computedSnapshotGeneratedAt,
         },
       },
     }));
-  }, [tenantId]);
+  }, [tenantId, datasetMode, snapshotVariant]);
 
   return <>{children}</>;
 };
@@ -113,9 +123,11 @@ const StoreBootstrap = ({ tenantId, children }: StoreBootstrapProps) => {
 interface DashboardStoryProps {
   tenantId: DemoTenantKey;
   theme: 'light' | 'dark';
+  datasetMode?: 'live' | 'dummy';
+  snapshotVariant?: 'fresh' | 'stale' | 'pending';
 }
 
-const DashboardStory = ({ tenantId, theme }: DashboardStoryProps) => {
+const DashboardStory = ({ tenantId, theme, datasetMode = 'dummy', snapshotVariant = 'fresh' }: DashboardStoryProps) => {
   const { setTheme } = useTheme();
   const snapshot = getDemoSnapshot(tenantId);
 
@@ -147,7 +159,7 @@ const DashboardStory = ({ tenantId, theme }: DashboardStoryProps) => {
 
   return (
     <AuthContext.Provider value={authValue}>
-      <StoreBootstrap tenantId={snapshot.id}>
+      <StoreBootstrap tenantId={snapshot.id} datasetMode={datasetMode} snapshotVariant={snapshotVariant}>
         <CampaignDashboard />
       </StoreBootstrap>
     </AuthContext.Provider>
@@ -209,3 +221,29 @@ export const Dark: Story = {
   },
 };
 
+export const LiveFresh: Story = {
+  args: {
+    tenantId: 'bank-of-jamaica',
+    theme: 'light',
+    datasetMode: 'live',
+    snapshotVariant: 'fresh',
+  },
+};
+
+export const LiveStale: Story = {
+  args: {
+    tenantId: 'bank-of-jamaica',
+    theme: 'light',
+    datasetMode: 'live',
+    snapshotVariant: 'stale',
+  },
+};
+
+export const WaitingForSnapshot: Story = {
+  args: {
+    tenantId: 'bank-of-jamaica',
+    theme: 'light',
+    datasetMode: 'live',
+    snapshotVariant: 'pending',
+  },
+};

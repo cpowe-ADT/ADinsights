@@ -83,7 +83,9 @@ latency/records metadata immediately after a sync. Keep the following guardrails
 - **Authentication** – Every request must include the header `X-Airbyte-Webhook-Secret`. The backend
   compares the header to `AIRBYTE_WEBHOOK_SECRET` (see `backend/core/settings.py`). Missing or wrong
   secrets return `403` without touching tenant data. When onboarding a new environment, place the
-  shared secret in the secret manager AND in Airbyte’s destination settings so they match.
+  shared secret in the secret manager AND in Airbyte’s destination settings so they match. If
+  `AIRBYTE_WEBHOOK_SECRET_REQUIRED=1` but the variable is unset, the endpoint returns `503` and logs
+  `Airbyte webhook secret required but not configured`—deploys must set a value before enabling syncs.
 - **Rotation** – Rotate the secret quarterly or after any suspected exposure:
   1. Generate a new 32+ character value (e.g., `openssl rand -hex 32`).
   2. Update the environment’s secret store / `AIRBYTE_WEBHOOK_SECRET` variable.
@@ -102,6 +104,15 @@ latency/records metadata immediately after a sync. Keep the following guardrails
 - **Disaster Recovery** – If webhooks are down, scheduled syncs still run via Celery; metrics will be delayed until
   the webhook endpoint accepts payloads again. Use `manage.py sync_airbyte --tenant` to backfill and then replay the
   missed webhooks from Airbyte so telemetry stays accurate.
+
+## Secrets Rotation CLI
+
+- Use `python scripts/rotate_deks.py --dry-run` to see how many tenant keys would be touched.
+- Rotate a single tenant with `python scripts/rotate_deks.py --tenant-id <tenant_uuid>` or all tenants by omitting the flag.
+- The CLI initialises Django automatically; run it from the repo root after exporting production credentials or pointing
+  `DJANGO_SETTINGS_MODULE` at the correct settings module.
+- Celery beat already schedules `core.tasks.rotate_deks` weekly. Use the CLI for emergency rotations or to verify a
+  rotation completed after a KMS incident.
 
 ## Data Refresh Failures
 
