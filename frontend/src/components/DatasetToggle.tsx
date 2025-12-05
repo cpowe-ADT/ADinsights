@@ -42,12 +42,12 @@ const DatasetToggle = (): JSX.Element | null => {
   const isLoading = status === 'loading';
   const statusDescriptionId = useId();
   useEffect(() => {
-    if (MOCK_MODE || status !== 'idle') {
+    if (MOCK_MODE) {
       return;
     }
-
+    // Reload adapters when the active tenant changes so availability reflects the current scope.
     void loadAdapters();
-  }, [status, loadAdapters]);
+  }, [activeTenantId, loadAdapters]);
 
   if (MOCK_MODE) {
     return null;

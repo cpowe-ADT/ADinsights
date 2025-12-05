@@ -74,7 +74,7 @@ class BaseAdInsightsTask(InstrumentedTask):
         maximum = max_delay or self.retry_backoff_max_seconds
         delay = min(base * (2**attempt), maximum)
         jitter = random.randint(0, base)
-        countdown = delay + jitter
+        countdown = min(delay + jitter, maximum)
         logger.warning(
             "task.retry.scheduled",
             extra={
