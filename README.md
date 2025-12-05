@@ -12,6 +12,8 @@ ADinsights will be a self-hosted, multi-tenant marketing analytics platform for 
 - **frontend/**: React + Vite shell featuring TanStack Table and Leaflet choropleth with mock data.
 - **docs/**: Planning artifacts including the roadmap breakdown.
 
+Quick orientation: see `docs/ops/doc-index.md` (wayfinding + hygiene) and `docs/PROGRAM-NOTES.md` (session warm-up).
+
 ## Implementation Roadmap
 
 ### Phase 0 – Foundations
