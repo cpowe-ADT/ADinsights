@@ -59,6 +59,10 @@ models:
   - name: stg_meta_ads
     description: 'Normalized Meta Ads insights with Jamaican geo enrichment.'
     columns:
+      - name: tenant_id
+        description: 'Tenant identifier for row-level isolation.'
+        tests:
+          - not_null
       - name: ad_account_id
         tests:
           - not_null
@@ -69,6 +73,10 @@ models:
   - name: stg_google_ads
     description: 'Normalized Google Ads performance data.'
     columns:
+      - name: tenant_id
+        description: 'Tenant identifier for row-level isolation.'
+        tests:
+          - not_null
       - name: ad_account_id
       - name: date_day
         tests:
@@ -76,6 +84,12 @@ models:
   - name: stg_linkedin_transparency
     description: 'Optional LinkedIn transparency staging model.'
     columns:
+      - name: tenant_id
+        description: 'Tenant identifier for row-level isolation.'
+        tests:
+          - not_null:
+              config:
+                enabled: "{{ var('enable_linkedin', False) }}"
       - name: ad_account_id
         tests:
           - not_null:
@@ -84,6 +98,12 @@ models:
   - name: stg_tiktok_transparency
     description: 'Optional TikTok transparency staging model.'
     columns:
+      - name: tenant_id
+        description: 'Tenant identifier for row-level isolation.'
+        tests:
+          - not_null:
+              config:
+                enabled: "{{ var('enable_tiktok', False) }}"
       - name: ad_account_id
         tests:
           - not_null:

@@ -7,6 +7,7 @@ with source as (
 
 cleaned as (
     select
+        {{ tenant_id_expr() }} as tenant_id,
         cast(account_id as text) as ad_account_id,
         cast(campaign_id as text) as campaign_id,
         cast(ad_creative_id as text) as ad_id,

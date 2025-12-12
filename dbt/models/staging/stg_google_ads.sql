@@ -7,6 +7,7 @@ with source as (
 
 cleaned as (
     select
+        {{ tenant_id_expr() }} as tenant_id,
         cast(s.customer_id as text) as ad_account_id,
         cast(s.campaign_id as text) as campaign_id,
         coalesce(nullif(trim(s.campaign_name), ''), cast(s.campaign_id as text)) as campaign_name,
