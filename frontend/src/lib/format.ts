@@ -78,3 +78,23 @@ export function isTimestampStale(
   const diffMinutes = (now.getTime() - target.getTime()) / 60000;
   return diffMinutes > thresholdMinutes;
 }
+
+export function formatAbsoluteTime(
+  value: string | number | Date | undefined | null,
+  timeZone = 'America/Jamaica',
+): string | null {
+  const target = normaliseDate(value);
+  if (!target) {
+    return null;
+  }
+  try {
+    const formatter = new Intl.DateTimeFormat('en-JM', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone,
+    });
+    return formatter.format(target);
+  } catch {
+    return target.toISOString();
+  }
+}

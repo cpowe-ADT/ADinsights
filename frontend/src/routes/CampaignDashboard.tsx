@@ -12,7 +12,14 @@ import StatCard from '../components/ui/StatCard';
 import { useAuth } from '../auth/AuthContext';
 import useDashboardStore from '../state/useDashboardStore';
 import { useDatasetStore } from '../state/useDatasetStore';
-import { formatCurrency, formatNumber, formatRatio, formatRelativeTime, isTimestampStale } from '../lib/format';
+import {
+  formatAbsoluteTime,
+  formatCurrency,
+  formatNumber,
+  formatRatio,
+  formatRelativeTime,
+  isTimestampStale,
+} from '../lib/format';
 
 import '../styles/dashboard.css';
 
@@ -66,6 +73,7 @@ const CampaignDashboard = () => {
   const snapshotRelative = lastSnapshotGeneratedAt
     ? formatRelativeTime(lastSnapshotGeneratedAt)
     : null;
+  const snapshotAbsolute = lastSnapshotGeneratedAt ? formatAbsoluteTime(lastSnapshotGeneratedAt) : null;
   const snapshotIsStale =
     datasetMode === 'live' && isTimestampStale(lastSnapshotGeneratedAt, 60);
   const headingId = useId();
@@ -88,6 +96,7 @@ const CampaignDashboard = () => {
           className={`snapshot-banner${
             snapshotIsStale ? ' snapshot-banner--warning' : ''
           }`}
+          title={snapshotAbsolute ?? undefined}
         >
           {datasetMode === 'live'
             ? snapshotRelative ?? 'Waiting for live snapshot…'

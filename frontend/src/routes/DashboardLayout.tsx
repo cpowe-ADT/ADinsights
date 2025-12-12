@@ -7,7 +7,7 @@ import FilterBar, { FilterBarState } from '../components/FilterBar';
 import { useTheme } from '../components/ThemeProvider';
 import { useToast } from '../components/ToastProvider';
 import { loadDashboardLayout, saveDashboardLayout } from '../lib/layoutPreferences';
-import { formatRelativeTime, isTimestampStale } from '../lib/format';
+import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
 import DatasetToggle from '../components/DatasetToggle';
 import TenantSwitcher from '../components/TenantSwitcher';
 import useDashboardStore from '../state/useDashboardStore';
@@ -267,6 +267,10 @@ const DashboardLayout = () => {
     }
     return snapshotRelative ? `Updated ${snapshotRelative}` : 'Live snapshot available';
   }, [datasetMode, lastSnapshotGeneratedAt, snapshotRelative]);
+  const snapshotAbsolute = useMemo(
+    () => formatAbsoluteTime(lastSnapshotGeneratedAt),
+    [lastSnapshotGeneratedAt],
+  );
 
   return (
     <div className="dashboard-shell">
@@ -292,6 +296,7 @@ const DashboardLayout = () => {
                 className={`snapshot-indicator${
                   snapshotIsStale ? ' snapshot-indicator--stale' : ''
                 }`}
+                title={snapshotAbsolute ?? undefined}
               >
                 <span className="snapshot-indicator__text">{snapshotStatusLabel}</span>
               </div>

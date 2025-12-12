@@ -1,4 +1,4 @@
-import { useEffect, useId, type ChangeEvent } from 'react';
+import { useEffect, useId, useRef, type ChangeEvent } from 'react';
 
 import { MOCK_MODE } from '../lib/apiClient';
 import { useDatasetStore } from '../state/useDatasetStore';
@@ -38,6 +38,9 @@ const DatasetToggle = (): JSX.Element | null => {
     activeTenantId: state.activeTenantId,
     loadAll: state.loadAll,
   }));
+  const lastFetchedTenantRef = useRef<string | undefined>(
+    adapters.length > 0 ? activeTenantId : undefined,
+  );
 
   const isLoading = status === 'loading';
   const statusDescriptionId = useId();
@@ -45,9 +48,18 @@ const DatasetToggle = (): JSX.Element | null => {
     if (MOCK_MODE) {
       return;
     }
+    if (status === 'loading') {
+      return;
+    }
+    const alreadyFetchedForTenant =
+      status === 'loaded' && lastFetchedTenantRef.current === activeTenantId;
+    if (alreadyFetchedForTenant) {
+      return;
+    }
+    lastFetchedTenantRef.current = activeTenantId;
     // Reload adapters when the active tenant changes so availability reflects the current scope.
     void loadAdapters();
-  }, [activeTenantId, loadAdapters]);
+  }, [activeTenantId, loadAdapters, status]);
 
   if (MOCK_MODE) {
     return null;
@@ -120,12 +132,12 @@ const DatasetToggle = (): JSX.Element | null => {
         </label>
       ) : null}
       {isLoading ? (
-        <span className="muted dataset-toggle__error" role="status">
+        <span className="muted dataset-toggle__error">
           Loading dataset availability…
         </span>
       ) : null}
       {error ? (
-        <span className="muted dataset-toggle__error" role="status">
+        <span className="muted dataset-toggle__error">
           {error}
         </span>
       ) : null}
