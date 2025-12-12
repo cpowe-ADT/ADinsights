@@ -111,7 +111,6 @@ const DatasetToggle = (): JSX.Element | null => {
         id={statusDescriptionId}
         className="dataset-toggle__status"
         aria-live="polite"
-        role="status"
       >
         {statusMessage}
       </p>
