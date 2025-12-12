@@ -64,7 +64,7 @@ const CampaignDetail = (): JSX.Element => {
     loadAll: state.loadAll,
   }));
 
-  const campaignRows = campaign.data?.rows ?? [];
+  const campaignRows = useMemo(() => campaign.data?.rows ?? [], [campaign.data]);
   const activeCampaign = useMemo(
     () => campaignRows.find((row) => row.id === campaignId),
     [campaignRows, campaignId],

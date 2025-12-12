@@ -45,9 +45,7 @@ export const router = createBrowserRouter(
     },
   ],
   {
-    future: {
-      v7_startTransition: true,
-    } as any,
+    future: undefined,
   },
 );
 

@@ -42,13 +42,13 @@ const CreativeDetail = (): JSX.Element => {
     loadAll: state.loadAll,
   }));
 
-  const creatives = creative.data ?? [];
+  const creatives = useMemo(() => creative.data ?? [], [creative.data]);
   const activeCreative = useMemo(
     () => creatives.find((row) => row.id === creativeId),
     [creatives, creativeId],
   );
 
-  const campaignRows = campaign.data?.rows ?? [];
+  const campaignRows = useMemo(() => campaign.data?.rows ?? [], [campaign.data]);
   const parentCampaign = useMemo(
     () => campaignRows.find((row) => row.id === activeCreative?.campaignId),
     [campaignRows, activeCreative?.campaignId],

@@ -1,5 +1,5 @@
-import type { ComponentType } from 'react';
 import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
+import type { ComponentType } from 'react';
 
 import type { CampaignTrendPoint } from '../state/useDashboardStore';
 import {
@@ -9,12 +9,6 @@ import {
   chartTheme,
   createTooltipProps,
 } from '../styles/chartTheme';
-
-const CartesianGridComponent = CartesianGrid as unknown as ComponentType<any>;
-const XAxisComponent = XAxis as unknown as ComponentType<any>;
-const YAxisComponent = YAxis as unknown as ComponentType<any>;
-const TooltipComponent = Tooltip as unknown as ComponentType<any>;
-const AreaComponent = Area as unknown as ComponentType<any>;
 
 interface CampaignTrendChartProps {
   data: CampaignTrendPoint[];
@@ -32,6 +26,13 @@ const formatDateLabel = (value: string | number): string => {
 };
 
 const CampaignTrendChart = ({ data, currency }: CampaignTrendChartProps) => {
+  // Recharts component typing is incompatible with strict JSX checks; cast to generic components.
+  const GridComponent = CartesianGrid as unknown as ComponentType<Record<string, unknown>>;
+  const XAxisComponent = XAxis as unknown as ComponentType<Record<string, unknown>>;
+  const YAxisComponent = YAxis as unknown as ComponentType<Record<string, unknown>>;
+  const TooltipComponent = Tooltip as unknown as ComponentType<Record<string, unknown>>;
+  const AreaComponent = Area as unknown as ComponentType<Record<string, unknown>>;
+
   const tooltipProps = createTooltipProps({
     valueType: 'currency',
     currency,
@@ -47,7 +48,7 @@ const CampaignTrendChart = ({ data, currency }: CampaignTrendChartProps) => {
           <stop offset="100%" stopColor={chartPalette[0]} stopOpacity={0.04} />
         </linearGradient>
       </defs>
-      <CartesianGridComponent
+      <GridComponent
         stroke={chartTheme.grid.stroke}
         strokeDasharray={chartTheme.grid.strokeDasharray}
         vertical={false}

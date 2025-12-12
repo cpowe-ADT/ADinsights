@@ -155,7 +155,7 @@ const DashboardStory = ({ tenantId, theme, datasetMode = 'dummy', snapshotVarian
       },
       statusMessage: undefined,
     };
-  }, [snapshot.id, snapshot.label]);
+  }, [snapshot.id]);
 
   return (
     <AuthContext.Provider value={authValue}>
