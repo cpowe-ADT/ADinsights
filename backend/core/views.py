@@ -14,7 +14,7 @@ from accounts.tenant_context import tenant_context
 
 from analytics.models import TenantMetricsSnapshot
 
-from core.metrics import render_metrics
+from core.metrics import observe_dbt_run, render_metrics
 from integrations.models import AirbyteJobTelemetry, TenantAirbyteSyncStatus
 
 AIRBYTE_STALE_THRESHOLD = timedelta(hours=1)
@@ -146,6 +146,7 @@ def dbt_health(request):
         return JsonResponse(response_data, status=500)
 
     metadata = run_results.get("metadata", {})
+    elapsed = metadata.get("elapsed_time")
     generated_at = metadata.get("generated_at")
     model_results = [
         {
@@ -177,6 +178,7 @@ def dbt_health(request):
 
     if failing_models:
         response_data.update({"status": "failing"})
+        observe_dbt_run("failure", elapsed if isinstance(elapsed, (int, float)) else None)
         return JsonResponse(response_data, status=502)
 
     if generated_at:
@@ -187,6 +189,9 @@ def dbt_health(request):
             if is_stale:
                 response_data.update({"status": "stale", "detail": "Latest dbt run is older than 24 hours."})
                 return JsonResponse(response_data, status=503)
+
+    if isinstance(elapsed, (int, float)):
+        observe_dbt_run("success", float(elapsed))
 
     response_data["status"] = "ok"
     return JsonResponse(response_data)

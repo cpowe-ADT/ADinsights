@@ -41,6 +41,8 @@ This triggers the `run_alert_cycle` task and posts results to the configured cha
   to confirm the snapshot worker is running.
 - **dbt freshness** – Alert when `/api/health/dbt/` reports `stale` or `failing`, and include the failing models list
   from the endpoint in the notification.
+- **dbt runtime** – Track `dbt_run_duration_seconds{status=*}` from `/metrics/app/` to spot slow or failing runs; alert on
+  sustained p95 latency increases or missing samples in the scheduled window.
 
 ## Structured Logging Checks
 

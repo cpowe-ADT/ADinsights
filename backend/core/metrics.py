@@ -64,6 +64,25 @@ AIRBYTE_SYNC_ERRORS = Counter(
     ("tenant_id", "provider"),
 )
 
+DBT_RUN_DURATION = Histogram(
+    "dbt_run_duration_seconds",
+    "Observed runtime of dbt invocations in seconds.",
+    ("status",),
+    buckets=(
+        0.5,
+        1,
+        2,
+        5,
+        10,
+        30,
+        60,
+        120,
+        300,
+        600,
+        1200,
+    ),
+)
+
 _AIRBYTE_FAILURE_STATUSES = {
     "failed",
     "error",
@@ -145,6 +164,14 @@ def observe_airbyte_sync(
         if _OTEL_SYNC_ERRORS is not None:
             _OTEL_SYNC_ERRORS.add(1, attributes=dict(attributes))
 
+def observe_dbt_run(status: str, duration_seconds: float | None) -> None:
+    """Record metrics for dbt runs when duration is available."""
+
+    if duration_seconds is None:
+        return
+    status_label = (status or "unknown").lower()
+    DBT_RUN_DURATION.labels(status=status_label).observe(duration_seconds)
+
 
 def render_metrics() -> tuple[bytes, str]:
     """Return the current registry contents and content type."""
@@ -161,6 +188,7 @@ def reset_metrics(registries: Iterable[Histogram | Counter] | None = None) -> No
         AIRBYTE_SYNC_LATENCY,
         AIRBYTE_ROWS_SYNCED,
         AIRBYTE_SYNC_ERRORS,
+        DBT_RUN_DURATION,
     )
     for collector in collectors:
         collector.clear()
