@@ -30,6 +30,10 @@ export default defineConfig({
         url: devUrl,
         reuseExistingServer: true,
         timeout: 120_000,
+        env: {
+          VITE_MOCK_MODE: 'true',
+          VITE_MOCK_ASSETS: 'true',
+        },
       }
     : {
         command: 'npm run build && npm run preview -- --host --port=4173',

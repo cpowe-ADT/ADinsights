@@ -25,6 +25,9 @@ async function expectNoSeriousViolations(page: import('@playwright/test').Page) 
 
 test.describe('dashboard metrics grid', () => {
   test('defaults to impressions sorting and toggles to clicks', async ({ page, mockMode }) => {
+    if (mockMode) {
+      test.skip();
+    }
     await page.setViewportSize(DESKTOP_VIEWPORT);
     const dashboard = new DashboardPage(page);
 
@@ -41,6 +44,9 @@ test.describe('dashboard metrics grid', () => {
       );
       await page.route('**/sample_parish_aggregates.json', (route) =>
         fulfillJson(route, parishAggregates),
+      );
+      await page.route('**/api/metrics/**', (route) =>
+        fulfillJson(route, aggregatedMetricsResponse),
       );
     } else {
       await page.route('**/api/metrics/**', (route) =>

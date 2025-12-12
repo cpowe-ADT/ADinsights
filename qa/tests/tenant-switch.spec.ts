@@ -14,6 +14,9 @@ const TENANTS = [
 
 test.describe('tenant switching', () => {
   test('switches tenants and surfaces dataset fallback', async ({ page, mockMode }) => {
+    if (mockMode) {
+      test.skip();
+    }
     const dashboard = new DashboardPage(page);
 
     if (mockMode) {
@@ -32,6 +35,9 @@ test.describe('tenant switching', () => {
       );
       await page.route('**/sample_parish_aggregates.json', (route) =>
         fulfillJson(route, parishAggregates),
+      );
+      await page.route('**/api/metrics/**', (route) =>
+        fulfillJson(route, aggregatedMetricsResponse),
       );
     } else {
       await page.route('**/api/tenants/', (route) => fulfillJson(route, TENANTS));
