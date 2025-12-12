@@ -11,6 +11,7 @@ One-line, timestamped notes of agent-driven changes to help preserve context bet
 - 2025-10-21T15:18:00Z docs(ops): add session warm-up note & surface index — Added `docs/PROGRAM-NOTES.md` (orientation quick start), linked it from `README.md`, and indexed in `docs/ops/doc-index.md`. Pending commit.
 - 2025-10-22T02:35:00Z feat(backend): snapshot retry backoff logging — Snapshot task now uses BaseAdInsightsTask retry_with_backoff with structured logging; tests updated; commit 5d4903e.
 - 2025-10-22T02:40:00Z feat(frontend): snapshot freshness tooltip + adapter reload fixes — Added absolute timestamp formatting/tooltips for snapshot indicators, refined dataset adapter reload per tenant, removed duplicate status roles; tests/lint/build passing; commits c30546a, 128ee33.
+- 2025-10-22T13:42:00Z feat(dbt/docs): parameterize freshness SLA and document overrides — Tightened Meta/Google freshness to hourly SLA via vars (`freshness_warn_hours`/`freshness_error_hours`), added dev override note in operations runbook; dbt runs green except local freshness (stale seeds). Commit pending.
 
 ## 2025-10-17 (prior session summary)
 

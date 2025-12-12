@@ -18,6 +18,7 @@ This runbook documents how to operate the ADinsights stack across the frontend, 
 | dbt Orchestration     | API health endpoint (exposes latest run results) | `curl https://api.<env>.adinsights.com/api/health/dbt/`     |
 | Superset              | `/health` endpoint                               | `curl https://bi.<env>.adinsights.com/health`               |
 | Scheduler             | APScheduler heartbeat logs                       | Check `scheduler` container logs for `Scheduler started`    |
+| dbt Freshness         | dbt source freshness check                       | `make dbt-freshness` (local) or scheduler job output        |
 
 The Airbyte health endpoint surfaces the most recent sync metadata per tenant and flags jobs that
 are older than one hour. The dbt health endpoint reads the most recent `run_results.json` and marks
@@ -70,7 +71,11 @@ days';` Adjust the interval to meet contractual obligations.
 - **Alerting targets** – Configure alerts when API request error rate exceeds 2% over
   5 minutes, Airbyte health responds `stale`/`no_recent_sync`, or dbt health responds
   `stale`/`failing`. Set SLA expectations at 99.5% API availability, Airbyte sync freshness
-  under 60 minutes, and dbt transformations under 24 hours.
+  under 60 minutes, and dbt transformations under 24 hours. Use `/metrics/app/` → `dbt_run_duration_seconds`
+  to watch for regressions in dbt runtime, and `make dbt-freshness`/scheduled freshness jobs to confirm
+  source recency. Hourly metrics feeds (Meta/Google) should warn after 2 hours and error after 4 hours
+  of staleness; dashboards should alert if `/api/health/dbt/` reports stale/failing or if freshness checks breach.
+  For dev/CI with seeds, override dbt vars `freshness_warn_hours`/`freshness_error_hours` to avoid false positives.
 - **Dashboards** – Plot `/api/health/airbyte/` and `/api/health/dbt/` responses alongside
   Celery task durations to visualize orchestration performance trends and catch regressions
   before they breach SLAs.

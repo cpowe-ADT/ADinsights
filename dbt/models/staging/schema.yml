@@ -9,8 +9,10 @@ sources:
         description: 'Meta Ads insights pulled from the Marketing API.'
         loaded_at_field: _airbyte_emitted_at
         freshness:
-          warn_after: { count: 1, period: day }
-          error_after: { count: 2, period: day }
+          warn_after: { count: "{{ var('freshness_warn_hours', 2) }}", period: hour }
+          error_after: { count: "{{ var('freshness_error_hours', 4) }}", period: hour }
+        meta:
+          sla_note: 'Hourly metrics syncs 06:00–22:00 America/Jamaica; warn after 2h, error after 4h.'
         columns:
           - name: ad_account_id
             tests:
@@ -25,8 +27,10 @@ sources:
         description: 'Google Ads performance data.'
         loaded_at_field: _airbyte_emitted_at
         freshness:
-          warn_after: { count: 1, period: day }
-          error_after: { count: 2, period: day }
+          warn_after: { count: "{{ var('freshness_warn_hours', 2) }}", period: hour }
+          error_after: { count: "{{ var('freshness_error_hours', 4) }}", period: hour }
+        meta:
+          sla_note: 'Hourly metrics syncs 06:00–22:00 America/Jamaica; warn after 2h, error after 4h.'
         columns:
           - name: customer_id
             tests:
