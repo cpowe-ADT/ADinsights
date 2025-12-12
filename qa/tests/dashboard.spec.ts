@@ -10,6 +10,8 @@ import {
 
 const sampleRows = campaignSnapshot.rows;
 const DESKTOP_VIEWPORT = { width: 1280, height: 720 } as const;
+const IS_MOCK_ENV =
+  process.env.MOCK === '1' || String(process.env.MOCK_MODE || '').toLowerCase() === 'true';
 const parseNumber = (text: string) => Number(text.replace(/,/g, ''));
 
 async function expectNoSeriousViolations(page: import('@playwright/test').Page) {
@@ -25,9 +27,7 @@ async function expectNoSeriousViolations(page: import('@playwright/test').Page) 
 
 test.describe('dashboard metrics grid', () => {
   test('defaults to impressions sorting and toggles to clicks', async ({ page, mockMode }) => {
-    if (mockMode) {
-      test.skip();
-    }
+    test.skip(IS_MOCK_ENV, 'Dashboard grid verified in live mode; mock lacks full data wiring.');
     await page.setViewportSize(DESKTOP_VIEWPORT);
     const dashboard = new DashboardPage(page);
 

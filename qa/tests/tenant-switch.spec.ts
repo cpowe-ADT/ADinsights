@@ -12,11 +12,12 @@ const TENANTS = [
   { id: 'tenant-b', name: 'Tenant Beta', status: 'active' },
 ];
 
+const IS_MOCK_ENV =
+  process.env.MOCK === '1' || String(process.env.MOCK_MODE || '').toLowerCase() === 'true';
+
 test.describe('tenant switching', () => {
   test('switches tenants and surfaces dataset fallback', async ({ page, mockMode }) => {
-    if (mockMode) {
-      test.skip();
-    }
+    test.skip(IS_MOCK_ENV, 'Tenant switch smoke exercised in live mode; mock lacks backend wiring.');
     const dashboard = new DashboardPage(page);
 
     if (mockMode) {

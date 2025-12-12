@@ -81,11 +81,12 @@ async function expectNoSeriousViolations(page: import('@playwright/test').Page) 
   ).toHaveLength(0);
 }
 
+const IS_MOCK_ENV =
+  process.env.MOCK === '1' || String(process.env.MOCK_MODE || '').toLowerCase() === 'true';
+
 test.describe('parish choropleth', () => {
   test('displays tooltip data on hover', async ({ page, mockMode }) => {
-    if (mockMode) {
-      test.skip();
-    }
+    test.skip(IS_MOCK_ENV, 'Map interactions verified in live mode; mock lacks Leaflet render path.');
     if (mockMode) {
       await page.route('**/sample_metrics.json', (route) => fulfillJson(route, metricRows));
       await page.route('**/sample_campaign_performance.json', (route) =>

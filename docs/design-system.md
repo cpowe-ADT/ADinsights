@@ -73,6 +73,8 @@ free from theme-specific logic.
 - Error, loading, and availability states share the same muted token styling so accessibility is preserved in both themes.
 - Snapshot indicator in `DashboardLayout` uses relative timestamps; Storybook exercises fresh, stale (>60 minutes), and pending
   states so Chromatic can track the warning variant.
+- Tooling: avoid multiple `role="status"` nodes in the same control; use a single polite live region for status and plain text for
+  errors/loading. Provide `title`/tooltip for absolute timestamps on freshness badges.
 
 ## Component checklist (dashboard refresh)
 
