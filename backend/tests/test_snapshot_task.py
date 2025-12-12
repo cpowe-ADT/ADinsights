@@ -11,6 +11,7 @@ from django.utils.dateparse import parse_datetime
 from accounts.models import Tenant
 from analytics.models import TenantMetricsSnapshot
 from analytics.tasks import generate_snapshots_for_tenants, sync_metrics_snapshots
+from core.tasks import BaseAdInsightsTask
 
 
 def _seed_dashboard_snapshot_view(records: list[dict[str, object]]):
@@ -144,5 +145,38 @@ def test_generate_snapshots_normalizes_generated_at_timezone(tenant):
 
 def test_sync_metrics_snapshots_has_retry_policy():
     assert sync_metrics_snapshots.max_retries == 5
-    assert sync_metrics_snapshots.retry_backoff == 2
-    assert sync_metrics_snapshots.retry_jitter is True
+
+
+class RetryCalled(Exception):
+    pass
+
+
+def test_sync_metrics_snapshots_retries_with_backoff(monkeypatch):
+    recorded: dict[str, object] = {}
+
+    def fake_generate(tenant_ids=None):  # noqa: ANN001
+        raise RuntimeError("boom")
+
+    def fake_retry(self, *, exc=None, base_delay=None, max_delay=None):  # noqa: ANN001
+        recorded["exc"] = exc
+        recorded["base_delay"] = base_delay
+        recorded["max_delay"] = max_delay
+        raise RetryCalled
+
+    monkeypatch.setattr("analytics.tasks.generate_snapshots_for_tenants", fake_generate)
+    monkeypatch.setattr(BaseAdInsightsTask, "retry_with_backoff", fake_retry, raising=False)
+
+    observed: list[tuple[str, str, float | None]] = []
+
+    def fake_observe(task_name, status, duration_seconds):  # noqa: ANN001
+        observed.append((task_name, status, duration_seconds))
+
+    monkeypatch.setattr("analytics.tasks.observe_task", fake_observe)
+
+    with pytest.raises(RetryCalled):
+        sync_metrics_snapshots.run(tenant_ids=["tenant-a"])
+
+    assert recorded["base_delay"] == 60
+    assert recorded["max_delay"] == 900
+    assert observed
+    assert observed[0][1] == "failure"

@@ -17,6 +17,7 @@ from analytics.snapshots import (
     snapshot_metrics_to_combined_payload,
 )
 from core.metrics import observe_task
+from core.tasks import BaseAdInsightsTask
 
 logger = logging.getLogger(__name__)
 
@@ -99,24 +100,35 @@ def generate_snapshots_for_tenants(tenant_ids: Sequence[str] | None = None) -> l
 @shared_task(
     bind=True,
     name="analytics.sync_metrics_snapshots",
-    autoretry_for=(Exception,),
-    retry_backoff=2,
-    retry_backoff_max=300,
-    retry_jitter=True,
+    base=BaseAdInsightsTask,
     max_retries=5,
 )
 def sync_metrics_snapshots(self, tenant_ids: list[str] | None = None) -> dict:
     started = timezone.now()
     try:
         outcomes = generate_snapshots_for_tenants(tenant_ids)
-    except Exception:  # pragma: no cover - surfaced via Celery retry mechanisms
+    except Exception as exc:  # pragma: no cover - surfaced via Celery retry mechanisms
         duration = (timezone.now() - started).total_seconds()
         observe_task(self.name, "failure", duration)
-        logger.exception("metrics.snapshot.failed")
-        raise
+        logger.exception(
+            "metrics.snapshot.failed",
+            extra={
+                "task_id": getattr(getattr(self, "request", None), "id", None),
+                "tenant_count": len(tenant_ids) if tenant_ids else None,
+            },
+        )
+        raise self.retry_with_backoff(exc=exc, base_delay=60, max_delay=900)
 
     duration = (timezone.now() - started).total_seconds()
     observe_task(self.name, "success", duration)
+    logger.info(
+        "metrics.snapshot.completed",
+        extra={
+            "task_id": getattr(getattr(self, "request", None), "id", None),
+            "processed": len(outcomes),
+            "duration_seconds": duration,
+        },
+    )
     return {
         "processed": len(outcomes),
         "duration_seconds": duration,
