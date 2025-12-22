@@ -39,8 +39,8 @@ const CampaignTrendChart = ({ data, currency }: CampaignTrendChartProps) => {
     labelFormatter: (value) => formatDateLabel(String(value)),
   });
 
-  const chart =
-    // @ts-expect-error - Recharts' component types are incompatible with strict JSX element checks
+  return (
+    // @ts-ignore - Recharts JSX types can conflict when multiple React type versions are present.
     <AreaChart data={data} margin={chartMargins}>
       <defs>
         <linearGradient id="spendAreaGradient" x1="0" y1="0" x2="0" y2="1">
@@ -77,9 +77,8 @@ const CampaignTrendChart = ({ data, currency }: CampaignTrendChartProps) => {
         dot={{ r: chartTheme.point.radius, strokeWidth: 0, fill: chartPalette[0] }}
         activeDot={{ r: chartTheme.point.activeRadius }}
       />
-    </AreaChart>;
-
-  return chart;
+    </AreaChart>
+  );
 };
 
 export default CampaignTrendChart;
