@@ -4,18 +4,22 @@
 
 - Docker 26+
 - docker compose plugin
-- Access to GHCR (`ghcr.io/adinsights/*`)
+- Optional: Access to GHCR (`ghcr.io/adinsights/*`) if you want to run the `llm` profile
 - Superset admin credentials for metadata import
 
 ## Steps
 
-1. Authenticate to the container registry:
+1. (Optional) Authenticate to the container registry for the `llm` service:
    ```bash
    echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
    ```
 2. Run the deployment script:
    ```bash
    ./deploy_full_stack.sh
+   ```
+3. (Optional) Start the `llm` proxy after authenticating:
+   ```bash
+   cd deploy && docker compose --profile llm up -d
    ```
 3. Import Superset assets:
    ```bash
@@ -24,6 +28,11 @@
    docker exec -it deploy_superset_1 superset import-assets /app/superset_home/export/subscriptions
    ```
 4. Validate health endpoints and review the operations runbook in `docs/runbooks/`.
+
+Endpoints:
+- Frontend: http://localhost:5173
+- Backend: http://localhost:8000/api/health/
+- Superset: http://localhost:8088
 
 ## AWS KMS Requirements
 
