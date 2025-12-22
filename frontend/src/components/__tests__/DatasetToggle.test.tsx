@@ -37,7 +37,8 @@ describe('DatasetToggle', () => {
     render(<DatasetToggle />);
 
     expect(screen.getByText(/Live data/i)).toBeInTheDocument();
-    expect(screen.getByRole('status').textContent).toContain('Live warehouse metrics');
+    const statusMessage = screen.getByText(/Live warehouse metrics/i);
+    expect(statusMessage).toHaveAttribute('aria-live', 'polite');
   });
 
   it('toggles to demo mode when both datasets are available', async () => {
@@ -46,6 +47,6 @@ describe('DatasetToggle', () => {
     fireEvent.click(screen.getByRole('button', { name: /Use demo data/i }));
 
     expect(screen.getByRole('button', { name: /Use live data/i })).toBeInTheDocument();
-    expect(screen.getByRole('status').textContent).toContain('Demo dataset loaded');
+    expect(screen.getByText(/Demo dataset loaded/i)).toBeInTheDocument();
   });
 });

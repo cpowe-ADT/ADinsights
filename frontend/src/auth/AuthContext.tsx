@@ -274,6 +274,14 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     if (stored) {
       applyTokens(stored);
       setStatus(MOCK_MODE ? 'authenticated' : 'checking');
+    } else if (MOCK_MODE) {
+      applyTokens({
+        access: `mock-access-${Date.now()}`,
+        refresh: `mock-refresh-${Date.now()}`,
+        tenantId: 'demo',
+        user: { email: 'qa@example.com' },
+      });
+      setStatus('authenticated');
     }
     bootstrappedRef.current = true;
     return () => {

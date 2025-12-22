@@ -300,10 +300,8 @@ label,
 }
 
 .status-message.muted {
-  color: var(--text-secondary);
-  background: var(--status-muted-bg);
-  color: var(--muted);
   background: rgba(15, 23, 42, 0.03);
+  color: var(--text-secondary);
 }
 
 .skeleton {
