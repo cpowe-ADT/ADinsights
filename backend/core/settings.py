@@ -73,7 +73,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "backend.middleware.tenant.TenantHeaderMiddleware",
+    "middleware.tenant.TenantHeaderMiddleware",
     "accounts.middleware.TenantMiddleware",
     "core.observability.RequestCorrelationMiddleware",
     "core.observability.APILoggingMiddleware",
