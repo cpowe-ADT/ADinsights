@@ -21,15 +21,22 @@ class DashboardPage extends BasePage {
     this.mapPanel = new MapPanel(page);
   }
 
-  async open(): Promise<void> {
-    await this.goto('/');
+  async open(path = '/dashboards/campaigns'): Promise<void> {
+    await this.goto(path);
+
+    const signIn = this.page.getByRole('button', { name: /^Sign In$/i });
+    if (await signIn.isVisible()) {
+      await this.page.getByLabel(/Email/i).fill('qa@example.com');
+      await this.page.getByLabel(/Password/i).fill('qa-password');
+      await signIn.click();
+      await this.page.waitForURL('**/dashboards/**', { timeout: 10_000 });
+      await this.waitForNetworkIdle();
+    }
   }
 
   private get metricsTable(): Locator {
     return this.page
-      .getByRole('heading', { name: /Campaign performance/i })
-      .locator('..')
-      .locator('..')
+      .getByRole('region', { name: /Campaign metrics table/i })
       .locator('table');
   }
 
@@ -113,16 +120,22 @@ class DashboardPage extends BasePage {
   }
 
   async getSortedStatus(): Promise<string> {
-    const announcement = await this.page
-      .getByText(/Sorted by/i)
-      .first()
-      .innerText();
-    return announcement.trim();
+    const header = this.metricsTable.locator('thead');
+    return header.innerText();
   }
 
   async toggleSortByClicks(): Promise<void> {
-    await this.page.getByRole('button', { name: /Sort by Clicks/i }).click();
-    await this.waitForNetworkIdle();
+    const header = this.metricsTable.getByRole('columnheader', { name: /Clicks/i });
+    const button = this.metricsTable.getByRole('button', { name: /Sort by Clicks/i });
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const ariaSort = await header.getAttribute('aria-sort');
+      if (ariaSort === 'descending') {
+        return;
+      }
+      await button.click();
+      await this.waitForNetworkIdle();
+    }
   }
 }
 

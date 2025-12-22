@@ -2,7 +2,6 @@ import { expect, test } from './fixtures/base';
 import { DashboardPage } from '../page-objects';
 import {
   aggregatedMetricsResponse,
-  campaignSnapshot,
   fulfillJson,
   parishAggregates,
 } from './support/sampleData';
@@ -12,34 +11,23 @@ const TENANTS = [
   { id: 'tenant-b', name: 'Tenant Beta', status: 'active' },
 ];
 
-const IS_MOCK_ENV =
-  process.env.MOCK === '1' || String(process.env.MOCK_MODE || '').toLowerCase() === 'true';
+const metricsSnapshot = {
+  tenant_id: 'tenant-qa',
+  snapshot_generated_at: '2024-09-01T08:00:00-05:00',
+  campaign: aggregatedMetricsResponse.campaign,
+  creative: aggregatedMetricsResponse.creative,
+  budget: aggregatedMetricsResponse.budget,
+  parish: parishAggregates,
+} as const;
 
 test.describe('tenant switching', () => {
   test('switches tenants and surfaces dataset fallback', async ({ page, mockMode }) => {
-    test.skip(IS_MOCK_ENV, 'Tenant switch smoke exercised in live mode; mock lacks backend wiring.');
+    test.skip(!mockMode, 'This spec runs in mock mode for deterministic UI coverage.');
     const dashboard = new DashboardPage(page);
 
     if (mockMode) {
       await page.route('**/mock/tenants.json', (route) => fulfillJson(route, TENANTS));
-      await page.route('**/sample_metrics.json', (route) =>
-        fulfillJson(route, campaignSnapshot.rows),
-      );
-      await page.route('**/sample_campaign_performance.json', (route) =>
-        fulfillJson(route, campaignSnapshot),
-      );
-      await page.route('**/sample_creative_performance.json', (route) =>
-        fulfillJson(route, aggregatedMetricsResponse.creative),
-      );
-      await page.route('**/sample_budget_pacing.json', (route) =>
-        fulfillJson(route, aggregatedMetricsResponse.budget),
-      );
-      await page.route('**/sample_parish_aggregates.json', (route) =>
-        fulfillJson(route, parishAggregates),
-      );
-      await page.route('**/api/metrics/**', (route) =>
-        fulfillJson(route, aggregatedMetricsResponse),
-      );
+      await page.route('**/sample_metrics.json', (route) => fulfillJson(route, metricsSnapshot));
     } else {
       await page.route('**/api/tenants/', (route) => fulfillJson(route, TENANTS));
       await page.route('**/api/adapters/', (route) =>
@@ -52,7 +40,7 @@ test.describe('tenant switching', () => {
     }
 
     await dashboard.open();
-    await page.getByRole('button', { name: /Tenant QA|Select a tenant|Loading tenants/i }).click();
+    await page.getByRole('button', { name: /Choose a tenant|Switch dashboards/i }).click();
 
     // Select the second tenant and confirm the header updates.
     await page.getByRole('option', { name: /Tenant Beta/i }).click();
@@ -68,10 +56,6 @@ test.describe('tenant switching', () => {
     if (mockMode) {
       await page.unroute('**/mock/tenants.json');
       await page.unroute('**/sample_metrics.json');
-      await page.unroute('**/sample_campaign_performance.json');
-      await page.unroute('**/sample_creative_performance.json');
-      await page.unroute('**/sample_budget_pacing.json');
-      await page.unroute('**/sample_parish_aggregates.json');
     } else {
       await page.unroute('**/api/tenants/');
       await page.unroute('**/api/adapters/');

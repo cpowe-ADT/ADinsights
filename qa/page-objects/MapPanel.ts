@@ -14,38 +14,18 @@ class MapPanel extends BasePage {
       .locator('..');
   }
 
-  private get shapes(): Locator {
-    return this.panel.locator('path.leaflet-interactive');
-  }
-
-  private get tooltip(): Locator {
-    return this.page.locator('.leaflet-tooltip');
+  private get accessibilityTriggers(): Locator {
+    return this.panel.locator('button[data-testid^="parish-feature-"]');
   }
 
   async waitForFeatureCount(expected: number): Promise<void> {
-    await expect(this.shapes).toHaveCount(expected, { timeout: 20_000 });
+    await expect(this.accessibilityTriggers).toHaveCount(expected, { timeout: 20_000 });
   }
 
-  async hoverFeature(index: number): Promise<void> {
-    await this.shapes.nth(index).hover({ force: true });
-  }
-
-  async hoverEachFeatureUntil(predicate: (text: string) => boolean): Promise<string | null> {
-    const count = await this.shapes.count();
-    for (let index = 0; index < count; index += 1) {
-      await this.hoverFeature(index);
-      await expect(this.tooltip).toBeVisible();
-      const text = await this.tooltip.innerText();
-      if (predicate(text)) {
-        return text;
-      }
-    }
-    return null;
-  }
-
-  async getTooltipText(): Promise<string> {
-    await expect(this.tooltip).toBeVisible();
-    return this.tooltip.innerText();
+  async selectFeature(name: string): Promise<void> {
+    const trigger = this.panel.locator(`button[data-testid="parish-feature-${name}"]`);
+    await expect(trigger).toBeAttached();
+    await trigger.dispatchEvent('click');
   }
 }
 

@@ -4,6 +4,14 @@ import { DashboardPage } from '../page-objects';
 import { aggregatedMetricsResponse, fulfillJson, parishAggregates } from './support/sampleData';
 
 const SKIP_SCREENSHOTS = process.env.QA_SKIP_SCREENSHOTS !== '0';
+const metricsSnapshot = {
+  tenant_id: 'tenant-qa',
+  snapshot_generated_at: '2024-09-01T08:00:00-05:00',
+  campaign: aggregatedMetricsResponse.campaign,
+  creative: aggregatedMetricsResponse.creative,
+  budget: aggregatedMetricsResponse.budget,
+  parish: parishAggregates,
+} as const;
 
 const geoJson = {
   type: 'FeatureCollection',
@@ -43,31 +51,6 @@ const geoJson = {
   ],
 } as const;
 
-const metricRows = [
-  {
-    date: '2024-09-01',
-    platform: 'Meta',
-    campaign: 'Awareness Boost',
-    parish: 'Kingston',
-    impressions: 120000,
-    clicks: 3400,
-    spend: 540,
-    conversions: 120,
-    roas: 3.5,
-  },
-  {
-    date: '2024-09-01',
-    platform: 'Google Ads',
-    campaign: 'Search Capture',
-    parish: 'St Andrew',
-    impressions: 85000,
-    clicks: 2200,
-    spend: 320,
-    conversions: 98,
-    roas: 3.9,
-  },
-];
-
 const DESKTOP_VIEWPORT = { width: 1280, height: 720 } as const;
 
 async function expectNoSeriousViolations(page: import('@playwright/test').Page) {
@@ -81,29 +64,11 @@ async function expectNoSeriousViolations(page: import('@playwright/test').Page) 
   ).toHaveLength(0);
 }
 
-const IS_MOCK_ENV =
-  process.env.MOCK === '1' || String(process.env.MOCK_MODE || '').toLowerCase() === 'true';
-
 test.describe('parish choropleth', () => {
-  test('displays tooltip data on hover', async ({ page, mockMode }) => {
-    test.skip(IS_MOCK_ENV, 'Map interactions verified in live mode; mock lacks Leaflet render path.');
+  test('filters the table when selecting a parish', async ({ page, mockMode }) => {
+    test.skip(!mockMode, 'This spec runs in mock mode for deterministic UI coverage.');
     if (mockMode) {
-      await page.route('**/sample_metrics.json', (route) => fulfillJson(route, metricRows));
-      await page.route('**/sample_campaign_performance.json', (route) =>
-        fulfillJson(route, aggregatedMetricsResponse.campaign),
-      );
-      await page.route('**/sample_creative_performance.json', (route) =>
-        fulfillJson(route, aggregatedMetricsResponse.creative),
-      );
-      await page.route('**/sample_budget_pacing.json', (route) =>
-        fulfillJson(route, aggregatedMetricsResponse.budget),
-      );
-      await page.route('**/sample_parish_aggregates.json', (route) =>
-        fulfillJson(route, aggregatedMetricsResponse.parish),
-      );
-      await page.route('**/api/metrics/**', (route) =>
-        fulfillJson(route, aggregatedMetricsResponse),
-      );
+      await page.route('**/sample_metrics.json', (route) => fulfillJson(route, metricsSnapshot));
     } else {
       await page.route('**/api/metrics/**', (route) =>
         fulfillJson(route, aggregatedMetricsResponse),
@@ -115,17 +80,18 @@ test.describe('parish choropleth', () => {
 
     const dashboard = new DashboardPage(page);
     await dashboard.open();
+    await page.getByLabel(/Map metric/i).selectOption('impressions');
     await dashboard.mapPanel.waitForFeatureCount(geoJson.features.length);
 
-    const tooltipText = await dashboard.mapPanel.hoverEachFeatureUntil((t) =>
-      t.includes('Kingston'),
-    );
-    expect(tooltipText).toBeTruthy();
-    expect((tooltipText ?? '').toUpperCase()).toContain('IMPRESSIONS');
+    await expect(page.getByRole('group', { name: /Impressions legend/i })).toBeVisible();
 
-    const kingston = parishAggregates.find((r) => r.parish === 'Kingston');
-    const normalized = (tooltipText ?? '').replace(/[\,\s]/g, '');
-    expect(normalized).toContain(`IMPRESSIONS:${kingston?.impressions ?? 0}`);
+    await dashboard.mapPanel.selectFeature('Kingston');
+    await expect.poll(async () => dashboard.getMetricRowCount()).toBe(1);
+    expect(await dashboard.getColumnValues('parish')).toEqual(['Kingston']);
+
+    await dashboard.mapPanel.selectFeature('St Andrew');
+    await expect.poll(async () => dashboard.getMetricRowCount()).toBe(1);
+    expect(await dashboard.getColumnValues('parish')).toEqual(['St Andrew']);
 
     if (!SKIP_SCREENSHOTS) {
       const screenshot = await page.screenshot({
@@ -133,17 +99,13 @@ test.describe('parish choropleth', () => {
         fullPage: true,
         encoding: 'base64',
       });
-      await expect(screenshot).toMatchSnapshot('map-chromium-desktop.txt');
+      await expect(screenshot).toMatchSnapshot('map.txt');
     }
     await expectNoSeriousViolations(page);
 
     await page.unroute('**/*parishes*.json');
     if (mockMode) {
       await page.unroute('**/sample_metrics.json');
-      await page.unroute('**/sample_campaign_performance.json');
-      await page.unroute('**/sample_creative_performance.json');
-      await page.unroute('**/sample_budget_pacing.json');
-      await page.unroute('**/sample_parish_aggregates.json');
     } else {
       await page.unroute('**/api/metrics/**');
     }

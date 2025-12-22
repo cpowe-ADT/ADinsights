@@ -1,11 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const isMock =
-  process.env.MOCK === '1' || String(process.env.MOCK_MODE || '').toLowerCase() === 'true';
+const mockModeEnv = String(process.env.MOCK_MODE ?? '').toLowerCase();
+const isMock = process.env.MOCK === '1' || (mockModeEnv ? mockModeEnv === 'true' : true);
 
 // Let CI override, otherwise default to the standard ports
-const devUrl = process.env.QA_BASE_URL || 'http://127.0.0.1:5173';
-const previewUrl = process.env.QA_BASE_URL || 'http://127.0.0.1:4173';
+const devUrl = process.env.QA_BASE_URL || 'http://localhost:5173';
+const previewUrl = process.env.QA_BASE_URL || 'http://localhost:4173';
 
 export default defineConfig({
   testDir: 'tests',

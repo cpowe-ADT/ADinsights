@@ -14,8 +14,8 @@ function createAccessToken(): string {
   return `${header}.${payload}.signature`;
 }
 
-const envMock =
-  process.env.MOCK === '1' || String(process.env.MOCK_MODE || '').toLowerCase() === 'true';
+const mockModeEnv = String(process.env.MOCK_MODE ?? '').toLowerCase();
+const envMock = process.env.MOCK === '1' || (mockModeEnv ? mockModeEnv === 'true' : true);
 
 const defaultAuthState = {
   access: createAccessToken(),
