@@ -6,6 +6,20 @@ const isMock = process.env.MOCK === '1' || (mockModeEnv ? mockModeEnv === 'true'
 // Let CI override, otherwise default to the standard ports
 const devUrl = process.env.QA_BASE_URL || 'http://localhost:5173';
 const previewUrl = process.env.QA_BASE_URL || 'http://localhost:4173';
+const resolvePort = (url: string, fallback: number): number => {
+  try {
+    const parsed = new URL(url);
+    if (parsed.port) {
+      const port = Number(parsed.port);
+      return Number.isFinite(port) ? port : fallback;
+    }
+  } catch {
+    // ignore invalid URL
+  }
+  return fallback;
+};
+const devPort = resolvePort(devUrl, 5173);
+const previewPort = resolvePort(previewUrl, 4173);
 
 export default defineConfig({
   testDir: 'tests',
@@ -26,7 +40,7 @@ export default defineConfig({
   ],
   webServer: isMock
     ? {
-        command: 'npm run dev -- --host --port=5173',
+        command: `npm run dev -- --host --port=${devPort}`,
         url: devUrl,
         reuseExistingServer: true,
         timeout: 120_000,
@@ -36,7 +50,7 @@ export default defineConfig({
         },
       }
     : {
-        command: 'npm run build && npm run preview -- --host --port=4173',
+        command: `npm run build && npm run preview -- --host --port=${previewPort}`,
         url: previewUrl,
         reuseExistingServer: true,
         timeout: 120_000,
