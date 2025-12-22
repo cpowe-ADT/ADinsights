@@ -26,6 +26,52 @@ models:
         description: 'Total clicks generated within the parish on the given day.'
       - name: conversions
         description: 'Total conversions attributed to the parish on the given day.'
+      - name: ctr
+        description: 'Click-through rate derived from parish clicks divided by impressions.'
+      - name: conversion_rate
+        description: 'Conversion rate derived from parish conversions divided by clicks.'
+      - name: cost_per_click
+        description: 'Average cost per click within the parish.'
+      - name: cost_per_conversion
+        description: 'Average cost per conversion within the parish.'
+      - name: cpm
+        description: 'Cost per 1,000 impressions within the parish.'
+      - name: roas
+        description: 'Return on ad spend for the parish derived from conversions divided by spend.'
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(roas, 0) >= 0'
+  - name: agg_parish_daily
+    description: 'Incremental parish-level aggregate used by the choropleth map and dashboard summaries.'
+    columns:
+      - name: tenant_id
+        description: 'Tenant scope for the aggregated record.'
+        tests:
+          - not_null
+      - name: date_day
+        description: 'Calendar date the metrics are aggregated for.'
+        tests:
+          - not_null
+      - name: parish_code
+        description: 'Geographic parish code receiving the spend.'
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_geo')
+              field: parish_code
+      - name: parish_name
+        description: 'Friendly parish name from the geo dimension.'
+      - name: region_name
+        description: 'Region grouping for the parish.'
+      - name: spend
+        description: 'Total spend attributed to the parish on the given day.'
+      - name: impressions
+        description: 'Total impressions served within the parish on the given day.'
+      - name: clicks
+        description: 'Total clicks generated within the parish on the given day.'
+      - name: conversions
+        description: 'Total conversions attributed to the parish on the given day.'
       - name: campaign_count
         description: 'Number of distinct campaigns contributing to the parish totals on the given day.'
         tests:
@@ -44,10 +90,6 @@ models:
         description: 'Cost per 1,000 impressions within the parish.'
       - name: roas
         description: 'Return on ad spend for the parish derived from conversions divided by spend.'
-        tests:
-          - expression_is_true:
-              arguments:
-                expression: 'coalesce(roas, 0) >= 0'
   - name: vw_campaign_daily
     description: 'Aggregated daily campaign metrics joined to current campaign attributes.'
     tests:
@@ -197,12 +239,6 @@ models:
       - name: date_day
         tests:
           - not_null
-      - name: parish_code
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_geo')
-              field: parish_code
       - name: conversions
         tests:
           - expression_is_true:
