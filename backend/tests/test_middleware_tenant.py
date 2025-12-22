@@ -39,7 +39,6 @@ class DummyConnection:
 @pytest.fixture
 def stub_connection(monkeypatch):
     connection = DummyConnection()
-    monkeypatch.setattr(tenant_middleware, "connection", connection)
     monkeypatch.setattr("accounts.tenant_context.connection", connection)
     return connection
 
