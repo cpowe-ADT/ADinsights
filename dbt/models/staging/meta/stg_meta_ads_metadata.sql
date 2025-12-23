@@ -1,6 +1,7 @@
-{{ config(unique_key='id', incremental_strategy='delete+insert') }}
+{{ config(unique_key=['tenant_id', 'ad_id'], incremental_strategy='delete+insert') }}
 
 select
+    {{ tenant_id_expr() }} as tenant_id,
     id::text as ad_id,
     adset_id::text as adset_id,
     campaign_id::text as campaign_id,

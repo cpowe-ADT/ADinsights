@@ -1,10 +1,11 @@
 {{ config(
-    unique_key='customer_id || campaign_id || ad_group_id || ad_id || date',
+    unique_key='tenant_id || customer_id || campaign_id || ad_group_id || ad_id || date',
     incremental_strategy='delete+insert',
 ) }}
 
 with source as (
     select
+        {{ tenant_id_expr() }} as tenant_id,
         customer_id::text as customer_id,
         campaign_id::text as campaign_id,
         ad_group_id::text as ad_group_id,

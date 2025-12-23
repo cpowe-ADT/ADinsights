@@ -1,6 +1,7 @@
-{{ config(unique_key='customer_id || date || geo_target_id', incremental_strategy='delete+insert') }}
+{{ config(unique_key='tenant_id || customer_id || date || geo_target_id', incremental_strategy='delete+insert') }}
 
 select
+    {{ tenant_id_expr() }} as tenant_id,
     customer_id::text as customer_id,
     segments_date::date as date,
     geo_target_id::text as geo_target_id,

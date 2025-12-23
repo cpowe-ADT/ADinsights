@@ -12,9 +12,80 @@ sources:
 models:
   - name: stg_meta_insights
     description: 'Normalized daily Meta insights metrics'
+    tests:
+      - unique_combination_of_columns:
+          combination:
+            - tenant_id
+            - account_id
+            - campaign_id
+            - adset_id
+            - ad_id
+            - date
+            - country
+            - region
+            - city
+    columns:
+      - name: tenant_id
+        description: 'Tenant identifier for row-level isolation.'
+        tests:
+          - not_null
+      - name: account_id
+        tests:
+          - not_null
+      - name: campaign_id
+        tests:
+          - not_null
+      - name: date
+        tests:
+          - not_null
   - name: stg_meta_campaigns
     description: 'Meta campaign metadata'
+    tests:
+      - unique_combination_of_columns:
+          combination:
+            - tenant_id
+            - campaign_id
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null
+      - name: campaign_id
+        tests:
+          - not_null
+      - name: account_id
+        tests:
+          - not_null
   - name: stg_meta_ads_metadata
     description: 'Meta ad metadata'
+    tests:
+      - unique_combination_of_columns:
+          combination:
+            - tenant_id
+            - ad_id
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null
+      - name: ad_id
+        tests:
+          - not_null
+      - name: account_id
+        tests:
+          - not_null
   - name: stg_meta_adsets
     description: 'Meta ad set metadata'
+    tests:
+      - unique_combination_of_columns:
+          combination:
+            - tenant_id
+            - adset_id
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null
+      - name: adset_id
+        tests:
+          - not_null
+      - name: ad_account_id
+        tests:
+          - not_null

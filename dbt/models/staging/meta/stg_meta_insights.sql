@@ -1,5 +1,5 @@
 {{ config(
-    unique_key='account_id || campaign_id || adset_id || ad_id || date',
+    unique_key='tenant_id || account_id || campaign_id || adset_id || ad_id || date',
     incremental_strategy='delete+insert',
 ) }}
 
@@ -7,6 +7,7 @@
 
 with source as (
     select
+        {{ tenant_id_expr() }} as tenant_id,
         cast(account_id as text) as account_id,
         cast(campaign_id as text) as campaign_id,
         cast(adset_id as text) as adset_id,
@@ -33,6 +34,7 @@ with source as (
 
 flattened as (
     select
+        tenant_id,
         account_id,
         campaign_id,
         adset_id,
@@ -51,7 +53,7 @@ flattened as (
         coalesce(sum((action ->> 'value')::numeric) filter (where action ->> 'action_type' in ('offsite_conversion', 'purchase')), 0) as conv_value
     from source
     left join lateral jsonb_array_elements(coalesce(actions::{{ json_type }}, '[]'::{{ json_type }})) as action on true
-    group by 1,2,3,4,5,6,7,8,9,10,11,12,13,14
+    group by 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 )
 
 select * from flattened

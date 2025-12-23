@@ -10,5 +10,48 @@ sources:
 models:
   - name: stg_google_campaign_daily
     description: 'Google Ads daily performance flattened from GAQL'
+    tests:
+      - unique_combination_of_columns:
+          combination:
+            - tenant_id
+            - customer_id
+            - campaign_id
+            - ad_group_id
+            - ad_id
+            - date
+    columns:
+      - name: tenant_id
+        description: 'Tenant identifier for row-level isolation.'
+        tests:
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: campaign_id
+        tests:
+          - not_null
+      - name: date
+        tests:
+          - not_null
   - name: stg_google_geographic_view
     description: 'Google Ads geographic performance view'
+    tests:
+      - unique_combination_of_columns:
+          combination:
+            - tenant_id
+            - customer_id
+            - date
+            - geo_target_id
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: date
+        tests:
+          - not_null
+      - name: geo_target_id
+        tests:
+          - not_null
