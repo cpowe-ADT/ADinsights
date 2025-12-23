@@ -2,6 +2,12 @@
 
 One-line, timestamped notes of agent-driven changes to help preserve context between sessions. Newest entries at the top.
 
+## 2025-12-23
+
+- 2025-12-23T13:55:33-0500 ci(deploy): add docker compose smoke workflow — Added `.github/workflows/deploy-smoke.yml` to validate deploy compose and smoke-check `/api/health/` + `/api/timezone/` in CI; commit 32fd468.
+- 2025-12-23T13:55:33-0500 test(qa): assert tenant switch fixture fallback — Strengthened Playwright smoke to confirm tenant switching works using `/mock/tenants.json` + `/sample_metrics.json` when APIs are unavailable; commit 7b03433.
+- 2025-12-23T13:55:33-0500 feat(dbt): add tenant_id to meta/google staging — Added `tenant_id` columns + schema tests for Airbyte-shaped staging models; ran `dbt run/test --select staging`; commit ef8b7da.
+
 ## 2025-10-21
 
 - 2025-10-21T14:38:25Z chore(tasks): propagate tenant context in background jobs — Ensure Celery tasks set/clear tenant context; add tests; commit 9e97840.
