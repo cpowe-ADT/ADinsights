@@ -1,0 +1,87 @@
+name: Deploy smoke
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'deploy/**'
+      - 'frontend/**'
+      - '.github/workflows/deploy-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: docker compose smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create backend env for CI
+        run: |
+          cat > backend/.env <<'EOF'
+          KMS_PROVIDER=local
+          KMS_KEY_ID=local-ci-kms
+          EOF
+
+      - name: Validate compose config
+        working-directory: deploy
+        run: docker compose config
+
+      - name: Build backend + frontend images
+        working-directory: deploy
+        run: docker compose build backend frontend
+
+      - name: Start stack
+        working-directory: deploy
+        run: docker compose up -d backend frontend
+
+      - name: Wait for backend health
+        working-directory: deploy
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8000/api/health/ >/dev/null; then
+              echo "Backend is responding."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend failed to respond in time."
+          docker compose logs backend
+          exit 1
+
+      - name: Run migrations
+        working-directory: deploy
+        run: docker compose exec -T backend python manage.py migrate --noinput
+
+      - name: Smoke check endpoints
+        working-directory: deploy
+        run: |
+          curl -fsS http://localhost:8000/api/health/ | tee /tmp/adinsights-health.json
+          curl -fsS http://localhost:8000/api/timezone/ | tee /tmp/adinsights-timezone.json
+          python3 - <<'PY'
+          import json
+
+          with open("/tmp/adinsights-health.json", encoding="utf-8") as handle:
+              payload = json.load(handle)
+          assert payload.get("status") == "ok", payload
+
+          with open("/tmp/adinsights-timezone.json", encoding="utf-8") as handle:
+              payload = json.load(handle)
+          assert payload.get("timezone") == "America/Jamaica", payload
+          PY
+
+          # These may be non-200 in CI (misconfigured / missing run results),
+          # but they should always return JSON payloads.
+          curl -sS http://localhost:8000/api/health/airbyte/ | python3 -c "import json,sys; p=json.load(sys.stdin); assert p.get('component')=='airbyte', p"
+          curl -sS http://localhost:8000/api/health/dbt/ | python3 -c "import json,sys; p=json.load(sys.stdin); assert p.get('component')=='dbt', p"
+
+          curl -fsS http://localhost:5173/ | head -n 20
+
+      - name: Tear down stack
+        if: always()
+        working-directory: deploy
+        run: docker compose down -v
+
