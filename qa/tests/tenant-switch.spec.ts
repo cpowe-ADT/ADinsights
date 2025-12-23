@@ -2,6 +2,7 @@ import { expect, test } from './fixtures/base';
 import { DashboardPage } from '../page-objects';
 import {
   aggregatedMetricsResponse,
+  campaignSnapshot,
   fulfillJson,
   parishAggregates,
 } from './support/sampleData';
@@ -12,7 +13,6 @@ const TENANTS = [
 ];
 
 const metricsSnapshot = {
-  tenant_id: 'tenant-qa',
   snapshot_generated_at: '2024-09-01T08:00:00-05:00',
   campaign: aggregatedMetricsResponse.campaign,
   creative: aggregatedMetricsResponse.creative,
@@ -21,45 +21,51 @@ const metricsSnapshot = {
 } as const;
 
 test.describe('tenant switching', () => {
-  test('switches tenants and surfaces dataset fallback', async ({ page, mockMode }) => {
+  test('switches tenants and uses fixture fallbacks when APIs are unavailable', async ({ page, mockMode }) => {
     test.skip(!mockMode, 'This spec runs in mock mode for deterministic UI coverage.');
     const dashboard = new DashboardPage(page);
 
-    if (mockMode) {
-      await page.route('**/mock/tenants.json', (route) => fulfillJson(route, TENANTS));
-      await page.route('**/sample_metrics.json', (route) => fulfillJson(route, metricsSnapshot));
-    } else {
-      await page.route('**/api/tenants/', (route) => fulfillJson(route, TENANTS));
-      await page.route('**/api/adapters/', (route) =>
-        fulfillJson(route, [
-          { key: 'warehouse', name: 'Warehouse', description: '', interfaces: [] },
-          { key: 'demo', name: 'Demo', description: '', interfaces: [], options: { demo_tenants: TENANTS } },
-        ]),
-      );
-      await page.route('**/api/metrics/**', (route) => fulfillJson(route, aggregatedMetricsResponse));
-    }
+    const requestCounts: Record<string, number> = {
+      tenantFixture: 0,
+      tenantApi: 0,
+      metricsFixture: 0,
+      metricsApi: 0,
+    };
+    page.on('request', (request) => {
+      const url = request.url();
+      if (url.includes('/mock/tenants.json')) {
+        requestCounts.tenantFixture += 1;
+      }
+      if (url.includes('/api/tenants')) {
+        requestCounts.tenantApi += 1;
+      }
+      if (url.includes('/sample_metrics.json')) {
+        requestCounts.metricsFixture += 1;
+      }
+      if (url.includes('/api/metrics/combined')) {
+        requestCounts.metricsApi += 1;
+      }
+    });
+
+    await page.route('**/mock/tenants.json', (route) => fulfillJson(route, TENANTS));
+    await page.route('**/sample_metrics.json', (route) => fulfillJson(route, metricsSnapshot));
 
     await dashboard.open();
+    await dashboard.waitForMetricsLoaded(campaignSnapshot.rows.length);
+    await expect(page.locator('.snapshot-indicator__text', { hasText: 'Demo dataset active' })).toBeVisible();
     await page.getByRole('button', { name: /Choose a tenant|Switch dashboards/i }).click();
 
     // Select the second tenant and confirm the header updates.
     await page.getByRole('option', { name: /Tenant Beta/i }).click();
     await expect(page.getByText(/Active tenant\s+Tenant Beta/i)).toBeVisible();
 
-    // Dataset toggle should allow switching to demo data if live is unavailable (only in live mode).
-    if (!mockMode) {
-      const datasetButton = page.getByRole('button', { name: /Use demo data|Use live data/i });
-      await datasetButton.click();
-      await expect(datasetButton).toHaveAttribute('aria-pressed', 'true');
-    }
+    await dashboard.waitForMetricsLoaded(campaignSnapshot.rows.length);
+    expect(requestCounts.tenantFixture).toBeGreaterThan(0);
+    expect(requestCounts.metricsFixture).toBeGreaterThan(0);
+    expect(requestCounts.tenantApi).toBe(0);
+    expect(requestCounts.metricsApi).toBe(0);
 
-    if (mockMode) {
-      await page.unroute('**/mock/tenants.json');
-      await page.unroute('**/sample_metrics.json');
-    } else {
-      await page.unroute('**/api/tenants/');
-      await page.unroute('**/api/adapters/');
-      await page.unroute('**/api/metrics/**');
-    }
+    await page.unroute('**/mock/tenants.json');
+    await page.unroute('**/sample_metrics.json');
   });
 });
