@@ -95,3 +95,15 @@
   {% set key_clean = key | replace("'", "") %}
   json_extract_string({{ json_expr }}, '$.{{ key_clean }}')
 {% endmacro %}
+
+{% macro json_array_agg_ordered(expression, order_by, distinct=false) %}
+  {{ adapter.dispatch('json_array_agg_ordered', 'adinsights')(expression, order_by, distinct) }}
+{% endmacro %}
+
+{% macro default__json_array_agg_ordered(expression, order_by, distinct=false) %}
+  jsonb_agg({% if distinct %}distinct {% endif %}{{ expression }} order by {{ order_by }})
+{% endmacro %}
+
+{% macro duckdb__json_array_agg_ordered(expression, order_by, distinct=false) %}
+  json(list({% if distinct %}distinct {% endif %}{{ expression }} order by {{ order_by }}))
+{% endmacro %}

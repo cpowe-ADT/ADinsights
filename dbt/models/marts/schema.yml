@@ -289,3 +289,32 @@ models:
           - not_null
       - name: reported_conversions
         description: 'Platform reported conversions prior to normalization.'
+
+  - name: vw_dashboard_aggregate_snapshot
+    description: 'Aggregated JSON payload per tenant used by the backend dashboard snapshot pipeline.'
+    columns:
+      - name: tenant_id
+        description: 'Tenant identifier for row-level isolation.'
+        tests:
+          - not_null
+          - unique
+      - name: generated_at
+        description: 'Timestamp of the latest underlying warehouse record included in the snapshot.'
+        tests:
+          - not_null
+      - name: campaign_metrics
+        description: 'Campaign summary/trend/table payload matching the frontend campaign schema.'
+        tests:
+          - not_null
+      - name: creative_metrics
+        description: 'Creative performance rows matching the frontend creative schema.'
+        tests:
+          - not_null
+      - name: budget_metrics
+        description: 'Budget pacing rows (empty until budget metadata is wired).'
+        tests:
+          - not_null
+      - name: parish_metrics
+        description: 'Parish aggregate rows matching the frontend map schema.'
+        tests:
+          - not_null
