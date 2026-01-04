@@ -21,6 +21,8 @@ services:
       DATABASE_URL: postgres://analytics:analytics@db:5432/adinsights
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
+      KMS_PROVIDER: local
+      KMS_KEY_ID: local-dev-kms
       TIME_ZONE: America/Jamaica
       DEBUG: '1'
     ports:
@@ -39,6 +41,8 @@ services:
       DATABASE_URL: postgres://analytics:analytics@db:5432/adinsights
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
+      KMS_PROVIDER: local
+      KMS_KEY_ID: local-dev-kms
       TIME_ZONE: America/Jamaica
       DEBUG: '1'
     depends_on:
