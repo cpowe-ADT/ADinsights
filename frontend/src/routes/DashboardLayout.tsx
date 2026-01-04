@@ -79,6 +79,8 @@ const DashboardLayout = () => {
     lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
   }));
 
+  const shellRef = useRef<HTMLDivElement>(null);
+  const dashboardTopRef = useRef<HTMLDivElement>(null);
   const layoutHydratedRef = useRef(false);
 
   useEffect(() => {
@@ -93,6 +95,41 @@ const DashboardLayout = () => {
     handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const shell = shellRef.current;
+    const dashboardTop = dashboardTopRef.current;
+    if (!shell || !dashboardTop) {
+      return undefined;
+    }
+
+    const updateHeight = () => {
+      const nextHeight = dashboardTop.getBoundingClientRect().height;
+      shell.style.setProperty('--dashboard-top-height', `${Math.ceil(nextHeight)}px`);
+    };
+
+    updateHeight();
+
+    const observer =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => {
+            updateHeight();
+          });
+
+    observer?.observe(dashboardTop);
+    window.addEventListener('resize', updateHeight, { passive: true });
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', updateHeight);
+      shell.style.removeProperty('--dashboard-top-height');
+    };
   }, []);
 
   useEffect(() => {
@@ -273,8 +310,8 @@ const DashboardLayout = () => {
   );
 
   return (
-    <div className="dashboard-shell">
-      <div className={`dashboard-top${isScrolled ? ' shadow' : ''}`}>
+    <div className="dashboard-shell" ref={shellRef}>
+      <div className={`dashboard-top${isScrolled ? ' shadow' : ''}`} ref={dashboardTopRef}>
         <header className="dashboard-header">
           <div className="dashboard-boundary dashboard-header__inner">
             <div className="dashboard-header__brand">

@@ -1548,7 +1548,7 @@ th.pinned {
 }
 .filter-bar {
   position: sticky;
-  top: 0;
+  top: var(--dashboard-top-height, 0px);
   z-index: 9;
   display: flex;
   flex-wrap: wrap;

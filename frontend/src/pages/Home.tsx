@@ -143,6 +143,12 @@ const DashboardPlaceholderIcon = () => (
 
 const Home = () => {
   const navigate = useNavigate();
+  const docsUrl =
+    import.meta.env.VITE_DOCS_URL?.trim() ||
+    'https://github.com/cpowe-ADT/ADinsights/blob/main/docs/ops/doc-index.md';
+  const releaseNotesUrl =
+    import.meta.env.VITE_RELEASE_NOTES_URL?.trim() ||
+    'https://github.com/cpowe-ADT/ADinsights/blob/main/docs/ops/agent-activity-log.md';
 
   const handleCreateReport = useCallback(() => {
     navigate('/dashboards/campaigns');
@@ -159,9 +165,9 @@ const Home = () => {
 
   const handleViewDocs = useCallback(() => {
     if (typeof window !== 'undefined') {
-      window.open('https://docs.adinsights.dev/', '_blank', 'noopener');
+      window.open(docsUrl, '_blank', 'noopener,noreferrer');
     }
-  }, []);
+  }, [docsUrl]);
 
   const quickActions: QuickAction[] = useMemo(
     () => [
@@ -322,7 +328,7 @@ const Home = () => {
             </p>
             <a
               className={styles.whatsNewLink}
-              href="https://docs.adinsights.dev/releases"
+              href={releaseNotesUrl}
               target="_blank"
               rel="noreferrer"
             >
