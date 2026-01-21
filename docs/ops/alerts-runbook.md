@@ -2,6 +2,8 @@
 
 This guide documents how to respond when dashboards or alerts indicate that the nightly sync is stale or incomplete. The scope includes Airbyte ingestion jobs, downstream dbt models, and the health signals wired into the observability stack.
 
+See `docs/ops/alert-thresholds-escalation.md` for the default alert thresholds and escalation workflow.
+
 ## When to engage this runbook
 
 - PagerDuty or Slack alerts for "Nightly sync lagging" or "Stale staging metrics".
@@ -51,6 +53,13 @@ Document any remediation in the incident ticket, especially if you contacted the
 - If staging models succeed but dashboards are still stale, trigger a targeted rebuild: `dbt --project-dir dbt run --select tag:nightly`.
 - Re-run the reporting jobs or API webhooks that consume the aggregates, if they are part of the automated schedule.
 - Communicate the updated completion time to stakeholders once metrics are backfill complete.
+
+## Step 4 — Verify snapshot freshness
+
+1. Call `/api/metrics/combined/?source=warehouse` for an impacted tenant and read `snapshot_generated_at`.
+2. Compare the timestamp to the current time (America/Jamaica). Treat snapshots older than 60 minutes as stale.
+3. If stale, run `python manage.py snapshot_metrics --tenant-id <UUID>` and verify the timestamp updates.
+4. If manual refresh succeeds but staleness returns within two cycles, escalate to Data Engineering and attach task logs.
 
 ## Contract validation
 

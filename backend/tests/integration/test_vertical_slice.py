@@ -39,8 +39,7 @@ def run_dbt(project_dir: Path) -> None:
             }
         )
 
-        base_cmd = [
-            "dbt",
+        base_args = [
             "--project-dir",
             str(project_dir),
             "--profiles-dir",
@@ -49,9 +48,26 @@ def run_dbt(project_dir: Path) -> None:
             "adinsights_duckdb",
         ]
 
-        subprocess.run(base_cmd + ["seed", "--full-refresh"], check=True, env=env)
-        subprocess.run(base_cmd + ["run", "--select", "staging_ci"], check=True, env=env)
-        subprocess.run(base_cmd + ["test", "--select", "staging_ci"], check=True, env=env)
+        subprocess.run(
+            [
+                "dbt",
+                "seed",
+                "--full-refresh",
+                "--exclude",
+                "path:seeds/raw/*",
+                "path:seeds/raw_meta/*",
+                "path:seeds/raw_google_ads/*",
+                *base_args,
+            ],
+            check=True,
+            env=env,
+        )
+        subprocess.run(
+            ["dbt", "run", "--select", "staging_ci", *base_args], check=True, env=env
+        )
+        subprocess.run(
+            ["dbt", "test", "--select", "staging_ci", *base_args], check=True, env=env
+        )
 
 
 @pytest.mark.django_db

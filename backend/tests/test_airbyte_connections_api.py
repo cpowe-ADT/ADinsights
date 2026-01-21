@@ -454,3 +454,23 @@ def test_airbyte_connection_summary(api_client, user, tenant):
 
     log = AuditLog.all_objects.get(action="airbyte_connection_summary_viewed")
     assert log.resource_id == "summary"
+
+
+@pytest.mark.django_db
+def test_airbyte_connection_summary_handles_unknown_provider(api_client, user, tenant):
+    AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Unknown Provider",
+        connection_id=uuid.uuid4(),
+        provider=None,
+        schedule_type=AirbyteConnection.SCHEDULE_MANUAL,
+    )
+
+    api_client.force_authenticate(user=user)
+    response = api_client.get("/api/airbyte/connections/summary/")
+    api_client.force_authenticate(user=None)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["by_provider"]["UNKNOWN"]["total"] == 1
+    assert payload["latest_sync"] is None

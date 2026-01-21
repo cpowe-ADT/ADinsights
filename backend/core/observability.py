@@ -96,6 +96,10 @@ class JsonFormatter(logging.Formatter):
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
+            "component": getattr(record, "component", record.name),
+            "tenant_id": getattr(record, "tenant_id", None),
+            "correlation_id": getattr(record, "correlation_id", None),
+            "task_id": getattr(record, "task_id", None),
         }
 
         for key, value in record.__dict__.items():

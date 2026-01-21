@@ -2,6 +2,16 @@
 
 One-line, timestamped notes of agent-driven changes to help preserve context between sessions. Newest entries at the top.
 
+## 2026-01-20
+
+- 2026-01-20T23:31:00-0500 docs(ops): add observability runbooks + log schema guidance — Added alert thresholds/escalation runbook, metrics scrape validation steps, observability stability tests checklist, and log schema/cardinality guidance; updated doc index and alerting runbook links. Pending commit.
+- 2026-01-20T23:36:28-0500 docs(ops): add Stream 6 definition of done — Documented completion checklist for observability & alerts; linked from workstreams and doc index. Pending commit.
+- 2026-01-20T23:38:36-0500 feat(backend): add required log fields to JSON formatter — Ensure component, tenant_id, correlation_id, and task_id are always present; added log schema test. Pending commit.
+
+## 2026-01-21
+
+- 2026-01-21T00:29:54-0500 chore(backend): align dev Airbyte/Prometheus host access — Added AIRBYTE_API_URL/TOKEN and host.docker.internal to ALLOWED_HOSTS in backend dev env to support local Airbyte health checks and Prometheus scraping. Pending commit.
+
 ## 2025-12-23
 
 - 2025-12-23T13:55:33-0500 ci(deploy): add docker compose smoke workflow — Added `.github/workflows/deploy-smoke.yml` to validate deploy compose and smoke-check `/api/health/` + `/api/timezone/` in CI; commit 32fd468.

@@ -240,7 +240,8 @@ class UserViewSet(
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        user = self.request.user
+        request = getattr(self, "request", None)
+        user = getattr(request, "user", None) if request is not None else None
         if user and user.is_authenticated:
             context.setdefault("tenant", getattr(user, "tenant", None))
             context.setdefault("invited_by", user)
@@ -312,7 +313,8 @@ class UserRoleViewSet(
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        user = self.request.user
+        request = getattr(self, "request", None)
+        user = getattr(request, "user", None) if request is not None else None
         if user and user.is_authenticated:
             context.setdefault("tenant", getattr(user, "tenant", None))
         return context
@@ -372,8 +374,9 @@ class ServiceAccountKeyViewSet(
 
     def get_serializer_context(self):  # type: ignore[override]
         context = super().get_serializer_context()
-        user = self.request.user
-        tenant = getattr(user, "tenant", None)
+        request = getattr(self, "request", None)
+        user = getattr(request, "user", None) if request is not None else None
+        tenant = getattr(user, "tenant", None) if user is not None else None
         if tenant is not None:
             context.setdefault("tenant", tenant)
         return context

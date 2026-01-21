@@ -114,6 +114,7 @@ isolated.
   - Code limited to observability modules; docs updated.
   - Alert configs stored (Terraform/GitHub, if applicable).
   - Cross-stream sync via weekly ops standup.
+  - Detailed checklist: `docs/ops/stream6-definition-of-done.md`.
 
 ## 7. BI & Deployment (`deploy/`, `docs/BI`, `docs/runbooks/deployment.md`)
 - **Owner / Effort** – Primary: Carlos; Backup: Mei. Effort: Medium.

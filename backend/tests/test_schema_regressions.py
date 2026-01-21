@@ -11,6 +11,7 @@ from django.core.management import call_command
 from django.utils import timezone
 from jsonschema import validate
 from rest_framework.test import APIClient
+import yaml
 
 from accounts.models import Tenant
 from integrations.models import AirbyteConnection, AirbyteJobTelemetry, TenantAirbyteSyncStatus
@@ -128,6 +129,27 @@ def test_airbyte_health_schema(telemetry_setup, dbt_run_results):
     assert payload["job_summary"]["job_count"] >= 1
 
 
+def test_combined_metrics_schema(telemetry_setup, dbt_run_results):
+    tenant = telemetry_setup
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="metrics-schema@example.com",
+        email="metrics-schema@example.com",
+        tenant=tenant,
+        password="schema-pass-123",
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.get("/api/metrics/combined/")
+    assert response.status_code == 200
+    payload = response.json()
+
+    validate(instance=payload, schema=load_schema("combined_metrics.schema.json"))
+    assert payload["campaign"]["summary"]["currency"]
+
+
 def test_dbt_health_schema(telemetry_setup, dbt_run_results):
     client = APIClient()
     response = client.get("/api/health/dbt/")
@@ -137,3 +159,13 @@ def test_dbt_health_schema(telemetry_setup, dbt_run_results):
     validate(instance=payload, schema=load_schema("dbt_health.schema.json"))
     assert payload["status"] == "ok"
     assert payload["generated_at"], "Generated timestamp should be populated"
+
+
+@pytest.mark.django_db
+def test_openapi_schema_includes_airbyte_connection_summary():
+    client = APIClient()
+    response = client.get("/api/schema/")
+    assert response.status_code == 200
+    payload = yaml.safe_load(response.content.decode("utf-8"))
+    paths = payload.get("paths", {})
+    assert "/api/airbyte/connections/summary/" in paths

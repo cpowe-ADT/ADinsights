@@ -64,6 +64,11 @@ Working rules to restate every session:
 | docs/project/user-journey-map.md | Core user workflows | Product workflow updates | docs/task_breakdown.md |
 | docs/runbooks/support-playbook.md | Support triage steps | Support process updates | docs/runbooks/operations.md |
 | docs/ops/escalation-matrix.md | Incident escalation routing | On-call/escalation changes | docs/ops/risk-register.md |
+| docs/ops/alert-thresholds-escalation.md | Default alert thresholds + escalation workflow (Owner: Omar/Hannah) | Alert tuning or contact changes | docs/runbooks/alerting.md, docs/ops/escalation-matrix.md |
+| docs/ops/alerts-runbook.md | Nightly sync alert response steps (Owner: Omar/Hannah) | Airbyte/dbt health or nightly sync changes | docs/runbooks/operations.md |
+| docs/ops/metrics-scrape-validation.md | Prometheus scrape + `/metrics/app/` smoke steps (Owner: Omar/Hannah) | Metrics endpoint or scrape config changes | docs/runbooks/operations.md |
+| docs/ops/observability-stability-tests.md | Observability stability tests + runbook QA checklist (Owner: Omar/Hannah) | Logging/metrics/alerting changes | docs/ops/alert-thresholds-escalation.md |
+| docs/ops/stream6-definition-of-done.md | Stream 6 observability completion checklist (Owner: Omar/Hannah) | Stream 6 DoD updates | docs/workstreams.md |
 | docs/ops/slo-sli-summary.md | SLO/SLI quick reference | SLO updates | docs/ops/slo-sli.md |
 | docs/project/metrics-glossary.md | Metrics definitions | Metric changes | dbt/README.md, docs/project/api-contract-changelog.md |
 | docs/ops/dashboard-links.md | Monitoring dashboard index | Dashboard changes | docs/ops/slo-sli-summary.md |
