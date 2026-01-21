@@ -1,43 +1,19 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
-export type DateRangePreset = 'today' | '7d' | '30d' | 'mtd' | 'custom';
+import {
+  DEFAULT_CHANNELS,
+  createDefaultFilterState,
+  type DateRangePreset,
+  type FilterBarState,
+} from '../lib/dashboardFilters';
 
-export type FilterBarState = {
-  dateRange: DateRangePreset;
-  customRange: {
-    start: string;
-    end: string;
-  };
-  channels: string[];
-  campaignQuery: string;
-};
+export type { DateRangePreset, FilterBarState } from '../lib/dashboardFilters';
 
 interface FilterBarProps {
   availableChannels?: string[];
   defaultState?: FilterBarState;
   onChange?: (nextState: FilterBarState) => void;
 }
-
-const toInputDate = (date: Date): string => {
-  const iso = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
-  return iso.slice(0, 10);
-};
-
-const createDefaultCustomRange = () => {
-  const today = new Date();
-  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  return {
-    start: toInputDate(startOfMonth),
-    end: toInputDate(today),
-  };
-};
-
-const createDefaultState = (): FilterBarState => ({
-  dateRange: '7d',
-  customRange: createDefaultCustomRange(),
-  channels: [],
-  campaignQuery: '',
-});
 
 const datePresets: { label: string; value: DateRangePreset }[] = [
   { label: 'Today', value: 'today' },
@@ -47,10 +23,11 @@ const datePresets: { label: string; value: DateRangePreset }[] = [
   { label: 'Custom', value: 'custom' },
 ];
 
-const defaultChannels = ['Meta Ads', 'Google Ads', 'LinkedIn', 'TikTok'];
-
 const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps) => {
-  const resolvedDefaultState = useMemo(() => defaultState ?? createDefaultState(), [defaultState]);
+  const resolvedDefaultState = useMemo(
+    () => defaultState ?? createDefaultFilterState(),
+    [defaultState],
+  );
   const [filters, setFilters] = useState<FilterBarState>(resolvedDefaultState);
   const [isCustomOpen, setIsCustomOpen] = useState(false);
   const [isChannelOpen, setIsChannelOpen] = useState(false);
@@ -144,7 +121,7 @@ const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps
     };
   }, [isChannelOpen]);
 
-  const channels = availableChannels ?? defaultChannels;
+  const channels = availableChannels ?? DEFAULT_CHANNELS;
 
   const handleSelectPreset = (value: DateRangePreset) => {
     setFilters((prev) => ({

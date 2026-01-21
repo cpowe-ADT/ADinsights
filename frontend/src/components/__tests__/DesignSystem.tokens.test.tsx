@@ -20,8 +20,10 @@ describe('design system guardrails', () => {
 
     expect(theme).toContain('--color-text-primary');
     expect(theme).toContain('--metric-card-surface');
+    expect(theme).toContain('--snapshot-indicator-fresh');
     expect(styles).toContain('.metric-card');
     expect(styles).toContain('.chart-card__header');
     expect(styles).toContain('.data-table__header');
+    expect(styles).toContain('.snapshot-indicator');
   });
 });

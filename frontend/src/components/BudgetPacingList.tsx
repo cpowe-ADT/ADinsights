@@ -17,7 +17,7 @@ const BudgetPacingList = ({ rows, currency }: BudgetPacingListProps) => {
         <p className="status-message muted">
           {selectedParish
             ? `No campaigns have pacing data for ${selectedParish} yet.`
-            : 'No campaigns have pacing data for the selected parish yet.'}
+            : 'No campaigns have pacing data yet.'}
         </p>
       ) : null}
       {rows.map((row) => {

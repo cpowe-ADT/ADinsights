@@ -12,6 +12,7 @@ import {
 import useDashboardStore, { CreativePerformanceRow } from '../state/useDashboardStore';
 import { formatCurrency, formatNumber, formatPercent, formatRatio } from '../lib/format';
 import { TABLE_VIEW_KEYS } from '../lib/savedViews';
+import FilterStatus from './FilterStatus';
 
 type CreativeTableViewState = {
   sorting?: SortingState;
@@ -140,7 +141,10 @@ const CreativeTable = ({ rows, currency }: CreativeTableProps) => {
     <div className="table-card">
       <div className="table-card__header">
         <div>
-          <h3>Top creatives</h3>
+          <div className="table-card__title-row">
+            <h3>Top creatives</h3>
+            <FilterStatus />
+          </div>
           {selectedParish ? (
             <p className="status-message muted">Showing creatives active in {selectedParish}.</p>
           ) : (

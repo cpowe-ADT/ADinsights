@@ -96,7 +96,7 @@ const DatasetToggle = (): JSX.Element | null => {
 
   return (
     <div className="dataset-toggle">
-      <span className="muted dataset-toggle__badge">{badge}</span>
+      <span className="dataset-toggle__badge">{badge}</span>
       <button
         type="button"
         className="button secondary"
@@ -115,7 +115,7 @@ const DatasetToggle = (): JSX.Element | null => {
         {statusMessage}
       </p>
       {mode === 'dummy' && demoTenants.length > 0 ? (
-        <label className="muted dataset-toggle__selector">
+        <label className="dataset-toggle__selector">
           Demo tenant
           <select
             value={demoTenantId ?? demoTenants[0]?.id}
@@ -131,27 +131,27 @@ const DatasetToggle = (): JSX.Element | null => {
         </label>
       ) : null}
       {isLoading ? (
-        <span className="muted dataset-toggle__error">
+        <span className="dataset-toggle__error">
           Loading dataset availability…
         </span>
       ) : null}
       {error ? (
-        <span className="muted dataset-toggle__error">
+        <span className="dataset-toggle__error">
           {error}
         </span>
       ) : null}
       {!hasLiveData && mode === 'dummy' ? (
-        <span className="muted dataset-toggle__error" role="status">
+        <span className="dataset-toggle__error" role="status">
           Live warehouse data unavailable.
         </span>
       ) : null}
       {!hasDemoData && mode === 'live' ? (
-        <span className="muted dataset-toggle__error" role="status">
+        <span className="dataset-toggle__error" role="status">
           Demo dataset unavailable.
         </span>
       ) : null}
       {!source ? (
-        <span className="muted dataset-toggle__error" role="status">
+        <span className="dataset-toggle__error" role="status">
           Dataset unavailable. Results may be empty.
         </span>
       ) : null}

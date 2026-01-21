@@ -119,34 +119,65 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     setGeometryStatus('loading');
     setGeometryError(undefined);
 
-    fetchParishGeometry({
-      path: withTenant('/analytics/parish-geometry/', tenant),
-      mockPath: '/jm_parishes.json',
-      signal: controller.signal,
-    })
+    const fetchFromPath = (path: string) =>
+      fetchParishGeometry({
+        path,
+        mockPath: '/jm_parishes.json',
+        signal: controller.signal,
+      });
+
+    const loadLocalFallback = async () => {
+      const response = await fetch('/jm_parishes.json', { signal: controller.signal });
+      if (!response.ok) {
+        throw new Error('Fallback parish geometry load failed.');
+      }
+      return (await response.json()) as FeatureCollection;
+    };
+
+    const resolveGeometry = async () => {
+      try {
+        return await fetchFromPath(withTenant('/dashboards/parish-geometry/', tenant));
+      } catch (error) {
+        if (controller.signal.aborted) {
+          throw error;
+        }
+      }
+
+      const fallbackPaths = [withTenant('/analytics/parish-geometry/', tenant)];
+      for (const path of fallbackPaths) {
+        try {
+          return await fetchFromPath(path);
+        } catch (error) {
+          if (controller.signal.aborted) {
+            throw error;
+          }
+        }
+      }
+
+      if (MOCK_MODE) {
+        return loadLocalFallback();
+      }
+
+      try {
+        return await loadLocalFallback();
+      } catch (fallbackError) {
+        console.warn('Fallback parish geometry load failed', fallbackError);
+        throw fallbackError;
+      }
+    };
+
+    resolveGeometry()
       .then((data) => {
+        if (controller.signal.aborted) {
+          return;
+        }
         setGeojson(data);
         setGeometryStatus('loaded');
         geometryControllerRef.current = null;
       })
-      .catch(async (error: unknown) => {
+      .catch((error: unknown) => {
         if (controller.signal.aborted) {
           return;
-        }
-
-        if (MOCK_MODE) {
-          try {
-            const response = await fetch('/jm_parishes.json');
-            if (response.ok) {
-              const data = (await response.json()) as FeatureCollection;
-              setGeojson(data);
-              setGeometryStatus('loaded');
-              geometryControllerRef.current = null;
-              return;
-            }
-          } catch (fallbackError) {
-            console.warn('Fallback parish geometry load failed', fallbackError);
-          }
         }
 
         console.error('Failed to load parish geometry', error);

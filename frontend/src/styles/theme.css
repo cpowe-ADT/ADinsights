@@ -111,6 +111,15 @@
     --shell-status-text: var(--color-slate-700);
     --shell-status-text-error: var(--color-red-500);
 
+    --dataset-toggle-text: var(--color-text-primary);
+    --dataset-toggle-muted: var(--color-text-secondary);
+
+    --snapshot-indicator-text: var(--color-text-secondary);
+    --snapshot-indicator-fresh: var(--color-green-500);
+    --snapshot-indicator-stale: #b45309;
+    --snapshot-indicator-pending: var(--color-slate-400);
+    --snapshot-indicator-demo: var(--color-blue-600);
+
     --metric-card-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.95), var(--color-slate-50));
     --metric-card-border: rgba(15, 23, 42, 0.08);
     --metric-card-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
@@ -300,6 +309,15 @@
     --shell-status-surface-error: rgba(248, 113, 113, 0.22);
     --shell-status-text: rgba(226, 232, 240, 0.8);
     --shell-status-text-error: #fecaca;
+
+    --dataset-toggle-text: var(--color-text-primary);
+    --dataset-toggle-muted: var(--color-text-muted);
+
+    --snapshot-indicator-text: var(--color-text-muted);
+    --snapshot-indicator-fresh: var(--color-green-500);
+    --snapshot-indicator-stale: #f59e0b;
+    --snapshot-indicator-pending: var(--color-slate-500);
+    --snapshot-indicator-demo: var(--color-blue-400);
 
     --metric-card-surface: linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.92));
     --metric-card-border: rgba(148, 163, 184, 0.2);

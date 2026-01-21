@@ -10,6 +10,7 @@ import { loadDashboardLayout, saveDashboardLayout } from '../lib/layoutPreferenc
 import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
 import DatasetToggle from '../components/DatasetToggle';
 import TenantSwitcher from '../components/TenantSwitcher';
+import SnapshotIndicator from '../components/SnapshotIndicator';
 import useDashboardStore from '../state/useDashboardStore';
 import { useDatasetStore } from '../state/useDatasetStore';
 
@@ -48,13 +49,10 @@ const DashboardLayout = () => {
   const availableAdapters = useDatasetStore((state) => state.adapters);
   const hasLiveData = availableAdapters.includes('warehouse');
 
-  const handleFilterChange = useCallback((state: FilterBarState) => {
-    void state;
-    // TODO: Connect filters to dashboard data fetching once APIs support it.
-  }, []);
-
   const {
     loadAll,
+    filters,
+    setFilters,
     selectedMetric,
     setSelectedMetric,
     selectedParish,
@@ -67,6 +65,8 @@ const DashboardLayout = () => {
     lastSnapshotGeneratedAt,
   } = useDashboardStore((state) => ({
     loadAll: state.loadAll,
+    filters: state.filters,
+    setFilters: state.setFilters,
     selectedMetric: state.selectedMetric,
     setSelectedMetric: state.setSelectedMetric,
     selectedParish: state.selectedParish,
@@ -79,13 +79,24 @@ const DashboardLayout = () => {
     lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
   }));
 
+  const handleFilterChange = useCallback(
+    (state: FilterBarState) => {
+      setFilters(state);
+    },
+    [setFilters],
+  );
+
   const shellRef = useRef<HTMLDivElement>(null);
   const dashboardTopRef = useRef<HTMLDivElement>(null);
   const layoutHydratedRef = useRef(false);
 
   useEffect(() => {
-    void loadAll(tenantId);
-  }, [loadAll, tenantId]);
+    const delay = filters.campaignQuery.trim().length > 0 ? 350 : 0;
+    const handle = window.setTimeout(() => {
+      void loadAll(tenantId);
+    }, delay);
+    return () => window.clearTimeout(handle);
+  }, [filters, loadAll, tenantId]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -304,6 +315,15 @@ const DashboardLayout = () => {
     }
     return snapshotRelative ? `Updated ${snapshotRelative}` : 'Live snapshot available';
   }, [datasetMode, lastSnapshotGeneratedAt, snapshotRelative]);
+  const snapshotTone = useMemo(() => {
+    if (datasetMode !== 'live') {
+      return 'demo';
+    }
+    if (!lastSnapshotGeneratedAt) {
+      return 'pending';
+    }
+    return snapshotIsStale ? 'stale' : 'fresh';
+  }, [datasetMode, lastSnapshotGeneratedAt, snapshotIsStale]);
   const snapshotAbsolute = useMemo(
     () => formatAbsoluteTime(lastSnapshotGeneratedAt),
     [lastSnapshotGeneratedAt],
@@ -330,14 +350,11 @@ const DashboardLayout = () => {
               <div className="dashboard-header__meta">
                 <TenantSwitcher />
                 <DatasetToggle />
-                <div
-                  className={`snapshot-indicator${
-                    snapshotIsStale ? ' snapshot-indicator--stale' : ''
-                  }`}
-                  title={snapshotAbsolute ?? undefined}
-                >
-                  <span className="snapshot-indicator__text">{snapshotStatusLabel}</span>
-                </div>
+                <SnapshotIndicator
+                  label={snapshotStatusLabel}
+                  tone={snapshotTone}
+                  timestamp={snapshotAbsolute}
+                />
               </div>
               <div className="dashboard-header__controls">
                 <label htmlFor="metric-select" className="dashboard-field">

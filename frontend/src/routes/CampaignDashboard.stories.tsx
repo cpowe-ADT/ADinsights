@@ -12,6 +12,7 @@ import {
   getDemoSnapshot,
   type DemoTenantKey,
 } from '../storyData/demoSnapshots';
+import { createDefaultFilterState, serializeFilterQueryParams } from '../lib/dashboardFilters';
 
 interface StoreBootstrapProps {
   tenantId: DemoTenantKey;
@@ -49,7 +50,7 @@ const StoreBootstrap = ({ tenantId, datasetMode = 'dummy', snapshotVariant = 'fr
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = resolveUrl(input);
-      if (url.includes('/analytics/parish-geometry/')) {
+      if (url.includes('/dashboards/parish-geometry/') || url.includes('/analytics/parish-geometry/')) {
         return originalFetch('/jm_parishes.json', init);
       }
       return originalFetch(input, init);
@@ -78,6 +79,8 @@ const StoreBootstrap = ({ tenantId, datasetMode = 'dummy', snapshotVariant = 'fr
       snapshotVariant === 'pending'
         ? undefined
         : new Date(now.getTime() - snapshotAgeMinutes * 60 * 1000).toISOString();
+    const defaultFilters = createDefaultFilterState();
+    const filterKey = serializeFilterQueryParams(defaultFilters) || 'default';
 
     useDatasetStore.setState({
       adapters: ['warehouse', 'demo'],
@@ -91,6 +94,7 @@ const StoreBootstrap = ({ tenantId, datasetMode = 'dummy', snapshotVariant = 'fr
 
     useDashboardStore.setState((state) => ({
       ...state,
+      filters: defaultFilters,
       activeTenantId: snapshot.id,
       activeTenantLabel: snapshot.label,
       lastLoadedTenantId: snapshot.id,
@@ -104,7 +108,7 @@ const StoreBootstrap = ({ tenantId, datasetMode = 'dummy', snapshotVariant = 'fr
       parish: { status: 'loaded', data: snapshot.metrics.parish, error: undefined },
       metricsCache: {
         ...state.metricsCache,
-        [`${snapshot.id}::dummy`]: {
+        [`${snapshot.id}::${datasetMode}::${filterKey}`]: {
           campaign: snapshot.metrics.campaign,
           creative: snapshot.metrics.creative,
           budget: snapshot.metrics.budget,

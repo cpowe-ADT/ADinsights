@@ -14,6 +14,7 @@ import useDashboardStore, { CampaignPerformanceRow } from '../state/useDashboard
 import { formatCurrency, formatNumber, formatPercent, formatRatio } from '../lib/format';
 import { TABLE_VIEW_KEYS } from '../lib/savedViews';
 import EmptyState from './EmptyState';
+import FilterStatus from './FilterStatus';
 import Skeleton from './Skeleton';
 
 type CampaignTableViewState = {
@@ -246,7 +247,10 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
     <div className="table-card" aria-busy={isLoading}>
       <div className="table-card__header">
         <div>
-          <h3>Performance breakdown</h3>
+          <div className="table-card__title-row">
+            <h3>Performance breakdown</h3>
+            <FilterStatus />
+          </div>
           {selectedParish ? (
             <p className="status-message muted">
               Filtering to <strong>{selectedParish}</strong>

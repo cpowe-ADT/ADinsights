@@ -87,6 +87,12 @@ vi.mock('../../state/useDashboardStore', async () => {
   };
 
   const mockState = {
+    filters: {
+      dateRange: '7d' as const,
+      customRange: { start: '2024-10-01', end: '2024-10-07' },
+      channels: [],
+      campaignQuery: '',
+    },
     selectedParish: undefined,
     selectedMetric: 'spend' as const,
     campaign: { status: 'loaded', data: campaignData, error: undefined },
@@ -96,8 +102,10 @@ vi.mock('../../state/useDashboardStore', async () => {
     activeTenantId: 'demo',
     activeTenantLabel: 'Demo Tenant',
     lastLoadedTenantId: 'demo',
+    lastLoadedFiltersKey: undefined,
     metricsCache: {},
     loadAll: vi.fn(),
+    setFilters: vi.fn(),
     getCampaignRowsForSelectedParish: () => campaignData.rows,
     getCreativeRowsForSelectedParish: () => [],
     getBudgetRowsForSelectedParish: () => [],
@@ -198,7 +206,11 @@ describe('CampaignDashboard layout', () => {
       .spyOn(global, 'fetch')
       .mockImplementation(async (input: RequestInfo | URL) => {
         const url = typeof input === 'string' ? input : input.url;
-        if (url.includes('/analytics/parish-geometry') || url.endsWith('/jm_parishes.json')) {
+        if (
+          url.includes('/dashboards/parish-geometry') ||
+          url.includes('/analytics/parish-geometry') ||
+          url.endsWith('/jm_parishes.json')
+        ) {
           return new Response(JSON.stringify(geometryFixture), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
