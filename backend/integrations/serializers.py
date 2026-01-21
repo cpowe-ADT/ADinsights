@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from rest_framework import serializers
+from django.utils import timezone
+from croniter import croniter
 
 from accounts.models import Tenant
-from .models import AlertRuleDefinition, CampaignBudget, PlatformCredential
+from .models import AlertRuleDefinition, CampaignBudget, PlatformCredential, AirbyteConnection
 
 
 class PlatformCredentialSerializer(serializers.ModelSerializer):
@@ -60,6 +62,124 @@ class PlatformCredentialSerializer(serializers.ModelSerializer):
         rep.pop("access_token", None)
         rep.pop("refresh_token", None)
         return rep
+
+
+class AirbyteConnectionSerializer(serializers.ModelSerializer):
+    connection_id = serializers.UUIDField()
+    workspace_id = serializers.UUIDField(required=False, allow_null=True)
+    schedule_type = serializers.ChoiceField(
+        choices=AirbyteConnection.SCHEDULE_CHOICES, required=False
+    )
+    interval_minutes = serializers.IntegerField(required=False, allow_null=True)
+    cron_expression = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = AirbyteConnection
+        fields = [
+            "id",
+            "name",
+            "connection_id",
+            "workspace_id",
+            "provider",
+            "schedule_type",
+            "interval_minutes",
+            "cron_expression",
+            "is_active",
+            "last_synced_at",
+            "last_job_id",
+            "last_job_status",
+            "last_job_created_at",
+            "last_job_updated_at",
+            "last_job_completed_at",
+            "last_job_error",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "last_synced_at",
+            "last_job_id",
+            "last_job_status",
+            "last_job_created_at",
+            "last_job_updated_at",
+            "last_job_completed_at",
+            "last_job_error",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+        attrs = super().validate(attrs)
+
+        schedule_type = attrs.get("schedule_type")
+        if schedule_type is None and self.instance is not None:
+            schedule_type = self.instance.schedule_type
+        if schedule_type is None:
+            schedule_type = AirbyteConnection.SCHEDULE_INTERVAL
+
+        interval_minutes = (
+            attrs.get("interval_minutes")
+            if "interval_minutes" in attrs
+            else getattr(self.instance, "interval_minutes", None)
+        )
+        cron_expression = (
+            attrs.get("cron_expression")
+            if "cron_expression" in attrs
+            else getattr(self.instance, "cron_expression", "")
+        )
+        cron_expression_value = cron_expression.strip() if isinstance(cron_expression, str) else ""
+
+        if schedule_type == AirbyteConnection.SCHEDULE_INTERVAL:
+            if interval_minutes is None:
+                raise serializers.ValidationError(
+                    {"interval_minutes": "Interval minutes are required for interval schedules."}
+                )
+            if interval_minutes <= 0:
+                raise serializers.ValidationError(
+                    {"interval_minutes": "Interval minutes must be positive."}
+                )
+            if "cron_expression" in attrs:
+                if cron_expression_value:
+                    raise serializers.ValidationError(
+                        {"cron_expression": "Cron expression is only valid for cron schedules."}
+                    )
+                attrs["cron_expression"] = ""
+            elif "schedule_type" in attrs:
+                attrs["cron_expression"] = ""
+
+        elif schedule_type == AirbyteConnection.SCHEDULE_CRON:
+            if not cron_expression_value:
+                raise serializers.ValidationError(
+                    {"cron_expression": "Cron expression is required for cron schedules."}
+                )
+            try:
+                croniter(cron_expression_value, timezone.now())
+            except (TypeError, ValueError) as exc:
+                raise serializers.ValidationError(
+                    {"cron_expression": "Cron expression is invalid."}
+                ) from exc
+            attrs["cron_expression"] = cron_expression_value
+            if "interval_minutes" in attrs and attrs["interval_minutes"] is not None:
+                raise serializers.ValidationError(
+                    {"interval_minutes": "Interval minutes are only valid for interval schedules."}
+                )
+            if "schedule_type" in attrs:
+                attrs["interval_minutes"] = None
+
+        elif schedule_type == AirbyteConnection.SCHEDULE_MANUAL:
+            if "interval_minutes" in attrs and attrs["interval_minutes"] is not None:
+                raise serializers.ValidationError(
+                    {"interval_minutes": "Interval minutes are not allowed for manual schedules."}
+                )
+            if "cron_expression" in attrs and cron_expression_value:
+                raise serializers.ValidationError(
+                    {"cron_expression": "Cron expression is not allowed for manual schedules."}
+                )
+            if "schedule_type" in attrs:
+                attrs.setdefault("interval_minutes", None)
+                attrs.setdefault("cron_expression", "")
+
+        return attrs
 
 
 class CampaignBudgetSerializer(serializers.ModelSerializer):

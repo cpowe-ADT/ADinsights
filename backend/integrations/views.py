@@ -39,12 +39,15 @@ from .models import (
     CampaignBudget,
     ConnectionSyncUpdate,
     PlatformCredential,
+    TenantAirbyteSyncStatus,
 )
 from .serializers import (
+    AirbyteConnectionSerializer,
     AlertRuleDefinitionSerializer,
     CampaignBudgetSerializer,
     PlatformCredentialSerializer,
 )
+from core.serializers import TenantAirbyteSyncStatusSerializer
 
 
 logger = logging.getLogger(__name__)
@@ -109,7 +112,8 @@ class PlatformCredentialViewSet(viewsets.ModelViewSet):
         )
 
 
-class AirbyteConnectionViewSet(viewsets.GenericViewSet):
+class AirbyteConnectionViewSet(viewsets.ModelViewSet):
+    serializer_class = AirbyteConnectionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -119,6 +123,115 @@ class AirbyteConnectionViewSet(viewsets.GenericViewSet):
         return AirbyteConnection.objects.filter(tenant_id=user.tenant_id).order_by(
             "name"
         )
+
+    def perform_create(self, serializer):
+        connection = serializer.save(tenant=self.request.user.tenant)
+        actor = self.request.user if self.request.user.is_authenticated else None
+        log_audit_event(
+            tenant=connection.tenant,
+            user=actor,
+            action="airbyte_connection_created",
+            resource_type="airbyte_connection",
+            resource_id=connection.id,
+            metadata={
+                "connection_id": str(connection.connection_id),
+                "provider": connection.provider,
+                "schedule_type": connection.schedule_type,
+            },
+        )
+
+    def perform_update(self, serializer):
+        connection = serializer.save()
+        actor = self.request.user if self.request.user.is_authenticated else None
+        log_audit_event(
+            tenant=connection.tenant,
+            user=actor,
+            action="airbyte_connection_updated",
+            resource_type="airbyte_connection",
+            resource_id=connection.id,
+            metadata={
+                "connection_id": str(connection.connection_id),
+                "provider": connection.provider,
+                "schedule_type": connection.schedule_type,
+                "is_active": connection.is_active,
+            },
+        )
+
+    def perform_destroy(self, instance):
+        connection_id = str(instance.connection_id)
+        provider = instance.provider
+        schedule_type = instance.schedule_type
+        tenant = instance.tenant
+        actor = self.request.user if self.request.user.is_authenticated else None
+        super().perform_destroy(instance)
+        log_audit_event(
+            tenant=tenant,
+            user=actor,
+            action="airbyte_connection_deleted",
+            resource_type="airbyte_connection",
+            resource_id=str(instance.id),
+            metadata={
+                "connection_id": connection_id,
+                "provider": provider,
+                "schedule_type": schedule_type,
+            },
+        )
+
+    @action(detail=False, methods=["get"], url_path="summary")
+    def summary(self, request):
+        connections = list(self.get_queryset())
+        now = timezone.now()
+
+        total = len(connections)
+        active = sum(1 for connection in connections if connection.is_active)
+        inactive = total - active
+        due = sum(1 for connection in connections if connection.should_trigger(now))
+
+        by_provider: Dict[str, Dict[str, int]] = {}
+        for connection in connections:
+            provider_key = connection.provider or "UNKNOWN"
+            entry = by_provider.setdefault(
+                provider_key, {"total": 0, "active": 0, "due": 0}
+            )
+            entry["total"] += 1
+            if connection.is_active:
+                entry["active"] += 1
+            if connection.should_trigger(now):
+                entry["due"] += 1
+
+        sync_status = (
+            TenantAirbyteSyncStatus.objects.select_related("last_connection")
+            .filter(tenant_id=request.user.tenant_id)
+            .first()
+        )
+
+        payload = {
+            "total": total,
+            "active": active,
+            "inactive": inactive,
+            "due": due,
+            "by_provider": by_provider,
+            "latest_sync": TenantAirbyteSyncStatusSerializer(sync_status).data
+            if sync_status
+            else None,
+        }
+
+        actor = request.user if request.user.is_authenticated else None
+        log_audit_event(
+            tenant=request.user.tenant,
+            user=actor,
+            action="airbyte_connection_summary_viewed",
+            resource_type="airbyte_connection",
+            resource_id="summary",
+            metadata={
+                "total": total,
+                "active": active,
+                "inactive": inactive,
+                "due": due,
+            },
+        )
+
+        return Response(payload)
 
     @action(detail=False, methods=["get"], url_path="health")
     def health(self, request):

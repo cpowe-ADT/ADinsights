@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import csv
+import json
 import logging
 from datetime import datetime, timedelta
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 from django.conf import settings
@@ -36,6 +38,7 @@ from .serializers import (
     AdSetSerializer,
     AggregateSnapshotSerializer,
     CampaignSerializer,
+    CombinedMetricsQueryParamsSerializer,
     MetricRecordSerializer,
     MetricsQueryParamsSerializer,
     RawPerformanceRecordSerializer,
@@ -62,6 +65,29 @@ METRIC_EXPORT_HEADERS = [
     "conversions",
     "roas",
 ]
+
+_PARISH_GEOJSON_PATH = Path(settings.BASE_DIR) / "analytics" / "assets" / "jm_parishes.json"
+
+
+@lru_cache(maxsize=1)
+def _load_parish_geojson() -> dict[str, Any] | None:
+    try:
+        raw = _PARISH_GEOJSON_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        logger.warning(
+            "parish.geometry.missing",
+            extra={"path": str(_PARISH_GEOJSON_PATH)},
+        )
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        logger.error(
+            "parish.geometry.invalid",
+            extra={"path": str(_PARISH_GEOJSON_PATH)},
+            exc_info=exc,
+        )
+        return None
 
 
 class TenantScopedModelViewSet(viewsets.ModelViewSet):
@@ -245,12 +271,17 @@ class CombinedMetricsView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        filters_serializer = CombinedMetricsQueryParamsSerializer(data=request.query_params)
+        filters_serializer.is_valid(raise_exception=True)
+        filters = filters_serializer.validated_data
+        has_filters = bool(filters.get("start_date") or filters.get("end_date") or filters.get("parish"))
+
         ttl_seconds = getattr(settings, "METRICS_SNAPSHOT_TTL", 300)
         cache_enabled = request.query_params.get("cache", "true").lower() != "false"
         tenant = request.user.tenant
         snapshot = (
             TenantMetricsSnapshot.latest_for(tenant=tenant, source=source)
-            if cache_enabled
+            if cache_enabled and not has_filters
             else None
         )
         if snapshot and snapshot.is_fresh(ttl_seconds):
@@ -258,19 +289,22 @@ class CombinedMetricsView(APIView):
             cached_payload["snapshot_generated_at"] = snapshot.generated_at.isoformat()
             return Response(cached_payload)
 
+        options = request.query_params.dict()
+        options.update(filters)
         payload = adapter.fetch_metrics(
             tenant_id=str(tenant_id),
-            options=request.query_params,
+            options=options,
         )
         combined, generated_at = _normalize_combined_payload(payload)
-        TenantMetricsSnapshot.objects.update_or_create(
-            tenant=tenant,
-            source=source,
-            defaults={
-                "payload": combined,
-                "generated_at": generated_at,
-            },
-        )
+        if not has_filters:
+            TenantMetricsSnapshot.objects.update_or_create(
+                tenant=tenant,
+                source=source,
+                defaults={
+                    "payload": combined,
+                    "generated_at": generated_at,
+                },
+            )
         return Response(combined)
 
 
@@ -396,6 +430,21 @@ class AggregateSnapshotView(APIView):
         )
 
         return Response(serializer.data)
+
+
+class ParishGeometryView(APIView):
+    """Serve static parish GeoJSON used by the map view."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request) -> Response:  # noqa: D401 - DRF signature
+        payload = _load_parish_geojson()
+        if payload is None:
+            return Response(
+                {"detail": "Parish geometry is unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(payload)
 
 
 def _fetch_metric_rows(*, tenant_id: str, filters: dict[str, Any]) -> list[dict[str, Any]]:

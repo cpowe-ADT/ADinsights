@@ -7,6 +7,7 @@ from .views import (
     AdSetViewSet,
     AdViewSet,
     CampaignViewSet,
+    ParishGeometryView,
     RawPerformanceRecordViewSet,
 )
 
@@ -20,4 +21,7 @@ router.register(
     basename="analytics-performance-record",
 )
 
-urlpatterns = [path("", include(router.urls))]
+urlpatterns = [
+    path("parish-geometry/", ParishGeometryView.as_view(), name="analytics-parish-geometry"),
+    path("", include(router.urls)),
+]

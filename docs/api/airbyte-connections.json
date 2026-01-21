@@ -1,0 +1,58 @@
+{
+  "endpoint": "GET /api/airbyte/connections/",
+  "description": "List Airbyte connections scoped to the authenticated tenant, including scheduling metadata and latest job state fields.",
+  "authentication": "JWT access token required.",
+  "response": [
+    {
+      "id": "c1fd01dd-6f43-4b79-8a54-3bb4d9b4b2cf",
+      "name": "Meta Ads Incremental",
+      "connection_id": "83c2c674-8d24-4da8-86f8-8385dff8c0f5",
+      "workspace_id": "8cc20e83-9b0a-4473-bf2f-89e8d0e9a434",
+      "provider": "META",
+      "schedule_type": "interval",
+      "interval_minutes": 60,
+      "cron_expression": "",
+      "is_active": true,
+      "last_synced_at": "2024-04-03T15:42:10.125000Z",
+      "last_job_id": "job-123",
+      "last_job_status": "succeeded",
+      "last_job_created_at": "2024-04-03T15:41:10.125000Z",
+      "last_job_updated_at": "2024-04-03T15:42:10.125000Z",
+      "last_job_completed_at": "2024-04-03T15:42:10.125000Z",
+      "last_job_error": "",
+      "created_at": "2024-04-01T09:00:00.000000Z",
+      "updated_at": "2024-04-03T15:42:10.125000Z"
+    }
+  ],
+  "summary_endpoint": {
+    "endpoint": "GET /api/airbyte/connections/summary/",
+    "description": "Return a per-tenant summary of connection counts and the latest sync metadata.",
+    "response": {
+      "total": 3,
+      "active": 2,
+      "inactive": 1,
+      "due": 1,
+      "by_provider": {
+        "META": { "total": 2, "active": 1, "due": 1 },
+        "GOOGLE": { "total": 1, "active": 1, "due": 0 }
+      },
+      "latest_sync": {
+        "tenant_id": "0f4c6f48-2e0c-4ba7-9e48-5fdc5a5be9d2",
+        "last_synced_at": "2024-04-03T15:42:10.125000Z",
+        "last_job_id": "job-123",
+        "last_job_status": "succeeded",
+        "last_job_updated_at": "2024-04-03T15:42:10.125000Z",
+        "last_job_completed_at": "2024-04-03T15:42:10.125000Z",
+        "last_job_error": null,
+        "connection": {
+          "id": "c1fd01dd-6f43-4b79-8a54-3bb4d9b4b2cf",
+          "name": "Meta Ads Incremental",
+          "connection_id": "83c2c674-8d24-4da8-86f8-8385dff8c0f5",
+          "workspace_id": "8cc20e83-9b0a-4473-bf2f-89e8d0e9a434",
+          "provider": "META"
+        }
+      }
+    }
+  },
+  "openapi": "The live OpenAPI schema for connection endpoints is available at GET /api/schema/."
+}

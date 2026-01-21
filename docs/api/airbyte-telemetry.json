@@ -16,6 +16,9 @@
       "last_synced_at": "2024-04-03T15:42:10.125000Z",
       "last_job_id": "job-123",
       "last_job_status": "succeeded",
+      "last_job_updated_at": "2024-04-03T15:42:10.125000Z",
+      "last_job_completed_at": "2024-04-03T15:42:10.125000Z",
+      "last_job_error": null,
       "connection": {
         "id": "c1fd01dd-6f43-4b79-8a54-3bb4d9b4b2cf",
         "name": "Meta Ads Incremental",
@@ -58,5 +61,6 @@
         }
       }
     ]
-  }
+  },
+  "openapi": "The live OpenAPI schema for telemetry endpoints is available at GET /api/schema/."
 }
