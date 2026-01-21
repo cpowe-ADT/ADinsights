@@ -1,0 +1,172 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Combined Metrics Payload",
+  "type": "object",
+  "required": ["campaign", "creative", "budget", "parish", "snapshot_generated_at"],
+  "properties": {
+    "tenant_id": {"type": "string"},
+    "tenant_label": {"type": "string"},
+    "snapshot_generated_at": {"type": "string"},
+    "campaign": {
+      "type": "object",
+      "required": ["summary", "trend", "rows"],
+      "properties": {
+        "summary": {
+          "type": "object",
+          "required": [
+            "currency",
+            "totalSpend",
+            "totalImpressions",
+            "totalClicks",
+            "totalConversions",
+            "averageRoas"
+          ],
+          "properties": {
+            "currency": {"type": "string"},
+            "totalSpend": {"type": "number"},
+            "totalImpressions": {"type": "number"},
+            "totalClicks": {"type": "number"},
+            "totalConversions": {"type": "number"},
+            "averageRoas": {"type": "number"}
+          },
+          "additionalProperties": false
+        },
+        "trend": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["date", "spend", "conversions", "clicks", "impressions"],
+            "properties": {
+              "date": {"type": "string"},
+              "spend": {"type": "number"},
+              "conversions": {"type": "number"},
+              "clicks": {"type": "number"},
+              "impressions": {"type": "number"}
+            },
+            "additionalProperties": false
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "platform",
+              "status",
+              "parish",
+              "spend",
+              "impressions",
+              "clicks",
+              "conversions",
+              "roas"
+            ],
+            "properties": {
+              "id": {"type": "string"},
+              "name": {"type": "string"},
+              "platform": {"type": "string"},
+              "status": {"type": "string"},
+              "objective": {"type": "string"},
+              "parish": {"type": "string"},
+              "spend": {"type": "number"},
+              "impressions": {"type": "number"},
+              "clicks": {"type": "number"},
+              "conversions": {"type": "number"},
+              "roas": {"type": "number"},
+              "ctr": {"type": "number"},
+              "cpc": {"type": "number"},
+              "cpm": {"type": "number"},
+              "startDate": {"type": "string"},
+              "endDate": {"type": "string"}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "creative": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "campaignId",
+          "campaignName",
+          "platform",
+          "spend",
+          "impressions",
+          "clicks",
+          "conversions",
+          "roas"
+        ],
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "campaignId": {"type": "string"},
+          "campaignName": {"type": "string"},
+          "platform": {"type": "string"},
+          "parish": {"type": "string"},
+          "spend": {"type": "number"},
+          "impressions": {"type": "number"},
+          "clicks": {"type": "number"},
+          "conversions": {"type": "number"},
+          "roas": {"type": "number"},
+          "ctr": {"type": "number"},
+          "thumbnailUrl": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "budget": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "campaignName",
+          "parishes",
+          "monthlyBudget",
+          "spendToDate",
+          "projectedSpend",
+          "pacingPercent",
+          "startDate",
+          "endDate"
+        ],
+        "properties": {
+          "id": {"type": "string"},
+          "campaignName": {"type": "string"},
+          "parishes": {"type": "array", "items": {"type": "string"}},
+          "monthlyBudget": {"type": "number"},
+          "spendToDate": {"type": "number"},
+          "projectedSpend": {"type": "number"},
+          "pacingPercent": {"type": "number"},
+          "startDate": {"type": "string"},
+          "endDate": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "parish": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["parish", "spend", "impressions", "clicks", "conversions"],
+        "properties": {
+          "parish": {"type": "string"},
+          "spend": {"type": "number"},
+          "impressions": {"type": "number"},
+          "clicks": {"type": "number"},
+          "conversions": {"type": "number"},
+          "roas": {"type": "number"},
+          "campaignCount": {"type": "number"},
+          "currency": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

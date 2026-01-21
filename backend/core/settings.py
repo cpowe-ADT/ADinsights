@@ -171,6 +171,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "analytics.tasks.sync_metrics_snapshots",
         "schedule": crontab(minute="*/30"),
     },
+    "ai-daily-summary": {
+        "task": "analytics.ai_daily_summary",
+        "schedule": crontab(hour=6, minute=10),
+    },
 }
 
 SECRETS_PROVIDER = env("SECRETS_PROVIDER")

@@ -169,6 +169,40 @@ class MetricsQueryParamsSerializer(serializers.Serializer):
         return attrs
 
 
+class CombinedMetricsQueryParamsSerializer(serializers.Serializer):
+    """Validate combined metrics query parameters."""
+
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False)
+    parish = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_parish(self, value: object) -> list[str] | None:
+        if value is None:
+            return None
+
+        parts: list[str] = []
+        if isinstance(value, (list, tuple)):
+            for item in value:
+                if isinstance(item, str):
+                    parts.extend(item.split(","))
+        elif isinstance(value, str):
+            parts.extend(value.split(","))
+        else:
+            return None
+
+        normalized = [item.strip() for item in parts if item.strip()]
+        return normalized or None
+
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+        start_date = attrs.get("start_date")
+        end_date = attrs.get("end_date")
+        if start_date and end_date and start_date > end_date:
+            raise serializers.ValidationError(
+                {"non_field_errors": ["start_date must be before or equal to end_date."]}
+            )
+        return attrs
+
+
 class MetricRecordSerializer(serializers.Serializer):
     """Serialize a campaign metric record."""
 

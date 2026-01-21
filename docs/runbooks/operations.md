@@ -80,6 +80,46 @@ days';` Adjust the interval to meet contractual obligations.
   Celery task durations to visualize orchestration performance trends and catch regressions
   before they breach SLAs.
 
+## Stale Snapshot Monitoring Spec
+
+Use this spec to define when `/api/metrics/combined/` snapshots are considered stale and
+what signals should trigger alerts.
+
+### Definition
+
+- **Snapshot scope** – A snapshot is the cached payload returned by
+  `/api/metrics/combined/?source=warehouse`.
+- **Freshness timestamp** – `snapshot_generated_at` (ISO-8601 string).
+- **Default freshness window** – 60 minutes in America/Jamaica (aligns with dbt freshness).
+
+### Alert thresholds
+
+- **Warning** – Snapshot age > 60 minutes.
+- **Critical** – Snapshot age > 120 minutes or `snapshot_generated_at` missing.
+- **Suppression** – Allow a 15-minute grace window after dbt completes to avoid false alarms.
+
+### Signals to monitor
+
+- **API sampling** – Poll `/api/metrics/combined/?source=warehouse` per tenant and record
+  `snapshot_generated_at`.
+- **Task telemetry** – `analytics.sync_metrics_snapshots` task duration, success rate, and
+  rows processed (structured logs should include `tenant_id`, `task_id`, `correlation_id`).
+- **Upstream health** – `/api/health/airbyte/` and `/api/health/dbt/` staleness flags.
+
+### Expected behavior
+
+- Filtered requests (`start_date`, `end_date`, `parish`) bypass cache and must not update the
+  snapshot timestamp.
+- A manual refresh (`python manage.py snapshot_metrics --tenant-id <UUID>`) should update
+  `snapshot_generated_at` within one run cycle.
+- Empty payloads are acceptable but should still contain a timestamp.
+
+### Escalation
+
+- Page Data Engineering if stale snapshots persist after one manual refresh attempt or if
+  >20% of tenants report stale snapshots in a single monitoring interval.
+- Page Platform if API sampling fails or `/api/metrics/combined/` returns non-200 status codes.
+
 ## Airbyte Webhook Operations
 
 Airbyte emits job-completion webhooks to `/api/airbyte/webhook/` so the platform can persist
@@ -163,6 +203,32 @@ surface area.
 5. **Dashboards** – The “Warehouse Snapshot Health” Grafana/Superset view plots
    snapshot recency per tenant. Use it to verify manual refreshes before
    closing an incident.
+
+## Performance Review + Cache Verification
+
+Use this checklist when reviewing `/api/metrics/combined/` performance or after
+changes to snapshot logic.
+
+### Performance checklist
+
+1. **Latency** – Compare p95 `/api/metrics/combined/` response time for cached
+   vs uncached requests; cached responses should be materially faster.
+2. **Snapshot task duration** – Confirm `analytics.sync_metrics_snapshots`
+   duration trends are stable and within expected SLA.
+3. **Row volumes** – Review `row_totals` emitted by the snapshot task logs for
+   unexpected spikes that could affect response times.
+4. **Error rate** – Ensure API error rate remains <2% over 5 minutes following
+   the deployment.
+
+### Cache verification
+
+1. **Warm cache** – Call `/api/metrics/combined/?source=warehouse` twice and
+   confirm the second response matches cached payload (no adapter hit).
+2. **Bypass behavior** – Call `/api/metrics/combined/?cache=false` and confirm
+   the payload refreshes and `snapshot_generated_at` changes.
+3. **Filtered requests** – Call `/api/metrics/combined/?parish=Kingston` and
+   confirm the response does not update the stored snapshot (timestamp should
+   remain unchanged for the unfiltered cache).
 
 ## Contact
 

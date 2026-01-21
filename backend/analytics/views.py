@@ -271,7 +271,13 @@ class CombinedMetricsView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        filters_serializer = CombinedMetricsQueryParamsSerializer(data=request.query_params)
+        filters_data = request.query_params
+        parishes = request.query_params.getlist("parish")
+        if len(parishes) > 1:
+            filters_data = request.query_params.copy()
+            filters_data["parish"] = ",".join(parishes)
+
+        filters_serializer = CombinedMetricsQueryParamsSerializer(data=filters_data)
         filters_serializer.is_valid(raise_exception=True)
         filters = filters_serializer.validated_data
         has_filters = bool(filters.get("start_date") or filters.get("end_date") or filters.get("parish"))
@@ -290,6 +296,8 @@ class CombinedMetricsView(APIView):
             return Response(cached_payload)
 
         options = request.query_params.dict()
+        if parishes:
+            options["parish"] = parishes
         options.update(filters)
         payload = adapter.fetch_metrics(
             tenant_id=str(tenant_id),

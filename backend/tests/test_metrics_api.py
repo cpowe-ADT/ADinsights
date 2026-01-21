@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 from django.utils import timezone
 
@@ -190,6 +192,94 @@ def test_combined_metrics_cache_bypass(monkeypatch, api_client, user):
     response = api_client.get("/api/metrics/combined/", {"cache": "false"})
     assert response.json()["campaign"]["summary"]["currency"] == "CAD"
 
+
+@pytest.mark.django_db
+def test_combined_metrics_accepts_filter_params(monkeypatch, api_client, user):
+    api_client.force_authenticate(user=user)
+    captured: dict[str, object] = {}
+
+    def fake_fetch(self, *, tenant_id, options=None):  # noqa: D401 - test helper
+        captured["options"] = options or {}
+        return {
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+        }
+
+    monkeypatch.setattr(FakeAdapter, "fetch_metrics", fake_fetch, raising=False)
+
+    response = api_client.get(
+        "/api/metrics/combined/",
+        {"start_date": "2024-09-01", "end_date": "2024-09-03", "parish": "Kingston"},
+    )
+
+    assert response.status_code == 200
+    options = captured["options"]
+    assert options["start_date"] == date(2024, 9, 1)
+    assert options["end_date"] == date(2024, 9, 3)
+    assert options["parish"] == ["Kingston"]
+
+
+@pytest.mark.django_db
+def test_combined_metrics_accepts_repeated_parish_params(monkeypatch, api_client, user):
+    api_client.force_authenticate(user=user)
+    captured: dict[str, object] = {}
+
+    def fake_fetch(self, *, tenant_id, options=None):  # noqa: D401 - test helper
+        captured["options"] = options or {}
+        return {
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+        }
+
+    monkeypatch.setattr(FakeAdapter, "fetch_metrics", fake_fetch, raising=False)
+
+    response = api_client.get(
+        "/api/metrics/combined/",
+        {"parish": ["Kingston", "St James"]},
+    )
+
+    assert response.status_code == 200
+    options = captured["options"]
+    assert options["parish"] == ["Kingston", "St James"]
+
+
+@pytest.mark.django_db
+def test_combined_metrics_filters_do_not_update_cache(monkeypatch, api_client, user):
+    api_client.force_authenticate(user=user)
+
+    TenantMetricsSnapshot.objects.create(
+        tenant=user.tenant,
+        source="fake",
+        payload={
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+            "snapshot_generated_at": timezone.now().isoformat(),
+        },
+        generated_at=timezone.now(),
+    )
+
+    def filtered_payload(self, *, tenant_id, options=None):  # noqa: D401 - test helper
+        return {
+            "campaign": {"summary": {"currency": "CAD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+        }
+
+    monkeypatch.setattr(FakeAdapter, "fetch_metrics", filtered_payload, raising=False)
+
+    response = api_client.get("/api/metrics/combined/", {"parish": "Kingston"})
+    assert response.status_code == 200
+    assert response.json()["campaign"]["summary"]["currency"] == "CAD"
+
+    snapshot = TenantMetricsSnapshot.objects.get(tenant=user.tenant, source="fake")
+    assert snapshot.payload["campaign"]["summary"]["currency"] == "USD"
 
 @pytest.mark.django_db
 def test_combined_metrics_defaults_to_warehouse(api_client, user, settings, enable_warehouse_adapter):
