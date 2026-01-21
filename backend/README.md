@@ -117,6 +117,17 @@ python manage.py enable_rls
 
 The command prints the SQL used to set policies on tenant-scoped tables.
 
+## Dev Data Utilities
+
+For local-only bootstrapping (guarded by `DEBUG=True` or `ALLOW_DEFAULT_ADMIN=1`):
+
+```bash
+python manage.py seed_dev_data
+python manage.py ingest_sample_metrics --reset
+```
+
+The sample ingest command reads `backend/fixtures/sample_ingest.csv` by default.
+
 ## Testing & Linting
 
 ```bash

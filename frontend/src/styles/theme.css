@@ -111,10 +111,10 @@
     --shell-status-text: var(--color-slate-700);
     --shell-status-text-error: var(--color-red-500);
 
-    --metric-card-surface: linear-gradient(135deg, var(--color-blue-50), var(--color-blue-100));
+    --metric-card-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.95), var(--color-slate-50));
     --metric-card-border: rgba(15, 23, 42, 0.08);
-    --metric-card-shadow: var(--shadow-subtle);
-    --metric-card-sparkline-area: rgba(37, 99, 235, 0.12);
+    --metric-card-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    --metric-card-sparkline-area: rgba(37, 99, 235, 0.08);
     --metric-card-sparkline-line: var(--color-blue-600);
     --metric-delta-positive: var(--color-green-500);
     --metric-delta-negative: var(--color-red-500);
@@ -189,8 +189,6 @@
     --focus-outline: 3px solid var(--color-warning);
     --focus-outline-offset: 3px;
     --table-sticky-shadow: 2px 0 0 rgba(148, 163, 184, 0.3);
-    --shadow-soft: var(--shadow-soft);
-    --shadow-subtle: var(--shadow-subtle);
   }
 
   .theme-dark,
@@ -303,10 +301,10 @@
     --shell-status-text: rgba(226, 232, 240, 0.8);
     --shell-status-text-error: #fecaca;
 
-    --metric-card-surface: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(30, 64, 175, 0.6));
+    --metric-card-surface: linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.92));
     --metric-card-border: rgba(148, 163, 184, 0.2);
-    --metric-card-shadow: 0 16px 36px rgba(8, 15, 30, 0.45);
-    --metric-card-sparkline-area: rgba(96, 165, 250, 0.2);
+    --metric-card-shadow: 0 18px 38px rgba(6, 11, 20, 0.5);
+    --metric-card-sparkline-area: rgba(96, 165, 250, 0.18);
     --metric-card-sparkline-line: var(--color-blue-300);
     --metric-delta-positive: var(--color-green-600);
     --metric-delta-negative: var(--color-red-600);

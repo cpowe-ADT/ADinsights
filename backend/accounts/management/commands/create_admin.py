@@ -3,7 +3,8 @@ import os
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from accounts.models import Tenant, User, Role, assign_role
+from accounts.dev_admin import resolve_default_tenant
+from accounts.models import User, Role, assign_role
 
 class Command(BaseCommand):
     help = (
@@ -34,10 +35,12 @@ class Command(BaseCommand):
         password = os.environ.get("DJANGO_DEFAULT_ADMIN_PASSWORD", "admin1")
 
         # Create default tenant
-        tenant, _ = Tenant.objects.get_or_create(name="Default Tenant")
+        tenant = resolve_default_tenant()
 
         # Create or update admin user
         user = User.objects.filter(username=username).first()
+        if user is None and email:
+            user = User.objects.filter(email=email).first()
         created = False
         if user is None:
             user = User(username=username, tenant=tenant, email=email, first_name="Admin", last_name="User")
@@ -47,6 +50,8 @@ class Command(BaseCommand):
             if not user.tenant_id:
                 user.tenant = tenant
             user.email = email or user.email
+            if username and user.username != username:
+                user.username = username
 
         # Always (re)set password to ensure a known dev credential
         user.set_password(password)

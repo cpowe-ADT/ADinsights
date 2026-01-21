@@ -1,0 +1,4 @@
+date,source,external_id,campaign_external_id,campaign_name,adset_external_id,adset_name,ad_external_id,ad_name,impressions,clicks,spend,currency,conversions
+2024-08-10,META,meta-2024-08-10-001,camp-001,Kingston Awareness,adset-001,Adults 25-44,ad-001,Video A,1200,95,325.50,JMD,18
+2024-08-11,META,meta-2024-08-11-001,camp-001,Kingston Awareness,adset-001,Adults 25-44,ad-002,Video B,980,70,240.00,JMD,12
+2024-08-10,GOOGLE,google-2024-08-10-001,camp-002,Montego Bay Leads,adset-002,Search - Brand,ad-003,Headline A,450,35,110.25,JMD,7

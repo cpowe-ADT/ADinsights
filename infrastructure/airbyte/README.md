@@ -13,6 +13,15 @@ The UI will be available at <http://localhost:${AIRBYTE_WEBAPP_PORT:-8000}> and 
 Copy `env.example` to `.env` (or provide equivalent environment variables) to keep credentials out of source control while letting
 Compose substitute consistent defaults.
 
+## Version pinning
+
+Airbyte OSS releases are tagged upstream; we pin to a single version across `server`, `webapp`, and `worker` images to keep API
+contracts and migrations aligned. Recommended baseline: **v1.8.0** (latest 1.x series, avoids the 2.x upgrade path).
+
+If you update the Compose images, keep all Airbyte service tags in lockstep. Official OSS images are published via Airbyte's
+registry (currently GHCR). Make sure you can authenticate (`docker login ghcr.io` with a token that has `read:packages`) before
+pulling, or the stack will fail to start.
+
 ## Environment variables
 
 `env.example` now drives both the Docker Compose stack and the provisioning scripts. Populate it with redacted values before

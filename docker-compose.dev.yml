@@ -1,0 +1,104 @@
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: adinsights_user
+      POSTGRES_PASSWORD: adinsights_pass
+      POSTGRES_DB: adinsights
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env.dev
+    volumes:
+      - ./backend:/app
+      - ./scripts:/app/scripts:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    command: >
+      bash -c "
+        pip install --no-cache-dir -r requirements.txt 2>/dev/null || true &&
+        python manage.py migrate --noinput &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env.dev
+    volumes:
+      - ./backend:/app
+    depends_on:
+      backend:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command: bash -lc "pip install --no-cache-dir -r requirements.txt 2>/dev/null || true && celery -A core worker -l INFO"
+    restart: on-failure
+
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env.dev
+    volumes:
+      - ./backend:/app
+    depends_on:
+      backend:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    command: bash -lc "pip install --no-cache-dir -r requirements.txt 2>/dev/null || true && celery -A core beat -l INFO --schedule /tmp/celerybeat-schedule --pidfile /tmp/celerybeat.pid"
+    restart: on-failure
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /usr/src/app
+    env_file:
+      - ./frontend/.env
+    volumes:
+      - ./frontend:/usr/src/app
+      - frontend_node_modules:/usr/src/app/node_modules
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      backend:
+        condition: service_started
+    command: sh -c "npm ci --silent || true && npm run dev -- --host 0.0.0.0"
+
+volumes:
+  pgdata:
+  frontend_node_modules:

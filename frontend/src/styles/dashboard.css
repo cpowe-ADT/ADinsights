@@ -165,22 +165,24 @@
 }
 
 .statCard {
-  min-height: 132px;
-  background: var(--stat-card-surface);
-  border: 1px solid var(--stat-card-border);
+  min-height: 140px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-subtle);
 }
 
 .statCard .cardHeader {
-  padding-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: none;
 }
 
 .statCard .cardTitle {
   font-size: var(--font-size-label);
-  font-weight: var(--font-weight-medium);
-  color: var(--stat-card-title);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
 }
 
 .statCard .content {
@@ -196,15 +198,15 @@
 }
 
 .statCardValue {
-  font-size: 1.5rem;
-  font-weight: var(--font-weight-semibold);
-  line-height: 1.25;
-  color: var(--stat-card-value);
+  font-size: 1.75rem;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.1;
+  color: var(--color-text-primary);
 }
 
 .statCardSparkline {
-  width: 108px;
-  height: 52px;
+  width: 110px;
+  height: 50px;
 }
 
 .statCardSparkline svg {

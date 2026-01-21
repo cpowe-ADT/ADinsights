@@ -217,120 +217,124 @@ const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps
 
   return (
     <section className="filter-bar" aria-label="Dashboard filters">
-      <div className="filter-group" role="group" aria-label="Date range presets">
-        {datePresets.map((preset) => {
-          const isActive = filters.dateRange === preset.value;
-          const isCustom = preset.value === 'custom';
-          return (
-            <div key={preset.value} className={isCustom ? 'filter-chip-wrapper' : undefined}>
-              <button
-                type="button"
-                className={`filter-chip${isActive ? ' filter-chip--active' : ''}`}
-                aria-pressed={isActive}
-                aria-expanded={isCustom ? isCustomOpen : undefined}
-                aria-controls={isCustom ? customPopoverId : undefined}
-                onClick={() => handleSelectPreset(preset.value)}
-                ref={isCustom ? customButtonRef : undefined}
-              >
-                {preset.label}
-              </button>
-              {isCustom ? (
-                <div
-                  ref={customPopoverRef}
-                  id={customPopoverId}
-                  role="dialog"
-                  aria-label="Custom date range"
-                  className={`filter-popover${isCustomOpen ? ' filter-popover--open' : ''}`}
+      <div className="filter-bar__row">
+        <div className="filter-group" role="group" aria-label="Date range presets">
+          {datePresets.map((preset) => {
+            const isActive = filters.dateRange === preset.value;
+            const isCustom = preset.value === 'custom';
+            return (
+              <div key={preset.value} className={isCustom ? 'filter-chip-wrapper' : undefined}>
+                <button
+                  type="button"
+                  className={`filter-chip${isActive ? ' filter-chip--active' : ''}`}
+                  aria-pressed={isActive}
+                  aria-expanded={isCustom ? isCustomOpen : undefined}
+                  aria-controls={isCustom ? customPopoverId : undefined}
+                  onClick={() => handleSelectPreset(preset.value)}
+                  ref={isCustom ? customButtonRef : undefined}
                 >
-                  <div className="filter-popover__content">
-                    <label className="filter-popover__field">
-                      <span>Start</span>
-                      <input
-                        type="date"
-                        value={filters.customRange.start}
-                        onChange={(event) => updateCustomRange('start', event.target.value)}
-                      />
-                    </label>
-                    <label className="filter-popover__field">
-                      <span>End</span>
-                      <input
-                        type="date"
-                        value={filters.customRange.end}
-                        onChange={(event) => updateCustomRange('end', event.target.value)}
-                      />
-                    </label>
+                  {preset.label}
+                </button>
+                {isCustom ? (
+                  <div
+                    ref={customPopoverRef}
+                    id={customPopoverId}
+                    role="dialog"
+                    aria-label="Custom date range"
+                    className={`filter-popover${isCustomOpen ? ' filter-popover--open' : ''}`}
+                  >
+                    <div className="filter-popover__content">
+                      <label className="filter-popover__field">
+                        <span>Start</span>
+                        <input
+                          type="date"
+                          value={filters.customRange.start}
+                          onChange={(event) => updateCustomRange('start', event.target.value)}
+                        />
+                      </label>
+                      <label className="filter-popover__field">
+                        <span>End</span>
+                        <input
+                          type="date"
+                          value={filters.customRange.end}
+                          onChange={(event) => updateCustomRange('end', event.target.value)}
+                        />
+                      </label>
+                    </div>
+                    <p className="filter-popover__hint">Calendar sync coming soon.</p>
                   </div>
-                  <p className="filter-popover__hint">Calendar sync coming soon.</p>
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
 
-      <div className="filter-field filter-multiselect" ref={channelPopoverRef}>
-        <button
-          type="button"
-          ref={channelButtonRef}
-          className="filter-multiselect__button"
-          aria-haspopup="listbox"
-          aria-expanded={isChannelOpen}
-          aria-controls={channelPopoverId}
-          onClick={() => setIsChannelOpen((open) => !open)}
-        >
-          <span className="filter-field__label">Channel</span>
-          <span className="filter-field__value">{selectedChannelLabel}</span>
-        </button>
-        <div
-          id={channelPopoverId}
-          role="listbox"
-          aria-multiselectable="true"
-          className={`filter-popover filter-popover--menu${isChannelOpen ? ' filter-popover--open' : ''}`}
-        >
-          <ul>
-            {channels.map((channel) => {
-              const isSelected = filters.channels.includes(channel);
-              return (
-                <li key={channel}>
-                  <label className="filter-option">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleChannel(channel)}
-                    />
-                    <span>{channel}</span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
+        <div className="filter-field filter-multiselect" ref={channelPopoverRef}>
+          <button
+            type="button"
+            ref={channelButtonRef}
+            className="filter-multiselect__button"
+            aria-haspopup="listbox"
+            aria-expanded={isChannelOpen}
+            aria-controls={channelPopoverId}
+            onClick={() => setIsChannelOpen((open) => !open)}
+          >
+            <span className="filter-field__label">Channel</span>
+            <span className="filter-field__value">{selectedChannelLabel}</span>
+          </button>
+          <div
+            id={channelPopoverId}
+            role="listbox"
+            aria-multiselectable="true"
+            className={`filter-popover filter-popover--menu${isChannelOpen ? ' filter-popover--open' : ''}`}
+          >
+            <ul>
+              {channels.map((channel) => {
+                const isSelected = filters.channels.includes(channel);
+                return (
+                  <li key={channel}>
+                    <label className="filter-option">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleChannel(channel)}
+                      />
+                      <span>{channel}</span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+
+        <div className="filter-field filter-search">
+          <label htmlFor="campaign-search">Campaign</label>
+          <input
+            id="campaign-search"
+            type="search"
+            placeholder="Search campaigns"
+            value={filters.campaignQuery}
+            onChange={(event) =>
+              setFilters((prev) => ({
+                ...prev,
+                campaignQuery: event.target.value,
+              }))
+            }
+          />
         </div>
       </div>
 
-      <div className="filter-field filter-search">
-        <label htmlFor="campaign-search">Campaign</label>
-        <input
-          id="campaign-search"
-          type="search"
-          placeholder="Search campaigns"
-          value={filters.campaignQuery}
-          onChange={(event) =>
-            setFilters((prev) => ({
-              ...prev,
-              campaignQuery: event.target.value,
-            }))
-          }
-        />
+      <div className="filter-bar__actions">
+        <button
+          type="button"
+          className="filter-chip filter-chip--clear"
+          onClick={resetFilters}
+          disabled={isDefaultState}
+        >
+          Clear all
+        </button>
       </div>
-
-      <button
-        type="button"
-        className="filter-chip filter-chip--clear"
-        onClick={resetFilters}
-        disabled={isDefaultState}
-      >
-        Clear all
-      </button>
     </section>
   );
 };

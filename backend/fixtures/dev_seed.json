@@ -1,0 +1,499 @@
+[
+  {
+    "model": "accounts.tenant",
+    "pk": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+    "fields": {
+      "name": "Default Tenant",
+      "created_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.campaign",
+    "pk": "20859a28-4e4b-4014-b9e6-b1c072f200a1",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "external_id": "boj_fx_awareness",
+      "name": "FX Market Awareness",
+      "platform": "Meta",
+      "account_external_id": "meta_001",
+      "status": "Active",
+      "objective": "Awareness",
+      "currency": "JMD",
+      "metadata": {},
+      "created_time": "2024-08-01T00:00:00Z",
+      "updated_time": "2024-09-03T00:00:00Z",
+      "created_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.campaign",
+    "pk": "7b736785-40fc-4fb0-b288-fbb2a4ffaed6",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "external_id": "boj_policy_updates",
+      "name": "Policy Update Series",
+      "platform": "Google Ads",
+      "account_external_id": "google_001",
+      "status": "Active",
+      "objective": "Traffic",
+      "currency": "JMD",
+      "metadata": {},
+      "created_time": "2024-08-10T00:00:00Z",
+      "updated_time": "2024-09-03T00:00:00Z",
+      "created_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.campaign",
+    "pk": "ca03b6a3-f691-48a9-bc8b-5c6367a0e435",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "external_id": "boj_digital_payments",
+      "name": "Digital Payments Launch",
+      "platform": "TikTok",
+      "account_external_id": "tiktok_001",
+      "status": "Learning",
+      "objective": "Acquisition",
+      "currency": "JMD",
+      "metadata": {},
+      "created_time": "2024-08-18T00:00:00Z",
+      "updated_time": "2024-09-03T00:00:00Z",
+      "created_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.adset",
+    "pk": "5d557e7a-c096-47e1-bcbf-c51ce94b64c2",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "campaign": "20859a28-4e4b-4014-b9e6-b1c072f200a1",
+      "external_id": "adset_boj_fx",
+      "name": "FX Awareness - Kingston",
+      "status": "Active",
+      "bid_strategy": "LOWEST_COST",
+      "daily_budget": "15000.00",
+      "start_time": "2024-08-01T00:00:00Z",
+      "end_time": "2024-09-30T00:00:00Z",
+      "targeting": {
+        "parish": "Kingston"
+      },
+      "created_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.adset",
+    "pk": "6788ae32-cfeb-4f3a-8fd2-0ca9801a3232",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "campaign": "7b736785-40fc-4fb0-b288-fbb2a4ffaed6",
+      "external_id": "adset_boj_policy",
+      "name": "Policy Update - Search",
+      "status": "Active",
+      "bid_strategy": "MAXIMIZE_CONVERSIONS",
+      "daily_budget": "12000.00",
+      "start_time": "2024-08-10T00:00:00Z",
+      "end_time": "2024-09-28T00:00:00Z",
+      "targeting": {
+        "parish": "St Andrew"
+      },
+      "created_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.adset",
+    "pk": "38f7e4d0-ee1d-43b9-af30-4b1f461c3b24",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "campaign": "ca03b6a3-f691-48a9-bc8b-5c6367a0e435",
+      "external_id": "adset_boj_digital",
+      "name": "Digital Payments - Launch",
+      "status": "Learning",
+      "bid_strategy": "LOWEST_COST",
+      "daily_budget": "10000.00",
+      "start_time": "2024-08-18T00:00:00Z",
+      "end_time": "2024-10-05T00:00:00Z",
+      "targeting": {
+        "parish": "St James"
+      },
+      "created_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.ad",
+    "pk": "f27144fd-ecbf-4210-b109-6134d309f57d",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "adset": "5d557e7a-c096-47e1-bcbf-c51ce94b64c2",
+      "external_id": "ad_boj_fx_video",
+      "name": "FX Explainer Video",
+      "status": "Active",
+      "creative": {
+        "format": "video"
+      },
+      "preview_url": "https://example.com/dev/boj-fx-video",
+      "created_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.ad",
+    "pk": "6ac2e8be-2b56-49cc-9fb1-d0cbf48596c2",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "adset": "6788ae32-cfeb-4f3a-8fd2-0ca9801a3232",
+      "external_id": "ad_boj_policy_search",
+      "name": "Policy Hub Search",
+      "status": "Active",
+      "creative": {
+        "format": "search"
+      },
+      "preview_url": "https://example.com/dev/boj-policy-search",
+      "created_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.ad",
+    "pk": "fa72966a-0985-4aa0-b811-0ba0f4c6e0f5",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "adset": "38f7e4d0-ee1d-43b9-af30-4b1f461c3b24",
+      "external_id": "ad_boj_digital_tiktok",
+      "name": "Digital Payments Launch",
+      "status": "Learning",
+      "creative": {
+        "format": "short-video"
+      },
+      "preview_url": "https://example.com/dev/boj-digital-payments",
+      "created_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.rawperformancerecord",
+    "pk": "120ff29c-7a5e-478d-aa27-942260e96d7c",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "external_id": "meta-001-2024-09-01",
+      "date": "2024-09-01",
+      "source": "meta",
+      "campaign": "20859a28-4e4b-4014-b9e6-b1c072f200a1",
+      "adset": "5d557e7a-c096-47e1-bcbf-c51ce94b64c2",
+      "ad": "f27144fd-ecbf-4210-b109-6134d309f57d",
+      "impressions": 310000,
+      "clicks": 16200,
+      "spend": "780000.00",
+      "currency": "JMD",
+      "conversions": 980,
+      "raw_payload": {},
+      "ingested_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.rawperformancerecord",
+    "pk": "db131d8d-97ec-4c88-9972-6d876314d02d",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "external_id": "meta-001-2024-09-02",
+      "date": "2024-09-02",
+      "source": "meta",
+      "campaign": "20859a28-4e4b-4014-b9e6-b1c072f200a1",
+      "adset": "5d557e7a-c096-47e1-bcbf-c51ce94b64c2",
+      "ad": "f27144fd-ecbf-4210-b109-6134d309f57d",
+      "impressions": 295000,
+      "clicks": 15400,
+      "spend": "690000.00",
+      "currency": "JMD",
+      "conversions": 910,
+      "raw_payload": {},
+      "ingested_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.rawperformancerecord",
+    "pk": "6ce3b489-db33-4f08-9d17-d02a2c74c441",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "external_id": "google-001-2024-09-01",
+      "date": "2024-09-01",
+      "source": "google",
+      "campaign": "7b736785-40fc-4fb0-b288-fbb2a4ffaed6",
+      "adset": "6788ae32-cfeb-4f3a-8fd2-0ca9801a3232",
+      "ad": "6ac2e8be-2b56-49cc-9fb1-d0cbf48596c2",
+      "impressions": 460000,
+      "clicks": 22100,
+      "spend": "980000.00",
+      "currency": "JMD",
+      "conversions": 1420,
+      "raw_payload": {},
+      "ingested_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.rawperformancerecord",
+    "pk": "a9991faa-fb78-4fd1-8848-0f4f0c1225ac",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "external_id": "google-001-2024-09-02",
+      "date": "2024-09-02",
+      "source": "google",
+      "campaign": "7b736785-40fc-4fb0-b288-fbb2a4ffaed6",
+      "adset": "6788ae32-cfeb-4f3a-8fd2-0ca9801a3232",
+      "ad": "6ac2e8be-2b56-49cc-9fb1-d0cbf48596c2",
+      "impressions": 410000,
+      "clicks": 18900,
+      "spend": "880000.00",
+      "currency": "JMD",
+      "conversions": 1350,
+      "raw_payload": {},
+      "ingested_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.rawperformancerecord",
+    "pk": "46abac32-85c5-4cbc-8727-f7fd0566f27d",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "external_id": "tiktok-001-2024-09-01",
+      "date": "2024-09-01",
+      "source": "tiktok",
+      "campaign": "ca03b6a3-f691-48a9-bc8b-5c6367a0e435",
+      "adset": "38f7e4d0-ee1d-43b9-af30-4b1f461c3b24",
+      "ad": "fa72966a-0985-4aa0-b811-0ba0f4c6e0f5",
+      "impressions": 410000,
+      "clicks": 18900,
+      "spend": "880000.00",
+      "currency": "JMD",
+      "conversions": 1350,
+      "raw_payload": {},
+      "ingested_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.rawperformancerecord",
+    "pk": "dfbf7676-f5f5-4724-a018-da38d1c0eb16",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "external_id": "tiktok-001-2024-09-02",
+      "date": "2024-09-02",
+      "source": "tiktok",
+      "campaign": "ca03b6a3-f691-48a9-bc8b-5c6367a0e435",
+      "adset": "38f7e4d0-ee1d-43b9-af30-4b1f461c3b24",
+      "ad": "fa72966a-0985-4aa0-b811-0ba0f4c6e0f5",
+      "impressions": 390000,
+      "clicks": 17850,
+      "spend": "820000.00",
+      "currency": "JMD",
+      "conversions": 1280,
+      "raw_payload": {},
+      "ingested_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.tenantmetricssnapshot",
+    "pk": "2c31ee35-ae7d-4265-b8cd-6302f597e498",
+    "fields": {
+      "tenant": "7f9b2f19-edb9-4888-852e-81d59af0e4a0",
+      "source": "warehouse",
+      "payload": {
+        "campaign": {
+          "summary": {
+            "currency": "JMD",
+            "totalSpend": 4200000,
+            "totalImpressions": 1850000,
+            "totalClicks": 86000,
+            "totalConversions": 5400,
+            "averageRoas": 4.2
+          },
+          "trend": [
+            {
+              "date": "2024-09-01",
+              "spend": 780000,
+              "conversions": 980,
+              "clicks": 16200,
+              "impressions": 310000
+            },
+            {
+              "date": "2024-09-02",
+              "spend": 690000,
+              "conversions": 910,
+              "clicks": 15400,
+              "impressions": 295000
+            },
+            {
+              "date": "2024-09-03",
+              "spend": 640000,
+              "conversions": 870,
+              "clicks": 14950,
+              "impressions": 288000
+            }
+          ],
+          "rows": [
+            {
+              "id": "boj_fx_awareness",
+              "name": "FX Market Awareness",
+              "platform": "Meta",
+              "status": "Active",
+              "parish": "Kingston",
+              "spend": 1200000,
+              "impressions": 540000,
+              "clicks": 24500,
+              "conversions": 1600,
+              "roas": 3.9,
+              "ctr": 0.045,
+              "cpc": 49.0,
+              "cpm": 222.0,
+              "objective": "Awareness",
+              "startDate": "2024-08-01",
+              "endDate": "2024-09-30"
+            },
+            {
+              "id": "boj_policy_updates",
+              "name": "Policy Update Series",
+              "platform": "Google Ads",
+              "status": "Active",
+              "parish": "St Andrew",
+              "spend": 980000,
+              "impressions": 460000,
+              "clicks": 22100,
+              "conversions": 1420,
+              "roas": 4.5,
+              "ctr": 0.048,
+              "cpc": 44.4,
+              "cpm": 213.0,
+              "objective": "Traffic",
+              "startDate": "2024-08-10",
+              "endDate": "2024-09-28"
+            },
+            {
+              "id": "boj_digital_payments",
+              "name": "Digital Payments Launch",
+              "platform": "TikTok",
+              "status": "Learning",
+              "parish": "St James",
+              "spend": 880000,
+              "impressions": 410000,
+              "clicks": 18900,
+              "conversions": 1350,
+              "roas": 4.1,
+              "ctr": 0.046,
+              "cpc": 46.6,
+              "cpm": 214.6,
+              "objective": "Acquisition",
+              "startDate": "2024-08-18",
+              "endDate": "2024-10-05"
+            }
+          ]
+        },
+        "creative": [
+          {
+            "id": "boj_fx_video",
+            "name": "FX Explainer Video",
+            "campaignId": "boj_fx_awareness",
+            "campaignName": "FX Market Awareness",
+            "platform": "Meta",
+            "parish": "Kingston",
+            "spend": 420000,
+            "impressions": 210000,
+            "clicks": 10200,
+            "conversions": 680,
+            "roas": 3.6,
+            "ctr": 0.0486
+          },
+          {
+            "id": "boj_policy_search",
+            "name": "Policy Hub Search",
+            "campaignId": "boj_policy_updates",
+            "campaignName": "Policy Update Series",
+            "platform": "Google Ads",
+            "parish": "St Andrew",
+            "spend": 360000,
+            "impressions": 176000,
+            "clicks": 8600,
+            "conversions": 540,
+            "roas": 4.2,
+            "ctr": 0.0489
+          }
+        ],
+        "budget": [
+          {
+            "id": "boj_fx_awareness_budget",
+            "campaignName": "FX Market Awareness",
+            "parishes": [
+              "Kingston",
+              "St Andrew"
+            ],
+            "monthlyBudget": 1500000,
+            "spendToDate": 1200000,
+            "projectedSpend": 1480000,
+            "pacingPercent": 0.99,
+            "startDate": "2024-08-01",
+            "endDate": "2024-09-30"
+          },
+          {
+            "id": "boj_digital_payments_budget",
+            "campaignName": "Digital Payments Launch",
+            "parishes": [
+              "St James",
+              "Manchester"
+            ],
+            "monthlyBudget": 1200000,
+            "spendToDate": 880000,
+            "projectedSpend": 1185000,
+            "pacingPercent": 0.95,
+            "startDate": "2024-08-15",
+            "endDate": "2024-10-05"
+          }
+        ],
+        "parish": [
+          {
+            "parish": "Kingston",
+            "spend": 1500000,
+            "impressions": 720000,
+            "clicks": 31800,
+            "conversions": 2050,
+            "roas": 4.0,
+            "campaignCount": 2,
+            "currency": "JMD"
+          },
+          {
+            "parish": "St Andrew",
+            "spend": 1100000,
+            "impressions": 520000,
+            "clicks": 23800,
+            "conversions": 1580,
+            "roas": 4.4,
+            "campaignCount": 2,
+            "currency": "JMD"
+          },
+          {
+            "parish": "St James",
+            "spend": 800000,
+            "impressions": 410000,
+            "clicks": 18900,
+            "conversions": 1350,
+            "roas": 4.1,
+            "campaignCount": 1,
+            "currency": "JMD"
+          }
+        ],
+        "snapshot_generated_at": "2024-09-03T06:00:00Z"
+      },
+      "generated_at": "2024-09-03T06:00:00Z",
+      "created_at": "2024-09-03T06:00:00Z",
+      "updated_at": "2024-09-03T06:00:00Z"
+    }
+  }
+]

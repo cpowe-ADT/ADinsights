@@ -8,6 +8,60 @@ These instructions apply to the entire repository unless a more specific `AGENTS
 
 This file serves as the operational prompt for any agent working on ADinsights. Read it before making changes so the guardrails, schedules, and workflow expectations stay consistent across parallel tracks. Stream-specific KPIs, owners, and Definition-of-Done checklists live in `docs/workstreams.md`—use it alongside this guide when executing a track.
 
+## Quick Context References
+
+- Feature catalog (built/in progress/planned): `docs/project/feature-catalog.md`
+- Feature ownership + tests + runbooks: `docs/project/feature-ownership-map.md`
+- API contract changelog: `docs/project/api-contract-changelog.md`
+- Release checklist: `docs/runbooks/release-checklist.md`
+- Data quality checklist: `docs/ops/data-quality-checklist.md`
+- Risk register: `docs/ops/risk-register.md`
+- ADR log: `docs/ops/adr-log.md`
+- User journey map: `docs/project/user-journey-map.md`
+- Support playbook: `docs/runbooks/support-playbook.md`
+- Ops dashboard links: `docs/ops/dashboard-links.md`
+- Postmortem template: `docs/ops/postmortem-template.md`
+- Data lineage map: `docs/project/data-lineage-map.md`
+- AI onboarding checklist: `docs/ops/ai-onboarding-checklist.md`
+- Testing cheat sheet: `docs/ops/testing-cheat-sheet.md`
+- Feature flags reference: `docs/project/feature-flags-reference.md`
+- Definition of Done: `docs/project/definition-of-done.md`
+- AI escalation rules: `docs/ops/escalation-rules.md`
+- AI session resume template: `docs/ops/ai-session-resume-template.md`
+- Decision checklist: `docs/ops/decision-checklist.md`
+- Test failure triage: `docs/ops/test-failure-triage.md`
+- New engineer onboarding: `docs/ops/new-engineer-onboarding.md`
+- Human onboarding guide: `docs/ops/human-onboarding-guide.md`
+- Confused engineer walkthrough: `docs/ops/confused-engineer-walkthrough.md`
+- Documentation snob review: `docs/ops/documentation-snob-review.md`
+- Golden path onboarding: `docs/ops/golden-path-onboarding.md`
+
+## When to Update AGENTS.md
+
+Update `AGENTS.md` when:
+- A new cross-cutting doc is added (catalogs, ownership, runbooks, escalation rules).
+- Guardrails, schedules, or test matrix change.
+- Recontextualization workflow changes.
+
+## Personas & Ownership Map
+
+Personas and stream ownership live in:
+- `docs/workstreams.md` (owners, KPIs, tests, DoD)
+- `docs/project/feature-ownership-map.md` (domain → owner → tests/runbooks)
+
+When unsure, consult the ownership map before starting work.
+
+## Recontextualization Workflow
+
+If context is unclear, follow this order:
+1) `AGENTS.md`
+2) `docs/ops/doc-index.md`
+3) `docs/workstreams.md`
+4) `docs/project/feature-catalog.md`
+5) `docs/project/phase1-execution-backlog.md`
+6) `docs/task_breakdown.md`
+7) `docs/project/vertical_slice_plan.md`
+
 ## Architecture Guardrails
 
 - Preserve the existing stack: Django + DRF + Celery in `backend/`, React + Vite + TanStack Table + Leaflet in `frontend/`, Airbyte OSS artifacts in `infrastructure/airbyte/`, and dbt models/macros/tests in `dbt/`.

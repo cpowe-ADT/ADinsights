@@ -7,7 +7,10 @@ export type RequestOptions = {
   signal?: AbortSignal;
 };
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
+const resolvedEnv = typeof import.meta !== 'undefined' ? import.meta.env : undefined;
+const resolvedProcessEnv = typeof process !== 'undefined' ? process.env : undefined;
+
+export const API_BASE_URL = resolvedEnv?.VITE_API_BASE_URL ?? '/api';
 
 function resolveBooleanFlag(value: unknown, defaultValue: boolean): boolean {
   if (typeof value !== 'string') {
@@ -25,8 +28,11 @@ function resolveBooleanFlag(value: unknown, defaultValue: boolean): boolean {
   return defaultValue;
 }
 
-export const MOCK_MODE = resolveBooleanFlag(import.meta.env.VITE_MOCK_MODE, false);
-export const MOCK_ASSETS_ENABLED = resolveBooleanFlag(import.meta.env.VITE_MOCK_ASSETS, MOCK_MODE);
+const mockModeEnv = resolvedProcessEnv?.VITE_MOCK_MODE ?? resolvedEnv?.VITE_MOCK_MODE;
+const mockAssetsEnv = resolvedProcessEnv?.VITE_MOCK_ASSETS ?? resolvedEnv?.VITE_MOCK_ASSETS;
+
+export const MOCK_MODE = resolveBooleanFlag(mockModeEnv, false);
+export const MOCK_ASSETS_ENABLED = resolveBooleanFlag(mockAssetsEnv, MOCK_MODE);
 
 type RefreshHandler = () => Promise<string | undefined>;
 type UnauthorizedHandler = () => void;

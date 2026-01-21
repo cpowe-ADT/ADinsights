@@ -9,6 +9,7 @@ test.db
 *.log
 *.pot
 *.pyc
+celerybeat-schedule
 .DS_Store
 node_modules/
 .turbo/

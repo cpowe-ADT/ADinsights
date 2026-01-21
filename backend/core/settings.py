@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+import logging
 from pathlib import Path
 
 import environ
@@ -193,3 +194,26 @@ LLM_API_KEY = _optional(env("LLM_API_KEY", default=None))
 LLM_MODEL = env("LLM_MODEL", default="gpt-5.1")
 LLM_TIMEOUT = env.float("LLM_TIMEOUT")
 APP_VERSION = env("APP_VERSION")
+
+SENTRY_DSN = _optional(env("SENTRY_DSN", default=None))
+SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="development")
+SENTRY_TRACES_SAMPLE_RATE = env.float("SENTRY_TRACES_SAMPLE_RATE", default=0.0)
+
+if SENTRY_DSN:
+    try:  # pragma: no cover - optional dependency
+        import sentry_sdk
+        from sentry_sdk.integrations.celery import CeleryIntegration
+        from sentry_sdk.integrations.django import DjangoIntegration
+    except ImportError:  # pragma: no cover - defensive fallback
+        logging.getLogger(__name__).warning(
+            "SENTRY_DSN set but sentry-sdk is not installed."
+        )
+    else:
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            environment=SENTRY_ENVIRONMENT,
+            release=APP_VERSION,
+            send_default_pii=False,
+            traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
+            integrations=[DjangoIntegration(), CeleryIntegration()],
+        )

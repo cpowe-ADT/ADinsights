@@ -54,6 +54,35 @@ Working rules to restate every session:
 | README.md | Repo overview, structure, quick start, endpoints | New components, commands, or layout changes | AGENTS.md |
 | docs/workstreams.md | Folder scopes, owners, KPIs, tests, DoD | New stream, owner change, test matrix tweak | AGENTS.md, phase1-execution-backlog |
 | docs/project/phase1-execution-backlog.md | Live status board per stream | Status/priority/command changes | docs/task_breakdown.md |
+| docs/project/feature-catalog.md | Consolidated feature list (built/in progress/planned) | Feature status changes | docs/task_breakdown.md, phase1-execution-backlog.md |
+| docs/project/feature-ownership-map.md | Feature ownership + tests + runbooks | Owner or scope changes | docs/workstreams.md |
+| docs/project/api-contract-changelog.md | API payload change log | API schema changes | docs/workstreams.md, frontend/README.md |
+| docs/runbooks/release-checklist.md | Release readiness checklist | Release process changes | docs/runbooks/deployment.md |
+| docs/ops/data-quality-checklist.md | Data quality validation checklist | Modeling or ingestion changes | dbt/README.md, docs/runbooks/operations.md |
+| docs/ops/risk-register.md | Operational risk register | Risk status changes | docs/runbooks/operations.md |
+| docs/ops/adr-log.md | Architecture decision log | Architecture changes | AGENTS.md, docs/workstreams.md |
+| docs/project/user-journey-map.md | Core user workflows | Product workflow updates | docs/task_breakdown.md |
+| docs/runbooks/support-playbook.md | Support triage steps | Support process updates | docs/runbooks/operations.md |
+| docs/ops/escalation-matrix.md | Incident escalation routing | On-call/escalation changes | docs/ops/risk-register.md |
+| docs/ops/slo-sli-summary.md | SLO/SLI quick reference | SLO updates | docs/ops/slo-sli.md |
+| docs/project/metrics-glossary.md | Metrics definitions | Metric changes | dbt/README.md, docs/project/api-contract-changelog.md |
+| docs/ops/dashboard-links.md | Monitoring dashboard index | Dashboard changes | docs/ops/slo-sli-summary.md |
+| docs/ops/postmortem-template.md | Incident postmortem template | Process changes | docs/ops/escalation-matrix.md |
+| docs/project/data-lineage-map.md | High-level data flow | Pipeline changes | docs/project/vertical_slice_plan.md |
+| docs/ops/ai-onboarding-checklist.md | AI session recontext checklist | Onboarding process changes | AGENTS.md |
+| docs/ops/testing-cheat-sheet.md | Test commands quick ref | Test matrix changes | docs/workstreams.md, AGENTS.md |
+| docs/project/feature-flags-reference.md | Feature flags/entitlements summary | UAC changes | docs/security/uac-spec.md |
+| docs/project/definition-of-done.md | Completion criteria | DoD changes | docs/workstreams.md |
+| docs/ops/escalation-rules.md | When to escalate to Raj/Mira | Escalation policy updates | docs/workstreams.md |
+| docs/ops/ai-session-resume-template.md | Copy/paste session resume | Recontext process changes | AGENTS.md |
+| docs/ops/decision-checklist.md | When to update docs | Process changes | AGENTS.md, doc-index |
+| docs/ops/test-failure-triage.md | Test failure steps | QA process changes | docs/ops/testing-cheat-sheet.md |
+| docs/ops/new-engineer-onboarding.md | New engineer onboarding guide | Onboarding changes | AGENTS.md |
+| docs/ops/human-onboarding-guide.md | Human engineer onboarding guide | Onboarding changes | AGENTS.md |
+| docs/ops/confused-engineer-walkthrough.md | Low-context walkthrough | Onboarding changes | AGENTS.md |
+| docs/ops/documentation-snob-review.md | Documentation critique | Doc quality reviews | docs/ops/doc-index.md |
+| docs/ops/golden-path-onboarding.md | Single best onboarding path | Onboarding changes | AGENTS.md |
+| docs/ops/cold-start-walkthrough.md | Actual cold start attempt | Onboarding changes | docs/ops/golden-path-onboarding.md |
 | docs/task_breakdown.md | Immediate next actions and gaps | New tasks/gaps discovered | vertical_slice_plan |
 | docs/project/vertical_slice_plan.md | End-to-end slice sequencing | Workflow/order changes | docs/task_breakdown.md |
 | docs/security/uac-spec.md | UAC/privilege model | Security/RBAC changes | AGENTS.md |

@@ -326,58 +326,69 @@ const DashboardLayout = () => {
                 ) : null}
               </p>
             </div>
-            <div className="header-actions">
-              <TenantSwitcher />
-              <DatasetToggle />
-              <div
-                className={`snapshot-indicator${
-                  snapshotIsStale ? ' snapshot-indicator--stale' : ''
-                }`}
-                title={snapshotAbsolute ?? undefined}
-              >
-                <span className="snapshot-indicator__text">{snapshotStatusLabel}</span>
+            <div className="dashboard-header__actions">
+              <div className="dashboard-header__meta">
+                <TenantSwitcher />
+                <DatasetToggle />
+                <div
+                  className={`snapshot-indicator${
+                    snapshotIsStale ? ' snapshot-indicator--stale' : ''
+                  }`}
+                  title={snapshotAbsolute ?? undefined}
+                >
+                  <span className="snapshot-indicator__text">{snapshotStatusLabel}</span>
+                </div>
               </div>
-              <label htmlFor="metric-select" className="muted">
-                Map metric
-              </label>
-              <select
-                id="metric-select"
-                value={selectedMetric}
-                onChange={(event) => setSelectedMetric(event.target.value as typeof selectedMetric)}
-              >
-                {metricOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="button tertiary theme-toggle"
-                onClick={toggleTheme}
-                aria-pressed={theme === 'dark'}
-              >
-                <span className="theme-toggle__icon" aria-hidden="true">
-                  {theme === 'dark' ? '🌞' : '🌙'}
-                </span>
-                <span>{theme === 'dark' ? 'Light' : 'Dark'} mode</span>
-              </button>
-              <button type="button" className="button secondary" onClick={handleSaveLayout}>
-                {SaveIcon}
-                Save layout
-              </button>
-              <button
-                type="button"
-                className="button secondary"
-                onClick={() => void handleCopyLink()}
-              >
-                {LinkIcon}
-                Copy link
-              </button>
-              <span className="muted user-pill">{accountLabel}</span>
-              <button type="button" className="button tertiary" onClick={logout}>
-                Log out
-              </button>
+              <div className="dashboard-header__controls">
+                <label htmlFor="metric-select" className="dashboard-field">
+                  <span className="dashboard-field__label">Map metric</span>
+                  <select
+                    id="metric-select"
+                    value={selectedMetric}
+                    onChange={(event) =>
+                      setSelectedMetric(event.target.value as typeof selectedMetric)
+                    }
+                  >
+                    {metricOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="button tertiary theme-toggle"
+                  onClick={toggleTheme}
+                  aria-pressed={theme === 'dark'}
+                >
+                  <span className="theme-toggle__icon" aria-hidden="true">
+                    {theme === 'dark' ? '🌞' : '🌙'}
+                  </span>
+                  <span>{theme === 'dark' ? 'Light' : 'Dark'} mode</span>
+                </button>
+                <div className="dashboard-header__divider" role="presentation" />
+                <div className="dashboard-header__actions-row">
+                  <button type="button" className="button secondary" onClick={handleSaveLayout}>
+                    {SaveIcon}
+                    Save layout
+                  </button>
+                  <button
+                    type="button"
+                    className="button secondary"
+                    onClick={() => void handleCopyLink()}
+                  >
+                    {LinkIcon}
+                    Copy link
+                  </button>
+                </div>
+                <div className="dashboard-header__account">
+                  <span className="muted user-pill">{accountLabel}</span>
+                  <button type="button" className="button tertiary" onClick={logout}>
+                    Log out
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </header>

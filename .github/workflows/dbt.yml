@@ -1,6 +1,12 @@
 name: dbt
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'dbt/**'
+      - '.github/workflows/dbt.yml'
   push:
     paths:
       - 'dbt/**'
@@ -12,9 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    # If you want a temp dir as an env var at the JOB level, compute it with an expression here.
     env:
-      DBT_TEMP_DIR: ${{ runner.temp }}
+      DBT_PROJECT_DIR: dbt
+      DBT_PROFILES_DIR: dbt/.profiles
+      DBT_PROFILE: adinsights_duckdb
+      DBT_DUCKDB_PATH: dbt/warehouse_ci.duckdb
+      DBT_SCHEMA: analytics
+      CI_USE_SEEDS: "true"
 
     steps:
       - name: Checkout
@@ -25,22 +35,28 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dbt (core + postgres as example)
+      - name: Install dbt (core + duckdb)
         run: |
           python -m pip install --upgrade pip
-          pip install "dbt-core>=1.7,<2.0" "dbt-postgres>=1.7,<2.0"
+          pip install "dbt-core>=1.7,<2.0" "dbt-duckdb>=1.7,<2.0"
 
-      # Demonstrate safe use of the runner temp in a shell (via $RUNNER_TEMP):
-      - name: Prepare temp working directory
+      - name: Prepare dbt profile
         run: |
-          echo "RUNNER_TEMP is: $RUNNER_TEMP"
-          mkdir -p "$RUNNER_TEMP/dbt"
-          echo "hello" > "$RUNNER_TEMP/dbt/probe.txt"
-          ls -la "$RUNNER_TEMP/dbt"
+          mkdir -p "$DBT_PROFILES_DIR"
+          cp dbt/profiles-ci.yml "$DBT_PROFILES_DIR/profiles.yml"
 
-      # If you actually have dbt project in ./dbt
-      - name: Run dbt debug (optional)
-        working-directory: ./dbt
+      - name: Run dbt deps
         run: |
-          dbt --version
-          dbt debug || true
+          dbt --project-dir "$DBT_PROJECT_DIR" --profiles-dir "$DBT_PROFILES_DIR" deps
+
+      - name: Seed CI fixtures
+        run: |
+          dbt --project-dir "$DBT_PROJECT_DIR" --profiles-dir "$DBT_PROFILES_DIR" seed --full-refresh
+
+      - name: Build staging + reference
+        run: |
+          dbt --project-dir "$DBT_PROJECT_DIR" --profiles-dir "$DBT_PROFILES_DIR" run --select staging_ci
+
+      - name: Test staging + reference
+        run: |
+          dbt --project-dir "$DBT_PROJECT_DIR" --profiles-dir "$DBT_PROFILES_DIR" test --select staging_ci

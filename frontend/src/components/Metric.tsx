@@ -12,6 +12,7 @@ type MetricProps = {
   hint?: string;
   trend?: number[];
   badge?: MetricBadge;
+  className?: string;
 };
 
 const clampTrend = (trend?: number[]) => {
@@ -30,6 +31,7 @@ const Metric = ({
   hint,
   trend,
   badge,
+  className,
 }: MetricProps) => {
   const sanitizedTrend = useMemo(() => clampTrend(trend), [trend]);
 
@@ -61,8 +63,10 @@ const Metric = ({
   const tone =
     deltaDirection === 'down' ? 'negative' : deltaDirection === 'up' ? 'positive' : 'neutral';
 
+  const mergedClassName = ['metric-card', className].filter(Boolean).join(' ');
+
   return (
-    <article className="metric-card">
+    <article className={mergedClassName}>
       <header className="metric-card__header">
         <p className="metric-card__label">{label}</p>
         {badge ? (

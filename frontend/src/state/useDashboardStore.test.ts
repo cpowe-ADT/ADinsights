@@ -99,7 +99,11 @@ describe('useDashboardStore', () => {
 
   it('loads dashboard data from the mock endpoints', async () => {
     const fetchMock = vi.fn((url: RequestInfo | URL) => {
-      if (typeof url === 'string' && url.endsWith('/sample_campaign_performance.json')) {
+      if (
+        typeof url === 'string' &&
+        (url.endsWith('/sample_campaign_performance.json') ||
+          url.includes('/analytics/campaign-performance/'))
+      ) {
         return Promise.resolve(
           new Response(JSON.stringify(campaignData), {
             status: 200,
@@ -107,7 +111,11 @@ describe('useDashboardStore', () => {
           }),
         );
       }
-      if (typeof url === 'string' && url.endsWith('/sample_creative_performance.json')) {
+      if (
+        typeof url === 'string' &&
+        (url.endsWith('/sample_creative_performance.json') ||
+          url.includes('/analytics/creative-performance/'))
+      ) {
         return Promise.resolve(
           new Response(JSON.stringify(creativeData), {
             status: 200,
@@ -115,7 +123,10 @@ describe('useDashboardStore', () => {
           }),
         );
       }
-      if (typeof url === 'string' && url.endsWith('/sample_budget_pacing.json')) {
+      if (
+        typeof url === 'string' &&
+        (url.endsWith('/sample_budget_pacing.json') || url.includes('/analytics/budget-pacing/'))
+      ) {
         return Promise.resolve(
           new Response(JSON.stringify(budgetData), {
             status: 200,
@@ -123,7 +134,11 @@ describe('useDashboardStore', () => {
           }),
         );
       }
-      if (typeof url === 'string' && url.endsWith('/sample_parish_aggregates.json')) {
+      if (
+        typeof url === 'string' &&
+        (url.endsWith('/sample_parish_aggregates.json') ||
+          url.includes('/analytics/parish-performance/'))
+      ) {
         return Promise.resolve(
           new Response(JSON.stringify(parishData), {
             status: 200,
@@ -217,7 +232,11 @@ describe('useDashboardStore', () => {
 
   it('flags API errors without discarding previous data', async () => {
     const fetchMock = vi.fn((url: RequestInfo | URL) => {
-      if (typeof url === 'string' && url.endsWith('/sample_campaign_performance.json')) {
+      if (
+        typeof url === 'string' &&
+        (url.endsWith('/sample_campaign_performance.json') ||
+          url.includes('/analytics/campaign-performance/'))
+      ) {
         return Promise.resolve(
           new Response(JSON.stringify({ detail: 'oops' }), {
             status: 500,
@@ -225,7 +244,11 @@ describe('useDashboardStore', () => {
           }),
         );
       }
-      if (typeof url === 'string' && url.endsWith('/sample_creative_performance.json')) {
+      if (
+        typeof url === 'string' &&
+        (url.endsWith('/sample_creative_performance.json') ||
+          url.includes('/analytics/creative-performance/'))
+      ) {
         return Promise.resolve(
           new Response(JSON.stringify(creativeData), {
             status: 200,
@@ -233,7 +256,10 @@ describe('useDashboardStore', () => {
           }),
         );
       }
-      if (typeof url === 'string' && url.endsWith('/sample_budget_pacing.json')) {
+      if (
+        typeof url === 'string' &&
+        (url.endsWith('/sample_budget_pacing.json') || url.includes('/analytics/budget-pacing/'))
+      ) {
         return Promise.resolve(
           new Response(JSON.stringify(budgetData), {
             status: 200,
@@ -241,7 +267,11 @@ describe('useDashboardStore', () => {
           }),
         );
       }
-      if (typeof url === 'string' && url.endsWith('/sample_parish_aggregates.json')) {
+      if (
+        typeof url === 'string' &&
+        (url.endsWith('/sample_parish_aggregates.json') ||
+          url.includes('/analytics/parish-performance/'))
+      ) {
         return Promise.resolve(
           new Response(JSON.stringify(parishData), {
             status: 200,

@@ -17,3 +17,9 @@ repos:
     hooks:
       - id: prettier
         files: '^(frontend/|dbt/).*\.(js|ts|tsx|json|yml|yaml|md)'
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: '^(node_modules/|frontend/node_modules/|dist-|health-logs/|db\.sqlite3|test\.db|.*\.tar\.gz$)'

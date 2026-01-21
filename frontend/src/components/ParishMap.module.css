@@ -6,6 +6,7 @@
   overflow: hidden;
   background: var(--map-shell-surface);
   box-shadow: var(--map-shell-shadow);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .map {
@@ -20,6 +21,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  padding: 0.2rem;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
   z-index: 600;
 }
 
@@ -30,9 +35,9 @@
   background: var(--map-control-surface);
   color: var(--map-control-text);
   border: 1px solid var(--map-control-border);
-  padding: 0.4rem 0.85rem;
+  padding: 0.4rem 0.9rem;
   border-radius: var(--radius-pill);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: var(--font-weight-semibold);
   text-decoration: none;
   box-shadow: var(--map-control-shadow);
@@ -54,8 +59,8 @@
 .toggleButton {
   border: 1px solid var(--map-control-border);
   border-radius: var(--radius-pill);
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   background: var(--map-control-surface);
@@ -105,21 +110,21 @@
   bottom: var(--space-3);
   background: var(--map-legend-surface);
   border-radius: var(--radius-md);
-  padding: 0.6rem 0.85rem;
+  padding: 0.7rem 0.9rem;
   box-shadow: var(--map-legend-shadow);
   border: 1px solid var(--map-legend-border);
   backdrop-filter: blur(6px);
   z-index: 550;
   pointer-events: none;
   color: var(--map-legend-text);
-  min-width: 160px;
+  min-width: 170px;
 }
 
 .legendTitle {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
 }
 
 .legend ul {
@@ -135,7 +140,7 @@
   grid-template-columns: 18px 1fr;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
 }
 
 .legendSwatch {
@@ -153,10 +158,10 @@
   background: var(--map-tooltip-surface);
   color: var(--map-tooltip-text);
   border: none;
-  border-radius: 0.6rem;
+  border-radius: 0.7rem;
   box-shadow: var(--map-tooltip-shadow);
-  padding: 0.45rem 0.6rem;
-  font-size: 0.8rem;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.78rem;
   pointer-events: none;
   z-index: 1000;
 }
@@ -175,7 +180,7 @@
 }
 
 .tooltipMetric {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--map-tooltip-muted);
 }
 

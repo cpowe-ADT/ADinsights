@@ -56,7 +56,7 @@ services:
 
   server:
     # Airbyte API; expect ~512 MiB RAM usage under typical dev loads.
-    image: airbyte/airbyte-server:0.50.22
+    image: ghcr.io/airbytehq/airbyte-server:v1.8.0
     container_name: airbyte-server
     restart: unless-stopped
     <<: *airbyte-service-defaults
@@ -83,7 +83,7 @@ services:
 
   webapp:
     # React admin UI served via Nginx; light footprint (<256 MiB RAM).
-    image: airbyte/airbyte-webapp:0.50.22
+    image: ghcr.io/airbytehq/airbyte-webapp:v1.8.0
     container_name: airbyte-webapp
     restart: unless-stopped
     <<: *airbyte-service-defaults
@@ -105,7 +105,7 @@ services:
 
   worker:
     # Execute sync jobs; provision at least 2 vCPU / 4 GiB RAM for parallel destinations.
-    image: airbyte/airbyte-worker:0.50.22
+    image: ghcr.io/airbytehq/airbyte-worker:v1.8.0
     container_name: airbyte-worker
     restart: unless-stopped
     <<: *airbyte-service-defaults
