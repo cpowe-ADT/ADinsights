@@ -76,6 +76,9 @@ The `.env.sample` file lists these variables. Leaving the credential values blan
 default AWS credential provider chain (instance profiles, `~/.aws/credentials`, etc.) to supply
 them.
 
+At startup the backend validates the configured KMS key identifier; placeholder ARNs or region
+mismatches raise a configuration error to prevent accidental non-production usage.
+
 ## Containers
 
 Dockerfiles are provided for parity with the deploy stack.

@@ -6,10 +6,10 @@ import os
 
 import pytest
 
-from accounts.models import Tenant, TenantKey
+from accounts.models import AuditLog, Tenant, TenantKey
 from core.crypto.dek_manager import rotate_all_tenant_deks, rotate_tenant_dek
 from core.crypto.fields import decrypt_value, encrypt_value
-from core.crypto.kms import KmsError
+from core.crypto.kms import KmsError, KmsUnavailableError
 from integrations.models import PlatformCredential
 
 
@@ -86,6 +86,10 @@ def test_rotate_all_tenant_deks_updates_records(db, monkeypatch: pytest.MonkeyPa
         )
         == "refresh-token"
     )
+    log = AuditLog.all_objects.get(action="dek_rotated", tenant=tenant)
+    assert log.resource_type == "dek"
+    assert log.resource_id == str(tenant.id)
+    assert log.metadata["rotation_source"] == "scheduled"
     kms_client.encrypt.assert_called_once()
     kms_client.decrypt.assert_called_once()
 
@@ -127,6 +131,10 @@ def test_rotate_all_tenant_deks_skips_failed_tenant(db, monkeypatch: pytest.Monk
     assert tenant_key_ok.dek_key_version == "rotated"
     assert tenant_key_ok.dek_ciphertext == b"rotatedcipher"
 
+    failed_log = AuditLog.all_objects.get(action="dek_rotation_failed", tenant=tenant_error)
+    assert failed_log.metadata["error_kind"] == "kms_error"
+    success_log = AuditLog.all_objects.get(action="dek_rotated", tenant=tenant_ok)
+    assert success_log.metadata["rotation_source"] == "scheduled"
     kms_client.encrypt.assert_called_once()
     assert kms_client.decrypt.call_count == 2
 
@@ -155,6 +163,8 @@ def test_rotate_tenant_dek_updates_single_tenant(monkeypatch: pytest.MonkeyPatch
     credential.refresh_from_db()
     assert tenant_key.dek_key_version == "rotated"
     assert credential.dek_key_version == "rotated"
+    log = AuditLog.all_objects.get(action="dek_rotated", tenant=tenant)
+    assert log.metadata["rotation_source"] == "manual"
 
 
 @pytest.mark.django_db
@@ -171,3 +181,23 @@ def test_rotate_tenant_dek_missing_key(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert called["kms"] is True
     assert success is False
+
+
+def test_rotate_all_tenant_deks_raises_when_kms_unavailable(
+    db, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tenant = Tenant.objects.create(name="Tenant Down")
+    TenantKey.all_objects.create(
+        tenant=tenant,
+        dek_ciphertext=b"cipher",
+        dek_key_version="version",
+    )
+    kms_client = Mock()
+    kms_client.decrypt.side_effect = KmsUnavailableError("down")
+    monkeypatch.setattr("core.crypto.dek_manager._kms", lambda: kms_client)
+
+    with pytest.raises(KmsUnavailableError):
+        rotate_all_tenant_deks()
+
+    log = AuditLog.all_objects.get(action="dek_rotation_failed", tenant=tenant)
+    assert log.metadata["error_kind"] == "kms_unavailable"

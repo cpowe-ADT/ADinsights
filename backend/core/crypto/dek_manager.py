@@ -7,14 +7,18 @@ import os
 from typing import Optional
 
 from django.conf import settings
+from accounts.audit import log_audit_event
 from accounts.models import Tenant, TenantKey
 from accounts.tenant_context import tenant_context
 
 from .fields import decrypt_value, encrypt_value
-from .kms import KmsError, get_kms_client
+from .kms import KmsError, KmsUnavailableError, get_kms_client
 
 
 logger = logging.getLogger(__name__)
+
+ROTATION_ACTION = "dek_rotated"
+ROTATION_FAILURE_ACTION = "dek_rotation_failed"
 
 
 def _kms():
@@ -52,12 +56,43 @@ def get_dek_for_tenant(tenant: Tenant) -> tuple[bytes, str]:
         raise
 
 
-def rotate_all_tenant_deks() -> int:
+def rotate_all_tenant_deks(rotation_source: str = "scheduled") -> int:
     kms_client = _kms()
     rotated = 0
-    for tenant_key in TenantKey.all_objects.select_related("tenant"):
-        if _rotate_tenant_key(tenant_key, kms_client):
-            rotated += 1
+    tenant_keys = list(TenantKey.all_objects.select_related("tenant"))
+    kms_unavailable = 0
+    for tenant_key in tenant_keys:
+        try:
+            if _rotate_tenant_key(
+                tenant_key,
+                kms_client,
+                rotation_source=rotation_source,
+            ):
+                rotated += 1
+        except KmsUnavailableError:
+            kms_unavailable += 1
+    if tenant_keys and kms_unavailable == len(tenant_keys) and rotated == 0:
+        logger.error(
+            "DEK rotation failed: KMS unreachable",
+            extra={
+                "rotated": rotated,
+                "tenant_count": len(tenant_keys),
+                "kms_unavailable": kms_unavailable,
+                "rotation_source": rotation_source,
+            },
+        )
+        raise KmsUnavailableError(
+            "KMS is unreachable; no tenant keys were rotated."
+        )
+    logger.info(
+        "DEK rotation summary",
+        extra={
+            "rotated": rotated,
+            "tenant_count": len(tenant_keys),
+            "kms_unavailable": kms_unavailable,
+            "rotation_source": rotation_source,
+        },
+    )
     return rotated
 
 
@@ -71,13 +106,19 @@ def rotate_tenant_dek(tenant_id: str) -> bool:
     if tenant_key is None:
         logger.warning("No tenant key found for rotation", extra={"tenant_id": tenant_id})
         return False
-    return _rotate_tenant_key(tenant_key, kms_client)
+    return _rotate_tenant_key(tenant_key, kms_client, rotation_source="manual")
 
 
-def _rotate_tenant_key(tenant_key: TenantKey, kms_client) -> bool:
+def _rotate_tenant_key(
+    tenant_key: TenantKey,
+    kms_client,
+    *,
+    rotation_source: str,
+) -> bool:
     from integrations.models import PlatformCredential
 
     tenant_id = str(tenant_key.tenant_id)
+    previous_version = tenant_key.dek_key_version
     try:
         with tenant_context(tenant_id):
             old_key = kms_client.decrypt(
@@ -134,11 +175,75 @@ def _rotate_tenant_key(tenant_key: TenantKey, kms_client) -> bool:
             tenant_key.save(
                 update_fields=["dek_ciphertext", "dek_key_version", "updated_at"]
             )
+            log_audit_event(
+                tenant=tenant_key.tenant,
+                user=None,
+                action=ROTATION_ACTION,
+                resource_type="dek",
+                resource_id=tenant_id,
+                metadata={
+                    "rotation_source": rotation_source,
+                    "previous_version": previous_version,
+                    "new_version": version,
+                },
+            )
+            logger.info(
+                "DEK rotation succeeded",
+                extra={
+                    "tenant_id": tenant_id,
+                    "rotation_source": rotation_source,
+                    "previous_version": previous_version,
+                    "new_version": version,
+                },
+            )
             return True
+    except KmsUnavailableError as error:
+        with tenant_context(tenant_id):
+            log_audit_event(
+                tenant=tenant_key.tenant,
+                user=None,
+                action=ROTATION_FAILURE_ACTION,
+                resource_type="dek",
+                resource_id=tenant_id,
+                metadata={
+                    "rotation_source": rotation_source,
+                    "previous_version": previous_version,
+                    "error_kind": "kms_unavailable",
+                },
+            )
+        logger.exception(
+            "KMS unavailable during DEK rotation for tenant %s: %s",
+            tenant_key.tenant_id,
+            error,
+            extra={
+                "tenant_id": tenant_id,
+                "rotation_source": rotation_source,
+                "error_kind": "kms_unavailable",
+            },
+        )
+        raise
     except KmsError as error:
+        with tenant_context(tenant_id):
+            log_audit_event(
+                tenant=tenant_key.tenant,
+                user=None,
+                action=ROTATION_FAILURE_ACTION,
+                resource_type="dek",
+                resource_id=tenant_id,
+                metadata={
+                    "rotation_source": rotation_source,
+                    "previous_version": previous_version,
+                    "error_kind": "kms_error",
+                },
+            )
         logger.exception(
             "Skipping DEK rotation for tenant %s due to KMS error: %s",
             tenant_key.tenant_id,
             error,
+            extra={
+                "tenant_id": tenant_id,
+                "rotation_source": rotation_source,
+                "error_kind": "kms_error",
+            },
         )
         return False

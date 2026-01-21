@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import scripts.rotate_deks as cli
+from core.crypto.kms import KmsError
 
 
 def test_dry_run_reports_counts(monkeypatch, capsys):
@@ -41,3 +42,36 @@ def test_rotate_all(monkeypatch, capsys):
     assert exit_code == 0
     captured = capsys.readouterr()
     assert "Rotated 3 tenant key(s)" in captured.out
+
+
+def test_smoke_kms_success(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "smoke_kms", lambda: True)
+
+    exit_code = cli.main(["--smoke"])
+
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert "KMS smoke check succeeded." in captured.out
+
+
+def test_smoke_kms_failure(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "smoke_kms", lambda: False)
+
+    exit_code = cli.main(["--smoke"])
+
+    assert exit_code == 1
+    captured = capsys.readouterr()
+    assert "KMS smoke check failed." in captured.err
+
+
+def test_smoke_kms_error(monkeypatch, capsys):
+    def raise_kms_error():
+        raise KmsError("down")
+
+    monkeypatch.setattr(cli, "smoke_kms", raise_kms_error)
+
+    exit_code = cli.main(["--smoke"])
+
+    assert exit_code == 2
+    captured = capsys.readouterr()
+    assert "KMS smoke check failed: down" in captured.err

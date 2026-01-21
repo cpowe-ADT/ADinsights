@@ -54,9 +54,33 @@ def count_tenant_keys(tenant_id: str | None = None) -> int:
     return queryset.count()
 
 
+def smoke_kms() -> bool:
+    ensure_django()
+    from django.conf import settings
+
+    from core.crypto.kms import get_kms_client
+
+    kms_client = get_kms_client(
+        settings.KMS_PROVIDER,
+        settings.KMS_KEY_ID,
+        region_name=settings.AWS_REGION,
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        aws_session_token=settings.AWS_SESSION_TOKEN,
+    )
+    payload = os.urandom(32)
+    version, ciphertext = kms_client.encrypt(payload)
+    return kms_client.decrypt(ciphertext, version) == payload
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Rotate tenant data-encryption keys via the configured KMS provider.",
+    )
+    parser.add_argument(
+        "--smoke",
+        action="store_true",
+        help="Perform a KMS encrypt/decrypt smoke check without rotating keys.",
     )
     parser.add_argument(
         "--tenant-id",
@@ -82,6 +106,23 @@ def main(argv: list[str] | None = None) -> int:
         format="%(asctime)s %(levelname)s %(message)s",
     )
 
+    if args.smoke:
+        from core.crypto.kms import KmsError
+
+        try:
+            ok = smoke_kms()
+        except KmsError as exc:
+            logger.error("KMS smoke check failed: %s", exc)
+            print(f"KMS smoke check failed: {exc}", file=sys.stderr)
+            return 2
+        if ok:
+            logger.info("KMS smoke check succeeded.")
+            print("KMS smoke check succeeded.")
+            return 0
+        logger.error("KMS smoke check failed.")
+        print("KMS smoke check failed.", file=sys.stderr)
+        return 1
+
     if args.dry_run:
         total = count_tenant_keys(args.tenant_id)
         scope = f"tenant {args.tenant_id}" if args.tenant_id else "all tenants"
@@ -89,8 +130,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[dry-run] {total} tenant key(s) would be rotated.")
         return 0
 
+    from core.crypto.kms import KmsError
+
     if args.tenant_id:
-        success = rotate_single(args.tenant_id)
+        try:
+            success = rotate_single(args.tenant_id)
+        except KmsError as exc:
+            logger.error("KMS error rotating tenant %s: %s", args.tenant_id, exc)
+            print(f"KMS error rotating tenant {args.tenant_id}: {exc}", file=sys.stderr)
+            return 2
         if not success:
             logger.error("No tenant key rotated for %s", args.tenant_id)
             print(f"No tenant key rotated for {args.tenant_id}", file=sys.stderr)
@@ -99,7 +147,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Rotated DEK for tenant {args.tenant_id}")
         return 0
 
-    rotated = rotate_all()
+    try:
+        rotated = rotate_all()
+    except KmsError as exc:
+        logger.error("KMS error rotating tenant keys: %s", exc)
+        print(f"KMS error rotating tenant keys: {exc}", file=sys.stderr)
+        return 2
     logger.info("Rotated %s tenant key(s)", rotated)
     print(f"Rotated {rotated} tenant key(s)")
     return 0
