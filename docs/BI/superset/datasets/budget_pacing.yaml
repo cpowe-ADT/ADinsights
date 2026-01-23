@@ -1,0 +1,27 @@
+version: 1.0.0
+metadata:
+  import_time: 2024-07-18T00:00:00Z
+  database_uuid: 5b16bf82-115e-459d-bfbe-1234567890ab
+  dataset_uuid: c9b87c0a-208d-4f7a-9e4e-1234567890ab
+dataset:
+  table_name: mart_budget_allocation
+  schema: finance
+  description: Budget allocation & pacing at the market and parish level.
+  owners:
+    - finance.ops@example.com
+  columns:
+    - column_name: date
+      type: DATE
+      is_dttm: true
+    - column_name: parish
+      type: VARCHAR
+    - column_name: plan_budget
+      type: FLOAT
+    - column_name: actual_spend
+      type: FLOAT
+    - column_name: variance
+      type: FLOAT
+  metrics:
+    - metric_name: variance_pct
+      expression: sum(actual_spend - plan_budget) / NULLIF(sum(plan_budget), 0)
+      verbose_name: Variance %
