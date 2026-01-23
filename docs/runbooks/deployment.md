@@ -64,6 +64,7 @@ Release cadence: weekly sprint cut for staging, bi-weekly (or on-demand) for pro
      schema validations and artifact interpretation.
    - Build docker images for backend, worker, frontend, Airbyte extensions.
    - Push to ECR with tags `main-<gitsha>` and `release-<semver>`.
+   - Validate deploy compose: `docker compose -f deploy/docker-compose.yml config`.
 2. **Artifact Promotion**
    - Create Git tag `vX.Y.Z` when staging passes UAT.
    - Trigger CD workflow: updates ECS task definitions, runs migrations (`python manage.py migrate`), seeds tenant roles (`manage.py seed_roles`), enables RLS (`manage.py enable_rls`).
@@ -117,6 +118,7 @@ Release cadence: weekly sprint cut for staging, bi-weekly (or on-demand) for pro
 ## 10. Reference Commands
 
 - Local docker compose smoke: `docker compose up backend worker beat frontend` (use `.env.sample` overrides).
+- Deploy compose validation: `docker compose -f deploy/docker-compose.yml config`.
 - Staging deployment trigger: `make deploy-staging` (wraps terraform plan/apply + ecs update).
 - Prod deployment trigger: `make deploy-prod IMAGE_TAG=vX.Y.Z` (requires approval).
 - Emergency credential rotation: `python manage.py rotate_deks` (ensure Celery beat disabled to avoid concurrent run).
