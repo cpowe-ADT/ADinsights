@@ -39,7 +39,7 @@ make dbt-test
 make dbt-freshness
 ```
 
-Generated marts include slowly changing dimensions (`dim_campaign`, `dim_adset`, `dim_ad`) built via the shared `scd2_dimension` macro, the static `dim_geo` lookup, the `fct_ad_performance` fact, and aggregate views (`vw_campaign_daily`, `vw_creative_daily`, `vw_pacing`). Metric calculations such as CTR, CPM, ROAS, CPC, and pacing leverage the reusable helpers in `dbt/macros/metrics/`.
+Generated marts include slowly changing dimensions (`dim_campaign`, `dim_adset`, `dim_ad`) built via the shared `scd2_dimension` macro, the static `dim_geo` lookup, the `fact_performance` fact, and aggregate views (`vw_campaign_daily`, `vw_creative_daily`, `vw_pacing`, `vw_dashboard_aggregate_snapshot`). Metric calculations such as CTR, CPM, ROAS, CPC, and pacing leverage the reusable helpers in `dbt/macros/metrics/`.
 
 ### Metrics macros
 
@@ -75,7 +75,6 @@ BI dependencies are tracked through dbt exposures so Superset and Metabase rebui
 - `metabase_pacing_monitor` depends on `vw_pacing` and `vw_campaign_daily`.
 
 CI runs include the aggregated marts via the `unique_combination_of_columns` schema test, ensuring the new views stay keyed by date/platform/account IDs even in seed-driven pipelines.
-Generated marts include slowly changing dimensions (`dim_campaign`, `dim_adset`, `dim_ad`) built via the shared `scd2_dimension` macro, the static `dim_geo` lookup, the normalized `fact_performance` fact, and aggregate views (`vw_campaign_daily`, `vw_creative_daily`, `vw_pacing`). Metric calculations such as CTR, CPM, and cost efficiency leverage the reusable helpers in `dbt/macros/metrics.sql`, while attribution alignment macros standardize conversion windows across platforms.
 
 ## Optional connectors
 

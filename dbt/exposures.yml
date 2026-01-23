@@ -6,18 +6,13 @@ exposures:
     maturity: high
     url: https://adinsights.dev/api/dashboards/aggregate-snapshot/
     description: >-
-      API endpoint providing combined campaign and parish aggregates for dashboard clients.
-      Depends on the agg_campaign_daily and agg_parish_daily marts to render the
-      `/api/dashboards/aggregate-snapshot/` payload.
+      API endpoint providing combined campaign, creative, budget pacing, and parish aggregates
+      for dashboard clients. Powered by vw_dashboard_aggregate_snapshot.
     owner:
       name: Analytics Platform
       email: data-platform@adinsights.dev
     depends_on:
-      - ref('agg_campaign_daily')
-      - ref('agg_parish_daily')
-      - ref('fact_performance')
-      - ref('dim_campaign')
-      - ref('dim_geo')
+      - ref('vw_dashboard_aggregate_snapshot')
     meta:
       tenant_scope: tenant_id
       default_tenant: "{{ var('tenant_id', 'tenant_demo') }}"

@@ -306,15 +306,27 @@ models:
         description: 'Campaign summary/trend/table payload matching the frontend campaign schema.'
         tests:
           - not_null
+          - expression_is_true:
+              arguments:
+                expression: "{{ json_typeof('campaign_metrics') }} = 'object'"
       - name: creative_metrics
         description: 'Creative performance rows matching the frontend creative schema.'
         tests:
           - not_null
+          - expression_is_true:
+              arguments:
+                expression: "{{ json_typeof('creative_metrics') }} = 'array'"
       - name: budget_metrics
-        description: 'Budget pacing rows (empty until budget metadata is wired).'
+        description: 'Budget pacing rows sourced from Meta ad set daily budgets with windowed spend.'
         tests:
           - not_null
+          - expression_is_true:
+              arguments:
+                expression: "{{ json_typeof('budget_metrics') }} = 'array'"
       - name: parish_metrics
         description: 'Parish aggregate rows matching the frontend map schema.'
         tests:
           - not_null
+          - expression_is_true:
+              arguments:
+                expression: "{{ json_typeof('parish_metrics') }} = 'array'"
