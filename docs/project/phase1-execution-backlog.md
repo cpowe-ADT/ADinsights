@@ -26,9 +26,9 @@ touch multiple top-level folders.
 | S6-A | Observability | Codex → Omar | Implement Celery/dbt/Airbyte latency metrics + `/metrics/app/` smoke test. | P1 | Needs hooks from Streams 1–3; schedule accordingly. | `curl localhost:<port>/metrics/app/` + backend tests. | Done (2025-12-23) |
 | S6-B | Observability | Codex → Hannah | Document alert thresholds, escalation contacts, link dashboards. | P2 | After S6-A metrics exist. | Docs update. | TODO |
 | S6-C | Observability | Codex → Omar | Add structured logging unit test validating tenant/task correlation IDs + schema doc. | P1 | Can run parallel with S6-A. | `pytest backend/core/tests/test_observability.py`. | Done (2025-01-05) |
-| S7-A | BI/Deployment | Codex → Carlos | Export Superset/Metabase configs with redacted creds into `docs/BI/`. | P2 | After Streams 2–3 finalize models/metrics. | `docker compose config`, BI export scripts. | TODO |
+| S7-A | BI/Deployment | Codex → Carlos | Export Superset/Metabase configs with redacted creds into `docs/BI/`. | P2 | After Streams 2–3 finalize models/metrics. | `docker compose config`, BI export scripts. | Done (2026-01-22) |
 | S7-B | BI/Deployment | Codex → Mei | Add `docker compose config` + smoke job to CI; document. | P1 | Independent; ensure no cross-folder edits beyond deploy/docs. | `docker compose config`, CI pipeline run. | Done (2025-12-23) |
-| S7-C | BI/Deployment | Codex → Carlos | Expand deployment runbook with rollback + health checklist. | P2 | After S7-B ensures smoke tests defined. | Docs update. | TODO |
+| S7-C | BI/Deployment | Codex → Carlos | Expand deployment runbook with rollback + health checklist. | P2 | After S7-B ensures smoke tests defined. | Docs update. | Done (2026-01-22) |
 
 **Execution Notes**
 - Work roughly follows the dependency chain: Stream 1 → Stream 2 → Stream 3 → Stream 4, while Streams 5–7 run in parallel when they don’t block others.

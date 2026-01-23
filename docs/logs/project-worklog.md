@@ -15,5 +15,6 @@
 | 2025-01-05 | Codex (Maya persona)     | Delivered S1-A (tenant-aware Celery base + Airbyte metrics helper).                                         | Updated `backend/core/tasks.py`, `backend/integrations/airbyte/service.py`, and tests; backlog row marked Done. |
 | 2025-01-05 | Codex (Leo persona)      | Delivered S1-B (telemetry API contract tests + OpenAPI refresh).                                            | Added snapshot/page-size tests in `backend/core/tests/test_airbyte_telemetry.py` and updated `docs/api/airbyte-telemetry.json`. |
 | 2025-01-05 | Codex (Maya persona)     | Delivered S1-C (webhook ops runbook + secret placeholder).                                                  | Added guidance to `docs/runbooks/operations.md` and updated `backend/.env.sample` with `AIRBYTE_WEBHOOK_SECRET`. |
+| 2026-01-22 | Codex (Carlos persona)   | Delivered S7-A/S7-C (Superset exports + deployment runbook updates).                                         | Added `docs/BI/` Superset exports and refined `docs/runbooks/deployment.md` with compose validation. |
 
 > Log significant project/process documentation updates here to retain historical context.
