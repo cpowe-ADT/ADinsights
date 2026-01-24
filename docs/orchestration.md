@@ -25,8 +25,8 @@ This document outlines how ADinsights keeps paid media data synchronized and mod
   python manage.py sync_airbyte
   ```
   The command (and the optional `integrations.tasks.trigger_scheduled_airbyte_syncs` Celery task) call the Airbyte API for each due connection, trigger sync jobs, and persist job metadata on both the `AirbyteConnection` record and the tenant-level `TenantAirbyteSyncStatus` table.
-- **Cadence**: For hourly feeds schedule the command at `5 * * * *` to start after the hour. Lower-frequency connections can use cron expressions or longer intervals in their respective model rows.
-- **Backfill strategy**: Each incremental stream keeps a 30-day lookback window via the configured start date cursors. Airbyte's state management ensures only new slices are processed.
+- **Cadence**: For hourly feeds schedule the command at `5 * * * *` to start after the hour. In production, Meta and Google metrics sync hourly between 06:00–22:00 America/Jamaica, with dimension syncs at 02:15. Lower-frequency connections can use cron expressions or longer intervals in their respective model rows.
+- **Backfill strategy**: Each incremental stream keeps a lookback window (Meta: 3-day; Google: daily GAQL) via the configured cursors. Airbyte's state management ensures only new slices are processed.
 - **Monitoring**: Ship job events to CloudWatch/Stackdriver and configure alerts for repeated failures or API quota errors. The `AirbyteConnection` table acts as the source of truth for the last successful attempt per tenant.
 
 ## dbt Transformations (Nightly)

@@ -25,6 +25,12 @@ are older than one hour. The dbt health endpoint reads the most recent `run_resu
 the service as stale when no run has completed within the past 24 hours. Both responses return
 machine-friendly JSON payloads for dashboards or alerting rules.
 
+For per-tenant investigation, use `GET /api/airbyte/telemetry/`. The response includes
+`sync_status_state` (`missing`, `fresh`, `stale`) and `sync_status_age_minutes` to confirm whether
+the latest sync is outside the freshness window. If no recent sync exists, trigger a manual refresh
+with `python manage.py sync_airbyte` (or run the Celery task
+`integrations.tasks.trigger_scheduled_airbyte_syncs`) and re-check the telemetry endpoint.
+
 ## Deployments
 
 1. Merge changes to `main` with green CI.

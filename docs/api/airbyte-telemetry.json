@@ -11,6 +11,8 @@
     "next": null,
     "previous": null,
     "snapshot_generated_at": "2024-04-03T15:42:10.125000Z",
+    "sync_status_state": "fresh",
+    "sync_status_age_minutes": 5,
     "sync_status": {
       "tenant_id": "0f4c6f48-2e0c-4ba7-9e48-5fdc5a5be9d2",
       "last_synced_at": "2024-04-03T15:42:10.125000Z",
