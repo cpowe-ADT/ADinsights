@@ -169,3 +169,13 @@ def test_openapi_schema_includes_airbyte_connection_summary():
     payload = yaml.safe_load(response.content.decode("utf-8"))
     paths = payload.get("paths", {})
     assert "/api/airbyte/connections/summary/" in paths
+
+
+@pytest.mark.django_db
+def test_openapi_schema_includes_airbyte_telemetry():
+    client = APIClient()
+    response = client.get("/api/schema/")
+    assert response.status_code == 200
+    payload = yaml.safe_load(response.content.decode("utf-8"))
+    paths = payload.get("paths", {})
+    assert "/api/airbyte/telemetry/" in paths
