@@ -99,6 +99,8 @@ def test_airbyte_telemetry_filters_by_tenant(api_client, user, tenant):
     assert sync_status["last_job_id"] == "job-123"
     assert sync_status["last_job_status"] == "succeeded"
     assert sync_status["connection"]["id"] == str(connection.id)
+    assert payload["sync_status_state"] == "fresh"
+    assert payload["sync_status_age_minutes"] >= 0
 
     audit_entry = AuditLog.all_objects.get(action="airbyte_telemetry_viewed")
     assert audit_entry.tenant_id == tenant.id
@@ -153,6 +155,52 @@ def test_airbyte_telemetry_paginates_results(api_client, user, tenant):
 
     audit_events = AuditLog.all_objects.filter(action="airbyte_telemetry_viewed", tenant=tenant)
     assert audit_events.count() == 2
+
+
+@pytest.mark.django_db
+def test_airbyte_telemetry_missing_sync_status(api_client, user):
+    api_client.force_authenticate(user=user)
+    response = api_client.get("/api/airbyte/telemetry/")
+    api_client.force_authenticate(user=None)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["sync_status"] is None
+    assert payload["sync_status_state"] == "missing"
+    assert "sync_status_age_minutes" not in payload
+
+
+@pytest.mark.django_db
+def test_airbyte_telemetry_stale_sync_status(api_client, user, tenant, monkeypatch):
+    fixed_now = timezone.now().replace(microsecond=0)
+    stale_at = fixed_now - timedelta(hours=2)
+
+    monkeypatch.setattr("core.viewsets.timezone.now", lambda: fixed_now)
+
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Primary Sync",
+        provider=None,
+        connection_id=uuid.uuid4(),
+        workspace_id=uuid.uuid4(),
+    )
+
+    TenantAirbyteSyncStatus.all_objects.create(
+        tenant=tenant,
+        last_connection=connection,
+        last_synced_at=stale_at,
+        last_job_id="job-stale",
+        last_job_status="succeeded",
+    )
+
+    api_client.force_authenticate(user=user)
+    response = api_client.get("/api/airbyte/telemetry/")
+    api_client.force_authenticate(user=None)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["sync_status_state"] == "stale"
+    assert payload["sync_status_age_minutes"] == 120
 
 
 @pytest.mark.django_db

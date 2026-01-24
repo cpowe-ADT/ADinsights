@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any
 
+from django.utils import timezone
 from django.db.models import QuerySet
 from rest_framework import mixins, permissions, viewsets
 from rest_framework.pagination import PageNumberPagination
@@ -16,6 +18,8 @@ from .serializers import (
     AirbyteJobTelemetrySerializer,
     TenantAirbyteSyncStatusSerializer,
 )
+
+AIRBYTE_TELEMETRY_STALE_THRESHOLD = timedelta(hours=1)
 
 
 class AirbyteTelemetryPagination(PageNumberPagination):
@@ -62,18 +66,37 @@ class AirbyteTelemetryViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
                     "results": raw_results,
                 }
 
-        sync_status = self._get_sync_status(request)
+        sync_status, sync_state, sync_age_minutes = self._sync_status_context(request)
         response.data["sync_status"] = (
             TenantAirbyteSyncStatusSerializer(sync_status).data
             if sync_status
             else None
         )
+        response.data["sync_status_state"] = sync_state
+        if sync_age_minutes is not None:
+            response.data["sync_status_age_minutes"] = sync_age_minutes
         snapshot_ts = self._latest_snapshot_timestamp(request)
         if snapshot_ts is not None:
             response.data["snapshot_generated_at"] = snapshot_ts
 
         self._log_fetch(request, response)
         return response
+
+    def _sync_status_context(
+        self, request: Request
+    ) -> tuple[TenantAirbyteSyncStatus | None, str, int | None]:
+        sync_status = self._get_sync_status(request)
+        if sync_status is None or sync_status.last_synced_at is None:
+            return None, "missing", None
+        now = timezone.now()
+        age_seconds = (now - sync_status.last_synced_at).total_seconds()
+        age_minutes = max(0, int(age_seconds // 60))
+        state = (
+            "stale"
+            if age_seconds > AIRBYTE_TELEMETRY_STALE_THRESHOLD.total_seconds()
+            else "fresh"
+        )
+        return sync_status, state, age_minutes
 
     def _get_sync_status(self, request: Request) -> TenantAirbyteSyncStatus | None:
         user = request.user
