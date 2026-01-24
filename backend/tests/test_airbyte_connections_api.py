@@ -295,6 +295,41 @@ def test_airbyte_connection_cron_requires_expression(api_client, user):
 
 
 @pytest.mark.django_db
+def test_airbyte_connection_interval_requires_minutes(api_client, user):
+    api_client.force_authenticate(user=user)
+
+    response = api_client.post(
+        "/api/airbyte/connections/",
+        {
+            "name": "Interval Missing",
+            "connection_id": str(uuid.uuid4()),
+            "schedule_type": AirbyteConnection.SCHEDULE_INTERVAL,
+        },
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "interval_minutes" in response.json()
+
+
+@pytest.mark.django_db
+def test_airbyte_connection_interval_rejects_non_positive_minutes(api_client, user):
+    api_client.force_authenticate(user=user)
+
+    response = api_client.post(
+        "/api/airbyte/connections/",
+        {
+            "name": "Interval Zero",
+            "connection_id": str(uuid.uuid4()),
+            "schedule_type": AirbyteConnection.SCHEDULE_INTERVAL,
+            "interval_minutes": 0,
+        },
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "interval_minutes" in response.json()
+
+
+@pytest.mark.django_db
 def test_airbyte_connection_list_scoped_to_tenant(api_client, user, tenant):
     other_tenant = AirbyteConnection.objects.create(
         tenant=Tenant.objects.create(name="Other Tenant"),
@@ -345,6 +380,42 @@ def test_airbyte_connection_manual_schedule_clears_fields(api_client, user, tena
 
 
 @pytest.mark.django_db
+def test_airbyte_connection_manual_rejects_interval_minutes(api_client, user):
+    api_client.force_authenticate(user=user)
+
+    response = api_client.post(
+        "/api/airbyte/connections/",
+        {
+            "name": "Manual",
+            "connection_id": str(uuid.uuid4()),
+            "schedule_type": AirbyteConnection.SCHEDULE_MANUAL,
+            "interval_minutes": 15,
+        },
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "interval_minutes" in response.json()
+
+
+@pytest.mark.django_db
+def test_airbyte_connection_manual_rejects_cron_expression(api_client, user):
+    api_client.force_authenticate(user=user)
+
+    response = api_client.post(
+        "/api/airbyte/connections/",
+        {
+            "name": "Manual",
+            "connection_id": str(uuid.uuid4()),
+            "schedule_type": AirbyteConnection.SCHEDULE_MANUAL,
+            "cron_expression": "0 6-22 * * *",
+        },
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "cron_expression" in response.json()
+
+
+@pytest.mark.django_db
 def test_airbyte_connection_interval_rejects_cron_expression(api_client, user):
     api_client.force_authenticate(user=user)
 
@@ -361,6 +432,24 @@ def test_airbyte_connection_interval_rejects_cron_expression(api_client, user):
     )
     assert response.status_code == 400
     assert "cron_expression" in response.json()
+
+
+@pytest.mark.django_db
+def test_airbyte_connection_cron_trims_expression(api_client, user):
+    api_client.force_authenticate(user=user)
+
+    response = api_client.post(
+        "/api/airbyte/connections/",
+        {
+            "name": "Cron Trim",
+            "connection_id": str(uuid.uuid4()),
+            "schedule_type": AirbyteConnection.SCHEDULE_CRON,
+            "cron_expression": " 0 6-22 * * * ",
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+    assert response.json()["cron_expression"] == "0 6-22 * * *"
 
 
 @pytest.mark.django_db
@@ -457,6 +546,64 @@ def test_airbyte_connection_summary(api_client, user, tenant):
 
 
 @pytest.mark.django_db
+def test_airbyte_connection_summary_counts_due_by_provider(
+    api_client, user, tenant, monkeypatch
+):
+    fixed_now = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
+
+    monkeypatch.setattr("integrations.views.timezone.now", lambda: fixed_now)
+
+    AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta Cron Due",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_CRON,
+        cron_expression="* * * * *",
+        last_synced_at=fixed_now - timedelta(minutes=10),
+    )
+    AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta Cron Not Due",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_CRON,
+        cron_expression="* * * * *",
+        last_synced_at=fixed_now,
+    )
+    AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Google Interval Due",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.GOOGLE,
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=30,
+        last_synced_at=fixed_now - timedelta(minutes=60),
+    )
+    AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Google Manual Inactive",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.GOOGLE,
+        schedule_type=AirbyteConnection.SCHEDULE_MANUAL,
+        is_active=False,
+    )
+
+    api_client.force_authenticate(user=user)
+    response = api_client.get("/api/airbyte/connections/summary/")
+    api_client.force_authenticate(user=None)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 4
+    assert payload["active"] == 3
+    assert payload["inactive"] == 1
+    assert payload["due"] == 2
+    assert payload["by_provider"]["META"] == {"total": 2, "active": 2, "due": 1}
+    assert payload["by_provider"]["GOOGLE"] == {"total": 2, "active": 1, "due": 1}
+
+
+@pytest.mark.django_db
 def test_airbyte_connection_summary_handles_unknown_provider(api_client, user, tenant):
     AirbyteConnection.objects.create(
         tenant=tenant,
@@ -473,4 +620,20 @@ def test_airbyte_connection_summary_handles_unknown_provider(api_client, user, t
     assert response.status_code == 200
     payload = response.json()
     assert payload["by_provider"]["UNKNOWN"]["total"] == 1
+    assert payload["latest_sync"] is None
+
+
+@pytest.mark.django_db
+def test_airbyte_connection_summary_empty(api_client, user):
+    api_client.force_authenticate(user=user)
+    response = api_client.get("/api/airbyte/connections/summary/")
+    api_client.force_authenticate(user=None)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 0
+    assert payload["active"] == 0
+    assert payload["inactive"] == 0
+    assert payload["due"] == 0
+    assert payload["by_provider"] == {}
     assert payload["latest_sync"] is None

@@ -21,11 +21,12 @@ from integrations.airbyte import (
     AirbyteSyncService,
 )
 from integrations.models import AirbyteConnection, PlatformCredential
+from core.tasks import BaseAdInsightsTask
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, autoretry_for=(AirbyteClientError,), retry_backoff=True, retry_kwargs={"max_retries": 5})
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
 def trigger_scheduled_airbyte_syncs(self):  # noqa: ANN001
     """Trigger due Airbyte syncs using the shared scheduling service."""
 
@@ -38,8 +39,20 @@ def trigger_scheduled_airbyte_syncs(self):  # noqa: ANN001
                 AirbyteConnection.persist_sync_updates(updates)
                 triggered = len(updates)
         except AirbyteClientConfigurationError as exc:
-            logger.error("Airbyte client misconfigured", exc_info=exc)
-            raise self.retry(exc=exc, countdown=60)
+            logger.error(
+                "airbyte.sync.misconfigured",
+                extra={"triggered": triggered},
+                exc_info=exc,
+            )
+            raise self.retry_with_backoff(exc=exc, base_delay=300, max_delay=900)
+        except AirbyteClientError as exc:
+            logger.warning(
+                "airbyte.sync.failed",
+                extra={"triggered": triggered},
+                exc_info=exc,
+            )
+            raise self.retry_with_backoff(exc=exc)
+    logger.info("airbyte.sync.completed", extra={"triggered": triggered})
     return triggered
 
 

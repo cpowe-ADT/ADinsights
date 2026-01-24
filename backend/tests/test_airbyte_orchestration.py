@@ -8,6 +8,7 @@ import pytest
 from django.core.management import call_command
 from django.utils import timezone
 
+from integrations.airbyte import AirbyteClientConfigurationError, AirbyteClientError
 from integrations.airbyte.service import AirbyteSyncService
 from integrations.models import AirbyteConnection, AirbyteJobTelemetry, PlatformCredential, TenantAirbyteSyncStatus
 from integrations.tasks import trigger_scheduled_airbyte_syncs
@@ -236,3 +237,70 @@ def test_airbyte_celery_task(monkeypatch, tenant):
     telemetry = AirbyteJobTelemetry.all_objects.get(connection=connection, job_id="1")
     assert telemetry.duration_seconds == 8
     assert telemetry.records_synced == 10
+
+
+@pytest.mark.django_db
+def test_airbyte_celery_task_retries_on_configuration_error(monkeypatch):
+    from integrations import tasks as tasks_module
+
+    class RetryCalled(Exception):
+        pass
+
+    def raise_config_error(cls):  # noqa: ANN001
+        raise AirbyteClientConfigurationError("AIRBYTE_API_URL must be configured")
+
+    def fake_retry_with_backoff(self, *, exc, base_delay=None, max_delay=None):
+        raise RetryCalled({"exc": exc, "base_delay": base_delay, "max_delay": max_delay})
+
+    monkeypatch.setattr(tasks_module.AirbyteClient, "from_settings", classmethod(raise_config_error))
+    monkeypatch.setattr(tasks_module.BaseAdInsightsTask, "retry_with_backoff", fake_retry_with_backoff)
+
+    with pytest.raises(RetryCalled) as excinfo:
+        trigger_scheduled_airbyte_syncs.run()
+
+    payload = excinfo.value.args[0]
+    assert isinstance(payload["exc"], AirbyteClientConfigurationError)
+    assert payload["base_delay"] == 300
+    assert payload["max_delay"] == 900
+
+
+@pytest.mark.django_db
+def test_airbyte_celery_task_retries_on_client_error(monkeypatch):
+    from integrations import tasks as tasks_module
+
+    class RetryCalled(Exception):
+        pass
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN002, ANN003
+            return None
+
+    class DummyService:
+        def __init__(self, client):  # noqa: ANN001
+            return None
+
+        def sync_due_connections(self):
+            raise AirbyteClientError("boom")
+
+    def fake_retry_with_backoff(self, *, exc, base_delay=None, max_delay=None):
+        raise RetryCalled({"exc": exc, "base_delay": base_delay, "max_delay": max_delay})
+
+    monkeypatch.setattr(
+        tasks_module.AirbyteClient,
+        "from_settings",
+        classmethod(lambda cls: DummyClient()),
+        raising=False,
+    )
+    monkeypatch.setattr(tasks_module, "AirbyteSyncService", DummyService)
+    monkeypatch.setattr(tasks_module.BaseAdInsightsTask, "retry_with_backoff", fake_retry_with_backoff)
+
+    with pytest.raises(RetryCalled) as excinfo:
+        trigger_scheduled_airbyte_syncs.run()
+
+    payload = excinfo.value.args[0]
+    assert isinstance(payload["exc"], AirbyteClientError)
+    assert payload["base_delay"] is None
+    assert payload["max_delay"] is None
