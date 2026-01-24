@@ -16,5 +16,9 @@
 | 2025-01-05 | Codex (Leo persona)      | Delivered S1-B (telemetry API contract tests + OpenAPI refresh).                                            | Added snapshot/page-size tests in `backend/core/tests/test_airbyte_telemetry.py` and updated `docs/api/airbyte-telemetry.json`. |
 | 2025-01-05 | Codex (Maya persona)     | Delivered S1-C (webhook ops runbook + secret placeholder).                                                  | Added guidance to `docs/runbooks/operations.md` and updated `backend/.env.sample` with `AIRBYTE_WEBHOOK_SECRET`. |
 | 2026-01-22 | Codex (Carlos persona)   | Delivered S7-A/S7-C (Superset exports + deployment runbook updates).                                         | Added `docs/BI/` Superset exports and refined `docs/runbooks/deployment.md` with compose validation. |
+| 2026-01-22 | Codex (Priya persona)    | Delivered S2-C (metrics contract changelog update).                                                         | Added budget pacing payload entry to `docs/project/api-contract-changelog.md`. |
+| 2026-01-22 | Codex (Sofia persona)    | Delivered S3-C (stale snapshot monitoring spec).                                                            | Confirmed runbook spec in `docs/runbooks/operations.md` and marked backlog done. |
+| 2026-01-22 | Codex (Lina persona)     | Delivered S4-C (design-system + Storybook coverage update).                                                  | Documented DatasetToggle/SnapshotIndicator story coverage in `docs/design-system.md`. |
+| 2026-01-22 | Codex (Hannah persona)   | Delivered S6-B (alert thresholds/escalation + dashboards).                                                   | Added dashboard link placeholders and escalation references in `docs/runbooks/alerting.md`. |
 
 > Log significant project/process documentation updates here to retain historical context.

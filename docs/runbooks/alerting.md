@@ -34,6 +34,16 @@ This triggers the `run_alert_cycle` task and posts results to the configured cha
 - Email distribution lists maintained in Google Workspace (`marketing-ops@example.com`).
 - DB credentials rotate via Vault every 90 days.
 
+## Dashboards & Escalation
+
+- Dashboards (replace `<env>` with the target environment):
+  - `https://grafana.<env>.adinsights.dev/d/metrics-app` (API + metrics health).
+  - `https://grafana.<env>.adinsights.dev/d/airbyte-syncs` (Airbyte sync freshness/errors).
+  - `https://grafana.<env>.adinsights.dev/d/dbt-runs` (dbt run status + duration).
+  - `https://grafana.<env>.adinsights.dev/d/celery-tasks` (Celery task throughput/failure).
+- Escalation contacts and timeframes: `docs/ops/escalation-matrix.md`.
+- Threshold definitions: `docs/ops/alert-thresholds-escalation.md`.
+
 ## Freshness & Webhook Alerts
 
 - **Airbyte webhook silence** – Alert when no `airbyte_job_webhook` audit entries arrive for >30 minutes while

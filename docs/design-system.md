@@ -75,6 +75,10 @@ free from theme-specific logic.
   states so Chromatic can track the warning variant.
 - Tooling: avoid multiple `role="status"` nodes in the same control; use a single polite live region for status and plain text for
   errors/loading. Provide `title`/tooltip for absolute timestamps on freshness badges.
+- Storybook coverage lives in:
+  - `frontend/src/components/DatasetToggle.stories.tsx` (LiveAvailable, DemoMode, LoadingAdapters, ErrorState).
+  - `frontend/src/components/SnapshotIndicator.stories.tsx` (Fresh, Stale, Pending, Demo, Dark).
+  - `frontend/src/routes/CampaignDashboard.stories.tsx` (fresh/stale/pending snapshot variants).
 
 ## Component checklist (dashboard refresh)
 
