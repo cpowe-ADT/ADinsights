@@ -10,6 +10,7 @@ from analytics.views import (
     AdapterListView,
     AggregateSnapshotView,
     CombinedMetricsView,
+    DemoSeedView,
     MetricsExportView,
     MetricsView,
 )
@@ -106,6 +107,7 @@ urlpatterns = [
     path("api/adapters/", AdapterListView.as_view(), name="adapter-list"),
     path("api/metrics/", MetricsView.as_view(), name="metrics"),
     path("api/metrics/combined/", CombinedMetricsView.as_view(), name="metrics-combined"),
+    path("api/demo/seed/", DemoSeedView.as_view(), name="demo-seed"),
     path(
         "api/dashboards/aggregate-snapshot/",
         AggregateSnapshotView.as_view(),

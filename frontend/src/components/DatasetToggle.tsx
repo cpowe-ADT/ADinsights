@@ -1,6 +1,6 @@
-import { useEffect, useId, useRef, type ChangeEvent } from 'react';
+import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 
-import { MOCK_MODE } from '../lib/apiClient';
+import apiClient, { MOCK_MODE } from '../lib/apiClient';
 import { useDatasetStore } from '../state/useDatasetStore';
 import useDashboardStore from '../state/useDashboardStore';
 
@@ -38,6 +38,8 @@ const DatasetToggle = (): JSX.Element | null => {
     activeTenantId: state.activeTenantId,
     loadAll: state.loadAll,
   }));
+  const [seedStatus, setSeedStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [seedMessage, setSeedMessage] = useState<string | null>(null);
   const lastFetchedTenantRef = useRef<string | undefined>(
     adapters.length > 0 ? activeTenantId : undefined,
   );
@@ -94,6 +96,25 @@ const DatasetToggle = (): JSX.Element | null => {
     void loadAll(activeTenantId, { force: true });
   };
 
+  const handleGenerateDemoData = async () => {
+    if (seedStatus === 'loading') {
+      return;
+    }
+    setSeedStatus('loading');
+    setSeedMessage(null);
+    try {
+      await apiClient.post('/demo/seed/', { days: 90, seed: 42 });
+      setSeedStatus('success');
+      setSeedMessage('Demo data generated.');
+      await loadAdapters();
+      await loadAll(activeTenantId, { force: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to generate demo data.';
+      setSeedStatus('error');
+      setSeedMessage(message);
+    }
+  };
+
   return (
     <div className="dataset-toggle">
       <span className="dataset-toggle__badge">{badge}</span>
@@ -129,6 +150,24 @@ const DatasetToggle = (): JSX.Element | null => {
             ))}
           </select>
         </label>
+      ) : null}
+      {mode === 'dummy' ? (
+        <button
+          type="button"
+          className="button secondary dataset-toggle__action"
+          onClick={handleGenerateDemoData}
+          disabled={seedStatus === 'loading'}
+        >
+          {seedStatus === 'loading' ? 'Generating demo data…' : 'Generate demo data'}
+        </button>
+      ) : null}
+      {seedMessage ? (
+        <span
+          className={seedStatus === 'error' ? 'dataset-toggle__error' : 'dataset-toggle__status'}
+          role="status"
+        >
+          {seedMessage}
+        </span>
       ) : null}
       {isLoading ? (
         <span className="dataset-toggle__error">

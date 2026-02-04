@@ -5,7 +5,9 @@ from __future__ import annotations
 import csv
 import json
 import logging
-from datetime import datetime, timedelta
+import subprocess
+import sys
+from datetime import date, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
@@ -13,7 +15,7 @@ from typing import Any, Iterable, Mapping, Sequence
 from django.conf import settings
 from django.db import connection
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date, parse_datetime
 from django.http import StreamingHttpResponse
 from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import PermissionDenied
@@ -22,7 +24,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from adapters.base import MetricsAdapter
-from adapters.demo import DemoAdapter
+from adapters.demo import DemoAdapter, clear_demo_seed_cache, _demo_seed_dir
 from adapters.fake import FakeAdapter
 from adapters.warehouse import WarehouseAdapter
 
@@ -314,6 +316,110 @@ class CombinedMetricsView(APIView):
                 },
             )
         return Response(combined)
+
+
+class DemoSeedView(APIView):
+    """Generate demo seed CSVs and refresh the demo adapter cache."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request) -> Response:  # noqa: D401 - DRF signature
+        if not getattr(settings, "ENABLE_DEMO_GENERATION", False):
+            return Response(
+                {"detail": "Demo generation is disabled."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not (
+            getattr(request.user, "is_staff", False)
+            or getattr(request.user, "is_superuser", False)
+        ):
+            return Response(
+                {"detail": "Demo generation requires staff access."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        payload = request.data if isinstance(request.data, dict) else {}
+        days = payload.get("days", 90)
+        seed = payload.get("seed", 42)
+        end_date_raw = payload.get("end_date")
+
+        try:
+            days = int(days)
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "Invalid days value."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            seed = int(seed)
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "Invalid seed value."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if days < 1 or days > 365:
+            return Response(
+                {"detail": "Days must be between 1 and 365."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        end_date = None
+        if isinstance(end_date_raw, str):
+            end_date = parse_date(end_date_raw)
+        if end_date is None:
+            end_date = timezone.now().date()
+
+        out_dir = _demo_seed_dir()
+        repo_root = Path(settings.BASE_DIR).parent
+        script_candidates = [
+            repo_root / "scripts" / "generate_demo_data.py",
+            Path(settings.BASE_DIR) / "scripts" / "generate_demo_data.py",
+        ]
+        script_path = next((path for path in script_candidates if path.exists()), None)
+        if script_path is None:
+            return Response(
+                {"detail": "Demo generator script is missing."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        out_dir.mkdir(parents=True, exist_ok=True)
+        command = [
+            sys.executable,
+            str(script_path),
+            "--out",
+            str(out_dir),
+            "--days",
+            str(days),
+            "--seed",
+            str(seed),
+            "--end-date",
+            end_date.isoformat(),
+        ]
+
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            logger.error(
+                "demo.seed.failed",
+                extra={"stdout": result.stdout, "stderr": result.stderr},
+            )
+            return Response(
+                {"detail": "Failed to generate demo data."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        clear_demo_seed_cache()
+        return Response(
+            {
+                "detail": "Demo data generated.",
+                "seed_dir": str(out_dir),
+                "days": days,
+                "seed": seed,
+                "end_date": end_date.isoformat(),
+            }
+        )
 
 
 class MetricsViewSet(viewsets.ViewSet):

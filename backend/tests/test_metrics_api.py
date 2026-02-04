@@ -129,6 +129,16 @@ def test_combined_metrics_requires_auth(api_client):
 
 
 @pytest.mark.django_db
+def test_demo_seed_requires_feature_flag(api_client, user, settings):
+    api_client.force_authenticate(user=user)
+    settings.ENABLE_DEMO_GENERATION = False
+
+    response = api_client.post("/api/demo/seed/")
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_combined_metrics_uses_snapshot(monkeypatch, api_client, user, settings):
     settings.METRICS_SNAPSHOT_TTL = 600
     api_client.force_authenticate(user=user)

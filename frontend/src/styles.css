@@ -636,6 +636,10 @@ label,
   min-width: 12rem;
 }
 
+.dataset-toggle__action {
+  margin-top: var(--space-1);
+}
+
 .dataset-toggle__error {
   font-size: 0.75rem;
   color: var(--dataset-toggle-muted);
@@ -761,6 +765,89 @@ label,
 
 .dashboard-grid .panel.full-width {
   grid-column: 1 / -1;
+}
+
+.upload-grid {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.upload-panel {
+  background: var(--color-surface-subtle);
+  border: 1px dashed var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.upload-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.upload-button input {
+  display: none;
+}
+
+.upload-preview table {
+  font-size: 0.85rem;
+}
+
+.upload-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.upload-actions__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.upload-issues {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.upload-issues.error {
+  color: var(--shell-status-text-error);
+}
+
+.upload-issues.warning {
+  color: var(--color-text-muted);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+}
+
+.status-pill.success {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-strong);
+  border-color: transparent;
+}
+
+.status-pill.muted {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-muted);
 }
 
 .kpi-grid {

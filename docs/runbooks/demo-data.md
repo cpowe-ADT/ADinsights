@@ -32,6 +32,10 @@ export ENABLE_DEMO_ADAPTER=1
 
 4) In the UI, use the "Use demo data" toggle and pick a demo tenant.
 
+5) Optional: click "Generate demo data" in the dataset toggle.
+   - Requires `ENABLE_DEMO_GENERATION=1` and a staff account.
+   - Uses the same deterministic seed (42) and 90-day window.
+
 ## Optional synth path
 
 To write to `dbt/seeds/synth_adinsights` instead of the default demo seed path:

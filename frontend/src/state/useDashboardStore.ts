@@ -19,6 +19,13 @@ import {
 } from '../lib/dashboardFilters';
 import { validate } from '../lib/validate';
 import type { SchemaKey } from '../lib/validate';
+import {
+  buildMetricsFromUpload,
+  clearUploadState,
+  loadUploadState,
+  saveUploadState,
+  type UploadedDataset,
+} from '../lib/uploadedMetrics';
 import { getDatasetMode, getDatasetSource, getDemoTenantId } from './useDatasetStore';
 
 export type MetricKey = 'spend' | 'impressions' | 'clicks' | 'conversions' | 'roas';
@@ -156,6 +163,8 @@ interface DashboardState {
   lastLoadedFiltersKey?: string;
   lastSnapshotGeneratedAt?: string;
   metricsCache: Record<string, TenantMetricsResolved>;
+  uploadedDataset?: UploadedDataset;
+  uploadedActive: boolean;
   setFilters: (filters: FilterBarState) => void;
   setSelectedParish: (parish?: string) => void;
   setSelectedMetric: (metric: MetricKey) => void;
@@ -169,6 +178,9 @@ interface DashboardState {
   getSavedTableView: <T = unknown>(tableId: string) => T | undefined;
   setSavedTableView: (tableId: string, view: unknown) => void;
   clearSavedTableView: (tableId: string) => void;
+  setUploadedDataset: (dataset: UploadedDataset, active?: boolean) => void;
+  setUploadedActive: (active: boolean) => void;
+  clearUploadedDataset: () => void;
 }
 
 const initialSlice = <T>(): AsyncSlice<T> => ({
@@ -194,7 +206,10 @@ function createInitialState(): Pick<
   | 'lastLoadedFiltersKey'
   | 'lastSnapshotGeneratedAt'
   | 'metricsCache'
+  | 'uploadedDataset'
+  | 'uploadedActive'
 > {
+  const uploadState = loadUploadState();
   return {
     filters: createDefaultFilterState(),
     selectedParish: undefined,
@@ -209,6 +224,8 @@ function createInitialState(): Pick<
     lastLoadedFiltersKey: undefined,
     lastSnapshotGeneratedAt: undefined,
     metricsCache: {},
+    uploadedDataset: uploadState.dataset,
+    uploadedActive: uploadState.active,
   };
 }
 
@@ -569,6 +586,41 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
   getSavedTableView: (tableId) => loadSavedView(tableId),
   setSavedTableView: (tableId, view) => saveView(tableId, view),
   clearSavedTableView: (tableId) => clearView(tableId),
+  setUploadedDataset: (dataset, active = true) => {
+    saveUploadState(dataset, active);
+    set((state) => ({
+      uploadedDataset: dataset,
+      uploadedActive: active,
+      metricsCache: {},
+      lastLoadedFiltersKey: undefined,
+      lastLoadedTenantId: undefined,
+      lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+    }));
+  },
+  setUploadedActive: (active) => {
+    const { uploadedDataset } = get();
+    if (uploadedDataset) {
+      saveUploadState(uploadedDataset, active);
+    }
+    set((state) => ({
+      uploadedActive: active,
+      metricsCache: {},
+      lastLoadedFiltersKey: undefined,
+      lastLoadedTenantId: undefined,
+      lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+    }));
+  },
+  clearUploadedDataset: () => {
+    clearUploadState();
+    set((state) => ({
+      uploadedDataset: undefined,
+      uploadedActive: false,
+      metricsCache: {},
+      lastLoadedFiltersKey: undefined,
+      lastLoadedTenantId: undefined,
+      lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+    }));
+  },
   setFilters: (nextFilters) => {
     const current = get().filters;
     if (areFiltersEqual(current, nextFilters)) {
@@ -619,6 +671,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     const filterKey = resolveFilterKey(filters);
     const tenantKey = resolveTenantKey(normalizedTenantId, filterKey);
     const cachedMetrics = metricsCache[tenantKey];
+    const { uploadedDataset, uploadedActive } = get();
     const normalizedLastLoaded = normalizeTenantId(lastLoadedTenantId);
     const isTenantChange =
       typeof normalizedTenantId !== 'undefined' && normalizedTenantId !== normalizedLastLoaded;
@@ -630,7 +683,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       budget.status === 'loaded' &&
       parish.status === 'loaded';
 
-    if (!options?.force) {
+    const hasUploadOverride = uploadedActive && uploadedDataset;
+    if (!options?.force && !hasUploadOverride) {
       if (!isQueryChange && allSlicesLoaded) {
         return;
       }
@@ -678,6 +732,38 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       parish: { ...state.parish, status: 'loading', error: undefined },
     }));
 
+    if (uploadedActive && uploadedDataset) {
+      try {
+        const resolved = buildMetricsFromUpload(
+          uploadedDataset,
+          filters,
+          normalizedTenantId,
+        );
+        set((state) => ({
+          activeTenantId: resolved.tenantId ?? state.activeTenantId,
+          lastLoadedTenantId:
+            resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
+          lastLoadedFiltersKey: filterKey,
+          lastSnapshotGeneratedAt:
+            resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+          campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
+          creative: { status: 'loaded', data: resolved.creative, error: undefined },
+          budget: { status: 'loaded', data: resolved.budget, error: undefined },
+          parish: { status: 'loaded', data: resolved.parish, error: undefined },
+          metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
+        }));
+      } catch (error) {
+        const message = mapError(error);
+        set((state) => ({
+          campaign: { status: 'error', data: state.campaign.data, error: message },
+          creative: { status: 'error', data: state.creative.data, error: message },
+          budget: { status: 'error', data: state.budget.data, error: message },
+          parish: { status: 'error', data: state.parish.data, error: message },
+        }));
+      }
+      return;
+    }
+
     const datasetMode = getDatasetMode();
     const sourceOverride = getDatasetSource();
     const metricsSource = sourceOverride;
@@ -724,6 +810,29 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
     if (datasetMode === 'dummy') {
       try {
+        if (!MOCK_MODE && metricsSource) {
+          const snapshot = await fetchDashboardMetrics({
+            path: metricsPath,
+            mockPath: '/sample_metrics.json',
+          });
+          const resolved = parseTenantMetrics(snapshot);
+
+          set((state) => ({
+            activeTenantId: resolved.tenantId ?? state.activeTenantId,
+            lastLoadedTenantId:
+              resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
+            lastLoadedFiltersKey: filterKey,
+            lastSnapshotGeneratedAt:
+              resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+            campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
+            creative: { status: 'loaded', data: resolved.creative, error: undefined },
+            budget: { status: 'loaded', data: resolved.budget, error: undefined },
+            parish: { status: 'loaded', data: resolved.parish, error: undefined },
+            metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
+          }));
+          return;
+        }
+
         let dummyPath = '/sample_metrics.json';
         if (metricsSource) {
           dummyPath = withSource(dummyPath, metricsSource);
