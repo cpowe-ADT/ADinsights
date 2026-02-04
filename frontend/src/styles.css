@@ -239,6 +239,22 @@ label,
   outline-offset: var(--focus-outline-offset);
 }
 
+.auth-links {
+  display: flex;
+  justify-content: center;
+  font-size: 0.9rem;
+}
+
+.auth-links a {
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+.auth-links a:hover,
+.auth-links a:focus-visible {
+  text-decoration: underline;
+}
+
 .button {
   border-radius: 0.75rem;
   border: none;

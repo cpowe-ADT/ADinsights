@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type KeyboardEvent, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import EmptyState from '../components/EmptyState';
@@ -18,9 +18,10 @@ type DashboardCard = {
   description: string;
   trend: number[];
   href: string;
+  graphic: 'line' | 'bars' | 'donut';
 };
 
-const Sparkline = ({ points }: { points: number[] }) => {
+const LineSparkline = ({ points }: { points: number[] }) => {
   if (points.length === 0) {
     return null;
   }
@@ -36,7 +37,7 @@ const Sparkline = ({ points }: { points: number[] }) => {
   });
 
   return (
-    <div className={styles.sparkline} aria-hidden="true">
+    <div className={`${styles.sparkline} ${styles.sparklineLine}`} aria-hidden="true">
       <svg viewBox="0 0 100 100" role="presentation" focusable="false">
         <path d={coordinates.join(' ')} />
         {points.map((point, index) => {
@@ -47,6 +48,74 @@ const Sparkline = ({ points }: { points: number[] }) => {
       </svg>
     </div>
   );
+};
+
+const BarsSparkline = ({ points }: { points: number[] }) => {
+  if (points.length === 0) {
+    return null;
+  }
+
+  const max = Math.max(...points);
+  const barWidth = 10;
+  const gap = 6;
+  const chartHeight = 44;
+  const chartWidth = points.length * (barWidth + gap) - gap;
+  const offsetX = (100 - chartWidth) / 2;
+
+  return (
+    <div className={`${styles.sparkline} ${styles.sparklineBars}`} aria-hidden="true">
+      <svg viewBox="0 0 100 60" role="presentation" focusable="false">
+        {points.map((point, index) => {
+          const height = max > 0 ? Math.max(6, (point / max) * chartHeight) : 6;
+          const x = offsetX + index * (barWidth + gap);
+          const y = 54 - height;
+          return <rect key={`bar-${index}`} x={x} y={y} width={barWidth} height={height} rx={3} />;
+        })}
+      </svg>
+    </div>
+  );
+};
+
+const DonutSparkline = ({ ratio }: { ratio: number }) => {
+  const normalized = Math.min(0.95, Math.max(0.25, ratio));
+  const radius = 18;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - normalized);
+
+  return (
+    <div className={`${styles.sparkline} ${styles.sparklineDonut}`} aria-hidden="true">
+      <svg viewBox="0 0 64 64" role="presentation" focusable="false">
+        <circle cx="32" cy="32" r={radius} className={styles.donutTrack} />
+        <circle
+          cx="32"
+          cy="32"
+          r={radius}
+          className={styles.donutValue}
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={offset}
+        />
+      </svg>
+    </div>
+  );
+};
+
+const DashboardGraphic = ({
+  variant,
+  points,
+}: {
+  variant: DashboardCard['graphic'];
+  points: number[];
+}) => {
+  if (variant === 'bars') {
+    return <BarsSparkline points={points} />;
+  }
+  if (variant === 'donut') {
+    const max = Math.max(...points);
+    const min = Math.min(...points);
+    const ratio = max > min ? (points[points.length - 1] - min) / (max - min) : 0.6;
+    return <DonutSparkline ratio={ratio} />;
+  }
+  return <LineSparkline points={points} />;
 };
 
 const ConnectIcon = () => (
@@ -151,7 +220,15 @@ const Home = () => {
     'https://github.com/cpowe-ADT/ADinsights/blob/main/docs/ops/agent-activity-log.md';
 
   const handleCreateReport = useCallback(() => {
-    navigate('/dashboards/campaigns');
+    navigate('/dashboards/create');
+  }, [navigate]);
+
+  const handleConnectSources = useCallback(() => {
+    navigate('/dashboards/data-sources');
+  }, [navigate]);
+
+  const handleUploadCsv = useCallback(() => {
+    navigate('/dashboards/uploads');
   }, [navigate]);
 
   const handleInvite = useCallback(() => {
@@ -162,6 +239,17 @@ const Home = () => {
       );
     }
   }, []);
+
+  const handleOpenDashboard = useCallback(
+    (href: string, event?: MouseEvent | KeyboardEvent) => {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      navigate(href);
+    },
+    [navigate],
+  );
 
   const handleViewDocs = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -176,21 +264,21 @@ const Home = () => {
         label: 'Connect data sources',
         description: 'Sync Meta, Google Ads, and offline conversions.',
         icon: <ConnectIcon />,
-        action: () => navigate('/dashboards/campaigns'),
+        action: handleConnectSources,
       },
       {
         id: 'dashboard',
         label: 'Create dashboard',
         description: 'Launch a tailored view in minutes.',
         icon: <LayoutIcon />,
-        action: () => navigate('/dashboards/campaigns'),
+        action: handleCreateReport,
       },
       {
         id: 'upload',
         label: 'Upload CSV',
         description: 'Augment insights with manual uploads.',
         icon: <UploadIcon />,
-        action: () => navigate('/dashboards/campaigns'),
+        action: handleUploadCsv,
       },
       {
         id: 'docs',
@@ -200,7 +288,7 @@ const Home = () => {
         action: handleViewDocs,
       },
     ],
-    [handleViewDocs, navigate],
+    [handleConnectSources, handleCreateReport, handleUploadCsv, handleViewDocs],
   );
 
   const recentDashboards: DashboardCard[] = useMemo(
@@ -209,22 +297,25 @@ const Home = () => {
         id: 'campaign-performance',
         name: 'Campaign performance',
         description: 'Cross-channel KPIs with spend, ROAS, and engagement.',
-        trend: [32, 38, 35, 42, 47, 55],
+        trend: [18, 42, 35, 50, 28, 60],
         href: '/dashboards/campaigns',
+        graphic: 'line',
       },
       {
         id: 'creative-performance',
         name: 'Creative insights',
         description: 'Identify winning creatives and audience resonance.',
-        trend: [24, 22, 28, 31, 35, 37],
+        trend: [12, 20, 18, 30, 26, 22],
         href: '/dashboards/creatives',
+        graphic: 'bars',
       },
       {
         id: 'budget-pacing',
         name: 'Budget pacing',
         description: 'Forecast monthly pacing and guardrails by parish.',
-        trend: [15, 18, 21, 20, 26, 29],
+        trend: [40, 38, 35, 30, 28, 26],
         href: '/dashboards/budget',
+        graphic: 'donut',
       },
     ],
     [],
@@ -257,86 +348,100 @@ const Home = () => {
           </div>
         </section>
 
-        <section aria-labelledby="quick-actions-title">
-          <div className={styles.sectionHeader}>
-            <h2 id="quick-actions-title" className={styles.sectionTitle}>
-              Quick actions
-            </h2>
-            <p className={styles.sectionSubtitle}>Ship faster with curated shortcuts</p>
-          </div>
-          <ul className={styles.quickActions} role="list">
-            {quickActions.map((action) => (
-              <li key={action.id} className={styles.quickActionItem}>
-                <button type="button" className={styles.quickActionCard} onClick={action.action}>
-                  <span className={styles.quickActionIcon} aria-hidden="true">
-                    {action.icon}
-                  </span>
-                  <p className={styles.quickActionLabel}>{action.label}</p>
-                  <p className={styles.quickActionDescription}>{action.description}</p>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className={styles.recentAndUpdates} aria-labelledby="recent-dashboards-title">
-          <div>
-            <div className={styles.sectionHeader}>
-              <h2 id="recent-dashboards-title" className={styles.sectionTitle}>
-                Recent dashboards
-              </h2>
-              <p className={styles.sectionSubtitle}>Jump back into your most-used workspaces</p>
-            </div>
-            {hasDashboards ? (
-              <ul className={styles.dashboardGrid} role="list">
-                {recentDashboards.map((dashboard) => (
-                  <li key={dashboard.id} className={styles.dashboardItem}>
-                    <article className={styles.dashboardCard}>
-                      <Sparkline points={dashboard.trend} />
-                      <div className={styles.dashboardMeta}>
-                        <h3 className={styles.dashboardName}>{dashboard.name}</h3>
-                        <p className={styles.dashboardDescription}>{dashboard.description}</p>
-                      </div>
-                      <button
-                        type="button"
-                        className={styles.openButton}
-                        onClick={() => navigate(dashboard.href)}
-                      >
-                        Open
-                      </button>
-                    </article>
+        <div className={styles.mainColumns}>
+          <div className={styles.mainColumn}>
+            <section aria-labelledby="quick-actions-title">
+              <div className={styles.sectionHeader}>
+                <h2 id="quick-actions-title" className={styles.sectionTitle}>
+                  Quick actions
+                </h2>
+                <p className={styles.sectionSubtitle}>Ship faster with curated shortcuts</p>
+              </div>
+              <ul className={styles.quickActions} role="list">
+                {quickActions.map((action) => (
+                  <li key={action.id} className={styles.quickActionItem}>
+                    <button type="button" className={styles.quickActionCard} onClick={action.action}>
+                      <span className={styles.quickActionIcon} aria-hidden="true">
+                        {action.icon}
+                      </span>
+                      <p className={styles.quickActionLabel}>{action.label}</p>
+                      <p className={styles.quickActionDescription}>{action.description}</p>
+                    </button>
                   </li>
                 ))}
               </ul>
-            ) : (
-              <EmptyState
-                icon={<DashboardPlaceholderIcon />}
-                title="No dashboards yet"
-                message="Create your first dashboard to unlock forecasting, pacing, and creative diagnostics in minutes."
-                actionLabel="Build a dashboard"
-                onAction={handleCreateReport}
-              />
-            )}
+            </section>
+
+            <section aria-labelledby="recent-dashboards-title">
+              <div className={styles.sectionHeader}>
+                <h2 id="recent-dashboards-title" className={styles.sectionTitle}>
+                  Recent dashboards
+                </h2>
+                <p className={styles.sectionSubtitle}>Jump back into your most-used workspaces</p>
+              </div>
+              {hasDashboards ? (
+                <ul className={styles.dashboardGrid} role="list">
+                  {recentDashboards.map((dashboard) => (
+                    <li key={dashboard.id} className={styles.dashboardItem}>
+                      <article
+                        className={styles.dashboardCard}
+                        role="link"
+                        tabIndex={0}
+                        onClick={() => handleOpenDashboard(dashboard.href)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            handleOpenDashboard(dashboard.href, event);
+                          }
+                        }}
+                      >
+                        <DashboardGraphic variant={dashboard.graphic} points={dashboard.trend} />
+                        <div className={styles.dashboardMeta}>
+                          <h3 className={styles.dashboardName}>{dashboard.name}</h3>
+                          <p className={styles.dashboardDescription}>{dashboard.description}</p>
+                        </div>
+                        <button
+                          type="button"
+                          className={styles.openButton}
+                          onClick={(event) => handleOpenDashboard(dashboard.href, event)}
+                        >
+                          Open
+                        </button>
+                      </article>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyState
+                  icon={<DashboardPlaceholderIcon />}
+                  title="No dashboards yet"
+                  message="Create your first dashboard to unlock forecasting, pacing, and creative diagnostics in minutes."
+                  actionLabel="Build a dashboard"
+                  onAction={handleCreateReport}
+                />
+              )}
+            </section>
           </div>
 
-          <aside className={styles.whatsNew} aria-labelledby="whats-new-title">
-            <h2 id="whats-new-title" className={styles.whatsNewTitle}>
-              What&apos;s new
-            </h2>
-            <p className={styles.whatsNewSummary}>
-              Discover the latest releases and roadmap updates across the analytics suite.
-            </p>
-            <a
-              className={styles.whatsNewLink}
-              href={releaseNotesUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              View release notes
-              <ArrowIcon />
-            </a>
+          <aside className={styles.sidebar} aria-label="Product updates">
+            <section className={styles.whatsNew} aria-labelledby="whats-new-title">
+              <h2 id="whats-new-title" className={styles.whatsNewTitle}>
+                What&apos;s new
+              </h2>
+              <p className={styles.whatsNewSummary}>
+                Discover the latest releases and roadmap updates across the analytics suite.
+              </p>
+              <a
+                className={styles.whatsNewLink}
+                href={releaseNotesUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View release notes
+                <ArrowIcon />
+              </a>
+            </section>
           </aside>
-        </section>
+        </div>
       </div>
     </div>
   );

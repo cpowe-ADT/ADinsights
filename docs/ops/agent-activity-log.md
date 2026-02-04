@@ -2,6 +2,14 @@
 
 One-line, timestamped notes of agent-driven changes to help preserve context between sessions. Newest entries at the top.
 
+## 2026-02-01
+
+- 2026-02-01T04:01:41-0500 docs(project): refine finished frontend spec layout + module inventory — Added IA + module→route map, non-duplicative module feature inventory (roles/screens/components/data deps/acceptance), contract artifact index, and global non-happy-path UX standards. Pending commit.
+- 2026-02-01T03:28:12-0500 docs(project): add integration API validation checklist + backlog rows — Added checklist template, linked to roadmap/task breakdown/doc index, and added Phase 1 connector backlog rows. Pending commit.
+- 2026-02-01T03:23:48-0500 docs(project): add integration roadmap + prioritize connectors — Added `docs/project/integration-roadmap.md`, linked it in doc index/task breakdown/feature catalog. Pending commit.
+- 2026-02-01T03:18:02-0500 docs(project): record frontend spec approval + add review checklist — Marked spec approved, added review checklist template, expanded Post-MVP sprint picks, and updated backlog/ownership map. Pending commit.
+- 2026-02-01T03:06:54-0500 docs(project): add finished frontend spec + sprint picks — Added `docs/project/frontend-finished-product-spec.md`, wired into task/workstream/backlog docs, updated doc index, and logged review request for Lina/Joel. Pending commit.
+
 ## 2026-01-20
 
 - 2026-01-20T23:31:00-0500 docs(ops): add observability runbooks + log schema guidance — Added alert thresholds/escalation runbook, metrics scrape validation steps, observability stability tests checklist, and log schema/cardinality guidance; updated doc index and alerting runbook links. Pending commit.

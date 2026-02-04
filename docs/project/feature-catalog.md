@@ -49,6 +49,7 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 ### Airbyte
 - LinkedIn and TikTok connector implementations (replace placeholders).
 - Improved Airbyte cron parsing in health check script.
+ - Connector roadmap beyond Meta/Google (see `docs/project/integration-roadmap.md`).
 
 ### Backend
 - Tenant onboarding + credential CRUD improvements.
@@ -62,6 +63,11 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 ### Frontend/UX
 - Default to live data, demo mode opt-in only.
 - Enhanced export workflows and reporting UX.
+- Data sources management UI (connections, schedules, run now, status).
+- CSV upload wizard with mapping, validation, and job status.
+- Dashboard library + report builder with shareable exports.
+- Alerts and AI summaries management UI.
+- Admin/sync health console for telemetry and health checks.
 
 ### Security/UAC
 - UAC rollout phases U0–U4 (agency admin, approvals, MFA, impersonation).
@@ -74,6 +80,8 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Workstreams + owners: `docs/workstreams.md`
 - Roadmap phases: `README.md`
 - Task sequencing + gaps: `docs/task_breakdown.md`
+- Finished frontend scope: `docs/project/frontend-finished-product-spec.md`
+- Integration roadmap: `docs/project/integration-roadmap.md`
 - Live backlog: `docs/project/phase1-execution-backlog.md`
 - UAC epics: `docs/project/uac-epics.md`
 - Vertical slice: `docs/project/vertical_slice_plan.md`

@@ -74,8 +74,7 @@ const CampaignDashboard = () => {
     ? formatRelativeTime(lastSnapshotGeneratedAt)
     : null;
   const snapshotAbsolute = lastSnapshotGeneratedAt ? formatAbsoluteTime(lastSnapshotGeneratedAt) : null;
-  const snapshotIsStale =
-    datasetMode === 'live' && isTimestampStale(lastSnapshotGeneratedAt, 60);
+  const snapshotIsStale = isTimestampStale(lastSnapshotGeneratedAt, 60);
   const headingId = useId();
 
   const isInitialLoading = campaign.status === 'loading' && !campaign.data;
@@ -100,6 +99,8 @@ const CampaignDashboard = () => {
         >
           {datasetMode === 'live'
             ? snapshotRelative ?? 'Waiting for live snapshot…'
+            : snapshotRelative
+            ? `Demo data - ${snapshotRelative}`
             : 'Demo dataset active'}
         </p>
       </header>

@@ -19,6 +19,10 @@ Core wayfinding targets (open/skim in this order):
 - docs/runbooks/ (folder) — operational docs; open relevant runbook for the area you touch.
 - docs/ops/agent-activity-log.md — recent changes/commits/schedules.
 - docs/design-system.md and docs/project/frontend-design-system-plan.md — frontend design/UX references.
+- docs/project/frontend-finished-product-spec.md — finished frontend scope (pages, actions, states).
+- docs/project/frontend-spec-review-checklist.md — review template for the finished frontend spec.
+- docs/project/integration-roadmap.md — connector roadmap, API requirements, and build order.
+- docs/project/integration-api-validation-checklist.md — Phase 1 connector API validation template.
 - docs/runbooks/deployment.md, docs/BI/ (folder), deploy/ — deployment/BI configs and guidance.
 
 Linkage reminders:
@@ -96,6 +100,10 @@ Working rules to restate every session:
 | docs/ops/agent-activity-log.md | Recent changes/commits/schedules | After each session/change | AGENTS.md |
 | docs/design-system.md | Design tokens/guidelines | Design system changes | frontend-design-system-plan |
 | docs/project/frontend-design-system-plan.md | Frontend plan and UX notes | UX roadmap changes | docs/design-system.md |
+| docs/project/frontend-finished-product-spec.md | Finished frontend scope (MVP/Post-MVP/Enterprise) | New UX scope, routing, or acceptance changes | docs/task_breakdown.md, docs/workstreams.md |
+| docs/project/frontend-spec-review-checklist.md | Review template for finished frontend spec | Review workflow changes | docs/project/frontend-finished-product-spec.md |
+| docs/project/integration-roadmap.md | Connector roadmap and API requirements | New sources or build order changes | docs/task_breakdown.md, docs/project/feature-catalog.md |
+| docs/project/integration-api-validation-checklist.md | Phase 1 connector API validation template | Connector validation workflow changes | docs/project/integration-roadmap.md |
 | docs/runbooks/deployment.md | Deployment steps | Deploy process changes | deploy/, docs/BI/ |
 | docs/BI/ | BI configs | BI/dashboard changes | deploy/, backend/dbt contracts |
 | deploy/ | Deployment infra notes | Compose/infra changes | docs/runbooks/deployment.md |

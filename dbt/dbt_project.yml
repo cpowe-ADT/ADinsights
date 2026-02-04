@@ -14,17 +14,11 @@ on-run-start:
 models:
   adinsights:
     staging:
-      materialized: view
+      +materialized: view
     marts:
       +materialized: incremental
-      facts:
-        materialized: incremental
-        incremental_strategy: merge
-        unique_key: ['date_day', 'campaign_id', 'ad_account_id']
-      dimensions:
-        materialized: table
     reference:
-      materialized: table
+      +materialized: table
 
 snapshots:
   adinsights:
@@ -33,6 +27,81 @@ snapshots:
 seeds:
   adinsights:
     +quote_columns: false
+    demo:
+      +schema: demo
+      +quote_columns: false
+      dim_tenants:
+        +column_types:
+          tenant_id: text
+          tenant_name: text
+          currency: text
+          timezone: text
+          snapshot_generated_at: timestamp
+      dim_campaigns:
+        +column_types:
+          tenant_id: text
+          campaign_id: text
+          channel: text
+          campaign_name: text
+          objective: text
+          status: text
+          start_date: date
+          end_date: date
+          parish: text
+      dim_creatives:
+        +column_types:
+          tenant_id: text
+          campaign_id: text
+          channel: text
+          creative_id: text
+          creative_name: text
+          creative_type: text
+      fact_daily_campaign_metrics:
+        +column_types:
+          date: date
+          tenant_id: text
+          channel: text
+          campaign_id: text
+          spend: numeric
+          impressions: integer
+          clicks: integer
+          conversions: integer
+          revenue: numeric
+          roas: numeric
+          snapshot_generated_at: timestamp
+      fact_daily_parish_metrics:
+        +column_types:
+          date: date
+          tenant_id: text
+          channel: text
+          parish: text
+          spend: numeric
+          impressions: integer
+          clicks: integer
+          conversions: integer
+          revenue: numeric
+          roas: numeric
+      fact_daily_creative_metrics:
+        +column_types:
+          date: date
+          tenant_id: text
+          channel: text
+          campaign_id: text
+          creative_id: text
+          creative_type: text
+          spend: numeric
+          impressions: integer
+          clicks: integer
+          conversions: integer
+          revenue: numeric
+          roas: numeric
+      plan_monthly_budgets:
+        +column_types:
+          month: date
+          tenant_id: text
+          channel: text
+          campaign_id: text
+          planned_budget: numeric
     raw:
       +schema: raw
       +quote_columns: true

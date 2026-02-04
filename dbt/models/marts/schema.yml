@@ -3,6 +3,15 @@ version: 2
 models:
   - name: agg_campaign_daily
     description: 'Incremental aggregate of campaign-level performance metrics with geo enrichment from the campaign dimension.'
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination:
+              - tenant_id
+              - date_day
+              - source_platform
+              - ad_account_id
+              - campaign_id
     columns:
       - name: tenant_id
         description: 'Tenant scope for the aggregated record.'
@@ -44,6 +53,13 @@ models:
                 expression: 'coalesce(roas, 0) >= 0'
   - name: agg_parish_daily
     description: 'Incremental parish-level aggregate used by the choropleth map and dashboard summaries.'
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination:
+              - tenant_id
+              - date_day
+              - parish_code
     columns:
       - name: tenant_id
         description: 'Tenant scope for the aggregated record.'
@@ -58,8 +74,9 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('dim_geo')
-              field: parish_code
+              arguments:
+                to: ref('dim_geo')
+                field: parish_code
       - name: parish_name
         description: 'Friendly parish name from the geo dimension.'
       - name: region_name
@@ -94,12 +111,13 @@ models:
     description: 'Aggregated daily campaign metrics joined to current campaign attributes.'
     tests:
       - unique_combination_of_columns:
-          combination:
-            - tenant_id
-            - date_day
-            - source_platform
-            - ad_account_id
-            - campaign_id
+          arguments:
+            combination:
+              - tenant_id
+              - date_day
+              - source_platform
+              - ad_account_id
+              - campaign_id
     columns:
       - name: tenant_id
         description: 'Tenant identifier for row-level isolation.'
@@ -156,14 +174,15 @@ models:
     description: 'Aggregated daily creative metrics with cost efficiency fields for dashboards.'
     tests:
       - unique_combination_of_columns:
-          combination:
-            - tenant_id
-            - date_day
-            - source_platform
-            - ad_account_id
-            - campaign_id
-            - adset_id
-            - ad_id
+          arguments:
+            combination:
+              - tenant_id
+              - date_day
+              - source_platform
+              - ad_account_id
+              - campaign_id
+              - adset_id
+              - ad_id
     columns:
       - name: tenant_id
         tests:
@@ -227,11 +246,12 @@ models:
     description: 'Account level pacing view with cumulative and trailing spend indicators.'
     tests:
       - unique_combination_of_columns:
-          combination:
-            - tenant_id
-            - date_day
-            - source_platform
-            - ad_account_id
+          arguments:
+            combination:
+              - tenant_id
+              - date_day
+              - source_platform
+              - ad_account_id
     columns:
       - name: tenant_id
         tests:

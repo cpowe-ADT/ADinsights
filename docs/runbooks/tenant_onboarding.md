@@ -20,7 +20,8 @@ for support engineers.
 - **Authentication**: Tenant admin or superuser.
 - **Body**: `{"email": "analyst@acme.com", "role": "ANALYST"}` (role optional, defaults to no RBAC).
 - **Result**: Returns an invitation record with a generated `token` and expiration timestamp. The
-  `accounts.hooks.send_invitation_email` hook is called so deployments can plug in real email delivery.
+  backend sends an email via SES (when `EMAIL_PROVIDER=ses`) containing a link to
+  `FRONTEND_BASE_URL/invite?token=...`.
 
 ## 3. Accept an Invitation
 
@@ -30,18 +31,33 @@ for support engineers.
   accepted, and assigns the requested role.
 - **Guards**: The API rejects expired or previously accepted tokens and prevents duplicate emails
   within the tenant.
+- **UI Path**: The frontend accepts invite tokens at `GET /invite?token=...` and POSTs the same
+  payload to the endpoint above.
 
-## 4. Manage RBAC Assignments
+## 4. Password Resets
+
+- **Request**: `POST /api/auth/password-reset/` with `{"email": "user@acme.com"}`. Returns `202`.
+- **Confirm**: `POST /api/auth/password-reset/confirm/` with `{"token": "<reset token>", "password": "..."}`.
+- **Email**: The reset email is delivered via SES (when `EMAIL_PROVIDER=ses`) and links to
+  `FRONTEND_BASE_URL/password-reset?token=...`.
+- **UI Path**: `GET /password-reset` (request form) and `GET /password-reset?token=...` (confirm).
+
+## 5. Manage RBAC Assignments
 
 - **List**: `GET /api/user-roles/` (any authenticated tenant member; scoped to their tenant).
 - **Grant**: `POST /api/roles/assign/` with `{ "user": "<uuid>", "role": "VIEWER" }` (admin-only).
 - **Revoke**: `DELETE /api/user-roles/{id}/` (admin-only).
 
-## 5. Troubleshooting Tips
+## 6. Troubleshooting Tips
 
 - Verify that the caller holds the `ADMIN` role when receiving `403` responses on invite or role
   mutation endpoints.
 - Invitation tokens default to a seven-day expiry (`accounts.models.default_invitation_expiry`). Ops
   teams can purge or extend invites via the Django admin if necessary.
-- The placeholder email hook logs to application logs; integrate SES, SendGrid, or another provider by
-  overriding `accounts.hooks.send_invitation_email` during deployment.
+- SES email delivery requires `EMAIL_PROVIDER=ses`, `EMAIL_FROM_ADDRESS` (use the `adtelligent.net`
+  domain), `FRONTEND_BASE_URL`, and valid AWS credentials (`AWS_REGION`, `AWS_ACCESS_KEY_ID`,
+  `AWS_SECRET_ACCESS_KEY`).
+- TODO: Before production launch, verify the SES sender identity and DMARC/DKIM records for
+  `adtelligent.net`, and confirm the final "from" address to use.
+- For local development, set `EMAIL_PROVIDER=log` to suppress email sending while still exercising
+  the invite/reset flows.

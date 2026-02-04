@@ -14,16 +14,17 @@ models:
     description: 'Normalized daily Meta insights metrics'
     tests:
       - unique_combination_of_columns:
-          combination:
-            - tenant_id
-            - account_id
-            - campaign_id
-            - adset_id
-            - ad_id
-            - date
-            - country
-            - region
-            - city
+          arguments:
+            combination:
+              - tenant_id
+              - account_id
+              - campaign_id
+              - adset_id
+              - ad_id
+              - date
+              - country
+              - region
+              - city
     columns:
       - name: tenant_id
         description: 'Tenant identifier for row-level isolation.'
@@ -42,9 +43,10 @@ models:
     description: 'Meta campaign metadata'
     tests:
       - unique_combination_of_columns:
-          combination:
-            - tenant_id
-            - campaign_id
+          arguments:
+            combination:
+              - tenant_id
+              - campaign_id
     columns:
       - name: tenant_id
         tests:
@@ -59,9 +61,10 @@ models:
     description: 'Meta ad metadata'
     tests:
       - unique_combination_of_columns:
-          combination:
-            - tenant_id
-            - ad_id
+          arguments:
+            combination:
+              - tenant_id
+              - ad_id
     columns:
       - name: tenant_id
         tests:
@@ -76,9 +79,10 @@ models:
     description: 'Meta ad set metadata'
     tests:
       - unique_combination_of_columns:
-          combination:
-            - tenant_id
-            - adset_id
+          arguments:
+            combination:
+              - tenant_id
+              - adset_id
     columns:
       - name: tenant_id
         tests:

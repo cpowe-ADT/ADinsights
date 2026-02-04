@@ -20,5 +20,10 @@
 | 2026-01-22 | Codex (Sofia persona)    | Delivered S3-C (stale snapshot monitoring spec).                                                            | Confirmed runbook spec in `docs/runbooks/operations.md` and marked backlog done. |
 | 2026-01-22 | Codex (Lina persona)     | Delivered S4-C (design-system + Storybook coverage update).                                                  | Documented DatasetToggle/SnapshotIndicator story coverage in `docs/design-system.md`. |
 | 2026-01-22 | Codex (Hannah persona)   | Delivered S6-B (alert thresholds/escalation + dashboards).                                                   | Added dashboard link placeholders and escalation references in `docs/runbooks/alerting.md`. |
+| 2026-02-01 | Codex (product manager)  | Added finished frontend product spec + sprint picks; requested Lina/Joel review.                             | New spec in `docs/project/frontend-finished-product-spec.md`; backlog/task updates in docs. |
+| 2026-02-01 | Codex (product manager)  | Recorded frontend spec approval + review checklist template.                                                  | Updated backlog statuses, added review checklist, and expanded Post-MVP pick details. |
+| 2026-02-01 | Codex (product manager)  | Added integration roadmap and connector build order.                                                          | New doc `docs/project/integration-roadmap.md` and linked references in planning docs. |
+| 2026-02-01 | Codex (product manager)  | Added integration API validation checklist and Phase 1 connector backlog rows.                                | New `docs/project/integration-api-validation-checklist.md` and new S1-D..S1-G entries. |
+| 2026-02-01 | Codex (full-stack)       | Added SES email delivery support, updated onboarding runbooks, and cleaned dbt config deprecations.          | Updated backend email hooks, env defaults, dbt config/tests, and release checklist.    |
 
 > Log significant project/process documentation updates here to retain historical context.

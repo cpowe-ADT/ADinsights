@@ -2,6 +2,7 @@ DBT_PROJECT_DIR ?= dbt
 DBT_PROFILES_DIR ?= $(DBT_PROJECT_DIR)
 DBT ?= dbt
 DBT_WRAPPER := ./scripts/dbt-wrapper.sh
+DEMO_SEED_DIR ?= dbt/seeds/demo
 COMPOSE_ENV_FILE := $(if $(wildcard .env.dev.compose),--env-file .env.dev.compose,)
 COMPOSE_CMD := docker compose $(COMPOSE_ENV_FILE) -f docker-compose.dev.yml
 
@@ -9,7 +10,7 @@ define RUN_DBT
 $(DBT_WRAPPER) '$(DBT)' '$(DBT_PROJECT_DIR)' '$(DBT_PROFILES_DIR)' $(1)
 endef
 
-.PHONY: dbt-deps dbt-seed dbt-build dbt-test dbt-freshness dbt-docs dbt-build-full
+.PHONY: dbt-deps dbt-seed dbt-build dbt-test dbt-freshness dbt-docs dbt-build-full demo-data dbt-seed-demo demo-smoke
 
 dbt-deps:
 	$(call RUN_DBT,deps)
@@ -31,6 +32,16 @@ dbt-docs:
 
 dbt-build-full:
 	$(call RUN_DBT,build --full-refresh)
+
+demo-data:
+	python3 scripts/generate_demo_data.py --out $(DEMO_SEED_DIR) --days 90 --seed 42 --validate
+
+dbt-seed-demo:
+	$(call RUN_DBT,seed --select path:seeds/demo)
+
+demo-smoke:
+	python3 scripts/generate_demo_data.py --out $(DEMO_SEED_DIR) --days 30 --seed 42 --validate
+	$(call RUN_DBT,seed --select path:seeds/demo)
 
 .PHONY: dev dev-up dev-down dev-reset dev-seed dev-logs seed dev-bootstrap dev-ready dev-data dev-session
 

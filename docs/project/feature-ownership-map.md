@@ -26,7 +26,8 @@ Use this to assign sprint tasks and route reviews.
 - Owner: Lina (Primary), Joel (Backup)
 - Scope: `frontend/src/`
 - Tests: `npm test -- --run`, `npm run build`
-- Runbooks: `docs/design-system.md`, `frontend/DESIGN_SYSTEM.md`
+- Runbooks: `docs/design-system.md`, `frontend/DESIGN_SYSTEM.md`,
+  `docs/project/frontend-finished-product-spec.md`, `docs/project/frontend-spec-review-checklist.md`
 
 ### Secrets & KMS
 - Owner: Nina (Primary), Victor (Backup)

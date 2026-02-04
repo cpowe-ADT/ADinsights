@@ -29,6 +29,29 @@ touch multiple top-level folders.
 | S7-A | BI/Deployment | Codex → Carlos | Export Superset/Metabase configs with redacted creds into `docs/BI/`. | P2 | After Streams 2–3 finalize models/metrics. | `docker compose config`, BI export scripts. | Done (2026-01-22) |
 | S7-B | BI/Deployment | Codex → Mei | Add `docker compose config` + smoke job to CI; document. | P1 | Independent; ensure no cross-folder edits beyond deploy/docs. | `docker compose config`, CI pipeline run. | Done (2025-12-23) |
 | S7-C | BI/Deployment | Codex → Carlos | Expand deployment runbook with rollback + health checklist. | P2 | After S7-B ensures smoke tests defined. | Docs update. | Done (2026-01-22) |
+| S7-D | BI/Deployment | Codex → Mei | Verify SES sender identity + DMARC/DKIM for `adtelligent.net`, confirm final "from" address, and update runbook/env defaults. | P1 | Before production launch. | Manual SES checks + docs update. | Planned |
+
+## Frontend Expansion Backlog (Post-Phase 1 Draft)
+
+| ID | Stream | Acting Persona | Task | Priority | Dependencies | Tests / Commands | Status |
+|----|--------|----------------|------|----------|--------------|------------------|--------|
+| S4-D | Frontend | Codex -> Lina | Publish finished frontend product spec and review gate (Lina/Joel sign-off). | P1 | None; align with `docs/workstreams.md` and `docs/task_breakdown.md`. | Docs update. | Approved (2026-02-01) |
+| S4-E | Frontend | Codex -> Lina | Pick A: build data sources management UI (connections list + summary + detail). | P2 | Requires Airbyte connection APIs. | `npm run lint && npm test -- --run && npm run build` | Ready (approved 2026-02-01) |
+| S4-F | Frontend | Codex -> Lina | Implement dashboard library, report builder, exports, alerts, AI summaries UI. | P2 | Requires report/alert endpoints and export tooling. | `npm run lint && npm test -- --run && npm run build` | Planned |
+| S4-G | Frontend | Codex -> Lina | Pick B: deliver sync health + telemetry view. | P2 | Requires `/api/airbyte/telemetry/` + `/api/health/airbyte/`. | `npm run lint && npm test -- --run && npm run build` | Ready (approved 2026-02-01) |
+| S4-H | Frontend | Codex -> Lina | Pick C: health checks overview (API/airbyte/dbt/timezone). | P2 | Requires health endpoints. | `npm run lint && npm test -- --run && npm run build` | Ready (approved 2026-02-01) |
+| S4-I | Frontend | Codex -> Lina | CSV upload wizard (mapping, validation, job status). | P2 | Requires CSV upload + job status endpoints. | `npm run lint && npm test -- --run && npm run build` | Planned (stretch) |
+| S4-J | Frontend | Codex -> Lina | Admin audit log view (filters + export). | P2 | Requires audit log endpoints. | `npm run lint && npm test -- --run && npm run build` | Planned |
+| S4-K | Frontend | Codex -> Lina | Enterprise UAC UX (approvals, board packs, impersonation, access review, why denied). | P3 | Requires UAC workflow endpoints and entitlements. | `npm run lint && npm test -- --run && npm run build` | Planned |
+
+## Integrations Expansion Backlog (Phase 1 Connectors)
+
+| ID | Stream | Acting Persona | Task | Priority | Dependencies | Tests / Commands | Status |
+|----|--------|----------------|------|----------|--------------|------------------|--------|
+| S1-D | Airbyte | Codex -> Maya | Complete Phase 1 API validation checklist (Microsoft Ads, LinkedIn Ads, TikTok Ads). | P1 | Use `docs/project/integration-api-validation-checklist.md`. | Docs update. | Ready |
+| S1-E | Airbyte | Codex -> Maya | Microsoft Advertising connector plan (Airbyte vs custom) + schedule metadata. | P2 | Depends on S1-D; coordinate with Priya/Sofia for schema impact. | `ruff check backend`, `pytest backend/tests/test_airbyte_*.py`, `docker compose config` | Planned |
+| S1-F | Airbyte | Codex -> Maya | LinkedIn Ads connector plan (approval + limits) + schedule metadata. | P2 | Depends on S1-D; partner approval may gate build. | `ruff check backend`, `pytest backend/tests/test_airbyte_*.py`, `docker compose config` | Planned |
+| S1-G | Airbyte | Codex -> Maya | TikTok Ads connector plan (token lifecycle) + schedule metadata. | P2 | Depends on S1-D; confirm refresh token behavior. | `ruff check backend`, `pytest backend/tests/test_airbyte_*.py`, `docker compose config` | Planned |
 
 **Execution Notes**
 - Work roughly follows the dependency chain: Stream 1 → Stream 2 → Stream 3 → Stream 4, while Streams 5–7 run in parallel when they don’t block others.

@@ -69,16 +69,23 @@ isolated.
   - Dashboard defaults to warehouse data; demo mode opt-in.
   - Snapshot freshness banner matches backend timestamp.
   - Design system docs updated when components change.
+  - Finished frontend spec adopted (`docs/project/frontend-finished-product-spec.md`) with MVP
+    page-level empty/stale states implemented.
+  - Post-MVP and Enterprise slices tracked with clear API dependencies and acceptance checks.
 - **Dependencies**
   - Requires backend API contracts from streams #1 & #3.
+  - Post-MVP and Enterprise work depends on Airbyte connection APIs, reporting/alerts endpoints, and
+    UAC workflow endpoints.
 - **Coding standards / Testing / Contracts**
   - Commands: `npm run lint`, `npm test -- --run`, `npm run build`.
   - Run Prettier; ensure TypeScript strictness passes.
   - Validate `/api/metrics/combined/` schema integration; update `src/lib/apiClient` types.
-  - References: `docs/design-system.md`, `docs/task_breakdown.md` §5.
+  - References: `docs/design-system.md`, `docs/task_breakdown.md` §5,
+    `docs/project/frontend-finished-product-spec.md`.
 - **Definition of Done**
   - Code limited to `frontend/src/**`; Storybook/UX docs updated.
   - Tests (unit + integration) green.
+  - Finished frontend spec reviewed by Lina (senior web dev) and Joel, with any gaps logged.
   - Cross-stream sync with backend metrics for payload shifts.
 
 ## 5. Secrets & KMS (`backend/core/crypto/`, `scripts/`)
@@ -140,6 +147,11 @@ reviewed with the owning engineer.
 3. Update the relevant docs/runbooks whenever a contract changes.
 4. For PRs: describe which workstream the change belongs to and link to the
 corresponding plan section.
+
+### Cross-Stream Pending Items
+- Verify SES sender identity + DMARC/DKIM for `adtelligent.net`, confirm the final "from" address,
+  and update the runbooks/env defaults before production launch.
+- Define a production CORS policy and implement API rate limiting/throttling for public endpoints.
 
 ### Reviewer Personas & Skills
 - **Maya (Integrations Lead)** – Backend engineer specializing in Airbyte/Celery orchestration. Focuses on API stability, scheduling logic, and retry semantics. Expects `ruff` + unit tests before review and examines OpenAPI/contract updates.

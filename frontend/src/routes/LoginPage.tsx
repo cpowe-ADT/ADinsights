@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 
@@ -53,6 +53,9 @@ const LoginPage = () => {
           required
           autoComplete="current-password"
         />
+        <div className="auth-links">
+          <Link to="/password-reset">Forgot your password?</Link>
+        </div>
         {error ? <p className="status-message error">{error}</p> : null}
         <button type="submit" disabled={status === 'authenticating'} className="button primary">
           {status === 'authenticating' ? 'Signing in…' : 'Sign In'}

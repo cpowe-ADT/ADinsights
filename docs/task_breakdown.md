@@ -29,6 +29,10 @@ live in the repository.
   `app.tenant_id`.
 - **Next Actions**:
   - Add password reset/onboarding flows (email invite, tenant switch UI considerations).
+  - Verify SES sender identity + DMARC/DKIM for `adtelligent.net` and confirm final "from" address
+    before production launch.
+  - Define production CORS policy and add API rate limiting/throttling (especially for auth and
+    webhook endpoints).
   - Implement API keys or service accounts for automated integrations.
   - Surface audit log endpoints and hook key actions (login, credential changes) into the log.
 
@@ -54,6 +58,16 @@ live in the repository.
   - Decide on owning orchestration (Airbyte scheduler vs. external orchestrator) and codify cron
     expressions in infrastructure-as-code.
   - Integrate sync status callbacks with the backend (store last-sync timestamps per tenant).
+
+### 2.4 Integration Roadmap (Connectors + APIs)
+
+- **Reference**: `docs/project/integration-roadmap.md` (prioritized connector list, API requirements,
+  and phased build order).
+- **Next Actions**:
+  - Validate OAuth and partner approval requirements for Phase 1 connectors.
+  - Use `docs/project/integration-api-validation-checklist.md` to log scopes, limits, and risks.
+  - Identify which sources are covered by Airbyte vs. custom connectors.
+  - Confirm metrics parity needed for dashboard KPIs before adding new sources.
 
 ## 3. dbt Transformation Layer
 
@@ -104,6 +118,8 @@ live in the repository.
 - **Next Actions**:
   - Replace mock fetches with authenticated API calls once endpoints land.
   - Add routing for campaign/creative detail pages and integrate Superset/Metabase embeds if used.
+  - Align routes, empty states, and snapshot freshness UX with the finished frontend spec in
+    `docs/project/frontend-finished-product-spec.md` and review with Lina/Joel.
 
 ### 5.2 BI Tool Configuration
 
@@ -117,6 +133,24 @@ live in the repository.
   - Define SQL alert templates and schedule definitions.
   - Draft LLM prompt templates and safety guardrails; note dependency on metrics layer.
   - Prototype Canva integration workflow for shareable summaries.
+
+### 5.4 Finished Frontend Scope (MVP -> Post-MVP -> Enterprise)
+
+- **Reference**: `docs/project/frontend-finished-product-spec.md` (source of truth for pages,
+  filters, drill paths, exports, empty states, and stale data handling).
+- **MVP completion goals**:
+  - Home, Create dashboard, Campaigns, Creatives, Budget pacing, Map detail, and Profile flows
+    match the page-level requirements in the spec.
+  - Global filters and snapshot freshness indicators applied consistently across dashboards.
+  - Acceptance checklist (MVP section) verified before widening Post-MVP scope.
+- **Post-MVP expansion**:
+  - Data sources management UI (connections, schedules, run now, status).
+  - CSV upload wizard with mapping, validation, and job status.
+  - Report builder and exports (PDF/PNG), alerts, AI summaries, and admin/sync health views.
+- **Enterprise rollout**:
+  - UAC-driven approvals, board packs, impersonation, access review, and "why denied" UI tied to
+    `docs/security/uac-spec.md`.
+  - Require senior frontend review (Lina) and design system review (Joel) before shipping UAC UX.
 
 ## 6. Prioritized Immediate Next Steps
 
@@ -148,6 +182,37 @@ scheduled deliberately instead of rediscovered during reviews:
   guard mock fixtures behind an opt-in flag only.
 - **Secrets & observability** – plumb the production KMS client, rotation reminders, and monitoring
   hooks called out in the README checklist.
+
+---
+
+## 6.2 Post-MVP Frontend Sprint Picks (Approved 2026-02-01)
+
+Goal: ship the first Post-MVP frontend features that are fully backed by existing APIs.
+Review basis: `docs/project/frontend-finished-product-spec.md` and
+`docs/project/frontend-spec-review-checklist.md`.
+
+- **Pick A: Data sources management UI (Estimate: M)**
+  - Sub-tasks: list + summary cards; connection detail view; schedule display; status pills; empty
+    and error states; "run now" control when available.
+  - API deps: `GET /api/airbyte/connections/`, `GET /api/airbyte/connections/summary/`.
+  - Acceptance: supports empty/error/loading; last sync timestamp; stale warning; clear CTA to docs.
+  - Owner/tests: Lina; `npm run lint && npm test -- --run && npm run build`.
+- **Pick B: Sync health + telemetry view (Estimate: S-M)**
+  - Sub-tasks: telemetry table with pagination; job detail panel; API cost summaries; error banner
+    for failed syncs; health endpoint cross-link.
+  - API deps: `GET /api/airbyte/telemetry/`, `GET /api/health/airbyte/`.
+  - Acceptance: paginated job list, status pills, error details, stale banner tied to last sync.
+  - Owner/tests: Lina; `npm run lint && npm test -- --run && npm run build`.
+- **Pick C: Health checks overview (Estimate: S)**
+  - Sub-tasks: cards for /health, /health/airbyte, /health/dbt, /timezone; timestamps; runbook
+    links for failures.
+  - API deps: `GET /api/health/`, `GET /api/health/airbyte/`, `GET /api/health/dbt/`,
+    `GET /api/timezone/`.
+  - Acceptance: clear success/failure states with timestamps; links to runbooks.
+  - Owner/tests: Lina; `npm run lint && npm test -- --run && npm run build`.
+
+Stretch items (CSV upload wizard skeleton or dashboard library shell) should only be added after
+Picks A-C are accepted in QA.
 
 ---
 

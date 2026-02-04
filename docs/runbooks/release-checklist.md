@@ -18,12 +18,13 @@ Use this before merging to main or deploying to staging/production.
 
 ## Production Readiness
 - [ ] Secrets/KMS rotation verified (no logs leak secrets).
+- [ ] SES sender identity verified and password reset/invite emails deliver successfully.
 - [ ] Observability dashboards + alerts configured and tested.
 - [ ] dbt runs green (staging + marts + tests).
 - [ ] Airbyte syncs verified for Meta + Google sources.
 - [ ] Rollback steps reviewed in `docs/runbooks/deployment.md`.
 
 ## Post-deploy
-- [ ] Smoke test: login, tenant switch, campaign dashboard, map.
+- [ ] Smoke test: login, invite acceptance, password reset, tenant switch, campaign dashboard, map.
 - [ ] Error budget check (no spike in 5xx/timeout).
 - [ ] Update `docs/ops/agent-activity-log.md`.

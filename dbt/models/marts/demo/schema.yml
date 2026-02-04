@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: vw_demo_dashboard_snapshot
+    description: "Aggregated demo snapshot mirroring the combined metrics payload."
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null
+      - name: generated_at
+        tests:
+          - not_null
+      - name: campaign_metrics
+      - name: creative_metrics
+      - name: budget_metrics
+      - name: parish_metrics

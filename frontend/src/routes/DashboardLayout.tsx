@@ -24,10 +24,13 @@ const metricOptions = [
 
 const segmentLabels: Record<string, string> = {
   dashboards: 'Dashboards',
+  create: 'Create dashboard',
   campaigns: 'Campaigns',
   creatives: 'Creatives',
   budget: 'Budget pacing',
+  'data-sources': 'Data sources',
   map: 'Map',
+  uploads: 'CSV uploads',
 };
 
 function decodeSegmentValue(value: string): string {
@@ -171,6 +174,7 @@ const DashboardLayout = () => {
 
   const navLinks = useMemo(
     () => [
+      { label: 'Create', to: '/dashboards/create', end: false },
       { label: 'Campaigns', to: '/dashboards/campaigns', end: false },
       { label: 'Creatives', to: '/dashboards/creatives', end: false },
       { label: 'Budget pacing', to: '/dashboards/budget', end: false },
@@ -304,11 +308,13 @@ const DashboardLayout = () => {
     () => (lastSnapshotGeneratedAt ? formatRelativeTime(lastSnapshotGeneratedAt) : null),
     [lastSnapshotGeneratedAt],
   );
-  const snapshotIsStale =
-    datasetMode === 'live' && isTimestampStale(lastSnapshotGeneratedAt, 60);
+  const snapshotIsStale = isTimestampStale(lastSnapshotGeneratedAt, 60);
   const snapshotStatusLabel = useMemo(() => {
     if (datasetMode !== 'live') {
-      return 'Demo dataset active';
+      if (!lastSnapshotGeneratedAt) {
+        return 'Demo dataset active';
+      }
+      return snapshotRelative ? `Demo data - ${snapshotRelative}` : 'Demo dataset active';
     }
     if (!lastSnapshotGeneratedAt) {
       return 'Waiting for live snapshot…';
@@ -317,7 +323,10 @@ const DashboardLayout = () => {
   }, [datasetMode, lastSnapshotGeneratedAt, snapshotRelative]);
   const snapshotTone = useMemo(() => {
     if (datasetMode !== 'live') {
-      return 'demo';
+      if (!lastSnapshotGeneratedAt) {
+        return 'demo';
+      }
+      return snapshotIsStale ? 'stale' : 'demo';
     }
     if (!lastSnapshotGeneratedAt) {
       return 'pending';

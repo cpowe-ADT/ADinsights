@@ -5,7 +5,8 @@ models:
     description: 'SCD2 dimension capturing campaign level attributes and geo enrichment.'
     tests:
       - unique_combination:
-          combination: ['tenant_id', 'source_platform', 'ad_account_id', 'campaign_id', 'dbt_valid_from']
+          arguments:
+            combination: ['tenant_id', 'source_platform', 'ad_account_id', 'campaign_id', 'dbt_valid_from']
     columns:
       - name: tenant_id
         tests:
@@ -33,7 +34,8 @@ models:
     description: 'SCD2 dimension for ad sets/ad groups mapped back to campaigns and locations.'
     tests:
       - unique_combination:
-          combination: ['tenant_id', 'source_platform', 'ad_account_id', 'adset_id', 'dbt_valid_from']
+          arguments:
+            combination: ['tenant_id', 'source_platform', 'ad_account_id', 'adset_id', 'dbt_valid_from']
     columns:
       - name: tenant_id
         tests:
@@ -53,7 +55,8 @@ models:
     description: 'SCD2 dimension for creatives with ad set, campaign, and geo attributes.'
     tests:
       - unique_combination:
-          combination: ['tenant_id', 'source_platform', 'ad_account_id', 'ad_id', 'dbt_valid_from']
+          arguments:
+            combination: ['tenant_id', 'source_platform', 'ad_account_id', 'ad_id', 'dbt_valid_from']
     columns:
       - name: tenant_id
         tests:
@@ -75,7 +78,8 @@ models:
     description: 'Static lookup table mapping Jamaican parishes to geographic metadata.'
     tests:
       - unique_combination:
-          combination: ['tenant_id', 'parish_code']
+          arguments:
+            combination: ['tenant_id', 'parish_code']
     columns:
       - name: tenant_id
         tests:
@@ -104,26 +108,30 @@ models:
         tests:
           - not_null
           - relationships_multi_column:
-              to: ref('dim_campaign')
-              from_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'campaign_id']
-              to_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'campaign_id']
+              arguments:
+                to: ref('dim_campaign')
+                from_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'campaign_id']
+                to_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'campaign_id']
       - name: adset_id
         tests:
           - relationships_multi_column:
-              to: ref('dim_adset')
-              from_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'adset_id']
-              to_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'adset_id']
+              arguments:
+                to: ref('dim_adset')
+                from_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'adset_id']
+                to_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'adset_id']
       - name: ad_id
         tests:
           - relationships_multi_column:
-              to: ref('dim_ad')
-              from_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'ad_id']
-              to_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'ad_id']
+              arguments:
+                to: ref('dim_ad')
+                from_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'ad_id']
+                to_columns: ['tenant_id', 'source_platform', 'ad_account_id', 'ad_id']
       - name: parish_code
         tests:
           - relationships:
-              to: ref('dim_geo')
-              field: parish_code
+              arguments:
+                to: ref('dim_geo')
+                field: parish_code
       - name: spend
         tests:
           - not_null

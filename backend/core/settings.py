@@ -29,7 +29,11 @@ env = environ.Env(
     ENABLE_FAKE_ADAPTER=(bool, False),
     ENABLE_WAREHOUSE_ADAPTER=(bool, False),
     ENABLE_DEMO_ADAPTER=(bool, False),
+    DEMO_SEED_DIR=(str, ""),
     CREDENTIAL_ROTATION_REMINDER_DAYS=(int, 7),
+    EMAIL_PROVIDER=(str, "log"),
+    EMAIL_FROM_ADDRESS=(str, "no-reply@adinsights.local"),
+    FRONTEND_BASE_URL=(str, "http://localhost:5173"),
 )
 
 ENV_FILE = BASE_DIR / ".env"
@@ -49,6 +53,7 @@ METRICS_SNAPSHOT_TTL = env.int("METRICS_SNAPSHOT_TTL")
 ENABLE_FAKE_ADAPTER = env.bool("ENABLE_FAKE_ADAPTER", default=False)
 ENABLE_WAREHOUSE_ADAPTER = env.bool("ENABLE_WAREHOUSE_ADAPTER", default=False)
 ENABLE_DEMO_ADAPTER = env.bool("ENABLE_DEMO_ADAPTER", default=False)
+DEMO_SEED_DIR = _optional(env("DEMO_SEED_DIR", default=""))
 CREDENTIAL_ROTATION_REMINDER_DAYS = env.int("CREDENTIAL_ROTATION_REMINDER_DAYS")
 
 INSTALLED_APPS = [
@@ -198,6 +203,9 @@ LLM_API_KEY = _optional(env("LLM_API_KEY", default=None))
 LLM_MODEL = env("LLM_MODEL", default="gpt-5.1")
 LLM_TIMEOUT = env.float("LLM_TIMEOUT")
 APP_VERSION = env("APP_VERSION")
+EMAIL_PROVIDER = env("EMAIL_PROVIDER")
+EMAIL_FROM_ADDRESS = env("EMAIL_FROM_ADDRESS")
+FRONTEND_BASE_URL = env("FRONTEND_BASE_URL")
 
 SENTRY_DSN = _optional(env("SENTRY_DSN", default=None))
 SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="development")
