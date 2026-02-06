@@ -225,3 +225,36 @@ The harness uses mocked HTTP responses so the tests execute without contacting u
 3. Run the acceptance tests locally (`pytest infrastructure/airbyte/sources/tests -q`) and validate discovery in the Airbyte UI.
 4. Create destinations/connection pairs, enable incremental sync with the documented cron schedule, and monitor the first run for quota or schema issues.
 5. Flip the corresponding dbt feature flags (`enable_linkedin`, `enable_tiktok`) once the first sync succeeds.
+
+## Production Readiness Verification (Meta + Google)
+
+Use this sequence before promoting tenant connections in staging/production. Ownership:
+Maya (integrations), Leo (Celery/retries), Priya (dbt), Sofia (metrics API), Raj (cross-stream).
+
+1. Prepare env vars in a secure store and load them into the runtime shell (no inline secrets).
+2. Verify compose rendering:
+   - `cd infrastructure/airbyte && docker compose --env-file .env config`
+3. Verify tenant + template config:
+   - `python3 infrastructure/airbyte/scripts/validate_tenant_config.py`
+4. Verify production-only connector vars are present and non-placeholder:
+   - `python3 infrastructure/airbyte/scripts/verify_production_readiness.py`
+5. Apply/update tenant connections:
+   - `python3 infrastructure/airbyte/scripts/bootstrap_connections.py`
+6. Validate connection health:
+   - `python3 infrastructure/airbyte/scripts/airbyte_health_check.py`
+7. Validate backend telemetry + freshness:
+   - `GET /api/health/airbyte/`
+   - `GET /api/airbyte/telemetry/`
+8. Validate downstream marts/dashboard contract:
+   - `GET /api/health/dbt/`
+   - `GET /api/metrics/combined/?source=warehouse`
+
+### Retry, Backoff, and Telemetry Expectations
+
+- Sync orchestration retries use exponential backoff (base 2), max 5 attempts, with jitter.
+- Configuration errors use a higher base delay (`300s`) with a `900s` cap.
+- Structured logs include `tenant_id`, `task_id`, `correlation_id`, provider, and connection IDs.
+- Alert when:
+  - two or more consecutive sync failures occur for a connection,
+  - `/api/health/airbyte/` reports `stale` or `sync_failed`,
+  - telemetry indicates unexpectedly empty syncs.
