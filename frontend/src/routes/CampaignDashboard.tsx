@@ -1,12 +1,12 @@
-import { useCallback, useId, type ReactNode } from 'react';
+import { useCallback, useId, useMemo, type ReactNode } from 'react';
 import { ResponsiveContainer } from 'recharts';
 
 import CampaignTable from '../components/CampaignTable';
 import CampaignTrendChart from '../components/CampaignTrendChart';
-import EmptyState from '../components/EmptyState';
-import ErrorState from '../components/ErrorState';
+import DashboardState from '../components/DashboardState';
 import ParishMap from '../components/ParishMap';
 import Skeleton from '../components/Skeleton';
+import StatusBanner from '../components/StatusBanner';
 import Card from '../components/ui/Card';
 import StatCard from '../components/ui/StatCard';
 import { useAuth } from '../auth/AuthContext';
@@ -91,34 +91,147 @@ const CampaignDashboard = () => {
         <h1 className="dashboardHeading" id={headingId}>
           Campaign performance
         </h1>
-        <p
-          className={`snapshot-banner${
-            snapshotIsStale ? ' snapshot-banner--warning' : ''
-          }`}
+        <StatusBanner
+          tone={snapshotIsStale ? 'warning' : 'info'}
+          message={
+            datasetMode === 'live'
+              ? snapshotRelative ?? 'Waiting for live snapshot...'
+              : snapshotRelative
+              ? `Demo data - ${snapshotRelative}`
+              : 'Demo dataset active'
+          }
           title={snapshotAbsolute ?? undefined}
-        >
-          {datasetMode === 'live'
-            ? snapshotRelative ?? 'Waiting for live snapshot…'
-            : snapshotRelative
-            ? `Demo data - ${snapshotRelative}`
-            : 'Demo dataset active'}
-        </p>
+          ariaLabel="Snapshot status"
+        />
       </header>
       {content}
     </section>
   );
 
+  const summary = campaign.data?.summary;
+  const trend = campaign.data?.trend ?? [];
+  const currency = summary?.currency ?? 'USD';
+
+  const {
+    spendSeries,
+    impressionsSeries,
+    clicksSeries,
+    conversionsSeries,
+    roasSeries,
+    hasTrendData,
+    peakSpend,
+    trendStart,
+    trendEnd,
+  } = useMemo(() => {
+    if (trend.length === 0) {
+      return {
+        spendSeries: [],
+        impressionsSeries: [],
+        clicksSeries: [],
+        conversionsSeries: [],
+        roasSeries: [],
+        hasTrendData: false,
+        peakSpend: 0,
+        trendStart: null as Date | null,
+        trendEnd: null as Date | null,
+      };
+    }
+
+    const spend = sanitizeSeries(trend.map((point) => point.spend));
+    const impressions = sanitizeSeries(trend.map((point) => point.impressions));
+    const clicks = sanitizeSeries(trend.map((point) => point.clicks));
+    const conversions = sanitizeSeries(trend.map((point) => point.conversions));
+    const roas = sanitizeSeries(
+      trend.map((point) => {
+        if (!point.spend) {
+          return undefined;
+        }
+
+        const ratio = point.conversions / point.spend;
+        return Number.isFinite(ratio) ? ratio : undefined;
+      }),
+    );
+
+    return {
+      spendSeries: spend,
+      impressionsSeries: impressions,
+      clicksSeries: clicks,
+      conversionsSeries: conversions,
+      roasSeries: roas,
+      hasTrendData: true,
+      peakSpend: Math.max(...trend.map((point) => point.spend)),
+      trendStart: new Date(trend[0].date),
+      trendEnd: new Date(trend[trend.length - 1].date),
+    };
+  }, [trend]);
+
+  const kpis = useMemo(
+    () => [
+      {
+        label: 'Spend',
+        value: summary ? formatCurrency(summary.totalSpend, currency) : '—',
+        sparkline: spendSeries,
+      },
+      {
+        label: 'Impressions',
+        value: summary ? formatNumber(summary.totalImpressions) : '—',
+        sparkline: impressionsSeries,
+      },
+      {
+        label: 'Clicks',
+        value: summary ? formatNumber(summary.totalClicks) : '—',
+        sparkline: clicksSeries,
+      },
+      {
+        label: 'Conversions',
+        value: summary ? formatNumber(summary.totalConversions) : '—',
+        sparkline: conversionsSeries,
+      },
+      {
+        label: 'Avg. ROAS',
+        value: summary ? formatRatio(summary.averageRoas, 2) : '—',
+        sparkline: roasSeries,
+      },
+    ],
+    [clicksSeries, conversionsSeries, currency, impressionsSeries, roasSeries, spendSeries, summary],
+  );
+
+  const chartFooter = useMemo(() => {
+    if (!hasTrendData || !trendStart || !trendEnd) {
+      return null;
+    }
+
+    const dateRangeFormatter = new Intl.DateTimeFormat('en-JM', {
+      month: 'short',
+      day: 'numeric',
+    });
+
+    return (
+      <div className="chartFooter">
+        <div>
+          <span>Peak daily spend</span>
+          <strong>{formatCurrency(peakSpend, currency)}</strong>
+        </div>
+        <div className="chartFooterDates">
+          <span>{dateRangeFormatter.format(trendStart)}</span>
+          <span aria-hidden="true">–</span>
+          <span>{dateRangeFormatter.format(trendEnd)}</span>
+        </div>
+      </div>
+    );
+  }, [currency, hasTrendData, peakSpend, trendEnd, trendStart]);
+
   if (campaign.status === 'error' && !hasCampaignData) {
     return pageShell(
       <div className="dashboardGrid">
         <Card title="Campaign insights" className="chartCard">
-          <div className="status-message">
-            <ErrorState
-              message={campaign.error ?? 'Unable to load campaign performance.'}
-              onRetry={handleRetry}
-              retryLabel="Retry load"
-            />
-          </div>
+          <DashboardState
+            variant="error"
+            message={campaign.error ?? 'Unable to load campaign performance.'}
+            actionLabel="Retry load"
+            onAction={handleRetry}
+            layout="compact"
+          />
         </Card>
       </div>,
     );
@@ -128,81 +241,19 @@ const CampaignDashboard = () => {
     return pageShell(
       <div className="dashboardGrid">
         <Card title="Campaign insights" className="chartCard">
-          <EmptyState
+          <DashboardState
+            variant="empty"
             icon={<CampaignEmptyIcon />}
             title="No campaign insights yet"
             message="Campaign performance will appear once metrics are ingested."
             actionLabel="Refresh data"
             onAction={handleRetry}
+            layout="compact"
           />
         </Card>
       </div>,
     );
   }
-
-  const summary = campaign.data?.summary;
-  const trend = campaign.data?.trend ?? [];
-  const currency = summary?.currency ?? 'USD';
-
-  const spendSeries = sanitizeSeries(trend.map((point) => point.spend));
-  const impressionsSeries = sanitizeSeries(trend.map((point) => point.impressions));
-  const clicksSeries = sanitizeSeries(trend.map((point) => point.clicks));
-  const conversionsSeries = sanitizeSeries(trend.map((point) => point.conversions));
-  const roasSeries = sanitizeSeries(
-    trend.map((point) => {
-      if (!point.spend) {
-        return undefined;
-      }
-
-      const ratio = point.conversions / point.spend;
-      return Number.isFinite(ratio) ? ratio : undefined;
-    }),
-  );
-
-  const hasTrendData = trend.length > 0;
-  const kpis = [
-    {
-      label: 'Spend',
-      value: summary ? formatCurrency(summary.totalSpend, currency) : '—',
-      sparkline: spendSeries,
-    },
-    {
-      label: 'Impressions',
-      value: summary ? formatNumber(summary.totalImpressions) : '—',
-      sparkline: impressionsSeries,
-    },
-    {
-      label: 'Clicks',
-      value: summary ? formatNumber(summary.totalClicks) : '—',
-      sparkline: clicksSeries,
-    },
-    {
-      label: 'Conversions',
-      value: summary ? formatNumber(summary.totalConversions) : '—',
-      sparkline: conversionsSeries,
-    },
-    {
-      label: 'Avg. ROAS',
-      value: summary ? formatRatio(summary.averageRoas, 2) : '—',
-      sparkline: roasSeries,
-    },
-  ];
-
-  const dateRangeFormatter = new Intl.DateTimeFormat('en-JM', { month: 'short', day: 'numeric' });
-
-  const chartFooter = hasTrendData ? (
-    <div className="chartFooter">
-      <div>
-        <span>Peak daily spend</span>
-        <strong>{formatCurrency(Math.max(...trend.map((point) => point.spend)), currency)}</strong>
-      </div>
-      <div className="chartFooterDates">
-        <span>{dateRangeFormatter.format(new Date(trend[0].date))}</span>
-        <span aria-hidden="true">–</span>
-        <span>{dateRangeFormatter.format(new Date(trend[trend.length - 1].date))}</span>
-      </div>
-    </div>
-  ) : null;
 
   return pageShell(
     <div className="dashboardGrid">
@@ -229,13 +280,15 @@ const CampaignDashboard = () => {
             <CampaignTrendChart data={trend} currency={currency} />
           </ResponsiveContainer>
         ) : (
-          <EmptyState
+          <DashboardState
+            variant="empty"
             icon={<TrendPlaceholderIcon />}
             title="No trend data yet"
             message="Trend insights will appear once we have daily results."
             actionLabel="Refresh data"
             onAction={handleRetry}
             actionVariant="secondary"
+            layout="compact"
           />
         )}
         {chartFooter}

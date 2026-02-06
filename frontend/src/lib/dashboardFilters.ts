@@ -21,6 +21,23 @@ const CHANNEL_ALIASES: Record<string, string> = {
   TikTok: 'tiktok',
 };
 
+const CHANNEL_LABELS: Record<string, string> = {
+  meta: 'Meta Ads',
+  google_ads: 'Google Ads',
+  linkedin: 'LinkedIn',
+  tiktok: 'TikTok',
+};
+
+const DATE_RANGE_PRESETS = new Set<DateRangePreset>(['today', '7d', '30d', 'mtd', 'custom']);
+
+const FILTER_QUERY_KEYS = {
+  dateRange: 'date_range',
+  startDate: 'start_date',
+  endDate: 'end_date',
+  channels: 'channels',
+  campaignSearch: 'campaign_search',
+};
+
 const toInputDate = (date: Date): string => {
   const iso = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
   return iso.slice(0, 10);
@@ -116,30 +133,83 @@ export const resolveFilterRange = (filters: FilterBarState): { start: string; en
 export const buildFilterQueryParams = (filters: FilterBarState): Record<string, string> => {
   const { start, end } = resolveFilterRange(filters);
   const params: Record<string, string> = {
-    start_date: start,
-    end_date: end,
+    [FILTER_QUERY_KEYS.startDate]: start,
+    [FILTER_QUERY_KEYS.endDate]: end,
   };
 
   const channelValues = filters.channels
     .map(normalizeChannelValue)
     .filter(Boolean);
   if (channelValues.length > 0) {
-    params.channels = Array.from(new Set(channelValues)).join(',');
+    params[FILTER_QUERY_KEYS.channels] = Array.from(new Set(channelValues)).join(',');
   }
 
   const query = filters.campaignQuery.trim();
   if (query) {
-    params.campaign = query;
+    params[FILTER_QUERY_KEYS.campaignSearch] = query;
   }
 
   return params;
 };
 
-export const serializeFilterQueryParams = (filters: FilterBarState): string => {
+export const buildFilterUrlParams = (filters: FilterBarState): Record<string, string> => {
   const params = buildFilterQueryParams(filters);
+  params[FILTER_QUERY_KEYS.dateRange] = filters.dateRange;
+  return params;
+};
+
+export const serializeFilterQueryParams = (filters: FilterBarState): string => {
+  const params = buildFilterUrlParams(filters);
   const entries = Object.entries(params).filter(([, value]) => value);
   entries.sort(([a], [b]) => a.localeCompare(b));
   return new URLSearchParams(entries).toString();
+};
+
+export const parseFilterQueryParams = (
+  searchParams: URLSearchParams,
+  fallback: FilterBarState = createDefaultFilterState(),
+): FilterBarState => {
+  const dateRangeParam = searchParams.get(FILTER_QUERY_KEYS.dateRange) ?? undefined;
+  const dateRange = DATE_RANGE_PRESETS.has(dateRangeParam as DateRangePreset)
+    ? (dateRangeParam as DateRangePreset)
+    : fallback.dateRange;
+
+  const startParam = searchParams.get(FILTER_QUERY_KEYS.startDate) ?? undefined;
+  const endParam = searchParams.get(FILTER_QUERY_KEYS.endDate) ?? undefined;
+
+  const { start: resolvedStart, end: resolvedEnd } = normalizeDateRange(
+    normalizeDateValue(startParam, fallback.customRange.start),
+    normalizeDateValue(endParam, fallback.customRange.end),
+  );
+
+  const channelParam = searchParams.get(FILTER_QUERY_KEYS.channels);
+  const channels = channelParam
+    ? channelParam
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .map((value) => CHANNEL_LABELS[value] ?? value)
+    : fallback.channels;
+
+  const campaignQuery =
+    searchParams.get(FILTER_QUERY_KEYS.campaignSearch)?.trim() ?? fallback.campaignQuery;
+
+  const resolvedDateRange =
+    dateRangeParam && DATE_RANGE_PRESETS.has(dateRangeParam as DateRangePreset)
+      ? (dateRangeParam as DateRangePreset)
+      : startParam || endParam
+      ? 'custom'
+      : fallback.dateRange;
+
+  return {
+    dateRange: resolvedDateRange,
+    customRange: {
+      start: resolvedStart,
+      end: resolvedEnd,
+    },
+    channels,
+    campaignQuery,
+  };
 };
 
 export const areFiltersEqual = (left: FilterBarState, right: FilterBarState): boolean => {

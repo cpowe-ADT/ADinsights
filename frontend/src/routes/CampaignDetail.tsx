@@ -1,5 +1,5 @@
 import { useEffect, useMemo, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import CreativeTable from '../components/CreativeTable';
@@ -44,6 +44,7 @@ type OverviewItem = { label: string; value: ReactNode };
 
 const CampaignDetail = (): JSX.Element => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { campaignId: encodedId } = useParams<{ campaignId: string }>();
   const campaignId = useMemo(() => {
     if (!encodedId) {
@@ -112,6 +113,11 @@ const CampaignDetail = (): JSX.Element => {
       ]
     : [];
 
+  const backLink =
+    typeof location.state === 'object' && location.state && 'from' in location.state
+      ? (location.state as { from?: string }).from
+      : `/dashboards/campaigns${location.search}`;
+
   const pageShell = (content: ReactNode) => (
     <section className="dashboardPage" aria-labelledby="campaign-detail-heading">
       <header className="dashboardPageHeader">
@@ -119,7 +125,7 @@ const CampaignDetail = (): JSX.Element => {
         <h1 className="dashboardHeading" id="campaign-detail-heading">
           {activeCampaign ? activeCampaign.name : 'Campaign insights'}
         </h1>
-        <Link to="/dashboards/campaigns" className="backLink">
+        <Link to={backLink ?? '/dashboards/campaigns'} className="backLink">
           ← Back to campaigns
         </Link>
       </header>
@@ -168,7 +174,7 @@ const CampaignDetail = (): JSX.Element => {
             message="This campaign is no longer available."
             actionLabel="Return to campaigns"
             onAction={() => {
-              navigate('/dashboards/campaigns');
+              navigate(backLink ?? '/dashboards/campaigns');
             }}
           />
         </Card>

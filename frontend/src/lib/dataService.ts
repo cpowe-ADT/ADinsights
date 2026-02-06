@@ -25,6 +25,17 @@ export interface MetricsResponse {
   parish: ParishAggregate[];
 }
 
+export interface UploadMetricsStatus {
+  has_upload?: boolean;
+  snapshot_generated_at?: string;
+  counts?: {
+    campaign_rows: number;
+    parish_rows: number;
+    budget_rows: number;
+  };
+  warnings?: string[];
+}
+
 interface FetchOptions {
   path: string;
   mockPath: string;
@@ -77,4 +88,16 @@ export async function fetchDashboardMetrics(options: FetchOptions): Promise<Tena
 
 export async function fetchParishGeometry(options: FetchOptions): Promise<FeatureCollection> {
   return fetchJson<FeatureCollection>({ ...options, schema: 'parishGeometry' });
+}
+
+export async function fetchUploadStatus(): Promise<UploadMetricsStatus> {
+  return apiClient.get<UploadMetricsStatus>('/uploads/metrics/');
+}
+
+export async function uploadMetrics(formData: FormData): Promise<UploadMetricsStatus> {
+  return apiClient.post<UploadMetricsStatus>('/uploads/metrics/', formData);
+}
+
+export async function clearUploadedMetrics(): Promise<void> {
+  await apiClient.delete('/uploads/metrics/');
 }

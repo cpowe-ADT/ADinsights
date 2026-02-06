@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   ColumnDef,
   ColumnPinningState,
@@ -12,10 +12,12 @@ import {
 
 import useDashboardStore, { CampaignPerformanceRow } from '../state/useDashboardStore';
 import { formatCurrency, formatNumber, formatPercent, formatRatio } from '../lib/format';
+import { createDefaultFilterState, serializeFilterQueryParams } from '../lib/dashboardFilters';
 import { TABLE_VIEW_KEYS } from '../lib/savedViews';
-import EmptyState from './EmptyState';
+import DashboardState from './DashboardState';
 import FilterStatus from './FilterStatus';
 import Skeleton from './Skeleton';
+import useVirtualRows from './useVirtualRows';
 
 type CampaignTableViewState = {
   sorting?: SortingState;
@@ -24,6 +26,8 @@ type CampaignTableViewState = {
 
 const DEFAULT_SORTING: SortingState = [{ id: 'spend', desc: true }];
 const DEFAULT_COLUMN_PINNING: ColumnPinningState = { left: ['name'] };
+const VIRTUALIZATION_ROW_HEIGHT = 68;
+const VIRTUALIZATION_THRESHOLD = 60;
 
 const createDefaultSorting = (): SortingState => DEFAULT_SORTING.map((item) => ({ ...item }));
 const createDefaultColumnPinning = (): ColumnPinningState => ({
@@ -36,6 +40,7 @@ interface CampaignTableProps {
   currency: string;
   isLoading?: boolean;
   onReload?: () => void;
+  virtualizeRows?: boolean;
 }
 
 const TablePlaceholderIcon = () => (
@@ -66,11 +71,41 @@ const headers = [
   'CPM',
 ];
 
-const CampaignTable = ({ rows, currency, isLoading = false, onReload }: CampaignTableProps) => {
+const classNames = (...values: Array<string | false | null | undefined>) =>
+  values.filter(Boolean).join(' ');
+
+const renderTruncatedText = (value: string | null | undefined) => {
+  const text = value ? String(value) : '—';
+  return (
+    <span className="dashboard-table__truncate" title={value ? String(value) : undefined}>
+      {text}
+    </span>
+  );
+};
+
+const CampaignTable = ({
+  rows,
+  currency,
+  isLoading = false,
+  onReload,
+  virtualizeRows = true,
+}: CampaignTableProps) => {
   const selectedParish = useDashboardStore((state) => state.selectedParish);
+  const filters = useDashboardStore((state) => state.filters);
   const setSelectedParish = useDashboardStore((state) => state.setSelectedParish);
+  const setFilters = useDashboardStore((state) => state.setFilters);
   const loadView = useDashboardStore((state) => state.getSavedTableView);
   const persistView = useDashboardStore((state) => state.setSavedTableView);
+  const location = useLocation();
+
+  const filterSearch = useMemo(() => {
+    const serialized = serializeFilterQueryParams(filters);
+    return serialized ? `?${serialized}` : '';
+  }, [filters]);
+
+  const hasActiveFilters = useMemo(() => {
+    return serializeFilterQueryParams(filters) !== serializeFilterQueryParams(createDefaultFilterState());
+  }, [filters]);
 
   const [sorting, setSorting] = useState<SortingState>(() => {
     const stored = loadView<CampaignTableViewState>(TABLE_VIEW_KEYS.campaign);
@@ -95,66 +130,83 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
           <div className="campaign-name">
             <strong>
               <Link
-                to={`/dashboards/campaigns/${encodeURIComponent(row.original.id)}`}
-                className="table-link"
+                to={`/dashboards/campaigns/${encodeURIComponent(row.original.id)}${filterSearch}`}
+                state={{ from: `${location.pathname}${location.search}` }}
+                className="table-link dashboard-table__truncate"
+                title={row.original.name}
               >
                 {row.original.name}
               </Link>
             </strong>
-            <span className="campaign-meta">{row.original.status}</span>
+            <span
+              className="campaign-meta dashboard-table__truncate"
+              title={row.original.status ?? undefined}
+            >
+              {row.original.status ?? '—'}
+            </span>
           </div>
         ),
       },
       {
         accessorKey: 'platform',
         header: 'Platform',
+        cell: ({ getValue }) => renderTruncatedText(getValue() as string | undefined),
       },
       {
         accessorKey: 'parish',
         header: 'Parish',
+        cell: ({ getValue }) => renderTruncatedText(getValue() as string | undefined),
       },
       {
         accessorKey: 'spend',
         header: 'Spend',
+        meta: { isNumeric: true },
         cell: ({ getValue }) => formatCurrency(Number(getValue()), currency),
       },
       {
         accessorKey: 'impressions',
         header: 'Impressions',
+        meta: { isNumeric: true },
         cell: ({ getValue }) => formatNumber(Number(getValue())),
       },
       {
         accessorKey: 'clicks',
         header: 'Clicks',
+        meta: { isNumeric: true },
         cell: ({ getValue }) => formatNumber(Number(getValue())),
       },
       {
         accessorKey: 'conversions',
         header: 'Conversions',
+        meta: { isNumeric: true },
         cell: ({ getValue }) => formatNumber(Number(getValue())),
       },
       {
         accessorKey: 'roas',
         header: 'ROAS',
+        meta: { isNumeric: true },
         cell: ({ getValue }) => formatRatio(Number(getValue()), 2),
       },
       {
         accessorKey: 'ctr',
         header: 'CTR',
+        meta: { isNumeric: true },
         cell: ({ getValue }) => formatPercent(Number(getValue()), 2),
       },
       {
         accessorKey: 'cpc',
         header: 'CPC',
+        meta: { isNumeric: true },
         cell: ({ getValue }) => formatCurrency(Number(getValue()), currency, 2),
       },
       {
         accessorKey: 'cpm',
         header: 'CPM',
+        meta: { isNumeric: true },
         cell: ({ getValue }) => formatCurrency(Number(getValue()), currency, 2),
       },
     ],
-    [currency],
+    [currency, filterSearch, location.pathname, location.search],
   );
 
   const table = useReactTable({
@@ -166,6 +218,17 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
+  const tableRows = table.getRowModel().rows;
+  const rowCount = tableRows.length;
+  const shouldVirtualize = virtualizeRows && rowCount > VIRTUALIZATION_THRESHOLD;
+  const { containerRef, startIndex, endIndex, paddingTop, paddingBottom, isVirtualized } =
+    useVirtualRows({
+      enabled: shouldVirtualize,
+      rowCount,
+      rowHeight: VIRTUALIZATION_ROW_HEIGHT,
+    });
+  const visibleRows = isVirtualized ? tableRows.slice(startIndex, endIndex) : tableRows;
+  const columnCount = table.getVisibleLeafColumns().length;
 
   const handleExport = () => {
     if (typeof window === 'undefined') {
@@ -203,7 +266,7 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
     URL.revokeObjectURL(url);
   };
 
-  if (isLoading && rows.length === 0) {
+  if (isLoading && rowCount === 0) {
     return (
       <div className="table-card" aria-busy="true">
         <div className="table-card__header">
@@ -222,24 +285,44 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
     );
   }
 
+  const clearFilters = () => {
+    if (selectedParish) {
+      setSelectedParish(undefined);
+    }
+    if (hasActiveFilters) {
+      setFilters(createDefaultFilterState());
+    }
+  };
+  const emptyAction = () => {
+    if (selectedParish || hasActiveFilters) {
+      clearFilters();
+    } else {
+      onReload?.();
+    }
+  };
+  const emptyVariant = selectedParish || hasActiveFilters ? 'no-results' : 'empty';
+  const emptyTitle = selectedParish
+    ? `No campaigns in ${selectedParish}`
+    : hasActiveFilters
+    ? 'No campaigns match these filters'
+    : 'No campaign rows yet';
+  const emptyMessage = selectedParish
+    ? 'Try clearing the parish filter to see all campaigns.'
+    : hasActiveFilters
+    ? 'Try widening the date range or clearing filters.'
+    : 'Campaign rows will appear after your next sync finishes.';
+  const emptyActionLabel =
+    selectedParish || hasActiveFilters ? 'Clear filters' : onReload ? 'Refresh data' : undefined;
+
   const emptyState = (
-    <EmptyState
+    <DashboardState
+      variant={emptyVariant}
       icon={<TablePlaceholderIcon />}
-      title={selectedParish ? `No campaigns in ${selectedParish}` : 'No campaign rows yet'}
-      message={
-        selectedParish
-          ? 'Try clearing the parish filter to see all campaigns.'
-          : 'Campaign rows will appear after your next sync finishes.'
-      }
-      actionLabel={selectedParish ? 'Clear filter' : 'Refresh data'}
-      onAction={() => {
-        if (selectedParish) {
-          setSelectedParish(undefined);
-        } else {
-          onReload?.();
-        }
-      }}
-      actionVariant={selectedParish ? 'tertiary' : 'secondary'}
+      title={emptyTitle}
+      message={emptyMessage}
+      actionLabel={emptyActionLabel}
+      onAction={emptyActionLabel ? emptyAction : undefined}
+      layout="compact"
     />
   );
 
@@ -270,22 +353,29 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
           type="button"
           onClick={handleExport}
           className="button secondary"
-          disabled={rows.length === 0 || isLoading}
+          disabled={rowCount === 0 || isLoading}
         >
           Export CSV
         </button>
       </div>
-      {rows.length > 0 ? (
-        <div className="table-responsive">
-          <table>
+      {rowCount > 0 ? (
+        <div className="table-responsive dashboard-table__scroll" ref={containerRef}>
+          <table className="dashboard-table">
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
+                <tr key={headerGroup.id} className="dashboard-table__header-row">
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
                       colSpan={header.colSpan}
-                      className={header.column.getIsPinned() ? 'pinned' : undefined}
+                      className={classNames(
+                        'dashboard-table__header-cell',
+                        header.column.getIsPinned() && 'pinned',
+                        (header.column.columnDef.meta as { isNumeric?: boolean } | undefined)
+                          ?.isNumeric
+                          ? 'dashboard-table__cell--numeric'
+                          : undefined,
+                      )}
                       scope={header.colSpan === 1 ? 'col' : undefined}
                       aria-sort={
                         header.column.getCanSort()
@@ -330,18 +420,50 @@ const CampaignTable = ({ rows, currency, isLoading = false, onReload }: Campaign
               ))}
             </thead>
             <tbody>
-              {table.getRowModel().rows.map((row) => (
-                <tr key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className={cell.column.getIsPinned() ? 'pinned' : undefined}>
-                      {flexRender(
-                        cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()),
-                        cell.getContext(),
-                      )}
-                    </td>
-                  ))}
+              {isVirtualized && paddingTop > 0 ? (
+                <tr className="dashboard-table__spacer" aria-hidden="true">
+                  <td colSpan={columnCount} style={{ height: paddingTop }} />
                 </tr>
-              ))}
+              ) : null}
+              {visibleRows.map((row, visibleIndex) => {
+                const rowPosition = startIndex + visibleIndex;
+                const isZebra = rowPosition % 2 === 1;
+                return (
+                  <tr
+                    key={row.id}
+                    className={classNames(
+                      'dashboard-table__row',
+                      isZebra && 'dashboard-table__row--zebra',
+                    )}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      const isNumeric = (
+                        cell.column.columnDef.meta as { isNumeric?: boolean } | undefined
+                      )?.isNumeric;
+                      return (
+                        <td
+                          key={cell.id}
+                          className={classNames(
+                            'dashboard-table__cell',
+                            cell.column.getIsPinned() && 'pinned',
+                            isNumeric ? 'dashboard-table__cell--numeric' : undefined,
+                          )}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell ?? ((ctx) => ctx.getValue()),
+                            cell.getContext(),
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+              {isVirtualized && paddingBottom > 0 ? (
+                <tr className="dashboard-table__spacer" aria-hidden="true">
+                  <td colSpan={columnCount} style={{ height: paddingBottom }} />
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
