@@ -1,0 +1,5 @@
+date,tenant_id,channel,campaign_id,spend,impressions,clicks,conversions,revenue,roas,snapshot_generated_at
+2024-09-01,bank-of-jamaica,Meta,BOJ-001,1000,10000,200,10,5000,5.0,2024-09-05T00:00:00Z
+2024-09-02,bank-of-jamaica,Meta,BOJ-001,800,9000,180,8,3600,4.5,2024-09-05T00:00:00Z
+2024-09-01,grace-kennedy,Google Ads,GK-001,200,8000,160,20,1000,5.0,2024-09-05T00:00:00Z
+2024-09-02,grace-kennedy,Google Ads,GK-001,220,8500,170,18,900,4.09,2024-09-05T00:00:00Z
