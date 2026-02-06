@@ -160,7 +160,9 @@ def get_kms_client(
     aws_secret_access_key: str | None = None,
     aws_session_token: str | None = None,
 ) -> KmsClient:
-    if provider == "aws":
+    normalized_provider = provider.strip().lower()
+    validate_kms_configuration(normalized_provider, key_id, region_name)
+    if normalized_provider == "aws":
         return AwsKmsClient(
             key_id,
             region_name=region_name,
@@ -168,9 +170,9 @@ def get_kms_client(
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
         )
-    if provider == "local":
+    if normalized_provider == "local":
         return LocalKmsClient(key_id)
-    raise ValueError(f"Unsupported KMS provider: {provider}")
+    raise KmsConfigurationError(f"Unsupported KMS provider: {provider}")
 
 
 def _extract_key_id(key_version: str) -> str:
@@ -218,3 +220,25 @@ def _validate_aws_key_id(key_id: str, region_name: str | None) -> None:
         raise KmsConfigurationError(
             f"KMS_KEY_ID region ({arn_parts[0]}) does not match AWS_REGION ({region_name})."
         )
+
+
+def validate_kms_configuration(
+    provider: str,
+    key_id: str,
+    region_name: str | None = None,
+) -> None:
+    normalized_provider = provider.strip().lower()
+    if normalized_provider == "aws":
+        inferred_region = _infer_region_from_key_id(key_id)
+        resolved_region = region_name or inferred_region
+        _validate_aws_key_id(key_id, resolved_region)
+        if not resolved_region:
+            raise KmsConfigurationError(
+                "AWS region is required for KMS. Set AWS_REGION or use a KMS key ARN."
+            )
+        return
+    if normalized_provider == "local":
+        if not key_id:
+            raise KmsConfigurationError("KMS key ID is required for local KMS.")
+        return
+    raise KmsConfigurationError(f"Unsupported KMS provider: {provider}")

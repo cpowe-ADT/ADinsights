@@ -9,6 +9,9 @@ os.environ.setdefault("KMS_KEY_ID", "test-key")
 os.environ.setdefault("SECRETS_PROVIDER", "env")
 os.environ.setdefault("KMS_PROVIDER", "local")
 os.environ.setdefault("API_VERSION", "test")
+os.environ.setdefault("DRF_THROTTLE_AUTH_BURST", "10000/min")
+os.environ.setdefault("DRF_THROTTLE_AUTH_SUSTAINED", "100000/day")
+os.environ.setdefault("DRF_THROTTLE_PUBLIC", "10000/min")
 
 from .base import *  # noqa: F403,E402
 
