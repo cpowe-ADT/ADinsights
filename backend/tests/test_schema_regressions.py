@@ -14,6 +14,8 @@ from rest_framework.test import APIClient
 import yaml
 
 from accounts.models import Tenant
+from analytics.models import TenantMetricsSnapshot
+from analytics.uploads import build_combined_payload
 from integrations.models import AirbyteConnection, AirbyteJobTelemetry, TenantAirbyteSyncStatus
 
 SCHEMA_DIR = Path(__file__).parent / "schemas"
@@ -150,6 +152,50 @@ def test_combined_metrics_schema(telemetry_setup, dbt_run_results):
     assert payload["campaign"]["summary"]["currency"]
 
 
+def test_upload_metrics_status_schema(telemetry_setup, dbt_run_results):
+    tenant = telemetry_setup
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="upload-schema@example.com",
+        email="upload-schema@example.com",
+        tenant=tenant,
+        password="schema-pass-123",
+    )
+
+    payload = build_combined_payload(
+        campaign_rows=[
+            {
+                "date": "2024-10-01",
+                "campaign_id": "cmp-1",
+                "campaign_name": "Launch",
+                "platform": "Meta",
+                "parish": "Kingston",
+                "spend": 120.0,
+                "impressions": 12000.0,
+                "clicks": 420.0,
+                "conversions": 33.0,
+            }
+        ],
+        parish_rows=[],
+        budget_rows=[],
+    )
+    TenantMetricsSnapshot.objects.update_or_create(
+        tenant=tenant,
+        source="upload",
+        defaults={"payload": payload, "generated_at": timezone.now()},
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.get("/api/uploads/metrics/")
+    assert response.status_code == 200
+    status_payload = response.json()
+
+    validate(instance=status_payload, schema=load_schema("upload_metrics_status.schema.json"))
+    assert status_payload["has_upload"] is True
+
+
 def test_dbt_health_schema(telemetry_setup, dbt_run_results):
     client = APIClient()
     response = client.get("/api/health/dbt/")
@@ -179,3 +225,13 @@ def test_openapi_schema_includes_airbyte_telemetry():
     payload = yaml.safe_load(response.content.decode("utf-8"))
     paths = payload.get("paths", {})
     assert "/api/airbyte/telemetry/" in paths
+
+
+@pytest.mark.django_db
+def test_openapi_schema_includes_metrics_upload():
+    client = APIClient()
+    response = client.get("/api/schema/")
+    assert response.status_code == 200
+    payload = yaml.safe_load(response.content.decode("utf-8"))
+    paths = payload.get("paths", {})
+    assert "/api/uploads/metrics/" in paths
