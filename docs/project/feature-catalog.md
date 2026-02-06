@@ -16,6 +16,7 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Core health endpoints: `/api/health/`, `/api/health/airbyte/`, `/api/health/dbt/`, `/api/timezone/`.
 - Celery task wiring with observability hooks and test coverage.
 - AES-GCM secrets encryption with per-tenant DEKs + rotation script.
+- Production-ready API edge controls: explicit CORS allowlist middleware + auth/public endpoint throttling.
 
 ### Data/Analytics
 - dbt staging + marts for campaigns/creatives/pacing/parish aggregates.
@@ -36,6 +37,7 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Airbyte infrastructure and declarative source templates.
 - Airbyte telemetry endpoints and health checks.
 - Airbyte connection lifecycle APIs (list/create/update/sync) + summary endpoint.
+- Production readiness verifier for Meta/Google connection credentials and tenant config sanity.
 
 ### Observability/Runbooks
 - Stale snapshot monitoring spec, alert thresholds/escalation runbook.
@@ -61,7 +63,6 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Connector roadmap beyond Meta/Google (see `docs/project/integration-roadmap.md`).
 
 ### Backend
-- Production CORS policy + API rate limiting/throttling.
 - SES sender identity + DMARC/DKIM verification for outbound email.
 - Postgres grants + `seed_roles` command/fixtures for new installs.
 

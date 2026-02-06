@@ -38,6 +38,28 @@ with `python manage.py sync_airbyte` (or run the Celery task
 3. Trigger the `deploy-full-stack` GitHub Actions workflow or run `deploy/deploy_full_stack.sh`.
 4. Monitor rollout via Datadog dashboards and Superset status page.
 
+## API Edge Controls (Production)
+
+### CORS policy
+
+- Keep `CORS_ALLOW_ALL_ORIGINS=0` in production.
+- Configure explicit origins through `CORS_ALLOWED_ORIGINS` (comma-separated full origins).
+- Verify preflight behavior from approved and unapproved origins:
+  - Approved origin should receive `Access-Control-Allow-Origin`.
+  - Unapproved origin should not receive CORS headers and preflight should be rejected.
+
+### Auth/Public throttles
+
+- Rate limits are controlled by:
+  - `DRF_THROTTLE_AUTH_BURST` (short window)
+  - `DRF_THROTTLE_AUTH_SUSTAINED` (long window)
+  - `DRF_THROTTLE_PUBLIC` (public endpoint budget)
+- Smoke check by issuing repeated requests to:
+  - `POST /api/token/`
+  - `POST /api/auth/login/`
+  - `POST /api/auth/password-reset/`
+- Expect HTTP `429` once thresholds are exceeded.
+
 ## Incident Response
 
 1. Acknowledge alert in Slack (#adinsights-alerts).
@@ -170,6 +192,23 @@ latency/records metadata immediately after a sync. Keep the following guardrails
 - Validate warehouse connectors via Superset → Data → Databases.
 - Re-run `dbt` transformation job via the scheduler container (`make run-dbt`).
 - Escalate to Data Engineering if source pipelines show latency over 60 minutes.
+
+## SES Readiness Checklist (adtelligent.net)
+
+Complete these steps before enabling `EMAIL_PROVIDER=ses` in production:
+
+1. Verify SES identity for `adtelligent.net` (domain identity).
+2. Enable Easy DKIM and confirm all CNAME records are in `verified` state.
+3. Confirm SPF and DMARC records align with SES sending path.
+4. Move SES account out of sandbox for required recipient scope.
+5. Set final sender address:
+   - `EMAIL_FROM_ADDRESS=<approved-address>@adtelligent.net`
+   - `SES_EXPECTED_FROM_DOMAIN=adtelligent.net`
+6. Optional: set `SES_CONFIGURATION_SET` for delivery metrics/alerts.
+7. Run smoke tests:
+   - Invite flow: `POST /api/users/invite/` then accept link delivery check.
+   - Password reset flow: `POST /api/auth/password-reset/` delivery check.
+8. Record timestamp, operator, and from-address confirmation in release notes.
 
 ## Tenant Safety Checklist
 

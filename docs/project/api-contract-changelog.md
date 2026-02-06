@@ -11,6 +11,16 @@ Keep this brief and link to PRs or commits when available.
 - **Owner**
 
 ## Entries
+- **2026-02-06**
+  - Endpoint: `POST /api/token/`, `POST /api/token/refresh/`, `POST /api/auth/login/`, `POST /api/auth/password-reset/`, `POST /api/auth/password-reset/confirm/`, `POST /api/tenants/`, `POST /api/users/accept-invite/`
+  - Change: Added DRF rate limiting for unauthenticated/auth flows; clients may now receive `429` when thresholds are exceeded.
+  - Impact: API clients and smoke tests should handle throttled responses and retry/backoff accordingly.
+  - Owner: Sofia (Backend Metrics) + Nina (Security)
+- **2026-02-06**
+  - Endpoint: Cross-origin responses on API routes
+  - Change: Added explicit environment-driven CORS policy (`CORS_ALLOWED_ORIGINS`, preflight handling, allow-method/header controls).
+  - Impact: Browser callers must originate from configured allowlist entries in production.
+  - Owner: Sofia (Backend Metrics) + Victor (Infra/DevOps)
 - **2025-01-05**
   - Endpoint: `/api/metrics/combined/`
   - Change: Added `snapshot_generated_at` for freshness banner.

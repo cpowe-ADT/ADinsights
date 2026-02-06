@@ -53,8 +53,14 @@ Release cadence: weekly sprint cut for staging, bi-weekly (or on-demand) for pro
 
 - Store environment variables in AWS Secrets Manager or SSM Parameter Store.
 - Wrap tenant DEKs using AWS KMS CMKs (`KMS_KEY_ID`).
+- Prefer KMS aliases for deployment safety (for example `alias/adinsights-prod`) and enforce
+  region alignment with `AWS_REGION`.
 - Inject secrets into ECS tasks using task definitions; never bake into docker images.
 - Maintain `.env.sample` for reference only; update when adding new env vars.
+- Required production settings:
+  - CORS: `CORS_ALLOWED_ORIGINS`, `CORS_ALLOW_ALL_ORIGINS=0`, `CORS_ALLOW_CREDENTIALS=1`
+  - DRF throttles: `DRF_THROTTLE_AUTH_BURST`, `DRF_THROTTLE_AUTH_SUSTAINED`, `DRF_THROTTLE_PUBLIC`
+  - SES: `EMAIL_PROVIDER=ses`, `EMAIL_FROM_ADDRESS`, `SES_EXPECTED_FROM_DOMAIN`, `SES_CONFIGURATION_SET` (optional)
 
 ## 4. Build & Release Pipeline
 
@@ -82,6 +88,20 @@ Release cadence: weekly sprint cut for staging, bi-weekly (or on-demand) for pro
 6. Warm caches: trigger `/api/dashboards/aggregate-snapshot/` for a sample tenant, run Celery job `sync_meta_metrics`.
 7. Validate smoke tests + manual UI checks (login, dashboard load, Data Health view, credential management).
 8. Announce release in change-log channel; update status page.
+
+### 5.1 Airbyte Production Connection Readiness (Meta + Google)
+
+Run this sequence after secrets are injected and before traffic cutover:
+
+1. `cd infrastructure/airbyte && docker compose --env-file .env config`
+2. `python3 infrastructure/airbyte/scripts/validate_tenant_config.py`
+3. `python3 infrastructure/airbyte/scripts/verify_production_readiness.py`
+4. `python3 infrastructure/airbyte/scripts/bootstrap_connections.py`
+5. `python3 infrastructure/airbyte/scripts/airbyte_health_check.py`
+6. Validate backend endpoints:
+   - `GET /api/health/airbyte/`
+   - `GET /api/airbyte/telemetry/`
+7. Confirm retry/backoff policy in logs: base-2 exponential retry, max 5 attempts, jitter enabled.
 
 ## 6. Rollback Strategy
 
@@ -111,6 +131,9 @@ Release cadence: weekly sprint cut for staging, bi-weekly (or on-demand) for pro
 - [ ] Airbyte connections for Meta & Google running hourly; alerts configured.
 - [ ] dbt incremental builds scheduled (05:00 local) with success notifications.
 - [ ] Credential rotation reminders active via Celery beat + notifications.
+- [ ] CORS allowlist (`CORS_ALLOWED_ORIGINS`) confirmed for production web origins only.
+- [ ] Auth/public endpoint throttles return `429` when intentionally exceeded in smoke tests.
+- [ ] SES readiness complete: identity verified, DKIM enabled, SPF/DMARC aligned, account out of sandbox, final from-address approved.
 - [ ] Penetration test findings addressed; security review sign-off.
 - [ ] Runbooks updated: operations, alerts, tenant onboarding/offboarding.
 - [ ] SLA/SLO definitions published in `docs/ops/slo-sli.md` with active monitoring.

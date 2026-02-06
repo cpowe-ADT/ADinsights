@@ -27,9 +27,8 @@ live in the repository.
   service account auth, and audit log endpoints are live.
 - **Next Actions**:
   - Verify SES sender identity + DMARC/DKIM for `adtelligent.net` and confirm final "from" address
-    before production launch.
-  - Define production CORS policy and add API rate limiting/throttling (especially for auth and
-    webhook endpoints).
+    before production launch (external AWS/domain dependency).
+  - Keep production CORS allowlist and auth/public throttles aligned with release checklist values.
 
 ## 2. Data Ingestion Layer
 
@@ -95,7 +94,8 @@ live in the repository.
 - **Current State**: `.env.sample` enumerates required variables; `KmsClient` supports local and
   AWS KMS; DEK rotation CLI + Celery schedule exist.
 - **Next Actions**:
-  - Provision production KMS keys and wire Secrets Manager/SSM in deploy environments.
+  - Provision production KMS keys and wire Secrets Manager/SSM in deploy environments (code path and
+    validation are ready; environment provisioning remains external).
   - Decide how tenants manage credential rotation (UI vs. CLI) and log these events.
 
 ### 4.2 Observability
@@ -153,7 +153,7 @@ live in the repository.
 2. Configure Airbyte Meta/Google connections with real credentials and verify incremental syncs.
 3. Provision production KMS keys + Secrets Manager/SSM wiring; verify rotation reminders in prod.
 4. Verify SES sender identity + DMARC/DKIM and confirm final "from" address.
-5. Define production CORS policy + API rate limiting/throttling.
+5. Confirm production env values for CORS/throttles match runbook and perform `429` smoke checks.
 
 Track progress via the project management tool (Jira/Linear) linked to these workstreams.
 
@@ -164,9 +164,10 @@ Track progress via the project management tool (Jira/Linear) linked to these wor
 The vertical slice surfaced a handful of outstanding gaps. Document them here so they can be
 scheduled deliberately instead of rediscovered during reviews:
 
-- **Secrets production wiring** – provision KMS keys + secrets manager/SSM wiring and verify
-  rotation reminders in production.
-- **Email deliverability** – verify SES sender identity + DMARC/DKIM for `adtelligent.net`.
+- **Secrets production wiring** – code/config validation is complete; remaining work is external
+  provisioning of KMS keys and secrets manager bindings in production.
+- **Email deliverability** – runbook/env are ready; remaining work is external SES identity
+  verification + sandbox exit for `adtelligent.net`.
 - **RLS/roles bootstrap** – document Postgres grants and add a `seed_roles` fixture/command.
 
 ---

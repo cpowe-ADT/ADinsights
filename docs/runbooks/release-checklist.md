@@ -22,6 +22,12 @@ Use this before merging to main or deploying to staging/production.
 - [ ] Observability dashboards + alerts configured and tested.
 - [ ] dbt runs green (staging + marts + tests).
 - [ ] Airbyte syncs verified for Meta + Google sources.
+- [ ] CORS allowlist configured with explicit origins (`CORS_ALLOWED_ORIGINS`); wildcard origins disabled in production.
+- [ ] DRF auth/public throttles configured (`DRF_THROTTLE_AUTH_BURST`, `DRF_THROTTLE_AUTH_SUSTAINED`, `DRF_THROTTLE_PUBLIC`) and smoke-tested for `429` behavior.
+- [ ] `python3 infrastructure/airbyte/scripts/validate_tenant_config.py` succeeds in target env.
+- [ ] `python3 infrastructure/airbyte/scripts/verify_production_readiness.py` reports no errors.
+- [ ] `python3 infrastructure/airbyte/scripts/airbyte_health_check.py` reports healthy connections for Meta + Google.
+- [ ] SES readiness checklist complete: identity + DKIM + SPF/DMARC + sandbox exit + final from-address match.
 - [ ] Rollback steps reviewed in `docs/runbooks/deployment.md`.
 
 ## Post-deploy

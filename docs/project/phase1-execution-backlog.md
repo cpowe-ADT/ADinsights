@@ -29,7 +29,7 @@ touch multiple top-level folders.
 | S7-A | BI/Deployment | Codex → Carlos | Export Superset/Metabase configs with redacted creds into `docs/BI/`. | P2 | After Streams 2–3 finalize models/metrics. | `docker compose config`, BI export scripts. | Done (2026-01-22) |
 | S7-B | BI/Deployment | Codex → Mei | Add `docker compose config` + smoke job to CI; document. | P1 | Independent; ensure no cross-folder edits beyond deploy/docs. | `docker compose config`, CI pipeline run. | Done (2025-12-23) |
 | S7-C | BI/Deployment | Codex → Carlos | Expand deployment runbook with rollback + health checklist. | P2 | After S7-B ensures smoke tests defined. | Docs update. | Done (2026-01-22) |
-| S7-D | BI/Deployment | Codex → Mei | Verify SES sender identity + DMARC/DKIM for `adtelligent.net`, confirm final "from" address, and update runbook/env defaults. | P1 | Before production launch. | Manual SES checks + docs update. | Planned |
+| S7-D | BI/Deployment | Codex → Mei | Verify SES sender identity + DMARC/DKIM for `adtelligent.net`, confirm final "from" address, and update runbook/env defaults. | P1 | Before production launch. | Manual SES checks + docs update. | Blocked (external: AWS SES domain ownership + production access approval pending) |
 
 ## Frontend Expansion Backlog (Post-Phase 1 Draft)
 
