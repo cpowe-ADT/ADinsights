@@ -168,7 +168,7 @@ scheduled deliberately instead of rediscovered during reviews:
   provisioning of KMS keys and secrets manager bindings in production.
 - **Email deliverability** – runbook/env are ready; remaining work is external SES identity
   verification + sandbox exit for `adtelligent.net`.
-- [x] **RLS/roles bootstrap** – document Postgres grants and add a `seed_roles` fixture/command.
+- **RLS/roles bootstrap** – document Postgres grants and add a `seed_roles` fixture/command.
 
 ---
 
@@ -206,7 +206,6 @@ adding new picks.
 ## 6.3 Sprint Checklist: Dashboard Live Data + Filters (Completed)
 
 Delivered:
-
 - API contract alignment for `/api/metrics/combined/` and typed dashboard data flow.
 - Live data default with demo opt-in only.
 - FilterBar wiring + URL state + drill-down routes.
@@ -215,17 +214,15 @@ Delivered:
 ## 6.4 Frontend Spec Punch List (MVP/Post-MVP)
 
 ### MVP gaps
-
-- [x] Home page: replace static recent dashboards with API-driven data + true empty state logic. (MVP)
+- [ ] Home page: replace static recent dashboards with API-driven data + true empty state logic.
 
 ### Post-MVP gaps
-
-- [x] Dashboard library: replace mock data with real API listing + error/empty states.
-- [x] Sync health/telemetry view (`/ops/sync-health`).
-- [x] Health checks overview (`/ops/health`).
-- [x] Reports/report builder + exports (`/reports`, `/reports/new`, `/reports/:id`).
-- [x] Alerts + AI summaries UI (`/alerts`, `/summaries`).
-- [x] Admin audit log view + export.
+- [ ] Dashboard library: replace mock data with real API listing + error/empty states.
+- [ ] Sync health/telemetry view (`/ops/sync-health`).
+- [ ] Health checks overview (`/ops/health`).
+- [ ] Reports/report builder + exports (`/reports`, `/reports/new`, `/reports/:id`).
+- [ ] Alerts + AI summaries UI (`/alerts`, `/summaries`).
+- [ ] Admin audit log view + export.
 
 ## 7. User Access Control (UAC) Rollout Plan
 
