@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate, type NavLinkRenderProps } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -8,9 +8,16 @@ import { useTheme } from '../components/ThemeProvider';
 import { useToast } from '../components/ToastProvider';
 import { loadDashboardLayout, saveDashboardLayout } from '../lib/layoutPreferences';
 import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
+import {
+  areFiltersEqual,
+  createDefaultFilterState,
+  parseFilterQueryParams,
+  serializeFilterQueryParams,
+} from '../lib/dashboardFilters';
 import DatasetToggle from '../components/DatasetToggle';
 import TenantSwitcher from '../components/TenantSwitcher';
 import SnapshotIndicator from '../components/SnapshotIndicator';
+import StatusBanner from '../components/StatusBanner';
 import useDashboardStore from '../state/useDashboardStore';
 import { useDatasetStore } from '../state/useDatasetStore';
 
@@ -45,6 +52,7 @@ function decodeSegmentValue(value: string): string {
 const DashboardLayout = () => {
   const { tenantId, logout, user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { pushToast } = useToast();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -88,6 +96,29 @@ const DashboardLayout = () => {
     },
     [setFilters],
   );
+
+  const defaultFilters = useMemo(() => createDefaultFilterState(), []);
+
+  const urlFilters = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    return parseFilterQueryParams(searchParams, defaultFilters);
+  }, [defaultFilters, location.search]);
+
+  useEffect(() => {
+    if (!areFiltersEqual(filters, urlFilters)) {
+      setFilters(urlFilters);
+    }
+  }, [filters, setFilters, urlFilters]);
+
+  useEffect(() => {
+    const nextSearch = serializeFilterQueryParams(filters);
+    const currentSearch = location.search.replace(/^\?/, '');
+    if (nextSearch === currentSearch) {
+      return;
+    }
+    const nextPath = nextSearch ? `${location.pathname}?${nextSearch}` : location.pathname;
+    navigate(nextPath, { replace: true });
+  }, [filters, location.pathname, location.search, navigate]);
 
   const shellRef = useRef<HTMLDivElement>(null);
   const dashboardTopRef = useRef<HTMLDivElement>(null);
@@ -174,6 +205,7 @@ const DashboardLayout = () => {
 
   const navLinks = useMemo(
     () => [
+      { label: 'Library', to: '/dashboards', end: true },
       { label: 'Create', to: '/dashboards/create', end: false },
       { label: 'Campaigns', to: '/dashboards/campaigns', end: false },
       { label: 'Creatives', to: '/dashboards/creatives', end: false },
@@ -425,7 +457,7 @@ const DashboardLayout = () => {
                 key={link.to}
                 to={link.to}
                 end={link.end}
-                className={({ isActive }) => (isActive ? 'active' : undefined)}
+                className={({ isActive }: NavLinkRenderProps) => (isActive ? 'active' : undefined)}
               >
                 {link.label}
               </NavLink>
@@ -436,33 +468,40 @@ const DashboardLayout = () => {
           <Breadcrumbs items={breadcrumbs} />
         </div>
       </div>
-      <FilterBar onChange={handleFilterChange} />
+      {location.pathname === '/dashboards' ? null : (
+        <FilterBar state={filters} defaultState={defaultFilters} onChange={handleFilterChange} />
+      )}
       {datasetMode === 'dummy' ? (
         <div className="dashboard-status">
           <div className="dashboard-boundary">
-            <div className="status-message" role="status">
-              Demo dataset is active. Toggle to view live warehouse metrics.
-            </div>
+            <StatusBanner
+              message="Demo dataset is active. Toggle to view live warehouse metrics."
+              ariaLabel="Dataset status"
+            />
           </div>
         </div>
       ) : null}
       {datasetMode === 'live' && !hasLiveData ? (
         <div className="dashboard-status">
           <div className="dashboard-boundary">
-            <div className="status-message" role="alert">
-              Live warehouse metrics are unavailable. Switch to demo data to explore the interface.
-            </div>
+            <StatusBanner
+              tone="warning"
+              message="Live warehouse metrics are unavailable. Switch to demo data to explore the interface."
+              ariaLabel="Live data status"
+            />
           </div>
         </div>
       ) : null}
       {errors.length > 0 ? (
         <div className="dashboard-status">
           <div className="dashboard-boundary">
-            <div className="status-message error" role="alert">
-              {errors.map((message, index) => (
+            <StatusBanner
+              tone="error"
+              message={errors.map((message, index) => (
                 <span key={`${message}-${index}`}>{message}</span>
               ))}
-            </div>
+              ariaLabel="Dashboard errors"
+            />
           </div>
         </div>
       ) : null}

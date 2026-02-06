@@ -6,6 +6,7 @@ import CampaignDetail from './routes/CampaignDetail';
 import CreativeDashboard from './routes/CreativeDashboard';
 import CreativeDetail from './routes/CreativeDetail';
 import DashboardCreate from './routes/DashboardCreate';
+import DashboardLibrary from './routes/DashboardLibrary';
 import CsvUpload from './routes/CsvUpload';
 import DataSources from './routes/DataSources';
 import DashboardLayout from './routes/DashboardLayout';
@@ -41,7 +42,7 @@ export const router = createBrowserRouter(
           path: '/dashboards',
           element: <DashboardLayout />,
           children: [
-            { index: true, element: <Navigate to="campaigns" replace /> },
+            { index: true, element: <DashboardLibrary /> },
             { path: 'create', element: <DashboardCreate /> },
             { path: 'campaigns', element: <CampaignDashboard /> },
             { path: 'campaigns/:campaignId', element: <CampaignDetail /> },

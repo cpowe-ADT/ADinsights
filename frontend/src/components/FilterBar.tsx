@@ -12,6 +12,7 @@ export type { DateRangePreset, FilterBarState } from '../lib/dashboardFilters';
 interface FilterBarProps {
   availableChannels?: string[];
   defaultState?: FilterBarState;
+  state?: FilterBarState;
   onChange?: (nextState: FilterBarState) => void;
 }
 
@@ -23,7 +24,7 @@ const datePresets: { label: string; value: DateRangePreset }[] = [
   { label: 'Custom', value: 'custom' },
 ];
 
-const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps) => {
+const FilterBar = ({ availableChannels, defaultState, state, onChange }: FilterBarProps) => {
   const resolvedDefaultState = useMemo(
     () => defaultState ?? createDefaultFilterState(),
     [defaultState],
@@ -45,11 +46,18 @@ const FilterBar = ({ availableChannels, defaultState, onChange }: FilterBarProps
   }, [filters, onChange]);
 
   useEffect(() => {
+    if (!state) {
+      setFilters({
+        ...resolvedDefaultState,
+        customRange: { ...resolvedDefaultState.customRange },
+      });
+      return;
+    }
     setFilters({
-      ...resolvedDefaultState,
-      customRange: { ...resolvedDefaultState.customRange },
+      ...state,
+      customRange: { ...state.customRange },
     });
-  }, [resolvedDefaultState]);
+  }, [resolvedDefaultState, state]);
 
   useEffect(() => {
     if (!isCustomOpen) {

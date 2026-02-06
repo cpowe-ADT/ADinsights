@@ -36,11 +36,11 @@ touch multiple top-level folders.
 | ID | Stream | Acting Persona | Task | Priority | Dependencies | Tests / Commands | Status |
 |----|--------|----------------|------|----------|--------------|------------------|--------|
 | S4-D | Frontend | Codex -> Lina | Publish finished frontend product spec and review gate (Lina/Joel sign-off). | P1 | None; align with `docs/workstreams.md` and `docs/task_breakdown.md`. | Docs update. | Approved (2026-02-01) |
-| S4-E | Frontend | Codex -> Lina | Pick A: build data sources management UI (connections list + summary + detail). | P2 | Requires Airbyte connection APIs. | `npm run lint && npm test -- --run && npm run build` | Ready (approved 2026-02-01) |
+| S4-E | Frontend | Codex -> Lina | Pick A: build data sources management UI (connections list + summary + detail). | P2 | Requires Airbyte connection APIs. | `npm run lint && npm test -- --run && npm run build` | Done (2026-02-04) |
 | S4-F | Frontend | Codex -> Lina | Implement dashboard library, report builder, exports, alerts, AI summaries UI. | P2 | Requires report/alert endpoints and export tooling. | `npm run lint && npm test -- --run && npm run build` | Planned |
 | S4-G | Frontend | Codex -> Lina | Pick B: deliver sync health + telemetry view. | P2 | Requires `/api/airbyte/telemetry/` + `/api/health/airbyte/`. | `npm run lint && npm test -- --run && npm run build` | Ready (approved 2026-02-01) |
 | S4-H | Frontend | Codex -> Lina | Pick C: health checks overview (API/airbyte/dbt/timezone). | P2 | Requires health endpoints. | `npm run lint && npm test -- --run && npm run build` | Ready (approved 2026-02-01) |
-| S4-I | Frontend | Codex -> Lina | CSV upload wizard (mapping, validation, job status). | P2 | Requires CSV upload + job status endpoints. | `npm run lint && npm test -- --run && npm run build` | Planned (stretch) |
+| S4-I | Frontend | Codex -> Lina | CSV upload wizard (mapping, validation, job status). | P2 | Requires CSV upload + job status endpoints. | `npm run lint && npm test -- --run && npm run build` | Done (2026-02-04) |
 | S4-J | Frontend | Codex -> Lina | Admin audit log view (filters + export). | P2 | Requires audit log endpoints. | `npm run lint && npm test -- --run && npm run build` | Planned |
 | S4-K | Frontend | Codex -> Lina | Enterprise UAC UX (approvals, board packs, impersonation, access review, why denied). | P3 | Requires UAC workflow endpoints and entitlements. | `npm run lint && npm test -- --run && npm run build` | Planned |
 

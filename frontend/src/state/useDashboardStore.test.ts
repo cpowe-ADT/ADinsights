@@ -388,7 +388,7 @@ describe('useDashboardStore', () => {
     expect(params.get('start_date')).toBe('2024-08-01');
     expect(params.get('end_date')).toBe('2024-08-31');
     expect(params.get('channels')).toBe('meta,google_ads');
-    expect(params.get('campaign')).toBe('Kingston');
+    expect(params.get('campaign_search')).toBe('Kingston');
   });
 
   it('flags API errors without discarding previous data', async () => {

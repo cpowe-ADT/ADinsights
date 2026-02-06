@@ -8,8 +8,8 @@ ADinsights will be a self-hosted, multi-tenant marketing analytics platform for 
 
 - **backend/**: Django + DRF API with multi-tenant auth, Celery tasks, and encrypted credential storage.
 - **infrastructure/airbyte/**: Docker Compose stack and redacted source templates for Airbyte.
-- **dbt/**: dbt project with staging models, macros, and parish lookup seed.
-- **frontend/**: React + Vite shell featuring TanStack Table and Leaflet choropleth with mock data.
+- **dbt/**: dbt project with staging + dims/facts/marts, macros, and parish lookup seed.
+- **frontend/**: React + Vite dashboards with TanStack Table and Leaflet, wired to `/api/metrics/combined/` with demo/upload fallbacks.
 - **docs/**: Planning artifacts including the roadmap breakdown.
 
 Quick orientation: see `docs/ops/doc-index.md` (wayfinding + hygiene) and `docs/PROGRAM-NOTES.md` (session warm-up).
@@ -39,7 +39,7 @@ Quick orientation: see `docs/ops/doc-index.md` (wayfinding + hygiene) and `docs/
    - Load Jamaica parish GeoJSON and seed initial mappings.
 4. **Initial Analytics UX**
    - Stand up Metabase (or Superset) and publish a basic campaign dashboard.
-   - Scaffold React frontend with TanStack Table and Leaflet map components wired to mocked data.
+   - Scaffold React frontend with TanStack Table and Leaflet map components wired to combined metrics with demo fallback.
 
 ### Phase 2 – Data Modeling & Metrics (Sprint 2)
 
@@ -81,9 +81,12 @@ Quick orientation: see `docs/ops/doc-index.md` (wayfinding + hygiene) and `docs/
 - [x] Choose backend framework and initialize service.
 - [x] Provision infrastructure scaffolds for Airbyte, dbt, and frontend shell.
 - [ ] Configure Airbyte connections with production credentials and schedule hourly metric syncs.
-- [ ] Extend dbt models beyond staging to deliver fact tables, metrics dictionary, and parish mapping logic.
-- [ ] Secure secrets management integration (e.g., AWS Secrets Manager or Vault) for runtime keys.
-- [ ] Stand up Metabase/Superset dashboards connected to the API once metrics are available.
+- [ ] Complete Phase 1 connector API validation (Microsoft/LinkedIn/TikTok).
+- [x] Extend dbt models beyond staging to deliver fact tables, metrics dictionary, and parish mapping logic.
+- [ ] Expand parish mapping (GeoTarget IDs + Meta region strings).
+- [ ] Secure secrets management integration (e.g., AWS Secrets Manager/SSM + production KMS keys).
+- [x] Export Superset configs into version control.
+- [ ] Verify SES sender identity + DMARC/DKIM for outbound email.
 - [ ] Use [`docs/task_breakdown.md`](docs/task_breakdown.md) to track sprint assignments and validation.
 
 ## LLM Access Notes
@@ -126,16 +129,14 @@ npm install
 npm run dev
 ```
 
-The dev server runs on <http://localhost:5173>. The shell consumes mock data from
-`public/sample_metrics.json` until backend APIs are wired in. Set `VITE_MOCK_MODE=false`
-in your Vite environment to force the frontend to load data from the `/api/metrics/`
-endpoint instead of the bundled sample payload.
+The dev server runs on <http://localhost:5173>. The frontend defaults to live
+`/api/metrics/combined/` calls when available. Set `VITE_MOCK_MODE=true` to force
+mock assets such as `public/sample_metrics.json`.
 
-- When `VITE_MOCK_MODE=false`, the dashboard header exposes a “Use dummy data” toggle. It
-  calls `/api/adapters/` to detect which adapters are available and switches between the fake
-  demo dataset and the live warehouse metrics without editing environment variables. The
-  choice is persisted locally so you can flip between the two modes while testing tenant
-  isolation.
+- The dashboard header exposes a dataset toggle. It calls `/api/adapters/` to detect which
+  adapters are available and switches between the demo dataset and live warehouse metrics
+  without editing environment variables. The choice is persisted locally so you can flip
+  between the two modes while testing tenant isolation.
 
 ### Airbyte Connectors
 
@@ -261,9 +262,9 @@ introducing new job types: <https://docs.celeryq.dev/en/stable/django/first-step
 
 The TanStack Table grid uses the v8 APIs for sorting and filtering. When wiring real endpoints, rely on
 `getSortedRowModel()` (and its companion utilities) to keep client-side interactions consistent with the
-official recommendations: <https://tanstack.com/table/v8/docs/guide/sorting>. The current grid still
-loads mock data from `public/sample_metrics.json`; swap in real API calls by replacing the fetch layer
-in the table provider once backend list routes are ready.
+official recommendations: <https://tanstack.com/table/v8/docs/guide/sorting>. The grid is already
+wired to combined metrics via the dashboard store; when adding new list endpoints, follow the same
+pattern to keep client-side interactions consistent.
 
 ## Maps
 

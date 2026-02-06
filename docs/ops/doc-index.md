@@ -62,10 +62,14 @@ Working rules to restate every session:
 | docs/project/feature-ownership-map.md | Feature ownership + tests + runbooks | Owner or scope changes | docs/workstreams.md |
 | docs/project/api-contract-changelog.md | API payload change log | API schema changes | docs/workstreams.md, frontend/README.md |
 | docs/runbooks/release-checklist.md | Release readiness checklist | Release process changes | docs/runbooks/deployment.md |
+| docs/runbooks/quick-demo.md | Quick demo steps for deterministic data | Demo workflow changes | docs/runbooks/demo-data.md, docs/runbooks/demo-smoke-checklist.md |
+| docs/runbooks/demo-smoke-checklist.md | Demo smoke validation checklist | Demo acceptance criteria updates | docs/runbooks/quick-demo.md, docs/runbooks/demo-data.md |
+| docs/runbooks/csv-uploads.md | CSV upload formats + endpoints | CSV upload behavior changes | docs/task_breakdown.md, docs/runbooks/operations.md |
 | docs/ops/data-quality-checklist.md | Data quality validation checklist | Modeling or ingestion changes | dbt/README.md, docs/runbooks/operations.md |
 | docs/ops/risk-register.md | Operational risk register | Risk status changes | docs/runbooks/operations.md |
 | docs/ops/adr-log.md | Architecture decision log | Architecture changes | AGENTS.md, docs/workstreams.md |
 | docs/project/user-journey-map.md | Core user workflows | Product workflow updates | docs/task_breakdown.md |
+| docs/project/adinsights-stakeholder-deck.md | Stakeholder presentation deck with audience-specific value framing | Stakeholder messaging, rollout strategy, or product positioning changes | docs/project/feature-catalog.md, docs/project/user-journey-map.md, docs/ops/metrics-kpis.md |
 | docs/runbooks/support-playbook.md | Support triage steps | Support process updates | docs/runbooks/operations.md |
 | docs/ops/escalation-matrix.md | Incident escalation routing | On-call/escalation changes | docs/ops/risk-register.md |
 | docs/ops/alert-thresholds-escalation.md | Default alert thresholds + escalation workflow (Owner: Omar/Hannah) | Alert tuning or contact changes | docs/runbooks/alerting.md, docs/ops/escalation-matrix.md |

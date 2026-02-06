@@ -1,8 +1,18 @@
-import { useCallback, useMemo, type KeyboardEvent, type MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import DashboardState from '../components/DashboardState';
 import EmptyState from '../components/EmptyState';
+import { fetchRecentDashboards, type RecentDashboard } from '../lib/recentDashboards';
 import styles from './Home.module.css';
+
+const BANNER_STORAGE_KEY = 'adinsights.home.banner.dismissed';
+const DEFAULT_ANNOUNCEMENT = {
+  id: 'release-notes-2024-09',
+  title: 'Release notes are live',
+  message: 'Catch the latest map updates, onboarding tweaks, and dashboard refinements.',
+  ctaLabel: 'View release notes',
+};
 
 type QuickAction = {
   id: string;
@@ -12,127 +22,14 @@ type QuickAction = {
   action: () => void;
 };
 
-type DashboardCard = {
+type LoadState = 'loading' | 'ready' | 'error';
+
+type ResourceLink = {
   id: string;
-  name: string;
+  label: string;
   description: string;
-  trend: number[];
   href: string;
-  graphic: 'line' | 'bars' | 'donut';
 };
-
-const LineSparkline = ({ points }: { points: number[] }) => {
-  if (points.length === 0) {
-    return null;
-  }
-
-  const max = Math.max(...points);
-  const min = Math.min(...points);
-  const range = max - min || 1;
-
-  const coordinates = points.map((point, index) => {
-    const x = points.length === 1 ? 50 : (index / (points.length - 1)) * 100;
-    const y = 100 - ((point - min) / range) * 100;
-    return `${index === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`;
-  });
-
-  return (
-    <div className={`${styles.sparkline} ${styles.sparklineLine}`} aria-hidden="true">
-      <svg viewBox="0 0 100 100" role="presentation" focusable="false">
-        <path d={coordinates.join(' ')} />
-        {points.map((point, index) => {
-          const x = points.length === 1 ? 50 : (index / (points.length - 1)) * 100;
-          const y = 100 - ((point - min) / range) * 100;
-          return <circle key={`dot-${index}`} cx={x} cy={y} r={1.8} />;
-        })}
-      </svg>
-    </div>
-  );
-};
-
-const BarsSparkline = ({ points }: { points: number[] }) => {
-  if (points.length === 0) {
-    return null;
-  }
-
-  const max = Math.max(...points);
-  const barWidth = 10;
-  const gap = 6;
-  const chartHeight = 44;
-  const chartWidth = points.length * (barWidth + gap) - gap;
-  const offsetX = (100 - chartWidth) / 2;
-
-  return (
-    <div className={`${styles.sparkline} ${styles.sparklineBars}`} aria-hidden="true">
-      <svg viewBox="0 0 100 60" role="presentation" focusable="false">
-        {points.map((point, index) => {
-          const height = max > 0 ? Math.max(6, (point / max) * chartHeight) : 6;
-          const x = offsetX + index * (barWidth + gap);
-          const y = 54 - height;
-          return <rect key={`bar-${index}`} x={x} y={y} width={barWidth} height={height} rx={3} />;
-        })}
-      </svg>
-    </div>
-  );
-};
-
-const DonutSparkline = ({ ratio }: { ratio: number }) => {
-  const normalized = Math.min(0.95, Math.max(0.25, ratio));
-  const radius = 18;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference * (1 - normalized);
-
-  return (
-    <div className={`${styles.sparkline} ${styles.sparklineDonut}`} aria-hidden="true">
-      <svg viewBox="0 0 64 64" role="presentation" focusable="false">
-        <circle cx="32" cy="32" r={radius} className={styles.donutTrack} />
-        <circle
-          cx="32"
-          cy="32"
-          r={radius}
-          className={styles.donutValue}
-          strokeDasharray={`${circumference} ${circumference}`}
-          strokeDashoffset={offset}
-        />
-      </svg>
-    </div>
-  );
-};
-
-const DashboardGraphic = ({
-  variant,
-  points,
-}: {
-  variant: DashboardCard['graphic'];
-  points: number[];
-}) => {
-  if (variant === 'bars') {
-    return <BarsSparkline points={points} />;
-  }
-  if (variant === 'donut') {
-    const max = Math.max(...points);
-    const min = Math.min(...points);
-    const ratio = max > min ? (points[points.length - 1] - min) / (max - min) : 0.6;
-    return <DonutSparkline ratio={ratio} />;
-  }
-  return <LineSparkline points={points} />;
-};
-
-const ConnectIcon = () => (
-  <svg
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-  >
-    <path d="M6.5 12h11" strokeLinecap="round" />
-    <path d="M8 15h8" strokeLinecap="round" />
-    <path d="M8 9h8" strokeLinecap="round" />
-    <rect x="3.5" y="4" width="17" height="16" rx="4" />
-  </svg>
-);
 
 const LayoutIcon = () => (
   <svg
@@ -142,6 +39,7 @@ const LayoutIcon = () => (
     fill="none"
     stroke="currentColor"
     strokeWidth="1.8"
+    aria-hidden="true"
   >
     <rect x="3.5" y="4" width="17" height="16" rx="3" />
     <path d="M11 4v16" />
@@ -149,7 +47,7 @@ const LayoutIcon = () => (
   </svg>
 );
 
-const UploadIcon = () => (
+const CampaignIcon = () => (
   <svg
     width="24"
     height="24"
@@ -157,14 +55,16 @@ const UploadIcon = () => (
     fill="none"
     stroke="currentColor"
     strokeWidth="1.8"
+    aria-hidden="true"
   >
-    <path d="M12 16V8" strokeLinecap="round" />
-    <path d="M8.5 11.5 12 8l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
-    <rect x="4" y="4" width="16" height="16" rx="3.5" />
+    <rect x="4" y="4" width="16" height="16" rx="3" />
+    <path d="M8 16v-4" strokeLinecap="round" />
+    <path d="M12 16v-7" strokeLinecap="round" />
+    <path d="M16 16v-2" strokeLinecap="round" />
   </svg>
 );
 
-const BookIcon = () => (
+const MapIcon = () => (
   <svg
     width="24"
     height="24"
@@ -172,11 +72,14 @@ const BookIcon = () => (
     fill="none"
     stroke="currentColor"
     strokeWidth="1.8"
+    aria-hidden="true"
   >
-    <path d="M5.5 4H18a1.5 1.5 0 0 1 1.5 1.5V20" strokeLinecap="round" />
-    <path d="M5.5 4A1.5 1.5 0 0 0 4 5.5V20" strokeLinecap="round" />
-    <path d="M9 8h6" strokeLinecap="round" />
-    <path d="M9 12h6" strokeLinecap="round" />
+    <path
+      d="M4.5 6.5 9 4l6 2.5 4.5-1.5V17L15 19.5 9 17 4.5 18.5Z"
+      strokeLinejoin="round"
+    />
+    <path d="M9 4v13" />
+    <path d="M15 6.5v13" />
   </svg>
 );
 
@@ -188,8 +91,24 @@ const ArrowIcon = () => (
     fill="none"
     stroke="currentColor"
     strokeWidth="1.8"
+    aria-hidden="true"
   >
     <path d="m8 5 8 7-8 7" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    aria-hidden="true"
+  >
+    <path d="M7 7l10 10" strokeLinecap="round" />
+    <path d="M17 7l-10 10" strokeLinecap="round" />
   </svg>
 );
 
@@ -201,6 +120,7 @@ const DashboardPlaceholderIcon = () => (
     fill="none"
     stroke="currentColor"
     strokeWidth="2.2"
+    aria-hidden="true"
   >
     <rect x="8" y="12" width="32" height="24" rx="3.5" />
     <path d="M8 22h32" strokeLinecap="round" />
@@ -210,25 +130,117 @@ const DashboardPlaceholderIcon = () => (
   </svg>
 );
 
+const isExternalLink = (href: string) => /^https?:\/\//.test(href);
+
+const resolveBooleanFlag = (value: unknown, defaultValue: boolean): boolean => {
+  if (typeof value !== 'string') {
+    return defaultValue;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'y', 'on'].includes(normalized)) {
+    return true;
+  }
+  if (['0', 'false', 'no', 'n', 'off'].includes(normalized)) {
+    return false;
+  }
+  return defaultValue;
+};
+
+const buildAnnouncementConfig = (releaseNotesUrl: string) => {
+  const env = import.meta.env;
+  return {
+    enabled: resolveBooleanFlag(env.VITE_HOME_ANNOUNCEMENT_ENABLED, true),
+    id: env.VITE_HOME_ANNOUNCEMENT_ID?.trim() || DEFAULT_ANNOUNCEMENT.id,
+    title: env.VITE_HOME_ANNOUNCEMENT_TITLE?.trim() || DEFAULT_ANNOUNCEMENT.title,
+    message: env.VITE_HOME_ANNOUNCEMENT_MESSAGE?.trim() || DEFAULT_ANNOUNCEMENT.message,
+    ctaLabel: env.VITE_HOME_ANNOUNCEMENT_CTA_LABEL?.trim() || DEFAULT_ANNOUNCEMENT.ctaLabel,
+    href: env.VITE_HOME_ANNOUNCEMENT_HREF?.trim() || releaseNotesUrl,
+  };
+};
+
 const Home = () => {
   const navigate = useNavigate();
   const docsUrl =
     import.meta.env.VITE_DOCS_URL?.trim() ||
     'https://github.com/cpowe-ADT/ADinsights/blob/main/docs/ops/doc-index.md';
+  const csvDocsUrl =
+    import.meta.env.VITE_DOCS_CSV_URL?.trim() ||
+    import.meta.env.VITE_CSV_GUIDE_URL?.trim() ||
+    'https://github.com/cpowe-ADT/ADinsights/blob/main/docs/runbooks/csv-uploads.md';
   const releaseNotesUrl =
     import.meta.env.VITE_RELEASE_NOTES_URL?.trim() ||
     'https://github.com/cpowe-ADT/ADinsights/blob/main/docs/ops/agent-activity-log.md';
 
-  const handleCreateReport = useCallback(() => {
+  const announcementConfig = useMemo(
+    () => buildAnnouncementConfig(releaseNotesUrl),
+    [releaseNotesUrl],
+  );
+
+  const [isBannerVisible, setIsBannerVisible] = useState(announcementConfig.enabled);
+  const [recentDashboards, setRecentDashboards] = useState<RecentDashboard[]>([]);
+  const [dashboardsState, setDashboardsState] = useState<LoadState>('loading');
+
+  useEffect(() => {
+    if (!announcementConfig.enabled) {
+      setIsBannerVisible(false);
+      return;
+    }
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      const dismissedId = window.localStorage.getItem(BANNER_STORAGE_KEY);
+      setIsBannerVisible(dismissedId !== announcementConfig.id);
+    } catch {
+      setIsBannerVisible(true);
+    }
+  }, [announcementConfig.enabled, announcementConfig.id]);
+
+  const handleDismissBanner = useCallback(() => {
+    setIsBannerVisible(false);
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(BANNER_STORAGE_KEY, announcementConfig.id);
+    } catch {
+      // Ignore storage write errors.
+    }
+  }, [announcementConfig.id]);
+
+  useEffect(() => {
+    let isActive = true;
+    setDashboardsState('loading');
+    void fetchRecentDashboards(3)
+      .then((data) => {
+        if (!isActive) {
+          return;
+        }
+        setRecentDashboards(data);
+        setDashboardsState('ready');
+      })
+      .catch(() => {
+        if (!isActive) {
+          return;
+        }
+        setRecentDashboards([]);
+        setDashboardsState('error');
+      });
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  const handleCreateDashboard = useCallback(() => {
     navigate('/dashboards/create');
   }, [navigate]);
 
-  const handleConnectSources = useCallback(() => {
-    navigate('/dashboards/data-sources');
+  const handleViewCampaigns = useCallback(() => {
+    navigate('/dashboards/campaigns');
   }, [navigate]);
 
-  const handleUploadCsv = useCallback(() => {
-    navigate('/dashboards/uploads');
+  const handleOpenMap = useCallback(() => {
+    navigate('/dashboards/map');
   }, [navigate]);
 
   const handleInvite = useCallback(() => {
@@ -241,87 +253,71 @@ const Home = () => {
   }, []);
 
   const handleOpenDashboard = useCallback(
-    (href: string, event?: MouseEvent | KeyboardEvent) => {
-      if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
+    (href: string) => {
       navigate(href);
     },
     [navigate],
   );
 
-  const handleViewDocs = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      window.open(docsUrl, '_blank', 'noopener,noreferrer');
-    }
-  }, [docsUrl]);
-
   const quickActions: QuickAction[] = useMemo(
     () => [
       {
-        id: 'connect',
-        label: 'Connect data sources',
-        description: 'Sync Meta, Google Ads, and offline conversions.',
-        icon: <ConnectIcon />,
-        action: handleConnectSources,
-      },
-      {
-        id: 'dashboard',
+        id: 'create-dashboard',
         label: 'Create dashboard',
-        description: 'Launch a tailored view in minutes.',
+        description: 'Start a new view with curated KPIs.',
         icon: <LayoutIcon />,
-        action: handleCreateReport,
+        action: handleCreateDashboard,
       },
       {
-        id: 'upload',
-        label: 'Upload CSV',
-        description: 'Augment insights with manual uploads.',
-        icon: <UploadIcon />,
-        action: handleUploadCsv,
+        id: 'view-campaigns',
+        label: 'View campaigns',
+        description: 'Review cross-channel performance in one place.',
+        icon: <CampaignIcon />,
+        action: handleViewCampaigns,
       },
       {
-        id: 'docs',
-        label: 'View docs',
-        description: 'Explore best practices and release notes.',
-        icon: <BookIcon />,
-        action: handleViewDocs,
+        id: 'open-map',
+        label: 'Open map',
+        description: 'Explore geo insights with the parish heatmap.',
+        icon: <MapIcon />,
+        action: handleOpenMap,
       },
     ],
-    [handleConnectSources, handleCreateReport, handleUploadCsv, handleViewDocs],
+    [handleCreateDashboard, handleViewCampaigns, handleOpenMap],
   );
 
-  const recentDashboards: DashboardCard[] = useMemo(
+  const resourceLinks: ResourceLink[] = useMemo(
     () => [
       {
-        id: 'campaign-performance',
-        name: 'Campaign performance',
-        description: 'Cross-channel KPIs with spend, ROAS, and engagement.',
-        trend: [18, 42, 35, 50, 28, 60],
-        href: '/dashboards/campaigns',
-        graphic: 'line',
+        id: 'docs-index',
+        label: 'Docs index',
+        description: 'Runbooks, ownership, and architectural references.',
+        href: docsUrl,
       },
       {
-        id: 'creative-performance',
-        name: 'Creative insights',
-        description: 'Identify winning creatives and audience resonance.',
-        trend: [12, 20, 18, 30, 26, 22],
-        href: '/dashboards/creatives',
-        graphic: 'bars',
+        id: 'csv-guide',
+        label: 'CSV upload guide',
+        description: 'Templates and column rules for offline data.',
+        href: csvDocsUrl,
       },
       {
-        id: 'budget-pacing',
-        name: 'Budget pacing',
-        description: 'Forecast monthly pacing and guardrails by parish.',
-        trend: [40, 38, 35, 30, 28, 26],
-        href: '/dashboards/budget',
-        graphic: 'donut',
+        id: 'release-notes',
+        label: 'Release notes',
+        description: 'Shipped updates and planned improvements.',
+        href: releaseNotesUrl,
       },
     ],
-    [],
+    [docsUrl, csvDocsUrl, releaseNotesUrl],
   );
 
-  const hasDashboards = recentDashboards.length > 0;
+  const hasDashboards = dashboardsState === 'ready' && recentDashboards.length > 0;
+  const showAnnouncement = announcementConfig.enabled && isBannerVisible;
+  const dashboardsEmptyTitle =
+    dashboardsState === 'error' ? 'Recent dashboards unavailable' : 'No dashboards yet';
+  const dashboardsEmptyMessage =
+    dashboardsState === 'error'
+      ? 'We could not load recent dashboards. Create your first dashboard to get started.'
+      : 'Create your first dashboard to monitor campaign momentum and geo insights.';
 
   return (
     <div className={styles.homePage}>
@@ -339,14 +335,45 @@ const Home = () => {
             </div>
           </div>
           <div className={styles.heroActions}>
-            <button type="button" className={styles.primaryAction} onClick={handleCreateReport}>
-              Create report
+            <button type="button" className={styles.primaryAction} onClick={handleCreateDashboard}>
+              Create dashboard
             </button>
             <button type="button" className={styles.secondaryAction} onClick={handleInvite}>
               Invite teammate
             </button>
           </div>
         </section>
+
+        {showAnnouncement && (
+          <section className={styles.announcementBanner} aria-labelledby="announcement-title">
+            <div className={styles.announcementContent}>
+              <p className={styles.announcementEyebrow}>Feature announcement</p>
+              <h2 id="announcement-title" className={styles.announcementTitle}>
+                {announcementConfig.title}
+              </h2>
+              <p className={styles.announcementMessage}>{announcementConfig.message}</p>
+            </div>
+            <div className={styles.announcementActions}>
+              <a
+                className={styles.announcementCta}
+                href={announcementConfig.href}
+                target={isExternalLink(announcementConfig.href) ? '_blank' : undefined}
+                rel={isExternalLink(announcementConfig.href) ? 'noopener noreferrer' : undefined}
+              >
+                {announcementConfig.ctaLabel}
+                <ArrowIcon />
+              </a>
+              <button
+                type="button"
+                className={styles.announcementDismiss}
+                onClick={handleDismissBanner}
+              >
+                <CloseIcon />
+                Dismiss
+              </button>
+            </div>
+          </section>
+        )}
 
         <div className={styles.mainColumns}>
           <div className={styles.mainColumn}>
@@ -355,15 +382,13 @@ const Home = () => {
                 <h2 id="quick-actions-title" className={styles.sectionTitle}>
                   Quick actions
                 </h2>
-                <p className={styles.sectionSubtitle}>Ship faster with curated shortcuts</p>
+                <p className={styles.sectionSubtitle}>Stay fast with the essentials</p>
               </div>
               <ul className={styles.quickActions} role="list">
                 {quickActions.map((action) => (
                   <li key={action.id} className={styles.quickActionItem}>
                     <button type="button" className={styles.quickActionCard} onClick={action.action}>
-                      <span className={styles.quickActionIcon} aria-hidden="true">
-                        {action.icon}
-                      </span>
+                      <span className={styles.quickActionIcon}>{action.icon}</span>
                       <p className={styles.quickActionLabel}>{action.label}</p>
                       <p className={styles.quickActionDescription}>{action.description}</p>
                     </button>
@@ -377,68 +402,87 @@ const Home = () => {
                 <h2 id="recent-dashboards-title" className={styles.sectionTitle}>
                   Recent dashboards
                 </h2>
-                <p className={styles.sectionSubtitle}>Jump back into your most-used workspaces</p>
+                <p className={styles.sectionSubtitle}>Jump back into your latest workspaces</p>
               </div>
-              {hasDashboards ? (
+              {dashboardsState === 'loading' ? (
+                <DashboardState
+                  variant="loading"
+                  layout="compact"
+                  message="Loading recent dashboards..."
+                  className={styles.dashboardState}
+                />
+              ) : hasDashboards ? (
                 <ul className={styles.dashboardGrid} role="list">
                   {recentDashboards.map((dashboard) => (
                     <li key={dashboard.id} className={styles.dashboardItem}>
-                      <article
+                      <button
+                        type="button"
                         className={styles.dashboardCard}
-                        role="link"
-                        tabIndex={0}
                         onClick={() => handleOpenDashboard(dashboard.href)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            handleOpenDashboard(dashboard.href, event);
-                          }
-                        }}
                       >
-                        <DashboardGraphic variant={dashboard.graphic} points={dashboard.trend} />
-                        <div className={styles.dashboardMeta}>
-                          <h3 className={styles.dashboardName}>{dashboard.name}</h3>
-                          <p className={styles.dashboardDescription}>{dashboard.description}</p>
-                        </div>
-                        <button
-                          type="button"
-                          className={styles.openButton}
-                          onClick={(event) => handleOpenDashboard(dashboard.href, event)}
-                        >
-                          Open
-                        </button>
-                      </article>
+                        <h3 className={styles.dashboardName}>{dashboard.name}</h3>
+                        <dl className={styles.dashboardDetails}>
+                          <div className={styles.dashboardDetail}>
+                            <dt>Owner</dt>
+                            <dd>{dashboard.owner}</dd>
+                          </div>
+                          <div className={styles.dashboardDetail}>
+                            <dt>Last viewed</dt>
+                            <dd>{dashboard.lastViewedLabel}</dd>
+                          </div>
+                        </dl>
+                        <span className={styles.dashboardCta}>
+                          Open dashboard
+                          <ArrowIcon />
+                        </span>
+                      </button>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <EmptyState
                   icon={<DashboardPlaceholderIcon />}
-                  title="No dashboards yet"
-                  message="Create your first dashboard to unlock forecasting, pacing, and creative diagnostics in minutes."
-                  actionLabel="Build a dashboard"
-                  onAction={handleCreateReport}
+                  title={dashboardsEmptyTitle}
+                  message={dashboardsEmptyMessage}
+                  actionLabel="Create dashboard"
+                  onAction={handleCreateDashboard}
+                  className={styles.emptyState}
                 />
               )}
             </section>
           </div>
 
-          <aside className={styles.sidebar} aria-label="Product updates">
-            <section className={styles.whatsNew} aria-labelledby="whats-new-title">
-              <h2 id="whats-new-title" className={styles.whatsNewTitle}>
-                What&apos;s new
-              </h2>
-              <p className={styles.whatsNewSummary}>
-                Discover the latest releases and roadmap updates across the analytics suite.
-              </p>
-              <a
-                className={styles.whatsNewLink}
-                href={releaseNotesUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View release notes
-                <ArrowIcon />
-              </a>
+          <aside className={styles.sidebar} aria-label="Docs and releases">
+            <section className={styles.resourceCard} aria-labelledby="resource-links-title">
+              <div className={styles.resourceHeader}>
+                <h2 id="resource-links-title" className={styles.resourceTitle}>
+                  Docs and releases
+                </h2>
+                <p className={styles.resourceSummary}>
+                  Keep the team aligned with the latest runbooks and release highlights.
+                </p>
+              </div>
+              <ul className={styles.resourceList} role="list">
+                {resourceLinks.map((link) => {
+                  const isExternal = isExternalLink(link.href);
+                  return (
+                    <li key={link.id} className={styles.resourceItem}>
+                      <a
+                        className={styles.resourceLink}
+                        href={link.href}
+                        target={isExternal ? '_blank' : undefined}
+                        rel={isExternal ? 'noopener noreferrer' : undefined}
+                      >
+                        <span className={styles.resourceText}>
+                          <span className={styles.resourceLabel}>{link.label}</span>
+                          <span className={styles.resourceDescription}>{link.description}</span>
+                        </span>
+                        <ArrowIcon />
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
             </section>
           </aside>
         </div>

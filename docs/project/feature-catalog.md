@@ -11,6 +11,8 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 ## Built (by domain)
 ### Platform/Core
 - Multi-tenant auth scaffolding, tenant context middleware, RLS enforcement.
+- Tenant onboarding: signup, invites, role assignment, password reset, tenant switch.
+- Service account API keys + audit log endpoints for key actions.
 - Core health endpoints: `/api/health/`, `/api/health/airbyte/`, `/api/health/dbt/`, `/api/timezone/`.
 - Celery task wiring with observability hooks and test coverage.
 - AES-GCM secrets encryption with per-tenant DEKs + rotation script.
@@ -18,63 +20,59 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 ### Data/Analytics
 - dbt staging + marts for campaigns/creatives/pacing/parish aggregates.
 - SCD2 snapshots for mutable dimensions.
-- Metrics aggregation views and contract tests.
+- Metrics aggregation views, metrics macros + glossary, and contract tests.
+- Warehouse snapshot persistence (`TenantMetricsSnapshot`) + aggregate snapshot API.
 
 ### Frontend
 - Dashboard shell (campaigns/creatives/budget pacing).
 - KPI cards, chart cards, data tables, choropleth map.
-- Dataset toggle, snapshot freshness banner, tenant switcher.
+- Dataset toggle (default live), snapshot freshness banner, tenant switcher, global filters.
+- Campaign/creative detail routes with saved layout + share links.
+- Data sources management UI and CSV upload wizard.
+- Dashboard library shell (mock-backed).
 - Frontend design system tokens + docs.
 
 ### Integrations
 - Airbyte infrastructure and declarative source templates.
 - Airbyte telemetry endpoints and health checks.
+- Airbyte connection lifecycle APIs (list/create/update/sync) + summary endpoint.
+
+### Observability/Runbooks
+- Stale snapshot monitoring spec, alert thresholds/escalation runbook.
+- Deployment runbook rollback + health checklist.
+
+### BI/Deployment
+- Superset exports in version control (`docs/BI/`).
+- Release checklist + demo smoke checklists.
 
 ## In Progress
 ### Frontend
-- Wire FilterBar → API parameters for live filtering.
-- Expand Storybook coverage for dataset toggle/freshness states (S4-C).
+- Dashboard library API integration (replace mock data).
+- Sync health/telemetry view.
+- Health checks overview.
 
-### Backend
-- Stale snapshot monitoring spec for observability (S3-C).
-
-### Data/BI
-- Metrics change log for downstream consumers (S2-C).
-
-### Observability/Runbooks
-- Alert thresholds + escalation docs (S6-B).
-- Deployment runbook rollback + health checklist (S7-C).
+### Data/Analytics
+- Attribution window documentation expansion.
 
 ## Planned (short list)
 ### Airbyte
 - LinkedIn and TikTok connector implementations (replace placeholders).
 - Improved Airbyte cron parsing in health check script.
- - Connector roadmap beyond Meta/Google (see `docs/project/integration-roadmap.md`).
+- Connector roadmap beyond Meta/Google (see `docs/project/integration-roadmap.md`).
 
 ### Backend
-- Tenant onboarding + credential CRUD improvements.
-- Airbyte connection lifecycle APIs.
-- Warehouse snapshot task to persist `TenantMetricsSnapshot`.
-
-### Data/Analytics
-- Add tenant_id to incremental keys in marts for stronger isolation.
-- Formal metrics dictionary + attribution window docs.
+- Production CORS policy + API rate limiting/throttling.
+- SES sender identity + DMARC/DKIM verification for outbound email.
+- Postgres grants + `seed_roles` command/fixtures for new installs.
 
 ### Frontend/UX
-- Default to live data, demo mode opt-in only.
 - Enhanced export workflows and reporting UX.
-- Data sources management UI (connections, schedules, run now, status).
-- CSV upload wizard with mapping, validation, and job status.
-- Dashboard library + report builder with shareable exports.
+- Report builder + exports (PDF/PNG/CSV) with entitlements.
 - Alerts and AI summaries management UI.
 - Admin/sync health console for telemetry and health checks.
 
 ### Security/UAC
 - UAC rollout phases U0–U4 (agency admin, approvals, MFA, impersonation).
-
-### BI/Deployment
-- Superset/Metabase export configs in version control.
-- End-to-end release checklist and smoke tests.
 
 ## Sources of truth
 - Workstreams + owners: `docs/workstreams.md`

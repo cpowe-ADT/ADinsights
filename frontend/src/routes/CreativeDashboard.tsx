@@ -1,9 +1,7 @@
 import { useCallback } from 'react';
 
 import CreativeTable from '../components/CreativeTable';
-import EmptyState from '../components/EmptyState';
-import ErrorState from '../components/ErrorState';
-import FullPageLoader from '../components/FullPageLoader';
+import DashboardState from '../components/DashboardState';
 import { useAuth } from '../auth/AuthContext';
 import useDashboardStore from '../state/useDashboardStore';
 
@@ -31,17 +29,21 @@ const CreativeDashboard = () => {
   }, [loadAll, tenantId]);
 
   if (creative.status === 'loading' && !creative.data) {
-    return <FullPageLoader message="Loading creative performance…" />;
+    return (
+      <DashboardState variant="loading" layout="page" message="Loading creative performance..." />
+    );
   }
 
   if (creative.status === 'error' && !creative.data) {
     return (
       <div className="dashboard-grid single-panel">
         <section className="panel full-width">
-          <ErrorState
+          <DashboardState
+            variant="error"
             message={creative.error ?? 'Unable to load creative performance.'}
-            retryLabel="Retry load"
-            onRetry={handleRetry}
+            actionLabel="Retry load"
+            onAction={handleRetry}
+            layout="panel"
           />
         </section>
       </div>
@@ -52,13 +54,15 @@ const CreativeDashboard = () => {
     return (
       <div className="dashboard-grid single-panel">
         <section className="panel full-width">
-          <EmptyState
+          <DashboardState
+            variant="empty"
             icon={<CreativeEmptyIcon />}
             title="No creative insights yet"
             message="Creative performance will appear once ads begin accruing spend."
             actionLabel="Refresh data"
             actionVariant="secondary"
             onAction={handleRetry}
+            layout="panel"
           />
         </section>
       </div>

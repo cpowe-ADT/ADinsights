@@ -1,10 +1,8 @@
 import { useCallback } from 'react';
 
 import BudgetPacingList from '../components/BudgetPacingList';
-import EmptyState from '../components/EmptyState';
-import ErrorState from '../components/ErrorState';
+import DashboardState from '../components/DashboardState';
 import FilterStatus from '../components/FilterStatus';
-import FullPageLoader from '../components/FullPageLoader';
 import { useAuth } from '../auth/AuthContext';
 import useDashboardStore from '../state/useDashboardStore';
 
@@ -31,17 +29,19 @@ const BudgetDashboard = () => {
   }, [loadAll, tenantId]);
 
   if (budget.status === 'loading' && !budget.data) {
-    return <FullPageLoader message="Loading budget pacing…" />;
+    return <DashboardState variant="loading" layout="page" message="Loading budget pacing..." />;
   }
 
   if (budget.status === 'error' && !budget.data) {
     return (
       <div className="dashboard-grid single-panel">
         <section className="panel full-width">
-          <ErrorState
+          <DashboardState
+            variant="error"
             message={budget.error ?? 'Unable to load budget pacing.'}
-            retryLabel="Retry load"
-            onRetry={handleRetry}
+            actionLabel="Retry load"
+            onAction={handleRetry}
+            layout="panel"
           />
         </section>
       </div>
@@ -52,13 +52,15 @@ const BudgetDashboard = () => {
     return (
       <div className="dashboard-grid single-panel">
         <section className="panel full-width">
-          <EmptyState
+          <DashboardState
+            variant="empty"
             icon={<BudgetEmptyIcon />}
             title="No budget pacing yet"
             message="Budget pacing will appear once campaign budgets are configured."
             actionLabel="Refresh data"
             actionVariant="secondary"
             onAction={handleRetry}
+            layout="panel"
           />
         </section>
       </div>

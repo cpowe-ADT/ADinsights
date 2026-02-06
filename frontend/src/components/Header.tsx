@@ -1,5 +1,5 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, type NavLinkRenderProps } from 'react-router-dom';
 
 import styles from './Header.module.css';
 
@@ -318,7 +318,7 @@ const Header = ({
             key={link.to}
             to={link.to}
             end={link.end}
-            className={({ isActive }) =>
+            className={({ isActive }: NavLinkRenderProps) =>
               [styles.navLink, isActive ? styles.navLinkActive : undefined]
                 .filter(Boolean)
                 .join(' ')
