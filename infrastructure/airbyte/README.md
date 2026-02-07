@@ -47,6 +47,7 @@ in a sandbox workspace that mirrors production configurations.
 
 | Variable | Usage |
 | --- | --- |
+| `AIRBYTE_TEMPLATE_DESTINATION_ID` | Destination UUID for template Meta/Google connections created by the provisioning script. |
 | `AIRBYTE_TEMPLATE_META_METRICS_CONNECTION_ID` | Base Meta Marketing metrics connection. |
 | `AIRBYTE_TEMPLATE_GOOGLE_METRICS_CONNECTION_ID` | Base Google Ads metrics connection. |
 | `AIRBYTE_TEMPLATE_DIMENSIONS_DAILY_CONNECTION_ID` | Base daily dimensions connection. |
@@ -79,10 +80,17 @@ Provisioning and validation scripts live in `infrastructure/airbyte/scripts/`:
 
 | Script | Description |
 | --- | --- |
+| `provision_meta_google_connectors.py` | Creates/updates Meta + Google sources, validates credentials with source connection checks, discovers stream catalogs, and upserts template metric connections. |
 | `validate_tenant_config.py` | Smoke test for environment configuration. Confirms workspaces and destinations exist and validates cron/interval hints before changes are applied. |
 | `bootstrap_connections.py` | Clones the template connections for every tenant, applies tenant-specific destination namespaces/prefixes, and enforces schedules that honor the SLA windows. |
 
-Run the validator before attempting to mutate any connections:
+Create/update the Meta + Google template connectors first:
+
+```bash
+python3 infrastructure/airbyte/scripts/provision_meta_google_connectors.py
+```
+
+Then run the validator before attempting tenant fan-out:
 
 ```bash
 python3 infrastructure/airbyte/scripts/validate_tenant_config.py
@@ -94,7 +102,7 @@ If the validation passes, bootstrap or update the tenant connections:
 python3 infrastructure/airbyte/scripts/bootstrap_connections.py
 ```
 
-Both scripts emit JSON summaries to stdout so you can capture the results in CI/CD pipelines. They rely solely on the environment
+All scripts emit JSON summaries to stdout so you can capture the results in CI/CD pipelines. They rely solely on the environment
 variables documented above—no inline secrets or per-tenant JSON files are required.
 
 ## Scheduling Guidance
@@ -161,6 +169,8 @@ This directory contains declarative configuration snippets for the ingestion lay
 
 - `meta_source.yaml` – Meta Marketing API source configured for incremental syncs on `updated_time` with lookback tuning knobs.
 - `google_ads_source.yaml` – Google Ads source leveraging a custom GAQL query with incremental cursor on `segments.date`.
+- `ga4_source.yaml` – GA4 reporting source template for Phase 2 web analytics ingestion.
+- `search_console_source.yaml` – Search Console source template for Phase 2 SEO ingestion.
 - `linkedin_ads_source.yaml` – Connection payload for the custom LinkedIn Ads connector in `sources/linkedin_ads/`.
 - `tiktok_ads_source.yaml` – Connection payload for the custom TikTok Ads connector in `sources/tiktok_ads/`.
 
@@ -196,8 +206,10 @@ All files assume credentials are injected from environment variables using Airby
 
 | Connector             | Required environment variables |
 | --------------------- | -------------------------------- |
-| Google Ads            | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN`, `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_START_DATE` (optional), `AIRBYTE_GOOGLE_ADS_CUSTOM_QUERY` (optional) |
+| Google Ads            | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN`, `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_START_DATE` (optional), `AIRBYTE_GOOGLE_ADS_CONVERSION_WINDOW_DAYS` (optional), `AIRBYTE_GOOGLE_ADS_LOOKBACK_WINDOW_DAYS` (optional), `AIRBYTE_GOOGLE_ADS_CUSTOM_QUERY` (optional) |
 | Meta Marketing API    | `AIRBYTE_META_ACCOUNT_ID`, `AIRBYTE_META_ACCESS_TOKEN`, `AIRBYTE_META_START_DATE` (optional), `AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS` (optional), `AIRBYTE_META_ATTRIBUTION_WINDOW_DAYS` (optional) |
+| Google Analytics 4    | `AIRBYTE_GA4_CLIENT_ID`, `AIRBYTE_GA4_CLIENT_SECRET`, `AIRBYTE_GA4_REFRESH_TOKEN`, `AIRBYTE_GA4_PROPERTY_ID`, `AIRBYTE_GA4_START_DATE` (optional), `AIRBYTE_GA4_LOOKBACK_WINDOW_DAYS` (optional) |
+| Search Console        | `AIRBYTE_SEARCH_CONSOLE_CLIENT_ID`, `AIRBYTE_SEARCH_CONSOLE_CLIENT_SECRET`, `AIRBYTE_SEARCH_CONSOLE_REFRESH_TOKEN`, `AIRBYTE_SEARCH_CONSOLE_SITE_URL`, `AIRBYTE_SEARCH_CONSOLE_START_DATE` (optional), `AIRBYTE_SEARCH_CONSOLE_LOOKBACK_WINDOW_DAYS` (optional) |
 | LinkedIn Ads (custom) | `AIRBYTE_LINKEDIN_ACCOUNT_ID`, `AIRBYTE_LINKEDIN_ACCESS_TOKEN`, `AIRBYTE_LINKEDIN_START_DATE` (optional), `AIRBYTE_LINKEDIN_LOOKBACK_DAYS` (optional) |
 | TikTok Ads (custom)   | `AIRBYTE_TIKTOK_ADVERTISER_ID`, `AIRBYTE_TIKTOK_ACCESS_TOKEN`, `AIRBYTE_TIKTOK_START_DATE` (optional), `AIRBYTE_TIKTOK_LOOKBACK_DAYS` (optional) |
 
@@ -214,6 +226,7 @@ Connector manifests ship with Airbyte's connector test harness. Run the incremen
 
 ```bash
 pytest infrastructure/airbyte/sources/tests -q
+python3 infrastructure/airbyte/scripts/check_data_contracts.py
 ```
 
 The harness uses mocked HTTP responses so the tests execute without contacting upstream APIs.
@@ -221,7 +234,46 @@ The harness uses mocked HTTP responses so the tests execute without contacting u
 ### Rollout Checklist
 
 1. Export the environment variables listed above and verify `docker compose --env-file .env config` renders without unresolved templates.
-2. Import each `{platform}_ads_source.yaml` file into Airbyte (UI or API) and complete the OAuth consent flows where applicable.
-3. Run the acceptance tests locally (`pytest infrastructure/airbyte/sources/tests -q`) and validate discovery in the Airbyte UI.
-4. Create destinations/connection pairs, enable incremental sync with the documented cron schedule, and monitor the first run for quota or schema issues.
-5. Flip the corresponding dbt feature flags (`enable_linkedin`, `enable_tiktok`) once the first sync succeeds.
+2. Run `python3 infrastructure/airbyte/scripts/check_data_contracts.py` to verify query aliases, seed headers, and env-name consistency.
+3. Import each `{platform}_ads_source.yaml` file into Airbyte (UI or API) and complete the OAuth consent flows where applicable.
+4. Run the acceptance tests locally (`pytest infrastructure/airbyte/sources/tests -q`) and validate discovery in the Airbyte UI.
+5. Create destinations/connection pairs, enable incremental sync with the documented cron schedule, and monitor the first run for quota or schema issues.
+6. Flip the corresponding dbt feature flags (`enable_linkedin`, `enable_tiktok`) once the first sync succeeds.
+
+## Production Readiness Verification (Meta + Google)
+
+Use this sequence before promoting tenant connections in staging/production. Ownership:
+Maya (integrations), Leo (Celery/retries), Priya (dbt), Sofia (metrics API), Raj (cross-stream).
+
+1. Prepare env vars in a secure store and load them into the runtime shell (no inline secrets).
+2. Verify compose rendering:
+   - `cd infrastructure/airbyte && docker compose --env-file .env config`
+3. Create/update Meta + Google template sources/connections and capture returned connection IDs:
+   - `python3 infrastructure/airbyte/scripts/provision_meta_google_connectors.py`
+   - persist outputs:
+     - `AIRBYTE_TEMPLATE_META_METRICS_CONNECTION_ID`
+     - `AIRBYTE_TEMPLATE_GOOGLE_METRICS_CONNECTION_ID`
+4. Verify tenant + template config:
+   - `python3 infrastructure/airbyte/scripts/validate_tenant_config.py`
+5. Verify production-only connector vars are present and non-placeholder:
+   - `python3 infrastructure/airbyte/scripts/verify_production_readiness.py`
+6. Apply/update tenant connections:
+   - `python3 infrastructure/airbyte/scripts/bootstrap_connections.py`
+7. Validate connection health:
+   - `python3 infrastructure/airbyte/scripts/airbyte_health_check.py`
+8. Validate backend telemetry + freshness:
+   - `GET /api/health/airbyte/`
+   - `GET /api/airbyte/telemetry/`
+9. Validate downstream marts/dashboard contract:
+   - `GET /api/health/dbt/`
+   - `GET /api/metrics/combined/?source=warehouse`
+
+### Retry, Backoff, and Telemetry Expectations
+
+- Sync orchestration retries use exponential backoff (base 2), max 5 attempts, with jitter.
+- Configuration errors use a higher base delay (`300s`) with a `900s` cap.
+- Structured logs include `tenant_id`, `task_id`, `correlation_id`, provider, and connection IDs.
+- Alert when:
+  - two or more consecutive sync failures occur for a connection,
+  - `/api/health/airbyte/` reports `stale` or `sync_failed`,
+  - telemetry indicates unexpectedly empty syncs.

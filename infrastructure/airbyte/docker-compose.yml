@@ -1,5 +1,3 @@
-version: '3.9'
-
 x-airbyte-db-env: &airbyte-db-env
   POSTGRES_USER: ${AIRBYTE_DB_USER:-airbyte}
   POSTGRES_PASSWORD: ${AIRBYTE_DB_PASSWORD:-password}

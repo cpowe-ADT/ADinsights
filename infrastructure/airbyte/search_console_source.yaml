@@ -1,0 +1,15 @@
+{
+  "sourceDefinitionId": "{{ env.get('AIRBYTE_SEARCH_CONSOLE_SOURCE_DEFINITION_ID', 'replace-with-search-console-source-definition-id') }}",
+  "workspaceId": "{{ env['AIRBYTE_WORKSPACE_ID'] }}",
+  "name": "Search Console Reporting (Phase 2)",
+  "connectionConfiguration": {
+    "client_id": "{{ env['AIRBYTE_SEARCH_CONSOLE_CLIENT_ID'] }}",
+    "client_secret": "{{ env['AIRBYTE_SEARCH_CONSOLE_CLIENT_SECRET'] }}",
+    "refresh_token": "{{ env['AIRBYTE_SEARCH_CONSOLE_REFRESH_TOKEN'] }}",
+    "site_url": "{{ env['AIRBYTE_SEARCH_CONSOLE_SITE_URL'] }}",
+    "start_date": "{{ env.get('AIRBYTE_SEARCH_CONSOLE_START_DATE', '2024-01-01') }}",
+    "lookback_window": {{ env.get('AIRBYTE_SEARCH_CONSOLE_LOOKBACK_WINDOW_DAYS', 3) }},
+    "dimensions": ["date", "country", "device", "query", "page"],
+    "row_limit": 25000
+  }
+}
