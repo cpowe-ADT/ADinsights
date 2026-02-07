@@ -1,0 +1,27 @@
+{
+  "sourceDefinitionId": "{{ env.get('AIRBYTE_GA4_SOURCE_DEFINITION_ID', 'replace-with-ga4-source-definition-id') }}",
+  "workspaceId": "{{ env['AIRBYTE_WORKSPACE_ID'] }}",
+  "name": "GA4 Reporting (Phase 2)",
+  "connectionConfiguration": {
+    "client_id": "{{ env['AIRBYTE_GA4_CLIENT_ID'] }}",
+    "client_secret": "{{ env['AIRBYTE_GA4_CLIENT_SECRET'] }}",
+    "refresh_token": "{{ env['AIRBYTE_GA4_REFRESH_TOKEN'] }}",
+    "property_id": "{{ env['AIRBYTE_GA4_PROPERTY_ID'] }}",
+    "start_date": "{{ env.get('AIRBYTE_GA4_START_DATE', '2024-01-01') }}",
+    "lookback_window": {{ env.get('AIRBYTE_GA4_LOOKBACK_WINDOW_DAYS', 3) }},
+    "timezone": "{{ env.get('AIRBYTE_DEFAULT_TIMEZONE', 'America/Jamaica') }}",
+    "dimensions": [
+      "date",
+      "sessionDefaultChannelGroup",
+      "country",
+      "city",
+      "campaignName"
+    ],
+    "metrics": [
+      "sessions",
+      "engagedSessions",
+      "conversions",
+      "purchaseRevenue"
+    ]
+  }
+}

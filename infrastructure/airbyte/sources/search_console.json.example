@@ -1,0 +1,15 @@
+{
+  "sourceDefinitionId": "replace-with-search-console-source-definition-id",
+  "workspaceId": "replace-with-workspace-uuid",
+  "name": "Search Console Reporting (Phase 2)",
+  "connectionConfiguration": {
+    "client_id": "REDACTED",
+    "client_secret": "REDACTED",
+    "refresh_token": "REDACTED",
+    "site_url": "https://adinsights.example",
+    "start_date": "2024-01-01",
+    "lookback_window": 3,
+    "dimensions": ["date", "country", "device", "query", "page"],
+    "row_limit": 25000
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "sourceDefinitionId": "replace-with-ga4-source-definition-id",
+  "workspaceId": "replace-with-workspace-uuid",
+  "name": "GA4 Reporting (Phase 2)",
+  "connectionConfiguration": {
+    "client_id": "REDACTED",
+    "client_secret": "REDACTED",
+    "refresh_token": "REDACTED",
+    "property_id": "properties/123456789",
+    "start_date": "2024-01-01",
+    "lookback_window": 3,
+    "timezone": "America/Jamaica",
+    "dimensions": [
+      "date",
+      "sessionDefaultChannelGroup",
+      "country",
+      "city",
+      "campaignName"
+    ],
+    "metrics": [
+      "sessions",
+      "engagedSessions",
+      "conversions",
+      "purchaseRevenue"
+    ]
+  }
+}
