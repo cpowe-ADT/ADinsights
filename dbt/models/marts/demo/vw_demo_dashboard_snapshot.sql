@@ -279,7 +279,7 @@ parish_rows_json as (
     from top_parishes p
     left join tenant_currency c
         on p.tenant_id = c.tenant_id
-    group by 1, 2
+    group by 1
 ),
 
 budget_window as (

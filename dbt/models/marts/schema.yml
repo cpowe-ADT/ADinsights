@@ -350,3 +350,83 @@ models:
           - expression_is_true:
               arguments:
                 expression: "{{ json_typeof('parish_metrics') }} = 'array'"
+  - name: agg_ga4_daily
+    description: 'Phase 2 GA4 daily aggregate for web analytics trends and reporting.'
+    config:
+      enabled: "{{ var('enable_ga4', False) }}"
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination:
+              - tenant_id
+              - date_day
+              - property_id
+              - channel_group
+              - country
+              - city
+              - campaign_name
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null:
+              config:
+                enabled: "{{ var('enable_ga4', False) }}"
+      - name: date_day
+        tests:
+          - not_null:
+              config:
+                enabled: "{{ var('enable_ga4', False) }}"
+      - name: sessions
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: "coalesce(sessions, 0) >= 0"
+              config:
+                enabled: "{{ var('enable_ga4', False) }}"
+      - name: purchase_revenue
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: "coalesce(purchase_revenue, 0) >= 0"
+              config:
+                enabled: "{{ var('enable_ga4', False) }}"
+  - name: agg_search_console_daily
+    description: 'Phase 2 Search Console aggregate for SEO performance analysis.'
+    config:
+      enabled: "{{ var('enable_search_console', False) }}"
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination:
+              - tenant_id
+              - date_day
+              - site_url
+              - country
+              - device
+              - query
+              - page
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null:
+              config:
+                enabled: "{{ var('enable_search_console', False) }}"
+      - name: date_day
+        tests:
+          - not_null:
+              config:
+                enabled: "{{ var('enable_search_console', False) }}"
+      - name: clicks
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: "coalesce(clicks, 0) >= 0"
+              config:
+                enabled: "{{ var('enable_search_console', False) }}"
+      - name: impressions
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: "coalesce(impressions, 0) >= 0"
+              config:
+                enabled: "{{ var('enable_search_console', False) }}"

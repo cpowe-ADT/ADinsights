@@ -1,0 +1,3 @@
+date,tenant_id,channel,campaign_id,creative_id,creative_type,spend,impressions,clicks,conversions,revenue,roas
+2024-09-01,bank-of-jamaica,Meta,BOJ-001,CR-BOJ-001,video,400,4000,80,4,2000,5.0
+2024-09-01,grace-kennedy,Google Ads,GK-001,CR-GK-001,image,90,3600,70,9,450,5.0
