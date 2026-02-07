@@ -4,6 +4,7 @@ One-line, timestamped notes of agent-driven changes to help preserve context bet
 
 ## 2026-02-05
 
+- 2026-02-05T21:56:12-0500 docs(project): brand and upgrade stakeholder PPTX - Rebuilt `docs/project/adinsights-stakeholder-deck.pptx` with ADtelligent orange theme, enforced Calibri/Arial typography, generated branded chart/image assets, and added `docs/project/adinsights-deck-review.md` with consulting-style feedback and applied improvements. Pending commit.
 - 2026-02-05T21:33:12-0500 docs(project): add stakeholder value slide deck - Added `docs/project/adinsights-stakeholder-deck.md` with a 16-slide narrative covering audience mapping, role-specific benefits, reliability/security posture, rollout, and decision asks; indexed in doc index. Pending commit.
 - 2026-02-05T14:04:15-0500 docs(project): reconcile README + backlog status + frontend punch list — Updated README status text, marked frontend expansion backlog items done, and added MVP/Post-MVP punch list. Pending commit.
 

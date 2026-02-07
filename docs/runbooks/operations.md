@@ -1,6 +1,7 @@
 # Operations Runbook
 
 This runbook documents how to operate the ADinsights stack across the frontend, backend, BI, and scheduled services.
+External production actions must be tracked in `docs/runbooks/external-actions-aws.md`.
 
 ## Environments
 
@@ -16,9 +17,14 @@ This runbook documents how to operate the ADinsights stack across the frontend, 
 | Backend               | Django API health endpoint                       | `curl https://api.<env>.adinsights.com/api/health/`         |
 | Airbyte Orchestration | API health endpoint + status payload             | `curl https://api.<env>.adinsights.com/api/health/airbyte/` |
 | dbt Orchestration     | API health endpoint (exposes latest run results) | `curl https://api.<env>.adinsights.com/api/health/dbt/`     |
+| Sync health aggregate | Tenant connection state rollup                   | `curl https://api.<env>.adinsights.com/api/ops/sync-health/` |
+| Health overview       | Consolidated service health cards                | `curl https://api.<env>.adinsights.com/api/ops/health-overview/` |
+| Web analytics (GA4)   | GA4 pilot rows                                   | `curl https://api.<env>.adinsights.com/api/analytics/web/ga4/` |
+| Web analytics (GSC)   | Search Console pilot rows                        | `curl https://api.<env>.adinsights.com/api/analytics/web/search-console/` |
 | Superset              | `/health` endpoint                               | `curl https://bi.<env>.adinsights.com/health`               |
 | Scheduler             | APScheduler heartbeat logs                       | Check `scheduler` container logs for `Scheduler started`    |
 | dbt Freshness         | dbt source freshness check                       | `make dbt-freshness` (local) or scheduler job output        |
+| Data contracts        | Cross-stream contract gate                       | `python3 infrastructure/airbyte/scripts/check_data_contracts.py` |
 
 The Airbyte health endpoint surfaces the most recent sync metadata per tenant and flags jobs that
 are older than one hour. The dbt health endpoint reads the most recent `run_results.json` and marks
@@ -30,6 +36,8 @@ For per-tenant investigation, use `GET /api/airbyte/telemetry/`. The response in
 the latest sync is outside the freshness window. If no recent sync exists, trigger a manual refresh
 with `python manage.py sync_airbyte` (or run the Celery task
 `integrations.tasks.trigger_scheduled_airbyte_syncs`) and re-check the telemetry endpoint.
+For Post-MVP operations pages, validate `/api/ops/sync-health/` and
+`/api/ops/health-overview/` during the same incident window so frontend and backend status signals stay aligned.
 
 ## Deployments
 
@@ -37,6 +45,28 @@ with `python manage.py sync_airbyte` (or run the Celery task
 2. Tag release (`git tag -a vX.Y.Z -m "Release vX.Y.Z"`).
 3. Trigger the `deploy-full-stack` GitHub Actions workflow or run `deploy/deploy_full_stack.sh`.
 4. Monitor rollout via Datadog dashboards and Superset status page.
+
+## API Edge Controls (Production)
+
+### CORS policy
+
+- Keep `CORS_ALLOW_ALL_ORIGINS=0` in production.
+- Configure explicit origins through `CORS_ALLOWED_ORIGINS` (comma-separated full origins).
+- Verify preflight behavior from approved and unapproved origins:
+  - Approved origin should receive `Access-Control-Allow-Origin`.
+  - Unapproved origin should not receive CORS headers and preflight should be rejected.
+
+### Auth/Public throttles
+
+- Rate limits are controlled by:
+  - `DRF_THROTTLE_AUTH_BURST` (short window)
+  - `DRF_THROTTLE_AUTH_SUSTAINED` (long window)
+  - `DRF_THROTTLE_PUBLIC` (public endpoint budget)
+- Smoke check by issuing repeated requests to:
+  - `POST /api/token/`
+  - `POST /api/auth/login/`
+  - `POST /api/auth/password-reset/`
+- Expect HTTP `429` once thresholds are exceeded.
 
 ## Incident Response
 
@@ -85,6 +115,7 @@ days';` Adjust the interval to meet contractual obligations.
 - **Dashboards** – Plot `/api/health/airbyte/` and `/api/health/dbt/` responses alongside
   Celery task durations to visualize orchestration performance trends and catch regressions
   before they breach SLAs.
+- **Simulation runbook** – Execute `docs/runbooks/observability-alert-simulations.md` in staging before release gates are marked complete.
 
 ## Stale Snapshot Monitoring Spec
 
@@ -170,6 +201,23 @@ latency/records metadata immediately after a sync. Keep the following guardrails
 - Validate warehouse connectors via Superset → Data → Databases.
 - Re-run `dbt` transformation job via the scheduler container (`make run-dbt`).
 - Escalate to Data Engineering if source pipelines show latency over 60 minutes.
+
+## SES Readiness Checklist (adtelligent.net)
+
+Complete these steps before enabling `EMAIL_PROVIDER=ses` in production:
+
+1. Verify SES identity for `adtelligent.net` (domain identity).
+2. Enable Easy DKIM and confirm all CNAME records are in `verified` state.
+3. Confirm SPF and DMARC records align with SES sending path.
+4. Move SES account out of sandbox for required recipient scope.
+5. Set final sender address:
+   - `EMAIL_FROM_ADDRESS=<approved-address>@adtelligent.net`
+   - `SES_EXPECTED_FROM_DOMAIN=adtelligent.net`
+6. Optional: set `SES_CONFIGURATION_SET` for delivery metrics/alerts.
+7. Run smoke tests:
+   - Invite flow: `POST /api/users/invite/` then accept link delivery check.
+   - Password reset flow: `POST /api/auth/password-reset/` delivery check.
+8. Record timestamp, operator, and from-address confirmation in release notes.
 
 ## Tenant Safety Checklist
 

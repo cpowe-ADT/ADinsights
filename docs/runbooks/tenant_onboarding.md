@@ -57,7 +57,12 @@ for support engineers.
 - SES email delivery requires `EMAIL_PROVIDER=ses`, `EMAIL_FROM_ADDRESS` (use the `adtelligent.net`
   domain), `FRONTEND_BASE_URL`, and valid AWS credentials (`AWS_REGION`, `AWS_ACCESS_KEY_ID`,
   `AWS_SECRET_ACCESS_KEY`).
-- TODO: Before production launch, verify the SES sender identity and DMARC/DKIM records for
-  `adtelligent.net`, and confirm the final "from" address to use.
+- For production SES readiness, complete this checklist before onboarding external tenants:
+  1. Domain identity for `adtelligent.net` is verified in SES.
+  2. Easy DKIM is enabled and all SES DKIM records are verified.
+  3. SPF and DMARC records are published and aligned with SES sending.
+  4. SES account is approved for production sending (not sandbox-only).
+  5. `EMAIL_FROM_ADDRESS` is confirmed with stakeholders and matches `SES_EXPECTED_FROM_DOMAIN`.
+  6. Invite and password-reset smoke tests confirm successful delivery to approved mailboxes.
 - For local development, set `EMAIL_PROVIDER=log` to suppress email sending while still exercising
   the invite/reset flows.
