@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from accounts.models import Tenant
 from accounts.tenant_context import tenant_context
-from analytics.models import TenantMetricsSnapshot
+from analytics.models import AISummary, ReportExportJob, TenantMetricsSnapshot
 from analytics.snapshots import (
     default_snapshot_metrics,
     fetch_snapshot_metrics,
@@ -18,6 +18,7 @@ from analytics.snapshots import (
 )
 from analytics.summaries import build_daily_summary_payload, summarize_daily_metrics
 from analytics.notifications import send_daily_summary_email
+from app.llm import get_llm_client
 from core.metrics import observe_task
 from core.tasks import BaseAdInsightsTask
 
@@ -41,6 +42,9 @@ class DailySummaryOutcome:
     status: str
     generated_at: datetime
     summary: str
+    payload: dict[str, object]
+    summary_status: str
+    model_name: str
 
 
 def _ensure_aware(dt: datetime | None) -> datetime:
@@ -74,12 +78,19 @@ def _daily_summary_for_tenant(tenant_id: str) -> DailySummaryOutcome:
         status = "fetched"
 
     payload = build_daily_summary_payload(metrics)
+    llm_client = get_llm_client()
     summary = summarize_daily_metrics(payload)
+    summary_status = (
+        AISummary.STATUS_GENERATED if llm_client.is_enabled() else AISummary.STATUS_FALLBACK
+    )
     return DailySummaryOutcome(
         tenant_id=tenant_id,
         status=status,
         generated_at=_ensure_aware(metrics.generated_at),
         summary=summary,
+        payload=payload,
+        summary_status=summary_status,
+        model_name=llm_client.model if llm_client.is_enabled() else "",
     )
 
 
@@ -177,6 +188,16 @@ def generate_daily_summaries_for_tenants(
                 summary=outcome.summary,
                 generated_at=outcome.generated_at,
                 status=outcome.status,
+            )
+            AISummary.objects.create(
+                tenant=tenant,
+                title=f"Daily summary for {outcome.generated_at.date().isoformat()}",
+                summary=outcome.summary,
+                payload=outcome.payload,
+                source="daily_summary",
+                model_name=outcome.model_name,
+                status=outcome.summary_status,
+                generated_at=outcome.generated_at,
             )
             logger.info(
                 "metrics.daily_summary.generated",
@@ -301,3 +322,85 @@ def ai_daily_summary(self, tenant_ids: list[str] | None = None) -> dict:
         "processed": len(outcomes),
         "duration_seconds": duration,
     }
+
+
+def generate_ai_summary_for_tenant(
+    *, tenant_id: str, task_id: str | None = None
+) -> dict[str, object]:
+    """Synchronously generate and persist one tenant summary."""
+
+    with tenant_context(tenant_id):
+        tenant = Tenant.objects.filter(id=tenant_id).first()
+        if tenant is None:
+            return {"status": "missing_tenant"}
+
+        outcome = _daily_summary_for_tenant(tenant_id)
+        record = AISummary.objects.create(
+            tenant=tenant,
+            title=f"Daily summary for {outcome.generated_at.date().isoformat()}",
+            summary=outcome.summary,
+            payload=outcome.payload,
+            source="manual_refresh",
+            model_name=outcome.model_name,
+            status=outcome.summary_status,
+            generated_at=outcome.generated_at,
+            task_id=task_id or "",
+        )
+        return {
+            "status": "ok",
+            "summary_id": str(record.id),
+            "generated_at": record.generated_at.isoformat(),
+        }
+
+
+@shared_task(
+    bind=True,
+    name="analytics.run_report_export_job",
+    base=BaseAdInsightsTask,
+    max_retries=3,
+)
+def run_report_export_job(self, report_export_job_id: str) -> dict[str, object]:
+    """Simulate async export job lifecycle for report downloads."""
+
+    job = (
+        ReportExportJob.all_objects.select_related("report", "tenant")
+        .filter(id=report_export_job_id)
+        .first()
+    )
+    if job is None:
+        return {"status": "missing", "report_export_job_id": report_export_job_id}
+
+    with tenant_context(str(job.tenant_id)):
+        job.status = ReportExportJob.STATUS_RUNNING
+        job.error_message = ""
+        job.save(update_fields=["status", "error_message", "updated_at"])
+
+        timestamp = timezone.now()
+        extension = job.export_format.lower()
+        artifact_path = (
+            f"/exports/{job.tenant_id}/{job.report_id}/{job.id}.{extension}"
+        )
+
+        job.status = ReportExportJob.STATUS_COMPLETED
+        job.artifact_path = artifact_path
+        job.completed_at = timestamp
+        job.metadata = {
+            "report_name": job.report.name,
+            "filters": job.report.filters,
+            "layout": job.report.layout,
+            "generated_at": timestamp.isoformat(),
+        }
+        job.save(
+            update_fields=[
+                "status",
+                "artifact_path",
+                "completed_at",
+                "metadata",
+                "updated_at",
+            ]
+        )
+        return {
+            "status": job.status,
+            "report_export_job_id": str(job.id),
+            "artifact_path": artifact_path,
+        }

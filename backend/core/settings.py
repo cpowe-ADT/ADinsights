@@ -5,11 +5,13 @@ from __future__ import annotations
 from datetime import timedelta
 import logging
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import environ
 from celery.schedules import crontab
 
 from config.logging import build_logging_config
+from core.crypto.kms import validate_kms_configuration
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -35,7 +37,33 @@ env = environ.Env(
     CREDENTIAL_ROTATION_REMINDER_DAYS=(int, 7),
     EMAIL_PROVIDER=(str, "log"),
     EMAIL_FROM_ADDRESS=(str, "no-reply@adinsights.local"),
+    SES_CONFIGURATION_SET=(str, ""),
+    SES_EXPECTED_FROM_DOMAIN=(str, ""),
     FRONTEND_BASE_URL=(str, "http://localhost:5173"),
+    CORS_ALLOW_ALL_ORIGINS=(bool, False),
+    CORS_ALLOWED_ORIGINS=(list, []),
+    CORS_ALLOWED_METHODS=(
+        list,
+        ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"],
+    ),
+    CORS_ALLOWED_HEADERS=(
+        list,
+        [
+            "accept",
+            "accept-language",
+            "authorization",
+            "content-type",
+            "origin",
+            "x-correlation-id",
+            "x-requested-with",
+            "x-tenant-id",
+        ],
+    ),
+    CORS_ALLOW_CREDENTIALS=(bool, True),
+    CORS_PREFLIGHT_MAX_AGE=(int, 86400),
+    DRF_THROTTLE_AUTH_BURST=(str, "10/min"),
+    DRF_THROTTLE_AUTH_SUSTAINED=(str, "100/day"),
+    DRF_THROTTLE_PUBLIC=(str, "120/min"),
 )
 
 ENV_FILE = BASE_DIR / ".env"
@@ -45,6 +73,16 @@ if ENV_FILE.exists():
 
 def _optional(value: str | None) -> str | None:
     return value or None
+
+
+def _origin_from_url(value: str | None) -> str | None:
+    if not value:
+        return None
+    parsed = urlsplit(value)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}"
+
 
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
@@ -79,6 +117,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "core.cors.CORSMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -148,6 +187,11 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_SCHEMA_CLASS": "rest_framework.schemas.openapi.AutoSchema",
+    "DEFAULT_THROTTLE_RATES": {
+        "auth_burst": env("DRF_THROTTLE_AUTH_BURST"),
+        "auth_sustained": env("DRF_THROTTLE_AUTH_SUSTAINED"),
+        "public": env("DRF_THROTTLE_PUBLIC"),
+    },
 }
 
 SIMPLE_JWT = {
@@ -193,6 +237,17 @@ AWS_REGION = _optional(env("AWS_REGION", default=None))
 AWS_ACCESS_KEY_ID = _optional(env("AWS_ACCESS_KEY_ID", default=None))
 AWS_SECRET_ACCESS_KEY = _optional(env("AWS_SECRET_ACCESS_KEY", default=None))
 AWS_SESSION_TOKEN = _optional(env("AWS_SESSION_TOKEN", default=None))
+validate_kms_configuration(KMS_PROVIDER, KMS_KEY_ID, AWS_REGION)
+
+CORS_ALLOW_ALL_ORIGINS = env.bool("CORS_ALLOW_ALL_ORIGINS", default=False)
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
+_frontend_origin = _origin_from_url(env("FRONTEND_BASE_URL"))
+if _frontend_origin and _frontend_origin not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append(_frontend_origin)
+CORS_ALLOWED_METHODS = [method.upper() for method in env.list("CORS_ALLOWED_METHODS")]
+CORS_ALLOWED_HEADERS = [header.lower() for header in env.list("CORS_ALLOWED_HEADERS")]
+CORS_ALLOW_CREDENTIALS = env.bool("CORS_ALLOW_CREDENTIALS", default=True)
+CORS_PREFLIGHT_MAX_AGE = env.int("CORS_PREFLIGHT_MAX_AGE", default=86400)
 
 TENANT_SETTING_KEY = "app.tenant_id"
 
@@ -209,6 +264,8 @@ LLM_TIMEOUT = env.float("LLM_TIMEOUT")
 APP_VERSION = env("APP_VERSION")
 EMAIL_PROVIDER = env("EMAIL_PROVIDER")
 EMAIL_FROM_ADDRESS = env("EMAIL_FROM_ADDRESS")
+SES_CONFIGURATION_SET = _optional(env("SES_CONFIGURATION_SET", default=None))
+SES_EXPECTED_FROM_DOMAIN = _optional(env("SES_EXPECTED_FROM_DOMAIN", default=None))
 FRONTEND_BASE_URL = env("FRONTEND_BASE_URL")
 
 SENTRY_DSN = _optional(env("SENTRY_DSN", default=None))

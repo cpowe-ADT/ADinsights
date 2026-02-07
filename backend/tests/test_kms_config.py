@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from core.crypto.kms import KmsConfigurationError, _infer_region_from_key_id, _validate_aws_key_id
+from core.crypto.kms import (
+    KmsConfigurationError,
+    _infer_region_from_key_id,
+    _validate_aws_key_id,
+    validate_kms_configuration,
+)
 
 
 def test_infer_region_from_kms_arn() -> None:
@@ -20,3 +25,12 @@ def test_validate_aws_key_id_rejects_region_mismatch() -> None:
     arn = "arn:aws:kms:us-east-1:123456789012:key/abcd-1234"
     with pytest.raises(KmsConfigurationError):
         _validate_aws_key_id(arn, "us-west-2")
+
+
+def test_validate_kms_configuration_accepts_alias_with_region() -> None:
+    validate_kms_configuration("aws", "alias/adinsights-prod", "us-east-1")
+
+
+def test_validate_kms_configuration_requires_region_for_non_arn() -> None:
+    with pytest.raises(KmsConfigurationError):
+        validate_kms_configuration("aws", "alias/adinsights-prod", None)

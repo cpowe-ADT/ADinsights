@@ -6,6 +6,7 @@ import uuid
 from datetime import timedelta
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -189,3 +190,146 @@ class TenantMetricsSnapshot(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - debug helper
         return f"TenantMetricsSnapshot<{self.tenant_id}:{self.source}>"
+
+
+class ReportDefinition(models.Model):
+    """Tenant-scoped report definition used by reporting UIs and exports."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="report_definitions"
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    filters = models.JSONField(default=dict, blank=True)
+    layout = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_report_definitions",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_report_definitions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("-updated_at", "name")
+        indexes = [
+            models.Index(fields=["tenant", "name"], name="analytics_report_tenant_name"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"ReportDefinition<{self.tenant_id}:{self.name}>"
+
+
+class ReportExportJob(models.Model):
+    """Track report export requests and async completion metadata."""
+
+    FORMAT_CSV = "csv"
+    FORMAT_PDF = "pdf"
+    FORMAT_PNG = "png"
+    FORMAT_CHOICES = [
+        (FORMAT_CSV, "CSV"),
+        (FORMAT_PDF, "PDF"),
+        (FORMAT_PNG, "PNG"),
+    ]
+
+    STATUS_QUEUED = "queued"
+    STATUS_RUNNING = "running"
+    STATUS_COMPLETED = "completed"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [
+        (STATUS_QUEUED, "Queued"),
+        (STATUS_RUNNING, "Running"),
+        (STATUS_COMPLETED, "Completed"),
+        (STATUS_FAILED, "Failed"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="report_export_jobs"
+    )
+    report = models.ForeignKey(
+        ReportDefinition, on_delete=models.CASCADE, related_name="export_jobs"
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="requested_report_export_jobs",
+    )
+    export_format = models.CharField(max_length=8, choices=FORMAT_CHOICES, default=FORMAT_CSV)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_QUEUED)
+    artifact_path = models.CharField(max_length=512, blank=True, default="")
+    error_message = models.TextField(blank=True, default="")
+    metadata = models.JSONField(default=dict, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=["tenant", "status"], name="analytics_export_tenant_status"),
+            models.Index(fields=["tenant", "report"], name="analytics_export_tenant_report"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"ReportExportJob<{self.tenant_id}:{self.report_id}:{self.status}>"
+
+
+class AISummary(models.Model):
+    """Persist generated AI daily summaries for UI listing/detail."""
+
+    STATUS_GENERATED = "generated"
+    STATUS_FALLBACK = "fallback"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [
+        (STATUS_GENERATED, "Generated"),
+        (STATUS_FALLBACK, "Fallback"),
+        (STATUS_FAILED, "Failed"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="ai_summaries"
+    )
+    title = models.CharField(max_length=255)
+    summary = models.TextField()
+    payload = models.JSONField(default=dict, blank=True)
+    source = models.CharField(max_length=64, default="daily_summary")
+    model_name = models.CharField(max_length=128, blank=True, default="")
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_GENERATED)
+    generated_at = models.DateTimeField(default=timezone.now)
+    task_id = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("-generated_at", "-created_at")
+        indexes = [
+            models.Index(fields=["tenant", "generated_at"], name="analytics_summary_tenant_ts"),
+            models.Index(fields=["tenant", "source"], name="analytics_summary_tenant_src"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"AISummary<{self.tenant_id}:{self.generated_at.isoformat()}>"
