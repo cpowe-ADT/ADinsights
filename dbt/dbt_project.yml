@@ -161,6 +161,35 @@ seeds:
           updated_time: timestamp
           _airbyte_emitted_at: timestamp
           _airbyte_raw_id: text
+      ga4_reports:
+        +column_types:
+          property_id: text
+          date_day: date
+          session_default_channel_group: text
+          country: text
+          city: text
+          campaign_name: text
+          sessions: numeric
+          engaged_sessions: numeric
+          conversions: numeric
+          purchase_revenue: numeric
+          currency_code: text
+          _airbyte_emitted_at: timestamp
+          _airbyte_raw_id: text
+      search_console_performance:
+        +column_types:
+          site_url: text
+          date_day: date
+          country: text
+          device: text
+          query: text
+          page: text
+          clicks: numeric
+          impressions: numeric
+          ctr: numeric
+          position: numeric
+          _airbyte_emitted_at: timestamp
+          _airbyte_raw_id: text
     raw_google_ads:
       +schema: raw_google_ads
       +quote_columns: true
@@ -281,6 +310,37 @@ seeds:
         clicks: numeric
         conversions: numeric
         updated_time: timestamp
+        _airbyte_emitted_at: timestamp
+        _airbyte_raw_id: text
+    raw__ga4_reports:
+      +quote_columns: true
+      +column_types:
+        property_id: text
+        date_day: date
+        session_default_channel_group: text
+        country: text
+        city: text
+        campaign_name: text
+        sessions: numeric
+        engaged_sessions: numeric
+        conversions: numeric
+        purchase_revenue: numeric
+        currency_code: text
+        _airbyte_emitted_at: timestamp
+        _airbyte_raw_id: text
+    raw__search_console_performance:
+      +quote_columns: true
+      +column_types:
+        site_url: text
+        date_day: date
+        country: text
+        device: text
+        query: text
+        page: text
+        clicks: numeric
+        impressions: numeric
+        ctr: numeric
+        position: numeric
         _airbyte_emitted_at: timestamp
         _airbyte_raw_id: text
     raw__linkedin_transparency:

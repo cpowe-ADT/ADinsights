@@ -1,0 +1,3 @@
+tenant_id,campaign_id,channel,campaign_name,objective,status,start_date,end_date,parish
+bank-of-jamaica,BOJ-001,Meta,BOJ Awareness,Awareness,ACTIVE,2024-08-01,,Kingston
+grace-kennedy,GK-001,Google Ads,GK Leads,Leads,ACTIVE,2024-08-10,,St James
