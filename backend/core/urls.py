@@ -2,10 +2,17 @@ from django.contrib import admin
 from django.urls import include, path
 from rest_framework.permissions import AllowAny
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.schemas import get_schema_view
 
 from alerts.views import AlertRunViewSet
+from analytics.phase2_views import (
+    AISummaryViewSet,
+    AlertsViewSet,
+    DashboardLibraryView,
+    HealthOverviewView,
+    ReportDefinitionViewSet,
+    SyncHealthView,
+)
 from analytics.views import (
     AdapterListView,
     UploadMetricsView,
@@ -20,6 +27,8 @@ from accounts.views import (
     MeView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
+    RateLimitedTokenObtainPairView,
+    RateLimitedTokenRefreshView,
     TenantSwitchView,
     RoleAssignmentView,
     TenantTokenObtainPairView,
@@ -59,6 +68,9 @@ router.register(r"users", UserViewSet, basename="user")
 router.register(r"user-roles", UserRoleViewSet, basename="userrole")
 router.register(r"audit-logs", AuditLogViewSet, basename="auditlog")
 router.register(r"alerts/runs", AlertRunViewSet, basename="alert-run")
+router.register(r"alerts", AlertsViewSet, basename="alerts")
+router.register(r"reports", ReportDefinitionViewSet, basename="report-definition")
+router.register(r"summaries", AISummaryViewSet, basename="ai-summary")
 router.register(r"service-accounts", ServiceAccountKeyViewSet, basename="service-account")
 
 admin_router = DefaultRouter()
@@ -67,8 +79,16 @@ admin_router.register(r"alerts", AlertRuleDefinitionViewSet, basename="alertrule
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/token/", TokenObtainPairView.as_view(), name="jwt_token_obtain_pair"),
-    path("api/token/refresh/", TokenRefreshView.as_view(), name="jwt_token_refresh"),
+    path(
+        "api/token/",
+        RateLimitedTokenObtainPairView.as_view(),
+        name="jwt_token_obtain_pair",
+    ),
+    path(
+        "api/token/refresh/",
+        RateLimitedTokenRefreshView.as_view(),
+        name="jwt_token_refresh",
+    ),
     path(
         "api/auth/login/", TenantTokenObtainPairView.as_view(), name="token_obtain_pair"
     ),
@@ -106,6 +126,11 @@ urlpatterns = [
         name="api-schema",
     ),
     path("api/adapters/", AdapterListView.as_view(), name="adapter-list"),
+    path(
+        "api/dashboards/library/",
+        DashboardLibraryView.as_view(),
+        name="dashboard-library",
+    ),
     path("api/uploads/metrics/", UploadMetricsView.as_view(), name="metrics-upload"),
     path("api/metrics/", MetricsView.as_view(), name="metrics"),
     path("api/metrics/combined/", CombinedMetricsView.as_view(), name="metrics-combined"),
@@ -116,6 +141,12 @@ urlpatterns = [
         name="dashboard-aggregate-snapshot",
     ),
     path("api/export/metrics.csv", MetricsExportView.as_view(), name="metrics-export"),
+    path("api/ops/sync-health/", SyncHealthView.as_view(), name="ops-sync-health"),
+    path(
+        "api/ops/health-overview/",
+        HealthOverviewView.as_view(),
+        name="ops-health-overview",
+    ),
     path("api/analytics/", include("analytics.urls")),
     path("metrics/app/", core_views.prometheus_metrics, name="metrics-app"),
     path("api/", include(router.urls)),

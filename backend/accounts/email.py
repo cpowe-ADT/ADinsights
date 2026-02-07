@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from email.utils import parseaddr
 from typing import Sequence
 
 import boto3
@@ -49,6 +50,21 @@ def _send_via_ses(payload: EmailPayload) -> str:
         )
         return "skipped"
 
+    expected_domain = getattr(settings, "SES_EXPECTED_FROM_DOMAIN", None)
+    sender_email = parseaddr(from_address)[1]
+    sender_domain = sender_email.rsplit("@", 1)[-1].lower() if "@" in sender_email else ""
+    if expected_domain and sender_domain != expected_domain.lower():
+        logger.warning(
+            "email.delivery.invalid_from_domain",
+            extra={
+                "provider": "ses",
+                "configured_domain": expected_domain,
+                "from_domain": sender_domain or None,
+                "recipient_count": len(payload.to),
+            },
+        )
+        return "skipped"
+
     region = getattr(settings, "AWS_REGION", None)
     if not region:
         logger.warning(
@@ -66,15 +82,20 @@ def _send_via_ses(payload: EmailPayload) -> str:
 
     client = boto3.client("ses", **client_kwargs)
 
+    send_kwargs = {
+        "Source": from_address,
+        "Destination": {"ToAddresses": list(payload.to)},
+        "Message": {
+            "Subject": {"Data": payload.subject, "Charset": "UTF-8"},
+            "Body": {"Text": {"Data": payload.body, "Charset": "UTF-8"}},
+        },
+    }
+    configuration_set = getattr(settings, "SES_CONFIGURATION_SET", None)
+    if configuration_set:
+        send_kwargs["ConfigurationSetName"] = configuration_set
+
     try:
-        client.send_email(
-            Source=from_address,
-            Destination={"ToAddresses": list(payload.to)},
-            Message={
-                "Subject": {"Data": payload.subject, "Charset": "UTF-8"},
-                "Body": {"Text": {"Data": payload.body, "Charset": "UTF-8"}},
-            },
-        )
+        client.send_email(**send_kwargs)
     except (BotoCoreError, ClientError) as exc:
         logger.error(
             "email.delivery.failed",

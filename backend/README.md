@@ -66,7 +66,7 @@ variables:
    `kms:ReEncrypt*` permissions on the key.
 3. Configure the service with the key identifier and region:
    ```bash
-   export KMS_KEY_ID=arn:aws:kms:us-east-1:123456789012:key/abcd-1234
+   export KMS_KEY_ID=alias/adinsights-prod
    export AWS_REGION=us-east-1
    ```
 4. When running outside AWS or without an instance profile, also export `AWS_ACCESS_KEY_ID`,
@@ -78,6 +78,27 @@ them.
 
 At startup the backend validates the configured KMS key identifier; placeholder ARNs or region
 mismatches raise a configuration error to prevent accidental non-production usage.
+
+## CORS & Rate Limiting
+
+API edge controls are configured via environment variables:
+
+- `CORS_ALLOWED_ORIGINS` (comma-separated explicit origins)
+- `CORS_ALLOW_ALL_ORIGINS` (keep `0` in production)
+- `CORS_ALLOWED_METHODS`, `CORS_ALLOWED_HEADERS`, `CORS_ALLOW_CREDENTIALS`
+- `DRF_THROTTLE_AUTH_BURST`, `DRF_THROTTLE_AUTH_SUSTAINED`, `DRF_THROTTLE_PUBLIC`
+
+Rate limiting is enforced for unauthenticated/auth flows:
+
+- `POST /api/token/`
+- `POST /api/token/refresh/`
+- `POST /api/auth/login/`
+- `POST /api/auth/password-reset/`
+- `POST /api/auth/password-reset/confirm/`
+- `POST /api/tenants/`
+- `POST /api/users/accept-invite/`
+
+When thresholds are exceeded these endpoints return HTTP `429`.
 
 ## Containers
 
@@ -172,3 +193,15 @@ Legacy health/authentication endpoints remain available for integrations:
 - `GET /api/timezone/` — returns `America/Jamaica`, verifying configuration.
 
 Hook these endpoints into the frontend or external tools once additional resources are exposed.
+
+## SES Production Notes
+
+For SES delivery, set:
+
+- `EMAIL_PROVIDER=ses`
+- `EMAIL_FROM_ADDRESS=<approved>@adtelligent.net`
+- `SES_EXPECTED_FROM_DOMAIN=adtelligent.net`
+- `SES_CONFIGURATION_SET=<optional-config-set>`
+
+The backend skips SES sends when the from-address domain does not match
+`SES_EXPECTED_FROM_DOMAIN`.
