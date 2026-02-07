@@ -13,7 +13,9 @@ This file serves as the operational prompt for any agent working on ADinsights. 
 - Feature catalog (built/in progress/planned): `docs/project/feature-catalog.md`
 - Feature ownership + tests + runbooks: `docs/project/feature-ownership-map.md`
 - API contract changelog: `docs/project/api-contract-changelog.md`
+- Integration data contract matrix: `docs/project/integration-data-contract-matrix.md`
 - Release checklist: `docs/runbooks/release-checklist.md`
+- CSV upload runbook: `docs/runbooks/csv-uploads.md`
 - Data quality checklist: `docs/ops/data-quality-checklist.md`
 - Risk register: `docs/ops/risk-register.md`
 - ADR log: `docs/ops/adr-log.md`
