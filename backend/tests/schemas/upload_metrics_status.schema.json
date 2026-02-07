@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Upload Metrics Status",
+  "type": "object",
+  "required": ["has_upload"],
+  "properties": {
+    "has_upload": { "type": "boolean" },
+    "snapshot_generated_at": { "type": "string" },
+    "counts": {
+      "type": "object",
+      "required": ["campaign_rows", "parish_rows", "budget_rows"],
+      "properties": {
+        "campaign_rows": { "type": "integer" },
+        "parish_rows": { "type": "integer" },
+        "budget_rows": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

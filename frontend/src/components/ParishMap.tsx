@@ -7,8 +7,7 @@ import useDashboardStore, { type LoadStatus } from '../state/useDashboardStore';
 import { formatCurrency, formatNumber, formatRatio } from '../lib/format';
 import { fetchParishGeometry } from '../lib/dataService';
 import { MOCK_MODE } from '../lib/apiClient';
-import EmptyState from './EmptyState';
-import ErrorState from './ErrorState';
+import DashboardState from './DashboardState';
 import Skeleton from './Skeleton';
 import { useTheme } from './ThemeProvider';
 import styles from './ParishMap.module.css';
@@ -27,13 +26,100 @@ function withTenant(path: string, tenantId?: string): string {
   return `${path}${separator}tenant_id=${encodeURIComponent(tenantId)}`;
 }
 
-function getFeatureName(feature: Feature): string {
-  const name =
-    typeof feature?.properties === 'object' && feature.properties !== null
-      ? (feature.properties as { name?: unknown }).name
-      : undefined;
+const FEATURE_NAME_KEYS = [
+  'name',
+  'shapeName',
+  'parish',
+  'PARISH',
+  'parishName',
+  'PARISH_NAME',
+  'NAME_2',
+  'NAME_1',
+  'NAME',
+  'ADM2_EN',
+  'ADM2NAME',
+  'ADM2_NAME',
+];
 
-  return typeof name === 'string' && name.length > 0 ? name : 'Unknown';
+function resolveFeatureName(feature: Feature): string | undefined {
+  if (typeof feature?.properties !== 'object' || feature.properties === null) {
+    return undefined;
+  }
+
+  const properties = feature.properties as Record<string, unknown>;
+  for (const key of FEATURE_NAME_KEYS) {
+    const value = properties[key];
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed) {
+        return trimmed;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function getFeatureName(feature: Feature): string {
+  return resolveFeatureName(feature) ?? 'Unknown';
+}
+
+function toDisplayParishName(value: string): string {
+  return value.replace(/\bsaint\b/gi, 'St');
+}
+
+function normalizeParishName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\./g, '')
+    .replace(/\bsaint\b/g, 'st')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isFeatureCollection(value: unknown): value is FeatureCollection {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const collection = value as FeatureCollection;
+  return collection.type === 'FeatureCollection' && Array.isArray(collection.features);
+}
+
+const resolvedEnv = typeof import.meta !== 'undefined' ? import.meta.env : undefined;
+const MIN_PARISH_FEATURES = resolvedEnv?.MODE === 'test' ? 1 : 10;
+
+function isReasonableParishGeometry(collection: FeatureCollection): boolean {
+  if (!Array.isArray(collection.features) || collection.features.length < MIN_PARISH_FEATURES) {
+    return false;
+  }
+
+  let namedCount = 0;
+  collection.features.forEach((feature) => {
+    if (resolveFeatureName(feature)) {
+      namedCount += 1;
+    }
+  });
+
+  return namedCount >= MIN_PARISH_FEATURES;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => {
+    switch (char) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      case "'":
+        return '&#39;';
+      default:
+        return char;
+    }
+  });
 }
 
 function computeBreaks(values: number[]): number[] {
@@ -50,13 +136,41 @@ function computeBreaks(values: number[]): number[] {
   return [quantile(0.25), quantile(0.5), quantile(0.75), quantile(0.9)];
 }
 
-function getColor(value: number, breaks: number[]): string {
-  if (value === 0) return 'var(--map-fill-0)';
-  if (value <= breaks[0]) return 'var(--map-fill-1)';
-  if (value <= breaks[1]) return 'var(--map-fill-2)';
-  if (value <= breaks[2]) return 'var(--map-fill-3)';
-  if (value <= breaks[3]) return 'var(--map-fill-4)';
-  return 'var(--map-fill-5)';
+type MapPalette = {
+  border: string;
+  highlight: string;
+  fills: [string, string, string, string, string, string];
+};
+
+const FALLBACK_PALETTE: MapPalette = {
+  border: '#1f2937',
+  highlight: '#0f172a',
+  fills: ['#e2e8f0', '#bfdbfe', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8'],
+};
+
+function resolvePalette(): MapPalette {
+  if (typeof window === 'undefined') {
+    return FALLBACK_PALETTE;
+  }
+
+  const styles = getComputedStyle(document.documentElement);
+  const getVar = (name: string, fallback: string) => {
+    const value = styles.getPropertyValue(name).trim();
+    return value || fallback;
+  };
+
+  return {
+    border: getVar('--map-border', FALLBACK_PALETTE.border),
+    highlight: getVar('--map-highlight', FALLBACK_PALETTE.highlight),
+    fills: [
+      getVar('--map-fill-0', FALLBACK_PALETTE.fills[0]),
+      getVar('--map-fill-1', FALLBACK_PALETTE.fills[1]),
+      getVar('--map-fill-2', FALLBACK_PALETTE.fills[2]),
+      getVar('--map-fill-3', FALLBACK_PALETTE.fills[3]),
+      getVar('--map-fill-4', FALLBACK_PALETTE.fills[4]),
+      getVar('--map-fill-5', FALLBACK_PALETTE.fills[5]),
+    ],
+  };
 }
 
 const MapPlaceholderIcon = () => (
@@ -95,6 +209,8 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   const [geojson, setGeojson] = useState<FeatureCollection | null>(null);
   const [geometryStatus, setGeometryStatus] = useState<LoadStatus>('idle');
   const [geometryError, setGeometryError] = useState<string>();
+  const [mapReady, setMapReady] = useState(false);
+  const [useSvgFallback, setUseSvgFallback] = useState(false);
   const geoJsonLayerRef = useRef<L.GeoJSON | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
@@ -108,8 +224,9 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   const [scrollZoomEnabled, setScrollZoomEnabled] = useState(false);
   const geometryControllerRef = useRef<AbortController | null>(null);
 
-  const borderColor = 'var(--map-border)';
-  const highlightColor = 'var(--map-highlight)';
+  const palette = useMemo(() => resolvePalette(), [theme]);
+  const borderColor = palette.border;
+  const highlightColor = palette.highlight;
 
   const loadGeometry = useCallback((tenant?: string) => {
     geometryControllerRef.current?.abort();
@@ -118,6 +235,16 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
 
     setGeometryStatus('loading');
     setGeometryError(undefined);
+
+    const ensureGeometry = (data: FeatureCollection) => {
+      if (!isFeatureCollection(data) || data.features.length === 0) {
+        throw new Error('Parish geometry is unavailable.');
+      }
+      if (!isReasonableParishGeometry(data)) {
+        throw new Error('Parish geometry is incomplete.');
+      }
+      return data;
+    };
 
     const fetchFromPath = (path: string) =>
       fetchParishGeometry({
@@ -131,22 +258,18 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
       if (!response.ok) {
         throw new Error('Fallback parish geometry load failed.');
       }
-      return (await response.json()) as FeatureCollection;
+      return ensureGeometry((await response.json()) as FeatureCollection);
     };
 
     const resolveGeometry = async () => {
-      try {
-        return await fetchFromPath(withTenant('/dashboards/parish-geometry/', tenant));
-      } catch (error) {
-        if (controller.signal.aborted) {
-          throw error;
-        }
-      }
-
-      const fallbackPaths = [withTenant('/analytics/parish-geometry/', tenant)];
+      const fallbackPaths = [
+        withTenant('/analytics/parish-geometry/', tenant),
+        withTenant('/dashboards/parish-geometry/', tenant),
+      ];
       for (const path of fallbackPaths) {
         try {
-          return await fetchFromPath(path);
+          const data = await fetchFromPath(path);
+          return ensureGeometry(data);
         } catch (error) {
           if (controller.signal.aborted) {
             throw error;
@@ -172,6 +295,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
           return;
         }
         setGeojson(data);
+        setUseSvgFallback(false);
         setGeometryStatus('loaded');
         geometryControllerRef.current = null;
       })
@@ -185,6 +309,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
         setGeometryError(
           error instanceof Error ? error.message : 'Failed to load parish boundaries.',
         );
+        setUseSvgFallback(true);
         geometryControllerRef.current = null;
       });
   }, []);
@@ -200,15 +325,29 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   }, [activeTenantId, loadGeometry]);
 
   const metricByParish = useMemo(() => {
-    return parishData.reduce<Record<string, number>>((acc, row) => {
-      const key = row.parish;
-      const value = Number(row[selectedMetric as keyof typeof row] ?? 0);
-      acc[key] = value;
+    return parishData.reduce<Record<string, number | null>>((acc, row) => {
+      const raw = row.parish ?? 'Unknown';
+      const key = normalizeParishName(raw);
+      const rawValue = row[selectedMetric as keyof typeof row];
+      if (rawValue === null || rawValue === undefined) {
+        if (typeof acc[key] !== 'number') {
+          acc[key] = null;
+        }
+        return acc;
+      }
+      const numeric = Number(rawValue);
+      acc[key] = Number.isFinite(numeric) ? numeric : null;
       return acc;
     }, {});
   }, [parishData, selectedMetric]);
 
-  const metricValues = useMemo(() => Object.values(metricByParish), [metricByParish]);
+  const metricValues = useMemo(
+    () =>
+      Object.values(metricByParish).filter(
+        (value): value is number => typeof value === 'number' && Number.isFinite(value),
+      ),
+    [metricByParish],
+  );
   const breaks = useMemo(() => computeBreaks(metricValues), [metricValues]);
   const currency = useMemo(() => parishData[0]?.currency ?? 'USD', [parishData]);
 
@@ -237,54 +376,91 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   }, [selectedMetric]);
 
   const legendSteps = useMemo(() => {
+    if (metricValues.length === 0) {
+      return [{ color: 'var(--map-fill-0)', label: 'No data' }];
+    }
+
     const [q1, q2, q3, q4] = breaks;
-    const minValue = metricValues.length > 0 ? Math.min(...metricValues) : 0;
+    const minValue = Math.min(...metricValues);
+    const maxValue = Math.max(...metricValues);
 
     const formatRange = (low: number, high: number, mode: 'first' | 'middle' | 'last') => {
       if (mode === 'first') {
-        return `≤ ${formatMetricValue(high)}`;
+        return `<= ${formatMetricValue(high)}`;
       }
       if (mode === 'last') {
-        return `> ${formatMetricValue(high)}`;
+        if (low === high) {
+          return `>= ${formatMetricValue(high)}`;
+        }
+        return `>= ${formatMetricValue(low)}`;
       }
       if (low === high) {
         return formatMetricValue(high);
       }
-      return `${formatMetricValue(low)} – ${formatMetricValue(high)}`;
+      return `${formatMetricValue(low)} - ${formatMetricValue(high)}`;
     };
 
+    if (minValue === maxValue) {
+      return [
+        { color: 'var(--map-fill-0)', label: 'No data' },
+        { color: 'var(--map-fill-1)', label: formatMetricValue(minValue) },
+      ];
+    }
+
     return [
-      { color: 'var(--map-fill-0)', label: formatRange(minValue, q1, 'first') },
-      { color: 'var(--map-fill-1)', label: formatRange(q1, q2, 'middle') },
-      { color: 'var(--map-fill-2)', label: formatRange(q2, q3, 'middle') },
-      { color: 'var(--map-fill-3)', label: formatRange(q3, q4, 'middle') },
-      { color: 'var(--map-fill-4)', label: formatRange(q4, q4, 'last') },
+      { color: 'var(--map-fill-0)', label: 'No data' },
+      { color: 'var(--map-fill-1)', label: formatRange(minValue, q1, 'first') },
+      { color: 'var(--map-fill-2)', label: formatRange(q1, q2, 'middle') },
+      { color: 'var(--map-fill-3)', label: formatRange(q2, q3, 'middle') },
+      { color: 'var(--map-fill-4)', label: formatRange(q3, q4, 'middle') },
+      { color: 'var(--map-fill-5)', label: formatRange(q4, maxValue, 'last') },
     ];
   }, [breaks, formatMetricValue, metricValues]);
 
   const styleForParish = useCallback(
     (name: string): L.PathOptions => {
-      const value = metricByParish[name] ?? 0;
+      const rawValue = metricByParish[normalizeParishName(name)];
+      const value = typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : null;
+      const fills = palette.fills;
+
+      let fillColor = fills[0];
+      if (value === null) {
+        fillColor = fills[0];
+      } else if (value <= breaks[0]) {
+        fillColor = fills[1];
+      } else if (value <= breaks[1]) {
+        fillColor = fills[2];
+      } else if (value <= breaks[2]) {
+        fillColor = fills[3];
+      } else if (value <= breaks[3]) {
+        fillColor = fills[4];
+      } else {
+        fillColor = fills[5];
+      }
 
       return {
-        fillColor: getColor(value, breaks),
+        fillColor,
         weight: selectedParish === name ? 2 : 1,
         color: selectedParish === name ? highlightColor : borderColor,
         fillOpacity: 0.8,
       };
     },
-    [borderColor, breaks, highlightColor, metricByParish, selectedParish],
+    [borderColor, breaks, highlightColor, metricByParish, palette, selectedParish],
   );
 
   const tooltipForParish = useCallback(
     (name: string) => {
-      const value = metricByParish[name] ?? 0;
-      const formattedValue = formatMetricValue(value);
+      const rawValue = metricByParish[normalizeParishName(name)];
+      const value = typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : null;
+      const formattedValue = value === null ? 'N/A' : formatMetricValue(value);
+      const safeName = escapeHtml(name);
+      const safeMetricLabel = escapeHtml(metricLabel);
+      const safeValue = escapeHtml(formattedValue);
 
       return `
         <div class="${styles.tooltipInner}">
-          <span class="${styles.tooltipName}">${name}</span>
-          <span class="${styles.tooltipMetric}">${metricLabel}: ${formattedValue}</span>
+          <span class="${styles.tooltipName}">${safeName}</span>
+          <span class="${styles.tooltipMetric}">${safeMetricLabel}: ${safeValue}</span>
         </div>
       `.trim();
     },
@@ -316,7 +492,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
 
     const names = new Set<string>();
     for (const feature of geojson.features ?? []) {
-      names.add(getFeatureName(feature));
+      names.add(toDisplayParishName(getFeatureName(feature)));
     }
     return Array.from(names).sort();
   }, [geojson]);
@@ -327,6 +503,157 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     },
     [setSelectedParish],
   );
+
+  const svgPaths = useMemo(() => {
+    if (!geojson) {
+      return [];
+    }
+
+    const bounds = {
+      minLon: Infinity,
+      maxLon: -Infinity,
+      minLat: Infinity,
+      maxLat: -Infinity,
+    };
+
+    const walkCoords = (coords: unknown) => {
+      if (!Array.isArray(coords)) {
+        return;
+      }
+      if (coords.length >= 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+        const lon = coords[0] as number;
+        const lat = coords[1] as number;
+        bounds.minLon = Math.min(bounds.minLon, lon);
+        bounds.maxLon = Math.max(bounds.maxLon, lon);
+        bounds.minLat = Math.min(bounds.minLat, lat);
+        bounds.maxLat = Math.max(bounds.maxLat, lat);
+        return;
+      }
+      coords.forEach(walkCoords);
+    };
+
+    geojson.features?.forEach((feature) => {
+      const geometry = feature.geometry;
+      if (!geometry) {
+        return;
+      }
+      if (geometry.type === 'GeometryCollection') {
+        geometry.geometries?.forEach((item) => {
+          if ('coordinates' in item) {
+            walkCoords(item.coordinates);
+          }
+        });
+        return;
+      }
+      if ('coordinates' in geometry) {
+        walkCoords(geometry.coordinates);
+      }
+    });
+
+    if (!Number.isFinite(bounds.minLon) || !Number.isFinite(bounds.minLat)) {
+      return [];
+    }
+
+    const viewSize = 1000;
+    const spanLon = bounds.maxLon - bounds.minLon || 1;
+    const spanLat = bounds.maxLat - bounds.minLat || 1;
+    const scale = Math.min(viewSize / spanLon, viewSize / spanLat);
+    const width = spanLon * scale;
+    const height = spanLat * scale;
+    const offsetX = (viewSize - width) / 2;
+    const offsetY = (viewSize - height) / 2;
+
+    const project = (lon: number, lat: number) => {
+      const x = (lon - bounds.minLon) * scale + offsetX;
+      const y = (bounds.maxLat - lat) * scale + offsetY;
+      return [x, y];
+    };
+
+    const buildPath = (coords: number[][]) => {
+      return coords
+        .map(([lon, lat], index) => {
+          const [x, y] = project(lon, lat);
+          return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+        })
+        .join(' ');
+    };
+
+    const paths: Array<{
+      name: string;
+      d: string;
+      fill: string;
+      stroke: string;
+      strokeWidth: number;
+    }> = [];
+
+    geojson.features?.forEach((feature, index) => {
+      const name = toDisplayParishName(getFeatureName(feature));
+      const geom = feature.geometry;
+      if (!geom) {
+        return;
+      }
+
+      const normalized = normalizeParishName(name);
+      const rawValue = metricByParish[normalized];
+      const value = typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : null;
+      const fills = palette.fills;
+      let fill = fills[0];
+      if (value === null) {
+        fill = fills[0];
+      } else if (value <= breaks[0]) {
+        fill = fills[1];
+      } else if (value <= breaks[1]) {
+        fill = fills[2];
+      } else if (value <= breaks[2]) {
+        fill = fills[3];
+      } else if (value <= breaks[3]) {
+        fill = fills[4];
+      } else {
+        fill = fills[5];
+      }
+
+      const isSelected =
+        selectedParish && normalizeParishName(selectedParish) === normalized;
+      const stroke = isSelected ? highlightColor : borderColor;
+      const strokeWidth = isSelected ? 2 : 1;
+
+      if (geom.type === 'Polygon') {
+        const rings = geom.coordinates as number[][][];
+        const segments = rings.map((ring) => `${buildPath(ring)} Z`);
+        paths.push({
+          name: `${name}-${index}`,
+          d: segments.join(' '),
+          fill,
+          stroke,
+          strokeWidth,
+        });
+      }
+
+      if (geom.type === 'MultiPolygon') {
+        const polygons = geom.coordinates as number[][][][];
+        const segments = polygons.flatMap((polygon) =>
+          polygon.map((ring) => `${buildPath(ring)} Z`),
+        );
+        paths.push({
+          name: `${name}-${index}`,
+          d: segments.join(' '),
+          fill,
+          stroke,
+          strokeWidth,
+        });
+      }
+    });
+
+    return paths;
+  }, [
+    breaks,
+    borderColor,
+    geojson,
+    highlightColor,
+    metricByParish,
+    palette.fills,
+    selectedParish,
+  ]);
 
   useEffect(() => {
     styleForParishRef.current = styleForParish;
@@ -349,7 +676,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
 
   const onEachFeature = useCallback(
     (feature: Feature, layer: L.Layer) => {
-      const name = getFeatureName(feature);
+      const name = toDisplayParishName(getFeatureName(feature));
 
       const pathLayer = layer as L.Path;
       if (pathLayer.setStyle) {
@@ -409,6 +736,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
       });
 
       mapRef.current = map;
+      setMapReady(true);
       requestAnimationFrame(() => {
         map.invalidateSize();
       });
@@ -424,12 +752,13 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
         mapRef.current = null;
         tileLayerRef.current = null;
         geoJsonLayerRef.current = null;
+        setMapReady(false);
       }
     };
   }, []);
 
   useEffect(() => {
-    if (!mapRef.current) {
+    if (!mapRef.current || !mapReady) {
       return;
     }
 
@@ -443,7 +772,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   }, [tileAttribution, tileLayerUrl]);
 
   useEffect(() => {
-    if (!mapRef.current || !geojson) {
+    if (!mapRef.current || !geojson || !mapReady) {
       return;
     }
 
@@ -457,7 +786,16 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
 
     geoJsonLayerRef.current = layer;
     layer.addTo(mapRef.current);
-  }, [geojson, onEachFeature]);
+    if (typeof layer.getBounds === 'function') {
+      const bounds = layer.getBounds();
+      if (bounds.isValid()) {
+        mapRef.current.fitBounds(bounds, { padding: [16, 16], maxZoom: 11 });
+        requestAnimationFrame(() => {
+          mapRef.current?.invalidateSize();
+        });
+      }
+    }
+  }, [geojson, mapReady, onEachFeature]);
 
   useEffect(() => {
     if (!geoJsonLayerRef.current) {
@@ -470,7 +808,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
         return;
       }
 
-      const name = getFeatureName(feature);
+      const name = toDisplayParishName(getFeatureName(feature));
       const pathLayer = layer as L.Path;
       if (pathLayer.setStyle) {
         pathLayer.setStyle(styleForParish(name));
@@ -496,14 +834,38 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   }, [assignTestId, styleForParish, tooltipForParish]);
 
   useEffect(() => {
-    if (!mapRef.current) {
+    if (!mapRef.current || !mapReady) {
       return;
     }
 
     requestAnimationFrame(() => {
       mapRef.current?.invalidateSize();
     });
-  }, [height, geojson]);
+  }, [height, geojson, mapReady]);
+
+  useEffect(() => {
+    if (!geojson || !mapReady) {
+      return;
+    }
+
+    const node = mapNodeRef.current;
+    if (!node) {
+      return;
+    }
+
+    const checkRendered = () => {
+      const pathCount = node.querySelectorAll('path.leaflet-interactive').length;
+      setUseSvgFallback(pathCount === 0);
+    };
+
+    const rafId = requestAnimationFrame(checkRendered);
+    const timeoutId = window.setTimeout(checkRendered, 250);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [geojson, mapReady, selectedMetric, selectedParish]);
 
   const toggleScrollZoom = useCallback(() => {
     if (!mapRef.current) {
@@ -524,6 +886,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   }, [activeTenantId, loadGeometry, onRetry]);
 
   const noDataLoaded = parishData.length === 0 && !geojson;
+  const showSvgFallback = svgPaths.length > 0 && (useSvgFallback || !mapReady);
 
   if ((parishStatus === 'loading' || geometryStatus === 'loading') && noDataLoaded) {
     return (
@@ -535,20 +898,24 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
 
   if (geometryStatus === 'error' && noDataLoaded) {
     return (
-      <ErrorState
+      <DashboardState
+        variant="error"
         message={geometryError ?? 'Unable to load parish boundaries.'}
-        onRetry={handleRetry}
-        retryLabel="Retry load"
+        actionLabel="Retry load"
+        onAction={handleRetry}
+        layout="compact"
       />
     );
   }
 
   if (parishStatus === 'error' && parishData.length === 0) {
     return (
-      <ErrorState
+      <DashboardState
+        variant="error"
         message={parishError ?? 'Unable to render the parish map.'}
-        onRetry={handleRetry}
-        retryLabel="Retry load"
+        actionLabel="Retry load"
+        onAction={handleRetry}
+        layout="compact"
       />
     );
   }
@@ -561,15 +928,29 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     return <div className="status-message muted">Loading parish boundaries…</div>;
   }
 
+  if (geometryStatus === 'error' && !geojson) {
+    return (
+      <DashboardState
+        variant="error"
+        message={geometryError ?? 'Unable to load parish boundaries.'}
+        actionLabel="Retry load"
+        onAction={handleRetry}
+        layout="compact"
+      />
+    );
+  }
+
   if (parishData.length === 0) {
     return (
-      <EmptyState
+      <DashboardState
+        variant="empty"
         icon={<MapPlaceholderIcon />}
         title="No map insights yet"
         message="Map insights will appear once this tenant has campaign data."
         actionLabel="Refresh data"
         onAction={handleRetry}
         actionVariant="secondary"
+        layout="compact"
       />
     );
   }
@@ -577,6 +958,30 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   return (
     <div className={styles.mapShell} style={{ height }}>
       <div ref={mapNodeRef} className={`leaflet-container ${styles.map}`} />
+      {showSvgFallback ? (
+        <svg
+          className={styles.mapSvg}
+          viewBox="0 0 1000 1000"
+          role="img"
+          aria-label="Parish map"
+        >
+          {svgPaths.map((path) => {
+            const label = path.name.split('-')[0] ?? path.name;
+            return (
+              <path
+                key={path.name}
+                d={path.d}
+                fill={path.fill}
+                stroke={path.stroke}
+                strokeWidth={path.strokeWidth}
+                onClick={() => handleAccessibleSelect(label)}
+              >
+                <title>{label}</title>
+              </path>
+            );
+          })}
+        </svg>
+      ) : null}
       <div className={styles.accessibilityList}>
         {accessibleParishNames.map((name) => (
           <button

@@ -421,8 +421,10 @@ const resolveRequestMethod = (input: RequestInfo | URL, init?: RequestInit): str
 const expectHomeOrDashboardHeading = async () => {
   await waitFor(() => {
     const hero =
+      screen.queryByRole('heading', { level: 1, name: /welcome back to adinsights/i }) ??
       screen.queryByRole('heading', { level: 1, name: /adinsights analytics/i }) ??
-      screen.queryByRole('heading', { level: 1, name: /campaign performance/i });
+      screen.queryByRole('heading', { level: 1, name: /campaign performance/i }) ??
+      screen.queryByRole('heading', { level: 1, name: /saved dashboards/i });
     expect(hero).toBeTruthy();
   });
 };
@@ -525,11 +527,11 @@ describe('App integration', () => {
 
     await expectHomeOrDashboardHeading();
 
-    const campaignCard = screen.queryByText(/Campaign performance/i)?.closest('article');
+    const campaignCard =
+      screen.queryByRole('button', { name: /view campaigns/i }) ??
+      screen.queryByRole('button', { name: /campaign performance/i });
     if (campaignCard) {
-      await userEvent.click(
-        within(campaignCard).getByRole('button', { name: /open/i }),
-      );
+      await userEvent.click(campaignCard);
     } else {
       await waitFor(() =>
         expect(
@@ -617,7 +619,8 @@ describe('App integration', () => {
     expect(await screen.findByText('Top creatives')).toBeInTheDocument();
     expect(screen.getByText(/Hero Unit/)).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('link', { name: /campaigns/i }));
+    const dashboardNav = screen.getByRole('navigation', { name: /dashboard sections/i });
+    await userEvent.click(within(dashboardNav).getByRole('link', { name: /campaigns/i }));
     expect(
       await screen.findByRole('heading', { level: 1, name: /campaign performance/i }),
     ).toBeInTheDocument();
@@ -693,11 +696,11 @@ describe('App integration', () => {
 
     await expectHomeOrDashboardHeading();
 
-    const campaignCard = screen.queryByText(/Campaign performance/i)?.closest('article');
+    const campaignCard =
+      screen.queryByRole('button', { name: /view campaigns/i }) ??
+      screen.queryByRole('button', { name: /campaign performance/i });
     if (campaignCard) {
-      await userEvent.click(
-        within(campaignCard).getByRole('button', { name: /open/i }),
-      );
+      await userEvent.click(campaignCard);
     } else {
       await waitFor(() =>
         expect(

@@ -217,6 +217,25 @@ class MetricRecordSerializer(serializers.Serializer):
     roas = serializers.FloatField()
 
 
+class UploadMetricsRequestSerializer(serializers.Serializer):
+    """Schema for CSV upload requests."""
+
+    campaign_csv = serializers.FileField()
+    parish_csv = serializers.FileField(required=False)
+    budget_csv = serializers.FileField(required=False)
+
+
+class UploadMetricsStatusSerializer(serializers.Serializer):
+    """Schema for CSV upload status responses."""
+
+    has_upload = serializers.BooleanField()
+    snapshot_generated_at = serializers.DateTimeField(required=False, allow_null=True)
+    counts = serializers.DictField(child=serializers.IntegerField(), required=False)
+    warnings = serializers.ListField(
+        child=serializers.CharField(), required=False, allow_empty=True
+    )
+
+
 class CampaignSummarySerializer(serializers.Serializer):
     currency = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     totalSpend = serializers.FloatField()

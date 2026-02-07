@@ -7,7 +7,7 @@ import json
 import logging
 import subprocess
 import sys
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
@@ -18,6 +18,8 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from django.http import StreamingHttpResponse
 from rest_framework import permissions, status, viewsets
+from rest_framework.generics import GenericAPIView
+from rest_framework.parsers import MultiPartParser
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
@@ -26,6 +28,7 @@ from rest_framework.views import APIView
 from adapters.base import MetricsAdapter
 from adapters.demo import DemoAdapter, clear_demo_seed_cache, _demo_seed_dir
 from adapters.fake import FakeAdapter
+from adapters.upload import UploadAdapter
 from adapters.warehouse import WarehouseAdapter
 
 from .models import (
@@ -44,6 +47,8 @@ from .serializers import (
     MetricRecordSerializer,
     MetricsQueryParamsSerializer,
     RawPerformanceRecordSerializer,
+    UploadMetricsRequestSerializer,
+    UploadMetricsStatusSerializer,
 )
 
 from accounts.audit import log_audit_event
@@ -51,6 +56,12 @@ from analytics.snapshots import (
     default_snapshot_metrics,
     fetch_snapshot_metrics,
     snapshot_metrics_to_serializer_payload,
+)
+from analytics.uploads import (
+    build_combined_payload,
+    parse_budget_csv,
+    parse_campaign_csv,
+    parse_parish_csv,
 )
 
 logger = logging.getLogger(__name__)
@@ -149,7 +160,7 @@ class RawPerformanceRecordViewSet(TenantScopedModelViewSet):
     serializer_class = RawPerformanceRecordSerializer
 
 
-def _build_registry() -> dict[str, MetricsAdapter]:
+def _build_registry(*, include_upload: bool = True) -> dict[str, MetricsAdapter]:
     """Return the enabled analytics adapters keyed by their slug."""
 
     registry: dict[str, MetricsAdapter] = {}
@@ -162,6 +173,9 @@ def _build_registry() -> dict[str, MetricsAdapter]:
     if getattr(settings, "ENABLE_FAKE_ADAPTER", False):
         fake = FakeAdapter()
         registry[fake.key] = fake
+    if include_upload and getattr(settings, "ENABLE_UPLOAD_ADAPTER", False):
+        upload = UploadAdapter()
+        registry[upload.key] = upload
     return registry
 
 
@@ -204,7 +218,7 @@ class MetricsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request) -> Response:  # noqa: D401 - DRF signature
-        registry = _build_registry()
+        registry = _build_registry(include_upload=False)
         if not registry:
             return Response(
                 {"detail": "No analytics adapters are enabled."},
@@ -448,6 +462,119 @@ class MetricsViewSet(viewsets.ViewSet):
         if page is not None:
             return paginator.get_paginated_response(serializer.data)
         return Response(serializer.data)
+
+
+class UploadMetricsView(GenericAPIView):
+    """Accept CSV uploads and store a combined metrics snapshot."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser]
+
+    def get_serializer_class(self):  # noqa: D401 - DRF signature
+        if getattr(self.request, "method", "GET") == "GET":
+            return UploadMetricsStatusSerializer
+        return UploadMetricsRequestSerializer
+
+    def get(self, request) -> Response:  # noqa: D401 - DRF signature
+        tenant = getattr(request.user, "tenant", None)
+        if tenant is None:
+            return Response(
+                {"detail": "Unable to resolve tenant."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        snapshot = TenantMetricsSnapshot.latest_for(tenant=tenant, source="upload")
+        if snapshot is None:
+            return Response({"has_upload": False})
+
+        payload = snapshot.payload
+        response_payload = {
+            "has_upload": True,
+            "snapshot_generated_at": payload.get("snapshot_generated_at"),
+            "counts": {
+                "campaign_rows": len(payload.get("campaign", {}).get("rows", [])),
+                "parish_rows": len(payload.get("parish", [])),
+                "budget_rows": len(payload.get("budget", [])),
+            },
+        }
+        serializer = UploadMetricsStatusSerializer(response_payload)
+        return Response(serializer.data)
+
+    def post(self, request) -> Response:  # noqa: D401 - DRF signature
+        tenant = getattr(request.user, "tenant", None)
+        if tenant is None:
+            return Response(
+                {"detail": "Unable to resolve tenant."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        campaign_file = request.FILES.get("campaign_csv")
+        if campaign_file is None:
+            return Response(
+                {"detail": "campaign_csv file is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        campaign_result = parse_campaign_csv(campaign_file)
+        parish_file = request.FILES.get("parish_csv")
+        parish_result = parse_parish_csv(parish_file) if parish_file else None
+        budget_file = request.FILES.get("budget_csv")
+        budget_result = parse_budget_csv(budget_file) if budget_file else None
+
+        errors = campaign_result.errors[:]
+        warnings = campaign_result.warnings[:]
+        if parish_result:
+            errors.extend(parish_result.errors)
+            warnings.extend(parish_result.warnings)
+        if budget_result:
+            errors.extend(budget_result.errors)
+            warnings.extend(budget_result.warnings)
+
+        if errors:
+            return Response(
+                {"detail": "CSV validation failed.", "errors": errors, "warnings": warnings},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payload = build_combined_payload(
+            campaign_rows=campaign_result.rows,
+            parish_rows=parish_result.rows if parish_result else [],
+            budget_rows=budget_result.rows if budget_result else [],
+            uploaded_at=timezone.now(),
+        )
+
+        TenantMetricsSnapshot.objects.update_or_create(
+            tenant=tenant,
+            source="upload",
+            defaults={
+                "payload": payload,
+                "generated_at": timezone.now(),
+            },
+        )
+
+        response_payload = {
+            "has_upload": True,
+            "snapshot_generated_at": payload.get("snapshot_generated_at"),
+            "counts": {
+                "campaign_rows": len(campaign_result.rows),
+                "parish_rows": len(parish_result.rows) if parish_result else 0,
+                "budget_rows": len(budget_result.rows) if budget_result else 0,
+            },
+            "warnings": warnings,
+        }
+        serializer = UploadMetricsStatusSerializer(response_payload)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request) -> Response:  # noqa: D401 - DRF signature
+        tenant = getattr(request.user, "tenant", None)
+        if tenant is None:
+            return Response(
+                {"detail": "Unable to resolve tenant."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        TenantMetricsSnapshot.objects.filter(tenant=tenant, source="upload").delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class _Echo:
     """Minimal buffer to adapt csv.writer for streaming responses."""

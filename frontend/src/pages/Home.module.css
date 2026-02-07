@@ -146,6 +146,114 @@
   flex: 0 1 280px;
 }
 
+.announcementBanner {
+  position: relative;
+  overflow: hidden;
+  background: var(--home-surface);
+  border-radius: var(--radius);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  animation: home-rise 0.6s var(--motion-ease-out) both;
+}
+
+.announcementBanner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(320px 180px at 12% 20%, rgba(37, 99, 235, 0.15), transparent 65%),
+    radial-gradient(260px 160px at 90% 0%, rgba(249, 115, 22, 0.12), transparent 70%);
+  opacity: 0.9;
+  z-index: 0;
+}
+
+.announcementBanner > * {
+  position: relative;
+  z-index: 1;
+}
+
+.announcementContent {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 36rem;
+}
+
+.announcementEyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-slate-500);
+}
+
+.announcementTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 650;
+}
+
+.announcementMessage {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.announcementActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.announcementCta {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--space-2) - var(--space-1));
+  border-radius: var(--radius-sm);
+  padding: calc(var(--space-3) - var(--space-1)) calc(var(--space-5) - var(--space-2));
+  background: linear-gradient(135deg, var(--home-accent), var(--home-warm-strong));
+  color: #ffffff;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.2);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.announcementCta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.28);
+}
+
+.announcementDismiss {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--space-2) - var(--space-1));
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  background: rgba(248, 250, 252, 0.85);
+  color: var(--text-secondary);
+  font-weight: 600;
+  padding: calc(var(--space-3) - var(--space-1)) calc(var(--space-4) - var(--space-2));
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.announcementDismiss:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
 .primaryAction,
 .secondaryAction {
   border: none;
@@ -175,9 +283,11 @@
 .primaryAction:focus-visible,
 .secondaryAction:focus-visible,
 .quickActionCard:focus-visible,
-.openButton:focus-visible,
+.dashboardCard:focus-visible,
 .emptyCta:focus-visible,
-.whatsNewLink:focus-visible {
+.resourceLink:focus-visible,
+.announcementCta:focus-visible,
+.announcementDismiss:focus-visible {
   outline: var(--focus-outline);
   outline-offset: var(--focus-outline-offset);
   box-shadow: none;
@@ -340,19 +450,22 @@
 
 .dashboardCard {
   position: relative;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.9));
+  background: var(--home-surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow-soft);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  overflow: hidden;
-  height: 100%;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  display: grid;
+  gap: var(--space-4);
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  appearance: none;
   transition:
     transform 0.2s ease,
-    box-shadow 0.2s ease;
-  cursor: pointer;
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .dashboardCard::after {
@@ -380,107 +493,55 @@
 .dashboardCard:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-elevated);
-}
-
-.dashboardCard:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-outline-offset);
-}
-
-.sparkline {
-  width: 100%;
-  height: 64px;
-  border-radius: calc(var(--radius-sm));
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.04), rgba(37, 99, 235, 0.2));
-  display: flex;
-  align-items: flex-end;
-  overflow: hidden;
-}
-
-.sparkline svg {
-  width: 100%;
-  height: 100%;
-}
-
-.sparklineLine path {
-  fill: none;
-  stroke: var(--accent-primary);
-  stroke-width: 2;
-}
-
-.sparklineLine circle {
-  fill: var(--accent-primary);
-}
-
-.sparklineBars rect {
-  fill: rgba(37, 99, 235, 0.55);
-}
-
-.sparklineBars rect:nth-child(even) {
-  fill: rgba(249, 115, 22, 0.55);
-}
-
-.sparklineDonut {
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.18), transparent 65%);
-}
-
-.donutTrack {
-  fill: none;
-  stroke: rgba(37, 99, 235, 0.2);
-  stroke-width: 6;
-}
-
-.donutValue {
-  fill: none;
-  stroke: rgba(249, 115, 22, 0.85);
-  stroke-width: 6;
-  stroke-linecap: round;
-  transform: rotate(-90deg);
-  transform-origin: 50% 50%;
-}
-
-.dashboardMeta {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  flex: 1 1 auto;
+  border-color: rgba(37, 99, 235, 0.2);
 }
 
 .dashboardName {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 600;
 }
 
-.dashboardDescription {
+.dashboardDetails {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-4);
 }
 
-.openButton {
-  align-self: flex-start;
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: calc(var(--space-3) - var(--space-1)) calc(var(--space-6) - var(--space-2));
-  background: linear-gradient(135deg, var(--home-accent), var(--home-accent-strong));
-  color: #ffffff;
+.dashboardDetail {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.dashboardDetail dt {
+  margin: 0;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+}
+
+.dashboardDetail dd {
+  margin: 0;
   font-weight: 600;
-  cursor: pointer;
-  transition:
-    background 0.2s ease,
-    transform 0.2s ease;
-  margin-top: auto;
+  color: var(--text-primary);
+}
+
+.dashboardCta {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: calc(var(--space-2) - var(--space-1));
+  font-weight: 600;
+  color: var(--home-accent-strong);
 }
 
-.openButton:hover {
-  background: linear-gradient(135deg, var(--home-accent-strong), var(--home-accent));
-  transform: translateY(-1px);
+.dashboardState {
+  background: var(--home-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-subtle);
+  border: 1px dashed rgba(37, 99, 235, 0.25);
+  padding: var(--space-6);
 }
 
 .emptyState {
@@ -524,47 +585,83 @@
   box-shadow: 0 16px 32px rgba(15, 23, 42, 0.22);
 }
 
-.whatsNew {
-  background: linear-gradient(
-    140deg,
-    rgba(15, 23, 42, 0.92),
-    rgba(30, 58, 138, 0.9)
-  );
+.resourceCard {
+  background: var(--home-surface);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-elevated);
-  border: 1px solid rgba(248, 250, 252, 0.2);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  color: #f8fafc;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  display: grid;
+  gap: var(--space-4);
 }
 
-.whatsNewTitle {
+.resourceHeader {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.resourceTitle {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 600;
 }
 
-.whatsNewSummary {
+.resourceSummary {
   margin: 0;
-  color: rgba(248, 250, 252, 0.75);
+  color: var(--text-secondary);
   font-size: 0.9rem;
 }
 
-.whatsNewLink {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--space-2) - var(--space-1));
-  color: #f8fafc;
-  font-weight: 600;
-  text-decoration: none;
-  border-radius: var(--radius-sm);
-  padding: calc(var(--space-2) - var(--space-1)) var(--space-2);
+.resourceList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
 }
 
-.whatsNewLink:hover {
-  color: rgba(249, 115, 22, 0.95);
+.resourceItem {
+  list-style: none;
+}
+
+.resourceLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(248, 250, 252, 0.7);
+  padding: calc(var(--space-4) - var(--space-2));
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.resourceLink:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-subtle);
+  border-color: rgba(37, 99, 235, 0.28);
+}
+
+.resourceText {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.resourceLabel {
+  font-weight: 600;
+}
+
+.resourceDescription {
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+}
+
+.resourceLink svg {
+  flex-shrink: 0;
 }
 
 @keyframes home-rise {
@@ -594,13 +691,23 @@
     width: 100%;
     justify-content: flex-start;
   }
+
+  .announcementBanner {
+    align-items: flex-start;
+  }
+
+  .announcementActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 .heroBar,
 .quickActionCard,
 .dashboardCard,
 .emptyState,
-.whatsNew {
+.announcementBanner,
+.resourceCard {
   padding: var(--space-6);
 }
 
@@ -609,7 +716,12 @@
   .quickActionCard,
   .dashboardCard,
   .emptyState,
-  .whatsNew {
+  .announcementBanner,
+  .resourceCard {
+    padding: var(--space-7);
+  }
+
+  .dashboardState {
     padding: var(--space-7);
   }
 
@@ -635,14 +747,10 @@
   animation-delay: 0.12s;
 }
 
-.quickActionItem:nth-child(4) {
-  animation-delay: 0.16s;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .heroBar,
   .quickActionItem,
-  .whatsNew {
+  .announcementBanner {
     animation: none;
   }
 }

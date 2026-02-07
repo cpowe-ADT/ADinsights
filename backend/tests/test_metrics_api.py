@@ -11,6 +11,7 @@ from django.conf import settings
 
 from adapters.demo import DemoAdapter, clear_demo_seed_cache
 from adapters.fake import FakeAdapter
+from adapters.upload import UploadAdapter
 from analytics.models import TenantMetricsSnapshot
 
 
@@ -33,7 +34,7 @@ def test_adapters_endpoint_lists_enabled_adapters(api_client, user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload == [FakeAdapter().metadata()]
+    assert payload == [FakeAdapter().metadata(), UploadAdapter().metadata()]
 
 
 @pytest.fixture
@@ -51,7 +52,8 @@ def test_adapters_endpoint_includes_demo_options(api_client, user, enable_demo_a
     payload = response.json()
     demo_metadata = DemoAdapter().metadata()
     fake_metadata = FakeAdapter().metadata()
-    assert payload == [demo_metadata, fake_metadata]
+    upload_metadata = UploadAdapter().metadata()
+    assert payload == [demo_metadata, fake_metadata, upload_metadata]
     assert demo_metadata["options"]["demo_tenants"]  # type: ignore[index]
 
 

@@ -8,6 +8,7 @@ from rest_framework.schemas import get_schema_view
 from alerts.views import AlertRunViewSet
 from analytics.views import (
     AdapterListView,
+    UploadMetricsView,
     AggregateSnapshotView,
     CombinedMetricsView,
     DemoSeedView,
@@ -105,6 +106,7 @@ urlpatterns = [
         name="api-schema",
     ),
     path("api/adapters/", AdapterListView.as_view(), name="adapter-list"),
+    path("api/uploads/metrics/", UploadMetricsView.as_view(), name="metrics-upload"),
     path("api/metrics/", MetricsView.as_view(), name="metrics"),
     path("api/metrics/combined/", CombinedMetricsView.as_view(), name="metrics-combined"),
     path("api/demo/seed/", DemoSeedView.as_view(), name="demo-seed"),

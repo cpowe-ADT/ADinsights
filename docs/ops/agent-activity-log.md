@@ -2,6 +2,18 @@
 
 One-line, timestamped notes of agent-driven changes to help preserve context between sessions. Newest entries at the top.
 
+## 2026-02-05
+
+- 2026-02-05T21:33:12-0500 docs(project): add stakeholder value slide deck - Added `docs/project/adinsights-stakeholder-deck.md` with a 16-slide narrative covering audience mapping, role-specific benefits, reliability/security posture, rollout, and decision asks; indexed in doc index. Pending commit.
+- 2026-02-05T14:04:15-0500 docs(project): reconcile README + backlog status + frontend punch list — Updated README status text, marked frontend expansion backlog items done, and added MVP/Post-MVP punch list. Pending commit.
+
+## 2026-02-04
+
+- 2026-02-04T16:19:38-0500 docs(project): reconcile feature catalog + task breakdown — Updated built/in-progress/planned status and refreshed task breakdown current state/next steps after code audit. Pending commit.
+- 2026-02-04T15:53:51-0500 feat(frontend/backend): add CSV upload templates + OpenAPI path check — Added downloadable CSV templates and UI links; added OpenAPI path test for uploads and schema serializers. Pending commit.
+- 2026-02-04T15:44:14-0500 docs(runbooks): add CSV upload formats — Added `docs/runbooks/csv-uploads.md` and indexed it in doc index. Pending commit.
+- 2026-02-04T15:14:10-0500 docs(runbooks): add quick demo + smoke checklist — Added `docs/runbooks/quick-demo.md` and `docs/runbooks/demo-smoke-checklist.md`, updated doc index. Pending commit.
+
 ## 2026-02-01
 
 - 2026-02-01T04:01:41-0500 docs(project): refine finished frontend spec layout + module inventory — Added IA + module→route map, non-duplicative module feature inventory (roles/screens/components/data deps/acceptance), contract artifact index, and global non-happy-path UX standards. Pending commit.

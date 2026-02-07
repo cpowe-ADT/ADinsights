@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { MOCK_MODE } from '../lib/apiClient';
+import { MOCK_MODE, appendQueryParams } from '../lib/apiClient';
 import { clearView, loadSavedView, saveView } from '../lib/savedViews';
 import {
   fetchBudgetPacing,
@@ -20,10 +20,10 @@ import {
 import { validate } from '../lib/validate';
 import type { SchemaKey } from '../lib/validate';
 import {
-  buildMetricsFromUpload,
   clearUploadState,
   loadUploadState,
   saveUploadState,
+  buildMetricsFromUpload,
   type UploadedDataset,
 } from '../lib/uploadedMetrics';
 import { getDatasetMode, getDatasetSource, getDemoTenantId } from './useDatasetStore';
@@ -529,18 +529,6 @@ function parseTenantMetrics(snapshot: TenantMetricsSnapshot): TenantMetricsResol
   });
 }
 
-function appendQueryParams(path: string, params: Record<string, string | undefined>): string {
-  const [base, query] = path.split('?');
-  const searchParams = new URLSearchParams(query ?? '');
-  Object.entries(params).forEach(([key, value]) => {
-    if (typeof value === 'string' && value.trim()) {
-      searchParams.set(key, value);
-    }
-  });
-  const serialized = searchParams.toString();
-  return serialized ? `${base}?${serialized}` : base;
-}
-
 function withTenant(path: string, tenantId?: string): string {
   if (!tenantId) {
     return path;
@@ -766,16 +754,17 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
     const datasetMode = getDatasetMode();
     const sourceOverride = getDatasetSource();
-    const metricsSource = sourceOverride;
+    const uploadSource = uploadedActive ? 'upload' : undefined;
+    const metricsSource = uploadSource ?? sourceOverride;
     let metricsPath = withFilters(
-      withSource(withTenant('/metrics/combined/', normalizedTenantId), sourceOverride),
+      withSource(withTenant('/metrics/combined/', normalizedTenantId), metricsSource),
       filters,
     );
     if (metricsSource === 'demo') {
       metricsPath = withQueryParam(metricsPath, 'demo_tenant', getDemoTenantId());
     }
 
-    if (!MOCK_MODE && datasetMode !== 'dummy') {
+    if (!MOCK_MODE && (datasetMode !== 'dummy' || uploadedActive)) {
       try {
         const snapshot = await fetchDashboardMetrics({
           path: metricsPath,
@@ -808,7 +797,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       return;
     }
 
-    if (datasetMode === 'dummy') {
+    if (datasetMode === 'dummy' && !uploadedActive) {
       try {
         if (!MOCK_MODE && metricsSource) {
           const snapshot = await fetchDashboardMetrics({

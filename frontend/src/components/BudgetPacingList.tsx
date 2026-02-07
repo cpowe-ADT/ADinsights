@@ -1,4 +1,5 @@
 import useDashboardStore, { BudgetPacingRow } from '../state/useDashboardStore';
+import { createDefaultFilterState, serializeFilterQueryParams } from '../lib/dashboardFilters';
 import { formatCurrency, formatPercent } from '../lib/format';
 
 interface BudgetPacingListProps {
@@ -7,18 +8,36 @@ interface BudgetPacingListProps {
 }
 
 const BudgetPacingList = ({ rows, currency }: BudgetPacingListProps) => {
-  const { selectedParish } = useDashboardStore((state) => ({
+  const { selectedParish, filters, setFilters } = useDashboardStore((state) => ({
     selectedParish: state.selectedParish,
+    filters: state.filters,
+    setFilters: state.setFilters,
   }));
+
+  const hasActiveFilters =
+    serializeFilterQueryParams(filters) !== serializeFilterQueryParams(createDefaultFilterState());
 
   return (
     <div className="budget-list">
       {rows.length === 0 ? (
-        <p className="status-message muted">
-          {selectedParish
-            ? `No campaigns have pacing data for ${selectedParish} yet.`
-            : 'No campaigns have pacing data yet.'}
-        </p>
+        <div className="status-message muted">
+          <p>
+            {selectedParish
+              ? `No campaigns have pacing data for ${selectedParish} yet.`
+              : hasActiveFilters
+              ? 'No pacing rows match these filters.'
+              : 'No campaigns have pacing data yet.'}
+          </p>
+          {hasActiveFilters ? (
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => setFilters(createDefaultFilterState())}
+            >
+              Clear filters
+            </button>
+          ) : null}
+        </div>
       ) : null}
       {rows.map((row) => {
         const pacingPercent = Math.max(0, Math.min(200, row.pacingPercent * 100));

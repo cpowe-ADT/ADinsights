@@ -1,0 +1,27 @@
+{
+  "total": 3,
+  "active": 2,
+  "inactive": 1,
+  "due": 1,
+  "by_provider": {
+    "META": { "total": 1, "active": 1, "due": 0 },
+    "GOOGLE": { "total": 1, "active": 1, "due": 1 },
+    "LINKEDIN": { "total": 1, "active": 0, "due": 0 }
+  },
+  "latest_sync": {
+    "tenant_id": "1f93a8c4-42a4-4e0a-b71c-0cf1d1a9b4b2",
+    "last_synced_at": "2026-02-04T12:10:00Z",
+    "last_job_id": "1901",
+    "last_job_status": "succeeded",
+    "last_job_updated_at": "2026-02-04T12:10:00Z",
+    "last_job_completed_at": "2026-02-04T12:10:00Z",
+    "last_job_error": "",
+    "connection": {
+      "id": "6c8f2c59-4e3a-4f6c-a3bd-8d2c2b8449c1",
+      "name": "Meta Ads - Primary",
+      "connection_id": "a9a0f2f1-12d9-44c2-9ef0-824c8a1237b1",
+      "workspace_id": "e9b5b899-1a8b-48e3-8d96-2eb0e2e2c11a",
+      "provider": "META"
+    }
+  }
+}

@@ -1,6 +1,17 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 
 import EmptyState from '../components/EmptyState';
+import { useToast } from '../components/ToastProvider';
+import {
+  createAirbyteConnection,
+  createPlatformCredential,
+  loadAirbyteConnections,
+  loadAirbyteSummary,
+  triggerAirbyteSync,
+  type AirbyteConnectionRecord,
+  type AirbyteConnectionsSummary,
+} from '../lib/airbyte';
+import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
 
 const DataSourcesIcon = () => (
   <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -12,10 +23,187 @@ const DataSourcesIcon = () => (
   </svg>
 );
 
+const STATUS_THRESHOLD_MINUTES = 60;
+
+const PROVIDER_LABELS: Record<string, string> = {
+  META: 'Meta',
+  GOOGLE: 'Google Ads',
+  LINKEDIN: 'LinkedIn',
+  TIKTOK: 'TikTok',
+  UNKNOWN: 'Unknown provider',
+};
+
+const FAILURE_STATUSES = new Set(['failed', 'error', 'cancelled']);
+const RUNNING_STATUSES = new Set(['running', 'pending', 'in_progress']);
+
+type LoadStatus = 'loading' | 'loaded' | 'error';
+
+type ConnectionState = 'healthy' | 'stale' | 'paused' | 'needs-attention' | 'syncing';
+type ConnectProvider = 'META' | 'GOOGLE';
+
+interface ConnectFormState {
+  accountId: string;
+  accessToken: string;
+  refreshToken: string;
+  linkConnection: boolean;
+  connectionName: string;
+  connectionId: string;
+  workspaceId: string;
+  scheduleType: 'manual' | 'interval' | 'cron';
+  intervalMinutes: string;
+  cronExpression: string;
+  isActive: boolean;
+}
+
+const CONNECT_PROVIDER_LABELS: Record<ConnectProvider, string> = {
+  META: 'Meta (Facebook & Instagram)',
+  GOOGLE: 'Google Ads',
+};
+
+const CONNECT_PROVIDER_ACCOUNT_LABELS: Record<ConnectProvider, string> = {
+  META: 'Meta ad account ID',
+  GOOGLE: 'Google Ads customer/account ID',
+};
+
+const DEFAULT_CRON_EXPRESSION = '0 6-22 * * *';
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const buildInitialConnectForm = (provider: ConnectProvider): ConnectFormState => ({
+  accountId: '',
+  accessToken: '',
+  refreshToken: '',
+  linkConnection: false,
+  connectionName:
+    provider === 'META' ? 'Meta Metrics Connection' : 'Google Ads Metrics Connection',
+  connectionId: '',
+  workspaceId: '',
+  scheduleType: 'cron',
+  intervalMinutes: '60',
+  cronExpression: DEFAULT_CRON_EXPRESSION,
+  isActive: true,
+});
+
+const resolveProviderLabel = (provider?: string | null): string => {
+  if (!provider) {
+    return PROVIDER_LABELS.UNKNOWN;
+  }
+  return PROVIDER_LABELS[provider] ?? provider.toUpperCase();
+};
+
+const formatSchedule = (connection: AirbyteConnectionRecord): string => {
+  const scheduleType = connection.schedule_type ?? 'interval';
+  if (scheduleType === 'manual') {
+    return 'Manual';
+  }
+  if (scheduleType === 'cron') {
+    return connection.cron_expression?.trim() ? `Cron · ${connection.cron_expression}` : 'Cron schedule';
+  }
+  if (scheduleType === 'interval') {
+    const minutes = connection.interval_minutes ?? 0;
+    if (minutes >= 60 && minutes % 60 === 0) {
+      const hours = minutes / 60;
+      return `Every ${hours} hour${hours === 1 ? '' : 's'}`;
+    }
+    if (minutes > 0) {
+      return `Every ${minutes} min`;
+    }
+    return 'Interval schedule';
+  }
+  return scheduleType;
+};
+
+const resolveConnectionState = (connection: AirbyteConnectionRecord): ConnectionState => {
+  if (connection.is_active === false) {
+    return 'paused';
+  }
+
+  const statusValue = (connection.last_job_status ?? '').toLowerCase();
+  if (RUNNING_STATUSES.has(statusValue)) {
+    return 'syncing';
+  }
+  if (connection.last_job_error || FAILURE_STATUSES.has(statusValue)) {
+    return 'needs-attention';
+  }
+  if (isTimestampStale(connection.last_synced_at ?? null, STATUS_THRESHOLD_MINUTES)) {
+    return 'stale';
+  }
+  return 'healthy';
+};
+
+const resolveStateLabel = (state: ConnectionState): string => {
+  switch (state) {
+    case 'paused':
+      return 'Paused';
+    case 'needs-attention':
+      return 'Needs attention';
+    case 'stale':
+      return 'Stale';
+    case 'syncing':
+      return 'Syncing';
+    default:
+      return 'Healthy';
+  }
+};
+
+const resolveStateTone = (state: ConnectionState): 'success' | 'warning' | 'error' | 'muted' => {
+  switch (state) {
+    case 'paused':
+      return 'muted';
+    case 'needs-attention':
+      return 'error';
+    case 'stale':
+    case 'syncing':
+      return 'warning';
+    default:
+      return 'success';
+  }
+};
+
 const DataSources = () => {
   const docsUrl =
     import.meta.env.VITE_DOCS_URL?.trim() ||
     'https://github.com/cpowe-ADT/ADinsights/blob/main/docs/ops/doc-index.md';
+  const csvDocsUrl =
+    import.meta.env.VITE_DOCS_CSV_URL?.trim() ||
+    'https://github.com/cpowe-ADT/ADinsights/blob/main/docs/runbooks/csv-uploads.md';
+
+  const { pushToast } = useToast();
+  const [status, setStatus] = useState<LoadStatus>('loading');
+  const [connections, setConnections] = useState<AirbyteConnectionRecord[]>([]);
+  const [summary, setSummary] = useState<AirbyteConnectionsSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [providerFilter, setProviderFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<ConnectionState | 'all'>('all');
+  const [query, setQuery] = useState('');
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [connectProvider, setConnectProvider] = useState<ConnectProvider | null>(null);
+  const [connectForm, setConnectForm] = useState<ConnectFormState>(
+    buildInitialConnectForm('META'),
+  );
+  const [savingConnect, setSavingConnect] = useState(false);
+
+  const loadData = useCallback(async () => {
+    setStatus('loading');
+    setError(null);
+    try {
+      const [connectionsPayload, summaryPayload] = await Promise.all([
+        loadAirbyteConnections(),
+        loadAirbyteSummary(),
+      ]);
+      setConnections(connectionsPayload);
+      setSummary(summaryPayload);
+      setStatus('loaded');
+    } catch (loadError) {
+      const message = loadError instanceof Error ? loadError.message : 'Unable to load data sources.';
+      setError(message);
+      setStatus('error');
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   const handleViewDocs = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -23,17 +211,586 @@ const DataSources = () => {
     }
   }, [docsUrl]);
 
+  const handleViewCsvGuide = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.open(csvDocsUrl, '_blank', 'noopener,noreferrer');
+    }
+  }, [csvDocsUrl]);
+
+  const handleRefresh = useCallback(() => {
+    void loadData();
+  }, [loadData]);
+
+  const openConnectPanel = useCallback((provider: ConnectProvider) => {
+    setConnectProvider(provider);
+    setConnectForm(buildInitialConnectForm(provider));
+  }, []);
+
+  const closeConnectPanel = useCallback(() => {
+    setConnectProvider(null);
+    setSavingConnect(false);
+  }, []);
+
+  const handleRunNow = useCallback(
+    async (connection: AirbyteConnectionRecord) => {
+      if (!connection.id || syncingId === connection.id) {
+        return;
+      }
+      setSyncingId(connection.id);
+      try {
+        const response = await triggerAirbyteSync(connection.id);
+        const jobId = response?.job_id;
+        pushToast(
+          jobId ? `Sync triggered (job ${jobId}).` : 'Sync triggered.',
+          { tone: 'success' },
+        );
+        void loadData();
+      } catch (syncError) {
+        const message = syncError instanceof Error ? syncError.message : 'Sync failed to start.';
+        pushToast(message, { tone: 'error' });
+      } finally {
+        setSyncingId(null);
+      }
+    },
+    [loadData, pushToast, syncingId],
+  );
+
+  const handleConnectFieldChange = useCallback(
+    (field: keyof ConnectFormState, value: string | boolean) => {
+      setConnectForm((previous) => ({
+        ...previous,
+        [field]: value,
+      }));
+    },
+    [],
+  );
+
+  const handleConnectSubmit = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!connectProvider || savingConnect) {
+        return;
+      }
+
+      const accountId = connectForm.accountId.trim();
+      const accessToken = connectForm.accessToken.trim();
+      if (!accountId || !accessToken) {
+        pushToast('Account ID and access token are required.', { tone: 'error' });
+        return;
+      }
+
+      if (connectForm.linkConnection) {
+        const connectionName = connectForm.connectionName.trim();
+        const connectionId = connectForm.connectionId.trim();
+        if (!connectionName || !connectionId) {
+          pushToast('Connection name and Airbyte connection UUID are required.', {
+            tone: 'error',
+          });
+          return;
+        }
+        if (!UUID_REGEX.test(connectionId)) {
+          pushToast('Connection UUID format is invalid.', { tone: 'error' });
+          return;
+        }
+        if (connectForm.workspaceId.trim() && !UUID_REGEX.test(connectForm.workspaceId.trim())) {
+          pushToast('Workspace UUID format is invalid.', { tone: 'error' });
+          return;
+        }
+        if (connectForm.scheduleType === 'interval') {
+          const minutes = Number(connectForm.intervalMinutes);
+          if (!Number.isFinite(minutes) || minutes <= 0) {
+            pushToast('Interval minutes must be a positive number.', { tone: 'error' });
+            return;
+          }
+        }
+        if (connectForm.scheduleType === 'cron' && !connectForm.cronExpression.trim()) {
+          pushToast('Cron expression is required for cron schedule.', { tone: 'error' });
+          return;
+        }
+      }
+
+      setSavingConnect(true);
+      try {
+        await createPlatformCredential({
+          provider: connectProvider,
+          account_id: accountId,
+          access_token: accessToken,
+          refresh_token: connectForm.refreshToken.trim() || null,
+        });
+
+        if (connectForm.linkConnection) {
+          const scheduleType = connectForm.scheduleType;
+          const payload = {
+            name: connectForm.connectionName.trim(),
+            connection_id: connectForm.connectionId.trim(),
+            workspace_id: connectForm.workspaceId.trim() || null,
+            provider: connectProvider,
+            schedule_type: scheduleType,
+            is_active: connectForm.isActive,
+            interval_minutes:
+              scheduleType === 'interval' ? Number(connectForm.intervalMinutes) : null,
+            cron_expression:
+              scheduleType === 'cron' ? connectForm.cronExpression.trim() : '',
+          } as const;
+          await createAirbyteConnection(payload);
+        }
+
+        pushToast(
+          connectForm.linkConnection
+            ? `${CONNECT_PROVIDER_LABELS[connectProvider]} connected and linked.`
+            : `${CONNECT_PROVIDER_LABELS[connectProvider]} credentials saved.`,
+          { tone: 'success' },
+        );
+        closeConnectPanel();
+        void loadData();
+      } catch (connectError) {
+        const message =
+          connectError instanceof Error ? connectError.message : 'Connection setup failed.';
+        pushToast(message, { tone: 'error' });
+      } finally {
+        setSavingConnect(false);
+      }
+    },
+    [
+      closeConnectPanel,
+      connectForm,
+      connectProvider,
+      loadData,
+      pushToast,
+      savingConnect,
+    ],
+  );
+
+  const providerOptions = useMemo(() => {
+    const providers = new Set<string>();
+    connections.forEach((connection) => {
+      providers.add(connection.provider ?? 'UNKNOWN');
+    });
+    return Array.from(providers)
+      .map((provider) => ({
+        value: provider,
+        label: resolveProviderLabel(provider),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+  }, [connections]);
+
+  const filteredConnections = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return connections.filter((connection) => {
+      const provider = connection.provider ?? 'UNKNOWN';
+      if (providerFilter !== 'all' && provider !== providerFilter) {
+        return false;
+      }
+      const state = resolveConnectionState(connection);
+      if (statusFilter !== 'all' && state !== statusFilter) {
+        return false;
+      }
+      if (!normalizedQuery) {
+        return true;
+      }
+      const haystack = `${connection.name ?? ''} ${provider}`.toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [connections, providerFilter, query, statusFilter]);
+
+  const latestSyncLabel = useMemo(() => {
+    const lastSyncedAt = summary?.latest_sync?.last_synced_at;
+    if (!lastSyncedAt) {
+      return 'No sync yet';
+    }
+    return formatRelativeTime(lastSyncedAt) ?? 'No sync yet';
+  }, [summary?.latest_sync?.last_synced_at]);
+
+  const latestSyncTimestamp = useMemo(() => {
+    const lastSyncedAt = summary?.latest_sync?.last_synced_at;
+    return lastSyncedAt ? formatAbsoluteTime(lastSyncedAt) : null;
+  }, [summary?.latest_sync?.last_synced_at]);
+
+  const summaryCounts = useMemo(() => {
+    if (summary) {
+      return summary;
+    }
+    const total = connections.length;
+    const active = connections.filter((connection) => connection.is_active !== false).length;
+    return {
+      total,
+      active,
+      inactive: total - active,
+      due: connections.filter((connection) => resolveConnectionState(connection) === 'stale').length,
+      by_provider: {},
+    };
+  }, [connections, summary]);
+
+  const hasConnections = connections.length > 0;
+  const hasFiltered = filteredConnections.length > 0;
+
   return (
     <div className="dashboard-grid single-panel">
-      <section className="panel full-width">
-        <EmptyState
-          icon={<DataSourcesIcon />}
-          title="Connect your data sources"
-          message="Source configuration lives in Airbyte and the operations runbook. Use the setup guide to connect Meta and Google Ads."
-          actionLabel="Open setup guide"
-          actionVariant="secondary"
-          onAction={handleViewDocs}
-        />
+      <section className="panel full-width data-sources-panel">
+        <header className="panel-header">
+          <div className="panel-header__title-row">
+            <h2>Data sources</h2>
+            {latestSyncTimestamp ? (
+              <span className="status-pill muted" title={latestSyncTimestamp}>
+                Latest sync {latestSyncLabel}
+              </span>
+            ) : null}
+          </div>
+          <p className="status-message muted">
+            Monitor connection health, schedules, and recent sync activity.
+          </p>
+        </header>
+
+        <div className="data-sources-summary">
+          <div className="summary-card">
+            <p className="summary-card__label">Total connections</p>
+            <p className="summary-card__value">{summaryCounts.total}</p>
+          </div>
+          <div className="summary-card">
+            <p className="summary-card__label">Active</p>
+            <p className="summary-card__value">{summaryCounts.active}</p>
+          </div>
+          <div className="summary-card">
+            <p className="summary-card__label">Paused</p>
+            <p className="summary-card__value">{summaryCounts.inactive}</p>
+          </div>
+          <div className="summary-card">
+            <p className="summary-card__label">Due for sync</p>
+            <p className="summary-card__value">{summaryCounts.due}</p>
+          </div>
+        </div>
+
+        <div className="data-sources-controls">
+          <label className="dashboard-field">
+            <span className="dashboard-field__label">Provider</span>
+            <select value={providerFilter} onChange={(event) => setProviderFilter(event.target.value)}>
+              <option value="all">All providers</option>
+              {providerOptions.map((provider) => (
+                <option key={provider.value} value={provider.value}>
+                  {provider.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="dashboard-field">
+            <span className="dashboard-field__label">Status</span>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as ConnectionState | 'all')}
+            >
+              <option value="all">All statuses</option>
+              <option value="healthy">Healthy</option>
+              <option value="stale">Stale</option>
+              <option value="syncing">Syncing</option>
+              <option value="needs-attention">Needs attention</option>
+              <option value="paused">Paused</option>
+            </select>
+          </label>
+          <label className="dashboard-field data-sources-search">
+            <span className="dashboard-field__label">Search</span>
+            <input
+              type="search"
+              placeholder="Search by name"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <div className="data-sources-actions">
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => openConnectPanel('META')}
+            >
+              Connect Meta
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => openConnectPanel('GOOGLE')}
+            >
+              Connect Google Ads
+            </button>
+            <button type="button" className="button secondary" onClick={handleRefresh}>
+              Refresh
+            </button>
+            <button type="button" className="button tertiary" onClick={handleViewDocs}>
+              Open runbook
+            </button>
+            <button type="button" className="button tertiary" onClick={handleViewCsvGuide}>
+              CSV format guide
+            </button>
+          </div>
+        </div>
+
+        <p className="status-message muted">
+          Quick connect supports Meta (Facebook/Instagram) and Google Ads credentials. Google
+          Analytics (GA4) direct connector is not available in this release.
+        </p>
+
+        {connectProvider ? (
+          <form className="data-sources-connect-form" onSubmit={handleConnectSubmit}>
+            <header className="data-sources-connect-form__header">
+              <div>
+                <h3>{`Connect ${CONNECT_PROVIDER_LABELS[connectProvider]}`}</h3>
+                <p className="status-message muted">
+                  Save API credentials and optionally link an existing Airbyte connection record.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="button tertiary"
+                onClick={closeConnectPanel}
+                disabled={savingConnect}
+              >
+                Cancel
+              </button>
+            </header>
+
+            <div className="data-sources-connect-form__grid">
+              <label className="dashboard-field">
+                <span className="dashboard-field__label">
+                  {CONNECT_PROVIDER_ACCOUNT_LABELS[connectProvider]}
+                </span>
+                <input
+                  type="text"
+                  value={connectForm.accountId}
+                  onChange={(event) => handleConnectFieldChange('accountId', event.target.value)}
+                  placeholder={connectProvider === 'META' ? 'act_123456789' : '1234567890'}
+                  required
+                />
+              </label>
+
+              <label className="dashboard-field">
+                <span className="dashboard-field__label">Access token</span>
+                <input
+                  type="password"
+                  value={connectForm.accessToken}
+                  onChange={(event) => handleConnectFieldChange('accessToken', event.target.value)}
+                  autoComplete="off"
+                  required
+                />
+              </label>
+
+              <label className="dashboard-field">
+                <span className="dashboard-field__label">
+                  Refresh token (optional)
+                </span>
+                <input
+                  type="password"
+                  value={connectForm.refreshToken}
+                  onChange={(event) => handleConnectFieldChange('refreshToken', event.target.value)}
+                  autoComplete="off"
+                />
+              </label>
+
+              <label className="dashboard-field data-sources-checkbox-field">
+                <span className="dashboard-field__label">Also link Airbyte connection</span>
+                <div className="data-sources-checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={connectForm.linkConnection}
+                    onChange={(event) =>
+                      handleConnectFieldChange('linkConnection', event.target.checked)
+                    }
+                  />
+                  <span>Create/update a local Airbyte connection record now</span>
+                </div>
+              </label>
+            </div>
+
+            {connectForm.linkConnection ? (
+              <div className="data-sources-connect-form__grid">
+                <label className="dashboard-field">
+                  <span className="dashboard-field__label">Connection name</span>
+                  <input
+                    type="text"
+                    value={connectForm.connectionName}
+                    onChange={(event) =>
+                      handleConnectFieldChange('connectionName', event.target.value)
+                    }
+                    placeholder="Meta Metrics Connection"
+                    required
+                  />
+                </label>
+                <label className="dashboard-field">
+                  <span className="dashboard-field__label">Airbyte connection UUID</span>
+                  <input
+                    type="text"
+                    value={connectForm.connectionId}
+                    onChange={(event) =>
+                      handleConnectFieldChange('connectionId', event.target.value)
+                    }
+                    placeholder="11111111-1111-1111-1111-111111111111"
+                    required
+                  />
+                </label>
+                <label className="dashboard-field">
+                  <span className="dashboard-field__label">Airbyte workspace UUID (optional)</span>
+                  <input
+                    type="text"
+                    value={connectForm.workspaceId}
+                    onChange={(event) =>
+                      handleConnectFieldChange('workspaceId', event.target.value)
+                    }
+                    placeholder="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+                  />
+                </label>
+                <label className="dashboard-field">
+                  <span className="dashboard-field__label">Schedule type</span>
+                  <select
+                    value={connectForm.scheduleType}
+                    onChange={(event) =>
+                      handleConnectFieldChange(
+                        'scheduleType',
+                        event.target.value as ConnectFormState['scheduleType'],
+                      )
+                    }
+                  >
+                    <option value="manual">Manual</option>
+                    <option value="interval">Interval</option>
+                    <option value="cron">Cron</option>
+                  </select>
+                </label>
+                {connectForm.scheduleType === 'interval' ? (
+                  <label className="dashboard-field">
+                    <span className="dashboard-field__label">Interval minutes</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={connectForm.intervalMinutes}
+                      onChange={(event) =>
+                        handleConnectFieldChange('intervalMinutes', event.target.value)
+                      }
+                      required
+                    />
+                  </label>
+                ) : null}
+                {connectForm.scheduleType === 'cron' ? (
+                  <label className="dashboard-field">
+                    <span className="dashboard-field__label">Cron expression</span>
+                    <input
+                      type="text"
+                      value={connectForm.cronExpression}
+                      onChange={(event) =>
+                        handleConnectFieldChange('cronExpression', event.target.value)
+                      }
+                      required
+                    />
+                  </label>
+                ) : null}
+                <label className="dashboard-field data-sources-checkbox-field">
+                  <span className="dashboard-field__label">Active</span>
+                  <div className="data-sources-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={connectForm.isActive}
+                      onChange={(event) =>
+                        handleConnectFieldChange('isActive', event.target.checked)
+                      }
+                    />
+                    <span>Enable this connection immediately</span>
+                  </div>
+                </label>
+              </div>
+            ) : null}
+
+            <div className="data-sources-connect-form__actions">
+              <button
+                type="submit"
+                className="button secondary"
+                disabled={savingConnect}
+                aria-busy={savingConnect}
+              >
+                {savingConnect ? 'Saving…' : 'Save connection'}
+              </button>
+            </div>
+          </form>
+        ) : null}
+
+        {status === 'loading' ? <p className="status-message muted">Loading connections…</p> : null}
+        {status === 'error' ? (
+          <EmptyState
+            icon={<DataSourcesIcon />}
+            title="Unable to load data sources"
+            message={error ?? 'Check the Airbyte service and try again.'}
+            actionLabel="Retry"
+            actionVariant="secondary"
+            onAction={handleRefresh}
+          />
+        ) : null}
+        {status === 'loaded' && !hasConnections ? (
+          <EmptyState
+            icon={<DataSourcesIcon />}
+            title="No sources connected"
+            message="Connect Meta, Google, or other sources in Airbyte to begin syncing metrics."
+            actionLabel="Open setup guide"
+            actionVariant="secondary"
+            onAction={handleViewDocs}
+            secondaryActionLabel="CSV format guide"
+            onSecondaryAction={handleViewCsvGuide}
+          />
+        ) : null}
+        {status === 'loaded' && hasConnections ? (
+          <div className="data-sources-list">
+            {!hasFiltered ? (
+              <p className="status-message muted">No connections match these filters.</p>
+            ) : null}
+            {filteredConnections.map((connection) => {
+              const state = resolveConnectionState(connection);
+              const tone = resolveStateTone(state);
+              const lastSyncedLabel =
+                formatRelativeTime(connection.last_synced_at ?? null) ?? 'Never synced';
+              const lastSyncedAbsolute = formatAbsoluteTime(connection.last_synced_at ?? null);
+              const providerLabel = resolveProviderLabel(connection.provider);
+              const scheduleLabel = formatSchedule(connection);
+              const isSyncing = syncingId === connection.id;
+
+              return (
+                <article key={connection.id} className="data-source-card">
+                  <div className="data-source-card__header">
+                    <div>
+                      <h3>{connection.name}</h3>
+                      <p className="muted">{providerLabel}</p>
+                    </div>
+                    <span className={`status-pill ${tone}`}>{resolveStateLabel(state)}</span>
+                  </div>
+                  <div className="data-source-card__meta">
+                    <div>
+                      <p className="status-message muted">Schedule</p>
+                      <p>{scheduleLabel}</p>
+                    </div>
+                    <div>
+                      <p className="status-message muted">Last sync</p>
+                      <p title={lastSyncedAbsolute ?? undefined}>{lastSyncedLabel}</p>
+                    </div>
+                    <div>
+                      <p className="status-message muted">Last job</p>
+                      <p>{connection.last_job_status || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="status-message muted">Workspace</p>
+                      <p>{connection.workspace_id ?? '—'}</p>
+                    </div>
+                  </div>
+                  {connection.last_job_error ? (
+                    <p className="status-message error">{connection.last_job_error}</p>
+                  ) : null}
+                  <div className="data-source-card__actions">
+                    <button
+                      type="button"
+                      className="button secondary"
+                      onClick={() => void handleRunNow(connection)}
+                      disabled={connection.is_active === false || isSyncing}
+                      aria-busy={isSyncing}
+                    >
+                      {isSyncing ? 'Starting sync…' : 'Run now'}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : null}
       </section>
     </div>
   );
