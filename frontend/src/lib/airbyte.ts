@@ -21,6 +21,34 @@ export interface AirbyteConnectionRecord {
   updated_at?: string | null;
 }
 
+export interface PlatformCredentialRecord {
+  id: string;
+  provider: string;
+  account_id: string;
+  expires_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface CreatePlatformCredentialPayload {
+  provider: 'META' | 'GOOGLE' | 'LINKEDIN' | 'TIKTOK';
+  account_id: string;
+  access_token: string;
+  refresh_token?: string | null;
+  expires_at?: string | null;
+}
+
+export interface CreateAirbyteConnectionPayload {
+  name: string;
+  connection_id: string;
+  workspace_id?: string | null;
+  provider: 'META' | 'GOOGLE' | 'LINKEDIN' | 'TIKTOK';
+  schedule_type: 'manual' | 'interval' | 'cron';
+  interval_minutes?: number | null;
+  cron_expression?: string;
+  is_active?: boolean;
+}
+
 export interface AirbyteConnectionSummaryCounts {
   total: number;
   active: number;
@@ -78,4 +106,16 @@ export async function loadAirbyteSummary(
 
 export async function triggerAirbyteSync(connectionId: string): Promise<{ job_id?: string | null }> {
   return apiClient.post<{ job_id?: string | null }>(`${CONNECTIONS_ENDPOINT}${connectionId}/sync/`);
+}
+
+export async function createPlatformCredential(
+  payload: CreatePlatformCredentialPayload,
+): Promise<PlatformCredentialRecord> {
+  return apiClient.post<PlatformCredentialRecord>('/platform-credentials/', payload);
+}
+
+export async function createAirbyteConnection(
+  payload: CreateAirbyteConnectionPayload,
+): Promise<AirbyteConnectionRecord> {
+  return apiClient.post<AirbyteConnectionRecord>(CONNECTIONS_ENDPOINT, payload);
 }
