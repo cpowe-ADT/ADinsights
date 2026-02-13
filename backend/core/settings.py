@@ -40,6 +40,29 @@ env = environ.Env(
     SES_CONFIGURATION_SET=(str, ""),
     SES_EXPECTED_FROM_DOMAIN=(str, ""),
     FRONTEND_BASE_URL=(str, "http://localhost:5173"),
+    META_APP_ID=(str, ""),
+    META_APP_SECRET=(str, ""),
+    META_OAUTH_REDIRECT_URI=(str, ""),
+    META_OAUTH_SCOPES=(
+        list,
+        ["pages_show_list", "pages_read_engagement", "pages_read_user_content"],
+    ),
+    META_GRAPH_API_VERSION=(str, "v20.0"),
+    GOOGLE_OAUTH_CLIENT_ID=(str, ""),
+    GOOGLE_OAUTH_CLIENT_SECRET=(str, ""),
+    GOOGLE_OAUTH_REDIRECT_URI=(str, ""),
+    GOOGLE_OAUTH_SCOPES_GOOGLE_ADS=(
+        list,
+        ["https://www.googleapis.com/auth/adwords"],
+    ),
+    GOOGLE_OAUTH_SCOPES_GA4=(
+        list,
+        ["https://www.googleapis.com/auth/analytics.readonly"],
+    ),
+    GOOGLE_OAUTH_SCOPES_SEARCH_CONSOLE=(
+        list,
+        ["https://www.googleapis.com/auth/webmasters.readonly"],
+    ),
     CORS_ALLOW_ALL_ORIGINS=(bool, False),
     CORS_ALLOWED_ORIGINS=(list, []),
     CORS_ALLOWED_METHODS=(
@@ -258,6 +281,29 @@ AIRBYTE_PASSWORD = _optional(env("AIRBYTE_PASSWORD", default=None))
 AIRBYTE_WEBHOOK_SECRET = _optional(env("AIRBYTE_WEBHOOK_SECRET", default=None))
 AIRBYTE_WEBHOOK_SECRET_REQUIRED = env.bool("AIRBYTE_WEBHOOK_SECRET_REQUIRED", default=True)
 LLM_API_URL = _optional(env("LLM_API_URL", default=None))
+META_APP_ID = _optional(env("META_APP_ID", default=None))
+META_APP_SECRET = _optional(env("META_APP_SECRET", default=None))
+META_OAUTH_REDIRECT_URI = _optional(env("META_OAUTH_REDIRECT_URI", default=None))
+META_OAUTH_SCOPES = env.list("META_OAUTH_SCOPES")
+META_GRAPH_API_VERSION = env("META_GRAPH_API_VERSION", default="v20.0")
+GOOGLE_OAUTH_CLIENT_ID = _optional(env("GOOGLE_OAUTH_CLIENT_ID", default=None))
+GOOGLE_OAUTH_CLIENT_SECRET = _optional(env("GOOGLE_OAUTH_CLIENT_SECRET", default=None))
+GOOGLE_OAUTH_REDIRECT_URI = _optional(env("GOOGLE_OAUTH_REDIRECT_URI", default=None))
+GOOGLE_OAUTH_SCOPES_GOOGLE_ADS = env.list("GOOGLE_OAUTH_SCOPES_GOOGLE_ADS")
+GOOGLE_OAUTH_SCOPES_GA4 = env.list("GOOGLE_OAUTH_SCOPES_GA4")
+GOOGLE_OAUTH_SCOPES_SEARCH_CONSOLE = env.list("GOOGLE_OAUTH_SCOPES_SEARCH_CONSOLE")
+AIRBYTE_DEFAULT_WORKSPACE_ID = _optional(env("AIRBYTE_DEFAULT_WORKSPACE_ID", default=None))
+AIRBYTE_DEFAULT_DESTINATION_ID = _optional(env("AIRBYTE_DEFAULT_DESTINATION_ID", default=None))
+AIRBYTE_SOURCE_DEFINITION_GA4 = _optional(env("AIRBYTE_SOURCE_DEFINITION_GA4", default=None))
+AIRBYTE_SOURCE_DEFINITION_SEARCH_CONSOLE = _optional(
+    env("AIRBYTE_SOURCE_DEFINITION_SEARCH_CONSOLE", default=None)
+)
+AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN = _optional(
+    env("AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN", default=None)
+)
+AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID = _optional(
+    env("AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID", default=None)
+)
 LLM_API_KEY = _optional(env("LLM_API_KEY", default=None))
 LLM_MODEL = env("LLM_MODEL", default="gpt-5.1")
 LLM_TIMEOUT = env.float("LLM_TIMEOUT")

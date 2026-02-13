@@ -100,6 +100,53 @@ Rate limiting is enforced for unauthenticated/auth flows:
 
 When thresholds are exceeded these endpoints return HTTP `429`.
 
+## Meta (Facebook) Page Connect
+
+The Data Sources page supports a Meta OAuth flow to connect Facebook pages without manually pasting
+tokens. Configure:
+
+- `META_APP_ID`
+- `META_APP_SECRET`
+- `META_OAUTH_REDIRECT_URI` (optional; defaults to `${FRONTEND_BASE_URL}/dashboards/data-sources`)
+- `META_OAUTH_SCOPES` (comma-separated)
+- `META_GRAPH_API_VERSION` (defaults to `v20.0`)
+
+The backend exchanges the OAuth code server-side, caches selectable page tokens for a short window,
+and persists only the selected page token as an encrypted tenant-scoped platform credential.
+
+## Google Connector OAuth (Ads + GA4 + Search Console)
+
+Google-family connectors use OAuth plus tenant-scoped credential storage. Configure:
+
+- `GOOGLE_OAUTH_CLIENT_ID`
+- `GOOGLE_OAUTH_CLIENT_SECRET`
+- `GOOGLE_OAUTH_REDIRECT_URI`
+- `GOOGLE_OAUTH_SCOPES_GOOGLE_ADS`
+- `GOOGLE_OAUTH_SCOPES_GA4`
+- `GOOGLE_OAUTH_SCOPES_SEARCH_CONSOLE`
+
+Optional Airbyte defaults for auto-provisioning from the Data Sources UI:
+
+- `AIRBYTE_DEFAULT_WORKSPACE_ID`
+- `AIRBYTE_DEFAULT_DESTINATION_ID`
+- `AIRBYTE_SOURCE_DEFINITION_GA4`
+- `AIRBYTE_SOURCE_DEFINITION_SEARCH_CONSOLE`
+- `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`
+- `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID`
+
+Connector lifecycle APIs:
+
+- `POST /api/integrations/{provider}/oauth/start/`
+- `POST /api/integrations/{provider}/oauth/callback/`
+- `POST /api/integrations/{provider}/reconnect/`
+- `POST /api/integrations/{provider}/disconnect/`
+- `POST /api/integrations/{provider}/provision/`
+- `POST /api/integrations/{provider}/sync/`
+- `GET /api/integrations/{provider}/status/`
+- `GET /api/integrations/{provider}/jobs/`
+
+Supported provider slugs: `facebook_pages`, `meta_ads`, `google_ads`, `ga4`, `search_console`.
+
 ## Containers
 
 Dockerfiles are provided for parity with the deploy stack.

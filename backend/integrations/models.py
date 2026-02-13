@@ -18,11 +18,15 @@ from core.crypto.fields import decrypt_value, encrypt_value
 class PlatformCredential(models.Model):
     META = "META"
     GOOGLE = "GOOGLE"
+    GA4 = "GA4"
+    SEARCH_CONSOLE = "SEARCH_CONSOLE"
     LINKEDIN = "LINKEDIN"
     TIKTOK = "TIKTOK"
     PROVIDER_CHOICES = [
         (META, "Meta"),
         (GOOGLE, "Google Ads"),
+        (GA4, "Google Analytics 4"),
+        (SEARCH_CONSOLE, "Google Search Console"),
         (LINKEDIN, "LinkedIn"),
         (TIKTOK, "TikTok"),
     ]

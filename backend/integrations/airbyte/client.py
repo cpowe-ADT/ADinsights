@@ -51,6 +51,14 @@ class AirbyteClient:
     def close(self) -> None:
         self._client.close()
 
+    def _post(self, path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            response = self._client.post(path, json=payload)
+            response.raise_for_status()
+        except httpx.HTTPError as exc:  # pragma: no cover - httpx provides detail
+            raise AirbyteClientError(f"Airbyte API request to {path} failed: {exc}") from exc
+        return response.json()
+
     @classmethod
     def from_settings(cls) -> "AirbyteClient":
         base_url = getattr(settings, "AIRBYTE_API_URL", None)
@@ -68,43 +76,57 @@ class AirbyteClient:
     def trigger_sync(self, connection_id: str) -> Dict[str, Any]:
         """Start a sync job for the given connection."""
 
-        try:
-            response = self._client.post("/api/v1/connections/sync", json={"connectionId": connection_id})
-            response.raise_for_status()
-        except httpx.HTTPError as exc:  # pragma: no cover - httpx provides detail
-            raise AirbyteClientError(f"Failed to trigger sync for {connection_id}: {exc}") from exc
-        payload = response.json()
+        payload = self._post("/api/v1/connections/sync", {"connectionId": connection_id})
         logger.debug("Triggered Airbyte sync", extra={"connection_id": connection_id, "response": payload})
         return payload
 
     def get_job(self, job_id: int) -> Dict[str, Any]:
         """Retrieve a job by identifier."""
-
-        try:
-            response = self._client.post("/api/v1/jobs/get", json={"id": job_id})
-            response.raise_for_status()
-        except httpx.HTTPError as exc:  # pragma: no cover - httpx provides detail
-            raise AirbyteClientError(f"Failed to fetch job {job_id}: {exc}") from exc
-        payload = response.json()
+        payload = self._post("/api/v1/jobs/get", {"id": job_id})
         logger.debug("Fetched Airbyte job", extra={"job_id": job_id, "response": payload})
         return payload
 
     def latest_job(self, connection_id: str) -> Optional[Dict[str, Any]]:
         """Return the most recent job for the connection, if available."""
 
-        try:
-            response = self._client.post(
-                "/api/v1/jobs/list",
-                json={
-                    "configTypes": ["sync"],
-                    "connectionId": connection_id,
-                    "pagination": {"pageSize": 1},
-                },
-            )
-            response.raise_for_status()
-        except httpx.HTTPError as exc:  # pragma: no cover - httpx provides detail
-            raise AirbyteClientError(f"Failed to list jobs for {connection_id}: {exc}") from exc
-        payload: Dict[str, Any] = response.json()
+        payload = self._post(
+            "/api/v1/jobs/list",
+            {
+                "configTypes": ["sync"],
+                "connectionId": connection_id,
+                "pagination": {"pageSize": 1},
+            },
+        )
         jobs = payload.get("jobs", [])
         return jobs[0] if jobs else None
 
+    def list_sources(self, workspace_id: str) -> list[Dict[str, Any]]:
+        payload = self._post("/api/v1/sources/list", {"workspaceId": workspace_id})
+        sources = payload.get("sources") or []
+        return [source for source in sources if isinstance(source, dict)]
+
+    def create_source(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        response = self._post("/api/v1/sources/create", payload)
+        source = response.get("source")
+        return source if isinstance(source, dict) else response
+
+    def check_source(self, source_id: str) -> Dict[str, Any]:
+        return self._post("/api/v1/sources/check_connection", {"sourceId": source_id})
+
+    def discover_source_schema(self, source_id: str) -> Dict[str, Any]:
+        return self._post("/api/v1/sources/discover_schema", {"sourceId": source_id})
+
+    def list_connections(self, workspace_id: str) -> list[Dict[str, Any]]:
+        payload = self._post("/api/v1/connections/list", {"workspaceId": workspace_id})
+        connections = payload.get("connections") or []
+        return [connection for connection in connections if isinstance(connection, dict)]
+
+    def get_connection(self, connection_id: str) -> Dict[str, Any]:
+        payload = self._post("/api/v1/connections/get", {"connectionId": connection_id})
+        connection = payload.get("connection")
+        return connection if isinstance(connection, dict) else payload
+
+    def create_connection(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        response = self._post("/api/v1/connections/create", payload)
+        connection = response.get("connection")
+        return connection if isinstance(connection, dict) else response

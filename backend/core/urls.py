@@ -42,6 +42,17 @@ from integrations.views import (
     AirbyteWebhookView,
     AlertRuleDefinitionViewSet,
     CampaignBudgetViewSet,
+    IntegrationDisconnectView,
+    IntegrationJobsView,
+    IntegrationOAuthCallbackView,
+    IntegrationReconnectView,
+    IntegrationOAuthStartView,
+    IntegrationProvisionView,
+    IntegrationStatusView,
+    IntegrationSyncView,
+    MetaOAuthExchangeView,
+    MetaOAuthStartView,
+    MetaPageConnectView,
     PlatformCredentialViewSet,
 )
 from . import views as core_views
@@ -126,6 +137,61 @@ urlpatterns = [
         name="api-schema",
     ),
     path("api/adapters/", AdapterListView.as_view(), name="adapter-list"),
+    path(
+        "api/integrations/meta/oauth/start/",
+        MetaOAuthStartView.as_view(),
+        name="meta-oauth-start",
+    ),
+    path(
+        "api/integrations/meta/oauth/exchange/",
+        MetaOAuthExchangeView.as_view(),
+        name="meta-oauth-exchange",
+    ),
+    path(
+        "api/integrations/meta/pages/connect/",
+        MetaPageConnectView.as_view(),
+        name="meta-page-connect",
+    ),
+    path(
+        "api/integrations/<str:provider>/oauth/start/",
+        IntegrationOAuthStartView.as_view(),
+        name="integration-oauth-start",
+    ),
+    path(
+        "api/integrations/<str:provider>/oauth/callback/",
+        IntegrationOAuthCallbackView.as_view(),
+        name="integration-oauth-callback",
+    ),
+    path(
+        "api/integrations/<str:provider>/reconnect/",
+        IntegrationReconnectView.as_view(),
+        name="integration-reconnect",
+    ),
+    path(
+        "api/integrations/<str:provider>/disconnect/",
+        IntegrationDisconnectView.as_view(),
+        name="integration-disconnect",
+    ),
+    path(
+        "api/integrations/<str:provider>/provision/",
+        IntegrationProvisionView.as_view(),
+        name="integration-provision",
+    ),
+    path(
+        "api/integrations/<str:provider>/sync/",
+        IntegrationSyncView.as_view(),
+        name="integration-sync",
+    ),
+    path(
+        "api/integrations/<str:provider>/status/",
+        IntegrationStatusView.as_view(),
+        name="integration-status",
+    ),
+    path(
+        "api/integrations/<str:provider>/jobs/",
+        IntegrationJobsView.as_view(),
+        name="integration-jobs",
+    ),
     path(
         "api/dashboards/library/",
         DashboardLibraryView.as_view(),
