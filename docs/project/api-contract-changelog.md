@@ -11,6 +11,11 @@ Keep this brief and link to PRs or commits when available.
 - **Owner**
 
 ## Entries
+- **2026-02-08**
+  - Endpoint: `POST /api/integrations/{provider}/oauth/start/`, `POST /api/integrations/{provider}/oauth/callback/`, `POST /api/integrations/{provider}/reconnect/`, `POST /api/integrations/{provider}/disconnect/`, `POST /api/integrations/{provider}/provision/`, `POST /api/integrations/{provider}/sync/`, `GET /api/integrations/{provider}/status/`, `GET /api/integrations/{provider}/jobs/`
+  - Change: Added provider-generic connector lifecycle APIs for `facebook_pages`, `meta_ads`, `google_ads`, `ga4`, and `search_console`, including reconnect/disconnect controls and recent job history.
+  - Impact: Data Sources UI now supports OAuth-based connect plus tenant-scoped Airbyte provisioning/sync/status checks, re-auth/disconnect actions, and sync job visibility.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend)
 - **2026-02-06**
   - Endpoint: `GET /api/dashboards/library/`
   - Change: Added dashboard library API endpoint to replace frontend mock data and include saved report-backed items.

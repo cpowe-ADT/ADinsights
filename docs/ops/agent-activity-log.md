@@ -23,6 +23,10 @@ One-line, timestamped notes of agent-driven changes to help preserve context bet
 - 2026-02-01T03:18:02-0500 docs(project): record frontend spec approval + add review checklist — Marked spec approved, added review checklist template, expanded Post-MVP sprint picks, and updated backlog/ownership map. Pending commit.
 - 2026-02-01T03:06:54-0500 docs(project): add finished frontend spec + sprint picks — Added `docs/project/frontend-finished-product-spec.md`, wired into task/workstream/backlog docs, updated doc index, and logged review request for Lina/Joel. Pending commit.
 
+## 2026-02-07
+
+- 2026-02-07T19:08:27-0500 docs(runbooks): add external execution command pack — Added `docs/runbooks/external-actions-execution-checklist.md` with copy/paste commands for `S7-D`, `P1-X1`, `P1-X2`, `P1-X4`, `P1-X9`, and `P1-X5-signoff`; linked from `docs/runbooks/external-actions-aws.md` and indexed in `docs/ops/doc-index.md`. Pending commit.
+
 ## 2026-01-20
 
 - 2026-01-20T23:31:00-0500 docs(ops): add observability runbooks + log schema guidance — Added alert thresholds/escalation runbook, metrics scrape validation steps, observability stability tests checklist, and log schema/cardinality guidance; updated doc index and alerting runbook links. Pending commit.

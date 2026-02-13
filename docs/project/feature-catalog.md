@@ -30,6 +30,7 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Dataset toggle (default live), snapshot freshness banner, tenant switcher, global filters.
 - Campaign/creative detail routes with saved layout + share links.
 - Data sources management UI and CSV upload wizard.
+- Data Sources connector status cards and provider actions (Connect, Run initial sync, View sync health).
 - Dashboard library API integration (`/api/dashboards/library/`).
 - Post-MVP operations and productivity routes:
   - `/ops/sync-health`
@@ -44,6 +45,15 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Airbyte infrastructure and declarative source templates.
 - Airbyte telemetry endpoints and health checks.
 - Airbyte connection lifecycle APIs (list/create/update/sync) + summary endpoint.
+- Provider-generic connector lifecycle APIs:
+  - `POST /api/integrations/{provider}/oauth/start/`
+  - `POST /api/integrations/{provider}/oauth/callback/`
+  - `POST /api/integrations/{provider}/reconnect/`
+  - `POST /api/integrations/{provider}/disconnect/`
+  - `POST /api/integrations/{provider}/provision/`
+  - `POST /api/integrations/{provider}/sync/`
+  - `GET /api/integrations/{provider}/status/`
+  - `GET /api/integrations/{provider}/jobs/`
 - Production readiness verifier for Meta/Google connection credentials and tenant config sanity.
 - Canonical integration data-contract matrix (Meta/Google/GA4/Search Console/CSV) plus automated contract gate script.
 - Phase 2 pilot source templates for GA4 + Search Console with env-driven placeholders.

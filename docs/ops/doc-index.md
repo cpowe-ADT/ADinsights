@@ -63,6 +63,7 @@ Working rules to restate every session:
 | docs/project/api-contract-changelog.md | API payload change log | API schema changes | docs/workstreams.md, frontend/README.md |
 | docs/runbooks/release-checklist.md | Release readiness checklist | Release process changes | docs/runbooks/deployment.md |
 | docs/runbooks/external-actions-aws.md | Canonical operator-owned AWS action register for production readiness | Any external prerequisite, owner, deadline, or evidence-path change | docs/runbooks/deployment.md, docs/project/phase1-execution-backlog.md |
+| docs/runbooks/external-actions-execution-checklist.md | Copy/paste command checklist for executing external AWS/provider actions (`S7-D`, `P1-X1`, `P1-X2`, `P1-X4`, `P1-X9`, `P1-X5-signoff`) | Any command flow, evidence path, or owner-step changes | docs/runbooks/external-actions-aws.md, docs/runbooks/observability-alert-simulations.md |
 | docs/runbooks/observability-alert-simulations.md | Staging simulation playbook for `P1-X4` alert validation | Alert thresholds/routes, simulation cases, or evidence process changes | docs/runbooks/operations.md, docs/project/evidence/phase1-closeout/manifest.md |
 | docs/runbooks/quick-demo.md | Quick demo steps for deterministic data | Demo workflow changes | docs/runbooks/demo-data.md, docs/runbooks/demo-smoke-checklist.md |
 | docs/runbooks/demo-smoke-checklist.md | Demo smoke validation checklist | Demo acceptance criteria updates | docs/runbooks/quick-demo.md, docs/runbooks/demo-data.md |

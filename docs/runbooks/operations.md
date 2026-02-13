@@ -19,6 +19,7 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 | dbt Orchestration     | API health endpoint (exposes latest run results) | `curl https://api.<env>.adinsights.com/api/health/dbt/`     |
 | Sync health aggregate | Tenant connection state rollup                   | `curl https://api.<env>.adinsights.com/api/ops/sync-health/` |
 | Health overview       | Consolidated service health cards                | `curl https://api.<env>.adinsights.com/api/ops/health-overview/` |
+| Connector lifecycle   | Provider OAuth/provision/sync/status + job visibility | `curl https://api.<env>.adinsights.com/api/integrations/google_ads/status/` and `curl https://api.<env>.adinsights.com/api/integrations/google_ads/jobs/` |
 | Web analytics (GA4)   | GA4 pilot rows                                   | `curl https://api.<env>.adinsights.com/api/analytics/web/ga4/` |
 | Web analytics (GSC)   | Search Console pilot rows                        | `curl https://api.<env>.adinsights.com/api/analytics/web/search-console/` |
 | Superset              | `/health` endpoint                               | `curl https://bi.<env>.adinsights.com/health`               |
