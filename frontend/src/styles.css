@@ -1081,6 +1081,33 @@ label,
   box-shadow: var(--focus-ring);
 }
 
+.data-sources-oauth-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-soft);
+  background: color-mix(in srgb, var(--surface-card) 80%, var(--color-accent-soft, #eaf2ff) 20%);
+}
+
+.data-sources-oauth-card h4 {
+  margin: 0;
+}
+
+.data-sources-oauth-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.data-sources-oauth-selection {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(240px, 1fr) auto;
+  align-items: end;
+}
+
 .data-sources-checkbox-field {
   text-transform: none;
   letter-spacing: normal;
