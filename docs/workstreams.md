@@ -5,6 +5,31 @@ workstream so engineers can pick up a track independently without blocking
 others. Every track maps to a single top-level folder per AGENTS.md so PRs stay
 isolated.
 
+## Meta Marketing API Execution Plan (2026-02-13)
+
+This execution plan aligns Facebook Graph + Meta Marketing API onboarding with reporting ingestion.
+
+1. Airbyte/Ingestion (Maya + Leo)
+   - Keep Meta connector provisioning on ad account IDs only.
+   - Run hourly connector sync orchestrator (`06:00-22:00`, `America/Jamaica`).
+   - Validate retries/backoff and webhook telemetry in staging.
+2. Backend Metrics/API (Sofia + Andre)
+   - Enforce OAuth state validation and tenant-safe credential writes.
+   - Require ad-account selection during Meta page connect.
+   - Validate Airbyte source config before provisioning (`account_id` numeric, token present).
+3. Frontend UX (Lina + Joel)
+   - Guide flow: Connect with Facebook -> select page -> select ad account -> optional Instagram account.
+   - Block save when ad account is missing.
+   - Surface setup checklist + actionable env/scope gaps in Data Sources.
+4. dbt + Reporting (Priya + Martin)
+   - Confirm `stg_meta_ads` -> `fact_performance` -> `vw_dashboard_aggregate_snapshot` remains green after sync.
+   - Validate campaign/creative/budget/parish sections in `/api/metrics/combined/`.
+5. Observability + Ops (Omar + Hannah)
+   - Alert on stale/empty Meta syncs and repeated auth failures.
+   - Keep runbook commands aligned with implemented Meta endpoints.
+6. Cross-stream Integration (Raj + Mira)
+   - Ensure docs, API contracts, and test matrix stay synchronized across backend/frontend/dbt.
+
 ## 1. Airbyte Ingestion & Telemetry (`backend/integrations/`, `backend/core/tasks.py`)
 - **Owner / Effort** – Primary: Maya (Integrations); Backup: Leo (Celery). Effort: Medium.
 - **Success criteria / KPIs**

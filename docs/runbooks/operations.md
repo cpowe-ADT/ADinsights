@@ -19,7 +19,7 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 | dbt Orchestration     | API health endpoint (exposes latest run results) | `curl https://api.<env>.adinsights.com/api/health/dbt/`     |
 | Sync health aggregate | Tenant connection state rollup                   | `curl https://api.<env>.adinsights.com/api/ops/sync-health/` |
 | Health overview       | Consolidated service health cards                | `curl https://api.<env>.adinsights.com/api/ops/health-overview/` |
-| Connector lifecycle   | Provider OAuth/provision/sync/status + job visibility | `curl https://api.<env>.adinsights.com/api/integrations/google_ads/status/` and `curl https://api.<env>.adinsights.com/api/integrations/google_ads/jobs/` |
+| Connector lifecycle   | Meta OAuth + page/ad account connect + provision/sync | `curl https://api.<env>.adinsights.com/api/integrations/meta/setup/`, `POST .../meta/oauth/start/`, `POST .../meta/provision/`, and `POST .../meta/sync/` |
 | Web analytics (GA4)   | GA4 pilot rows                                   | `curl https://api.<env>.adinsights.com/api/analytics/web/ga4/` |
 | Web analytics (GSC)   | Search Console pilot rows                        | `curl https://api.<env>.adinsights.com/api/analytics/web/search-console/` |
 | Superset              | `/health` endpoint                               | `curl https://bi.<env>.adinsights.com/health`               |
@@ -252,10 +252,13 @@ surface area.
 3. **Beat schedule** – Ensure the `metrics-snapshot-sync` entry in
    `CELERY_BEAT_SCHEDULE` is enabled (30-minute cadence). Worker logs should
    include `metrics.snapshot.persisted` for each tenant.
-4. **Alerts** – Configure monitoring to fire when
+4. **Connector sync schedule** – Ensure `airbyte-scheduled-syncs-hourly` is enabled
+   (`integrations.tasks.trigger_scheduled_airbyte_syncs`, hour `06:00-22:00` America/Jamaica).
+   This drives Meta/Google connection syncs when each tenant connection is due.
+5. **Alerts** – Configure monitoring to fire when
    `snapshot_generated_at` is older than 60 minutes or missing entirely.
    Pair this with the Airbyte/dbt health checks to pinpoint upstream causes.
-5. **Dashboards** – The “Warehouse Snapshot Health” Grafana/Superset view plots
+6. **Dashboards** – The “Warehouse Snapshot Health” Grafana/Superset view plots
    snapshot recency per tenant. Use it to verify manual refreshes before
    closing an incident.
 

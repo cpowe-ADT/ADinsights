@@ -42,6 +42,12 @@ from integrations.views import (
     AirbyteWebhookView,
     AlertRuleDefinitionViewSet,
     CampaignBudgetViewSet,
+    MetaOAuthExchangeView,
+    MetaOAuthStartView,
+    MetaSetupView,
+    MetaPageConnectView,
+    MetaProvisionView,
+    MetaSyncView,
     PlatformCredentialViewSet,
 )
 from . import views as core_views
@@ -148,6 +154,36 @@ urlpatterns = [
         name="ops-health-overview",
     ),
     path("api/analytics/", include("analytics.urls")),
+    path(
+        "api/integrations/meta/setup/",
+        MetaSetupView.as_view(),
+        name="meta-setup",
+    ),
+    path(
+        "api/integrations/meta/oauth/start/",
+        MetaOAuthStartView.as_view(),
+        name="meta-oauth-start",
+    ),
+    path(
+        "api/integrations/meta/oauth/exchange/",
+        MetaOAuthExchangeView.as_view(),
+        name="meta-oauth-exchange",
+    ),
+    path(
+        "api/integrations/meta/pages/connect/",
+        MetaPageConnectView.as_view(),
+        name="meta-page-connect",
+    ),
+    path(
+        "api/integrations/meta/provision/",
+        MetaProvisionView.as_view(),
+        name="meta-provision",
+    ),
+    path(
+        "api/integrations/meta/sync/",
+        MetaSyncView.as_view(),
+        name="meta-sync",
+    ),
     path("metrics/app/", core_views.prometheus_metrics, name="metrics-app"),
     path("api/", include(router.urls)),
     path("api/airbyte/webhook/", AirbyteWebhookView.as_view(), name="airbyte-webhook"),

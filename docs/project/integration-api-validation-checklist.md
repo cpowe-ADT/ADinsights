@@ -41,17 +41,24 @@ Use this as the connector execution list for Phase 1 closeout.
 4. Add a go/no-go owner signature block per connector before production enablement.
 
 ### Meta Marketing API (production readiness gate)
-- Auth model: Long-lived system access token for Marketing API (`ads_read`) with app credentials.
-- Scopes/permissions: `ads_read`, app-level permissions for token refresh workflow.
+- Auth model: Facebook Login OAuth (authorization code) -> long-lived user token exchange; user then selects business page + ad account for tenant credential binding.
+- Scopes/permissions: `ads_read`, `business_management`, `pages_show_list`, `pages_read_engagement`, `instagram_basic`, `instagram_manage_insights` (if Instagram account discovery is required).
 - App approval required: Yes (Meta app + business verification per account policy).
 - Rate limits / quota units: Platform-managed; monitor via Airbyte job telemetry + API cost fields.
 - Reporting endpoints + dimensions: Ad/account insights with incremental lookback replay.
 - Historical lookback + data latency: 3-day replay window for late conversions; 28-day attribution horizon.
 - Currency + timezone behavior: Account-level currency; schedule timezone pinned to `America/Jamaica`.
 - Airbyte connector availability/maturity: Supported via Airbyte Meta source template.
-- Known gotchas: Token expiration/revocation and app permission drift can silently stale syncs.
+- Known gotchas: Token expiration/revocation, missing ad-account access, and app permission drift can silently stale syncs.
 - Validation owner + date: Maya + Leo, 2026-02-06
 - Authenticated portal validation evidence (manual): `docs/project/evidence/phase1-closeout/external/meta-authenticated-validation-required-2026-02-06-est.md`
+- Implemented API flow:
+  - `GET /api/integrations/meta/setup/`
+  - `POST /api/integrations/meta/oauth/start/`
+  - `POST /api/integrations/meta/oauth/exchange/`
+  - `POST /api/integrations/meta/pages/connect/`
+  - `POST /api/integrations/meta/provision/`
+  - `POST /api/integrations/meta/sync/`
 - Verification commands:
   - `python3 infrastructure/airbyte/scripts/validate_tenant_config.py`
   - `python3 infrastructure/airbyte/scripts/verify_production_readiness.py`

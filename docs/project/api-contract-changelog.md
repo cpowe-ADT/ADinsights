@@ -11,10 +11,15 @@ Keep this brief and link to PRs or commits when available.
 - **Owner**
 
 ## Entries
+- **2026-02-13**
+  - Endpoint: `GET /api/integrations/meta/setup/`, `POST /api/integrations/meta/oauth/start/`, `POST /api/integrations/meta/oauth/exchange/`, `POST /api/integrations/meta/pages/connect/`, `POST /api/integrations/meta/provision/`, `POST /api/integrations/meta/sync/`
+  - Change: Finalized Meta Marketing API connector flow with Facebook Login OAuth state validation, ad-account-required page connect, optional Instagram account selection, and Airbyte source/connection provisioning + initial sync trigger.
+  - Impact: Data Sources can complete Meta onboarding in one guided flow and immediately start Insights ingestion for reporting marts.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
 - **2026-02-08**
-  - Endpoint: `POST /api/integrations/{provider}/oauth/start/`, `POST /api/integrations/{provider}/oauth/callback/`, `POST /api/integrations/{provider}/reconnect/`, `POST /api/integrations/{provider}/disconnect/`, `POST /api/integrations/{provider}/provision/`, `POST /api/integrations/{provider}/sync/`, `GET /api/integrations/{provider}/status/`, `GET /api/integrations/{provider}/jobs/`
-  - Change: Added provider-generic connector lifecycle APIs for `facebook_pages`, `meta_ads`, `google_ads`, `ga4`, and `search_console`, including reconnect/disconnect controls and recent job history.
-  - Impact: Data Sources UI now supports OAuth-based connect plus tenant-scoped Airbyte provisioning/sync/status checks, re-auth/disconnect actions, and sync job visibility.
+  - Endpoint: Integration lifecycle APIs (planned, superseded by provider-specific rollout)
+  - Change: Initial plan captured for provider-generic connector lifecycle APIs; implementation proceeded with provider-specific Meta endpoints first.
+  - Impact: Historical planning reference only; use 2026-02-13 entry for currently implemented connector contracts.
   - Owner: Sofia (Backend Metrics) + Lina (Frontend)
 - **2026-02-06**
   - Endpoint: `GET /api/dashboards/library/`

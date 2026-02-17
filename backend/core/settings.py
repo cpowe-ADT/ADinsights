@@ -40,6 +40,23 @@ env = environ.Env(
     SES_CONFIGURATION_SET=(str, ""),
     SES_EXPECTED_FROM_DOMAIN=(str, ""),
     FRONTEND_BASE_URL=(str, "http://localhost:5173"),
+    META_APP_ID=(str, ""),
+    META_APP_SECRET=(str, ""),
+    META_OAUTH_REDIRECT_URI=(str, ""),
+    META_OAUTH_SCOPES=(
+        list,
+        [
+            "pages_show_list",
+            "pages_read_engagement",
+            "pages_read_user_content",
+            "ads_read",
+            "business_management",
+            "read_insights",
+            "instagram_basic",
+            "instagram_manage_insights",
+        ],
+    ),
+    META_GRAPH_API_VERSION=(str, "v24.0"),
     CORS_ALLOW_ALL_ORIGINS=(bool, False),
     CORS_ALLOWED_ORIGINS=(list, []),
     CORS_ALLOWED_METHODS=(
@@ -61,6 +78,9 @@ env = environ.Env(
     ),
     CORS_ALLOW_CREDENTIALS=(bool, True),
     CORS_PREFLIGHT_MAX_AGE=(int, 86400),
+    AIRBYTE_DEFAULT_WORKSPACE_ID=(str, ""),
+    AIRBYTE_DEFAULT_DESTINATION_ID=(str, ""),
+    AIRBYTE_SOURCE_DEFINITION_META=(str, ""),
     DRF_THROTTLE_AUTH_BURST=(str, "10/min"),
     DRF_THROTTLE_AUTH_SUSTAINED=(str, "100/day"),
     DRF_THROTTLE_PUBLIC=(str, "120/min"),
@@ -212,6 +232,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "alerts.tasks.run_alert_cycle",
         "schedule": crontab(minute="*/15"),
     },
+    "airbyte-scheduled-syncs-hourly": {
+        "task": "integrations.tasks.trigger_scheduled_airbyte_syncs",
+        "schedule": crontab(minute=0, hour="6-22"),
+    },
     "credential-rotation-reminders": {
         "task": "integrations.tasks.remind_expiring_credentials",
         "schedule": crontab(hour=2, minute=0),
@@ -267,6 +291,14 @@ EMAIL_FROM_ADDRESS = env("EMAIL_FROM_ADDRESS")
 SES_CONFIGURATION_SET = _optional(env("SES_CONFIGURATION_SET", default=None))
 SES_EXPECTED_FROM_DOMAIN = _optional(env("SES_EXPECTED_FROM_DOMAIN", default=None))
 FRONTEND_BASE_URL = env("FRONTEND_BASE_URL")
+META_APP_ID = _optional(env("META_APP_ID", default=None))
+META_APP_SECRET = _optional(env("META_APP_SECRET", default=None))
+META_OAUTH_REDIRECT_URI = _optional(env("META_OAUTH_REDIRECT_URI", default=None))
+META_OAUTH_SCOPES = env.list("META_OAUTH_SCOPES")
+META_GRAPH_API_VERSION = env("META_GRAPH_API_VERSION", default="v24.0")
+AIRBYTE_DEFAULT_WORKSPACE_ID = _optional(env("AIRBYTE_DEFAULT_WORKSPACE_ID", default=None))
+AIRBYTE_DEFAULT_DESTINATION_ID = _optional(env("AIRBYTE_DEFAULT_DESTINATION_ID", default=None))
+AIRBYTE_SOURCE_DEFINITION_META = _optional(env("AIRBYTE_SOURCE_DEFINITION_META", default=None))
 
 SENTRY_DSN = _optional(env("SENTRY_DSN", default=None))
 SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="development")
