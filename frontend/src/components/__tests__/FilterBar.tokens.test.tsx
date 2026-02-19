@@ -23,6 +23,12 @@ const themeTokenExpectations: Record<ThemeName, TokenMap> = {
     '--shell-filterchip-text': 'var(--color-slate-700)',
     '--shell-filterchip-active': 'var(--color-blue-600)',
     '--shell-filterchip-text-active': 'var(--color-white)',
+    '--header-title-text': 'var(--color-text-inverse)',
+    '--auth-heading-text': 'var(--color-text-primary)',
+    '--surface-elevated-text': 'var(--color-text-primary)',
+    '--home-card-surface': 'rgba(255, 255, 255, 0.92)',
+    '--home-section-title': 'var(--color-slate-900)',
+    '--home-cta-secondary-text': 'var(--header-title-text)',
   },
   dark: {
     '--shell-filterbar-surface': 'rgba(15, 23, 42, 0.9)',
@@ -31,6 +37,12 @@ const themeTokenExpectations: Record<ThemeName, TokenMap> = {
     '--shell-filterchip-text': 'rgba(226, 232, 240, 0.9)',
     '--shell-filterchip-active': 'var(--color-blue-500)',
     '--shell-filterchip-text-active': 'var(--color-slate-950)',
+    '--header-title-text': '#f8fafc',
+    '--auth-heading-text': '#f1f5f9',
+    '--surface-elevated-text': '#e2e8f0',
+    '--home-card-surface': 'rgba(15, 23, 42, 0.84)',
+    '--home-section-title': '#f8fafc',
+    '--home-cta-secondary-text': 'rgba(241, 245, 249, 0.95)',
   },
 };
 
@@ -75,6 +87,7 @@ describe('FilterBar tokens', () => {
 
     const { container } = renderFilterBar('light');
     expect(document.documentElement.classList.contains('theme-light')).toBe(true);
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
 
     const results = await axe(container, {
       rules: {
@@ -88,6 +101,7 @@ describe('FilterBar tokens', () => {
   it('switches theme classes and exposes dark token definitions', () => {
     renderFilterBar('dark');
     expect(document.documentElement.classList.contains('theme-dark')).toBe(true);
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
     expectThemeStylesDeclareTokens('dark');
   });
 });

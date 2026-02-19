@@ -1,0 +1,4 @@
+interface:
+  display_name: "ADinsights Persona Router"
+  short_description: "Simulate repo coder personas for planning"
+  default_prompt: "Use $adinsights-persona-router to run a workstream persona review."

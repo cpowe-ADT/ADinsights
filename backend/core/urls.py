@@ -22,6 +22,13 @@ from analytics.views import (
     MetricsExportView,
     MetricsView,
 )
+from analytics.meta_views import (
+    MetaAccountsListView,
+    MetaCampaignListView,
+    MetaAdSetListView,
+    MetaAdsListView,
+    MetaInsightsListView,
+)
 from accounts.views import (
     AuditLogViewSet,
     MeView,
@@ -42,6 +49,16 @@ from integrations.views import (
     AirbyteWebhookView,
     AlertRuleDefinitionViewSet,
     CampaignBudgetViewSet,
+    MetaOAuthExchangeView,
+    MetaOAuthStartView,
+    MetaSetupView,
+    MetaPageConnectView,
+    MetaProvisionView,
+    MetaSystemTokenView,
+    MetaLogoutView,
+    MetaSyncStateView,
+    SocialConnectionStatusView,
+    MetaSyncView,
     PlatformCredentialViewSet,
 )
 from . import views as core_views
@@ -148,6 +165,61 @@ urlpatterns = [
         name="ops-health-overview",
     ),
     path("api/analytics/", include("analytics.urls")),
+    path("api/meta/accounts/", MetaAccountsListView.as_view(), name="meta-accounts"),
+    path("api/meta/campaigns/", MetaCampaignListView.as_view(), name="meta-campaigns"),
+    path("api/meta/adsets/", MetaAdSetListView.as_view(), name="meta-adsets"),
+    path("api/meta/ads/", MetaAdsListView.as_view(), name="meta-ads"),
+    path("api/meta/insights/", MetaInsightsListView.as_view(), name="meta-insights"),
+    path(
+        "api/integrations/meta/setup/",
+        MetaSetupView.as_view(),
+        name="meta-setup",
+    ),
+    path(
+        "api/integrations/meta/oauth/start/",
+        MetaOAuthStartView.as_view(),
+        name="meta-oauth-start",
+    ),
+    path(
+        "api/integrations/meta/oauth/exchange/",
+        MetaOAuthExchangeView.as_view(),
+        name="meta-oauth-exchange",
+    ),
+    path(
+        "api/integrations/meta/pages/connect/",
+        MetaPageConnectView.as_view(),
+        name="meta-page-connect",
+    ),
+    path(
+        "api/integrations/meta/provision/",
+        MetaProvisionView.as_view(),
+        name="meta-provision",
+    ),
+    path(
+        "api/integrations/meta/system-token/",
+        MetaSystemTokenView.as_view(),
+        name="meta-system-token",
+    ),
+    path(
+        "api/integrations/meta/sync/",
+        MetaSyncView.as_view(),
+        name="meta-sync",
+    ),
+    path(
+        "api/integrations/meta/sync-state/",
+        MetaSyncStateView.as_view(),
+        name="meta-sync-state",
+    ),
+    path(
+        "api/integrations/meta/logout/",
+        MetaLogoutView.as_view(),
+        name="meta-logout",
+    ),
+    path(
+        "api/integrations/social/status/",
+        SocialConnectionStatusView.as_view(),
+        name="social-connection-status",
+    ),
     path("metrics/app/", core_views.prometheus_metrics, name="metrics-app"),
     path("api/", include(router.urls)),
     path("api/airbyte/webhook/", AirbyteWebhookView.as_view(), name="airbyte-webhook"),

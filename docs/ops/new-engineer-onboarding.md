@@ -9,6 +9,9 @@ Purpose: standard onboarding for humans and AI engineers.
 
 ## Environment Setup
 - Run `scripts/dev-launch.sh` (or use docker-compose.dev.yml).
+- Use `scripts/dev-launch.sh --list-profiles` to view the 4 local port profiles.
+- Use `scripts/dev-launch.sh --profile 2` (or another profile) when defaults are busy.
+- Check resolved runtime ports with `cat .dev-launch.active.env`.
 - Verify health endpoints `/api/health/`, `/api/health/airbyte/`, `/api/health/dbt/`, `/api/timezone/`.
 - Run frontend `npm test -- --run` and `npm run build`.
 

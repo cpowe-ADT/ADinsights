@@ -184,6 +184,44 @@ def _check_csv_runbook_link(errors: list[str]) -> None:
         )
 
 
+def _check_meta_template_contract(errors: list[str]) -> None:
+    files = (
+        "infrastructure/airbyte/meta_source.yaml",
+        "infrastructure/airbyte/sources/meta_marketing.json.example",
+    )
+    script_file = "infrastructure/airbyte/scripts/provision_meta_google_connectors.py"
+    required_tokens = (
+        "account_ids",
+        '"auth_type": "Service"',
+        "insights_lookback_window",
+        "custom_insights_fields",
+        "reach",
+        "cpc",
+        "cpm",
+        "actions",
+    )
+    required_streams = ("ad_insights", "campaigns", "adsets", "ads")
+    forbidden_tokens = ("ad_sets", '"account_id": "${AIRBYTE_META_ACCOUNT_ID}"')
+
+    for rel_path in files:
+        content = _read_text(rel_path)
+        for token in required_tokens:
+            if token not in content:
+                errors.append(f"{rel_path}: missing Meta token '{token}'.")
+        for stream in required_streams:
+            if stream not in content:
+                errors.append(f"{rel_path}: missing Meta stream '{stream}'.")
+        if rel_path != "infrastructure/airbyte/scripts/provision_meta_google_connectors.py":
+            for token in forbidden_tokens:
+                if token in content:
+                    errors.append(f"{rel_path}: contains deprecated Meta token '{token}'.")
+
+    script_content = _read_text(script_file)
+    for token in required_tokens:
+        if token not in script_content:
+            errors.append(f"{script_file}: missing Meta token '{token}'.")
+
+
 def main() -> int:
     errors: list[str] = []
     _check_google_query_aliases(errors)
@@ -191,6 +229,7 @@ def main() -> int:
     _check_seed_headers(errors)
     _check_csv_alias_parity(errors)
     _check_csv_runbook_link(errors)
+    _check_meta_template_contract(errors)
 
     if errors:
         print("Data-contract validation failed:")

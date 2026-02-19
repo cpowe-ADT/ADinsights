@@ -30,6 +30,7 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Dataset toggle (default live), snapshot freshness banner, tenant switcher, global filters.
 - Campaign/creative detail routes with saved layout + share links.
 - Data sources management UI and CSV upload wizard.
+- Data Sources connector status cards and provider actions (Connect, Run initial sync, View sync health).
 - Dashboard library API integration (`/api/dashboards/library/`).
 - Post-MVP operations and productivity routes:
   - `/ops/sync-health`
@@ -44,6 +45,25 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Airbyte infrastructure and declarative source templates.
 - Airbyte telemetry endpoints and health checks.
 - Airbyte connection lifecycle APIs (list/create/update/sync) + summary endpoint.
+- Meta Marketing API/Facebook Graph integration:
+  - `GET /api/integrations/meta/setup/`
+  - `POST /api/integrations/meta/oauth/start/`
+  - `POST /api/integrations/meta/oauth/exchange/`
+  - `POST /api/integrations/meta/pages/connect/`
+  - `POST /api/integrations/meta/provision/`
+  - `POST /api/integrations/meta/sync/`
+- Data Sources UI flow for Meta:
+  - Facebook OAuth connect
+  - business page selection
+  - ad account selection (required for Marketing API insights)
+  - Instagram business account selection (optional)
+  - Airbyte source/connection auto-provision + initial sync trigger
+- Social connection status center:
+  - Home quick action routes to `/dashboards/data-sources?sources=social`
+  - Data Sources social status cards for Meta + Instagram
+  - Canonical 4-state checker: `not_connected`, `started_not_complete`, `complete`, `active`
+  - Placeholder cards for LinkedIn/TikTok marked coming soon
+- Google Ads direct credential + local Airbyte connection linking flow.
 - Production readiness verifier for Meta/Google connection credentials and tenant config sanity.
 - Canonical integration data-contract matrix (Meta/Google/GA4/Search Console/CSV) plus automated contract gate script.
 - Phase 2 pilot source templates for GA4 + Search Console with env-driven placeholders.

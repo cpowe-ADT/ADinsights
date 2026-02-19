@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adinsights.local/schemas/contract-guard-decision.json",
+  "title": "ADinsights Contract Guard Decision Packet",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "contract_status",
+    "breaking_change_detected",
+    "contract_surfaces_touched",
+    "required_docs_updates",
+    "required_reviewers",
+    "required_tests",
+    "rationale",
+    "evidence",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "default": "1.0.0"
+    },
+    "contract_status": {
+      "type": "string",
+      "enum": [
+        "PASS_NO_CONTRACT_CHANGE",
+        "WARN_POSSIBLE_CONTRACT_CHANGE",
+        "ESCALATE_CONTRACT_CHANGE_REQUIRES_DOCS",
+        "ESCALATE_BREAKING_CHANGE"
+      ]
+    },
+    "breaking_change_detected": {
+      "type": "boolean"
+    },
+    "contract_surfaces_touched": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "required_docs_updates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "required_reviewers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "required_tests": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rationale": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "value", "strength", "source"],
+        "properties": {
+          "type": { "type": "string" },
+          "value": { "type": "string" },
+          "strength": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "source": { "type": "string" }
+        }
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "ci_strict_evaluation": {
+      "type": "object",
+      "required": ["enabled", "strict_level", "would_fail_ci"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "strict_level": {
+          "type": "string",
+          "enum": ["breaking_only", "breaking_or_missing_docs"]
+        },
+        "would_fail_ci": { "type": "boolean" }
+      }
+    }
+  }
+}

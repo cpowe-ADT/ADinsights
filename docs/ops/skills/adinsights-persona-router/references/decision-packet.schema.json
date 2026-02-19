@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adinsights.local/schemas/persona-router-decision-packet.json",
+  "title": "ADinsights Persona Router Decision Packet",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "mode",
+    "input_prompt",
+    "resolved_by",
+    "action",
+    "confidence",
+    "selected_persona",
+    "backup_persona",
+    "conflict_flags",
+    "touched_streams",
+    "required_tests",
+    "docs_to_open",
+    "escalation_decision",
+    "recommended_report_template",
+    "clarifying_question",
+    "downstream_recommendations",
+    "invoke_scope_gatekeeper",
+    "evidence",
+    "decision_trace",
+    "rationale",
+    "signals"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "default": "2.1.0"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["resolve", "preflight"]
+    },
+    "input_prompt": { "type": "string" },
+    "resolved_by": {
+      "type": "string",
+      "enum": [
+        "explicit_persona_name",
+        "explicit_stream",
+        "folder_path",
+        "domain_keyword",
+        "ask_user_for_clarification",
+        "stream_or_workstream_id"
+      ]
+    },
+    "action": {
+      "type": "string",
+      "enum": ["resolve", "clarify"]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "selected_persona": {
+      "type": ["object", "null"],
+      "required": ["id", "name", "role"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" }
+      }
+    },
+    "backup_persona": {
+      "type": ["object", "null"],
+      "required": ["id", "name", "role"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" }
+      }
+    },
+    "conflict_flags": {
+      "type": "object",
+      "required": ["conflict", "cross_stream", "strong_conflict_count"],
+      "properties": {
+        "conflict": { "type": "boolean" },
+        "cross_stream": { "type": "boolean" },
+        "strong_conflict_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "touched_streams": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^S[1-7]$" }
+    },
+    "required_tests": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "docs_to_open": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "escalation_decision": {
+      "type": "object",
+      "required": ["advisory_only", "required_reviewers", "reason"],
+      "properties": {
+        "advisory_only": { "type": "boolean" },
+        "required_reviewers": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "reason": { "type": "string" }
+      }
+    },
+    "recommended_report_template": {
+      "type": "string",
+      "enum": ["A", "B", "C"]
+    },
+    "clarifying_question": {
+      "type": ["string", "null"]
+    },
+    "downstream_recommendations": {
+      "type": "object",
+      "required": [
+        "invoke_scope_gatekeeper",
+        "invoke_contract_guard",
+        "invoke_release_readiness"
+      ],
+      "properties": {
+        "invoke_scope_gatekeeper": { "type": "boolean" },
+        "invoke_contract_guard": { "type": "boolean" },
+        "invoke_release_readiness": { "type": "boolean" }
+      }
+    },
+    "invoke_scope_gatekeeper": { "type": "boolean" },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "value", "strength", "source"],
+        "properties": {
+          "type": { "type": "string" },
+          "value": { "type": "string" },
+          "strength": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "source": { "type": "string" }
+        }
+      }
+    },
+    "decision_trace": { "type": "string" },
+    "rationale": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "signals": {
+      "type": "object"
+    }
+  }
+}

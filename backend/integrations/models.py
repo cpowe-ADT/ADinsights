@@ -26,6 +26,23 @@ class PlatformCredential(models.Model):
         (LINKEDIN, "LinkedIn"),
         (TIKTOK, "TikTok"),
     ]
+    AUTH_MODE_USER_OAUTH = "user_oauth"
+    AUTH_MODE_SYSTEM_USER = "system_user"
+    AUTH_MODE_CHOICES = [
+        (AUTH_MODE_USER_OAUTH, "User OAuth"),
+        (AUTH_MODE_SYSTEM_USER, "System User"),
+    ]
+
+    TOKEN_STATUS_VALID = "valid"
+    TOKEN_STATUS_EXPIRING = "expiring"
+    TOKEN_STATUS_INVALID = "invalid"
+    TOKEN_STATUS_REAUTH_REQUIRED = "reauth_required"
+    TOKEN_STATUS_CHOICES = [
+        (TOKEN_STATUS_VALID, "Valid"),
+        (TOKEN_STATUS_EXPIRING, "Expiring"),
+        (TOKEN_STATUS_INVALID, "Invalid"),
+        (TOKEN_STATUS_REAUTH_REQUIRED, "Reauth Required"),
+    ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
@@ -40,6 +57,23 @@ class PlatformCredential(models.Model):
     refresh_token_nonce = models.BinaryField(null=True, blank=True)
     refresh_token_tag = models.BinaryField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
+    auth_mode = models.CharField(
+        max_length=16,
+        choices=AUTH_MODE_CHOICES,
+        default=AUTH_MODE_USER_OAUTH,
+    )
+    granted_scopes = models.JSONField(default=list, blank=True)
+    declined_scopes = models.JSONField(default=list, blank=True)
+    issued_at = models.DateTimeField(null=True, blank=True)
+    last_validated_at = models.DateTimeField(null=True, blank=True)
+    last_refresh_attempt_at = models.DateTimeField(null=True, blank=True)
+    last_refreshed_at = models.DateTimeField(null=True, blank=True)
+    token_status = models.CharField(
+        max_length=16,
+        choices=TOKEN_STATUS_CHOICES,
+        default=TOKEN_STATUS_VALID,
+    )
+    token_status_reason = models.TextField(blank=True)
     dek_key_version = models.CharField(max_length=128, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -382,6 +416,73 @@ class TenantAirbyteSyncStatus(models.Model):
             return status
         status.record_connection(connection)
         return status
+
+
+class MetaAccountSyncState(models.Model):
+    """Per-account Meta sync-state materialized for operations/status surfaces."""
+
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="meta_account_sync_states"
+    )
+    account_id = models.CharField(max_length=128)
+    connection = models.ForeignKey(
+        AirbyteConnection,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="meta_account_sync_states",
+    )
+    last_job_id = models.CharField(max_length=64, blank=True)
+    last_job_status = models.CharField(max_length=32, blank=True)
+    last_job_error = models.TextField(blank=True)
+    last_sync_started_at = models.DateTimeField(null=True, blank=True)
+    last_sync_completed_at = models.DateTimeField(null=True, blank=True)
+    last_success_at = models.DateTimeField(null=True, blank=True)
+    last_window_start = models.DateField(null=True, blank=True)
+    last_window_end = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "account_id")
+        ordering = ("tenant", "account_id")
+
+
+class APIErrorLog(models.Model):
+    """Structured upstream API failures for remediation workflows."""
+
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="api_error_logs"
+    )
+    provider = models.CharField(
+        max_length=16,
+        choices=PlatformCredential.PROVIDER_CHOICES,
+        default=PlatformCredential.META,
+    )
+    endpoint = models.CharField(max_length=255, blank=True)
+    account_id = models.CharField(max_length=128, blank=True)
+    status_code = models.IntegerField(null=True, blank=True)
+    error_code = models.CharField(max_length=64, blank=True)
+    error_subcode = models.CharField(max_length=64, blank=True)
+    message = models.TextField(blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    correlation_id = models.CharField(max_length=128, blank=True)
+    is_retryable = models.BooleanField(default=False)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=["tenant", "provider", "created_at"], name="apierr_tenant_provider_ts"),
+            models.Index(fields=["tenant", "account_id"], name="apierr_tenant_account"),
+        ]
 
 
 @dataclass(frozen=True)

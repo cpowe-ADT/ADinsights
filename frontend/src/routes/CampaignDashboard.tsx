@@ -109,7 +109,7 @@ const CampaignDashboard = () => {
   );
 
   const summary = campaign.data?.summary;
-  const trend = campaign.data?.trend ?? [];
+  const trend = campaign.data?.trend;
   const currency = summary?.currency ?? 'USD';
 
   const {
@@ -123,7 +123,8 @@ const CampaignDashboard = () => {
     trendStart,
     trendEnd,
   } = useMemo(() => {
-    if (trend.length === 0) {
+    const trendPoints = trend ?? [];
+    if (trendPoints.length === 0) {
       return {
         spendSeries: [],
         impressionsSeries: [],
@@ -137,12 +138,12 @@ const CampaignDashboard = () => {
       };
     }
 
-    const spend = sanitizeSeries(trend.map((point) => point.spend));
-    const impressions = sanitizeSeries(trend.map((point) => point.impressions));
-    const clicks = sanitizeSeries(trend.map((point) => point.clicks));
-    const conversions = sanitizeSeries(trend.map((point) => point.conversions));
+    const spend = sanitizeSeries(trendPoints.map((point) => point.spend));
+    const impressions = sanitizeSeries(trendPoints.map((point) => point.impressions));
+    const clicks = sanitizeSeries(trendPoints.map((point) => point.clicks));
+    const conversions = sanitizeSeries(trendPoints.map((point) => point.conversions));
     const roas = sanitizeSeries(
-      trend.map((point) => {
+      trendPoints.map((point) => {
         if (!point.spend) {
           return undefined;
         }
@@ -159,9 +160,9 @@ const CampaignDashboard = () => {
       conversionsSeries: conversions,
       roasSeries: roas,
       hasTrendData: true,
-      peakSpend: Math.max(...trend.map((point) => point.spend)),
-      trendStart: new Date(trend[0].date),
-      trendEnd: new Date(trend[trend.length - 1].date),
+      peakSpend: Math.max(...trendPoints.map((point) => point.spend)),
+      trendStart: new Date(trendPoints[0].date),
+      trendEnd: new Date(trendPoints[trendPoints.length - 1].date),
     };
   }, [trend]);
 
@@ -275,9 +276,8 @@ const CampaignDashboard = () => {
             <Skeleton width="45%" height="0.85rem" />
           </div>
         ) : hasTrendData ? (
-          // @ts-ignore - Recharts JSX types can conflict when multiple React type versions are present.
           <ResponsiveContainer width="100%" height="100%">
-            <CampaignTrendChart data={trend} currency={currency} />
+            <CampaignTrendChart data={trend ?? []} currency={currency} />
           </ResponsiveContainer>
         ) : (
           <DashboardState
@@ -301,7 +301,7 @@ const CampaignDashboard = () => {
         </div>
       </Card>
 
-      <Card title="Campaign metrics table">
+      <Card title="Campaign metrics table" className="tableCardWide">
         <CampaignTable
           rows={campaignRows}
           currency={currency}

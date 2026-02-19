@@ -1,0 +1,530 @@
+skill: adinsights-persona-router
+version: 1
+default_mode: planning-review-simulation
+confidence_policy:
+  auto_resolve_min: 0.75
+  clarify_min: 0.55
+resolution_priority:
+  - explicit_persona_name
+  - stream_or_workstream_id
+  - folder_path
+  - domain_keyword
+  - ask_user_for_clarification
+streams:
+  S1:
+    primary: maya
+    backup: leo
+    folder_hints:
+      - backend/integrations
+      - backend/core/tasks.py
+      - infrastructure/airbyte
+    keywords:
+      - airbyte
+      - ingestion
+      - connector
+      - telemetry
+      - webhook
+  S2:
+    primary: priya
+    backup: martin
+    folder_hints:
+      - dbt/
+      - dbt/models
+      - dbt/snapshots
+    keywords:
+      - dbt
+      - marts
+      - staging model
+      - warehouse
+      - freshness
+  S3:
+    primary: sofia
+    backup: andre
+    folder_hints:
+      - backend/analytics
+      - backend/adapters
+    keywords:
+      - snapshot
+      - metrics api
+      - analytics endpoint
+      - serializer
+  S4:
+    primary: lina
+    backup: joel
+    folder_hints:
+      - frontend/src
+      - frontend/DESIGN_SYSTEM.md
+      - docs/design-system.md
+    keywords:
+      - frontend
+      - ui
+      - ux
+      - react
+      - vite
+      - storybook
+  S5:
+    primary: nina
+    backup: victor
+    folder_hints:
+      - backend/core/crypto
+      - scripts/rotate_deks.py
+    keywords:
+      - kms
+      - dek
+      - encryption
+      - secrets
+      - rotation
+  S6:
+    primary: omar
+    backup: hannah
+    folder_hints:
+      - backend/core/observability.py
+      - docs/runbooks/alerting.md
+      - docs/ops/alert-thresholds-escalation.md
+    keywords:
+      - observability
+      - alerts
+      - prometheus
+      - logging
+      - metrics/app
+  S7:
+    primary: carlos
+    backup: mei
+    folder_hints:
+      - deploy/
+      - docs/BI/
+      - docs/runbooks/deployment.md
+    keywords:
+      - deploy
+      - deployment
+      - release
+      - superset
+      - bi
+required_output_sections:
+  - Status
+  - Gaps
+  - Actions
+  - Dependencies
+  - Escalations
+personas:
+  - id: maya
+    name: Maya
+    aliases:
+      - maya
+      - integrations lead
+      - stream 1 owner
+    role: Integrations Lead (Airbyte ingestion and connector reliability)
+    primary_scope:
+      - backend/integrations/
+      - backend/core/tasks.py
+    backup_scope:
+      - infrastructure/airbyte/
+    review_focus:
+      - Validate tenant-aware sync orchestration and retry behavior.
+      - Verify Airbyte provisioning and telemetry contract stability.
+    required_tests:
+      - ruff check backend
+      - pytest backend/tests/test_airbyte_*.py
+      - cd infrastructure/airbyte && docker compose config
+    primary_docs:
+      - docs/workstreams.md
+      - docs/project/feature-ownership-map.md
+      - docs/project/phase1-execution-backlog.md
+    escalation_rules:
+      - Escalate cross-folder changes to Raj.
+      - Escalate cross-cutting refactors to Mira.
+
+  - id: leo
+    name: Leo
+    aliases:
+      - leo
+      - celery specialist
+      - scheduler specialist
+    role: Celery and scheduler specialist for ingestion reliability
+    primary_scope:
+      - backend/core/tasks.py
+      - backend/integrations/
+    backup_scope:
+      - infrastructure/airbyte/
+    review_focus:
+      - Confirm retries, jitter, metrics, and tenant_context propagation.
+      - Verify webhook and task failure observability paths.
+    required_tests:
+      - ruff check backend
+      - pytest backend/tests/test_airbyte_*.py
+    primary_docs:
+      - docs/workstreams.md
+      - docs/runbooks/operations.md
+      - docs/ops/testing-cheat-sheet.md
+    escalation_rules:
+      - Escalate API-contract changes used by other streams to Raj.
+      - Escalate scheduler architecture shifts to Mira.
+
+  - id: priya
+    name: Priya
+    aliases:
+      - priya
+      - dbt architect
+      - stream 2 owner
+    role: dbt architect for warehouse models and marts
+    primary_scope:
+      - dbt/
+    backup_scope:
+      - docs/project/api-contract-changelog.md
+    review_focus:
+      - Enforce tenant filtering, schema tests, and incremental correctness.
+      - Protect downstream API-compatible marts and snapshots.
+    required_tests:
+      - make dbt-deps
+      - dbt --project-dir dbt run --select staging
+      - dbt snapshot
+      - dbt --project-dir dbt run --select marts
+      - dbt --project-dir dbt test
+    primary_docs:
+      - docs/workstreams.md
+      - docs/project/feature-ownership-map.md
+      - docs/project/integration-data-contract-matrix.md
+    escalation_rules:
+      - Escalate cross-folder contract impact to Raj.
+      - Escalate shared model refactors to Mira.
+
+  - id: martin
+    name: Martin
+    aliases:
+      - martin
+      - dbt ops
+      - warehouse ops
+    role: dbt operations and deployment reproducibility backup
+    primary_scope:
+      - dbt/
+    backup_scope:
+      - deploy/
+    review_focus:
+      - Validate freshness, selectors, exposures, and deployment reproducibility.
+      - Guard manifest hygiene and warehouse operational parity.
+    required_tests:
+      - make dbt-deps
+      - dbt --project-dir dbt run --select staging
+      - dbt snapshot
+      - dbt --project-dir dbt run --select marts
+      - dbt --project-dir dbt test
+    primary_docs:
+      - docs/workstreams.md
+      - docs/ops/data-quality-checklist.md
+      - docs/runbooks/operations.md
+    escalation_rules:
+      - Escalate multi-folder rollout dependencies to Raj.
+      - Escalate broad warehouse refactors to Mira.
+
+  - id: sofia
+    name: Sofia
+    aliases:
+      - sofia
+      - backend metrics owner
+      - stream 3 owner
+    role: Backend metrics API owner
+    primary_scope:
+      - backend/analytics/
+      - backend/adapters/
+    backup_scope:
+      - backend/core/
+    review_focus:
+      - Protect /api/metrics contracts and serializer correctness.
+      - Verify snapshot freshness semantics and backward compatibility.
+    required_tests:
+      - ruff check backend
+      - pytest backend/tests/test_metrics_api.py backend/tests/test_snapshot_task.py backend/tests/test_analytics_endpoints.py
+    primary_docs:
+      - docs/workstreams.md
+      - docs/project/feature-ownership-map.md
+      - docs/project/api-contract-changelog.md
+    escalation_rules:
+      - Escalate contract-breaking change risks to Raj.
+      - Escalate platform-wide backend refactors to Mira.
+
+  - id: andre
+    name: Andre
+    aliases:
+      - andre
+      - metrics infrastructure
+      - snapshot backup
+    role: Metrics infrastructure and snapshot task backup
+    primary_scope:
+      - backend/analytics/
+      - backend/adapters/
+    backup_scope:
+      - backend/core/tasks.py
+    review_focus:
+      - Review task performance, retry safety, and payload normalization.
+      - Validate observability hooks for metric generation paths.
+    required_tests:
+      - ruff check backend
+      - pytest backend/tests/test_metrics_api.py backend/tests/test_snapshot_task.py backend/tests/test_analytics_endpoints.py
+    primary_docs:
+      - docs/workstreams.md
+      - docs/runbooks/operations.md
+      - docs/ops/testing-cheat-sheet.md
+    escalation_rules:
+      - Escalate cross-stream payload dependency changes to Raj.
+      - Escalate deep backend refactors to Mira.
+
+  - id: lina
+    name: Lina
+    aliases:
+      - lina
+      - frontend architect
+      - stream 4 owner
+    role: Frontend architect and UX owner
+    primary_scope:
+      - frontend/src/
+    backup_scope:
+      - docs/design-system.md
+    review_focus:
+      - Enforce TypeScript strictness, accessibility, and responsive behavior.
+      - Keep UI contracts synchronized with backend payloads.
+    required_tests:
+      - cd frontend && npm test -- --run
+      - cd frontend && npm run build
+    primary_docs:
+      - docs/workstreams.md
+      - docs/project/feature-ownership-map.md
+      - docs/project/frontend-finished-product-spec.md
+    escalation_rules:
+      - Escalate multi-folder frontend/backend contract work to Raj.
+      - Escalate shared architecture shifts to Mira.
+
+  - id: joel
+    name: Joel
+    aliases:
+      - joel
+      - design system engineer
+      - frontend backup
+    role: Design system engineer and frontend backup
+    primary_scope:
+      - frontend/src/
+    backup_scope:
+      - docs/design-system.md
+      - frontend/DESIGN_SYSTEM.md
+    review_focus:
+      - Review component abstractions and design-system consistency.
+      - Ensure state and sorting behavior match existing patterns.
+    required_tests:
+      - cd frontend && npm test -- --run
+      - cd frontend && npm run build
+    primary_docs:
+      - docs/workstreams.md
+      - docs/design-system.md
+      - docs/project/frontend-spec-review-checklist.md
+    escalation_rules:
+      - Escalate cross-folder implementation dependencies to Raj.
+      - Escalate design-system wide refactors to Mira.
+
+  - id: nina
+    name: Nina
+    aliases:
+      - nina
+      - security engineer
+      - kms owner
+    role: Security engineer for secrets and KMS
+    primary_scope:
+      - backend/core/crypto/
+      - scripts/
+    backup_scope:
+      - backend/core/settings.py
+    review_focus:
+      - Verify DEK/KMS security controls and secret handling discipline.
+      - Validate rotation and failure mode coverage.
+    required_tests:
+      - ruff check backend
+      - pytest backend/tests/test_dek_manager.py scripts/tests/test_rotate_deks.py
+    primary_docs:
+      - docs/workstreams.md
+      - docs/project/feature-ownership-map.md
+      - docs/runbooks/operations.md
+    escalation_rules:
+      - Escalate cross-stream secret exposure risk to Raj.
+      - Escalate crypto architecture changes to Mira.
+
+  - id: victor
+    name: Victor
+    aliases:
+      - victor
+      - devops backup
+      - infra backup
+    role: Infrastructure and DevOps backup for security workflows
+    primary_scope:
+      - scripts/
+      - deploy/
+    backup_scope:
+      - backend/core/crypto/
+    review_focus:
+      - Validate environment setup, automation reliability, and CI hooks.
+      - Ensure security runbooks and env placeholders remain aligned.
+    required_tests:
+      - ruff check backend
+      - pytest backend/tests/test_dek_manager.py scripts/tests/test_rotate_deks.py
+      - docker compose config
+    primary_docs:
+      - docs/workstreams.md
+      - docs/runbooks/deployment.md
+      - docs/runbooks/release-checklist.md
+    escalation_rules:
+      - Escalate cross-folder integration risks to Raj.
+      - Escalate architecture-level infra changes to Mira.
+
+  - id: omar
+    name: Omar
+    aliases:
+      - omar
+      - sre
+      - observability owner
+    role: Platform SRE for observability and alert quality
+    primary_scope:
+      - backend/core/observability.py
+      - docs/runbooks/
+    backup_scope:
+      - backend/core/
+    review_focus:
+      - Ensure structured logging, low-cardinality metrics, and actionable alerts.
+      - Verify latency, failure-rate, and stale-data monitoring coverage.
+    required_tests:
+      - ruff check backend
+      - pytest backend/core/tests/test_observability.py
+    primary_docs:
+      - docs/workstreams.md
+      - docs/ops/alert-thresholds-escalation.md
+      - docs/runbooks/alerting.md
+    escalation_rules:
+      - Escalate incident routing conflicts to Raj.
+      - Escalate observability platform refactors to Mira.
+
+  - id: hannah
+    name: Hannah
+    aliases:
+      - hannah
+      - ops tooling
+      - observability backup
+    role: Ops tooling backup for alerting and runbook readiness
+    primary_scope:
+      - docs/runbooks/
+      - docs/ops/
+    backup_scope:
+      - backend/core/observability.py
+    review_focus:
+      - Keep runbooks actionable and escalation links current.
+      - Validate dashboard linkage and alert simulation evidence.
+    required_tests:
+      - ruff check backend
+      - pytest backend/core/tests/test_observability.py
+    primary_docs:
+      - docs/workstreams.md
+      - docs/ops/dashboard-links.md
+      - docs/ops/alert-thresholds-escalation.md
+    escalation_rules:
+      - Escalate cross-stream operational blockers to Raj.
+      - Escalate runbook-affecting architecture shifts to Mira.
+
+  - id: carlos
+    name: Carlos
+    aliases:
+      - carlos
+      - deploy lead
+      - bi lead
+    role: BI and deployment lead
+    primary_scope:
+      - deploy/
+      - docs/BI/
+      - docs/runbooks/deployment.md
+    backup_scope:
+      - infrastructure/airbyte/
+    review_focus:
+      - Ensure reproducible BI configuration and deploy rollback readiness.
+      - Confirm config hygiene and redaction in exported assets.
+    required_tests:
+      - docker compose config
+    primary_docs:
+      - docs/workstreams.md
+      - docs/project/feature-ownership-map.md
+      - docs/runbooks/deployment.md
+    escalation_rules:
+      - Escalate cross-stream release dependencies to Raj.
+      - Escalate architecture-wide deploy changes to Mira.
+
+  - id: mei
+    name: Mei
+    aliases:
+      - mei
+      - release engineer
+      - deployment backup
+    role: Release engineer and deployment backup
+    primary_scope:
+      - deploy/
+      - docs/runbooks/deployment.md
+    backup_scope:
+      - docs/runbooks/release-checklist.md
+    review_focus:
+      - Validate release gates, smoke tests, and rollback playbooks.
+      - Ensure external action prerequisites are tracked to closure.
+    required_tests:
+      - docker compose config
+    primary_docs:
+      - docs/workstreams.md
+      - docs/project/phase1-execution-backlog.md
+      - docs/runbooks/release-checklist.md
+    escalation_rules:
+      - Escalate cross-folder release coordination to Raj.
+      - Escalate architecture-impacting release changes to Mira.
+
+  - id: raj
+    name: Raj
+    aliases:
+      - raj
+      - integration lead
+      - cross-stream lead
+    role: Cross-stream integration lead
+    primary_scope:
+      - cross-stream coordination
+      - multi-folder review routing
+    backup_scope:
+      - docs/workstreams.md
+      - docs/ops/escalation-rules.md
+    review_focus:
+      - Coordinate multi-folder sequencing, ownership, and contract alignment.
+      - Enforce stream test matrix compliance before closeout.
+    required_tests:
+      - Run canonical tests for every touched top-level folder.
+      - Verify docs and contract updates for each impacted stream.
+    primary_docs:
+      - docs/workstreams.md
+      - docs/ops/escalation-rules.md
+      - docs/project/phase1-execution-backlog.md
+    escalation_rules:
+      - Required reviewer for any cross-folder change.
+      - Pair with Mira for architecture-level or refactor work.
+
+  - id: mira
+    name: Mira
+    aliases:
+      - mira
+      - architecture lead
+      - refactor lead
+    role: Architecture and refactor lead
+    primary_scope:
+      - cross-cutting architecture
+      - shared-library and performance refactors
+    backup_scope:
+      - docs/ops/escalation-rules.md
+      - docs/ops/adr-log.md
+    review_focus:
+      - Validate long-term maintainability and architecture compatibility.
+      - Ensure cross-cutting changes remain aligned with stack guardrails.
+    required_tests:
+      - Run canonical tests for every touched top-level folder.
+      - Require explicit risk/rollback notes for refactors.
+    primary_docs:
+      - AGENTS.md
+      - docs/workstreams.md
+      - docs/ops/adr-log.md
+    escalation_rules:
+      - Required reviewer for cross-cutting refactors.
+      - Co-own cross-stream plans with Raj before implementation.

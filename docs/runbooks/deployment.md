@@ -102,6 +102,9 @@ Run this sequence after secrets are injected and before traffic cutover:
 6. Validate backend endpoints:
    - `GET /api/health/airbyte/`
    - `GET /api/airbyte/telemetry/`
+   - `GET /api/integrations/google_ads/status/`
+   - `GET /api/integrations/ga4/status/`
+   - `GET /api/integrations/search_console/status/`
 7. Confirm retry/backoff policy in logs: base-2 exponential retry, max 5 attempts, jitter enabled.
 
 ### 5.1.1 Phase 2 Pilot Readiness (GA4 + Search Console)
@@ -156,6 +159,12 @@ Before production cutover, complete and archive:
 - [ ] Combined metrics API (`/api/dashboards/aggregate-snapshot/`) returns fresh data for pilot tenant.
 - [ ] Frontend pointing to production API with feature flags disabled.
 - [ ] Airbyte connections for Meta & Google running hourly; alerts configured.
+- [ ] Connector lifecycle APIs validated for active providers:
+  - `GET /api/integrations/{provider}/status/`
+  - `GET /api/integrations/{provider}/jobs/`
+  - `POST /api/integrations/{provider}/sync/`
+  - `POST /api/integrations/{provider}/reconnect/`
+  - `POST /api/integrations/{provider}/disconnect/`
 - [ ] External actions register complete for release scope (`docs/runbooks/external-actions-aws.md`).
 - [ ] dbt incremental builds scheduled (05:00 local) with success notifications.
 - [ ] Credential rotation reminders active via Celery beat + notifications.

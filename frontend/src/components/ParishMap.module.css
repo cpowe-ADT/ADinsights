@@ -59,6 +59,12 @@
   background: var(--map-control-hover);
 }
 
+.fullMapLink:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .fullMapLink:focus-visible {
   outline: var(--focus-outline);
   outline-offset: 2px;

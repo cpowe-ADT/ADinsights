@@ -17,6 +17,12 @@ Ensure Docker Desktop is running first.
 scripts/dev-launch.sh
 ```
 Note: first run can take several minutes while images pull/build.
+Launcher profiles and fallback behavior are documented in `docs/DEVELOPMENT.md`.
+Quick checks:
+```bash
+scripts/dev-launch.sh --list-profiles
+cat .dev-launch.active.env
+```
 
 Check health:
 ```bash

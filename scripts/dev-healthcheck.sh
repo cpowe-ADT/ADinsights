@@ -2,8 +2,26 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-BACKEND_URL="${DEV_BACKEND_URL:-http://localhost:8000}"
-FRONTEND_URL="${DEV_FRONTEND_URL:-http://localhost:5173}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ACTIVE_ENV_FILE="$REPO_ROOT/.dev-launch.active.env"
+
+BACKEND_URL="${DEV_BACKEND_URL:-}"
+FRONTEND_URL="${DEV_FRONTEND_URL:-}"
+
+if [[ ( -z "$BACKEND_URL" || -z "$FRONTEND_URL" ) && -f "$ACTIVE_ENV_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$ACTIVE_ENV_FILE"
+  if [[ -z "$BACKEND_URL" ]]; then
+    BACKEND_URL="${DEV_BACKEND_URL:-}"
+  fi
+  if [[ -z "$FRONTEND_URL" ]]; then
+    FRONTEND_URL="${DEV_FRONTEND_URL:-}"
+  fi
+fi
+
+BACKEND_URL="${BACKEND_URL:-http://localhost:8000}"
+FRONTEND_URL="${FRONTEND_URL:-http://localhost:5173}"
 
 if ! command -v curl >/dev/null 2>&1; then
   echo "curl not found. Install curl to run health checks."

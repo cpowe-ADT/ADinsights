@@ -145,6 +145,7 @@ class ResizeObserverMock {
 
 const routerFuture = {
   v7_startTransition: true,
+  v7_relativeSplatPath: true,
 } as const;
 
 describe('CampaignDashboard layout', () => {

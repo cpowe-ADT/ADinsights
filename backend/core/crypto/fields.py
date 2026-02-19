@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -12,6 +12,15 @@ class EncryptedValue:
     ciphertext: bytes
     nonce: bytes
     tag: bytes
+
+
+BinaryLike = Union[bytes, bytearray, memoryview]
+
+
+def _to_bytes(value: BinaryLike) -> bytes:
+    if isinstance(value, memoryview):
+        return value.tobytes()
+    return bytes(value)
 
 
 def encrypt_value(value: Optional[str], key: bytes) -> Optional[EncryptedValue]:
@@ -24,8 +33,11 @@ def encrypt_value(value: Optional[str], key: bytes) -> Optional[EncryptedValue]:
 
 
 def decrypt_value(
-    ciphertext: bytes, nonce: bytes, tag: bytes, key: bytes
+    ciphertext: BinaryLike, nonce: BinaryLike, tag: BinaryLike, key: bytes
 ) -> Optional[str]:
     aesgcm = AESGCM(key)
-    decrypted = aesgcm.decrypt(nonce, ciphertext + tag, None)
+    nonce_bytes = _to_bytes(nonce)
+    ciphertext_bytes = _to_bytes(ciphertext)
+    tag_bytes = _to_bytes(tag)
+    decrypted = aesgcm.decrypt(nonce_bytes, ciphertext_bytes + tag_bytes, None)
     return decrypted.decode("utf-8")

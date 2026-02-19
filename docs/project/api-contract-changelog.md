@@ -11,6 +11,56 @@ Keep this brief and link to PRs or commits when available.
 - **Owner**
 
 ## Entries
+- **2026-02-19**
+  - Endpoint: Warehouse contract (`dbt` Meta staging + snapshots + marts)
+  - Change: Hardened `stg_meta_insights` cross-database JSON parsing (DuckDB/Postgres compatibility), added fallback behavior when upstream `reach` is absent, and moved Meta SCD2 snapshots to explicit nodes (`meta_campaign_snapshot`, `meta_adset_snapshot`, `meta_ad_snapshot`) keyed by tenant-aware identifiers.
+  - Impact: Stabilizes local/CI dbt execution path and preserves tenant-safe snapshot grain without colliding with legacy snapshot relations.
+  - Owner: Priya (dbt) + Sofia (Backend Metrics)
+- **2026-02-19**
+  - Endpoint: `GET /api/meta/accounts/`, `GET /api/meta/campaigns/`, `GET /api/meta/adsets/`, `GET /api/meta/ads/`, `GET /api/meta/insights/`
+  - Change: Added tenant-scoped paginated Meta read APIs backed by PostgreSQL persistence, with query filters for status/search/date windows and foreign-key filters (`account_id`, `campaign_id`, `adset_id`, `level`).
+  - Impact: Frontend Meta account/campaign/insights screens can read directly from backend tables without querying Airbyte APIs; existing `/api/integrations/meta/*` OAuth/provision/sync routes remain unchanged.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-19**
+  - Endpoint: `POST /api/integrations/meta/oauth/exchange/`, `POST /api/integrations/meta/pages/connect/`
+  - Change: Enforced required scope gate as `(ads_read OR ads_management) AND business_management AND pages_read_engagement AND pages_show_list`; missing permissions now persist actionable credential status reasons for reauth/rerequest flow.
+  - Impact: OAuth completion blocks provisioning/sync when minimum Meta permissions are missing and surfaces deterministic remediation in UI.
+  - Owner: Sofia (Backend Metrics) + Maya (Integrations)
+- **2026-02-19**
+  - Endpoint: Scheduled tasks (`integrations.tasks.refresh_meta_tokens`, `integrations.tasks.sync_meta_accounts`, `integrations.tasks.sync_meta_hierarchy`, `integrations.tasks.sync_meta_insights_incremental`)
+  - Change: Added hourly token/account/insights sync and daily hierarchy sync schedules in `America/Jamaica`, plus persistent upstream failure records via `integrations.APIErrorLog`.
+  - Impact: Operational visibility for Meta failures improved (`tenant/account/endpoint/status_code/retryable`), and direct-sync datasets remain fresh for `/api/meta/*` consumers.
+  - Owner: Sofia (Backend Metrics) + Omar (SRE)
+- **2026-02-17**
+  - Endpoint: `GET /api/integrations/meta/setup/`, `POST /api/integrations/meta/oauth/start/`, `POST /api/integrations/meta/oauth/exchange/`, `POST /api/integrations/meta/pages/connect/`, `POST /api/integrations/meta/logout/`
+  - Change: Added manual browser-redirect OAuth hardening for Meta Login for Business (required `config_id` support), optional OAuth `auth_type=rerequest`, token identity validation via `debug_token`, permission diagnostics (`granted/declined/missing_required_permissions`), and tenant-scoped Meta logout/disconnect endpoint.
+  - Impact: Data Sources now supports permission-rerequest and stricter readiness validation before Meta provisioning; clients can call `POST /api/integrations/meta/logout/` to clear tenant Meta credentials.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-17**
+  - Endpoint: `GET /api/integrations/social/status/`
+  - Change: Added tenant-scoped social connection status payload for Meta + Instagram with canonical statuses (`not_connected`, `started_not_complete`, `complete`, `active`), reason metadata, recommended actions, and sync timestamps.
+  - Impact: Frontend Data Sources now renders social onboarding/health cards and Home links directly into social setup mode.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-17**
+  - Endpoint: `GET /api/schema/` metadata, `GET|POST /api/reports/{id}/exports/`, `GET|POST /api/alerts/`, `GET|POST /api/admin/alerts/`
+  - Change: OpenAPI operation IDs were deduplicated for report exports (method-specific) and tenant/admin alert-rule surfaces (distinct operation ID bases) without changing route paths or payloads.
+  - Impact: Schema consumers/codegen no longer receive duplicated `operationId` values.
+  - Owner: Sofia (Backend Metrics)
+- **2026-02-17**
+  - Endpoint: `POST /api/integrations/meta/oauth/start/` (frontend orchestration update)
+  - Change: Data Sources social card CTA now starts Meta OAuth directly for `connect_oauth` actions and falls back to opening the setup panel with errors surfaced when OAuth start fails.
+  - Impact: “Connect with Facebook” on social cards now initiates OAuth in one click while preserving setup troubleshooting flow.
+  - Owner: Lina (Frontend) + Maya (Integrations)
+- **2026-02-13**
+  - Endpoint: `GET /api/integrations/meta/setup/`, `POST /api/integrations/meta/oauth/start/`, `POST /api/integrations/meta/oauth/exchange/`, `POST /api/integrations/meta/pages/connect/`, `POST /api/integrations/meta/provision/`, `POST /api/integrations/meta/sync/`
+  - Change: Finalized Meta Marketing API connector flow with Facebook Login OAuth state validation, ad-account-required page connect, optional Instagram account selection, and Airbyte source/connection provisioning + initial sync trigger.
+  - Impact: Data Sources can complete Meta onboarding in one guided flow and immediately start Insights ingestion for reporting marts.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-08**
+  - Endpoint: Integration lifecycle APIs (planned, superseded by provider-specific rollout)
+  - Change: Initial plan captured for provider-generic connector lifecycle APIs; implementation proceeded with provider-specific Meta endpoints first.
+  - Impact: Historical planning reference only; use 2026-02-13 entry for currently implemented connector contracts.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend)
 - **2026-02-06**
   - Endpoint: `GET /api/dashboards/library/`
   - Change: Added dashboard library API endpoint to replace frontend mock data and include saved report-backed items.

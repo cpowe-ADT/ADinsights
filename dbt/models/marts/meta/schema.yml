@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: mart_meta_campaign_history
+    description: "SCD2 campaign history for Meta campaigns."
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination:
+              - tenant_id
+              - campaign_id
+              - dbt_valid_from
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null
+      - name: campaign_id
+        tests:
+          - not_null
+      - name: dbt_valid_from
+        tests:
+          - not_null
+
+  - name: mart_meta_daily_performance
+    description: "Daily Meta performance aggregates aligned to API insight fields."
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination:
+              - tenant_id
+              - date
+              - ad_account_id
+              - campaign_id
+              - adset_id
+              - ad_id
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null
+      - name: date
+        tests:
+          - not_null
+      - name: ad_account_id
+        tests:
+          - not_null
+
+  - name: mart_meta_ad_performance
+    description: "Ad-level aggregate performance across the available date range."
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination:
+              - tenant_id
+              - ad_account_id
+              - campaign_id
+              - adset_id
+              - ad_id
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null
+      - name: ad_id
+        tests:
+          - not_null

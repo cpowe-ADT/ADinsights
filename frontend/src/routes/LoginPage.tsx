@@ -10,9 +10,13 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from =
-    (location.state as { from?: { pathname?: string } } | undefined)?.from?.pathname ??
-    '/dashboards/campaigns';
+  const fromLocation = (location.state as {
+    from?: { pathname?: string; search?: string; hash?: string };
+  } | undefined)?.from;
+  const fromPathname = fromLocation?.pathname ?? '/dashboards/campaigns';
+  const fromSearch = fromLocation?.search ?? '';
+  const fromHash = fromLocation?.hash ?? '';
+  const from = `${fromPathname}${fromSearch}${fromHash}`;
 
   useEffect(() => {
     if (isAuthenticated) {

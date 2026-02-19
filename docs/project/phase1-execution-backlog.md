@@ -130,6 +130,15 @@ Cross-stream requirement:
 | `P1-X4` | Omar + Hannah | 2026-02-06 EST | Run staging alert simulations using new runbook and attach evidence. | Alerting SLA unverified in real stack. |
 | `P1-X9` | Mei + Raj | 2026-02-06 EST | Execute full staging go/no-go rehearsal and rollback check. | Release gate cannot move to READY. |
 
+## Meta Permission Governance Backlog (Docs-Only)
+
+| ID | Stream | Acting Persona | Task | Priority | Dependencies | Tests / Commands | Status |
+|----|--------|----------------|------|----------|--------------|------------------|--------|
+| DOC-META-1 | Docs Governance | Codex -> Maya | Baseline and maintain `docs/project/meta-permissions-catalog.yaml` as canonical active/near-term Meta permission source. | P2 | Keep aligned with runtime gate and default OAuth scope docs. | Docs-only consistency check against `backend/integrations/views.py`, `backend/core/settings.py`, and `backend/.env.sample`. | Planned (2026-02-19) |
+| DOC-META-2 | Docs Governance | Codex -> Omar | Maintain App Review use-case and screencast checklist for all `required_now` and active `optional_near_term` permissions. | P2 | Depends on DOC-META-1 schema stability. | Runbook review: `docs/runbooks/meta-app-review-submission-checklist.md` completeness and evidence fields. | Planned (2026-02-19) |
+| DOC-META-3 | Docs Governance | Codex -> Sofia | Run quarterly permission drift review across runtime gate, requested default scopes, and runbooks. | P2 | Depends on DOC-META-1 and DOC-META-2. | Manual drift audit of `backend/integrations/views.py`, `backend/core/settings.py`, `.env.sample`, and linked docs. | Planned (2026-02-19) |
+| DOC-META-4 | Docs Governance | Codex -> Mei | Enforce release gate rule: when Meta scopes/gates change, update catalog + profile + submission checklist in same PR. | P1 | Depends on DOC-META-1..3 process adoption. | PR checklist validation using `docs/runbooks/release-checklist.md` plus docs diff audit. | Planned (2026-02-19) |
+
 ## Frontend Expansion Backlog (Post-Phase 1 Draft)
 
 | ID | Stream | Acting Persona | Task | Priority | Dependencies | Tests / Commands | Status |

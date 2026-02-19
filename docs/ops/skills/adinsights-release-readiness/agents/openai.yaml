@@ -1,0 +1,4 @@
+interface:
+  display_name: "ADinsights Release Readiness"
+  short_description: "Synthesize release gate readiness"
+  default_prompt: "Use $adinsights-release-readiness to evaluate go-live readiness from scope, contract, and ops evidence."

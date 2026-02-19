@@ -11,6 +11,7 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.schemas.openapi import AutoSchema
 from rest_framework.views import APIView
 
 from accounts.audit import log_audit_event
@@ -30,9 +31,20 @@ logger = logging.getLogger(__name__)
 SYNC_HEALTH_STALE_THRESHOLD = timedelta(hours=2)
 
 
+class ReportDefinitionSchema(AutoSchema):
+    """Ensure unique operationIds for mixed-method custom actions."""
+
+    def get_operation_id(self, path, method):  # noqa: D401
+        operation_id = super().get_operation_id(path, method)
+        if getattr(self.view, "action", None) == "exports":
+            return f"{operation_id}{method.title()}"
+        return operation_id
+
+
 class ReportDefinitionViewSet(viewsets.ModelViewSet):
     serializer_class = ReportDefinitionSerializer
     permission_classes = [permissions.IsAuthenticated]
+    schema = ReportDefinitionSchema()
 
     def get_queryset(self):
         user = self.request.user
@@ -82,14 +94,17 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
             metadata={"fields": [], "redacted": True},
         )
 
-    @action(detail=True, methods=["get", "post"], url_path="exports")
+    @action(detail=True, methods=["get"], url_path="exports")
     def exports(self, request, pk=None):
         report = self.get_object()
-        actor = request.user if request.user.is_authenticated else None
 
-        if request.method.lower() == "get":
-            jobs = report.export_jobs.filter(tenant_id=report.tenant_id).order_by("-created_at")
-            return Response(ReportExportJobSerializer(jobs, many=True).data)
+        jobs = report.export_jobs.filter(tenant_id=report.tenant_id).order_by("-created_at")
+        return Response(ReportExportJobSerializer(jobs, many=True).data)
+
+    @exports.mapping.post
+    def create_export(self, request, pk=None):
+        report = self.get_object()
+        actor = request.user if request.user.is_authenticated else None
 
         payload = ReportExportCreateSerializer(data=request.data or {})
         payload.is_valid(raise_exception=True)
@@ -130,6 +145,8 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
 
 class AlertsViewSet(AlertRuleDefinitionViewSet):
     """Expose tenant alert rule management at /api/alerts/."""
+
+    schema = AutoSchema(operation_id_base="TenantAlertRuleDefinition")
 
 
 class AISummaryViewSet(viewsets.ReadOnlyModelViewSet):

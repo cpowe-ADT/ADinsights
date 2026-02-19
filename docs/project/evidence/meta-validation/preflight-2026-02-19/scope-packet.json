@@ -1,0 +1,1344 @@
+{
+  "schema_version": "1.1.0",
+  "scope_status": "ESCALATE_ARCH_RISK",
+  "touched_top_level_folders": [
+    "backend",
+    "dbt",
+    "docs",
+    "frontend",
+    "infrastructure",
+    "scripts",
+    "qa"
+  ],
+  "required_reviewers": [
+    "Raj",
+    "Mira",
+    "Sofia",
+    "Priya",
+    "Hannah",
+    "Lina",
+    "Maya",
+    "Nina"
+  ],
+  "required_tests_by_folder": {
+    "backend": [
+      "ruff check backend && pytest -q backend"
+    ],
+    "dbt": [
+      "make dbt-deps && dbt --project-dir dbt run --select staging && dbt snapshot && dbt --project-dir dbt run --select marts"
+    ],
+    "docs": [
+      "docs-only change (no canonical code test)"
+    ],
+    "frontend": [
+      "cd frontend && npm ci && npm test -- --run && npm run build"
+    ],
+    "infrastructure": [
+      "cd infrastructure/airbyte && docker compose config"
+    ],
+    "scripts": [
+      "ruff check backend",
+      "pytest backend/tests/test_dek_manager.py scripts/tests/test_rotate_deks.py"
+    ],
+    "qa": [
+      "cd frontend && npm ci && npm test -- --run && npm run build"
+    ]
+  },
+  "required_docs_updates": [
+    "docs/ops/doc-index.md",
+    "docs/ops/agent-activity-log.md"
+  ],
+  "recommended_next_action": "Route to Raj + Mira before implementation and capture architecture rationale/rollback notes.",
+  "rationale": [
+    "Evidence source: git_changed_files.",
+    "Detected 136 path(s): github/dependabot.yml, gitignore, AGENTS.md, Makefile, backend/.env.sample, backend/accounts/management/commands/enable_rls.py, backend/analytics/models.py, backend/analytics/phase2_views.py, backend/analytics/serializers.py, backend/core/crypto/fields.py, backend/core/crypto/kms.py, backend/core/metrics.py, backend/core/observability.py, backend/core/settings.py, backend/core/urls.py, backend/integrations/admin.py, backend/integrations/airbyte/client.py, backend/integrations/meta_graph.py, backend/integrations/models.py, backend/integrations/serializers.py, backend/integrations/tasks.py, backend/integrations/views.py, backend/pyproject.toml, backend/requirements.txt, backend/tests/conftest.py, backend/tests/test_kms_config.py, backend/tests/test_meta_oauth_api.py, backend/tests/test_platform_credentials.py, backend/tests/test_schema_regressions.py, dbt/macros/json_utils.sql, dbt/models/staging/meta/schema.yml, dbt/models/staging/meta/stg_meta_insights.sql, dbt/seeds/demo/dim_campaigns.csv, dbt/seeds/demo/dim_creatives.csv, dbt/seeds/demo/dim_tenants.csv, dbt/seeds/demo/fact_daily_campaign_metrics.csv, dbt/seeds/demo/fact_daily_creative_metrics.csv, dbt/seeds/demo/fact_daily_parish_metrics.csv, dbt/seeds/demo/plan_monthly_budgets.csv, dbt/snapshots/ad.sql, dbt/snapshots/adset.sql, dbt/snapshots/campaign.sql, docs/DEVELOPMENT.md, docs/PROGRAM-NOTES.md, docs/ops/agent-activity-log.md, docs/ops/doc-index.md, docs/ops/golden-path-onboarding.md, docs/ops/human-onboarding-guide.md, docs/ops/new-engineer-onboarding.md, docs/ops/testing-cheat-sheet.md, docs/project/api-contract-changelog.md, docs/project/feature-catalog.md, docs/project/feature-ownership-map.md, docs/project/integration-data-contract-matrix.md, docs/project/phase1-execution-backlog.md, docs/runbooks/operations.md, docs/runbooks/support-playbook.md, frontend/package.json, frontend/src/App.tsx, frontend/src/components/CampaignTrendChart.tsx, frontend/src/components/Header.module.css, frontend/src/components/Header.tsx, frontend/src/components/ParishMap.module.css, frontend/src/components/ParishMap.tsx, frontend/src/components/TenantSwitcher.module.css, frontend/src/components/ThemeProvider.tsx, frontend/src/components/__tests__/FilterBar.tokens.test.tsx, frontend/src/lib/airbyte.ts, frontend/src/lib/dashboardFilters.ts, frontend/src/lib/dashboardLibrary.ts, frontend/src/lib/recentDashboards.ts, frontend/src/pages/Home.module.css, frontend/src/pages/Home.test.tsx, frontend/src/pages/Home.tsx, frontend/src/router.tsx, frontend/src/routes/CampaignDashboard.tsx, frontend/src/routes/DashboardLayout.tsx, frontend/src/routes/DashboardLibrary.tsx, frontend/src/routes/DataSources.tsx, frontend/src/routes/LoginPage.tsx, frontend/src/routes/ParishMapDetail.tsx, frontend/src/routes/__tests__/CampaignDashboard.layout.test.tsx, frontend/src/routes/__tests__/DataSources.test.tsx, frontend/src/state/useDashboardStore.test.ts, frontend/src/state/useDashboardStore.ts, frontend/src/styles.css, frontend/src/styles/dashboard.css, frontend/src/styles/theme.css, infrastructure/airbyte/README.md, infrastructure/airbyte/docker-compose.yml, infrastructure/airbyte/env.example, infrastructure/airbyte/meta_source.yaml, infrastructure/airbyte/scripts/check_data_contracts.py, infrastructure/airbyte/scripts/provision_meta_google_connectors.py, infrastructure/airbyte/sources/meta_marketing.json.example, package-lock.json, package.json, scripts/dev-healthcheck.sh, scripts/dev-launch.sh, backend.pid, frontend.pid, github/workflows/contract-guard.yml, github/workflows/release-readiness-advisory.yml, backend/analytics/meta_serializers.py, backend/analytics/meta_views.py, backend/analytics/migrations/0004_adaccount_campaign_ad_account_and_more.py, backend/integrations/migrations/0008_platformcredential_auth_mode_and_more.py, backend/integrations/migrations/0009_apierrorlog.py, backend/tests/test_meta_graph_client.py, backend/tests/test_meta_lifecycle_tasks.py, backend/tests/test_meta_read_api.py, backend/tests/test_meta_sync_jobs.py, backend/tests/test_social_status_api.py, dbt/macros/snapshot_utils.sql, dbt/models/marts/meta/, docs/ops/ci-gate-review.md, docs/ops/dependency-triage-report.md, docs/ops/skills/, docs/project/evidence/meta-validation/, docs/project/meta-integration-v3-pr-tracks.md, docs/project/meta-permission-profile.md, docs/project/meta-permissions-catalog.yaml, docs/runbooks/meta-app-review-copy-pack.md, docs/runbooks/meta-app-review-submission-checklist.md, docs/runbooks/meta-app-review-validation.md, frontend/src/components/__tests__/ThemeProvider.test.tsx, frontend/src/lib/meta.ts, frontend/src/routes/MetaAccountsPage.tsx, frontend/src/routes/MetaCampaignOverviewPage.tsx, frontend/src/routes/MetaConnectionStatusPage.tsx, frontend/src/routes/MetaInsightsDashboardPage.tsx, frontend/src/routes/__tests__/LoginPage.test.tsx, frontend/src/routes/__tests__/ParishMapDetail.test.tsx, frontend/src/state/useMetaStore.test.ts, frontend/src/state/useMetaStore.ts, qa/tests/meta-integration.spec.ts.",
+    "Touched top-level folders: backend, dbt, docs, frontend, infrastructure, scripts, qa.",
+    "Architecture-sensitive paths detected: AGENTS.md, backend/core/settings.py, backend/core/urls.py, infrastructure/airbyte/docker-compose.yml",
+    "Contract-risk signal detected: backend/analytics/serializers.py, backend/core/urls.py, backend/integrations/serializers.py, backend/integrations/views.py, dbt/models/staging/meta/schema.yml, dbt/models/staging/meta/stg_meta_insights.sql, dbt/snapshots/ad.sql, dbt/snapshots/adset.sql, dbt/snapshots/campaign.sql, docs/project/api-contract-changelog.md, docs/project/integration-data-contract-matrix.md, infrastructure/airbyte/README.md, infrastructure/airbyte/docker-compose.yml, infrastructure/airbyte/env.example, infrastructure/airbyte/meta_source.yaml, infrastructure/airbyte/scripts/check_data_contracts.py, infrastructure/airbyte/scripts/provision_meta_google_connectors.py, infrastructure/airbyte/sources/meta_marketing.json.example"
+  ],
+  "advisory_only": true,
+  "evidence_source": "git_changed_files",
+  "evidence_paths": [
+    "github/dependabot.yml",
+    "gitignore",
+    "AGENTS.md",
+    "Makefile",
+    "backend/.env.sample",
+    "backend/accounts/management/commands/enable_rls.py",
+    "backend/analytics/models.py",
+    "backend/analytics/phase2_views.py",
+    "backend/analytics/serializers.py",
+    "backend/core/crypto/fields.py",
+    "backend/core/crypto/kms.py",
+    "backend/core/metrics.py",
+    "backend/core/observability.py",
+    "backend/core/settings.py",
+    "backend/core/urls.py",
+    "backend/integrations/admin.py",
+    "backend/integrations/airbyte/client.py",
+    "backend/integrations/meta_graph.py",
+    "backend/integrations/models.py",
+    "backend/integrations/serializers.py",
+    "backend/integrations/tasks.py",
+    "backend/integrations/views.py",
+    "backend/pyproject.toml",
+    "backend/requirements.txt",
+    "backend/tests/conftest.py",
+    "backend/tests/test_kms_config.py",
+    "backend/tests/test_meta_oauth_api.py",
+    "backend/tests/test_platform_credentials.py",
+    "backend/tests/test_schema_regressions.py",
+    "dbt/macros/json_utils.sql",
+    "dbt/models/staging/meta/schema.yml",
+    "dbt/models/staging/meta/stg_meta_insights.sql",
+    "dbt/seeds/demo/dim_campaigns.csv",
+    "dbt/seeds/demo/dim_creatives.csv",
+    "dbt/seeds/demo/dim_tenants.csv",
+    "dbt/seeds/demo/fact_daily_campaign_metrics.csv",
+    "dbt/seeds/demo/fact_daily_creative_metrics.csv",
+    "dbt/seeds/demo/fact_daily_parish_metrics.csv",
+    "dbt/seeds/demo/plan_monthly_budgets.csv",
+    "dbt/snapshots/ad.sql",
+    "dbt/snapshots/adset.sql",
+    "dbt/snapshots/campaign.sql",
+    "docs/DEVELOPMENT.md",
+    "docs/PROGRAM-NOTES.md",
+    "docs/ops/agent-activity-log.md",
+    "docs/ops/doc-index.md",
+    "docs/ops/golden-path-onboarding.md",
+    "docs/ops/human-onboarding-guide.md",
+    "docs/ops/new-engineer-onboarding.md",
+    "docs/ops/testing-cheat-sheet.md",
+    "docs/project/api-contract-changelog.md",
+    "docs/project/feature-catalog.md",
+    "docs/project/feature-ownership-map.md",
+    "docs/project/integration-data-contract-matrix.md",
+    "docs/project/phase1-execution-backlog.md",
+    "docs/runbooks/operations.md",
+    "docs/runbooks/support-playbook.md",
+    "frontend/package.json",
+    "frontend/src/App.tsx",
+    "frontend/src/components/CampaignTrendChart.tsx",
+    "frontend/src/components/Header.module.css",
+    "frontend/src/components/Header.tsx",
+    "frontend/src/components/ParishMap.module.css",
+    "frontend/src/components/ParishMap.tsx",
+    "frontend/src/components/TenantSwitcher.module.css",
+    "frontend/src/components/ThemeProvider.tsx",
+    "frontend/src/components/__tests__/FilterBar.tokens.test.tsx",
+    "frontend/src/lib/airbyte.ts",
+    "frontend/src/lib/dashboardFilters.ts",
+    "frontend/src/lib/dashboardLibrary.ts",
+    "frontend/src/lib/recentDashboards.ts",
+    "frontend/src/pages/Home.module.css",
+    "frontend/src/pages/Home.test.tsx",
+    "frontend/src/pages/Home.tsx",
+    "frontend/src/router.tsx",
+    "frontend/src/routes/CampaignDashboard.tsx",
+    "frontend/src/routes/DashboardLayout.tsx",
+    "frontend/src/routes/DashboardLibrary.tsx",
+    "frontend/src/routes/DataSources.tsx",
+    "frontend/src/routes/LoginPage.tsx",
+    "frontend/src/routes/ParishMapDetail.tsx",
+    "frontend/src/routes/__tests__/CampaignDashboard.layout.test.tsx",
+    "frontend/src/routes/__tests__/DataSources.test.tsx",
+    "frontend/src/state/useDashboardStore.test.ts",
+    "frontend/src/state/useDashboardStore.ts",
+    "frontend/src/styles.css",
+    "frontend/src/styles/dashboard.css",
+    "frontend/src/styles/theme.css",
+    "infrastructure/airbyte/README.md",
+    "infrastructure/airbyte/docker-compose.yml",
+    "infrastructure/airbyte/env.example",
+    "infrastructure/airbyte/meta_source.yaml",
+    "infrastructure/airbyte/scripts/check_data_contracts.py",
+    "infrastructure/airbyte/scripts/provision_meta_google_connectors.py",
+    "infrastructure/airbyte/sources/meta_marketing.json.example",
+    "package-lock.json",
+    "package.json",
+    "scripts/dev-healthcheck.sh",
+    "scripts/dev-launch.sh",
+    "backend.pid",
+    "frontend.pid",
+    "github/workflows/contract-guard.yml",
+    "github/workflows/release-readiness-advisory.yml",
+    "backend/analytics/meta_serializers.py",
+    "backend/analytics/meta_views.py",
+    "backend/analytics/migrations/0004_adaccount_campaign_ad_account_and_more.py",
+    "backend/integrations/migrations/0008_platformcredential_auth_mode_and_more.py",
+    "backend/integrations/migrations/0009_apierrorlog.py",
+    "backend/tests/test_meta_graph_client.py",
+    "backend/tests/test_meta_lifecycle_tasks.py",
+    "backend/tests/test_meta_read_api.py",
+    "backend/tests/test_meta_sync_jobs.py",
+    "backend/tests/test_social_status_api.py",
+    "dbt/macros/snapshot_utils.sql",
+    "dbt/models/marts/meta/",
+    "docs/ops/ci-gate-review.md",
+    "docs/ops/dependency-triage-report.md",
+    "docs/ops/skills/",
+    "docs/project/evidence/meta-validation/",
+    "docs/project/meta-integration-v3-pr-tracks.md",
+    "docs/project/meta-permission-profile.md",
+    "docs/project/meta-permissions-catalog.yaml",
+    "docs/runbooks/meta-app-review-copy-pack.md",
+    "docs/runbooks/meta-app-review-submission-checklist.md",
+    "docs/runbooks/meta-app-review-validation.md",
+    "frontend/src/components/__tests__/ThemeProvider.test.tsx",
+    "frontend/src/lib/meta.ts",
+    "frontend/src/routes/MetaAccountsPage.tsx",
+    "frontend/src/routes/MetaCampaignOverviewPage.tsx",
+    "frontend/src/routes/MetaConnectionStatusPage.tsx",
+    "frontend/src/routes/MetaInsightsDashboardPage.tsx",
+    "frontend/src/routes/__tests__/LoginPage.test.tsx",
+    "frontend/src/routes/__tests__/ParishMapDetail.test.tsx",
+    "frontend/src/state/useMetaStore.test.ts",
+    "frontend/src/state/useMetaStore.ts",
+    "qa/tests/meta-integration.spec.ts"
+  ],
+  "evidence": [
+    {
+      "type": "scope_path",
+      "value": "github/dependabot.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "gitignore",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "AGENTS.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "Makefile",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/.env.sample",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/accounts/management/commands/enable_rls.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/analytics/models.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/analytics/phase2_views.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/analytics/serializers.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/core/crypto/fields.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/core/crypto/kms.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/core/metrics.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/core/observability.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/core/settings.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/core/urls.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/integrations/admin.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/integrations/airbyte/client.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/integrations/meta_graph.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/integrations/models.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/integrations/serializers.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/integrations/tasks.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/integrations/views.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/pyproject.toml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/requirements.txt",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/conftest.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_kms_config.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_meta_oauth_api.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_platform_credentials.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_schema_regressions.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/macros/json_utils.sql",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/models/staging/meta/schema.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/models/staging/meta/stg_meta_insights.sql",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/seeds/demo/dim_campaigns.csv",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/seeds/demo/dim_creatives.csv",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/seeds/demo/dim_tenants.csv",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/seeds/demo/fact_daily_campaign_metrics.csv",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/seeds/demo/fact_daily_creative_metrics.csv",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/seeds/demo/fact_daily_parish_metrics.csv",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/seeds/demo/plan_monthly_budgets.csv",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/snapshots/ad.sql",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/snapshots/adset.sql",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/snapshots/campaign.sql",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/DEVELOPMENT.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/PROGRAM-NOTES.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/ops/agent-activity-log.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/ops/doc-index.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/ops/golden-path-onboarding.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/ops/human-onboarding-guide.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/ops/new-engineer-onboarding.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/ops/testing-cheat-sheet.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/api-contract-changelog.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/feature-catalog.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/feature-ownership-map.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/integration-data-contract-matrix.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/phase1-execution-backlog.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/runbooks/operations.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/runbooks/support-playbook.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/package.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/App.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/components/CampaignTrendChart.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/components/Header.module.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/components/Header.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/components/ParishMap.module.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/components/ParishMap.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/components/TenantSwitcher.module.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/components/ThemeProvider.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/components/__tests__/FilterBar.tokens.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/lib/airbyte.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/lib/dashboardFilters.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/lib/dashboardLibrary.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/lib/recentDashboards.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/pages/Home.module.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/pages/Home.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/pages/Home.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/router.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/CampaignDashboard.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/DashboardLayout.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/DashboardLibrary.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/DataSources.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/LoginPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/ParishMapDetail.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/__tests__/CampaignDashboard.layout.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/__tests__/DataSources.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/state/useDashboardStore.test.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/state/useDashboardStore.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/styles.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/styles/dashboard.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/styles/theme.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "infrastructure/airbyte/README.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "infrastructure/airbyte/docker-compose.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "infrastructure/airbyte/env.example",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "infrastructure/airbyte/meta_source.yaml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "infrastructure/airbyte/scripts/check_data_contracts.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "infrastructure/airbyte/scripts/provision_meta_google_connectors.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "infrastructure/airbyte/sources/meta_marketing.json.example",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "package-lock.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "package.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "scripts/dev-healthcheck.sh",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "scripts/dev-launch.sh",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend.pid",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend.pid",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "github/workflows/contract-guard.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "github/workflows/release-readiness-advisory.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/analytics/meta_serializers.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/analytics/meta_views.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/analytics/migrations/0004_adaccount_campaign_ad_account_and_more.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/integrations/migrations/0008_platformcredential_auth_mode_and_more.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/integrations/migrations/0009_apierrorlog.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_meta_graph_client.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_meta_lifecycle_tasks.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_meta_read_api.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_meta_sync_jobs.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_social_status_api.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/macros/snapshot_utils.sql",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "dbt/models/marts/meta/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/ops/ci-gate-review.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/ops/dependency-triage-report.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/ops/skills/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/evidence/meta-validation/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/meta-integration-v3-pr-tracks.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/meta-permission-profile.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/meta-permissions-catalog.yaml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/runbooks/meta-app-review-copy-pack.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/runbooks/meta-app-review-submission-checklist.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/runbooks/meta-app-review-validation.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/components/__tests__/ThemeProvider.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/lib/meta.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/MetaAccountsPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/MetaCampaignOverviewPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/MetaConnectionStatusPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/MetaInsightsDashboardPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/__tests__/LoginPage.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/__tests__/ParishMapDetail.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/state/useMetaStore.test.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/state/useMetaStore.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "qa/tests/meta-integration.spec.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "architecture_sensitive_match",
+      "value": "AGENTS.md",
+      "strength": 1.0,
+      "source": "rules"
+    },
+    {
+      "type": "architecture_sensitive_match",
+      "value": "backend/core/settings.py",
+      "strength": 1.0,
+      "source": "rules"
+    },
+    {
+      "type": "architecture_sensitive_match",
+      "value": "backend/core/urls.py",
+      "strength": 1.0,
+      "source": "rules"
+    },
+    {
+      "type": "architecture_sensitive_match",
+      "value": "infrastructure/airbyte/docker-compose.yml",
+      "strength": 1.0,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "backend/analytics/serializers.py",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "backend/core/urls.py",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "backend/integrations/serializers.py",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "backend/integrations/views.py",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "dbt/models/staging/meta/schema.yml",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "dbt/models/staging/meta/stg_meta_insights.sql",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "dbt/snapshots/ad.sql",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "dbt/snapshots/adset.sql",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "dbt/snapshots/campaign.sql",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "docs/project/api-contract-changelog.md",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "docs/project/integration-data-contract-matrix.md",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "infrastructure/airbyte/README.md",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "infrastructure/airbyte/docker-compose.yml",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "infrastructure/airbyte/env.example",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "infrastructure/airbyte/meta_source.yaml",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "infrastructure/airbyte/scripts/check_data_contracts.py",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "infrastructure/airbyte/scripts/provision_meta_google_connectors.py",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "infrastructure/airbyte/sources/meta_marketing.json.example",
+      "strength": 0.9,
+      "source": "rules"
+    }
+  ],
+  "contract_risk_signal": true,
+  "contract_risk_reasons": [
+    "Matched contract-risk pattern on 'backend/analytics/serializers.py'.",
+    "Matched contract-risk pattern on 'backend/core/urls.py'.",
+    "Matched contract-risk pattern on 'backend/integrations/serializers.py'.",
+    "Matched contract-risk pattern on 'backend/integrations/views.py'.",
+    "Matched contract-risk pattern on 'dbt/models/staging/meta/schema.yml'.",
+    "Matched contract-risk pattern on 'dbt/models/staging/meta/stg_meta_insights.sql'.",
+    "Matched contract-risk pattern on 'dbt/snapshots/ad.sql'.",
+    "Matched contract-risk pattern on 'dbt/snapshots/adset.sql'.",
+    "Matched contract-risk pattern on 'dbt/snapshots/campaign.sql'.",
+    "Matched contract-risk pattern on 'docs/project/api-contract-changelog.md'.",
+    "Matched contract-risk pattern on 'docs/project/integration-data-contract-matrix.md'.",
+    "Matched contract-risk pattern on 'infrastructure/airbyte/README.md'.",
+    "Matched contract-risk pattern on 'infrastructure/airbyte/docker-compose.yml'.",
+    "Matched contract-risk pattern on 'infrastructure/airbyte/env.example'.",
+    "Matched contract-risk pattern on 'infrastructure/airbyte/meta_source.yaml'.",
+    "Matched contract-risk pattern on 'infrastructure/airbyte/scripts/check_data_contracts.py'.",
+    "Matched contract-risk pattern on 'infrastructure/airbyte/scripts/provision_meta_google_connectors.py'.",
+    "Matched contract-risk pattern on 'infrastructure/airbyte/sources/meta_marketing.json.example'."
+  ],
+  "handoff_recommendations": {
+    "invoke_contract_guard": true,
+    "invoke_release_readiness": true
+  },
+  "signals": {
+    "prompt_paths": [],
+    "explicit_paths": [],
+    "changed_files": [
+      ".github/dependabot.yml",
+      ".gitignore",
+      "AGENTS.md",
+      "Makefile",
+      "backend/.env.sample",
+      "backend/accounts/management/commands/enable_rls.py",
+      "backend/analytics/models.py",
+      "backend/analytics/phase2_views.py",
+      "backend/analytics/serializers.py",
+      "backend/core/crypto/fields.py",
+      "backend/core/crypto/kms.py",
+      "backend/core/metrics.py",
+      "backend/core/observability.py",
+      "backend/core/settings.py",
+      "backend/core/urls.py",
+      "backend/integrations/admin.py",
+      "backend/integrations/airbyte/client.py",
+      "backend/integrations/meta_graph.py",
+      "backend/integrations/models.py",
+      "backend/integrations/serializers.py",
+      "backend/integrations/tasks.py",
+      "backend/integrations/views.py",
+      "backend/pyproject.toml",
+      "backend/requirements.txt",
+      "backend/tests/conftest.py",
+      "backend/tests/test_kms_config.py",
+      "backend/tests/test_meta_oauth_api.py",
+      "backend/tests/test_platform_credentials.py",
+      "backend/tests/test_schema_regressions.py",
+      "dbt/macros/json_utils.sql",
+      "dbt/models/staging/meta/schema.yml",
+      "dbt/models/staging/meta/stg_meta_insights.sql",
+      "dbt/seeds/demo/dim_campaigns.csv",
+      "dbt/seeds/demo/dim_creatives.csv",
+      "dbt/seeds/demo/dim_tenants.csv",
+      "dbt/seeds/demo/fact_daily_campaign_metrics.csv",
+      "dbt/seeds/demo/fact_daily_creative_metrics.csv",
+      "dbt/seeds/demo/fact_daily_parish_metrics.csv",
+      "dbt/seeds/demo/plan_monthly_budgets.csv",
+      "dbt/snapshots/ad.sql",
+      "dbt/snapshots/adset.sql",
+      "dbt/snapshots/campaign.sql",
+      "docs/DEVELOPMENT.md",
+      "docs/PROGRAM-NOTES.md",
+      "docs/ops/agent-activity-log.md",
+      "docs/ops/doc-index.md",
+      "docs/ops/golden-path-onboarding.md",
+      "docs/ops/human-onboarding-guide.md",
+      "docs/ops/new-engineer-onboarding.md",
+      "docs/ops/testing-cheat-sheet.md",
+      "docs/project/api-contract-changelog.md",
+      "docs/project/feature-catalog.md",
+      "docs/project/feature-ownership-map.md",
+      "docs/project/integration-data-contract-matrix.md",
+      "docs/project/phase1-execution-backlog.md",
+      "docs/runbooks/operations.md",
+      "docs/runbooks/support-playbook.md",
+      "frontend/package.json",
+      "frontend/src/App.tsx",
+      "frontend/src/components/CampaignTrendChart.tsx",
+      "frontend/src/components/Header.module.css",
+      "frontend/src/components/Header.tsx",
+      "frontend/src/components/ParishMap.module.css",
+      "frontend/src/components/ParishMap.tsx",
+      "frontend/src/components/TenantSwitcher.module.css",
+      "frontend/src/components/ThemeProvider.tsx",
+      "frontend/src/components/__tests__/FilterBar.tokens.test.tsx",
+      "frontend/src/lib/airbyte.ts",
+      "frontend/src/lib/dashboardFilters.ts",
+      "frontend/src/lib/dashboardLibrary.ts",
+      "frontend/src/lib/recentDashboards.ts",
+      "frontend/src/pages/Home.module.css",
+      "frontend/src/pages/Home.test.tsx",
+      "frontend/src/pages/Home.tsx",
+      "frontend/src/router.tsx",
+      "frontend/src/routes/CampaignDashboard.tsx",
+      "frontend/src/routes/DashboardLayout.tsx",
+      "frontend/src/routes/DashboardLibrary.tsx",
+      "frontend/src/routes/DataSources.tsx",
+      "frontend/src/routes/LoginPage.tsx",
+      "frontend/src/routes/ParishMapDetail.tsx",
+      "frontend/src/routes/__tests__/CampaignDashboard.layout.test.tsx",
+      "frontend/src/routes/__tests__/DataSources.test.tsx",
+      "frontend/src/state/useDashboardStore.test.ts",
+      "frontend/src/state/useDashboardStore.ts",
+      "frontend/src/styles.css",
+      "frontend/src/styles/dashboard.css",
+      "frontend/src/styles/theme.css",
+      "infrastructure/airbyte/README.md",
+      "infrastructure/airbyte/docker-compose.yml",
+      "infrastructure/airbyte/env.example",
+      "infrastructure/airbyte/meta_source.yaml",
+      "infrastructure/airbyte/scripts/check_data_contracts.py",
+      "infrastructure/airbyte/scripts/provision_meta_google_connectors.py",
+      "infrastructure/airbyte/sources/meta_marketing.json.example",
+      "package-lock.json",
+      "package.json",
+      "scripts/dev-healthcheck.sh",
+      "scripts/dev-launch.sh",
+      ".backend.pid",
+      ".frontend.pid",
+      ".github/workflows/contract-guard.yml",
+      ".github/workflows/release-readiness-advisory.yml",
+      "backend/analytics/meta_serializers.py",
+      "backend/analytics/meta_views.py",
+      "backend/analytics/migrations/0004_adaccount_campaign_ad_account_and_more.py",
+      "backend/integrations/migrations/0008_platformcredential_auth_mode_and_more.py",
+      "backend/integrations/migrations/0009_apierrorlog.py",
+      "backend/tests/test_meta_graph_client.py",
+      "backend/tests/test_meta_lifecycle_tasks.py",
+      "backend/tests/test_meta_read_api.py",
+      "backend/tests/test_meta_sync_jobs.py",
+      "backend/tests/test_social_status_api.py",
+      "dbt/macros/snapshot_utils.sql",
+      "dbt/models/marts/meta/",
+      "docs/ops/ci-gate-review.md",
+      "docs/ops/dependency-triage-report.md",
+      "docs/ops/skills/",
+      "docs/project/evidence/meta-validation/",
+      "docs/project/meta-integration-v3-pr-tracks.md",
+      "docs/project/meta-permission-profile.md",
+      "docs/project/meta-permissions-catalog.yaml",
+      "docs/runbooks/meta-app-review-copy-pack.md",
+      "docs/runbooks/meta-app-review-submission-checklist.md",
+      "docs/runbooks/meta-app-review-validation.md",
+      "frontend/src/components/__tests__/ThemeProvider.test.tsx",
+      "frontend/src/lib/meta.ts",
+      "frontend/src/routes/MetaAccountsPage.tsx",
+      "frontend/src/routes/MetaCampaignOverviewPage.tsx",
+      "frontend/src/routes/MetaConnectionStatusPage.tsx",
+      "frontend/src/routes/MetaInsightsDashboardPage.tsx",
+      "frontend/src/routes/__tests__/LoginPage.test.tsx",
+      "frontend/src/routes/__tests__/ParishMapDetail.test.tsx",
+      "frontend/src/state/useMetaStore.test.ts",
+      "frontend/src/state/useMetaStore.ts",
+      "qa/tests/meta-integration.spec.ts"
+    ],
+    "used_git_changed_files": true,
+    "architecture_hits": [
+      "AGENTS.md",
+      "backend/core/settings.py",
+      "backend/core/urls.py",
+      "infrastructure/airbyte/docker-compose.yml"
+    ],
+    "contract_hits": [
+      "backend/analytics/serializers.py",
+      "backend/core/urls.py",
+      "backend/integrations/serializers.py",
+      "backend/integrations/views.py",
+      "dbt/models/staging/meta/schema.yml",
+      "dbt/models/staging/meta/stg_meta_insights.sql",
+      "dbt/snapshots/ad.sql",
+      "dbt/snapshots/adset.sql",
+      "dbt/snapshots/campaign.sql",
+      "docs/project/api-contract-changelog.md",
+      "docs/project/integration-data-contract-matrix.md",
+      "infrastructure/airbyte/README.md",
+      "infrastructure/airbyte/docker-compose.yml",
+      "infrastructure/airbyte/env.example",
+      "infrastructure/airbyte/meta_source.yaml",
+      "infrastructure/airbyte/scripts/check_data_contracts.py",
+      "infrastructure/airbyte/scripts/provision_meta_google_connectors.py",
+      "infrastructure/airbyte/sources/meta_marketing.json.example"
+    ],
+    "contract_keyword_hits": []
+  }
+}

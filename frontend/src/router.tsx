@@ -26,6 +26,10 @@ import ReportsPage from './routes/ReportsPage';
 import SummariesPage from './routes/SummariesPage';
 import SummaryDetailPage from './routes/SummaryDetailPage';
 import SyncHealthPage from './routes/SyncHealthPage';
+import MetaAccountsPage from './routes/MetaAccountsPage';
+import MetaCampaignOverviewPage from './routes/MetaCampaignOverviewPage';
+import MetaInsightsDashboardPage from './routes/MetaInsightsDashboardPage';
+import MetaConnectionStatusPage from './routes/MetaConnectionStatusPage';
 
 export const router = createBrowserRouter(
   [
@@ -100,6 +104,10 @@ export const router = createBrowserRouter(
             { path: 'creatives/:creativeId', element: <CreativeDetail /> },
             { path: 'budget', element: <BudgetDashboard /> },
             { path: 'data-sources', element: <DataSources /> },
+            { path: 'meta/accounts', element: <MetaAccountsPage /> },
+            { path: 'meta/campaigns', element: <MetaCampaignOverviewPage /> },
+            { path: 'meta/insights', element: <MetaInsightsDashboardPage /> },
+            { path: 'meta/status', element: <MetaConnectionStatusPage /> },
             { path: 'map', element: <ParishMapDetail /> },
             { path: 'uploads', element: <CsvUpload /> },
           ],
@@ -112,7 +120,9 @@ export const router = createBrowserRouter(
     },
   ],
   {
-    future: undefined,
+    future: {
+      v7_relativeSplatPath: true,
+    },
   },
 );
 

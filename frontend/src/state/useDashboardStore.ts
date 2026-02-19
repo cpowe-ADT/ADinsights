@@ -239,6 +239,15 @@ function resolveFilterKey(filters: FilterBarState): string {
   return serialized || 'default';
 }
 
+function normalizeParishValue(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\./g, '')
+    .replace(/\bsaint\b/g, 'st')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function normalizeFilterQuery(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -621,8 +630,12 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       set({ selectedParish: undefined });
       return;
     }
+    const normalizedNext = normalizeParishValue(parish);
     const current = get().selectedParish;
-    set({ selectedParish: current === parish ? undefined : parish });
+    const normalizedCurrent = current ? normalizeParishValue(current) : '';
+    set({
+      selectedParish: normalizedCurrent === normalizedNext ? undefined : parish.trim(),
+    });
   },
   setSelectedMetric: (metric) => set({ selectedMetric: metric }),
   setActiveTenant: (tenantId, tenantLabel) => {
@@ -1009,9 +1022,9 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         return matchesQuery(row.name, query);
       });
     }
-    const parishKey = selectedParish.toLowerCase();
+    const parishKey = normalizeParishValue(selectedParish);
     return rows.filter((row) => {
-      if (row.parish?.toLowerCase() !== parishKey) {
+      if (!row.parish || normalizeParishValue(row.parish) !== parishKey) {
         return false;
       }
       if (channelFilters.length > 0) {
@@ -1045,9 +1058,9 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         );
       });
     }
-    const parishKey = selectedParish.toLowerCase();
+    const parishKey = normalizeParishValue(selectedParish);
     return rows.filter((row) => {
-      if (row.parish?.toLowerCase() !== parishKey) {
+      if (!row.parish || normalizeParishValue(row.parish) !== parishKey) {
         return false;
       }
       if (channelFilters.length > 0) {
@@ -1078,9 +1091,9 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         return matchesQuery(row.campaignName, query);
       });
     }
-    const parishKey = selectedParish.toLowerCase();
+    const parishKey = normalizeParishValue(selectedParish);
     return rows.filter((row) => {
-      if (!row.parishes?.some((parish) => parish.toLowerCase() === parishKey)) {
+      if (!row.parishes?.some((parish) => normalizeParishValue(parish) === parishKey)) {
         return false;
       }
       if (channelFilters.length > 0) {

@@ -1,0 +1,17 @@
+AGENTS.md
+docs/PROGRAM-NOTES.md
+docs/ops/agent-activity-log.md
+docs/ops/doc-index.md
+docs/ops/testing-cheat-sheet.md
+docs/project/api-contract-changelog.md
+docs/project/evidence/meta-validation/2026-02-19T20-35-00-0500.md
+docs/project/evidence/meta-validation/_TEMPLATE.md
+docs/project/evidence/meta-validation/preflight-2026-02-19/contract-packet.json
+docs/project/evidence/meta-validation/preflight-2026-02-19/release-packet.json
+docs/project/evidence/meta-validation/preflight-2026-02-19/router-packet.json
+docs/project/evidence/meta-validation/preflight-2026-02-19/scope-packet.json
+docs/project/integration-data-contract-matrix.md
+docs/project/meta-integration-v3-pr-execution.md
+docs/project/meta-integration-v3-pr-tracks.md
+docs/runbooks/meta-app-review-validation.md
+docs/runbooks/operations.md

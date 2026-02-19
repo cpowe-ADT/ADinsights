@@ -1,0 +1,1 @@
+qa/tests/meta-integration.spec.ts

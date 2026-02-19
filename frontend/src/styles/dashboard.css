@@ -115,6 +115,10 @@
   min-height: 240px;
 }
 
+.tableCardWide {
+  min-height: 340px;
+}
+
 .chartFooter {
   display: flex;
   justify-content: space-between;
@@ -149,11 +153,19 @@
     grid-template-columns: 1fr;
     grid-row: span 3;
   }
+
+  .tableCardWide {
+    grid-column: 2 / -1;
+  }
 }
 
 @media (min-width: 768px) and (max-width: 1279px) {
   .kpiColumn {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-column: 1 / -1;
+  }
+
+  .tableCardWide {
     grid-column: 1 / -1;
   }
 }

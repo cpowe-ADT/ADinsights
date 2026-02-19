@@ -1,0 +1,86 @@
+skill: adinsights-scope-gatekeeper
+version: 2
+mode: advisory-first
+packet_schema_version: 1.1.0
+evidence_precedence:
+  - git_changed_files
+  - explicit_paths
+  - prompt_paths
+supported_scope_statuses:
+  - PASS_SINGLE_SCOPE
+  - WARN_UNCLEAR_SCOPE
+  - ESCALATE_CROSS_SCOPE
+  - ESCALATE_ARCH_RISK
+  - ESCALATE_CONTRACT_RISK
+known_top_level_buckets:
+  - backend
+  - frontend
+  - dbt
+  - infrastructure
+  - deploy
+  - docs
+  - scripts
+  - qa
+  - bi
+  - integrations
+bucket_aliases:
+  docs/BI/: bi
+  bi/: bi
+  infrastructure/airbyte/: infrastructure
+bucket_owner_personas:
+  backend: Sofia
+  frontend: Lina
+  dbt: Priya
+  infrastructure: Maya
+  deploy: Carlos
+  docs: Hannah
+  scripts: Nina
+  qa: Lina
+  bi: Carlos
+  integrations: Maya
+bucket_required_tests:
+  backend:
+    - ruff check backend && pytest -q backend
+  frontend:
+    - cd frontend && npm ci && npm test -- --run && npm run build
+  dbt:
+    - make dbt-deps && dbt --project-dir dbt run --select staging && dbt snapshot && dbt --project-dir dbt run --select marts
+  infrastructure:
+    - cd infrastructure/airbyte && docker compose config
+  deploy:
+    - docker compose config
+  docs:
+    - docs-only change (no canonical code test)
+  scripts:
+    - ruff check backend
+    - pytest backend/tests/test_dek_manager.py scripts/tests/test_rotate_deks.py
+  qa:
+    - cd frontend && npm ci && npm test -- --run && npm run build
+  bi:
+    - docker compose config
+  integrations:
+    - ruff check backend
+    - pytest backend/tests/test_airbyte_*.py
+architecture_sensitive_patterns:
+  - AGENTS.md
+  - backend/core/urls.py
+  - backend/core/settings.py
+  - backend/middleware/tenant.py
+  - docs/ops/adr-log.md
+  - dbt/dbt_project.yml
+  - infrastructure/airbyte/docker-compose.yml
+contract_risk_patterns:
+  - docs/project/api-contract-changelog.md
+  - docs/project/integration-data-contract-matrix.md
+  - backend/.*/serializers\.py
+  - backend/.*/views\.py
+  - backend/.*/urls\.py
+  - backend/.*/schema.*\.py
+  - dbt/models/.*\.(sql|yml)
+  - dbt/snapshots/.*\.(sql|yml)
+  - ^infrastructure/airbyte/.*
+  - ^integrations/.*
+contract_signal_defaults:
+  reviewer: Raj
+  invoke_contract_guard: true
+default_docs_updates: []

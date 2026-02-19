@@ -1,0 +1,142 @@
+name: Release Readiness Advisory
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-readiness-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'dbt/**'
+      - 'infrastructure/**'
+      - 'integrations/**'
+      - 'deploy/**'
+      - 'docs/project/api-contract-changelog.md'
+      - 'docs/project/integration-data-contract-matrix.md'
+      - 'docs/runbooks/release-checklist.md'
+      - 'docs/runbooks/deployment.md'
+      - 'docs/runbooks/operations.md'
+      - 'docs/ops/skills/**'
+      - '.github/workflows/release-readiness-advisory.yml'
+  workflow_dispatch:
+
+jobs:
+  release-readiness:
+    name: Release readiness advisory summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Collect changed files
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="$(git rev-list --max-parents=0 HEAD)"
+            HEAD_SHA="${{ github.sha }}"
+          fi
+
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed-files.txt
+          COUNT=$(wc -l < changed-files.txt | tr -d ' ')
+          echo "Changed files (${COUNT}):"
+          cat changed-files.txt
+
+      - name: Run preflight skillchain (advisory)
+        run: |
+          set -euo pipefail
+          ARGS=()
+          while IFS= read -r file; do
+            [ -n "$file" ] || continue
+            ARGS+=(--changed-file "$file")
+          done < changed-files.txt
+
+          python3 docs/ops/skills/adinsights-release-readiness/scripts/run_preflight_skillchain.py \
+            --prompt "CI advisory release-readiness preflight for pull request" \
+            "${ARGS[@]}" \
+            --contract-on-signal-only \
+            --output-dir preflight-output \
+            --format json | tee preflight-output/skillchain-result.json
+
+      - name: Publish release readiness summary
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path('preflight-output/skillchain-result.json')
+          if not path.exists():
+              print('No preflight output produced.')
+              raise SystemExit(0)
+
+          result = json.loads(path.read_text())
+          summary = result.get('summary', {})
+          release_packet = result.get('packets', {}).get('release', {})
+
+          lines = []
+          lines.append('## Release Readiness Advisory')
+          lines.append(f"- Router action: `{summary.get('router_action')}`")
+          lines.append(f"- Scope status: `{summary.get('scope_status')}`")
+          lines.append(f"- Contract status: `{summary.get('contract_status')}`")
+          lines.append(f"- Release status: `{summary.get('release_status')}`")
+          lines.append(f"- Contract executed: `{summary.get('contract_executed')}`")
+          lines.append('')
+          lines.append('### Blocking Issues')
+          blocks = release_packet.get('blocking_issues', []) or []
+          if blocks:
+              lines.extend(f"- {item}" for item in blocks)
+          else:
+              lines.append('- None')
+          lines.append('')
+          lines.append('### Warnings')
+          warns = release_packet.get('warnings', []) or []
+          if warns:
+              lines.extend(f"- {item}" for item in warns)
+          else:
+              lines.append('- None')
+          lines.append('')
+          lines.append('### Pending Items')
+          pending = release_packet.get('pending_items', []) or []
+          if pending:
+              lines.extend(f"- {item}" for item in pending)
+          else:
+              lines.append('- None')
+
+          target = os.environ.get('GITHUB_STEP_SUMMARY')
+          if target:
+              with open(Path(target), 'a', encoding='utf-8') as fh:
+                  fh.write('\n'.join(lines) + '\n')
+          else:
+              print('\n'.join(lines))
+          PY
+
+      - name: Upload preflight artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-readiness-preflight
+          path: preflight-output/**
+          if-no-files-found: ignore

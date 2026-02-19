@@ -24,7 +24,7 @@
 
 {% macro duckdb__json_array_coalesce(column_expr) %}
   {% set expr = column_expr | replace("'", "") %}
-  from_json(coalesce(nullif({{ expr }}, ''), '[]'))
+  json(coalesce(nullif({{ expr }}, ''), '[]'))
 {% endmacro %}
 
 {% macro json_build_object(pairs) %}

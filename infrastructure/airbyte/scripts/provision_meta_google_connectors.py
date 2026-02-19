@@ -166,27 +166,29 @@ def _load_default_google_query() -> str:
 
 def _build_meta_configuration() -> Dict[str, Any]:
     return {
-        "account_id": _getenv_required("AIRBYTE_META_ACCOUNT_ID"),
-        "access_token": _getenv_required("AIRBYTE_META_ACCESS_TOKEN"),
-        "app_id": _getenv_required("AIRBYTE_META_APP_ID"),
-        "app_secret": _getenv_required("AIRBYTE_META_APP_SECRET"),
+        "account_ids": [_getenv_required("AIRBYTE_META_ACCOUNT_ID")],
+        "credentials": {
+            "auth_type": "Service",
+            "access_token": _getenv_required("AIRBYTE_META_ACCESS_TOKEN"),
+        },
         "start_date": _getenv_optional("AIRBYTE_META_START_DATE", "2024-01-01T00:00:00Z"),
         "end_date": None,
         "page_size": _as_int("AIRBYTE_META_PAGE_SIZE", 100),
         "include_deleted": False,
-        "action_breakdowns": ["action_type"],
-        "breakdowns": ["region", "impression_device"],
         "insights_lookback_window": _as_int("AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS", 3),
-        "window_in_days": _as_int("AIRBYTE_META_HOURLY_WINDOW_DAYS", 3),
+        "window_in_days": _as_int("AIRBYTE_META_ATTRIBUTION_WINDOW_DAYS", 30),
         "attribution_window": "default",
+        "action_report_time": "conversion",
         "report_interval": "daily",
         "fetch_thumbnail_images": False,
         "custom_insights_fields": [
             "impressions",
+            "reach",
             "clicks",
             "spend",
+            "cpc",
+            "cpm",
             "actions",
-            "action_values",
         ],
     }
 

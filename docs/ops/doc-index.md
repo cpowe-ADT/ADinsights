@@ -10,6 +10,10 @@ Quick-use note: paste the checklist below as your first message each session, or
 Core wayfinding targets (open/skim in this order):
 - AGENTS.md — global guardrails (stack boundaries, RLS/tenant rules, schedules, testing matrix, secrets/PII policy).
 - README.md — repo structure, roadmap phases, quick start, default endpoints.
+- docs/ops/skills/adinsights-persona-router/SKILL.md — persona router skill for owner-style planning and workstream simulation.
+- docs/ops/skills/adinsights-scope-gatekeeper/SKILL.md — advisory scope validation skill for single-folder guardrails and Raj/Mira escalation.
+- docs/ops/skills/adinsights-contract-guard/SKILL.md — contract-risk classifier skill for API/dbt/integration surface changes.
+- docs/ops/skills/adinsights-release-readiness/SKILL.md — release gate synthesis skill and one-command preflight chain wrapper.
 - docs/workstreams.md — per-folder scope, owners/backups, KPIs, tests, DoD (sets which folder a PR may touch).
 - docs/project/phase1-execution-backlog.md — live status board (stream IDs, personas, priority, commands).
 - docs/task_breakdown.md — immediate next actions and gaps.
@@ -23,6 +27,10 @@ Core wayfinding targets (open/skim in this order):
 - docs/project/frontend-spec-review-checklist.md — review template for the finished frontend spec.
 - docs/project/integration-roadmap.md — connector roadmap, API requirements, and build order.
 - docs/project/integration-api-validation-checklist.md — Phase 1 connector API validation template.
+- docs/project/meta-permissions-catalog.yaml — canonical active/near-term Meta permission catalog for App Review governance.
+- docs/project/meta-permission-profile.md — human policy guide for runtime gate vs optional scope decisions.
+- docs/runbooks/meta-app-review-copy-pack.md — reusable reviewer-ready copy blocks and screencast script templates.
+- docs/runbooks/meta-app-review-submission-checklist.md — operator checklist for App Review use-case and screencast evidence.
 - docs/runbooks/deployment.md, docs/BI/ (folder), deploy/ — deployment/BI configs and guidance.
 
 Linkage reminders:
@@ -51,6 +59,15 @@ Working rules to restate every session:
 - Emit structured JSON logs with tenant_id, task_id, correlation_id.
 - Run canonical tests per folder before calling done (per AGENTS/workstreams).
 
+## CI Gate Policy (Main Branch)
+- Required status check on PRs to `main`: `Contract guard strict check` from `/Users/thristannewman/ADinsights/.github/workflows/contract-guard.yml`.
+- Advisory-only status check on PRs to `main`: `Release readiness advisory summary` from `/Users/thristannewman/ADinsights/.github/workflows/release-readiness-advisory.yml`.
+- Contract guard strict mode: workflow runs `evaluate_contract.py --ci-strict-level breaking_or_missing_docs` so both breaking contract changes and missing required contract docs fail required CI.
+- Release advisory semantics: gate dimensions support `INFO` pending status; `INFO` does not escalate `release_status`.
+- Branch protection expectation: require the contract check; keep release-readiness visible but non-blocking.
+- Local parity command before opening PR: `make adinsights-preflight PROMPT="Assess release readiness for serializer updates"`.
+- Weekly effectiveness review: `/Users/thristannewman/ADinsights/docs/ops/ci-gate-review.md`.
+
 ## Key Docs Map
 | Path | Role | Update triggers | Related docs |
 | --- | --- | --- | --- |
@@ -61,8 +78,22 @@ Working rules to restate every session:
 | docs/project/feature-catalog.md | Consolidated feature list (built/in progress/planned) | Feature status changes | docs/task_breakdown.md, phase1-execution-backlog.md |
 | docs/project/feature-ownership-map.md | Feature ownership + tests + runbooks | Owner or scope changes | docs/workstreams.md |
 | docs/project/api-contract-changelog.md | API payload change log | API schema changes | docs/workstreams.md, frontend/README.md |
+| docs/project/meta-integration-v3-pr-tracks.md | Folder-isolated PR/reviewer plan for Meta Integration V3 stabilization | Cross-stream Meta rollout or reviewer matrix updates | docs/workstreams.md, docs/runbooks/release-checklist.md |
+| docs/project/meta-integration-v3-pr-execution.md | Safe execution guide for splitting Meta V3 changes into folder-isolated PRs using path manifests | PR split flow or track file scopes change | docs/project/meta-integration-v3-pr-tracks.md, docs/project/pr-track-manifests/* |
+| docs/project/pr-track-manifests/* | Pathspec manifests for backend/dbt/frontend/infra/qa/docs PR staging | Meta V3 file ownership boundaries change | docs/project/meta-integration-v3-pr-execution.md |
+| docs/project/evidence/meta-validation/_TEMPLATE.md | Timestamped evidence template for staging Meta Test App validation runs | App Review/runtime validation checklist shape changes | docs/runbooks/meta-app-review-validation.md, docs/runbooks/operations.md |
+| docs/project/evidence/meta-validation/2026-02-19-signoff-checklist.md | Cross-stream approval checklist with test/preflight outcomes for Meta V3 rollout | Sign-off state, preflight outputs, or required approvers change | docs/project/evidence/meta-validation/preflight-2026-02-19/*, docs/runbooks/release-checklist.md |
 | docs/runbooks/release-checklist.md | Release readiness checklist | Release process changes | docs/runbooks/deployment.md |
+| docs/runbooks/meta-app-review-validation.md | Meta App Review runtime validation procedure and scope-gate policy | Meta OAuth/permissions/validation workflow changes | docs/project/meta-permissions-catalog.yaml, docs/project/meta-permission-profile.md, docs/runbooks/meta-app-review-submission-checklist.md |
+| docs/runbooks/meta-app-review-copy-pack.md | Reusable App Review copy blocks and screencast script templates to reduce rewrite churn | Reviewer wording standards, permission narratives, or screencast script updates | docs/runbooks/meta-app-review-submission-checklist.md, docs/runbooks/meta-app-review-validation.md, docs/project/meta-permission-profile.md |
+| docs/runbooks/meta-app-review-submission-checklist.md | Operator checklist for App Review use-case text, screencast proof, and remediation flow | Meta permission submission requirements or evidence expectations change | docs/runbooks/meta-app-review-validation.md, docs/project/meta-permissions-catalog.yaml |
+| docs/project/meta-permissions-catalog.yaml | Canonical machine-readable Meta permission governance catalog (active + near-term set) | Runtime gate/scopes/features for Meta permission policy change | docs/project/meta-permission-profile.md, backend/integrations/views.py, backend/core/settings.py |
+| docs/project/meta-permission-profile.md | Human-readable policy: precedence, scope boundaries, deferred/out-of-scope families, maintenance workflow | Permission governance policy or ownership/checkpoint rules change | docs/project/meta-permissions-catalog.yaml, docs/project/phase1-execution-backlog.md |
+| .github/workflows/contract-guard.yml | PR gate for strict contract guard checks on contract-sensitive changes | Contract risk policy or contract surface path changes | docs/ops/skills/adinsights-contract-guard/SKILL.md, docs/project/api-contract-changelog.md |
+| .github/workflows/release-readiness-advisory.yml | PR advisory synthesis for router/scope/contract/release readiness packets | Readiness workflow trigger logic or summary format changes | docs/ops/skills/adinsights-release-readiness/SKILL.md, docs/runbooks/release-checklist.md |
+| docs/ops/ci-gate-review.md | Weekly CI gate signal/noise review checklist for contract-required + release-advisory policy | CI enforcement model changes, review metrics/threshold updates | .github/workflows/contract-guard.yml, .github/workflows/release-readiness-advisory.yml |
 | docs/runbooks/external-actions-aws.md | Canonical operator-owned AWS action register for production readiness | Any external prerequisite, owner, deadline, or evidence-path change | docs/runbooks/deployment.md, docs/project/phase1-execution-backlog.md |
+| docs/runbooks/external-actions-execution-checklist.md | Copy/paste command checklist for executing external AWS/provider actions (`S7-D`, `P1-X1`, `P1-X2`, `P1-X4`, `P1-X9`, `P1-X5-signoff`) | Any command flow, evidence path, or owner-step changes | docs/runbooks/external-actions-aws.md, docs/runbooks/observability-alert-simulations.md |
 | docs/runbooks/observability-alert-simulations.md | Staging simulation playbook for `P1-X4` alert validation | Alert thresholds/routes, simulation cases, or evidence process changes | docs/runbooks/operations.md, docs/project/evidence/phase1-closeout/manifest.md |
 | docs/runbooks/quick-demo.md | Quick demo steps for deterministic data | Demo workflow changes | docs/runbooks/demo-data.md, docs/runbooks/demo-smoke-checklist.md |
 | docs/runbooks/demo-smoke-checklist.md | Demo smoke validation checklist | Demo acceptance criteria updates | docs/runbooks/quick-demo.md, docs/runbooks/demo-data.md |
@@ -86,6 +117,12 @@ Working rules to restate every session:
 | docs/ops/postmortem-template.md | Incident postmortem template | Process changes | docs/ops/escalation-matrix.md |
 | docs/project/data-lineage-map.md | High-level data flow | Pipeline changes | docs/project/vertical_slice_plan.md |
 | docs/ops/ai-onboarding-checklist.md | AI session recontext checklist | Onboarding process changes | AGENTS.md |
+| docs/ops/skills/adinsights-persona-router/SKILL.md | Router skill for ADinsights persona simulation and owner-style planning reports | Persona catalog/routing/output-contract updates | docs/workstreams.md, docs/project/phase0-backlog-validation.md, docs/project/feature-ownership-map.md |
+| docs/ops/skills/adinsights-scope-gatekeeper/SKILL.md | Advisory scope-validation skill for cross-folder, architecture, and contract escalation routing | Scope-rule/status/packet updates | AGENTS.md, docs/workstreams.md, docs/ops/escalation-rules.md, docs/runbooks/release-checklist.md |
+| docs/ops/skills/adinsights-contract-guard/SKILL.md | Advisory/CI-strict contract classifier for API, dbt, and integration contract drift | Contract-rules/surfaces/schema updates | docs/project/api-contract-changelog.md, docs/project/integration-data-contract-matrix.md, infrastructure/airbyte/scripts/check_data_contracts.py |
+| docs/ops/skills/adinsights-contract-guard/references/contract-signal-patterns.yaml | Shared contract signal source-of-truth consumed by router and scope gatekeeper | Contract signal path/keyword changes | docs/ops/skills/adinsights-persona-router/scripts/persona_router.py, docs/ops/skills/adinsights-scope-gatekeeper/scripts/evaluate_scope.py |
+| docs/ops/skills/adinsights-release-readiness/SKILL.md | Release gate synthesis across scope + contract + docs + optional checks | Release-gates/schema/evidence-source updates | docs/runbooks/release-checklist.md, docs/runbooks/deployment.md, docs/runbooks/operations.md |
+| docs/ops/skills/adinsights-release-readiness/scripts/run_preflight_skillchain.py | One-command router->scope->contract->release local preflight wrapper | Skillchain orchestration/packet handoff logic changes | docs/ops/skills/adinsights-persona-router/SKILL.md, docs/ops/skills/adinsights-scope-gatekeeper/SKILL.md, docs/ops/skills/adinsights-contract-guard/SKILL.md |
 | docs/ops/testing-cheat-sheet.md | Test commands quick ref | Test matrix changes | docs/workstreams.md, AGENTS.md |
 | docs/project/feature-flags-reference.md | Feature flags/entitlements summary | UAC changes | docs/security/uac-spec.md |
 | docs/project/definition-of-done.md | Completion criteria | DoD changes | docs/workstreams.md |

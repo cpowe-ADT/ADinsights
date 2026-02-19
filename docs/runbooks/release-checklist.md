@@ -18,6 +18,14 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
   - `/api/health/`, `/api/health/airbyte/`, `/api/health/dbt/`, `/api/timezone/`
 - [ ] Post-MVP ops endpoints return 200 with expected payload shape:
   - `/api/ops/sync-health/`, `/api/ops/health-overview/`
+- [ ] Connector lifecycle endpoints return expected status and sync behavior:
+  - `GET /api/integrations/google_ads/status/`
+  - `GET /api/integrations/ga4/status/`
+  - `GET /api/integrations/search_console/status/`
+  - `GET /api/integrations/{provider}/jobs/`
+  - `POST /api/integrations/{provider}/sync/` returns `200`/`202`
+  - `POST /api/integrations/{provider}/reconnect/` returns OAuth authorize URL
+  - `POST /api/integrations/{provider}/disconnect/` pauses connection and removes credentials
 - [ ] Snapshot freshness within SLA for demo tenant.
 - [ ] Frontend loads with `VITE_MOCK_MODE=false` and renders live data.
 - [ ] Frontend Post-MVP routes render with live API responses:

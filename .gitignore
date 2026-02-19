@@ -48,6 +48,7 @@ __pycache__/
 # Env files
 .env
 *.env
+.dev-launch.active.env
 
 # Packaging artifacts
 *.tar.gz

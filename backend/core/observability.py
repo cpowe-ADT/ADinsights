@@ -24,6 +24,18 @@ _task_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
 )
 
 
+def emit_observability_event(
+    logger: logging.Logger,
+    event_name: str,
+    *,
+    level: int = logging.INFO,
+    **fields: Any,
+) -> None:
+    """Emit a structured event payload with consistent event naming."""
+
+    logger.log(level, event_name, extra={"event": event_name, **fields})
+
+
 def set_correlation_id(value: Optional[str]) -> None:
     """Persist the correlation identifier for the current context."""
 
