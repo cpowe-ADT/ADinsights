@@ -42,6 +42,14 @@ Default ports:
 - Backend: 8000
 - Frontend: 5173
 
+For profile selection, fallback behavior, and port-conflict recovery, see `docs/DEVELOPMENT.md`.
+Quick setup/check commands:
+- `scripts/dev-launch.sh --list-profiles`
+- `scripts/dev-launch.sh --profile 2`
+- `cat .dev-launch.active.env`
+- `scripts/dev-healthcheck.sh`
+- `docker compose -f docker-compose.dev.yml ps`
+
 Health endpoints:
 - `/api/health/`
 - `/api/health/airbyte/`

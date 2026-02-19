@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
 import EmptyState from '../components/EmptyState';
+import { useTheme } from '../components/ThemeProvider';
 import { fetchRecentDashboards, type RecentDashboard } from '../lib/recentDashboards';
 import styles from './Home.module.css';
 
@@ -83,6 +84,24 @@ const MapIcon = () => (
   </svg>
 );
 
+const SocialIcon = () => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    aria-hidden="true"
+  >
+    <circle cx="7" cy="8" r="2.5" />
+    <circle cx="17" cy="8" r="2.5" />
+    <circle cx="12" cy="16" r="2.5" />
+    <path d="M9.2 9.4 10.8 14.6" strokeLinecap="round" />
+    <path d="M14.8 9.4 13.2 14.6" strokeLinecap="round" />
+  </svg>
+);
+
 const ArrowIcon = () => (
   <svg
     width="18"
@@ -160,6 +179,7 @@ const buildAnnouncementConfig = (releaseNotesUrl: string) => {
 
 const Home = () => {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const docsUrl =
     import.meta.env.VITE_DOCS_URL?.trim() ||
     'https://github.com/cpowe-ADT/ADinsights/blob/main/docs/ops/doc-index.md';
@@ -243,6 +263,10 @@ const Home = () => {
     navigate('/dashboards/map');
   }, [navigate]);
 
+  const handleConnectSocials = useCallback(() => {
+    navigate('/dashboards/data-sources?sources=social');
+  }, [navigate]);
+
   const handleInvite = useCallback(() => {
     if (typeof window !== 'undefined') {
       window.open(
@@ -282,8 +306,15 @@ const Home = () => {
         icon: <MapIcon />,
         action: handleOpenMap,
       },
+      {
+        id: 'connect-socials',
+        label: 'Connect socials',
+        description: 'Connect Facebook/Instagram and monitor connection health.',
+        icon: <SocialIcon />,
+        action: handleConnectSocials,
+      },
     ],
-    [handleCreateDashboard, handleViewCampaigns, handleOpenMap],
+    [handleConnectSocials, handleCreateDashboard, handleViewCampaigns, handleOpenMap],
   );
 
   const resourceLinks: ResourceLink[] = useMemo(
@@ -337,6 +368,18 @@ const Home = () => {
           <div className={styles.heroActions}>
             <button type="button" className={styles.primaryAction} onClick={handleCreateDashboard}>
               Create dashboard
+            </button>
+            <button
+              type="button"
+              className={styles.themeAction}
+              onClick={toggleTheme}
+              aria-pressed={theme === 'dark'}
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              <span className={styles.themeActionIcon} aria-hidden="true">
+                {theme === 'dark' ? '🌞' : '🌙'}
+              </span>
+              <span>{theme === 'dark' ? 'Light' : 'Dark'} mode</span>
             </button>
             <button type="button" className={styles.secondaryAction} onClick={handleInvite}>
               Invite teammate

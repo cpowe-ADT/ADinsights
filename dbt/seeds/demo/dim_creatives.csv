@@ -1,3 +1,147 @@
 tenant_id,campaign_id,channel,creative_id,creative_name,creative_type
-bank-of-jamaica,BOJ-001,Meta,CR-BOJ-001,BOJ Video,video
-grace-kennedy,GK-001,Google Ads,CR-GK-001,GK Search,image
+bank-of-jamaica,BAN-001,TikTok,CR-BAN-001-01,Switchable methodical neural-net,carousel
+bank-of-jamaica,BAN-001,TikTok,CR-BAN-001-02,Down-sized empowering moderator,video
+bank-of-jamaica,BAN-001,TikTok,CR-BAN-001-03,Robust interactive data-warehouse,carousel
+bank-of-jamaica,BAN-001,TikTok,CR-BAN-001-04,Quality-focused web-enabled superstructure,carousel
+bank-of-jamaica,BAN-001,TikTok,CR-BAN-001-05,Team-oriented dedicated structure,carousel
+bank-of-jamaica,BAN-001,TikTok,CR-BAN-001-06,Integrated impactful secured line,image
+bank-of-jamaica,BAN-001,TikTok,CR-BAN-001-07,Streamlined holistic intranet,carousel
+bank-of-jamaica,BAN-002,Meta,CR-BAN-002-01,Programmable local capability,video
+bank-of-jamaica,BAN-002,Meta,CR-BAN-002-02,Fully-configurable directional architecture,carousel
+bank-of-jamaica,BAN-002,Meta,CR-BAN-002-03,Mandatory 3rdgeneration parallelism,image
+bank-of-jamaica,BAN-002,Meta,CR-BAN-002-04,Reactive discrete parallelism,image
+bank-of-jamaica,BAN-002,Meta,CR-BAN-002-05,Face-to-face 24hour archive,video
+bank-of-jamaica,BAN-002,Meta,CR-BAN-002-06,Triple-buffered responsive approach,image
+bank-of-jamaica,BAN-002,Meta,CR-BAN-002-07,Focused asymmetric alliance,image
+bank-of-jamaica,BAN-003,TikTok,CR-BAN-003-01,Managed asynchronous migration,image
+bank-of-jamaica,BAN-003,TikTok,CR-BAN-003-02,Front-line even-keeled secured line,video
+bank-of-jamaica,BAN-003,TikTok,CR-BAN-003-03,Pre-emptive didactic moratorium,video
+bank-of-jamaica,BAN-003,TikTok,CR-BAN-003-04,De-engineered uniform orchestration,carousel
+bank-of-jamaica,BAN-003,TikTok,CR-BAN-003-05,Re-engineered methodical encryption,image
+bank-of-jamaica,BAN-003,TikTok,CR-BAN-003-06,Phased incremental core,carousel
+bank-of-jamaica,BAN-003,TikTok,CR-BAN-003-07,Cross-platform bandwidth-monitored protocol,video
+bank-of-jamaica,BAN-004,TikTok,CR-BAN-004-01,Optional heuristic interface,carousel
+bank-of-jamaica,BAN-004,TikTok,CR-BAN-004-02,Open-source maximized superstructure,carousel
+bank-of-jamaica,BAN-004,TikTok,CR-BAN-004-03,Business-focused systematic projection,video
+bank-of-jamaica,BAN-004,TikTok,CR-BAN-004-04,Stand-alone bandwidth-monitored approach,carousel
+bank-of-jamaica,BAN-005,TikTok,CR-BAN-005-01,Open-architected upward-trending Graphical User Interface,video
+bank-of-jamaica,BAN-005,TikTok,CR-BAN-005-02,Customer-focused dynamic core,image
+bank-of-jamaica,BAN-005,TikTok,CR-BAN-005-03,Ergonomic national knowledge user,image
+bank-of-jamaica,BAN-005,TikTok,CR-BAN-005-04,Devolved interactive contingency,carousel
+bank-of-jamaica,BAN-005,TikTok,CR-BAN-005-05,Grass-roots maximized encryption,video
+bank-of-jamaica,BAN-005,TikTok,CR-BAN-005-06,Compatible leadingedge workforce,video
+bank-of-jamaica,BAN-006,YouTube,CR-BAN-006-01,Reactive bandwidth-monitored application,image
+bank-of-jamaica,BAN-006,YouTube,CR-BAN-006-02,Streamlined needs-based access,video
+bank-of-jamaica,BAN-006,YouTube,CR-BAN-006-03,Cross-group web-enabled encoding,image
+bank-of-jamaica,BAN-007,Google Ads,CR-BAN-007-01,Down-sized incremental matrix,image
+bank-of-jamaica,BAN-007,Google Ads,CR-BAN-007-02,Polarized didactic initiative,carousel
+bank-of-jamaica,BAN-007,Google Ads,CR-BAN-007-03,Centralized composite implementation,video
+bank-of-jamaica,BAN-007,Google Ads,CR-BAN-007-04,Adaptive human-resource firmware,carousel
+bank-of-jamaica,BAN-007,Google Ads,CR-BAN-007-05,Persevering executive interface,carousel
+bank-of-jamaica,BAN-008,Meta,CR-BAN-008-01,Total upward-trending toolset,carousel
+bank-of-jamaica,BAN-008,Meta,CR-BAN-008-02,Realigned stable structure,image
+bank-of-jamaica,BAN-008,Meta,CR-BAN-008-03,Pre-emptive coherent core,image
+bank-of-jamaica,BAN-008,Meta,CR-BAN-008-04,Implemented didactic approach,image
+bank-of-jamaica,BAN-008,Meta,CR-BAN-008-05,Reduced user-facing moratorium,carousel
+bank-of-jamaica,BAN-008,Meta,CR-BAN-008-06,Centralized value-added functionalities,image
+bank-of-jamaica,BAN-009,YouTube,CR-BAN-009-01,Centralized actuating paradigm,image
+bank-of-jamaica,BAN-009,YouTube,CR-BAN-009-02,Polarized motivating moderator,video
+bank-of-jamaica,BAN-009,YouTube,CR-BAN-009-03,Diverse analyzing migration,carousel
+bank-of-jamaica,BAN-009,YouTube,CR-BAN-009-04,Configurable contextually-based architecture,carousel
+bank-of-jamaica,BAN-009,YouTube,CR-BAN-009-05,Right-sized asymmetric service-desk,image
+bank-of-jamaica,BAN-009,YouTube,CR-BAN-009-06,Front-line impactful capability,video
+bank-of-jamaica,BAN-009,YouTube,CR-BAN-009-07,Re-contextualized dynamic paradigm,image
+grace-kennedy,GRA-001,YouTube,CR-GRA-001-01,Right-sized 6thgeneration process improvement,video
+grace-kennedy,GRA-001,YouTube,CR-GRA-001-02,Configurable intangible protocol,video
+grace-kennedy,GRA-001,YouTube,CR-GRA-001-03,Reduced non-volatile model,image
+grace-kennedy,GRA-002,YouTube,CR-GRA-002-01,Intuitive empowering database,image
+grace-kennedy,GRA-002,YouTube,CR-GRA-002-02,Synchronized transitional functionalities,carousel
+grace-kennedy,GRA-002,YouTube,CR-GRA-002-03,Front-line empowering infrastructure,image
+grace-kennedy,GRA-002,YouTube,CR-GRA-002-04,De-engineered static project,carousel
+grace-kennedy,GRA-002,YouTube,CR-GRA-002-05,Innovative logistical functionalities,image
+grace-kennedy,GRA-003,TikTok,CR-GRA-003-01,Versatile asynchronous access,carousel
+grace-kennedy,GRA-003,TikTok,CR-GRA-003-02,Persevering regional open system,video
+grace-kennedy,GRA-003,TikTok,CR-GRA-003-03,Cross-platform asynchronous monitoring,carousel
+grace-kennedy,GRA-003,TikTok,CR-GRA-003-04,Extended motivating firmware,carousel
+grace-kennedy,GRA-003,TikTok,CR-GRA-003-05,De-engineered grid-enabled architecture,image
+grace-kennedy,GRA-004,Meta,CR-GRA-004-01,Fully-configurable holistic forecast,image
+grace-kennedy,GRA-004,Meta,CR-GRA-004-02,Diverse leadingedge moratorium,image
+grace-kennedy,GRA-004,Meta,CR-GRA-004-03,Triple-buffered exuding pricing structure,video
+grace-kennedy,GRA-004,Meta,CR-GRA-004-04,Streamlined multi-tasking access,image
+grace-kennedy,GRA-005,Meta,CR-GRA-005-01,Synchronized neutral framework,carousel
+grace-kennedy,GRA-005,Meta,CR-GRA-005-02,Switchable bi-directional challenge,video
+grace-kennedy,GRA-005,Meta,CR-GRA-005-03,Fundamental bifurcated benchmark,video
+grace-kennedy,GRA-005,Meta,CR-GRA-005-04,User-friendly neutral collaboration,carousel
+grace-kennedy,GRA-006,Meta,CR-GRA-006-01,Future-proofed executive portal,video
+grace-kennedy,GRA-006,Meta,CR-GRA-006-02,Expanded transitional Graphical User Interface,image
+grace-kennedy,GRA-006,Meta,CR-GRA-006-03,Expanded systemic productivity,carousel
+grace-kennedy,GRA-006,Meta,CR-GRA-006-04,Fundamental motivating matrix,image
+grace-kennedy,GRA-007,YouTube,CR-GRA-007-01,Function-based actuating array,image
+grace-kennedy,GRA-007,YouTube,CR-GRA-007-02,Sharable interactive focus group,video
+grace-kennedy,GRA-007,YouTube,CR-GRA-007-03,Balanced 24hour groupware,image
+grace-kennedy,GRA-007,YouTube,CR-GRA-007-04,Visionary clear-thinking productivity,image
+grace-kennedy,GRA-007,YouTube,CR-GRA-007-05,Fundamental cohesive support,video
+grace-kennedy,GRA-007,YouTube,CR-GRA-007-06,Organic neutral strategy,video
+grace-kennedy,GRA-008,YouTube,CR-GRA-008-01,Optimized next generation access,image
+grace-kennedy,GRA-008,YouTube,CR-GRA-008-02,Customizable asynchronous solution,image
+grace-kennedy,GRA-008,YouTube,CR-GRA-008-03,Distributed needs-based alliance,image
+grace-kennedy,GRA-008,YouTube,CR-GRA-008-04,Multi-layered optimal neural-net,carousel
+grace-kennedy,GRA-008,YouTube,CR-GRA-008-05,Digitized intermediate capacity,image
+grace-kennedy,GRA-009,Meta,CR-GRA-009-01,Balanced fault-tolerant hierarchy,video
+grace-kennedy,GRA-009,Meta,CR-GRA-009-02,Balanced heuristic database,video
+grace-kennedy,GRA-009,Meta,CR-GRA-009-03,Synergized dynamic secured line,image
+grace-kennedy,GRA-009,Meta,CR-GRA-009-04,Customer-focused heuristic time-frame,video
+grace-kennedy,GRA-009,Meta,CR-GRA-009-05,Realigned incremental process improvement,video
+grace-kennedy,GRA-009,Meta,CR-GRA-009-06,User-friendly coherent encoding,carousel
+grace-kennedy,GRA-010,YouTube,CR-GRA-010-01,Diverse context-sensitive installation,video
+grace-kennedy,GRA-010,YouTube,CR-GRA-010-02,Assimilated context-sensitive support,carousel
+grace-kennedy,GRA-010,YouTube,CR-GRA-010-03,Managed zero tolerance installation,carousel
+grace-kennedy,GRA-010,YouTube,CR-GRA-010-04,Synchronized user-facing workforce,video
+grace-kennedy,GRA-010,YouTube,CR-GRA-010-05,Fully-configurable encompassing complexity,image
+grace-kennedy,GRA-010,YouTube,CR-GRA-010-06,Total bi-directional implementation,image
+grace-kennedy,GRA-010,YouTube,CR-GRA-010-07,Automated methodical definition,video
+jdic,JDI-001,Meta,CR-JDI-001-01,Exclusive logistical hardware,carousel
+jdic,JDI-001,Meta,CR-JDI-001-02,Integrated discrete definition,video
+jdic,JDI-001,Meta,CR-JDI-001-03,Assimilated stable core,image
+jdic,JDI-001,Meta,CR-JDI-001-04,Open-architected full-range focus group,image
+jdic,JDI-002,YouTube,CR-JDI-002-01,Cloned zero administration focus group,video
+jdic,JDI-002,YouTube,CR-JDI-002-02,Monitored secondary migration,video
+jdic,JDI-002,YouTube,CR-JDI-002-03,Open-architected systematic monitoring,carousel
+jdic,JDI-002,YouTube,CR-JDI-002-04,Managed 4thgeneration budgetary management,video
+jdic,JDI-002,YouTube,CR-JDI-002-05,Fundamental context-sensitive paradigm,video
+jdic,JDI-002,YouTube,CR-JDI-002-06,Fundamental 5thgeneration benchmark,carousel
+jdic,JDI-002,YouTube,CR-JDI-002-07,Right-sized intermediate hardware,carousel
+jdic,JDI-003,Meta,CR-JDI-003-01,Upgradable zero tolerance functionalities,video
+jdic,JDI-003,Meta,CR-JDI-003-02,Optional real-time migration,carousel
+jdic,JDI-003,Meta,CR-JDI-003-03,Customizable human-resource orchestration,image
+jdic,JDI-004,YouTube,CR-JDI-004-01,Ergonomic eco-centric analyzer,image
+jdic,JDI-004,YouTube,CR-JDI-004-02,Triple-buffered intermediate ability,carousel
+jdic,JDI-004,YouTube,CR-JDI-004-03,Programmable national software,video
+jdic,JDI-004,YouTube,CR-JDI-004-04,Up-sized user-facing support,image
+jdic,JDI-004,YouTube,CR-JDI-004-05,Synchronized dedicated hierarchy,carousel
+jdic,JDI-005,YouTube,CR-JDI-005-01,Optional asymmetric secured line,carousel
+jdic,JDI-005,YouTube,CR-JDI-005-02,Managed regional functionalities,carousel
+jdic,JDI-005,YouTube,CR-JDI-005-03,Switchable bottom-line success,carousel
+jdic,JDI-005,YouTube,CR-JDI-005-04,Innovative motivating function,carousel
+jdic,JDI-005,YouTube,CR-JDI-005-05,Synchronized incremental Graphic Interface,carousel
+jdic,JDI-005,YouTube,CR-JDI-005-06,Open-architected tangible frame,image
+jdic,JDI-005,YouTube,CR-JDI-005-07,Reactive clear-thinking core,video
+jdic,JDI-006,Google Ads,CR-JDI-006-01,Operative static implementation,image
+jdic,JDI-006,Google Ads,CR-JDI-006-02,Synergistic value-added conglomeration,carousel
+jdic,JDI-006,Google Ads,CR-JDI-006-03,Seamless non-volatile framework,video
+jdic,JDI-006,Google Ads,CR-JDI-006-04,Open-architected neutral ability,carousel
+jdic,JDI-006,Google Ads,CR-JDI-006-05,Innovative executive database,video
+jdic,JDI-006,Google Ads,CR-JDI-006-06,Optional zero tolerance paradigm,carousel
+jdic,JDI-007,Google Ads,CR-JDI-007-01,Robust solution-oriented Graphic Interface,carousel
+jdic,JDI-007,Google Ads,CR-JDI-007-02,Persistent leadingedge intranet,video
+jdic,JDI-007,Google Ads,CR-JDI-007-03,Synergistic didactic migration,carousel
+jdic,JDI-008,Google Ads,CR-JDI-008-01,Phased user-facing concept,carousel
+jdic,JDI-008,Google Ads,CR-JDI-008-02,Switchable attitude-oriented forecast,video
+jdic,JDI-008,Google Ads,CR-JDI-008-03,Profound stable productivity,video
+jdic,JDI-008,Google Ads,CR-JDI-008-04,Secured full-range array,video
+jdic,JDI-008,Google Ads,CR-JDI-008-05,Versatile disintermediate service-desk,carousel
+jdic,JDI-009,Meta,CR-JDI-009-01,Integrated directional workforce,carousel
+jdic,JDI-009,Meta,CR-JDI-009-02,Exclusive client-server algorithm,image
+jdic,JDI-009,Meta,CR-JDI-009-03,Balanced dynamic leverage,image
+jdic,JDI-009,Meta,CR-JDI-009-04,Seamless zero administration archive,video
+jdic,JDI-009,Meta,CR-JDI-009-05,Persevering intangible product,carousel

@@ -36,6 +36,10 @@ const segmentLabels: Record<string, string> = {
   creatives: 'Creatives',
   budget: 'Budget pacing',
   'data-sources': 'Data sources',
+  meta: 'Meta',
+  accounts: 'Accounts',
+  insights: 'Insights',
+  status: 'Status',
   map: 'Map',
   uploads: 'CSV uploads',
 };
@@ -210,6 +214,8 @@ const DashboardLayout = () => {
       { label: 'Campaigns', to: '/dashboards/campaigns', end: false },
       { label: 'Creatives', to: '/dashboards/creatives', end: false },
       { label: 'Budget pacing', to: '/dashboards/budget', end: false },
+      { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
+      { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
     ],
     [],
   );
@@ -397,7 +403,7 @@ const DashboardLayout = () => {
                   timestamp={snapshotAbsolute}
                 />
               </div>
-              <div className="dashboard-header__controls">
+              <div className="dashboard-header__controls" role="toolbar" aria-label="Dashboard quick actions">
                 <label htmlFor="metric-select" className="dashboard-field">
                   <span className="dashboard-field__label">Map metric</span>
                   <select
@@ -426,7 +432,7 @@ const DashboardLayout = () => {
                   <span>{theme === 'dark' ? 'Light' : 'Dark'} mode</span>
                 </button>
                 <div className="dashboard-header__divider" role="presentation" />
-                <div className="dashboard-header__actions-row">
+                <div className="dashboard-header__actions-row" role="group" aria-label="Layout actions">
                   <button type="button" className="button secondary" onClick={handleSaveLayout}>
                     {SaveIcon}
                     Save layout
@@ -440,7 +446,7 @@ const DashboardLayout = () => {
                     Copy link
                   </button>
                 </div>
-                <div className="dashboard-header__account">
+                <div className="dashboard-header__account" role="group" aria-label="Account actions">
                   <span className="muted user-pill">{accountLabel}</span>
                   <button type="button" className="button tertiary" onClick={logout}>
                     Log out

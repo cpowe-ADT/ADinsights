@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from .models import Ad, AdSet, Campaign, RawPerformanceRecord
+from .models import Ad, AdAccount, AdSet, Campaign, RawPerformanceRecord
 
 
 class TenantScopedSerializerMixin:
@@ -36,6 +36,7 @@ class CampaignSerializer(TenantScopedSerializerMixin, serializers.ModelSerialize
         model = Campaign
         fields = [
             "id",
+            "ad_account",
             "external_id",
             "name",
             "platform",
@@ -50,6 +51,11 @@ class CampaignSerializer(TenantScopedSerializerMixin, serializers.ModelSerialize
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_ad_account(self, ad_account: AdAccount | None) -> AdAccount | None:
+        if ad_account is None:
+            return ad_account
+        return self._ensure_tenant_match(ad_account, "ad_account")
 
 
 class AdSetSerializer(TenantScopedSerializerMixin, serializers.ModelSerializer):
@@ -105,14 +111,20 @@ class RawPerformanceRecordSerializer(
             "external_id",
             "date",
             "source",
+            "level",
+            "ad_account",
             "campaign",
             "adset",
             "ad",
             "impressions",
+            "reach",
             "clicks",
             "spend",
+            "cpc",
+            "cpm",
             "currency",
             "conversions",
+            "actions",
             "raw_payload",
             "ingested_at",
             "updated_at",
@@ -123,9 +135,12 @@ class RawPerformanceRecordSerializer(
         attrs = super().validate(attrs)
 
         campaign = attrs.get("campaign") or getattr(self.instance, "campaign", None)
+        ad_account = attrs.get("ad_account") or getattr(self.instance, "ad_account", None)
         adset = attrs.get("adset") or getattr(self.instance, "adset", None)
         ad = attrs.get("ad") or getattr(self.instance, "ad", None)
 
+        if ad_account is not None:
+            self._ensure_tenant_match(ad_account, "ad_account")
         if campaign is not None:
             self._ensure_tenant_match(campaign, "campaign")
         if adset is not None:

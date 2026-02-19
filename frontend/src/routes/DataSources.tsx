@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import EmptyState from '../components/EmptyState';
 import { useToast } from '../components/ToastProvider';
@@ -10,6 +10,8 @@ import {
   loadAirbyteConnections,
   loadAirbyteSummary,
   loadMetaSetupStatus,
+  logoutMetaOAuth,
+  loadSocialConnectionStatus,
   provisionMetaIntegration,
   syncMetaIntegration,
   startMetaOAuth,
@@ -21,6 +23,8 @@ import {
   type MetaOAuthPage,
   type MetaSetupStatusResponse,
   type PlatformCredentialRecord,
+  type SocialConnectionStatus,
+  type SocialPlatformStatusRecord,
 } from '../lib/airbyte';
 import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
 
@@ -52,6 +56,7 @@ type LoadStatus = 'loading' | 'loaded' | 'error';
 type ConnectionState = 'healthy' | 'stale' | 'paused' | 'needs-attention' | 'syncing';
 type ConnectProvider = 'META' | 'GOOGLE';
 type MetaConnectStep = 'idle' | 'oauth-pending' | 'page-selection' | 'credential-connected';
+type SocialStatusLoad = 'loading' | 'loaded' | 'error';
 
 interface ConnectFormState {
   accountId: string;
@@ -78,7 +83,27 @@ interface MetaOAuthSelectionState {
   selectedInstagramAccountId: string;
 }
 
+interface MetaPermissionDiagnosticsState {
+  grantedPermissions: string[];
+  declinedPermissions: string[];
+  missingRequiredPermissions: string[];
+  tokenDebugValid: boolean;
+  oauthConnectedButMissingPermissions: boolean;
+}
+
+interface SocialPlatformCard extends Omit<SocialPlatformStatusRecord, 'platform'> {
+  platform: string;
+  isPlaceholder?: boolean;
+}
+
 const META_OAUTH_PROVIDER_KEY = 'adinsights.meta.oauth.provider';
+const EMPTY_META_PERMISSION_DIAGNOSTICS: MetaPermissionDiagnosticsState = {
+  grantedPermissions: [],
+  declinedPermissions: [],
+  missingRequiredPermissions: [],
+  tokenDebugValid: false,
+  oauthConnectedButMissingPermissions: false,
+};
 
 const CONNECT_PROVIDER_LABELS: Record<ConnectProvider, string> = {
   META: 'Meta (Facebook & Instagram)',
@@ -89,6 +114,24 @@ const CONNECT_PROVIDER_ACCOUNT_LABELS: Record<ConnectProvider, string> = {
   META: 'Meta ad account ID',
   GOOGLE: 'Google Ads customer/account ID',
 };
+
+const SOCIAL_PLATFORM_ORDER: Array<SocialPlatformStatusRecord['platform']> = ['meta', 'instagram'];
+const SOCIAL_PLACEHOLDERS: Array<{
+  platform: string;
+  display_name: string;
+  description: string;
+}> = [
+  {
+    platform: 'linkedin',
+    display_name: 'LinkedIn (Coming soon)',
+    description: 'LinkedIn social connector is planned and not yet enabled.',
+  },
+  {
+    platform: 'tiktok',
+    display_name: 'TikTok (Coming soon)',
+    description: 'TikTok social connector is planned and not yet enabled.',
+  },
+];
 
 const DEFAULT_CRON_EXPRESSION = '0 6-22 * * *';
 const UUID_REGEX =
@@ -186,6 +229,56 @@ const resolveStateTone = (state: ConnectionState): 'success' | 'warning' | 'erro
   }
 };
 
+const resolveSocialStatusTone = (
+  value: SocialConnectionStatus,
+): 'success' | 'warning' | 'error' | 'muted' => {
+  if (value === 'active') {
+    return 'success';
+  }
+  if (value === 'complete') {
+    return 'warning';
+  }
+  if (value === 'started_not_complete') {
+    return 'warning';
+  }
+  return 'muted';
+};
+
+const resolveSocialStatusLabel = (value: SocialConnectionStatus): string => {
+  if (value === 'not_connected') {
+    return 'Not connected';
+  }
+  if (value === 'started_not_complete') {
+    return 'Started, not complete';
+  }
+  if (value === 'complete') {
+    return 'Complete';
+  }
+  return 'Active';
+};
+
+const resolveSocialPrimaryAction = (
+  status: SocialConnectionStatus,
+  actions: string[],
+): string => {
+  if (actions.includes('connect_oauth')) {
+    return 'Connect with Facebook';
+  }
+  if (actions.includes('select_assets')) {
+    return 'Continue setup';
+  }
+  if (actions.includes('provision')) {
+    return 'Continue setup';
+  }
+  if (status === 'complete') {
+    return 'Activate sync';
+  }
+  if (actions.includes('sync_now')) {
+    return 'Run sync now';
+  }
+  return 'View details';
+};
+
 const DataSources = () => {
   const docsUrl =
     import.meta.env.VITE_DOCS_URL?.trim() ||
@@ -226,10 +319,27 @@ const DataSources = () => {
     useState<MetaInstagramAccount | null>(null);
   const [metaSetupStatus, setMetaSetupStatus] = useState<MetaSetupStatusResponse | null>(null);
   const [metaSetupLoading, setMetaSetupLoading] = useState(false);
+  const [metaPermissionDiagnostics, setMetaPermissionDiagnostics] = useState<MetaPermissionDiagnosticsState>(
+    EMPTY_META_PERMISSION_DIAGNOSTICS,
+  );
+  const [socialStatus, setSocialStatus] = useState<SocialPlatformStatusRecord[]>([]);
+  const [socialStatusLoad, setSocialStatusLoad] = useState<SocialStatusLoad>('loading');
+  const [socialStatusError, setSocialStatusError] = useState<string | null>(null);
+  const [socialActionPendingPlatform, setSocialActionPendingPlatform] = useState<string | null>(null);
+  const socialSectionRef = useRef<HTMLElement | null>(null);
+  const focusSocialView = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    const params = new URLSearchParams(window.location.search);
+    return params.get('sources') === 'social';
+  }, []);
 
   const loadData = useCallback(async () => {
     setStatus('loading');
     setError(null);
+    setSocialStatusLoad('loading');
+    setSocialStatusError(null);
     try {
       const [connectionsPayload, summaryPayload] = await Promise.all([
         loadAirbyteConnections(),
@@ -238,9 +348,26 @@ const DataSources = () => {
       setConnections(connectionsPayload);
       setSummary(summaryPayload);
       setStatus('loaded');
+
+      try {
+        const socialPayload = await loadSocialConnectionStatus();
+        setSocialStatus(socialPayload.platforms);
+        setSocialStatusLoad('loaded');
+      } catch (socialError) {
+        const socialMessage =
+          socialError instanceof Error
+            ? socialError.message
+            : 'Unable to load social connection status.';
+        setSocialStatus([]);
+        setSocialStatusLoad('error');
+        setSocialStatusError(socialMessage);
+      }
     } catch (loadError) {
       const message = loadError instanceof Error ? loadError.message : 'Unable to load data sources.';
       setError(message);
+      setSocialStatus([]);
+      setSocialStatusLoad('loaded');
+      setSocialStatusError(null);
       setStatus('error');
     }
   }, []);
@@ -248,6 +375,19 @@ const DataSources = () => {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (!focusSocialView) {
+      return;
+    }
+    if (status !== 'loaded') {
+      return;
+    }
+    const node = socialSectionRef.current;
+    if (node && typeof node.scrollIntoView === 'function') {
+      node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [focusSocialView, status]);
 
   const handleViewDocs = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -308,6 +448,7 @@ const DataSources = () => {
     });
     setMetaConnectedCredential(null);
     setMetaConnectedInstagramAccount(null);
+    setMetaPermissionDiagnostics(EMPTY_META_PERMISSION_DIAGNOSTICS);
     setMetaOAuthStarting(false);
     setMetaOAuthExchanging(false);
     setMetaOAuthSavingPage(false);
@@ -322,9 +463,8 @@ const DataSources = () => {
     const state = params.get('state');
     const oauthError = params.get('error') || params.get('error_reason');
     const oauthErrorDescription = params.get('error_description');
-    const provider = window.sessionStorage.getItem(META_OAUTH_PROVIDER_KEY);
 
-    if (!oauthError && (!code || !state || provider !== 'META')) {
+    if (!oauthError && (!code || !state)) {
       return;
     }
 
@@ -350,6 +490,23 @@ const DataSources = () => {
     setMetaOAuthExchanging(true);
     void exchangeMetaOAuthCode({ code: code ?? '', state: state ?? '' })
       .then((response) => {
+        setMetaPermissionDiagnostics({
+          grantedPermissions: response.granted_permissions ?? [],
+          declinedPermissions: response.declined_permissions ?? [],
+          missingRequiredPermissions: response.missing_required_permissions ?? [],
+          tokenDebugValid: Boolean(response.token_debug_valid),
+          oauthConnectedButMissingPermissions: Boolean(
+            response.oauth_connected_but_missing_permissions,
+          ),
+        });
+        if (response.missing_required_permissions.length) {
+          setMetaConnectStep('oauth-pending');
+          pushToast(
+            'Meta OAuth connected, but required permissions are missing. Re-request permissions and reconnect.',
+            { tone: 'error' },
+          );
+          return;
+        }
         const firstPageId = response.pages[0]?.id ?? '';
         const firstAdAccountId = response.ad_accounts[0]?.id ?? '';
         const firstInstagramAccountId = response.instagram_accounts[0]?.id ?? '';
@@ -388,27 +545,48 @@ const DataSources = () => {
       });
   }, [pushToast]);
 
-  const handleStartMetaOAuth = useCallback(async () => {
-    if (metaOAuthStarting || metaOAuthExchanging) {
-      return;
-    }
-    setMetaOAuthStarting(true);
-    try {
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(META_OAUTH_PROVIDER_KEY, 'META');
+  const handleStartMetaOAuth = useCallback(
+    async (options?: { openPanelOnError?: boolean; authType?: 'rerequest' }) => {
+      if (metaOAuthStarting || metaOAuthExchanging) {
+        return;
       }
-      const response = await startMetaOAuth();
-      if (typeof window !== 'undefined') {
-        window.location.assign(response.authorize_url);
+      setMetaOAuthStarting(true);
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(META_OAUTH_PROVIDER_KEY, 'META');
+        }
+        const response = await startMetaOAuth(
+          options?.authType ? { auth_type: options.authType } : undefined,
+        );
+        if (typeof window !== 'undefined') {
+          if (import.meta.env.MODE === 'test') {
+            return;
+          }
+          window.location.assign(response.authorize_url);
+        }
+      } catch (oauthStartError) {
+        const message =
+          oauthStartError instanceof Error ? oauthStartError.message : 'Unable to start Meta OAuth.';
+        pushToast(message, { tone: 'error' });
+        if (options?.openPanelOnError) {
+          setConnectProvider('META');
+          setConnectForm(buildInitialConnectForm('META'));
+          resetMetaOAuthState();
+        }
+      } finally {
+        setMetaOAuthStarting(false);
       }
-    } catch (oauthStartError) {
-      const message = oauthStartError instanceof Error ? oauthStartError.message : 'Unable to start Meta OAuth.';
-      pushToast(message, { tone: 'error' });
-      setMetaOAuthStarting(false);
-    }
-  }, [metaOAuthExchanging, metaOAuthStarting, pushToast]);
+    },
+    [metaOAuthExchanging, metaOAuthStarting, pushToast, resetMetaOAuthState],
+  );
 
   const handleMetaPageConnect = useCallback(async () => {
+    if (metaPermissionDiagnostics.missingRequiredPermissions.length) {
+      pushToast('Required Meta permissions are missing. Re-request permissions first.', {
+        tone: 'error',
+      });
+      return;
+    }
     if (
       metaOAuthSavingPage ||
       !metaOAuthSelection.selectionToken ||
@@ -424,6 +602,13 @@ const DataSources = () => {
         ad_account_id: metaOAuthSelection.selectedAdAccountId,
         instagram_account_id: metaOAuthSelection.selectedInstagramAccountId || undefined,
       });
+      setMetaPermissionDiagnostics((previous) => ({
+        ...previous,
+        grantedPermissions: response.granted_permissions ?? previous.grantedPermissions,
+        declinedPermissions: response.declined_permissions ?? previous.declinedPermissions,
+        missingRequiredPermissions:
+          response.missing_required_permissions ?? previous.missingRequiredPermissions,
+      }));
       setMetaConnectedCredential(response.credential);
       setMetaConnectedInstagramAccount(response.instagram_account ?? null);
       setMetaConnectStep('credential-connected');
@@ -445,7 +630,30 @@ const DataSources = () => {
     } finally {
       setMetaOAuthSavingPage(false);
     }
-  }, [metaOAuthSavingPage, metaOAuthSelection, pushToast]);
+  }, [metaOAuthSavingPage, metaOAuthSelection, metaPermissionDiagnostics, pushToast]);
+
+  const handleRerequestMetaPermissions = useCallback(async () => {
+    await handleStartMetaOAuth({ authType: 'rerequest' });
+  }, [handleStartMetaOAuth]);
+
+  const handleDisconnectMetaOAuth = useCallback(async () => {
+    try {
+      const payload = await logoutMetaOAuth();
+      if (payload.disconnected) {
+        pushToast('Meta OAuth disconnected for this tenant.', { tone: 'success' });
+      } else {
+        pushToast('No Meta OAuth credentials were connected.', { tone: 'info' });
+      }
+      resetMetaOAuthState();
+      void loadData();
+    } catch (disconnectError) {
+      const message =
+        disconnectError instanceof Error
+          ? disconnectError.message
+          : 'Unable to disconnect Meta OAuth.';
+      pushToast(message, { tone: 'error' });
+    }
+  }, [loadData, pushToast, resetMetaOAuthState]);
 
   const openConnectPanel = useCallback((provider: ConnectProvider) => {
     setConnectProvider(provider);
@@ -495,6 +703,38 @@ const DataSources = () => {
     [],
   );
 
+  const handleSocialPrimaryAction = useCallback(
+    async (platformStatus: SocialPlatformCard) => {
+      if (platformStatus.isPlaceholder) {
+        return;
+      }
+      if (platformStatus.actions.includes('connect_oauth')) {
+        setSocialActionPendingPlatform(platformStatus.platform);
+        try {
+          await handleStartMetaOAuth({ openPanelOnError: true });
+        } finally {
+          setSocialActionPendingPlatform(null);
+        }
+        return;
+      }
+      if (platformStatus.actions.includes('sync_now')) {
+        const metaConnection = connections
+          .filter((connection) => connection.provider === 'META')
+          .sort((a, b) => {
+            const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+            const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+            return bTime - aTime;
+          })[0];
+        if (metaConnection) {
+          await handleRunNow(metaConnection);
+          return;
+        }
+      }
+      openConnectPanel('META');
+    },
+    [connections, handleRunNow, handleStartMetaOAuth, openConnectPanel],
+  );
+
   const handleConnectSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -532,6 +772,12 @@ const DataSources = () => {
       setSavingConnect(true);
       try {
         if (connectProvider === 'META') {
+          if (metaPermissionDiagnostics.missingRequiredPermissions.length) {
+            pushToast('Re-request required Meta permissions before provisioning or sync.', {
+              tone: 'error',
+            });
+            return;
+          }
           if (!metaConnectedCredential) {
             pushToast('Complete Meta OAuth and save a business page first.', { tone: 'error' });
             return;
@@ -625,6 +871,7 @@ const DataSources = () => {
       connectProvider,
       loadData,
       metaConnectedCredential,
+      metaPermissionDiagnostics,
       pushToast,
       savingConnect,
     ],
@@ -661,6 +908,40 @@ const DataSources = () => {
       return haystack.includes(normalizedQuery);
     });
   }, [connections, providerFilter, query, statusFilter]);
+
+  const socialCards = useMemo<SocialPlatformCard[]>(() => {
+    const sourceMap = new Map<string, SocialPlatformStatusRecord>();
+    socialStatus.forEach((row) => {
+      sourceMap.set(row.platform, row);
+    });
+    const ordered = SOCIAL_PLATFORM_ORDER.map((platform) => {
+      const existing = sourceMap.get(platform);
+      return (
+        existing ?? {
+          platform,
+          display_name: platform === 'meta' ? 'Meta (Facebook)' : 'Instagram (Business)',
+          status: 'not_connected' as SocialConnectionStatus,
+          reason: { code: 'missing_status_payload', message: 'Status has not been loaded yet.' },
+          last_checked_at: null,
+          last_synced_at: null,
+          actions: ['connect_oauth'],
+          metadata: {},
+        }
+      );
+    });
+    const placeholders: SocialPlatformCard[] = SOCIAL_PLACEHOLDERS.map((row) => ({
+      platform: row.platform,
+      display_name: row.display_name,
+      status: 'not_connected',
+      reason: { code: 'coming_soon', message: row.description },
+      last_checked_at: null,
+      last_synced_at: null,
+      actions: [],
+      metadata: {},
+      isPlaceholder: true,
+    }));
+    return [...ordered, ...placeholders];
+  }, [socialStatus]);
 
   const latestSyncLabel = useMemo(() => {
     const lastSyncedAt = summary?.latest_sync?.last_synced_at;
@@ -709,6 +990,95 @@ const DataSources = () => {
             Monitor connection health, schedules, and recent sync activity.
           </p>
         </header>
+
+        <section
+          className="social-connections-panel"
+          aria-labelledby="social-connections-title"
+          ref={socialSectionRef}
+        >
+          <div className="panel-header__title-row">
+            <h3 id="social-connections-title">Social connections</h3>
+            <span className={`status-pill ${focusSocialView ? 'warning' : 'muted'}`}>
+              {focusSocialView ? 'Social setup view' : 'Status checker'}
+            </span>
+          </div>
+          <p className="status-message muted">
+            Track social connector progress across Meta and Instagram with actionable setup status.
+          </p>
+          <div className="dashboard-header__actions-row" style={{ marginBottom: '0.75rem' }}>
+            <a className="button tertiary" href="/dashboards/meta/accounts">
+              Meta accounts
+            </a>
+            <a className="button tertiary" href="/dashboards/meta/campaigns">
+              Campaign overview
+            </a>
+            <a className="button tertiary" href="/dashboards/meta/insights">
+              Insights dashboard
+            </a>
+            <a className="button tertiary" href="/dashboards/meta/status">
+              Connection status
+            </a>
+          </div>
+          {socialStatusLoad === 'loading' ? (
+            <p className="status-message muted">Loading social connection status…</p>
+          ) : null}
+          {socialStatusLoad === 'error' ? (
+            <p className="status-message error">
+              {socialStatusError ?? 'Could not load social connection status.'}
+            </p>
+          ) : null}
+          <div className="social-connections-grid">
+            {socialCards.map((platformStatus) => {
+              const statusTone = resolveSocialStatusTone(platformStatus.status);
+              const statusLabel = resolveSocialStatusLabel(platformStatus.status);
+              const primaryActionLabel = resolveSocialPrimaryAction(
+                platformStatus.status,
+                platformStatus.actions,
+              );
+              const checkedLabel = formatRelativeTime(platformStatus.last_checked_at ?? null);
+              const syncedLabel = formatRelativeTime(platformStatus.last_synced_at ?? null);
+              return (
+                <article key={platformStatus.platform} className="social-connection-card">
+                  <div className="social-connection-card__header">
+                    <h4>{platformStatus.display_name}</h4>
+                    <span className={`status-pill ${statusTone}`}>{statusLabel}</span>
+                  </div>
+                  <p className="status-message muted">{platformStatus.reason.message}</p>
+                  <dl className="social-connection-card__meta">
+                    <div>
+                      <dt>Checked</dt>
+                      <dd>{checkedLabel ?? '—'}</dd>
+                    </div>
+                    <div>
+                      <dt>Last sync</dt>
+                      <dd>{syncedLabel ?? 'Never'}</dd>
+                    </div>
+                  </dl>
+                  <div className="social-connection-card__actions">
+                    <button
+                      type="button"
+                      className="button secondary"
+                      onClick={() => void handleSocialPrimaryAction(platformStatus)}
+                      disabled={
+                        platformStatus.isPlaceholder ||
+                        socialActionPendingPlatform === platformStatus.platform ||
+                        (platformStatus.actions.includes('connect_oauth') &&
+                          (metaOAuthStarting || metaOAuthExchanging))
+                      }
+                    >
+                      {platformStatus.isPlaceholder
+                        ? 'Coming soon'
+                        : socialActionPendingPlatform === platformStatus.platform &&
+                            platformStatus.actions.includes('connect_oauth')
+                          ? 'Redirecting…'
+                          : primaryActionLabel}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
 
         <div className="data-sources-summary">
           <div className="summary-card">
@@ -884,6 +1254,11 @@ const DataSources = () => {
                         <p className="status-message muted">
                           Redirect URI: {metaSetupStatus.redirect_uri || 'Not configured'}
                         </p>
+                        <p className="status-message muted">
+                          Login configuration ID:{' '}
+                          {metaSetupStatus.login_configuration_id || 'Not configured'}{' '}
+                          {metaSetupStatus.login_configuration_required ? '(required)' : '(optional)'}
+                        </p>
                       </div>
                     ) : null}
                   </div>
@@ -901,6 +1276,22 @@ const DataSources = () => {
                     >
                       {metaOAuthStarting ? 'Redirecting…' : 'Connect with Facebook'}
                     </button>
+                    <button
+                      type="button"
+                      className="button tertiary"
+                      onClick={() => void handleRerequestMetaPermissions()}
+                      disabled={metaOAuthStarting || metaOAuthExchanging || metaOAuthSavingPage}
+                    >
+                      Re-request permissions
+                    </button>
+                    <button
+                      type="button"
+                      className="button tertiary"
+                      onClick={() => void handleDisconnectMetaOAuth()}
+                      disabled={metaOAuthStarting || metaOAuthExchanging || metaOAuthSavingPage}
+                    >
+                      Disconnect Meta
+                    </button>
                   </label>
                   <label className="dashboard-field">
                     <span className="dashboard-field__label">OAuth status</span>
@@ -912,6 +1303,22 @@ const DataSources = () => {
                     />
                   </label>
                 </div>
+                {metaPermissionDiagnostics.missingRequiredPermissions.length ? (
+                  <div className="data-sources-connect-form__grid">
+                    <div className="dashboard-field">
+                      <span className="dashboard-field__label">Permission diagnostics</span>
+                      <p className="status-message error">
+                        Missing required permissions:{' '}
+                        {metaPermissionDiagnostics.missingRequiredPermissions.join(', ')}
+                      </p>
+                      {metaPermissionDiagnostics.declinedPermissions.length ? (
+                        <p className="status-message muted">
+                          Declined permissions: {metaPermissionDiagnostics.declinedPermissions.join(', ')}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
 
                 {metaOAuthSelection.selectionToken ? (
                   <div className="data-sources-connect-form__grid">
@@ -984,6 +1391,7 @@ const DataSources = () => {
                         onClick={() => void handleMetaPageConnect()}
                         disabled={
                           metaOAuthSavingPage ||
+                          metaPermissionDiagnostics.missingRequiredPermissions.length > 0 ||
                           !metaOAuthSelection.selectedPageId ||
                           !metaOAuthSelection.selectedAdAccountId
                         }

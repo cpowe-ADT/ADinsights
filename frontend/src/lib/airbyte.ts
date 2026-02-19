@@ -85,6 +85,11 @@ export interface MetaOAuthStartResponse {
   authorize_url: string;
   state: string;
   redirect_uri: string;
+  login_configuration_id?: string | null;
+}
+
+export interface MetaOAuthStartPayload {
+  auth_type?: 'rerequest';
 }
 
 export interface MetaOAuthPage {
@@ -122,6 +127,11 @@ export interface MetaOAuthExchangeResponse {
   pages: MetaOAuthPage[];
   ad_accounts: MetaAdAccount[];
   instagram_accounts: MetaInstagramAccount[];
+  granted_permissions: string[];
+  declined_permissions: string[];
+  missing_required_permissions: string[];
+  token_debug_valid: boolean;
+  oauth_connected_but_missing_permissions: boolean;
 }
 
 export interface MetaPageConnectResponse {
@@ -129,6 +139,9 @@ export interface MetaPageConnectResponse {
   page: MetaOAuthPage;
   ad_account?: MetaAdAccount | null;
   instagram_account?: MetaInstagramAccount | null;
+  granted_permissions?: string[];
+  declined_permissions?: string[];
+  missing_required_permissions?: string[];
 }
 
 export interface MetaProvisionPayload {
@@ -176,6 +189,37 @@ export interface MetaSetupStatusResponse {
   graph_api_version: string;
   redirect_uri?: string | null;
   source_definition_id: string;
+  login_configuration_id_configured?: boolean;
+  login_configuration_id?: string | null;
+  login_configuration_required?: boolean;
+  login_mode?: string;
+}
+
+export type SocialConnectionPlatform = 'meta' | 'instagram';
+export type SocialConnectionStatus =
+  | 'not_connected'
+  | 'started_not_complete'
+  | 'complete'
+  | 'active';
+
+export interface SocialPlatformStatusRecord {
+  platform: SocialConnectionPlatform;
+  display_name: string;
+  status: SocialConnectionStatus;
+  reason: {
+    code: string;
+    message: string;
+    [key: string]: unknown;
+  };
+  last_checked_at?: string | null;
+  last_synced_at?: string | null;
+  actions: string[];
+  metadata: Record<string, unknown>;
+}
+
+export interface SocialConnectionStatusResponse {
+  generated_at: string;
+  platforms: SocialPlatformStatusRecord[];
 }
 
 const CONNECTIONS_ENDPOINT = '/airbyte/connections/';
@@ -217,8 +261,10 @@ export async function createAirbyteConnection(
   return apiClient.post<AirbyteConnectionRecord>(CONNECTIONS_ENDPOINT, payload);
 }
 
-export async function startMetaOAuth(): Promise<MetaOAuthStartResponse> {
-  return apiClient.post<MetaOAuthStartResponse>('/integrations/meta/oauth/start/');
+export async function startMetaOAuth(
+  payload?: MetaOAuthStartPayload,
+): Promise<MetaOAuthStartResponse> {
+  return apiClient.post<MetaOAuthStartResponse>('/integrations/meta/oauth/start/', payload ?? {});
 }
 
 export async function exchangeMetaOAuthCode(payload: {
@@ -253,6 +299,24 @@ export async function syncMetaIntegration(): Promise<{
   );
 }
 
+export async function logoutMetaOAuth(): Promise<{
+  provider: 'meta_ads';
+  disconnected: boolean;
+  deleted_credentials: number;
+}> {
+  return apiClient.post<{
+    provider: 'meta_ads';
+    disconnected: boolean;
+    deleted_credentials: number;
+  }>('/integrations/meta/logout/');
+}
+
 export async function loadMetaSetupStatus(): Promise<MetaSetupStatusResponse> {
   return apiClient.get<MetaSetupStatusResponse>('/integrations/meta/setup/');
+}
+
+export async function loadSocialConnectionStatus(
+  signal?: AbortSignal,
+): Promise<SocialConnectionStatusResponse> {
+  return apiClient.get<SocialConnectionStatusResponse>('/integrations/social/status/', { signal });
 }

@@ -503,4 +503,96 @@ describe('useDashboardStore', () => {
     expect(state.campaign.data?.summary.currency).toBe('JMD');
     expect(state.activeTenantId).toBe('grace-kennedy');
   });
+
+  it('matches parish filters using canonical Saint/St normalization and supports clearing to all parishes', async () => {
+    const { default: useDashboardStore } = await import('./useDashboardStore');
+
+    useDashboardStore.setState((state) => ({
+      ...state,
+      campaign: {
+        status: 'loaded',
+        error: undefined,
+        data: {
+          summary: campaignData.summary,
+          trend: [],
+          rows: [
+            {
+              id: 'cmp_sc',
+              name: 'St Catherine Campaign',
+              platform: 'Meta',
+              status: 'Active',
+              parish: 'Saint Catherine',
+              spend: 50,
+              impressions: 100,
+              clicks: 12,
+              conversions: 2,
+              roas: 1.5,
+            },
+            {
+              id: 'cmp_kg',
+              name: 'Kingston Campaign',
+              platform: 'Meta',
+              status: 'Active',
+              parish: 'Kingston',
+              spend: 70,
+              impressions: 200,
+              clicks: 22,
+              conversions: 3,
+              roas: 1.9,
+            },
+          ],
+        },
+      },
+      creative: {
+        status: 'loaded',
+        error: undefined,
+        data: [
+          {
+            id: 'cr_sc',
+            name: 'Creative Saint Catherine',
+            campaignId: 'cmp_sc',
+            campaignName: 'St Catherine Campaign',
+            platform: 'Meta',
+            parish: 'Saint Catherine',
+            spend: 10,
+            impressions: 50,
+            clicks: 6,
+            conversions: 1,
+            roas: 1.2,
+          },
+        ],
+      },
+      budget: {
+        status: 'loaded',
+        error: undefined,
+        data: [
+          {
+            id: 'bg_sc',
+            campaignName: 'St Catherine Campaign',
+            platform: 'Meta',
+            parishes: ['Saint Catherine'],
+            monthlyBudget: 100,
+            spendToDate: 45,
+            projectedSpend: 90,
+            pacingPercent: 0.9,
+          },
+        ],
+      },
+    }));
+
+    useDashboardStore.getState().setSelectedParish('St Catherine');
+    expect(useDashboardStore.getState().getCampaignRowsForSelectedParish()).toHaveLength(1);
+    expect(useDashboardStore.getState().getCampaignRowsForSelectedParish()[0]?.id).toBe('cmp_sc');
+    expect(useDashboardStore.getState().getCreativeRowsForSelectedParish()).toHaveLength(1);
+    expect(useDashboardStore.getState().getBudgetRowsForSelectedParish()).toHaveLength(1);
+
+    // Selecting the same parish alias toggles off and returns all rows.
+    useDashboardStore.getState().setSelectedParish('Saint Catherine');
+    expect(useDashboardStore.getState().selectedParish).toBeUndefined();
+    expect(useDashboardStore.getState().getCampaignRowsForSelectedParish()).toHaveLength(2);
+
+    useDashboardStore.getState().setSelectedParish(undefined);
+    expect(useDashboardStore.getState().selectedParish).toBeUndefined();
+    expect(useDashboardStore.getState().getCampaignRowsForSelectedParish()).toHaveLength(2);
+  });
 });

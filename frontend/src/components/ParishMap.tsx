@@ -148,7 +148,8 @@ const FALLBACK_PALETTE: MapPalette = {
   fills: ['#e2e8f0', '#bfdbfe', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8'],
 };
 
-function resolvePalette(): MapPalette {
+function resolvePalette(themeMode: string): MapPalette {
+  void themeMode;
   if (typeof window === 'undefined') {
     return FALLBACK_PALETTE;
   }
@@ -224,7 +225,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   const [scrollZoomEnabled, setScrollZoomEnabled] = useState(false);
   const geometryControllerRef = useRef<AbortController | null>(null);
 
-  const palette = useMemo(() => resolvePalette(), [theme]);
+  const palette = useMemo(() => resolvePalette(theme), [theme]);
   const borderColor = palette.border;
   const highlightColor = palette.highlight;
 
@@ -422,6 +423,9 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
       const rawValue = metricByParish[normalizeParishName(name)];
       const value = typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : null;
       const fills = palette.fills;
+      const isSelected =
+        Boolean(selectedParish) &&
+        normalizeParishName(selectedParish as string) === normalizeParishName(name);
 
       let fillColor = fills[0];
       if (value === null) {
@@ -440,8 +444,8 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
 
       return {
         fillColor,
-        weight: selectedParish === name ? 2 : 1,
-        color: selectedParish === name ? highlightColor : borderColor,
+        weight: isSelected ? 2 : 1,
+        color: isSelected ? highlightColor : borderColor,
         fillOpacity: 0.8,
       };
     },
@@ -769,7 +773,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     const layer = L.tileLayer(tileLayerUrl, { attribution: tileAttribution });
     layer.addTo(mapRef.current);
     tileLayerRef.current = layer;
-  }, [tileAttribution, tileLayerUrl]);
+  }, [mapReady, tileAttribution, tileLayerUrl]);
 
   useEffect(() => {
     if (!mapRef.current || !geojson || !mapReady) {
@@ -884,6 +888,9 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     onRetry?.();
     loadGeometry(activeTenantId);
   }, [activeTenantId, loadGeometry, onRetry]);
+  const clearParishFilter = useCallback(() => {
+    setSelectedParish(undefined);
+  }, [setSelectedParish]);
 
   const noDataLoaded = parishData.length === 0 && !geojson;
   const showSvgFallback = svgPaths.length > 0 && (useSvgFallback || !mapReady);
@@ -997,6 +1004,15 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
       </div>
 
       <div className={styles.overlay}>
+        <button
+          type="button"
+          className={styles.fullMapLink}
+          onClick={clearParishFilter}
+          disabled={!selectedParish}
+          aria-label="Show all parishes"
+        >
+          All parishes
+        </button>
         <Link to="/dashboards/map" className={styles.fullMapLink}>
           Open full map
         </Link>

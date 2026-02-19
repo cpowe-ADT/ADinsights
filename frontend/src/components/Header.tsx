@@ -1,6 +1,7 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, NavLink, type NavLinkRenderProps } from 'react-router-dom';
 
+import { useTheme } from './ThemeProvider';
 import styles from './Header.module.css';
 
 type HeaderNavLink = {
@@ -26,10 +27,6 @@ type HeaderProps = {
   onLogout: () => void;
 };
 
-type ThemeMode = 'light' | 'dark';
-
-const THEME_STORAGE_KEY = 'adinsights:theme';
-
 const Header = ({
   title,
   subtitle,
@@ -44,27 +41,7 @@ const Header = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const [theme, setTheme] = useState<ThemeMode>(() => {
-    if (typeof window === 'undefined') {
-      return 'light';
-    }
-
-    const stored = window.localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
-    if (stored === 'light' || stored === 'dark') {
-      return stored;
-    }
-
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
-
-  useEffect(() => {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    document.documentElement.setAttribute('data-theme', theme);
-    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-  }, [theme]);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (!menuOpen) {
@@ -92,20 +69,6 @@ const Header = ({
     };
   }, [menuOpen]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return undefined;
-    }
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (event: MediaQueryListEvent) => {
-      setTheme(event.matches ? 'dark' : 'light');
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
-
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (onSearch) {
@@ -131,10 +94,6 @@ const Header = ({
       .join('')
       .padEnd(2, userEmail.charAt(0)?.toUpperCase() ?? 'A');
   }, [userEmail]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
-  };
 
   return (
     <header className={styles.header}>

@@ -5,7 +5,13 @@ from django.utils import timezone
 from croniter import croniter
 
 from accounts.models import Tenant
-from .models import AlertRuleDefinition, CampaignBudget, PlatformCredential, AirbyteConnection
+from .models import (
+    AirbyteConnection,
+    AlertRuleDefinition,
+    CampaignBudget,
+    MetaAccountSyncState,
+    PlatformCredential,
+)
 
 
 class PlatformCredentialSerializer(serializers.ModelSerializer):
@@ -23,13 +29,35 @@ class PlatformCredentialSerializer(serializers.ModelSerializer):
             "id",
             "provider",
             "account_id",
+            "auth_mode",
+            "granted_scopes",
+            "declined_scopes",
+            "issued_at",
+            "last_validated_at",
+            "last_refresh_attempt_at",
+            "last_refreshed_at",
+            "token_status",
+            "token_status_reason",
             "expires_at",
             "created_at",
             "updated_at",
             "access_token",
             "refresh_token",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "auth_mode",
+            "granted_scopes",
+            "declined_scopes",
+            "issued_at",
+            "last_validated_at",
+            "last_refresh_attempt_at",
+            "last_refreshed_at",
+            "token_status",
+            "token_status_reason",
+            "created_at",
+            "updated_at",
+        ]
 
     def create(self, validated_data):
         access_token = validated_data.pop("access_token")
@@ -67,6 +95,24 @@ class PlatformCredentialSerializer(serializers.ModelSerializer):
 class MetaOAuthExchangeSerializer(serializers.Serializer):
     code = serializers.CharField(required=True, allow_blank=False)
     state = serializers.CharField(required=True, allow_blank=False)
+
+
+class MetaSystemTokenSerializer(serializers.Serializer):
+    account_id = serializers.CharField(required=True, allow_blank=False)
+    access_token = serializers.CharField(required=True, allow_blank=False)
+    expires_at = serializers.DateTimeField(required=False, allow_null=True)
+    granted_scopes = serializers.ListField(
+        child=serializers.CharField(allow_blank=False),
+        required=False,
+        allow_empty=True,
+    )
+
+
+class MetaOAuthStartSerializer(serializers.Serializer):
+    auth_type = serializers.ChoiceField(
+        choices=["rerequest"],
+        required=False,
+    )
 
 
 class MetaPageConnectSerializer(serializers.Serializer):
@@ -313,3 +359,47 @@ class AlertRuleDefinitionSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+
+
+class SocialPlatformStatusSerializer(serializers.Serializer):
+    platform = serializers.ChoiceField(choices=["meta", "instagram"])
+    display_name = serializers.CharField()
+    status = serializers.ChoiceField(
+        choices=["not_connected", "started_not_complete", "complete", "active"]
+    )
+    reason = serializers.DictField()
+    last_checked_at = serializers.DateTimeField(allow_null=True)
+    last_synced_at = serializers.DateTimeField(allow_null=True)
+    actions = serializers.ListField(child=serializers.CharField())
+    metadata = serializers.DictField()
+
+
+class SocialConnectionStatusResponseSerializer(serializers.Serializer):
+    generated_at = serializers.DateTimeField()
+    platforms = SocialPlatformStatusSerializer(many=True)
+
+
+class MetaAccountSyncStateSerializer(serializers.ModelSerializer):
+    connection_id = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MetaAccountSyncState
+        fields = [
+            "account_id",
+            "connection_id",
+            "last_job_id",
+            "last_job_status",
+            "last_job_error",
+            "last_sync_started_at",
+            "last_sync_completed_at",
+            "last_success_at",
+            "last_window_start",
+            "last_window_end",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+    def get_connection_id(self, obj: MetaAccountSyncState) -> str | None:
+        if obj.connection_id is None:
+            return None
+        return str(obj.connection.connection_id)

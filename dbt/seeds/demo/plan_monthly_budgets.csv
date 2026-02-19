@@ -1,3 +1,113 @@
 month,tenant_id,channel,campaign_id,planned_budget
-2024-09-01,bank-of-jamaica,Meta,BOJ-001,5000
-2024-09-01,grace-kennedy,Google Ads,GK-001,1200
+2025-11-01,bank-of-jamaica,TikTok,BAN-001,566336.65
+2025-12-01,bank-of-jamaica,TikTok,BAN-001,683457.93
+2026-01-01,bank-of-jamaica,TikTok,BAN-001,682444.98
+2026-02-01,bank-of-jamaica,TikTok,BAN-001,778371.16
+2025-11-01,bank-of-jamaica,Meta,BAN-002,1310273.48
+2025-12-01,bank-of-jamaica,Meta,BAN-002,1195458.0
+2026-01-01,bank-of-jamaica,Meta,BAN-002,1196879.8
+2026-02-01,bank-of-jamaica,Meta,BAN-002,879513.76
+2025-11-01,bank-of-jamaica,TikTok,BAN-003,1079462.56
+2025-12-01,bank-of-jamaica,TikTok,BAN-003,1196883.25
+2026-01-01,bank-of-jamaica,TikTok,BAN-003,945501.19
+2026-02-01,bank-of-jamaica,TikTok,BAN-003,758243.41
+2025-11-01,bank-of-jamaica,TikTok,BAN-004,1719567.62
+2025-12-01,bank-of-jamaica,TikTok,BAN-004,1364658.2
+2026-01-01,bank-of-jamaica,TikTok,BAN-004,1579657.66
+2026-02-01,bank-of-jamaica,TikTok,BAN-004,1168283.27
+2025-11-01,bank-of-jamaica,TikTok,BAN-005,1658152.51
+2025-12-01,bank-of-jamaica,TikTok,BAN-005,1264381.28
+2026-01-01,bank-of-jamaica,TikTok,BAN-005,1486204.5
+2026-02-01,bank-of-jamaica,TikTok,BAN-005,1588403.45
+2025-11-01,bank-of-jamaica,YouTube,BAN-006,1617180.65
+2025-12-01,bank-of-jamaica,YouTube,BAN-006,1565323.3
+2026-01-01,bank-of-jamaica,YouTube,BAN-006,1106718.1
+2026-02-01,bank-of-jamaica,YouTube,BAN-006,1517661.94
+2025-11-01,bank-of-jamaica,Google Ads,BAN-007,1389072.98
+2025-12-01,bank-of-jamaica,Google Ads,BAN-007,1783372.08
+2026-01-01,bank-of-jamaica,Google Ads,BAN-007,1385313.06
+2026-02-01,bank-of-jamaica,Google Ads,BAN-007,1033828.98
+2025-11-01,bank-of-jamaica,Meta,BAN-008,1390514.94
+2025-12-01,bank-of-jamaica,Meta,BAN-008,1757918.7
+2026-01-01,bank-of-jamaica,Meta,BAN-008,1761178.03
+2026-02-01,bank-of-jamaica,Meta,BAN-008,1671122.45
+2025-11-01,bank-of-jamaica,YouTube,BAN-009,1548685.87
+2025-12-01,bank-of-jamaica,YouTube,BAN-009,1542075.25
+2026-01-01,bank-of-jamaica,YouTube,BAN-009,1010375.9
+2026-02-01,bank-of-jamaica,YouTube,BAN-009,977605.4
+2025-11-01,grace-kennedy,YouTube,GRA-001,22710.18
+2025-12-01,grace-kennedy,YouTube,GRA-001,26133.84
+2026-01-01,grace-kennedy,YouTube,GRA-001,22822.41
+2026-02-01,grace-kennedy,YouTube,GRA-001,27192.5
+2025-11-01,grace-kennedy,YouTube,GRA-002,65067.76
+2025-12-01,grace-kennedy,YouTube,GRA-002,74798.81
+2026-01-01,grace-kennedy,YouTube,GRA-002,61233.82
+2026-02-01,grace-kennedy,YouTube,GRA-002,60685.33
+2025-11-01,grace-kennedy,TikTok,GRA-003,34533.04
+2025-12-01,grace-kennedy,TikTok,GRA-003,32484.61
+2026-01-01,grace-kennedy,TikTok,GRA-003,36988.91
+2026-02-01,grace-kennedy,TikTok,GRA-003,42817.06
+2025-11-01,grace-kennedy,Meta,GRA-004,30210.95
+2025-12-01,grace-kennedy,Meta,GRA-004,20690.05
+2026-01-01,grace-kennedy,Meta,GRA-004,30089.13
+2026-02-01,grace-kennedy,Meta,GRA-004,28943.4
+2025-11-01,grace-kennedy,Meta,GRA-005,72993.76
+2025-12-01,grace-kennedy,Meta,GRA-005,50573.96
+2026-01-01,grace-kennedy,Meta,GRA-005,51927.3
+2026-02-01,grace-kennedy,Meta,GRA-005,56982.26
+2025-11-01,grace-kennedy,Meta,GRA-006,70376.04
+2025-12-01,grace-kennedy,Meta,GRA-006,56338.19
+2026-01-01,grace-kennedy,Meta,GRA-006,70950.29
+2026-02-01,grace-kennedy,Meta,GRA-006,52955.84
+2025-11-01,grace-kennedy,YouTube,GRA-007,37705.85
+2025-12-01,grace-kennedy,YouTube,GRA-007,62357.34
+2026-01-01,grace-kennedy,YouTube,GRA-007,52810.36
+2026-02-01,grace-kennedy,YouTube,GRA-007,35174.99
+2025-11-01,grace-kennedy,YouTube,GRA-008,14851.06
+2025-12-01,grace-kennedy,YouTube,GRA-008,17526.68
+2026-01-01,grace-kennedy,YouTube,GRA-008,14078.94
+2026-02-01,grace-kennedy,YouTube,GRA-008,19720.09
+2025-11-01,grace-kennedy,Meta,GRA-009,32361.63
+2025-12-01,grace-kennedy,Meta,GRA-009,25892.47
+2026-01-01,grace-kennedy,Meta,GRA-009,25374.33
+2026-02-01,grace-kennedy,Meta,GRA-009,29770.04
+2025-11-01,grace-kennedy,YouTube,GRA-010,29601.71
+2025-12-01,grace-kennedy,YouTube,GRA-010,21585.45
+2026-01-01,grace-kennedy,YouTube,GRA-010,23532.66
+2026-02-01,grace-kennedy,YouTube,GRA-010,21974.03
+2025-11-01,jdic,Meta,JDI-001,758715.34
+2025-12-01,jdic,Meta,JDI-001,811871.08
+2026-01-01,jdic,Meta,JDI-001,712928.36
+2026-02-01,jdic,Meta,JDI-001,617843.79
+2025-11-01,jdic,YouTube,JDI-002,1131184.56
+2025-12-01,jdic,YouTube,JDI-002,1184637.92
+2026-01-01,jdic,YouTube,JDI-002,868491.24
+2026-02-01,jdic,YouTube,JDI-002,932596.45
+2025-11-01,jdic,Meta,JDI-003,856520.85
+2025-12-01,jdic,Meta,JDI-003,806930.5
+2026-01-01,jdic,Meta,JDI-003,646551.84
+2026-02-01,jdic,Meta,JDI-003,673702.79
+2025-11-01,jdic,YouTube,JDI-004,834785.78
+2025-12-01,jdic,YouTube,JDI-004,958046.44
+2026-01-01,jdic,YouTube,JDI-004,1100518.11
+2026-02-01,jdic,YouTube,JDI-004,949270.75
+2025-11-01,jdic,YouTube,JDI-005,1545973.2
+2025-12-01,jdic,YouTube,JDI-005,1626017.92
+2026-01-01,jdic,YouTube,JDI-005,1299683.12
+2026-02-01,jdic,YouTube,JDI-005,981348.61
+2025-11-01,jdic,Google Ads,JDI-006,762506.77
+2025-12-01,jdic,Google Ads,JDI-006,770914.74
+2026-01-01,jdic,Google Ads,JDI-006,837764.43
+2026-02-01,jdic,Google Ads,JDI-006,771978.24
+2025-11-01,jdic,Google Ads,JDI-007,1304229.2
+2025-12-01,jdic,Google Ads,JDI-007,1211538.65
+2026-01-01,jdic,Google Ads,JDI-007,1028558.75
+2026-02-01,jdic,Google Ads,JDI-007,775854.98
+2025-11-01,jdic,Google Ads,JDI-008,792174.14
+2025-12-01,jdic,Google Ads,JDI-008,835819.88
+2026-01-01,jdic,Google Ads,JDI-008,1088980.18
+2026-02-01,jdic,Google Ads,JDI-008,972283.64
+2025-11-01,jdic,Meta,JDI-009,560740.35
+2025-12-01,jdic,Meta,JDI-009,872489.72
+2026-01-01,jdic,Meta,JDI-009,718806.52
+2026-02-01,jdic,Meta,JDI-009,773707.27

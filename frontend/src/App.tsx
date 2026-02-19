@@ -6,7 +6,7 @@ import router from './router';
 function App() {
   return (
     <ToastProvider>
-      <RouterProvider router={router} />
+      <RouterProvider router={router} future={{ v7_startTransition: true }} />
     </ToastProvider>
   );
 }

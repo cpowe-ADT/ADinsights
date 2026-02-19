@@ -76,3 +76,15 @@ dev-session:
 	$(COMPOSE_CMD) exec -T backend python /app/scripts/create_dev_session.py --username devadmin@local.test --cookie
 
 dev-ready: dev-bootstrap dev-data dev-session
+
+.PHONY: adinsights-preflight
+
+adinsights-preflight:
+	@if [ -z "$(PROMPT)" ]; then \
+		echo "Usage: make adinsights-preflight PROMPT='your planning or release question'"; \
+		exit 1; \
+	fi
+	python3 docs/ops/skills/adinsights-release-readiness/scripts/run_preflight_skillchain.py \
+		--prompt "$(PROMPT)" \
+		--changed-files-from-git \
+		--format markdown

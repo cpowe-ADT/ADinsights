@@ -1,0 +1,96 @@
+cases:
+  - name: single frontend scope passes
+    input:
+      prompt: "Working on /frontend/src/routes/DataSources.tsx"
+      paths:
+        - frontend/src/routes/DataSources.tsx
+    expect:
+      scope_status: PASS_SINGLE_SCOPE
+      touched_top_level_folders_exact:
+        - frontend
+      required_reviewers_exact: []
+      required_docs_updates_exact: []
+      contract_risk_signal: false
+      invoke_contract_guard: false
+      invoke_release_readiness: false
+
+  - name: cross backend and frontend escalates cross scope
+    input:
+      prompt: "Need backend and frontend updates"
+      paths:
+        - backend/integrations/views.py
+        - frontend/src/routes/DataSources.tsx
+    expect:
+      scope_status: ESCALATE_CROSS_SCOPE
+      required_reviewers_contains:
+        - Raj
+      contract_risk_signal: true
+      invoke_contract_guard: true
+      invoke_release_readiness: true
+
+  - name: architecture sensitive change escalates Raj and Mira
+    input:
+      prompt: "Update core routing and React shell"
+      paths:
+        - backend/core/urls.py
+        - frontend/src/main.tsx
+    expect:
+      scope_status: ESCALATE_ARCH_RISK
+      required_reviewers_contains:
+        - Raj
+        - Mira
+      contract_risk_signal: true
+      invoke_contract_guard: true
+      invoke_release_readiness: true
+
+  - name: contract risk change is signal-first and invokes contract guard
+    input:
+      prompt: "Update API serializer and contract changelog"
+      paths:
+        - backend/integrations/serializers.py
+    expect:
+      scope_status: PASS_SINGLE_SCOPE
+      required_reviewers_contains:
+        - Raj
+      required_docs_updates_exact: []
+      contract_risk_signal: true
+      invoke_contract_guard: true
+      invoke_release_readiness: true
+
+  - name: missing scope evidence warns unclear
+    input:
+      prompt: "Can you handle this quickly?"
+    expect:
+      scope_status: WARN_UNCLEAR_SCOPE
+      required_reviewers_exact: []
+      contract_risk_signal: false
+      invoke_contract_guard: false
+      invoke_release_readiness: false
+
+  - name: docs bucket includes docs-maintenance updates only
+    input:
+      prompt: "Update docs/ops/doc-index.md and docs/ops/testing-cheat-sheet.md"
+      paths:
+        - docs/ops/doc-index.md
+        - docs/ops/testing-cheat-sheet.md
+    expect:
+      scope_status: PASS_SINGLE_SCOPE
+      touched_top_level_folders_exact:
+        - docs
+      required_docs_updates_exact:
+        - docs/ops/doc-index.md
+        - docs/ops/agent-activity-log.md
+      contract_risk_signal: false
+
+  - name: frontend api helper path is not a contract signal
+    input:
+      prompt: "Refactor frontend API helper"
+      paths:
+        - frontend/src/lib/apiClient.ts
+    expect:
+      scope_status: PASS_SINGLE_SCOPE
+      touched_top_level_folders_exact:
+        - frontend
+      required_docs_updates_exact: []
+      contract_risk_signal: false
+      invoke_contract_guard: false

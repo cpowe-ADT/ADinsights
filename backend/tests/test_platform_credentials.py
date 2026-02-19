@@ -25,6 +25,10 @@ def test_platform_credential_encryption(api_client, user, tenant):
     assert response.status_code == 201
     body = response.json()
     assert "access_token" not in body
+    assert body["auth_mode"] == PlatformCredential.AUTH_MODE_USER_OAUTH
+    assert body["token_status"] == PlatformCredential.TOKEN_STATUS_VALID
+    assert body["granted_scopes"] == []
+    assert body["declined_scopes"] == []
     assert PlatformCredential.objects.count() == 1
     credential = PlatformCredential.objects.first()
     assert credential.decrypt_access_token() == "secret-token"

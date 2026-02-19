@@ -1,3 +1,29 @@
 tenant_id,campaign_id,channel,campaign_name,objective,status,start_date,end_date,parish
-bank-of-jamaica,BOJ-001,Meta,BOJ Awareness,Awareness,ACTIVE,2024-08-01,,Kingston
-grace-kennedy,GK-001,Google Ads,GK Leads,Leads,ACTIVE,2024-08-10,,St James
+bank-of-jamaica,BAN-001,TikTok,"Rodriguez, Figueroa and Sanchez Enable Sticky Methodologies",Traffic,ACTIVE,2025-09-19,,
+bank-of-jamaica,BAN-002,Meta,"Mcclain, Miller and Henderson Utilize E-Business E-Tailers",Traffic,ACTIVE,2025-09-28,,Kingston
+bank-of-jamaica,BAN-003,TikTok,Wagner Inc Engage 24/365 Experiences,Awareness,ACTIVE,2025-10-26,,Westmoreland
+bank-of-jamaica,BAN-004,TikTok,"Gardner, Robinson and Lawrence Exploit Clicks-And-Mortar Communities",Leads,ACTIVE,2025-09-15,,Kingston
+bank-of-jamaica,BAN-005,TikTok,"Henderson, Ramirez and Lewis Engineer Cross-Platform Platforms",Video Views,ACTIVE,2025-11-01,,Kingston
+bank-of-jamaica,BAN-006,YouTube,James LLC Iterate Cross-Media Metrics,Leads,ACTIVE,2025-10-14,,Clarendon
+bank-of-jamaica,BAN-007,Google Ads,Roman-Blair Incubate 24/7 Architectures,Traffic,ACTIVE,2025-10-19,,Hanover
+bank-of-jamaica,BAN-008,Meta,Arnold Ltd Re-Intermediate Bricks-And-Clicks Networks,Leads,ACTIVE,2025-11-01,,Clarendon
+bank-of-jamaica,BAN-009,YouTube,Bush Inc Repurpose Bleeding-Edge Technologies,Traffic,ACTIVE,2025-10-21,,Westmoreland
+grace-kennedy,GRA-001,YouTube,Wyatt Inc Synergize Efficient Bandwidth,Awareness,ACTIVE,2025-09-11,,St Andrew
+grace-kennedy,GRA-002,YouTube,"Flowers, Martin and Kelly Repurpose Real-Time Methodologies",Video Views,ACTIVE,2025-10-01,,St Elizabeth
+grace-kennedy,GRA-003,TikTok,"Jones, Reid and Ferguson Incentivize Granular Bandwidth",Awareness,ACTIVE,2025-10-26,,
+grace-kennedy,GRA-004,Meta,Nelson-Schaefer Scale Magnetic Methodologies,Leads,ACTIVE,2025-10-04,,St James
+grace-kennedy,GRA-005,Meta,Cameron-Parsons Enhance Robust Vortals,Video Views,ACTIVE,2025-11-04,,St Andrew
+grace-kennedy,GRA-006,Meta,Adams-Clark Maximize Turn-Key E-Tailers,Awareness,ACTIVE,2025-09-14,,St Andrew
+grace-kennedy,GRA-007,YouTube,"Porter, Wilkerson and Day Orchestrate Back-End Channels",Traffic,ACTIVE,2025-09-18,,Westmoreland
+grace-kennedy,GRA-008,YouTube,Mcgee PLC Morph Cutting-Edge Applications,Awareness,ACTIVE,2025-11-01,,St Ann
+grace-kennedy,GRA-009,Meta,Cox-Osborn Enable Rich Infrastructures,Awareness,ACTIVE,2025-11-01,,St Thomas
+grace-kennedy,GRA-010,YouTube,Callahan and Sons Whiteboard Granular Methodologies,Traffic,ACTIVE,2025-09-15,,St Mary
+jdic,JDI-001,Meta,Carlson-Cruz Expedite Plug-And-Play Deliverables,Sales,ACTIVE,2025-09-15,,St Elizabeth
+jdic,JDI-002,YouTube,Maddox-Valencia Implement One-To-One Methodologies,Traffic,ACTIVE,2025-11-01,,
+jdic,JDI-003,Meta,"Potter, Mack and Peterson Envisioneer User-Centric Communities",Awareness,ACTIVE,2025-09-12,,Clarendon
+jdic,JDI-004,YouTube,Smith-Bowen Drive Back-End Mindshare,Leads,ACTIVE,2025-09-16,,Portland
+jdic,JDI-005,YouTube,Romero Inc Cultivate Seamless Functionalities,Traffic,ACTIVE,2025-10-23,,Kingston
+jdic,JDI-006,Google Ads,"Lynch, Hernandez and Farmer Incubate Clicks-And-Mortar Metrics",Awareness,ACTIVE,2025-10-31,,St Elizabeth
+jdic,JDI-007,Google Ads,Burns-Rodriguez Disintermediate Extensible Action-Items,Video Views,ACTIVE,2025-09-27,,St Andrew
+jdic,JDI-008,Google Ads,Allen PLC Evolve Strategic Models,Leads,ACTIVE,2025-09-24,,Hanover
+jdic,JDI-009,Meta,Spence PLC Revolutionize End-To-End Channels,Awareness,ACTIVE,2025-10-04,,Manchester

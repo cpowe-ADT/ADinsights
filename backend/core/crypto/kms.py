@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import hashlib
+import logging
 from dataclasses import dataclass, field
 from typing import ClassVar, Dict, Protocol, Tuple
 
 import boto3
-import hashlib
 from botocore.client import BaseClient
 from botocore.exceptions import (
     BotoCoreError,
@@ -54,8 +55,16 @@ class LocalKmsClient:
     def decrypt(self, ciphertext: bytes, key_version: str) -> bytes:  # noqa: ARG002 - ciphertext unused
         try:
             return self._store[key_version]
-        except KeyError as exc:  # pragma: no cover - defensive path
-            raise KmsError(f"Unknown key version {key_version}") from exc
+        except KeyError:
+            # Local KMS is in-memory only; after process restarts we can reconstruct
+            # the plaintext because local ciphertext is intentionally plaintext bytes.
+            recovered = bytes(ciphertext)
+            self._store[key_version] = recovered
+            logging.getLogger(__name__).warning(
+                "Recovered local KMS key material for missing key version",
+                extra={"key_version": key_version},
+            )
+            return recovered
 
     def rewrap(self, ciphertext: bytes, current_version: str) -> Tuple[str, bytes]:  # noqa: ARG002 - ciphertext unused
         plaintext = self.decrypt(ciphertext, current_version)

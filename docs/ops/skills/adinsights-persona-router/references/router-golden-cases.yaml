@@ -1,0 +1,127 @@
+cases:
+  - name: explicit persona beats stream hint
+    input:
+      prompt: "Act as Maya and review S1 backlog gaps"
+      mode: resolve
+    expect:
+      action: resolve
+      resolved_by: explicit_persona_name
+      selected_persona_id: maya
+      cross_stream: false
+      invoke_scope_gatekeeper: false
+      invoke_contract_guard: false
+      invoke_release_readiness: false
+      escalation_contains: []
+
+  - name: explicit stream routes to stream owner pair
+    input:
+      prompt: "Review Stream 4"
+      mode: resolve
+    expect:
+      action: resolve
+      resolved_by: explicit_stream
+      selected_persona_id: lina
+      backup_persona_id: joel
+      touched_streams_exact:
+        - S4
+      cross_stream: false
+      invoke_contract_guard: false
+      invoke_release_readiness: false
+
+  - name: folder path routes to frontend
+    input:
+      prompt: "I am changing /frontend/src"
+      mode: resolve
+    expect:
+      action: resolve
+      resolved_by: folder_path
+      selected_persona_id: lina
+      backup_persona_id: joel
+      touched_streams_exact:
+        - S4
+      invoke_contract_guard: false
+      invoke_release_readiness: false
+
+  - name: cross-stream folder paths escalate
+    input:
+      prompt: "Need dbt/ and frontend/src changes"
+      mode: resolve
+    expect:
+      action: resolve
+      resolved_by: folder_path
+      cross_stream: true
+      selected_persona_id: priya
+      escalation_contains:
+        - Raj
+        - Mira
+      invoke_scope_gatekeeper: true
+      invoke_contract_guard: true
+      invoke_release_readiness: false
+
+  - name: explicit persona conflict triggers clarification
+    input:
+      prompt: "Act as Maya for frontend/src"
+      mode: resolve
+    expect:
+      action: clarify
+      resolved_by: explicit_persona_name
+      selected_persona_id: maya
+      cross_stream: true
+      invoke_scope_gatekeeper: true
+      invoke_contract_guard: false
+      invoke_release_readiness: false
+
+  - name: unknown request asks for clarification
+    input:
+      prompt: "Can you handle this quickly?"
+      mode: resolve
+    expect:
+      action: clarify
+      resolved_by: ask_user_for_clarification
+      selected_persona_id: null
+      cross_stream: false
+      invoke_scope_gatekeeper: true
+      invoke_contract_guard: false
+      invoke_release_readiness: false
+
+  - name: preflight mode produces implementation template routing
+    input:
+      prompt: "Check backend/adapters retry behavior"
+      mode: preflight
+      paths:
+        - backend/adapters/retry.py
+    expect:
+      action: resolve
+      resolved_by: folder_path
+      selected_persona_id: sofia
+      touched_streams_exact:
+        - S3
+      recommended_report_template: B
+      invoke_contract_guard: false
+      invoke_release_readiness: false
+
+  - name: release intent invokes release readiness
+    input:
+      prompt: "Assess release readiness for Stream 3 backend changes before go-live"
+      mode: preflight
+      paths:
+        - backend/analytics/serializers.py
+    expect:
+      action: resolve
+      resolved_by: explicit_stream
+      selected_persona_id: sofia
+      invoke_contract_guard: true
+      invoke_release_readiness: true
+
+  - name: frontend api helper path does not trigger contract guard
+    input:
+      prompt: "Review frontend API helper refactor"
+      mode: preflight
+      paths:
+        - frontend/src/lib/apiClient.ts
+    expect:
+      action: resolve
+      resolved_by: folder_path
+      selected_persona_id: lina
+      invoke_contract_guard: false
+      invoke_release_readiness: false

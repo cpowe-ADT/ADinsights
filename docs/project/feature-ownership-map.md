@@ -29,6 +29,13 @@ Use this to assign sprint tasks and route reviews.
 - Runbooks: `docs/design-system.md`, `frontend/DESIGN_SYSTEM.md`,
   `docs/project/frontend-finished-product-spec.md`, `docs/project/frontend-spec-review-checklist.md`
 
+### Social Connector Experience (Meta/Instagram)
+- Owner: Lina (Primary), Maya (Backup)
+- Scope: `frontend/src/pages/Home.tsx`, `frontend/src/routes/DataSources.tsx`, `backend/integrations/views.py`
+- Tests: `pytest -q backend/tests/test_social_status_api.py`, `pytest -q backend/tests/test_meta_oauth_api.py`,
+  `cd frontend && npm test -- --run src/pages/Home.test.tsx src/routes/__tests__/DataSources.test.tsx`, `cd frontend && npm run build`
+- Runbooks: `docs/runbooks/operations.md`, `docs/runbooks/support-playbook.md`
+
 ### Secrets & KMS
 - Owner: Nina (Primary), Victor (Backup)
 - Scope: `backend/core/crypto/`, `scripts/`

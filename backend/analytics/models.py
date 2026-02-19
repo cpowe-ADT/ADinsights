@@ -20,6 +20,13 @@ class Campaign(models.Model):
     tenant = models.ForeignKey(
         Tenant, on_delete=models.CASCADE, related_name="analytics_campaigns"
     )
+    ad_account = models.ForeignKey(
+        "AdAccount",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="campaigns",
+    )
     external_id = models.CharField(max_length=128)
     name = models.CharField(max_length=255)
     platform = models.CharField(max_length=32)
@@ -40,6 +47,7 @@ class Campaign(models.Model):
         ordering = ("name", "external_id")
         indexes = [
             models.Index(fields=["tenant", "external_id"], name="analytics_campaign_ext"),
+            models.Index(fields=["tenant", "ad_account"], name="analytics_campaign_account"),
         ]
         unique_together = ("tenant", "external_id")
 
@@ -121,8 +129,16 @@ class RawPerformanceRecord(models.Model):
     tenant = models.ForeignKey(
         Tenant, on_delete=models.CASCADE, related_name="analytics_performance_records"
     )
+    ad_account = models.ForeignKey(
+        "AdAccount",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="performance_records",
+    )
     external_id = models.CharField(max_length=128)
     date = models.DateField()
+    level = models.CharField(max_length=16, default="ad")
     source = models.CharField(max_length=32)
     campaign = models.ForeignKey(
         Campaign, on_delete=models.SET_NULL, null=True, blank=True, related_name="performance_records"
@@ -134,10 +150,14 @@ class RawPerformanceRecord(models.Model):
         Ad, on_delete=models.SET_NULL, null=True, blank=True, related_name="performance_records"
     )
     impressions = models.PositiveBigIntegerField(default=0)
+    reach = models.PositiveBigIntegerField(default=0)
     clicks = models.PositiveBigIntegerField(default=0)
     spend = models.DecimalField(max_digits=20, decimal_places=6, default=Decimal("0"))
+    cpc = models.DecimalField(max_digits=20, decimal_places=6, default=Decimal("0"))
+    cpm = models.DecimalField(max_digits=20, decimal_places=6, default=Decimal("0"))
     currency = models.CharField(max_length=16, blank=True)
     conversions = models.IntegerField(default=0)
+    actions = models.JSONField(default=list, blank=True)
     raw_payload = models.JSONField(default=dict, blank=True)
     ingested_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -150,10 +170,47 @@ class RawPerformanceRecord(models.Model):
         indexes = [
             models.Index(fields=["tenant", "external_id"], name="analytics_perf_ext"),
             models.Index(fields=["tenant", "date"], name="analytics_perf_date"),
+            models.Index(fields=["tenant", "ad_account", "date"], name="analytics_perf_acct_date"),
+            models.Index(fields=["tenant", "level", "date"], name="analytics_perf_level_date"),
         ]
+        unique_together = ("tenant", "source", "external_id", "date", "level")
 
     def __str__(self) -> str:  # pragma: no cover - debug helper
         return f"RawPerformance<{self.tenant_id}:{self.external_id}:{self.date}>"
+
+
+class AdAccount(models.Model):
+    """Tenant-scoped Meta ad account metadata."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="analytics_ad_accounts"
+    )
+    external_id = models.CharField(max_length=128)
+    account_id = models.CharField(max_length=128, blank=True)
+    name = models.CharField(max_length=255, blank=True)
+    currency = models.CharField(max_length=16, blank=True)
+    status = models.CharField(max_length=32, blank=True)
+    business_name = models.CharField(max_length=255, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_time = models.DateTimeField(null=True, blank=True)
+    updated_time = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("name", "external_id")
+        indexes = [
+            models.Index(fields=["tenant", "external_id"], name="analytics_adacct_ext"),
+            models.Index(fields=["tenant", "account_id"], name="analytics_adacct_account"),
+        ]
+        unique_together = ("tenant", "external_id")
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"AdAccount<{self.tenant_id}:{self.external_id}>"
 
 
 class TenantMetricsSnapshot(models.Model):

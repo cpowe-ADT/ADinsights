@@ -18,7 +18,8 @@ export type DashboardLibraryFilters = {
 };
 
 export async function fetchDashboardLibrary(
-  _filters?: DashboardLibraryFilters,
+  filters?: DashboardLibraryFilters,
 ): Promise<DashboardLibraryItem[]> {
+  void filters;
   return fetchDashboardLibraryFromApi();
 }

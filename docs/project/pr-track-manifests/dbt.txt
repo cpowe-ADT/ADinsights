@@ -1,0 +1,11 @@
+dbt/macros/json_utils.sql
+dbt/macros/snapshot_utils.sql
+dbt/models/marts/meta/mart_meta_ad_performance.sql
+dbt/models/marts/meta/mart_meta_campaign_history.sql
+dbt/models/marts/meta/mart_meta_daily_performance.sql
+dbt/models/marts/meta/schema.yml
+dbt/models/staging/meta/schema.yml
+dbt/models/staging/meta/stg_meta_insights.sql
+dbt/snapshots/ad.sql
+dbt/snapshots/adset.sql
+dbt/snapshots/campaign.sql

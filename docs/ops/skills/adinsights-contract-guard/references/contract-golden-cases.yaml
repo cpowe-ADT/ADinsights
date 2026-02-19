@@ -1,0 +1,76 @@
+cases:
+  - name: serializer field removal escalates breaking change
+    input:
+      prompt: "Remove response field from serializer; this is breaking"
+      paths:
+        - backend/integrations/serializers.py
+    expect:
+      contract_status: ESCALATE_BREAKING_CHANGE
+      breaking_change_detected: true
+      required_reviewers_contains:
+        - Raj
+        - Mira
+
+  - name: optional serializer field change requires docs
+    input:
+      prompt: "Add optional response field to serializer"
+      paths:
+        - backend/integrations/serializers.py
+    expect:
+      contract_status: ESCALATE_CONTRACT_CHANGE_REQUIRES_DOCS
+      breaking_change_detected: false
+      required_docs_updates_contains:
+        - docs/project/api-contract-changelog.md
+
+  - name: dbt semantic change without matrix update requires docs
+    input:
+      prompt: "Adjust dbt model column semantic for fact table"
+      paths:
+        - dbt/models/marts/fact_performance.sql
+    expect:
+      contract_status: ESCALATE_CONTRACT_CHANGE_REQUIRES_DOCS
+      required_docs_updates_contains:
+        - docs/project/integration-data-contract-matrix.md
+
+  - name: airbyte schema shift requires docs and integration tests
+    input:
+      prompt: "Update Airbyte connector schema mapping"
+      paths:
+        - infrastructure/airbyte/sources/google_ads_daily_metrics.sql
+    expect:
+      contract_status: ESCALATE_CONTRACT_CHANGE_REQUIRES_DOCS
+      required_tests_contains:
+        - python3 infrastructure/airbyte/scripts/check_data_contracts.py
+
+  - name: no contract surfaces touched passes
+    input:
+      prompt: "Update internal docs index only"
+      paths:
+        - docs/ops/doc-index.md
+    expect:
+      contract_status: PASS_NO_CONTRACT_CHANGE
+      breaking_change_detected: false
+
+  - name: ci strict breaking_or_missing_docs fails docs-missing contract change
+    input:
+      prompt: "Add optional response field to serializer"
+      paths:
+        - backend/integrations/serializers.py
+      ci_strict_enabled: true
+      ci_strict_level: breaking_or_missing_docs
+    expect:
+      contract_status: ESCALATE_CONTRACT_CHANGE_REQUIRES_DOCS
+      ci_strict_level: breaking_or_missing_docs
+      ci_strict_would_fail: true
+
+  - name: ci strict breaking_only does not fail docs-missing non-breaking change
+    input:
+      prompt: "Add optional response field to serializer"
+      paths:
+        - backend/integrations/serializers.py
+      ci_strict_enabled: true
+      ci_strict_level: breaking_only
+    expect:
+      contract_status: ESCALATE_CONTRACT_CHANGE_REQUIRES_DOCS
+      ci_strict_level: breaking_only
+      ci_strict_would_fail: false

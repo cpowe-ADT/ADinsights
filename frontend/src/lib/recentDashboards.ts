@@ -1,4 +1,4 @@
-import apiClient, { appendQueryParams, MOCK_ASSETS_ENABLED } from './apiClient';
+import apiClient, { ApiError, appendQueryParams, MOCK_ASSETS_ENABLED } from './apiClient';
 import { formatRelativeTime } from './format';
 
 export type RecentDashboard = {
@@ -79,6 +79,10 @@ export async function fetchRecentDashboards(limit = 3): Promise<RecentDashboard[
     });
     return resolveRecentDashboards(payload).slice(0, limit);
   } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      // Older backend builds do not expose /api/dashboards/recent/.
+      return fallbackDashboards.slice(0, limit);
+    }
     if (MOCK_ASSETS_ENABLED) {
       return fallbackDashboards.slice(0, limit);
     }

@@ -1,0 +1,28 @@
+skill: adinsights-contract-guard
+version: 1
+path_patterns:
+  - backend/.*/serializers\.py
+  - backend/.*/views\.py
+  - backend/.*/urls\.py
+  - backend/.*/schema.*\.py
+  - dbt/models/.*\.(sql|yml)
+  - dbt/snapshots/.*\.(sql|yml)
+  - ^infrastructure/airbyte/.*
+  - ^integrations/.*
+  - docs/project/api-contract-changelog.md
+  - docs/project/integration-data-contract-matrix.md
+keywords:
+  - serializer
+  - openapi
+  - endpoint
+  - response field
+  - request field
+  - dbt
+  - model
+  - snapshot
+  - column semantic
+  - airbyte
+  - connector
+  - schema drift
+  - api-contract-changelog
+  - integration-data-contract-matrix

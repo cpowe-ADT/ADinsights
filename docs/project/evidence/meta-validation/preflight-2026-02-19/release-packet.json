@@ -1,0 +1,256 @@
+{
+  "schema_version": "1.1.0",
+  "release_status": "GATE_BLOCK",
+  "gate_results": {
+    "scope_control": {
+      "status": "BLOCK",
+      "rationale": "Scope status 'ESCALATE_ARCH_RISK' is blocking for release.",
+      "evidence": [
+        "ESCALATE_ARCH_RISK"
+      ]
+    },
+    "contract_integrity": {
+      "status": "WARN",
+      "rationale": "Contract status 'WARN_POSSIBLE_CONTRACT_CHANGE' requires follow-up.",
+      "evidence": [
+        "WARN_POSSIBLE_CONTRACT_CHANGE"
+      ]
+    },
+    "test_coverage": {
+      "status": "INFO",
+      "rationale": "Required tests identified; pending explicit execution/verification.",
+      "evidence": [
+        "ruff check backend && pytest -q backend",
+        "make dbt-deps && dbt --project-dir dbt run --select staging && dbt snapshot && dbt --project-dir dbt run --select marts",
+        "docs-only change (no canonical code test)",
+        "cd frontend && npm ci && npm test -- --run && npm run build",
+        "cd infrastructure/airbyte && docker compose config",
+        "ruff check backend",
+        "pytest backend/tests/test_dek_manager.py scripts/tests/test_rotate_deks.py",
+        "python3 infrastructure/airbyte/scripts/check_data_contracts.py",
+        "pytest -q backend/tests/test_data_contract_checks.py"
+      ]
+    },
+    "security_pii_secrets": {
+      "status": "WARN",
+      "rationale": "Prompt/paths include security-sensitive signals; verify secrets/PII handling.",
+      "evidence": [
+        "backend/.env.sample"
+      ]
+    },
+    "runbook_ops_readiness": {
+      "status": "PASS",
+      "rationale": "Required runbook artifacts are present.",
+      "evidence": []
+    },
+    "documentation_completeness": {
+      "status": "PASS",
+      "rationale": "All required documentation updates are present in current change evidence.",
+      "evidence": [
+        "docs/ops/doc-index.md",
+        "docs/ops/agent-activity-log.md"
+      ]
+    },
+    "rollout_rollback_plan": {
+      "status": "PASS",
+      "rationale": "Deployment runbook exists for rollout/rollback planning.",
+      "evidence": [
+        "docs/runbooks/deployment.md"
+      ]
+    },
+    "observability": {
+      "status": "PASS",
+      "rationale": "Observability gate not explicitly blocked by packet/check evidence.",
+      "evidence": []
+    }
+  },
+  "blocking_issues": [
+    "Scope control gate blocked by architecture-level scope risk."
+  ],
+  "warnings": [
+    "Contract integrity requires follow-up before release.",
+    "Security/PII gate requires verification due to sensitive signals."
+  ],
+  "pending_items": [
+    "Run and verify required tests before release."
+  ],
+  "required_approvers": [
+    "Raj",
+    "Mira",
+    "Sofia",
+    "Priya",
+    "Hannah",
+    "Lina",
+    "Maya",
+    "Nina"
+  ],
+  "required_artifacts": [
+    "docs/runbooks/release-checklist.md",
+    "docs/runbooks/deployment.md",
+    "docs/runbooks/operations.md",
+    "docs/project/api-contract-changelog.md",
+    "docs/project/integration-data-contract-matrix.md"
+  ],
+  "recommended_next_action": "Address blocking issues and rerun readiness evaluation before release.",
+  "evidence": [
+    {
+      "type": "scope_status",
+      "value": "ESCALATE_ARCH_RISK",
+      "strength": 0.9,
+      "source": "scope_packet"
+    },
+    {
+      "type": "contract_status",
+      "value": "WARN_POSSIBLE_CONTRACT_CHANGE",
+      "strength": 0.9,
+      "source": "contract_packet"
+    }
+  ],
+  "executive_summary": "Release status GATE_BLOCK. Blocking issues: 1. Warnings: 2. Pending items: 1.",
+  "advisory_only": true,
+  "signals": {
+    "run_checks": false,
+    "check_results": [],
+    "router_packet_present": true,
+    "scope_packet_present": true,
+    "contract_packet_present": true,
+    "changed_files": [
+      ".github/dependabot.yml",
+      ".gitignore",
+      "AGENTS.md",
+      "Makefile",
+      "backend/.env.sample",
+      "backend/accounts/management/commands/enable_rls.py",
+      "backend/analytics/models.py",
+      "backend/analytics/phase2_views.py",
+      "backend/analytics/serializers.py",
+      "backend/core/crypto/fields.py",
+      "backend/core/crypto/kms.py",
+      "backend/core/metrics.py",
+      "backend/core/observability.py",
+      "backend/core/settings.py",
+      "backend/core/urls.py",
+      "backend/integrations/admin.py",
+      "backend/integrations/airbyte/client.py",
+      "backend/integrations/meta_graph.py",
+      "backend/integrations/models.py",
+      "backend/integrations/serializers.py",
+      "backend/integrations/tasks.py",
+      "backend/integrations/views.py",
+      "backend/pyproject.toml",
+      "backend/requirements.txt",
+      "backend/tests/conftest.py",
+      "backend/tests/test_kms_config.py",
+      "backend/tests/test_meta_oauth_api.py",
+      "backend/tests/test_platform_credentials.py",
+      "backend/tests/test_schema_regressions.py",
+      "dbt/macros/json_utils.sql",
+      "dbt/models/staging/meta/schema.yml",
+      "dbt/models/staging/meta/stg_meta_insights.sql",
+      "dbt/seeds/demo/dim_campaigns.csv",
+      "dbt/seeds/demo/dim_creatives.csv",
+      "dbt/seeds/demo/dim_tenants.csv",
+      "dbt/seeds/demo/fact_daily_campaign_metrics.csv",
+      "dbt/seeds/demo/fact_daily_creative_metrics.csv",
+      "dbt/seeds/demo/fact_daily_parish_metrics.csv",
+      "dbt/seeds/demo/plan_monthly_budgets.csv",
+      "dbt/snapshots/ad.sql",
+      "dbt/snapshots/adset.sql",
+      "dbt/snapshots/campaign.sql",
+      "docs/DEVELOPMENT.md",
+      "docs/PROGRAM-NOTES.md",
+      "docs/ops/agent-activity-log.md",
+      "docs/ops/doc-index.md",
+      "docs/ops/golden-path-onboarding.md",
+      "docs/ops/human-onboarding-guide.md",
+      "docs/ops/new-engineer-onboarding.md",
+      "docs/ops/testing-cheat-sheet.md",
+      "docs/project/api-contract-changelog.md",
+      "docs/project/feature-catalog.md",
+      "docs/project/feature-ownership-map.md",
+      "docs/project/integration-data-contract-matrix.md",
+      "docs/project/phase1-execution-backlog.md",
+      "docs/runbooks/operations.md",
+      "docs/runbooks/support-playbook.md",
+      "frontend/package.json",
+      "frontend/src/App.tsx",
+      "frontend/src/components/CampaignTrendChart.tsx",
+      "frontend/src/components/Header.module.css",
+      "frontend/src/components/Header.tsx",
+      "frontend/src/components/ParishMap.module.css",
+      "frontend/src/components/ParishMap.tsx",
+      "frontend/src/components/TenantSwitcher.module.css",
+      "frontend/src/components/ThemeProvider.tsx",
+      "frontend/src/components/__tests__/FilterBar.tokens.test.tsx",
+      "frontend/src/lib/airbyte.ts",
+      "frontend/src/lib/dashboardFilters.ts",
+      "frontend/src/lib/dashboardLibrary.ts",
+      "frontend/src/lib/recentDashboards.ts",
+      "frontend/src/pages/Home.module.css",
+      "frontend/src/pages/Home.test.tsx",
+      "frontend/src/pages/Home.tsx",
+      "frontend/src/router.tsx",
+      "frontend/src/routes/CampaignDashboard.tsx",
+      "frontend/src/routes/DashboardLayout.tsx",
+      "frontend/src/routes/DashboardLibrary.tsx",
+      "frontend/src/routes/DataSources.tsx",
+      "frontend/src/routes/LoginPage.tsx",
+      "frontend/src/routes/ParishMapDetail.tsx",
+      "frontend/src/routes/__tests__/CampaignDashboard.layout.test.tsx",
+      "frontend/src/routes/__tests__/DataSources.test.tsx",
+      "frontend/src/state/useDashboardStore.test.ts",
+      "frontend/src/state/useDashboardStore.ts",
+      "frontend/src/styles.css",
+      "frontend/src/styles/dashboard.css",
+      "frontend/src/styles/theme.css",
+      "infrastructure/airbyte/README.md",
+      "infrastructure/airbyte/docker-compose.yml",
+      "infrastructure/airbyte/env.example",
+      "infrastructure/airbyte/meta_source.yaml",
+      "infrastructure/airbyte/scripts/check_data_contracts.py",
+      "infrastructure/airbyte/scripts/provision_meta_google_connectors.py",
+      "infrastructure/airbyte/sources/meta_marketing.json.example",
+      "package-lock.json",
+      "package.json",
+      "scripts/dev-healthcheck.sh",
+      "scripts/dev-launch.sh",
+      ".backend.pid",
+      ".frontend.pid",
+      ".github/workflows/contract-guard.yml",
+      ".github/workflows/release-readiness-advisory.yml",
+      "backend/analytics/meta_serializers.py",
+      "backend/analytics/meta_views.py",
+      "backend/analytics/migrations/0004_adaccount_campaign_ad_account_and_more.py",
+      "backend/integrations/migrations/0008_platformcredential_auth_mode_and_more.py",
+      "backend/integrations/migrations/0009_apierrorlog.py",
+      "backend/tests/test_meta_graph_client.py",
+      "backend/tests/test_meta_lifecycle_tasks.py",
+      "backend/tests/test_meta_read_api.py",
+      "backend/tests/test_meta_sync_jobs.py",
+      "backend/tests/test_social_status_api.py",
+      "dbt/macros/snapshot_utils.sql",
+      "dbt/models/marts/meta/",
+      "docs/ops/ci-gate-review.md",
+      "docs/ops/dependency-triage-report.md",
+      "docs/ops/skills/",
+      "docs/project/evidence/meta-validation/",
+      "docs/project/meta-integration-v3-pr-tracks.md",
+      "docs/project/meta-permission-profile.md",
+      "docs/project/meta-permissions-catalog.yaml",
+      "docs/runbooks/meta-app-review-copy-pack.md",
+      "docs/runbooks/meta-app-review-submission-checklist.md",
+      "docs/runbooks/meta-app-review-validation.md",
+      "frontend/src/components/__tests__/ThemeProvider.test.tsx",
+      "frontend/src/lib/meta.ts",
+      "frontend/src/routes/MetaAccountsPage.tsx",
+      "frontend/src/routes/MetaCampaignOverviewPage.tsx",
+      "frontend/src/routes/MetaConnectionStatusPage.tsx",
+      "frontend/src/routes/MetaInsightsDashboardPage.tsx",
+      "frontend/src/routes/__tests__/LoginPage.test.tsx",
+      "frontend/src/routes/__tests__/ParishMapDetail.test.tsx",
+      "frontend/src/state/useMetaStore.test.ts",
+      "frontend/src/state/useMetaStore.ts",
+      "qa/tests/meta-integration.spec.ts"
+    ]
+  }
+}

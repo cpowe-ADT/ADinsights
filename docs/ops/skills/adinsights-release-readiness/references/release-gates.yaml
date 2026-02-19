@@ -1,0 +1,57 @@
+skill: adinsights-release-readiness
+version: 1
+mode: advisory-first-synthesis
+packet_schema_version: 1.1.0
+gate_statuses:
+  - PASS
+  - INFO
+  - WARN
+  - BLOCK
+release_statuses:
+  - GATE_PASS
+  - GATE_WARN
+  - GATE_BLOCK
+gate_dimensions:
+  - scope_control
+  - contract_integrity
+  - test_coverage
+  - observability
+  - security_pii_secrets
+  - runbook_ops_readiness
+  - documentation_completeness
+  - rollout_rollback_plan
+scope_control:
+  block_scope_statuses:
+    - ESCALATE_ARCH_RISK
+  warn_scope_statuses:
+    - ESCALATE_CROSS_SCOPE
+    - WARN_UNCLEAR_SCOPE
+contract_integrity:
+  block_contract_statuses:
+    - ESCALATE_BREAKING_CHANGE
+  warn_contract_statuses:
+    - WARN_POSSIBLE_CONTRACT_CHANGE
+    - ESCALATE_CONTRACT_CHANGE_REQUIRES_DOCS
+required_artifacts:
+  - docs/runbooks/release-checklist.md
+  - docs/runbooks/deployment.md
+  - docs/runbooks/operations.md
+  - docs/project/api-contract-changelog.md
+  - docs/project/integration-data-contract-matrix.md
+optional_checks:
+  - id: data_contract_gate
+    command: python3 infrastructure/airbyte/scripts/check_data_contracts.py
+    gate_dimension: contract_integrity
+    block_on_failure: true
+  - id: observability_prereqs
+    command: python3 infrastructure/airbyte/scripts/verify_observability_prereqs.py
+    gate_dimension: observability
+    block_on_failure: true
+  - id: production_readiness
+    command: python3 infrastructure/airbyte/scripts/verify_production_readiness.py
+    gate_dimension: test_coverage
+    block_on_failure: true
+next_action_templates:
+  GATE_PASS: Proceed with release checklist execution and staged rollout.
+  GATE_WARN: Resolve warnings or capture explicit risk acceptance before release.
+  GATE_BLOCK: Address blocking issues and rerun readiness evaluation before release.

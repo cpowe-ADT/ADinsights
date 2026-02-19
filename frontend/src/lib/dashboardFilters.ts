@@ -170,10 +170,6 @@ export const parseFilterQueryParams = (
   fallback: FilterBarState = createDefaultFilterState(),
 ): FilterBarState => {
   const dateRangeParam = searchParams.get(FILTER_QUERY_KEYS.dateRange) ?? undefined;
-  const dateRange = DATE_RANGE_PRESETS.has(dateRangeParam as DateRangePreset)
-    ? (dateRangeParam as DateRangePreset)
-    : fallback.dateRange;
-
   const startParam = searchParams.get(FILTER_QUERY_KEYS.startDate) ?? undefined;
   const endParam = searchParams.get(FILTER_QUERY_KEYS.endDate) ?? undefined;
 

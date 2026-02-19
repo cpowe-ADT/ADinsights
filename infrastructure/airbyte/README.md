@@ -8,7 +8,7 @@ This compose file boots an Airbyte OSS deployment suitable for local development
 docker compose --env-file env.example up -d
 ```
 
-The UI will be available at <http://localhost:${AIRBYTE_WEBAPP_PORT:-8000}> and the API at <http://localhost:${AIRBYTE_SERVER_PORT:-8001}>.
+The UI will be available at <http://localhost:${AIRBYTE_WEBAPP_PORT:-18000}> and the API at <http://localhost:${AIRBYTE_SERVER_PORT:-18001}>.
 
 Copy `env.example` to `.env` (or provide equivalent environment variables) to keep credentials out of source control while letting
 Compose substitute consistent defaults.
@@ -21,6 +21,27 @@ contracts and migrations aligned. Recommended baseline: **v1.8.0** (latest 1.x s
 If you update the Compose images, keep all Airbyte service tags in lockstep. Official OSS images are published via Airbyte's
 registry (currently GHCR). Make sure you can authenticate (`docker login ghcr.io` with a token that has `read:packages`) before
 pulling, or the stack will fail to start.
+
+## Local fallback profile (no GHCR auth)
+
+When GHCR authentication is not available, local development uses DockerHub Airbyte images pinned to `0.50.22`:
+
+- `airbyte/db:0.50.22`
+- `airbyte/bootloader:0.50.22`
+- `airbyte/server:0.50.22`
+- `airbyte/webapp:0.50.22`
+- `airbyte/worker:0.50.22`
+
+Default local ports for this profile:
+
+- API: `http://localhost:18001`
+- UI: `http://localhost:18000`
+
+This fallback keeps compatibility with the backend's `/api/v1/*` Airbyte client contract.
+
+For Docker-out-of-Docker worker execution, keep worker Docker mounts aligned to named volumes:
+`WORKSPACE_DOCKER_MOUNT=airbyte-workspace` and `LOCAL_DOCKER_MOUNT=airbyte-local`.
+If this is misconfigured, source jobs can fail with `source_config.json` not found.
 
 ## Environment variables
 

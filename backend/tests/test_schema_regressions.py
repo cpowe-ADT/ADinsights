@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 import json
 from datetime import timedelta
 from decimal import Decimal
@@ -235,3 +236,37 @@ def test_openapi_schema_includes_metrics_upload():
     payload = yaml.safe_load(response.content.decode("utf-8"))
     paths = payload.get("paths", {})
     assert "/api/uploads/metrics/" in paths
+
+
+@pytest.mark.django_db
+def test_openapi_schema_includes_social_connection_status():
+    client = APIClient()
+    response = client.get("/api/schema/")
+    assert response.status_code == 200
+    payload = yaml.safe_load(response.content.decode("utf-8"))
+    paths = payload.get("paths", {})
+    assert "/api/integrations/social/status/" in paths
+
+
+@pytest.mark.django_db
+def test_openapi_schema_operation_ids_are_unique():
+    client = APIClient()
+    response = client.get("/api/schema/")
+    assert response.status_code == 200
+    payload = yaml.safe_load(response.content.decode("utf-8"))
+    paths = payload.get("paths", {})
+
+    operation_ids: list[str] = []
+    for path_item in paths.values():
+        if not isinstance(path_item, dict):
+            continue
+        for method, operation in path_item.items():
+            if method.lower() not in {"get", "post", "put", "patch", "delete", "options", "head"}:
+                continue
+            if isinstance(operation, dict):
+                operation_id = operation.get("operationId")
+                if isinstance(operation_id, str) and operation_id:
+                    operation_ids.append(operation_id)
+
+    duplicate_ids = sorted([operation_id for operation_id, count in Counter(operation_ids).items() if count > 1])
+    assert not duplicate_ids, f"Duplicate operationIds found: {duplicate_ids}"

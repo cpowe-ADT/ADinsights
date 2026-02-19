@@ -4,6 +4,7 @@ import pytest
 
 from core.crypto.kms import (
     KmsConfigurationError,
+    LocalKmsClient,
     _infer_region_from_key_id,
     _validate_aws_key_id,
     validate_kms_configuration,
@@ -34,3 +35,13 @@ def test_validate_kms_configuration_accepts_alias_with_region() -> None:
 def test_validate_kms_configuration_requires_region_for_non_arn() -> None:
     with pytest.raises(KmsConfigurationError):
         validate_kms_configuration("aws", "alias/adinsights-prod", None)
+
+
+def test_local_kms_recovers_after_process_restart() -> None:
+    LocalKmsClient._store.clear()
+    client = LocalKmsClient("local-dev-kms")
+
+    version, ciphertext = client.encrypt(b"tenant-dek")
+    LocalKmsClient._store.clear()
+
+    assert client.decrypt(ciphertext, version) == b"tenant-dek"

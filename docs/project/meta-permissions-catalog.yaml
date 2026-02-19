@@ -1,0 +1,225 @@
+version: 1
+coverage_scope: active_plus_near_term
+timezone: America/Jamaica
+source: meta_permissions_reference_compiled
+updated_on: 2026-02-19
+permissions:
+  - permission: ads_read
+    family: facebook_ads
+    dependencies: []
+    allowed_usage:
+      - Provide API access to ad performance data for dashboards and analytics.
+      - Pull ad reporting information for ad accounts the business owns or has access to.
+    app_review_use_case_requirements:
+      - State that ADinsights reads ads performance data on behalf of onboarded business customers for reporting and analytics.
+      - Specify exactly where these metrics appear in ADinsights and which tenant-scoped users can view them.
+    app_review_screencast_requirements:
+      - Demonstrate the complete Facebook login process and permission grant.
+      - Demonstrate a connected business user accessing ad performance metrics in ADinsights after granting the permission.
+      - Demonstrate impressions, conversions, spend, clicks, and reach displayed in ADinsights.
+    adinsights_status: required_now
+    adinsights_feature_mapping:
+      - Meta OAuth setup and exchange flow in Data Sources.
+      - Direct Meta insights retrieval via /api/meta/insights/.
+      - Tenant reporting dashboards fed by Meta ad metrics.
+    runtime_gate_required: true
+    requested_in_default_oauth: true
+    notes: "Runtime gate accepts ads_read OR ads_management."
+    last_reviewed_on: 2026-02-19
+  - permission: ads_management
+    family: facebook_ads
+    dependencies:
+      - pages_read_engagement
+      - pages_show_list
+    allowed_usage:
+      - Programmatically create and manage campaigns and ads.
+      - Fetch ad metrics and support ad management workflows for businesses.
+    app_review_use_case_requirements:
+      - State that ADinsights requires ad-management access on behalf of business customers to support campaign and account operations.
+      - Specify which platform actions require this permission and what business outcome they enable.
+    app_review_screencast_requirements:
+      - Demonstrate the complete Facebook login process and permission grant.
+      - Demonstrate ad performance data access in ADinsights after permission grant.
+      - Demonstrate impressions, conversions, spend, clicks, and reach displayed in ADinsights.
+    adinsights_status: required_now
+    adinsights_feature_mapping:
+      - Runtime fallback when ads_read is not granted.
+      - Meta ad account onboarding validation flow.
+    runtime_gate_required: true
+    requested_in_default_oauth: true
+    notes: "Runtime gate accepts ads_read OR ads_management."
+    last_reviewed_on: 2026-02-19
+  - permission: business_management
+    family: business_manager
+    dependencies:
+      - pages_read_engagement
+      - pages_show_list
+    allowed_usage:
+      - Manage business assets such as ad accounts.
+      - Read and write via Business Manager API.
+    app_review_use_case_requirements:
+      - State that ADinsights needs business asset access on behalf of onboarded businesses to bind ad accounts to tenant reporting.
+    app_review_screencast_requirements:
+      - Demonstrate the complete Facebook login process and permission grant.
+      - Demonstrate that the connected business can complete asset selection and access ad performance data in ADinsights.
+    adinsights_status: required_now
+    adinsights_feature_mapping:
+      - Page and ad account selection during Meta connect flow.
+      - Tenant credential binding to authorized business assets.
+    runtime_gate_required: true
+    requested_in_default_oauth: true
+    notes: "Required by runtime gate for successful Meta provisioning flow."
+    last_reviewed_on: 2026-02-19
+  - permission: pages_read_engagement
+    family: pages
+    dependencies:
+      - pages_show_list
+    allowed_usage:
+      - Read Page content and metadata needed for admin workflows.
+      - Support Page-level context during onboarding and insights access.
+    app_review_use_case_requirements:
+      - State that ADinsights reads Page content and metadata on behalf of businesses to complete onboarding and verification flows.
+    app_review_screencast_requirements:
+      - Demonstrate the complete Facebook login process and permission grant.
+      - Demonstrate Page-linked content or metadata retrieval in ADinsights.
+    adinsights_status: required_now
+    adinsights_feature_mapping:
+      - Facebook Page discovery and connect flow.
+      - Validation prerequisites before Meta provisioning/sync.
+    runtime_gate_required: true
+    requested_in_default_oauth: true
+    notes: "Required by runtime gate; also dependency for several optional scopes."
+    last_reviewed_on: 2026-02-19
+  - permission: pages_show_list
+    family: pages
+    dependencies: []
+    allowed_usage:
+      - Show and validate Pages managed by the connected user.
+    app_review_use_case_requirements:
+      - State that ADinsights needs managed Page list access to allow business users to choose and verify owned Pages during onboarding.
+    app_review_screencast_requirements:
+      - Demonstrate the complete Facebook login process and permission grant.
+      - Demonstrate managed Pages listed and connected in ADinsights.
+    adinsights_status: required_now
+    adinsights_feature_mapping:
+      - Mandatory Page selection step in Meta onboarding.
+      - Page ownership verification for tenant credential setup.
+    runtime_gate_required: true
+    requested_in_default_oauth: true
+    notes: "Foundational dependency for Page-scoped and some ad-scoped permissions."
+    last_reviewed_on: 2026-02-19
+  - permission: instagram_basic
+    family: instagram
+    dependencies:
+      - pages_read_user_content
+      - pages_show_list
+    allowed_usage:
+      - Read Instagram Business profile metadata, including username and ID.
+    app_review_use_case_requirements:
+      - Specify which Instagram profile fields ADinsights reads and where used in product.
+    app_review_screencast_requirements:
+      - Show Facebook login and permission grant, including Instagram account selection.
+      - Show Instagram profile metadata retrieval in ADinsights.
+    adinsights_status: optional_near_term
+    adinsights_feature_mapping:
+      - Optional Instagram account discovery in Meta onboarding.
+      - Instagram identity mapping for reporting context.
+    runtime_gate_required: false
+    requested_in_default_oauth: true
+    notes: "Not required for core Meta ad insights runtime gate."
+    last_reviewed_on: 2026-02-19
+  - permission: instagram_manage_insights
+    family: instagram
+    dependencies:
+      - instagram_basic
+      - pages_read_engagement
+      - pages_show_list
+    allowed_usage:
+      - Retrieve Instagram business metadata, media insights, and story insights.
+    app_review_use_case_requirements:
+      - Explain how ADinsights provides Instagram performance insights for businesses.
+    app_review_screencast_requirements:
+      - Show Facebook login and permission grant.
+      - Show Instagram professional account insights retrieved in ADinsights.
+    adinsights_status: optional_near_term
+    adinsights_feature_mapping:
+      - Instagram performance enrichment for social status and analytics views.
+    runtime_gate_required: false
+    requested_in_default_oauth: true
+    notes: "Optional for Instagram insights features; not part of base Meta runtime gate."
+    last_reviewed_on: 2026-02-19
+  - permission: catalog_management
+    family: commerce
+    dependencies:
+      - business_management
+    allowed_usage:
+      - Manage business product catalogs for commerce and inventory use cases.
+    app_review_use_case_requirements:
+      - Explain why ADinsights would need catalog management for client businesses.
+    app_review_screencast_requirements:
+      - Show Facebook login and permission grant.
+      - Show catalog create/update/delete workflow only if feature is active.
+    adinsights_status: optional_near_term
+    adinsights_feature_mapping:
+      - Reserved for future commerce-oriented campaign support.
+    runtime_gate_required: false
+    requested_in_default_oauth: true
+    notes: "Requested in default scope list but not currently required for active runtime path."
+    last_reviewed_on: 2026-02-19
+  - permission: pages_manage_ads
+    family: pages
+    dependencies:
+      - pages_show_list
+    allowed_usage:
+      - Create and manage ads associated with a Facebook Page.
+    app_review_use_case_requirements:
+      - Explain why ADinsights would create/manage ads for connected Page businesses.
+    app_review_screencast_requirements:
+      - Show Facebook login and permission grant.
+      - Show ad creation/management for a connected Page only if feature is active.
+    adinsights_status: optional_near_term
+    adinsights_feature_mapping:
+      - Reserved for future Page-level ad management surfaces.
+    runtime_gate_required: false
+    requested_in_default_oauth: true
+    notes: "Not needed for current read/provision flow; keep use constrained to active features."
+    last_reviewed_on: 2026-02-19
+  - permission: pages_manage_metadata
+    family: pages
+    dependencies:
+      - pages_show_list
+    allowed_usage:
+      - Subscribe to Page webhooks and manage Page settings.
+    app_review_use_case_requirements:
+      - Explain why ADinsights needs Page metadata/settings management for connected businesses.
+    app_review_screencast_requirements:
+      - Show Facebook login and permission grant.
+      - Show webhook subscription or settings update only if feature is active.
+    adinsights_status: optional_near_term
+    adinsights_feature_mapping:
+      - Reserved for webhook-driven Page lifecycle workflows.
+    runtime_gate_required: false
+    requested_in_default_oauth: true
+    notes: "Dependency for pages_messaging; optional for current ADinsights core flow."
+    last_reviewed_on: 2026-02-19
+  - permission: pages_messaging
+    family: pages
+    dependencies:
+      - pages_manage_metadata
+      - pages_show_list
+    allowed_usage:
+      - Access and manage Page conversations in Messenger.
+      - Send support and transactional messages.
+    app_review_use_case_requirements:
+      - Explain messaging functionality provided to onboarded business users.
+    app_review_screencast_requirements:
+      - Show Facebook login and permission grant.
+      - Show message send flow and receipt in Messenger client only if feature is active.
+      - Show generated cURL request for send-message endpoint integration.
+    adinsights_status: optional_near_term
+    adinsights_feature_mapping:
+      - Reserved for future CRM/messaging assist capabilities.
+    runtime_gate_required: false
+    requested_in_default_oauth: true
+    notes: "Not part of required Meta ad-data runtime gate."
+    last_reviewed_on: 2026-02-19

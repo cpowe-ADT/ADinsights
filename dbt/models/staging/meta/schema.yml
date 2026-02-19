@@ -39,6 +39,14 @@ models:
       - name: date
         tests:
           - not_null
+      - name: reach
+        description: "Reach metric from Meta insights."
+      - name: cpc
+        description: "Cost-per-click metric from Meta insights."
+      - name: cpm
+        description: "Cost-per-mille metric from Meta insights."
+      - name: actions
+        description: "Raw action payload preserved as JSON for API parity."
   - name: stg_meta_campaigns
     description: 'Meta campaign metadata'
     tests:

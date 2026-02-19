@@ -58,6 +58,11 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
   - ad account selection (required for Marketing API insights)
   - Instagram business account selection (optional)
   - Airbyte source/connection auto-provision + initial sync trigger
+- Social connection status center:
+  - Home quick action routes to `/dashboards/data-sources?sources=social`
+  - Data Sources social status cards for Meta + Instagram
+  - Canonical 4-state checker: `not_connected`, `started_not_complete`, `complete`, `active`
+  - Placeholder cards for LinkedIn/TikTok marked coming soon
 - Google Ads direct credential + local Airbyte connection linking flow.
 - Production readiness verifier for Meta/Google connection credentials and tenant config sanity.
 - Canonical integration data-contract matrix (Meta/Google/GA4/Search Console/CSV) plus automated contract gate script.

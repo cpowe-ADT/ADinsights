@@ -55,5 +55,11 @@
     "typescript-eslint": "^8.13.0",
     "vite": "^6.0.11",
     "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "axios": "^1.13.5",
+    "wait-on": {
+      "axios": "^1.13.5"
+    }
   }
 }

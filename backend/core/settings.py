@@ -43,15 +43,20 @@ env = environ.Env(
     META_APP_ID=(str, ""),
     META_APP_SECRET=(str, ""),
     META_OAUTH_REDIRECT_URI=(str, ""),
+    META_LOGIN_CONFIG_ID=(str, ""),
+    META_LOGIN_CONFIG_REQUIRED=(bool, True),
     META_OAUTH_SCOPES=(
         list,
         [
+            "ads_management",
             "pages_show_list",
             "pages_read_engagement",
-            "pages_read_user_content",
+            "pages_manage_ads",
+            "pages_manage_metadata",
+            "pages_messaging",
             "ads_read",
             "business_management",
-            "read_insights",
+            "catalog_management",
             "instagram_basic",
             "instagram_manage_insights",
         ],
@@ -110,9 +115,11 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 ENABLE_TENANCY = env.bool("ENABLE_TENANCY", default=True)
 API_VERSION = env("API_VERSION")
 METRICS_SNAPSHOT_TTL = env.int("METRICS_SNAPSHOT_TTL")
-ENABLE_FAKE_ADAPTER = env.bool("ENABLE_FAKE_ADAPTER", default=False)
+# In local DEBUG sessions, keep demo/fake adapters on by default so dashboard
+# toggles always have a working non-live data source unless explicitly disabled.
+ENABLE_FAKE_ADAPTER = env.bool("ENABLE_FAKE_ADAPTER", default=DEBUG)
 ENABLE_WAREHOUSE_ADAPTER = env.bool("ENABLE_WAREHOUSE_ADAPTER", default=False)
-ENABLE_DEMO_ADAPTER = env.bool("ENABLE_DEMO_ADAPTER", default=False)
+ENABLE_DEMO_ADAPTER = env.bool("ENABLE_DEMO_ADAPTER", default=DEBUG)
 ENABLE_UPLOAD_ADAPTER = env.bool("ENABLE_UPLOAD_ADAPTER", default=True)
 ENABLE_DEMO_GENERATION = env.bool("ENABLE_DEMO_GENERATION", default=True)
 DEMO_SEED_DIR = _optional(env("DEMO_SEED_DIR", default=""))
@@ -240,6 +247,22 @@ CELERY_BEAT_SCHEDULE = {
         "task": "integrations.tasks.remind_expiring_credentials",
         "schedule": crontab(hour=2, minute=0),
     },
+    "meta-credential-lifecycle-hourly": {
+        "task": "integrations.tasks.refresh_meta_tokens",
+        "schedule": crontab(minute=0, hour="6-22"),
+    },
+    "meta-sync-accounts-hourly": {
+        "task": "integrations.tasks.sync_meta_accounts",
+        "schedule": crontab(minute=0, hour="6-22"),
+    },
+    "meta-sync-insights-hourly": {
+        "task": "integrations.tasks.sync_meta_insights_incremental",
+        "schedule": crontab(minute=0, hour="6-22"),
+    },
+    "meta-sync-hierarchy-daily": {
+        "task": "integrations.tasks.sync_meta_hierarchy",
+        "schedule": crontab(hour=2, minute=15),
+    },
     "rotate-tenant-deks": {
         "task": "core.tasks.rotate_deks",
         "schedule": crontab(hour=1, minute=30, day_of_week="sun"),
@@ -294,6 +317,8 @@ FRONTEND_BASE_URL = env("FRONTEND_BASE_URL")
 META_APP_ID = _optional(env("META_APP_ID", default=None))
 META_APP_SECRET = _optional(env("META_APP_SECRET", default=None))
 META_OAUTH_REDIRECT_URI = _optional(env("META_OAUTH_REDIRECT_URI", default=None))
+META_LOGIN_CONFIG_ID = _optional(env("META_LOGIN_CONFIG_ID", default=None))
+META_LOGIN_CONFIG_REQUIRED = env.bool("META_LOGIN_CONFIG_REQUIRED", default=True)
 META_OAUTH_SCOPES = env.list("META_OAUTH_SCOPES")
 META_GRAPH_API_VERSION = env("META_GRAPH_API_VERSION", default="v24.0")
 AIRBYTE_DEFAULT_WORKSPACE_ID = _optional(env("AIRBYTE_DEFAULT_WORKSPACE_ID", default=None))

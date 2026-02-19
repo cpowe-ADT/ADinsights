@@ -88,7 +88,7 @@ const DashboardLibrary = () => {
     return () => window.clearTimeout(handle);
   }, [isForcedLoading, loadState]);
 
-  const baseItems = isForcedEmpty ? [] : items;
+  const baseItems = useMemo(() => (isForcedEmpty ? [] : items), [isForcedEmpty, items]);
 
   const typeOptions = useMemo(() => {
     return Array.from(new Set(items.map((item) => item.type)));
