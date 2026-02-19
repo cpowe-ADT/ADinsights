@@ -19,5 +19,5 @@ Faker==25.2.0
 pytest==8.2.2
 pytest-django==4.8.0
 pytest-cov==4.1.0
-black==24.4.2
+black==26.1.0
 ruff==0.4.4
