@@ -35,7 +35,7 @@ services:
     # Runs schema migrations before API/worker startup.
     image: airbyte/bootloader:0.50.22
     container_name: airbyte-bootloader
-    restart: "no"
+    restart: 'no'
     <<: *airbyte-service-defaults
     environment:
       - AIRBYTE_VERSION=0.50.22
