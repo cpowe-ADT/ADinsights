@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: vw_demo_dashboard_snapshot
-    description: "Aggregated demo snapshot mirroring the combined metrics payload."
+    description: 'Aggregated demo snapshot mirroring the combined metrics payload.'
     columns:
       - name: tenant_id
         tests:

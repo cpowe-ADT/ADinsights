@@ -45,15 +45,15 @@ Generated marts include slowly changing dimensions (`dim_campaign`, `dim_adset`,
 
 Reusable metric helpers live under `dbt/macros/metrics/` so derived fields stay consistent across marts. They all wrap the shared `safe_divide` macro to protect against divide-by-zero edge cases.
 
-| Macro | Purpose |
-| ----- | ------- |
-| `metric_ctr(clicks, impressions)` | Click-through rate with zero guards. |
-| `metric_conversion_rate(conversions, clicks)` | Downstream conversion rate. |
-| `metric_cost_per_click(spend, clicks)` | Average CPC calculations. |
-| `metric_cost_per_conversion(spend, conversions)` | Cost per acquisition/conversion. |
-| `metric_cpm(spend, impressions)` | Cost per 1,000 impressions. |
-| `metric_return_on_ad_spend(revenue, spend)` | ROAS style efficiency. |
-| `metric_pacing(actual_value, target_value)` | Ratio between actual and target (e.g. trailing averages) for pacing views. |
+| Macro                                            | Purpose                                                                    |
+| ------------------------------------------------ | -------------------------------------------------------------------------- |
+| `metric_ctr(clicks, impressions)`                | Click-through rate with zero guards.                                       |
+| `metric_conversion_rate(conversions, clicks)`    | Downstream conversion rate.                                                |
+| `metric_cost_per_click(spend, clicks)`           | Average CPC calculations.                                                  |
+| `metric_cost_per_conversion(spend, conversions)` | Cost per acquisition/conversion.                                           |
+| `metric_cpm(spend, impressions)`                 | Cost per 1,000 impressions.                                                |
+| `metric_return_on_ad_spend(revenue, spend)`      | ROAS style efficiency.                                                     |
+| `metric_pacing(actual_value, target_value)`      | Ratio between actual and target (e.g. trailing averages) for pacing views. |
 
 To use a helper in a model:
 

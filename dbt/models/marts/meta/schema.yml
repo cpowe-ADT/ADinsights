@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: mart_meta_campaign_history
-    description: "SCD2 campaign history for Meta campaigns."
+    description: 'SCD2 campaign history for Meta campaigns.'
     tests:
       - unique_combination_of_columns:
           arguments:
@@ -22,7 +22,7 @@ models:
           - not_null
 
   - name: mart_meta_daily_performance
-    description: "Daily Meta performance aggregates aligned to API insight fields."
+    description: 'Daily Meta performance aggregates aligned to API insight fields.'
     tests:
       - unique_combination_of_columns:
           arguments:
@@ -45,7 +45,7 @@ models:
           - not_null
 
   - name: mart_meta_ad_performance
-    description: "Ad-level aggregate performance across the available date range."
+    description: 'Ad-level aggregate performance across the available date range.'
     tests:
       - unique_combination_of_columns:
           arguments:
