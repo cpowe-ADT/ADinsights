@@ -51,9 +51,39 @@ def test_meta_setup_reports_configuration_flags(api_client, user, settings):
 
 
 @pytest.mark.django_db
+def test_meta_setup_reports_ignored_non_login_scopes(api_client, user, settings):
+    _authenticate(api_client, user)
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_APP_SECRET = "meta-app-secret"
+    settings.META_LOGIN_CONFIG_ID = "2323589144820085"
+    settings.META_LOGIN_CONFIG_REQUIRED = True
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+    settings.META_OAUTH_SCOPES = [
+        "ads_read",
+        "business_management",
+        "pages_show_list",
+        "read_insights",
+        "instagram_basic",
+        "instagram_manage_insights",
+    ]
+
+    response = api_client.get(reverse("meta-setup"))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["oauth_scopes"] == ["ads_read", "business_management", "pages_show_list"]
+    assert sorted(payload["oauth_ignored_scopes"]) == [
+        "instagram_basic",
+        "instagram_manage_insights",
+        "read_insights",
+    ]
+
+
+@pytest.mark.django_db
 def test_meta_oauth_start_returns_authorize_url(api_client, user, settings):
     _authenticate(api_client, user)
     settings.META_APP_ID = "meta-app-id"
+    settings.META_LOGIN_CONFIG_REQUIRED = True
     settings.META_LOGIN_CONFIG_ID = "2323589144820085"
     settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
     settings.META_GRAPH_API_VERSION = "v24.0"
@@ -71,6 +101,42 @@ def test_meta_oauth_start_returns_authorize_url(api_client, user, settings):
     assert query["response_type"] == ["code"]
     assert query["override_default_response_type"] == ["true"]
     assert query["config_id"] == ["2323589144820085"]
+    assert "instagram_basic" not in query["scope"][0]
+    assert "instagram_manage_insights" not in query["scope"][0]
+
+
+@pytest.mark.django_db
+def test_meta_oauth_start_ignores_non_login_scopes_in_authorize_query(api_client, user, settings):
+    _authenticate(api_client, user)
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_LOGIN_CONFIG_ID = "2323589144820085"
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+    settings.META_OAUTH_SCOPES = [
+        "ads_read",
+        "business_management",
+        "pages_show_list",
+        "read_insights",
+        "instagram_basic",
+        "instagram_manage_insights",
+    ]
+
+    response = api_client.post(reverse("meta-oauth-start"), {}, format="json")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert sorted(payload["ignored_scopes"]) == [
+        "instagram_basic",
+        "instagram_manage_insights",
+        "read_insights",
+    ]
+    query = parse_qs(urlparse(payload["authorize_url"]).query)
+    requested_scopes = set(query["scope"][0].split(","))
+    assert "ads_read" in requested_scopes
+    assert "business_management" in requested_scopes
+    assert "pages_show_list" in requested_scopes
+    assert "read_insights" not in requested_scopes
+    assert "instagram_basic" not in requested_scopes
+    assert "instagram_manage_insights" not in requested_scopes
 
 
 @pytest.mark.django_db
@@ -89,6 +155,34 @@ def test_meta_oauth_start_supports_auth_type_rerequest(api_client, user, setting
 
 
 @pytest.mark.django_db
+def test_meta_connect_start_uses_page_insights_scopes_only(api_client, user, settings):
+    _authenticate(api_client, user)
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_LOGIN_CONFIG_REQUIRED = False
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+    settings.META_OAUTH_SCOPES = ["ads_read", "ads_management", "business_management"]
+    settings.META_PAGE_INSIGHTS_OAUTH_SCOPES = [
+        "pages_show_list",
+        "pages_read_engagement",
+        "read_insights",
+        "instagram_basic",
+    ]
+
+    response = api_client.post(reverse("meta-connect-start"), {}, format="json")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["oauth_flow"] == "page_insights"
+    assert sorted(payload["ignored_scopes"]) == ["instagram_basic", "read_insights"]
+    query = parse_qs(urlparse(payload["authorize_url"]).query)
+    requested_scopes = set(query["scope"][0].split(","))
+    assert requested_scopes == {"pages_show_list", "pages_read_engagement"}
+    assert "ads_read" not in requested_scopes
+    assert "ads_management" not in requested_scopes
+    assert "business_management" not in requested_scopes
+
+
+@pytest.mark.django_db
 def test_meta_oauth_start_requires_login_configuration_id_when_enabled(api_client, user, settings):
     _authenticate(api_client, user)
     settings.META_APP_ID = "meta-app-id"
@@ -100,6 +194,44 @@ def test_meta_oauth_start_requires_login_configuration_id_when_enabled(api_clien
 
     assert response.status_code == 503
     assert "META_LOGIN_CONFIG_ID" in response.json()["detail"]
+
+
+@pytest.mark.django_db
+def test_meta_oauth_start_does_not_send_config_id_when_not_required(api_client, user, settings):
+    _authenticate(api_client, user)
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_LOGIN_CONFIG_REQUIRED = False
+    settings.META_LOGIN_CONFIG_ID = "2323589144820085"
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+
+    response = api_client.post(reverse("meta-oauth-start"), {}, format="json")
+
+    assert response.status_code == 200
+    payload = response.json()
+    query = parse_qs(urlparse(payload["authorize_url"]).query)
+    assert "config_id" not in query
+    assert payload["login_configuration_id"] is None
+
+
+@pytest.mark.django_db
+def test_meta_oauth_exchange_rejects_page_insights_flow_state(api_client, user, settings):
+    _authenticate(api_client, user)
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_LOGIN_CONFIG_REQUIRED = False
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+
+    start_payload = api_client.post(reverse("meta-connect-start"), {}, format="json").json()
+    state = start_payload["state"]
+
+    response = api_client.post(
+        reverse("meta-oauth-exchange"),
+        {"code": "oauth-code", "state": state},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["code"] == "wrong_oauth_flow"
 
 
 @pytest.mark.django_db

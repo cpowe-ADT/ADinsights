@@ -61,6 +61,26 @@ from integrations.views import (
     MetaSyncView,
     PlatformCredentialViewSet,
 )
+from integrations.meta_page_views import (
+    MetaOAuthCallbackView,
+    MetaPagesView,
+    MetaPageSelectView,
+    MetaPageRefreshView,
+    MetaPageOverviewView,
+    MetaPageTimeseriesView,
+    MetaPagePostsView,
+    MetaPostTimeseriesView,
+)
+from integrations.page_insights_views import (
+    MetaConnectCallbackAliasView,
+    MetaConnectStartAliasView,
+    MetaPageInsightsSyncView,
+    MetaPageOverviewInsightsView,
+    MetaPagePostsInsightsView,
+    MetaPagesInsightsListView,
+    MetaPostDetailInsightsView,
+    MetaPostTimeseriesInsightsView,
+)
 from . import views as core_views
 from .viewsets import AirbyteTelemetryViewSet
 
@@ -181,9 +201,34 @@ urlpatterns = [
         name="meta-oauth-start",
     ),
     path(
+        "api/meta/connect/start/",
+        MetaConnectStartAliasView.as_view(),
+        name="meta-connect-start",
+    ),
+    path(
         "api/integrations/meta/oauth/exchange/",
         MetaOAuthExchangeView.as_view(),
         name="meta-oauth-exchange",
+    ),
+    path(
+        "api/meta/connect/callback/",
+        MetaConnectCallbackAliasView.as_view(),
+        name="meta-connect-callback",
+    ),
+    path(
+        "api/integrations/meta/oauth/callback/",
+        MetaOAuthCallbackView.as_view(),
+        name="meta-oauth-callback",
+    ),
+    path(
+        "api/integrations/meta/pages/",
+        MetaPagesView.as_view(),
+        name="meta-pages",
+    ),
+    path(
+        "api/integrations/meta/pages/<str:page_id>/select/",
+        MetaPageSelectView.as_view(),
+        name="meta-page-select",
     ),
     path(
         "api/integrations/meta/pages/connect/",
@@ -209,6 +254,61 @@ urlpatterns = [
         "api/integrations/meta/sync-state/",
         MetaSyncStateView.as_view(),
         name="meta-sync-state",
+    ),
+    path(
+        "api/metrics/meta/pages/<str:page_id>/refresh/",
+        MetaPageRefreshView.as_view(),
+        name="meta-page-refresh",
+    ),
+    path(
+        "api/metrics/meta/pages/<str:page_id>/overview/",
+        MetaPageOverviewView.as_view(),
+        name="meta-page-overview",
+    ),
+    path(
+        "api/metrics/meta/pages/<str:page_id>/timeseries/",
+        MetaPageTimeseriesView.as_view(),
+        name="meta-page-timeseries",
+    ),
+    path(
+        "api/metrics/meta/pages/<str:page_id>/posts/",
+        MetaPagePostsView.as_view(),
+        name="meta-page-posts",
+    ),
+    path(
+        "api/metrics/meta/posts/<str:post_id>/timeseries/",
+        MetaPostTimeseriesView.as_view(),
+        name="meta-post-timeseries",
+    ),
+    path(
+        "api/meta/pages/",
+        MetaPagesInsightsListView.as_view(),
+        name="meta-pages-insights-list",
+    ),
+    path(
+        "api/meta/pages/<str:page_id>/sync/",
+        MetaPageInsightsSyncView.as_view(),
+        name="meta-page-insights-sync",
+    ),
+    path(
+        "api/meta/pages/<str:page_id>/overview/",
+        MetaPageOverviewInsightsView.as_view(),
+        name="meta-page-insights-overview",
+    ),
+    path(
+        "api/meta/pages/<str:page_id>/posts/",
+        MetaPagePostsInsightsView.as_view(),
+        name="meta-page-insights-posts",
+    ),
+    path(
+        "api/meta/posts/<str:post_id>/",
+        MetaPostDetailInsightsView.as_view(),
+        name="meta-post-insights-detail",
+    ),
+    path(
+        "api/meta/posts/<str:post_id>/timeseries/",
+        MetaPostTimeseriesInsightsView.as_view(),
+        name="meta-post-insights-timeseries",
     ),
     path(
         "api/integrations/meta/logout/",

@@ -431,10 +431,7 @@
           {
             "id": "boj_fx_awareness_budget",
             "campaignName": "FX Market Awareness",
-            "parishes": [
-              "Kingston",
-              "St Andrew"
-            ],
+            "parishes": ["Kingston", "St Andrew"],
             "monthlyBudget": 1500000,
             "spendToDate": 1200000,
             "projectedSpend": 1480000,
@@ -445,10 +442,7 @@
           {
             "id": "boj_digital_payments_budget",
             "campaignName": "Digital Payments Launch",
-            "parishes": [
-              "St James",
-              "Manchester"
-            ],
+            "parishes": ["St James", "Manchester"],
             "monthlyBudget": 1200000,
             "spendToDate": 880000,
             "projectedSpend": 1185000,

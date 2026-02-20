@@ -3,6 +3,7 @@
 This folder stores evidence for Phase 1 strict closeout execution.
 
 Subfolders:
+
 - `backend/`: backend lint/test outputs and runtime hardening evidence.
 - `dbt/`: dbt command outputs, environment notes, and result artifacts.
 - `airbyte/`: compose/render checks and readiness script outputs.

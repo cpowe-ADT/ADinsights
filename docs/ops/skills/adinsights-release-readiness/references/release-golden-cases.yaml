@@ -1,7 +1,7 @@
 cases:
   - name: green packets and artifacts pass
     input:
-      prompt: "Release readiness check"
+      prompt: 'Release readiness check'
       scope_packet:
         scope_status: PASS_SINGLE_SCOPE
         required_reviewers: []
@@ -23,7 +23,7 @@ cases:
 
   - name: cross-scope unresolved warns
     input:
-      prompt: "Release readiness check"
+      prompt: 'Release readiness check'
       scope_packet:
         scope_status: ESCALATE_CROSS_SCOPE
         required_reviewers:
@@ -42,7 +42,7 @@ cases:
 
   - name: breaking contract blocks release
     input:
-      prompt: "Release readiness check"
+      prompt: 'Release readiness check'
       scope_packet:
         scope_status: PASS_SINGLE_SCOPE
         required_reviewers: []
@@ -63,7 +63,7 @@ cases:
 
   - name: pending tests and docs remain informational
     input:
-      prompt: "Release readiness check"
+      prompt: 'Release readiness check'
       scope_packet:
         scope_status: PASS_SINGLE_SCOPE
         required_reviewers: []
@@ -86,7 +86,7 @@ cases:
 
   - name: missing required artifacts warns
     input:
-      prompt: "Release readiness check"
+      prompt: 'Release readiness check'
       scope_packet:
         scope_status: PASS_SINGLE_SCOPE
         required_reviewers: []
@@ -105,7 +105,7 @@ cases:
 
   - name: failing optional checks blocks
     input:
-      prompt: "Release readiness check"
+      prompt: 'Release readiness check'
       scope_packet:
         scope_status: PASS_SINGLE_SCOPE
         required_reviewers: []
@@ -124,6 +124,6 @@ cases:
           block_on_failure: true
           ok: false
           exit_code: 1
-          output: "simulated failure"
+          output: 'simulated failure'
     expect:
       release_status: GATE_BLOCK

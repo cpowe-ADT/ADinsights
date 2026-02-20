@@ -35,9 +35,7 @@ class DashboardPage extends BasePage {
   }
 
   private get metricsTable(): Locator {
-    return this.page
-      .getByRole('region', { name: /Campaign metrics table/i })
-      .locator('table');
+    return this.page.getByRole('region', { name: /Campaign metrics table/i }).locator('table');
   }
 
   private get metricRows(): Locator {

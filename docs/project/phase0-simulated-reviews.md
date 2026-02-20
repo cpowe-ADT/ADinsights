@@ -6,6 +6,7 @@ corresponding workstream using the persona prompt from
 Dependencies.
 
 ## 1. Airbyte Ingestion & Telemetry (Maya, backup Leo)
+
 - **Status** – KPIs/DoD remain accurate. Base Celery task still lacks tenant
   context guarantees and telemetry endpoint is not recording per-tenant metrics.
 - **Gaps**
@@ -25,6 +26,7 @@ Dependencies.
   - Observability hooks need Omar to expose new metrics dashboards.
 
 ## 2. dbt Modeling & Warehouse Views (Priya, backup Martin)
+
 - **Status** – KPIs valid; backlog covers mart build but not tenant isolation nor
   freshness alerting.
 - **Gaps**
@@ -45,6 +47,7 @@ Dependencies.
   - Alerting pieces depend on Omar/Hannah once metrics defined.
 
 ## 3. Backend Metrics & Snapshots (Sofia, backup Andre)
+
 - **Status** – KPIs still relevant; backlog partially covers snapshot success but
   not secrets isolation or regression tests.
 - **Gaps**
@@ -63,6 +66,7 @@ Dependencies.
   - Cross-stream PR touching Celery + analytics needs Raj + Mira review.
 
 ## 4. Frontend Experience (Lina, backup Joel)
+
 - **Status** – KPIs accurate. Backlog has design system work but lacks tasks for
   new snapshot banner + tenant switch integration tests.
 - **Gaps**
@@ -79,6 +83,7 @@ Dependencies.
   - Needs Raj sign-off if frontend touches shared dataset contract docs.
 
 ## 5. Secrets & KMS (Nina, backup Victor)
+
 - **Status** – KPIs stand; backlog missing DEK rotation automation + failure
   drills.
 - **Gaps**
@@ -98,6 +103,7 @@ Dependencies.
     confirm).
 
 ## 6. Observability & Alerts (Omar, backup Hannah)
+
 - **Status** – KPIs valid; backlog includes log normalization but not full
   metrics coverage or alert escalation matrix.
 - **Gaps**
@@ -116,6 +122,7 @@ Dependencies.
   - Coordinates with Carlos/Mei to surface metrics in deployment dashboards.
 
 ## 7. BI & Deployment (Carlos, backup Mei)
+
 - **Status** – KPIs accurate; backlog lacks reproducible Superset configs and
   deployment smoke automation.
 - **Gaps**

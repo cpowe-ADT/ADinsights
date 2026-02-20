@@ -1,7 +1,10 @@
 import { expect, test } from './fixtures/base';
 
 test.describe('meta integration flows', () => {
-  test('oauth callback with missing permissions shows re-request path', async ({ page, mockMode }) => {
+  test('oauth callback with missing permissions shows re-request path', async ({
+    page,
+    mockMode,
+  }) => {
     test.skip(!mockMode, 'Mock mode only');
 
     await page.route('**/api/integrations/meta/setup/', async (route) => {
@@ -75,7 +78,12 @@ test.describe('meta integration flows', () => {
           ready_for_oauth: true,
           ready_for_provisioning_defaults: true,
           checks: [],
-          oauth_scopes: ['ads_read', 'business_management', 'pages_show_list', 'pages_read_engagement'],
+          oauth_scopes: [
+            'ads_read',
+            'business_management',
+            'pages_show_list',
+            'pages_read_engagement',
+          ],
           graph_api_version: 'v24.0',
           source_definition_id: 'e7778cfc-e97c-4458-9ecb-b4f2bba8946c',
         }),

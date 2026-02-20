@@ -11,19 +11,19 @@ This runbook defines the default alert thresholds for observability signals and 
 
 ## Default thresholds
 
-| Alert | Signal | Warn threshold | Page threshold | Notes |
-| --- | --- | --- | --- | --- |
-| API error rate | 5xx rate over 5m | >= 2% | >= 5% | Use total request volume >= 200 to avoid low-traffic noise. |
-| API latency | p95 latency over 10m | >= 1.5s | >= 3s | Split by endpoint group (metrics vs auth). |
-| Metrics endpoint down | `/metrics/app/` target `up` | `up=0` for 5m | `up=0` for 15m | Confirm network policy before paging. |
-| Airbyte sync staleness | `/api/health/airbyte/` `latest_sync_age_minutes` | >= 60m | >= 120m | Hourly sync window; use 3-day lookback where configured. |
-| Airbyte webhook silence | `airbyte_job_webhook` audit count | No events for 30m | No events for 60m | Cross-check Airbyte job history. |
-| Airbyte sync errors | `airbyte_sync_errors_total` | >= 3 in 30m | >= 5 in 30m | Group by tenant and provider. |
-| dbt run stale | `/api/health/dbt/` `age_hours` | >= 24h | >= 36h | Daily 05:00 schedule; check `dbt_run_duration_seconds`. |
-| dbt run failures | `/api/health/dbt/` status | `failing` for 1 run | `failing` for 2 runs | Capture failing model names in alert payload. |
-| Snapshot freshness | `/api/metrics/combined/` `snapshot_generated_at` | > 60m | > 120m | Per-tenant; pair with Celery task metrics. |
-| Celery task failure rate | `celery_task_executions_total{status="failure"}` | >= 5% in 15m | >= 10% in 15m | Exclude manual backfills. |
-| Log ingestion errors | Log pipeline error rate | >= 1% in 15m | >= 3% in 15m | Track malformed JSON or dropped events. |
+| Alert                    | Signal                                           | Warn threshold      | Page threshold       | Notes                                                       |
+| ------------------------ | ------------------------------------------------ | ------------------- | -------------------- | ----------------------------------------------------------- |
+| API error rate           | 5xx rate over 5m                                 | >= 2%               | >= 5%                | Use total request volume >= 200 to avoid low-traffic noise. |
+| API latency              | p95 latency over 10m                             | >= 1.5s             | >= 3s                | Split by endpoint group (metrics vs auth).                  |
+| Metrics endpoint down    | `/metrics/app/` target `up`                      | `up=0` for 5m       | `up=0` for 15m       | Confirm network policy before paging.                       |
+| Airbyte sync staleness   | `/api/health/airbyte/` `latest_sync_age_minutes` | >= 60m              | >= 120m              | Hourly sync window; use 3-day lookback where configured.    |
+| Airbyte webhook silence  | `airbyte_job_webhook` audit count                | No events for 30m   | No events for 60m    | Cross-check Airbyte job history.                            |
+| Airbyte sync errors      | `airbyte_sync_errors_total`                      | >= 3 in 30m         | >= 5 in 30m          | Group by tenant and provider.                               |
+| dbt run stale            | `/api/health/dbt/` `age_hours`                   | >= 24h              | >= 36h               | Daily 05:00 schedule; check `dbt_run_duration_seconds`.     |
+| dbt run failures         | `/api/health/dbt/` status                        | `failing` for 1 run | `failing` for 2 runs | Capture failing model names in alert payload.               |
+| Snapshot freshness       | `/api/metrics/combined/` `snapshot_generated_at` | > 60m               | > 120m               | Per-tenant; pair with Celery task metrics.                  |
+| Celery task failure rate | `celery_task_executions_total{status="failure"}` | >= 5% in 15m        | >= 10% in 15m        | Exclude manual backfills.                                   |
+| Log ingestion errors     | Log pipeline error rate                          | >= 1% in 15m        | >= 3% in 15m         | Track malformed JSON or dropped events.                     |
 
 ## Escalation steps
 

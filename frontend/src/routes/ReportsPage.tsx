@@ -80,10 +80,13 @@ const ReportsPage = () => {
               <h3>{report.name}</h3>
               <p>{report.description || 'No description provided.'}</p>
               <p className="phase2-note">
-                Updated {formatRelativeTime(report.updated_at)} ({formatAbsoluteTime(report.updated_at)})
+                Updated {formatRelativeTime(report.updated_at)} (
+                {formatAbsoluteTime(report.updated_at)})
               </p>
               <div className="phase2-row-actions">
-                <span className={`phase2-pill phase2-pill--${report.is_active ? 'fresh' : 'inactive'}`}>
+                <span
+                  className={`phase2-pill phase2-pill--${report.is_active ? 'fresh' : 'inactive'}`}
+                >
                   {report.is_active ? 'active' : 'inactive'}
                 </span>
                 <Link to={`/reports/${report.id}`} className="button tertiary">

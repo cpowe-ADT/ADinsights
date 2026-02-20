@@ -121,9 +121,5 @@ export const Light: Story = {
 };
 
 export const Dark: Story = {
-  render: () => (
-    <ThemeWrapper theme="dark">
-      {renderLayout()}
-    </ThemeWrapper>
-  ),
+  render: () => <ThemeWrapper theme="dark">{renderLayout()}</ThemeWrapper>,
 };

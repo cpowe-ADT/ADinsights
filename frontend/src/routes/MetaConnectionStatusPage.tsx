@@ -14,7 +14,9 @@ const MetaConnectionStatusPage = () => {
     setError(null);
     try {
       const payload = await loadSocialConnectionStatus();
-      setRows(payload.platforms.filter((row) => row.platform === 'meta' || row.platform === 'instagram'));
+      setRows(
+        payload.platforms.filter((row) => row.platform === 'meta' || row.platform === 'instagram'),
+      );
       setStatus('loaded');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to load Meta connection status.';
@@ -55,7 +57,9 @@ const MetaConnectionStatusPage = () => {
         </article>
       </div>
 
-      {status === 'loading' ? <div className="dashboard-state dashboard-state--page">Loading status...</div> : null}
+      {status === 'loading' ? (
+        <div className="dashboard-state dashboard-state--page">Loading status...</div>
+      ) : null}
       {status === 'error' ? (
         <EmptyState
           icon={<span aria-hidden>!</span>}
@@ -88,7 +92,10 @@ const MetaConnectionStatusPage = () => {
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.platform} className="dashboard-table__row dashboard-table__row--zebra">
+                  <tr
+                    key={row.platform}
+                    className="dashboard-table__row dashboard-table__row--zebra"
+                  >
                     <td className="dashboard-table__cell">{row.display_name}</td>
                     <td className="dashboard-table__cell">{row.status}</td>
                     <td className="dashboard-table__cell">{row.reason.message}</td>

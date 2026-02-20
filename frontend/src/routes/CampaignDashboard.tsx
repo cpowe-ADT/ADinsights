@@ -63,17 +63,21 @@ const TrendPlaceholderIcon = () => (
 
 const CampaignDashboard = () => {
   const { tenantId } = useAuth();
-  const { campaign, campaignRows, loadAll, lastSnapshotGeneratedAt } = useDashboardStore((state) => ({
-    campaign: state.campaign,
-    campaignRows: state.getCampaignRowsForSelectedParish(),
-    loadAll: state.loadAll,
-    lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
-  }));
+  const { campaign, campaignRows, loadAll, lastSnapshotGeneratedAt } = useDashboardStore(
+    (state) => ({
+      campaign: state.campaign,
+      campaignRows: state.getCampaignRowsForSelectedParish(),
+      loadAll: state.loadAll,
+      lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+    }),
+  );
   const datasetMode = useDatasetStore((state) => state.mode);
   const snapshotRelative = lastSnapshotGeneratedAt
     ? formatRelativeTime(lastSnapshotGeneratedAt)
     : null;
-  const snapshotAbsolute = lastSnapshotGeneratedAt ? formatAbsoluteTime(lastSnapshotGeneratedAt) : null;
+  const snapshotAbsolute = lastSnapshotGeneratedAt
+    ? formatAbsoluteTime(lastSnapshotGeneratedAt)
+    : null;
   const snapshotIsStale = isTimestampStale(lastSnapshotGeneratedAt, 60);
   const headingId = useId();
 
@@ -95,10 +99,10 @@ const CampaignDashboard = () => {
           tone={snapshotIsStale ? 'warning' : 'info'}
           message={
             datasetMode === 'live'
-              ? snapshotRelative ?? 'Waiting for live snapshot...'
+              ? (snapshotRelative ?? 'Waiting for live snapshot...')
               : snapshotRelative
-              ? `Demo data - ${snapshotRelative}`
-              : 'Demo dataset active'
+                ? `Demo data - ${snapshotRelative}`
+                : 'Demo dataset active'
           }
           title={snapshotAbsolute ?? undefined}
           ariaLabel="Snapshot status"
@@ -194,7 +198,15 @@ const CampaignDashboard = () => {
         sparkline: roasSeries,
       },
     ],
-    [clicksSeries, conversionsSeries, currency, impressionsSeries, roasSeries, spendSeries, summary],
+    [
+      clicksSeries,
+      conversionsSeries,
+      currency,
+      impressionsSeries,
+      roasSeries,
+      spendSeries,
+      summary,
+    ],
   );
 
   const chartFooter = useMemo(() => {
@@ -260,12 +272,7 @@ const CampaignDashboard = () => {
     <div className="dashboardGrid">
       <div className="kpiColumn" role="group" aria-label="Campaign KPIs">
         {kpis.map((kpi) => (
-          <StatCard
-            key={kpi.label}
-            label={kpi.label}
-            value={kpi.value}
-            sparkline={kpi.sparkline}
-          />
+          <StatCard key={kpi.label} label={kpi.label} value={kpi.value} sparkline={kpi.sparkline} />
         ))}
       </div>
 

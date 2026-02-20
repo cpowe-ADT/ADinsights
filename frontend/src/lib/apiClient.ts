@@ -124,6 +124,10 @@ function buildHeaders(baseHeaders: RequestOptions['headers'], includeAuth: boole
 async function parseErrorResponse(
   response: Response,
 ): Promise<{ message: string; payload?: ApiErrorPayload }> {
+  const fallbackMessage =
+    response.status >= 500
+      ? `Server error (${response.status}). Please check backend logs.`
+      : `Request failed with status ${response.status}`;
   try {
     const contentType = response.headers.get('content-type');
     if (contentType?.includes('application/json')) {
@@ -133,10 +137,13 @@ async function parseErrorResponse(
       if (message) {
         return { message, payload };
       }
-      return { message: `Request failed with status ${response.status}`, payload };
+      return { message: fallbackMessage, payload };
     } else {
       const text = await response.text();
       if (text) {
+        if (response.status >= 500) {
+          return { message: fallbackMessage };
+        }
         return { message: text };
       }
     }
@@ -144,7 +151,7 @@ async function parseErrorResponse(
     console.warn('Failed to parse API error response', error);
   }
 
-  return { message: `Request failed with status ${response.status}` };
+  return { message: fallbackMessage };
 }
 
 async function requestInternal<T>(

@@ -45,11 +45,7 @@ interface CreativeTableProps {
   virtualizeRows?: boolean;
 }
 
-const CreativeTable = ({
-  rows,
-  currency,
-  virtualizeRows = true,
-}: CreativeTableProps) => {
+const CreativeTable = ({ rows, currency, virtualizeRows = true }: CreativeTableProps) => {
   const selectedParish = useDashboardStore((state) => state.selectedParish);
   const filters = useDashboardStore((state) => state.filters);
   const setSelectedParish = useDashboardStore((state) => state.setSelectedParish);
@@ -64,7 +60,9 @@ const CreativeTable = ({
   }, [filters]);
 
   const hasActiveFilters = useMemo(() => {
-    return serializeFilterQueryParams(filters) !== serializeFilterQueryParams(createDefaultFilterState());
+    return (
+      serializeFilterQueryParams(filters) !== serializeFilterQueryParams(createDefaultFilterState())
+    );
   }, [filters]);
 
   const [sorting, setSorting] = useState<SortingState>(() => {
@@ -321,7 +319,9 @@ const CreativeTable = ({
       ) : (
         <DashboardState
           variant={hasActiveFilters || selectedParish ? 'no-results' : 'empty'}
-          title={hasActiveFilters || selectedParish ? 'No creatives match these filters' : undefined}
+          title={
+            hasActiveFilters || selectedParish ? 'No creatives match these filters' : undefined
+          }
           message={
             hasActiveFilters || selectedParish
               ? 'Try clearing filters or widening the date range.'

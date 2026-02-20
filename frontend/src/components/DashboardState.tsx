@@ -19,14 +19,28 @@ interface DashboardStateProps {
 }
 
 const DefaultEmptyIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2">
+  <svg
+    width="48"
+    height="48"
+    viewBox="0 0 48 48"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+  >
     <rect x="8" y="12" width="32" height="24" rx="4" />
     <path d="M14 20h20M14 28h12" strokeLinecap="round" />
   </svg>
 );
 
 const NoResultsIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2">
+  <svg
+    width="48"
+    height="48"
+    viewBox="0 0 48 48"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+  >
     <circle cx="20" cy="20" r="8" />
     <path d="m28 28 8 8" strokeLinecap="round" />
     <path d="M12 20h16" strokeLinecap="round" />
@@ -73,8 +87,7 @@ const DashboardState = ({
     );
   }
 
-  const resolvedTitle =
-    title ?? (variant === 'no-results' ? 'No results found' : 'No data yet');
+  const resolvedTitle = title ?? (variant === 'no-results' ? 'No results found' : 'No data yet');
   const resolvedMessage =
     message ??
     (variant === 'no-results'

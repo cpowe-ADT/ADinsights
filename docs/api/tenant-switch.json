@@ -19,9 +19,7 @@
       "400": {
         "description": "Payload failed validation (unknown tenant or missing membership).",
         "example": {
-          "tenant_id": [
-            "You do not belong to this tenant."
-          ]
+          "tenant_id": ["You do not belong to this tenant."]
         }
       },
       "401": {

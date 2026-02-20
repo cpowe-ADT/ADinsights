@@ -23,6 +23,7 @@ from rest_framework.views import APIView
 from accounts.audit import log_audit_event
 from accounts.models import AuditLog
 from accounts.tenant_context import tenant_context
+from core.db_error_responses import schema_out_of_date_response
 from core.metrics import observe_airbyte_sync
 from core.observability import emit_observability_event
 from integrations.airbyte.client import (
@@ -73,6 +74,8 @@ META_OAUTH_STATE_SALT = "integrations.meta.oauth.state"
 META_OAUTH_SELECTION_CACHE_PREFIX = "integrations:meta:selection:"
 META_OAUTH_STATE_MAX_AGE_SECONDS = 600
 META_OAUTH_SELECTION_TTL_SECONDS = 600
+META_OAUTH_FLOW_MARKETING = "marketing"
+META_OAUTH_FLOW_PAGE_INSIGHTS = "page_insights"
 DEFAULT_CONNECTOR_CRON_EXPRESSION = "0 6-22 * * *"
 DEFAULT_CONNECTOR_TIMEZONE = "America/Jamaica"
 # Airbyte OSS source definition ID for Facebook Marketing.
@@ -93,13 +96,21 @@ DEFAULT_META_OAUTH_SCOPES = [
     "business_management",
     "pages_show_list",
     "pages_read_engagement",
-    "instagram_basic",
-    "instagram_manage_insights",
+]
+DEFAULT_META_PAGE_INSIGHTS_OAUTH_SCOPES = [
+    "pages_show_list",
+    "pages_read_engagement",
+    "pages_manage_metadata",
 ]
 DEFAULT_META_INSTAGRAM_REQUIRED_SCOPES = [
     "instagram_basic",
     "instagram_manage_insights",
 ]
+DEFAULT_META_LOGIN_IGNORED_SCOPES = {
+    "instagram_basic",
+    "instagram_manage_insights",
+    "read_insights",
+}
 SOCIAL_STATUS_STALE_THRESHOLD_MINUTES = 60
 SOCIAL_SUCCESS_STATUSES = {"succeeded", "success", "completed"}
 
@@ -117,11 +128,25 @@ def _meta_redirect_uri() -> str:
 
 
 def _meta_state_payload(*, request) -> dict[str, str]:
+    path = (getattr(request, "path", "") or "").rstrip("/")
+    flow = (
+        META_OAUTH_FLOW_PAGE_INSIGHTS
+        if path.endswith("/api/meta/connect/start")
+        else META_OAUTH_FLOW_MARKETING
+    )
     return {
         "tenant_id": str(request.user.tenant_id),
         "user_id": str(request.user.id),
         "nonce": secrets.token_urlsafe(24),
+        "flow": flow,
     }
+
+
+def _oauth_flow_for_request(*, request) -> str:
+    path = (getattr(request, "path", "") or "").rstrip("/")
+    if path.endswith("/api/meta/connect/start"):
+        return META_OAUTH_FLOW_PAGE_INSIGHTS
+    return META_OAUTH_FLOW_MARKETING
 
 
 def _sign_meta_state(*, request) -> str:
@@ -333,6 +358,36 @@ def _normalize_scopes(raw_scopes: Any) -> list[str]:
         }
     )
     return normalized
+
+
+def _resolve_meta_login_scopes(*, flow: str = META_OAUTH_FLOW_MARKETING) -> tuple[list[str], list[str]]:
+    if flow == META_OAUTH_FLOW_PAGE_INSIGHTS:
+        configured_scopes = getattr(
+            settings,
+            "META_PAGE_INSIGHTS_OAUTH_SCOPES",
+            DEFAULT_META_PAGE_INSIGHTS_OAUTH_SCOPES,
+        )
+    else:
+        configured_scopes = getattr(settings, "META_OAUTH_SCOPES", DEFAULT_META_OAUTH_SCOPES)
+    resolved: list[str] = []
+    ignored: list[str] = []
+    seen: set[str] = set()
+
+    for scope in configured_scopes:
+        if not isinstance(scope, str):
+            continue
+        candidate = scope.strip().lower()
+        if not candidate:
+            continue
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        if candidate in DEFAULT_META_LOGIN_IGNORED_SCOPES:
+            ignored.append(candidate)
+            continue
+        resolved.append(candidate)
+
+    return resolved, ignored
 
 
 def _missing_required_permissions(granted_scopes: list[str]) -> list[str]:
@@ -618,7 +673,8 @@ class MetaOAuthStartView(APIView):
             return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         signed_state = _sign_meta_state(request=request)
-        scopes = [scope for scope in getattr(settings, "META_OAUTH_SCOPES", DEFAULT_META_OAUTH_SCOPES) if scope]
+        flow = _oauth_flow_for_request(request=request)
+        scopes, ignored_scopes = _resolve_meta_login_scopes(flow=flow)
         query_payload: dict[str, str] = {
             "client_id": app_id,
             "redirect_uri": redirect_uri,
@@ -627,7 +683,7 @@ class MetaOAuthStartView(APIView):
             "override_default_response_type": "true",
             "scope": ",".join(scopes),
         }
-        if login_configuration_id:
+        if login_configuration_required and login_configuration_id:
             query_payload["config_id"] = login_configuration_id
         if isinstance(auth_type, str) and auth_type.strip():
             query_payload["auth_type"] = auth_type.strip()
@@ -641,7 +697,11 @@ class MetaOAuthStartView(APIView):
                 "authorize_url": authorize_url,
                 "state": signed_state,
                 "redirect_uri": redirect_uri,
-                "login_configuration_id": login_configuration_id or None,
+                "login_configuration_id": (
+                    login_configuration_id if login_configuration_required and login_configuration_id else None
+                ),
+                "oauth_flow": flow,
+                "ignored_scopes": ignored_scopes,
             }
         )
 
@@ -660,7 +720,7 @@ class MetaSetupView(APIView):
             or frontend_base_url
         )
         login_configuration_ready = bool(login_configuration_id) or not login_configuration_required
-        scopes = [scope for scope in getattr(settings, "META_OAUTH_SCOPES", DEFAULT_META_OAUTH_SCOPES) if scope]
+        scopes, ignored_scopes = _resolve_meta_login_scopes()
         scope_set = {scope.strip() for scope in scopes if isinstance(scope, str) and scope.strip()}
         workspace_id_raw = (getattr(settings, "AIRBYTE_DEFAULT_WORKSPACE_ID", "") or "").strip()
         destination_id_raw = (getattr(settings, "AIRBYTE_DEFAULT_DESTINATION_ID", "") or "").strip()
@@ -687,9 +747,6 @@ class MetaSetupView(APIView):
         workspace_missing = [] if workspace_id else ["AIRBYTE_DEFAULT_WORKSPACE_ID"]
         destination_missing = [] if destination_id else ["AIRBYTE_DEFAULT_DESTINATION_ID"]
         source_definition_missing = [] if source_definition_configured else ["AIRBYTE_SOURCE_DEFINITION_META"]
-        instagram_scope_missing = [
-            scope for scope in DEFAULT_META_INSTAGRAM_REQUIRED_SCOPES if scope not in scope_set
-        ]
         marketing_scope_missing = _missing_required_permissions(sorted(scope_set))
 
         checks = [
@@ -746,10 +803,12 @@ class MetaSetupView(APIView):
             },
             {
                 "key": "meta_instagram_scopes",
-                "label": "Instagram OAuth scopes included",
-                "ok": not instagram_scope_missing,
+                "label": "Instagram scopes requested via Facebook Login",
+                "ok": True,
+                "required": False,
                 "required_scopes": DEFAULT_META_INSTAGRAM_REQUIRED_SCOPES,
-                "missing_scopes": instagram_scope_missing,
+                "ignored_scopes": ignored_scopes,
+                "note": "Instagram scopes are ignored in Facebook Login authorize requests.",
             },
         ]
         missing_env_vars = sorted(
@@ -774,6 +833,7 @@ class MetaSetupView(APIView):
                 "checks": checks,
                 "missing_env_vars": missing_env_vars,
                 "oauth_scopes": scopes,
+                "oauth_ignored_scopes": ignored_scopes,
                 "graph_api_version": (getattr(settings, "META_GRAPH_API_VERSION", "v24.0") or "v24.0").strip(),
                 "redirect_uri": resolved_redirect_uri,
                 "source_definition_id": source_definition_id,
@@ -792,9 +852,17 @@ class MetaOAuthExchangeView(APIView):
         serializer = MetaOAuthExchangeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        _, state_error = _validate_meta_state(request=request, state=str(serializer.validated_data["state"]))
+        payload, state_error = _validate_meta_state(request=request, state=str(serializer.validated_data["state"]))
         if state_error is not None:
             return state_error
+        if payload.get("flow") == META_OAUTH_FLOW_PAGE_INSIGHTS:
+            return Response(
+                {
+                    "detail": "OAuth state belongs to the Page Insights flow. Use /api/meta/connect/callback/.",
+                    "code": "wrong_oauth_flow",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         code = str(serializer.validated_data["code"])
         try:
@@ -1653,6 +1721,20 @@ class SocialConnectionStatusView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):  # noqa: ANN001 - DRF signature
+        try:
+            return self._get(request, *args, **kwargs)
+        except Exception as exc:  # pragma: no cover - exercised by API tests
+            schema_response = schema_out_of_date_response(
+                exc=exc,
+                logger=logger,
+                endpoint="integrations.social_connection_status",
+                tenant_id=getattr(request.user, "tenant_id", None),
+            )
+            if schema_response is not None:
+                return schema_response
+            raise
+
+    def _get(self, request, *args, **kwargs):  # noqa: ANN001 - DRF signature
         now = timezone.now()
         tenant_id = request.user.tenant_id
 

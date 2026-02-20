@@ -8,9 +8,10 @@ from typing import Iterable, Optional
 
 from croniter import croniter
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
-from accounts.models import Tenant, TenantAwareManager
+from accounts.models import Tenant, TenantAwareManager, User
 from core.crypto.dek_manager import get_dek_for_tenant
 from core.crypto.fields import decrypt_value, encrypt_value
 
@@ -449,6 +450,326 @@ class MetaAccountSyncState(models.Model):
     class Meta:
         unique_together = ("tenant", "account_id")
         ordering = ("tenant", "account_id")
+
+
+class MetaConnection(models.Model):
+    """Tenant/user-scoped Meta OAuth session used for Page/Post Insights."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="meta_connections"
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="meta_connections"
+    )
+    app_scoped_user_id = models.CharField(max_length=128, blank=True)
+    token_enc = models.BinaryField()
+    token_nonce = models.BinaryField()
+    token_tag = models.BinaryField()
+    token_expires_at = models.DateTimeField(null=True, blank=True)
+    scopes = models.JSONField(default=list, blank=True)
+    is_active = models.BooleanField(default=True)
+    dek_key_version = models.CharField(max_length=128, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    _raw_token: Optional[str] = None
+
+    class Meta:
+        unique_together = ("tenant", "user", "app_scoped_user_id")
+        indexes = [
+            models.Index(fields=["tenant", "is_active"], name="meta_conn_tenant_active"),
+        ]
+
+    def set_raw_token(self, value: str | None) -> None:
+        self._raw_token = value
+
+    def save(self, *args, **kwargs):
+        if self.tenant_id is None:
+            raise ValueError("Tenant must be set before saving MetaConnection")
+        if self._raw_token is not None or not self.dek_key_version:
+            key, version = get_dek_for_tenant(self.tenant)
+            if self._raw_token is not None:
+                encrypted = encrypt_value(self._raw_token, key)
+                if encrypted:
+                    self.token_enc = encrypted.ciphertext
+                    self.token_nonce = encrypted.nonce
+                    self.token_tag = encrypted.tag
+            self.dek_key_version = version
+        super().save(*args, **kwargs)
+        self._raw_token = None
+
+    def decrypt_token(self) -> Optional[str]:
+        key, _ = get_dek_for_tenant(self.tenant)
+        return decrypt_value(self.token_enc, self.token_nonce, self.token_tag, key)
+
+
+class MetaPage(models.Model):
+    """Page selected for Insights ingestion."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="meta_pages"
+    )
+    connection = models.ForeignKey(
+        MetaConnection,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="pages",
+    )
+    page_id = models.CharField(max_length=128)
+    name = models.CharField(max_length=255)
+    category = models.CharField(max_length=255, blank=True)
+    page_token_enc = models.BinaryField()
+    page_token_nonce = models.BinaryField()
+    page_token_tag = models.BinaryField()
+    page_token_expires_at = models.DateTimeField(null=True, blank=True)
+    can_analyze = models.BooleanField(default=False)
+    tasks = models.JSONField(default=list, blank=True)
+    perms = models.JSONField(default=list, blank=True)
+    is_default = models.BooleanField(default=False)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    last_posts_synced_at = models.DateTimeField(null=True, blank=True)
+    dek_key_version = models.CharField(max_length=128, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    _raw_page_token: Optional[str] = None
+
+    class Meta:
+        unique_together = ("tenant", "page_id")
+        indexes = [
+            models.Index(fields=["tenant", "is_default"], name="meta_page_tenant_default"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant"],
+                condition=Q(is_default=True),
+                name="meta_page_single_default_per_tenant",
+            )
+        ]
+
+    def set_raw_page_token(self, value: str | None) -> None:
+        self._raw_page_token = value
+
+    def save(self, *args, **kwargs):
+        if self.tenant_id is None:
+            raise ValueError("Tenant must be set before saving MetaPage")
+        if self._raw_page_token is not None or not self.dek_key_version:
+            key, version = get_dek_for_tenant(self.tenant)
+            if self._raw_page_token is not None:
+                encrypted = encrypt_value(self._raw_page_token, key)
+                if encrypted:
+                    self.page_token_enc = encrypted.ciphertext
+                    self.page_token_nonce = encrypted.nonce
+                    self.page_token_tag = encrypted.tag
+            self.dek_key_version = version
+        super().save(*args, **kwargs)
+        self._raw_page_token = None
+
+    def decrypt_page_token(self) -> Optional[str]:
+        key, _ = get_dek_for_tenant(self.tenant)
+        return decrypt_value(
+            self.page_token_enc,
+            self.page_token_nonce,
+            self.page_token_tag,
+            key,
+        )
+
+
+class MetaMetricRegistry(models.Model):
+    LEVEL_PAGE = "PAGE"
+    LEVEL_POST = "POST"
+    LEVEL_CHOICES = [
+        (LEVEL_PAGE, "Page"),
+        (LEVEL_POST, "Post"),
+    ]
+
+    STATUS_ACTIVE = "ACTIVE"
+    STATUS_DEPRECATED = "DEPRECATED"
+    STATUS_INVALID = "INVALID"
+    STATUS_UNKNOWN = "UNKNOWN"
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, "Active"),
+        (STATUS_DEPRECATED, "Deprecated"),
+        (STATUS_INVALID, "Invalid"),
+        (STATUS_UNKNOWN, "Unknown"),
+    ]
+
+    metric_key = models.CharField(max_length=191)
+    level = models.CharField(max_length=8, choices=LEVEL_CHOICES)
+    supported_periods = models.JSONField(default=list, blank=True)
+    supports_breakdowns = models.JSONField(default=list, blank=True)
+    status = models.CharField(
+        max_length=16, choices=STATUS_CHOICES, default=STATUS_ACTIVE
+    )
+    replacement_metric_key = models.CharField(max_length=191, blank=True)
+    title = models.CharField(max_length=255, blank=True)
+    description = models.TextField(blank=True)
+    is_default = models.BooleanField(default=False)
+    metadata = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("metric_key", "level")
+        indexes = [
+            models.Index(fields=["level", "status"], name="meta_metric_level_status"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - repr helper
+        return f"{self.level}:{self.metric_key}"
+
+
+class MetaMetricSupportStatus(models.Model):
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="meta_metric_support_statuses"
+    )
+    page = models.ForeignKey(
+        MetaPage,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="metric_support_statuses",
+    )
+    level = models.CharField(max_length=8, choices=MetaMetricRegistry.LEVEL_CHOICES)
+    metric_key = models.CharField(max_length=191)
+    supported = models.BooleanField(default=True)
+    last_checked_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "page", "level", "metric_key")
+        indexes = [
+            models.Index(fields=["page", "level", "supported"], name="meta_support_page_level_sup"),
+            models.Index(fields=["tenant", "level"], name="meta_support_tenant_level"),
+        ]
+
+
+class MetaInsightPoint(models.Model):
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="meta_insight_points"
+    )
+    page = models.ForeignKey(
+        MetaPage, on_delete=models.CASCADE, related_name="insight_points"
+    )
+    metric_key = models.CharField(max_length=191)
+    period = models.CharField(max_length=32)
+    end_time = models.DateTimeField()
+    value_num = models.DecimalField(max_digits=20, decimal_places=6, null=True, blank=True)
+    value_json = models.JSONField(null=True, blank=True)
+    breakdown_key = models.CharField(max_length=191, null=True, blank=True)
+    breakdown_key_normalized = models.CharField(max_length=191, default="")
+    breakdown_json = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "tenant",
+                    "page",
+                    "metric_key",
+                    "period",
+                    "end_time",
+                    "breakdown_key_normalized",
+                ],
+                name="meta_page_insight_point_unique",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["page", "metric_key", "period", "end_time"],
+                name="meta_page_metric_period_time",
+            )
+        ]
+
+
+class MetaPost(models.Model):
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="meta_posts"
+    )
+    page = models.ForeignKey(
+        MetaPage, on_delete=models.CASCADE, related_name="posts"
+    )
+    post_id = models.CharField(max_length=191)
+    media_type = models.CharField(max_length=64, blank=True)
+    message = models.TextField(blank=True)
+    permalink_url = models.URLField(max_length=500, blank=True)
+    created_time = models.DateTimeField(null=True, blank=True)
+    updated_time = models.DateTimeField(null=True, blank=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "page", "post_id")
+        indexes = [
+            models.Index(fields=["page", "created_time"], name="meta_post_page_created"),
+        ]
+
+
+class MetaPostInsightPoint(models.Model):
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="meta_post_insight_points"
+    )
+    post = models.ForeignKey(
+        MetaPost, on_delete=models.CASCADE, related_name="insight_points"
+    )
+    metric_key = models.CharField(max_length=191)
+    period = models.CharField(max_length=32)
+    end_time = models.DateTimeField()
+    value_num = models.DecimalField(max_digits=20, decimal_places=6, null=True, blank=True)
+    value_json = models.JSONField(null=True, blank=True)
+    breakdown_key = models.CharField(max_length=191, null=True, blank=True)
+    breakdown_key_normalized = models.CharField(max_length=191, default="")
+    breakdown_json = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "tenant",
+                    "post",
+                    "metric_key",
+                    "period",
+                    "end_time",
+                    "breakdown_key_normalized",
+                ],
+                name="meta_post_insight_point_unique",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["post", "metric_key", "period", "end_time"],
+                name="meta_post_metric_period_time",
+            )
+        ]
 
 
 class APIErrorLog(models.Model):

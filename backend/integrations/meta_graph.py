@@ -15,7 +15,7 @@ from core.metrics import observe_meta_graph_retry, observe_meta_graph_throttle_e
 logger = logging.getLogger(__name__)
 
 _RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
-_RETRYABLE_META_ERROR_CODES = {1, 2, 4, 17, 32, 613}
+_RETRYABLE_META_ERROR_CODES = {1, 2, 4, 17, 32, 613, 80001}
 _DEFAULT_PAGE_CAP = 50
 _DEFAULT_ROW_CAP = 10000
 
@@ -189,7 +189,7 @@ class MetaGraphClient:
             "/me/accounts",
             params={
                 "fields": (
-                    "id,name,access_token,category,tasks,"
+                    "id,name,access_token,category,tasks,perms,"
                     "instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count},"
                     "connected_instagram_account{id,username,name,profile_picture_url,followers_count,media_count}"
                 ),
