@@ -21,7 +21,10 @@ const metricsSnapshot = {
 } as const;
 
 test.describe('tenant switching', () => {
-  test('switches tenants and uses fixture fallbacks when APIs are unavailable', async ({ page, mockMode }) => {
+  test('switches tenants and uses fixture fallbacks when APIs are unavailable', async ({
+    page,
+    mockMode,
+  }) => {
     test.skip(!mockMode, 'This spec runs in mock mode for deterministic UI coverage.');
     const dashboard = new DashboardPage(page);
 
@@ -52,7 +55,9 @@ test.describe('tenant switching', () => {
 
     await dashboard.open();
     await dashboard.waitForMetricsLoaded(campaignSnapshot.rows.length);
-    await expect(page.locator('.snapshot-indicator__text', { hasText: 'Demo dataset active' })).toBeVisible();
+    await expect(
+      page.locator('.snapshot-indicator__text', { hasText: 'Demo dataset active' }),
+    ).toBeVisible();
     await page.getByRole('button', { name: /Choose a tenant|Switch dashboards/i }).click();
 
     // Select the second tenant and confirm the header updates.
