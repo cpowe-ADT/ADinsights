@@ -24,7 +24,7 @@ jobs:
       DBT_PROFILE: adinsights_duckdb
       DBT_DUCKDB_PATH: dbt/warehouse_ci.duckdb
       DBT_SCHEMA: analytics
-      CI_USE_SEEDS: "true"
+      CI_USE_SEEDS: 'true'
 
     steps:
       - name: Checkout
@@ -47,16 +47,16 @@ jobs:
 
       - name: Run dbt deps
         run: |
-          dbt --project-dir "$DBT_PROJECT_DIR" --profiles-dir "$DBT_PROFILES_DIR" deps
+          ./scripts/dbt-wrapper.sh "dbt" "$DBT_PROJECT_DIR" "$DBT_PROFILES_DIR" deps
 
       - name: Seed CI fixtures
         run: |
-          dbt --project-dir "$DBT_PROJECT_DIR" --profiles-dir "$DBT_PROFILES_DIR" seed --full-refresh
+          ./scripts/dbt-wrapper.sh "dbt" "$DBT_PROJECT_DIR" "$DBT_PROFILES_DIR" seed --full-refresh
 
       - name: Build staging + reference
         run: |
-          dbt --project-dir "$DBT_PROJECT_DIR" --profiles-dir "$DBT_PROFILES_DIR" run --select staging_ci
+          ./scripts/dbt-wrapper.sh "dbt" "$DBT_PROJECT_DIR" "$DBT_PROFILES_DIR" run --select staging_ci
 
       - name: Test staging + reference
         run: |
-          dbt --project-dir "$DBT_PROJECT_DIR" --profiles-dir "$DBT_PROFILES_DIR" test --select staging_ci
+          ./scripts/dbt-wrapper.sh "dbt" "$DBT_PROJECT_DIR" "$DBT_PROFILES_DIR" test --select staging_ci
