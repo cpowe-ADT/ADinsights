@@ -396,3 +396,84 @@
   clip-path: inset(50%);
   border: 0;
 }
+
+.meta-kpi-grid-v2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.meta-kpi-card-v2 {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.meta-kpi-metric {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-label);
+}
+
+.meta-kpi-value {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.meta-kpi-subvalue {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.meta-trend-panel {
+  min-height: 360px;
+}
+
+.meta-availability-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(193, 18, 31, 0.1);
+  color: #9f1239;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.meta-sync-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.meta-overview-metric-picker,
+.meta-posts-metric-select {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.meta-overview-metric-picker select,
+.meta-posts-metric-select select,
+.meta-posts-filter {
+  min-width: 160px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.55rem;
+  background: var(--color-surface-base);
+}
+
+.meta-posts-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.meta-post-metric-header {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}

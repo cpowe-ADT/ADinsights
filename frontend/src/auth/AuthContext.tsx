@@ -110,15 +110,12 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
   const bootstrappedRef = useRef(false);
   const tokensRef = useRef<StoredTokens | null>(null);
 
-  const syncActiveTenant = useCallback(
-    (nextTenantId?: string, tenantLabel?: string) => {
-      const normalizedTenantId =
-        typeof nextTenantId === 'string' && nextTenantId.trim() ? nextTenantId.trim() : undefined;
-      setTenantId(normalizedTenantId);
-      useDashboardStore.getState().setActiveTenant(normalizedTenantId, tenantLabel);
-    },
-    [],
-  );
+  const syncActiveTenant = useCallback((nextTenantId?: string, tenantLabel?: string) => {
+    const normalizedTenantId =
+      typeof nextTenantId === 'string' && nextTenantId.trim() ? nextTenantId.trim() : undefined;
+    setTenantId(normalizedTenantId);
+    useDashboardStore.getState().setActiveTenant(normalizedTenantId, tenantLabel);
+  }, []);
 
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimeoutRef.current) {

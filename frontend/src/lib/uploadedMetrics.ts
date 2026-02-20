@@ -7,11 +7,7 @@ import type {
   ParishAggregate,
   TenantMetricsResolved,
 } from '../state/useDashboardStore';
-import {
-  normalizeChannelValue,
-  resolveFilterRange,
-  type FilterBarState,
-} from './dashboardFilters';
+import { normalizeChannelValue, resolveFilterRange, type FilterBarState } from './dashboardFilters';
 
 const STORAGE_KEY = 'adinsights-uploaded-dataset';
 
@@ -264,11 +260,7 @@ function endOfMonth(date: string): string {
   return end.toISOString().slice(0, 10);
 }
 
-function buildErrorsFromMissing(
-  headers: string[],
-  required: string[],
-  errors: string[],
-): void {
+function buildErrorsFromMissing(headers: string[], required: string[], errors: string[]): void {
   required.forEach((column) => {
     if (resolveColumn(headers, column) === -1) {
       errors.push(`Missing required column: ${column}`);
@@ -353,9 +345,7 @@ export function parseCampaignCsv(text: string): UploadParseResult<UploadedCampai
     const roas = parseOptionalNumber(cells[resolveColumn(table.headers, 'roas')] ?? '');
     const status = cells[resolveColumn(table.headers, 'status')]?.trim() || undefined;
     const objective = cells[resolveColumn(table.headers, 'objective')]?.trim() || undefined;
-    const startDate = normalizeDate(
-      cells[resolveColumn(table.headers, 'start_date')] ?? '',
-    );
+    const startDate = normalizeDate(cells[resolveColumn(table.headers, 'start_date')] ?? '');
     const endDate = normalizeDate(cells[resolveColumn(table.headers, 'end_date')] ?? '');
     const currency = cells[resolveColumn(table.headers, 'currency')]?.trim() || undefined;
 
@@ -487,8 +477,7 @@ export function parseBudgetCsv(text: string): UploadParseResult<UploadedBudgetRo
       return;
     }
 
-    const campaignName =
-      cells[resolveColumn(table.headers, 'campaign_name')]?.trim() ?? '';
+    const campaignName = cells[resolveColumn(table.headers, 'campaign_name')]?.trim() ?? '';
     if (!campaignName) {
       errors.push(`Row ${rowIndex}: campaign_name is required.`);
       return;
@@ -583,10 +572,8 @@ function computeRevenue(row: UploadedCampaignMetricRow): number | undefined {
 }
 
 function resolveCurrency(dataset: UploadedDataset): string {
-  const fromCampaign =
-    dataset.campaignMetrics.find((row) => row.currency)?.currency ?? '';
-  const fromParish =
-    dataset.parishMetrics.find((row) => row.currency)?.currency ?? '';
+  const fromCampaign = dataset.campaignMetrics.find((row) => row.currency)?.currency ?? '';
+  const fromParish = dataset.parishMetrics.find((row) => row.currency)?.currency ?? '';
   const resolved = fromCampaign || fromParish || 'JMD';
   return resolved.trim().toUpperCase();
 }
@@ -671,7 +658,7 @@ export function buildMetricsFromUpload(
         impressions: row.impressions,
         clicks: row.clicks,
         conversions: row.conversions,
-        roas: row.spend > 0 ? revenue / row.spend : row.roas ?? 0,
+        roas: row.spend > 0 ? revenue / row.spend : (row.roas ?? 0),
         ctr: row.impressions > 0 ? row.clicks / row.impressions : 0,
         cpc: row.clicks > 0 ? row.spend / row.clicks : 0,
         cpm: row.impressions > 0 ? (row.spend / row.impressions) * 1000 : 0,
@@ -691,8 +678,7 @@ export function buildMetricsFromUpload(
     existing.roas = existing.spend > 0 ? nextRevenue / existing.spend : existing.roas;
     existing.ctr = existing.impressions > 0 ? existing.clicks / existing.impressions : 0;
     existing.cpc = existing.clicks > 0 ? existing.spend / existing.clicks : 0;
-    existing.cpm =
-      existing.impressions > 0 ? (existing.spend / existing.impressions) * 1000 : 0;
+    existing.cpm = existing.impressions > 0 ? (existing.spend / existing.impressions) * 1000 : 0;
     existing.startDate =
       existing.startDate && existing.startDate < row.date ? existing.startDate : row.date;
     existing.endDate =
@@ -716,9 +702,7 @@ export function buildMetricsFromUpload(
 
   const parishSource: Array<UploadedParishMetricRow | ParishFallbackRow> =
     dataset.parishMetrics.length > 0
-      ? dataset.parishMetrics.filter((row) =>
-          row.date ? withinRange(row.date, start, end) : true,
-        )
+      ? dataset.parishMetrics.filter((row) => (row.date ? withinRange(row.date, start, end) : true))
       : filteredCampaignRows.map((row) => ({
           parish: row.parish ?? 'Unknown',
           spend: row.spend,
@@ -750,7 +734,7 @@ export function buildMetricsFromUpload(
     entry.conversions += row.conversions;
     const nextRevenue = (parishRevenueMap.get(row.parish) ?? 0) + (row.revenue ?? 0);
     parishRevenueMap.set(row.parish, nextRevenue);
-    entry.roas = entry.spend > 0 ? nextRevenue / entry.spend : entry.roas ?? 0;
+    entry.roas = entry.spend > 0 ? nextRevenue / entry.spend : (entry.roas ?? 0);
     if (typeof row.campaignCount === 'number') {
       entry.campaignCount = row.campaignCount;
     } else if ('campaignId' in row && typeof row.campaignId === 'string') {
@@ -767,8 +751,7 @@ export function buildMetricsFromUpload(
   const budgetRows = dataset.budgets.reduce<BudgetPacingRow[]>((acc, row) => {
     const monthStart = row.month;
     const monthEnd = endOfMonth(monthStart);
-    const inRange =
-      withinRange(monthStart, start, end) || withinRange(monthEnd, start, end);
+    const inRange = withinRange(monthStart, start, end) || withinRange(monthEnd, start, end);
     if (!inRange) {
       return acc;
     }
@@ -786,8 +769,8 @@ export function buildMetricsFromUpload(
       typeof row.pacingPercent === 'number'
         ? row.pacingPercent
         : row.plannedBudget > 0
-        ? spendToDate / row.plannedBudget
-        : 0;
+          ? spendToDate / row.plannedBudget
+          : 0;
 
     acc.push({
       id: `${row.campaignName}-${row.month}`,

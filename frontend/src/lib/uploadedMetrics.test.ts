@@ -24,10 +24,7 @@ describe('uploadedMetrics', () => {
   });
 
   it('normalizes budget month values', () => {
-    const csv = [
-      'month,campaign_name,planned_budget',
-      '2024-11,Brand Push,8000',
-    ].join('\n');
+    const csv = ['month,campaign_name,planned_budget', '2024-11,Brand Push,8000'].join('\n');
 
     const result = parseBudgetCsv(csv);
 

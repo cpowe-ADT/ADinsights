@@ -158,7 +158,10 @@ vi.mock('leaflet', () => {
       addTo: () => {},
       remove: () => {},
     }),
-    geoJSON: (data: import('geojson').FeatureCollection, options?: { onEachFeature?: (feature: Feature, layer: unknown) => void }) => {
+    geoJSON: (
+      data: import('geojson').FeatureCollection,
+      options?: { onEachFeature?: (feature: Feature, layer: unknown) => void },
+    ) => {
       return {
         addTo: () => {},
         remove: () => {},

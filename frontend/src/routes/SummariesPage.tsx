@@ -102,11 +102,14 @@ const SummariesPage = () => {
               <tr key={summary.id}>
                 <td>{summary.title}</td>
                 <td>
-                  <span className={`phase2-pill phase2-pill--${summary.status}`}>{summary.status}</span>
+                  <span className={`phase2-pill phase2-pill--${summary.status}`}>
+                    {summary.status}
+                  </span>
                 </td>
                 <td>{summary.source}</td>
                 <td>
-                  {formatRelativeTime(summary.generated_at)} ({formatAbsoluteTime(summary.generated_at)})
+                  {formatRelativeTime(summary.generated_at)} (
+                  {formatAbsoluteTime(summary.generated_at)})
                 </td>
                 <td>
                   <Link to={`/summaries/${summary.id}`} className="button tertiary">

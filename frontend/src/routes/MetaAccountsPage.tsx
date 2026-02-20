@@ -93,7 +93,8 @@ const MetaAccountsPage = () => {
 
       {accounts.status === 'stale' ? (
         <div className="dashboard-state" role="status" style={{ marginBottom: '1rem' }}>
-          Showing stale account data. {resolveAccountsErrorMessage(accounts.errorCode, accounts.error)}
+          Showing stale account data.{' '}
+          {resolveAccountsErrorMessage(accounts.errorCode, accounts.error)}
         </div>
       ) : null}
 

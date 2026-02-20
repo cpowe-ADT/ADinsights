@@ -141,7 +141,8 @@ const MetaCampaignOverviewPage = () => {
 
       {campaigns.status === 'stale' ? (
         <div className="dashboard-state" role="status" style={{ marginBottom: '1rem' }}>
-          Showing stale campaign data. {resolveCampaignsErrorMessage(campaigns.errorCode, campaigns.error)}
+          Showing stale campaign data.{' '}
+          {resolveCampaignsErrorMessage(campaigns.errorCode, campaigns.error)}
         </div>
       ) : null}
 

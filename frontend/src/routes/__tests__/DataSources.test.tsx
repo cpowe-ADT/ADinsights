@@ -21,6 +21,9 @@ const airbyteMocks = vi.hoisted(() => ({
   loadMetaSetupStatus: vi.fn(),
   loadSocialConnectionStatus: vi.fn(),
 }));
+const metaPageInsightsMocks = vi.hoisted(() => ({
+  callbackMetaOAuth: vi.fn(),
+}));
 
 vi.mock('../../components/ToastProvider', () => ({
   useToast: () => ({ pushToast }),
@@ -40,6 +43,11 @@ vi.mock('../../lib/airbyte', () => ({
   logoutMetaOAuth: airbyteMocks.logoutMetaOAuth,
   loadMetaSetupStatus: airbyteMocks.loadMetaSetupStatus,
   loadSocialConnectionStatus: airbyteMocks.loadSocialConnectionStatus,
+}));
+vi.mock('../../lib/metaPageInsights', () => ({
+  META_OAUTH_FLOW_PAGE_INSIGHTS: 'page_insights',
+  META_OAUTH_FLOW_SESSION_KEY: 'adinsights.meta.oauth.flow',
+  callbackMetaOAuth: metaPageInsightsMocks.callbackMetaOAuth,
 }));
 
 describe('DataSources connect flow', () => {
@@ -182,6 +190,22 @@ describe('DataSources connect flow', () => {
         },
       ],
     });
+    metaPageInsightsMocks.callbackMetaOAuth.mockResolvedValue({
+      connection_id: 'meta-conn-1',
+      pages: [
+        {
+          id: 'page-1',
+          page_id: 'page-1',
+          name: 'Business Page',
+          can_analyze: true,
+          is_default: true,
+        },
+      ],
+      default_page_id: 'page-1',
+      missing_required_permissions: [],
+      oauth_connected_but_missing_permissions: false,
+      tasks: {},
+    });
     window.history.replaceState({}, '', '/');
     window.sessionStorage.clear();
   });
@@ -214,7 +238,10 @@ describe('DataSources connect flow', () => {
           platform: 'meta',
           display_name: 'Meta (Facebook)',
           status: 'not_connected',
-          reason: { code: 'missing_meta_credential', message: 'Meta OAuth has not been connected.' },
+          reason: {
+            code: 'missing_meta_credential',
+            message: 'Meta OAuth has not been connected.',
+          },
           last_checked_at: '2026-02-17T20:00:00Z',
           last_synced_at: null,
           actions: ['connect_oauth'],
@@ -255,7 +282,10 @@ describe('DataSources connect flow', () => {
           platform: 'meta',
           display_name: 'Meta (Facebook)',
           status: 'not_connected',
-          reason: { code: 'missing_meta_credential', message: 'Meta OAuth has not been connected.' },
+          reason: {
+            code: 'missing_meta_credential',
+            message: 'Meta OAuth has not been connected.',
+          },
           last_checked_at: '2026-02-17T20:00:00Z',
           last_synced_at: null,
           actions: ['connect_oauth'],
@@ -335,6 +365,25 @@ describe('DataSources connect flow', () => {
     });
   });
 
+  it('routes page-insights oauth callback to meta connect callback API', async () => {
+    window.sessionStorage.setItem('adinsights.meta.oauth.flow', 'page_insights');
+    window.history.replaceState(
+      {},
+      '',
+      '/dashboards/data-sources?code=oauth-code&state=oauth-state',
+    );
+    render(<DataSources />);
+
+    await waitFor(() => {
+      expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith('oauth-code', 'oauth-state');
+    });
+    await waitFor(() => {
+      expect(pushToast).toHaveBeenCalledWith('Meta Page Insights connected. Loading page dashboard.', {
+        tone: 'success',
+      });
+    });
+  });
+
   it('requires Meta OAuth before saving connection', async () => {
     const user = userEvent.setup();
     render(<DataSources />);
@@ -388,5 +437,4 @@ describe('DataSources connect flow', () => {
       });
     });
   });
-
 });

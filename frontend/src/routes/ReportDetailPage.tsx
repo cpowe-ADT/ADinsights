@@ -112,7 +112,9 @@ const ReportDetailPage = () => {
               onClick={() => void requestExport(format)}
               disabled={creatingFormat !== null}
             >
-              {creatingFormat === format ? `Requesting ${format.toUpperCase()}…` : `Request ${format.toUpperCase()}`}
+              {creatingFormat === format
+                ? `Requesting ${format.toUpperCase()}…`
+                : `Request ${format.toUpperCase()}`}
             </button>
           ))}
         </div>
