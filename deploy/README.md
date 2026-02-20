@@ -21,15 +21,16 @@
    ```bash
    cd deploy && docker compose --profile llm up -d
    ```
-3. Import Superset assets:
+4. Import Superset assets:
    ```bash
    docker exec -it deploy_superset_1 superset import-dashboards /app/superset_home/export/dashboards
    docker exec -it deploy_superset_1 superset import-datasources /app/superset_home/export/datasets
    docker exec -it deploy_superset_1 superset import-assets /app/superset_home/export/subscriptions
    ```
-4. Validate health endpoints and review the operations runbook in `docs/runbooks/`.
+5. Validate health endpoints and review the operations runbook in `docs/runbooks/`.
 
 Endpoints:
+
 - Frontend: http://localhost:5173
 - Backend: http://localhost:8000/api/health/
 - Superset: http://localhost:8088
