@@ -22,12 +22,12 @@ scripts/dev-launch.sh --foreground
 
 Use fixed profile matrices so you can run multiple local stacks without manually picking ports.
 
-| Profile | Postgres | Redis | Backend | Frontend |
-| --- | ---: | ---: | ---: | ---: |
-| `profile-1` (default) | 5432 | 6379 | 8000 | 5173 |
-| `profile-2` | 5433 | 6380 | 8001 | 5174 |
-| `profile-3` | 5434 | 6381 | 8002 | 5175 |
-| `profile-4` (high-range) | 15432 | 16379 | 18000 | 15173 |
+| Profile                  | Postgres | Redis | Backend | Frontend |
+| ------------------------ | -------: | ----: | ------: | -------: |
+| `profile-1` (default)    |     5432 |  6379 |    8000 |     5173 |
+| `profile-2`              |     5433 |  6380 |    8001 |     5174 |
+| `profile-3`              |     5434 |  6381 |    8002 |     5175 |
+| `profile-4` (high-range) |    15432 | 16379 |   18000 |    15173 |
 
 Show available profiles:
 
@@ -84,6 +84,7 @@ cat .dev-launch.active.env
 ```
 
 This file includes:
+
 - `DEV_ACTIVE_PROFILE`
 - `POSTGRES_PORT`, `REDIS_PORT`, `BACKEND_PORT`, `FRONTEND_PORT`
 - `DEV_BACKEND_URL`, `DEV_FRONTEND_URL`
@@ -100,6 +101,7 @@ scripts/dev-launch.sh
 ```
 
 By default, launcher now does two post-start safety checks:
+
 - Ensures a dev admin user exists (`seed_dev_data --skip-fixture`).
 - Verifies `/api/adapters/` includes a demo-capable adapter (`demo` or `fake`).
 
@@ -149,6 +151,7 @@ npm run dev -- --host 0.0.0.0 --port <frontend_port>
 ## Login
 
 Use these dev credentials (auto-created on startup):
+
 - Email: `devadmin@local.test`
 - Password: `devadmin1`
 

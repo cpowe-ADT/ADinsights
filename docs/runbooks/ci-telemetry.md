@@ -27,13 +27,13 @@ variables as the core backend workflow to minimise surprises.
 
 ## Artifacts
 
-| Artifact | Produced By | Contents |
-| --- | --- | --- |
-| `backend-ci-summary.json` | Pytest telemetry | Aggregated pass/fail counts for dashboards. |
-| `ci-metrics.csv` | Pytest telemetry | Time-series friendly metrics for observability pipelines. |
-| `backend-tests/junit.xml` | Pytest telemetry | Raw JUnit output for CI surfaces. |
-| `backend-coverage/` | Pytest telemetry | `coverage.xml` + HTML coverage report. |
-| `backend-telemetry-summary.md` | Telemetry schema guard | Markdown digest of telemetry payloads per tenant. |
+| Artifact                         | Produced By            | Contents                                                                                        |
+| -------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------- |
+| `backend-ci-summary.json`        | Pytest telemetry       | Aggregated pass/fail counts for dashboards.                                                     |
+| `ci-metrics.csv`                 | Pytest telemetry       | Time-series friendly metrics for observability pipelines.                                       |
+| `backend-tests/junit.xml`        | Pytest telemetry       | Raw JUnit output for CI surfaces.                                                               |
+| `backend-coverage/`              | Pytest telemetry       | `coverage.xml` + HTML coverage report.                                                          |
+| `backend-telemetry-summary.md`   | Telemetry schema guard | Markdown digest of telemetry payloads per tenant.                                               |
 | `backend-telemetry-summary.json` | Telemetry schema guard | Structured log (with `tenant_id`, `task_id`, `correlation_id`) for analysts and alerting rules. |
 
 > **Tenant isolation:** The Markdown and JSON outputs only include data for the
@@ -69,12 +69,12 @@ Canonical schemas live under `backend/tests/schemas/`. They cover:
 
 ## Troubleshooting
 
-| Symptom | Likely Cause | Resolution |
-| --- | --- | --- |
+| Symptom                                                     | Likely Cause                                               | Resolution                                                                                                                 |
+| ----------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | Telemetry schema guard fails with `Apps aren't loaded yet`. | Django environment not configured before script execution. | Ensure `scripts/ci/check_backend_telemetry.py` runs from repo root or call `python -m scripts.ci.check_backend_telemetry`. |
-| Airbyte health reports `stale` in CI. | Fixture timestamps older than one hour. | Re-run the schema guard script locally to refresh timestamps or update fixtures. |
-| dbt health reports `missing_run_results`. | `dbt/target/run_results.json` missing. | Verify the script copied the template; rerun the guard script. |
-| Markdown summary references multiple tenants. | Fixtures accidentally seeded additional tenants. | Reset the database (`rm backend/db.sqlite3`) and rerun the script; confirm fixture only contains `Telemetry Tenant`. |
+| Airbyte health reports `stale` in CI.                       | Fixture timestamps older than one hour.                    | Re-run the schema guard script locally to refresh timestamps or update fixtures.                                           |
+| dbt health reports `missing_run_results`.                   | `dbt/target/run_results.json` missing.                     | Verify the script copied the template; rerun the guard script.                                                             |
+| Markdown summary references multiple tenants.               | Fixtures accidentally seeded additional tenants.           | Reset the database (`rm backend/db.sqlite3`) and rerun the script; confirm fixture only contains `Telemetry Tenant`.       |
 
 ## Related Documentation
 

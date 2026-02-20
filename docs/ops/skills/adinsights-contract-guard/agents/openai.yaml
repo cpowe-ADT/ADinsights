@@ -1,4 +1,4 @@
 interface:
-  display_name: "ADinsights Contract Guard"
-  short_description: "Detect contract drift and escalation paths"
-  default_prompt: "Use $adinsights-contract-guard to assess API/data contract risk for this change."
+  display_name: 'ADinsights Contract Guard'
+  short_description: 'Detect contract drift and escalation paths'
+  default_prompt: 'Use $adinsights-contract-guard to assess API/data contract risk for this change.'

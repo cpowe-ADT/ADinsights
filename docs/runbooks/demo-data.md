@@ -12,27 +12,27 @@ Generate deterministic demo data for dashboards without connecting to ad APIs.
 
 ## Quick start
 
-1) Generate demo seed CSVs (deterministic).
+1. Generate demo seed CSVs (deterministic).
 
 ```bash
 python scripts/generate_demo_data.py --out dbt/seeds/demo --days 90 --seed 42
 ```
 
-2) Load the seed tables into the warehouse.
+2. Load the seed tables into the warehouse.
 
 ```bash
 make dbt-seed-demo
 ```
 
-3) Enable the demo adapter and start the backend.
+3. Enable the demo adapter and start the backend.
 
 ```bash
 export ENABLE_DEMO_ADAPTER=1
 ```
 
-4) In the UI, use the "Use demo data" toggle and pick a demo tenant.
+4. In the UI, use the "Use demo data" toggle and pick a demo tenant.
 
-5) Optional: click "Generate demo data" in the dataset toggle.
+5. Optional: click "Generate demo data" in the dataset toggle.
    - Requires `ENABLE_DEMO_GENERATION=1` and a staff account.
    - Uses the same deterministic seed (42) and 90-day window.
 

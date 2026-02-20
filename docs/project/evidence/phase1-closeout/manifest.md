@@ -5,11 +5,13 @@
 External production actions must be tracked in `docs/runbooks/external-actions-aws.md`.
 
 1. Backend
+
 - [x] `ruff check backend && pytest -q backend`
 - [x] CORS/throttle verification evidence (tests or smoke run output)
 - Evidence: `docs/project/evidence/phase1-closeout/backend/validation-2026-02-05-est.md`
 
 2. dbt
+
 - [x] `dbt` dependency/install log
 - [x] staging run output
 - [x] snapshot output
@@ -18,6 +20,7 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 - Evidence: `docs/project/evidence/phase1-closeout/dbt/validation-2026-02-05-est.md`
 
 3. Airbyte
+
 - [x] `docker compose config` output
 - [x] readiness script output (`validate_tenant_config.py`, `verify_production_readiness.py`, `airbyte_health_check.py`)
 - [x] data contract check output (`python3 infrastructure/airbyte/scripts/check_data_contracts.py`)
@@ -27,6 +30,7 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 - `docs/project/evidence/phase1-closeout/airbyte/data-contract-validation-2026-02-06-est.md`
 
 4. External prerequisites
+
 - [ ] SES identity + DKIM/SPF/DMARC + sandbox-exit proof
 - [ ] KMS key/alias provisioning proof
 - [ ] production secret manager updates proof
@@ -52,6 +56,7 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 - Evidence: `docs/project/evidence/phase1-closeout/external/meta-authenticated-validation-required-2026-02-06-est.md`
 
 5. Release gate
+
 - [x] merge order confirmation
 - [x] local rehearsal sequence evidence
 - [ ] Raj/Mira review references
