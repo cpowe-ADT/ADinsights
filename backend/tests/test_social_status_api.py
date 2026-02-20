@@ -4,6 +4,7 @@ import uuid
 from datetime import timedelta
 
 import pytest
+from django.db import OperationalError
 from django.utils import timezone
 from django.urls import reverse
 
@@ -257,3 +258,20 @@ def test_social_status_includes_meta_sync_state_metadata(api_client, user, setti
     meta = _platform(payload, "meta")
     assert meta["metadata"]["sync_state_last_job_status"] == "succeeded"
     assert meta["metadata"]["sync_state_last_success_at"] is not None
+
+
+@pytest.mark.django_db
+def test_social_status_returns_schema_out_of_date_when_db_is_behind(api_client, user, monkeypatch):
+    _authenticate(api_client, user)
+
+    def _raise_schema_error(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise OperationalError("no such column: integrations_platformcredential.auth_mode")
+
+    monkeypatch.setattr("integrations.views.PlatformCredential.objects.filter", _raise_schema_error)
+
+    response = api_client.get(reverse("social-connection-status"))
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["code"] == "schema_out_of_date"
+    assert "Run backend migrations" in payload["detail"]

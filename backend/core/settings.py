@@ -57,11 +57,29 @@ env = environ.Env(
             "ads_read",
             "business_management",
             "catalog_management",
-            "instagram_basic",
-            "instagram_manage_insights",
+        ],
+    ),
+    META_PAGE_INSIGHTS_OAUTH_SCOPES=(
+        list,
+        [
+            "pages_show_list",
+            "pages_read_engagement",
+            "pages_manage_metadata",
         ],
     ),
     META_GRAPH_API_VERSION=(str, "v24.0"),
+    META_PAGE_INSIGHTS_ENABLED=(bool, True),
+    META_PAGE_INSIGHTS_METRIC_PACK_PATH=(str, ""),
+    META_PAGE_INSIGHTS_BACKFILL_DAYS=(int, 90),
+    META_PAGE_INSIGHTS_INCREMENTAL_LOOKBACK_DAYS=(int, 3),
+    META_PAGE_INSIGHTS_POST_RECENCY_DAYS=(int, 28),
+    META_PAGE_INSIGHTS_METRIC_CHUNK_SIZE=(int, 10),
+    META_PAGE_INSIGHTS_TIMEOUT_SECONDS=(float, 20.0),
+    META_PAGE_INSIGHTS_MAX_ATTEMPTS=(int, 5),
+    META_PAGE_INSIGHTS_NIGHTLY_HOUR=(int, 3),
+    META_PAGE_INSIGHTS_NIGHTLY_MINUTE=(int, 10),
+    META_POST_INSIGHTS_NIGHTLY_HOUR=(int, 3),
+    META_POST_INSIGHTS_NIGHTLY_MINUTE=(int, 20),
     CORS_ALLOW_ALL_ORIGINS=(bool, False),
     CORS_ALLOWED_ORIGINS=(list, []),
     CORS_ALLOWED_METHODS=(
@@ -89,6 +107,8 @@ env = environ.Env(
     DRF_THROTTLE_AUTH_BURST=(str, "10/min"),
     DRF_THROTTLE_AUTH_SUSTAINED=(str, "100/day"),
     DRF_THROTTLE_PUBLIC=(str, "120/min"),
+    CELERY_TASK_ALWAYS_EAGER=(bool, False),
+    CELERY_TASK_EAGER_PROPAGATES=(bool, True),
 )
 
 ENV_FILE = BASE_DIR / ".env"
@@ -234,6 +254,9 @@ LOGGING = build_logging_config(env("DJANGO_LOG_LEVEL"))
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
 CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
+CELERY_TASK_EAGER_PROPAGATES = env.bool("CELERY_TASK_EAGER_PROPAGATES", default=True)
 CELERY_BEAT_SCHEDULE = {
     "alerts-quarter-hourly": {
         "task": "alerts.tasks.run_alert_cycle",
@@ -262,6 +285,40 @@ CELERY_BEAT_SCHEDULE = {
     "meta-sync-hierarchy-daily": {
         "task": "integrations.tasks.sync_meta_hierarchy",
         "schedule": crontab(hour=2, minute=15),
+    },
+    "meta-page-insights-nightly": {
+        "task": "integrations.tasks.sync_meta_page_insights",
+        "schedule": crontab(
+            hour=env.int("META_PAGE_INSIGHTS_NIGHTLY_HOUR", default=3),
+            minute=env.int("META_PAGE_INSIGHTS_NIGHTLY_MINUTE", default=10),
+        ),
+    },
+    "meta-post-insights-nightly": {
+        "task": "integrations.tasks.sync_meta_post_insights",
+        "schedule": crontab(
+            hour=env.int("META_POST_INSIGHTS_NIGHTLY_HOUR", default=3),
+            minute=env.int("META_POST_INSIGHTS_NIGHTLY_MINUTE", default=20),
+        ),
+    },
+    "meta-sync-pages-hourly": {
+        "task": "integrations.tasks.sync_meta_pages",
+        "schedule": crontab(minute=5, hour="6-22"),
+    },
+    "meta-discover-page-metrics-daily": {
+        "task": "integrations.tasks.discover_supported_metrics",
+        "schedule": crontab(hour=4, minute=0),
+    },
+    "meta-page-posts-hourly": {
+        "task": "integrations.tasks.sync_page_posts",
+        "schedule": crontab(minute=15, hour="6-22"),
+    },
+    "meta-page-insights-hourly": {
+        "task": "integrations.tasks.sync_page_insights",
+        "schedule": crontab(minute=20, hour="6-22"),
+    },
+    "meta-post-insights-hourly": {
+        "task": "integrations.tasks.sync_post_insights",
+        "schedule": crontab(minute=25, hour="6-22"),
     },
     "rotate-tenant-deks": {
         "task": "core.tasks.rotate_deks",
@@ -320,7 +377,25 @@ META_OAUTH_REDIRECT_URI = _optional(env("META_OAUTH_REDIRECT_URI", default=None)
 META_LOGIN_CONFIG_ID = _optional(env("META_LOGIN_CONFIG_ID", default=None))
 META_LOGIN_CONFIG_REQUIRED = env.bool("META_LOGIN_CONFIG_REQUIRED", default=True)
 META_OAUTH_SCOPES = env.list("META_OAUTH_SCOPES")
+META_PAGE_INSIGHTS_OAUTH_SCOPES = env.list("META_PAGE_INSIGHTS_OAUTH_SCOPES")
 META_GRAPH_API_VERSION = env("META_GRAPH_API_VERSION", default="v24.0")
+META_PAGE_INSIGHTS_ENABLED = env.bool("META_PAGE_INSIGHTS_ENABLED", default=True)
+META_PAGE_INSIGHTS_METRIC_PACK_PATH = _optional(
+    env("META_PAGE_INSIGHTS_METRIC_PACK_PATH", default=None)
+)
+META_PAGE_INSIGHTS_BACKFILL_DAYS = env.int("META_PAGE_INSIGHTS_BACKFILL_DAYS", default=90)
+META_PAGE_INSIGHTS_INCREMENTAL_LOOKBACK_DAYS = env.int(
+    "META_PAGE_INSIGHTS_INCREMENTAL_LOOKBACK_DAYS",
+    default=3,
+)
+META_PAGE_INSIGHTS_POST_RECENCY_DAYS = env.int("META_PAGE_INSIGHTS_POST_RECENCY_DAYS", default=28)
+META_PAGE_INSIGHTS_METRIC_CHUNK_SIZE = env.int("META_PAGE_INSIGHTS_METRIC_CHUNK_SIZE", default=10)
+META_PAGE_INSIGHTS_TIMEOUT_SECONDS = env.float("META_PAGE_INSIGHTS_TIMEOUT_SECONDS", default=20.0)
+META_PAGE_INSIGHTS_MAX_ATTEMPTS = env.int("META_PAGE_INSIGHTS_MAX_ATTEMPTS", default=5)
+META_PAGE_INSIGHTS_NIGHTLY_HOUR = env.int("META_PAGE_INSIGHTS_NIGHTLY_HOUR", default=3)
+META_PAGE_INSIGHTS_NIGHTLY_MINUTE = env.int("META_PAGE_INSIGHTS_NIGHTLY_MINUTE", default=10)
+META_POST_INSIGHTS_NIGHTLY_HOUR = env.int("META_POST_INSIGHTS_NIGHTLY_HOUR", default=3)
+META_POST_INSIGHTS_NIGHTLY_MINUTE = env.int("META_POST_INSIGHTS_NIGHTLY_MINUTE", default=20)
 AIRBYTE_DEFAULT_WORKSPACE_ID = _optional(env("AIRBYTE_DEFAULT_WORKSPACE_ID", default=None))
 AIRBYTE_DEFAULT_DESTINATION_ID = _optional(env("AIRBYTE_DEFAULT_DESTINATION_ID", default=None))
 AIRBYTE_SOURCE_DEFINITION_META = _optional(env("AIRBYTE_SOURCE_DEFINITION_META", default=None))
