@@ -23,19 +23,19 @@ This document defines the ADinsights Meta permission strategy for active and nea
 
 ## Active And Near-Term Permission Set
 
-| Permission | Status | Runtime gate required | Requested in default OAuth | Why it exists now |
-| --- | --- | --- | --- | --- |
-| `ads_read` | `required_now` | Yes | Yes | Core ad-metrics read path for dashboards and sync validation. |
-| `ads_management` | `required_now` | Yes (OR with `ads_read`) | Yes | Alternate acceptable ad scope in runtime gate; supports ad-management readiness. |
-| `business_management` | `required_now` | Yes | Yes | Business asset access needed for ad account binding. |
-| `pages_read_engagement` | `required_now` | Yes | Yes | Page-level context required by connect flow and dependencies. |
-| `pages_show_list` | `required_now` | Yes | Yes | Page ownership/selection required during onboarding. |
-| `instagram_basic` | `optional_near_term` | No | Yes | Optional Instagram account discovery and identity mapping. |
-| `instagram_manage_insights` | `optional_near_term` | No | Yes | Optional Instagram insights enrichment. |
-| `catalog_management` | `optional_near_term` | No | Yes | Reserved for potential catalog-linked workflows. |
-| `pages_manage_ads` | `optional_near_term` | No | Yes | Reserved for future Page ad management features. |
-| `pages_manage_metadata` | `optional_near_term` | No | Yes | Reserved for webhook/settings control features. |
-| `pages_messaging` | `optional_near_term` | No | Yes | Reserved for future messaging/CRM support flows. |
+| Permission                  | Status               | Runtime gate required    | Requested in default OAuth | Why it exists now                                                                |
+| --------------------------- | -------------------- | ------------------------ | -------------------------- | -------------------------------------------------------------------------------- |
+| `ads_read`                  | `required_now`       | Yes                      | Yes                        | Core ad-metrics read path for dashboards and sync validation.                    |
+| `ads_management`            | `required_now`       | Yes (OR with `ads_read`) | Yes                        | Alternate acceptable ad scope in runtime gate; supports ad-management readiness. |
+| `business_management`       | `required_now`       | Yes                      | Yes                        | Business asset access needed for ad account binding.                             |
+| `pages_read_engagement`     | `required_now`       | Yes                      | Yes                        | Page-level context required by connect flow and dependencies.                    |
+| `pages_show_list`           | `required_now`       | Yes                      | Yes                        | Page ownership/selection required during onboarding.                             |
+| `instagram_basic`           | `optional_near_term` | No                       | Yes                        | Optional Instagram account discovery and identity mapping.                       |
+| `instagram_manage_insights` | `optional_near_term` | No                       | Yes                        | Optional Instagram insights enrichment.                                          |
+| `catalog_management`        | `optional_near_term` | No                       | Yes                        | Reserved for potential catalog-linked workflows.                                 |
+| `pages_manage_ads`          | `optional_near_term` | No                       | Yes                        | Reserved for future Page ad management features.                                 |
+| `pages_manage_metadata`     | `optional_near_term` | No                       | Yes                        | Reserved for webhook/settings control features.                                  |
+| `pages_messaging`           | `optional_near_term` | No                       | Yes                        | Reserved for future messaging/CRM support flows.                                 |
 
 ## Reviewer-Ready Wording Standard
 

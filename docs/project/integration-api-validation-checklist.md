@@ -12,10 +12,10 @@ execution spans backend + dbt + infrastructure.
 
 ## Usage
 
-1) Complete the checklist for each connector before scheduling build work.
-2) Record approvals, scopes, quotas, and known limitations.
-3) Attach final notes to the connector backlog item in `docs/project/phase1-execution-backlog.md`.
-4) Keep the canonical source-to-warehouse mapping synced in `docs/project/integration-data-contract-matrix.md`.
+1. Complete the checklist for each connector before scheduling build work.
+2. Record approvals, scopes, quotas, and known limitations.
+3. Attach final notes to the connector backlog item in `docs/project/phase1-execution-backlog.md`.
+4. Keep the canonical source-to-warehouse mapping synced in `docs/project/integration-data-contract-matrix.md`.
 
 ## Phase 1 connectors (required)
 
@@ -23,12 +23,12 @@ execution spans backend + dbt + infrastructure.
 
 Use this as the connector execution list for Phase 1 closeout.
 
-| ID | Connector | Scope | Owner(s) | Status | Exit criteria |
-|----|-----------|-------|----------|--------|---------------|
-| S1-D | Microsoft Ads, LinkedIn Ads, TikTok Ads | Complete API validation checklist entries (auth/scopes/limits/lookback/known gotchas). | Maya | Done (2026-02-06) | All checklist fields completed with validation date + owner. |
-| S1-E | Microsoft Ads | Decide Airbyte vs custom path and define schedule metadata (`America/Jamaica`). | Maya + Priya + Sofia | Done (2026-02-06, planning) | Connector decision documented + data contract notes + tests scoped. |
-| S1-F | LinkedIn Ads | Confirm partner approval path, API limits, and ingestion plan. | Maya + Priya + Sofia | Done (2026-02-06, planning) | Approval risk documented + connector plan + fallback path. |
-| S1-G | TikTok Ads | Confirm refresh-token lifecycle and production token rotation plan. | Maya + Leo + Priya | Done (2026-02-06, planning) | Token lifecycle documented + schedule/telemetry requirements captured. |
+| ID   | Connector                               | Scope                                                                                  | Owner(s)             | Status                      | Exit criteria                                                          |
+| ---- | --------------------------------------- | -------------------------------------------------------------------------------------- | -------------------- | --------------------------- | ---------------------------------------------------------------------- |
+| S1-D | Microsoft Ads, LinkedIn Ads, TikTok Ads | Complete API validation checklist entries (auth/scopes/limits/lookback/known gotchas). | Maya                 | Done (2026-02-06)           | All checklist fields completed with validation date + owner.           |
+| S1-E | Microsoft Ads                           | Decide Airbyte vs custom path and define schedule metadata (`America/Jamaica`).        | Maya + Priya + Sofia | Done (2026-02-06, planning) | Connector decision documented + data contract notes + tests scoped.    |
+| S1-F | LinkedIn Ads                            | Confirm partner approval path, API limits, and ingestion plan.                         | Maya + Priya + Sofia | Done (2026-02-06, planning) | Approval risk documented + connector plan + fallback path.             |
+| S1-G | TikTok Ads                              | Confirm refresh-token lifecycle and production token rotation plan.                    | Maya + Leo + Priya   | Done (2026-02-06, planning) | Token lifecycle documented + schedule/telemetry requirements captured. |
 
 ### Additional connector closeout items (recommended)
 
@@ -41,6 +41,7 @@ Use this as the connector execution list for Phase 1 closeout.
 4. Add a go/no-go owner signature block per connector before production enablement.
 
 ### Meta Marketing API (production readiness gate)
+
 - Auth model: Facebook Login OAuth (authorization code) -> long-lived user token exchange; user then selects business page + ad account for tenant credential binding.
 - Scopes/permissions: `ads_read`, `business_management`, `pages_show_list`, `pages_read_engagement`, `instagram_basic`, `instagram_manage_insights` (if Instagram account discovery is required).
 - App approval required: Yes (Meta app + business verification per account policy).
@@ -65,6 +66,7 @@ Use this as the connector execution list for Phase 1 closeout.
   - `python3 infrastructure/airbyte/scripts/airbyte_health_check.py`
 
 ### Google Ads (production readiness gate)
+
 - Auth model: OAuth client credentials + refresh token + developer token.
 - Scopes/permissions: Google Ads API access at manager/customer hierarchy.
 - App approval required: Yes (developer token review + OAuth consent setup).
@@ -81,6 +83,7 @@ Use this as the connector execution list for Phase 1 closeout.
   - `python3 infrastructure/airbyte/scripts/airbyte_health_check.py`
 
 ### Microsoft Advertising (Bing Ads)
+
 - Auth model: OAuth 2.0 authorization code with refresh tokens through Microsoft identity + Ads developer token.
 - Scopes/permissions: `offline_access` and Microsoft Ads management scope (`msads.manage`) with advertiser account access.
 - App approval required: Yes. Developer token approval tier and account access must be validated before production sync.
@@ -103,6 +106,7 @@ Use this as the connector execution list for Phase 1 closeout.
   - Test matrix: connector unit tests, backend telemetry tests, dbt staging/marts checks, compose validation.
 
 ### LinkedIn Ads
+
 - Auth model: OAuth 2.0 member authorization with refreshable tokens for Marketing APIs.
 - Scopes/permissions: `r_ads`, `r_ads_reporting`, and write scopes only if mutation endpoints are required.
 - App approval required: Yes. Marketing Developer Platform access and tenant ad-account authorization are mandatory.
@@ -125,6 +129,7 @@ Use this as the connector execution list for Phase 1 closeout.
   - Test matrix: auth/refresh tests, ingestion parser tests, backend telemetry tests, dbt contract tests.
 
 ### TikTok Ads
+
 - Auth model: OAuth 2.0 advertiser authorization with short-lived access tokens and refresh-token rotation.
 - Scopes/permissions: reporting and account-read scopes required for ad metrics extraction.
 - App approval required: Yes. TikTok for Business app review and advertiser authorization required.

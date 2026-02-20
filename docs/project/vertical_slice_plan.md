@@ -1,15 +1,18 @@
 # Vertical Slice Execution Plan for ADinsights
 
 ## Purpose
+
 Deliver a working end-to-end analytics slice that ingests advertising data through Airbyte, models it with dbt, exposes it via the Django API, and visualizes it in the React frontend. This plan sequences the work to maximize learning, preserve tenant isolation, and keep the build green at each step.
 
 ## Guiding Principles
+
 - **Iterative Milestones:** Complete and validate one subsystem at a time before layering the next to maintain a shippable state.
 - **Tenant Safety & Secrets Hygiene:** Reuse the existing encryption and row-level security patterns; no credentials in logs or commits.
 - **Test-First Cadence:** Run the canonical commands for each folder after changes, capture outputs, and fix regressions immediately.
 - **Incremental PRs:** Scope work per top-level folder with conventional commit messages and short-lived branches.
 
 ## Phase 1 – Data Ingestion (Airbyte)
+
 1. **Source Configuration**
    - Finalize declarative templates for Meta Ads and Google Ads with placeholder credentials.
    - Document required environment variables in `infrastructure/airbyte/README`.
@@ -23,6 +26,7 @@ Deliver a working end-to-end analytics slice that ingests advertising data throu
    - Committed configs (redacted), runbook entry, and log excerpts showing successful incremental sync.
 
 ## Phase 2 – Warehouse & Staging (dbt)
+
 1. **Warehouse Targets**
    - Ensure Airbyte lands raw tables in the staging schema with tenant-safe naming.
    - Update dbt profiles to reference the warehouse credentials via environment variables.
@@ -41,6 +45,7 @@ Deliver a working end-to-end analytics slice that ingests advertising data throu
    - Updated models, tests, and docs; sample run logs with timings.
 
 ## Phase 3 – Backend API Integration
+
 1. **Credential & Tenant CRUD**
    - Extend existing endpoints to onboard Airbyte credentials per tenant using encrypted fields.
    - Ensure Celery tasks set `tenant_id` before triggering syncs.
@@ -55,6 +60,7 @@ Deliver a working end-to-end analytics slice that ingests advertising data throu
    - Commands: `ruff check backend && pytest -q backend`.
 
 ## Phase 4 – Frontend Live Data
+
 1. **API Client Wiring**
    - Replace mock data with calls to the new metrics endpoints; handle loading/error states.
    - Maintain TanStack Table controlled sorting and Leaflet choropleth safeguards.
@@ -66,6 +72,7 @@ Deliver a working end-to-end analytics slice that ingests advertising data throu
    - Add unit tests for data hooks and components receiving live payloads.
 
 ## Phase 5 – Monitoring & Documentation
+
 1. **Runbooks & Alerts**
    - Update runbooks with end-to-end flow, alert thresholds, and escalation paths.
    - Ensure observability dashboards cover task latency, success rate, and cost units.
@@ -79,6 +86,7 @@ Deliver a working end-to-end analytics slice that ingests advertising data throu
      `/api/metrics/combined/` always serves fresh warehouse data.
 
 ## Iterative Workflow Prompt for Codex
+
 ```
 You are shipping a vertical slice of the ADinsights platform that moves advertising data from Airbyte through dbt into the Django API and React frontend. Work from the repo root and follow these phases sequentially, committing after each folder-scoped milestone.
 
@@ -109,6 +117,7 @@ After each phase, stop to summarize what changed, the exact commands run, and wh
 ```
 
 ## Success Criteria
+
 - Functional, tenant-safe ingestion → modeling → API → UI path using redacted sample data.
 - All canonical tests pass per folder.
 - Runbooks updated with operations and monitoring expectations.

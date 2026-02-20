@@ -2,28 +2,21 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Airbyte Health Response",
   "type": "object",
-  "required": [
-    "component",
-    "configured",
-    "last_sync",
-    "recent_jobs",
-    "job_summary",
-    "status"
-  ],
+  "required": ["component", "configured", "last_sync", "recent_jobs", "job_summary", "status"],
   "properties": {
-    "component": {"enum": ["airbyte"]},
-    "configured": {"type": "boolean"},
+    "component": { "enum": ["airbyte"] },
+    "configured": { "type": "boolean" },
     "last_sync": {
       "type": "object",
       "required": ["tenant_id", "last_synced_at", "last_job_id", "last_job_status"],
       "properties": {
-        "tenant_id": {"type": "string"},
-        "last_synced_at": {"type": "string"},
-        "last_job_id": {"type": "string"},
-        "last_job_status": {"type": "string"},
-        "last_job_completed_at": {"type": ["string", "null"]},
-        "last_job_updated_at": {"type": ["string", "null"]},
-        "last_job_error": {"type": ["string", "null"]}
+        "tenant_id": { "type": "string" },
+        "last_synced_at": { "type": "string" },
+        "last_job_id": { "type": "string" },
+        "last_job_status": { "type": "string" },
+        "last_job_completed_at": { "type": ["string", "null"] },
+        "last_job_updated_at": { "type": ["string", "null"] },
+        "last_job_error": { "type": ["string", "null"] }
       },
       "additionalProperties": false
     },
@@ -42,13 +35,13 @@
           "api_cost"
         ],
         "properties": {
-          "job_id": {"type": "string"},
-          "status": {"type": "string"},
-          "started_at": {"type": "string"},
-          "duration_seconds": {"type": ["integer", "null"]},
-          "records_synced": {"type": ["number", "null"]},
-          "bytes_synced": {"type": ["number", "null"]},
-          "api_cost": {"type": ["number", "null"]}
+          "job_id": { "type": "string" },
+          "status": { "type": "string" },
+          "started_at": { "type": "string" },
+          "duration_seconds": { "type": ["integer", "null"] },
+          "records_synced": { "type": ["number", "null"] },
+          "bytes_synced": { "type": ["number", "null"] },
+          "api_cost": { "type": ["number", "null"] }
         },
         "additionalProperties": false
       }
@@ -75,26 +68,26 @@
             "api_cost"
           ],
           "properties": {
-            "job_id": {"type": "string"},
-            "status": {"type": "string"},
-            "started_at": {"type": "string"},
-            "duration_seconds": {"type": ["integer", "null"]},
-            "records_synced": {"type": ["number", "null"]},
-            "bytes_synced": {"type": ["number", "null"]},
-            "api_cost": {"type": ["number", "null"]}
+            "job_id": { "type": "string" },
+            "status": { "type": "string" },
+            "started_at": { "type": "string" },
+            "duration_seconds": { "type": ["integer", "null"] },
+            "records_synced": { "type": ["number", "null"] },
+            "bytes_synced": { "type": ["number", "null"] },
+            "api_cost": { "type": ["number", "null"] }
           },
           "additionalProperties": false
         },
-        "average_duration_seconds": {"type": ["number", "null"]},
-        "average_records_synced": {"type": ["number", "null"]},
-        "average_api_cost": {"type": ["number", "null"]},
-        "job_count": {"type": "integer"}
+        "average_duration_seconds": { "type": ["number", "null"] },
+        "average_records_synced": { "type": ["number", "null"] },
+        "average_api_cost": { "type": ["number", "null"] },
+        "job_count": { "type": "integer" }
       },
       "additionalProperties": false
     },
-    "status": {"enum": ["ok"]},
-    "stale": {"type": "boolean"},
-    "detail": {"type": "string"}
+    "status": { "enum": ["ok"] },
+    "stale": { "type": "boolean" },
+    "detail": { "type": "string" }
   },
   "additionalProperties": true
 }

@@ -4,6 +4,7 @@ Use this before merging to main or deploying to staging/production.
 External production actions must be tracked in `docs/runbooks/external-actions-aws.md`.
 
 ## Pre-merge (feature branch)
+
 - [ ] Work scoped to a single top-level folder per `docs/workstreams.md`.
 - [ ] Relevant tests run and green (see stream-specific commands).
 - [ ] Data-contract gate passes: `python3 infrastructure/airbyte/scripts/check_data_contracts.py`.
@@ -13,6 +14,7 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 - [ ] Design system docs updated for UI changes.
 
 ## Staging Readiness
+
 - [ ] `docker compose config` (Airbyte/deploy) renders clean.
 - [ ] Backend health endpoints return 200:
   - `/api/health/`, `/api/health/airbyte/`, `/api/health/dbt/`, `/api/timezone/`
@@ -32,6 +34,7 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
   - `/reports`, `/alerts`, `/summaries`, `/ops/audit`
 
 ## Production Readiness
+
 - [ ] Secrets/KMS rotation verified (no logs leak secrets).
 - [ ] SES sender identity verified and password reset/invite emails deliver successfully.
 - [ ] Observability dashboards + alerts configured and tested.
@@ -48,6 +51,7 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 - [ ] Rollback steps reviewed in `docs/runbooks/deployment.md`.
 
 ## Post-deploy
+
 - [ ] Smoke test: login, invite acceptance, password reset, tenant switch, campaign dashboard, map.
 - [ ] Error budget check (no spike in 5xx/timeout).
 - [ ] Update `docs/ops/agent-activity-log.md`.

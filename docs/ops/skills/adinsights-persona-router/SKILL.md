@@ -10,6 +10,7 @@ description: Simulate ADinsights owner personas for planning and review workflow
 Route ADinsights planning and review requests to the right persona profile, then generate a structured report using repo-defined ownership, tests, and escalation rules. Keep source-of-truth in repo docs and avoid inventing personas, scopes, or contracts.
 
 ## Recontext Load Order
+
 1. Open `AGENTS.md`.
 2. Open `docs/ops/doc-index.md`.
 3. Open `docs/workstreams.md`.
@@ -19,14 +20,18 @@ Route ADinsights planning and review requests to the right persona profile, then
 7. Open `docs/project/phase1-execution-backlog.md` when task status matters.
 
 ## Persona Catalog
+
 Load `references/persona-catalog.yaml` and use it as the canonical list of:
+
 - Persona identity and role.
 - Scope ownership and review focus.
 - Required tests and doc links.
 - Escalation behavior.
 
 ## Router Resolution Rules
+
 Resolve persona in this exact order:
+
 1. Explicit persona mention by name (`Maya`, `Lina`, `Raj`, etc.).
 2. Explicit stream/workstream ID (`S1`, `Stream 4`, etc.).
 3. Folder path hint (`backend/analytics`, `frontend/src`, `dbt/`, etc.).
@@ -36,6 +41,7 @@ Resolve persona in this exact order:
 If a request spans multiple top-level folders, route to cross-stream behavior and apply Raj/Mira escalation guidance.
 
 ### Confidence and Conflict Handling
+
 - Base scores: explicit persona `1.00`, explicit stream `0.90`, folder `0.80`, keyword `0.60`.
 - Penalties: `-0.20` per strong conflict, `-0.15` for cross-stream ambiguity.
 - Use `confidence_policy` from `references/persona-catalog.yaml`:
@@ -44,6 +50,7 @@ If a request spans multiple top-level folders, route to cross-stream behavior an
 - Return `action=clarify` when confidence is low and risk is high (conflicts/cross-stream).
 
 ## Operating Mode
+
 - Default mode: planning/review simulation.
 - Do not default to code-writing roleplay.
 - Simulate owner reasoning, then return action-ready findings tied to real docs/tests.
@@ -55,7 +62,9 @@ If a request spans multiple top-level folders, route to cross-stream behavior an
   - `--changed-files-from-git` (optional)
 
 ## Output Contract
+
 Default output is a **decision packet** with:
+
 - `schema_version` (`2.1.0`)
 - `selected_persona`
 - `backup_persona`
@@ -78,17 +87,20 @@ Default output is a **decision packet** with:
 For backward compatibility, the top-level `invoke_scope_gatekeeper` mirrors `downstream_recommendations.invoke_scope_gatekeeper`.
 
 ## Handoff Policy
+
 - Persona router remains advisory-only and never hard-blocks.
 - Scope concerns are delegated to `adinsights-scope-gatekeeper`.
 - Contract validation is delegated to `adinsights-contract-guard`.
 - Final go/no-go advisory is delegated to `adinsights-release-readiness`.
 
 Use the templates in `references/report-templates.md`:
+
 - Phase 0 backlog simulation template.
 - Implementation planning template.
 - Cross-stream escalation template.
 
 ## Guardrails
+
 - Preserve tenant isolation and RLS assumptions from `AGENTS.md`.
 - Never expose user-level PII; keep analytics aggregated.
 - Never log or suggest logging secrets/tokens.
@@ -96,6 +108,7 @@ Use the templates in `references/report-templates.md`:
 - Use the canonical per-folder tests from `docs/workstreams.md` and `docs/ops/testing-cheat-sheet.md`.
 
 ## Maintenance
+
 - Keep persona records in `references/persona-catalog.yaml` synchronized with `docs/workstreams.md`.
 - Run `scripts/validate_persona_catalog.py` after catalog edits.
 - Use `scripts/run_router_golden_tests.py` to verify routing behavior against golden cases.

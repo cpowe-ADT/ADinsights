@@ -18,7 +18,14 @@ import {
 } from '../lib/uploadedMetrics';
 
 const UploadIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2">
+  <svg
+    width="48"
+    height="48"
+    viewBox="0 0 48 48"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+  >
     <rect x="10" y="10" width="28" height="28" rx="4" />
     <path d="M24 30V18" strokeLinecap="round" />
     <path d="M19 22l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
@@ -103,14 +110,19 @@ const renderIssues = (issues: string[], tone: 'error' | 'warning') => {
 
 const CsvUpload = () => {
   const navigate = useNavigate();
-  const { uploadedDataset, uploadedActive, setUploadedDataset, setUploadedActive, clearUploadedDataset } =
-    useDashboardStore((state) => ({
-      uploadedDataset: state.uploadedDataset,
-      uploadedActive: state.uploadedActive,
-      setUploadedDataset: state.setUploadedDataset,
-      clearUploadedDataset: state.clearUploadedDataset,
-      setUploadedActive: state.setUploadedActive,
-    }));
+  const {
+    uploadedDataset,
+    uploadedActive,
+    setUploadedDataset,
+    setUploadedActive,
+    clearUploadedDataset,
+  } = useDashboardStore((state) => ({
+    uploadedDataset: state.uploadedDataset,
+    uploadedActive: state.uploadedActive,
+    setUploadedDataset: state.setUploadedDataset,
+    clearUploadedDataset: state.clearUploadedDataset,
+    setUploadedActive: state.setUploadedActive,
+  }));
 
   const [campaignState, setCampaignState] = useState<UploadCardState<UploadedCampaignMetricRow>>({
     isLoading: false,
@@ -359,16 +371,16 @@ const CsvUpload = () => {
           </button>
           {backendStatus.hasUpload ? (
             <p className="status-message muted">
-                Last upload{' '}
-                {backendStatus.snapshotGeneratedAt
-                  ? new Date(backendStatus.snapshotGeneratedAt).toLocaleString()
-                  : 'available'}
-                {backendStatus.counts
-                  ? ` · ${backendStatus.counts.campaign_rows} campaign rows, ${backendStatus.counts.parish_rows} parish rows, ${backendStatus.counts.budget_rows} budget rows`
-                  : ''}
-              </p>
-            ) : null}
-          </div>
+              Last upload{' '}
+              {backendStatus.snapshotGeneratedAt
+                ? new Date(backendStatus.snapshotGeneratedAt).toLocaleString()
+                : 'available'}
+              {backendStatus.counts
+                ? ` · ${backendStatus.counts.campaign_rows} campaign rows, ${backendStatus.counts.parish_rows} parish rows, ${backendStatus.counts.budget_rows} budget rows`
+                : ''}
+            </p>
+          ) : null}
+        </div>
 
         <div className="upload-grid">
           <section className="upload-panel">
@@ -383,11 +395,7 @@ const CsvUpload = () => {
                 </p>
               </div>
               <div className="upload-panel__actions">
-                <a
-                  className="button tertiary"
-                  href="/templates/campaign_metrics.csv"
-                  download
-                >
+                <a className="button tertiary" href="/templates/campaign_metrics.csv" download>
                   Download template
                 </a>
                 <label className="button secondary upload-button">
@@ -418,11 +426,7 @@ const CsvUpload = () => {
                 </p>
               </div>
               <div className="upload-panel__actions">
-                <a
-                  className="button tertiary"
-                  href="/templates/parish_metrics.csv"
-                  download
-                >
+                <a className="button tertiary" href="/templates/parish_metrics.csv" download>
                   Download template
                 </a>
                 <label className="button secondary upload-button">
@@ -453,11 +457,7 @@ const CsvUpload = () => {
                 </p>
               </div>
               <div className="upload-panel__actions">
-                <a
-                  className="button tertiary"
-                  href="/templates/budget_metrics.csv"
-                  download
-                >
+                <a className="button tertiary" href="/templates/budget_metrics.csv" download>
                   Download template
                 </a>
                 <label className="button secondary upload-button">

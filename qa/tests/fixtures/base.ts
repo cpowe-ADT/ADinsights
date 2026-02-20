@@ -96,13 +96,20 @@ export const test = base.extend<Fixtures>({
         route.fulfill({ status: 200, contentType: 'application/json', body: '{"status":"ok"}' }),
       );
       await page.route('**/api/timezone/**', (route) =>
-        route.fulfill({ status: 200, contentType: 'application/json', body: '{"timezone":"America/Jamaica"}' }),
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: '{"timezone":"America/Jamaica"}',
+        }),
       );
       await page.route('**/api/me/**', (route) =>
         route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ tenant_id: defaultAuthState.tenantId, email: defaultAuthState.user.email }),
+          body: JSON.stringify({
+            tenant_id: defaultAuthState.tenantId,
+            email: defaultAuthState.user.email,
+          }),
         }),
       );
       await page.route('**/api/adapters/**', (route) =>

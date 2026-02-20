@@ -82,6 +82,14 @@ CI publishes traces, videos, and screenshots for each spec to the pipeline artif
 npm test -- --grep "health"
 ```
 
+### Meta Page Insights Smoke
+
+Run the dedicated connect + dashboard + posts drill-down smoke:
+
+```bash
+npm test -- --grep "meta page insights smoke"
+```
+
 Refer to the [Playwright CLI docs](https://playwright.dev/docs/test-cli) for additional options such as headed mode (`npm run test:headed`) or tracing (`npx playwright show-trace <trace.zip>`). If you see errors about missing Chromium libraries on Linux, run `npm run setup:deps` (or `npx playwright install-deps chromium`) once—this pulls the required packages without checking them into source control.
 
 ### Visual regression approvals

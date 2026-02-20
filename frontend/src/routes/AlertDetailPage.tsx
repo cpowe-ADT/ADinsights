@@ -82,7 +82,8 @@ const AlertDetailPage = () => {
           Lookback: <strong>{alert.lookback_hours} hours</strong>
         </p>
         <p>
-          Severity: <span className={`phase2-pill phase2-pill--${alert.severity}`}>{alert.severity}</span>
+          Severity:{' '}
+          <span className={`phase2-pill phase2-pill--${alert.severity}`}>{alert.severity}</span>
         </p>
         <p>
           Updated {formatRelativeTime(alert.updated_at)} ({formatAbsoluteTime(alert.updated_at)})

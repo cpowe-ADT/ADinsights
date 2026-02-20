@@ -6,11 +6,7 @@
     "type": "object",
     "title": "TikTok Ads Source Spec",
     "additionalProperties": false,
-    "required": [
-      "advertiser_id",
-      "access_token",
-      "start_date"
-    ],
+    "required": ["advertiser_id", "access_token", "start_date"],
     "properties": {
       "advertiser_id": {
         "type": "string",

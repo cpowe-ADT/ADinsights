@@ -1,7 +1,7 @@
 cases:
   - name: explicit persona beats stream hint
     input:
-      prompt: "Act as Maya and review S1 backlog gaps"
+      prompt: 'Act as Maya and review S1 backlog gaps'
       mode: resolve
     expect:
       action: resolve
@@ -15,7 +15,7 @@ cases:
 
   - name: explicit stream routes to stream owner pair
     input:
-      prompt: "Review Stream 4"
+      prompt: 'Review Stream 4'
       mode: resolve
     expect:
       action: resolve
@@ -30,7 +30,7 @@ cases:
 
   - name: folder path routes to frontend
     input:
-      prompt: "I am changing /frontend/src"
+      prompt: 'I am changing /frontend/src'
       mode: resolve
     expect:
       action: resolve
@@ -44,7 +44,7 @@ cases:
 
   - name: cross-stream folder paths escalate
     input:
-      prompt: "Need dbt/ and frontend/src changes"
+      prompt: 'Need dbt/ and frontend/src changes'
       mode: resolve
     expect:
       action: resolve
@@ -60,7 +60,7 @@ cases:
 
   - name: explicit persona conflict triggers clarification
     input:
-      prompt: "Act as Maya for frontend/src"
+      prompt: 'Act as Maya for frontend/src'
       mode: resolve
     expect:
       action: clarify
@@ -73,7 +73,7 @@ cases:
 
   - name: unknown request asks for clarification
     input:
-      prompt: "Can you handle this quickly?"
+      prompt: 'Can you handle this quickly?'
       mode: resolve
     expect:
       action: clarify
@@ -86,7 +86,7 @@ cases:
 
   - name: preflight mode produces implementation template routing
     input:
-      prompt: "Check backend/adapters retry behavior"
+      prompt: 'Check backend/adapters retry behavior'
       mode: preflight
       paths:
         - backend/adapters/retry.py
@@ -102,7 +102,7 @@ cases:
 
   - name: release intent invokes release readiness
     input:
-      prompt: "Assess release readiness for Stream 3 backend changes before go-live"
+      prompt: 'Assess release readiness for Stream 3 backend changes before go-live'
       mode: preflight
       paths:
         - backend/analytics/serializers.py
@@ -115,7 +115,7 @@ cases:
 
   - name: frontend api helper path does not trigger contract guard
     input:
-      prompt: "Review frontend API helper refactor"
+      prompt: 'Review frontend API helper refactor'
       mode: preflight
       paths:
         - frontend/src/lib/apiClient.ts

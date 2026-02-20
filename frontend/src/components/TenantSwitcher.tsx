@@ -63,10 +63,10 @@ const TenantSwitcher = (): JSX.Element => {
 
   const listboxId = useId();
 
-  const selectedTenantId = useMemo(() => activeTenantId ?? authTenantId ?? undefined, [
-    activeTenantId,
-    authTenantId,
-  ]);
+  const selectedTenantId = useMemo(
+    () => activeTenantId ?? authTenantId ?? undefined,
+    [activeTenantId, authTenantId],
+  );
 
   const selectedTenant = useMemo(
     () => tenants.find((tenant) => tenant.id === selectedTenantId),
@@ -183,16 +183,13 @@ const TenantSwitcher = (): JSX.Element => {
     }
   }, [activeTenantLabel, selectedTenantId, setAuthTenant, status, tenants]);
 
-  const closeMenu = useCallback(
-    (focusButton: boolean) => {
-      setIsOpen(false);
-      setHighlightedIndex(-1);
-      if (focusButton) {
-        buttonRef.current?.focus();
-      }
-    },
-    [],
-  );
+  const closeMenu = useCallback((focusButton: boolean) => {
+    setIsOpen(false);
+    setHighlightedIndex(-1);
+    if (focusButton) {
+      buttonRef.current?.focus();
+    }
+  }, []);
 
   const highlightOption = useCallback(
     (intent: HighlightIntent) => {

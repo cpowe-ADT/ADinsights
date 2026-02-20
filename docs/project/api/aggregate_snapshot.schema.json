@@ -31,7 +31,10 @@
         "parishCount"
       ],
       "properties": {
-        "currency": { "type": "string", "description": "Tenant currency code applied to downstream visualisations." },
+        "currency": {
+          "type": "string",
+          "description": "Tenant currency code applied to downstream visualisations."
+        },
         "totalSpend": { "type": "number", "minimum": 0 },
         "totalImpressions": { "type": "number", "minimum": 0 },
         "totalClicks": { "type": "number", "minimum": 0 },

@@ -10,9 +10,13 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const fromLocation = (location.state as {
-    from?: { pathname?: string; search?: string; hash?: string };
-  } | undefined)?.from;
+  const fromLocation = (
+    location.state as
+      | {
+          from?: { pathname?: string; search?: string; hash?: string };
+        }
+      | undefined
+  )?.from;
   const fromPathname = fromLocation?.pathname ?? '/dashboards/campaigns';
   const fromSearch = fromLocation?.search ?? '';
   const fromHash = fromLocation?.hash ?? '';

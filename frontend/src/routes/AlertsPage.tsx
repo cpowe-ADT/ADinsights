@@ -51,7 +51,9 @@ const AlertsPage = () => {
         <div>
           <p className="dashboardEyebrow">Alerts</p>
           <h1 className="dashboardHeading">Alert Rules</h1>
-          <p className="phase2-page__subhead">Monitor thresholds, severities, and lookback windows.</p>
+          <p className="phase2-page__subhead">
+            Monitor thresholds, severities, and lookback windows.
+          </p>
         </div>
         <button type="button" className="button secondary" onClick={() => void load()}>
           Refresh
@@ -86,7 +88,9 @@ const AlertsPage = () => {
                   {alert.comparison_operator} {alert.threshold} ({alert.lookback_hours}h)
                 </td>
                 <td>
-                  <span className={`phase2-pill phase2-pill--${alert.severity}`}>{alert.severity}</span>
+                  <span className={`phase2-pill phase2-pill--${alert.severity}`}>
+                    {alert.severity}
+                  </span>
                 </td>
                 <td>
                   {formatRelativeTime(alert.updated_at)} ({formatAbsoluteTime(alert.updated_at)})
