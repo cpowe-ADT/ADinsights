@@ -5,6 +5,7 @@ correct backlog, ownership, and sequencing before engineers begin parallel
 implementation. Use this checklist during the first 1–2 days of the sprint.
 
 ## Objectives
+
 - Map audit findings (tenant isolation, secrets, observability, testing) to
   actionable tickets per stream.
 - Confirm each workstream owner signs off on their KPIs/Definition of Done.
@@ -12,12 +13,14 @@ implementation. Use this checklist during the first 1–2 days of the sprint.
   Mira (Architecture/Refactor) can co-own plans before coding begins.
 
 ## Participants
+
 - Stream owners + backups listed in `docs/workstreams.md`.
 - Raj for anything spanning multiple top-level folders.
 - Mira for refactors or shared libraries.
 - Scrum facilitator to capture decisions and update the backlog tool.
 
 ## Agenda (repeat per workstream)
+
 1. **KPI & DoD review** – verify success criteria, observability needs, and
    testing commands remain accurate.
 2. **Ticket audit** – ensure open issues cover:
@@ -32,6 +35,7 @@ implementation. Use this checklist during the first 1–2 days of the sprint.
 5. **Action log** – capture owner, ETA, and link to backlog item/plan section.
 
 ## Output Artifacts
+
 - Updated backlog/issue tracker with:
   - Tagged owner + stream.
   - Linked KPI/DoD reference.
@@ -40,6 +44,7 @@ implementation. Use this checklist during the first 1–2 days of the sprint.
   future agents know which commitments were made.
 
 ## Parallelization Guidance
+
 - Streams without dependency blockers (e.g., Secrets/KMS vs. Frontend UX) can
   start immediately after their Phase 0 review.
 - Work that depends on upstream schema/API changes must wait until the upstream
@@ -48,6 +53,7 @@ implementation. Use this checklist during the first 1–2 days of the sprint.
   sign-off if refactor-wide impacts exist.
 
 ## Communication Cadence
+
 - **Daily async update** in the shared channel noting checklist progress per
   stream.
 - **Weekly integration sync** led by Raj to make sure cross-stream items stay on
@@ -56,6 +62,7 @@ implementation. Use this checklist during the first 1–2 days of the sprint.
   Raj/Mira immediately.
 
 ## Completion Criteria
+
 - Every workstream has:
   - Validated KPIs/DoD still accurate.
   - Tickets covering critical remediation areas.
@@ -64,6 +71,7 @@ implementation. Use this checklist during the first 1–2 days of the sprint.
 - Backlog reflects scheduling so Phase 1 implementation can begin confidently.
 
 ## AI/Persona Simulation Prompt
+
 When live participants are unavailable, simulate each workstream review by
 instantiating the owner/backups listed in `docs/workstreams.md`. Copy the prompt
 below and fill in the bracketed values:

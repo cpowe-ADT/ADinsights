@@ -14,12 +14,7 @@
     },
     "metrics": {
       "type": "object",
-      "required": [
-        "campaign_metrics",
-        "creative_metrics",
-        "budget_metrics",
-        "parish_metrics"
-      ],
+      "required": ["campaign_metrics", "creative_metrics", "budget_metrics", "parish_metrics"],
       "properties": {
         "campaign_metrics": {
           "type": "object",

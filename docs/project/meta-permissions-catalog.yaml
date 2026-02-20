@@ -24,7 +24,7 @@ permissions:
       - Tenant reporting dashboards fed by Meta ad metrics.
     runtime_gate_required: true
     requested_in_default_oauth: true
-    notes: "Runtime gate accepts ads_read OR ads_management."
+    notes: 'Runtime gate accepts ads_read OR ads_management.'
     last_reviewed_on: 2026-02-19
   - permission: ads_management
     family: facebook_ads
@@ -47,7 +47,7 @@ permissions:
       - Meta ad account onboarding validation flow.
     runtime_gate_required: true
     requested_in_default_oauth: true
-    notes: "Runtime gate accepts ads_read OR ads_management."
+    notes: 'Runtime gate accepts ads_read OR ads_management.'
     last_reviewed_on: 2026-02-19
   - permission: business_management
     family: business_manager
@@ -68,7 +68,7 @@ permissions:
       - Tenant credential binding to authorized business assets.
     runtime_gate_required: true
     requested_in_default_oauth: true
-    notes: "Required by runtime gate for successful Meta provisioning flow."
+    notes: 'Required by runtime gate for successful Meta provisioning flow.'
     last_reviewed_on: 2026-02-19
   - permission: pages_read_engagement
     family: pages
@@ -88,7 +88,7 @@ permissions:
       - Validation prerequisites before Meta provisioning/sync.
     runtime_gate_required: true
     requested_in_default_oauth: true
-    notes: "Required by runtime gate; also dependency for several optional scopes."
+    notes: 'Required by runtime gate; also dependency for several optional scopes.'
     last_reviewed_on: 2026-02-19
   - permission: pages_show_list
     family: pages
@@ -106,7 +106,7 @@ permissions:
       - Page ownership verification for tenant credential setup.
     runtime_gate_required: true
     requested_in_default_oauth: true
-    notes: "Foundational dependency for Page-scoped and some ad-scoped permissions."
+    notes: 'Foundational dependency for Page-scoped and some ad-scoped permissions.'
     last_reviewed_on: 2026-02-19
   - permission: instagram_basic
     family: instagram
@@ -126,7 +126,7 @@ permissions:
       - Instagram identity mapping for reporting context.
     runtime_gate_required: false
     requested_in_default_oauth: true
-    notes: "Not required for core Meta ad insights runtime gate."
+    notes: 'Not required for core Meta ad insights runtime gate.'
     last_reviewed_on: 2026-02-19
   - permission: instagram_manage_insights
     family: instagram
@@ -146,7 +146,7 @@ permissions:
       - Instagram performance enrichment for social status and analytics views.
     runtime_gate_required: false
     requested_in_default_oauth: true
-    notes: "Optional for Instagram insights features; not part of base Meta runtime gate."
+    notes: 'Optional for Instagram insights features; not part of base Meta runtime gate.'
     last_reviewed_on: 2026-02-19
   - permission: catalog_management
     family: commerce
@@ -164,7 +164,7 @@ permissions:
       - Reserved for future commerce-oriented campaign support.
     runtime_gate_required: false
     requested_in_default_oauth: true
-    notes: "Requested in default scope list but not currently required for active runtime path."
+    notes: 'Requested in default scope list but not currently required for active runtime path.'
     last_reviewed_on: 2026-02-19
   - permission: pages_manage_ads
     family: pages
@@ -182,7 +182,7 @@ permissions:
       - Reserved for future Page-level ad management surfaces.
     runtime_gate_required: false
     requested_in_default_oauth: true
-    notes: "Not needed for current read/provision flow; keep use constrained to active features."
+    notes: 'Not needed for current read/provision flow; keep use constrained to active features.'
     last_reviewed_on: 2026-02-19
   - permission: pages_manage_metadata
     family: pages
@@ -200,7 +200,7 @@ permissions:
       - Reserved for webhook-driven Page lifecycle workflows.
     runtime_gate_required: false
     requested_in_default_oauth: true
-    notes: "Dependency for pages_messaging; optional for current ADinsights core flow."
+    notes: 'Dependency for pages_messaging; optional for current ADinsights core flow.'
     last_reviewed_on: 2026-02-19
   - permission: pages_messaging
     family: pages
@@ -221,5 +221,5 @@ permissions:
       - Reserved for future CRM/messaging assist capabilities.
     runtime_gate_required: false
     requested_in_default_oauth: true
-    notes: "Not part of required Meta ad-data runtime gate."
+    notes: 'Not part of required Meta ad-data runtime gate.'
     last_reviewed_on: 2026-02-19

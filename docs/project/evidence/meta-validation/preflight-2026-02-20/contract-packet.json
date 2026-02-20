@@ -1,0 +1,2316 @@
+{
+  "schema_version": "1.0.0",
+  "contract_status": "WARN_POSSIBLE_CONTRACT_CHANGE",
+  "breaking_change_detected": false,
+  "contract_surfaces_touched": [
+    "api_contract",
+    "data_contract",
+    "integration_contract",
+    "contract_docs"
+  ],
+  "required_docs_updates": [],
+  "required_reviewers": [
+    "Raj",
+    "Mira",
+    "Sofia",
+    "Priya",
+    "Carlos",
+    "Hannah",
+    "Lina",
+    "Maya",
+    "Nina"
+  ],
+  "required_tests": [
+    "ruff check backend && pytest -q backend",
+    "make dbt-deps && dbt --project-dir dbt run --select staging && dbt snapshot && dbt --project-dir dbt run --select marts",
+    "python3 infrastructure/airbyte/scripts/check_data_contracts.py",
+    "pytest -q backend/tests/test_data_contract_checks.py"
+  ],
+  "rationale": [
+    "Evidence source: git_changed_files.",
+    "Detected 270 path(s): github/dependabot.yml, github/workflows/dbt.yml, github/workflows/deploy-smoke.yml, github/workflows/integration-smoke.yml, github/workflows/release-readiness-advisory.yml, github/workflows/secret-scan.yml, secrets.baseline, AGENTS.md, README.md, backend/.env.sample, backend/analytics/assets/jm_parishes.json, backend/analytics/meta_views.py, backend/core/settings.py, backend/core/urls.py, backend/docs/ops/airbyte_failure.md, backend/docs/ops/dbt_failure.md, backend/docs/ops/dek_rotation.md, backend/docs/tenant_context_audit.md, backend/fixtures/dev_seed.json, backend/integrations/admin.py, backend/integrations/apps.py, backend/integrations/meta_graph.py, backend/integrations/models.py, backend/integrations/tasks.py, backend/integrations/views.py, backend/tests/schemas/airbyte_health.schema.json, backend/tests/schemas/combined_metrics.schema.json, backend/tests/schemas/dashboard_aggregate_snapshot.schema.json, backend/tests/schemas/dbt_health.schema.json, backend/tests/test_meta_oauth_api.py, backend/tests/test_meta_read_api.py, backend/tests/test_schema_regressions.py, backend/tests/test_social_status_api.py, dbt/README.md, dbt/models/marts/demo/schema.yml, dbt/models/marts/meta/schema.yml, dbt/models/marts/schema.yml, dbt/models/schema.yml, dbt/models/staging/meta/schema.yml, dbt/models/staging/schema.yml, dbt/seeds/demo/dim_campaigns.csv, dbt/seeds/demo/dim_tenants.csv, dbt/seeds/demo/fact_daily_campaign_metrics.csv, dbt/seeds/demo/fact_daily_creative_metrics.csv, dbt/seeds/demo/fact_daily_parish_metrics.csv, dbt/seeds/demo/schema.yml, dbt/selectors.yml, deploy/README.md, docker-compose.dev.yml, docs/DEVELOPMENT.md, docs/PROGRAM-NOTES.md, docs/api/aggregate-snapshot.json, docs/api/password-reset.json, docs/api/tenant-switch.json, docs/design-system.md, docs/logs/project-worklog.md, docs/ops/adr-log.md, docs/ops/agent-activity-log.md, docs/ops/ai-onboarding-checklist.md, docs/ops/ai-session-resume-template.md, docs/ops/alert-thresholds-escalation.md, docs/ops/ci-gate-review.md, docs/ops/cold-start-walkthrough.md, docs/ops/confused-engineer-walkthrough.md, docs/ops/dashboard-links.md, docs/ops/data-quality-checklist.md, docs/ops/decision-checklist.md, docs/ops/dependency-triage-report.md, docs/ops/doc-index.md, docs/ops/documentation-snob-review.md, docs/ops/escalation-matrix.md, docs/ops/escalation-rules.md, docs/ops/golden-path-onboarding.md, docs/ops/human-onboarding-guide.md, docs/ops/logging-standards.md, docs/ops/new-engineer-onboarding.md, docs/ops/postmortem-template.md, docs/ops/risk-register.md, docs/ops/skills/adinsights-contract-guard/SKILL.md, docs/ops/skills/adinsights-contract-guard/agents/openai.yaml, docs/ops/skills/adinsights-contract-guard/references/contract-golden-cases.yaml, docs/ops/skills/adinsights-contract-guard/references/contract-surfaces.md, docs/ops/skills/adinsights-persona-router/SKILL.md, docs/ops/skills/adinsights-persona-router/agents/openai.yaml, docs/ops/skills/adinsights-persona-router/references/decision-packet.schema.json, docs/ops/skills/adinsights-persona-router/references/report-templates.md, docs/ops/skills/adinsights-persona-router/references/router-golden-cases.yaml, docs/ops/skills/adinsights-persona-router/references/source-map.md, docs/ops/skills/adinsights-release-readiness/SKILL.md, docs/ops/skills/adinsights-release-readiness/agents/openai.yaml, docs/ops/skills/adinsights-release-readiness/references/release-golden-cases.yaml, docs/ops/skills/adinsights-scope-gatekeeper/SKILL.md, docs/ops/skills/adinsights-scope-gatekeeper/agents/openai.yaml, docs/ops/skills/adinsights-scope-gatekeeper/references/scope-golden-cases.yaml, docs/ops/slo-sli-summary.md, docs/ops/test-failure-triage.md, docs/ops/testing-cheat-sheet.md, docs/project/adinsights-deck-review.md, docs/project/api-contract-changelog.md, docs/project/api/aggregate_snapshot.md, docs/project/api/aggregate_snapshot.schema.json, docs/project/data-lineage-map.md, docs/project/definition-of-done.md, docs/project/evidence/meta-validation/2026-02-19-signoff-checklist.md, docs/project/evidence/meta-validation/preflight-2026-02-19/contract-packet.json, docs/project/evidence/meta-validation/preflight-2026-02-19/release-packet.json, docs/project/evidence/meta-validation/preflight-2026-02-19/router-packet.json, docs/project/evidence/meta-validation/preflight-2026-02-19/scope-packet.json, docs/project/evidence/phase1-closeout/README.md, docs/project/evidence/phase1-closeout/airbyte/readiness-scripts-2026-02-05-est.md, docs/project/evidence/phase1-closeout/external/blockers-2026-02-05-est.md, docs/project/evidence/phase1-closeout/external/external-access-audit-2026-02-06-est.md, docs/project/evidence/phase1-closeout/manifest.md, docs/project/evidence/phase1-closeout/release/staging-rehearsal-2026-02-05-est.md, docs/project/feature-catalog.md, docs/project/feature-flags-reference.md, docs/project/feature-ownership-map.md, docs/project/frontend-finished-product-spec.md, docs/project/frontend-spec-review-checklist.md, docs/project/integration-api-validation-checklist.md, docs/project/integration-data-contract-matrix.md, docs/project/integration-roadmap.md, docs/project/meta-integration-v3-pr-tracks.md, docs/project/meta-permission-profile.md, docs/project/meta-permissions-catalog.yaml, docs/project/metrics-glossary.md, docs/project/phase0-backlog-validation.md, docs/project/phase0-simulated-reviews.md, docs/project/phase1-execution-backlog.md, docs/project/user-journey-map.md, docs/project/vertical_slice_plan.md, docs/runbooks/ci-telemetry.md, docs/runbooks/demo-data.md, docs/runbooks/external-actions-aws.md, docs/runbooks/external-actions-execution-checklist.md, docs/runbooks/meta-app-review-submission-checklist.md, docs/runbooks/operations.md, docs/runbooks/release-checklist.md, docs/runbooks/support-playbook.md, docs/task_breakdown.md, docs/workstreams.md, frontend/.storybook/preview.tsx, frontend/DESIGN_SYSTEM.md, frontend/package-lock.json, frontend/package.json, frontend/public/jm_parishes.json, frontend/src/App.integration.test.tsx, frontend/src/auth/AuthContext.tsx, frontend/src/components/BudgetPacingList.tsx, frontend/src/components/CampaignTable.tsx, frontend/src/components/CreativeTable.tsx, frontend/src/components/DashboardState.tsx, frontend/src/components/DataTable.tsx, frontend/src/components/DatasetToggle.stories.tsx, frontend/src/components/DatasetToggle.tsx, frontend/src/components/FilterStatus.tsx, frontend/src/components/ParishMap.module.css, frontend/src/components/ParishMap.tsx, frontend/src/components/TenantSwitcher.stories.tsx, frontend/src/components/TenantSwitcher.tsx, frontend/src/components/__tests__/DesignSystem.tokens.test.tsx, frontend/src/components/__tests__/FilterBar.tokens.test.tsx, frontend/src/lib/airbyte.ts, frontend/src/lib/apiClient.ts, frontend/src/lib/dashboardFilters.ts, frontend/src/lib/meta.ts, frontend/src/lib/recentDashboards.ts, frontend/src/lib/uploadedMetrics.test.ts, frontend/src/lib/uploadedMetrics.ts, frontend/src/lib/validate.ts, frontend/src/pages/Home.module.css, frontend/src/pages/Home.tsx, frontend/src/router.tsx, frontend/src/routes/AlertDetailPage.tsx, frontend/src/routes/AlertsPage.tsx, frontend/src/routes/AuditLogPage.tsx, frontend/src/routes/BudgetDashboard.tsx, frontend/src/routes/CampaignDashboard.stories.tsx, frontend/src/routes/CampaignDashboard.tsx, frontend/src/routes/CampaignDetail.tsx, frontend/src/routes/CreativeDashboard.tsx, frontend/src/routes/CreativeDetail.tsx, frontend/src/routes/CsvUpload.tsx, frontend/src/routes/DashboardLayout.stories.tsx, frontend/src/routes/DashboardLayout.tsx, frontend/src/routes/DashboardLibrary.tsx, frontend/src/routes/DataSources.tsx, frontend/src/routes/LoginPage.tsx, frontend/src/routes/MetaAccountsPage.tsx, frontend/src/routes/MetaCampaignOverviewPage.tsx, frontend/src/routes/MetaConnectionStatusPage.tsx, frontend/src/routes/MetaInsightsDashboardPage.tsx, frontend/src/routes/ReportCreatePage.tsx, frontend/src/routes/ReportDetailPage.tsx, frontend/src/routes/ReportsPage.tsx, frontend/src/routes/SummariesPage.tsx, frontend/src/routes/SummaryDetailPage.tsx, frontend/src/routes/SyncHealthPage.tsx, frontend/src/routes/__tests__/CampaignDashboard.layout.test.tsx, frontend/src/routes/__tests__/DataSources.test.tsx, frontend/src/schemas/creative.schema.json, frontend/src/schemas/tenants.schema.json, frontend/src/state/useDashboardStore.test.ts, frontend/src/state/useDashboardStore.ts, frontend/src/state/useDatasetStore.ts, frontend/src/state/useMetaStore.test.ts, frontend/src/state/useMetaStore.ts, frontend/src/storyData/demoSnapshots.ts, frontend/src/styles.css, frontend/src/styles/dashboard.css, frontend/src/styles/foundations.css, frontend/src/styles/theme.css, infrastructure/airbyte/README.md, infrastructure/airbyte/docker-compose.yml, infrastructure/airbyte/sources/ga4.json.example, infrastructure/airbyte/sources/linkedin_ads/spec.json, infrastructure/airbyte/sources/tiktok_ads/spec.json, package-lock.json, qa/README.md, qa/page-objects/DashboardPage.ts, qa/tests/fixtures/base.ts, qa/tests/meta-integration.spec.ts, qa/tests/tenant-switch.spec.ts, backend/core/db_error_responses.py, backend/integrations/assets/, backend/integrations/data/, backend/integrations/management/commands/sync_meta_metric_catalog.py, backend/integrations/meta_page_insights/, backend/integrations/meta_page_serializers.py, backend/integrations/meta_page_views.py, backend/integrations/migrations/0010_meta_page_post_insights.py, backend/integrations/migrations/0011_meta_page_insights_contract_fields.py, backend/integrations/migrations/0012_sync_meta_metric_catalog.py, backend/integrations/page_insights_serializers.py, backend/integrations/page_insights_views.py, backend/integrations/services/, backend/tests/test_meta_metric_catalog.py, backend/tests/test_meta_page_api.py, backend/tests/test_meta_page_chunking.py, backend/tests/test_meta_page_insights_api.py, backend/tests/test_meta_page_insights_graph_client.py, backend/tests/test_meta_page_insights_parser.py, backend/tests/test_meta_page_insights_tasks.py, backend/tests/test_meta_page_metric_discovery.py, backend/tests/test_meta_page_retry.py, backend/tests/test_meta_page_sync_jobs.py, docs/project/evidence/meta-validation/preflight-2026-02-20/, docs/project/meta-page-insights-data-dictionary.md, docs/project/meta-page-insights-metric-catalog.md, docs/runbooks/meta-page-insights-operations.md, frontend/src/components/KPIGrid.tsx, frontend/src/components/MetricAvailabilityBadge.tsx, frontend/src/components/PostsTable.tsx, frontend/src/components/TrendChart.tsx, frontend/src/components/meta/, frontend/src/lib/metaPageInsights.test.ts, frontend/src/lib/metaPageInsights.ts, frontend/src/routes/MetaIntegrationPage.tsx, frontend/src/routes/MetaPageDashboardPage.tsx, frontend/src/routes/MetaPageOverviewPage.tsx, frontend/src/routes/MetaPagePostsPage.tsx, frontend/src/routes/MetaPagesListPage.tsx, frontend/src/routes/MetaPostDetailPage.tsx, frontend/src/routes/__tests__/DashboardLayout.test.tsx, frontend/src/routes/__tests__/MetaPageOverviewPage.test.tsx, frontend/src/routes/__tests__/MetaPagePostsPage.test.tsx, frontend/src/state/useMetaPageInsightsStore.test.ts, frontend/src/state/useMetaPageInsightsStore.ts, qa/tests/meta-page-insights.spec.ts, scripts/render_meta_metric_catalog.py.",
+    "Surface 'api_contract' matched paths: backend/core/urls.py, backend/integrations/views.py.",
+    "Surface 'data_contract' matched paths: dbt/models/marts/demo/schema.yml, dbt/models/marts/meta/schema.yml, dbt/models/marts/schema.yml, dbt/models/schema.yml, dbt/models/staging/meta/schema.yml, dbt/models/staging/schema.yml.",
+    "Surface 'integration_contract' matched paths: infrastructure/airbyte/README.md, infrastructure/airbyte/docker-compose.yml, infrastructure/airbyte/sources/ga4.json.example, infrastructure/airbyte/sources/linkedin_ads/spec.json, infrastructure/airbyte/sources/tiktok_ads/spec.json.",
+    "Surface 'contract_docs' matched paths: docs/project/api-contract-changelog.md, docs/project/integration-data-contract-matrix.md."
+  ],
+  "evidence": [
+    {
+      "type": "surface_path_match",
+      "value": "api_contract:backend/core/urls.py",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "api_contract:backend/integrations/views.py",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "data_contract:dbt/models/marts/demo/schema.yml",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "data_contract:dbt/models/marts/meta/schema.yml",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "data_contract:dbt/models/marts/schema.yml",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "data_contract:dbt/models/schema.yml",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "data_contract:dbt/models/staging/meta/schema.yml",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "data_contract:dbt/models/staging/schema.yml",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "integration_contract:infrastructure/airbyte/README.md",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "integration_contract:infrastructure/airbyte/docker-compose.yml",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "integration_contract:infrastructure/airbyte/sources/ga4.json.example",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "integration_contract:infrastructure/airbyte/sources/linkedin_ads/spec.json",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "integration_contract:infrastructure/airbyte/sources/tiktok_ads/spec.json",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "contract_docs:docs/project/api-contract-changelog.md",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "contract_docs:docs/project/integration-data-contract-matrix.md",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "input_path",
+      "value": "github/dependabot.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "github/workflows/dbt.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "github/workflows/deploy-smoke.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "github/workflows/integration-smoke.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "github/workflows/release-readiness-advisory.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "github/workflows/secret-scan.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "secrets.baseline",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "AGENTS.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "README.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/.env.sample",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/assets/jm_parishes.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/meta_views.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/core/settings.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/core/urls.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/docs/ops/airbyte_failure.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/docs/ops/dbt_failure.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/docs/ops/dek_rotation.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/docs/tenant_context_audit.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/fixtures/dev_seed.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/admin.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/apps.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/meta_graph.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/models.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/tasks.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/views.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/schemas/airbyte_health.schema.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/schemas/combined_metrics.schema.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/schemas/dashboard_aggregate_snapshot.schema.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/schemas/dbt_health.schema.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_meta_oauth_api.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_meta_read_api.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_schema_regressions.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_social_status_api.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "dbt/README.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "dbt/models/marts/demo/schema.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "dbt/models/marts/meta/schema.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "dbt/models/marts/schema.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "dbt/models/schema.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "dbt/models/staging/meta/schema.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "dbt/models/staging/schema.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "dbt/seeds/demo/dim_campaigns.csv",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "dbt/seeds/demo/dim_tenants.csv",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "dbt/seeds/demo/fact_daily_campaign_metrics.csv",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "dbt/seeds/demo/fact_daily_creative_metrics.csv",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "dbt/seeds/demo/fact_daily_parish_metrics.csv",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "dbt/seeds/demo/schema.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "dbt/selectors.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "deploy/README.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docker-compose.dev.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/DEVELOPMENT.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/PROGRAM-NOTES.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/api/aggregate-snapshot.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/api/password-reset.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/api/tenant-switch.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/design-system.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/logs/project-worklog.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/adr-log.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/agent-activity-log.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/ai-onboarding-checklist.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/ai-session-resume-template.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/alert-thresholds-escalation.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/ci-gate-review.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/cold-start-walkthrough.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/confused-engineer-walkthrough.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/dashboard-links.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/data-quality-checklist.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/decision-checklist.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/dependency-triage-report.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/doc-index.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/documentation-snob-review.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/escalation-matrix.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/escalation-rules.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/golden-path-onboarding.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/human-onboarding-guide.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/logging-standards.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/new-engineer-onboarding.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/postmortem-template.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/risk-register.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-contract-guard/SKILL.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-contract-guard/agents/openai.yaml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-contract-guard/references/contract-golden-cases.yaml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-contract-guard/references/contract-surfaces.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-persona-router/SKILL.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-persona-router/agents/openai.yaml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-persona-router/references/decision-packet.schema.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-persona-router/references/report-templates.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-persona-router/references/router-golden-cases.yaml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-persona-router/references/source-map.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-release-readiness/SKILL.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-release-readiness/agents/openai.yaml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-release-readiness/references/release-golden-cases.yaml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-scope-gatekeeper/SKILL.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-scope-gatekeeper/agents/openai.yaml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/skills/adinsights-scope-gatekeeper/references/scope-golden-cases.yaml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/slo-sli-summary.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/test-failure-triage.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/testing-cheat-sheet.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/adinsights-deck-review.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/api-contract-changelog.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/api/aggregate_snapshot.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/api/aggregate_snapshot.schema.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/data-lineage-map.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/definition-of-done.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/meta-validation/2026-02-19-signoff-checklist.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/meta-validation/preflight-2026-02-19/contract-packet.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/meta-validation/preflight-2026-02-19/release-packet.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/meta-validation/preflight-2026-02-19/router-packet.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/meta-validation/preflight-2026-02-19/scope-packet.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/phase1-closeout/README.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/phase1-closeout/airbyte/readiness-scripts-2026-02-05-est.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/phase1-closeout/external/blockers-2026-02-05-est.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/phase1-closeout/external/external-access-audit-2026-02-06-est.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/phase1-closeout/manifest.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/phase1-closeout/release/staging-rehearsal-2026-02-05-est.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/feature-catalog.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/feature-flags-reference.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/feature-ownership-map.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/frontend-finished-product-spec.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/frontend-spec-review-checklist.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/integration-api-validation-checklist.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/integration-data-contract-matrix.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/integration-roadmap.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/meta-integration-v3-pr-tracks.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/meta-permission-profile.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/meta-permissions-catalog.yaml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/metrics-glossary.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/phase0-backlog-validation.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/phase0-simulated-reviews.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/phase1-execution-backlog.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/user-journey-map.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/vertical_slice_plan.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/runbooks/ci-telemetry.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/runbooks/demo-data.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/runbooks/external-actions-aws.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/runbooks/external-actions-execution-checklist.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/runbooks/meta-app-review-submission-checklist.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/runbooks/operations.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/runbooks/release-checklist.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/runbooks/support-playbook.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/task_breakdown.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/workstreams.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/.storybook/preview.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/DESIGN_SYSTEM.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/package-lock.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/package.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/public/jm_parishes.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/App.integration.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/auth/AuthContext.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/BudgetPacingList.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/CampaignTable.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/CreativeTable.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/DashboardState.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/DataTable.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/DatasetToggle.stories.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/DatasetToggle.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/FilterStatus.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/ParishMap.module.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/ParishMap.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/TenantSwitcher.stories.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/TenantSwitcher.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/__tests__/DesignSystem.tokens.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/__tests__/FilterBar.tokens.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/airbyte.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/apiClient.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/dashboardFilters.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/meta.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/recentDashboards.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/uploadedMetrics.test.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/uploadedMetrics.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/validate.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/pages/Home.module.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/pages/Home.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/router.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/AlertDetailPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/AlertsPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/AuditLogPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/BudgetDashboard.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/CampaignDashboard.stories.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/CampaignDashboard.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/CampaignDetail.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/CreativeDashboard.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/CreativeDetail.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/CsvUpload.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/DashboardLayout.stories.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/DashboardLayout.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/DashboardLibrary.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/DataSources.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/LoginPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/MetaAccountsPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/MetaCampaignOverviewPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/MetaConnectionStatusPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/MetaInsightsDashboardPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/ReportCreatePage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/ReportDetailPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/ReportsPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/SummariesPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/SummaryDetailPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/SyncHealthPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/__tests__/CampaignDashboard.layout.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/__tests__/DataSources.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/schemas/creative.schema.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/schemas/tenants.schema.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/state/useDashboardStore.test.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/state/useDashboardStore.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/state/useDatasetStore.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/state/useMetaStore.test.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/state/useMetaStore.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/storyData/demoSnapshots.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/styles.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/styles/dashboard.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/styles/foundations.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/styles/theme.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "infrastructure/airbyte/README.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "infrastructure/airbyte/docker-compose.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "infrastructure/airbyte/sources/ga4.json.example",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "infrastructure/airbyte/sources/linkedin_ads/spec.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "infrastructure/airbyte/sources/tiktok_ads/spec.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "package-lock.json",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "qa/README.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "qa/page-objects/DashboardPage.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "qa/tests/fixtures/base.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "qa/tests/meta-integration.spec.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "qa/tests/tenant-switch.spec.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/core/db_error_responses.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/assets/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/data/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/management/commands/sync_meta_metric_catalog.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/meta_page_insights/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/meta_page_serializers.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/meta_page_views.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/migrations/0010_meta_page_post_insights.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/migrations/0011_meta_page_insights_contract_fields.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/migrations/0012_sync_meta_metric_catalog.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/page_insights_serializers.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/page_insights_views.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/integrations/services/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_meta_metric_catalog.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_meta_page_api.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_meta_page_chunking.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_meta_page_insights_api.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_meta_page_insights_graph_client.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_meta_page_insights_parser.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_meta_page_insights_tasks.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_meta_page_metric_discovery.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_meta_page_retry.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_meta_page_sync_jobs.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/meta-validation/preflight-2026-02-20/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/meta-page-insights-data-dictionary.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/meta-page-insights-metric-catalog.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/runbooks/meta-page-insights-operations.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/KPIGrid.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/MetricAvailabilityBadge.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/PostsTable.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/TrendChart.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/meta/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/metaPageInsights.test.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/metaPageInsights.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/MetaIntegrationPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/MetaPageDashboardPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/MetaPageOverviewPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/MetaPagePostsPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/MetaPagesListPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/MetaPostDetailPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/__tests__/DashboardLayout.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/__tests__/MetaPageOverviewPage.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/__tests__/MetaPagePostsPage.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/state/useMetaPageInsightsStore.test.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/state/useMetaPageInsightsStore.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "qa/tests/meta-page-insights.spec.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "scripts/render_meta_metric_catalog.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    }
+  ],
+  "next_actions": [
+    "Confirm downstream consumers for touched contract surfaces.",
+    "Validate data contract checks before merge."
+  ],
+  "ci_strict_evaluation": {
+    "enabled": false,
+    "strict_level": "breaking_only",
+    "would_fail_ci": false
+  },
+  "advisory_only": true,
+  "signals": {
+    "prompt_paths": [],
+    "packet_paths": [
+      ".github/dependabot.yml",
+      ".github/workflows/dbt.yml",
+      ".github/workflows/deploy-smoke.yml",
+      ".github/workflows/integration-smoke.yml",
+      ".github/workflows/release-readiness-advisory.yml",
+      ".github/workflows/secret-scan.yml",
+      ".secrets.baseline",
+      "AGENTS.md",
+      "README.md",
+      "backend/.env.sample",
+      "backend/analytics/assets/jm_parishes.json",
+      "backend/analytics/meta_views.py",
+      "backend/core/settings.py",
+      "backend/core/urls.py",
+      "backend/docs/ops/airbyte_failure.md",
+      "backend/docs/ops/dbt_failure.md",
+      "backend/docs/ops/dek_rotation.md",
+      "backend/docs/tenant_context_audit.md",
+      "backend/fixtures/dev_seed.json",
+      "backend/integrations/admin.py",
+      "backend/integrations/apps.py",
+      "backend/integrations/meta_graph.py",
+      "backend/integrations/models.py",
+      "backend/integrations/tasks.py",
+      "backend/integrations/views.py",
+      "backend/tests/schemas/airbyte_health.schema.json",
+      "backend/tests/schemas/combined_metrics.schema.json",
+      "backend/tests/schemas/dashboard_aggregate_snapshot.schema.json",
+      "backend/tests/schemas/dbt_health.schema.json",
+      "backend/tests/test_meta_oauth_api.py",
+      "backend/tests/test_meta_read_api.py",
+      "backend/tests/test_schema_regressions.py",
+      "backend/tests/test_social_status_api.py",
+      "dbt/README.md",
+      "dbt/models/marts/demo/schema.yml",
+      "dbt/models/marts/meta/schema.yml",
+      "dbt/models/marts/schema.yml",
+      "dbt/models/schema.yml",
+      "dbt/models/staging/meta/schema.yml",
+      "dbt/models/staging/schema.yml",
+      "dbt/seeds/demo/dim_campaigns.csv",
+      "dbt/seeds/demo/dim_tenants.csv",
+      "dbt/seeds/demo/fact_daily_campaign_metrics.csv",
+      "dbt/seeds/demo/fact_daily_creative_metrics.csv",
+      "dbt/seeds/demo/fact_daily_parish_metrics.csv",
+      "dbt/seeds/demo/schema.yml",
+      "dbt/selectors.yml",
+      "deploy/README.md",
+      "docker-compose.dev.yml",
+      "docs/DEVELOPMENT.md",
+      "docs/PROGRAM-NOTES.md",
+      "docs/api/aggregate-snapshot.json",
+      "docs/api/password-reset.json",
+      "docs/api/tenant-switch.json",
+      "docs/design-system.md",
+      "docs/logs/project-worklog.md",
+      "docs/ops/adr-log.md",
+      "docs/ops/agent-activity-log.md",
+      "docs/ops/ai-onboarding-checklist.md",
+      "docs/ops/ai-session-resume-template.md",
+      "docs/ops/alert-thresholds-escalation.md",
+      "docs/ops/ci-gate-review.md",
+      "docs/ops/cold-start-walkthrough.md",
+      "docs/ops/confused-engineer-walkthrough.md",
+      "docs/ops/dashboard-links.md",
+      "docs/ops/data-quality-checklist.md",
+      "docs/ops/decision-checklist.md",
+      "docs/ops/dependency-triage-report.md",
+      "docs/ops/doc-index.md",
+      "docs/ops/documentation-snob-review.md",
+      "docs/ops/escalation-matrix.md",
+      "docs/ops/escalation-rules.md",
+      "docs/ops/golden-path-onboarding.md",
+      "docs/ops/human-onboarding-guide.md",
+      "docs/ops/logging-standards.md",
+      "docs/ops/new-engineer-onboarding.md",
+      "docs/ops/postmortem-template.md",
+      "docs/ops/risk-register.md",
+      "docs/ops/skills/adinsights-contract-guard/SKILL.md",
+      "docs/ops/skills/adinsights-contract-guard/agents/openai.yaml",
+      "docs/ops/skills/adinsights-contract-guard/references/contract-golden-cases.yaml",
+      "docs/ops/skills/adinsights-contract-guard/references/contract-surfaces.md",
+      "docs/ops/skills/adinsights-persona-router/SKILL.md",
+      "docs/ops/skills/adinsights-persona-router/agents/openai.yaml",
+      "docs/ops/skills/adinsights-persona-router/references/decision-packet.schema.json",
+      "docs/ops/skills/adinsights-persona-router/references/report-templates.md",
+      "docs/ops/skills/adinsights-persona-router/references/router-golden-cases.yaml",
+      "docs/ops/skills/adinsights-persona-router/references/source-map.md",
+      "docs/ops/skills/adinsights-release-readiness/SKILL.md",
+      "docs/ops/skills/adinsights-release-readiness/agents/openai.yaml",
+      "docs/ops/skills/adinsights-release-readiness/references/release-golden-cases.yaml",
+      "docs/ops/skills/adinsights-scope-gatekeeper/SKILL.md",
+      "docs/ops/skills/adinsights-scope-gatekeeper/agents/openai.yaml",
+      "docs/ops/skills/adinsights-scope-gatekeeper/references/scope-golden-cases.yaml",
+      "docs/ops/slo-sli-summary.md",
+      "docs/ops/test-failure-triage.md",
+      "docs/ops/testing-cheat-sheet.md",
+      "docs/project/adinsights-deck-review.md",
+      "docs/project/api-contract-changelog.md",
+      "docs/project/api/aggregate_snapshot.md",
+      "docs/project/api/aggregate_snapshot.schema.json",
+      "docs/project/data-lineage-map.md",
+      "docs/project/definition-of-done.md",
+      "docs/project/evidence/meta-validation/2026-02-19-signoff-checklist.md",
+      "docs/project/evidence/meta-validation/preflight-2026-02-19/contract-packet.json",
+      "docs/project/evidence/meta-validation/preflight-2026-02-19/release-packet.json",
+      "docs/project/evidence/meta-validation/preflight-2026-02-19/router-packet.json",
+      "docs/project/evidence/meta-validation/preflight-2026-02-19/scope-packet.json",
+      "docs/project/evidence/phase1-closeout/README.md",
+      "docs/project/evidence/phase1-closeout/airbyte/readiness-scripts-2026-02-05-est.md",
+      "docs/project/evidence/phase1-closeout/external/blockers-2026-02-05-est.md",
+      "docs/project/evidence/phase1-closeout/external/external-access-audit-2026-02-06-est.md",
+      "docs/project/evidence/phase1-closeout/manifest.md",
+      "docs/project/evidence/phase1-closeout/release/staging-rehearsal-2026-02-05-est.md",
+      "docs/project/feature-catalog.md",
+      "docs/project/feature-flags-reference.md",
+      "docs/project/feature-ownership-map.md",
+      "docs/project/frontend-finished-product-spec.md",
+      "docs/project/frontend-spec-review-checklist.md",
+      "docs/project/integration-api-validation-checklist.md",
+      "docs/project/integration-data-contract-matrix.md",
+      "docs/project/integration-roadmap.md",
+      "docs/project/meta-integration-v3-pr-tracks.md",
+      "docs/project/meta-permission-profile.md",
+      "docs/project/meta-permissions-catalog.yaml",
+      "docs/project/metrics-glossary.md",
+      "docs/project/phase0-backlog-validation.md",
+      "docs/project/phase0-simulated-reviews.md",
+      "docs/project/phase1-execution-backlog.md",
+      "docs/project/user-journey-map.md",
+      "docs/project/vertical_slice_plan.md",
+      "docs/runbooks/ci-telemetry.md",
+      "docs/runbooks/demo-data.md",
+      "docs/runbooks/external-actions-aws.md",
+      "docs/runbooks/external-actions-execution-checklist.md",
+      "docs/runbooks/meta-app-review-submission-checklist.md",
+      "docs/runbooks/operations.md",
+      "docs/runbooks/release-checklist.md",
+      "docs/runbooks/support-playbook.md",
+      "docs/task_breakdown.md",
+      "docs/workstreams.md",
+      "frontend/.storybook/preview.tsx",
+      "frontend/DESIGN_SYSTEM.md",
+      "frontend/package-lock.json",
+      "frontend/package.json",
+      "frontend/public/jm_parishes.json",
+      "frontend/src/App.integration.test.tsx",
+      "frontend/src/auth/AuthContext.tsx",
+      "frontend/src/components/BudgetPacingList.tsx",
+      "frontend/src/components/CampaignTable.tsx",
+      "frontend/src/components/CreativeTable.tsx",
+      "frontend/src/components/DashboardState.tsx",
+      "frontend/src/components/DataTable.tsx",
+      "frontend/src/components/DatasetToggle.stories.tsx",
+      "frontend/src/components/DatasetToggle.tsx",
+      "frontend/src/components/FilterStatus.tsx",
+      "frontend/src/components/ParishMap.module.css",
+      "frontend/src/components/ParishMap.tsx",
+      "frontend/src/components/TenantSwitcher.stories.tsx",
+      "frontend/src/components/TenantSwitcher.tsx",
+      "frontend/src/components/__tests__/DesignSystem.tokens.test.tsx",
+      "frontend/src/components/__tests__/FilterBar.tokens.test.tsx",
+      "frontend/src/lib/airbyte.ts",
+      "frontend/src/lib/apiClient.ts",
+      "frontend/src/lib/dashboardFilters.ts",
+      "frontend/src/lib/meta.ts",
+      "frontend/src/lib/recentDashboards.ts",
+      "frontend/src/lib/uploadedMetrics.test.ts",
+      "frontend/src/lib/uploadedMetrics.ts",
+      "frontend/src/lib/validate.ts",
+      "frontend/src/pages/Home.module.css",
+      "frontend/src/pages/Home.tsx",
+      "frontend/src/router.tsx",
+      "frontend/src/routes/AlertDetailPage.tsx",
+      "frontend/src/routes/AlertsPage.tsx",
+      "frontend/src/routes/AuditLogPage.tsx",
+      "frontend/src/routes/BudgetDashboard.tsx",
+      "frontend/src/routes/CampaignDashboard.stories.tsx",
+      "frontend/src/routes/CampaignDashboard.tsx",
+      "frontend/src/routes/CampaignDetail.tsx",
+      "frontend/src/routes/CreativeDashboard.tsx",
+      "frontend/src/routes/CreativeDetail.tsx",
+      "frontend/src/routes/CsvUpload.tsx",
+      "frontend/src/routes/DashboardLayout.stories.tsx",
+      "frontend/src/routes/DashboardLayout.tsx",
+      "frontend/src/routes/DashboardLibrary.tsx",
+      "frontend/src/routes/DataSources.tsx",
+      "frontend/src/routes/LoginPage.tsx",
+      "frontend/src/routes/MetaAccountsPage.tsx",
+      "frontend/src/routes/MetaCampaignOverviewPage.tsx",
+      "frontend/src/routes/MetaConnectionStatusPage.tsx",
+      "frontend/src/routes/MetaInsightsDashboardPage.tsx",
+      "frontend/src/routes/ReportCreatePage.tsx",
+      "frontend/src/routes/ReportDetailPage.tsx",
+      "frontend/src/routes/ReportsPage.tsx",
+      "frontend/src/routes/SummariesPage.tsx",
+      "frontend/src/routes/SummaryDetailPage.tsx",
+      "frontend/src/routes/SyncHealthPage.tsx",
+      "frontend/src/routes/__tests__/CampaignDashboard.layout.test.tsx",
+      "frontend/src/routes/__tests__/DataSources.test.tsx",
+      "frontend/src/schemas/creative.schema.json",
+      "frontend/src/schemas/tenants.schema.json",
+      "frontend/src/state/useDashboardStore.test.ts",
+      "frontend/src/state/useDashboardStore.ts",
+      "frontend/src/state/useDatasetStore.ts",
+      "frontend/src/state/useMetaStore.test.ts",
+      "frontend/src/state/useMetaStore.ts",
+      "frontend/src/storyData/demoSnapshots.ts",
+      "frontend/src/styles.css",
+      "frontend/src/styles/dashboard.css",
+      "frontend/src/styles/foundations.css",
+      "frontend/src/styles/theme.css",
+      "infrastructure/airbyte/README.md",
+      "infrastructure/airbyte/docker-compose.yml",
+      "infrastructure/airbyte/sources/ga4.json.example",
+      "infrastructure/airbyte/sources/linkedin_ads/spec.json",
+      "infrastructure/airbyte/sources/tiktok_ads/spec.json",
+      "package-lock.json",
+      "qa/README.md",
+      "qa/page-objects/DashboardPage.ts",
+      "qa/tests/fixtures/base.ts",
+      "qa/tests/meta-integration.spec.ts",
+      "qa/tests/tenant-switch.spec.ts",
+      "backend/core/db_error_responses.py",
+      "backend/integrations/assets/",
+      "backend/integrations/data/",
+      "backend/integrations/management/commands/sync_meta_metric_catalog.py",
+      "backend/integrations/meta_page_insights/",
+      "backend/integrations/meta_page_serializers.py",
+      "backend/integrations/meta_page_views.py",
+      "backend/integrations/migrations/0010_meta_page_post_insights.py",
+      "backend/integrations/migrations/0011_meta_page_insights_contract_fields.py",
+      "backend/integrations/migrations/0012_sync_meta_metric_catalog.py",
+      "backend/integrations/page_insights_serializers.py",
+      "backend/integrations/page_insights_views.py",
+      "backend/integrations/services/",
+      "backend/tests/test_meta_metric_catalog.py",
+      "backend/tests/test_meta_page_api.py",
+      "backend/tests/test_meta_page_chunking.py",
+      "backend/tests/test_meta_page_insights_api.py",
+      "backend/tests/test_meta_page_insights_graph_client.py",
+      "backend/tests/test_meta_page_insights_parser.py",
+      "backend/tests/test_meta_page_insights_tasks.py",
+      "backend/tests/test_meta_page_metric_discovery.py",
+      "backend/tests/test_meta_page_retry.py",
+      "backend/tests/test_meta_page_sync_jobs.py",
+      "docs/project/evidence/meta-validation/preflight-2026-02-20/",
+      "docs/project/meta-page-insights-data-dictionary.md",
+      "docs/project/meta-page-insights-metric-catalog.md",
+      "docs/runbooks/meta-page-insights-operations.md",
+      "frontend/src/components/KPIGrid.tsx",
+      "frontend/src/components/MetricAvailabilityBadge.tsx",
+      "frontend/src/components/PostsTable.tsx",
+      "frontend/src/components/TrendChart.tsx",
+      "frontend/src/components/meta/",
+      "frontend/src/lib/metaPageInsights.test.ts",
+      "frontend/src/lib/metaPageInsights.ts",
+      "frontend/src/routes/MetaIntegrationPage.tsx",
+      "frontend/src/routes/MetaPageDashboardPage.tsx",
+      "frontend/src/routes/MetaPageOverviewPage.tsx",
+      "frontend/src/routes/MetaPagePostsPage.tsx",
+      "frontend/src/routes/MetaPagesListPage.tsx",
+      "frontend/src/routes/MetaPostDetailPage.tsx",
+      "frontend/src/routes/__tests__/DashboardLayout.test.tsx",
+      "frontend/src/routes/__tests__/MetaPageOverviewPage.test.tsx",
+      "frontend/src/routes/__tests__/MetaPagePostsPage.test.tsx",
+      "frontend/src/state/useMetaPageInsightsStore.test.ts",
+      "frontend/src/state/useMetaPageInsightsStore.ts",
+      "qa/tests/meta-page-insights.spec.ts",
+      "scripts/render_meta_metric_catalog.py",
+      "github/dependabot.yml",
+      "github/workflows/dbt.yml",
+      "github/workflows/deploy-smoke.yml",
+      "github/workflows/integration-smoke.yml",
+      "github/workflows/release-readiness-advisory.yml",
+      "github/workflows/secret-scan.yml",
+      "secrets.baseline"
+    ],
+    "explicit_paths": [],
+    "changed_files": [
+      ".github/dependabot.yml",
+      ".github/workflows/dbt.yml",
+      ".github/workflows/deploy-smoke.yml",
+      ".github/workflows/integration-smoke.yml",
+      ".github/workflows/release-readiness-advisory.yml",
+      ".github/workflows/secret-scan.yml",
+      ".secrets.baseline",
+      "AGENTS.md",
+      "README.md",
+      "backend/.env.sample",
+      "backend/analytics/assets/jm_parishes.json",
+      "backend/analytics/meta_views.py",
+      "backend/core/settings.py",
+      "backend/core/urls.py",
+      "backend/docs/ops/airbyte_failure.md",
+      "backend/docs/ops/dbt_failure.md",
+      "backend/docs/ops/dek_rotation.md",
+      "backend/docs/tenant_context_audit.md",
+      "backend/fixtures/dev_seed.json",
+      "backend/integrations/admin.py",
+      "backend/integrations/apps.py",
+      "backend/integrations/meta_graph.py",
+      "backend/integrations/models.py",
+      "backend/integrations/tasks.py",
+      "backend/integrations/views.py",
+      "backend/tests/schemas/airbyte_health.schema.json",
+      "backend/tests/schemas/combined_metrics.schema.json",
+      "backend/tests/schemas/dashboard_aggregate_snapshot.schema.json",
+      "backend/tests/schemas/dbt_health.schema.json",
+      "backend/tests/test_meta_oauth_api.py",
+      "backend/tests/test_meta_read_api.py",
+      "backend/tests/test_schema_regressions.py",
+      "backend/tests/test_social_status_api.py",
+      "dbt/README.md",
+      "dbt/models/marts/demo/schema.yml",
+      "dbt/models/marts/meta/schema.yml",
+      "dbt/models/marts/schema.yml",
+      "dbt/models/schema.yml",
+      "dbt/models/staging/meta/schema.yml",
+      "dbt/models/staging/schema.yml",
+      "dbt/seeds/demo/dim_campaigns.csv",
+      "dbt/seeds/demo/dim_tenants.csv",
+      "dbt/seeds/demo/fact_daily_campaign_metrics.csv",
+      "dbt/seeds/demo/fact_daily_creative_metrics.csv",
+      "dbt/seeds/demo/fact_daily_parish_metrics.csv",
+      "dbt/seeds/demo/schema.yml",
+      "dbt/selectors.yml",
+      "deploy/README.md",
+      "docker-compose.dev.yml",
+      "docs/DEVELOPMENT.md",
+      "docs/PROGRAM-NOTES.md",
+      "docs/api/aggregate-snapshot.json",
+      "docs/api/password-reset.json",
+      "docs/api/tenant-switch.json",
+      "docs/design-system.md",
+      "docs/logs/project-worklog.md",
+      "docs/ops/adr-log.md",
+      "docs/ops/agent-activity-log.md",
+      "docs/ops/ai-onboarding-checklist.md",
+      "docs/ops/ai-session-resume-template.md",
+      "docs/ops/alert-thresholds-escalation.md",
+      "docs/ops/ci-gate-review.md",
+      "docs/ops/cold-start-walkthrough.md",
+      "docs/ops/confused-engineer-walkthrough.md",
+      "docs/ops/dashboard-links.md",
+      "docs/ops/data-quality-checklist.md",
+      "docs/ops/decision-checklist.md",
+      "docs/ops/dependency-triage-report.md",
+      "docs/ops/doc-index.md",
+      "docs/ops/documentation-snob-review.md",
+      "docs/ops/escalation-matrix.md",
+      "docs/ops/escalation-rules.md",
+      "docs/ops/golden-path-onboarding.md",
+      "docs/ops/human-onboarding-guide.md",
+      "docs/ops/logging-standards.md",
+      "docs/ops/new-engineer-onboarding.md",
+      "docs/ops/postmortem-template.md",
+      "docs/ops/risk-register.md",
+      "docs/ops/skills/adinsights-contract-guard/SKILL.md",
+      "docs/ops/skills/adinsights-contract-guard/agents/openai.yaml",
+      "docs/ops/skills/adinsights-contract-guard/references/contract-golden-cases.yaml",
+      "docs/ops/skills/adinsights-contract-guard/references/contract-surfaces.md",
+      "docs/ops/skills/adinsights-persona-router/SKILL.md",
+      "docs/ops/skills/adinsights-persona-router/agents/openai.yaml",
+      "docs/ops/skills/adinsights-persona-router/references/decision-packet.schema.json",
+      "docs/ops/skills/adinsights-persona-router/references/report-templates.md",
+      "docs/ops/skills/adinsights-persona-router/references/router-golden-cases.yaml",
+      "docs/ops/skills/adinsights-persona-router/references/source-map.md",
+      "docs/ops/skills/adinsights-release-readiness/SKILL.md",
+      "docs/ops/skills/adinsights-release-readiness/agents/openai.yaml",
+      "docs/ops/skills/adinsights-release-readiness/references/release-golden-cases.yaml",
+      "docs/ops/skills/adinsights-scope-gatekeeper/SKILL.md",
+      "docs/ops/skills/adinsights-scope-gatekeeper/agents/openai.yaml",
+      "docs/ops/skills/adinsights-scope-gatekeeper/references/scope-golden-cases.yaml",
+      "docs/ops/slo-sli-summary.md",
+      "docs/ops/test-failure-triage.md",
+      "docs/ops/testing-cheat-sheet.md",
+      "docs/project/adinsights-deck-review.md",
+      "docs/project/api-contract-changelog.md",
+      "docs/project/api/aggregate_snapshot.md",
+      "docs/project/api/aggregate_snapshot.schema.json",
+      "docs/project/data-lineage-map.md",
+      "docs/project/definition-of-done.md",
+      "docs/project/evidence/meta-validation/2026-02-19-signoff-checklist.md",
+      "docs/project/evidence/meta-validation/preflight-2026-02-19/contract-packet.json",
+      "docs/project/evidence/meta-validation/preflight-2026-02-19/release-packet.json",
+      "docs/project/evidence/meta-validation/preflight-2026-02-19/router-packet.json",
+      "docs/project/evidence/meta-validation/preflight-2026-02-19/scope-packet.json",
+      "docs/project/evidence/phase1-closeout/README.md",
+      "docs/project/evidence/phase1-closeout/airbyte/readiness-scripts-2026-02-05-est.md",
+      "docs/project/evidence/phase1-closeout/external/blockers-2026-02-05-est.md",
+      "docs/project/evidence/phase1-closeout/external/external-access-audit-2026-02-06-est.md",
+      "docs/project/evidence/phase1-closeout/manifest.md",
+      "docs/project/evidence/phase1-closeout/release/staging-rehearsal-2026-02-05-est.md",
+      "docs/project/feature-catalog.md",
+      "docs/project/feature-flags-reference.md",
+      "docs/project/feature-ownership-map.md",
+      "docs/project/frontend-finished-product-spec.md",
+      "docs/project/frontend-spec-review-checklist.md",
+      "docs/project/integration-api-validation-checklist.md",
+      "docs/project/integration-data-contract-matrix.md",
+      "docs/project/integration-roadmap.md",
+      "docs/project/meta-integration-v3-pr-tracks.md",
+      "docs/project/meta-permission-profile.md",
+      "docs/project/meta-permissions-catalog.yaml",
+      "docs/project/metrics-glossary.md",
+      "docs/project/phase0-backlog-validation.md",
+      "docs/project/phase0-simulated-reviews.md",
+      "docs/project/phase1-execution-backlog.md",
+      "docs/project/user-journey-map.md",
+      "docs/project/vertical_slice_plan.md",
+      "docs/runbooks/ci-telemetry.md",
+      "docs/runbooks/demo-data.md",
+      "docs/runbooks/external-actions-aws.md",
+      "docs/runbooks/external-actions-execution-checklist.md",
+      "docs/runbooks/meta-app-review-submission-checklist.md",
+      "docs/runbooks/operations.md",
+      "docs/runbooks/release-checklist.md",
+      "docs/runbooks/support-playbook.md",
+      "docs/task_breakdown.md",
+      "docs/workstreams.md",
+      "frontend/.storybook/preview.tsx",
+      "frontend/DESIGN_SYSTEM.md",
+      "frontend/package-lock.json",
+      "frontend/package.json",
+      "frontend/public/jm_parishes.json",
+      "frontend/src/App.integration.test.tsx",
+      "frontend/src/auth/AuthContext.tsx",
+      "frontend/src/components/BudgetPacingList.tsx",
+      "frontend/src/components/CampaignTable.tsx",
+      "frontend/src/components/CreativeTable.tsx",
+      "frontend/src/components/DashboardState.tsx",
+      "frontend/src/components/DataTable.tsx",
+      "frontend/src/components/DatasetToggle.stories.tsx",
+      "frontend/src/components/DatasetToggle.tsx",
+      "frontend/src/components/FilterStatus.tsx",
+      "frontend/src/components/ParishMap.module.css",
+      "frontend/src/components/ParishMap.tsx",
+      "frontend/src/components/TenantSwitcher.stories.tsx",
+      "frontend/src/components/TenantSwitcher.tsx",
+      "frontend/src/components/__tests__/DesignSystem.tokens.test.tsx",
+      "frontend/src/components/__tests__/FilterBar.tokens.test.tsx",
+      "frontend/src/lib/airbyte.ts",
+      "frontend/src/lib/apiClient.ts",
+      "frontend/src/lib/dashboardFilters.ts",
+      "frontend/src/lib/meta.ts",
+      "frontend/src/lib/recentDashboards.ts",
+      "frontend/src/lib/uploadedMetrics.test.ts",
+      "frontend/src/lib/uploadedMetrics.ts",
+      "frontend/src/lib/validate.ts",
+      "frontend/src/pages/Home.module.css",
+      "frontend/src/pages/Home.tsx",
+      "frontend/src/router.tsx",
+      "frontend/src/routes/AlertDetailPage.tsx",
+      "frontend/src/routes/AlertsPage.tsx",
+      "frontend/src/routes/AuditLogPage.tsx",
+      "frontend/src/routes/BudgetDashboard.tsx",
+      "frontend/src/routes/CampaignDashboard.stories.tsx",
+      "frontend/src/routes/CampaignDashboard.tsx",
+      "frontend/src/routes/CampaignDetail.tsx",
+      "frontend/src/routes/CreativeDashboard.tsx",
+      "frontend/src/routes/CreativeDetail.tsx",
+      "frontend/src/routes/CsvUpload.tsx",
+      "frontend/src/routes/DashboardLayout.stories.tsx",
+      "frontend/src/routes/DashboardLayout.tsx",
+      "frontend/src/routes/DashboardLibrary.tsx",
+      "frontend/src/routes/DataSources.tsx",
+      "frontend/src/routes/LoginPage.tsx",
+      "frontend/src/routes/MetaAccountsPage.tsx",
+      "frontend/src/routes/MetaCampaignOverviewPage.tsx",
+      "frontend/src/routes/MetaConnectionStatusPage.tsx",
+      "frontend/src/routes/MetaInsightsDashboardPage.tsx",
+      "frontend/src/routes/ReportCreatePage.tsx",
+      "frontend/src/routes/ReportDetailPage.tsx",
+      "frontend/src/routes/ReportsPage.tsx",
+      "frontend/src/routes/SummariesPage.tsx",
+      "frontend/src/routes/SummaryDetailPage.tsx",
+      "frontend/src/routes/SyncHealthPage.tsx",
+      "frontend/src/routes/__tests__/CampaignDashboard.layout.test.tsx",
+      "frontend/src/routes/__tests__/DataSources.test.tsx",
+      "frontend/src/schemas/creative.schema.json",
+      "frontend/src/schemas/tenants.schema.json",
+      "frontend/src/state/useDashboardStore.test.ts",
+      "frontend/src/state/useDashboardStore.ts",
+      "frontend/src/state/useDatasetStore.ts",
+      "frontend/src/state/useMetaStore.test.ts",
+      "frontend/src/state/useMetaStore.ts",
+      "frontend/src/storyData/demoSnapshots.ts",
+      "frontend/src/styles.css",
+      "frontend/src/styles/dashboard.css",
+      "frontend/src/styles/foundations.css",
+      "frontend/src/styles/theme.css",
+      "infrastructure/airbyte/README.md",
+      "infrastructure/airbyte/docker-compose.yml",
+      "infrastructure/airbyte/sources/ga4.json.example",
+      "infrastructure/airbyte/sources/linkedin_ads/spec.json",
+      "infrastructure/airbyte/sources/tiktok_ads/spec.json",
+      "package-lock.json",
+      "qa/README.md",
+      "qa/page-objects/DashboardPage.ts",
+      "qa/tests/fixtures/base.ts",
+      "qa/tests/meta-integration.spec.ts",
+      "qa/tests/tenant-switch.spec.ts",
+      "backend/core/db_error_responses.py",
+      "backend/integrations/assets/",
+      "backend/integrations/data/",
+      "backend/integrations/management/commands/sync_meta_metric_catalog.py",
+      "backend/integrations/meta_page_insights/",
+      "backend/integrations/meta_page_serializers.py",
+      "backend/integrations/meta_page_views.py",
+      "backend/integrations/migrations/0010_meta_page_post_insights.py",
+      "backend/integrations/migrations/0011_meta_page_insights_contract_fields.py",
+      "backend/integrations/migrations/0012_sync_meta_metric_catalog.py",
+      "backend/integrations/page_insights_serializers.py",
+      "backend/integrations/page_insights_views.py",
+      "backend/integrations/services/",
+      "backend/tests/test_meta_metric_catalog.py",
+      "backend/tests/test_meta_page_api.py",
+      "backend/tests/test_meta_page_chunking.py",
+      "backend/tests/test_meta_page_insights_api.py",
+      "backend/tests/test_meta_page_insights_graph_client.py",
+      "backend/tests/test_meta_page_insights_parser.py",
+      "backend/tests/test_meta_page_insights_tasks.py",
+      "backend/tests/test_meta_page_metric_discovery.py",
+      "backend/tests/test_meta_page_retry.py",
+      "backend/tests/test_meta_page_sync_jobs.py",
+      "docs/project/evidence/meta-validation/preflight-2026-02-20/",
+      "docs/project/meta-page-insights-data-dictionary.md",
+      "docs/project/meta-page-insights-metric-catalog.md",
+      "docs/runbooks/meta-page-insights-operations.md",
+      "frontend/src/components/KPIGrid.tsx",
+      "frontend/src/components/MetricAvailabilityBadge.tsx",
+      "frontend/src/components/PostsTable.tsx",
+      "frontend/src/components/TrendChart.tsx",
+      "frontend/src/components/meta/",
+      "frontend/src/lib/metaPageInsights.test.ts",
+      "frontend/src/lib/metaPageInsights.ts",
+      "frontend/src/routes/MetaIntegrationPage.tsx",
+      "frontend/src/routes/MetaPageDashboardPage.tsx",
+      "frontend/src/routes/MetaPageOverviewPage.tsx",
+      "frontend/src/routes/MetaPagePostsPage.tsx",
+      "frontend/src/routes/MetaPagesListPage.tsx",
+      "frontend/src/routes/MetaPostDetailPage.tsx",
+      "frontend/src/routes/__tests__/DashboardLayout.test.tsx",
+      "frontend/src/routes/__tests__/MetaPageOverviewPage.test.tsx",
+      "frontend/src/routes/__tests__/MetaPagePostsPage.test.tsx",
+      "frontend/src/state/useMetaPageInsightsStore.test.ts",
+      "frontend/src/state/useMetaPageInsightsStore.ts",
+      "qa/tests/meta-page-insights.spec.ts",
+      "scripts/render_meta_metric_catalog.py"
+    ],
+    "used_git_changed_files": true,
+    "evidence_source": "git_changed_files"
+  }
+}

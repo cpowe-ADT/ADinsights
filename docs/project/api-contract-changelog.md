@@ -4,6 +4,7 @@ Purpose: track API payload changes that affect frontend, BI, or integrations.
 Keep this brief and link to PRs or commits when available.
 
 ## Format
+
 - **Date**
 - **Endpoint**
 - **Change**
@@ -11,6 +12,22 @@ Keep this brief and link to PRs or commits when available.
 - **Owner**
 
 ## Entries
+
+- **2026-02-20**
+  - Endpoint: `POST /api/meta/connect/start/`, `POST /api/meta/connect/callback/`, `POST /api/integrations/meta/oauth/exchange/`, `POST /api/integrations/meta/pages/{page_id}/select/`
+  - Change: Split OAuth flow intent for Page Insights vs marketing exchange. `/api/meta/connect/start/` now uses page-only OAuth scopes from `META_PAGE_INSIGHTS_OAUTH_SCOPES`, while `/api/meta/connect/callback/` executes page-connection persistence (`MetaConnection` + `MetaPage`) and returns `default_page_id` plus bootstrap task ids. Marketing exchange rejects page-flow state with `code=wrong_oauth_flow`. Scope sanitization now strips invalid Facebook Login scopes (`read_insights`, `instagram_*`) case-insensitively before building authorize URL.
+  - Impact: Facebook Page dashboard can onboard/connect without ad-account access and no longer gets blocked by “no ad accounts returned” or invalid-scope OAuth errors; ad-account marketing setup remains unchanged on `/api/integrations/meta/oauth/exchange/`.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-19**
+  - Endpoint: `POST /api/meta/connect/start/`, `POST /api/meta/connect/callback/`, `GET /api/meta/pages/`, `POST /api/meta/pages/{page_id}/sync/`, `GET /api/meta/pages/{page_id}/overview/`, `GET /api/meta/pages/{page_id}/posts/`, `GET /api/meta/posts/{post_id}/`, `GET /api/meta/posts/{post_id}/timeseries/`
+  - Change: Added canonical Facebook Page/Post Insights contract aliases under `/api/meta/*` with per-metric availability metadata, last-sync timestamps, and background sync trigger orchestration (`sync_page_posts`, `discover_supported_metrics`, `sync_page_insights`, `sync_post_insights`).
+  - Impact: Frontend can render a dedicated Facebook analytics slice without relying on legacy `/api/metrics/meta/*` paths; unsupported metrics are surfaced as availability flags instead of hard failures.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-19**
+  - Endpoint: `GET /api/integrations/meta/oauth/callback/`, `GET /api/integrations/meta/pages/`, `POST /api/integrations/meta/pages/{page_id}/select/`, `POST /api/metrics/meta/pages/{page_id}/refresh/`, `GET /api/metrics/meta/pages/{page_id}/overview/`, `GET /api/metrics/meta/pages/{page_id}/timeseries/`, `GET /api/metrics/meta/pages/{page_id}/posts/`, `GET /api/metrics/meta/posts/{post_id}/timeseries/`
+  - Change: Added Page/Post Insights contract surfaces backed by new encrypted page-credential and timeseries persistence models (`MetaConnection`, `MetaPage`, `MetaMetricRegistry`, `MetaInsightPoint`, `MetaPost`, `MetaPostInsightPoint`) with asynchronous refresh and registry-based invalid metric fallback.
+  - Impact: Frontend can render Page/Post Insights dashboards exclusively from backend storage, while invalid/deprecated metrics are represented explicitly in registry status and hidden by default in metric pickers.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
 - **2026-02-19**
   - Endpoint: Warehouse contract (`dbt` Meta staging + snapshots + marts)
   - Change: Hardened `stg_meta_insights` cross-database JSON parsing (DuckDB/Postgres compatibility), added fallback behavior when upstream `reach` is absent, and moved Meta SCD2 snapshots to explicit nodes (`meta_campaign_snapshot`, `meta_adset_snapshot`, `meta_ad_snapshot`) keyed by tenant-aware identifiers.
@@ -113,5 +130,6 @@ Keep this brief and link to PRs or commits when available.
   - Owner: Priya (dbt)
 
 ## Update Rules
+
 - Update this file whenever an endpoint schema or payload changes.
 - Coordinate with frontend + BI when fields are added/removed.
