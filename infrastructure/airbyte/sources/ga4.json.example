@@ -10,18 +10,7 @@
     "start_date": "2024-01-01",
     "lookback_window": 3,
     "timezone": "America/Jamaica",
-    "dimensions": [
-      "date",
-      "sessionDefaultChannelGroup",
-      "country",
-      "city",
-      "campaignName"
-    ],
-    "metrics": [
-      "sessions",
-      "engagedSessions",
-      "conversions",
-      "purchaseRevenue"
-    ]
+    "dimensions": ["date", "sessionDefaultChannelGroup", "country", "city", "campaignName"],
+    "metrics": ["sessions", "engagedSessions", "conversions", "purchaseRevenue"]
   }
 }
