@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import date, datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal, InvalidOperation
-from typing import List
+from typing import Any, List
 
 from celery import shared_task
 from django.conf import settings
@@ -26,11 +26,34 @@ from integrations.airbyte import (
     AirbyteSyncService,
 )
 from integrations.meta_graph import MetaGraphClient, MetaGraphClientError, MetaGraphConfigurationError
+from integrations.meta_page_insights.insights_discovery import validate_metrics
+from integrations.meta_page_insights.metric_pack_loader import is_blocked_metric
+from integrations.meta_page_insights.token_service import sync_pages_for_connection
 from integrations.models import (
     APIErrorLog,
     AirbyteConnection,
     MetaAccountSyncState,
+    MetaConnection,
+    MetaInsightPoint,
+    MetaMetricRegistry,
+    MetaPage,
+    MetaPost,
+    MetaPostInsightPoint,
     PlatformCredential,
+)
+from integrations.services.insights_parser import (
+    normalize_breakdown_key,
+    normalize_insights_payload,
+)
+from integrations.services.meta_graph_client import (
+    MetaInsightsGraphClient,
+    MetaInsightsGraphClientError,
+)
+from integrations.services.metric_registry import (
+    get_default_metric_keys,
+    mark_metric_invalid,
+    seed_default_metrics,
+    update_metric_metadata,
 )
 from core.tasks import BaseAdInsightsTask
 
@@ -1084,3 +1107,668 @@ def _create_stale_meta_sync_state_alert(*, now: datetime) -> None:
         llm_summary=f"{len(rows)} Meta account sync-state record(s) are stale.",
         error_message="",
     )
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def sync_meta_page_insights(  # noqa: ANN001
+    self,
+    page_pk: str | None = None,
+    mode: str = "incremental",
+    metrics: list[str] | None = None,
+):
+    """Sync Meta Page Insights from Graph API into MetaInsightPoint."""
+
+    if not bool(getattr(settings, "META_PAGE_INSIGHTS_ENABLED", True)):
+        return {"pages_processed": 0, "rows_processed": 0, "disabled": True}
+
+    seed_default_metrics()
+    now = timezone.now()
+    task_id = getattr(getattr(self, "request", None), "id", "") or ""
+    total_rows_processed = 0
+    pages_processed = 0
+
+    queryset = MetaPage.all_objects.filter(can_analyze=True).select_related("tenant")
+    if page_pk:
+        queryset = queryset.filter(pk=page_pk)
+    pages = list(queryset)
+    if not pages:
+        return {"pages_processed": 0, "rows_processed": 0}
+
+    with MetaInsightsGraphClient.from_settings() as client:
+        for page in pages:
+            tenant_id = str(page.tenant_id)
+            with tenant_context(tenant_id):
+                page_token = page.decrypt_page_token()
+                if not page_token:
+                    logger.warning("meta.page_insights.missing_token", extra={"tenant_id": tenant_id, "page_id": page.page_id})
+                    continue
+
+                registry_metrics = list(metrics or get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE))
+                for metric in registry_metrics:
+                    if is_blocked_metric(metric):
+                        mark_metric_invalid(MetaMetricRegistry.LEVEL_PAGE, metric)
+                registry_metrics = [metric for metric in registry_metrics if metric and not is_blocked_metric(metric)]
+                if not registry_metrics:
+                    continue
+
+                since, until = _resolve_sync_window(mode=mode, now=now)
+                chunk_size = max(int(getattr(settings, "META_PAGE_INSIGHTS_METRIC_CHUNK_SIZE", 10)), 1)
+
+                for window_since, window_until in _window_chunks(since=since, until=until, max_days=90):
+                    rows_processed = _sync_page_metric_window(
+                        client=client,
+                        page=page,
+                        metrics=registry_metrics,
+                        since=window_since,
+                        until=window_until,
+                        chunk_size=chunk_size,
+                    )
+                    total_rows_processed += rows_processed
+                    emit_observability_event(
+                        logger,
+                        "meta.page_insights.synced",
+                        tenant_id=tenant_id,
+                        task_id=task_id,
+                        correlation_id=task_id,
+                        page_id=page.page_id,
+                        rows_processed=rows_processed,
+                        api_cost_units=None,
+                    )
+                page.last_synced_at = now
+                page.save(update_fields=["last_synced_at", "updated_at"])
+                pages_processed += 1
+
+    return {
+        "pages_processed": pages_processed,
+        "rows_processed": total_rows_processed,
+    }
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def sync_meta_post_insights(  # noqa: ANN001
+    self,
+    page_pk: str | None = None,
+    mode: str = "incremental",
+    metrics: list[str] | None = None,
+):
+    """Sync Meta Page Post Insights from Graph API into MetaPostInsightPoint."""
+
+    if not bool(getattr(settings, "META_PAGE_INSIGHTS_ENABLED", True)):
+        return {"pages_processed": 0, "posts_processed": 0, "rows_processed": 0, "disabled": True}
+
+    seed_default_metrics()
+    now = timezone.now()
+    task_id = getattr(getattr(self, "request", None), "id", "") or ""
+    total_rows_processed = 0
+    posts_processed = 0
+    pages_processed = 0
+
+    queryset = MetaPage.all_objects.filter(can_analyze=True).select_related("tenant")
+    if page_pk:
+        queryset = queryset.filter(pk=page_pk)
+    pages = list(queryset)
+    if not pages:
+        return {"pages_processed": 0, "posts_processed": 0, "rows_processed": 0}
+
+    with MetaInsightsGraphClient.from_settings() as client:
+        for page in pages:
+            tenant_id = str(page.tenant_id)
+            with tenant_context(tenant_id):
+                page_token = page.decrypt_page_token()
+                if not page_token:
+                    continue
+
+                since, until = _resolve_sync_window(mode=mode, now=now)
+                posts_payload = client.fetch_page_posts(
+                    page_id=page.page_id,
+                    since=since.isoformat(),
+                    until=until.isoformat(),
+                    token=page_token,
+                )
+                posts = _upsert_meta_posts(page=page, rows=posts_payload)
+                if not posts:
+                    continue
+
+                registry_metrics = list(metrics or get_default_metric_keys(MetaMetricRegistry.LEVEL_POST))
+                for metric in registry_metrics:
+                    if is_blocked_metric(metric):
+                        mark_metric_invalid(MetaMetricRegistry.LEVEL_POST, metric)
+                registry_metrics = [metric for metric in registry_metrics if metric and not is_blocked_metric(metric)]
+                if not registry_metrics:
+                    continue
+
+                chunk_size = max(int(getattr(settings, "META_PAGE_INSIGHTS_METRIC_CHUNK_SIZE", 10)), 1)
+                for post in posts:
+                    rows_processed = _sync_post_metric_window(
+                        client=client,
+                        post=post,
+                        page_token=page_token,
+                        metrics=registry_metrics,
+                        since=since,
+                        until=until,
+                        chunk_size=chunk_size,
+                    )
+                    total_rows_processed += rows_processed
+                    posts_processed += 1
+
+                emit_observability_event(
+                    logger,
+                    "meta.post_insights.synced",
+                    tenant_id=tenant_id,
+                    task_id=task_id,
+                    correlation_id=task_id,
+                    page_id=page.page_id,
+                    rows_processed=total_rows_processed,
+                    api_cost_units=None,
+                )
+                page.last_posts_synced_at = now
+                page.save(update_fields=["last_posts_synced_at", "updated_at"])
+                pages_processed += 1
+
+    return {
+        "pages_processed": pages_processed,
+        "posts_processed": posts_processed,
+        "rows_processed": total_rows_processed,
+    }
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def sync_meta_pages(self, connection_id: str | None = None):  # noqa: ANN001
+    """Sync ANALYZE-capable pages from Meta /me/accounts for a connection."""
+
+    if not bool(getattr(settings, "META_PAGE_INSIGHTS_ENABLED", True)):
+        return {"connection_id": connection_id, "pages_synced": 0, "disabled": True}
+
+    connection_ids: list[str]
+    if connection_id:
+        connection_ids = [connection_id]
+    else:
+        meta_connection_ids = list(
+            MetaConnection.all_objects.filter(is_active=True).values_list("id", flat=True)
+        )
+        credential_ids = list(
+            PlatformCredential.all_objects.filter(provider=PlatformCredential.META)
+            .values_list("id", flat=True)
+        )
+        connection_ids = [str(value) for value in [*meta_connection_ids, *credential_ids] if value]
+
+    total = 0
+    for candidate in connection_ids:
+        total += len(sync_pages_for_connection(candidate))
+    return {"connection_id": connection_id, "pages_synced": total}
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def discover_supported_metrics(self, page_id: str | None = None):  # noqa: ANN001
+    """Discover supported page/post metrics with binary-split fallback."""
+
+    if not bool(getattr(settings, "META_PAGE_INSIGHTS_ENABLED", True)):
+        return {"page_id": page_id, "checked": 0, "disabled": True}
+
+    seed_default_metrics()
+    pages: list[MetaPage]
+    if page_id:
+        page = _resolve_page(page_id)
+        pages = [page] if page is not None else []
+    else:
+        pages = list(MetaPage.all_objects.filter(can_analyze=True).select_related("tenant"))
+
+    checked = 0
+    supported = 0
+    for page in pages:
+        token = page.decrypt_page_token()
+        if not token:
+            continue
+        page_metrics = get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE)
+        page_support = validate_metrics(
+            page=page,
+            object_id=page.page_id,
+            object_type="page",
+            metrics=page_metrics,
+            token=token,
+            period="day",
+        )
+        checked += len(page_support)
+        supported += sum(1 for value in page_support.values() if value)
+
+        first_post = MetaPost.all_objects.filter(tenant=page.tenant, page=page).order_by("-created_time").first()
+        if first_post is None:
+            continue
+        post_metrics = get_default_metric_keys(MetaMetricRegistry.LEVEL_POST)
+        post_support = validate_metrics(
+            page=page,
+            object_id=first_post.post_id,
+            object_type="post",
+            metrics=post_metrics,
+            token=token,
+            period="lifetime",
+        )
+        checked += len(post_support)
+        supported += sum(1 for value in post_support.values() if value)
+
+    return {
+        "page_id": page_id,
+        "checked": checked,
+        "supported": supported,
+        "pages_processed": len(pages),
+    }
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def sync_page_insights(self, page_id: str | None = None, mode: str = "backfill"):  # noqa: ANN001
+    """Compatibility task wrapper for syncing page insights by page_id."""
+
+    if page_id:
+        page = _resolve_page(page_id)
+        if page is None:
+            return {"page_id": page_id, "rows_processed": 0, "detail": "Page not found"}
+        return sync_meta_page_insights.run(page_pk=str(page.pk), mode=mode)
+    return sync_meta_page_insights.run(mode=mode)
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def sync_page_posts(self, page_id: str | None = None, mode: str = "incremental"):  # noqa: ANN001
+    """Sync recent posts for a page without post-level insight metrics."""
+
+    if not bool(getattr(settings, "META_PAGE_INSIGHTS_ENABLED", True)):
+        return {"page_id": page_id, "posts_processed": 0, "disabled": True}
+
+    pages: list[MetaPage]
+    if page_id:
+        page = _resolve_page(page_id)
+        pages = [page] if page is not None else []
+    else:
+        pages = list(MetaPage.all_objects.filter(can_analyze=True).select_related("tenant"))
+
+    now = timezone.now()
+    if mode == "backfill":
+        since, until = _resolve_sync_window(mode="backfill", now=now)
+    else:
+        until = now.date()
+        lookback_days = max(int(getattr(settings, "META_PAGE_INSIGHTS_POST_RECENCY_DAYS", 28)), 1)
+        since = until - timedelta(days=lookback_days)
+
+    total_posts = 0
+    with MetaInsightsGraphClient.from_settings() as client:
+        for page in pages:
+            token = page.decrypt_page_token()
+            if not token:
+                continue
+            payload = client.fetch_page_posts(
+                page_id=page.page_id,
+                since=since.isoformat(),
+                until=until.isoformat(),
+                token=token,
+            )
+            posts = _upsert_meta_posts(page=page, rows=payload)
+            total_posts += len(posts)
+            page.last_posts_synced_at = now
+            page.save(update_fields=["last_posts_synced_at", "updated_at"])
+    return {"page_id": page_id, "posts_processed": total_posts, "pages_processed": len(pages)}
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def sync_post_insights(self, page_id: str | None = None, mode: str = "incremental"):  # noqa: ANN001
+    """Compatibility task wrapper for syncing post insight metrics by page_id."""
+
+    if page_id:
+        page = _resolve_page(page_id)
+        if page is None:
+            return {"page_id": page_id, "rows_processed": 0, "detail": "Page not found"}
+        return sync_meta_post_insights.run(page_pk=str(page.pk), mode=mode)
+    return sync_meta_post_insights.run(mode=mode)
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def refresh_tokens(self):  # noqa: ANN001
+    """Backward-compatible token refresh alias for insights workers."""
+
+    return refresh_meta_tokens.run()
+
+
+def _resolve_page(page_id: str) -> MetaPage | None:
+    page = MetaPage.all_objects.filter(page_id=page_id).select_related("tenant").first()
+    if page is not None:
+        return page
+    return MetaPage.all_objects.filter(pk=page_id).select_related("tenant").first()
+
+
+def _sync_page_metric_window(
+    *,
+    client: MetaInsightsGraphClient,
+    page: MetaPage,
+    metrics: list[str],
+    since: date,
+    until: date,
+    chunk_size: int,
+) -> int:
+    rows_processed = 0
+    for chunk in _chunked(metrics, chunk_size):
+        rows_processed += _sync_page_metric_chunk(
+            client=client,
+            page=page,
+            metric_chunk=chunk,
+            since=since,
+            until=until,
+        )
+    return rows_processed
+
+
+def _sync_page_metric_chunk(
+    *,
+    client: MetaInsightsGraphClient,
+    page: MetaPage,
+    metric_chunk: list[str],
+    since: date,
+    until: date,
+) -> int:
+    if not metric_chunk:
+        return 0
+
+    page_token = page.decrypt_page_token()
+    if not page_token:
+        return 0
+
+    try:
+        payload = client.fetch_page_insights(
+            page_id=page.page_id,
+            metrics=metric_chunk,
+            period="day",
+            since=since.isoformat(),
+            until=until.isoformat(),
+            token=page_token,
+        )
+    except MetaInsightsGraphClientError as exc:
+        if exc.error_code == 100:
+            if len(metric_chunk) == 1:
+                mark_metric_invalid(MetaMetricRegistry.LEVEL_PAGE, metric_chunk[0])
+                return 0
+            midpoint = max(len(metric_chunk) // 2, 1)
+            left = metric_chunk[:midpoint]
+            right = metric_chunk[midpoint:]
+            return _sync_page_metric_chunk(
+                client=client,
+                page=page,
+                metric_chunk=left,
+                since=since,
+                until=until,
+            ) + _sync_page_metric_chunk(
+                client=client,
+                page=page,
+                metric_chunk=right,
+                since=since,
+                until=until,
+            )
+        if exc.error_code == 3001 and exc.error_subcode == 1504028:
+            return 0
+        if exc.retryable:
+            raise
+        logger.warning(
+            "meta.page_insights.chunk_failed",
+            extra={
+                "tenant_id": str(page.tenant_id),
+                "page_id": page.page_id,
+                "metric_chunk": metric_chunk,
+                "status_code": exc.status_code,
+                "error_code": exc.error_code,
+            },
+        )
+        return 0
+
+    points, metadata = normalize_insights_payload(payload)
+    for meta in metadata:
+        update_metric_metadata(
+            level=MetaMetricRegistry.LEVEL_PAGE,
+            metric_key=meta.metric_key,
+            title=meta.title,
+            description=meta.description,
+            periods=[meta.period],
+        )
+
+    return _upsert_meta_insight_points(page=page, points=points)
+
+
+def _sync_post_metric_window(
+    *,
+    client: MetaInsightsGraphClient,
+    post: MetaPost,
+    page_token: str,
+    metrics: list[str],
+    since: date,
+    until: date,
+    chunk_size: int,
+) -> int:
+    rows_processed = 0
+    for chunk in _chunked(metrics, chunk_size):
+        rows_processed += _sync_post_metric_chunk(
+            client=client,
+            post=post,
+            page_token=page_token,
+            metric_chunk=chunk,
+            since=since,
+            until=until,
+        )
+    return rows_processed
+
+
+def _sync_post_metric_chunk(
+    *,
+    client: MetaInsightsGraphClient,
+    post: MetaPost,
+    page_token: str,
+    metric_chunk: list[str],
+    since: date,
+    until: date,
+) -> int:
+    if not metric_chunk:
+        return 0
+
+    try:
+        payload = client.fetch_post_insights(
+            post_id=post.post_id,
+            metrics=metric_chunk,
+            period="lifetime",
+            since=since.isoformat(),
+            until=until.isoformat(),
+            token=page_token,
+        )
+    except MetaInsightsGraphClientError as exc:
+        if exc.error_code == 100:
+            if len(metric_chunk) == 1:
+                mark_metric_invalid(MetaMetricRegistry.LEVEL_POST, metric_chunk[0])
+                return 0
+            midpoint = max(len(metric_chunk) // 2, 1)
+            left = metric_chunk[:midpoint]
+            right = metric_chunk[midpoint:]
+            return _sync_post_metric_chunk(
+                client=client,
+                post=post,
+                page_token=page_token,
+                metric_chunk=left,
+                since=since,
+                until=until,
+            ) + _sync_post_metric_chunk(
+                client=client,
+                post=post,
+                page_token=page_token,
+                metric_chunk=right,
+                since=since,
+                until=until,
+            )
+        if exc.error_code == 3001 and exc.error_subcode == 1504028:
+            return 0
+        if exc.retryable:
+            raise
+        logger.warning(
+            "meta.post_insights.chunk_failed",
+            extra={
+                "tenant_id": str(post.tenant_id),
+                "post_id": post.post_id,
+                "metric_chunk": metric_chunk,
+                "status_code": exc.status_code,
+                "error_code": exc.error_code,
+            },
+        )
+        return 0
+
+    fallback_end_time = post.created_time or timezone.now()
+    points, metadata = normalize_insights_payload(payload, fallback_end_time=fallback_end_time)
+    for meta in metadata:
+        update_metric_metadata(
+            level=MetaMetricRegistry.LEVEL_POST,
+            metric_key=meta.metric_key,
+            title=meta.title,
+            description=meta.description,
+            periods=[meta.period],
+        )
+
+    return _upsert_meta_post_insight_points(post=post, points=points)
+
+
+def _upsert_meta_insight_points(*, page: MetaPage, points) -> int:
+    if not points:
+        return 0
+    tenant = page.tenant
+    rows = [
+        MetaInsightPoint(
+            tenant=tenant,
+            page=page,
+            metric_key=point.metric_key,
+            period=point.period,
+            end_time=point.end_time,
+            value_num=point.value_num,
+            value_json=point.value_json,
+            breakdown_key=point.breakdown_key,
+            breakdown_key_normalized=normalize_breakdown_key(point.breakdown_key),
+            breakdown_json=point.breakdown_json,
+        )
+        for point in points
+    ]
+    MetaInsightPoint.all_objects.bulk_create(
+        rows,
+        update_conflicts=True,
+        unique_fields=[
+            "tenant",
+            "page",
+            "metric_key",
+            "period",
+            "end_time",
+            "breakdown_key_normalized",
+        ],
+        update_fields=[
+            "value_num",
+            "value_json",
+            "breakdown_key",
+            "breakdown_json",
+            "updated_at",
+        ],
+    )
+    return len(rows)
+
+
+def _upsert_meta_post_insight_points(*, post: MetaPost, points) -> int:
+    if not points:
+        return 0
+    tenant = post.tenant
+    rows = [
+        MetaPostInsightPoint(
+            tenant=tenant,
+            post=post,
+            metric_key=point.metric_key,
+            period=point.period,
+            end_time=point.end_time,
+            value_num=point.value_num,
+            value_json=point.value_json,
+            breakdown_key=point.breakdown_key,
+            breakdown_key_normalized=normalize_breakdown_key(point.breakdown_key),
+            breakdown_json=point.breakdown_json,
+        )
+        for point in points
+    ]
+    MetaPostInsightPoint.all_objects.bulk_create(
+        rows,
+        update_conflicts=True,
+        unique_fields=[
+            "tenant",
+            "post",
+            "metric_key",
+            "period",
+            "end_time",
+            "breakdown_key_normalized",
+        ],
+        update_fields=[
+            "value_num",
+            "value_json",
+            "breakdown_key",
+            "breakdown_json",
+            "updated_at",
+        ],
+    )
+    return len(rows)
+
+
+def _upsert_meta_posts(*, page: MetaPage, rows: list[dict[str, Any]]) -> list[MetaPost]:
+    posts: list[MetaPost] = []
+    for row in rows:
+        post_id = str(row.get("id") or "").strip()
+        if not post_id:
+            continue
+        defaults = {
+            "media_type": _extract_media_type(row),
+            "message": str(row.get("message") or ""),
+            "permalink_url": str(row.get("permalink_url") or ""),
+            "created_time": _coerce_graph_datetime(row.get("created_time")),
+            "updated_time": _coerce_graph_datetime(row.get("updated_time")),
+            "last_synced_at": timezone.now(),
+            "metadata": row,
+        }
+        post, _ = MetaPost.all_objects.update_or_create(
+            tenant=page.tenant,
+            page=page,
+            post_id=post_id,
+            defaults=defaults,
+        )
+        posts.append(post)
+    return posts
+
+
+def _resolve_sync_window(*, mode: str, now: datetime) -> tuple[date, date]:
+    end_date = now.date()
+    if mode == "backfill":
+        backfill_days = max(int(getattr(settings, "META_PAGE_INSIGHTS_BACKFILL_DAYS", 90)), 1)
+        return end_date - timedelta(days=backfill_days), end_date
+    incremental_days = max(int(getattr(settings, "META_PAGE_INSIGHTS_INCREMENTAL_LOOKBACK_DAYS", 3)), 1)
+    return end_date - timedelta(days=incremental_days), end_date
+
+
+def _window_chunks(*, since: date, until: date, max_days: int) -> list[tuple[date, date]]:
+    windows: list[tuple[date, date]] = []
+    cursor = since
+    while cursor <= until:
+        chunk_end = min(cursor + timedelta(days=max_days - 1), until)
+        windows.append((cursor, chunk_end))
+        cursor = chunk_end + timedelta(days=1)
+    return windows
+
+
+def _chunked(values: list[str], size: int) -> list[list[str]]:
+    if size <= 0:
+        return [values]
+    return [values[index : index + size] for index in range(0, len(values), size)]
+
+
+def _extract_media_type(row: dict[str, Any]) -> str:
+    direct = row.get("media_type")
+    if isinstance(direct, str) and direct.strip():
+        return direct.strip().upper()
+
+    attachments = row.get("attachments")
+    if isinstance(attachments, dict):
+        data = attachments.get("data")
+        if isinstance(data, list) and data:
+            first = data[0]
+            if isinstance(first, dict):
+                media_type = first.get("media_type") or first.get("type")
+                if isinstance(media_type, str) and media_type.strip():
+                    return media_type.strip().upper()
+    return ""

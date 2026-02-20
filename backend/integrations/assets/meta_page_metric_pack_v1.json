@@ -1,0 +1,176 @@
+{
+  "version": "v1",
+  "provider": "meta",
+  "metrics": [
+    {
+      "name": "page_media_view",
+      "object_type": "page",
+      "default_period": "day",
+      "supported_periods": ["day", "week", "days_28"],
+      "supports_breakdown": true,
+      "is_default": true,
+      "title": "Media Views",
+      "description": "Total media views for the Page."
+    },
+    {
+      "name": "page_total_media_view_unique",
+      "object_type": "page",
+      "default_period": "day",
+      "supported_periods": ["day", "week", "days_28"],
+      "supports_breakdown": false,
+      "is_default": true,
+      "title": "Unique Media Views",
+      "description": "Unique media viewers for the Page."
+    },
+    {
+      "name": "page_post_engagements",
+      "object_type": "page",
+      "default_period": "day",
+      "supported_periods": ["day", "week", "days_28"],
+      "supports_breakdown": false,
+      "is_default": true,
+      "title": "Post Engagements",
+      "description": "Daily post engagements on the Page."
+    },
+    {
+      "name": "page_total_actions",
+      "object_type": "page",
+      "default_period": "day",
+      "supported_periods": ["day", "week", "days_28"],
+      "supports_breakdown": false,
+      "is_default": true,
+      "title": "Total Actions",
+      "description": "Daily total actions on the Page."
+    },
+    {
+      "name": "page_views_total",
+      "object_type": "page",
+      "default_period": "day",
+      "supported_periods": ["day", "week", "days_28"],
+      "supports_breakdown": false,
+      "is_default": true,
+      "title": "Page Views Total",
+      "description": "Daily Page view count."
+    },
+    {
+      "name": "page_daily_follows_unique",
+      "object_type": "page",
+      "default_period": "day",
+      "supported_periods": ["day", "week", "days_28"],
+      "supports_breakdown": false,
+      "is_default": true,
+      "title": "Daily Follows (Unique)",
+      "description": "Daily unique follows."
+    },
+    {
+      "name": "page_daily_unfollows_unique",
+      "object_type": "page",
+      "default_period": "day",
+      "supported_periods": ["day", "week", "days_28"],
+      "supports_breakdown": false,
+      "is_default": true,
+      "title": "Daily Unfollows (Unique)",
+      "description": "Daily unique unfollows."
+    },
+    {
+      "name": "page_follows",
+      "object_type": "page",
+      "default_period": "day",
+      "supported_periods": ["day", "week", "days_28"],
+      "supports_breakdown": false,
+      "is_default": true,
+      "title": "Follows",
+      "description": "Page follows."
+    },
+    {
+      "name": "page_video_views",
+      "object_type": "page",
+      "default_period": "day",
+      "supported_periods": ["day", "week", "days_28"],
+      "supports_breakdown": false,
+      "is_default": false,
+      "title": "Video Views (3s)",
+      "description": "Page video views (3-second definition)."
+    },
+    {
+      "name": "post_media_view",
+      "object_type": "post",
+      "default_period": "lifetime",
+      "supported_periods": ["lifetime"],
+      "supports_breakdown": true,
+      "is_default": true,
+      "title": "Post Media Views",
+      "description": "Media views for a post."
+    },
+    {
+      "name": "post_total_media_view_unique",
+      "object_type": "post",
+      "default_period": "lifetime",
+      "supported_periods": ["lifetime"],
+      "supports_breakdown": false,
+      "is_default": true,
+      "title": "Post Unique Media Views",
+      "description": "Unique media viewers for a post."
+    },
+    {
+      "name": "post_clicks",
+      "object_type": "post",
+      "default_period": "lifetime",
+      "supported_periods": ["lifetime"],
+      "supports_breakdown": false,
+      "is_default": true,
+      "title": "Post Clicks",
+      "description": "Total post clicks."
+    },
+    {
+      "name": "post_reactions_by_type_total",
+      "object_type": "post",
+      "default_period": "lifetime",
+      "supported_periods": ["lifetime"],
+      "supports_breakdown": true,
+      "is_default": true,
+      "title": "Reactions by Type",
+      "description": "Post reactions grouped by reaction type."
+    },
+    {
+      "name": "post_video_views",
+      "object_type": "post",
+      "default_period": "lifetime",
+      "supported_periods": ["lifetime"],
+      "supports_breakdown": false,
+      "is_default": false,
+      "title": "Post Video Views (3s)",
+      "description": "Post video views."
+    },
+    {
+      "name": "post_video_view_time",
+      "object_type": "post",
+      "default_period": "lifetime",
+      "supported_periods": ["lifetime"],
+      "supports_breakdown": false,
+      "is_default": false,
+      "title": "Post Video View Time",
+      "description": "Aggregate video view time for the post."
+    },
+    {
+      "name": "post_video_complete_views_30s_autoplayed",
+      "object_type": "post",
+      "default_period": "lifetime",
+      "supported_periods": ["lifetime"],
+      "supports_breakdown": false,
+      "is_default": false,
+      "title": "Post 30s Video Complete Views (Autoplay)",
+      "description": "30-second complete views for autoplay."
+    },
+    {
+      "name": "post_video_complete_views_30s_clicked_to_play",
+      "object_type": "post",
+      "default_period": "lifetime",
+      "supported_periods": ["lifetime"],
+      "supports_breakdown": false,
+      "is_default": false,
+      "title": "Post 30s Video Complete Views (Click to Play)",
+      "description": "30-second complete views for click-to-play."
+    }
+  ]
+}
