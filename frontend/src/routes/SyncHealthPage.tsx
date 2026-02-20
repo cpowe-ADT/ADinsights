@@ -32,11 +32,10 @@ const SyncHealthPage = () => {
   const generatedAt = payload?.generated_at ?? null;
 
   const stateClass = useMemo(
-    () =>
-      (value: string) => {
-        const normalized = value.toLowerCase();
-        return `phase2-pill phase2-pill--${normalized}`;
-      },
+    () => (value: string) => {
+      const normalized = value.toLowerCase();
+      return `phase2-pill phase2-pill--${normalized}`;
+    },
     [],
   );
 

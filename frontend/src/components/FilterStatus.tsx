@@ -42,10 +42,7 @@ const formatFilterSummary = (filters: FilterBarState): string => {
 
 const FilterStatus = ({ className }: FilterStatusProps) => {
   const filters = useDashboardStore((state) => state.filters);
-  const isDefault = useMemo(
-    () => areFiltersEqual(filters, createDefaultFilterState()),
-    [filters],
-  );
+  const isDefault = useMemo(() => areFiltersEqual(filters, createDefaultFilterState()), [filters]);
 
   if (isDefault) {
     return null;

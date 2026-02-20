@@ -75,10 +75,7 @@ const MapIcon = () => (
     strokeWidth="1.8"
     aria-hidden="true"
   >
-    <path
-      d="M4.5 6.5 9 4l6 2.5 4.5-1.5V17L15 19.5 9 17 4.5 18.5Z"
-      strokeLinejoin="round"
-    />
+    <path d="M4.5 6.5 9 4l6 2.5 4.5-1.5V17L15 19.5 9 17 4.5 18.5Z" strokeLinejoin="round" />
     <path d="M9 4v13" />
     <path d="M15 6.5v13" />
   </svg>
@@ -430,7 +427,11 @@ const Home = () => {
               <ul className={styles.quickActions} role="list">
                 {quickActions.map((action) => (
                   <li key={action.id} className={styles.quickActionItem}>
-                    <button type="button" className={styles.quickActionCard} onClick={action.action}>
+                    <button
+                      type="button"
+                      className={styles.quickActionCard}
+                      onClick={action.action}
+                    >
                       <span className={styles.quickActionIcon}>{action.icon}</span>
                       <p className={styles.quickActionLabel}>{action.label}</p>
                       <p className={styles.quickActionDescription}>{action.description}</p>

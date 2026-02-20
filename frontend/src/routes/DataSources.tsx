@@ -27,9 +27,21 @@ import {
   type SocialPlatformStatusRecord,
 } from '../lib/airbyte';
 import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
+import {
+  callbackMetaOAuth,
+  META_OAUTH_FLOW_PAGE_INSIGHTS,
+  META_OAUTH_FLOW_SESSION_KEY,
+} from '../lib/metaPageInsights';
 
 const DataSourcesIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2">
+  <svg
+    width="48"
+    height="48"
+    viewBox="0 0 48 48"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+  >
     <rect x="8" y="10" width="32" height="26" rx="4" />
     <path d="M14 18h20" strokeLinecap="round" />
     <path d="M14 24h14" strokeLinecap="round" />
@@ -134,16 +146,14 @@ const SOCIAL_PLACEHOLDERS: Array<{
 ];
 
 const DEFAULT_CRON_EXPRESSION = '0 6-22 * * *';
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const buildInitialConnectForm = (provider: ConnectProvider): ConnectFormState => ({
   accountId: '',
   accessToken: '',
   refreshToken: '',
   linkConnection: provider === 'META',
-  connectionName:
-    provider === 'META' ? 'Meta Metrics Connection' : 'Google Ads Metrics Connection',
+  connectionName: provider === 'META' ? 'Meta Metrics Connection' : 'Google Ads Metrics Connection',
   connectionId: '',
   workspaceId: '',
   destinationId: '',
@@ -166,7 +176,9 @@ const formatSchedule = (connection: AirbyteConnectionRecord): string => {
     return 'Manual';
   }
   if (scheduleType === 'cron') {
-    return connection.cron_expression?.trim() ? `Cron · ${connection.cron_expression}` : 'Cron schedule';
+    return connection.cron_expression?.trim()
+      ? `Cron · ${connection.cron_expression}`
+      : 'Cron schedule';
   }
   if (scheduleType === 'interval') {
     const minutes = connection.interval_minutes ?? 0;
@@ -257,10 +269,7 @@ const resolveSocialStatusLabel = (value: SocialConnectionStatus): string => {
   return 'Active';
 };
 
-const resolveSocialPrimaryAction = (
-  status: SocialConnectionStatus,
-  actions: string[],
-): string => {
+const resolveSocialPrimaryAction = (status: SocialConnectionStatus, actions: string[]): string => {
   if (actions.includes('connect_oauth')) {
     return 'Connect with Facebook';
   }
@@ -297,9 +306,7 @@ const DataSources = () => {
   const [query, setQuery] = useState('');
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [connectProvider, setConnectProvider] = useState<ConnectProvider | null>(null);
-  const [connectForm, setConnectForm] = useState<ConnectFormState>(
-    buildInitialConnectForm('META'),
-  );
+  const [connectForm, setConnectForm] = useState<ConnectFormState>(buildInitialConnectForm('META'));
   const [savingConnect, setSavingConnect] = useState(false);
   const [metaConnectStep, setMetaConnectStep] = useState<MetaConnectStep>('idle');
   const [metaOAuthSelection, setMetaOAuthSelection] = useState<MetaOAuthSelectionState>({
@@ -314,18 +321,20 @@ const DataSources = () => {
   const [metaOAuthStarting, setMetaOAuthStarting] = useState(false);
   const [metaOAuthExchanging, setMetaOAuthExchanging] = useState(false);
   const [metaOAuthSavingPage, setMetaOAuthSavingPage] = useState(false);
-  const [metaConnectedCredential, setMetaConnectedCredential] = useState<PlatformCredentialRecord | null>(null);
+  const [metaConnectedCredential, setMetaConnectedCredential] =
+    useState<PlatformCredentialRecord | null>(null);
   const [metaConnectedInstagramAccount, setMetaConnectedInstagramAccount] =
     useState<MetaInstagramAccount | null>(null);
   const [metaSetupStatus, setMetaSetupStatus] = useState<MetaSetupStatusResponse | null>(null);
   const [metaSetupLoading, setMetaSetupLoading] = useState(false);
-  const [metaPermissionDiagnostics, setMetaPermissionDiagnostics] = useState<MetaPermissionDiagnosticsState>(
-    EMPTY_META_PERMISSION_DIAGNOSTICS,
-  );
+  const [metaPermissionDiagnostics, setMetaPermissionDiagnostics] =
+    useState<MetaPermissionDiagnosticsState>(EMPTY_META_PERMISSION_DIAGNOSTICS);
   const [socialStatus, setSocialStatus] = useState<SocialPlatformStatusRecord[]>([]);
   const [socialStatusLoad, setSocialStatusLoad] = useState<SocialStatusLoad>('loading');
   const [socialStatusError, setSocialStatusError] = useState<string | null>(null);
-  const [socialActionPendingPlatform, setSocialActionPendingPlatform] = useState<string | null>(null);
+  const [socialActionPendingPlatform, setSocialActionPendingPlatform] = useState<string | null>(
+    null,
+  );
   const socialSectionRef = useRef<HTMLElement | null>(null);
   const focusSocialView = useMemo(() => {
     if (typeof window === 'undefined') {
@@ -363,7 +372,8 @@ const DataSources = () => {
         setSocialStatusError(socialMessage);
       }
     } catch (loadError) {
-      const message = loadError instanceof Error ? loadError.message : 'Unable to load data sources.';
+      const message =
+        loadError instanceof Error ? loadError.message : 'Unable to load data sources.';
       setError(message);
       setSocialStatus([]);
       setSocialStatusLoad('loaded');
@@ -468,24 +478,72 @@ const DataSources = () => {
       return;
     }
 
-    setConnectProvider('META');
-    setConnectForm(buildInitialConnectForm('META'));
-    setMetaConnectStep('oauth-pending');
-
     const clearOAuthParams = () => {
       window.sessionStorage.removeItem(META_OAUTH_PROVIDER_KEY);
       const nextUrl = `${window.location.pathname}${window.location.hash}`;
       window.history.replaceState({}, document.title, nextUrl);
     };
+    const oauthFlow = window.sessionStorage.getItem(META_OAUTH_FLOW_SESSION_KEY);
 
     if (oauthError) {
       pushToast(
-        oauthErrorDescription?.trim() ? `OAuth failed: ${oauthErrorDescription}` : `OAuth failed: ${oauthError}`,
+        oauthErrorDescription?.trim()
+          ? `OAuth failed: ${oauthErrorDescription}`
+          : `OAuth failed: ${oauthError}`,
         { tone: 'error' },
       );
       clearOAuthParams();
       return;
     }
+
+    if (oauthFlow === META_OAUTH_FLOW_PAGE_INSIGHTS) {
+      setMetaOAuthExchanging(true);
+      void callbackMetaOAuth(code ?? '', state ?? '')
+        .then((response) => {
+          const missingPermissions = response.missing_required_permissions ?? [];
+          if (missingPermissions.length > 0) {
+            pushToast(
+              `Missing required permissions: ${missingPermissions.join(', ')}`,
+              { tone: 'error' },
+            );
+            return;
+          }
+          const pageCount = response.pages?.length ?? 0;
+          const fallbackDefaultPageId =
+            response.pages?.find((page) => page.is_default)?.page_id ?? response.pages?.[0]?.page_id;
+          const defaultPageId = response.default_page_id ?? fallbackDefaultPageId;
+          pushToast(
+            pageCount > 0
+              ? 'Meta Page Insights connected. Loading page dashboard.'
+              : 'Meta connected, but no eligible Pages were returned.',
+            { tone: pageCount > 0 ? 'success' : 'error' },
+          );
+          if (import.meta.env.MODE === 'test') {
+            return;
+          }
+          const destination = defaultPageId
+            ? `/dashboards/meta/pages/${defaultPageId}/overview`
+            : '/dashboards/meta/pages';
+          window.location.assign(destination);
+        })
+        .catch((oauthExchangeError) => {
+          const message =
+            oauthExchangeError instanceof Error
+              ? oauthExchangeError.message
+              : 'Meta OAuth callback failed for Page Insights.';
+          pushToast(message, { tone: 'error' });
+        })
+        .finally(() => {
+          setMetaOAuthExchanging(false);
+          window.sessionStorage.removeItem(META_OAUTH_FLOW_SESSION_KEY);
+          clearOAuthParams();
+        });
+      return;
+    }
+
+    setConnectProvider('META');
+    setConnectForm(buildInitialConnectForm('META'));
+    setMetaConnectStep('oauth-pending');
 
     setMetaOAuthExchanging(true);
     void exchangeMetaOAuthCode({ code: code ?? '', state: state ?? '' })
@@ -528,9 +586,12 @@ const DataSources = () => {
           return;
         }
         setMetaConnectStep('page-selection');
-        pushToast('Meta OAuth complete. Select your business page and ad account to finish setup.', {
-          tone: 'success',
-        });
+        pushToast(
+          'Meta OAuth complete. Select your business page and ad account to finish setup.',
+          {
+            tone: 'success',
+          },
+        );
       })
       .catch((oauthExchangeError) => {
         const message =
@@ -541,6 +602,7 @@ const DataSources = () => {
       })
       .finally(() => {
         setMetaOAuthExchanging(false);
+        window.sessionStorage.removeItem(META_OAUTH_FLOW_SESSION_KEY);
         clearOAuthParams();
       });
   }, [pushToast]);
@@ -566,7 +628,9 @@ const DataSources = () => {
         }
       } catch (oauthStartError) {
         const message =
-          oauthStartError instanceof Error ? oauthStartError.message : 'Unable to start Meta OAuth.';
+          oauthStartError instanceof Error
+            ? oauthStartError.message
+            : 'Unable to start Meta OAuth.';
         pushToast(message, { tone: 'error' });
         if (options?.openPanelOnError) {
           setConnectProvider('META');
@@ -620,12 +684,17 @@ const DataSources = () => {
         response.instagram_account?.username?.trim() || response.instagram_account?.id
           ? ` Instagram linked: ${response.instagram_account?.username?.trim() || response.instagram_account?.id}.`
           : '';
-      pushToast(`Connected Meta business asset ${response.credential.account_id}.${instagramSuffix}`, {
-        tone: 'success',
-      });
+      pushToast(
+        `Connected Meta business asset ${response.credential.account_id}.${instagramSuffix}`,
+        {
+          tone: 'success',
+        },
+      );
     } catch (metaConnectError) {
       const message =
-        metaConnectError instanceof Error ? metaConnectError.message : 'Unable to connect selected Meta page.';
+        metaConnectError instanceof Error
+          ? metaConnectError.message
+          : 'Unable to connect selected Meta page.';
       pushToast(message, { tone: 'error' });
     } finally {
       setMetaOAuthSavingPage(false);
@@ -655,13 +724,16 @@ const DataSources = () => {
     }
   }, [loadData, pushToast, resetMetaOAuthState]);
 
-  const openConnectPanel = useCallback((provider: ConnectProvider) => {
-    setConnectProvider(provider);
-    setConnectForm(buildInitialConnectForm(provider));
-    if (provider === 'META') {
-      resetMetaOAuthState();
-    }
-  }, [resetMetaOAuthState]);
+  const openConnectPanel = useCallback(
+    (provider: ConnectProvider) => {
+      setConnectProvider(provider);
+      setConnectForm(buildInitialConnectForm(provider));
+      if (provider === 'META') {
+        resetMetaOAuthState();
+      }
+    },
+    [resetMetaOAuthState],
+  );
 
   const closeConnectPanel = useCallback(() => {
     setConnectProvider(null);
@@ -678,10 +750,9 @@ const DataSources = () => {
       try {
         const response = await triggerAirbyteSync(connection.id);
         const jobId = response?.job_id;
-        pushToast(
-          jobId ? `Sync triggered (job ${jobId}).` : 'Sync triggered.',
-          { tone: 'success' },
-        );
+        pushToast(jobId ? `Sync triggered (job ${jobId}).` : 'Sync triggered.', {
+          tone: 'success',
+        });
         void loadData();
       } catch (syncError) {
         const message = syncError instanceof Error ? syncError.message : 'Sync failed to start.';
@@ -752,7 +823,10 @@ const DataSources = () => {
           pushToast('Workspace UUID format is invalid.', { tone: 'error' });
           return;
         }
-        if (connectForm.destinationId.trim() && !UUID_REGEX.test(connectForm.destinationId.trim())) {
+        if (
+          connectForm.destinationId.trim() &&
+          !UUID_REGEX.test(connectForm.destinationId.trim())
+        ) {
           pushToast('Destination UUID format is invalid.', { tone: 'error' });
           return;
         }
@@ -794,8 +868,7 @@ const DataSources = () => {
               is_active: connectForm.isActive,
               interval_minutes:
                 scheduleType === 'interval' ? Number(connectForm.intervalMinutes) : null,
-              cron_expression:
-                scheduleType === 'cron' ? connectForm.cronExpression.trim() : '',
+              cron_expression: scheduleType === 'cron' ? connectForm.cronExpression.trim() : '',
             });
             const syncPayload = await syncMetaIntegration();
             if (syncPayload.job_id) {
@@ -842,8 +915,7 @@ const DataSources = () => {
               is_active: connectForm.isActive,
               interval_minutes:
                 scheduleType === 'interval' ? Number(connectForm.intervalMinutes) : null,
-              cron_expression:
-                scheduleType === 'cron' ? connectForm.cronExpression.trim() : '',
+              cron_expression: scheduleType === 'cron' ? connectForm.cronExpression.trim() : '',
             } as const;
             await createAirbyteConnection(payload);
           }
@@ -966,7 +1038,8 @@ const DataSources = () => {
       total,
       active,
       inactive: total - active,
-      due: connections.filter((connection) => resolveConnectionState(connection) === 'stale').length,
+      due: connections.filter((connection) => resolveConnectionState(connection) === 'stale')
+        .length,
       by_provider: {},
     };
   }, [connections, summary]);
@@ -1006,6 +1079,9 @@ const DataSources = () => {
             Track social connector progress across Meta and Instagram with actionable setup status.
           </p>
           <div className="dashboard-header__actions-row" style={{ marginBottom: '0.75rem' }}>
+            <a className="button tertiary" href="/integrations/meta">
+              New Meta integration
+            </a>
             <a className="button tertiary" href="/dashboards/meta/accounts">
               Meta accounts
             </a>
@@ -1102,7 +1178,10 @@ const DataSources = () => {
         <div className="data-sources-controls">
           <label className="dashboard-field">
             <span className="dashboard-field__label">Provider</span>
-            <select value={providerFilter} onChange={(event) => setProviderFilter(event.target.value)}>
+            <select
+              value={providerFilter}
+              onChange={(event) => setProviderFilter(event.target.value)}
+            >
               <option value="all">All providers</option>
               {providerOptions.map((provider) => (
                 <option key={provider.value} value={provider.value}>
@@ -1203,16 +1282,22 @@ const DataSources = () => {
                       <div>
                         <p className="status-message muted">
                           OAuth ready:{' '}
-                          <span className={`status-pill ${metaSetupStatus.ready_for_oauth ? 'success' : 'error'}`}>
+                          <span
+                            className={`status-pill ${metaSetupStatus.ready_for_oauth ? 'success' : 'error'}`}
+                          >
                             {metaSetupStatus.ready_for_oauth ? 'Yes' : 'No'}
                           </span>{' '}
                           Provision defaults ready:{' '}
                           <span
                             className={`status-pill ${
-                              metaSetupStatus.ready_for_provisioning_defaults ? 'success' : 'warning'
+                              metaSetupStatus.ready_for_provisioning_defaults
+                                ? 'success'
+                                : 'warning'
                             }`}
                           >
-                            {metaSetupStatus.ready_for_provisioning_defaults ? 'Yes' : 'Missing defaults'}
+                            {metaSetupStatus.ready_for_provisioning_defaults
+                              ? 'Yes'
+                              : 'Missing defaults'}
                           </span>
                         </p>
                         {metaSetupStatus.missing_env_vars?.length ? (
@@ -1236,7 +1321,8 @@ const DataSources = () => {
                               {check.using_fallback_default ? ' (using built-in default)' : ''}
                               {!check.ok && check.missing_env_vars?.length ? (
                                 <span className="status-message error">
-                                  {' '}Set:{' '}
+                                  {' '}
+                                  Set:{' '}
                                   {check.missing_env_vars.map((name, index) => (
                                     <span key={`${check.key}-${name}`}>
                                       <code>{name}</code>
@@ -1257,7 +1343,9 @@ const DataSources = () => {
                         <p className="status-message muted">
                           Login configuration ID:{' '}
                           {metaSetupStatus.login_configuration_id || 'Not configured'}{' '}
-                          {metaSetupStatus.login_configuration_required ? '(required)' : '(optional)'}
+                          {metaSetupStatus.login_configuration_required
+                            ? '(required)'
+                            : '(optional)'}
                         </p>
                       </div>
                     ) : null}
@@ -1295,12 +1383,7 @@ const DataSources = () => {
                   </label>
                   <label className="dashboard-field">
                     <span className="dashboard-field__label">OAuth status</span>
-                    <input
-                      type="text"
-                      value={metaConnectStep}
-                      readOnly
-                      aria-label="OAuth status"
-                    />
+                    <input type="text" value={metaConnectStep} readOnly aria-label="OAuth status" />
                   </label>
                 </div>
                 {metaPermissionDiagnostics.missingRequiredPermissions.length ? (
@@ -1313,7 +1396,8 @@ const DataSources = () => {
                       </p>
                       {metaPermissionDiagnostics.declinedPermissions.length ? (
                         <p className="status-message muted">
-                          Declined permissions: {metaPermissionDiagnostics.declinedPermissions.join(', ')}
+                          Declined permissions:{' '}
+                          {metaPermissionDiagnostics.declinedPermissions.join(', ')}
                         </p>
                       ) : null}
                     </div>
@@ -1353,15 +1437,15 @@ const DataSources = () => {
                       >
                         {metaOAuthSelection.adAccounts.map((account) => (
                           <option key={account.id} value={account.id}>
-                            {account.name?.trim()
-                              ? `${account.name} (${account.id})`
-                              : account.id}
+                            {account.name?.trim() ? `${account.name} (${account.id})` : account.id}
                           </option>
                         ))}
                       </select>
                     </label>
                     <label className="dashboard-field">
-                      <span className="dashboard-field__label">Instagram business account (optional)</span>
+                      <span className="dashboard-field__label">
+                        Instagram business account (optional)
+                      </span>
                       <select
                         value={metaOAuthSelection.selectedInstagramAccountId}
                         onChange={(event) =>
@@ -1425,7 +1509,7 @@ const DataSources = () => {
                       value={
                         metaConnectedInstagramAccount?.username?.trim()
                           ? `@${metaConnectedInstagramAccount.username}`
-                          : metaConnectedInstagramAccount?.id ?? ''
+                          : (metaConnectedInstagramAccount?.id ?? '')
                       }
                       readOnly
                       placeholder="Optional"
@@ -1466,20 +1550,22 @@ const DataSources = () => {
                   <input
                     type="password"
                     value={connectForm.accessToken}
-                    onChange={(event) => handleConnectFieldChange('accessToken', event.target.value)}
+                    onChange={(event) =>
+                      handleConnectFieldChange('accessToken', event.target.value)
+                    }
                     autoComplete="off"
                     required
                   />
                 </label>
 
                 <label className="dashboard-field">
-                  <span className="dashboard-field__label">
-                    Refresh token (optional)
-                  </span>
+                  <span className="dashboard-field__label">Refresh token (optional)</span>
                   <input
                     type="password"
                     value={connectForm.refreshToken}
-                    onChange={(event) => handleConnectFieldChange('refreshToken', event.target.value)}
+                    onChange={(event) =>
+                      handleConnectFieldChange('refreshToken', event.target.value)
+                    }
                     autoComplete="off"
                   />
                 </label>
@@ -1541,7 +1627,9 @@ const DataSources = () => {
                 </label>
                 {connectProvider === 'META' ? (
                   <label className="dashboard-field">
-                    <span className="dashboard-field__label">Airbyte destination UUID (optional)</span>
+                    <span className="dashboard-field__label">
+                      Airbyte destination UUID (optional)
+                    </span>
                     <input
                       type="text"
                       value={connectForm.destinationId}

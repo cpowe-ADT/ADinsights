@@ -236,16 +236,16 @@ export async function loadAirbyteConnections(
   });
 }
 
-export async function loadAirbyteSummary(
-  signal?: AbortSignal,
-): Promise<AirbyteConnectionsSummary> {
+export async function loadAirbyteSummary(signal?: AbortSignal): Promise<AirbyteConnectionsSummary> {
   return apiClient.get<AirbyteConnectionsSummary>(SUMMARY_ENDPOINT, {
     mockPath: SUMMARY_FIXTURE,
     signal,
   });
 }
 
-export async function triggerAirbyteSync(connectionId: string): Promise<{ job_id?: string | null }> {
+export async function triggerAirbyteSync(
+  connectionId: string,
+): Promise<{ job_id?: string | null }> {
   return apiClient.post<{ job_id?: string | null }>(`${CONNECTIONS_ENDPOINT}${connectionId}/sync/`);
 }
 

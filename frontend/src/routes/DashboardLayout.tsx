@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate, type NavLinkRenderProps } from 'react-router-dom';
+import {
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+  type NavLinkRenderProps,
+} from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -40,6 +46,9 @@ const segmentLabels: Record<string, string> = {
   accounts: 'Accounts',
   insights: 'Insights',
   status: 'Status',
+  pages: 'Facebook Pages',
+  overview: 'Overview',
+  posts: 'Posts',
   map: 'Map',
   uploads: 'CSV uploads',
 };
@@ -202,9 +211,13 @@ const DashboardLayout = () => {
   }, [selectedMetric, setSelectedMetric, setSelectedParish]);
 
   const errors = useMemo(() => {
-    return [campaign, creative, budget, parish]
-      .filter((slice) => slice.status === 'error' && slice.error)
-      .map((slice) => slice.error as string);
+    return Array.from(
+      new Set(
+        [campaign, creative, budget, parish]
+          .filter((slice) => slice.status === 'error' && slice.error)
+          .map((slice) => slice.error as string),
+      ),
+    );
   }, [budget, campaign, creative, parish]);
 
   const navLinks = useMemo(
@@ -216,6 +229,7 @@ const DashboardLayout = () => {
       { label: 'Budget pacing', to: '/dashboards/budget', end: false },
       { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
       { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
+      { label: 'Facebook pages', to: '/dashboards/meta/pages', end: false },
     ],
     [],
   );
@@ -384,8 +398,7 @@ const DashboardLayout = () => {
             <div className="dashboard-header__brand">
               <p className="dashboard-header__title">ADinsights</p>
               <p className="muted">
-                Active tenant{' '}
-                <strong>{activeTenantLabel ?? tenantId ?? 'Select a tenant'}</strong>
+                Active tenant <strong>{activeTenantLabel ?? tenantId ?? 'Select a tenant'}</strong>
                 {selectedParish ? (
                   <span>
                     {' • '}Filtering to <strong>{selectedParish}</strong>
@@ -403,7 +416,11 @@ const DashboardLayout = () => {
                   timestamp={snapshotAbsolute}
                 />
               </div>
-              <div className="dashboard-header__controls" role="toolbar" aria-label="Dashboard quick actions">
+              <div
+                className="dashboard-header__controls"
+                role="toolbar"
+                aria-label="Dashboard quick actions"
+              >
                 <label htmlFor="metric-select" className="dashboard-field">
                   <span className="dashboard-field__label">Map metric</span>
                   <select
@@ -432,7 +449,11 @@ const DashboardLayout = () => {
                   <span>{theme === 'dark' ? 'Light' : 'Dark'} mode</span>
                 </button>
                 <div className="dashboard-header__divider" role="presentation" />
-                <div className="dashboard-header__actions-row" role="group" aria-label="Layout actions">
+                <div
+                  className="dashboard-header__actions-row"
+                  role="group"
+                  aria-label="Layout actions"
+                >
                   <button type="button" className="button secondary" onClick={handleSaveLayout}>
                     {SaveIcon}
                     Save layout
@@ -446,7 +467,11 @@ const DashboardLayout = () => {
                     Copy link
                   </button>
                 </div>
-                <div className="dashboard-header__account" role="group" aria-label="Account actions">
+                <div
+                  className="dashboard-header__account"
+                  role="group"
+                  aria-label="Account actions"
+                >
                   <span className="muted user-pill">{accountLabel}</span>
                   <button type="button" className="button tertiary" onClick={logout}>
                     Log out

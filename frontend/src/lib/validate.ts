@@ -8,13 +8,7 @@ import parishSchema from '../schemas/parish.schema.json';
 import parishGeometrySchema from '../schemas/parish-geometry.schema.json';
 import tenantsSchema from '../schemas/tenants.schema.json';
 
-export type SchemaKey =
-  | 'metrics'
-  | 'creative'
-  | 'budget'
-  | 'parish'
-  | 'parishGeometry'
-  | 'tenants';
+export type SchemaKey = 'metrics' | 'creative' | 'budget' | 'parish' | 'parishGeometry' | 'tenants';
 
 type SchemaMap = Record<SchemaKey, ValidateFunction>;
 

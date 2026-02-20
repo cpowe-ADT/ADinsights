@@ -6,7 +6,14 @@ import { useAuth } from '../auth/AuthContext';
 import useDashboardStore from '../state/useDashboardStore';
 
 const CreativeEmptyIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2">
+  <svg
+    width="48"
+    height="48"
+    viewBox="0 0 48 48"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+  >
     <rect x="10" y="12" width="28" height="20" rx="3" />
     <path d="M16 18h16M16 24h10" strokeLinecap="round" />
     <circle cx="32" cy="26" r="4" />

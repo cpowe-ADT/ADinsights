@@ -84,21 +84,16 @@ function resolveInsightsErrorMessage(errorCode?: string, fallback?: string): str
 
 const MetaInsightsDashboardPage = () => {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }]);
-  const {
-    filters,
-    setFilters,
-    accounts,
-    insights,
-    loadAccounts,
-    loadInsights,
-  } = useMetaStore((state) => ({
-    filters: state.filters,
-    setFilters: state.setFilters,
-    accounts: state.accounts,
-    insights: state.insights,
-    loadAccounts: state.loadAccounts,
-    loadInsights: state.loadInsights,
-  }));
+  const { filters, setFilters, accounts, insights, loadAccounts, loadInsights } = useMetaStore(
+    (state) => ({
+      filters: state.filters,
+      setFilters: state.setFilters,
+      accounts: state.accounts,
+      insights: state.insights,
+      loadAccounts: state.loadAccounts,
+      loadInsights: state.loadInsights,
+    }),
+  );
 
   useEffect(() => {
     void loadAccounts();
@@ -117,7 +112,10 @@ const MetaInsightsDashboardPage = () => {
   ]);
 
   const chartData = useMemo(() => {
-    const grouped = new Map<string, { date: string; spend: number; clicks: number; impressions: number }>();
+    const grouped = new Map<
+      string,
+      { date: string; spend: number; clicks: number; impressions: number }
+    >();
     insights.rows.forEach((row) => {
       const key = row.date;
       const existing = grouped.get(key) ?? { date: key, spend: 0, clicks: 0, impressions: 0 };
@@ -227,7 +225,8 @@ const MetaInsightsDashboardPage = () => {
 
       {insights.status === 'stale' ? (
         <div className="dashboard-state" role="status" style={{ marginBottom: '1rem' }}>
-          Showing stale insights data. {resolveInsightsErrorMessage(insights.errorCode, insights.error)}
+          Showing stale insights data.{' '}
+          {resolveInsightsErrorMessage(insights.errorCode, insights.error)}
         </div>
       ) : null}
 
