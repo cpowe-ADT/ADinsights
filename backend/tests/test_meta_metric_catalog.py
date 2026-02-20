@@ -42,10 +42,7 @@ def test_meta_metric_catalog_contains_expected_metrics():
 def test_meta_metric_catalog_doc_matches_renderer():
     catalog = load_metric_catalog()
     expected = render_metric_catalog_markdown(catalog)
-    doc_path = metric_catalog_doc_path()
-    if not doc_path.exists():
-        pytest.skip("Metric catalog doc is maintained in docs track for split-branch validation.")
-    current = doc_path.read_text()
+    current = metric_catalog_doc_path().read_text()
     assert current == expected
 
 
