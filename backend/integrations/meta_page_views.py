@@ -100,6 +100,7 @@ class MetaOAuthCallbackView(APIView):
             request=request,
             code=serializer.validated_data["code"],
             state=serializer.validated_data["state"],
+            callback_payload=serializer.validated_data,
         )
 
     def post(self, request, *args, **kwargs):  # noqa: ANN001
@@ -109,9 +110,17 @@ class MetaOAuthCallbackView(APIView):
             request=request,
             code=serializer.validated_data["code"],
             state=serializer.validated_data["state"],
+            callback_payload=serializer.validated_data,
         )
 
-    def _complete_callback(self, *, request, code: str, state: str) -> Response:  # noqa: ANN001
+    def _complete_callback(
+        self,
+        *,
+        request,
+        code: str,
+        state: str,
+        callback_payload=None,  # noqa: ANN001
+    ) -> Response:
         payload, error_response = _validate_meta_state(
             request=request,
             state=state,
@@ -131,7 +140,7 @@ class MetaOAuthCallbackView(APIView):
                 )
 
         try:
-            redirect_uri = _meta_redirect_uri()
+            redirect_uri = _meta_redirect_uri(request=request, payload=callback_payload)
             with MetaGraphClient.from_settings() as client:
                 exchanged = client.exchange_code(
                     code=code,

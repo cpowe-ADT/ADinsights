@@ -1,4 +1,5 @@
 import apiClient, { appendQueryParams, type QueryParams } from './apiClient';
+import { buildRuntimeContextPayload } from './runtimeContext';
 
 export type MetricStatus = 'ACTIVE' | 'DEPRECATED' | 'INVALID' | 'UNKNOWN';
 export const META_OAUTH_FLOW_SESSION_KEY = 'adinsights.meta.oauth.flow';
@@ -137,14 +138,26 @@ function withQuery(path: string, params?: QueryParams): string {
 }
 
 export async function startMetaOAuth(authType?: 'rerequest') {
+  const runtimeContext = buildRuntimeContextPayload();
+  const hasRuntimeContext = Boolean(runtimeContext.client_origin || runtimeContext.client_port);
   return apiClient.post<{ authorize_url: string; state: string; redirect_uri: string }>(
     '/meta/connect/start/',
-    authType ? { auth_type: authType } : {},
+    authType || hasRuntimeContext
+      ? {
+          ...(authType ? { auth_type: authType } : {}),
+          ...(hasRuntimeContext ? { runtime_context: runtimeContext } : {}),
+        }
+      : {},
   );
 }
 
 export async function callbackMetaOAuth(code: string, state: string): Promise<MetaOAuthCallbackResponse> {
-  return apiClient.post<MetaOAuthCallbackResponse>('/meta/connect/callback/', { code, state });
+  const runtimeContext = buildRuntimeContextPayload();
+  const hasRuntimeContext = Boolean(runtimeContext.client_origin || runtimeContext.client_port);
+  return apiClient.post<MetaOAuthCallbackResponse>(
+    '/meta/connect/callback/',
+    hasRuntimeContext ? { code, state, runtime_context: runtimeContext } : { code, state },
+  );
 }
 
 export async function selectMetaPage(pageId: string): Promise<{ page_id: string; selected: boolean }> {

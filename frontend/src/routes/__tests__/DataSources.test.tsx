@@ -361,7 +361,12 @@ describe('DataSources connect flow', () => {
     });
     await user.click(rerequestButton);
     await waitFor(() => {
-      expect(airbyteMocks.startMetaOAuth).toHaveBeenCalledWith({ auth_type: 'rerequest' });
+      expect(airbyteMocks.startMetaOAuth).toHaveBeenCalledWith(
+        expect.objectContaining({
+          auth_type: 'rerequest',
+          runtime_context: expect.any(Object),
+        }),
+      );
     });
   });
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone as dt_timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Mapping, Optional
 import logging
 import secrets
 import uuid
@@ -24,6 +24,7 @@ from accounts.audit import log_audit_event
 from accounts.models import AuditLog
 from accounts.tenant_context import tenant_context
 from core.db_error_responses import schema_out_of_date_response
+from core.frontend_runtime import resolve_frontend_redirect_uri
 from core.metrics import observe_airbyte_sync
 from core.observability import emit_observability_event
 from integrations.airbyte.client import (
@@ -115,16 +116,21 @@ SOCIAL_STATUS_STALE_THRESHOLD_MINUTES = 60
 SOCIAL_SUCCESS_STATUSES = {"succeeded", "success", "completed"}
 
 
-def _meta_redirect_uri() -> str:
-    configured = (getattr(settings, "META_OAUTH_REDIRECT_URI", "") or "").strip()
-    if configured:
-        return configured
-    frontend_base = (getattr(settings, "FRONTEND_BASE_URL", "") or "").strip().rstrip("/")
-    if not frontend_base:
-        raise MetaGraphConfigurationError(
-            "META_OAUTH_REDIRECT_URI or FRONTEND_BASE_URL must be configured for Meta OAuth."
+def _meta_redirect_uri(
+    *,
+    request=None,  # noqa: ANN001 - DRF request
+    payload: Mapping[str, Any] | None = None,
+) -> str:
+    try:
+        return resolve_frontend_redirect_uri(
+            path="/dashboards/data-sources",
+            explicit_redirect_uri=(getattr(settings, "META_OAUTH_REDIRECT_URI", "") or "").strip(),
+            request=request,
+            payload=payload,
+            missing_message="META_OAUTH_REDIRECT_URI or FRONTEND_BASE_URL must be configured for Meta OAuth.",
         )
-    return f"{frontend_base}/dashboards/data-sources"
+    except ValueError as exc:
+        raise MetaGraphConfigurationError(str(exc)) from exc
 
 
 def _meta_state_payload(*, request) -> dict[str, str]:
@@ -662,7 +668,7 @@ class MetaOAuthStartView(APIView):
             app_id = (getattr(settings, "META_APP_ID", "") or "").strip()
             if not app_id:
                 raise MetaGraphConfigurationError("META_APP_ID must be configured for Meta OAuth.")
-            redirect_uri = _meta_redirect_uri()
+            redirect_uri = _meta_redirect_uri(request=request, payload=serializer.validated_data)
             login_configuration_id = _meta_login_configuration_id()
             login_configuration_required = _meta_login_configuration_required()
             if login_configuration_required and not login_configuration_id:
@@ -821,7 +827,7 @@ class MetaSetupView(APIView):
         )
 
         try:
-            resolved_redirect_uri = _meta_redirect_uri()
+            resolved_redirect_uri = _meta_redirect_uri(request=request, payload=request.GET)
         except MetaGraphConfigurationError:
             resolved_redirect_uri = None
 
@@ -866,7 +872,7 @@ class MetaOAuthExchangeView(APIView):
 
         code = str(serializer.validated_data["code"])
         try:
-            redirect_uri = _meta_redirect_uri()
+            redirect_uri = _meta_redirect_uri(request=request, payload=serializer.validated_data)
             with MetaGraphClient.from_settings() as client:
                 short_lived = client.exchange_code(code=code, redirect_uri=redirect_uri)
                 try:
