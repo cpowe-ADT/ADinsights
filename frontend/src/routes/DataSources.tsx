@@ -32,6 +32,7 @@ import {
   META_OAUTH_FLOW_PAGE_INSIGHTS,
   META_OAUTH_FLOW_SESSION_KEY,
 } from '../lib/metaPageInsights';
+import { buildRuntimeContextPayload } from '../lib/runtimeContext';
 
 const DataSourcesIcon = () => (
   <svg
@@ -483,6 +484,7 @@ const DataSources = () => {
       const nextUrl = `${window.location.pathname}${window.location.hash}`;
       window.history.replaceState({}, document.title, nextUrl);
     };
+    const runtimeContext = buildRuntimeContextPayload();
     const oauthFlow = window.sessionStorage.getItem(META_OAUTH_FLOW_SESSION_KEY);
 
     if (oauthError) {
@@ -546,7 +548,11 @@ const DataSources = () => {
     setMetaConnectStep('oauth-pending');
 
     setMetaOAuthExchanging(true);
-    void exchangeMetaOAuthCode({ code: code ?? '', state: state ?? '' })
+    void exchangeMetaOAuthCode({
+      code: code ?? '',
+      state: state ?? '',
+      runtime_context: runtimeContext,
+    })
       .then((response) => {
         setMetaPermissionDiagnostics({
           grantedPermissions: response.granted_permissions ?? [],
@@ -617,8 +623,15 @@ const DataSources = () => {
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(META_OAUTH_PROVIDER_KEY, 'META');
         }
+        const runtimeContext = buildRuntimeContextPayload();
+        const hasRuntimeContext = Boolean(runtimeContext.client_origin || runtimeContext.client_port);
         const response = await startMetaOAuth(
-          options?.authType ? { auth_type: options.authType } : undefined,
+          options?.authType || hasRuntimeContext
+            ? {
+                ...(options?.authType ? { auth_type: options.authType } : {}),
+                ...(hasRuntimeContext ? { runtime_context: runtimeContext } : {}),
+              }
+            : undefined,
         );
         if (typeof window !== 'undefined') {
           if (import.meta.env.MODE === 'test') {

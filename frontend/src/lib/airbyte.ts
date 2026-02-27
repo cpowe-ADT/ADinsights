@@ -90,6 +90,10 @@ export interface MetaOAuthStartResponse {
 
 export interface MetaOAuthStartPayload {
   auth_type?: 'rerequest';
+  runtime_context?: {
+    client_origin?: string;
+    client_port?: number;
+  };
 }
 
 export interface MetaOAuthPage {
@@ -270,6 +274,10 @@ export async function startMetaOAuth(
 export async function exchangeMetaOAuthCode(payload: {
   code: string;
   state: string;
+  runtime_context?: {
+    client_origin?: string;
+    client_port?: number;
+  };
 }): Promise<MetaOAuthExchangeResponse> {
   return apiClient.post<MetaOAuthExchangeResponse>('/integrations/meta/oauth/exchange/', payload);
 }

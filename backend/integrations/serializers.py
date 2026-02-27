@@ -95,6 +95,7 @@ class PlatformCredentialSerializer(serializers.ModelSerializer):
 class MetaOAuthExchangeSerializer(serializers.Serializer):
     code = serializers.CharField(required=True, allow_blank=False)
     state = serializers.CharField(required=True, allow_blank=False)
+    runtime_context = serializers.DictField(required=False)
 
 
 class MetaSystemTokenSerializer(serializers.Serializer):
@@ -113,6 +114,7 @@ class MetaOAuthStartSerializer(serializers.Serializer):
         choices=["rerequest"],
         required=False,
     )
+    runtime_context = serializers.DictField(required=False)
 
 
 class MetaPageConnectSerializer(serializers.Serializer):
