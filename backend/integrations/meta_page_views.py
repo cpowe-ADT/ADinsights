@@ -5,6 +5,7 @@ from decimal import Decimal
 import logging
 from typing import Any
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
@@ -54,8 +55,8 @@ from integrations.views import (
 
 logger = logging.getLogger(__name__)
 
-REQUIRED_INSIGHTS_SCOPES = {"pages_read_engagement"}
-PAGE_ANALYZE_TASK = "ANALYZE"
+REQUIRED_INSIGHTS_SCOPES = {"pages_read_engagement", "read_insights"}
+PAGE_INSIGHTS_TASK_FALLBACK = {"ANALYZE", "MANAGE", "ADVERTISE"}
 PAGE_INSIGHTS_PERMISSION_FALLBACK = {"ADMINISTER", "BASIC_ADMIN", "CREATE_ADS"}
 
 
@@ -66,11 +67,14 @@ def _missing_insights_scopes(scopes: list[str]) -> list[str]:
 
 def _has_page_insights_capability(*, tasks: list[str] | None, perms: list[str] | None) -> bool:
     task_set = {task.strip().upper() for task in (tasks or []) if isinstance(task, str) and task.strip()}
-    if PAGE_ANALYZE_TASK in task_set:
+    if task_set.intersection(PAGE_INSIGHTS_TASK_FALLBACK):
         return True
 
     perm_set = {perm.strip().upper() for perm in (perms or []) if isinstance(perm, str) and perm.strip()}
-    return bool(perm_set.intersection(PAGE_INSIGHTS_PERMISSION_FALLBACK))
+    if perm_set.intersection(PAGE_INSIGHTS_PERMISSION_FALLBACK):
+        return True
+
+    return not task_set and not perm_set
 
 
 def _as_aware_datetime(value: Any) -> datetime | None:
@@ -146,10 +150,26 @@ class MetaOAuthCallbackView(APIView):
                     code=code,
                     redirect_uri=redirect_uri,
                 )
-                long_lived = client.exchange_for_long_lived_user_token(
-                    short_lived_user_token=exchanged.access_token
-                )
+                try:
+                    long_lived = client.exchange_for_long_lived_user_token(
+                        short_lived_user_token=exchanged.access_token
+                    )
+                except MetaGraphClientError:
+                    long_lived = exchanged
                 debug_token = client.debug_token(input_token=long_lived.access_token)
+                if not bool(debug_token.get("is_valid")):
+                    return Response(
+                        {"detail": "Meta OAuth token failed debug_token validation."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                configured_app_id = (getattr(settings, "META_APP_ID", "") or "").strip()
+                debug_app_id_raw = debug_token.get("app_id")
+                debug_app_id = str(debug_app_id_raw).strip() if debug_app_id_raw is not None else ""
+                if configured_app_id and debug_app_id and debug_app_id != configured_app_id:
+                    return Response(
+                        {"detail": "Meta OAuth token app_id did not match META_APP_ID."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 permissions_payload = client.list_permissions(user_access_token=long_lived.access_token)
                 pages = client.list_pages(user_access_token=long_lived.access_token)
         except MetaGraphConfigurationError as exc:
@@ -240,7 +260,7 @@ class MetaOAuthCallbackView(APIView):
 
         default_page = next((page for page in saved_pages if page.is_default), saved_pages[0] if saved_pages else None)
         task_ids: dict[str, str] = {}
-        if default_page is not None and default_page.can_analyze and not missing_required_permissions:
+        if default_page is not None and default_page.can_analyze:
             try:
                 page_posts_task = sync_page_posts.delay(page_id=default_page.page_id, mode="incremental")
                 discover_task = discover_supported_metrics.delay(page_id=default_page.page_id)
