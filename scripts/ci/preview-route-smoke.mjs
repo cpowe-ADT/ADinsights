@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import process from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -11,6 +12,7 @@ const smokeUrl = `http://127.0.0.1:${previewPort}${routePath}`;
 const readinessUrl = `http://127.0.0.1:${previewPort}/`;
 
 const preview = spawn('npm', ['run', 'preview', '--', '--host', '--port', previewPort], {
+  detached: process.platform !== 'win32',
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 
@@ -21,15 +23,39 @@ preview.stderr.on('data', (chunk) => {
   process.stderr.write(chunk);
 });
 
-const shutdown = () => {
-  if (!preview.killed) {
-    preview.kill('SIGTERM');
+async function shutdown() {
+  if (preview.exitCode !== null || preview.signalCode) {
+    return;
   }
-};
+
+  try {
+    if (process.platform !== 'win32' && typeof preview.pid === 'number') {
+      process.kill(-preview.pid, 'SIGTERM');
+    } else {
+      preview.kill('SIGTERM');
+    }
+  } catch {
+    // Ignore kill errors if the process already exited.
+  }
+
+  await Promise.race([once(preview, 'exit'), delay(2_000)]);
+
+  if (preview.exitCode === null && !preview.signalCode) {
+    try {
+      if (process.platform !== 'win32' && typeof preview.pid === 'number') {
+        process.kill(-preview.pid, 'SIGKILL');
+      } else {
+        preview.kill('SIGKILL');
+      }
+    } catch {
+      // Ignore kill errors if the process already exited.
+    }
+  }
+}
 
 const fail = async (message) => {
   console.error(`preview-route-smoke failed: ${message}`);
-  shutdown();
+  await shutdown();
   await delay(250);
   process.exit(1);
 };
@@ -52,6 +78,10 @@ async function waitForPreview(url, timeoutMs = 30_000) {
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+const hardTimeout = setTimeout(() => {
+  void fail(`timed out while checking ${smokeUrl}`);
+}, 120_000);
+hardTimeout.unref();
 
 try {
   await waitForPreview(readinessUrl);
@@ -88,8 +118,11 @@ try {
 
   console.log(`preview-route-smoke passed for ${smokeUrl}`);
   await browser.close();
-  shutdown();
+  clearTimeout(hardTimeout);
+  await shutdown();
   await delay(250);
+  process.exit(0);
 } catch (error) {
+  clearTimeout(hardTimeout);
   await fail(error?.stack || error?.message || String(error));
 }
