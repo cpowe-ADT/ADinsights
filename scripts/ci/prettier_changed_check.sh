@@ -26,6 +26,12 @@ resolve_pr_range() {
     base_sha="$(git merge-base origin/main HEAD 2>/dev/null || true)"
   fi
 
+  # GitHub PR merge commits always have a first parent; use it if merge-base
+  # cannot be resolved in containerized CI contexts.
+  if [[ -z "$base_sha" ]]; then
+    base_sha="$(git rev-parse HEAD^ 2>/dev/null || true)"
+  fi
+
   if [[ -z "$base_sha" ]]; then
     echo "Unable to resolve PR base SHA for Prettier changed-files check." >&2
     exit 1
