@@ -30,33 +30,6 @@ export default defineConfig({
       },
     },
   },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules')) {
-            return undefined;
-          }
-          if (id.includes('react-router')) {
-            return 'react-router';
-          }
-          if (id.includes('react-dom') || id.includes('react')) {
-            return 'react-vendor';
-          }
-          if (id.includes('leaflet')) {
-            return 'leaflet';
-          }
-          if (id.includes('recharts')) {
-            return 'recharts';
-          }
-          if (id.includes('@tanstack')) {
-            return 'tanstack';
-          }
-          return 'vendor';
-        },
-      },
-    },
-  },
   test: {
     globals: true,
     environment: 'jsdom',

@@ -1,6 +1,13 @@
 {% macro apply_ci_fixtures() %}
     {% set env_flag = env_var('CI_USE_SEEDS', '') | lower %}
     {% set should_force = env_flag in ['1', 'true', 'yes', 'on'] %}
+    {% set skip_flag = env_var('CI_SKIP_FIXTURE_VIEWS', '') | lower %}
+    {% set should_skip = skip_flag in ['1', 'true', 'yes', 'on'] %}
+
+    {% if should_skip %}
+        {% do log('Skipping CI fixture relation creation for this dbt invocation.', info=True) %}
+        {% do return('') %}
+    {% endif %}
 
     {% set raw_schema = var('raw_schema', 'raw') %}
     {% set raw_google_ads_schema = var('raw_google_ads_schema', 'raw_google_ads') %}

@@ -8,6 +8,13 @@ on:
       - 'integrations/**'
       - 'docs/ops/exports.md'
       - '.github/workflows/integrations.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'integrations/**'
+      - 'docs/ops/exports.md'
+      - '.github/workflows/integrations.yml'
   workflow_dispatch:
 
 jobs:

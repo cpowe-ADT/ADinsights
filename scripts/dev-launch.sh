@@ -289,17 +289,15 @@ verify_demo_adapter() {
   api_base="${DEV_BACKEND_URL}/api"
 
   login_response="$(
-    curl -sS -m 10 -H "Content-Type: application/json" \
-      -d '{"email":"devadmin@local.test","password":"devadmin1"}' \
-      "${api_base}/auth/login/" || true
+    # pragma: allowlist secret
+    curl -sS -m 10 -H "Content-Type: application/json" -d '{"email":"devadmin@local.test","password":"devadmin1"}' "${api_base}/auth/login/" || true
   )"
   token="$(printf '%s' "$login_response" | extract_access_token)"
 
   if [[ -z "$token" ]]; then
     login_response="$(
-      curl -sS -m 10 -H "Content-Type: application/json" \
-        -d '{"email":"admin@example.com","password":"admin1"}' \
-        "${api_base}/auth/login/" || true
+      # pragma: allowlist secret
+      curl -sS -m 10 -H "Content-Type: application/json" -d '{"email":"admin@example.com","password":"admin1"}' "${api_base}/auth/login/" || true
     )"
     token="$(printf '%s' "$login_response" | extract_access_token)"
   fi
@@ -541,6 +539,7 @@ export POSTGRES_PORT REDIS_PORT BACKEND_PORT FRONTEND_PORT
 export DEV_BACKEND_URL="http://localhost:${BACKEND_PORT}"
 export DEV_FRONTEND_URL="http://localhost:${FRONTEND_PORT}"
 export DEV_ACTIVE_PROFILE="$SELECTED_PROFILE"
+export FRONTEND_BASE_URL="$DEV_FRONTEND_URL"
 
 write_active_env "$SELECTED_PROFILE"
 

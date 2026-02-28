@@ -36,6 +36,9 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Preview route smoke check
+        run: node scripts/ci/preview-route-smoke.mjs
+
       - name: Run Lighthouse CI
         env:
           LHCI_HIDE_PSK_PROMPT: '1'
