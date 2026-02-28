@@ -17,7 +17,7 @@
     "test": "playwright test -c qa/playwright.config.ts"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.0",
+    "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.2",
