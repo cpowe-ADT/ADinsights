@@ -13,7 +13,7 @@
     "update-snapshots": "playwright test --update-snapshots"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.10.2",
+    "@axe-core/playwright": "^4.11.1",
     "@playwright/test": "^1.56.0",
     "@types/node": "^20.16.11",
     "ajv": "^8.17.1",
