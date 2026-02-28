@@ -86,7 +86,7 @@ function isFeatureCollection(value: unknown): value is FeatureCollection {
 }
 
 const resolvedEnv = typeof import.meta !== 'undefined' ? import.meta.env : undefined;
-const MIN_PARISH_FEATURES = resolvedEnv?.MODE === 'test' ? 1 : 10;
+const MIN_PARISH_FEATURES = resolvedEnv?.MODE === 'test' || MOCK_MODE ? 1 : 10;
 
 function isReasonableParishGeometry(collection: FeatureCollection): boolean {
   if (!Array.isArray(collection.features) || collection.features.length < MIN_PARISH_FEATURES) {

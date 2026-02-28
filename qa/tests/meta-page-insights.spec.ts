@@ -1,41 +1,31 @@
 import { expect, test } from './fixtures/base';
 
 test.describe('meta page insights smoke', () => {
-  test('connect callback, select page, view dashboard and post drill-down', async ({ page, mockMode }) => {
+  test('connect callback, select page, view dashboard and post drill-down', async ({
+    page,
+    mockMode,
+  }) => {
     test.skip(!mockMode, 'Mock mode only');
 
-    await page.route('**/api/integrations/meta/oauth/callback/**', async (route) => {
+    await page.route('**/api/meta/connect/callback/', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          connection_id: 'conn-1',
-          token_debug_valid: true,
-          granted_permissions: ['read_insights', 'pages_read_engagement'],
-          declined_permissions: [],
+          default_page_id: 'page-1',
           missing_required_permissions: [],
           oauth_connected_but_missing_permissions: false,
-          pages: [
-            {
-              id: '11111111-1111-1111-1111-111111111111',
-              page_id: 'page-1',
-              name: 'Business Page',
-              can_analyze: true,
-              is_default: true,
-              tasks: ['ANALYZE'],
-              perms: [],
-            },
-          ],
         }),
       });
     });
 
-    await page.route('**/api/integrations/meta/pages/', async (route) => {
+    await page.route('**/api/meta/pages/', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          pages: [
+          count: 1,
+          results: [
             {
               id: '11111111-1111-1111-1111-111111111111',
               page_id: 'page-1',
@@ -46,7 +36,6 @@ test.describe('meta page insights smoke', () => {
               perms: [],
             },
           ],
-          missing_required_permissions: [],
         }),
       });
     });
@@ -59,15 +48,52 @@ test.describe('meta page insights smoke', () => {
       });
     });
 
-    await page.route('**/api/metrics/meta/pages/page-1/overview/**', async (route) => {
+    await page.route('**/api/meta/pages/page-1/overview/**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           page_id: 'page-1',
+          name: 'Business Page',
           date_preset: 'last_28d',
           since: '2026-01-20',
           until: '2026-02-18',
+          last_synced_at: '2026-02-19T10:00:00Z',
+          metric_availability: {
+            page_post_engagements: {
+              supported: true,
+              status: 'ACTIVE',
+              last_checked_at: null,
+              reason: 'Available',
+            },
+            page_impressions_unique: {
+              supported: false,
+              status: 'INVALID',
+              last_checked_at: null,
+              reason: 'Deprecated metric',
+            },
+          },
+          kpis: [
+            {
+              metric: 'page_post_engagements',
+              resolved_metric: 'page_post_engagements',
+              value: 403,
+              today_value: 22,
+            },
+            {
+              metric: 'page_impressions_unique',
+              resolved_metric: 'page_views_total',
+              value: null,
+              today_value: null,
+            },
+          ],
+          daily_series: {
+            page_post_engagements: [
+              { date: '2026-02-17', value: 10 },
+              { date: '2026-02-18', value: 22 },
+            ],
+          },
+          primary_metric: 'page_post_engagements',
           cards: [
             {
               metric_key: 'page_post_engagements',
@@ -99,39 +125,34 @@ test.describe('meta page insights smoke', () => {
       });
     });
 
-    await page.route('**/api/metrics/meta/pages/page-1/timeseries/**', async (route) => {
+    await page.route('**/api/meta/pages/page-1/posts/**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           page_id: 'page-1',
-          metric: 'page_post_engagements',
-          resolved_metric: 'page_post_engagements',
-          period: 'day',
+          date_preset: 'last_28d',
           since: '2026-01-20',
           until: '2026-02-18',
-          points: [
-            { end_time: '2026-02-17T08:00:00Z', value: '10' },
-            { end_time: '2026-02-18T08:00:00Z', value: '22' },
-          ],
-        }),
-      });
-    });
-
-    await page.route('**/api/metrics/meta/pages/page-1/posts/**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          page_id: 'page-1',
-          since: '2026-01-20',
-          until: '2026-02-18',
+          last_synced_at: '2026-02-19T10:00:00Z',
+          metric_availability: {
+            post_reactions_like_total: {
+              supported: true,
+              status: 'ACTIVE',
+              last_checked_at: null,
+              reason: 'Available',
+            },
+          },
           results: [
             {
               post_id: 'page-1_abc',
+              page_id: 'page-1',
               created_time: '2026-02-18T08:00:00Z',
-              permalink_url: 'https://example.com/p',
+              permalink: 'https://example.com/p',
+              media_type: 'status',
+              message_snippet: 'Post copy',
               message: 'Post copy',
+              last_synced_at: '2026-02-19T10:00:00Z',
               metrics: { post_reactions_like_total: 44 },
             },
           ],
@@ -139,7 +160,32 @@ test.describe('meta page insights smoke', () => {
       });
     });
 
-    await page.route('**/api/metrics/meta/posts/page-1_abc/timeseries/**', async (route) => {
+    await page.route('**/api/meta/posts/page-1_abc/', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          post_id: 'page-1_abc',
+          page_id: 'page-1',
+          created_time: '2026-02-18T08:00:00Z',
+          permalink: 'https://example.com/p',
+          media_type: 'status',
+          message: 'Post copy',
+          last_synced_at: '2026-02-19T10:00:00Z',
+          metric_availability: {
+            post_reactions_like_total: {
+              supported: true,
+              status: 'ACTIVE',
+              last_checked_at: null,
+              reason: 'Available',
+            },
+          },
+          metrics: { post_reactions_like_total: 44 },
+        }),
+      });
+    });
+
+    await page.route('**/api/meta/posts/page-1_abc/timeseries/**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -148,16 +194,27 @@ test.describe('meta page insights smoke', () => {
           metric: 'post_reactions_like_total',
           resolved_metric: 'post_reactions_like_total',
           period: 'lifetime',
-          points: [{ end_time: '2026-02-18T08:00:00Z', value: '44' }],
+          metric_availability: {
+            post_reactions_like_total: {
+              supported: true,
+              status: 'ACTIVE',
+              last_checked_at: null,
+              reason: 'Available',
+            },
+          },
+          points: [{ end_time: '2026-02-18T08:00:00Z', value: 44 }],
         }),
       });
     });
 
-    await page.route('**/api/metrics/meta/pages/page-1/refresh/', async (route) => {
+    await page.route('**/api/meta/pages/page-1/sync/', async (route) => {
       await route.fulfill({
         status: 202,
         contentType: 'application/json',
-        body: JSON.stringify({ page_task_id: 'task-page', post_task_id: 'task-post' }),
+        body: JSON.stringify({
+          page_id: 'page-1',
+          tasks: { page: 'task-page', post: 'task-post' },
+        }),
       });
     });
 
@@ -165,17 +222,18 @@ test.describe('meta page insights smoke', () => {
     await expect(page.getByRole('heading', { name: /Meta/i })).toBeVisible();
     await expect(page.getByText('Business Page')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Select' }).click();
-    await page.getByRole('link', { name: 'Open dashboard' }).click();
+    await page.getByRole('button', { name: /Select & Open/i }).click();
 
-    await expect(page.getByRole('heading', { name: /Facebook Page Insights/i })).toBeVisible();
-    await expect(page.getByText(/page_impressions_unique is invalid/i)).toBeVisible();
-    await expect(page.locator('.meta-kpi-title').filter({ hasText: 'page_post_engagements' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Business Page' })).toBeVisible();
+    await expect(page.getByText(/Some metrics are not available for this Page/i)).toBeVisible();
+    await expect(page.getByText('403')).toBeVisible();
+    await expect(page.getByText(/Trend metric/i)).toBeVisible();
 
-    await page.getByRole('link', { name: 'Posts view' }).click();
-    await expect(page.getByRole('heading', { name: /Facebook Post Insights/i })).toBeVisible();
+    await page.getByRole('link', { name: 'Posts' }).click();
+    await expect(page.getByRole('heading', { name: /Page Posts/i })).toBeVisible();
     await expect(page.getByText('page-1_abc')).toBeVisible();
-    await page.getByRole('button', { name: 'Drill down' }).click();
-    await expect(page.getByText('Post page-1_abc')).toBeVisible();
+    await page.getByRole('button', { name: 'Open' }).click();
+    await expect(page.getByRole('heading', { name: /Post Detail/i })).toBeVisible();
+    await expect(page.getByText('page-1_abc')).toBeVisible();
   });
 });
