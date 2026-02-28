@@ -51,13 +51,11 @@ test.describe('tenant switching', () => {
     });
 
     await page.route('**/mock/tenants.json', (route) => fulfillJson(route, TENANTS));
-    await page.route('**/sample_metrics.json', (route) => fulfillJson(route, metricsSnapshot));
+    await page.route('**/sample_metrics.json*', (route) => fulfillJson(route, metricsSnapshot));
 
     await dashboard.open();
     await dashboard.waitForMetricsLoaded(campaignSnapshot.rows.length);
-    await expect(
-      page.locator('.snapshot-indicator__text', { hasText: 'Demo dataset active' }),
-    ).toBeVisible();
+    await expect(page.getByText(/Demo dataset is active/i)).toBeVisible();
     await page.getByRole('button', { name: /Choose a tenant|Switch dashboards/i }).click();
 
     // Select the second tenant and confirm the header updates.
@@ -71,6 +69,6 @@ test.describe('tenant switching', () => {
     expect(requestCounts.metricsApi).toBe(0);
 
     await page.unroute('**/mock/tenants.json');
-    await page.unroute('**/sample_metrics.json');
+    await page.unroute('**/sample_metrics.json*');
   });
 });

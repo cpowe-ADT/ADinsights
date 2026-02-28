@@ -68,7 +68,7 @@ test.describe('parish choropleth', () => {
   test('filters the table when selecting a parish', async ({ page, mockMode }) => {
     test.skip(!mockMode, 'This spec runs in mock mode for deterministic UI coverage.');
     if (mockMode) {
-      await page.route('**/sample_metrics.json', (route) => fulfillJson(route, metricsSnapshot));
+      await page.route('**/sample_metrics.json*', (route) => fulfillJson(route, metricsSnapshot));
     } else {
       await page.route('**/api/metrics/**', (route) =>
         fulfillJson(route, aggregatedMetricsResponse),
@@ -105,7 +105,7 @@ test.describe('parish choropleth', () => {
 
     await page.unroute('**/*parishes*.json');
     if (mockMode) {
-      await page.unroute('**/sample_metrics.json');
+      await page.unroute('**/sample_metrics.json*');
     } else {
       await page.unroute('**/api/metrics/**');
     }

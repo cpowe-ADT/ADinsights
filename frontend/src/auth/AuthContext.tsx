@@ -99,7 +99,9 @@ function writeStoredTokens(tokens: StoredTokens | null): void {
 }
 
 export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
-  const [status, setStatus] = useState<AuthStatus>('idle');
+  // Start in "checking" so protected routes do not redirect to /login
+  // before localStorage-backed auth state is hydrated.
+  const [status, setStatus] = useState<AuthStatus>('checking');
   const [error, setError] = useState<string>();
   const [statusMessage, setStatusMessage] = useState<string>();
   const [accessToken, setAccessToken] = useState<string>();
@@ -279,6 +281,8 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
         user: { email: 'qa@example.com' },
       });
       setStatus('authenticated');
+    } else {
+      setStatus('idle');
     }
     bootstrappedRef.current = true;
     return () => {
@@ -332,9 +336,6 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     }
 
     if (MOCK_MODE) {
-      if (!accessToken) {
-        setStatus('idle');
-      }
       return;
     }
 

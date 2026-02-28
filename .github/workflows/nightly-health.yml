@@ -3,6 +3,12 @@ name: Nightly health check
 on:
   schedule:
     - cron: '0 1 * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/nightly-health.yml'
+      - 'scripts/ci/curl-health.sh'
   workflow_dispatch:
 
 permissions:
@@ -18,7 +24,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Resolve runtime config
+        id: config
+        run: |
+          if [ -z "${STAGING_BASE_URL:-}" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "STAGING_BASE_URL is not set; skipping health probes."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Execute health checks
+        if: steps.config.outputs.enabled == 'true'
         run: scripts/ci/curl-health.sh
 
       - name: Publish health summary
