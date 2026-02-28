@@ -33,8 +33,14 @@ resolve_pr_range() {
   fi
 
   if [[ -z "$base_sha" ]]; then
-    echo "Unable to resolve PR base SHA for Prettier changed-files check." >&2
-    exit 1
+    if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+      echo "Unable to resolve PR base SHA; falling back to HEAD^..HEAD." >&2
+      echo "HEAD^..HEAD"
+      return
+    fi
+    echo "Unable to resolve PR base SHA and no parent commit is available; skipping Prettier check." >&2
+    echo "HEAD..HEAD"
+    return
   fi
 
   if [[ -n "$head_sha" ]]; then
