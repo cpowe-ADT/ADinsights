@@ -13,7 +13,14 @@ This file serves as the operational prompt for any agent working on ADinsights. 
 - Feature catalog (built/in progress/planned): `docs/project/feature-catalog.md`
 - Feature ownership + tests + runbooks: `docs/project/feature-ownership-map.md`
 - API contract changelog: `docs/project/api-contract-changelog.md`
+- Integration data contract matrix: `docs/project/integration-data-contract-matrix.md`
 - Release checklist: `docs/runbooks/release-checklist.md`
+- Google Ads SDK migration runbook: `docs/runbooks/google-ads-sdk-migration.md`
+- Meta App Review + validation runbook: `docs/runbooks/meta-app-review-validation.md`
+- Meta Page Insights operations runbook: `docs/runbooks/meta-page-insights-operations.md`
+- Meta Page Insights data dictionary: `docs/project/meta-page-insights-data-dictionary.md`
+- Meta Page Insights metric catalog: `docs/project/meta-page-insights-metric-catalog.md`
+- CSV upload runbook: `docs/runbooks/csv-uploads.md`
 - Data quality checklist: `docs/ops/data-quality-checklist.md`
 - Risk register: `docs/ops/risk-register.md`
 - ADR log: `docs/ops/adr-log.md`
@@ -39,6 +46,7 @@ This file serves as the operational prompt for any agent working on ADinsights. 
 ## When to Update AGENTS.md
 
 Update `AGENTS.md` when:
+
 - A new cross-cutting doc is added (catalogs, ownership, runbooks, escalation rules).
 - Guardrails, schedules, or test matrix change.
 - Recontextualization workflow changes.
@@ -46,6 +54,7 @@ Update `AGENTS.md` when:
 ## Personas & Ownership Map
 
 Personas and stream ownership live in:
+
 - `docs/workstreams.md` (owners, KPIs, tests, DoD)
 - `docs/project/feature-ownership-map.md` (domain → owner → tests/runbooks)
 
@@ -54,13 +63,14 @@ When unsure, consult the ownership map before starting work.
 ## Recontextualization Workflow
 
 If context is unclear, follow this order:
-1) `AGENTS.md`
-2) `docs/ops/doc-index.md`
-3) `docs/workstreams.md`
-4) `docs/project/feature-catalog.md`
-5) `docs/project/phase1-execution-backlog.md`
-6) `docs/task_breakdown.md`
-7) `docs/project/vertical_slice_plan.md`
+
+1. `AGENTS.md`
+2. `docs/ops/doc-index.md`
+3. `docs/workstreams.md`
+4. `docs/project/feature-catalog.md`
+5. `docs/project/phase1-execution-backlog.md`
+6. `docs/task_breakdown.md`
+7. `docs/project/vertical_slice_plan.md`
 
 ## Architecture Guardrails
 
@@ -103,7 +113,7 @@ Run the canonical checks for the folder you touch:
 
 - **Backend:** `ruff check backend && pytest -q backend`
 - **Frontend:** `cd frontend && npm ci && npm test -- --run && npm run build`
-- **dbt:** `make dbt-deps && dbt --project-dir dbt run --select staging && dbt snapshot && dbt --project-dir dbt run --select marts`
+- **dbt:** `make dbt-deps && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select staging && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' snapshot && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select marts`
 - **Airbyte:** `cd infrastructure/airbyte && docker compose config`
 
 ## Secrets & Data Handling

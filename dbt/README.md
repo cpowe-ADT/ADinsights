@@ -39,21 +39,21 @@ make dbt-test
 make dbt-freshness
 ```
 
-Generated marts include slowly changing dimensions (`dim_campaign`, `dim_adset`, `dim_ad`) built via the shared `scd2_dimension` macro, the static `dim_geo` lookup, the `fct_ad_performance` fact, and aggregate views (`vw_campaign_daily`, `vw_creative_daily`, `vw_pacing`). Metric calculations such as CTR, CPM, ROAS, CPC, and pacing leverage the reusable helpers in `dbt/macros/metrics/`.
+Generated marts include slowly changing dimensions (`dim_campaign`, `dim_adset`, `dim_ad`) built via the shared `scd2_dimension` macro, the static `dim_geo` lookup, the `fact_performance` fact, and aggregate views (`vw_campaign_daily`, `vw_creative_daily`, `vw_pacing`, `vw_dashboard_aggregate_snapshot`). Metric calculations such as CTR, CPM, ROAS, CPC, and pacing leverage the reusable helpers in `dbt/macros/metrics/`.
 
 ### Metrics macros
 
 Reusable metric helpers live under `dbt/macros/metrics/` so derived fields stay consistent across marts. They all wrap the shared `safe_divide` macro to protect against divide-by-zero edge cases.
 
-| Macro | Purpose |
-| ----- | ------- |
-| `metric_ctr(clicks, impressions)` | Click-through rate with zero guards. |
-| `metric_conversion_rate(conversions, clicks)` | Downstream conversion rate. |
-| `metric_cost_per_click(spend, clicks)` | Average CPC calculations. |
-| `metric_cost_per_conversion(spend, conversions)` | Cost per acquisition/conversion. |
-| `metric_cpm(spend, impressions)` | Cost per 1,000 impressions. |
-| `metric_return_on_ad_spend(revenue, spend)` | ROAS style efficiency. |
-| `metric_pacing(actual_value, target_value)` | Ratio between actual and target (e.g. trailing averages) for pacing views. |
+| Macro                                            | Purpose                                                                    |
+| ------------------------------------------------ | -------------------------------------------------------------------------- |
+| `metric_ctr(clicks, impressions)`                | Click-through rate with zero guards.                                       |
+| `metric_conversion_rate(conversions, clicks)`    | Downstream conversion rate.                                                |
+| `metric_cost_per_click(spend, clicks)`           | Average CPC calculations.                                                  |
+| `metric_cost_per_conversion(spend, conversions)` | Cost per acquisition/conversion.                                           |
+| `metric_cpm(spend, impressions)`                 | Cost per 1,000 impressions.                                                |
+| `metric_return_on_ad_spend(revenue, spend)`      | ROAS style efficiency.                                                     |
+| `metric_pacing(actual_value, target_value)`      | Ratio between actual and target (e.g. trailing averages) for pacing views. |
 
 To use a helper in a model:
 
@@ -75,7 +75,6 @@ BI dependencies are tracked through dbt exposures so Superset and Metabase rebui
 - `metabase_pacing_monitor` depends on `vw_pacing` and `vw_campaign_daily`.
 
 CI runs include the aggregated marts via the `unique_combination_of_columns` schema test, ensuring the new views stay keyed by date/platform/account IDs even in seed-driven pipelines.
-Generated marts include slowly changing dimensions (`dim_campaign`, `dim_adset`, `dim_ad`) built via the shared `scd2_dimension` macro, the static `dim_geo` lookup, the normalized `fact_performance` fact, and aggregate views (`vw_campaign_daily`, `vw_creative_daily`, `vw_pacing`). Metric calculations such as CTR, CPM, and cost efficiency leverage the reusable helpers in `dbt/macros/metrics.sql`, while attribution alignment macros standardize conversion windows across platforms.
 
 ## Optional connectors
 

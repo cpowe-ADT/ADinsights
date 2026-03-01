@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import {
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+  type NavLinkRenderProps,
+} from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -8,8 +14,16 @@ import { useTheme } from '../components/ThemeProvider';
 import { useToast } from '../components/ToastProvider';
 import { loadDashboardLayout, saveDashboardLayout } from '../lib/layoutPreferences';
 import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
+import {
+  areFiltersEqual,
+  createDefaultFilterState,
+  parseFilterQueryParams,
+  serializeFilterQueryParams,
+} from '../lib/dashboardFilters';
 import DatasetToggle from '../components/DatasetToggle';
 import TenantSwitcher from '../components/TenantSwitcher';
+import SnapshotIndicator from '../components/SnapshotIndicator';
+import StatusBanner from '../components/StatusBanner';
 import useDashboardStore from '../state/useDashboardStore';
 import { useDatasetStore } from '../state/useDatasetStore';
 
@@ -23,10 +37,32 @@ const metricOptions = [
 
 const segmentLabels: Record<string, string> = {
   dashboards: 'Dashboards',
+  create: 'Create dashboard',
   campaigns: 'Campaigns',
   creatives: 'Creatives',
   budget: 'Budget pacing',
+  'data-sources': 'Data sources',
+  meta: 'Meta',
+  accounts: 'Accounts',
+  insights: 'Insights',
+  status: 'Status',
+  pages: 'Facebook Pages',
+  overview: 'Overview',
+  posts: 'Posts',
+  google: 'Google',
+  'google-ads': 'Google Ads',
+  executive: 'Executive overview',
+  channels: 'Channel views',
+  keywords: 'Keywords & search terms',
+  assets: 'Ads & assets',
+  pmax: 'Performance Max',
+  breakdowns: 'Audience & breakdowns',
+  conversions: 'Conversions & attribution',
+  'change-log': 'Change log & governance',
+  recommendations: 'Recommendations',
+  reports: 'Reports & exports',
   map: 'Map',
+  uploads: 'CSV uploads',
 };
 
 function decodeSegmentValue(value: string): string {
@@ -41,6 +77,7 @@ function decodeSegmentValue(value: string): string {
 const DashboardLayout = () => {
   const { tenantId, logout, user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { pushToast } = useToast();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -48,13 +85,10 @@ const DashboardLayout = () => {
   const availableAdapters = useDatasetStore((state) => state.adapters);
   const hasLiveData = availableAdapters.includes('warehouse');
 
-  const handleFilterChange = useCallback((state: FilterBarState) => {
-    void state;
-    // TODO: Connect filters to dashboard data fetching once APIs support it.
-  }, []);
-
   const {
     loadAll,
+    filters,
+    setFilters,
     selectedMetric,
     setSelectedMetric,
     selectedParish,
@@ -67,6 +101,8 @@ const DashboardLayout = () => {
     lastSnapshotGeneratedAt,
   } = useDashboardStore((state) => ({
     loadAll: state.loadAll,
+    filters: state.filters,
+    setFilters: state.setFilters,
     selectedMetric: state.selectedMetric,
     setSelectedMetric: state.setSelectedMetric,
     selectedParish: state.selectedParish,
@@ -79,13 +115,55 @@ const DashboardLayout = () => {
     lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
   }));
 
+  const handleFilterChange = useCallback(
+    (state: FilterBarState) => {
+      setFilters(state);
+    },
+    [setFilters],
+  );
+
+  const defaultFilters = useMemo(() => createDefaultFilterState(), []);
+
+  const urlFilters = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    return parseFilterQueryParams(searchParams, defaultFilters);
+  }, [defaultFilters, location.search]);
+
+  const hideGlobalFilters = useMemo(() => {
+    return (
+      location.pathname.startsWith('/dashboards/meta/pages') ||
+      location.pathname.startsWith('/dashboards/meta/posts') ||
+      location.pathname.startsWith('/dashboards/google-ads')
+    );
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!areFiltersEqual(filters, urlFilters)) {
+      setFilters(urlFilters);
+    }
+  }, [filters, setFilters, urlFilters]);
+
+  useEffect(() => {
+    const nextSearch = serializeFilterQueryParams(filters);
+    const currentSearch = location.search.replace(/^\?/, '');
+    if (nextSearch === currentSearch) {
+      return;
+    }
+    const nextPath = nextSearch ? `${location.pathname}?${nextSearch}` : location.pathname;
+    navigate(nextPath, { replace: true });
+  }, [filters, location.pathname, location.search, navigate]);
+
   const shellRef = useRef<HTMLDivElement>(null);
   const dashboardTopRef = useRef<HTMLDivElement>(null);
   const layoutHydratedRef = useRef(false);
 
   useEffect(() => {
-    void loadAll(tenantId);
-  }, [loadAll, tenantId]);
+    const delay = filters.campaignQuery.trim().length > 0 ? 350 : 0;
+    const handle = window.setTimeout(() => {
+      void loadAll(tenantId);
+    }, delay);
+    return () => window.clearTimeout(handle);
+  }, [filters, loadAll, tenantId]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -153,16 +231,26 @@ const DashboardLayout = () => {
   }, [selectedMetric, setSelectedMetric, setSelectedParish]);
 
   const errors = useMemo(() => {
-    return [campaign, creative, budget, parish]
-      .filter((slice) => slice.status === 'error' && slice.error)
-      .map((slice) => slice.error as string);
+    return Array.from(
+      new Set(
+        [campaign, creative, budget, parish]
+          .filter((slice) => slice.status === 'error' && slice.error)
+          .map((slice) => slice.error as string),
+      ),
+    );
   }, [budget, campaign, creative, parish]);
 
   const navLinks = useMemo(
     () => [
+      { label: 'Library', to: '/dashboards', end: true },
+      { label: 'Create', to: '/dashboards/create', end: false },
       { label: 'Campaigns', to: '/dashboards/campaigns', end: false },
       { label: 'Creatives', to: '/dashboards/creatives', end: false },
       { label: 'Budget pacing', to: '/dashboards/budget', end: false },
+      { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
+      { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
+      { label: 'Facebook pages', to: '/dashboards/meta/pages', end: false },
+      { label: 'Google Ads', to: '/dashboards/google-ads', end: false },
     ],
     [],
   );
@@ -293,17 +381,33 @@ const DashboardLayout = () => {
     () => (lastSnapshotGeneratedAt ? formatRelativeTime(lastSnapshotGeneratedAt) : null),
     [lastSnapshotGeneratedAt],
   );
-  const snapshotIsStale =
-    datasetMode === 'live' && isTimestampStale(lastSnapshotGeneratedAt, 60);
+  const snapshotIsStale = isTimestampStale(lastSnapshotGeneratedAt, 60);
   const snapshotStatusLabel = useMemo(() => {
     if (datasetMode !== 'live') {
-      return 'Demo dataset active';
+      if (!lastSnapshotGeneratedAt) {
+        return 'Demo dataset active';
+      }
+      return snapshotRelative
+        ? `Demo dataset active - ${snapshotRelative}`
+        : 'Demo dataset active';
     }
     if (!lastSnapshotGeneratedAt) {
       return 'Waiting for live snapshot…';
     }
     return snapshotRelative ? `Updated ${snapshotRelative}` : 'Live snapshot available';
   }, [datasetMode, lastSnapshotGeneratedAt, snapshotRelative]);
+  const snapshotTone = useMemo(() => {
+    if (datasetMode !== 'live') {
+      if (!lastSnapshotGeneratedAt) {
+        return 'demo';
+      }
+      return snapshotIsStale ? 'stale' : 'demo';
+    }
+    if (!lastSnapshotGeneratedAt) {
+      return 'pending';
+    }
+    return snapshotIsStale ? 'stale' : 'fresh';
+  }, [datasetMode, lastSnapshotGeneratedAt, snapshotIsStale]);
   const snapshotAbsolute = useMemo(
     () => formatAbsoluteTime(lastSnapshotGeneratedAt),
     [lastSnapshotGeneratedAt],
@@ -317,8 +421,7 @@ const DashboardLayout = () => {
             <div className="dashboard-header__brand">
               <p className="dashboard-header__title">ADinsights</p>
               <p className="muted">
-                Active tenant{' '}
-                <strong>{activeTenantLabel ?? tenantId ?? 'Select a tenant'}</strong>
+                Active tenant <strong>{activeTenantLabel ?? tenantId ?? 'Select a tenant'}</strong>
                 {selectedParish ? (
                   <span>
                     {' • '}Filtering to <strong>{selectedParish}</strong>
@@ -330,16 +433,17 @@ const DashboardLayout = () => {
               <div className="dashboard-header__meta">
                 <TenantSwitcher />
                 <DatasetToggle />
-                <div
-                  className={`snapshot-indicator${
-                    snapshotIsStale ? ' snapshot-indicator--stale' : ''
-                  }`}
-                  title={snapshotAbsolute ?? undefined}
-                >
-                  <span className="snapshot-indicator__text">{snapshotStatusLabel}</span>
-                </div>
+                <SnapshotIndicator
+                  label={snapshotStatusLabel}
+                  tone={snapshotTone}
+                  timestamp={snapshotAbsolute}
+                />
               </div>
-              <div className="dashboard-header__controls">
+              <div
+                className="dashboard-header__controls"
+                role="toolbar"
+                aria-label="Dashboard quick actions"
+              >
                 <label htmlFor="metric-select" className="dashboard-field">
                   <span className="dashboard-field__label">Map metric</span>
                   <select
@@ -368,7 +472,11 @@ const DashboardLayout = () => {
                   <span>{theme === 'dark' ? 'Light' : 'Dark'} mode</span>
                 </button>
                 <div className="dashboard-header__divider" role="presentation" />
-                <div className="dashboard-header__actions-row">
+                <div
+                  className="dashboard-header__actions-row"
+                  role="group"
+                  aria-label="Layout actions"
+                >
                   <button type="button" className="button secondary" onClick={handleSaveLayout}>
                     {SaveIcon}
                     Save layout
@@ -382,7 +490,11 @@ const DashboardLayout = () => {
                     Copy link
                   </button>
                 </div>
-                <div className="dashboard-header__account">
+                <div
+                  className="dashboard-header__account"
+                  role="group"
+                  aria-label="Account actions"
+                >
                   <span className="muted user-pill">{accountLabel}</span>
                   <button type="button" className="button tertiary" onClick={logout}>
                     Log out
@@ -399,7 +511,7 @@ const DashboardLayout = () => {
                 key={link.to}
                 to={link.to}
                 end={link.end}
-                className={({ isActive }) => (isActive ? 'active' : undefined)}
+                className={({ isActive }: NavLinkRenderProps) => (isActive ? 'active' : undefined)}
               >
                 {link.label}
               </NavLink>
@@ -410,33 +522,40 @@ const DashboardLayout = () => {
           <Breadcrumbs items={breadcrumbs} />
         </div>
       </div>
-      <FilterBar onChange={handleFilterChange} />
+      {location.pathname === '/dashboards' || hideGlobalFilters ? null : (
+        <FilterBar state={filters} defaultState={defaultFilters} onChange={handleFilterChange} />
+      )}
       {datasetMode === 'dummy' ? (
         <div className="dashboard-status">
           <div className="dashboard-boundary">
-            <div className="status-message" role="status">
-              Demo dataset is active. Toggle to view live warehouse metrics.
-            </div>
+            <StatusBanner
+              message="Demo dataset is active. Toggle to view live warehouse metrics."
+              ariaLabel="Dataset status"
+            />
           </div>
         </div>
       ) : null}
       {datasetMode === 'live' && !hasLiveData ? (
         <div className="dashboard-status">
           <div className="dashboard-boundary">
-            <div className="status-message" role="alert">
-              Live warehouse metrics are unavailable. Switch to demo data to explore the interface.
-            </div>
+            <StatusBanner
+              tone="warning"
+              message="Live warehouse metrics are unavailable. Switch to demo data to explore the interface."
+              ariaLabel="Live data status"
+            />
           </div>
         </div>
       ) : null}
       {errors.length > 0 ? (
         <div className="dashboard-status">
           <div className="dashboard-boundary">
-            <div className="status-message error" role="alert">
-              {errors.map((message, index) => (
+            <StatusBanner
+              tone="error"
+              message={errors.map((message, index) => (
                 <span key={`${message}-${index}`}>{message}</span>
               ))}
-            </div>
+              ariaLabel="Dashboard errors"
+            />
           </div>
         </div>
       ) : null}

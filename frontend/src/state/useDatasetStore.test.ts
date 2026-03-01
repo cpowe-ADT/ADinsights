@@ -71,17 +71,17 @@ describe('useDatasetStore', () => {
     },
   };
 
-  it('switches to the demo dataset when only the fake adapter is available', async () => {
+  it('keeps live mode by default when only demo adapters are available', async () => {
     apiGetMock.mockResolvedValueOnce([fakeAdapter]);
 
     await useDatasetStore.getState().loadAdapters();
 
     const state = useDatasetStore.getState();
     expect(state.adapters).toEqual(['fake']);
-    expect(state.mode).toBe('dummy');
-    expect(state.source).toBe('fake');
-    expect(getDatasetSource()).toBe('fake');
-    expect(state.error).toBeUndefined();
+    expect(state.mode).toBe('live');
+    expect(state.source).toBeUndefined();
+    expect(getDatasetSource()).toBeUndefined();
+    expect(state.error).toBe('Live warehouse metrics are unavailable.');
   });
 
   it('falls back to live metrics when the demo adapter is missing', async () => {
@@ -168,7 +168,7 @@ describe('useDatasetStore', () => {
     expect(state.demoTenantId).toBe('grace-kennedy');
   });
 
-  it('defaults to live mode when the warehouse adapter is available even if dummy was persisted', async () => {
+  it('respects the persisted demo mode when it is still available', async () => {
     useDatasetStore.setState({
       mode: 'dummy',
       adapters: [],
@@ -179,7 +179,7 @@ describe('useDatasetStore', () => {
     await useDatasetStore.getState().loadAdapters();
 
     const state = useDatasetStore.getState();
-    expect(state.mode).toBe('live');
-    expect(state.source).toBe('warehouse');
+    expect(state.mode).toBe('dummy');
+    expect(state.source).toBe('fake');
   });
 });

@@ -113,12 +113,13 @@ export const useDatasetStore = create<DatasetState>()(
           const currentMode = get().mode;
           const liveAvailable = keys.includes(WAREHOUSE_KEY);
           const demoAvailable = keys.includes(DEMO_KEY) || keys.includes(FAKE_KEY);
+
           let resolvedMode: DatasetMode = currentMode;
-          if (liveAvailable) {
-            resolvedMode = 'live';
-          } else if (demoAvailable) {
-            resolvedMode = 'dummy';
-          } else if (!liveAvailable) {
+          if (currentMode === 'dummy') {
+            if (!demoAvailable && liveAvailable) {
+              resolvedMode = 'live';
+            }
+          } else if (currentMode === 'live') {
             resolvedMode = 'live';
           }
 
@@ -128,13 +129,20 @@ export const useDatasetStore = create<DatasetState>()(
             demoTenants.length === 0
               ? existingDemoTenantId
               : demoTenants.some((tenant) => tenant.id === existingDemoTenantId)
-              ? existingDemoTenantId
-              : demoTenants[0].id;
+                ? existingDemoTenantId
+                : demoTenants[0].id;
+
+          const resolvedError =
+            resolvedMode === 'live' && !liveAvailable
+              ? 'Live warehouse metrics are unavailable.'
+              : resolvedMode === 'dummy' && !demoAvailable
+                ? 'Demo dataset is unavailable.'
+                : undefined;
 
           set({
             adapters: keys,
             status: 'loaded',
-            error: undefined,
+            error: resolvedError,
             mode: resolvedMode,
             source: resolvedSource,
             demoTenants,

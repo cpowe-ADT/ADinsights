@@ -12,7 +12,7 @@
     "start_date": "2024-01-01",
     "end_date": null,
     "conversion_window": "${AIRBYTE_GOOGLE_ADS_CONVERSION_WINDOW_DAYS}",
-    "lookback_window": "${AIRBYTE_GOOGLE_ADS_LOOKBACK_DAYS}",
+    "lookback_window": "${AIRBYTE_GOOGLE_ADS_LOOKBACK_WINDOW_DAYS}",
     "use_resource_custom_queries": true,
     "custom_queries": [
       {

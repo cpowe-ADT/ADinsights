@@ -1,13 +1,15 @@
-{% snapshot ad %}
+{% snapshot meta_ad_snapshot %}
     {{
         config(
-            unique_key='ad_id',
+            unique_key="tenant_id || ':' || ad_id",
             strategy='check',
-            check_cols=['name', 'status', 'budget']
+            check_cols=['name', 'status', 'budget'],
+            pre_hook="{{ reset_snapshot_if_missing_tenant(this) }}"
         )
     }}
 
     select
+        tenant_id,
         ad_id,
         account_id as ad_account_id,
         adset_id,

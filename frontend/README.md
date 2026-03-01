@@ -18,6 +18,9 @@ The dev server will run on <http://localhost:5173>.
 - Once authenticated the dashboard requests metrics from `GET /api/metrics/` with the active bearer token. Loading, error, and empty states are surfaced across the grid and parish map.
 - Use the `VITE_MOCK_MODE` toggle in your `.env` file to switch between the local mock data fixtures (`true`) and the live API (`false`). The default is `false` so the shell now targets live `/api/*` routes unless explicitly overridden.
 - Set `VITE_MOCK_ASSETS=true` when you also want to serve GeoJSON and other static fixtures from `frontend/public/`; otherwise those assets are requested from the API.
+- Home page links can be overridden with `VITE_DOCS_URL`, `VITE_DOCS_CSV_URL`, and `VITE_RELEASE_NOTES_URL`.
+- The home announcement banner is configurable via `VITE_HOME_ANNOUNCEMENT_ENABLED`, `VITE_HOME_ANNOUNCEMENT_ID`, `VITE_HOME_ANNOUNCEMENT_TITLE`, `VITE_HOME_ANNOUNCEMENT_MESSAGE`, `VITE_HOME_ANNOUNCEMENT_CTA_LABEL`, and `VITE_HOME_ANNOUNCEMENT_HREF`.
+- Recent dashboards load from `GET /api/dashboards/recent/?limit=3`; when `VITE_MOCK_ASSETS=true`, the UI uses `frontend/public/mock/recent_dashboards.json` instead.
 - Select **Log out** from the header to clear tenant context and return to the login screen.
 
 ## Libraries

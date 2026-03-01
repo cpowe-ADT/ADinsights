@@ -3,25 +3,32 @@
 from __future__ import annotations
 
 import csv
+import json
 import logging
+import subprocess
+import sys
 from datetime import datetime, timedelta
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 from django.conf import settings
 from django.db import connection
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date, parse_datetime
 from django.http import StreamingHttpResponse
 from rest_framework import permissions, status, viewsets
+from rest_framework.generics import GenericAPIView
+from rest_framework.parsers import MultiPartParser
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from adapters.base import MetricsAdapter
-from adapters.demo import DemoAdapter
+from adapters.demo import DemoAdapter, clear_demo_seed_cache, _demo_seed_dir
 from adapters.fake import FakeAdapter
+from adapters.upload import UploadAdapter
 from adapters.warehouse import WarehouseAdapter
 
 from .models import (
@@ -36,9 +43,12 @@ from .serializers import (
     AdSetSerializer,
     AggregateSnapshotSerializer,
     CampaignSerializer,
+    CombinedMetricsQueryParamsSerializer,
     MetricRecordSerializer,
     MetricsQueryParamsSerializer,
     RawPerformanceRecordSerializer,
+    UploadMetricsRequestSerializer,
+    UploadMetricsStatusSerializer,
 )
 
 from accounts.audit import log_audit_event
@@ -46,6 +56,12 @@ from analytics.snapshots import (
     default_snapshot_metrics,
     fetch_snapshot_metrics,
     snapshot_metrics_to_serializer_payload,
+)
+from analytics.uploads import (
+    build_combined_payload,
+    parse_budget_csv,
+    parse_campaign_csv,
+    parse_parish_csv,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,6 +78,29 @@ METRIC_EXPORT_HEADERS = [
     "conversions",
     "roas",
 ]
+
+_PARISH_GEOJSON_PATH = Path(settings.BASE_DIR) / "analytics" / "assets" / "jm_parishes.json"
+
+
+@lru_cache(maxsize=1)
+def _load_parish_geojson() -> dict[str, Any] | None:
+    try:
+        raw = _PARISH_GEOJSON_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        logger.warning(
+            "parish.geometry.missing",
+            extra={"path": str(_PARISH_GEOJSON_PATH)},
+        )
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        logger.error(
+            "parish.geometry.invalid",
+            extra={"path": str(_PARISH_GEOJSON_PATH)},
+            exc_info=exc,
+        )
+        return None
 
 
 class TenantScopedModelViewSet(viewsets.ModelViewSet):
@@ -121,7 +160,7 @@ class RawPerformanceRecordViewSet(TenantScopedModelViewSet):
     serializer_class = RawPerformanceRecordSerializer
 
 
-def _build_registry() -> dict[str, MetricsAdapter]:
+def _build_registry(*, include_upload: bool = True) -> dict[str, MetricsAdapter]:
     """Return the enabled analytics adapters keyed by their slug."""
 
     registry: dict[str, MetricsAdapter] = {}
@@ -134,6 +173,9 @@ def _build_registry() -> dict[str, MetricsAdapter]:
     if getattr(settings, "ENABLE_FAKE_ADAPTER", False):
         fake = FakeAdapter()
         registry[fake.key] = fake
+    if include_upload and getattr(settings, "ENABLE_UPLOAD_ADAPTER", False):
+        upload = UploadAdapter()
+        registry[upload.key] = upload
     return registry
 
 
@@ -176,7 +218,7 @@ class MetricsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request) -> Response:  # noqa: D401 - DRF signature
-        registry = _build_registry()
+        registry = _build_registry(include_upload=False)
         if not registry:
             return Response(
                 {"detail": "No analytics adapters are enabled."},
@@ -245,12 +287,23 @@ class CombinedMetricsView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        filters_data = request.query_params
+        parishes = request.query_params.getlist("parish")
+        if len(parishes) > 1:
+            filters_data = request.query_params.copy()
+            filters_data["parish"] = ",".join(parishes)
+
+        filters_serializer = CombinedMetricsQueryParamsSerializer(data=filters_data)
+        filters_serializer.is_valid(raise_exception=True)
+        filters = filters_serializer.validated_data
+        has_filters = bool(filters.get("start_date") or filters.get("end_date") or filters.get("parish"))
+
         ttl_seconds = getattr(settings, "METRICS_SNAPSHOT_TTL", 300)
         cache_enabled = request.query_params.get("cache", "true").lower() != "false"
         tenant = request.user.tenant
         snapshot = (
             TenantMetricsSnapshot.latest_for(tenant=tenant, source=source)
-            if cache_enabled
+            if cache_enabled and not has_filters
             else None
         )
         if snapshot and snapshot.is_fresh(ttl_seconds):
@@ -258,20 +311,129 @@ class CombinedMetricsView(APIView):
             cached_payload["snapshot_generated_at"] = snapshot.generated_at.isoformat()
             return Response(cached_payload)
 
+        options = request.query_params.dict()
+        if parishes:
+            options["parish"] = parishes
+        options.update(filters)
         payload = adapter.fetch_metrics(
             tenant_id=str(tenant_id),
-            options=request.query_params,
+            options=options,
         )
         combined, generated_at = _normalize_combined_payload(payload)
-        TenantMetricsSnapshot.objects.update_or_create(
-            tenant=tenant,
-            source=source,
-            defaults={
-                "payload": combined,
-                "generated_at": generated_at,
-            },
-        )
+        if not has_filters:
+            TenantMetricsSnapshot.objects.update_or_create(
+                tenant=tenant,
+                source=source,
+                defaults={
+                    "payload": combined,
+                    "generated_at": generated_at,
+                },
+            )
         return Response(combined)
+
+
+class DemoSeedView(APIView):
+    """Generate demo seed CSVs and refresh the demo adapter cache."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request) -> Response:  # noqa: D401 - DRF signature
+        if not getattr(settings, "ENABLE_DEMO_GENERATION", False):
+            return Response(
+                {"detail": "Demo generation is disabled."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not (
+            getattr(request.user, "is_staff", False)
+            or getattr(request.user, "is_superuser", False)
+        ):
+            return Response(
+                {"detail": "Demo generation requires staff access."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        payload = request.data if isinstance(request.data, dict) else {}
+        days = payload.get("days", 90)
+        seed = payload.get("seed", 42)
+        end_date_raw = payload.get("end_date")
+
+        try:
+            days = int(days)
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "Invalid days value."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            seed = int(seed)
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "Invalid seed value."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if days < 1 or days > 365:
+            return Response(
+                {"detail": "Days must be between 1 and 365."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        end_date = None
+        if isinstance(end_date_raw, str):
+            end_date = parse_date(end_date_raw)
+        if end_date is None:
+            end_date = timezone.now().date()
+
+        out_dir = _demo_seed_dir()
+        repo_root = Path(settings.BASE_DIR).parent
+        script_candidates = [
+            repo_root / "scripts" / "generate_demo_data.py",
+            Path(settings.BASE_DIR) / "scripts" / "generate_demo_data.py",
+        ]
+        script_path = next((path for path in script_candidates if path.exists()), None)
+        if script_path is None:
+            return Response(
+                {"detail": "Demo generator script is missing."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        out_dir.mkdir(parents=True, exist_ok=True)
+        command = [
+            sys.executable,
+            str(script_path),
+            "--out",
+            str(out_dir),
+            "--days",
+            str(days),
+            "--seed",
+            str(seed),
+            "--end-date",
+            end_date.isoformat(),
+        ]
+
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            logger.error(
+                "demo.seed.failed",
+                extra={"stdout": result.stdout, "stderr": result.stderr},
+            )
+            return Response(
+                {"detail": "Failed to generate demo data."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        clear_demo_seed_cache()
+        return Response(
+            {
+                "detail": "Demo data generated.",
+                "seed_dir": str(out_dir),
+                "days": days,
+                "seed": seed,
+                "end_date": end_date.isoformat(),
+            }
+        )
 
 
 class MetricsViewSet(viewsets.ViewSet):
@@ -300,6 +462,119 @@ class MetricsViewSet(viewsets.ViewSet):
         if page is not None:
             return paginator.get_paginated_response(serializer.data)
         return Response(serializer.data)
+
+
+class UploadMetricsView(GenericAPIView):
+    """Accept CSV uploads and store a combined metrics snapshot."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser]
+
+    def get_serializer_class(self):  # noqa: D401 - DRF signature
+        if getattr(self.request, "method", "GET") == "GET":
+            return UploadMetricsStatusSerializer
+        return UploadMetricsRequestSerializer
+
+    def get(self, request) -> Response:  # noqa: D401 - DRF signature
+        tenant = getattr(request.user, "tenant", None)
+        if tenant is None:
+            return Response(
+                {"detail": "Unable to resolve tenant."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        snapshot = TenantMetricsSnapshot.latest_for(tenant=tenant, source="upload")
+        if snapshot is None:
+            return Response({"has_upload": False})
+
+        payload = snapshot.payload
+        response_payload = {
+            "has_upload": True,
+            "snapshot_generated_at": payload.get("snapshot_generated_at"),
+            "counts": {
+                "campaign_rows": len(payload.get("campaign", {}).get("rows", [])),
+                "parish_rows": len(payload.get("parish", [])),
+                "budget_rows": len(payload.get("budget", [])),
+            },
+        }
+        serializer = UploadMetricsStatusSerializer(response_payload)
+        return Response(serializer.data)
+
+    def post(self, request) -> Response:  # noqa: D401 - DRF signature
+        tenant = getattr(request.user, "tenant", None)
+        if tenant is None:
+            return Response(
+                {"detail": "Unable to resolve tenant."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        campaign_file = request.FILES.get("campaign_csv")
+        if campaign_file is None:
+            return Response(
+                {"detail": "campaign_csv file is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        campaign_result = parse_campaign_csv(campaign_file)
+        parish_file = request.FILES.get("parish_csv")
+        parish_result = parse_parish_csv(parish_file) if parish_file else None
+        budget_file = request.FILES.get("budget_csv")
+        budget_result = parse_budget_csv(budget_file) if budget_file else None
+
+        errors = campaign_result.errors[:]
+        warnings = campaign_result.warnings[:]
+        if parish_result:
+            errors.extend(parish_result.errors)
+            warnings.extend(parish_result.warnings)
+        if budget_result:
+            errors.extend(budget_result.errors)
+            warnings.extend(budget_result.warnings)
+
+        if errors:
+            return Response(
+                {"detail": "CSV validation failed.", "errors": errors, "warnings": warnings},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payload = build_combined_payload(
+            campaign_rows=campaign_result.rows,
+            parish_rows=parish_result.rows if parish_result else [],
+            budget_rows=budget_result.rows if budget_result else [],
+            uploaded_at=timezone.now(),
+        )
+
+        TenantMetricsSnapshot.objects.update_or_create(
+            tenant=tenant,
+            source="upload",
+            defaults={
+                "payload": payload,
+                "generated_at": timezone.now(),
+            },
+        )
+
+        response_payload = {
+            "has_upload": True,
+            "snapshot_generated_at": payload.get("snapshot_generated_at"),
+            "counts": {
+                "campaign_rows": len(campaign_result.rows),
+                "parish_rows": len(parish_result.rows) if parish_result else 0,
+                "budget_rows": len(budget_result.rows) if budget_result else 0,
+            },
+            "warnings": warnings,
+        }
+        serializer = UploadMetricsStatusSerializer(response_payload)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request) -> Response:  # noqa: D401 - DRF signature
+        tenant = getattr(request.user, "tenant", None)
+        if tenant is None:
+            return Response(
+                {"detail": "Unable to resolve tenant."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        TenantMetricsSnapshot.objects.filter(tenant=tenant, source="upload").delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class _Echo:
     """Minimal buffer to adapt csv.writer for streaming responses."""
@@ -396,6 +671,21 @@ class AggregateSnapshotView(APIView):
         )
 
         return Response(serializer.data)
+
+
+class ParishGeometryView(APIView):
+    """Serve static parish GeoJSON used by the map view."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request) -> Response:  # noqa: D401 - DRF signature
+        payload = _load_parish_geojson()
+        if payload is None:
+            return Response(
+                {"detail": "Parish geometry is unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(payload)
 
 
 def _fetch_metric_rows(*, tenant_id: str, filters: dict[str, Any]) -> list[dict[str, Any]]:

@@ -83,6 +83,10 @@ def test_generate_snapshots_for_tenants_creates_payloads(tenant):
     outcomes = generate_snapshots_for_tenants([str(tenant.id), str(other_tenant.id)])
 
     assert len(outcomes) == 2
+    outcome_map = {outcome.tenant_id: outcome for outcome in outcomes}
+    assert outcome_map[str(tenant.id)].row_counts["campaign_rows"] == 0
+    assert outcome_map[str(tenant.id)].row_counts["creative"] == 0
+    assert outcome_map[str(tenant.id)].stale is False
     snapshot = TenantMetricsSnapshot.objects.get(tenant=tenant, source="warehouse")
     assert snapshot.payload["campaign"]["summary"]["totalSpend"] == 100
     assert "snapshot_generated_at" in snapshot.payload

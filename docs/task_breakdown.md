@@ -8,29 +8,27 @@ live in the repository.
 
 ### 1.1 Harden Django Service
 
-- **Current State**: Django + DRF project with tenant-aware models, JWT auth, Celery wiring, and
-  encryption helpers is in place.
+- **Current State**: Django + DRF with tenant-aware models, JWT auth, Celery wiring, encryption
+  helpers, tenant onboarding (signup/invite/roles), password reset, service accounts, and audit
+  log endpoints.
 - **Next Actions**:
-  - Implement admin and onboarding flows to invite tenants and assign roles through the API.
-  - Extend permission classes so every endpoint enforces tenant scoping by default.
-  - Integrate a secrets backend (AWS KMS/Secrets Manager or Vault) behind the `KmsClient` interface.
+  - Audit tenant scoping coverage and default permission classes across endpoints.
 
 ### 1.2 Database Schema & Migrations
 
 - **Models**: `Tenant`, `User`, `Role`, `UserRole`, `PlatformCredential`, `AuditLog`, `TenantKey` exist.
 - **Next Actions**:
-  - Add business tables for campaign/adset/ad metadata and metrics landing zones.
-  - Wire the `enable_rls` command into deployment scripts and document Postgres grants.
-  - Create fixtures to bootstrap default roles/permissions for new installations.
+  - Document Postgres grants for RLS and confirm `enable_rls` is part of the deploy pipeline.
+  - Create fixtures or a `seed_roles` command to bootstrap default roles/permissions.
 
 ### 1.3 Authentication & RBAC
 
-- **Current State**: JWT login and `/api/me` endpoints exist with middleware that sets
-  `app.tenant_id`.
+- **Current State**: JWT login, `/api/me`, tenant switch, invite acceptance, password reset,
+  service account auth, and audit log endpoints are live.
 - **Next Actions**:
-  - Add password reset/onboarding flows (email invite, tenant switch UI considerations).
-  - Implement API keys or service accounts for automated integrations.
-  - Surface audit log endpoints and hook key actions (login, credential changes) into the log.
+  - Verify SES sender identity + DMARC/DKIM for `adtelligent.net` and confirm final "from" address
+    before production launch (external AWS/domain dependency).
+  - Keep production CORS allowlist and auth/public throttles aligned with release checklist values.
 
 ## 2. Data Ingestion Layer
 
@@ -50,33 +48,42 @@ live in the repository.
 
 ### 2.3 Sync Orchestration
 
+- **Current State**: Airbyte webhook updates tenant sync status/telemetry in the backend.
 - **Next Actions**:
   - Decide on owning orchestration (Airbyte scheduler vs. external orchestrator) and codify cron
     expressions in infrastructure-as-code.
-  - Integrate sync status callbacks with the backend (store last-sync timestamps per tenant).
+
+### 2.4 Integration Roadmap (Connectors + APIs)
+
+- **Reference**: `docs/project/integration-roadmap.md` (prioritized connector list, API requirements,
+  and phased build order).
+- **Next Actions**:
+  - Validate OAuth and partner approval requirements for Phase 1 connectors.
+  - Use `docs/project/integration-api-validation-checklist.md` to log scopes, limits, and risks.
+  - Identify which sources are covered by Airbyte vs. custom connectors.
+  - Confirm metrics parity needed for dashboard KPIs before adding new sources.
 
 ## 3. dbt Transformation Layer
 
 ### 3.1 Project Skeleton
 
-- **Current State**: dbt project with staging models, macros, and parish lookup seed committed.
+- **Current State**: dbt project with staging models, macros, parish lookup seed, and source
+  freshness checks committed.
 - **Next Actions**:
-  - Add source freshness checks and contracts to validate Airbyte output schemas.
   - Document environment-specific targets (dev/staging/prod) and add invocation scripts.
 
 ### 3.2 Core Models
 
+- **Current State**: `dim_campaign`, `dim_adset`, `dim_ad`, `dim_geo`, and `fact_performance`
+  implemented with SCD2 support.
 - **Next Actions**:
-  - Build `dim_campaign`, `dim_adset`, `dim_ad`, `dim_geo`, and `fact_performance` with SCD2 support.
-  - Add macros to align attribution windows (Meta unified attribution, Google conversion windows).
   - Expand the parish lookup to cover Google GeoTarget IDs and Meta region strings comprehensively.
 
 ### 3.3 Metrics Layer
 
+- **Current State**: Metrics dictionary macros and aggregated views for dashboards
+  (`vw_campaign_daily`, `vw_creative_daily`, `vw_pacing`) are in place.
 - **Next Actions**:
-  - Define metrics dictionary macros (spend, impressions, CTR, CPC, CPM, conversions, ROAS, etc.).
-  - Materialize aggregated views for dashboards (`vw_campaign_daily`, `vw_creative_daily`,
-    `vw_pacing`).
   - Document attribution nuances (Meta 13-month reach limitation, Google conversion lag) alongside
     calculations.
 
@@ -84,26 +91,31 @@ live in the repository.
 
 ### 4.1 Secrets & Config Management
 
-- **Current State**: `.env.sample` enumerates required variables and a pluggable `KmsClient` exists.
+- **Current State**: `.env.sample` enumerates required variables; `KmsClient` supports local and
+  AWS KMS; DEK rotation CLI + Celery schedule exist.
 - **Next Actions**:
-  - Implement the AWS KMS client or alternative and wire it to environment-specific keys.
+  - Provision production KMS keys and wire Secrets Manager/SSM in deploy environments (code path and
+    validation are ready; environment provisioning remains external).
   - Decide how tenants manage credential rotation (UI vs. CLI) and log these events.
 
 ### 4.2 Observability
 
+- **Current State**: Structured JSON logs include tenant/task correlation; `/metrics/app` is
+  instrumented; alert thresholds and stale snapshot monitoring runbooks are in place.
 - **Next Actions**:
-  - Plan logging/metrics stack (e.g., OpenTelemetry + Prometheus) and add instrumentation to Celery
-    tasks and API endpoints.
-  - Ensure audit logs are written for login/data access events and exposed via API for compliance.
+  - Wire logs/metrics to the production observability stack (Prometheus/OpenTelemetry + alerts).
 
 ## 5. Analytics Experience
 
 ### 5.1 Frontend Scaffold
 
-- **Current State**: React + Vite shell renders TanStack Table and Leaflet map with mock data.
+- **Current State**: React + Vite dashboards load live combined metrics with demo/upload fallback,
+  and include global filters, dataset toggle, snapshot freshness, tenant switcher, detail routes,
+  data sources UI, CSV upload wizard, and dashboard library shell.
 - **Next Actions**:
-  - Replace mock fetches with authenticated API calls once endpoints land.
-  - Add routing for campaign/creative detail pages and integrate Superset/Metabase embeds if used.
+  - Replace remaining mock-backed screens (dashboard library) with API data.
+  - Align remaining routes, empty states, and snapshot freshness UX with the finished frontend
+    spec in `docs/project/frontend-finished-product-spec.md` and review with Lina/Joel.
 
 ### 5.2 BI Tool Configuration
 
@@ -118,13 +130,30 @@ live in the repository.
   - Draft LLM prompt templates and safety guardrails; note dependency on metrics layer.
   - Prototype Canva integration workflow for shareable summaries.
 
+### 5.4 Finished Frontend Scope (MVP -> Post-MVP -> Enterprise)
+
+- **Reference**: `docs/project/frontend-finished-product-spec.md` (source of truth for pages,
+  filters, drill paths, exports, empty states, and stale data handling).
+- **MVP completion goals**:
+  - Home, Create dashboard, Campaigns, Creatives, Budget pacing, Map detail, and Profile flows
+    match the page-level requirements in the spec.
+  - Global filters and snapshot freshness indicators applied consistently across dashboards.
+  - Acceptance checklist (MVP section) verified before widening Post-MVP scope.
+- **Post-MVP expansion**:
+  - Data sources management UI and CSV upload wizard are now implemented.
+  - Report builder and exports (PDF/PNG), alerts, AI summaries, and admin/sync health views.
+- **Enterprise rollout**:
+  - UAC-driven approvals, board packs, impersonation, access review, and "why denied" UI tied to
+    `docs/security/uac-spec.md`.
+  - Require senior frontend review (Lina) and design system review (Joel) before shipping UAC UX.
+
 ## 6. Prioritized Immediate Next Steps
 
-1. Connect Airbyte Meta/Google sources to a development warehouse and verify incremental syncs.
-2. Extend the backend with tenant onboarding and credential CRUD endpoints surfaced via DRF viewsets.
-3. Build first-pass dbt fact/dimension models and expose them through lightweight API endpoints.
-4. Replace frontend mock fetches with live API calls for campaign listings and parish metrics.
-5. Document monitoring expectations (alerts for Airbyte failures, Celery retries, dbt freshness).
+1. Complete Phase 1 connector API validation (Microsoft, LinkedIn, TikTok) and confirm OAuth scopes/limits.
+2. Configure Airbyte Meta/Google connections with real credentials and verify incremental syncs.
+3. Provision production KMS keys + Secrets Manager/SSM wiring; verify rotation reminders in prod.
+4. Verify SES sender identity + DMARC/DKIM and confirm final "from" address.
+5. Confirm production env values for CORS/throttles match runbook and perform `429` smoke checks.
 
 Track progress via the project management tool (Jira/Linear) linked to these workstreams.
 
@@ -135,21 +164,68 @@ Track progress via the project management tool (Jira/Linear) linked to these wor
 The vertical slice surfaced a handful of outstanding gaps. Document them here so they can be
 scheduled deliberately instead of rediscovered during reviews:
 
-- **Warehouse snapshots** – add a Celery task/management command that copies warehouse aggregates
-  (e.g., `vw_dashboard_aggregate_snapshot`) into `analytics.TenantMetricsSnapshot` so the warehouse
-  adapter serves real payloads.
-- **Airbyte connection lifecycle APIs** – expose list/create/update endpoints for
-  `AirbyteConnection` and wire them into the onboarding flows so tenants can manage schedules
-  without touching the database.
-- **dbt incremental keys** – update the marts (`vw_campaign_daily`, `vw_creative_daily`,
-  `vw_pacing`, etc.) to include `tenant_id` in their incremental `unique_key` definitions to
-  preserve tenant isolation.
-- **Frontend live mode** – switch the dashboard stores to hit `/metrics/combined/` by default and
-  guard mock fixtures behind an opt-in flag only.
-- **Secrets & observability** – plumb the production KMS client, rotation reminders, and monitoring
-  hooks called out in the README checklist.
+- **Secrets production wiring** – code/config validation is complete; remaining work is external
+  provisioning of KMS keys and secrets manager bindings in production.
+- **Email deliverability** – runbook/env are ready; remaining work is external SES identity
+  verification + sandbox exit for `adtelligent.net`.
+- **RLS/roles bootstrap** – document Postgres grants and add a `seed_roles` fixture/command.
 
 ---
+
+## 6.2 Post-MVP Frontend Sprint Picks (Approved 2026-02-01)
+
+Goal: ship the first Post-MVP frontend features that are fully backed by existing APIs.
+Review basis: `docs/project/frontend-finished-product-spec.md` and
+`docs/project/frontend-spec-review-checklist.md`.
+
+- **Pick A: Data sources management UI (Estimate: M)** — Done
+  - Sub-tasks: list + summary cards; connection detail view; schedule display; status pills; empty
+    and error states; "run now" control when available.
+  - API deps: `GET /api/airbyte/connections/`, `GET /api/airbyte/connections/summary/`.
+  - Acceptance: supports empty/error/loading; last sync timestamp; stale warning; clear CTA to docs.
+  - Owner/tests: Lina; `npm run lint && npm test -- --run && npm run build`.
+- **Pick B: Sync health + telemetry view (Estimate: S-M)**
+  - Sub-tasks: telemetry table with pagination; job detail panel; API cost summaries; error banner
+    for failed syncs; health endpoint cross-link.
+  - API deps: `GET /api/airbyte/telemetry/`, `GET /api/health/airbyte/`.
+  - Acceptance: paginated job list, status pills, error details, stale banner tied to last sync.
+  - Owner/tests: Lina; `npm run lint && npm test -- --run && npm run build`.
+- **Pick C: Health checks overview (Estimate: S)**
+  - Sub-tasks: cards for /health, /health/airbyte, /health/dbt, /timezone; timestamps; runbook
+    links for failures.
+  - API deps: `GET /api/health/`, `GET /api/health/airbyte/`, `GET /api/health/dbt/`,
+    `GET /api/timezone/`.
+  - Acceptance: clear success/failure states with timestamps; links to runbooks.
+  - Owner/tests: Lina; `npm run lint && npm test -- --run && npm run build`.
+
+Stretch items (CSV upload wizard and dashboard library shell) are delivered; ensure QA before
+adding new picks.
+
+---
+
+## 6.3 Sprint Checklist: Dashboard Live Data + Filters (Completed)
+
+Delivered:
+
+- API contract alignment for `/api/metrics/combined/` and typed dashboard data flow.
+- Live data default with demo opt-in only.
+- FilterBar wiring + URL state + drill-down routes.
+- Consistent loading/empty/error/stale states across dashboards.
+
+## 6.4 Frontend Spec Punch List (MVP/Post-MVP)
+
+### MVP gaps
+
+- [ ] Home page: replace static recent dashboards with API-driven data + true empty state logic.
+
+### Post-MVP gaps
+
+- [x] Dashboard library: replace mock data with real API listing + error/empty states.
+- [x] Sync health/telemetry view (`/ops/sync-health`).
+- [x] Health checks overview (`/ops/health`).
+- [x] Reports/report builder + exports (`/reports`, `/reports/new`, `/reports/:id`).
+- [x] Alerts + AI summaries UI (`/alerts`, `/summaries`).
+- [x] Admin audit log view + export.
 
 ## 7. User Access Control (UAC) Rollout Plan
 

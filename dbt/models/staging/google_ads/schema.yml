@@ -12,13 +12,14 @@ models:
     description: 'Google Ads daily performance flattened from GAQL'
     tests:
       - unique_combination_of_columns:
-          combination:
-            - tenant_id
-            - customer_id
-            - campaign_id
-            - ad_group_id
-            - ad_id
-            - date
+          arguments:
+            combination:
+              - tenant_id
+              - customer_id
+              - campaign_id
+              - ad_group_id
+              - ad_id
+              - date
     columns:
       - name: tenant_id
         description: 'Tenant identifier for row-level isolation.'
@@ -37,11 +38,12 @@ models:
     description: 'Google Ads geographic performance view'
     tests:
       - unique_combination_of_columns:
-          combination:
-            - tenant_id
-            - customer_id
-            - date
-            - geo_target_id
+          arguments:
+            combination:
+              - tenant_id
+              - customer_id
+              - date
+              - geo_target_id
     columns:
       - name: tenant_id
         tests:

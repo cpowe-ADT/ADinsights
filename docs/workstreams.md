@@ -5,7 +5,33 @@ workstream so engineers can pick up a track independently without blocking
 others. Every track maps to a single top-level folder per AGENTS.md so PRs stay
 isolated.
 
+## Meta Marketing API Execution Plan (2026-02-13)
+
+This execution plan aligns Facebook Graph + Meta Marketing API onboarding with reporting ingestion.
+
+1. Airbyte/Ingestion (Maya + Leo)
+   - Keep Meta connector provisioning on ad account IDs only.
+   - Run hourly connector sync orchestrator (`06:00-22:00`, `America/Jamaica`).
+   - Validate retries/backoff and webhook telemetry in staging.
+2. Backend Metrics/API (Sofia + Andre)
+   - Enforce OAuth state validation and tenant-safe credential writes.
+   - Require ad-account selection during Meta page connect.
+   - Validate Airbyte source config before provisioning (`account_id` numeric, token present).
+3. Frontend UX (Lina + Joel)
+   - Guide flow: Connect with Facebook -> select page -> select ad account -> optional Instagram account.
+   - Block save when ad account is missing.
+   - Surface setup checklist + actionable env/scope gaps in Data Sources.
+4. dbt + Reporting (Priya + Martin)
+   - Confirm `stg_meta_ads` -> `fact_performance` -> `vw_dashboard_aggregate_snapshot` remains green after sync.
+   - Validate campaign/creative/budget/parish sections in `/api/metrics/combined/`.
+5. Observability + Ops (Omar + Hannah)
+   - Alert on stale/empty Meta syncs and repeated auth failures.
+   - Keep runbook commands aligned with implemented Meta endpoints.
+6. Cross-stream Integration (Raj + Mira)
+   - Ensure docs, API contracts, and test matrix stay synchronized across backend/frontend/dbt.
+
 ## 1. Airbyte Ingestion & Telemetry (`backend/integrations/`, `backend/core/tasks.py`)
+
 - **Owner / Effort** – Primary: Maya (Integrations); Backup: Leo (Celery). Effort: Medium.
 - **Success criteria / KPIs**
   - CRUD + schedule APIs deployed with OpenAPI docs updated.
@@ -27,6 +53,7 @@ isolated.
   - Cross-stream sync: weekly touchpoint with dbt lead for schema changes.
 
 ## 2. dbt Modeling & Warehouse Views (`dbt/`)
+
 - **Owner / Effort** – Primary: Priya; Backup: Martin. Effort: Large.
 - **Success criteria / KPIs**
   - Staging + mart models pass `dbt test` (no warnings).
@@ -45,6 +72,7 @@ isolated.
   - Cross-stream sync with backend metrics + frontend if new fields added.
 
 ## 3. Backend Metrics + Snapshots (`backend/analytics/`, `backend/adapters/`)
+
 - **Owner / Effort** – Primary: Sofia; Backup: Andre. Effort: Medium.
 - **Success criteria / KPIs**
   - `/api/metrics/combined/` responds with `snapshot_generated_at`.
@@ -64,24 +92,33 @@ isolated.
   - Cross-stream sync: notify frontend when endpoints change.
 
 ## 4. Frontend Experience (`frontend/src/`)
+
 - **Owner / Effort** – Primary: Lina; Backup: Joel. Effort: Large.
 - **Success criteria / KPIs**
   - Dashboard defaults to warehouse data; demo mode opt-in.
   - Snapshot freshness banner matches backend timestamp.
   - Design system docs updated when components change.
+  - Finished frontend spec adopted (`docs/project/frontend-finished-product-spec.md`) with MVP
+    page-level empty/stale states implemented.
+  - Post-MVP and Enterprise slices tracked with clear API dependencies and acceptance checks.
 - **Dependencies**
   - Requires backend API contracts from streams #1 & #3.
+  - Post-MVP and Enterprise work depends on Airbyte connection APIs, reporting/alerts endpoints, and
+    UAC workflow endpoints.
 - **Coding standards / Testing / Contracts**
   - Commands: `npm run lint`, `npm test -- --run`, `npm run build`.
   - Run Prettier; ensure TypeScript strictness passes.
   - Validate `/api/metrics/combined/` schema integration; update `src/lib/apiClient` types.
-  - References: `docs/design-system.md`, `docs/task_breakdown.md` §5.
+  - References: `docs/design-system.md`, `docs/task_breakdown.md` §5,
+    `docs/project/frontend-finished-product-spec.md`.
 - **Definition of Done**
   - Code limited to `frontend/src/**`; Storybook/UX docs updated.
   - Tests (unit + integration) green.
+  - Finished frontend spec reviewed by Lina (senior web dev) and Joel, with any gaps logged.
   - Cross-stream sync with backend metrics for payload shifts.
 
 ## 5. Secrets & KMS (`backend/core/crypto/`, `scripts/`)
+
 - **Owner / Effort** – Primary: Nina; Backup: Victor. Effort: Medium.
 - **Success criteria / KPIs**
   - Production KMS client functional; rotation command documented.
@@ -98,6 +135,7 @@ isolated.
   - Cross-stream sync: notify ops if rotation schedule changes.
 
 ## 6. Observability & Alerts (`backend/core/observability.py`, `docs/runbooks/`)
+
 - **Owner / Effort** – Primary: Omar; Backup: Hannah. Effort: Medium.
 - **Success criteria / KPIs**
   - Structured logs capture tenant/task IDs.
@@ -114,8 +152,10 @@ isolated.
   - Code limited to observability modules; docs updated.
   - Alert configs stored (Terraform/GitHub, if applicable).
   - Cross-stream sync via weekly ops standup.
+  - Detailed checklist: `docs/ops/stream6-definition-of-done.md`.
 
 ## 7. BI & Deployment (`deploy/`, `docs/BI`, `docs/runbooks/deployment.md`)
+
 - **Owner / Effort** – Primary: Carlos; Backup: Mei. Effort: Medium.
 - **Success criteria / KPIs**
   - Superset/Metabase configs reproducible via git.
@@ -132,15 +172,25 @@ isolated.
   - Cross-stream sync with backend/dbt when new metrics appear.
 
 ### General Instructions
+
 1. Stay within the assigned folder per workstream; no cross-folder edits unless
-reviewed with the owning engineer.
+   reviewed with the owning engineer.
 2. Follow AGENTS testing matrix: backend (`ruff`, `pytest`), frontend (`npm test`
-+ `npm run build`), dbt (`dbt run/test`), docs (no code yet).
+
+- `npm run build`), dbt (`dbt run/test`), docs (no code yet).
+
 3. Update the relevant docs/runbooks whenever a contract changes.
 4. For PRs: describe which workstream the change belongs to and link to the
-corresponding plan section.
+   corresponding plan section.
+
+### Cross-Stream Pending Items
+
+- Verify SES sender identity + DMARC/DKIM for `adtelligent.net`, confirm the final "from" address,
+  and update the runbooks/env defaults before production launch.
+- Define a production CORS policy and implement API rate limiting/throttling for public endpoints.
 
 ### Reviewer Personas & Skills
+
 - **Maya (Integrations Lead)** – Backend engineer specializing in Airbyte/Celery orchestration. Focuses on API stability, scheduling logic, and retry semantics. Expects `ruff` + unit tests before review and examines OpenAPI/contract updates.
 - **Leo (Celery/Scheduler Specialist)** – Deep knowledge of async task tuning and observability. Looks for proper `tenant_context` usage, metrics instrumentation, and failure handling paths.
 - **Priya (dbt Architect)** – Owns warehouse models; scrutinizes macro reuse, incremental strategies, and freshness enforcement. Requires dbt logs and docs for every change.

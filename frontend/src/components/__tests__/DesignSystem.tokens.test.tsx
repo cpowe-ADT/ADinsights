@@ -2,8 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const read = (relativePath: string) =>
-  readFileSync(resolve(process.cwd(), relativePath), 'utf-8');
+const read = (relativePath: string) => readFileSync(resolve(process.cwd(), relativePath), 'utf-8');
 
 describe('design system guardrails', () => {
   it('documents the core sections', () => {
@@ -20,8 +19,10 @@ describe('design system guardrails', () => {
 
     expect(theme).toContain('--color-text-primary');
     expect(theme).toContain('--metric-card-surface');
+    expect(theme).toContain('--snapshot-indicator-fresh');
     expect(styles).toContain('.metric-card');
     expect(styles).toContain('.chart-card__header');
     expect(styles).toContain('.data-table__header');
+    expect(styles).toContain('.snapshot-indicator');
   });
 });

@@ -4,9 +4,12 @@ interface EmptyStateProps {
   icon: ReactNode;
   title: string;
   message: string;
-  actionLabel: string;
-  onAction: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
   actionVariant?: 'primary' | 'secondary' | 'tertiary';
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
+  secondaryActionVariant?: 'primary' | 'secondary' | 'tertiary';
   className?: string;
 }
 
@@ -17,10 +20,17 @@ const EmptyState = ({
   actionLabel,
   onAction,
   actionVariant = 'primary',
+  secondaryActionLabel,
+  onSecondaryAction,
+  secondaryActionVariant = 'tertiary',
   className,
 }: EmptyStateProps) => {
   const classes = ['empty-state', className].filter(Boolean).join(' ');
   const buttonClass = ['button', actionVariant].filter(Boolean).join(' ');
+  const secondaryButtonClass = ['button', secondaryActionVariant].filter(Boolean).join(' ');
+  const showPrimaryAction = Boolean(actionLabel && onAction);
+  const showSecondaryAction = Boolean(secondaryActionLabel && onSecondaryAction);
+  const showActions = showPrimaryAction || showSecondaryAction;
 
   return (
     <div className={classes} role="status" aria-live="polite">
@@ -31,9 +41,20 @@ const EmptyState = ({
         <h3>{title}</h3>
         <p>{message}</p>
       </div>
-      <button type="button" className={buttonClass} onClick={onAction}>
-        {actionLabel}
-      </button>
+      {showActions ? (
+        <div className="empty-state__actions">
+          {showPrimaryAction ? (
+            <button type="button" className={buttonClass} onClick={onAction}>
+              {actionLabel}
+            </button>
+          ) : null}
+          {showSecondaryAction ? (
+            <button type="button" className={secondaryButtonClass} onClick={onSecondaryAction}>
+              {secondaryActionLabel}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 };

@@ -1,0 +1,122 @@
+name: Contract Guard CI
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contract-guard-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/**/serializers.py'
+      - 'backend/**/views.py'
+      - 'backend/**/urls.py'
+      - 'backend/**/schema*.py'
+      - 'dbt/models/**'
+      - 'dbt/snapshots/**'
+      - 'infrastructure/airbyte/**'
+      - 'integrations/**'
+      - 'docs/project/api-contract-changelog.md'
+      - 'docs/project/integration-data-contract-matrix.md'
+      - 'docs/ops/skills/adinsights-contract-guard/**'
+      - '.github/workflows/contract-guard.yml'
+  workflow_dispatch:
+
+jobs:
+  contract-guard:
+    name: Contract guard strict check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Collect changed files
+        id: changes
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="$(git rev-list --max-parents=0 HEAD)"
+            HEAD_SHA="${{ github.sha }}"
+          fi
+
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed-files.txt
+          COUNT=$(wc -l < changed-files.txt | tr -d ' ')
+          echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
+          echo "Changed files (${COUNT}):"
+          cat changed-files.txt
+
+      - name: Run contract guard (ci-strict)
+        run: |
+          set -euo pipefail
+          ARGS=()
+          while IFS= read -r file; do
+            [ -n "$file" ] || continue
+            ARGS+=(--changed-file "$file")
+          done < changed-files.txt
+
+          python3 docs/ops/skills/adinsights-contract-guard/scripts/evaluate_contract.py \
+            --prompt "CI contract guard check for pull request" \
+            "${ARGS[@]}" \
+            --ci-strict-level breaking_or_missing_docs \
+            --format json | tee contract-guard-packet.json
+
+      - name: Publish contract guard summary
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          summary_path = Path('contract-guard-packet.json')
+          if not summary_path.exists():
+              print('No contract packet generated.')
+              raise SystemExit(0)
+
+          packet = json.loads(summary_path.read_text())
+          lines = []
+          lines.append('## Contract Guard CI Summary')
+          lines.append(f"- Status: `{packet.get('contract_status')}`")
+          lines.append(f"- Breaking change: `{packet.get('breaking_change_detected')}`")
+          lines.append('- Surfaces touched: `' + (', '.join(packet.get('contract_surfaces_touched', [])) or 'none') + '`')
+          lines.append('- Required docs updates: `' + (', '.join(packet.get('required_docs_updates', [])) or 'none') + '`')
+          lines.append('- Required reviewers: `' + (', '.join(packet.get('required_reviewers', [])) or 'none') + '`')
+          lines.append('')
+          lines.append('### Next Actions')
+          for action in packet.get('next_actions', []):
+              lines.append(f'- {action}')
+
+          target = os.environ.get('GITHUB_STEP_SUMMARY')
+          if not target:
+              print('\\n'.join(lines))
+              raise SystemExit(0)
+          with open(Path(target), 'a', encoding='utf-8') as fh:
+              fh.write('\\n'.join(lines) + '\\n')
+          PY
+
+      - name: Upload contract guard packet
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-guard-packet
+          path: contract-guard-packet.json
+          if-no-files-found: ignore

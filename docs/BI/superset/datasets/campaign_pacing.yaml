@@ -1,0 +1,35 @@
+version: 1.0.0
+metadata:
+  import_time: 2024-07-18T00:00:00Z
+  database_uuid: 5b16bf82-115e-459d-bfbe-1234567890ab
+  dataset_uuid: bfbf6802-818a-4c3b-9d3f-1234567890ab
+dataset:
+  table_name: mart_campaign_daily
+  schema: mart
+  description: Daily aggregated campaign pacing metrics used by dashboards and alerting rules.
+  owners:
+    - marketing.ops@example.com
+  columns:
+    - column_name: date
+      type: DATE
+      is_dttm: true
+      is_partition: true
+    - column_name: campaign_id
+      type: VARCHAR
+    - column_name: campaign_name
+      type: VARCHAR
+    - column_name: spend
+      type: FLOAT
+    - column_name: budget
+      type: FLOAT
+    - column_name: impressions
+      type: BIGINT
+    - column_name: clicks
+      type: BIGINT
+  metrics:
+    - metric_name: total_spend
+      expression: sum(spend)
+      verbose_name: Total Spend
+    - metric_name: budget_utilization
+      expression: sum(spend) / NULLIF(sum(budget), 0)
+      verbose_name: Budget Utilization

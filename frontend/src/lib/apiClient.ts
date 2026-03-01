@@ -7,6 +7,29 @@ export type RequestOptions = {
   signal?: AbortSignal;
 };
 
+export type QueryParamValue = string | number | boolean | null | undefined;
+export type QueryParams = Record<string, QueryParamValue>;
+
+export type ApiErrorPayload = {
+  detail?: string;
+  message?: string;
+  code?: string;
+  errors?: string[];
+  warnings?: string[];
+};
+
+export class ApiError extends Error {
+  status: number;
+  payload?: ApiErrorPayload;
+
+  constructor(message: string, status: number, payload?: ApiErrorPayload) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
 const resolvedEnv = typeof import.meta !== 'undefined' ? import.meta.env : undefined;
 const resolvedProcessEnv = typeof process !== 'undefined' ? process.env : undefined;
 
@@ -65,6 +88,29 @@ function resolveUrl(path: string, mockPath?: string): string {
   return `${API_BASE_URL.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
 }
 
+export function appendQueryParams(path: string, params: QueryParams): string {
+  const [base, query] = path.split('?');
+  const searchParams = new URLSearchParams(query ?? '');
+  Object.entries(params).forEach(([key, value]) => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed) {
+        searchParams.set(key, trimmed);
+      }
+      return;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      searchParams.set(key, String(value));
+      return;
+    }
+    if (typeof value === 'boolean') {
+      searchParams.set(key, value ? 'true' : 'false');
+    }
+  });
+  const serialized = searchParams.toString();
+  return serialized ? `${base}?${serialized}` : base;
+}
+
 function buildHeaders(baseHeaders: RequestOptions['headers'], includeAuth: boolean): Headers {
   const headers = new Headers(baseHeaders);
   headers.set('Accept', headers.get('Accept') ?? 'application/json');
@@ -76,31 +122,37 @@ function buildHeaders(baseHeaders: RequestOptions['headers'], includeAuth: boole
   return headers;
 }
 
-async function parseErrorMessage(response: Response): Promise<string> {
+async function parseErrorResponse(
+  response: Response,
+): Promise<{ message: string; payload?: ApiErrorPayload }> {
+  const fallbackMessage =
+    response.status >= 500
+      ? `Server error (${response.status}). Please check backend logs.`
+      : `Request failed with status ${response.status}`;
   try {
     const contentType = response.headers.get('content-type');
     if (contentType?.includes('application/json')) {
-      const payload = (await response.json()) as { detail?: unknown; message?: unknown };
-      const detail =
-        typeof payload?.detail === 'string'
-          ? payload.detail
-          : typeof payload?.message === 'string'
-            ? payload.message
-            : null;
-      if (detail) {
-        return detail;
+      const payload = (await response.json()) as ApiErrorPayload;
+      const detail = typeof payload?.detail === 'string' ? payload.detail : null;
+      const message = typeof payload?.message === 'string' ? payload.message : detail;
+      if (message) {
+        return { message, payload };
       }
+      return { message: fallbackMessage, payload };
     } else {
       const text = await response.text();
       if (text) {
-        return text;
+        if (response.status >= 500) {
+          return { message: fallbackMessage };
+        }
+        return { message: text };
       }
     }
   } catch (error) {
     console.warn('Failed to parse API error response', error);
   }
 
-  return `Request failed with status ${response.status}`;
+  return { message: fallbackMessage };
 }
 
 async function requestInternal<T>(
@@ -150,8 +202,8 @@ async function requestInternal<T>(
       unauthorizedHandler?.();
     }
 
-    const message = await parseErrorMessage(response);
-    throw new Error(message);
+    const { message, payload } = await parseErrorResponse(response);
+    throw new ApiError(message, response.status, payload);
   }
 
   if (response.status === 204) {
@@ -200,12 +252,42 @@ export async function del<T>(
   return requestInternal<T>(path, { ...options, method: 'DELETE' });
 }
 
+export async function download(
+  path: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<{ blob: Blob; filename: string; contentType: string }> {
+  const url = resolveUrl(path);
+  const headers = buildHeaders(undefined, true);
+  headers.set('Accept', '*/*');
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+    signal: options.signal,
+  });
+
+  if (!response.ok) {
+    const { message, payload } = await parseErrorResponse(response);
+    throw new ApiError(message, response.status, payload);
+  }
+
+  const contentType = response.headers.get('content-type') ?? 'application/octet-stream';
+  const disposition = response.headers.get('content-disposition') ?? '';
+  const match = disposition.match(/filename=\"?([^\";]+)\"?/i);
+  const filename = match?.[1] ? match[1] : 'download';
+
+  const blob = await response.blob();
+  return { blob, filename, contentType };
+}
+
 const apiClient = {
   request,
   get,
   post,
   patch,
   delete: del,
+  download,
   setAccessToken,
   setRefreshHandler,
   setUnauthorizedHandler,

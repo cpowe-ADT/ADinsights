@@ -3,6 +3,15 @@ version: 2
 models:
   - name: agg_campaign_daily
     description: 'Incremental aggregate of campaign-level performance metrics with geo enrichment from the campaign dimension.'
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination:
+              - tenant_id
+              - date_day
+              - source_platform
+              - ad_account_id
+              - campaign_id
     columns:
       - name: tenant_id
         description: 'Tenant scope for the aggregated record.'
@@ -44,6 +53,13 @@ models:
                 expression: 'coalesce(roas, 0) >= 0'
   - name: agg_parish_daily
     description: 'Incremental parish-level aggregate used by the choropleth map and dashboard summaries.'
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination:
+              - tenant_id
+              - date_day
+              - parish_code
     columns:
       - name: tenant_id
         description: 'Tenant scope for the aggregated record.'
@@ -58,8 +74,9 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('dim_geo')
-              field: parish_code
+              arguments:
+                to: ref('dim_geo')
+                field: parish_code
       - name: parish_name
         description: 'Friendly parish name from the geo dimension.'
       - name: region_name
@@ -94,12 +111,13 @@ models:
     description: 'Aggregated daily campaign metrics joined to current campaign attributes.'
     tests:
       - unique_combination_of_columns:
-          combination:
-            - tenant_id
-            - date_day
-            - source_platform
-            - ad_account_id
-            - campaign_id
+          arguments:
+            combination:
+              - tenant_id
+              - date_day
+              - source_platform
+              - ad_account_id
+              - campaign_id
     columns:
       - name: tenant_id
         description: 'Tenant identifier for row-level isolation.'
@@ -156,14 +174,15 @@ models:
     description: 'Aggregated daily creative metrics with cost efficiency fields for dashboards.'
     tests:
       - unique_combination_of_columns:
-          combination:
-            - tenant_id
-            - date_day
-            - source_platform
-            - ad_account_id
-            - campaign_id
-            - adset_id
-            - ad_id
+          arguments:
+            combination:
+              - tenant_id
+              - date_day
+              - source_platform
+              - ad_account_id
+              - campaign_id
+              - adset_id
+              - ad_id
     columns:
       - name: tenant_id
         tests:
@@ -227,11 +246,12 @@ models:
     description: 'Account level pacing view with cumulative and trailing spend indicators.'
     tests:
       - unique_combination_of_columns:
-          combination:
-            - tenant_id
-            - date_day
-            - source_platform
-            - ad_account_id
+          arguments:
+            combination:
+              - tenant_id
+              - date_day
+              - source_platform
+              - ad_account_id
     columns:
       - name: tenant_id
         tests:
@@ -306,15 +326,107 @@ models:
         description: 'Campaign summary/trend/table payload matching the frontend campaign schema.'
         tests:
           - not_null
+          - expression_is_true:
+              arguments:
+                expression: "{{ json_typeof('campaign_metrics') }} = 'object'"
       - name: creative_metrics
         description: 'Creative performance rows matching the frontend creative schema.'
         tests:
           - not_null
+          - expression_is_true:
+              arguments:
+                expression: "{{ json_typeof('creative_metrics') }} = 'array'"
       - name: budget_metrics
-        description: 'Budget pacing rows (empty until budget metadata is wired).'
+        description: 'Budget pacing rows sourced from Meta ad set daily budgets with windowed spend.'
         tests:
           - not_null
+          - expression_is_true:
+              arguments:
+                expression: "{{ json_typeof('budget_metrics') }} = 'array'"
       - name: parish_metrics
         description: 'Parish aggregate rows matching the frontend map schema.'
         tests:
           - not_null
+          - expression_is_true:
+              arguments:
+                expression: "{{ json_typeof('parish_metrics') }} = 'array'"
+  - name: agg_ga4_daily
+    description: 'Phase 2 GA4 daily aggregate for web analytics trends and reporting.'
+    config:
+      enabled: "{{ var('enable_ga4', False) }}"
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination:
+              - tenant_id
+              - date_day
+              - property_id
+              - channel_group
+              - country
+              - city
+              - campaign_name
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null:
+              config:
+                enabled: "{{ var('enable_ga4', False) }}"
+      - name: date_day
+        tests:
+          - not_null:
+              config:
+                enabled: "{{ var('enable_ga4', False) }}"
+      - name: sessions
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(sessions, 0) >= 0'
+              config:
+                enabled: "{{ var('enable_ga4', False) }}"
+      - name: purchase_revenue
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(purchase_revenue, 0) >= 0'
+              config:
+                enabled: "{{ var('enable_ga4', False) }}"
+  - name: agg_search_console_daily
+    description: 'Phase 2 Search Console aggregate for SEO performance analysis.'
+    config:
+      enabled: "{{ var('enable_search_console', False) }}"
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination:
+              - tenant_id
+              - date_day
+              - site_url
+              - country
+              - device
+              - query
+              - page
+    columns:
+      - name: tenant_id
+        tests:
+          - not_null:
+              config:
+                enabled: "{{ var('enable_search_console', False) }}"
+      - name: date_day
+        tests:
+          - not_null:
+              config:
+                enabled: "{{ var('enable_search_console', False) }}"
+      - name: clicks
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(clicks, 0) >= 0'
+              config:
+                enabled: "{{ var('enable_search_console', False) }}"
+      - name: impressions
+        tests:
+          - expression_is_true:
+              arguments:
+                expression: 'coalesce(impressions, 0) >= 0'
+              config:
+                enabled: "{{ var('enable_search_console', False) }}"

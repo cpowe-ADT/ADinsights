@@ -32,5 +32,11 @@
   },
   "dependencies": {
     "openai": "^6.9.0"
+  },
+  "overrides": {
+    "axios": "^1.13.5",
+    "wait-on": {
+      "axios": "^1.13.5"
+    }
   }
 }

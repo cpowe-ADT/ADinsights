@@ -230,6 +230,202 @@ describe('useDashboardStore', () => {
     expect(state.campaign.data?.rows).toHaveLength(1);
   });
 
+  it('accepts root-relative creative thumbnail URLs from aggregated metrics', async () => {
+    vi.stubEnv('VITE_MOCK_MODE', 'false');
+
+    const snapshotResponse = {
+      metrics: {
+        campaign_metrics: campaignData,
+        creative_metrics: [
+          {
+            ...creativeData[0],
+            thumbnailUrl: '/mock/assets/creative-thumb.jpg',
+          },
+        ],
+        budget_metrics: budgetData,
+        parish_metrics: parishData,
+      },
+      tenant_id: 'tenant-xyz',
+      generated_at: '2024-09-05T00:00:00Z',
+    } satisfies Record<string, unknown>;
+
+    const fetchMock = vi.fn<(url: RequestInfo | URL) => Promise<Response>>().mockResolvedValueOnce(
+      new Response(JSON.stringify(snapshotResponse), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+    const { default: useDashboardStore } = await import('./useDashboardStore');
+    await useDashboardStore.getState().loadAll('tenant-xyz', { force: true });
+
+    const state = useDashboardStore.getState();
+    expect(state.campaign.status).toBe('loaded');
+    expect(state.creative.status).toBe('loaded');
+    expect(state.creative.error).toBeUndefined();
+    expect(state.creative.data?.[0]?.thumbnailUrl).toBe('/mock/assets/creative-thumb.jpg');
+  });
+
+  it('filters local rows by channel and campaign query', async () => {
+    const { default: useDashboardStore } = await import('./useDashboardStore');
+
+    const filteredCampaignData = {
+      summary: campaignData.summary,
+      trend: [],
+      rows: [
+        {
+          id: 'cmp_meta',
+          name: 'Awareness Boost',
+          platform: 'Meta',
+          status: 'Active',
+          parish: 'Kingston',
+          spend: 80,
+          impressions: 120,
+          clicks: 20,
+          conversions: 2,
+          roas: 1.8,
+        },
+        {
+          id: 'cmp_search',
+          name: 'Search Capture',
+          platform: 'Google Ads',
+          status: 'Active',
+          parish: 'St James',
+          spend: 140,
+          impressions: 320,
+          clicks: 45,
+          conversions: 5,
+          roas: 2.6,
+        },
+      ],
+    };
+
+    const filteredCreativeData = [
+      {
+        id: 'cr_meta',
+        name: 'Meta Creative',
+        campaignId: 'cmp_meta',
+        campaignName: 'Awareness Boost',
+        platform: 'Meta',
+        parish: 'Kingston',
+        spend: 35,
+        impressions: 90,
+        clicks: 8,
+        conversions: 1,
+        roas: 1.4,
+      },
+      {
+        id: 'cr_search',
+        name: 'Search Creative',
+        campaignId: 'cmp_search',
+        campaignName: 'Search Capture',
+        platform: 'Google Ads',
+        parish: 'St James',
+        spend: 60,
+        impressions: 140,
+        clicks: 18,
+        conversions: 3,
+        roas: 2.1,
+      },
+    ];
+
+    const filteredBudgetData = [
+      {
+        id: 'budget_meta',
+        campaignName: 'Awareness Boost',
+        platform: 'Meta',
+        parishes: ['Kingston'],
+        monthlyBudget: 200,
+        spendToDate: 80,
+        projectedSpend: 190,
+        pacingPercent: 0.95,
+      },
+      {
+        id: 'budget_search',
+        campaignName: 'Search Capture',
+        platform: 'Google Ads',
+        parishes: ['St James'],
+        monthlyBudget: 320,
+        spendToDate: 140,
+        projectedSpend: 330,
+        pacingPercent: 1.02,
+      },
+    ];
+
+    useDashboardStore.setState((state) => ({
+      ...state,
+      campaign: { status: 'loaded', data: filteredCampaignData, error: undefined },
+      creative: { status: 'loaded', data: filteredCreativeData, error: undefined },
+      budget: { status: 'loaded', data: filteredBudgetData, error: undefined },
+    }));
+
+    useDashboardStore.getState().setFilters({
+      dateRange: '7d',
+      customRange: { start: '2024-08-01', end: '2024-08-07' },
+      channels: ['Google Ads'],
+      campaignQuery: 'Search',
+    });
+
+    const campaignRows = useDashboardStore.getState().getCampaignRowsForSelectedParish();
+    expect(campaignRows).toHaveLength(1);
+    expect(campaignRows[0]?.id).toBe('cmp_search');
+
+    const creativeRows = useDashboardStore.getState().getCreativeRowsForSelectedParish();
+    expect(creativeRows).toHaveLength(1);
+    expect(creativeRows[0]?.id).toBe('cr_search');
+
+    const budgetRows = useDashboardStore.getState().getBudgetRowsForSelectedParish();
+    expect(budgetRows).toHaveLength(1);
+    expect(budgetRows[0]?.id).toBe('budget_search');
+  });
+
+  it('appends filter query params when requesting combined metrics', async () => {
+    vi.stubEnv('VITE_MOCK_MODE', 'false');
+
+    const snapshotResponse = {
+      metrics: {
+        campaign_metrics: campaignData,
+        creative_metrics: creativeData,
+        budget_metrics: budgetData,
+        parish_metrics: parishData,
+      },
+      tenant_id: 'tenant-xyz',
+      generated_at: '2024-09-05T00:00:00Z',
+    } satisfies Record<string, unknown>;
+
+    const fetchMock = vi.fn<(url: RequestInfo | URL) => Promise<Response>>().mockResolvedValueOnce(
+      new Response(JSON.stringify(snapshotResponse), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+    const { default: useDashboardStore } = await import('./useDashboardStore');
+
+    useDashboardStore.getState().setFilters({
+      dateRange: 'custom',
+      customRange: { start: '2024-08-01', end: '2024-08-31' },
+      channels: ['Meta Ads', 'Google Ads'],
+      campaignQuery: 'Kingston',
+    });
+
+    await useDashboardStore.getState().loadAll('tenant-xyz', { force: true });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const requestUrl = fetchMock.mock.calls[0]?.[0];
+    const serializedUrl = typeof requestUrl === 'string' ? requestUrl : String(requestUrl);
+    const query = serializedUrl.split('?')[1] ?? '';
+    const params = new URLSearchParams(query);
+
+    expect(params.get('start_date')).toBe('2024-08-01');
+    expect(params.get('end_date')).toBe('2024-08-31');
+    expect(params.get('channels')).toBe('meta,google_ads');
+    expect(params.get('campaign_search')).toBe('Kingston');
+  });
+
   it('flags API errors without discarding previous data', async () => {
     const fetchMock = vi.fn((url: RequestInfo | URL) => {
       if (
@@ -316,14 +512,12 @@ describe('useDashboardStore', () => {
       tenant_id: 'grace-kennedy',
     };
 
-    const fetchMock = vi
-      .fn<(url: RequestInfo | URL) => Promise<Response>>()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(snapshotResponse), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
+    const fetchMock = vi.fn<(url: RequestInfo | URL) => Promise<Response>>().mockResolvedValueOnce(
+      new Response(JSON.stringify(snapshotResponse), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
 
     globalThis.fetch = fetchMock as typeof globalThis.fetch;
 
@@ -341,5 +535,97 @@ describe('useDashboardStore', () => {
     expect(state.campaign.status).toBe('loaded');
     expect(state.campaign.data?.summary.currency).toBe('JMD');
     expect(state.activeTenantId).toBe('grace-kennedy');
+  });
+
+  it('matches parish filters using canonical Saint/St normalization and supports clearing to all parishes', async () => {
+    const { default: useDashboardStore } = await import('./useDashboardStore');
+
+    useDashboardStore.setState((state) => ({
+      ...state,
+      campaign: {
+        status: 'loaded',
+        error: undefined,
+        data: {
+          summary: campaignData.summary,
+          trend: [],
+          rows: [
+            {
+              id: 'cmp_sc',
+              name: 'St Catherine Campaign',
+              platform: 'Meta',
+              status: 'Active',
+              parish: 'Saint Catherine',
+              spend: 50,
+              impressions: 100,
+              clicks: 12,
+              conversions: 2,
+              roas: 1.5,
+            },
+            {
+              id: 'cmp_kg',
+              name: 'Kingston Campaign',
+              platform: 'Meta',
+              status: 'Active',
+              parish: 'Kingston',
+              spend: 70,
+              impressions: 200,
+              clicks: 22,
+              conversions: 3,
+              roas: 1.9,
+            },
+          ],
+        },
+      },
+      creative: {
+        status: 'loaded',
+        error: undefined,
+        data: [
+          {
+            id: 'cr_sc',
+            name: 'Creative Saint Catherine',
+            campaignId: 'cmp_sc',
+            campaignName: 'St Catherine Campaign',
+            platform: 'Meta',
+            parish: 'Saint Catherine',
+            spend: 10,
+            impressions: 50,
+            clicks: 6,
+            conversions: 1,
+            roas: 1.2,
+          },
+        ],
+      },
+      budget: {
+        status: 'loaded',
+        error: undefined,
+        data: [
+          {
+            id: 'bg_sc',
+            campaignName: 'St Catherine Campaign',
+            platform: 'Meta',
+            parishes: ['Saint Catherine'],
+            monthlyBudget: 100,
+            spendToDate: 45,
+            projectedSpend: 90,
+            pacingPercent: 0.9,
+          },
+        ],
+      },
+    }));
+
+    useDashboardStore.getState().setSelectedParish('St Catherine');
+    expect(useDashboardStore.getState().getCampaignRowsForSelectedParish()).toHaveLength(1);
+    expect(useDashboardStore.getState().getCampaignRowsForSelectedParish()[0]?.id).toBe('cmp_sc');
+    expect(useDashboardStore.getState().getCreativeRowsForSelectedParish()).toHaveLength(1);
+    expect(useDashboardStore.getState().getBudgetRowsForSelectedParish()).toHaveLength(1);
+
+    // Selecting the same parish alias toggles off and returns all rows.
+    useDashboardStore.getState().setSelectedParish('Saint Catherine');
+    expect(useDashboardStore.getState().selectedParish).toBeUndefined();
+    expect(useDashboardStore.getState().getCampaignRowsForSelectedParish()).toHaveLength(2);
+
+    useDashboardStore.getState().setSelectedParish(undefined);
+    expect(useDashboardStore.getState().selectedParish).toBeUndefined();
+    expect(useDashboardStore.getState().getCampaignRowsForSelectedParish()).toHaveLength(2);
   });
 });

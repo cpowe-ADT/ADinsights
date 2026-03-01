@@ -1,0 +1,10 @@
+frontend/src/lib/meta.ts
+frontend/src/router.tsx
+frontend/src/routes/DashboardLayout.tsx
+frontend/src/routes/DataSources.tsx
+frontend/src/routes/MetaAccountsPage.tsx
+frontend/src/routes/MetaCampaignOverviewPage.tsx
+frontend/src/routes/MetaConnectionStatusPage.tsx
+frontend/src/routes/MetaInsightsDashboardPage.tsx
+frontend/src/state/useMetaStore.test.ts
+frontend/src/state/useMetaStore.ts

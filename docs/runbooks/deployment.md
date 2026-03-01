@@ -1,6 +1,7 @@
 # Deployment Runbook — ADinsights
 
 Use this guide to promote ADinsights from development into a production-ready environment. It assumes AWS as the primary cloud provider and containerised workloads for the Django backend, Celery workers, Airbyte, and the React frontend. Adapt the specifics if you select an alternative cloud or orchestration platform.
+External production actions must be tracked in `docs/runbooks/external-actions-aws.md`.
 
 ## 1. Environments & Branch Flow
 
@@ -53,8 +54,14 @@ Release cadence: weekly sprint cut for staging, bi-weekly (or on-demand) for pro
 
 - Store environment variables in AWS Secrets Manager or SSM Parameter Store.
 - Wrap tenant DEKs using AWS KMS CMKs (`KMS_KEY_ID`).
+- Prefer KMS aliases for deployment safety (for example `alias/adinsights-prod`) and enforce
+  region alignment with `AWS_REGION`.
 - Inject secrets into ECS tasks using task definitions; never bake into docker images.
 - Maintain `.env.sample` for reference only; update when adding new env vars.
+- Required production settings:
+  - CORS: `CORS_ALLOWED_ORIGINS`, `CORS_ALLOW_ALL_ORIGINS=0`, `CORS_ALLOW_CREDENTIALS=1`
+  - DRF throttles: `DRF_THROTTLE_AUTH_BURST`, `DRF_THROTTLE_AUTH_SUSTAINED`, `DRF_THROTTLE_PUBLIC`
+  - SES: `EMAIL_PROVIDER=ses`, `EMAIL_FROM_ADDRESS`, `SES_EXPECTED_FROM_DOMAIN`, `SES_CONFIGURATION_SET` (optional)
 
 ## 4. Build & Release Pipeline
 
@@ -64,6 +71,7 @@ Release cadence: weekly sprint cut for staging, bi-weekly (or on-demand) for pro
      schema validations and artifact interpretation.
    - Build docker images for backend, worker, frontend, Airbyte extensions.
    - Push to ECR with tags `main-<gitsha>` and `release-<semver>`.
+   - Validate deploy compose: `docker compose -f deploy/docker-compose.yml config`.
 2. **Artifact Promotion**
    - Create Git tag `vX.Y.Z` when staging passes UAT.
    - Trigger CD workflow: updates ECS task definitions, runs migrations (`python manage.py migrate`), seeds tenant roles (`manage.py seed_roles`), enables RLS (`manage.py enable_rls`).
@@ -81,6 +89,49 @@ Release cadence: weekly sprint cut for staging, bi-weekly (or on-demand) for pro
 6. Warm caches: trigger `/api/dashboards/aggregate-snapshot/` for a sample tenant, run Celery job `sync_meta_metrics`.
 7. Validate smoke tests + manual UI checks (login, dashboard load, Data Health view, credential management).
 8. Announce release in change-log channel; update status page.
+
+### 5.1 Airbyte Production Connection Readiness (Meta + Google)
+
+Run this sequence after secrets are injected and before traffic cutover:
+
+1. `cd infrastructure/airbyte && docker compose --env-file .env config`
+2. `python3 infrastructure/airbyte/scripts/validate_tenant_config.py`
+3. `python3 infrastructure/airbyte/scripts/verify_production_readiness.py`
+4. `python3 infrastructure/airbyte/scripts/bootstrap_connections.py`
+5. `python3 infrastructure/airbyte/scripts/airbyte_health_check.py`
+6. Validate backend endpoints:
+   - `GET /api/health/airbyte/`
+   - `GET /api/airbyte/telemetry/`
+   - `GET /api/integrations/google_ads/status/`
+   - `GET /api/integrations/ga4/status/`
+   - `GET /api/integrations/search_console/status/`
+7. Confirm retry/backoff policy in logs: base-2 exponential retry, max 5 attempts, jitter enabled.
+
+### 5.1.1 Phase 2 Pilot Readiness (GA4 + Search Console)
+
+Run this sequence when enabling web analytics pilot sources:
+
+1. Configure GA4/Search Console env vars in secret storage (`AIRBYTE_GA4_*`, `AIRBYTE_SEARCH_CONSOLE_*`).
+2. Import source templates:
+   - `infrastructure/airbyte/ga4_source.yaml`
+   - `infrastructure/airbyte/search_console_source.yaml`
+3. Execute dbt pipeline after first successful sync:
+   - `DBT_PROFILES_DIR=dbt dbt run --project-dir dbt --select stg_ga4_reports stg_search_console`
+   - `DBT_PROFILES_DIR=dbt dbt run --project-dir dbt --select agg_ga4_daily agg_search_console_daily`
+4. Validate API exposure:
+   - `GET /api/analytics/web/ga4/`
+   - `GET /api/analytics/web/search-console/`
+5. Attach evidence artifacts before promoting beyond pilot.
+
+### 5.2 External Actions Gate (AWS-only)
+
+Before production cutover, complete and archive:
+
+1. SES readiness (`S7-D`) from `docs/runbooks/external-actions-aws.md`.
+2. KMS provisioning/wiring (`P1-X1`) from `docs/runbooks/external-actions-aws.md`.
+3. Airbyte credential readiness (`P1-X2`) from `docs/runbooks/external-actions-aws.md`.
+4. Observability simulations (`P1-X4`) using `docs/runbooks/observability-alert-simulations.md`.
+5. Staging go/no-go rehearsal (`P1-X9`) from `docs/runbooks/external-actions-aws.md`.
 
 ## 6. Rollback Strategy
 
@@ -108,8 +159,18 @@ Release cadence: weekly sprint cut for staging, bi-weekly (or on-demand) for pro
 - [ ] Combined metrics API (`/api/dashboards/aggregate-snapshot/`) returns fresh data for pilot tenant.
 - [ ] Frontend pointing to production API with feature flags disabled.
 - [ ] Airbyte connections for Meta & Google running hourly; alerts configured.
+- [ ] Connector lifecycle APIs validated for active providers:
+  - `GET /api/integrations/{provider}/status/`
+  - `GET /api/integrations/{provider}/jobs/`
+  - `POST /api/integrations/{provider}/sync/`
+  - `POST /api/integrations/{provider}/reconnect/`
+  - `POST /api/integrations/{provider}/disconnect/`
+- [ ] External actions register complete for release scope (`docs/runbooks/external-actions-aws.md`).
 - [ ] dbt incremental builds scheduled (05:00 local) with success notifications.
 - [ ] Credential rotation reminders active via Celery beat + notifications.
+- [ ] CORS allowlist (`CORS_ALLOWED_ORIGINS`) confirmed for production web origins only.
+- [ ] Auth/public endpoint throttles return `429` when intentionally exceeded in smoke tests.
+- [ ] SES readiness complete: identity verified, DKIM enabled, SPF/DMARC aligned, account out of sandbox, final from-address approved.
 - [ ] Penetration test findings addressed; security review sign-off.
 - [ ] Runbooks updated: operations, alerts, tenant onboarding/offboarding.
 - [ ] SLA/SLO definitions published in `docs/ops/slo-sli.md` with active monitoring.
@@ -117,6 +178,7 @@ Release cadence: weekly sprint cut for staging, bi-weekly (or on-demand) for pro
 ## 10. Reference Commands
 
 - Local docker compose smoke: `docker compose up backend worker beat frontend` (use `.env.sample` overrides).
+- Deploy compose validation: `docker compose -f deploy/docker-compose.yml config`.
 - Staging deployment trigger: `make deploy-staging` (wraps terraform plan/apply + ecs update).
 - Prod deployment trigger: `make deploy-prod IMAGE_TAG=vX.Y.Z` (requires approval).
 - Emergency credential rotation: `python manage.py rotate_deks` (ensure Celery beat disabled to avoid concurrent run).

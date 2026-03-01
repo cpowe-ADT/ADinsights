@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import os
 import sys
+import warnings
 from pathlib import Path
+
+from django.utils.deprecation import RemovedInDjango60Warning
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
@@ -56,6 +59,12 @@ def user(tenant) -> User:
 @pytest.fixture
 def api_client() -> APIClient:
     return APIClient()
+
+
+@pytest.fixture(autouse=True)
+def suppress_removed_in_django60_warnings():
+    warnings.simplefilter("ignore", RemovedInDjango60Warning)
+    yield
 
 
 @pytest.fixture(autouse=True)

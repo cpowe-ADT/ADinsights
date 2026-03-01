@@ -1,5 +1,5 @@
 import { useEffect, useMemo, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import EmptyState from '../components/EmptyState';
@@ -11,7 +11,14 @@ import { formatCurrency, formatNumber, formatPercent, formatRatio } from '../lib
 import useDashboardStore from '../state/useDashboardStore';
 
 const CreativeNotFoundIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2">
+  <svg
+    width="48"
+    height="48"
+    viewBox="0 0 48 48"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+  >
     <rect x="10" y="12" width="28" height="20" rx="3" />
     <path d="M18 18h12" strokeLinecap="round" />
     <path d="M18 24h12" strokeLinecap="round" />
@@ -22,6 +29,7 @@ const CreativeNotFoundIcon = () => (
 
 const CreativeDetail = (): JSX.Element => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { creativeId: encodedId } = useParams<{ creativeId: string }>();
   const creativeId = useMemo(() => {
     if (!encodedId) {
@@ -76,13 +84,19 @@ const CreativeDetail = (): JSX.Element => {
       ]
     : [];
 
+  const filterSearch = location.search ?? '';
+
   type OverviewItem = { label: string; value: ReactNode };
   const overviewItems: OverviewItem[] = activeCreative
     ? [
         {
           label: 'Campaign',
           value: parentCampaign ? (
-            <Link className="table-link" to={`/dashboards/campaigns/${encodeURIComponent(parentCampaign.id)}`}>
+            <Link
+              className="table-link"
+              to={`/dashboards/campaigns/${encodeURIComponent(parentCampaign.id)}${filterSearch}`}
+              state={{ from: `${location.pathname}${location.search}` }}
+            >
               {parentCampaign.name}
             </Link>
           ) : (
@@ -100,6 +114,11 @@ const CreativeDetail = (): JSX.Element => {
       ]
     : [];
 
+  const backLink =
+    typeof location.state === 'object' && location.state && 'from' in location.state
+      ? (location.state as { from?: string }).from
+      : `/dashboards/creatives${location.search}`;
+
   const pageShell = (content: ReactNode) => (
     <section className="dashboardPage" aria-labelledby="creative-detail-heading">
       <header className="dashboardPageHeader">
@@ -107,7 +126,7 @@ const CreativeDetail = (): JSX.Element => {
         <h1 className="dashboardHeading" id="creative-detail-heading">
           {activeCreative ? activeCreative.name : 'Creative insights'}
         </h1>
-        <Link to="/dashboards/creatives" className="backLink">
+        <Link to={backLink ?? '/dashboards/creatives'} className="backLink">
           ← Back to creatives
         </Link>
       </header>
@@ -156,7 +175,7 @@ const CreativeDetail = (): JSX.Element => {
             message="This creative could not be located."
             actionLabel="Return to creatives"
             onAction={() => {
-              navigate('/dashboards/creatives');
+              navigate(backLink ?? '/dashboards/creatives');
             }}
           />
         </Card>

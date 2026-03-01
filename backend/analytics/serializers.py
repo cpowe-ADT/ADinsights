@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from .models import Ad, AdSet, Campaign, RawPerformanceRecord
+from .models import Ad, AdAccount, AdSet, Campaign, RawPerformanceRecord
 
 
 class TenantScopedSerializerMixin:
@@ -36,6 +36,7 @@ class CampaignSerializer(TenantScopedSerializerMixin, serializers.ModelSerialize
         model = Campaign
         fields = [
             "id",
+            "ad_account",
             "external_id",
             "name",
             "platform",
@@ -50,6 +51,11 @@ class CampaignSerializer(TenantScopedSerializerMixin, serializers.ModelSerialize
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_ad_account(self, ad_account: AdAccount | None) -> AdAccount | None:
+        if ad_account is None:
+            return ad_account
+        return self._ensure_tenant_match(ad_account, "ad_account")
 
 
 class AdSetSerializer(TenantScopedSerializerMixin, serializers.ModelSerializer):
@@ -105,14 +111,20 @@ class RawPerformanceRecordSerializer(
             "external_id",
             "date",
             "source",
+            "level",
+            "ad_account",
             "campaign",
             "adset",
             "ad",
             "impressions",
+            "reach",
             "clicks",
             "spend",
+            "cpc",
+            "cpm",
             "currency",
             "conversions",
+            "actions",
             "raw_payload",
             "ingested_at",
             "updated_at",
@@ -123,9 +135,12 @@ class RawPerformanceRecordSerializer(
         attrs = super().validate(attrs)
 
         campaign = attrs.get("campaign") or getattr(self.instance, "campaign", None)
+        ad_account = attrs.get("ad_account") or getattr(self.instance, "ad_account", None)
         adset = attrs.get("adset") or getattr(self.instance, "adset", None)
         ad = attrs.get("ad") or getattr(self.instance, "ad", None)
 
+        if ad_account is not None:
+            self._ensure_tenant_match(ad_account, "ad_account")
         if campaign is not None:
             self._ensure_tenant_match(campaign, "campaign")
         if adset is not None:
@@ -169,6 +184,40 @@ class MetricsQueryParamsSerializer(serializers.Serializer):
         return attrs
 
 
+class CombinedMetricsQueryParamsSerializer(serializers.Serializer):
+    """Validate combined metrics query parameters."""
+
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False)
+    parish = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_parish(self, value: object) -> list[str] | None:
+        if value is None:
+            return None
+
+        parts: list[str] = []
+        if isinstance(value, (list, tuple)):
+            for item in value:
+                if isinstance(item, str):
+                    parts.extend(item.split(","))
+        elif isinstance(value, str):
+            parts.extend(value.split(","))
+        else:
+            return None
+
+        normalized = [item.strip() for item in parts if item.strip()]
+        return normalized or None
+
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+        start_date = attrs.get("start_date")
+        end_date = attrs.get("end_date")
+        if start_date and end_date and start_date > end_date:
+            raise serializers.ValidationError(
+                {"non_field_errors": ["start_date must be before or equal to end_date."]}
+            )
+        return attrs
+
+
 class MetricRecordSerializer(serializers.Serializer):
     """Serialize a campaign metric record."""
 
@@ -181,6 +230,25 @@ class MetricRecordSerializer(serializers.Serializer):
     spend = serializers.FloatField()
     conversions = serializers.IntegerField()
     roas = serializers.FloatField()
+
+
+class UploadMetricsRequestSerializer(serializers.Serializer):
+    """Schema for CSV upload requests."""
+
+    campaign_csv = serializers.FileField()
+    parish_csv = serializers.FileField(required=False)
+    budget_csv = serializers.FileField(required=False)
+
+
+class UploadMetricsStatusSerializer(serializers.Serializer):
+    """Schema for CSV upload status responses."""
+
+    has_upload = serializers.BooleanField()
+    snapshot_generated_at = serializers.DateTimeField(required=False, allow_null=True)
+    counts = serializers.DictField(child=serializers.IntegerField(), required=False)
+    warnings = serializers.ListField(
+        child=serializers.CharField(), required=False, allow_empty=True
+    )
 
 
 class CampaignSummarySerializer(serializers.Serializer):

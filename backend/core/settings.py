@@ -5,11 +5,13 @@ from __future__ import annotations
 from datetime import timedelta
 import logging
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import environ
 from celery.schedules import crontab
 
 from config.logging import build_logging_config
+from core.crypto.kms import validate_kms_configuration
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -29,7 +31,90 @@ env = environ.Env(
     ENABLE_FAKE_ADAPTER=(bool, False),
     ENABLE_WAREHOUSE_ADAPTER=(bool, False),
     ENABLE_DEMO_ADAPTER=(bool, False),
+    ENABLE_UPLOAD_ADAPTER=(bool, True),
+    ENABLE_DEMO_GENERATION=(bool, True),
+    DEMO_SEED_DIR=(str, ""),
     CREDENTIAL_ROTATION_REMINDER_DAYS=(int, 7),
+    EMAIL_PROVIDER=(str, "log"),
+    EMAIL_FROM_ADDRESS=(str, "no-reply@adinsights.local"),
+    SES_CONFIGURATION_SET=(str, ""),
+    SES_EXPECTED_FROM_DOMAIN=(str, ""),
+    FRONTEND_BASE_URL=(str, "http://localhost:5173"),
+    META_APP_ID=(str, ""),
+    META_APP_SECRET=(str, ""),
+    META_OAUTH_REDIRECT_URI=(str, ""),
+    META_LOGIN_CONFIG_ID=(str, ""),
+    META_LOGIN_CONFIG_REQUIRED=(bool, True),
+    META_OAUTH_SCOPES=(
+        list,
+        [
+            "ads_management",
+            "pages_show_list",
+            "pages_read_engagement",
+            "pages_manage_ads",
+            "pages_manage_metadata",
+            "pages_messaging",
+            "ads_read",
+            "business_management",
+            "catalog_management",
+        ],
+    ),
+    META_PAGE_INSIGHTS_OAUTH_SCOPES=(
+        list,
+        [
+            "pages_show_list",
+            "pages_read_engagement",
+            "pages_manage_metadata",
+        ],
+    ),
+    META_GRAPH_API_VERSION=(str, "v24.0"),
+    META_PAGE_INSIGHTS_ENABLED=(bool, True),
+    META_PAGE_INSIGHTS_METRIC_PACK_PATH=(str, ""),
+    META_PAGE_INSIGHTS_BACKFILL_DAYS=(int, 90),
+    META_PAGE_INSIGHTS_INCREMENTAL_LOOKBACK_DAYS=(int, 3),
+    META_PAGE_INSIGHTS_POST_RECENCY_DAYS=(int, 28),
+    META_PAGE_INSIGHTS_METRIC_CHUNK_SIZE=(int, 10),
+    META_PAGE_INSIGHTS_TIMEOUT_SECONDS=(float, 20.0),
+    META_PAGE_INSIGHTS_MAX_ATTEMPTS=(int, 5),
+    META_PAGE_INSIGHTS_NIGHTLY_HOUR=(int, 3),
+    META_PAGE_INSIGHTS_NIGHTLY_MINUTE=(int, 10),
+    META_POST_INSIGHTS_NIGHTLY_HOUR=(int, 3),
+    META_POST_INSIGHTS_NIGHTLY_MINUTE=(int, 20),
+    CORS_ALLOW_ALL_ORIGINS=(bool, False),
+    CORS_ALLOWED_ORIGINS=(list, []),
+    CORS_ALLOWED_METHODS=(
+        list,
+        ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"],
+    ),
+    CORS_ALLOWED_HEADERS=(
+        list,
+        [
+            "accept",
+            "accept-language",
+            "authorization",
+            "content-type",
+            "origin",
+            "x-correlation-id",
+            "x-requested-with",
+            "x-tenant-id",
+        ],
+    ),
+    CORS_ALLOW_CREDENTIALS=(bool, True),
+    CORS_PREFLIGHT_MAX_AGE=(int, 86400),
+    AIRBYTE_DEFAULT_WORKSPACE_ID=(str, ""),
+    AIRBYTE_DEFAULT_DESTINATION_ID=(str, ""),
+    AIRBYTE_SOURCE_DEFINITION_META=(str, ""),
+    GOOGLE_ADS_SYNC_ENGINE_DEFAULT=(str, "sdk"),
+    GOOGLE_ADS_PARITY_ENABLED=(bool, True),
+    GOOGLE_ADS_PARITY_SPEND_MAX_DELTA_PCT=(float, 1.0),
+    GOOGLE_ADS_PARITY_CLICKS_MAX_DELTA_PCT=(float, 2.0),
+    GOOGLE_ADS_PARITY_CONVERSIONS_MAX_DELTA_PCT=(float, 2.0),
+    GOOGLE_ADS_TODAY_CACHE_TTL_SECONDS=(int, 300),
+    DRF_THROTTLE_AUTH_BURST=(str, "10/min"),
+    DRF_THROTTLE_AUTH_SUSTAINED=(str, "100/day"),
+    DRF_THROTTLE_PUBLIC=(str, "120/min"),
+    CELERY_TASK_ALWAYS_EAGER=(bool, False),
+    CELERY_TASK_EAGER_PROPAGATES=(bool, True),
 )
 
 ENV_FILE = BASE_DIR / ".env"
@@ -40,15 +125,30 @@ if ENV_FILE.exists():
 def _optional(value: str | None) -> str | None:
     return value or None
 
+
+def _origin_from_url(value: str | None) -> str | None:
+    if not value:
+        return None
+    parsed = urlsplit(value)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 ENABLE_TENANCY = env.bool("ENABLE_TENANCY", default=True)
 API_VERSION = env("API_VERSION")
 METRICS_SNAPSHOT_TTL = env.int("METRICS_SNAPSHOT_TTL")
-ENABLE_FAKE_ADAPTER = env.bool("ENABLE_FAKE_ADAPTER", default=False)
+# In local DEBUG sessions, keep demo/fake adapters on by default so dashboard
+# toggles always have a working non-live data source unless explicitly disabled.
+ENABLE_FAKE_ADAPTER = env.bool("ENABLE_FAKE_ADAPTER", default=DEBUG)
 ENABLE_WAREHOUSE_ADAPTER = env.bool("ENABLE_WAREHOUSE_ADAPTER", default=False)
-ENABLE_DEMO_ADAPTER = env.bool("ENABLE_DEMO_ADAPTER", default=False)
+ENABLE_DEMO_ADAPTER = env.bool("ENABLE_DEMO_ADAPTER", default=DEBUG)
+ENABLE_UPLOAD_ADAPTER = env.bool("ENABLE_UPLOAD_ADAPTER", default=True)
+ENABLE_DEMO_GENERATION = env.bool("ENABLE_DEMO_GENERATION", default=True)
+DEMO_SEED_DIR = _optional(env("DEMO_SEED_DIR", default=""))
 CREDENTIAL_ROTATION_REMINDER_DAYS = env.int("CREDENTIAL_ROTATION_REMINDER_DAYS")
 
 INSTALLED_APPS = [
@@ -70,6 +170,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "core.cors.CORSMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -139,6 +240,11 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_SCHEMA_CLASS": "rest_framework.schemas.openapi.AutoSchema",
+    "DEFAULT_THROTTLE_RATES": {
+        "auth_burst": env("DRF_THROTTLE_AUTH_BURST"),
+        "auth_sustained": env("DRF_THROTTLE_AUTH_SUSTAINED"),
+        "public": env("DRF_THROTTLE_PUBLIC"),
+    },
 }
 
 SIMPLE_JWT = {
@@ -154,14 +260,87 @@ LOGGING = build_logging_config(env("DJANGO_LOG_LEVEL"))
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
 CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
+CELERY_TASK_EAGER_PROPAGATES = env.bool("CELERY_TASK_EAGER_PROPAGATES", default=True)
 CELERY_BEAT_SCHEDULE = {
     "alerts-quarter-hourly": {
         "task": "alerts.tasks.run_alert_cycle",
         "schedule": crontab(minute="*/15"),
     },
+    "airbyte-scheduled-syncs-hourly": {
+        "task": "integrations.tasks.trigger_scheduled_airbyte_syncs",
+        "schedule": crontab(minute=0, hour="6-22"),
+    },
     "credential-rotation-reminders": {
         "task": "integrations.tasks.remind_expiring_credentials",
         "schedule": crontab(hour=2, minute=0),
+    },
+    "meta-credential-lifecycle-hourly": {
+        "task": "integrations.tasks.refresh_meta_tokens",
+        "schedule": crontab(minute=0, hour="6-22"),
+    },
+    "meta-sync-accounts-hourly": {
+        "task": "integrations.tasks.sync_meta_accounts",
+        "schedule": crontab(minute=0, hour="6-22"),
+    },
+    "meta-sync-insights-hourly": {
+        "task": "integrations.tasks.sync_meta_insights_incremental",
+        "schedule": crontab(minute=0, hour="6-22"),
+    },
+    "google-ads-sdk-sync-hourly": {
+        "task": "integrations.tasks.sync_google_ads_sdk_incremental",
+        "schedule": crontab(minute=0, hour="6-22"),
+    },
+    "google-ads-sdk-finalize-daily": {
+        "task": "integrations.tasks.sync_google_ads_sdk_finalize_daily",
+        "schedule": crontab(hour=5, minute=0),
+    },
+    "google-ads-refresh-tokens-hourly": {
+        "task": "integrations.tasks.refresh_google_ads_tokens",
+        "schedule": crontab(minute=10, hour="6-22"),
+    },
+    "google-ads-parity-daily": {
+        "task": "integrations.tasks.evaluate_google_ads_parity",
+        "schedule": crontab(hour=5, minute=40),
+    },
+    "meta-sync-hierarchy-daily": {
+        "task": "integrations.tasks.sync_meta_hierarchy",
+        "schedule": crontab(hour=2, minute=15),
+    },
+    "meta-page-insights-nightly": {
+        "task": "integrations.tasks.sync_meta_page_insights",
+        "schedule": crontab(
+            hour=env.int("META_PAGE_INSIGHTS_NIGHTLY_HOUR", default=3),
+            minute=env.int("META_PAGE_INSIGHTS_NIGHTLY_MINUTE", default=10),
+        ),
+    },
+    "meta-post-insights-nightly": {
+        "task": "integrations.tasks.sync_meta_post_insights",
+        "schedule": crontab(
+            hour=env.int("META_POST_INSIGHTS_NIGHTLY_HOUR", default=3),
+            minute=env.int("META_POST_INSIGHTS_NIGHTLY_MINUTE", default=20),
+        ),
+    },
+    "meta-sync-pages-hourly": {
+        "task": "integrations.tasks.sync_meta_pages",
+        "schedule": crontab(minute=5, hour="6-22"),
+    },
+    "meta-discover-page-metrics-daily": {
+        "task": "integrations.tasks.discover_supported_metrics",
+        "schedule": crontab(hour=4, minute=0),
+    },
+    "meta-page-posts-hourly": {
+        "task": "integrations.tasks.sync_page_posts",
+        "schedule": crontab(minute=15, hour="6-22"),
+    },
+    "meta-page-insights-hourly": {
+        "task": "integrations.tasks.sync_page_insights",
+        "schedule": crontab(minute=20, hour="6-22"),
+    },
+    "meta-post-insights-hourly": {
+        "task": "integrations.tasks.sync_post_insights",
+        "schedule": crontab(minute=25, hour="6-22"),
     },
     "rotate-tenant-deks": {
         "task": "core.tasks.rotate_deks",
@@ -170,6 +349,10 @@ CELERY_BEAT_SCHEDULE = {
     "metrics-snapshot-sync": {
         "task": "analytics.tasks.sync_metrics_snapshots",
         "schedule": crontab(minute="*/30"),
+    },
+    "ai-daily-summary": {
+        "task": "analytics.ai_daily_summary",
+        "schedule": crontab(hour=6, minute=10),
     },
 }
 
@@ -180,6 +363,17 @@ AWS_REGION = _optional(env("AWS_REGION", default=None))
 AWS_ACCESS_KEY_ID = _optional(env("AWS_ACCESS_KEY_ID", default=None))
 AWS_SECRET_ACCESS_KEY = _optional(env("AWS_SECRET_ACCESS_KEY", default=None))
 AWS_SESSION_TOKEN = _optional(env("AWS_SESSION_TOKEN", default=None))
+validate_kms_configuration(KMS_PROVIDER, KMS_KEY_ID, AWS_REGION)
+
+CORS_ALLOW_ALL_ORIGINS = env.bool("CORS_ALLOW_ALL_ORIGINS", default=False)
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
+_frontend_origin = _origin_from_url(env("FRONTEND_BASE_URL"))
+if _frontend_origin and _frontend_origin not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append(_frontend_origin)
+CORS_ALLOWED_METHODS = [method.upper() for method in env.list("CORS_ALLOWED_METHODS")]
+CORS_ALLOWED_HEADERS = [header.lower() for header in env.list("CORS_ALLOWED_HEADERS")]
+CORS_ALLOW_CREDENTIALS = env.bool("CORS_ALLOW_CREDENTIALS", default=True)
+CORS_PREFLIGHT_MAX_AGE = env.int("CORS_PREFLIGHT_MAX_AGE", default=86400)
 
 TENANT_SETTING_KEY = "app.tenant_id"
 
@@ -194,6 +388,68 @@ LLM_API_KEY = _optional(env("LLM_API_KEY", default=None))
 LLM_MODEL = env("LLM_MODEL", default="gpt-5.1")
 LLM_TIMEOUT = env.float("LLM_TIMEOUT")
 APP_VERSION = env("APP_VERSION")
+EMAIL_PROVIDER = env("EMAIL_PROVIDER")
+EMAIL_FROM_ADDRESS = env("EMAIL_FROM_ADDRESS")
+SES_CONFIGURATION_SET = _optional(env("SES_CONFIGURATION_SET", default=None))
+SES_EXPECTED_FROM_DOMAIN = _optional(env("SES_EXPECTED_FROM_DOMAIN", default=None))
+FRONTEND_BASE_URL = env("FRONTEND_BASE_URL")
+GOOGLE_ADS_CLIENT_ID = _optional(env("GOOGLE_ADS_CLIENT_ID", default=None))
+GOOGLE_ADS_CLIENT_SECRET = _optional(env("GOOGLE_ADS_CLIENT_SECRET", default=None))
+GOOGLE_ADS_DEVELOPER_TOKEN = _optional(env("GOOGLE_ADS_DEVELOPER_TOKEN", default=None))
+GOOGLE_ADS_OAUTH_REDIRECT_URI = _optional(env("GOOGLE_ADS_OAUTH_REDIRECT_URI", default=None))
+GOOGLE_ADS_OAUTH_SCOPES = env.list(
+    "GOOGLE_ADS_OAUTH_SCOPES",
+    default=[
+        "https://www.googleapis.com/auth/adwords",
+        "openid",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
+    ],
+)
+GOOGLE_ADS_LOGIN_CUSTOMER_ID = _optional(env("GOOGLE_ADS_LOGIN_CUSTOMER_ID", default=None))
+GOOGLE_ADS_START_DATE = env("GOOGLE_ADS_START_DATE", default="2024-01-01")
+GOOGLE_ADS_CONVERSION_WINDOW_DAYS = env.int("GOOGLE_ADS_CONVERSION_WINDOW_DAYS", default=30)
+GOOGLE_ADS_LOOKBACK_WINDOW_DAYS = env.int("GOOGLE_ADS_LOOKBACK_WINDOW_DAYS", default=3)
+GOOGLE_ADS_SYNC_ENGINE_DEFAULT = env("GOOGLE_ADS_SYNC_ENGINE_DEFAULT", default="sdk").strip().lower()
+if GOOGLE_ADS_SYNC_ENGINE_DEFAULT not in {"sdk", "airbyte"}:
+    GOOGLE_ADS_SYNC_ENGINE_DEFAULT = "sdk"
+GOOGLE_ADS_PARITY_ENABLED = env.bool("GOOGLE_ADS_PARITY_ENABLED", default=True)
+GOOGLE_ADS_PARITY_SPEND_MAX_DELTA_PCT = env.float("GOOGLE_ADS_PARITY_SPEND_MAX_DELTA_PCT", default=1.0)
+GOOGLE_ADS_PARITY_CLICKS_MAX_DELTA_PCT = env.float("GOOGLE_ADS_PARITY_CLICKS_MAX_DELTA_PCT", default=2.0)
+GOOGLE_ADS_PARITY_CONVERSIONS_MAX_DELTA_PCT = env.float(
+    "GOOGLE_ADS_PARITY_CONVERSIONS_MAX_DELTA_PCT",
+    default=2.0,
+)
+GOOGLE_ADS_TODAY_CACHE_TTL_SECONDS = env.int("GOOGLE_ADS_TODAY_CACHE_TTL_SECONDS", default=300)
+META_APP_ID = _optional(env("META_APP_ID", default=None))
+META_APP_SECRET = _optional(env("META_APP_SECRET", default=None))
+META_OAUTH_REDIRECT_URI = _optional(env("META_OAUTH_REDIRECT_URI", default=None))
+META_LOGIN_CONFIG_ID = _optional(env("META_LOGIN_CONFIG_ID", default=None))
+META_LOGIN_CONFIG_REQUIRED = env.bool("META_LOGIN_CONFIG_REQUIRED", default=True)
+META_OAUTH_SCOPES = env.list("META_OAUTH_SCOPES")
+META_PAGE_INSIGHTS_OAUTH_SCOPES = env.list("META_PAGE_INSIGHTS_OAUTH_SCOPES")
+META_GRAPH_API_VERSION = env("META_GRAPH_API_VERSION", default="v24.0")
+META_PAGE_INSIGHTS_ENABLED = env.bool("META_PAGE_INSIGHTS_ENABLED", default=True)
+META_PAGE_INSIGHTS_METRIC_PACK_PATH = _optional(
+    env("META_PAGE_INSIGHTS_METRIC_PACK_PATH", default=None)
+)
+META_PAGE_INSIGHTS_BACKFILL_DAYS = env.int("META_PAGE_INSIGHTS_BACKFILL_DAYS", default=90)
+META_PAGE_INSIGHTS_INCREMENTAL_LOOKBACK_DAYS = env.int(
+    "META_PAGE_INSIGHTS_INCREMENTAL_LOOKBACK_DAYS",
+    default=3,
+)
+META_PAGE_INSIGHTS_POST_RECENCY_DAYS = env.int("META_PAGE_INSIGHTS_POST_RECENCY_DAYS", default=28)
+META_PAGE_INSIGHTS_METRIC_CHUNK_SIZE = env.int("META_PAGE_INSIGHTS_METRIC_CHUNK_SIZE", default=10)
+META_PAGE_INSIGHTS_TIMEOUT_SECONDS = env.float("META_PAGE_INSIGHTS_TIMEOUT_SECONDS", default=20.0)
+META_PAGE_INSIGHTS_MAX_ATTEMPTS = env.int("META_PAGE_INSIGHTS_MAX_ATTEMPTS", default=5)
+META_PAGE_INSIGHTS_NIGHTLY_HOUR = env.int("META_PAGE_INSIGHTS_NIGHTLY_HOUR", default=3)
+META_PAGE_INSIGHTS_NIGHTLY_MINUTE = env.int("META_PAGE_INSIGHTS_NIGHTLY_MINUTE", default=10)
+META_POST_INSIGHTS_NIGHTLY_HOUR = env.int("META_POST_INSIGHTS_NIGHTLY_HOUR", default=3)
+META_POST_INSIGHTS_NIGHTLY_MINUTE = env.int("META_POST_INSIGHTS_NIGHTLY_MINUTE", default=20)
+AIRBYTE_DEFAULT_WORKSPACE_ID = _optional(env("AIRBYTE_DEFAULT_WORKSPACE_ID", default=None))
+AIRBYTE_DEFAULT_DESTINATION_ID = _optional(env("AIRBYTE_DEFAULT_DESTINATION_ID", default=None))
+AIRBYTE_SOURCE_DEFINITION_META = _optional(env("AIRBYTE_SOURCE_DEFINITION_META", default=None))
+AIRBYTE_SOURCE_DEFINITION_GOOGLE = _optional(env("AIRBYTE_SOURCE_DEFINITION_GOOGLE", default=None))
 
 SENTRY_DSN = _optional(env("SENTRY_DSN", default=None))
 SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="development")

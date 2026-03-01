@@ -16,6 +16,17 @@ logger = logging.getLogger(__name__)
 class AirbyteClientError(RuntimeError):
     """Raised when the Airbyte API responds with an error."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        payload: Any = None,
+    ) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.payload = payload
+
 
 class AirbyteClientConfigurationError(RuntimeError):
     """Raised when the client cannot be constructed from settings."""
@@ -51,6 +62,30 @@ class AirbyteClient:
     def close(self) -> None:
         self._client.close()
 
+    def _post(self, path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            response = self._client.post(path, json=payload)
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text
+            parsed_payload: Any = None
+            try:
+                parsed_payload = exc.response.json()
+            except ValueError:
+                parsed_payload = detail
+            raise AirbyteClientError(
+                f"Airbyte API {path} failed with HTTP {exc.response.status_code}: {detail}",
+                status_code=exc.response.status_code,
+                payload=parsed_payload,
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise AirbyteClientError(f"Airbyte API {path} request failed: {exc}") from exc
+
+        body = response.json()
+        if not isinstance(body, dict):
+            raise AirbyteClientError(f"Airbyte API {path} returned a non-object response")
+        return body
+
     @classmethod
     def from_settings(cls) -> "AirbyteClient":
         base_url = getattr(settings, "AIRBYTE_API_URL", None)
@@ -71,6 +106,18 @@ class AirbyteClient:
         try:
             response = self._client.post("/api/v1/connections/sync", json={"connectionId": connection_id})
             response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text
+            parsed_payload: Any = None
+            try:
+                parsed_payload = exc.response.json()
+            except ValueError:
+                parsed_payload = detail
+            raise AirbyteClientError(
+                f"Failed to trigger sync for {connection_id}: {exc}",
+                status_code=exc.response.status_code,
+                payload=parsed_payload,
+            ) from exc
         except httpx.HTTPError as exc:  # pragma: no cover - httpx provides detail
             raise AirbyteClientError(f"Failed to trigger sync for {connection_id}: {exc}") from exc
         payload = response.json()
@@ -83,6 +130,18 @@ class AirbyteClient:
         try:
             response = self._client.post("/api/v1/jobs/get", json={"id": job_id})
             response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text
+            parsed_payload: Any = None
+            try:
+                parsed_payload = exc.response.json()
+            except ValueError:
+                parsed_payload = detail
+            raise AirbyteClientError(
+                f"Failed to fetch job {job_id}: {exc}",
+                status_code=exc.response.status_code,
+                payload=parsed_payload,
+            ) from exc
         except httpx.HTTPError as exc:  # pragma: no cover - httpx provides detail
             raise AirbyteClientError(f"Failed to fetch job {job_id}: {exc}") from exc
         payload = response.json()
@@ -102,9 +161,58 @@ class AirbyteClient:
                 },
             )
             response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text
+            parsed_payload: Any = None
+            try:
+                parsed_payload = exc.response.json()
+            except ValueError:
+                parsed_payload = detail
+            raise AirbyteClientError(
+                f"Failed to list jobs for {connection_id}: {exc}",
+                status_code=exc.response.status_code,
+                payload=parsed_payload,
+            ) from exc
         except httpx.HTTPError as exc:  # pragma: no cover - httpx provides detail
             raise AirbyteClientError(f"Failed to list jobs for {connection_id}: {exc}") from exc
         payload: Dict[str, Any] = response.json()
         jobs = payload.get("jobs", [])
         return jobs[0] if jobs else None
 
+    def list_sources(self, workspace_id: str) -> list[Dict[str, Any]]:
+        payload = self._post("/api/v1/sources/list", {"workspaceId": workspace_id})
+        sources = payload.get("sources")
+        return [row for row in sources if isinstance(row, dict)] if isinstance(sources, list) else []
+
+    def create_source(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        response = self._post("/api/v1/sources/create", payload)
+        source = response.get("source")
+        return source if isinstance(source, dict) else response
+
+    def update_source(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        response = self._post("/api/v1/sources/update", payload)
+        source = response.get("source")
+        return source if isinstance(source, dict) else response
+
+    def check_source(self, source_id: str) -> Dict[str, Any]:
+        response = self._post("/api/v1/sources/check_connection", {"sourceId": source_id})
+        job_info = response.get("jobInfo")
+        return job_info if isinstance(job_info, dict) else response
+
+    def discover_source_schema(self, source_id: str) -> Dict[str, Any]:
+        return self._post("/api/v1/sources/discover_schema", {"sourceId": source_id})
+
+    def list_connections(self, workspace_id: str) -> list[Dict[str, Any]]:
+        payload = self._post("/api/v1/connections/list", {"workspaceId": workspace_id})
+        connections = payload.get("connections")
+        return [row for row in connections if isinstance(row, dict)] if isinstance(connections, list) else []
+
+    def create_connection(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        response = self._post("/api/v1/connections/create", payload)
+        connection = response.get("connection")
+        return connection if isinstance(connection, dict) else response
+
+    def update_connection(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        response = self._post("/api/v1/connections/update", payload)
+        connection = response.get("connection")
+        return connection if isinstance(connection, dict) else response

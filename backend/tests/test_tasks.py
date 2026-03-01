@@ -74,6 +74,20 @@ def test_rotate_deks_schedule_present():
     assert entry["task"] == "core.tasks.rotate_deks"
 
 
+def test_ai_daily_summary_schedule_present():
+    schedule = settings.CELERY_BEAT_SCHEDULE
+    assert "ai-daily-summary" in schedule
+    entry = schedule["ai-daily-summary"]
+    assert entry["task"] == "analytics.ai_daily_summary"
+
+
+def test_airbyte_scheduled_sync_hourly_window_present():
+    schedule = settings.CELERY_BEAT_SCHEDULE
+    assert "airbyte-scheduled-syncs-hourly" in schedule
+    entry = schedule["airbyte-scheduled-syncs-hourly"]
+    assert entry["task"] == "integrations.tasks.trigger_scheduled_airbyte_syncs"
+
+
 def test_sync_provider_sets_tenant_context(monkeypatch, tenant):
     recorded: list[str | None] = []
 

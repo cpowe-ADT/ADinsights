@@ -3,49 +3,31 @@
   "workspaceId": "{{ env['AIRBYTE_WORKSPACE_ID'] }}",
   "name": "Meta Ads Incremental",
   "connectionConfiguration": {
-    "account_id": "{{ env['AIRBYTE_META_ACCOUNT_ID'] }}",
-    "access_token": "{{ env['AIRBYTE_META_ACCESS_TOKEN'] }}",
+    "account_ids": [
+      "{{ env['AIRBYTE_META_ACCOUNT_ID'] }}"
+    ],
+    "credentials": {
+      "auth_type": "Service",
+      "access_token": "{{ env['AIRBYTE_META_ACCESS_TOKEN'] }}"
+    },
     "page_size": 100,
     "start_date": "{{ env.get('AIRBYTE_META_START_DATE', '2023-01-01T00:00:00Z') }}",
-    "action_breakdowns": [
-      "action_type"
-    ],
-    "breakdowns": [
-      "region",
-      "impression_device"
-    ],
     "insights_lookback_window": {{ env.get('AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS', 3) }},
     "include_deleted": false,
     "level": "ad",
-    "primary_objective_for_non_objective_campaigns": true,
+    "attribution_window": "default",
+    "action_report_time": "conversion",
     "report_interval": "daily",
-    "schema_fields": [
-      "date_start",
-      "date_stop",
-      "ad_id",
-      "adset_id",
-      "campaign_id",
-      "account_id",
-      "impressions",
-      "clicks",
-      "spend",
-      "actions",
-      "action_values",
-      "unique_clicks",
-      "reach",
-      "frequency",
-      "cpc",
-      "ctr",
-      "cpm"
-    ],
+    "fetch_thumbnail_images": false,
+    "custom_insights_fields": ["impressions", "reach", "clicks", "spend", "cpc", "cpm", "actions"],
     "window_in_days": {{ env.get('AIRBYTE_META_ATTRIBUTION_WINDOW_DAYS', 30) }}
   },
   "streams": [
     {
-      "name": "ads_insights",
+      "name": "ad_insights",
       "syncMode": "incremental",
       "cursorField": [
-        "updated_time"
+        "date_start"
       ],
       "primaryKey": [
         [
@@ -53,6 +35,45 @@
         ],
         [
           "date_start"
+        ]
+      ],
+      "destinationSyncMode": "append_dedup"
+    },
+    {
+      "name": "campaigns",
+      "syncMode": "incremental",
+      "cursorField": [
+        "updated_time"
+      ],
+      "primaryKey": [
+        [
+          "id"
+        ]
+      ],
+      "destinationSyncMode": "append_dedup"
+    },
+    {
+      "name": "adsets",
+      "syncMode": "incremental",
+      "cursorField": [
+        "updated_time"
+      ],
+      "primaryKey": [
+        [
+          "id"
+        ]
+      ],
+      "destinationSyncMode": "append_dedup"
+    },
+    {
+      "name": "ads",
+      "syncMode": "incremental",
+      "cursorField": [
+        "updated_time"
+      ],
+      "primaryKey": [
+        [
+          "id"
         ]
       ],
       "destinationSyncMode": "append_dedup"

@@ -43,14 +43,14 @@ const preview: Preview = {
 
       return (
         <MemoryRouter initialEntries={entries}>
-        <ThemeProvider>
-          <ThemeState theme={context.globals.theme as ThemeName}>
-            <ToastProvider>
-              <Story />
-            </ToastProvider>
-          </ThemeState>
-        </ThemeProvider>
-      </MemoryRouter>
+          <ThemeProvider>
+            <ThemeState theme={context.globals.theme as ThemeName}>
+              <ToastProvider>
+                <Story />
+              </ToastProvider>
+            </ThemeState>
+          </ThemeProvider>
+        </MemoryRouter>
       );
     },
   ],

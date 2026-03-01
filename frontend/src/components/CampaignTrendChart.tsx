@@ -40,7 +40,6 @@ const CampaignTrendChart = ({ data, currency }: CampaignTrendChartProps) => {
   });
 
   return (
-    // @ts-ignore - Recharts JSX types can conflict when multiple React type versions are present.
     <AreaChart data={data} margin={chartMargins}>
       <defs>
         <linearGradient id="spendAreaGradient" x1="0" y1="0" x2="0" y2="1">

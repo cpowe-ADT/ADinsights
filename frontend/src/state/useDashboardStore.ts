@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { MOCK_MODE } from '../lib/apiClient';
+import { MOCK_MODE, appendQueryParams } from '../lib/apiClient';
 import { clearView, loadSavedView, saveView } from '../lib/savedViews';
 import {
   fetchBudgetPacing,
@@ -9,8 +9,23 @@ import {
   fetchParishAggregates,
   fetchDashboardMetrics,
 } from '../lib/dataService';
+import {
+  areFiltersEqual,
+  buildFilterQueryParams,
+  createDefaultFilterState,
+  normalizeChannelValue,
+  serializeFilterQueryParams,
+  type FilterBarState,
+} from '../lib/dashboardFilters';
 import { validate } from '../lib/validate';
 import type { SchemaKey } from '../lib/validate';
+import {
+  clearUploadState,
+  loadUploadState,
+  saveUploadState,
+  buildMetricsFromUpload,
+  type UploadedDataset,
+} from '../lib/uploadedMetrics';
 import { getDatasetMode, getDatasetSource, getDemoTenantId } from './useDatasetStore';
 
 export type MetricKey = 'spend' | 'impressions' | 'clicks' | 'conversions' | 'roas';
@@ -79,6 +94,7 @@ export interface BudgetPacingRow {
   id: string;
   campaignName: string;
   parishes?: string[];
+  platform?: string;
   monthlyBudget: number;
   spendToDate: number;
   projectedSpend: number;
@@ -134,6 +150,7 @@ type AsyncSlice<T> = {
 };
 
 interface DashboardState {
+  filters: FilterBarState;
   selectedParish?: string;
   selectedMetric: MetricKey;
   campaign: AsyncSlice<CampaignPerformanceResponse>;
@@ -143,8 +160,12 @@ interface DashboardState {
   activeTenantId?: string;
   activeTenantLabel?: string;
   lastLoadedTenantId?: string;
+  lastLoadedFiltersKey?: string;
   lastSnapshotGeneratedAt?: string;
   metricsCache: Record<string, TenantMetricsResolved>;
+  uploadedDataset?: UploadedDataset;
+  uploadedActive: boolean;
+  setFilters: (filters: FilterBarState) => void;
   setSelectedParish: (parish?: string) => void;
   setSelectedMetric: (metric: MetricKey) => void;
   setActiveTenant: (tenantId?: string, tenantLabel?: string) => void;
@@ -157,6 +178,9 @@ interface DashboardState {
   getSavedTableView: <T = unknown>(tableId: string) => T | undefined;
   setSavedTableView: (tableId: string, view: unknown) => void;
   clearSavedTableView: (tableId: string) => void;
+  setUploadedDataset: (dataset: UploadedDataset, active?: boolean) => void;
+  setUploadedActive: (active: boolean) => void;
+  clearUploadedDataset: () => void;
 }
 
 const initialSlice = <T>(): AsyncSlice<T> => ({
@@ -169,6 +193,7 @@ const DEFAULT_TENANT_KEY = '__default__';
 
 function createInitialState(): Pick<
   DashboardState,
+  | 'filters'
   | 'selectedParish'
   | 'selectedMetric'
   | 'campaign'
@@ -178,10 +203,15 @@ function createInitialState(): Pick<
   | 'activeTenantId'
   | 'activeTenantLabel'
   | 'lastLoadedTenantId'
+  | 'lastLoadedFiltersKey'
   | 'lastSnapshotGeneratedAt'
   | 'metricsCache'
+  | 'uploadedDataset'
+  | 'uploadedActive'
 > {
+  const uploadState = loadUploadState();
   return {
+    filters: createDefaultFilterState(),
     selectedParish: undefined,
     selectedMetric: 'spend',
     campaign: initialSlice(),
@@ -191,14 +221,49 @@ function createInitialState(): Pick<
     activeTenantId: undefined,
     activeTenantLabel: undefined,
     lastLoadedTenantId: undefined,
+    lastLoadedFiltersKey: undefined,
     lastSnapshotGeneratedAt: undefined,
     metricsCache: {},
+    uploadedDataset: uploadState.dataset,
+    uploadedActive: uploadState.active,
   };
 }
 
-function resolveTenantKey(tenantId?: string): string {
+function resolveTenantKey(tenantId?: string, filterKey?: string): string {
   const datasetKey = getDatasetMode();
-  return `${tenantId ?? DEFAULT_TENANT_KEY}::${datasetKey}`;
+  return `${tenantId ?? DEFAULT_TENANT_KEY}::${datasetKey}::${filterKey ?? 'default'}`;
+}
+
+function resolveFilterKey(filters: FilterBarState): string {
+  const serialized = serializeFilterQueryParams(filters);
+  return serialized || 'default';
+}
+
+function normalizeParishValue(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\./g, '')
+    .replace(/\bsaint\b/g, 'st')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeFilterQuery(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function matchesQuery(value: string | undefined, query: string): boolean {
+  if (!query) {
+    return true;
+  }
+  if (!value) {
+    return false;
+  }
+  return value.toLowerCase().includes(query);
+}
+
+function resolveChannelFilters(filters: FilterBarState): string[] {
+  return filters.channels.map(normalizeChannelValue).filter(Boolean);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -477,24 +542,25 @@ function withTenant(path: string, tenantId?: string): string {
   if (!tenantId) {
     return path;
   }
-  const separator = path.includes('?') ? '&' : '?';
-  return `${path}${separator}tenant_id=${encodeURIComponent(tenantId)}`;
+  return appendQueryParams(path, { tenant_id: tenantId });
 }
 
 function withSource(path: string, source?: string | undefined): string {
   if (!source) {
     return path;
   }
-  const separator = path.includes('?') ? '&' : '?';
-  return `${path}${separator}source=${encodeURIComponent(source)}`;
+  return appendQueryParams(path, { source });
 }
 
 function withQueryParam(path: string, key: string, value?: string): string {
   if (!value) {
     return path;
   }
-  const separator = path.includes('?') ? '&' : '?';
-  return `${path}${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+  return appendQueryParams(path, { [key]: value });
+}
+
+function withFilters(path: string, filters: FilterBarState): string {
+  return appendQueryParams(path, buildFilterQueryParams(filters));
 }
 
 function mapError(reason: unknown): string {
@@ -517,13 +583,59 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
   getSavedTableView: (tableId) => loadSavedView(tableId),
   setSavedTableView: (tableId, view) => saveView(tableId, view),
   clearSavedTableView: (tableId) => clearView(tableId),
+  setUploadedDataset: (dataset, active = true) => {
+    saveUploadState(dataset, active);
+    set((state) => ({
+      uploadedDataset: dataset,
+      uploadedActive: active,
+      metricsCache: {},
+      lastLoadedFiltersKey: undefined,
+      lastLoadedTenantId: undefined,
+      lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+    }));
+  },
+  setUploadedActive: (active) => {
+    const { uploadedDataset } = get();
+    if (uploadedDataset) {
+      saveUploadState(uploadedDataset, active);
+    }
+    set((state) => ({
+      uploadedActive: active,
+      metricsCache: {},
+      lastLoadedFiltersKey: undefined,
+      lastLoadedTenantId: undefined,
+      lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+    }));
+  },
+  clearUploadedDataset: () => {
+    clearUploadState();
+    set((state) => ({
+      uploadedDataset: undefined,
+      uploadedActive: false,
+      metricsCache: {},
+      lastLoadedFiltersKey: undefined,
+      lastLoadedTenantId: undefined,
+      lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+    }));
+  },
+  setFilters: (nextFilters) => {
+    const current = get().filters;
+    if (areFiltersEqual(current, nextFilters)) {
+      return;
+    }
+    set({ filters: nextFilters });
+  },
   setSelectedParish: (parish) => {
     if (!parish) {
       set({ selectedParish: undefined });
       return;
     }
+    const normalizedNext = normalizeParishValue(parish);
     const current = get().selectedParish;
-    set({ selectedParish: current === parish ? undefined : parish });
+    const normalizedCurrent = current ? normalizeParishValue(current) : '';
+    set({
+      selectedParish: normalizedCurrent === normalizedNext ? undefined : parish.trim(),
+    });
   },
   setSelectedMetric: (metric) => set({ selectedMetric: metric }),
   setActiveTenant: (tenantId, tenantLabel) => {
@@ -550,34 +662,43 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       parish,
       activeTenantId,
       lastLoadedTenantId,
+      lastLoadedFiltersKey,
+      filters,
       metricsCache,
     } = get();
     const requestedTenantId =
-      typeof tenantId === 'undefined' ? activeTenantId : tenantId ?? activeTenantId;
+      typeof tenantId === 'undefined' ? activeTenantId : (tenantId ?? activeTenantId);
     const normalizedTenantId = normalizeTenantId(requestedTenantId);
-    const tenantKey = resolveTenantKey(normalizedTenantId);
+    const filterKey = resolveFilterKey(filters);
+    const tenantKey = resolveTenantKey(normalizedTenantId, filterKey);
     const cachedMetrics = metricsCache[tenantKey];
+    const { uploadedDataset, uploadedActive } = get();
     const normalizedLastLoaded = normalizeTenantId(lastLoadedTenantId);
     const isTenantChange =
       typeof normalizedTenantId !== 'undefined' && normalizedTenantId !== normalizedLastLoaded;
+    const isFilterChange = filterKey !== lastLoadedFiltersKey;
+    const isQueryChange = isTenantChange || isFilterChange;
     const allSlicesLoaded =
       campaign.status === 'loaded' &&
       creative.status === 'loaded' &&
       budget.status === 'loaded' &&
       parish.status === 'loaded';
 
-    if (!options?.force) {
-      if (!isTenantChange && allSlicesLoaded) {
+    const hasUploadOverride = uploadedActive && uploadedDataset;
+    if (!options?.force && !hasUploadOverride) {
+      if (!isQueryChange && allSlicesLoaded) {
         return;
       }
 
-      if (cachedMetrics && isTenantChange) {
+      if (cachedMetrics && isQueryChange) {
         set((state) => ({
           activeTenantId: cachedMetrics.tenantId ?? normalizedTenantId ?? state.activeTenantId,
-          lastLoadedTenantId: cachedMetrics.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
+          lastLoadedTenantId:
+            cachedMetrics.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
+          lastLoadedFiltersKey: filterKey,
           lastSnapshotGeneratedAt:
             cachedMetrics.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
-          selectedParish: undefined,
+          selectedParish: isTenantChange ? undefined : state.selectedParish,
           campaign: { status: 'loaded', data: cachedMetrics.campaign, error: undefined },
           creative: { status: 'loaded', data: cachedMetrics.creative, error: undefined },
           budget: { status: 'loaded', data: cachedMetrics.budget, error: undefined },
@@ -586,10 +707,11 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         return;
       }
 
-      if (cachedMetrics && !isTenantChange && !allSlicesLoaded) {
+      if (cachedMetrics && !isQueryChange && !allSlicesLoaded) {
         set((state) => ({
           activeTenantId: cachedMetrics.tenantId ?? state.activeTenantId,
           lastLoadedTenantId: cachedMetrics.tenantId ?? state.lastLoadedTenantId,
+          lastLoadedFiltersKey: filterKey,
           lastSnapshotGeneratedAt:
             cachedMetrics.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
           campaign: { status: 'loaded', data: cachedMetrics.campaign, error: undefined },
@@ -611,18 +733,45 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       parish: { ...state.parish, status: 'loading', error: undefined },
     }));
 
+    if (uploadedActive && uploadedDataset) {
+      try {
+        const resolved = buildMetricsFromUpload(uploadedDataset, filters, normalizedTenantId);
+        set((state) => ({
+          activeTenantId: resolved.tenantId ?? state.activeTenantId,
+          lastLoadedTenantId: resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
+          lastLoadedFiltersKey: filterKey,
+          lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+          campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
+          creative: { status: 'loaded', data: resolved.creative, error: undefined },
+          budget: { status: 'loaded', data: resolved.budget, error: undefined },
+          parish: { status: 'loaded', data: resolved.parish, error: undefined },
+          metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
+        }));
+      } catch (error) {
+        const message = mapError(error);
+        set((state) => ({
+          campaign: { status: 'error', data: state.campaign.data, error: message },
+          creative: { status: 'error', data: state.creative.data, error: message },
+          budget: { status: 'error', data: state.budget.data, error: message },
+          parish: { status: 'error', data: state.parish.data, error: message },
+        }));
+      }
+      return;
+    }
+
     const datasetMode = getDatasetMode();
     const sourceOverride = getDatasetSource();
-    const metricsSource = sourceOverride;
-    let metricsPath = withSource(
-      withTenant('/metrics/combined/', normalizedTenantId),
-      sourceOverride,
+    const uploadSource = uploadedActive ? 'upload' : undefined;
+    const metricsSource = uploadSource ?? sourceOverride;
+    let metricsPath = withFilters(
+      withSource(withTenant('/metrics/combined/', normalizedTenantId), metricsSource),
+      filters,
     );
     if (metricsSource === 'demo') {
       metricsPath = withQueryParam(metricsPath, 'demo_tenant', getDemoTenantId());
     }
 
-    if (!MOCK_MODE && datasetMode !== 'dummy') {
+    if (!MOCK_MODE && (datasetMode !== 'dummy' || uploadedActive)) {
       try {
         const snapshot = await fetchDashboardMetrics({
           path: metricsPath,
@@ -633,8 +782,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         set((state) => ({
           activeTenantId: resolved.tenantId ?? state.activeTenantId,
           lastLoadedTenantId: resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
-          lastSnapshotGeneratedAt:
-            resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+          lastLoadedFiltersKey: filterKey,
+          lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
           campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
           creative: { status: 'loaded', data: resolved.creative, error: undefined },
           budget: { status: 'loaded', data: resolved.budget, error: undefined },
@@ -654,12 +803,34 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       return;
     }
 
-    if (datasetMode === 'dummy') {
+    if (datasetMode === 'dummy' && !uploadedActive) {
       try {
+        if (!MOCK_MODE && metricsSource) {
+          const snapshot = await fetchDashboardMetrics({
+            path: metricsPath,
+            mockPath: '/sample_metrics.json',
+          });
+          const resolved = parseTenantMetrics(snapshot);
+
+          set((state) => ({
+            activeTenantId: resolved.tenantId ?? state.activeTenantId,
+            lastLoadedTenantId: resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
+            lastLoadedFiltersKey: filterKey,
+            lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+            campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
+            creative: { status: 'loaded', data: resolved.creative, error: undefined },
+            budget: { status: 'loaded', data: resolved.budget, error: undefined },
+            parish: { status: 'loaded', data: resolved.parish, error: undefined },
+            metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
+          }));
+          return;
+        }
+
         let dummyPath = '/sample_metrics.json';
         if (metricsSource) {
           dummyPath = withSource(dummyPath, metricsSource);
         }
+        dummyPath = withFilters(dummyPath, filters);
         if (metricsSource === 'demo') {
           dummyPath = withQueryParam(dummyPath, 'demo_tenant', getDemoTenantId());
         }
@@ -670,8 +841,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         set((state) => ({
           activeTenantId: resolved.tenantId ?? state.activeTenantId,
           lastLoadedTenantId: resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
-          lastSnapshotGeneratedAt:
-            resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+          lastLoadedFiltersKey: filterKey,
+          lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
           campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
           creative: { status: 'loaded', data: resolved.creative, error: undefined },
           budget: { status: 'loaded', data: resolved.budget, error: undefined },
@@ -691,21 +862,21 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       return;
     }
 
-    const campaignPath = withSource(
-      withTenant('/analytics/campaign-performance/', tenantId),
-      sourceOverride,
+    const campaignPath = withFilters(
+      withSource(withTenant('/analytics/campaign-performance/', tenantId), sourceOverride),
+      filters,
     );
-    const creativePath = withSource(
-      withTenant('/analytics/creative-performance/', tenantId),
-      sourceOverride,
+    const creativePath = withFilters(
+      withSource(withTenant('/analytics/creative-performance/', tenantId), sourceOverride),
+      filters,
     );
-    const budgetPath = withSource(
-      withTenant('/analytics/budget-pacing/', tenantId),
-      sourceOverride,
+    const budgetPath = withFilters(
+      withSource(withTenant('/analytics/budget-pacing/', tenantId), sourceOverride),
+      filters,
     );
-    const parishPath = withSource(
-      withTenant('/analytics/parish-performance/', tenantId),
-      sourceOverride,
+    const parishPath = withFilters(
+      withSource(withTenant('/analytics/parish-performance/', tenantId), sourceOverride),
+      filters,
     );
 
     const [campaignResult, creativeResult, budgetResult, parishResult] = await Promise.allSettled([
@@ -778,7 +949,9 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
       return {
         activeTenantId: normalizedResolved?.tenantId ?? normalizedTenantId ?? state.activeTenantId,
-        lastLoadedTenantId: normalizedResolved?.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
+        lastLoadedTenantId:
+          normalizedResolved?.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
+        lastLoadedFiltersKey: normalizedResolved ? filterKey : state.lastLoadedFiltersKey,
         lastSnapshotGeneratedAt:
           normalizedResolved?.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
         campaign:
@@ -819,34 +992,105 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
   getCachedMetrics: (tenantId) => {
     const state = get();
     const normalizedTenantId = normalizeTenantId(tenantId ?? state.activeTenantId);
-    const tenantKey = resolveTenantKey(normalizedTenantId);
+    const filterKey = resolveFilterKey(state.filters);
+    const tenantKey = resolveTenantKey(normalizedTenantId, filterKey);
     return state.metricsCache[tenantKey];
   },
   getCampaignRowsForSelectedParish: () => {
-    const { campaign: campaignSlice, selectedParish } = get();
+    const { campaign: campaignSlice, selectedParish, filters } = get();
     const rows = campaignSlice.data?.rows ?? [];
+    const query = normalizeFilterQuery(filters.campaignQuery);
+    const channelFilters = resolveChannelFilters(filters);
     if (!selectedParish) {
-      return rows;
+      return rows.filter((row) => {
+        if (channelFilters.length > 0) {
+          const platformKey = normalizeChannelValue(row.platform ?? '');
+          if (!platformKey || !channelFilters.includes(platformKey)) {
+            return false;
+          }
+        }
+        return matchesQuery(row.name, query);
+      });
     }
-    return rows.filter((row) => row.parish?.toLowerCase() === selectedParish.toLowerCase());
+    const parishKey = normalizeParishValue(selectedParish);
+    return rows.filter((row) => {
+      if (!row.parish || normalizeParishValue(row.parish) !== parishKey) {
+        return false;
+      }
+      if (channelFilters.length > 0) {
+        const platformKey = normalizeChannelValue(row.platform ?? '');
+        if (!platformKey || !channelFilters.includes(platformKey)) {
+          return false;
+        }
+      }
+      return matchesQuery(row.name, query);
+    });
   },
   getCreativeRowsForSelectedParish: () => {
-    const { creative: creativeSlice, selectedParish } = get();
+    const { creative: creativeSlice, selectedParish, filters } = get();
     const rows = creativeSlice.data ?? [];
+    const query = normalizeFilterQuery(filters.campaignQuery);
+    const channelFilters = resolveChannelFilters(filters);
     if (!selectedParish) {
-      return rows;
+      return rows.filter((row) => {
+        if (channelFilters.length > 0) {
+          const platformKey = normalizeChannelValue(row.platform ?? '');
+          if (!platformKey || !channelFilters.includes(platformKey)) {
+            return false;
+          }
+        }
+        if (!query) {
+          return true;
+        }
+        return matchesQuery(row.campaignName, query) || matchesQuery(row.name, query);
+      });
     }
-    return rows.filter((row) => row.parish?.toLowerCase() === selectedParish.toLowerCase());
+    const parishKey = normalizeParishValue(selectedParish);
+    return rows.filter((row) => {
+      if (!row.parish || normalizeParishValue(row.parish) !== parishKey) {
+        return false;
+      }
+      if (channelFilters.length > 0) {
+        const platformKey = normalizeChannelValue(row.platform ?? '');
+        if (!platformKey || !channelFilters.includes(platformKey)) {
+          return false;
+        }
+      }
+      if (!query) {
+        return true;
+      }
+      return matchesQuery(row.campaignName, query) || matchesQuery(row.name, query);
+    });
   },
   getBudgetRowsForSelectedParish: () => {
-    const { budget: budgetSlice, selectedParish } = get();
+    const { budget: budgetSlice, selectedParish, filters } = get();
     const rows = budgetSlice.data ?? [];
+    const query = normalizeFilterQuery(filters.campaignQuery);
+    const channelFilters = resolveChannelFilters(filters);
     if (!selectedParish) {
-      return rows;
+      return rows.filter((row) => {
+        if (channelFilters.length > 0) {
+          const platformKey = normalizeChannelValue(row.platform ?? '');
+          if (!platformKey || !channelFilters.includes(platformKey)) {
+            return false;
+          }
+        }
+        return matchesQuery(row.campaignName, query);
+      });
     }
-    return rows.filter((row) =>
-      row.parishes?.some((parish) => parish.toLowerCase() === selectedParish.toLowerCase()),
-    );
+    const parishKey = normalizeParishValue(selectedParish);
+    return rows.filter((row) => {
+      if (!row.parishes?.some((parish) => normalizeParishValue(parish) === parishKey)) {
+        return false;
+      }
+      if (channelFilters.length > 0) {
+        const platformKey = normalizeChannelValue(row.platform ?? '');
+        if (!platformKey || !channelFilters.includes(platformKey)) {
+          return false;
+        }
+      }
+      return matchesQuery(row.campaignName, query);
+    });
   },
   reset: () => {
     set({

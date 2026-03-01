@@ -1,0 +1,27 @@
+version: 1.0.0
+metadata:
+  import_time: 2024-07-18T00:00:00Z
+  dashboard_uuid: 12345678-1234-5678-9abc-1234567890ab
+  published: true
+  css: |
+    .dashboard-component-chart-holder { background-color: #0f172a0f; }
+dashboard:
+  dashboard_title: Campaign & Creative Intelligence
+  position: {}
+  metadata:
+    native_filter_configuration:
+      - id: filter_campaigntype
+        filterType: filter_select
+        targets:
+          - column: campaign_type
+            datasetUuid: bfbf6802-818a-4c3b-9d3f-1234567890ab
+        defaultValue: ['Prospecting']
+    timed_refresh_immune_slices: []
+    refresh_frequency: 900
+  charts:
+    - slice_name: Campaign pacing vs goal
+      viz_type: line
+      dataset_uuid: bfbf6802-818a-4c3b-9d3f-1234567890ab
+    - slice_name: Creative performance heatmap
+      viz_type: heatmap
+      dataset_uuid: f1c20bc5-2a0f-45a3-a6f0-1234567890ab

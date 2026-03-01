@@ -243,6 +243,149 @@ parish_rows_json as (
     group by 1
 ),
 
+budget_campaign_daily as (
+    select
+        tenant_id,
+        campaign_id,
+        date_day,
+        max(campaign_name) as campaign_name,
+        coalesce(sum(spend), 0) as spend
+    from scoped
+    where campaign_id is not null
+      and source_platform = 'meta_ads'
+    group by 1, 2, 3
+),
+
+budget_campaign_window as (
+    select
+        tenant_id,
+        campaign_id,
+        max(campaign_name) as campaign_name,
+        coalesce(sum(spend), 0) as spend_to_date
+    from budget_campaign_daily
+    group by 1, 2
+),
+
+budget_campaign_trailing as (
+    select
+        tenant_id,
+        campaign_id,
+        date_day,
+        avg(spend) over (
+            partition by tenant_id, campaign_id
+            order by date_day
+            rows between 6 preceding and current row
+        ) as trailing_7d_avg_spend
+    from budget_campaign_daily
+),
+
+budget_campaign_latest as (
+    select
+        tenant_id,
+        campaign_id,
+        trailing_7d_avg_spend
+    from (
+        select
+            t.*,
+            row_number() over (
+                partition by tenant_id, campaign_id
+                order by date_day desc
+            ) as row_num
+        from budget_campaign_trailing t
+    ) ranked
+    where row_num = 1
+),
+
+budget_campaign_parishes as (
+    select
+        tenant_id,
+        campaign_id,
+        coalesce(
+            {{ json_array_agg_ordered('parish', 'parish', true) }},
+            {{ json_empty_array() }}
+        ) as parishes
+    from (
+        select
+            tenant_id,
+            campaign_id,
+            coalesce(parish_name, 'Unknown') as parish
+        from scoped
+        where campaign_id is not null
+          and source_platform = 'meta_ads'
+    ) parishes
+    group by 1, 2
+),
+
+budget_campaign_budgets as (
+    select
+        tenant_id,
+        campaign_id,
+        sum(daily_budget) as daily_budget
+    from {{ ref('stg_meta_adsets') }}
+    where campaign_id is not null
+    group by 1, 2
+),
+
+budget_rollup as (
+    select
+        w.tenant_id,
+        w.campaign_id,
+        coalesce(w.campaign_name, w.campaign_id) as campaign_name,
+        coalesce(p.parishes, {{ json_empty_array() }}) as parishes,
+        w.spend_to_date,
+        coalesce(l.trailing_7d_avg_spend, 0) as trailing_7d_avg_spend,
+        b.daily_budget,
+        b.daily_budget * {{ window_days }} as monthly_budget,
+        coalesce(l.trailing_7d_avg_spend, 0) * {{ window_days }} as projected_spend,
+        wb.window_start_date,
+        wb.window_end_date
+    from budget_campaign_window w
+    inner join budget_campaign_budgets b
+        on w.tenant_id = b.tenant_id
+        and w.campaign_id = b.campaign_id
+    left join budget_campaign_latest l
+        on w.tenant_id = l.tenant_id
+        and w.campaign_id = l.campaign_id
+    left join budget_campaign_parishes p
+        on w.tenant_id = p.tenant_id
+        and w.campaign_id = p.campaign_id
+    left join window_bounds wb
+        on w.tenant_id = wb.tenant_id
+    where b.daily_budget is not null
+      and b.daily_budget > 0
+),
+
+budget_rows as (
+    select
+        r.*,
+        {{ metric_pacing('r.projected_spend', 'r.monthly_budget') }} as pacing_percent
+    from budget_rollup r
+),
+
+budget_rows_json as (
+    select
+        tenant_id,
+        coalesce(
+            {{ json_array_agg_ordered(
+                json_build_object({
+                    "id": "campaign_id",
+                    "campaignName": "campaign_name",
+                    "parishes": "parishes",
+                    "monthlyBudget": "monthly_budget",
+                    "spendToDate": "spend_to_date",
+                    "projectedSpend": "projected_spend",
+                    "pacingPercent": "pacing_percent",
+                    "startDate": "window_start_date",
+                    "endDate": "window_end_date"
+                }),
+                "spend_to_date desc"
+            ) }},
+            {{ json_empty_array() }}
+        ) as budget_metrics
+    from budget_rows
+    group by 1
+),
+
 campaign_metrics_json as (
     select
         s.tenant_id,
@@ -284,12 +427,14 @@ select
         }) }}
     ) as campaign_metrics,
     coalesce(cj.creative_metrics, {{ json_empty_array() }}) as creative_metrics,
-    {{ json_empty_array() }} as budget_metrics,
+    coalesce(bj.budget_metrics, {{ json_empty_array() }}) as budget_metrics,
     coalesce(pj.parish_metrics, {{ json_empty_array() }}) as parish_metrics
 from window_bounds w
 left join campaign_metrics_json cm
     on w.tenant_id = cm.tenant_id
 left join creative_rows_json cj
     on w.tenant_id = cj.tenant_id
+left join budget_rows_json bj
+    on w.tenant_id = bj.tenant_id
 left join parish_rows_json pj
     on w.tenant_id = pj.tenant_id

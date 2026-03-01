@@ -12,6 +12,7 @@ import {
   getDemoSnapshot,
   type DemoTenantKey,
 } from '../storyData/demoSnapshots';
+import { createDefaultFilterState, serializeFilterQueryParams } from '../lib/dashboardFilters';
 
 interface StoreBootstrapProps {
   tenantId: DemoTenantKey;
@@ -20,7 +21,12 @@ interface StoreBootstrapProps {
   children: ReactNode;
 }
 
-const StoreBootstrap = ({ tenantId, datasetMode = 'dummy', snapshotVariant = 'fresh', children }: StoreBootstrapProps) => {
+const StoreBootstrap = ({
+  tenantId,
+  datasetMode = 'dummy',
+  snapshotVariant = 'fresh',
+  children,
+}: StoreBootstrapProps) => {
   const datasetSnapshot = useRef(useDatasetStore.getState());
   const dashboardSnapshot = useRef(useDashboardStore.getState());
 
@@ -49,7 +55,10 @@ const StoreBootstrap = ({ tenantId, datasetMode = 'dummy', snapshotVariant = 'fr
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = resolveUrl(input);
-      if (url.includes('/analytics/parish-geometry/')) {
+      if (
+        url.includes('/dashboards/parish-geometry/') ||
+        url.includes('/analytics/parish-geometry/')
+      ) {
         return originalFetch('/jm_parishes.json', init);
       }
       return originalFetch(input, init);
@@ -78,6 +87,8 @@ const StoreBootstrap = ({ tenantId, datasetMode = 'dummy', snapshotVariant = 'fr
       snapshotVariant === 'pending'
         ? undefined
         : new Date(now.getTime() - snapshotAgeMinutes * 60 * 1000).toISOString();
+    const defaultFilters = createDefaultFilterState();
+    const filterKey = serializeFilterQueryParams(defaultFilters) || 'default';
 
     useDatasetStore.setState({
       adapters: ['warehouse', 'demo'],
@@ -91,6 +102,7 @@ const StoreBootstrap = ({ tenantId, datasetMode = 'dummy', snapshotVariant = 'fr
 
     useDashboardStore.setState((state) => ({
       ...state,
+      filters: defaultFilters,
       activeTenantId: snapshot.id,
       activeTenantLabel: snapshot.label,
       lastLoadedTenantId: snapshot.id,
@@ -104,7 +116,7 @@ const StoreBootstrap = ({ tenantId, datasetMode = 'dummy', snapshotVariant = 'fr
       parish: { status: 'loaded', data: snapshot.metrics.parish, error: undefined },
       metricsCache: {
         ...state.metricsCache,
-        [`${snapshot.id}::dummy`]: {
+        [`${snapshot.id}::${datasetMode}::${filterKey}`]: {
           campaign: snapshot.metrics.campaign,
           creative: snapshot.metrics.creative,
           budget: snapshot.metrics.budget,
@@ -127,7 +139,12 @@ interface DashboardStoryProps {
   snapshotVariant?: 'fresh' | 'stale' | 'pending';
 }
 
-const DashboardStory = ({ tenantId, theme, datasetMode = 'dummy', snapshotVariant = 'fresh' }: DashboardStoryProps) => {
+const DashboardStory = ({
+  tenantId,
+  theme,
+  datasetMode = 'dummy',
+  snapshotVariant = 'fresh',
+}: DashboardStoryProps) => {
   const { setTheme } = useTheme();
   const snapshot = getDemoSnapshot(tenantId);
 
@@ -159,7 +176,11 @@ const DashboardStory = ({ tenantId, theme, datasetMode = 'dummy', snapshotVarian
 
   return (
     <AuthContext.Provider value={authValue}>
-      <StoreBootstrap tenantId={snapshot.id} datasetMode={datasetMode} snapshotVariant={snapshotVariant}>
+      <StoreBootstrap
+        tenantId={snapshot.id}
+        datasetMode={datasetMode}
+        snapshotVariant={snapshotVariant}
+      >
         <CampaignDashboard />
       </StoreBootstrap>
     </AuthContext.Provider>

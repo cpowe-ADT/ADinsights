@@ -3,27 +3,28 @@
   "sourceType": "facebook-marketing",
   "workspaceId": "00000000-0000-0000-0000-000000000000",
   "configuration": {
-    "account_id": "${AIRBYTE_META_ACCOUNT_ID}",
-    "access_token": "${AIRBYTE_META_ACCESS_TOKEN}",
-    "app_id": "${AIRBYTE_META_APP_ID}",
-    "app_secret": "${AIRBYTE_META_APP_SECRET}",
+    "account_ids": ["${AIRBYTE_META_ACCOUNT_ID}"],
+    "credentials": {
+      "auth_type": "Service",
+      "access_token": "${AIRBYTE_META_ACCESS_TOKEN}"
+    },
     "start_date": "2024-01-01T00:00:00Z",
     "end_date": null,
     "page_size": 100,
-    "include_deleted": true,
-    "breakdowns": ["country", "region", "dma"],
+    "include_deleted": false,
     "insights_lookback_window": "${AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS}",
-    "window_in_days": "${AIRBYTE_META_HOURLY_WINDOW_DAYS}",
+    "window_in_days": "${AIRBYTE_META_ATTRIBUTION_WINDOW_DAYS}",
     "attribution_window": "default",
+    "action_report_time": "conversion",
     "fetch_thumbnail_images": false,
-    "custom_insights_fields": ["impressions", "clicks", "spend", "actions", "action_values"]
+    "custom_insights_fields": ["impressions", "reach", "clicks", "spend", "cpc", "cpm", "actions"]
   },
   "streams": [
     {
       "name": "ad_insights",
       "sync_mode": "incremental",
-      "cursor_field": "updated_time",
-      "primary_key": ["ad_id", "updated_time"],
+      "cursor_field": "date_start",
+      "primary_key": ["ad_id", "date_start"],
       "destination_sync_mode": "append_dedup"
     },
     {
@@ -34,7 +35,7 @@
       "destination_sync_mode": "append_dedup"
     },
     {
-      "name": "ad_sets",
+      "name": "adsets",
       "sync_mode": "incremental",
       "cursor_field": "updated_time",
       "primary_key": ["id"],

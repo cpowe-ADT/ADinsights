@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 
@@ -10,9 +10,17 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from =
-    (location.state as { from?: { pathname?: string } } | undefined)?.from?.pathname ??
-    '/dashboards/campaigns';
+  const fromLocation = (
+    location.state as
+      | {
+          from?: { pathname?: string; search?: string; hash?: string };
+        }
+      | undefined
+  )?.from;
+  const fromPathname = fromLocation?.pathname ?? '/dashboards/campaigns';
+  const fromSearch = fromLocation?.search ?? '';
+  const fromHash = fromLocation?.hash ?? '';
+  const from = `${fromPathname}${fromSearch}${fromHash}`;
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -53,6 +61,9 @@ const LoginPage = () => {
           required
           autoComplete="current-password"
         />
+        <div className="auth-links">
+          <Link to="/password-reset">Forgot your password?</Link>
+        </div>
         {error ? <p className="status-message error">{error}</p> : null}
         <button type="submit" disabled={status === 'authenticating'} className="button primary">
           {status === 'authenticating' ? 'Signing in…' : 'Sign In'}

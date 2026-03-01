@@ -1,0 +1,23 @@
+[
+  {
+    "id": "campaign-performance",
+    "name": "Campaign performance",
+    "owner": "Growth team",
+    "last_viewed_label": "Today, 08:12",
+    "route": "/dashboards/campaigns"
+  },
+  {
+    "id": "creative-insights",
+    "name": "Creative insights",
+    "owner": "Performance team",
+    "last_viewed_label": "Yesterday, 16:40",
+    "route": "/dashboards/creatives"
+  },
+  {
+    "id": "budget-pacing",
+    "name": "Budget pacing",
+    "owner": "Ops team",
+    "last_viewed_label": "Mon, 09:05",
+    "route": "/dashboards/budget"
+  }
+]

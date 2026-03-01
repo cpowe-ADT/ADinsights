@@ -1,0 +1,29 @@
+version: 1.0.0
+metadata:
+  import_time: 2024-07-18T00:00:00Z
+  database_uuid: 5b16bf82-115e-459d-bfbe-1234567890ab
+  dataset_uuid: f1c20bc5-2a0f-45a3-a6f0-1234567890ab
+dataset:
+  table_name: mart_creative_daily
+  schema: mart
+  description: Daily creative level metrics for pacing and quality assurance.
+  owners:
+    - creative.ops@example.com
+  columns:
+    - column_name: date
+      type: DATE
+      is_dttm: true
+    - column_name: creative_id
+      type: VARCHAR
+    - column_name: creative_name
+      type: VARCHAR
+    - column_name: spend
+      type: FLOAT
+    - column_name: budget
+      type: FLOAT
+    - column_name: conversions
+      type: BIGINT
+  metrics:
+    - metric_name: conversion_rate
+      expression: sum(conversions) / NULLIF(sum(impressions), 0)
+      verbose_name: Conversion Rate

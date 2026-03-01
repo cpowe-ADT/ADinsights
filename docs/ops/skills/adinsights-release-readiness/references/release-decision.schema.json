@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adinsights.local/schemas/release-readiness-decision.json",
+  "title": "ADinsights Release Readiness Decision Packet",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "release_status",
+    "gate_results",
+    "blocking_issues",
+    "warnings",
+    "pending_items",
+    "required_approvers",
+    "required_artifacts",
+    "recommended_next_action",
+    "evidence",
+    "executive_summary"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "default": "1.1.0"
+    },
+    "release_status": {
+      "type": "string",
+      "enum": ["GATE_PASS", "GATE_WARN", "GATE_BLOCK"]
+    },
+    "gate_results": {
+      "type": "object"
+    },
+    "blocking_issues": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "pending_items": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "required_approvers": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "required_artifacts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "recommended_next_action": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "value", "strength", "source"],
+        "properties": {
+          "type": { "type": "string" },
+          "value": { "type": "string" },
+          "strength": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "source": { "type": "string" }
+        }
+      }
+    },
+    "executive_summary": {
+      "type": "string"
+    }
+  }
+}

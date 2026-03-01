@@ -4,6 +4,8 @@
 
 Alerting is driven by SQL thresholds defined in `backend/app/alerts.py`. Rules are evaluated every 15 minutes by the Celery beat scheduler and results are summarized by the LLM integration before being dispatched to Slack/email. Each evaluation is persisted to the `alerts_alertrun` table and exposed via `GET /api/alerts/runs/` for historical analysis.
 
+Default thresholds and escalation steps live in `docs/ops/alert-thresholds-escalation.md`.
+
 ## Manual Execution
 
 ```bash
@@ -31,6 +33,16 @@ This triggers the `run_alert_cycle` task and posts results to the configured cha
 - Slack webhook(s) managed in 1Password.
 - Email distribution lists maintained in Google Workspace (`marketing-ops@example.com`).
 - DB credentials rotate via Vault every 90 days.
+
+## Dashboards & Escalation
+
+- Dashboards (replace `<env>` with the target environment):
+  - `https://grafana.<env>.adinsights.dev/d/metrics-app` (API + metrics health).
+  - `https://grafana.<env>.adinsights.dev/d/airbyte-syncs` (Airbyte sync freshness/errors).
+  - `https://grafana.<env>.adinsights.dev/d/dbt-runs` (dbt run status + duration).
+  - `https://grafana.<env>.adinsights.dev/d/celery-tasks` (Celery task throughput/failure).
+- Escalation contacts and timeframes: `docs/ops/escalation-matrix.md`.
+- Threshold definitions: `docs/ops/alert-thresholds-escalation.md`.
 
 ## Freshness & Webhook Alerts
 

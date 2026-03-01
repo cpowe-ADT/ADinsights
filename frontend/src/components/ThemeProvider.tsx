@@ -9,6 +9,7 @@ type ThemeContextValue = {
 };
 
 const STORAGE_KEY = 'adinsights-theme';
+const LEGACY_STORAGE_KEY = 'adinsights:theme';
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
@@ -30,7 +31,22 @@ function getStoredTheme(): Theme | null {
   }
 
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  return stored === 'light' || stored === 'dark' ? stored : null;
+  if (stored === 'light' || stored === 'dark') {
+    return stored;
+  }
+
+  const legacy = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (legacy === 'light' || legacy === 'dark') {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, legacy);
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch {
+      // Ignore storage write failures in restricted browser contexts.
+    }
+    return legacy;
+  }
+
+  return null;
 }
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
@@ -40,8 +56,10 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (isManual) {
       window.localStorage.setItem(STORAGE_KEY, theme);
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
     } else {
       window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
     }
   }, [isManual, theme]);
 
@@ -67,6 +85,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
     root.classList.remove('theme-dark', 'theme-light');
     root.classList.add(className);
+    root.setAttribute('data-theme', theme);
   }, [theme]);
 
   const contextValue = useMemo<ThemeContextValue>(

@@ -75,11 +75,15 @@ free from theme-specific logic.
   states so Chromatic can track the warning variant.
 - Tooling: avoid multiple `role="status"` nodes in the same control; use a single polite live region for status and plain text for
   errors/loading. Provide `title`/tooltip for absolute timestamps on freshness badges.
+- Storybook coverage lives in:
+  - `frontend/src/components/DatasetToggle.stories.tsx` (LiveAvailable, DemoMode, LoadingAdapters, ErrorState).
+  - `frontend/src/components/SnapshotIndicator.stories.tsx` (Fresh, Stale, Pending, Demo, Dark).
+  - `frontend/src/routes/CampaignDashboard.stories.tsx` (fresh/stale/pending snapshot variants).
 
 ## Component checklist (dashboard refresh)
 
-| Component | Light theme | Dark theme | Notes |
-| --- | --- | --- | --- |
-| KPI stat cards | ✅ | ✅ | Uses `--stat-card-*` tokens and matches spacing guidance above. |
-| Parish map | ✅ | ✅ | Legend/tooltips consume `--map-*` tokens; hover/focus contrast ≥3:1. |
-| Campaign data table | ✅ | ✅ | Tokenized rows, hover, selected, and density controls; focus rings preserved. |
+| Component           | Light theme | Dark theme | Notes                                                                         |
+| ------------------- | ----------- | ---------- | ----------------------------------------------------------------------------- |
+| KPI stat cards      | ✅          | ✅         | Uses `--stat-card-*` tokens and matches spacing guidance above.               |
+| Parish map          | ✅          | ✅         | Legend/tooltips consume `--map-*` tokens; hover/focus contrast ≥3:1.          |
+| Campaign data table | ✅          | ✅         | Tokenized rows, hover, selected, and density controls; focus rings preserved. |

@@ -1,0 +1,4 @@
+site_url,date_day,country,device,query,page,clicks,impressions,ctr,position,_airbyte_emitted_at,_airbyte_raw_id
+https://adinsights.example,2026-02-01,JAM,mobile,ad insights pricing,https://adinsights.example/pricing,52,810,0.0642,6.4,2026-02-01T06:20:00Z,gsc-row-1
+https://adinsights.example,2026-02-01,JAM,desktop,ad insights dashboard,https://adinsights.example/dashboard,34,420,0.0810,4.1,2026-02-01T06:20:00Z,gsc-row-2
+https://adinsights.example,2026-02-02,JAM,mobile,facebook ads jamaica,https://adinsights.example/blog/facebook-ads-jamaica,41,730,0.0561,8.2,2026-02-02T06:20:00Z,gsc-row-3

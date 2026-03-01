@@ -1,0 +1,4 @@
+infrastructure/airbyte/meta_source.yaml
+infrastructure/airbyte/scripts/check_data_contracts.py
+infrastructure/airbyte/scripts/provision_meta_google_connectors.py
+infrastructure/airbyte/sources/meta_marketing.json.example

@@ -6,7 +6,7 @@ from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .audit import log_audit_event
 from .models import AuditLog, ServiceAccountKey, Tenant, User, UserRole
@@ -30,14 +30,28 @@ from .serializers import (
 )
 from .tasks import send_password_reset_email
 from .tenant_context import set_current_tenant_id
+from core.throttling import (
+    AuthBurstRateThrottle,
+    AuthSustainedRateThrottle,
+)
 
 
 class TenantTokenObtainPairView(TokenObtainPairView):
     serializer_class = TenantTokenObtainPairSerializer
+    throttle_classes = [AuthBurstRateThrottle, AuthSustainedRateThrottle]
+
+
+class RateLimitedTokenObtainPairView(TokenObtainPairView):
+    throttle_classes = [AuthBurstRateThrottle, AuthSustainedRateThrottle]
+
+
+class RateLimitedTokenRefreshView(TokenRefreshView):
+    throttle_classes = [AuthBurstRateThrottle, AuthSustainedRateThrottle]
 
 
 class PasswordResetRequestView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [AuthBurstRateThrottle, AuthSustainedRateThrottle]
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
@@ -61,6 +75,7 @@ class PasswordResetRequestView(APIView):
 
 class PasswordResetConfirmView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [AuthBurstRateThrottle, AuthSustainedRateThrottle]
 
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
@@ -135,6 +150,11 @@ class TenantViewSet(
         if self.action == "create":
             return [permissions.AllowAny()]
         return super().get_permissions()
+
+    def get_throttles(self):
+        if self.action == "create":
+            return [throttle() for throttle in (AuthBurstRateThrottle, AuthSustainedRateThrottle)]
+        return super().get_throttles()
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -227,6 +247,11 @@ class UserViewSet(
             return [permissions.AllowAny()]
         return super().get_permissions()
 
+    def get_throttles(self):
+        if self.action == "accept_invite":
+            return [throttle() for throttle in (AuthBurstRateThrottle, AuthSustainedRateThrottle)]
+        return super().get_throttles()
+
     def get_serializer_class(self):
         if self.action == "create":
             return UserCreateSerializer
@@ -240,7 +265,8 @@ class UserViewSet(
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        user = self.request.user
+        request = getattr(self, "request", None)
+        user = getattr(request, "user", None) if request is not None else None
         if user and user.is_authenticated:
             context.setdefault("tenant", getattr(user, "tenant", None))
             context.setdefault("invited_by", user)
@@ -312,7 +338,8 @@ class UserRoleViewSet(
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        user = self.request.user
+        request = getattr(self, "request", None)
+        user = getattr(request, "user", None) if request is not None else None
         if user and user.is_authenticated:
             context.setdefault("tenant", getattr(user, "tenant", None))
         return context
@@ -372,8 +399,9 @@ class ServiceAccountKeyViewSet(
 
     def get_serializer_context(self):  # type: ignore[override]
         context = super().get_serializer_context()
-        user = self.request.user
-        tenant = getattr(user, "tenant", None)
+        request = getattr(self, "request", None)
+        user = getattr(request, "user", None) if request is not None else None
+        tenant = getattr(user, "tenant", None) if user is not None else None
         if tenant is not None:
             context.setdefault("tenant", tenant)
         return context

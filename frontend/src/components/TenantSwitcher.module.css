@@ -22,7 +22,7 @@
   border-radius: var(--radius-sm);
   border: 1px solid var(--header-select-border);
   background: var(--header-select-bg);
-  color: var(--text-inverse);
+  color: var(--header-control-text);
   font: inherit;
   cursor: pointer;
   transition:
@@ -62,7 +62,7 @@
 
 .triggerHint {
   font-size: 0.75rem;
-  color: var(--text-inverse-muted);
+  color: var(--header-control-muted);
 }
 
 .caret {
@@ -141,7 +141,7 @@
 
 .helper {
   font-size: 0.75rem;
-  color: var(--text-inverse-muted);
+  color: var(--header-control-muted);
 }
 
 .helperError {

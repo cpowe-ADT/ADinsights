@@ -1,0 +1,93 @@
+skill: adinsights-contract-guard
+version: 1
+mode: advisory-local-strict-ci
+packet_schema_version: 1.0.0
+ci_strict_fail_statuses:
+  breaking_only:
+    - ESCALATE_BREAKING_CHANGE
+  breaking_or_missing_docs:
+    - ESCALATE_BREAKING_CHANGE
+    - ESCALATE_CONTRACT_CHANGE_REQUIRES_DOCS
+contract_statuses:
+  - PASS_NO_CONTRACT_CHANGE
+  - WARN_POSSIBLE_CONTRACT_CHANGE
+  - ESCALATE_CONTRACT_CHANGE_REQUIRES_DOCS
+  - ESCALATE_BREAKING_CHANGE
+surface_patterns:
+  api_contract:
+    - backend/.*/serializers\.py
+    - backend/.*/views\.py
+    - backend/.*/urls\.py
+    - backend/.*/schema.*\.py
+  data_contract:
+    - dbt/models/.*\.(sql|yml)
+    - dbt/snapshots/.*\.(sql|yml)
+  integration_contract:
+    - ^infrastructure/airbyte/.*
+    - ^integrations/.*
+  contract_docs:
+    - docs/project/api-contract-changelog.md
+    - docs/project/integration-data-contract-matrix.md
+surface_keywords:
+  api_contract:
+    - serializer
+    - openapi
+    - endpoint
+    - response field
+    - request field
+  data_contract:
+    - dbt
+    - model
+    - snapshot
+    - column semantic
+  integration_contract:
+    - airbyte
+    - connector
+    - schema drift
+  contract_docs:
+    - api-contract-changelog
+    - integration-data-contract-matrix
+breaking_change_keywords:
+  - breaking
+  - remove field
+  - removed field
+  - drop column
+  - rename field
+  - incompatible
+  - backward incompatible
+breaking_change_path_patterns:
+  - backend/.*/serializers\.py
+  - backend/.*/schema.*\.py
+  - dbt/models/.*\.(sql|yml)
+doc_requirements_by_surface:
+  api_contract:
+    - docs/project/api-contract-changelog.md
+  data_contract:
+    - docs/project/integration-data-contract-matrix.md
+  integration_contract:
+    - docs/project/integration-data-contract-matrix.md
+tests_by_surface:
+  api_contract:
+    - ruff check backend && pytest -q backend
+  data_contract:
+    - make dbt-deps && dbt --project-dir dbt run --select staging && dbt snapshot && dbt --project-dir dbt run --select marts
+  integration_contract:
+    - python3 infrastructure/airbyte/scripts/check_data_contracts.py
+    - pytest -q backend/tests/test_data_contract_checks.py
+base_required_reviewers:
+  - Raj
+breaking_change_reviewers:
+  - Raj
+  - Mira
+next_action_templates:
+  PASS_NO_CONTRACT_CHANGE:
+    - Proceed with normal single-stream review and canonical tests.
+  WARN_POSSIBLE_CONTRACT_CHANGE:
+    - Confirm downstream consumers for touched contract surfaces.
+    - Validate data contract checks before merge.
+  ESCALATE_CONTRACT_CHANGE_REQUIRES_DOCS:
+    - Update required contract documentation before merge.
+    - Route for cross-stream contract review.
+  ESCALATE_BREAKING_CHANGE:
+    - Escalate to Raj and Mira before implementation merge.
+    - Capture migration/rollback plan and communicate consumer impact.

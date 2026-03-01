@@ -1,0 +1,4 @@
+property_id,date_day,session_default_channel_group,country,city,campaign_name,sessions,engaged_sessions,conversions,purchase_revenue,currency_code,_airbyte_emitted_at,_airbyte_raw_id
+properties/123456789,2026-02-01,Paid Search,JM,Kingston,Q1 Growth Push,420,210,24,1320.50,JMD,2026-02-01T06:10:00Z,ga4-row-1
+properties/123456789,2026-02-01,Organic Search,JM,Montego Bay,Brand Lift,280,155,12,640.00,JMD,2026-02-01T06:10:00Z,ga4-row-2
+properties/123456789,2026-02-02,Paid Social,JM,Spanish Town,Retargeting Flow,395,198,27,1475.25,JMD,2026-02-02T06:10:00Z,ga4-row-3

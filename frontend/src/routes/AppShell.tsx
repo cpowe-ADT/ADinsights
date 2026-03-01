@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, type NavLinkRenderProps } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 
@@ -37,24 +37,35 @@ const AppShell = () => {
       </header>
       <nav className="app-nav" aria-label="Primary">
         <div className="app-boundary app-nav__inner">
-          <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : undefined)}>
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }: NavLinkRenderProps) => (isActive ? 'active' : undefined)}
+          >
             Home
           </NavLink>
           <NavLink
+            to="/dashboards"
+            end
+            className={({ isActive }: NavLinkRenderProps) => (isActive ? 'active' : undefined)}
+          >
+            Dashboards
+          </NavLink>
+          <NavLink
             to="/dashboards/campaigns"
-            className={({ isActive }) => (isActive ? 'active' : undefined)}
+            className={({ isActive }: NavLinkRenderProps) => (isActive ? 'active' : undefined)}
           >
             Campaigns
           </NavLink>
           <NavLink
             to="/dashboards/creatives"
-            className={({ isActive }) => (isActive ? 'active' : undefined)}
+            className={({ isActive }: NavLinkRenderProps) => (isActive ? 'active' : undefined)}
           >
             Creatives
           </NavLink>
           <NavLink
             to="/dashboards/budget"
-            className={({ isActive }) => (isActive ? 'active' : undefined)}
+            className={({ isActive }: NavLinkRenderProps) => (isActive ? 'active' : undefined)}
           >
             Budget pacing
           </NavLink>

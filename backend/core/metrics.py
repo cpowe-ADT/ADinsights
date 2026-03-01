@@ -83,6 +83,30 @@ DBT_RUN_DURATION = Histogram(
     ),
 )
 
+META_TOKEN_VALIDATIONS_TOTAL = Counter(
+    "meta_token_validations_total",
+    "Meta token validation attempts partitioned by status.",
+    ("status",),
+)
+
+META_TOKEN_REFRESH_ATTEMPTS_TOTAL = Counter(
+    "meta_token_refresh_attempts_total",
+    "Meta token refresh attempts partitioned by auth mode and status.",
+    ("auth_mode", "status"),
+)
+
+META_GRAPH_RETRY_TOTAL = Counter(
+    "meta_graph_retry_total",
+    "Retry events triggered while calling Meta Graph API.",
+    ("reason",),
+)
+
+META_GRAPH_THROTTLE_EVENTS_TOTAL = Counter(
+    "meta_graph_throttle_events_total",
+    "Throttle warning events from Meta Graph usage headers.",
+    ("header_name",),
+)
+
 _AIRBYTE_FAILURE_STATUSES = {
     "failed",
     "error",
@@ -173,6 +197,35 @@ def observe_dbt_run(status: str, duration_seconds: float | None) -> None:
     DBT_RUN_DURATION.labels(status=status_label).observe(duration_seconds)
 
 
+def observe_meta_token_validation(status: str) -> None:
+    """Record a token validation event for Meta credentials."""
+
+    META_TOKEN_VALIDATIONS_TOTAL.labels(status=(status or "unknown").lower()).inc()
+
+
+def observe_meta_token_refresh_attempt(*, auth_mode: str, status: str) -> None:
+    """Record a token refresh attempt outcome for Meta credentials."""
+
+    META_TOKEN_REFRESH_ATTEMPTS_TOTAL.labels(
+        auth_mode=(auth_mode or "unknown").lower(),
+        status=(status or "unknown").lower(),
+    ).inc()
+
+
+def observe_meta_graph_retry(*, reason: str) -> None:
+    """Record a Meta Graph retry event."""
+
+    META_GRAPH_RETRY_TOTAL.labels(reason=(reason or "unknown").lower()).inc()
+
+
+def observe_meta_graph_throttle_event(*, header_name: str) -> None:
+    """Record a Meta Graph throttle warning event."""
+
+    META_GRAPH_THROTTLE_EVENTS_TOTAL.labels(
+        header_name=(header_name or "unknown").lower()
+    ).inc()
+
+
 def render_metrics() -> tuple[bytes, str]:
     """Return the current registry contents and content type."""
 
@@ -189,6 +242,10 @@ def reset_metrics(registries: Iterable[Histogram | Counter] | None = None) -> No
         AIRBYTE_ROWS_SYNCED,
         AIRBYTE_SYNC_ERRORS,
         DBT_RUN_DURATION,
+        META_TOKEN_VALIDATIONS_TOTAL,
+        META_TOKEN_REFRESH_ATTEMPTS_TOTAL,
+        META_GRAPH_RETRY_TOTAL,
+        META_GRAPH_THROTTLE_EVENTS_TOTAL,
     )
     for collector in collectors:
         collector.clear()
