@@ -115,7 +115,9 @@ export async function loadMetaAccounts(
   query?: MetaListQuery,
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<MetaAccount>> {
-  return apiClient.get<PaginatedResponse<MetaAccount>>(withQuery('/meta/accounts/', query), { signal });
+  return apiClient.get<PaginatedResponse<MetaAccount>>(withQuery('/meta/accounts/', query), {
+    signal,
+  });
 }
 
 export async function loadMetaCampaigns(
