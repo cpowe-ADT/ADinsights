@@ -1,0 +1,2115 @@
+[
+  {
+    "metric_key": "content_monetization_earnings",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [
+      "earning_source"
+    ],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "creator_monetization_qualified_views",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "monetization_approximate_earnings",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28",
+      "month"
+    ],
+    "supports_breakdowns": [
+      "monetization_tool"
+    ],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_actions_post_reactions_anger_total",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_actions_post_reactions_haha_total",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_actions_post_reactions_like_total",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_actions_post_reactions_love_total",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_actions_post_reactions_sorry_total",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_actions_post_reactions_total",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_actions_post_reactions_wow_total",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_authorized_country_for_political_ads",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_consumptions_by_consumption_type",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_daily_follows",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_daily_follows_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": true,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_daily_unfollows_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_daily_video_ad_break_ad_impressions_by_crosspost_status",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_daily_video_ad_break_cpm_by_crosspost_status",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_daily_video_ad_break_earnings_by_crosspost_status",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_fan_adds",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_fan_adds_by_paid_non_paid_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_fan_adds_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_fan_removes",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_fan_removes_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_fans",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_fans_by_like_source",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_fans_by_like_source_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_fans_city",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_fans_country",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_fans_locale",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_follows",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_impressions",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_impressions_nonviral",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_impressions_nonviral_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_impressions_paid",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_impressions_paid_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_impressions_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "page_views_total",
+    "is_default": true,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_impressions_viral",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_impressions_viral_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_lifetime_engaged_followers_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_media_view",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [
+      "is_from_ads",
+      "is_from_followers"
+    ],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_negative_feedback_by_type",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_post_engagements",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": true,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_posts_impressions",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_posts_impressions_nonviral",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_posts_impressions_nonviral_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_posts_impressions_organic_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_posts_impressions_paid",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_posts_impressions_paid_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_posts_impressions_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_posts_impressions_viral",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_posts_impressions_viral_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_posts_served_impressions_organic_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_tab_views_login_top",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_tab_views_login_top_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_tab_views_logout_top",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_total_actions",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": true,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_total_media_view_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_uploaded_3s_to_15s_views_rate",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_uploaded_views_15s_count",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_uploaded_views_60s_excludes_shorter_unique_count_by_is_60s_returning_viewer",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_complete_views_30s",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_complete_views_30s_autoplayed",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_complete_views_30s_click_to_play",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_complete_views_30s_organic",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_complete_views_30s_paid",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_complete_views_30s_repeat_views",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_complete_views_30s_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_repeat_views",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_view_time",
+    "level": "PAGE",
+    "supported_periods": [
+      "day"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_views",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_views_10s",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "DEPRECATED",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": "Graph API > v18"
+  },
+  {
+    "metric_key": "page_video_views_10s_autoplayed",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "DEPRECATED",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": "Graph API > v18"
+  },
+  {
+    "metric_key": "page_video_views_10s_click_to_play",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "DEPRECATED",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": "Graph API > v18"
+  },
+  {
+    "metric_key": "page_video_views_10s_organic",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "DEPRECATED",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": "Graph API > v18"
+  },
+  {
+    "metric_key": "page_video_views_10s_paid",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "DEPRECATED",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": "Graph API > v18"
+  },
+  {
+    "metric_key": "page_video_views_10s_repeat",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "DEPRECATED",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": "Graph API > v18"
+  },
+  {
+    "metric_key": "page_video_views_10s_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "DEPRECATED",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": "Graph API > v18"
+  },
+  {
+    "metric_key": "page_video_views_autoplayed",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_views_by_paid_non_paid",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_views_by_uploaded_hosted",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_views_click_to_play",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_views_organic",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_views_paid",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_video_views_unique",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_views_logout",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "page_views_total",
+    "level": "PAGE",
+    "supported_periods": [
+      "day",
+      "week",
+      "days_28"
+    ],
+    "supports_breakdowns": [],
+    "status": "UNKNOWN",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "content_monetization_earnings",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "creator_monetization_qualified_views",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "monetization_approximate_earnings",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [
+      "monetization_tool"
+    ],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_activity_by_action_type",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_activity_by_action_type_unique",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_click_configuration",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_clicks",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_clicks_by_type",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_impressions",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": true,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_impressions_fan",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_impressions_fan_unique",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_impressions_nonviral",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_impressions_nonviral_unique",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_impressions_organic",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_impressions_organic_unique",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_impressions_paid",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_impressions_paid_unique",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_impressions_unique",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "UNKNOWN",
+    "replacement_metric_key": "post_impressions",
+    "is_default": true,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_impressions_viral",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_impressions_viral_unique",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_media_view",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [
+      "is_from_ads",
+      "is_from_followers"
+    ],
+    "status": "UNKNOWN",
+    "replacement_metric_key": "",
+    "is_default": true,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_reactions_anger_total",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_reactions_by_type_total",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_reactions_haha_total",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_reactions_like_total",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": true,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_reactions_love_total",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": true,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_reactions_sorry_total",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_reactions_wow_total",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": true,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_total_media_view_unique",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_15s_to_60s_excludes_shorter_views_rate",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_ad_break_ad_cpm",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_ad_break_ad_impressions",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_ad_break_earnings",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_avg_time_watched",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_complete_views_30s_autoplayed",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_complete_views_30s_clicked_to_play",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_complete_views_30s_organic",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_complete_views_30s_paid",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_complete_views_30s_unique",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_complete_views_organic",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_complete_views_organic_unique",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_complete_views_paid",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_complete_views_paid_unique",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_length",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_live_current_viewers",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_retention_graph",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_retention_graph_autoplayed",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_retention_graph_clicked_to_play",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_social_actions_count_unique",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_view_time",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_view_time_by_age_bucket_and_gender",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_view_time_by_country_id",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_view_time_by_distribution_type",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_view_time_by_region_id",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_view_time_organic",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_views",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_views_10s",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "DEPRECATED",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": "Graph API > v18"
+  },
+  {
+    "metric_key": "post_video_views_10s_autoplayed",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "DEPRECATED",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": "Graph API > v18"
+  },
+  {
+    "metric_key": "post_video_views_10s_clicked_to_play",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "DEPRECATED",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": "Graph API > v18"
+  },
+  {
+    "metric_key": "post_video_views_10s_organic",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "DEPRECATED",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": "Graph API > v18"
+  },
+  {
+    "metric_key": "post_video_views_10s_paid",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "DEPRECATED",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": "Graph API > v18"
+  },
+  {
+    "metric_key": "post_video_views_10s_sound_on",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "DEPRECATED",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": "Graph API > v18"
+  },
+  {
+    "metric_key": "post_video_views_10s_unique",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "DEPRECATED",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": "Graph API > v18"
+  },
+  {
+    "metric_key": "post_video_views_15s",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_views_60s_excludes_shorter",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_views_autoplayed",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_views_by_distribution_type",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_views_by_live_status",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_views_clicked_to_play",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_views_live",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_views_organic",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_views_organic_unique",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_views_paid",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_views_paid_unique",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_views_sound_on",
+    "level": "POST",
+    "supported_periods": [
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  },
+  {
+    "metric_key": "post_video_views_unique",
+    "level": "POST",
+    "supported_periods": [
+      "day",
+      "lifetime"
+    ],
+    "supports_breakdowns": [],
+    "status": "ACTIVE",
+    "replacement_metric_key": "",
+    "is_default": false,
+    "deprecated_on": ""
+  }
+]

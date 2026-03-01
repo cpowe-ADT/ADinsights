@@ -6,7 +6,14 @@ from .models import (
     APIErrorLog,
     AlertRuleDefinition,
     CampaignBudget,
+    MetaConnection,
+    MetaInsightPoint,
+    MetaMetricRegistry,
+    MetaMetricSupportStatus,
     MetaAccountSyncState,
+    MetaPage,
+    MetaPost,
+    MetaPostInsightPoint,
     PlatformCredential,
 )
 
@@ -37,6 +44,72 @@ class MetaAccountSyncStateAdmin(admin.ModelAdmin):
     )
     list_filter = ("tenant", "last_job_status")
     search_fields = ("account_id",)
+
+
+@admin.register(MetaConnection)
+class MetaConnectionAdmin(admin.ModelAdmin):
+    list_display = ("tenant", "user", "app_scoped_user_id", "token_expires_at", "is_active")
+    list_filter = ("tenant", "is_active")
+    search_fields = ("app_scoped_user_id", "user__email")
+
+
+@admin.register(MetaPage)
+class MetaPageAdmin(admin.ModelAdmin):
+    list_display = (
+        "tenant",
+        "page_id",
+        "name",
+        "category",
+        "can_analyze",
+        "is_default",
+        "last_synced_at",
+        "updated_at",
+    )
+    list_filter = ("tenant", "can_analyze", "is_default")
+    search_fields = ("page_id", "name")
+
+
+@admin.register(MetaMetricRegistry)
+class MetaMetricRegistryAdmin(admin.ModelAdmin):
+    list_display = ("level", "metric_key", "status", "replacement_metric_key", "is_default")
+    list_filter = ("level", "status", "is_default")
+    search_fields = ("metric_key", "replacement_metric_key")
+
+
+@admin.register(MetaMetricSupportStatus)
+class MetaMetricSupportStatusAdmin(admin.ModelAdmin):
+    list_display = ("tenant", "page", "level", "metric_key", "supported", "last_checked_at")
+    list_filter = ("level", "supported")
+    search_fields = ("metric_key", "page__page_id")
+
+
+@admin.register(MetaInsightPoint)
+class MetaInsightPointAdmin(admin.ModelAdmin):
+    list_display = ("tenant", "page", "metric_key", "period", "end_time", "breakdown_key")
+    list_filter = ("period", "metric_key")
+    search_fields = ("metric_key", "page__page_id")
+
+
+@admin.register(MetaPost)
+class MetaPostAdmin(admin.ModelAdmin):
+    list_display = (
+        "tenant",
+        "page",
+        "post_id",
+        "media_type",
+        "created_time",
+        "updated_time",
+        "last_synced_at",
+    )
+    list_filter = ("tenant",)
+    search_fields = ("post_id", "page__page_id")
+
+
+@admin.register(MetaPostInsightPoint)
+class MetaPostInsightPointAdmin(admin.ModelAdmin):
+    list_display = ("tenant", "post", "metric_key", "period", "end_time", "breakdown_key")
+    list_filter = ("period", "metric_key")
+    search_fields = ("metric_key", "post__post_id")
 
 
 @admin.register(APIErrorLog)

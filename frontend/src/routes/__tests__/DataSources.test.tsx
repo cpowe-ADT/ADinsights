@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApiError } from '../../lib/apiClient';
 import DataSources from '../DataSources';
 
 const pushToast = vi.fn();
@@ -20,6 +21,9 @@ const airbyteMocks = vi.hoisted(() => ({
   logoutMetaOAuth: vi.fn(),
   loadMetaSetupStatus: vi.fn(),
   loadSocialConnectionStatus: vi.fn(),
+}));
+const metaPageInsightsMocks = vi.hoisted(() => ({
+  callbackMetaOAuth: vi.fn(),
 }));
 
 vi.mock('../../components/ToastProvider', () => ({
@@ -40,6 +44,11 @@ vi.mock('../../lib/airbyte', () => ({
   logoutMetaOAuth: airbyteMocks.logoutMetaOAuth,
   loadMetaSetupStatus: airbyteMocks.loadMetaSetupStatus,
   loadSocialConnectionStatus: airbyteMocks.loadSocialConnectionStatus,
+}));
+vi.mock('../../lib/metaPageInsights', () => ({
+  META_OAUTH_FLOW_PAGE_INSIGHTS: 'page_insights',
+  META_OAUTH_FLOW_SESSION_KEY: 'adinsights.meta.oauth.flow',
+  callbackMetaOAuth: metaPageInsightsMocks.callbackMetaOAuth,
 }));
 
 describe('DataSources connect flow', () => {
@@ -182,6 +191,22 @@ describe('DataSources connect flow', () => {
         },
       ],
     });
+    metaPageInsightsMocks.callbackMetaOAuth.mockResolvedValue({
+      connection_id: 'meta-conn-1',
+      pages: [
+        {
+          id: 'page-1',
+          page_id: 'page-1',
+          name: 'Business Page',
+          can_analyze: true,
+          is_default: true,
+        },
+      ],
+      default_page_id: 'page-1',
+      missing_required_permissions: [],
+      oauth_connected_but_missing_permissions: false,
+      tasks: {},
+    });
     window.history.replaceState({}, '', '/');
     window.sessionStorage.clear();
   });
@@ -214,7 +239,10 @@ describe('DataSources connect flow', () => {
           platform: 'meta',
           display_name: 'Meta (Facebook)',
           status: 'not_connected',
-          reason: { code: 'missing_meta_credential', message: 'Meta OAuth has not been connected.' },
+          reason: {
+            code: 'missing_meta_credential',
+            message: 'Meta OAuth has not been connected.',
+          },
           last_checked_at: '2026-02-17T20:00:00Z',
           last_synced_at: null,
           actions: ['connect_oauth'],
@@ -255,7 +283,10 @@ describe('DataSources connect flow', () => {
           platform: 'meta',
           display_name: 'Meta (Facebook)',
           status: 'not_connected',
-          reason: { code: 'missing_meta_credential', message: 'Meta OAuth has not been connected.' },
+          reason: {
+            code: 'missing_meta_credential',
+            message: 'Meta OAuth has not been connected.',
+          },
           last_checked_at: '2026-02-17T20:00:00Z',
           last_synced_at: null,
           actions: ['connect_oauth'],
@@ -288,6 +319,13 @@ describe('DataSources connect flow', () => {
 
   it('handles oauth callback without provider session marker and supports rerequest', async () => {
     const user = userEvent.setup();
+    metaPageInsightsMocks.callbackMetaOAuth.mockRejectedValueOnce(
+      new ApiError(
+        'OAuth state belongs to the marketing flow. Use /api/integrations/meta/oauth/exchange/.',
+        400,
+        { detail: 'OAuth state belongs to the marketing flow.', code: 'wrong_oauth_flow' },
+      ),
+    );
     airbyteMocks.exchangeMetaOAuthCode.mockResolvedValueOnce({
       selection_token: 'selection-token-2',
       expires_in_seconds: 600,
@@ -331,7 +369,47 @@ describe('DataSources connect flow', () => {
     });
     await user.click(rerequestButton);
     await waitFor(() => {
-      expect(airbyteMocks.startMetaOAuth).toHaveBeenCalledWith({ auth_type: 'rerequest' });
+      expect(airbyteMocks.startMetaOAuth).toHaveBeenCalledWith(
+        expect.objectContaining({
+          auth_type: 'rerequest',
+          runtime_context: expect.any(Object),
+        }),
+      );
+    });
+  });
+
+  it('handles page-insights callback even when oauth flow marker is missing', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/dashboards/data-sources?code=oauth-code&state=oauth-state',
+    );
+    window.sessionStorage.removeItem('adinsights.meta.oauth.flow');
+
+    render(<DataSources />);
+
+    await waitFor(() => {
+      expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith('oauth-code', 'oauth-state');
+    });
+    expect(airbyteMocks.exchangeMetaOAuthCode).not.toHaveBeenCalled();
+  });
+
+  it('routes page-insights oauth callback to meta connect callback API', async () => {
+    window.sessionStorage.setItem('adinsights.meta.oauth.flow', 'page_insights');
+    window.history.replaceState(
+      {},
+      '',
+      '/dashboards/data-sources?code=oauth-code&state=oauth-state',
+    );
+    render(<DataSources />);
+
+    await waitFor(() => {
+      expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith('oauth-code', 'oauth-state');
+    });
+    await waitFor(() => {
+      expect(pushToast).toHaveBeenCalledWith('Meta Page Insights connected. Loading page dashboard.', {
+        tone: 'success',
+      });
     });
   });
 
@@ -388,5 +466,4 @@ describe('DataSources connect flow', () => {
       });
     });
   });
-
 });

@@ -16,19 +16,19 @@ Our operational logs must stay machine-parseable and privacy-safe while still gi
 
 ## Log schema reference
 
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `timestamp` | string | Yes | ISO-8601 UTC with milliseconds. |
-| `level` | string | Yes | `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. |
-| `message` | string | Yes | Short, action-oriented summary. |
-| `tenant_id` | string/null | Yes | Use `null` for global/system tasks. |
-| `correlation_id` | string | Yes | Request ID or task ID for traceability. |
-| `task_id` | string/null | No | Celery task ID when available. |
-| `component` | string | Yes | Logical service owner. |
-| `event` | string | No | Stable, machine-friendly event name (e.g., `airbyte.sync.completed`). |
-| `duration_ms` | number | No | Execution time for the event. |
-| `http` | object | No | Nested HTTP context (`method`, `path`, `status_code`). |
-| `error` | object | No | Error summary with `type`, `message`, `stack` (redacted). |
+| Field            | Type        | Required | Notes                                                                 |
+| ---------------- | ----------- | -------- | --------------------------------------------------------------------- |
+| `timestamp`      | string      | Yes      | ISO-8601 UTC with milliseconds.                                       |
+| `level`          | string      | Yes      | `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`.                      |
+| `message`        | string      | Yes      | Short, action-oriented summary.                                       |
+| `tenant_id`      | string/null | Yes      | Use `null` for global/system tasks.                                   |
+| `correlation_id` | string      | Yes      | Request ID or task ID for traceability.                               |
+| `task_id`        | string/null | No       | Celery task ID when available.                                        |
+| `component`      | string      | Yes      | Logical service owner.                                                |
+| `event`          | string      | No       | Stable, machine-friendly event name (e.g., `airbyte.sync.completed`). |
+| `duration_ms`    | number      | No       | Execution time for the event.                                         |
+| `http`           | object      | No       | Nested HTTP context (`method`, `path`, `status_code`).                |
+| `error`          | object      | No       | Error summary with `type`, `message`, `stack` (redacted).             |
 
 ## Redaction and safety
 

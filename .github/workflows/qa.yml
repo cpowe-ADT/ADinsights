@@ -7,10 +7,12 @@ jobs:
     container: mcr.microsoft.com/playwright:v1.56.0-noble
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
       - run: npm ci
-      - run: npm run format:check
+      - run: bash scripts/ci/prettier_changed_check.sh
       - run: npx playwright install chromium
       - name: Run mocked E2E (dev)
         env: { MOCK_MODE: 'true', QA_BASE_URL: 'http://127.0.0.1:5173' }
