@@ -51,6 +51,16 @@ cases:
       contract_status: PASS_NO_CONTRACT_CHANGE
       breaking_change_detected: false
 
+  - name: integrations dependency metadata-only change does not trigger contract docs
+    input:
+      prompt: 'Bump exporter dependency only'
+      paths:
+        - integrations/exporter/package-lock.json
+        - integrations/exporter/package.json
+    expect:
+      contract_status: PASS_NO_CONTRACT_CHANGE
+      breaking_change_detected: false
+
   - name: ci strict breaking_or_missing_docs fails docs-missing contract change
     input:
       prompt: 'Add optional response field to serializer'
