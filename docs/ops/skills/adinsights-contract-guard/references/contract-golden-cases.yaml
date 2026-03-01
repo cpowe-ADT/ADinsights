@@ -1,7 +1,7 @@
 cases:
   - name: serializer field removal escalates breaking change
     input:
-      prompt: "Remove response field from serializer; this is breaking"
+      prompt: 'Remove response field from serializer; this is breaking'
       paths:
         - backend/integrations/serializers.py
     expect:
@@ -13,7 +13,7 @@ cases:
 
   - name: optional serializer field change requires docs
     input:
-      prompt: "Add optional response field to serializer"
+      prompt: 'Add optional response field to serializer'
       paths:
         - backend/integrations/serializers.py
     expect:
@@ -24,7 +24,7 @@ cases:
 
   - name: dbt semantic change without matrix update requires docs
     input:
-      prompt: "Adjust dbt model column semantic for fact table"
+      prompt: 'Adjust dbt model column semantic for fact table'
       paths:
         - dbt/models/marts/fact_performance.sql
     expect:
@@ -34,7 +34,7 @@ cases:
 
   - name: airbyte schema shift requires docs and integration tests
     input:
-      prompt: "Update Airbyte connector schema mapping"
+      prompt: 'Update Airbyte connector schema mapping'
       paths:
         - infrastructure/airbyte/sources/google_ads_daily_metrics.sql
     expect:
@@ -44,7 +44,7 @@ cases:
 
   - name: no contract surfaces touched passes
     input:
-      prompt: "Update internal docs index only"
+      prompt: 'Update internal docs index only'
       paths:
         - docs/ops/doc-index.md
     expect:
@@ -53,7 +53,7 @@ cases:
 
   - name: ci strict breaking_or_missing_docs fails docs-missing contract change
     input:
-      prompt: "Add optional response field to serializer"
+      prompt: 'Add optional response field to serializer'
       paths:
         - backend/integrations/serializers.py
       ci_strict_enabled: true
@@ -65,7 +65,7 @@ cases:
 
   - name: ci strict breaking_only does not fail docs-missing non-breaking change
     input:
-      prompt: "Add optional response field to serializer"
+      prompt: 'Add optional response field to serializer'
       paths:
         - backend/integrations/serializers.py
       ci_strict_enabled: true

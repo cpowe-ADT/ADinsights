@@ -4,10 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import FullPageLoader from '../components/FullPageLoader';
-import {
-  fetchDashboardLibrary,
-  type DashboardLibraryItem,
-} from '../lib/dashboardLibrary';
+import { fetchDashboardLibrary, type DashboardLibraryItem } from '../lib/dashboardLibrary';
 
 import '../styles/dashboard.css';
 
@@ -113,8 +110,7 @@ const DashboardLibrary = () => {
     });
   }, [baseItems, ownerFilter, search, typeFilter]);
 
-  const hasFilters =
-    search.trim().length > 0 || typeFilter !== 'all' || ownerFilter !== 'all';
+  const hasFilters = search.trim().length > 0 || typeFilter !== 'all' || ownerFilter !== 'all';
 
   const handleClearFilters = () => {
     setSearch('');

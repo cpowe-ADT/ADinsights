@@ -1,6 +1,6 @@
 selectors:
   - name: staging_ci
-    description: "Fast CI selector for staging and reference models."
+    description: 'Fast CI selector for staging and reference models.'
     definition:
       union:
         - method: path

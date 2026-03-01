@@ -667,7 +667,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       metricsCache,
     } = get();
     const requestedTenantId =
-      typeof tenantId === 'undefined' ? activeTenantId : tenantId ?? activeTenantId;
+      typeof tenantId === 'undefined' ? activeTenantId : (tenantId ?? activeTenantId);
     const normalizedTenantId = normalizeTenantId(requestedTenantId);
     const filterKey = resolveFilterKey(filters);
     const tenantKey = resolveTenantKey(normalizedTenantId, filterKey);
@@ -735,18 +735,12 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
     if (uploadedActive && uploadedDataset) {
       try {
-        const resolved = buildMetricsFromUpload(
-          uploadedDataset,
-          filters,
-          normalizedTenantId,
-        );
+        const resolved = buildMetricsFromUpload(uploadedDataset, filters, normalizedTenantId);
         set((state) => ({
           activeTenantId: resolved.tenantId ?? state.activeTenantId,
-          lastLoadedTenantId:
-            resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
+          lastLoadedTenantId: resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
           lastLoadedFiltersKey: filterKey,
-          lastSnapshotGeneratedAt:
-            resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+          lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
           campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
           creative: { status: 'loaded', data: resolved.creative, error: undefined },
           budget: { status: 'loaded', data: resolved.budget, error: undefined },
@@ -789,8 +783,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           activeTenantId: resolved.tenantId ?? state.activeTenantId,
           lastLoadedTenantId: resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
           lastLoadedFiltersKey: filterKey,
-          lastSnapshotGeneratedAt:
-            resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+          lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
           campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
           creative: { status: 'loaded', data: resolved.creative, error: undefined },
           budget: { status: 'loaded', data: resolved.budget, error: undefined },
@@ -821,11 +814,9 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
           set((state) => ({
             activeTenantId: resolved.tenantId ?? state.activeTenantId,
-            lastLoadedTenantId:
-              resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
+            lastLoadedTenantId: resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
             lastLoadedFiltersKey: filterKey,
-            lastSnapshotGeneratedAt:
-              resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+            lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
             campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
             creative: { status: 'loaded', data: resolved.creative, error: undefined },
             budget: { status: 'loaded', data: resolved.budget, error: undefined },
@@ -851,8 +842,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           activeTenantId: resolved.tenantId ?? state.activeTenantId,
           lastLoadedTenantId: resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
           lastLoadedFiltersKey: filterKey,
-          lastSnapshotGeneratedAt:
-            resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+          lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
           campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
           creative: { status: 'loaded', data: resolved.creative, error: undefined },
           budget: { status: 'loaded', data: resolved.budget, error: undefined },
@@ -1052,10 +1042,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         if (!query) {
           return true;
         }
-        return (
-          matchesQuery(row.campaignName, query) ||
-          matchesQuery(row.name, query)
-        );
+        return matchesQuery(row.campaignName, query) || matchesQuery(row.name, query);
       });
     }
     const parishKey = normalizeParishValue(selectedParish);

@@ -25,8 +25,8 @@ const BudgetPacingList = ({ rows, currency }: BudgetPacingListProps) => {
             {selectedParish
               ? `No campaigns have pacing data for ${selectedParish} yet.`
               : hasActiveFilters
-              ? 'No pacing rows match these filters.'
-              : 'No campaigns have pacing data yet.'}
+                ? 'No pacing rows match these filters.'
+                : 'No campaigns have pacing data yet.'}
           </p>
           {hasActiveFilters ? (
             <button
