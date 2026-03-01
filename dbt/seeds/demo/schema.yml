@@ -2,32 +2,32 @@ version: 2
 
 seeds:
   - name: dim_tenants
-    description: "Demo tenants available for deterministic datasets."
+    description: 'Demo tenants available for deterministic datasets.'
     columns:
       - name: tenant_id
-        description: "Stable identifier for the demo tenant."
+        description: 'Stable identifier for the demo tenant.'
         tests:
           - not_null
           - unique
       - name: tenant_name
-        description: "Display name for the demo tenant."
+        description: 'Display name for the demo tenant.'
         tests:
           - not_null
       - name: currency
-        description: "Currency code used for the demo tenant."
+        description: 'Currency code used for the demo tenant.'
         tests:
           - not_null
       - name: timezone
-        description: "Timezone associated with the demo tenant."
+        description: 'Timezone associated with the demo tenant.'
         tests:
           - not_null
       - name: snapshot_generated_at
-        description: "Timestamp used for freshness banners."
+        description: 'Timestamp used for freshness banners.'
         tests:
           - not_null
 
   - name: dim_campaigns
-    description: "Demo campaign dimension."
+    description: 'Demo campaign dimension.'
     tests:
       - unique_combination_of_columns:
           arguments:
@@ -58,10 +58,10 @@ seeds:
           - not_null
       - name: end_date
       - name: parish
-        description: "Primary parish attribution for the campaign."
+        description: 'Primary parish attribution for the campaign.'
 
   - name: dim_creatives
-    description: "Demo creative dimension for campaign assets."
+    description: 'Demo creative dimension for campaign assets.'
     tests:
       - unique_combination_of_columns:
           arguments:
@@ -89,7 +89,7 @@ seeds:
           - not_null
 
   - name: fact_daily_campaign_metrics
-    description: "Daily campaign KPI fact table for demo dashboards."
+    description: 'Daily campaign KPI fact table for demo dashboards.'
     tests:
       - unique_combination_of_columns:
           arguments:
@@ -134,7 +134,7 @@ seeds:
           - not_null
 
   - name: fact_daily_parish_metrics
-    description: "Daily parish-level metrics for choropleth heatmaps."
+    description: 'Daily parish-level metrics for choropleth heatmaps.'
     tests:
       - unique_combination_of_columns:
           arguments:
@@ -154,7 +154,7 @@ seeds:
         tests:
           - not_null
       - name: parish
-        description: "Parish name or blank when missing attribution."
+        description: 'Parish name or blank when missing attribution.'
       - name: spend
         tests:
           - not_null
@@ -175,7 +175,7 @@ seeds:
           - not_null
 
   - name: fact_daily_creative_metrics
-    description: "Daily creative metrics used by creative performance dashboards."
+    description: 'Daily creative metrics used by creative performance dashboards.'
     tests:
       - unique_combination_of_columns:
           arguments:
@@ -223,7 +223,7 @@ seeds:
           - not_null
 
   - name: plan_monthly_budgets
-    description: "Monthly planned budgets for pacing comparisons."
+    description: 'Monthly planned budgets for pacing comparisons.'
     tests:
       - unique_combination_of_columns:
           arguments:

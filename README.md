@@ -157,8 +157,8 @@ bootstrap command:
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Google Ads                   | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN`, `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID` |
 | Meta Ads                     | `AIRBYTE_META_ACCESS_TOKEN`, `AIRBYTE_META_ACCOUNT_ID`, `AIRBYTE_META_APP_ID`, `AIRBYTE_META_APP_SECRET`, `AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS` (default 28), `AIRBYTE_META_HOURLY_WINDOW_DAYS` (default 3)            |
-| Google Analytics 4 (pilot)   | `AIRBYTE_GA4_CLIENT_ID`, `AIRBYTE_GA4_CLIENT_SECRET`, `AIRBYTE_GA4_REFRESH_TOKEN`, `AIRBYTE_GA4_PROPERTY_ID`, `AIRBYTE_GA4_LOOKBACK_WINDOW_DAYS`                                                                     |
-| Search Console (pilot)       | `AIRBYTE_SEARCH_CONSOLE_CLIENT_ID`, `AIRBYTE_SEARCH_CONSOLE_CLIENT_SECRET`, `AIRBYTE_SEARCH_CONSOLE_REFRESH_TOKEN`, `AIRBYTE_SEARCH_CONSOLE_SITE_URL`, `AIRBYTE_SEARCH_CONSOLE_LOOKBACK_WINDOW_DAYS`                  |
+| Google Analytics 4 (pilot)   | `AIRBYTE_GA4_CLIENT_ID`, `AIRBYTE_GA4_CLIENT_SECRET`, `AIRBYTE_GA4_REFRESH_TOKEN`, `AIRBYTE_GA4_PROPERTY_ID`, `AIRBYTE_GA4_LOOKBACK_WINDOW_DAYS`                                                                       |
+| Search Console (pilot)       | `AIRBYTE_SEARCH_CONSOLE_CLIENT_ID`, `AIRBYTE_SEARCH_CONSOLE_CLIENT_SECRET`, `AIRBYTE_SEARCH_CONSOLE_REFRESH_TOKEN`, `AIRBYTE_SEARCH_CONSOLE_SITE_URL`, `AIRBYTE_SEARCH_CONSOLE_LOOKBACK_WINDOW_DAYS`                   |
 | LinkedIn Transparency (stub) | `AIRBYTE_LINKEDIN_CLIENT_ID`, `AIRBYTE_LINKEDIN_CLIENT_SECRET`, `AIRBYTE_LINKEDIN_REFRESH_TOKEN`                                                                                                                       |
 | TikTok Transparency (stub)   | `AIRBYTE_TIKTOK_TRANSPARENCY_TOKEN`, `AIRBYTE_TIKTOK_ADVERTISER_ID`                                                                                                                                                    |
 
@@ -304,3 +304,35 @@ integrations with that provider path in mind.
   healthy.
 
 Consider wiring these commands into CI once secrets management is settled.
+
+## Facebook Page Insights + Post Insights
+
+ADinsights now supports tenant-scoped Facebook Page Insights and Page Post Insights ingestion with database-backed dashboards.
+
+### API routes
+
+- `POST /api/integrations/meta/oauth/start/`
+- `GET /api/integrations/meta/oauth/callback/?code=...&state=...`
+- `GET /api/integrations/meta/pages/`
+- `POST /api/integrations/meta/pages/{page_id}/select/`
+- `POST /api/metrics/meta/pages/{page_id}/refresh/`
+- `GET /api/metrics/meta/pages/{page_id}/overview/`
+- `GET /api/metrics/meta/pages/{page_id}/timeseries/`
+- `GET /api/metrics/meta/pages/{page_id}/posts/`
+- `GET /api/metrics/meta/posts/{post_id}/timeseries/`
+
+### Architecture notes
+
+- OAuth and page/post token values are encrypted at rest with tenant DEKs.
+- Graph API calls are executed only in Celery tasks (`sync_meta_page_insights`, `sync_meta_post_insights`) and the explicit OAuth callback exchange step.
+- Dashboards read from DB tables (`MetaInsightPoint`, `MetaPostInsightPoint`) only.
+- Invalid metrics from Graph error `#100` are marked `INVALID` in `MetaMetricRegistry` and are hidden by default in the frontend metric picker.
+- Canonical metric registry source is `backend/integrations/data/meta_metric_catalog.json`; sync with `cd backend && python manage.py sync_meta_metric_catalog`.
+- Generated metric documentation lives at `docs/project/meta-page-insights-metric-catalog.md` (render with `python3 scripts/render_meta_metric_catalog.py`).
+
+### Schedules (`America/Jamaica`)
+
+- `integrations.tasks.sync_meta_page_insights` nightly (default `03:10`)
+- `integrations.tasks.sync_meta_post_insights` nightly (default `03:20`)
+
+Tune via `META_PAGE_INSIGHTS_*` and `META_POST_INSIGHTS_*` settings in `backend/.env.sample`.

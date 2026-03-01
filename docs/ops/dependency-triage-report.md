@@ -3,6 +3,7 @@
 Generated: 2026-02-17
 
 ## Scope
+
 - Backend Python dependencies
 - Root workspace npm dependencies
 - Frontend npm dependencies
@@ -10,7 +11,9 @@ Generated: 2026-02-17
 - Integrations exporter npm dependencies
 
 ## Decision Policy
+
 Update dependencies only when one of the following is true:
+
 - Security vulnerability with a fix available
 - Build/test/runtime breakage caused by dependency versions
 - Compatibility issue blocking local or CI workflows
@@ -18,20 +21,24 @@ Update dependencies only when one of the following is true:
 ## Findings
 
 ### Python (`backend/requirements.txt`, `backend/pyproject.toml`)
+
 - `django==5.1.14` had known CVEs (`CVE-2025-13372`, `CVE-2025-64460`) with fix available in `5.1.15`.
 - `sentry-sdk==1.45.0` had known CVE (`CVE-2024-40647`) with fix available in `1.45.1`.
 - `cryptography==44.0.1` had known CVE (`CVE-2026-26007`) with fix available in `46.0.5`.
 
 ### npm (root/frontend)
+
 - `npm audit` flagged high severity advisory on transitive `axios` (`GHSA-43fc-jf86-j433`) with fix available.
 - The vulnerable chain came through Storybook test-runner dependencies.
 
 ### npm (qa/exporter)
+
 - No vulnerabilities found by `npm audit`.
 
 ## Changes Applied
 
 ### Security-driven updates
+
 - `backend/requirements.txt`
   - `django==5.1.14` -> `django==5.1.15`
   - `sentry-sdk==1.45.0` -> `sentry-sdk==1.45.1`
@@ -44,6 +51,7 @@ Update dependencies only when one of the following is true:
   - Added npm `overrides` for `axios` to force a non-vulnerable release
 
 ### Dependency automation hygiene
+
 - `.github/dependabot.yml`
   - Replaced invalid placeholder config with valid weekly update jobs for:
     - pip (`/backend`)
@@ -53,16 +61,19 @@ Update dependencies only when one of the following is true:
     - npm (`/integrations/exporter`)
 
 ## No-Change Decisions
+
 - Outdated packages without security/break-fix/compatibility impact were not upgraded.
 - No semver-minor/major refresh was performed beyond security-required changes.
 
 ## Residual Risks / Follow-up
+
 - Keep weekly Dependabot PRs reviewed with the same policy (security + break/fix first).
 - Re-run `pip-audit` and `npm audit` in CI on a regular cadence to detect future issues.
 
 ## Validation Evidence (2026-02-17)
 
 ### Launcher / Healthcheck
+
 - `bash -n scripts/dev-launch.sh scripts/dev-healthcheck.sh` passed.
 - `scripts/dev-launch.sh --list-profiles` printed the 4 expected profiles.
 - Profile selection behavior verified with a mocked Docker CLI (daemon unavailable in this environment):
@@ -74,6 +85,7 @@ Update dependencies only when one of the following is true:
   - explicit env URLs > `.dev-launch.active.env` > defaults (`http://localhost:8000`, `http://localhost:5173`).
 
 ### Regression Suite
+
 - Passed:
   - `ruff check backend`
   - `pytest -q backend`

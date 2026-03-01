@@ -48,5 +48,5 @@ Use this as the template for Lina (Frontend Architect) and Joel (Design System).
 
 ## Sign-off
 
-- Lina (Frontend Architect): ____________________  Date: __________
-- Joel (Design System): ________________________  Date: __________
+- Lina (Frontend Architect): **\*\*\*\***\_\_\_\_**\*\*\*\*** Date: \***\*\_\_\*\***
+- Joel (Design System): \***\*\*\*\*\***\_\_\_\_\***\*\*\*\*\*** Date: \***\*\_\_\*\***
