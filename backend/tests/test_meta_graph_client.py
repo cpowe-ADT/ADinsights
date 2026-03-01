@@ -113,3 +113,78 @@ def test_meta_graph_client_emits_throttle_event_from_usage_headers(monkeypatch):
     debug = client.debug_token(input_token="token")
     assert debug["is_valid"] is True
     assert observed["count"] == 1
+
+
+@pytest.mark.django_db
+def test_meta_graph_client_list_pages_retries_without_perms_field(monkeypatch):
+    client = MetaGraphClient(app_id="app", app_secret="secret", graph_version="v24.0")
+    calls = {"count": 0}
+
+    def fake_request(method: str, url: str, params=None):  # noqa: ANN001
+        calls["count"] += 1
+        if calls["count"] == 1:
+            assert isinstance(params, dict)
+            assert "perms" in str(params.get("fields"))
+            return _response(
+                400,
+                {
+                    "error": {
+                        "message": "(#100) Tried accessing nonexisting field (perms)",
+                        "code": 100,
+                    }
+                },
+            )
+        assert isinstance(params, dict)
+        assert "perms" not in str(params.get("fields"))
+        return _response(
+            200,
+            {
+                "data": [
+                    {
+                        "id": "page-1",
+                        "name": "Business Page",
+                        "access_token": "page-token",
+                        "category": "Business",
+                        "tasks": ["ANALYZE"],
+                    }
+                ]
+            },
+        )
+
+    monkeypatch.setattr(client._client, "request", fake_request)
+
+    pages = client.list_pages(user_access_token="user-token")
+
+    assert calls["count"] == 2
+    assert len(pages) == 1
+    assert pages[0].id == "page-1"
+    assert pages[0].tasks == ["ANALYZE"]
+    assert pages[0].perms == []
+
+
+@pytest.mark.django_db
+def test_meta_graph_client_list_pages_uses_user_token_when_page_token_missing(monkeypatch):
+    client = MetaGraphClient(app_id="app", app_secret="secret", graph_version="v24.0")
+
+    def fake_request(method: str, url: str, params=None):  # noqa: ANN001
+        return _response(
+            200,
+            {
+                "data": [
+                    {
+                        "id": "page-1",
+                        "name": "Business Page",
+                        "category": "Business",
+                        "tasks": [],
+                    }
+                ]
+            },
+        )
+
+    monkeypatch.setattr(client._client, "request", fake_request)
+
+    pages = client.list_pages(user_access_token="user-token")
+
+    assert len(pages) == 1
+    assert pages[0].id == "page-1"
+    assert pages[0].access_token == "user-token"

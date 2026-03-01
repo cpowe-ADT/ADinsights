@@ -41,6 +41,15 @@ Run async refresh per page:
 
 Returns queued task IDs (`page_task_id`, `post_task_id`).
 
+## Exports (CSV/PDF/PNG)
+
+Generate export artifacts for the Facebook Pages dashboard (tenant-scoped; aggregated metrics only):
+
+- Create export job: `POST /api/meta/pages/{page_id}/exports/`
+  - Payload: `export_format` (`csv` | `pdf` | `png`) plus optional date range fields (`date_preset`, `since`, `until`) and widget selections (`trend_metric`, `trend_period`, `posts_metric`, `posts_sort`).
+- List recent jobs: `GET /api/meta/pages/{page_id}/exports/`
+- Download completed artifact: `GET /api/exports/{export_job_id}/download/`
+
 ## Metric catalog operations
 
 Canonical source of metric definitions:

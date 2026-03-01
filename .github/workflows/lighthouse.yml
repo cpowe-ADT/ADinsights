@@ -33,8 +33,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Playwright browser
+        run: npx playwright install chromium
+
       - name: Build frontend
         run: npm run build
+
+      - name: Preview route smoke check
+        run: node scripts/ci/preview-route-smoke.mjs
 
       - name: Run Lighthouse CI
         env:
