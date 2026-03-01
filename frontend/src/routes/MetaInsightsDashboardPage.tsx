@@ -20,6 +20,9 @@ import {
 import type { ComponentType } from 'react';
 
 import EmptyState from '../components/EmptyState';
+import { useToast } from '../components/ToastProvider';
+import { syncMetaIntegration } from '../lib/airbyte';
+import { ApiError } from '../lib/apiClient';
 import { formatCurrency, formatNumber } from '../lib/format';
 import type { MetaInsightRecord } from '../lib/meta';
 import useMetaStore from '../state/useMetaStore';
@@ -84,21 +87,18 @@ function resolveInsightsErrorMessage(errorCode?: string, fallback?: string): str
 
 const MetaInsightsDashboardPage = () => {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }]);
-  const {
-    filters,
-    setFilters,
-    accounts,
-    insights,
-    loadAccounts,
-    loadInsights,
-  } = useMetaStore((state) => ({
-    filters: state.filters,
-    setFilters: state.setFilters,
-    accounts: state.accounts,
-    insights: state.insights,
-    loadAccounts: state.loadAccounts,
-    loadInsights: state.loadInsights,
-  }));
+  const [syncing, setSyncing] = useState(false);
+  const { pushToast } = useToast();
+  const { filters, setFilters, accounts, insights, loadAccounts, loadInsights } = useMetaStore(
+    (state) => ({
+      filters: state.filters,
+      setFilters: state.setFilters,
+      accounts: state.accounts,
+      insights: state.insights,
+      loadAccounts: state.loadAccounts,
+      loadInsights: state.loadInsights,
+    }),
+  );
 
   useEffect(() => {
     void loadAccounts();
@@ -117,7 +117,10 @@ const MetaInsightsDashboardPage = () => {
   ]);
 
   const chartData = useMemo(() => {
-    const grouped = new Map<string, { date: string; spend: number; clicks: number; impressions: number }>();
+    const grouped = new Map<
+      string,
+      { date: string; spend: number; clicks: number; impressions: number }
+    >();
     insights.rows.forEach((row) => {
       const key = row.date;
       const existing = grouped.get(key) ?? { date: key, spend: 0, clicks: 0, impressions: 0 };
@@ -143,6 +146,38 @@ const MetaInsightsDashboardPage = () => {
   const YAxisComponent = YAxis as unknown as ComponentType<Record<string, unknown>>;
   const TooltipComponent = Tooltip as unknown as ComponentType<Record<string, unknown>>;
   const LineComponent = Line as unknown as ComponentType<Record<string, unknown>>;
+
+  const handleSyncNow = async () => {
+    if (syncing) {
+      return;
+    }
+    setSyncing(true);
+    try {
+      const payload = await syncMetaIntegration();
+      if (payload.reused_existing_job) {
+        pushToast(
+          payload.job_id
+            ? `Meta sync is already running (job ${payload.job_id}).`
+            : 'Meta sync is already running.',
+          { tone: 'success' },
+        );
+      } else {
+        pushToast(
+          payload.job_id ? `Meta sync queued (job ${payload.job_id}).` : 'Meta sync triggered.',
+          { tone: 'success' },
+        );
+      }
+      await Promise.all([loadAccounts(), loadInsights()]);
+    } catch (error) {
+      const message =
+        error instanceof ApiError || error instanceof Error
+          ? error.message
+          : 'Unable to trigger Meta sync.';
+      pushToast(message, { tone: 'error' });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <section className="dashboardPage">
@@ -218,6 +253,14 @@ const MetaInsightsDashboardPage = () => {
           <button type="button" className="button secondary" onClick={() => void loadInsights()}>
             Refresh
           </button>
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() => void handleSyncNow()}
+            disabled={syncing}
+          >
+            {syncing ? 'Syncing…' : 'Sync now'}
+          </button>
         </div>
       </div>
 
@@ -227,7 +270,8 @@ const MetaInsightsDashboardPage = () => {
 
       {insights.status === 'stale' ? (
         <div className="dashboard-state" role="status" style={{ marginBottom: '1rem' }}>
-          Showing stale insights data. {resolveInsightsErrorMessage(insights.errorCode, insights.error)}
+          Showing stale insights data.{' '}
+          {resolveInsightsErrorMessage(insights.errorCode, insights.error)}
         </div>
       ) : null}
 
@@ -247,6 +291,8 @@ const MetaInsightsDashboardPage = () => {
           icon={<span aria-hidden>0</span>}
           title="No insights in selected range"
           message="Run an insights sync for this account and date range."
+          actionLabel={syncing ? 'Syncing…' : 'Sync now'}
+          onAction={() => void handleSyncNow()}
           className="panel"
         />
       ) : null}

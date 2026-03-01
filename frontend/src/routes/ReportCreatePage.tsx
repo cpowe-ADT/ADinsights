@@ -41,7 +41,9 @@ const ReportCreatePage = () => {
       <header>
         <p className="dashboardEyebrow">Reporting</p>
         <h1 className="dashboardHeading">Create Report</h1>
-        <p className="phase2-page__subhead">Create a report definition for exports and scheduled delivery.</p>
+        <p className="phase2-page__subhead">
+          Create a report definition for exports and scheduled delivery.
+        </p>
       </header>
 
       <form className="phase2-form" onSubmit={submit}>

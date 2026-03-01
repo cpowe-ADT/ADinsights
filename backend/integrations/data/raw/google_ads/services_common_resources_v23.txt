@@ -1,0 +1,2051 @@
+Google Ads API v23 - Reference
+Overview
+services
+AccountBudgetProposalService	A service for managing account-level budgets through proposals. A proposal is a request to create a new budget or make changes to an existing one. Mutates: The CREATE operation creates a new proposal. UPDATE operations aren't supported. The REMOVE operation cancels a pending proposal.
+AccountLinkService	This service allows management of links between Google Ads accounts and other accounts.
+AdGroupAdLabelService	Service to manage labels on ad group ads.
+AdGroupAdService	Service to manage ads in an ad group.
+AdGroupAssetService	Service to manage ad group assets.
+AdGroupAssetSetService	Service to manage ad group asset set
+AdGroupBidModifierService	Service to manage ad group bid modifiers.
+AdGroupCriterionCustomizerService	Service to manage ad group criterion customizer
+AdGroupCriterionLabelService	Service to manage labels on ad group criteria.
+AdGroupCriterionService	Service to manage ad group criteria.
+AdGroupCustomizerService	Service to manage ad group customizer
+AdGroupLabelService	Service to manage labels on ad groups.
+AdGroupService	Service to manage ad groups.
+AdParameterService	Service to manage ad parameters.
+AdService	Service to manage ads.
+AssetGenerationService	Service for generating new assets with generative AI.
+AssetGroupAssetService	Service to manage asset group asset.
+AssetGroupListingGroupFilterService	Service to manage asset group listing group filter.
+AssetGroupService	Service to manage asset group
+AssetGroupSignalService	Service to manage asset group signal.
+AssetService	Service to manage assets. Asset types can be created with AssetService are YoutubeVideoAsset, MediaBundleAsset and ImageAsset. TextAsset should be created with Ad inline.
+AssetSetAssetService	Service to manage asset set asset.
+AssetSetService	Service to manage asset set
+AudienceInsightsService	Audience Insights Service helps users find information about groups of people and how they can be reached with Google Ads. Accessible to allowlisted customers only.
+AudienceService	Service to manage audiences.
+AutomaticallyCreatedAssetRemovalService	Service to remove automatically created assets.
+BatchJobService	Service to manage batch jobs.
+BenchmarksService	BenchmarksService helps users compare YouTube advertisement data against industry benchmarks. Accessible to allowlisted customers only.
+BiddingDataExclusionService	Service to manage bidding data exclusions.
+BiddingSeasonalityAdjustmentService	Service to manage bidding seasonality adjustments.
+BiddingStrategyService	Service to manage bidding strategies.
+BillingSetupService	A service for designating the business entity responsible for accrued costs. A billing setup is associated with a payments account. Billing-related activity for all billing setups associated with a particular payments account will appear on a single invoice generated monthly. Mutates: The REMOVE operation cancels a pending billing setup. The CREATE operation creates a new billing setup.
+BrandSuggestionService	This service will suggest brands based on a prefix.
+CampaignAssetService	Service to manage campaign assets.
+CampaignAssetSetService	Service to manage campaign asset set
+CampaignBidModifierService	Service to manage campaign bid modifiers.
+CampaignBudgetService	Service to manage campaign budgets.
+CampaignConversionGoalService	Service to manage campaign conversion goal.
+CampaignCriterionService	Service to manage campaign criteria.
+CampaignCustomizerService	Service to manage campaign customizer
+CampaignDraftService	Service to manage campaign drafts.
+CampaignGoalConfigService	Service to manage campaign goal configs.
+CampaignGroupService	Service to manage campaign groups.
+CampaignLabelService	Service to manage labels on campaigns.
+CampaignLifecycleGoalService	Service to configure campaign lifecycle goals.
+CampaignService	Service to manage campaigns.
+CampaignSharedSetService	Service to manage campaign shared sets.
+ContentCreatorInsightsService	Content Creator Insights Service helps users find information about YouTube Creators and their content and how these creators and their audiences can be reached with Google Ads. Accessible to allowlisted customers only.
+ConversionActionService	Service to manage conversion actions.
+ConversionAdjustmentUploadService	Service to upload conversion adjustments.
+ConversionCustomVariableService	Service to manage conversion custom variables.
+ConversionGoalCampaignConfigService	Service to manage conversion goal campaign config.
+ConversionUploadService	Service to upload conversions.
+ConversionValueRuleService	Service to manage conversion value rules.
+ConversionValueRuleSetService	Service to manage conversion value rule sets.
+CustomAudienceService	Service to manage custom audiences.
+CustomConversionGoalService	Service to manage custom conversion goal.
+CustomInterestService	Service to manage custom interests.
+CustomerAssetService	Service to manage customer assets.
+CustomerAssetSetService	Service to manage customer asset set
+CustomerClientLinkService	Service to manage customer client links.
+CustomerConversionGoalService	Service to manage customer conversion goal.
+CustomerCustomizerService	Service to manage customer customizer
+CustomerLabelService	Service to manage labels on customers.
+CustomerLifecycleGoalService	Service to configure customer lifecycle goals.
+CustomerManagerLinkService	Service to manage customer-manager links.
+CustomerNegativeCriterionService	Service to manage customer negative criteria.
+CustomerService	Service to manage customers.
+CustomerSkAdNetworkConversionValueSchemaService	Service to manage CustomerSkAdNetworkConversionValueSchema.
+CustomerUserAccessInvitationService	This service manages the access invitation extended to users for a given customer.
+CustomerUserAccessService	This service manages the permissions of a user on a given customer.
+CustomizerAttributeService	Service to manage customizer attribute
+DataLinkService	This service allows management of data links between a Google Ads customer and another data entity.
+ExperimentArmService	Service to manage experiment arms.
+ExperimentService	Service to manage experiments.
+GeoTargetConstantService	Service to fetch geo target constants.
+GoalService	Service to manage goals.
+GoogleAdsFieldService	Service to fetch Google Ads API fields.
+GoogleAdsService	Service to fetch data and metrics across resources.
+IdentityVerificationService	A service for managing Identity Verification Service.
+IncentiveService	Service to support incentive related operations.
+InvoiceService	A service to fetch invoices issued for a billing setup during a given month.
+KeywordPlanAdGroupKeywordService	Service to manage Keyword Plan ad group keywords. KeywordPlanAdGroup is required to add ad group keywords. Positive and negative keywords are supported. A maximum of 10,000 positive keywords are allowed per keyword plan. A maximum of 1,000 negative keywords are allower per keyword plan. This includes campaign negative keywords and ad group negative keywords.
+KeywordPlanAdGroupService	Service to manage Keyword Plan ad groups.
+KeywordPlanCampaignKeywordService	Service to manage Keyword Plan campaign keywords. KeywordPlanCampaign is required to add the campaign keywords. Only negative keywords are supported. A maximum of 1000 negative keywords are allowed per plan. This includes both campaign negative keywords and ad group negative keywords.
+KeywordPlanCampaignService	Service to manage Keyword Plan campaigns.
+KeywordPlanIdeaService	Service to generate keyword ideas.
+KeywordPlanService	Service to manage keyword plans.
+KeywordThemeConstantService	Service to fetch Smart Campaign keyword themes.
+LabelService	Service to manage labels.
+LocalServicesLeadService	This service allows management of LocalServicesLead resources.
+OfflineUserDataJobService	Service to manage offline user data jobs.
+PaymentsAccountService	Service to provide payments accounts that can be used to set up consolidated billing.
+ProductLinkInvitationService	This service allows management of product link invitations from Google Ads accounts to other accounts.
+ProductLinkService	This service allows management of links between a Google Ads customer and another product.
+ReachPlanService	Reach Plan Service gives users information about audience size that can be reached through advertisement on YouTube. In particular, GenerateReachForecast provides estimated number of people of specified demographics that can be reached by an ad in a given market by a campaign of certain duration with a defined budget.
+RecommendationService	Service to manage recommendations.
+RecommendationSubscriptionService	Service to manage recommendation subscriptions.
+RemarketingActionService	Service to manage remarketing actions.
+ShareablePreviewService	Service to generate Shareable Previews.
+SharedCriterionService	Service to manage shared criteria.
+SharedSetService	Service to manage shared sets.
+SmartCampaignSettingService	Service to manage Smart campaign settings.
+SmartCampaignSuggestService	Service to get suggestions for Smart Campaigns.
+ThirdPartyAppAnalyticsLinkService	This service allows management of links between Google Ads and third party app analytics.
+TravelAssetSuggestionService	Service to retrieve Travel asset suggestions.
+UserDataService	Service to manage user data uploads. Any uploads made to a Customer Match list through this service will be eligible for matching as per the customer matching process. See https://support.google.com/google-ads/answer/7474263 . However, the uploads made through this service will not be visible under the 'Segment members' section for the Customer Match List in the Google Ads UI.
+UserListCustomerTypeService	Service to manage user list customer types.
+UserListService	Service to manage user lists.
+common
+ActivityCityInfo	The city where the travel activity is available.
+ActivityCountryInfo	The country where the travel activity is available.
+ActivityIdInfo	Advertiser-specific activity ID.
+ActivityRatingInfo	Rating of the activity as a number 1 to 5, where 5 is the best.
+ActivityStateInfo	The state where the travel activity is available.
+AdAppDeepLinkAsset	An app deep link used inside an ad.
+AdAssetPolicySummary	Contains policy information for an asset inside an ad.
+AdCallToActionAsset	A call to action asset used inside an ad.
+AdDemandGenCarouselCardAsset	A Demand Gen carousel card asset used inside an ad.
+AdImageAsset	An image asset used inside an ad.
+AdMediaBundleAsset	A media bundle asset used inside an ad.
+AdScheduleInfo	Represents an AdSchedule criterion. AdSchedule is specified as the day of the week and a time interval within which ads will be shown. No more than six AdSchedules can be added for the same day.
+AdTextAsset	A text asset used inside an ad.
+AdVideoAsset	A video asset used inside an ad.
+AdVideoAssetInfo	Contains info fields for AdVideoAssets.
+AdVideoAssetInventoryPreferences	YouTube Video Asset inventory preferences.
+AdVideoAssetLinkFeatureControl	YouTube Video Asset feature controls.
+AdditionalApplicationInfo	Additional information about the application/tool issuing the request. This field is only used by ContentCreatorInsightsService , AudienceInsightsService , and ReachPlanService APIs.
+AddressInfo	Address for proximity criterion.
+AgeDimension	Dimension specifying users by their age.
+AgeRangeInfo	An age range criterion.
+AgeSegment	Contiguous age range.
+AppAdInfo	An app ad.
+AppDeepLinkAsset	An app deep link asset
+AppEngagementAdInfo	App engagement ads allow you to write text encouraging a specific action in the app, like checking in, making a purchase, or booking a flight. They allow you to send users to a specific part of your app where they can find what they're looking for easier and faster.
+AppPaymentModelInfo	An app payment model criterion.
+AppPreRegistrationAdInfo	App pre-registration ads link to your app or game listing on Google Play, and can run on Google Play, on YouTube (in-stream only), and within other apps and mobile websites on the Display Network. It will help capture people's interest in your app or game and generate an early install base for your app or game before a launch.
+AssetDisapproved	Details related to AssetLinkPrimaryStatusReasonPB.ASSET_DISAPPROVED
+AssetInteractionTarget	An AssetInteractionTarget segment.
+AssetLinkPrimaryStatusDetails	Provides the detail of a PrimaryStatus. Each asset link has a PrimaryStatus value (e.g. NOT_ELIGIBLE, meaning not serving), and list of corroborating PrimaryStatusReasons (e.g. [ASSET_DISAPPROVED]). Each reason may have some additional details annotated with it. For instance, when the reason is ASSET_DISAPPROVED, the details field will contain additional information about the offline evaluation errors which led to the asset being disapproved.
+AssetUsage	Contains the usage information of the asset.
+AudienceDimension	Positive dimension specifying user's audience.
+AudienceExclusionDimension	Negative dimension specifying users to exclude from the audience.
+AudienceInfo	An audience criterion.
+AudienceInsightsAttribute	An audience attribute that can be used to request insights about the audience. Valid inputs for these fields are available from AudienceInsightsService.ListAudienceInsightsAttributes .
+AudienceInsightsAttributeMetadata	An audience attribute, with metadata about it, returned in response to a search.
+AudienceInsightsAttributeMetadataGroup	A group of audience attributes with metadata, returned in response to a search.
+AudienceInsightsCategory	A Product and Service category.
+AudienceInsightsEntity	A Knowledge Graph entity, represented by its machine id.
+AudienceInsightsLineup	A YouTube Lineup.
+AudienceSegment	Positive audience segment.
+AudienceSegmentDimension	Dimension specifying users by their membership in other audience segments.
+BasicUserListInfo	User list targeting as a collection of conversions or remarketing actions.
+BookOnGoogleAsset	A Book on Google asset. Used to redirect user to book through Google. Book on Google will change the redirect url to book directly through Google.
+BrandInfo	Represents a Brand Criterion used for targeting based on commercial knowledge graph.
+BrandListInfo	A Brand List Criterion is used to specify a list of brands. The list is represented as a SharedSet id type BRAND_HINT. A criterion of this type can be either targeted or excluded.
+BudgetCampaignAssociationStatus	A BudgetCampaignAssociationStatus segment.
+BudgetSimulationPoint	Projected metrics for a specific budget amount.
+BudgetSimulationPointList	A container for simulation points for simulations of type BUDGET.
+BusinessMessageAsset	A business message asset.
+BusinessMessageCallToActionInfo	Display information that encourages the user to take action.
+BusinessProfileBusinessNameFilter	Business Profile location group business name filter.
+BusinessProfileLocation	Business Profile location data synced from the linked Business Profile account.
+BusinessProfileLocationGroup	Information about a Business Profile dynamic location group. Only applicable if the sync level AssetSet's type is LOCATION_SYNC and sync source is Business Profile.
+BusinessProfileLocationSet	Data used to configure a location set populated from Google Business Profile locations. Different types of filters are AND'ed together, if they are specified.
+CallAsset	A Call asset.
+CallFeedItem	Represents a Call extension.
+CallToActionAsset	A call to action asset.
+CalloutAsset	A Callout asset.
+CalloutFeedItem	Represents a callout extension.
+CampaignGoalSettings	Campaign Goal settings.
+CampaignGoalSettings.CampaignRetentionGoalSettings	Retention campaign goal settings.
+CampaignThirdPartyBrandLiftIntegrationPartner	Container for third party Brand Lift integration data for Campaign.
+CampaignThirdPartyBrandSafetyIntegrationPartner	Container for third party brand safety integration data for Campaign.
+CampaignThirdPartyIntegrationPartners	Container for Campaign level third party integration partners.
+CampaignThirdPartyReachIntegrationPartner	Container for third party reach integration data for Campaign.
+CampaignThirdPartyViewabilityIntegrationPartner	Container for third party viewability integration data for Campaign.
+CarrierInfo	Represents a Carrier Criterion.
+ChainFilter	One chain level filter on location in a feed item set. The filtering logic among all the fields is AND.
+ChainLocationGroup	Represents information about a Chain dynamic location group. Only applicable if the sync level AssetSet's type is LOCATION_SYNC and sync source is chain.
+ChainSet	Data used to configure a location set populated with the specified chains.
+ClickLocation	Location criteria associated with a click.
+CombinedAudienceInfo	A combined audience criterion.
+Commission	Commission is an automatic bidding strategy in which the advertiser pays a certain portion of the conversion value.
+ConceptGroup	The concept group for the keyword concept.
+Consent	Consent
+ContentLabelInfo	Content Label for category exclusion.
+CpcBidSimulationPoint	Projected metrics for a specific CPC bid amount.
+CpcBidSimulationPointList	A container for simulation points for simulations of type CPC_BID.
+CpvBidSimulationPoint	Projected metrics for a specific CPV bid amount.
+CpvBidSimulationPointList	A container for simulation points for simulations of type CPV_BID.
+CriterionCategoryAvailability	Information of category availability, per advertising channel.
+CriterionCategoryChannelAvailability	Information of advertising channel type and subtypes a category is available in.
+CriterionCategoryLocaleAvailability	Information about which locales a category is available in.
+CrmBasedUserListInfo	UserList of CRM users provided by the advertiser.
+CustomAffinityInfo	A custom affinity criterion. A criterion of this type is only targetable.
+CustomAudienceInfo	A custom audience criterion.
+CustomAudienceSegment	Custom audience segment.
+CustomIntentInfo	A custom intent criterion. A criterion of this type is only targetable.
+CustomParameter	A mapping that can be used by custom parameter tags in a tracking_url_template , final_urls , or mobile_final_urls .
+CustomerLifecycleOptimizationValueSettings	Lifecycle goal optimization value settings.
+CustomerMatchUserListMetadata	Metadata for customer match user list.
+CustomerThirdPartyBrandLiftIntegrationPartner	Container for third party Brand Lift integration data for Customer.
+CustomerThirdPartyBrandSafetyIntegrationPartner	Container for third party brand safety integration data for Customer.
+CustomerThirdPartyIntegrationPartners	Container for Customer level third party integration partners.
+CustomerThirdPartyReachIntegrationPartner	Container for third party reach integration data for Customer.
+CustomerThirdPartyViewabilityIntegrationPartner	Container for third party viewability integration data for Customer.
+CustomizerValue	A customizer value that is referenced in customizer linkage entities like CustomerCustomizer, CampaignCustomizer, etc.
+DateRange	A date range.
+DemandGenCarouselAdInfo	A Demand Gen carousel ad.
+DemandGenCarouselCardAsset	A Demand Gen Carousel Card asset.
+DemandGenMultiAssetAdInfo	A Demand Gen multi asset ad.
+DemandGenProductAdInfo	A Demand Gen product ad.
+DemandGenVideoResponsiveAdInfo	A Demand Gen video responsive ad.
+DetailedDemographicSegment	Detailed demographic segment.
+DeviceInfo	A device criterion.
+DisplayUploadAdInfo	A generic type of display ad. The exact ad format is controlled by the display_upload_product_type field, which determines what kinds of data need to be included with the ad.
+DynamicBusinessProfileLocationGroupFilter	Represents a filter on Business Profile locations in an asset set. If multiple filters are provided, they are AND'ed together.
+DynamicCustomAsset	A dynamic custom asset.
+DynamicEducationAsset	A Dynamic Education asset.
+DynamicFlightsAsset	A dynamic flights asset.
+DynamicHotelsAndRentalsAsset	A dynamic hotels and rentals asset.
+DynamicJobsAsset	A dynamic jobs asset.
+DynamicLocalAsset	A dynamic local asset.
+DynamicRealEstateAsset	A dynamic real estate asset.
+DynamicTravelAsset	A dynamic travel asset.
+EnhancedCpc	An automated bidding strategy that raises bids for clicks that seem more likely to lead to a conversion and lowers them for clicks where they seem less likely. This bidding strategy is deprecated and cannot be created anymore. Use ManualCpc with enhanced_cpc_enabled set to true for equivalent functionality.
+EventAttribute	Advertiser defined events and their attributes. All the values in the nested fields are required.
+EventItemAttribute	Event Item attributes of the Customer Match.
+ExclusionSegment	An audience segment to be excluded from an audience.
+ExpandedDynamicSearchAdInfo	An expanded dynamic search ad.
+ExpandedTextAdInfo	An expanded text ad.
+ExtendedDemographicInfo	Represents an extended demographic criterion.
+FacebookMessengerBusinessMessageInfo	Facebook Messenger information to use for messaging.
+FinalAppUrl	A URL for deep linking into an app for the given operating system.
+FixedCpm	Fixed CPM (cost per thousand impression) bidding strategy. A manual bidding strategy with a fixed CPM.
+FixedCpmTargetFrequencyGoalInfo	Target frequency bidding goal details for Fixed CPM bidding strategy. Only relevant if the goal of the bidding strategy is TARGET_FREQUENCY .
+FlexibleRuleOperandInfo	Flexible rule that wraps the common rule and a lookback window.
+FlexibleRuleUserListInfo	Flexible rule representation of visitors with one or multiple actions. The flexible user list is defined by two lists of operands – inclusive_operands and exclusive_operands; each operand represents a set of users based on actions they took in a given timeframe. These lists of operands are combined with the AND_NOT operator, so that users represented by the inclusive operands are included in the user list, minus the users represented by the exclusive operands.
+FrequencyCapEntry	A rule specifying the maximum number of times an ad (or some set of ads) can be shown to a user over a particular time period.
+FrequencyCapKey	A group of fields used as keys for a frequency cap. There can be no more than one frequency cap with the same key.
+GenderDimension	Dimension specifying users by their gender.
+GenderInfo	A gender criterion.
+GeoPointInfo	Geo point for proximity criterion.
+GoalSetting	Goal setting.
+GoalSetting.RetentionGoal	Retention goal settings.
+HistoricalMetricsOptions	Historical metrics options.
+HotelAdInfo	A hotel ad.
+HotelAdvanceBookingWindowInfo	Criterion for number of days prior to the stay the booking is being made.
+HotelCalloutAsset	An asset representing a hotel callout.
+HotelCheckInDateRangeInfo	Criterion for a check-in date range.
+HotelCheckInDayInfo	Criterion for day of the week the booking is for.
+HotelCityInfo	City the hotel is located in.
+HotelClassInfo	Class of the hotel as a number of stars 1 to 5.
+HotelCountryRegionInfo	Country or Region the hotel is located in.
+HotelDateSelectionTypeInfo	Criterion for hotel date selection (default dates versus user selected).
+HotelIdInfo	Advertiser-specific hotel ID.
+HotelLengthOfStayInfo	Criterion for length of hotel stay in nights.
+HotelPropertyAsset	A hotel property asset.
+HotelStateInfo	State the hotel is located in.
+HouseholdIncomeDimension	Dimension specifying users by their household income.
+ImageAdInfo	An image ad.
+ImageAsset	An Image asset.
+ImageDimension	Metadata for an image at a certain size, either original or resized.
+InFeedVideoAdInfo	Representation of In-feed video ad format.
+IncomeRangeInfo	An income range criterion.
+InteractionTypeInfo	Criterion for Interaction Type.
+IpBlockInfo	An IpBlock criterion used for excluding IP addresses. We support excluding individual IP addresses or CIDR blocks. Create one IpBlockInfo criterion for each individual IP address or CIDR block you want to exclude. You can exclude up to 500 IP addresses per campaign. For more details, see Exclude IP addresses . IPv4 examples: Individual address: 192.168.0.1 Individual address as CIDR block: 192.168.0.1/32 CIDR block: 192.168.0.0/24 IPv6 examples: Individual address: 2001:db8:a0b:12f0::1 Individual address as CIDR block: 2001:db8:a0b:12f0::1/128 CIDR block: 2001:db8::/48
+ItemAttribute	Item attributes of the transaction.
+Keyword	A Keyword criterion segment.
+KeywordAnnotations	The annotations for the keyword plan keywords.
+KeywordConcept	The concept for the keyword.
+KeywordInfo	A keyword criterion.
+KeywordPlanAggregateMetricResults	The aggregated historical metrics for keyword plan keywords.
+KeywordPlanAggregateMetrics	The aggregate metrics specification of the request.
+KeywordPlanDeviceSearches	The total searches for the device type during the specified time period.
+KeywordPlanHistoricalMetrics	Historical metrics specific to the targeting options selected. Targeting options include geographies, network, and so on. Refer to https://support.google.com/google-ads/answer/3022575 for more details.
+KeywordThemeInfo	A Smart Campaign keyword theme.
+KnowledgeGraphAttributeMetadata	Metadata associated with a Knowledge Graph Entity attribute.
+LanguageInfo	A language criterion.
+LeadFormAsset	A Lead Form asset.
+LeadFormCustomQuestionField	One custom question input field instance within a form.
+LeadFormDeliveryMethod	A configuration of how leads are delivered to the advertiser.
+LeadFormField	One input field instance within a form.
+LeadFormSingleChoiceAnswers	Defines possible answers for a single choice question, usually presented as a single-choice drop-down list.
+LegacyAppInstallAdInfo	A legacy app install ad that only can be used by a few select customers.
+LegacyResponsiveDisplayAdInfo	A legacy responsive display ad. Ads of this type are labeled 'Responsive ads' in the Google Ads UI.
+LifeEventInfo	Represents a life event criterion.
+LifeEventSegment	Live event segment.
+LifecycleGoalValueSettings	Lifecycle goal value settings.
+LineupAttributeMetadata	Metadata associated with a Lineup attribute.
+LineupAttributeMetadata.SampleChannel	A YouTube channel returned as an example of the content in a lineup.
+ListingDimensionInfo	Listing dimensions for listing group criterion.
+ListingDimensionPath	The path of dimensions defining a listing group.
+ListingGroupInfo	A listing group criterion.
+ListingScopeInfo	A listing scope criterion.
+LocalAdInfo	A local ad.
+LocalServiceIdInfo	A Local Services Ads service ID. Represents a service type (such as install_faucet) that a Local Services Campaign can target.
+LocalServicesDocumentReadOnly	A Local Services Document with read only accessible data.
+LocationAsset	A location asset.
+LocationAttributeMetadata	Metadata associated with a Location attribute.
+LocationGroupInfo	A radius around a list of locations specified through a feed or assetSet.
+LocationInfo	A location criterion.
+LocationSet	Data related to location set. One of the Google Business Profile (previously known as Google My Business) data, Chain data, and map location data need to be specified.
+LogicalUserListInfo	Represents a user list that is a custom combination of user lists.
+LogicalUserListOperandInfo	Operand of logical user list that consists of a user list.
+LookalikeUserListInfo	LookalikeUserlist, composed of users similar to those of a configurable seed (set of UserLists)
+ManualCpa	Manual bidding strategy that allows advertiser to set the bid per advertiser-specified action.
+ManualCpc	Manual click-based bidding where user pays per click.
+ManualCpm	Manual impression-based bidding where user pays per thousand impressions.
+ManualCpv	View based bidding where user pays per video view.
+MapsLocationInfo	Wrapper for place ids
+MapsLocationSet	Wrapper for multiple maps location sync data
+MaximizeConversionValue	An automated bidding strategy to help get the most conversion value for your campaigns while spending your budget.
+MaximizeConversions	An automated bidding strategy to help get the most conversions for your campaigns while spending your budget.
+MediaBundleAsset	A MediaBundle asset.
+MetricGoal	A metric goal for an experiment.
+Metrics	Metrics data.
+MobileAppAsset	An asset representing a mobile app.
+MobileAppCategoryInfo	A mobile app category criterion.
+MobileApplicationInfo	A mobile application criterion.
+MobileDeviceInfo	A mobile device criterion.
+Money	Represents a price in a particular currency.
+MonthlySearchVolume	Monthly search volume.
+NegativeKeywordListInfo	A Negative Keyword List criterion. Represents a shared set of negative keywords that can be excluded at the account-level. Only one negative keyword list criterion can be attached per account.
+OfflineUserAddressInfo	Address identifier of offline data.
+OperatingSystemVersionInfo	Represents an operating system version to be targeted.
+PageFeedAsset	A Page Feed asset.
+ParentalStatusDimension	Dimension specifying users by their parental status.
+ParentalStatusInfo	A parental status criterion.
+PercentCpc	A bidding strategy where bids are a fraction of the advertised price for some good or service.
+PercentCpcBidSimulationPoint	Projected metrics for a specific percent CPC amount. Only Hotel advertising channel type supports this field.
+PercentCpcBidSimulationPointList	A container for simulation points for simulations of type PERCENT_CPC_BID.
+PlacementInfo	A placement criterion. This can be used to modify bids for sites when targeting the content network.
+PlacementListInfo	A Placement List criterion. Represents a shared set of placements that can be excluded at the account-level.
+PolicySummary	Contains policy summary information.
+PolicyTopicConstraint	Describes the effect on serving that a policy topic entry will have.
+PolicyTopicConstraint.CountryConstraint	Indicates that a resource's ability to serve in a particular country is constrained.
+PolicyTopicConstraint.CountryConstraintList	A list of countries where a resource's serving is constrained.
+PolicyTopicConstraint.ResellerConstraint	Indicates that a policy topic was constrained due to disapproval of the website for reseller purposes.
+PolicyTopicEntry	Policy finding attached to a resource (for example, alcohol policy associated with a site that sells alcohol). Each PolicyTopicEntry has a topic that indicates the specific ads policy the entry is about and a type to indicate the effect that the entry will have on serving. It may optionally have one or more evidences that indicate the reason for the finding. It may also optionally have one or more constraints that provide details about how serving may be restricted.
+PolicyTopicEvidence	Additional information that explains a policy finding.
+PolicyTopicEvidence.DestinationMismatch	Evidence of mismatches between the URLs of a resource.
+PolicyTopicEvidence.DestinationNotWorking	Evidence details when the destination is returning an HTTP error code or isn't functional in all locations for commonly used devices.
+PolicyTopicEvidence.DestinationTextList	A list of strings found in a destination page that caused a policy finding.
+PolicyTopicEvidence.TextList	A list of fragments of text that violated a policy.
+PolicyTopicEvidence.WebsiteList	A list of websites that caused a policy finding. Used for ONE_WEBSITE_PER_AD_GROUP policy topic, for example. In case there are more than five websites, only the top five (those that appear in resources the most) will be listed here.
+PolicyValidationParameter	Parameter for controlling how policy exemption is done.
+PolicyViolationKey	Key of the violation. The key is used for referring to a violation when filing an exemption request.
+PriceAsset	An asset representing a list of price offers.
+PriceOffering	A single price offering within a PriceAsset.
+ProductBrandInfo	Brand of the product.
+ProductCategoryInfo	Category of a product offer.
+ProductChannelExclusivityInfo	Availability of a product offer.
+ProductChannelInfo	Locality of a product offer.
+ProductConditionInfo	Condition of a product offer.
+ProductCustomAttributeInfo	Custom attribute of a product offer.
+ProductGroupingInfo	Grouping of a product offer. This listing dimension is deprecated and it is supported only in Display campaigns.
+ProductItemIdInfo	Item id of a product offer.
+ProductLabelsInfo	Labels of a product offer. This listing dimension is deprecated and it is supported only in Display campaigns.
+ProductLegacyConditionInfo	Legacy condition of a product offer. This listing dimension is deprecated and it is supported only in Display campaigns.
+ProductTypeFullInfo	Full type of a product offer. This listing dimension is deprecated and it is supported only in Display campaigns.
+ProductTypeInfo	Type of a product offer.
+PromotionAsset	A Promotion asset.
+PromotionBarcodeInfo	Barcode info to generate promotion barcode.
+PromotionQrCodeInfo	QR code info to generate promotion QR code.
+ProximityInfo	A Proximity criterion. The geo point and radius determine what geographical area is included. The address is a description of the geo point that does not affect ad serving. There are two ways to create a proximity. First, by setting an address and radius. The geo point will be automatically computed. Second, by setting a geo point and radius. The address is an optional label that won't be validated.
+RealTimeBiddingSetting	Settings for Real-Time Bidding, a feature only available for campaigns targeting the Ad Exchange network.
+ResponsiveDisplayAdControlSpec	Specification for various creative controls for a responsive display ad.
+ResponsiveDisplayAdInfo	A responsive display ad.
+ResponsiveSearchAdInfo	A responsive search ad. Responsive search ads let you create an ad that adapts to show more text, and more relevant messages, to your customers. Enter multiple headlines and descriptions when creating a responsive search ad, and over time, Google Ads will automatically test different combinations and learn which combinations perform best. By adapting your ad's content to more closely match potential customers' search terms, responsive search ads may improve your campaign's performance. More information at https://support.google.com/google-ads/answer/7684791
+RuleBasedUserListInfo	Representation of a userlist that is generated by a rule.
+SearchThemeInfo	A Search Theme criterion only on Performance Max campaign. Represents a keyword-like advertiser input.
+SearchVolumeRange	Search volume range. Actual search volume falls within this range.
+Segments	Segment only fields.
+ShoppingComparisonListingAdInfo	A Shopping Comparison Listing ad.
+ShoppingLoyalty	The shopping loyalty related data. Shopping utilizes this data to provide users with a better experience. Accessible only to merchants on the allow-list.
+ShoppingProductAdInfo	A standard Shopping ad.
+ShoppingSmartAdInfo	A Smart Shopping ad.
+SimilarUserListInfo	SimilarUserList is a list of users which are similar to users from another UserList. These lists are read-only and automatically created by Google.
+SitelinkAsset	A Sitelink asset.
+SitelinkFeedItem	Represents a sitelink.
+SkAdNetworkSourceApp	A SkAdNetworkSourceApp segment.
+SmartCampaignAdInfo	A Smart campaign ad.
+StoreAttribute	Store attributes of the transaction.
+StoreSalesMetadata	Metadata for Store Sales Direct.
+StoreSalesThirdPartyMetadata	Metadata for a third party Store Sales. This product is only for customers on the allow-list. Contact your Google business development representative for details on the upload configuration.
+StructuredSnippetAsset	A Structured Snippet asset.
+TagSnippet	The site tag and event snippet pair for a TrackingCodeType.
+TargetCpa	An automated bid strategy that sets bids to help get as many conversions as possible at the target cost-per-acquisition (CPA) you set.
+TargetCpaSimulationPoint	Projected metrics for a specific target CPA amount.
+TargetCpaSimulationPointList	A container for simulation points for simulations of type TARGET_CPA.
+TargetCpc	An automated bidding strategy that sets bids to help get as many clicks as possible at the target cost-per-click (CPC) you set.
+TargetCpm	Target CPM (cost per thousand impressions) is an automated bidding strategy that sets bids to optimize performance given the target CPM you set.
+TargetCpmTargetFrequencyGoal	Target Frequency bidding goal details.
+TargetCpv	Target CPV (cost per view) bidding strategy. An automated bidding strategy that sets bids to optimize performance given the target CPV you set.
+TargetImpressionShare	An automated bidding strategy that sets bids so that a certain percentage of search ads are shown at the top of the first page (or other targeted location).
+TargetImpressionShareSimulationPoint	Projected metrics for a specific target impression share value.
+TargetImpressionShareSimulationPointList	A container for simulation points for simulations of type TARGET_IMPRESSION_SHARE.
+TargetRestriction	The list of per-targeting-dimension targeting settings.
+TargetRestrictionOperation	Operation to be performed on a target restriction list in a mutate.
+TargetRestrictionOperation.Operator	The operator.
+TargetRoas	An automated bidding strategy that helps you maximize revenue while averaging a specific target return on ad spend (ROAS).
+TargetRoasSimulationPoint	Projected metrics for a specific target ROAS amount.
+TargetRoasSimulationPointList	A container for simulation points for simulations of type TARGET_ROAS.
+TargetSpend	An automated bid strategy that sets your bids to help get as many clicks as possible within your budget.
+TargetingSetting	Settings for the targeting-related features, at the campaign and ad group levels. For more details about the targeting setting, visit https://support.google.com/google-ads/answer/7365594
+TextAdInfo	A text ad.
+TextAsset	A Text asset.
+TextLabel	A type of label displaying text on a colored background.
+ThirdPartyIntegrationPartnerData	Contains third party measurement partner related data for video campaigns.
+TopicInfo	A topic criterion. Use topics to target or exclude placements in the Google Display Network based on the category into which the placement falls (for example, "Pets & Animals/Pets/Dogs").
+TransactionAttribute	Attribute of the store sales transaction.
+TravelAdInfo	A travel ad.
+UnknownListingDimensionInfo	Unknown listing dimension.
+UrlCollection	Collection of urls that is tagged with a unique identifier.
+UserAttribute	User attribute, can only be used with CUSTOMER_MATCH_WITH_ATTRIBUTES job type.
+UserData	User data holding user identifiers and attributes.
+UserIdentifier	User identifying information.
+UserInterestAttributeMetadata	Metadata associated with a User Interest attribute.
+UserInterestInfo	Represents a particular interest-based topic to be targeted.
+UserInterestSegment	User interest segment.
+UserListActionInfo	Represents an action type used for building remarketing user lists.
+UserListAttributeMetadata	Metadata associated with a User List attribute.
+UserListDateRuleItemInfo	A rule item composed of a date operation.
+UserListInfo	A User List criterion. Represents a user list that is defined by the advertiser to be targeted.
+UserListLogicalRuleInfo	A user list logical rule. A rule has a logical operator (and/or/not) and a list of user lists as operands.
+UserListNumberRuleItemInfo	A rule item composed of a number operation.
+UserListRuleInfo	A client defined rule based on custom parameters sent by web sites or uploaded by the advertiser.
+UserListRuleItemGroupInfo	A group of rule items.
+UserListRuleItemInfo	An atomic rule item.
+UserListSegment	User list segment.
+UserListStringRuleItemInfo	A rule item composed of a string operation.
+Value	A generic data container.
+VerticalAdsItemGroupRuleInfo	A criterion to represent a single item group rule in Vertical Ads.
+VerticalAdsItemGroupRuleListInfo	A criterion for targeting a shared set of rules for item groups in Vertical Ads (e.g., for hotel ads).
+VideoAdInfo	A video ad.
+VideoBumperInStreamAdInfo	Representation of video bumper in-stream ad format (very short in-stream non-skippable video ad).
+VideoLineupInfo	A Video lineup criterion.
+VideoNonSkippableInStreamAdInfo	Representation of video non-skippable in-stream ad format (15 second in-stream non-skippable video ad).
+VideoOutstreamAdInfo	Representation of video out-stream ad format (ad shown alongside a feed with automatic playback, without sound).
+VideoResponsiveAdInfo	A video responsive ad.
+VideoTrueViewInStreamAdInfo	Representation of video TrueView in-stream ad format (ad shown during video playback, often at beginning, which displays a skip button a few seconds into the video).
+WebhookDelivery	Google notifies the advertiser of leads by making HTTP calls to an endpoint they specify. The requests contain JSON matching a schema that Google publishes as part of form ads documentation.
+WebpageConditionInfo	Logical expression for targeting webpages of an advertiser's website.
+WebpageInfo	Represents a criterion for targeting webpages of an advertiser's website.
+WebpageListInfo	Represents a list of webpage criteria.
+WebpageSampleInfo	List of sample urls that match the website target
+WhatsappBusinessMessageInfo	Whatsapp information to use for messaging.
+YearMonth	Year month.
+YearMonthRange	The year month range inclusive of the start and end months. Eg: A year month range to represent Jan 2020 would be: (Jan 2020, Jan 2020).
+YouTubeAudioAdInfo	Representation of YouTube Audio ad format.
+YouTubeChannelAttributeMetadata	Metadata associated with a YouTube channel attribute.
+YouTubeChannelInfo	A YouTube Channel criterion.
+YouTubeVideoAttributeMetadata	Metadata for a YouTube video attribute.
+YouTubeVideoInfo	A YouTube Video criterion.
+YouTubeVideoListAsset	A YouTube video list asset.
+YoutubeVideoAsset	A YouTube asset.
+ZaloBusinessMessageInfo	Zalo information to use for messaging.
+enums
+AccessInvitationStatus	Possible access invitation status of a user
+AccessReason	Enum describing possible access reasons.
+AccessRole	Possible access role of a user.
+AccountBudgetProposalStatus	The possible statuses of an AccountBudgetProposal.
+AccountBudgetProposalType	The possible types of an AccountBudgetProposal.
+AccountBudgetStatus	The possible statuses of an AccountBudget.
+AccountLinkStatus	Describes the possible statuses for a link between a Google Ads customer and another account.
+AdDestinationType	Enumerates Google Ads destination types
+AdFormatType	Enumerates Google Ads format types. Note that this segmentation is available only for Video and Demand Gen campaigns. For assets, only video assets are supported.
+AdGroupAdPrimaryStatus	The possible statuses of an AdGroupAd.
+AdGroupAdPrimaryStatusReason	Possible ad group ad status reasons.
+AdGroupAdRotationMode	The possible ad rotation modes of an ad group.
+AdGroupAdStatus	The possible statuses of an AdGroupAd.
+AdGroupCriterionApprovalStatus	Enumerates AdGroupCriterion approval statuses.
+AdGroupCriterionPrimaryStatus	Enum describing the possible ad group criterion primary status. Provides insight into why an ad group criterion is not serving or not serving optimally.
+AdGroupCriterionPrimaryStatusReason	Enum describing the possible Ad Group Criterion primary status reasons. Provides insight into why an Ad Group Criterion is not serving or not serving optimally. These reasons are aggregated to determine an overall Ad Group Criterion primary status.
+AdGroupCriterionStatus	The possible statuses of an AdGroupCriterion.
+AdGroupPrimaryStatus	The possible statuses of an AdGroup.
+AdGroupPrimaryStatusReason	Possible ad group status reasons.
+AdGroupStatus	The possible statuses of an ad group.
+AdGroupType	Enum listing the possible types of an ad group.
+AdNetworkType	Enumerates Google Ads network types.
+AdServingOptimizationStatus	Enum describing possible serving statuses.
+AdStrengthActionItemType	Enumerates ad strength action item types.
+AdStrength	Enum listing the possible ad strengths.
+AdSubNetworkType	Enumerates Google Ads sub network types.
+AdType	The possible types of an ad.
+AdvertisingChannelSubType	Enum describing the different channel subtypes.
+AdvertisingChannelType	Enum describing the various advertising channel types.
+AgeRangeType	The type of demographic age ranges (for example, between 18 and 24 years old).
+AndroidPrivacyInteractionType	Enumerates interaction types
+AndroidPrivacyNetworkType	Enumerates network types
+AppBiddingGoal	Represents the goal towards which the bidding strategy, of an app campaign, should optimize for.
+AppCampaignAppStore	Enum describing app campaign app store.
+AppCampaignBiddingStrategyGoalType	Goal type of App campaign BiddingStrategy.
+AppPaymentModelType	Enum describing possible app payment models.
+AppUrlOperatingSystemType	Operating System
+ApplicationInstance	Possible application instances sending the request.
+AssetAutomationStatus	The status of asset automation.
+AssetAutomationType	The type of asset automation.
+AssetCoverageVideoAspectRatioRequirement	Enum describing possible ad strength video aspect ratio requirements.
+AssetFieldType	Enum describing the possible placements of an asset.
+AssetGroupPrimaryStatus	Enum describing the possible asset group primary status. Provides insights into why an asset group is not serving or not serving optimally.
+AssetGroupPrimaryStatusReason	Enum describing the possible asset group primary status reasons. Provides reasons into why an asset group is not serving or not serving optimally. It will be empty when the asset group is serving without issues.
+AssetGroupSignalApprovalStatus	Enumerates AssetGroupSignal approval statuses, which are only used for Search Theme Signal.
+AssetGroupStatus	The possible statuses of an asset group.
+AssetLinkPrimaryStatus	Enum Provides insight into why an asset is not serving or not serving at full capacity for a particular link level. There could be one status with multiple reasons. For example, a sitelink might be paused by the user, but also limited in serving due to violation of an alcohol policy. In this case, the PrimaryStatus will be returned as PAUSED, since the asset's effective status is determined by its paused state.
+AssetLinkPrimaryStatusReason	Enum Provides insight into why an asset is not serving or not serving at full capacity for a particular link level. These reasons are aggregated to determine a final PrimaryStatus. For example, a sitelink might be paused by the user, but also limited in serving due to violation of an alcohol policy. In this case, the PrimaryStatus will be returned as PAUSED, since the asset's effective status is determined by its paused state.
+AssetLinkStatus	Enum describing statuses of an asset link.
+AssetOfflineEvaluationErrorReasons	Enum describing the quality evaluation disapproval reason of an asset.
+AssetOrientation	The orientation of an image or video asset.
+AssetPerformanceLabel	Enum describing the possible performance labels of an asset, usually computed in the context of a linkage.
+AssetSetAssetStatus	The possible statuses of an asset set asset.
+AssetSetLinkStatus	The possible statuses of the linkage between asset set and its container.
+AssetSetStatus	The possible statuses of an asset set.
+AssetSetType	Possible types of an asset set.
+AssetSource	Enum describing possible source of asset.
+AssetType	Enum describing possible types of asset.
+AsyncActionStatus	The async action status of the experiment.
+AttributionModel	The attribution model that describes how to distribute credit for a particular conversion across potentially many prior interactions.
+AudienceInsightsDimension	Possible dimensions for use in generating insights.
+AudienceInsightsMarketingObjective	Describes the overall objective for defining an audience for insights.
+AudienceScope	Enum containing possible audience scope values.
+AudienceStatus	Enum containing possible audience status types.
+BatchJobStatus	The batch job statuses.
+BenchmarksMarketingObjective	The YouTube ad benchmarks marketing objective.
+BenchmarksSourceType	Possible YouTube ad benchmarks sources.
+BidModifierSource	Enum describing possible bid modifier sources.
+BiddingSource	Indicates where a bid or target is defined. For example, an ad group criterion may define a cpc bid directly, or it can inherit its cpc bid from the ad group.
+BiddingStrategyStatus	The possible statuses of a BiddingStrategy.
+BiddingStrategySystemStatus	The possible system statuses of a BiddingStrategy.
+BiddingStrategyType	Enum describing possible bidding strategy types.
+BillingSetupStatus	The possible statuses of a BillingSetup.
+BrandRequestRejectionReason	Enumeration of different brand request rejection reasons.
+BrandSafetySuitability	3-Tier brand safety suitability control.
+BrandState	Enumeration of different brand states.
+BudgetCampaignAssociationStatus	Possible statuses of the association between the Budget and the Campaign.
+BudgetDeliveryMethod	Possible delivery methods of a Budget.
+BudgetPeriod	Possible period of a Budget.
+BudgetStatus	Possible statuses of a Budget.
+BudgetType	Possible Budget types.
+BusinessMessageCallToActionType	Enum describing the type of call-to-action phrases in a business message.
+BusinessMessageProvider	The possible value of business message provider types.
+CallConversionReportingState	Possible data types for a call conversion action state.
+CallToActionType	Enum describing possible types of call to action.
+CallTrackingDisplayLocation	Possible call tracking display locations.
+CallType	Possible types of property from where the call was made.
+CampaignCriterionStatus	The possible statuses of a CampaignCriterion.
+CampaignDraftStatus	Possible statuses of a campaign draft.
+CampaignExperimentType	Indicates if this campaign is a normal campaign, a draft campaign, or an experiment campaign.
+CampaignGroupStatus	Possible statuses of a CampaignGroup.
+CampaignKeywordMatchType	Enum describing keyword match type of Campaign.
+CampaignPrimaryStatus	Enum describing the possible campaign primary status. Provides insight into why a campaign is not serving or not serving optimally. Modification to the campaign and its related entities might take a while to be reflected in this status.
+CampaignPrimaryStatusReason	Enum describing the possible campaign primary status reasons. Provides insight into why a campaign is not serving or not serving optimally. These reasons are aggregated to determine an overall campaign primary status.
+CampaignServingStatus	Possible serving statuses of a campaign.
+CampaignSharedSetStatus	Enum listing the possible campaign shared set statuses.
+CampaignStatus	Possible statuses of a campaign.
+ChainRelationshipType	Possible types of a relationship.
+ChangeClientType	The source that the change_event resource was made through.
+ChangeEventResourceType	Enum listing the resource types support by the ChangeEvent resource.
+ChangeStatusOperation	Status of the changed resource
+ChangeStatusResourceType	Enum listing the resource types support by the ChangeStatus resource.
+ClickType	Enumerates Google Ads click types.
+CombinedAudienceStatus	Enum containing possible combined audience status types.
+ConsentStatus	Consent status
+ContentLabelType	Enum listing the content label types supported by ContentLabel criterion.
+ConversionActionCategory	The category of conversions that are associated with a ConversionAction.
+ConversionActionCountingType	Indicates how conversions for this action will be counted. For more information, see https://support.google.com/google-ads/answer/3438531 .
+ConversionActionStatus	Possible statuses of a conversion action.
+ConversionActionType	Possible types of a conversion action.
+ConversionAdjustmentType	The different actions advertisers can take to adjust the conversions that they already reported. Retractions negate a conversion. Restatements change the value of a conversion.
+ConversionAttributionEventType	The event type of conversions that are attributed to.
+ConversionCustomVariableStatus	Possible statuses of a conversion custom variable.
+ConversionCustomerType	Enumerates conversion customer types.
+ConversionEnvironment	Conversion environment of the uploaded conversion.
+ConversionLagBucket	Enum representing the number of days between impression and conversion.
+ConversionOrAdjustmentLagBucket	Enum representing the number of days between the impression and the conversion or between the impression and adjustments to the conversion.
+ConversionOrigin	The possible places where a conversion can occur.
+ConversionTrackingStatus	Conversion Tracking status of the customer.
+ConversionValueRulePrimaryDimension	Identifies the primary dimension for conversion value rule stats.
+ConversionValueRuleSetStatus	Possible statuses of a conversion value rule set.
+ConversionValueRuleStatus	Possible statuses of a conversion value rule.
+ConvertingUserPriorEngagementTypeAndLtvBucket	Enumerates converting user prior engagement types and lifetime-value bucket
+CriterionCategoryChannelAvailabilityMode	Enum containing the possible CriterionCategoryChannelAvailabilityMode.
+CriterionCategoryLocaleAvailabilityMode	Enum containing the possible CriterionCategoryLocaleAvailabilityMode.
+CriterionSystemServingStatus	Enumerates criterion system serving statuses.
+CriterionType	Enum describing possible criterion types.
+CustomAudienceMemberType	Enum containing possible custom audience member types.
+CustomAudienceStatus	Enum containing possible custom audience statuses.
+CustomAudienceType	Enum containing possible custom audience types.
+CustomConversionGoalStatus	The possible statuses of a custom conversion goal.
+CustomInterestMemberType	Enum containing possible custom interest member types.
+CustomInterestStatus	Enum containing possible custom interest types.
+CustomInterestType	Enum containing possible custom interest types.
+CustomerAcquisitionOptimizationMode	Possible optimization mode of a customer acquisition goal.
+CustomerLifecycleOptimizationMode	Possible customer acquisition goal optimization modes.
+CustomerMatchUploadKeyType	Enum describing possible customer match upload key types.
+CustomerPayPerConversionEligibilityFailureReason	Enum describing possible reasons a customer is not eligible to use PaymentMode.CONVERSIONS.
+CustomerStatus	Possible statuses of a customer.
+CustomizerAttributeStatus	The possible statuses of a customizer attribute.
+CustomizerAttributeType	The possible types of a customizer attribute.
+CustomizerValueStatus	The possible statuses of a customizer value.
+DataDrivenModelStatus	Enumerates data driven model statuses.
+DataLinkStatus	Describes the possible data link statuses.
+DataLinkType	Describes the possible data link types.
+DayOfWeek	Enumerates days of the week, for example, "Monday".
+DemandGenChannelConfig	This value indicates which field within the 'oneof' group (where only one option can be active) is used in the channel controls for a Demand Gen ad group.
+DemandGenChannelStrategy	The channel strategy defines a general grouping of channels to enable in the Demand Gen channel controls.
+Device	Enumerates Google Ads devices available for targeting.
+DisplayAdFormatSetting	Enumerates display ad format settings.
+DisplayUploadProductType	Enumerates display upload product types.
+DistanceBucket	The distance bucket for a user's distance from an advertiser's location extension.
+EuPoliticalAdvertisingStatus	Possible values describing whether or not the campaign contains political advertising targeted towards the European Union.
+ExperimentMetricDirection	The type of experiment metric direction.
+ExperimentMetric	The type of experiment metric.
+ExperimentStatus	The status of the experiment.
+ExperimentType	The type of the experiment.
+ExternalConversionSource	The external conversion source that is associated with a ConversionAction.
+FixedCpmGoal	Enum describing the goal of the Fixed CPM bidding strategy.
+FixedCpmTargetFrequencyTimeUnit	An enum describing the time window over which the bidding is optimized to meet the target frequency when using Fixed CPM bidding strategy.
+FrequencyCapEventType	The type of event that the cap applies to (for example, impression).
+FrequencyCapLevel	The level on which the cap is to be applied (e.g ad group ad, ad group). Cap is applied to all the resources of this level.
+FrequencyCapTimeUnit	Unit of time the cap is defined at (for example, day, week).
+GenderType	The type of demographic genders (for example, female).
+GeoTargetConstantStatus	The possible statuses of a geo target constant.
+GeoTargetingType	The possible geo targeting types.
+GoalConfigLevel	The possible goal config levels. Campaigns automatically inherit the effective conversion account's customer goals unless they have been configured with their own set of campaign goals.
+GoalOptimizationEligibility	The possible goal optimization eligibility.
+GoalType	The possible value of goal types.
+GoogleAdsFieldCategory	The category of the artifact.
+GoogleAdsFieldDataType	These are the various types a GoogleAdsService artifact may take on.
+GoogleVoiceCallStatus	Possible statuses of a google voice call.
+HotelAssetSuggestionStatus	Possible statuses of a hotel asset suggestion.
+HotelDateSelectionType	Enum describing possible hotel date selection types.
+HotelPriceBucket	Enum describing possible hotel price buckets.
+HotelRateType	Enum describing possible hotel rate types.
+HotelReconciliationStatus	Status of the hotel booking reconciliation.
+IdentityVerificationProgram	Type of identity verification program.
+IdentityVerificationProgramStatus	Program status of identity verification.
+IncentiveState	The possible states of a redeemed incentive.
+IncomeRangeType	The type of demographic income ranges (for example, between 0% to 50%).
+InsightsKnowledgeGraphEntityCapabilities	The capabilities of an entity.
+InsightsTrend	Describes which direction a trend is moving.
+InteractionEventType	Enum describing possible types of payable and free interactions.
+InteractionType	Enum describing possible interaction types.
+InvoiceType	The possible type of invoices.
+KeywordMatchType	Possible Keyword match types.
+KeywordPlanAggregateMetricType	Aggregate fields.
+KeywordPlanCompetitionLevel	Competition level of a keyword.
+KeywordPlanConceptGroupType	Enumerates keyword plan concept group types.
+KeywordPlanForecastInterval	Forecast intervals.
+KeywordPlanKeywordAnnotation	Enumerates keyword plan annotations that can be requested.
+KeywordPlanNetwork	Enumerates keyword plan forecastable network types.
+LabelStatus	Possible statuses of a label.
+LandingPageSource	The source of a landing page in the landing page report.
+LeadFormCallToActionType	Enum describing the type of call-to-action phrases in a lead form.
+LeadFormDesiredIntent	Enum describing the chosen level of intent of generated leads.
+LeadFormFieldUserInputType	Enum describing the input type of a lead form field.
+LeadFormPostSubmitCallToActionType	Enum describing the type of post-submit call-to-action phrases for a lead form.
+LegacyAppInstallAdAppStore	App store type in a legacy app install ad.
+LinkedAccountType	Describes the possible link types between a Google Ads customer and another account.
+LinkedProductType	Describes the possible link types for a link between a Google Ads customer and another product.
+ListingGroupFilterCustomAttributeIndex	The index of customer attributes.
+ListingGroupFilterListingSource	The source of listings filtered by a listing group filter node.
+ListingGroupFilterProductCategoryLevel	The level of the listing group filter product category.
+ListingGroupFilterProductChannel	Enum describing the locality of a product offer.
+ListingGroupFilterProductCondition	Enum describing the condition of a product offer.
+ListingGroupFilterProductTypeLevel	Enum describing the level of the type of a product offer.
+ListingGroupFilterType	The type of the listing group filter.
+ListingGroupType	The type of the listing group.
+ListingType	Possible listing types.
+LocalServicesBusinessRegistrationCheckRejectionReason	Enums describing possible rejection reasons of a local services business registration check verification artifact.
+LocalServicesBusinessRegistrationType	Enums describing possible registration types of a local services business registration check verification artifact.
+CreditState	Possible credit states of a lead.
+LocalServicesEmployeeStatus	Enums describing statuses of a local services employee.
+LocalServicesEmployeeType	Enums describing types of a local services employee.
+LocalServicesInsuranceRejectionReason	Enums describing possible rejection reasons of a local services insurance verification artifact.
+ConversationType	Possible types of lead conversation.
+CreditIssuanceDecision	Decision of bonus credit issued or rejected.
+LeadStatus	Possible statuses of lead.
+SurveyAnswer	Survey answer for Local Services Ads Lead.
+SurveyDissatisfiedReason	Provider's reason for not being satisfied with the lead.
+SurveySatisfiedReason	Provider's reason for being satisfied with the lead.
+LeadType	Possible types of lead.
+LocalServicesLicenseRejectionReason	Enums describing possible rejection reasons of a local services license verification artifact.
+ParticipantType	Possible types of lead conversation participant.
+LocalServicesVerificationArtifactStatus	Enums describing statuses of a local services verification artifact.
+LocalServicesVerificationArtifactType	Enums describing possible types of local services verification artifact.
+LocalServicesVerificationStatus	Enum describing status of a particular Local Services Ads verification category.
+LocationGroupRadiusUnits	The unit of radius distance in location group (for example, MILES)
+LocationOwnershipType	Possible types of a location ownership.
+LocationSourceType	The possible types of a location source.
+LocationStringFilterType	Possible types of a location string filter.
+LookalikeExpansionLevel	Expansion level, reflecting the size of the lookalike audience
+ManagerLinkStatus	Possible statuses of a link.
+MatchType	Possible match types for a keyword triggering an ad.
+MediaType	The type of media.
+MimeType	The mime type
+MinuteOfHour	Enumerates of quarter-hours. For example, "FIFTEEN"
+MobileAppVendor	The type of mobile app vendor
+MobileDeviceType	The type of mobile device.
+MonthOfYear	Enumerates months of the year, for example, "January".
+NegativeGeoTargetType	The possible negative geo target types.
+NonSkippableMaxDuration	Enum describing the allowed maximum duration values for videos used in non-skippable video responsive ads.
+NonSkippableMinDuration	Enum describing the allowed minimum duration values for videos used in non-skippable video responsive ads.
+OfflineConversionDiagnosticStatus	Possible statuses of the offline ingestion setup.
+OfflineEventUploadClient	Type of client.
+OfflineUserDataJobFailureReason	The failure reason of an offline user data job.
+OfflineUserDataJobMatchRateRange	The match rate range of an offline user data job.
+OfflineUserDataJobStatus	The status of an offline user data job.
+OfflineUserDataJobType	The type of an offline user data job.
+OperatingSystemVersionOperatorType	The type of operating system version.
+OptimizationGoalType	The type of optimization goal
+ParentalStatusType	The type of parental statuses (for example, not a parent).
+PaymentMode	Enum describing possible payment modes.
+PerformanceMaxUpgradeStatus	Performance Max Upgrade status enum for campaign.
+PlacementType	Possible placement types for a feed mapping.
+PolicyApprovalStatus	The possible policy approval statuses. When there are several approval statuses available the most severe one will be used. The order of severity is DISAPPROVED, AREA_OF_INTEREST_ONLY, APPROVED_LIMITED and APPROVED.
+PolicyReviewStatus	The possible policy review statuses.
+PolicyTopicEntryType	The possible policy topic entry types.
+PolicyTopicEvidenceDestinationMismatchUrlType	The possible policy topic evidence destination mismatch url types.
+PolicyTopicEvidenceDestinationNotWorkingDevice	The possible policy topic evidence destination not working devices.
+PolicyTopicEvidenceDestinationNotWorkingDnsErrorType	The possible policy topic evidence destination not working DNS error types.
+PositiveGeoTargetType	The possible positive geo target types.
+PriceExtensionPriceQualifier	Enums of price extension price qualifier.
+PriceExtensionPriceUnit	Price extension price unit.
+PriceExtensionType	Price extension type.
+ProductAvailability	Product availability.
+ProductCategoryLevel	Enum describing the level of the product category.
+ProductCategoryState	Enum describing the state of the product category.
+ProductChannel	Enum describing the locality of a product offer.
+ProductChannelExclusivity	Enum describing the availability of a product offer.
+ProductCondition	Enum describing the condition of a product offer.
+ProductCustomAttributeIndex	The index of the product custom attribute.
+ProductIssueSeverity	Product issue severity.
+ProductLinkInvitationStatus	Describes the possible statuses for an invitation between a Google Ads customer and another account.
+ProductStatus	Enum describing the status of a product.
+ProductTypeLevel	Enum describing the level of the type of a product offer.
+PromotionBarcodeType	A promotion barcode type.
+PromotionExtensionDiscountModifier	A promotion extension discount modifier.
+PromotionExtensionOccasion	A promotion extension occasion.
+ProximityRadiusUnits	The unit of radius distance in proximity (for example, MILES)
+QualityScoreBucket	Enum listing the possible quality score buckets.
+ReachPlanAgeRange	Possible plannable age range values.
+ReachPlanConversionRateModel	Types of models used to create conversion rate suggestions.
+ReachPlanNetwork	Possible plannable network values.
+ReachPlanPlannableUserListStatus	The plannable user list status.
+ReachPlanSurface	Surfaces available to target in reach forecasts.
+RecommendationSubscriptionStatus	Enum describing recommendation subscription statuses.
+RecommendationType	Types of recommendations.
+RegulatoryFeeType	The possible type of regulatory fees.
+ResourceChangeOperation	The operation on the changed resource in change_event resource.
+ResourceLimitType	Resource limit type.
+ResponseContentType	Possible response content types.
+SearchEngineResultsPageType	The type of the search engine results page.
+SearchTermMatchSource	The search term match sources.
+SearchTermMatchType	Possible match types for a keyword triggering an ad, including variants.
+SearchTermTargetingStatus	Indicates whether the search term is one of your targeted or excluded keywords.
+SeasonalityEventScope	The possible scopes of a Seasonality Event.
+SeasonalityEventStatus	The possible statuses of a Seasonality Event.
+ServedAssetFieldType	The possible asset field types.
+SharedSetStatus	Enum listing the possible shared set statuses.
+SharedSetType	Enum listing the possible shared set types.
+Reason	Issues that results in a shopping campaign targeting zero products.
+SimulationModificationMethod	Enum describing the method by which a simulation modifies a field.
+SimulationType	Enum describing the field a simulation modifies.
+SkAdNetworkAdEventType	Enumerates SkAdNetwork ad event types
+SkAdNetworkAttributionCredit	Enumerates SkAdNetwork attribution credits.
+SkAdNetworkCoarseConversionValue	Enumerates SkAdNetwork coarse conversion values
+SkAdNetworkSourceType	Enumerates SkAdNetwork source types
+SkAdNetworkUserType	Enumerates SkAdNetwork user types
+Slot	Enumerates possible positions of the Ad.
+SmartCampaignNotEligibleReason	Reasons for why a Smart campaign is not eligible to serve.
+SmartCampaignStatus	Smart campaign statuses.
+SpendingLimitType	The possible spending limit types used by certain resources as an alternative to absolute money values in micros.
+SummaryRowSetting	Enum describing return summary row settings.
+SystemManagedResourceSource	Enum listing the possible system managed entity sources.
+TargetCpaOptInRecommendationGoal	Goal of TargetCpaOptIn recommendation.
+TargetFrequencyTimeUnit	Enum describing time window over which we want to reach Target Frequency.
+TargetImpressionShareLocation	Enum describing possible goals.
+TargetingDimension	Enum describing possible targeting dimensions.
+ThirdPartyBrandLiftIntegrationPartner	Enum describing available third party integration partners for Brand Lift verification.
+ThirdPartyBrandSafetyIntegrationPartner	Enum describing available third party integration partners for brand safety verification.
+ThirdPartyReachIntegrationPartner	Enum describing available third party integration partners for reach verification.
+ThirdPartyViewabilityIntegrationPartner	Enum describing available third party integration partners for YouTube viewability verification.
+TimeType	The possible time types used by certain resources as an alternative to absolute timestamps.
+TrackingCodePageFormat	The format of the web page where the tracking tag and snippet will be installed.
+TrackingCodeType	The type of the generated tag snippets for tracking conversions.
+UnitOfMeasure	The possible type of unit of measure.
+UserIdentifierSource	The type of user identifier source for offline Store Sales, click conversion, and conversion adjustment uploads.
+UserInterestTaxonomyType	Enum containing the possible UserInterestTaxonomyTypes.
+UserListAccessStatus	Enum containing possible user list access statuses.
+UserListClosingReason	Enum describing possible user list closing reasons.
+UserListCrmDataSourceType	Enum describing possible user list crm data source type.
+UserListCustomerTypeCategory	Enum containing possible user list customer type categories.
+UserListDateRuleItemOperator	Enum describing possible user list date rule item operators.
+UserListFlexibleRuleOperator	Enum describing possible user list combined rule operators.
+UserListLogicalRuleOperator	Enum describing possible user list logical rule operators.
+UserListMembershipStatus	Enum containing possible user list membership statuses.
+UserListNumberRuleItemOperator	Enum describing possible user list number rule item operators.
+UserListPrepopulationStatus	Enum describing possible user list prepopulation status.
+UserListRuleType	Enum describing possible user list rule types.
+UserListSizeRange	Enum containing possible user list size ranges.
+UserListStringRuleItemOperator	Enum describing possible user list string rule item operators.
+UserListType	Enum containing possible user list types.
+ValueRuleDeviceType	Possible device types used in conversion value rule.
+ValueRuleGeoLocationMatchType	Possible geographic location matching types.
+ValueRuleOperation	Possible operations of the action of a conversion value rule.
+ValueRuleSetAttachmentType	Possible level where a value rule set is attached.
+ValueRuleSetDimension	Possible dimensions of a conversion value rule set.
+VanityPharmaDisplayUrlMode	Enum describing possible display modes for vanity pharma URLs.
+VanityPharmaText	Enum describing possible text.
+VerticalAdsItemVerticalType	Enum describing Vertical Ads Item Vertical Type for SharedSet of type VERTICAL_ADS_ITEM_GROUP_RULE_LIST.
+VideoAdFormatRestriction	Enum describing format restrictions for responsive ads in video campaigns.
+VideoAdSequenceInteractionType	Enum describing an interaction between a viewer and a video in a video ad sequence.
+VideoAdSequenceMinimumDuration	Enum describing possible times after starting a video ad sequence when a user is eligible to repeat the sequence.
+VideoThumbnail	Enum listing the possible types of a video thumbnail.
+WebpageConditionOperand	The webpage condition operand in webpage criterion.
+WebpageConditionOperator	The webpage condition operator in webpage criterion.
+YouTubeVideoProperty	Describes a property of a YouTube video.
+errors
+AccessInvitationError	Enum describing possible AccessInvitation errors.
+AccountBudgetProposalError	Enum describing possible account budget proposal errors.
+AccountLinkError	Enum describing possible account link errors.
+AdCustomizerError	Enum describing possible ad customizer errors.
+AdError	Enum describing possible ad errors.
+AdGroupAdError	Enum describing possible ad group ad errors.
+AdGroupBidModifierError	Enum describing possible ad group bid modifier errors.
+AdGroupCriterionCustomizerError	Enum describing possible ad group criterion customizer errors.
+AdGroupCriterionError	Enum describing possible ad group criterion errors.
+AdGroupCustomizerError	Enum describing possible ad group customizer errors.
+AdGroupError	Enum describing possible ad group errors.
+AdGroupFeedError	Enum describing possible ad group feed errors.
+AdParameterError	Enum describing possible ad parameter errors.
+AdSharingError	Enum describing possible ad sharing errors.
+AdxError	Enum describing possible adx errors.
+AssetError	Enum describing possible asset errors.
+AssetGenerationError	Enum describing GenAI asset generation errors.
+AssetGroupAssetError	Enum describing possible asset group asset errors.
+AssetGroupError	Enum describing possible asset group errors.
+AssetGroupListingGroupFilterError	Enum describing possible asset group listing group filter errors.
+AssetGroupSignalError	Enum describing possible asset group signal errors.
+AssetLinkError	Enum describing possible asset link errors.
+AssetSetAssetError	Enum describing possible asset set asset errors.
+AssetSetError	Enum describing possible asset set errors.
+AssetSetLinkError	Enum describing possible asset set link errors.
+AudienceError	Enum describing possible audience errors.
+AudienceInsightsError	Enum describing possible errors from AudienceInsightsService.
+AuthenticationError	Enum describing possible authentication errors.
+AuthorizationError	Enum describing possible authorization errors.
+AutomaticallyCreatedAssetRemovalError	Enum describing possible automatically created asset removal errors.
+BatchJobError	Enum describing possible request errors.
+BenchmarksError	Enum describing possible errors from BenchmarksService.
+BiddingError	Enum describing possible bidding errors.
+BiddingStrategyError	Enum describing possible bidding strategy errors.
+BillingSetupError	Enum describing possible billing setup errors.
+BrandGuidelinesMigrationError	Enum describing brand guidelines migration errors.
+BudgetPerDayMinimumErrorDetails	Error details for a budget below per-day minimum error.
+CampaignBudgetError	Enum describing possible campaign budget errors.
+CampaignConversionGoalError	Enum describing possible campaign conversion goal errors.
+CampaignCriterionError	Enum describing possible campaign criterion errors.
+CampaignCustomizerError	Enum describing possible campaign customizer errors.
+CampaignDraftError	Enum describing possible campaign draft errors.
+CampaignError	Enum describing possible campaign errors.
+CampaignExperimentError	Enum describing possible campaign experiment errors.
+CampaignFeedError	Enum describing possible campaign feed errors.
+CampaignGoalConfigError	Enum describing possible campaign goal config errors.
+CampaignLifecycleGoalError	Enum describing possible campaign lifecycle goal errors.
+CampaignSharedSetError	Enum describing possible campaign shared set errors.
+ChangeEventError	Enum describing possible change event errors.
+ChangeStatusError	Enum describing possible change status errors.
+ClickViewError	Enum describing possible click view errors.
+CollectionSizeError	Enum describing possible collection size errors.
+ContextError	Enum describing possible context errors.
+ConversionActionError	Enum describing possible conversion action errors.
+ConversionAdjustmentUploadError	Enum describing possible conversion adjustment upload errors.
+ConversionCustomVariableError	Enum describing possible conversion custom variable errors.
+ConversionGoalCampaignConfigError	Enum describing possible conversion goal campaign config errors.
+ConversionUploadError	Enum describing possible conversion upload errors.
+ConversionValueRuleError	Enum describing possible conversion value rule errors.
+ConversionValueRuleSetError	Enum describing possible conversion value rule set errors.
+CountryCodeError	Enum describing country code errors.
+CriterionError	Enum describing possible criterion errors.
+CurrencyCodeError	Enum describing possible currency code errors.
+CurrencyError	Enum describing possible currency errors.
+CustomAudienceError	Enum describing possible custom audience errors.
+CustomConversionGoalError	Enum describing possible custom conversion goal errors.
+CustomInterestError	Enum describing possible custom interest errors.
+CustomerClientLinkError	Enum describing possible CustomerClientLink errors.
+CustomerCustomizerError	Enum describing possible customer customizer errors.
+CustomerError	Set of errors that are related to requests dealing with Customer.
+CustomerFeedError	Enum describing possible customer feed errors.
+CustomerLifecycleGoalError	Enum describing possible customer lifecycle goal errors.
+CustomerManagerLinkError	Enum describing possible CustomerManagerLink errors.
+CustomerSkAdNetworkConversionValueSchemaError	Enum describing possible CustomerSkAdNetworkConversionValueSchema errors.
+CustomerUserAccessError	Enum describing possible customer user access errors.
+CustomizerAttributeError	Enum describing possible customizer attribute errors.
+DataLinkError	Enum describing possible DataLink errors.
+DatabaseError	Enum describing possible database errors.
+DateError	Enum describing possible date errors.
+DateRangeError	Enum describing possible date range errors.
+DistinctError	Enum describing possible distinct errors.
+EnumError	Enum describing possible enum errors.
+ErrorCode	The error reason represented by type and enum.
+ErrorDetails	Additional error details.
+ErrorLocation	Describes the part of the request proto that caused the error.
+ErrorLocation.FieldPathElement	A part of a field path.
+ExperimentArmError	Enum describing possible experiment arm errors.
+ExperimentError	Enum describing possible experiment errors.
+ExtensionFeedItemError	Enum describing possible extension feed item errors.
+ExtensionSettingError	Enum describing possible extension setting errors.
+FeedAttributeReferenceError	Enum describing possible feed attribute reference errors.
+FeedError	Enum describing possible feed errors.
+FeedItemError	Enum describing possible feed item errors.
+FeedItemSetError	Enum describing possible feed item set errors.
+FeedItemSetLinkError	Enum describing possible feed item set link errors.
+FeedItemTargetError	Enum describing possible feed item target errors.
+FeedItemValidationError	The possible validation errors of a feed item.
+FeedMappingError	Enum describing possible feed item errors.
+FieldError	Enum describing possible field errors.
+FieldMaskError	Enum describing possible field mask errors.
+FinalUrlExpansionAssetViewError	Enum describing possible final url expansion asset view errors.
+FunctionError	Enum describing possible function errors.
+FunctionParsingError	Enum describing possible function parsing errors.
+GeoTargetConstantSuggestionError	Enum describing possible geo target constant suggestion errors.
+GoalError	Enum describing possible goal errors.
+GoogleAdsError	GoogleAds-specific error.
+GoogleAdsFailure	Describes how a GoogleAds API call failed. It's returned inside google.rpc.Status.details when a call fails.
+HeaderError	Enum describing possible header errors.
+IdError	Enum describing possible ID errors.
+IdentityVerificationError	Enum describing possible identity verification errors.
+ImageError	Enum describing possible image errors.
+IncentiveError	Enum describing possible incentive errors.
+InternalError	Enum describing possible internal errors.
+InvoiceError	Enum describing possible invoice errors.
+KeywordPlanAdGroupError	Enum describing possible errors from applying a keyword plan ad group.
+KeywordPlanAdGroupKeywordError	Enum describing possible errors from applying a keyword plan ad group keyword or keyword plan campaign keyword.
+KeywordPlanCampaignError	Enum describing possible errors from applying a keyword plan campaign.
+KeywordPlanCampaignKeywordError	Enum describing possible errors from applying a keyword plan campaign keyword.
+KeywordPlanError	Enum describing possible errors from applying a keyword plan.
+KeywordPlanIdeaError	Enum describing possible errors from KeywordPlanIdeaService.
+LabelError	Enum describing possible label errors.
+LanguageCodeError	Enum describing language code errors.
+ListOperationError	Enum describing possible list operation errors.
+ManagerLinkError	Enum describing possible ManagerLink errors.
+MediaBundleError	Enum describing possible media bundle errors.
+MediaFileError	Enum describing possible media file errors.
+MediaUploadError	Enum describing possible media uploading errors.
+MerchantCenterError	Enum describing Merchant Center errors.
+MultiplierError	Enum describing possible multiplier errors.
+MutateError	Enum describing possible mutate errors.
+NewResourceCreationError	Enum describing possible new resource creation errors.
+NotAllowlistedError	Enum describing possible not allowlisted errors.
+NotEmptyError	Enum describing possible not empty errors.
+NullError	Enum describing possible null errors.
+OfflineUserDataJobError	Enum describing possible request errors.
+OperationAccessDeniedError	Enum describing possible operation access denied errors.
+OperatorError	Enum describing possible operator errors.
+PartialFailureError	Enum describing possible partial failure errors.
+PaymentsAccountError	Enum describing possible errors in payments account service.
+PolicyFindingDetails	Error returned as part of a mutate response. This error indicates one or more policy findings in the fields of a resource.
+PolicyFindingError	Enum describing possible policy finding errors.
+PolicyValidationParameterError	Enum describing possible policy validation parameter errors.
+PolicyViolationDetails	Error returned as part of a mutate response. This error indicates single policy violation by some text in one of the fields.
+PolicyViolationError	Enum describing possible policy violation errors.
+ProductLinkError	Enum describing possible ProductLink errors.
+ProductLinkInvitationError	Enum describing possible product link invitation errors.
+QueryError	Enum describing possible query errors.
+QuotaErrorDetails	Additional quota error details when there is QuotaError.
+QuotaErrorDetails.QuotaRateScope	Enum of possible scopes that quota buckets belong to.
+QuotaError	Enum describing possible quota errors.
+RangeError	Enum describing possible range errors.
+ReachPlanError	Enum describing possible errors from ReachPlanService.
+RecommendationError	Enum describing possible errors from applying a recommendation.
+RecommendationSubscriptionError	Enum describing possible recommendation subscription errors.
+RegionCodeError	Enum describing possible region code errors.
+RequestError	Enum describing possible request errors.
+ResourceAccessDeniedError	Enum describing possible resource access denied errors.
+ResourceCountDetails	Error details returned when an resource count limit was exceeded.
+ResourceCountLimitExceededError	Enum describing possible resource count limit exceeded errors.
+SearchTermInsightError	Enum describing possible search term insight errors.
+SettingError	Enum describing possible setting errors.
+ShareablePreviewError	Enum describing possible shareable preview errors.
+SharedCriterionError	Enum describing possible shared criterion errors.
+SharedSetError	Enum describing possible shared set errors.
+ShoppingProductError	Enum describing possible errors querying shopping product.
+SizeLimitError	Enum describing possible size limit errors.
+SmartCampaignError	Enum describing possible Smart campaign errors.
+StringFormatError	Enum describing possible string format errors.
+StringLengthError	Enum describing possible string length errors.
+ThirdPartyAppAnalyticsLinkError	Enum describing possible third party app analytics link errors.
+TimeZoneError	Enum describing possible currency code errors.
+UrlFieldError	Enum describing possible url field errors.
+UserDataError	Enum describing possible request errors.
+UserListCustomerTypeError	Enum describing possible user list customer type errors.
+UserListError	Enum describing possible user list errors.
+VideoCampaignError	Enum describing possible video campaign errors.
+YoutubeVideoRegistrationError	Enum describing YouTube video registration errors.
+misc
+AccountBudgetProposalOperation	A single operation to propose the creation of a new account-level budget or edit/end/remove an existing one.
+AccountLinkOperation	A single update on an account link.
+AdGroupAdLabelOperation	A single operation (create, remove) on an ad group ad label.
+AdGroupAdOperation	A single operation (create, update, remove) on an ad group ad.
+AdGroupAssetOperation	A single operation (create, update, remove) on an ad group asset.
+AdGroupAssetSetOperation	A single operation (create, remove) on an ad group asset set.
+AdGroupBidModifierOperation	A single operation (create, remove, update) on an ad group bid modifier.
+AdGroupCriterionCustomizerOperation	A single operation (create, remove) on a customizer attribute.
+AdGroupCriterionLabelOperation	A single operation (create, remove) on an ad group criterion label.
+AdGroupCriterionOperation	A single operation (create, remove, update) on an ad group criterion.
+AdGroupCustomizerOperation	A single operation (create, remove) on a customizer attribute.
+AdGroupKeywordSuggestion	The suggested text and AdGroup/Campaign pairing for a given keyword.
+AdGroupLabelOperation	A single operation (create, remove) on an ad group label.
+AdGroupOperation	A single operation (create, update, remove) on an ad group.
+AdOperation	A single update operation on an ad.
+AdParameterOperation	A single operation (create, update, remove) on ad parameter.
+AddBatchJobOperationsRequest	Request message for BatchJobService.AddBatchJobOperations .
+AddBatchJobOperationsResponse	Response message for BatchJobService.AddBatchJobOperations .
+AddOfflineUserDataJobOperationsRequest	Request message for OfflineUserDataJobService.AddOfflineUserDataJobOperations .
+AddOfflineUserDataJobOperationsResponse	Response message for OfflineUserDataJobService.AddOfflineUserDataJobOperations .
+AdvancedProductTargeting	Advanced targeting settings for products.
+AppendLeadConversationRequest	Request message for LocalServicesLeadService.AppendLeadConversation .
+AppendLeadConversationResponse	Response message for LocalServicesLeadService.AppendLeadConversation .
+ApplyIncentiveRequest	Request message for applying an incentive.
+ApplyIncentiveResponse	Response for applying an incentive.
+ApplyRecommendationOperation	Information about the operation to apply a recommendation and any parameters to customize it.
+ApplyRecommendationOperation.AdAssetApplyParameters	Common parameters used when applying ad asset recommendations.
+ApplyRecommendationOperation.AdAssetApplyParameters.ApplyScope	Scope to apply the assets to.
+ApplyRecommendationOperation.CallAssetParameters	Parameters to use when applying call asset recommendations.
+ApplyRecommendationOperation.CallExtensionParameters	Parameters to use when applying call extension recommendation.
+ApplyRecommendationOperation.CalloutAssetParameters	Parameters to use when applying callout asset recommendations.
+ApplyRecommendationOperation.CalloutExtensionParameters	Parameters to use when applying callout extension recommendation.
+ApplyRecommendationOperation.CampaignBudgetParameters	Parameters to use when applying a campaign budget recommendation.
+ApplyRecommendationOperation.ForecastingSetTargetCpaParameters	Parameters to use when applying a set target CPA recommendation.
+ApplyRecommendationOperation.ForecastingSetTargetRoasParameters	Parameters to use when applying a forecasting set target roas recommendation.
+ApplyRecommendationOperation.KeywordParameters	Parameters to use when applying keyword recommendation.
+ApplyRecommendationOperation.LeadFormAssetParameters	Parameters to use when applying a lead form asset recommendation.
+ApplyRecommendationOperation.LowerTargetRoasParameters	Parameters to use when applying lower Target ROAS recommendations.
+ApplyRecommendationOperation.MoveUnusedBudgetParameters	Parameters to use when applying move unused budget recommendation.
+ApplyRecommendationOperation.RaiseTargetCpaBidTooLowParameters	Parameters to use when applying a raise target CPA bid too low recommendation. The apply is asynchronous and can take minutes depending on the number of ad groups there is in the related campaign..
+ApplyRecommendationOperation.RaiseTargetCpaParameters	Parameters to use when applying raise Target CPA recommendations.
+ApplyRecommendationOperation.ResponsiveSearchAdAssetParameters	Parameters to use when applying a responsive search ad asset recommendation.
+ApplyRecommendationOperation.ResponsiveSearchAdImproveAdStrengthParameters	Parameters to use when applying a responsive search ad improve ad strength recommendation.
+ApplyRecommendationOperation.ResponsiveSearchAdParameters	Parameters to use when applying a responsive search ad recommendation.
+ApplyRecommendationOperation.SitelinkAssetParameters	Parameters to use when applying sitelink asset recommendations.
+ApplyRecommendationOperation.SitelinkExtensionParameters	Parameters to use when applying sitelink recommendation.
+ApplyRecommendationOperation.TargetCpaOptInParameters	Parameters to use when applying Target CPA recommendation.
+ApplyRecommendationOperation.TargetRoasOptInParameters	Parameters to use when applying a Target ROAS opt-in recommendation.
+ApplyRecommendationOperation.TextAdParameters	Parameters to use when applying a text ad recommendation.
+ApplyRecommendationOperation.UseBroadMatchKeywordParameters	Parameters to use when applying a use broad match keyword recommendation.
+ApplyRecommendationRequest	Request message for RecommendationService.ApplyRecommendation .
+ApplyRecommendationResponse	Response message for RecommendationService.ApplyRecommendation .
+ApplyRecommendationResult	The result of applying a recommendation.
+AssetGenerationExistingContext	The context for which assets are being generated, such as an existing AssetGroup or AdGroupAd.
+AssetGroupAssetOperation	A single operation (create, remove) on an asset group asset.
+AssetGroupIdentifier	Asset group of the shareable preview.
+AssetGroupListingGroupFilterOperation	A single operation (create, remove) on an asset group listing group filter.
+AssetGroupOperation	A single operation (create, remove) on an asset group.
+AssetGroupSignalOperation	A single operation (create, remove) on an asset group signal.
+AssetOperation	A single operation to create an asset. Supported asset types are YoutubeVideoAsset, MediaBundleAsset, ImageAsset, LeadFormAsset, LocationAsset, and ImageAsset. TextAsset can be created with an Ad inline, but it can also be created apart from an Ad like other assets.
+AssetSetAssetOperation	A single operation (create, remove) on an asset set asset.
+AssetSetOperation	A single operation (create, remove) on an asset set.
+AssetsWithFieldType	The combination of system asset and field type to remove.
+AudienceCompositionAttribute	An audience attribute with metadata and metrics.
+AudienceCompositionAttributeCluster	A collection of related attributes, with metadata and metrics, in an audience composition insights report.
+AudienceCompositionMetrics	The share and index metrics associated with an attribute in an audience composition insights report.
+AudienceCompositionSection	A collection of related attributes of the same type in an audience composition insights report.
+AudienceInsightsDimensions	A collection of dimensions to be used for generating insights.
+AudienceOperation	A single operation (create, update) on an audience.
+AudienceOverlapItem	An audience attribute, with metadata including the overlap between this attribute's potential YouTube reach and that of a primary attribute.
+AudienceTargeting	Audience targeting for reach forecast.
+BatchJobOperation	A single operation on a batch job.
+BatchJobResult	An individual batch job result.
+BenchmarksLocation	A location that supports benchmarks data.
+BenchmarksProductMetadata	The metadata associated with a product supported for benchmarks data.
+BenchmarksSource	The source used to generate benchmarks metrics for. The ID of the source can be obtained from BenchmarksService.ListBenchmarksSources .
+BenchmarksSourceMetadata	The metadata associated with a benchmarks source.
+BiddableKeyword	A biddable keyword part of an ad group.
+BiddingDataExclusionOperation	A single operation (create, remove, update) on a data exclusion.
+BiddingSeasonalityAdjustmentOperation	A single operation (create, remove, update) on a seasonality adjustment.
+BiddingStrategyOperation	A single operation (create, update, remove) on a bidding strategy.
+BillingSetupOperation	A single operation on a billing setup, which describes the cancellation of an existing billing setup.
+BrandCampaignAssets	Assets linked at the campaign level. A business_name and at least one logo_asset are required.
+BrandSuggestion	Information of brand suggestion.
+CallConversion	A call conversion.
+CallConversionResult	Identifying information for a successfully processed CallConversionUpload.
+CampaignAssetOperation	A single operation (create, update, remove) on a campaign asset.
+CampaignAssetSetOperation	A single operation (create, remove) on a campaign asset set.
+CampaignBidModifierOperation	A single operation (create, remove, update) on a campaign bid modifier.
+CampaignBudgetMapping	The mapping of experiment campaign and budget to be graduated.
+CampaignBudgetOperation	A single operation (create, update, remove) on a campaign budget.
+CampaignConversionGoalOperation	A single operation (update) on a campaign conversion goal.
+CampaignCriterionOperation	A single operation (create, update, remove) on a campaign criterion.
+CampaignCustomizerOperation	A single operation (create, remove) on a customizer attribute.
+CampaignDraftOperation	A single operation (create, update, remove) on a campaign draft.
+CampaignDuration	The duration of a planned campaign.
+CampaignGoalConfigOperation	A single mutate operation on the campaign goal config.
+CampaignGroupOperation	A single operation (create, update, remove) on a campaign group.
+CampaignLabelOperation	A single operation (create, remove) on a campaign-label relationship.
+CampaignLifecycleGoalOperation	A single operation on a campaign lifecycle goal.
+CampaignOperation	A single operation (create, update, remove) on a campaign.
+CampaignSharedSetOperation	A single operation (create, remove) on a campaign shared set.
+CampaignToForecast	A campaign to do a keyword campaign forecast.
+CampaignToForecast.CampaignBiddingStrategy	Supported bidding strategies for new campaign forecasts.
+CartData	Contains additional information about cart data.
+CartData.Item	Contains data of the items purchased.
+ClickConversion	A click conversion.
+ClickConversionResult	Identifying information for a successfully processed ClickConversion.
+ConfigureCampaignLifecycleGoalsRequest	Request message for CampaignLifecycleGoalService.ConfigureCampaignLifecycleGoals .
+ConfigureCampaignLifecycleGoalsResponse	Response message for CampaignLifecycleGoalService.ConfigureCampaignLifecycleGoals .
+ConfigureCampaignLifecycleGoalsResult	The result for the campaign lifecycle goal configuration.
+ConfigureCustomerLifecycleGoalsRequest	Request message for CustomerLifecycleGoalService.ConfigureCustomerLifecycleGoals .
+ConfigureCustomerLifecycleGoalsResponse	Response message for CustomerLifecycleGoalService.ConfigureCustomerLifecycleGoals .
+ConfigureCustomerLifecycleGoalsResult	The result for the customer lifecycle goal configuration.
+Conversation	Details of the conversation that needs to be appended.
+ConversationOrError	Result of the append conversation operation.
+ConversionActionOperation	A single operation (create, update, remove) on a conversion action.
+ConversionAdjustment	A conversion adjustment.
+ConversionAdjustmentResult	Information identifying a successfully processed ConversionAdjustment.
+ConversionCustomVariableOperation	A single operation (create, update) on a conversion custom variable.
+ConversionGoalCampaignConfigOperation	A single operation (update) on a conversion goal campaign config.
+ConversionRateSuggestion	A conversion rate suggestion.
+ConversionValueRuleOperation	A single operation (create, update, remove) on a conversion value rule.
+ConversionValueRuleSetOperation	A single operation (create, update, remove) on a conversion value rule set.
+CreateAccountLinkRequest	Request message for AccountLinkService.CreateAccountLink .
+CreateAccountLinkResponse	Response message for AccountLinkService.CreateAccountLink .
+CreateCustomerClientRequest	Request message for CustomerService.CreateCustomerClient .
+CreateCustomerClientResponse	Response message for CreateCustomerClient mutate.
+CreateDataLinkRequest	Request message for DataLinkService.CreateDataLink .
+CreateDataLinkResponse	Response message for DataLinkService.CreateDataLink .
+CreateOfflineUserDataJobRequest	Request message for OfflineUserDataJobService.CreateOfflineUserDataJob .
+CreateOfflineUserDataJobResponse	Response message for OfflineUserDataJobService.CreateOfflineUserDataJob .
+CreateProductLinkInvitationRequest	Request message for ProductLinkInvitationService.CreateProductLinkInvitation .
+CreateProductLinkInvitationResponse	Response message for product link invitation create.
+CreateProductLinkRequest	Request message for ProductLinkService.CreateProductLink .
+CreateProductLinkResponse	Response message for ProductLinkService.CreateProductLink .
+CriterionBidModifier	Location Criterion bid modifier.
+CustomAudienceOperation	A single operation (create, update) on a custom audience.
+CustomConversionGoalOperation	A single operation (create, remove) on a custom conversion goal.
+CustomInterestOperation	A single operation (create, update) on a custom interest.
+CustomVariable	A custom variable.
+CustomerAssetOperation	A single operation (create, update, remove) on a customer asset.
+CustomerAssetSetOperation	A single operation (create, remove) on a customer asset set.
+CustomerClientLinkOperation	A single operation (create, update) on a CustomerClientLink.
+CustomerConversionGoalOperation	A single operation (update) on a customer conversion goal.
+CustomerCustomizerOperation	A single operation (create, remove) on a customizer attribute.
+CustomerLabelOperation	A single operation (create, remove) on a customer-label relationship.
+CustomerLifecycleGoalOperation	A single operation on a customer lifecycle goal.
+CustomerManagerLinkOperation	Updates the status of a CustomerManagerLink. The following actions are possible: 1. Update operation with status ACTIVE accepts a pending invitation. 2. Update operation with status REFUSED declines a pending invitation. 3. Update operation with status INACTIVE terminates link to manager.
+CustomerNegativeCriterionOperation	A single operation (create or remove) on a customer level negative criterion.
+CustomerOperation	A single update on a customer.
+CustomerSkAdNetworkConversionValueSchemaOperation	A single update operation for a CustomerSkAdNetworkConversionValueSchema.
+CustomerUserAccessInvitationOperation	A single operation (create or remove) on customer user access invitation.
+CustomerUserAccessOperation	A single operation (update, remove) on customer user access.
+CustomizerAttributeOperation	A single operation (create, remove) on a customizer attribute.
+CyoIncentives	An incentive offer in the Choose-Your-Own Incentive feature where a user can select from a set of incentives with different money amounts.
+DimensionOverlapResult	A list of audience attributes of a single dimension, including their overlap with a primary attribute, returned as part of a GenerateAudienceOverlapInsightsResponse .
+DismissRecommendationRequest	Request message for RecommendationService.DismissRecommendation .
+DismissRecommendationRequest.DismissRecommendationOperation	Operation to dismiss a single recommendation identified by resource_name.
+DismissRecommendationResponse	Response message for RecommendationService.DismissRecommendation .
+DismissRecommendationResponse.DismissRecommendationResult	The result of dismissing a recommendation.
+EffectiveFrequencyBreakdown	A breakdown of the number of unique people reached at a given effective frequency.
+EffectiveFrequencyLimit	Effective frequency limit.
+EnableOperation	A single enable operation of a campaign.
+EnablePMaxBrandGuidelinesRequest	Request to enable Brand Guidelines for a Performance Max campaign.
+EnablePMaxBrandGuidelinesResponse	Brand Guidelines campaign enablement response.
+EnablementResult	A single enablement result of a campaign.
+EndExperimentRequest	Request message for ExperimentService.EndExperiment .
+ExperimentArmOperation	A single operation on an experiment arm.
+ExperimentOperation	A single operation on an experiment.
+ExternalAttributionData	Contains additional information about externally attributed conversions.
+FetchIncentiveRequest	Request for getting the acquisition incentive for a user.
+FetchIncentiveRequest.IncentiveType	Types of incentives offered
+FetchIncentiveResponse	Response from getting the acquisition incentive for a user when they visit a specific marketing page.
+FinalUrlImageGenerationInput	Input for guiding image asset generation with a final url.
+Forecast	Forecasted traffic metrics for the planned products and targeting.
+ForecastAdGroup	An ad group that is part of a campaign to be forecasted.
+ForecastMetricOptions	Controls forecast metrics to return.
+FreeformImageGenerationInput	Input for guiding image asset generation with a freeform prompt.
+FrequencyCap	A rule specifying the maximum number of times an ad can be shown to a user over a particular time period.
+GclidDateTimePair	Uniquely identifies a conversion that was reported without an order ID specified.
+GenerateAdGroupThemesRequest	Request message for KeywordPlanIdeaService.GenerateAdGroupThemes .
+GenerateAdGroupThemesResponse	Response message for KeywordPlanIdeaService.GenerateAdGroupThemes .
+GenerateAudienceCompositionInsightsRequest	Request message for AudienceInsightsService.GenerateAudienceCompositionInsights .
+GenerateAudienceCompositionInsightsResponse	Response message for AudienceInsightsService.GenerateAudienceCompositionInsights .
+GenerateAudienceDefinitionRequest	Request message for AudienceInsightsService.GenerateAudienceDefinition .
+GenerateAudienceDefinitionResponse	Response message for AudienceInsightsService.GenerateAudienceDefinition .
+GenerateAudienceOverlapInsightsRequest	Request message for AudienceInsightsService.GenerateAudienceOverlapInsights .
+GenerateAudienceOverlapInsightsResponse	Response message for AudienceInsightsService.GenerateAudienceOverlapInsights .
+GenerateBenchmarksMetricsRequest	Request message for BenchmarksService.GenerateBenchmarksMetrics .
+GenerateBenchmarksMetricsResponse	Response message for BenchmarksService.GenerateBenchmarksMetrics .
+GenerateConversionRatesRequest	Request message for ReachPlanService.GenerateConversionRates .
+GenerateConversionRatesResponse	Response message for ReachPlanService.GenerateConversionRates , containing conversion rate suggestions for supported plannable products.
+GenerateCreatorInsightsRequest	Request message for ContentCreatorInsightsService.GenerateCreatorInsights .
+GenerateCreatorInsightsRequest.SearchAttributes	The audience attributes (such as Age, Gender, Affinity, and In-Market) and creator attributes (such as creator's content topics) used to search for top creators.
+GenerateCreatorInsightsRequest.SearchBrand	The brand used to search for top creators.
+GenerateCreatorInsightsRequest.YouTubeChannels	A collection of YouTube Channels.
+GenerateCreatorInsightsResponse	Response message for ContentCreatorInsightsService.GenerateCreatorInsights .
+GenerateImagesRequest	Request message for AssetGenerationService.GenerateImages
+GenerateImagesResponse	Response message for AssetGenerationService.GenerateImages
+GenerateInsightsFinderReportRequest	Request message for AudienceInsightsService.GenerateInsightsFinderReport .
+GenerateInsightsFinderReportResponse	The response message for AudienceInsightsService.GenerateInsightsFinderReport , containing the shareable URL for the report.
+GenerateKeywordForecastMetricsRequest	Request message for KeywordPlanIdeaService.GenerateKeywordForecastMetrics .
+GenerateKeywordForecastMetricsResponse	Response message for KeywordPlanIdeaService.GenerateKeywordForecastMetrics .
+GenerateKeywordHistoricalMetricsRequest	Request message for KeywordPlanIdeaService.GenerateKeywordHistoricalMetrics .
+GenerateKeywordHistoricalMetricsResponse	Response message for KeywordPlanIdeaService.GenerateKeywordHistoricalMetrics .
+GenerateKeywordHistoricalMetricsResult	The result of generating keyword historical metrics.
+GenerateKeywordIdeaResponse	Response message for KeywordPlanIdeaService.GenerateKeywordIdeas .
+GenerateKeywordIdeaResult	The result of generating keyword ideas.
+GenerateKeywordIdeasRequest	Request message for KeywordPlanIdeaService.GenerateKeywordIdeas .
+GenerateReachForecastRequest	Request message for ReachPlanService.GenerateReachForecast .
+GenerateReachForecastResponse	Response message containing the generated reach curve.
+GenerateRecommendationsRequest	Request message for RecommendationService.GenerateRecommendations .
+GenerateRecommendationsRequest.AdGroupInfo	Current AdGroup Information of the campaign.
+GenerateRecommendationsRequest.AssetGroupInfo	Current AssetGroup information of the campaign.
+GenerateRecommendationsRequest.BiddingInfo	Current bidding information of the campaign. Provides a wrapper for bidding-related signals that inform recommendations.
+GenerateRecommendationsRequest.BudgetInfo	Current budget information of the campaign.
+GenerateRecommendationsRequest.SeedInfo	A keyword seed and a specific url to generate keywords from.
+GenerateRecommendationsRequest.TargetImpressionShareInfo	Current Target Impression Share information of the campaign.
+GenerateRecommendationsResponse	Response message for RecommendationService.GenerateRecommendations .
+GenerateShareablePreviewsRequest	Request message for ShareablePreviewService.GenerateShareablePreviews .
+GenerateShareablePreviewsResponse	Response message for ShareablePreviewService.GenerateShareablePreviews .
+GenerateSuggestedTargetingInsightsRequest	Request message for AudienceInsightsService.GenerateSuggestedTargetingInsights .
+GenerateSuggestedTargetingInsightsResponse	Response message for AudienceInsightsService.GenerateSuggestedTargetingInsights .
+GenerateTargetingSuggestionMetricsRequest	Request message for AudienceInsightsService.GenerateTargetingSuggestionMetrics .
+GenerateTargetingSuggestionMetricsResponse	Response message for AudienceInsightsService.GenerateTargetingSuggestionMetrics .
+GenerateTextRequest	Request message for AssetGenerationService.GenerateText
+GenerateTextResponse	Response message for AssetGenerationService.GenerateText
+GenerateTrendingInsightsRequest	Request message for ContentCreatorInsightsService.GenerateTrendingInsights .
+GenerateTrendingInsightsResponse	Response message for ContentCreatorInsightsService.GenerateTrendingInsights .
+GeneratedImage	Generated image data and metadata.
+GeneratedText	Data and metadata about a piece of generated text.
+GeoTargetConstantSuggestion	A geo target constant suggestion.
+GetGoogleAdsFieldRequest	Request message for GoogleAdsFieldService.GetGoogleAdsField .
+GetIdentityVerificationRequest	Request message for GetIdentityVerification .
+GetIdentityVerificationResponse	Response message for GetIdentityVerification .
+GetSmartCampaignStatusRequest	Request message for SmartCampaignSettingService.GetSmartCampaignStatus .
+GetSmartCampaignStatusResponse	Response message for SmartCampaignSettingService.GetSmartCampaignStatus .
+GoalOperation	A single mutate operation on the goal.
+GoogleAdsRow	A returned row from the query.
+GraduateExperimentRequest	Request message for ExperimentService.GraduateExperiment .
+HotelAssetSuggestion	Message containing the asset suggestions for a hotel.
+HotelImageAsset	A single image asset suggestion for a hotel.
+HotelTextAsset	A single text asset suggestion for a hotel.
+IdentityVerification	An identity verification for a customer.
+IdentityVerificationProgress	Information regarding the verification progress for a verification program type.
+IdentityVerificationRequirement	Information regarding the verification requirement for a verification program type.
+Incentive	An incentive that a user can claim for their account.
+Incentive.Requirement	Requirement for an incentive.
+Incentive.Requirement.Spend	Spend requirements for an incentive.
+IncentiveOffer	An acquisition incentive offer for a user. An offer means how the user is treated. An offer can have no incentive or multiple incentives.
+IncentiveOffer.OfferType	Types of acquisition incentive offers.
+IndustryVerticalInfo	The information associated with an Industry Vertical.
+InsightsAudience	A set of users, defined by various characteristics, for which insights can be requested in AudienceInsightsService.
+InsightsAudienceAttributeGroup	A list of AudienceInsightsAttributes.
+InsightsAudienceDefinition	A structured definition of the audience of interest for which insights are being requested in AudienceInsightsService.
+InsightsAudienceDescription	A text description of the audience of interest for which insights are being requested in AudienceInsightsService.
+KeywordAndUrlSeed	Keyword And Url Seed
+KeywordForecastMetrics	The forecast metrics for the planless keyword campaign.
+KeywordPlanAdGroupKeywordOperation	A single operation (create, update, remove) on a Keyword Plan ad group keyword.
+KeywordPlanAdGroupOperation	A single operation (create, update, remove) on a Keyword Plan ad group.
+KeywordPlanCampaignKeywordOperation	A single operation (create, update, remove) on a Keyword Plan campaign keyword.
+KeywordPlanCampaignOperation	A single operation (create, update, remove) on a Keyword Plan campaign.
+KeywordPlanOperation	A single operation (create, update, remove) on a keyword plan.
+KeywordSeed	Keyword Seed
+LabelOperation	A single operation (create, remove, update) on a label.
+LanguageDistribution	Languages that pertain to a YouTube channel based on the channel content. Only languages above a certain proportion threshold are included.
+ListAccessibleCustomersRequest	Request message for CustomerService.ListAccessibleCustomers .
+ListAccessibleCustomersResponse	Response message for CustomerService.ListAccessibleCustomers .
+ListAudienceInsightsAttributesRequest	Request message for AudienceInsightsService.ListAudienceInsightsAttributes .
+ListAudienceInsightsAttributesResponse	Response message for AudienceInsightsService.ListAudienceInsightsAttributes .
+ListBatchJobResultsRequest	Request message for BatchJobService.ListBatchJobResults .
+ListBatchJobResultsResponse	Response message for BatchJobService.ListBatchJobResults .
+ListBenchmarksAvailableDatesRequest	Request message for BenchmarksService.ListBenchmarksAvailableDates .
+ListBenchmarksAvailableDatesResponse	Response message for BenchmarksService.ListBenchmarksAvailableDates .
+ListBenchmarksLocationsRequest	Request message for BenchmarksService.ListBenchmarksLocations .
+ListBenchmarksLocationsResponse	Response message for BenchmarksService.ListBenchmarksLocations .
+ListBenchmarksProductsRequest	Request message for BenchmarksService.ListBenchmarksProducts .
+ListBenchmarksProductsResponse	Response message for BenchmarksService.ListBenchmarksProducts .
+ListBenchmarksSourcesRequest	Request message for BenchmarksService.ListBenchmarksSources .
+ListBenchmarksSourcesResponse	Response message for BenchmarksService.ListBenchmarksSources .
+ListCampaignDraftAsyncErrorsRequest	Request message for CampaignDraftService.ListCampaignDraftAsyncErrors .
+ListCampaignDraftAsyncErrorsResponse	Response message for CampaignDraftService.ListCampaignDraftAsyncErrors .
+ListExperimentAsyncErrorsRequest	Request message for ExperimentService.ListExperimentAsyncErrors .
+ListExperimentAsyncErrorsResponse	Response message for ExperimentService.ListExperimentAsyncErrors .
+ListInsightsEligibleDatesRequest	Request message for AudienceInsightsService.ListInsightsEligibleDates .
+ListInsightsEligibleDatesResponse	Response message for AudienceInsightsService.ListInsightsEligibleDates .
+ListInvoicesRequest	Request message for fetching the invoices of a given billing setup that were issued during a given month.
+ListInvoicesResponse	Response message for InvoiceService.ListInvoices .
+ListPaymentsAccountsRequest	Request message for fetching all accessible payments accounts.
+ListPaymentsAccountsResponse	Response message for PaymentsAccountService.ListPaymentsAccounts .
+ListPlannableLocationsRequest	Request message for ReachPlanService.ListPlannableLocations .
+ListPlannableLocationsResponse	The list of plannable locations.
+ListPlannableProductsRequest	Request to list available products in a given location.
+ListPlannableProductsResponse	A response with all available products.
+ListPlannableUserInterestsRequest	Request message for ReachPlanService.ListPlannableUserInterests .
+ListPlannableUserInterestsResponse	Response message for ReachPlanService.ListPlannableUserInterests .
+ListPlannableUserListsRequest	Request message for ReachPlanService.ListPlannableUserLists that lists the available user lists for a customer.
+ListPlannableUserListsResponse	A response with all available user lists with their plannable status.
+ManualCpcBiddingStrategy	Manual CPC Bidding Strategy.
+MaximizeClicksBiddingStrategy	Maximize Clicks Bidding Strategy.
+MaximizeConversionsBiddingStrategy	Maximize Conversions Bidding Strategy.
+MetricAttributes	Indicates the attributes of metrics.
+MetricAttributes.Attribute	The attribute of the metric in key value pair format.
+Metrics	All metrics returned against a criteria.
+MoveManagerLinkRequest	Request message for CustomerManagerLinkService.MoveManagerLink .
+MoveManagerLinkResponse	Response message for a CustomerManagerLink moveManagerLink.
+MutateAccountBudgetProposalRequest	Request message for AccountBudgetProposalService.MutateAccountBudgetProposal .
+MutateAccountBudgetProposalResponse	Response message for account-level budget mutate operations.
+MutateAccountBudgetProposalResult	The result for the account budget proposal mutate.
+MutateAccountLinkRequest	Request message for AccountLinkService.MutateAccountLink .
+MutateAccountLinkResponse	Response message for account link mutate.
+MutateAccountLinkResult	The result for the account link mutate.
+MutateAdGroupAdLabelResult	The result for an ad group ad label mutate.
+MutateAdGroupAdLabelsRequest	Request message for AdGroupAdLabelService.MutateAdGroupAdLabels .
+MutateAdGroupAdLabelsResponse	Response message for an ad group ad labels mutate.
+MutateAdGroupAdResult	The result for the ad mutate.
+MutateAdGroupAdsRequest	Request message for AdGroupAdService.MutateAdGroupAds .
+MutateAdGroupAdsResponse	Response message for an ad group ad mutate.
+MutateAdGroupAssetResult	The result for the ad group asset mutate.
+MutateAdGroupAssetSetResult	The result for the ad group asset set mutate.
+MutateAdGroupAssetSetsRequest	Request message for AdGroupAssetSetService.MutateAdGroupAssetSets .
+MutateAdGroupAssetSetsResponse	Response message for an ad group asset set mutate.
+MutateAdGroupAssetsRequest	Request message for AdGroupAssetService.MutateAdGroupAssets .
+MutateAdGroupAssetsResponse	Response message for an ad group asset mutate.
+MutateAdGroupBidModifierResult	The result for the criterion mutate.
+MutateAdGroupBidModifiersRequest	Request message for AdGroupBidModifierService.MutateAdGroupBidModifiers .
+MutateAdGroupBidModifiersResponse	Response message for ad group bid modifiers mutate.
+MutateAdGroupCriteriaRequest	Request message for AdGroupCriterionService.MutateAdGroupCriteria .
+MutateAdGroupCriteriaResponse	Response message for an ad group criterion mutate.
+MutateAdGroupCriterionCustomizerResult	The result for the ad group criterion customizer mutate.
+MutateAdGroupCriterionCustomizersRequest	Request message for AdGroupCriterionCustomizerService.MutateAdGroupCriterionCustomizers .
+MutateAdGroupCriterionCustomizersResponse	Response message for an ad group criterion customizer mutate.
+MutateAdGroupCriterionLabelResult	The result for an ad group criterion label mutate.
+MutateAdGroupCriterionLabelsRequest	Request message for AdGroupCriterionLabelService.MutateAdGroupCriterionLabels .
+MutateAdGroupCriterionLabelsResponse	Response message for an ad group criterion labels mutate.
+MutateAdGroupCriterionResult	The result for the criterion mutate.
+MutateAdGroupCustomizerResult	The result for the ad group customizer mutate.
+MutateAdGroupCustomizersRequest	Request message for AdGroupCustomizerService.MutateAdGroupCustomizers .
+MutateAdGroupCustomizersResponse	Response message for an ad group customizer mutate.
+MutateAdGroupLabelResult	The result for an ad group label mutate.
+MutateAdGroupLabelsRequest	Request message for AdGroupLabelService.MutateAdGroupLabels .
+MutateAdGroupLabelsResponse	Response message for an ad group labels mutate.
+MutateAdGroupResult	The result for the ad group mutate.
+MutateAdGroupsRequest	Request message for AdGroupService.MutateAdGroups .
+MutateAdGroupsResponse	Response message for an ad group mutate.
+MutateAdParameterResult	The result for the ad parameter mutate.
+MutateAdParametersRequest	Request message for AdParameterService.MutateAdParameters
+MutateAdParametersResponse	Response message for an ad parameter mutate.
+MutateAdResult	The result for the ad mutate.
+MutateAdsRequest	Request message for AdService.MutateAds .
+MutateAdsResponse	Response message for an ad mutate.
+MutateAssetGroupAssetResult	The result for the asset group asset mutate.
+MutateAssetGroupAssetsRequest	Request message for AssetGroupAssetService.MutateAssetGroupAssets .
+MutateAssetGroupAssetsResponse	Response message for an asset group asset mutate.
+MutateAssetGroupListingGroupFilterResult	The result for the asset group listing group filter mutate.
+MutateAssetGroupListingGroupFiltersRequest	Request message for AssetGroupListingGroupFilterService.MutateAssetGroupListingGroupFilters . partial_failure is not supported because the tree needs to be validated together.
+MutateAssetGroupListingGroupFiltersResponse	Response message for an asset group listing group filter mutate.
+MutateAssetGroupResult	The result for the asset group mutate.
+MutateAssetGroupSignalResult	The result for the asset group signal mutate.
+MutateAssetGroupSignalsRequest	Request message for AssetGroupSignalService.MutateAssetGroupSignals .
+MutateAssetGroupSignalsResponse	Response message for an asset group signal mutate.
+MutateAssetGroupsRequest	Request message for AssetGroupService.MutateAssetGroups .
+MutateAssetGroupsResponse	Response message for an asset group mutate.
+MutateAssetResult	The result for the asset mutate.
+MutateAssetSetAssetResult	The result for the asset set asset mutate.
+MutateAssetSetAssetsRequest	Request message for AssetSetAssetService.MutateAssetSetAssets .
+MutateAssetSetAssetsResponse	Response message for an asset set asset mutate.
+MutateAssetSetResult	The result for the asset set mutate.
+MutateAssetSetsRequest	Request message for AssetSetService.MutateAssetSets .
+MutateAssetSetsResponse	Response message for an asset set mutate.
+MutateAssetsRequest	Request message for AssetService.MutateAssets
+MutateAssetsResponse	Response message for an asset mutate.
+MutateAudienceResult	The result for the audience mutate.
+MutateAudiencesRequest	Request message for AudienceService.MutateAudiences .
+MutateAudiencesResponse	Response message for an audience mutate.
+MutateBatchJobRequest	Request message for BatchJobService.MutateBatchJob .
+MutateBatchJobResponse	Response message for BatchJobService.MutateBatchJob .
+MutateBatchJobResult	The result for the batch job mutate.
+MutateBiddingDataExclusionsRequest	Request message for BiddingDataExclusionService.MutateBiddingDataExclusions .
+MutateBiddingDataExclusionsResponse	Response message for data exclusions mutate.
+MutateBiddingDataExclusionsResult	The result for the data exclusion mutate.
+MutateBiddingSeasonalityAdjustmentsRequest	Request message for BiddingSeasonalityAdjustmentService.MutateBiddingSeasonalityAdjustments .
+MutateBiddingSeasonalityAdjustmentsResponse	Response message for seasonality adjustments mutate.
+MutateBiddingSeasonalityAdjustmentsResult	The result for the seasonality adjustment mutate.
+MutateBiddingStrategiesRequest	Request message for BiddingStrategyService.MutateBiddingStrategies .
+MutateBiddingStrategiesResponse	Response message for bidding strategy mutate.
+MutateBiddingStrategyResult	The result for the bidding strategy mutate.
+MutateBillingSetupRequest	Request message for billing setup mutate operations.
+MutateBillingSetupResponse	Response message for a billing setup operation.
+MutateBillingSetupResult	Result for a single billing setup mutate.
+MutateCampaignAssetResult	The result for the campaign asset mutate.
+MutateCampaignAssetSetResult	The result for the campaign asset set mutate.
+MutateCampaignAssetSetsRequest	Request message for CampaignAssetSetService.MutateCampaignAssetSets .
+MutateCampaignAssetSetsResponse	Response message for a campaign asset set mutate.
+MutateCampaignAssetsRequest	Request message for CampaignAssetService.MutateCampaignAssets .
+MutateCampaignAssetsResponse	Response message for a campaign asset mutate.
+MutateCampaignBidModifierResult	The result for the criterion mutate.
+MutateCampaignBidModifiersRequest	Request message for CampaignBidModifierService.MutateCampaignBidModifiers .
+MutateCampaignBidModifiersResponse	Response message for campaign bid modifiers mutate.
+MutateCampaignBudgetResult	The result for the campaign budget mutate.
+MutateCampaignBudgetsRequest	Request message for CampaignBudgetService.MutateCampaignBudgets .
+MutateCampaignBudgetsResponse	Response message for campaign budget mutate.
+MutateCampaignConversionGoalResult	The result for the campaign conversion goal mutate.
+MutateCampaignConversionGoalsRequest	Request message for CampaignConversionGoalService.MutateCampaignConversionGoals .
+MutateCampaignConversionGoalsResponse	Response message for a campaign conversion goal mutate.
+MutateCampaignCriteriaRequest	Request message for CampaignCriterionService.MutateCampaignCriteria .
+MutateCampaignCriteriaResponse	Response message for campaign criterion mutate.
+MutateCampaignCriterionResult	The result for the criterion mutate.
+MutateCampaignCustomizerResult	The result for the campaign customizer mutate.
+MutateCampaignCustomizersRequest	Request message for CampaignCustomizerService.MutateCampaignCustomizers .
+MutateCampaignCustomizersResponse	Response message for a campaign customizer mutate.
+MutateCampaignDraftResult	The result for the campaign draft mutate.
+MutateCampaignDraftsRequest	Request message for CampaignDraftService.MutateCampaignDrafts .
+MutateCampaignDraftsResponse	Response message for campaign draft mutate.
+MutateCampaignGoalConfigResult	The result for the campaign goal config mutate.
+MutateCampaignGoalConfigsRequest	Request message for CampaignGoalConfigService.MutateCampaignGoalConfigs .
+MutateCampaignGoalConfigsResponse	Response message for a campaign goal config mutate.
+MutateCampaignGroupResult	The result for the campaign group mutate.
+MutateCampaignGroupsRequest	Request message for CampaignGroupService.MutateCampaignGroups .
+MutateCampaignGroupsResponse	Response message for campaign group mutate.
+MutateCampaignLabelResult	The result for a campaign label mutate.
+MutateCampaignLabelsRequest	Request message for CampaignLabelService.MutateCampaignLabels .
+MutateCampaignLabelsResponse	Response message for a campaign labels mutate.
+MutateCampaignResult	The result for the campaign mutate.
+MutateCampaignSharedSetResult	The result for the campaign shared set mutate.
+MutateCampaignSharedSetsRequest	Request message for CampaignSharedSetService.MutateCampaignSharedSets .
+MutateCampaignSharedSetsResponse	Response message for a campaign shared set mutate.
+MutateCampaignsRequest	Request message for CampaignService.MutateCampaigns .
+MutateCampaignsResponse	Response message for campaign mutate.
+MutateConversionActionResult	The result for the conversion action mutate.
+MutateConversionActionsRequest	Request message for ConversionActionService.MutateConversionActions .
+MutateConversionActionsResponse	Response message for ConversionActionService.MutateConversionActions .
+MutateConversionCustomVariableResult	The result for the conversion custom variable mutate.
+MutateConversionCustomVariablesRequest	Request message for ConversionCustomVariableService.MutateConversionCustomVariables .
+MutateConversionCustomVariablesResponse	Response message for ConversionCustomVariableService.MutateConversionCustomVariables .
+MutateConversionGoalCampaignConfigResult	The result for the conversion goal campaign config mutate.
+MutateConversionGoalCampaignConfigsRequest	Request message for ConversionGoalCampaignConfigService.MutateConversionGoalCampaignConfigs .
+MutateConversionGoalCampaignConfigsResponse	Response message for a conversion goal campaign config mutate.
+MutateConversionValueRuleResult	The result for the conversion value rule mutate.
+MutateConversionValueRuleSetResult	The result for the conversion value rule set mutate.
+MutateConversionValueRuleSetsRequest	Request message for ConversionValueRuleSetService.MutateConversionValueRuleSets .
+MutateConversionValueRuleSetsResponse	Response message for ConversionValueRuleSetService.MutateConversionValueRuleSets .
+MutateConversionValueRulesRequest	Request message for ConversionValueRuleService.MutateConversionValueRules .
+MutateConversionValueRulesResponse	Response message for ConversionValueRuleService.MutateConversionValueRules .
+MutateCustomAudienceResult	The result for the custom audience mutate.
+MutateCustomAudiencesRequest	Request message for CustomAudienceService.MutateCustomAudiences .
+MutateCustomAudiencesResponse	Response message for custom audience mutate.
+MutateCustomConversionGoalResult	The result for the custom conversion goal mutate.
+MutateCustomConversionGoalsRequest	Request message for CustomConversionGoalService.MutateCustomConversionGoals .
+MutateCustomConversionGoalsResponse	Response message for a custom conversion goal mutate.
+MutateCustomInterestResult	The result for the custom interest mutate.
+MutateCustomInterestsRequest	Request message for CustomInterestService.MutateCustomInterests .
+MutateCustomInterestsResponse	Response message for custom interest mutate.
+MutateCustomerAssetResult	The result for the customer asset mutate.
+MutateCustomerAssetSetResult	The result for the customer asset set mutate.
+MutateCustomerAssetSetsRequest	Request message for CustomerAssetSetService.MutateCustomerAssetSets .
+MutateCustomerAssetSetsResponse	Response message for a customer asset set mutate.
+MutateCustomerAssetsRequest	Request message for CustomerAssetService.MutateCustomerAssets .
+MutateCustomerAssetsResponse	Response message for a customer asset mutate.
+MutateCustomerClientLinkRequest	Request message for CustomerClientLinkService.MutateCustomerClientLink .
+MutateCustomerClientLinkResponse	Response message for a CustomerClientLink mutate.
+MutateCustomerClientLinkResult	The result for a single customer client link mutate.
+MutateCustomerConversionGoalResult	The result for the customer conversion goal mutate.
+MutateCustomerConversionGoalsRequest	Request message for CustomerConversionGoalService.MutateCustomerConversionGoals .
+MutateCustomerConversionGoalsResponse	Response message for a customer conversion goal mutate.
+MutateCustomerCustomizerResult	The result for the customizer attribute mutate.
+MutateCustomerCustomizersRequest	Request message for CustomerCustomizerService.MutateCustomerCustomizers .
+MutateCustomerCustomizersResponse	Response message for a customizer attribute mutate.
+MutateCustomerLabelResult	The result for a customer label mutate.
+MutateCustomerLabelsRequest	Request message for CustomerLabelService.MutateCustomerLabels .
+MutateCustomerLabelsResponse	Response message for a customer labels mutate.
+MutateCustomerManagerLinkRequest	Request message for CustomerManagerLinkService.MutateCustomerManagerLink .
+MutateCustomerManagerLinkResponse	Response message for a CustomerManagerLink mutate.
+MutateCustomerManagerLinkResult	The result for the customer manager link mutate.
+MutateCustomerNegativeCriteriaRequest	Request message for CustomerNegativeCriterionService.MutateCustomerNegativeCriteria .
+MutateCustomerNegativeCriteriaResponse	Response message for customer negative criterion mutate.
+MutateCustomerNegativeCriteriaResult	The result for the criterion mutate.
+MutateCustomerRequest	Request message for CustomerService.MutateCustomer .
+MutateCustomerResponse	Response message for customer mutate.
+MutateCustomerResult	The result for the customer mutate.
+MutateCustomerSkAdNetworkConversionValueSchemaRequest	Request message for CustomerSkAdNetworkConversionValueSchemaService.MutateCustomerSkAdNetworkConversionValueSchema .
+MutateCustomerSkAdNetworkConversionValueSchemaResponse	Response message for MutateCustomerSkAdNetworkConversionValueSchema.
+MutateCustomerSkAdNetworkConversionValueSchemaResult	The result for the CustomerSkAdNetworkConversionValueSchema mutate.
+MutateCustomerUserAccessInvitationRequest	Request message for CustomerUserAccessInvitationService.MutateCustomerUserAccessInvitation
+MutateCustomerUserAccessInvitationResponse	Response message for access invitation mutate.
+MutateCustomerUserAccessInvitationResult	The result for the access invitation mutate.
+MutateCustomerUserAccessRequest	Mutate Request for CustomerUserAccessService.MutateCustomerUserAccess .
+MutateCustomerUserAccessResponse	Response message for customer user access mutate.
+MutateCustomerUserAccessResult	The result for the customer user access mutate.
+MutateCustomizerAttributeResult	The result for the customizer attribute mutate.
+MutateCustomizerAttributesRequest	Request message for CustomizerAttributeService.MutateCustomizerAttributes .
+MutateCustomizerAttributesResponse	Response message for a customizer attribute mutate.
+MutateExperimentArmResult	The result for the experiment arm mutate.
+MutateExperimentArmsRequest	Request message for ExperimentArmService.MutateExperimentArms .
+MutateExperimentArmsResponse	Response message for experiment arm mutate.
+MutateExperimentResult	The result for the campaign experiment mutate.
+MutateExperimentsRequest	Request message for ExperimentService.MutateExperiments .
+MutateExperimentsResponse	Response message for experiment mutate.
+MutateGoalResult	The result for the goal mutate.
+MutateGoalsRequest	Request message for GoalService.MutateGoals .
+MutateGoalsResponse	Response message for a goal mutate.
+MutateGoogleAdsRequest	Request message for GoogleAdsService.Mutate .
+MutateGoogleAdsResponse	Response message for GoogleAdsService.Mutate .
+MutateKeywordPlanAdGroupKeywordResult	The result for the Keyword Plan ad group keyword mutate.
+MutateKeywordPlanAdGroupKeywordsRequest	Request message for KeywordPlanAdGroupKeywordService.MutateKeywordPlanAdGroupKeywords .
+MutateKeywordPlanAdGroupKeywordsResponse	Response message for a Keyword Plan ad group keyword mutate.
+MutateKeywordPlanAdGroupResult	The result for the Keyword Plan ad group mutate.
+MutateKeywordPlanAdGroupsRequest	Request message for KeywordPlanAdGroupService.MutateKeywordPlanAdGroups .
+MutateKeywordPlanAdGroupsResponse	Response message for a Keyword Plan ad group mutate.
+MutateKeywordPlanCampaignKeywordResult	The result for the Keyword Plan campaign keyword mutate.
+MutateKeywordPlanCampaignKeywordsRequest	Request message for KeywordPlanCampaignKeywordService.MutateKeywordPlanCampaignKeywords .
+MutateKeywordPlanCampaignKeywordsResponse	Response message for a Keyword Plan campaign keyword mutate.
+MutateKeywordPlanCampaignResult	The result for the Keyword Plan campaign mutate.
+MutateKeywordPlanCampaignsRequest	Request message for KeywordPlanCampaignService.MutateKeywordPlanCampaigns .
+MutateKeywordPlanCampaignsResponse	Response message for a Keyword Plan campaign mutate.
+MutateKeywordPlansRequest	Request message for KeywordPlanService.MutateKeywordPlans .
+MutateKeywordPlansResponse	Response message for a keyword plan mutate.
+MutateKeywordPlansResult	The result for the keyword plan mutate.
+MutateLabelResult	The result for a label mutate.
+MutateLabelsRequest	Request message for LabelService.MutateLabels .
+MutateLabelsResponse	Response message for a labels mutate.
+MutateOperation	A single operation (create, update, remove) on a resource.
+MutateOperationResponse	Response message for the resource mutate.
+MutateRecommendationSubscriptionRequest	Request message for RecommendationSubscriptionService.MutateRecommendationSubscription
+MutateRecommendationSubscriptionResponse	Response message for RecommendationSubscriptionService.MutateRecommendationSubscription
+MutateRecommendationSubscriptionResult	Result message for RecommendationSubscriptionService.MutateRecommendationSubscription
+MutateRemarketingActionResult	The result for the remarketing action mutate.
+MutateRemarketingActionsRequest	Request message for RemarketingActionService.MutateRemarketingActions .
+MutateRemarketingActionsResponse	Response message for remarketing action mutate.
+MutateSharedCriteriaRequest	Request message for SharedCriterionService.MutateSharedCriteria .
+MutateSharedCriteriaResponse	Response message for a shared criterion mutate.
+MutateSharedCriterionResult	The result for the shared criterion mutate.
+MutateSharedSetResult	The result for the shared set mutate.
+MutateSharedSetsRequest	Request message for SharedSetService.MutateSharedSets .
+MutateSharedSetsResponse	Response message for a shared set mutate.
+MutateSmartCampaignSettingResult	The result for the Smart campaign setting mutate.
+MutateSmartCampaignSettingsRequest	Request message for SmartCampaignSettingService.MutateSmartCampaignSettings .
+MutateSmartCampaignSettingsResponse	Response message for campaign mutate.
+MutateUserListCustomerTypeResult	The result for the user list customer type mutate.
+MutateUserListCustomerTypesRequest	Request message for UserListCustomerTypeService.MutateUserListCustomerTypes .
+MutateUserListCustomerTypesResponse	Response message for a user list customer type mutate.
+MutateUserListResult	The result for the user list mutate.
+MutateUserListsRequest	Request message for UserListService.MutateUserLists .
+MutateUserListsResponse	Response message for user list mutate.
+OfflineUserDataJobOperation	Operation to be made for the AddOfflineUserDataJobOperationsRequest.
+OnTargetAudienceMetrics	Audience metrics for the planned products. These metrics consider the following targeting dimensions: Location PlannableAgeRange Gender AudienceTargeting (only for youtube_audience_size)
+PlannableLocation	A plannable location: country, metro region, province, etc.
+PlannableTargeting	The targeting for which traffic metrics will be reported.
+PlannableUserInterest	A plannable user interest that can be targeted in a reach forecast using ReachPlanService.GenerateReachForecast .
+PlannableUserList	A plannable user list.
+PlannableUserListMetadata	The metadata associated with a plannable user list.
+PlannedProduct	A product being planned for reach.
+PlannedProductForecast	Forecasted traffic metrics for a planned product.
+PlannedProductReachForecast	The forecasted allocation and traffic metrics for a specific product at a point on the reach curve.
+ProductFilter	The type and list of products to aggregate benchmarks metrics over.
+ProductFilter.MarketingObjectiveList	The list of marketing objectives to generate benchmarks metrics for.
+ProductFilter.ProductList	The list of products to generate benchmarks metrics for.
+ProductMetadata	The metadata associated with an available plannable product.
+ProductRecontextGenerationImageInput	Input for generating new images by recontextualizing existing product images.
+PromoteCampaignDraftRequest	Request message for CampaignDraftService.PromoteCampaignDraft .
+PromoteExperimentMetadata	The metadata of the promoted experiment.
+PromoteExperimentRequest	Request message for ExperimentService.PromoteExperiment .
+ProvideLeadFeedbackRequest	Request message for LocalServicesLeadService.ProvideLeadFeedback .
+ProvideLeadFeedbackResponse	Response message for LocalServicesLeadService.ProvideLeadFeedback .
+RateMetrics	Average rate metrics. Metrics that represent monetary values are returned in USD by default, if unspecified in the request.
+ReachCurve	The reach curve for the planned products.
+ReachForecast	A point on reach curve.
+RecommendationSubscriptionOperation	A single operation (create, update) on a recommendation subscription. RecommendationSubscriptionService.MutateRecommendationSubscription
+RegenerateShareableLinkIdRequest	Request message for ThirdPartyAppAnalyticsLinkService.RegenerateShareableLinkId .
+RegenerateShareableLinkIdResponse	Response message for ThirdPartyAppAnalyticsLinkService.RegenerateShareableLinkId .
+RemarketingActionOperation	A single operation (create, update) on a remarketing action.
+RemoveAutomaticallyCreatedAssetsRequest	Request message for AdGroupAdService.RemoveAutomaticallyCreatedAssets .
+RemoveCampaignAutomaticallyCreatedAssetOperation	A single operation to remove an automatically created asset from a campaign.
+RemoveCampaignAutomaticallyCreatedAssetRequest	Request message for AutomaticallyCreatedAssetRemovalService.RemoveCampaignAutomaticallyCreatedAsset .
+RemoveCampaignAutomaticallyCreatedAssetResponse	Response message for AutomaticallyCreatedAssetRemovalService.RemoveCampaignAutomaticallyCreatedAsset .
+RemoveDataLinkRequest	Request message for DataLinkService.RemoveDataLink .
+RemoveDataLinkResponse	Response message for DataLinkService.RemoveDataLink .
+RemoveProductLinkInvitationRequest	Request message for ProductLinkInvitationService.RemoveProductLinkInvitation .
+RemoveProductLinkInvitationResponse	Response message for product link invitation removeal.
+RemoveProductLinkRequest	Request message for ProductLinkService.RemoveProductLink .
+RemoveProductLinkResponse	Response message for product link removal.
+RestatementValue	Contains information needed to restate a conversion's value.
+RunBatchJobRequest	Request message for BatchJobService.RunBatchJob .
+RunOfflineUserDataJobRequest	Request message for OfflineUserDataJobService.RunOfflineUserDataJob .
+ScheduleExperimentMetadata	The metadata of the scheduled experiment.
+ScheduleExperimentRequest	Request message for ExperimentService.ScheduleExperiment .
+SearchAudience	A collection of audience attributes that describe an audience of viewers. This is used to search for topics trending for the defined audience.
+SearchGoogleAdsFieldsRequest	Request message for GoogleAdsFieldService.SearchGoogleAdsFields .
+SearchGoogleAdsFieldsResponse	Response message for GoogleAdsFieldService.SearchGoogleAdsFields .
+SearchGoogleAdsRequest	Request message for GoogleAdsService.Search .
+SearchGoogleAdsResponse	Response message for GoogleAdsService.Search .
+SearchGoogleAdsStreamRequest	Request message for GoogleAdsService.SearchStream .
+SearchGoogleAdsStreamResponse	Response message for GoogleAdsService.SearchStream .
+SearchSettings	Indicates search settings in request parameter.
+SearchTopics	A collection of content topics to return trend information for.
+SessionAttributeKeyValuePair	Contains one session attribute of the conversion.
+SessionAttributesKeyValuePairs	Contains session attributes of the conversion, represented as key-value pairs.
+ShareablePreview	A shareable preview with its identifier.
+ShareablePreviewOrError	Result of the generate shareable preview.
+ShareablePreviewResult	Message to hold a shareable preview result.
+SharedCriterionOperation	A single operation (create, remove) on an shared criterion.
+SharedSetOperation	A single operation (create, update, remove) on an shared set.
+SiteSeed	Site Seed
+SmartCampaignEligibleDetails	Details related to Smart campaigns that are eligible to serve.
+SmartCampaignEndedDetails	Details related to Smart campaigns that have ended.
+SmartCampaignNotEligibleDetails	Details related to Smart campaigns that are not eligible to serve.
+SmartCampaignPausedDetails	Details related to paused Smart campaigns.
+SmartCampaignRemovedDetails	Details related to removed Smart campaigns.
+SmartCampaignSettingOperation	A single operation to update Smart campaign settings for a campaign.
+SmartCampaignSuggestionInfo	Information needed to get suggestion for Smart Campaign. More information provided will help the system to derive better suggestions.
+SmartCampaignSuggestionInfo.BusinessContext	A context that describes a business.
+SmartCampaignSuggestionInfo.LocationList	A list of locations.
+SourceImage	A source image to be used in the generation process.
+StartIdentityVerificationRequest	Request message for StartIdentityVerification .
+SuggestBrandsRequest	Request message for BrandSuggestionService.SuggestBrands .
+SuggestBrandsResponse	Response message for BrandSuggestionService.SuggestBrands .
+SuggestGeoTargetConstantsRequest	Request message for GeoTargetConstantService.SuggestGeoTargetConstants .
+SuggestGeoTargetConstantsRequest.GeoTargets	A list of geo target constant resource names.
+SuggestGeoTargetConstantsRequest.LocationNames	A list of location names.
+SuggestGeoTargetConstantsResponse	Response message for GeoTargetConstantService.SuggestGeoTargetConstants .
+SuggestKeywordThemeConstantsRequest	Request message for KeywordThemeConstantService.SuggestKeywordThemeConstants .
+SuggestKeywordThemeConstantsResponse	Response message for KeywordThemeConstantService.SuggestKeywordThemeConstants .
+SuggestKeywordThemesRequest	Request message for SmartCampaignSuggestService.SuggestKeywordThemes .
+SuggestKeywordThemesResponse	Response message for SmartCampaignSuggestService.SuggestKeywordThemes .
+SuggestKeywordThemesResponse.KeywordTheme	A Smart campaign keyword theme suggestion.
+SuggestSmartCampaignAdRequest	Request message for SmartCampaignSuggestService.SuggestSmartCampaignAd .
+SuggestSmartCampaignAdResponse	Response message for SmartCampaignSuggestService.SuggestSmartCampaignAd .
+SuggestSmartCampaignBudgetOptionsRequest	Request message for SmartCampaignSuggestService.SuggestSmartCampaignBudgetOptions .
+SuggestSmartCampaignBudgetOptionsResponse	Response message for SmartCampaignSuggestService.SuggestSmartCampaignBudgetOptions . Depending on whether the system could suggest the options, either all of the options or none of them might be returned.
+SuggestSmartCampaignBudgetOptionsResponse.BudgetOption	Smart Campaign budget option.
+SuggestSmartCampaignBudgetOptionsResponse.Metrics	Performance metrics for a given budget option.
+SuggestTravelAssetsRequest	Request message for TravelAssetSuggestionService.SuggestTravelAssets .
+SuggestTravelAssetsResponse	Response message for TravelAssetSuggestionService.SuggestTravelAssets .
+SurfaceTargeting	Container for surfaces for a product. Surfaces refer to the available types of ad inventories such as In-Feed, In-Stream, and Shorts.
+SurfaceTargetingCombinations	The surface targeting combinations available for an ad product.
+SurveyDissatisfied	Details about various factors for not being satisfied with the lead.
+SurveySatisfied	Details about various factors for being satisfied with the lead.
+TargetFrequencySettings	Target Frequency settings for a supported product.
+Targeting	The targeting for which traffic metrics will be reported.
+TargetingSuggestionMetrics	A suggested targetable audience relevant to the requested audience.
+TrendInsight	A trend insight for a given attribute.
+TrendInsightMetrics	Metrics associated with a trend insight.
+UnusableAdGroup	An AdGroup/Campaign pair that could not be used as a suggestion for keywords. AdGroups may not be usable if the AdGroup belongs to a Campaign that is not ENABLED or PAUSED is itself not ENABLED
+UpdateDataLinkRequest	Request message for DataLinkService.UpdateDataLink .
+UpdateDataLinkResponse	Response message for DataLinkService.UpdateDataLink .
+UpdateProductLinkInvitationRequest	Request message for ProductLinkInvitationService.UpdateProductLinkInvitation .
+UpdateProductLinkInvitationResponse	Response message for product link invitation update.
+UploadCallConversionsRequest	Request message for ConversionUploadService.UploadCallConversions .
+UploadCallConversionsResponse	Response message for ConversionUploadService.UploadCallConversions .
+UploadClickConversionsRequest	Request message for ConversionUploadService.UploadClickConversions .
+UploadClickConversionsResponse	Response message for ConversionUploadService.UploadClickConversions .
+UploadConversionAdjustmentsRequest	Request message for ConversionAdjustmentUploadService.UploadConversionAdjustments .
+UploadConversionAdjustmentsResponse	Response message for ConversionAdjustmentUploadService.UploadConversionAdjustments .
+UploadUserDataRequest	Request message for UserDataService.UploadUserData
+UploadUserDataResponse	Response message for UserDataService.UploadUserData Uploads made through this service will not be visible under the 'Segment members' section for the Customer Match List in the Google Ads UI.
+UrlSeed	Url Seed
+UserDataOperation	Operation to be made for the UploadUserDataRequest.
+UserListCustomerTypeOperation	A single mutate operation on the user list customer type.
+UserListOperation	A single operation (create, update) on a user list.
+YouTubeChannelInsights	YouTube Channel insights, and its metadata (such as channel name and channel ID), returned for a creator insights response.
+YouTubeCreatorInsights	A YouTube creator and the insights for this creator.
+YouTubeMetrics	YouTube Channel metrics.
+YouTubeSelectLineUp	A Plannable YouTube Select Lineup for product targeting.
+YouTubeSelectSettings	Request settings for YouTube Select Lineups
+resources
+AccessibleBiddingStrategy	Represents a view of BiddingStrategies owned by and shared with the customer. In contrast to BiddingStrategy, this resource includes strategies owned by managers of the customer and shared with this customer - in addition to strategies owned by this customer. This resource does not provide metrics and only exposes a limited subset of the BiddingStrategy attributes.
+AccessibleBiddingStrategy.MaximizeConversionValue	An automated bidding strategy to help get the most conversion value for your campaigns while spending your budget.
+AccessibleBiddingStrategy.MaximizeConversions	An automated bidding strategy to help get the most conversions for your campaigns while spending your budget.
+AccessibleBiddingStrategy.TargetCpa	An automated bid strategy that sets bids to help get as many conversions as possible at the target cost-per-acquisition (CPA) you set.
+AccessibleBiddingStrategy.TargetImpressionShare	An automated bidding strategy that sets bids so that a certain percentage of search ads are shown at the top of the first page (or other targeted location).
+AccessibleBiddingStrategy.TargetRoas	An automated bidding strategy that helps you maximize revenue while averaging a specific target return on ad spend (ROAS).
+AccessibleBiddingStrategy.TargetSpend	An automated bid strategy that sets your bids to help get as many clicks as possible within your budget.
+AccountBudget	An account-level budget. It contains information about the budget itself, as well as the most recently approved changes to the budget and proposed changes that are pending approval. The proposed changes that are pending approval, if any, are found in 'pending_proposal'. Effective details about the budget are found in fields prefixed 'approved_', 'adjusted_' and those without a prefix. Since some effective details may differ from what the user had originally requested (for example, spending limit), these differences are juxtaposed through 'proposed_', 'approved_', and possibly 'adjusted_' fields. This resource is mutated using AccountBudgetProposal and cannot be mutated directly. A budget may have at most one pending proposal at any given time. It is read through pending_proposal. Once approved, a budget may be subject to adjustments, such as credit adjustments. Adjustments create differences between the 'approved' and 'adjusted' fields, which would otherwise be identical.
+AccountBudget.PendingAccountBudgetProposal	A pending proposal associated with the enclosing account-level budget, if applicable.
+AccountBudgetProposal	An account-level budget proposal. All fields prefixed with 'proposed' may not necessarily be applied directly. For example, proposed spending limits may be adjusted before their application. This is true if the 'proposed' field has an 'approved' counterpart, for example, spending limits. Note that the proposal type (proposal_type) changes which fields are required and which must remain empty.
+AccountLink	Represents the data sharing connection between a Google Ads account and another account
+Ad	An ad.
+AdGroup	An ad group.
+AdGroup.AiMaxAdGroupSetting	Settings for AI Max feature in standard search adgroups.
+AdGroup.AudienceSetting	Settings for the audience targeting.
+AdGroup.DemandGenAdGroupSettings	Settings for Demand Gen ad groups.
+AdGroup.DemandGenAdGroupSettings.DemandGenChannelControls	Channel controls for Demand Gen ad groups.
+AdGroup.DemandGenAdGroupSettings.DemandGenChannelControls.DemandGenSelectedChannels	Explicitly selected channels for channel controls in Demand Gen ad groups.
+AdGroup.VerticalAdsFormatSetting	Vertical ads setting feature to enable/disable ad group format controls in search campaigns.
+AdGroup.VideoAdGroupSettings	Settings for video ad groups.
+AdGroup.VideoAdGroupSettings.VideoAdSequenceStepSetting	The video ads sequence step settings containing step ID.
+AdGroupAd	An ad group ad.
+AdGroupAdAssetAutomationSetting	Asset automation setting for an AdGroupAd.
+AdGroupAdAssetCombinationView	A view on the usage of ad group ad asset combination. Now we only support AdGroupAdAssetCombinationView for Responsive Search Ads, with more ad types planned for the future.
+AdGroupAdAssetPolicySummary	Contains policy information for an ad group ad asset.
+AdGroupAdAssetView	A link between an AdGroupAd and an Asset. AdGroupAdAssetView supports AppAds, Demand Gen campaigns, and Responsive Search Ads.
+AdGroupAdLabel	A relationship between an ad group ad and a label.
+AdGroupAdPolicySummary	Contains policy information for an ad.
+AdGroupAsset	A link between an ad group and an asset.
+AdGroupAssetSet	AdGroupAssetSet is the linkage between an ad group and an asset set. Creating an AdGroupAssetSet links an asset set with an ad group.
+AdGroupAudienceView	An ad group audience view. Includes performance data from interests and remarketing lists for Display Network and YouTube Network ads, and remarketing lists for search ads (RLSA), aggregated at the audience level.
+AdGroupBidModifier	Represents an ad group bid modifier.
+AdGroupCriterion	An ad group criterion. The ad_group_criterion report only returns criteria that were explicitly added to the ad group.
+AdGroupCriterion.PositionEstimates	Estimates for criterion bids at various positions.
+AdGroupCriterion.QualityInfo	A container for ad group criterion quality information.
+AdGroupCriterionCustomizer	A customizer value for the associated CustomizerAttribute at the AdGroupCriterion level.
+AdGroupCriterionLabel	A relationship between an ad group criterion and a label.
+AdGroupCriterionSimulation	An ad group criterion simulation. Supported combinations of advertising channel type, criterion type, simulation type, and simulation modification method are detailed below respectively. Hotel AdGroupCriterion simulation operations starting in V5. DISPLAY - KEYWORD - CPC_BID - UNIFORM SEARCH - KEYWORD - CPC_BID - UNIFORM SHOPPING - LISTING_GROUP - CPC_BID - UNIFORM HOTEL - LISTING_GROUP - CPC_BID - UNIFORM HOTEL - LISTING_GROUP - PERCENT_CPC_BID - UNIFORM
+AdGroupCustomizer	A customizer value for the associated CustomizerAttribute at the AdGroup level.
+AdGroupLabel	A relationship between an ad group and a label.
+AdGroupSimulation	An ad group simulation. Supported combinations of advertising channel type, simulation type and simulation modification method is detailed below respectively. SEARCH - CPC_BID - DEFAULT SEARCH - CPC_BID - UNIFORM SEARCH - TARGET_CPA - UNIFORM SEARCH - TARGET_ROAS - UNIFORM DISPLAY - CPC_BID - DEFAULT DISPLAY - CPC_BID - UNIFORM DISPLAY - TARGET_CPA - UNIFORM
+AdParameter	An ad parameter that is used to update numeric values (such as prices or inventory levels) in any text line of an ad (including URLs). There can be a maximum of two AdParameters per ad group criterion. (One with parameter_index = 1 and one with parameter_index = 2.) In the ad the parameters are referenced by a placeholder of the form "{param#:value}". For example, "{param1:$17}"
+AdScheduleView	An ad schedule view summarizes the performance of campaigns by AdSchedule criteria.
+AdStrengthActionItem	An action item to improve the ad strength of an asset group.
+AdStrengthActionItem.AddAssetDetails	The details of the asset to add.
+AdvertisingPartnerIdentifier	The identifier for the Advertising Partner Google Ads account.
+AdvertisingPartnerLinkInvitationIdentifier	The identifier for the Advertising Partner Google Ads account.
+AgeRangeView	An age range view.
+AiMaxSearchTermAdCombinationView	AiMaxSearchTermAdCombinationView Resource.
+AndroidPrivacySharedKeyGoogleAdGroup	An Android privacy shared key view for Google ad group key.
+AndroidPrivacySharedKeyGoogleCampaign	An Android privacy shared key view for Google campaign key.
+AndroidPrivacySharedKeyGoogleNetworkType	An Android privacy shared key view for Google network type key.
+AppliedIncentive	Represents an applied incentive.
+Asset	Asset is a part of an ad which can be shared across multiple ads. It can be an image (ImageAsset), a video (YoutubeVideoAsset), etc. Assets are immutable and cannot be removed. To stop an asset from serving, remove the asset from the entity that is using it.
+AssetCoverage	Information about the asset coverage of an asset group.
+AssetFieldTypePolicySummary	Contains policy information for an asset under AssetFieldType context.
+AssetFieldTypeView	An asset field type view. This view reports non-overcounted metrics for each asset field type when the asset is used as extension.
+AssetGroup	An asset group. AssetGroupAsset is used to link an asset to the asset group. AssetGroupSignal is used to associate a signal to an asset group.
+AssetGroupAsset	AssetGroupAsset is the link between an asset and an asset group. Adding an AssetGroupAsset links an asset with an asset group.
+AssetGroupAssetCombinationData	Asset group asset combination data
+AssetGroupListingGroupFilter	AssetGroupListingGroupFilter represents a listing group filter tree node in an asset group.
+AssetGroupProductGroupView	An asset group product group view.
+AssetGroupSignal	AssetGroupSignal represents a signal in an asset group. The existence of a signal tells the performance max campaign who's most likely to convert. Performance Max uses the signal to look for new people with similar or stronger intent to find conversions across Search, Display, Video, and more.
+AssetGroupTopCombinationView	A view on the usage of asset group asset top combinations.
+AssetPolicySummary	Contains policy information for an asset.
+AssetSet	An asset set representing a collection of assets. Use AssetSetAsset to link an asset to the asset set.
+AssetSet.HotelPropertyData	For Performance Max for travel goals campaigns with a Hotel Center account link. Read-only.
+AssetSet.MerchantCenterFeed	Merchant ID and Feed Label from Google Merchant Center.
+AssetSetAsset	AssetSetAsset is the link between an asset and an asset set. Adding an AssetSetAsset links an asset with an asset set.
+AssetSetTypeView	An asset set type view. This view reports non-overcounted metrics for each asset set type. Child asset set types are not included in this report. Their stats are aggregated under the parent asset set type.
+Audience	Audience is an effective targeting option that lets you intersect different segment attributes, such as detailed demographics and affinities, to create audiences that represent sections of your target segments.
+BackgroundCheckVerificationArtifact	A proto holding information specific to local services background check.
+BatchJob	A list of mutates being processed asynchronously. The mutates are uploaded by the user. The mutates themselves aren't readable and the results of the job can only be read using BatchJobService.ListBatchJobResults.
+BatchJob.BatchJobMetadata	Additional information about the batch job. This message is also used as metadata returned in batch job Long Running Operations.
+BiddingDataExclusion	Represents a bidding data exclusion. Bidding data exclusions can be set in client accounts only, and cannot be used in manager accounts. See "About data exclusions" at https://support.google.com/google-ads/answer/10370710 .
+BiddingSeasonalityAdjustment	Represents a bidding seasonality adjustment. Cannot be used in manager accounts. See "About seasonality adjustments" at https://support.google.com/google-ads/answer/10369906 .
+BiddingStrategy	A bidding strategy.
+BiddingStrategySimulation	A bidding strategy simulation. Supported combinations of simulation type and simulation modification method are detailed below respectively. TARGET_CPA - UNIFORM TARGET_ROAS - UNIFORM
+BillingSetup	A billing setup, which associates a payments account and an advertiser. A billing setup is specific to one advertiser.
+BillingSetup.PaymentsAccountInfo	Container of payments account information for this billing.
+BusinessRegistrationCheckVerificationArtifact	A proto holding information specific to a local services business registration check.
+BusinessRegistrationDocument	A proto holding information specific to a local services business registration document.
+BusinessRegistrationNumber	A proto holding information specific to a local services business registration number.
+CallReportingSetting	Call reporting setting for a customer. Only mutable in an update operation.
+CallView	A call view that includes data for call tracking of call-only ads or call extensions.
+Campaign	A campaign.
+Campaign.AiMaxSetting	Settings for AI Max in search campaigns.
+Campaign.AiMaxSetting.AiMaxBundlingRequired	Enum describing whether AI Max must be enabled to serve and update text asset automation and brand list features newly bundled with AI Max.
+Campaign.AppCampaignSetting	Campaign-level settings for App Campaigns.
+Campaign.AssetAutomationSetting	Asset automation setting contains pair of AssetAutomationType and the asset automation opt-in/out status
+Campaign.AudienceSetting	Settings for the audience targeting.
+Campaign.BrandGuidelines	Settings that control the visual appearance of your brand in a campaign's automatically generated assets and formats. Only applicable to Performance Max campaigns.
+Campaign.CategoryBid	Category bids in LocalServicesReportingCampaignSettings.
+Campaign.DemandGenCampaignSettings	Settings for Demand Gen campaign.
+Campaign.DynamicSearchAdsSetting	The setting for controlling Dynamic Search Ads (DSA).
+Campaign.GeoTargetTypeSetting	Represents a collection of settings related to ads geotargeting.
+Campaign.HotelSettingInfo	Campaign-level settings for hotel ads.
+Campaign.LocalCampaignSetting	Campaign setting for local campaigns.
+Campaign.LocalServicesCampaignSettings	Settings for LocalServicesCampaign subresource.
+Campaign.NetworkSettings	The network settings for the campaign.
+Campaign.OptimizationGoalSetting	Optimization goal setting for this campaign, which includes a set of optimization goal types.
+Campaign.PerformanceMaxUpgrade	Information about a campaign being upgraded to Performance Max.
+Campaign.PmaxCampaignSettings	Settings for Performance Max campaigns.
+Campaign.PmaxCampaignSettings.BrandTargetingOverrides	Overrides of brand targeting for various ad types.
+Campaign.SelectiveOptimization	Selective optimization setting for this campaign, which includes a set of conversion actions to optimize this campaign towards. This feature only applies to app campaigns that use MULTI_CHANNEL as AdvertisingChannelType and APP_CAMPAIGN or APP_CAMPAIGN_FOR_ENGAGEMENT as AdvertisingChannelSubType.
+Campaign.ShoppingSetting	The setting for Shopping campaigns. Defines the universe of products that can be advertised by the campaign, and how this campaign interacts with other Shopping campaigns.
+Campaign.TrackingSetting	Campaign-level settings for tracking information.
+Campaign.TravelCampaignSettings	Settings for Travel campaign.
+Campaign.VanityPharma	Describes how unbranded pharma ads will be displayed.
+Campaign.VideoCampaignSettings	Settings for Video campaign.
+Campaign.VideoCampaignSettings.NonSkippableInStreamRestrictions	Restrictions for non-skippable format.
+Campaign.VideoCampaignSettings.VideoAdFormatControl	Format-restricting control enabling usage of video responsive ads in format defined Video campaigns (for example, non-skippable).
+Campaign.VideoCampaignSettings.VideoAdInventoryControl	For campaigns using video responsive ads inventory controls determine on which inventories the ads can be shown. This only applies for campaigns with the bidding strategies TARGET_CPM and FIXED_CPM.
+Campaign.VideoCampaignSettings.VideoAdSequence	Container for video ads sequencing definition.
+Campaign.VideoCampaignSettings.VideoAdSequenceStep	Information about a step within a video sequence.
+CampaignAggregateAssetView	A campaign-level aggregate asset view that shows where the asset is linked, performamce of the asset and stats.
+CampaignAsset	A link between a Campaign and an Asset.
+CampaignAssetSet	CampaignAssetSet is the linkage between a campaign and an asset set. Adding a CampaignAssetSet links an asset set with a campaign.
+CampaignAudienceView	A campaign audience view. Includes performance data from interests and remarketing lists for Display Network and YouTube Network ads, and remarketing lists for search ads (RLSA), aggregated by campaign and audience criterion. This view only includes audiences attached at the campaign level.
+CampaignBidModifier	Represents a bid-modifiable only criterion at the campaign level.
+CampaignBudget	A campaign budget.
+CampaignConversionGoal	The biddability setting for the specified campaign only for all conversion actions with a matching category and origin.
+CampaignCriterion	A campaign criterion.
+CampaignCustomizer	A customizer value for the associated CustomizerAttribute at the Campaign level.
+CampaignDraft	A campaign draft.
+CampaignGoalConfig	A link between a campaign and a goal enabling campaign-specific optimization.
+CampaignGroup	A campaign group.
+CampaignLabel	Represents a relationship between a campaign and a label.
+CampaignLifecycleGoal	Campaign level customer lifecycle goal settings.
+CampaignSearchTermInsight	This report provides a high-level view of search demand at the campaign level by grouping similar search terms into categories and showing their search volume. Historical data is available starting March 2023.
+CampaignSearchTermView	This report provides granular performance data, including cost metrics, for each individual search term that triggered your ads. If keyword-related segments are used, Performance Max data will be excluded from the results.
+CampaignSharedSet	CampaignSharedSets are used for managing the shared sets associated with a campaign.
+CampaignSimulation	A campaign simulation. Supported combinations of advertising channel type, simulation type and simulation modification method is detailed below respectively. SEARCH - CPC_BID - UNIFORM SEARCH - CPC_BID - SCALING SEARCH - TARGET_CPA - UNIFORM SEARCH - TARGET_CPA - SCALING SEARCH - TARGET_ROAS - UNIFORM SEARCH - TARGET_IMPRESSION_SHARE - UNIFORM SEARCH - BUDGET - UNIFORM SHOPPING - BUDGET - UNIFORM SHOPPING - TARGET_ROAS - UNIFORM MULTI_CHANNEL - TARGET_CPA - UNIFORM MULTI_CHANNEL - TARGET_ROAS - UNIFORM DEMAND_GEN - TARGET_CPA - DEFAULT DISPLAY - TARGET_CPA - UNIFORM PERFORMANCE_MAX - TARGET_CPA - UNIFORM PERFORMANCE_MAX - TARGET_ROAS - UNIFORM PERFORMANCE_MAX - BUDGET - UNIFORM
+CarrierConstant	A carrier criterion that can be used in campaign targeting.
+ChangeEvent	Describes the granular change of returned resources of certain resource types. Changes made through the UI or API in the past 30 days are included. Previous and new values of the changed fields are shown. ChangeEvent could have up to 3 minutes delay to reflect a new change.
+ChangeEvent.ChangedResource	A wrapper proto presenting all supported resources. Only the resource of the change_resource_type will be set.
+ChangeStatus	Describes the status of returned resource. ChangeStatus could have up to 3 minutes delay to reflect a new change.
+ChannelAggregateAssetView	A channel-level aggregate asset view that shows where the asset is linked, performamce of the asset and stats.
+ClickView	A click view with metrics aggregated at each click level, including both valid and invalid clicks. For non-Search campaigns, metrics.clicks represents the number of valid and invalid interactions. Queries including ClickView must have a filter limiting the results to one day and can be requested for dates back to 90 days before the time of the request. GCLIDs are not available in this report for App Campaigns for Installs (ACi) and App Campaigns for Pre-registration (ACpre).
+CombinedAudience	Describe a resource for combined audiences which includes different audiences.
+ContactDetails	Fields containing consumer contact details.
+ContentCriterionView	A content criterion view.
+ConversionAction	A conversion action.
+ConversionAction.AttributionModelSettings	Settings related to this conversion action's attribution model.
+ConversionAction.FirebaseSettings	Settings related to a Firebase conversion action.
+ConversionAction.GoogleAnalytics4Settings	Settings related to a Google Analytics 4 conversion action.
+ConversionAction.ThirdPartyAppAnalyticsSettings	Settings related to a third party app analytics conversion action.
+ConversionAction.ValueSettings	Settings related to the value for conversion events associated with this conversion action.
+ConversionCustomVariable	A conversion custom variable See "About custom variables for conversions" at https://support.google.com/google-ads/answer/9964350
+ConversionGoalCampaignConfig	Conversion goal settings for a Campaign.
+ConversionTrackingSetting	A collection of customer-wide settings related to Google Ads Conversion Tracking.
+ConversionValueRule	A conversion value rule
+ConversionValueRule.ValueRuleAction	Action applied when rule is applied.
+ConversionValueRule.ValueRuleAudienceCondition	Condition on Audience dimension.
+ConversionValueRule.ValueRuleDeviceCondition	Condition on Device dimension.
+ConversionValueRule.ValueRuleGeoLocationCondition	Condition on Geo dimension.
+ConversionValueRule.ValueRuleItineraryAdvanceBookingWindow	Range for the number of days between the date of the booking and the start of the itinerary.
+ConversionValueRule.ValueRuleItineraryCondition	Condition on Itinerary dimension.
+ConversionValueRule.ValueRuleItineraryTravelLength	Range for the itinerary length in number of nights.
+ConversionValueRule.ValueRuleItineraryTravelStartDay	The days of the week on which an itinerary's travel can start.
+ConversionValueRuleSet	A conversion value rule set is a collection of conversion value rules that lets you adjust conversion values based on the dimensions specified in the dimensions field.
+CreditDetails	Represents the credit details of a lead.
+CurrencyConstant	A currency constant.
+CustomAudience	A custom audience. This is a list of users by interest. The unique key of a custom audience consists of the following fields: name. Violating the unique key constraint produces error: CustomAudienceError.NAME_ALREADY_USED
+CustomAudienceMember	A member of custom audience. A member can be a KEYWORD, URL, PLACE_CATEGORY or APP. It can only be created or removed but not changed.
+CustomConversionGoal	Custom conversion goal that can make arbitrary conversion actions biddable.
+CustomInterest	A custom interest. This is a list of users by interest.
+CustomInterestMember	A member of custom interest audience. A member can be a keyword or url. It is immutable, that is, it can only be created or removed but not changed.
+CustomLeadFormSubmissionField	Fields in the submitted custom question
+Customer	A customer.
+CustomerAcquisitionGoalSettings	The customer acquisition goal settings for the campaign.
+CustomerAgreementSetting	Customer Agreement Setting for a customer.
+CustomerAsset	A link between a customer and an asset.
+CustomerAssetSet	CustomerAssetSet is the linkage between a customer and an asset set. Adding a CustomerAssetSet links an asset set with a customer.
+CustomerClient	A link between the given customer and a client customer. CustomerClients only exist for manager customers. All direct and indirect client customers are included, as well as the manager itself.
+CustomerClientLink	Represents customer client link relationship.
+CustomerConversionGoal	Biddability control for conversion actions with a matching category and origin.
+CustomerCustomizer	A customizer value for the associated CustomizerAttribute at the Customer level.
+CustomerLabel	Represents a relationship between a customer and a label. This customer may not have access to all the labels attached to it. Additional CustomerLabels may be returned by increasing permissions with login-customer-id.
+CustomerLifecycleGoal	Account level customer lifecycle goal settings.
+CustomerManagerLink	Represents customer-manager link relationship.
+CustomerNegativeCriterion	A negative criterion for exclusions at the customer level.
+CustomerSearchTermInsight	This report provides a high-level view of search demand at the customer level by grouping similar search terms into categories and showing their search volume. Historical data is available starting March 2023.
+CustomerSkAdNetworkConversionValueSchema	A CustomerSkAdNetworkConversionValueSchema.
+CustomerSkAdNetworkConversionValueSchema.SkAdNetworkConversionValueSchema	The CustomerLink specific SkAdNetworkConversionValueSchema.
+CustomerSkAdNetworkConversionValueSchema.SkAdNetworkConversionValueSchema.CoarseGrainedConversionValueMappings	Mappings for coarse grained conversion values.
+CustomerSkAdNetworkConversionValueSchema.SkAdNetworkConversionValueSchema.ConversionValueMapping	Represents mapping from one conversion value to one or more conversion events.
+CustomerSkAdNetworkConversionValueSchema.SkAdNetworkConversionValueSchema.Event	Defines a Google conversion event that the conversion value is mapped to.
+CustomerSkAdNetworkConversionValueSchema.SkAdNetworkConversionValueSchema.Event.EventOccurrenceRange	Defines a range for event counter values.
+CustomerSkAdNetworkConversionValueSchema.SkAdNetworkConversionValueSchema.Event.RevenueRange	Defines a range for revenue values.
+CustomerSkAdNetworkConversionValueSchema.SkAdNetworkConversionValueSchema.FineGrainedConversionValueMappings	Mappings for fine grained conversion value.
+CustomerSkAdNetworkConversionValueSchema.SkAdNetworkConversionValueSchema.PostbackMapping	Mappings for each postback in multiple conversion windows.
+CustomerUserAccess	Represents the permission of a single user onto a single customer.
+CustomerUserAccessInvitation	Represent an invitation to a new user on this customer account.
+CustomizerAttribute	A customizer attribute. Use CustomerCustomizer, CampaignCustomizer, AdGroupCustomizer, or AdGroupCriterionCustomizer to associate a customizer attribute and set its value at the customer, campaign, ad group, or ad group criterion level, respectively.
+DataLink	Represents the data sharing connection between a Google Ads customer and another product's data.
+DataPartnerIdentifier	The identifier for Data Partner account.
+DetailContentSuitabilityPlacementView	A detail content suitability placement view.
+DetailPlacementView	A view with metrics aggregated by ad group and URL or YouTube video. This view primarily surfaces placement data from the Google Display Network. While you can select segments like segments.ad_network_type , this view generally does not include placement data from other networks, such as the Search Partners network. To understand performance on Search Partners, consider other reports and segmentations.
+DetailedDemographic	A detailed demographic: a particular interest-based vertical to be targeted to reach users based on long-term life facts.
+DisplayKeywordView	A display keyword view. Provides performance data for keywords used in Display Network campaigns. This view lets you analyze how your display keywords are performing across various segments. This view is primarily used to track the effectiveness of keyword targeting within your Display campaigns. To understand which network the metrics apply to, you can select the segments.ad_network_type field in your query. This field will segment the data by networks such as the Google Display Network, YouTube, Gmail, and so on. You can select fields from this resource along with metrics like impressions, clicks, and conversions to gauge performance. Attributed resources like ad_group and campaign can also be selected without segmenting metrics.
+DistanceView	A distance view with metrics aggregated by the user's distance from an advertiser's location extensions. Each DistanceBucket includes all impressions that fall within its distance and a single impression will contribute to the metrics for all DistanceBuckets that include the user's distance.
+DomainCategory	A category generated automatically by crawling a domain. If a campaign uses the DynamicSearchAdsSetting, then domain categories will be generated for the domain. The categories can be targeted using WebpageConditionInfo. See: https://support.google.com/google-ads/answer/2471185
+DynamicSearchAdsSearchTermView	A dynamic search ads search term view.
+ExpandedLandingPageView	A landing page view with metrics aggregated at the expanded final URL level.
+Experiment	A Google ads experiment for users to experiment changes on multiple campaigns, compare the performance, and apply the effective changes.
+ExperimentArm	A Google ads experiment for users to experiment changes on multiple campaigns, compare the performance, and apply the effective changes.
+Fellowship	Details about the employee's medical Fellowship. Fellowship is a period of medical training that the professional undertakes after finishing their residency.
+FinalUrlExpansionAssetView	FinalUrlExpansionAssetView Resource.
+GenderView	A gender view. The gender_view resource reflects the effective serving state, rather than what criteria were added. An ad group without gender criteria by default shows to all genders, so all genders appear in gender_view with stats.
+GeoTargetConstant	A geo target constant.
+GeographicView	A geographic view. Geographic View includes all metrics aggregated at the country level, one row per country. It reports metrics at either actual physical location of the user or an area of interest. If other segment fields are used, you may get more than one row per country.
+Goal	Representation of goals.
+GoogleAdsField	A field or resource (artifact) used by GoogleAdsService.
+GoogleAdsIdentifier	The identifier for Google Ads account.
+GranularInsuranceStatus	Insurance status at geo + vertical level.
+GranularLicenseStatus	License status at geo + vertical level.
+GroupContentSuitabilityPlacementView	A group content suitability placement view.
+GroupPlacementView	A group placement view.
+HotelCenterLinkInvitationIdentifier	The identifier for Hotel account.
+HotelGroupView	A hotel group view.
+HotelPerformanceView	A hotel performance view.
+HotelReconciliation	A hotel reconciliation. It contains conversion information from Hotel bookings to reconcile with advertiser records. These rows may be updated or canceled before billing through Bulk Uploads.
+IncomeRangeView	An income range view.
+InsuranceVerificationArtifact	A proto holding information specific to a local services insurance.
+Invoice	An invoice. All invoice information is snapshotted to match the PDF invoice. For invoices older than the launch of InvoiceService, the snapshotted information may not match the PDF invoice.
+Invoice.AccountBudgetSummary	Represents a summarized account budget billable cost.
+Invoice.AccountSummary	Represents a summarized view at account level.
+Invoice.AdjustmentSummary	Represents adjustment information associated with an account.
+Invoice.CampaignSummary	Represents campaign level billable cost information associated with an account budget.
+Invoice.InvalidActivitySummary	Details about the invalid activity for the invoice that contain additional details about invoice against which corrections are made.
+Invoice.RegulatoryCostSummary	Represents regulatory cost information associated with an account.
+KeywordPlan	A Keyword Planner plan. Max number of saved keyword plans: 10000. It's possible to remove plans if limit is reached.
+KeywordPlanAdGroup	A Keyword Planner ad group. Max number of keyword plan ad groups per plan: 200.
+KeywordPlanAdGroupKeyword	A Keyword Plan ad group keyword. Max number of keyword plan keywords per plan: 10000.
+KeywordPlanCampaign	A Keyword Plan campaign. Max number of keyword plan campaigns per plan allowed: 1.
+KeywordPlanCampaignKeyword	A Keyword Plan Campaign keyword. Only negative keywords are supported for Campaign Keyword.
+KeywordPlanForecastPeriod	The forecasting period associated with the keyword plan.
+KeywordPlanGeoTarget	A geo target.
+KeywordThemeConstant	A Smart Campaign keyword theme constant.
+KeywordView	A keyword view.
+Label	A label.
+LandingPageView	A landing page view with metrics aggregated at the unexpanded final URL level.
+LanguageConstant	A language.
+LeadFormSubmissionData	Data from lead form submissions.
+LeadFormSubmissionField	Fields in the submitted lead form.
+LicenseVerificationArtifact	A proto holding information specific to a local services license.
+LifeEvent	A life event: a particular interest-based vertical to be targeted to reach users when they are in the midst of important life milestones.
+ListingGroupFilterDimension	Listing dimensions for the asset group listing group filter.
+ListingGroupFilterDimension.ProductBrand	Brand of the product.
+ListingGroupFilterDimension.ProductCategory	One element of a category at a certain level. Top-level categories are at level 1, their children at level 2, and so on. We currently support up to 5 levels. The user must specify a dimension type that indicates the level of the category. All cases of the same subdivision must have the same dimension type (category level).
+ListingGroupFilterDimension.ProductChannel	Locality of a product offer.
+ListingGroupFilterDimension.ProductCondition	Condition of a product offer.
+ListingGroupFilterDimension.ProductCustomAttribute	Custom attribute of a product offer.
+ListingGroupFilterDimension.ProductItemId	Item id of a product offer.
+ListingGroupFilterDimension.ProductType	Type of a product offer.
+ListingGroupFilterDimension.Webpage	Filters for URLs in a page feed and URLs from the advertiser web domain. Several root nodes with this dimension are allowed in an asset group and their conditions are considered in OR.
+ListingGroupFilterDimension.WebpageCondition	Matching condition for URL filtering.
+ListingGroupFilterDimensionPath	The path defining of dimensions defining a listing group filter.
+LocalServicesEmployee	A local services employee resource.
+LocalServicesLead	Data from Local Services Lead. Contains details of Lead which is generated when user calls, messages or books service from advertiser. More info: https://ads.google.com/local-services-ads
+LocalServicesLeadConversation	Data from Local Services Lead Conversation. Contains details of Lead Conversation which is generated when user calls, messages or books service from advertiser. These are appended to a Lead. More info: https://ads.google.com/local-services-ads
+LocalServicesSettings	Settings for Local Services customer.
+LocalServicesVerificationArtifact	A local services verification resource.
+LocationInterestView	A location interest view summarizes the performance of adgroup location interest criteria.
+LocationView	A location view summarizes the performance of campaigns by a Location criterion. If no Location criterion is set, no results are returned; instead, use geographic_view or user_location_view for visitor location data.
+ManagedPlacementView	A managed placement view.
+MatchedLocationInterestView	A view that reports metrics for locations where users showed interest, and which matched the advertiser's location interest targeting (defined as geo targets at the AdGroup level). The data is aggregated at the country level by default. This view is currently only available for AI Max campaigns.
+MediaAudio	Encapsulates an Audio.
+MediaBundle	Represents a ZIP archive media the content of which contains HTML5 assets.
+MediaFile	A media file.
+MediaImage	Encapsulates an Image.
+MediaVideo	Encapsulates a Video.
+MerchantCenterIdentifier	The identifier for Google Merchant Center account
+MerchantCenterLinkInvitationIdentifier	The identifier for Merchant Center Account.
+MessageDetails	Represents details of text message in case of email, message or SMS.
+MobileAppCategoryConstant	A mobile application category constant.
+MobileDeviceConstant	A mobile device constant.
+Note	Represents a note added to a lead by the advertiser. Advertisers can edit notes, which will reset edit time and change description.
+OfflineConversionAlert	Alert for offline conversion client summary.
+OfflineConversionError	Possible errors for offline conversion client summary.
+OfflineConversionSummary	Historical upload summary, grouped by upload date or job.
+OfflineConversionUploadClientSummary	Offline conversion upload summary at customer level.
+OfflineConversionUploadConversionActionSummary	Offline conversion upload summary at conversion action level.
+OfflineUserDataJob	A job containing offline user data of store visitors, or user list members that will be processed asynchronously. The uploaded data isn't readable and the processing results of the job can only be read using GoogleAdsService.Search/SearchStream.
+OfflineUserDataJobMetadata	Metadata of offline user data job.
+OperatingSystemVersionConstant	A mobile operating system version or a range of versions, depending on operator_type . List of available mobile platforms at https://developers.google.com/google-ads/api/reference/data/codes-formats#mobile-platforms
+PaidOrganicSearchTermView	A paid organic search term view providing a view of search stats across ads and organic listings aggregated by search term at the ad group level.
+ParentalStatusView	A parental status view.
+PaymentsAccount	A payments account, which can be used to set up billing for an Ads customer.
+PerStoreView	A per store view. This view provides per store impression reach and local action conversion stats for advertisers.
+PerformanceMaxPlacementView	A view with impression metrics for Performance Max campaign placements.
+PhoneCallDetails	Represents details of a phone call conversation.
+ProductCategoryConstant	A Product Category.
+ProductCategoryConstant.ProductCategoryLocalization	Localization for the product category.
+ProductGroupView	A product group view.
+ProductLink	Represents the data sharing connection between a Google Ads customer and another product.
+ProductLinkInvitation	Represents an invitation for data sharing connection between a Google Ads account and another account.
+QualifyingQuestion	Qualifying Questions for Lead Form.
+Recommendation	A recommendation.
+Recommendation.AccountInfo	Wrapper for information about a Google Ads account.
+Recommendation.CallAssetRecommendation	The call asset recommendation.
+Recommendation.CalloutAssetRecommendation	The callout asset recommendation.
+Recommendation.CampaignBudget	A campaign budget shared amongst various budget recommendation types.
+Recommendation.CampaignBudgetRecommendation	The budget recommendation for budget constrained campaigns.
+Recommendation.CampaignBudgetRecommendation.CampaignBudgetRecommendationOption	The impact estimates for a given budget amount.
+Recommendation.CustomAudienceOptInRecommendation	The Custom Audience Opt In recommendation.
+Recommendation.DisplayExpansionOptInRecommendation	The Display Expansion opt-in recommendation.
+Recommendation.DynamicImageExtensionOptInRecommendation	Recommendation to enable dynamic image extensions on the account, allowing Google to find the best images from ad landing pages and complement text ads.
+Recommendation.EnhancedCpcOptInRecommendation	The Enhanced Cost-Per-Click Opt-In recommendation.
+Recommendation.ForecastingSetTargetCpaRecommendation	The set target CPA recommendations.
+Recommendation.ForecastingSetTargetRoasRecommendation	The forecasting set target ROAS recommendation.
+Recommendation.ImproveDemandGenAdStrengthRecommendation	The improve Demand Gen ad strength recommendation.
+Recommendation.ImproveGoogleTagCoverageRecommendation	Recommendation to deploy Google Tag on more pages.
+Recommendation.ImprovePerformanceMaxAdStrengthRecommendation	Recommendation to improve the asset group strength of a Performance Max campaign to an "Excellent" rating.
+Recommendation.KeywordMatchTypeRecommendation	The keyword match type recommendation.
+Recommendation.KeywordRecommendation	The keyword recommendation.
+Recommendation.KeywordRecommendation.SearchTerm	Information about a search term as related to a keyword recommendation.
+Recommendation.LeadFormAssetRecommendation	The lead form asset recommendation.
+Recommendation.LowerTargetRoasRecommendation	Recommendation to lower Target ROAS.
+Recommendation.MaximizeClicksOptInRecommendation	The Maximize Clicks opt-in recommendation.
+Recommendation.MaximizeConversionValueOptInRecommendation	Recommendation to opt into Maximize Conversion Value bidding strategy.
+Recommendation.MaximizeConversionsOptInRecommendation	The Maximize Conversions Opt-In recommendation.
+Recommendation.MerchantInfo	The Merchant Center account details.
+Recommendation.MigrateDynamicSearchAdsCampaignToPerformanceMaxRecommendation	The Dynamic Search Ads to Performance Max migration recommendation.
+Recommendation.MoveUnusedBudgetRecommendation	The move unused budget recommendation.
+Recommendation.OptimizeAdRotationRecommendation	The Optimize Ad Rotation recommendation.
+Recommendation.PerformanceMaxFinalUrlOptInRecommendation	Recommendation to turn on Final URL expansion for your Performance Max campaigns.
+Recommendation.PerformanceMaxOptInRecommendation	The Performance Max Opt In recommendation.
+Recommendation.RaiseTargetCpaBidTooLowRecommendation	The raise target CPA bid too low recommendation.
+Recommendation.RaiseTargetCpaRecommendation	Recommendation to raise Target CPA.
+Recommendation.RecommendationImpact	The impact of making the change as described in the recommendation. Some types of recommendations may not have impact information.
+Recommendation.RecommendationMetrics	Weekly account performance metrics. For some recommendation types, these are averaged over the past 90-day period and hence can be fractional.
+Recommendation.RefreshCustomerMatchListRecommendation	The recommendation to update a customer list that hasn't been updated in the last 90 days. The customer receiving the recommendation is not necessarily the owner account. The owner account should update the customer list.
+Recommendation.ResponsiveSearchAdAssetRecommendation	The add responsive search ad asset recommendation.
+Recommendation.ResponsiveSearchAdImproveAdStrengthRecommendation	The responsive search ad improve ad strength recommendation.
+Recommendation.ResponsiveSearchAdRecommendation	The add responsive search ad recommendation.
+Recommendation.SearchPartnersOptInRecommendation	The Search Partners Opt-In recommendation.
+Recommendation.ShoppingAddProductsToCampaignRecommendation	The shopping recommendation to add products to a Shopping Campaign Inventory.
+Recommendation.ShoppingFixDisapprovedProductsRecommendation	The shopping recommendation to fix disapproved products in a Shopping Campaign Inventory.
+Recommendation.ShoppingMerchantCenterAccountSuspensionRecommendation	The shopping recommendation to fix Merchant Center account suspension issues.
+Recommendation.ShoppingMigrateRegularShoppingCampaignOffersToPerformanceMaxRecommendation	The shopping recommendation to migrate Regular Shopping Campaign targeted offers to Performance Max campaigns.
+Recommendation.ShoppingOfferAttributeRecommendation	The shopping recommendation to add an attribute to offers that are demoted because it is missing.
+Recommendation.ShoppingTargetAllOffersRecommendation	The shopping recommendation to create a catch-all campaign that targets all offers.
+Recommendation.SitelinkAssetRecommendation	The sitelink asset recommendation.
+Recommendation.TargetAdjustmentInfo	Information of a target adjustment recommendation.
+Recommendation.TargetCpaOptInRecommendation	The Target CPA opt-in recommendation.
+Recommendation.TargetCpaOptInRecommendation.TargetCpaOptInRecommendationOption	The Target CPA opt-in option with impact estimate.
+Recommendation.TargetRoasOptInRecommendation	The Target ROAS opt-in recommendation.
+Recommendation.TextAdRecommendation	The text ad recommendation.
+Recommendation.UpgradeLocalCampaignToPerformanceMaxRecommendation	The Upgrade Local campaign to Performance Max campaign recommendation.
+Recommendation.UpgradeSmartShoppingCampaignToPerformanceMaxRecommendation	The upgrade a Smart Shopping campaign to a Performance Max campaign recommendation.
+Recommendation.UseBroadMatchKeywordRecommendation	The use broad match keyword recommendation.
+RecommendationSubscription	Recommendation Subscription resource
+RemarketingAction	A remarketing action. A snippet of JavaScript code that will collect the product id and the type of page people visited (product page, shopping cart page, purchase page, general site visit) on an advertiser's website.
+RemarketingSetting	Remarketing setting for a customer.
+Residency	Details about the employee's medical residency. Residency is a stage of graduate medical education in which a qualified medical professional practices under the supervision of a senior clinician.
+SearchTermView	A search term view with metrics aggregated by search term at the ad group level. This view does not include Performance Max data. If you are looking for Performance Max search term data, use the CampaignSearchTermView instead.
+SharedCriterion	A criterion belonging to a shared set.
+SharedSet	SharedSets are used for sharing criterion exclusions across multiple campaigns.
+ShoppingPerformanceView	Shopping performance view. Provides Shopping campaign and Performance Max campaign statistics aggregated at several product dimension levels. Product dimension values from Merchant Center such as brand, category, custom attributes, product condition, and product type will reflect the state of each dimension as of the date and time when the corresponding event was recorded. The number of impressions and clicks that shopping_performance_view returns stats for may be different from campaign reports. shopping_performance_view shows impressions and clicks on products appearing in ads, while campaign reports show impressions and clicks on the ads themselves. Depending on the format, an ad can show from zero to several products, so the numbers may not match. In Google Ads UI, you can query impressions and clicks of products appearing in ads by selecting a column from "Product attributes" in the report editor. For example, selecting the "Brand" column is equivalent to selecting segments.product_brand .
+ShoppingProduct	A shopping product from Google Merchant Center that can be advertised by campaigns. The resource returns currently existing products from Google Merchant Center accounts linked with the customer. A campaign includes a product by specifying its merchant id (or, if available, the Multi Client Account id of the merchant) in the ShoppingSetting , and can limit the inclusion to products having a specified feed label. Standard Shopping campaigns can also limit the inclusion through a campaign_criterion.listing_scope . Queries to this resource specify a scope: Account: - Filters on campaigns or ad groups are not specified. - All products from the linked Google Merchant Center accounts are returned. - Metrics and some fields (see the per-field documentation) are aggregated across all Shopping and Performance Max campaigns that include a product. Campaign: - An equality filter on campaign is specified. Supported campaign types are Shopping, Performance Max, Demand Gen, Video. - Only products that are included by the specified campaign are returned. - Metrics and some fields (see the per-field documentation) are restricted to the specified campaign. - Only the following metrics are supported for Demand Gen and Video campaigns: impressions, clicks, ctr. Ad group: - An equality filter on ad group and campaign is specified. Supported campaign types are Shopping, Demand Gen, Video. - Only products that are included by the specified campaign are returned. - Metrics and some fields (see the per-field documentation) are restricted to the specified ad group. - Only the following metrics are supported for Demand Gen and Video campaigns: impressions, clicks, ctr. Note that segmentation by date segments is not permitted and will return UNSUPPORTED_DATE_SEGMENTATION error. On the other hand, filtering on date segments is allowed.
+ShoppingProduct.ProductIssue	An issue affecting whether a product can show in ads.
+SmartCampaignSearchTermView	A Smart campaign search term view.
+SmartCampaignSetting	Settings for configuring Smart campaigns.
+SmartCampaignSetting.AdOptimizedBusinessProfileSetting	Settings for configuring a business profile optimized for ads as this campaign's landing page.
+SmartCampaignSetting.PhoneNumber	Phone number and country code in smart campaign settings.
+TargetingExpansionView	A targeting expansion view with metrics. Returns metrics for automated expansion over manual targeting.
+ThirdPartyAppAnalyticsLink	A data sharing connection, allowing the import of third party app analytics into a Google Ads Customer.
+ThirdPartyAppAnalyticsLinkIdentifier	The identifiers of a Third Party App Analytics Link.
+TopicConstant	Use topics to target or exclude placements in the Google Display Network based on the category into which the placement falls (for example, "Pets & Animals/Pets/Dogs").
+TopicView	A topic view.
+TravelActivityGroupView	A travel activity group view.
+TravelActivityPerformanceView	A travel activity performance view.
+UniversityDegree	A list of degrees this employee has obtained, and wants to feature.
+UserInterest	A user interest: a particular interest-based vertical to be targeted.
+UserList	A user list. This is a list of users a customer may target. The unique key of a user list consists of the following fields: id . Note that the name must also be unique for user lists owned by a given customer, except in some cases where access_reason is set to SHARED . Violating the unique name constraint produces error: UserListError.INVALID_NAME .
+UserListCustomerType	A user list customer type
+UserLocationView	A user location view. User Location View includes all metrics aggregated at the country level, one row per country. It reports metrics at the actual physical location of the user by targeted or not targeted location. If other segment fields are used, you may get more than one row per country.
+Video	A video.
+VideoCustomer	Video specific information about a Customer.
+WebpageView	A webpage view.
+YoutubeVideoIdentifier	The identifier for YouTube video

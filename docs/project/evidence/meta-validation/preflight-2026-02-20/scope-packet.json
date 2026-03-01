@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.1.0",
+  "scope_status": "PASS_SINGLE_SCOPE",
+  "touched_top_level_folders": [
+    "docs"
+  ],
+  "required_reviewers": [],
+  "required_tests_by_folder": {
+    "docs": [
+      "docs-only change (no canonical code test)"
+    ]
+  },
+  "required_docs_updates": [
+    "docs/ops/doc-index.md",
+    "docs/ops/agent-activity-log.md"
+  ],
+  "recommended_next_action": "Proceed within `docs` scope, run canonical tests for that folder, and keep changes single-folder unless new evidence appears.",
+  "rationale": [
+    "Evidence source: git_changed_files.",
+    "Detected 2 path(s): docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.md, docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.tsv.",
+    "Touched top-level folders: docs."
+  ],
+  "advisory_only": true,
+  "evidence_source": "git_changed_files",
+  "evidence_paths": [
+    "docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.md",
+    "docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.tsv"
+  ],
+  "evidence": [
+    {
+      "type": "scope_path",
+      "value": "docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.tsv",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    }
+  ],
+  "contract_risk_signal": false,
+  "contract_risk_reasons": [],
+  "handoff_recommendations": {
+    "invoke_contract_guard": false,
+    "invoke_release_readiness": false
+  },
+  "signals": {
+    "prompt_paths": [],
+    "explicit_paths": [],
+    "changed_files": [
+      "docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.md",
+      "docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.tsv"
+    ],
+    "used_git_changed_files": true,
+    "architecture_hits": [],
+    "contract_hits": [],
+    "contract_keyword_hits": []
+  }
+}

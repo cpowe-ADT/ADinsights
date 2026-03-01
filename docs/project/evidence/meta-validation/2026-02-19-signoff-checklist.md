@@ -24,12 +24,14 @@ Scope: Stabilize-first implementation and release-gate readiness review.
 ## 2) Preflight packets
 
 Artifacts:
+
 - `docs/project/evidence/meta-validation/preflight-2026-02-19/router-packet.json`
 - `docs/project/evidence/meta-validation/preflight-2026-02-19/scope-packet.json`
 - `docs/project/evidence/meta-validation/preflight-2026-02-19/contract-packet.json`
 - `docs/project/evidence/meta-validation/preflight-2026-02-19/release-packet.json`
 
 Current packet outcomes:
+
 - Scope: `ESCALATE_ARCH_RISK`
 - Contract: `WARN_POSSIBLE_CONTRACT_CHANGE`
 - Release readiness: `GATE_BLOCK` (blocked by cross-stream architecture scope risk, not failing tests)
@@ -48,9 +50,11 @@ Current packet outcomes:
 ## 4) Operator-only staging validation
 
 Pending completion:
+
 - `docs/project/evidence/meta-validation/2026-02-19T20-35-00-0500.md`
 
 Required operator evidence:
+
 1. Fresh Meta Test App OAuth connect (`/api/integrations/meta/oauth/start` and `/exchange`)
 2. Asset connect + provision + sync
 3. `/api/meta/accounts/` returns at least one account
