@@ -1,10 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import EmptyState from '../components/EmptyState';
 import KPIGrid from '../components/KPIGrid';
 import MetricAvailabilityBadge from '../components/MetricAvailabilityBadge';
 import TrendChart from '../components/TrendChart';
+import MetaPageExportHistory from '../components/meta/MetaPageExportHistory';
+import MetaPagesFilterBar from '../components/meta/MetaPagesFilterBar';
+import MetricPicker from '../components/meta/MetricPicker';
+import useMetaPageExports from '../hooks/useMetaPageExports';
+import { toMetaPageDateParams } from '../lib/metaPageDateRange';
 import useMetaPageInsightsStore from '../state/useMetaPageInsightsStore';
 import '../styles/dashboard.css';
 
@@ -19,25 +24,36 @@ function formatMetricLabel(metric: string): string {
 
 const MetaPageOverviewPage = () => {
   const { pageId = '' } = useParams();
+  const navigate = useNavigate();
   const [isSyncing, setIsSyncing] = useState(false);
+  const { jobs: exportJobs, error: exportError, status: exportStatus, refresh: refreshExports, createExport, download } =
+    useMetaPageExports(pageId);
 
   const {
     pages,
+    metrics,
     dashboardStatus,
     overview,
+    timeseries,
     error,
     loadPages,
+    loadMetricRegistry,
     loadOverviewAndTimeseries,
+    loadTimeseries,
     refreshPage,
     filters,
     setFilters,
   } = useMetaPageInsightsStore((state) => ({
     pages: state.pages,
+    metrics: state.metrics,
     dashboardStatus: state.dashboardStatus,
     overview: state.overview,
+    timeseries: state.timeseries,
     error: state.error,
     loadPages: state.loadPages,
+    loadMetricRegistry: state.loadMetricRegistry,
     loadOverviewAndTimeseries: state.loadOverviewAndTimeseries,
+    loadTimeseries: state.loadTimeseries,
     refreshPage: state.refreshPage,
     filters: state.filters,
     setFilters: state.setFilters,
@@ -46,6 +62,10 @@ const MetaPageOverviewPage = () => {
   useEffect(() => {
     void loadPages();
   }, [loadPages]);
+
+  useEffect(() => {
+    void loadMetricRegistry();
+  }, [loadMetricRegistry]);
 
   useEffect(() => {
     if (!pageId) {
@@ -61,8 +81,56 @@ const MetaPageOverviewPage = () => {
   ]);
 
   const selectedPage = useMemo(() => pages.find((page) => page.page_id === pageId), [pages, pageId]);
-  const selectedMetric = filters.metric || overview?.primary_metric || '';
-  const series = overview?.daily_series[selectedMetric] ?? [];
+  const selectedMetric = filters.metric || overview?.primary_metric || 'page_post_engagements';
+  const getSupportedPeriods = useCallback(
+    (metricKey: string) => {
+      const option = metrics.page.find((candidate) => candidate.metric_key === metricKey);
+      if (option?.supported_periods?.length) {
+        return option.supported_periods;
+      }
+      return ['day', 'week', 'days_28'];
+    },
+    [metrics.page],
+  );
+  const supportedPeriods = getSupportedPeriods(selectedMetric);
+
+  useEffect(() => {
+    if (supportedPeriods.length === 0) {
+      return;
+    }
+    if (!supportedPeriods.includes(filters.period)) {
+      const nextPeriod = supportedPeriods[0] ?? 'day';
+      setFilters({ period: nextPeriod });
+      if (pageId) {
+        void loadTimeseries(pageId);
+      }
+    }
+  }, [filters.period, loadTimeseries, pageId, setFilters, supportedPeriods]);
+
+  const timeseriesPoints = useMemo(
+    () =>
+      (timeseries?.points ?? []).map((point) => ({
+        date: point.end_time.slice(0, 10),
+        value: point.value,
+      })),
+    [timeseries?.points],
+  );
+
+  const handleMetricChange = (metric: string) => {
+    const metricPeriods = getSupportedPeriods(metric);
+    const nextPeriod = metricPeriods.includes(filters.period) ? filters.period : (metricPeriods[0] ?? 'day');
+    setFilters({ metric, period: nextPeriod });
+    if (pageId) {
+      void loadTimeseries(pageId);
+    }
+  };
+
+  const handlePeriodChange = (period: string) => {
+    setFilters({ period });
+    if (pageId) {
+      void loadTimeseries(pageId);
+    }
+  };
 
   const syncNow = async () => {
     if (!pageId) {
@@ -75,6 +143,25 @@ const MetaPageOverviewPage = () => {
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const runExport = async (format: 'csv' | 'pdf' | 'png') => {
+    if (!pageId) {
+      return;
+    }
+    await createExport({
+      export_format: format,
+      ...toMetaPageDateParams({
+        datePreset: filters.datePreset,
+        since: filters.since,
+        until: filters.until,
+      }),
+      trend_metric: selectedMetric,
+      trend_period: filters.period,
+      posts_metric: 'post_media_view',
+      posts_sort: 'metric_desc',
+      posts_limit: 10,
+    });
   };
 
   return (
@@ -94,28 +181,60 @@ const MetaPageOverviewPage = () => {
           <button className="button secondary" type="button" onClick={() => void syncNow()} disabled={isSyncing}>
             {isSyncing ? 'Syncing…' : 'Sync now'}
           </button>
+          <button className="button tertiary" type="button" onClick={() => void runExport('csv')} disabled={exportStatus === 'loading'}>
+            Export CSV
+          </button>
+          <button className="button tertiary" type="button" onClick={() => void runExport('pdf')} disabled={exportStatus === 'loading'}>
+            Export PDF
+          </button>
+          <button className="button tertiary" type="button" onClick={() => void runExport('png')} disabled={exportStatus === 'loading'}>
+            Export PNG
+          </button>
         </div>
       </header>
+
+      <MetaPagesFilterBar
+        pages={pages}
+        selectedPageId={pageId}
+        datePreset={filters.datePreset}
+        since={filters.since}
+        until={filters.until}
+        onChangePage={(nextPageId) => navigate(`/dashboards/meta/pages/${nextPageId}/overview`)}
+        onChangeDatePreset={(preset) => setFilters({ datePreset: preset })}
+        onChangeSince={(value) => setFilters({ since: value })}
+        onChangeUntil={(value) => setFilters({ until: value })}
+      />
 
       {overview ? (
         <div className="meta-sync-meta">
           <p>
             Last synced at: <strong>{overview.last_synced_at ?? 'Never'}</strong>
           </p>
-          <div className="meta-overview-metric-picker">
-            <label htmlFor="meta-overview-metric">Trend metric</label>
+          <MetricPicker
+            metrics={metrics.page}
+            selectedMetric={selectedMetric}
+            showAllMetrics={filters.showAllMetrics}
+            onMetricChange={handleMetricChange}
+            onToggleAllMetrics={(showAll) => setFilters({ showAllMetrics: showAll })}
+          />
+          <label className="dashboard-field" style={{ marginTop: '0.75rem' }}>
+            <span className="dashboard-field__label">Period</span>
             <select
-              id="meta-overview-metric"
-              value={selectedMetric}
-              onChange={(event) => setFilters({ metric: event.target.value })}
+              value={filters.period}
+              onChange={(event) => handlePeriodChange(event.target.value)}
             >
-              {Object.keys(overview.metric_availability).map((metric) => (
-                <option key={metric} value={metric}>
-                  {formatMetricLabel(metric)}
+              {supportedPeriods.map((period) => (
+                <option key={period} value={period}>
+                  {period}
                 </option>
               ))}
             </select>
-            <MetricAvailabilityBadge metric={selectedMetric} availability={overview.metric_availability[selectedMetric]} />
+          </label>
+          <div style={{ marginTop: '0.5rem' }}>
+            <MetricAvailabilityBadge
+              metric={selectedMetric}
+              availability={overview.metric_availability[selectedMetric]}
+            />
           </div>
         </div>
       ) : null}
@@ -135,8 +254,10 @@ const MetaPageOverviewPage = () => {
       {dashboardStatus === 'loaded' && overview ? (
         <>
           <KPIGrid kpis={overview.kpis} metricAvailability={overview.metric_availability} />
-          {series.length > 0 ? <TrendChart title={`${formatMetricLabel(selectedMetric)} trend`} points={series} /> : null}
-          {series.length === 0 ? (
+          {timeseriesPoints.length > 0 ? (
+            <TrendChart title={`${formatMetricLabel(selectedMetric)} trend`} points={timeseriesPoints} />
+          ) : null}
+          {timeseriesPoints.length === 0 ? (
             <div className="panel meta-warning-panel" role="status">
               <h3>No trend points available</h3>
               <p>Try another metric or trigger sync.</p>
@@ -144,6 +265,14 @@ const MetaPageOverviewPage = () => {
           ) : null}
         </>
       ) : null}
+
+      <MetaPageExportHistory
+        jobs={exportJobs}
+        error={exportError}
+        isLoading={exportStatus === 'loading'}
+        onRefresh={() => void refreshExports()}
+        onDownload={(jobId) => void download(jobId)}
+      />
     </section>
   );
 };

@@ -20,6 +20,7 @@ DATE_PRESET_CHOICES = [
 class MetaOAuthCallbackSerializer(serializers.Serializer):
     code = serializers.CharField(required=True, allow_blank=False)
     state = serializers.CharField(required=True, allow_blank=False)
+    runtime_context = serializers.DictField(required=False)
 
 
 class MetaPageResponseSerializer(serializers.Serializer):

@@ -35,6 +35,24 @@ import MetaPagesListPage from './routes/MetaPagesListPage';
 import MetaPageOverviewPage from './routes/MetaPageOverviewPage';
 import MetaPagePostsPage from './routes/MetaPagePostsPage';
 import MetaPostDetailPage from './routes/MetaPostDetailPage';
+import {
+  GoogleAdsCampaignDrawerRedirect,
+  GoogleAdsTabRedirect,
+} from './routes/google-ads/GoogleAdsLegacyRedirects';
+import GoogleAdsWorkspacePage from './routes/google-ads/GoogleAdsWorkspacePage';
+import GoogleAdsExecutivePage from './routes/google-ads/GoogleAdsExecutivePage';
+import GoogleAdsCampaignsPage from './routes/google-ads/GoogleAdsCampaignsPage';
+import GoogleAdsCampaignDetailPage from './routes/google-ads/GoogleAdsCampaignDetailPage';
+import GoogleAdsChannelsPage from './routes/google-ads/GoogleAdsChannelsPage';
+import GoogleAdsKeywordsPage from './routes/google-ads/GoogleAdsKeywordsPage';
+import GoogleAdsAssetsPage from './routes/google-ads/GoogleAdsAssetsPage';
+import GoogleAdsPmaxPage from './routes/google-ads/GoogleAdsPmaxPage';
+import GoogleAdsBreakdownsPage from './routes/google-ads/GoogleAdsBreakdownsPage';
+import GoogleAdsConversionsPage from './routes/google-ads/GoogleAdsConversionsPage';
+import GoogleAdsBudgetPage from './routes/google-ads/GoogleAdsBudgetPage';
+import GoogleAdsChangeLogPage from './routes/google-ads/GoogleAdsChangeLogPage';
+import GoogleAdsRecommendationsPage from './routes/google-ads/GoogleAdsRecommendationsPage';
+import GoogleAdsReportsPage from './routes/google-ads/GoogleAdsReportsPage';
 
 const MetaPageOverviewAliasRedirect = () => {
   const { pageId = '' } = useParams();
@@ -50,6 +68,25 @@ const MetaPostAliasRedirect = () => {
   const { postId = '' } = useParams();
   return <Navigate to={`/dashboards/meta/posts/${postId}`} replace />;
 };
+
+function resolveBooleanFlag(value: unknown, defaultValue: boolean): boolean {
+  if (typeof value !== 'string') {
+    return defaultValue;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'y', 'on'].includes(normalized)) {
+    return true;
+  }
+  if (['0', 'false', 'no', 'n', 'off'].includes(normalized)) {
+    return false;
+  }
+  return defaultValue;
+}
+
+const GOOGLE_ADS_WORKSPACE_UNIFIED = resolveBooleanFlag(
+  import.meta.env.VITE_GOOGLE_ADS_WORKSPACE_UNIFIED,
+  true,
+);
 
 export const router = createBrowserRouter(
   [
@@ -153,6 +190,106 @@ export const router = createBrowserRouter(
             { path: 'meta/pages/:pageId/overview', element: <MetaPageOverviewPage /> },
             { path: 'meta/pages/:pageId/posts', element: <MetaPagePostsPage /> },
             { path: 'meta/posts/:postId', element: <MetaPostDetailPage /> },
+            {
+              path: 'google-ads',
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
+                <GoogleAdsWorkspacePage />
+              ) : (
+                <Navigate to="/dashboards/google-ads/executive" replace />
+              ),
+            },
+            {
+              path: 'google-ads/executive',
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
+                <GoogleAdsTabRedirect tab="overview" />
+              ) : (
+                <GoogleAdsExecutivePage />
+              ),
+            },
+            {
+              path: 'google-ads/campaigns',
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
+                <GoogleAdsTabRedirect tab="campaigns" />
+              ) : (
+                <GoogleAdsCampaignsPage />
+              ),
+            },
+            {
+              path: 'google-ads/campaigns/:campaignId',
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
+                <GoogleAdsCampaignDrawerRedirect />
+              ) : (
+                <GoogleAdsCampaignDetailPage />
+              ),
+            },
+            {
+              path: 'google-ads/channels',
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
+                <GoogleAdsTabRedirect tab="campaigns" />
+              ) : (
+                <GoogleAdsChannelsPage />
+              ),
+            },
+            {
+              path: 'google-ads/keywords',
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
+                <GoogleAdsTabRedirect tab="search" extra={{ search_mode: 'keywords' }} />
+              ) : (
+                <GoogleAdsKeywordsPage />
+              ),
+            },
+            {
+              path: 'google-ads/assets',
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
+                <GoogleAdsTabRedirect tab="assets" />
+              ) : (
+                <GoogleAdsAssetsPage />
+              ),
+            },
+            {
+              path: 'google-ads/pmax',
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? <GoogleAdsTabRedirect tab="pmax" /> : <GoogleAdsPmaxPage />,
+            },
+            {
+              path: 'google-ads/breakdowns',
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
+                <GoogleAdsTabRedirect tab="campaigns" />
+              ) : (
+                <GoogleAdsBreakdownsPage />
+              ),
+            },
+            {
+              path: 'google-ads/conversions',
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
+                <GoogleAdsTabRedirect tab="conversions" />
+              ) : (
+                <GoogleAdsConversionsPage />
+              ),
+            },
+            {
+              path: 'google-ads/budget',
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? <GoogleAdsTabRedirect tab="pacing" /> : <GoogleAdsBudgetPage />,
+            },
+            {
+              path: 'google-ads/change-log',
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
+                <GoogleAdsTabRedirect tab="changes" />
+              ) : (
+                <GoogleAdsChangeLogPage />
+              ),
+            },
+            {
+              path: 'google-ads/recommendations',
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
+                <GoogleAdsTabRedirect tab="recommendations" />
+              ) : (
+                <GoogleAdsRecommendationsPage />
+              ),
+            },
+            {
+              path: 'google-ads/reports',
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? <GoogleAdsTabRedirect tab="reports" /> : <GoogleAdsReportsPage />,
+            },
             { path: 'map', element: <ParishMapDetail /> },
             { path: 'uploads', element: <CsvUpload /> },
           ],

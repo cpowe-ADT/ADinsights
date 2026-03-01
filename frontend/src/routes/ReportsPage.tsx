@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
@@ -12,6 +12,7 @@ const ReportsPage = () => {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [reports, setReports] = useState<ReportDefinition[]>([]);
   const [error, setError] = useState('Unable to load reports.');
+  const [showInternal, setShowInternal] = useState(false);
 
   const load = useCallback(async () => {
     setState('loading');
@@ -28,6 +29,22 @@ const ReportsPage = () => {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const visibleReports = useMemo(() => {
+    if (showInternal) {
+      return reports;
+    }
+    return reports.filter((report) => {
+      const filters = report.filters as Record<string, unknown> | undefined;
+      if (filters && filters.internal === true) {
+        return false;
+      }
+      if (typeof report.name === 'string' && report.name.startsWith('internal:')) {
+        return false;
+      }
+      return true;
+    });
+  }, [reports, showInternal]);
 
   if (state === 'loading') {
     return <DashboardState variant="loading" layout="page" message="Loading reports…" />;
@@ -55,6 +72,14 @@ const ReportsPage = () => {
           <p className="phase2-page__subhead">Manage saved report definitions and export jobs.</p>
         </div>
         <div className="phase2-row-actions">
+          <label className="meta-toggle-all" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+            <input
+              type="checkbox"
+              checked={showInternal}
+              onChange={(event) => setShowInternal(event.target.checked)}
+            />
+            <span>Show internal</span>
+          </label>
           <button type="button" className="button secondary" onClick={() => void load()}>
             Refresh
           </button>
@@ -64,7 +89,7 @@ const ReportsPage = () => {
         </div>
       </header>
 
-      {reports.length === 0 ? (
+      {visibleReports.length === 0 ? (
         <DashboardState
           variant="empty"
           layout="page"
@@ -75,7 +100,7 @@ const ReportsPage = () => {
         />
       ) : (
         <div className="phase2-grid">
-          {reports.map((report) => (
+          {visibleReports.map((report) => (
             <article className="phase2-card" key={report.id}>
               <h3>{report.name}</h3>
               <p>{report.description || 'No description provided.'}</p>

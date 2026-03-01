@@ -90,6 +90,11 @@ This file includes:
 - `DEV_BACKEND_URL`, `DEV_FRONTEND_URL`
 - generation timestamp
 
+When started via `scripts/dev-launch.sh`, these runtime URLs are also injected into
+the backend/celery compose environment (`FRONTEND_BASE_URL`, `DEV_BACKEND_URL`,
+`DEV_FRONTEND_URL`, `DEV_ACTIVE_PROFILE`) so OAuth redirects and generated app links
+follow the active launcher profile ports.
+
 `dev-healthcheck.sh` now auto-loads this file when explicit `DEV_BACKEND_URL` / `DEV_FRONTEND_URL` are not provided.
 
 ## Where to set up + how to check

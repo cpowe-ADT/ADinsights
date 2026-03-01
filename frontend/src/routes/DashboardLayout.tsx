@@ -49,6 +49,18 @@ const segmentLabels: Record<string, string> = {
   pages: 'Facebook Pages',
   overview: 'Overview',
   posts: 'Posts',
+  google: 'Google',
+  'google-ads': 'Google Ads',
+  executive: 'Executive overview',
+  channels: 'Channel views',
+  keywords: 'Keywords & search terms',
+  assets: 'Ads & assets',
+  pmax: 'Performance Max',
+  breakdowns: 'Audience & breakdowns',
+  conversions: 'Conversions & attribution',
+  'change-log': 'Change log & governance',
+  recommendations: 'Recommendations',
+  reports: 'Reports & exports',
   map: 'Map',
   uploads: 'CSV uploads',
 };
@@ -116,6 +128,14 @@ const DashboardLayout = () => {
     const searchParams = new URLSearchParams(location.search);
     return parseFilterQueryParams(searchParams, defaultFilters);
   }, [defaultFilters, location.search]);
+
+  const hideGlobalFilters = useMemo(() => {
+    return (
+      location.pathname.startsWith('/dashboards/meta/pages') ||
+      location.pathname.startsWith('/dashboards/meta/posts') ||
+      location.pathname.startsWith('/dashboards/google-ads')
+    );
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!areFiltersEqual(filters, urlFilters)) {
@@ -230,6 +250,7 @@ const DashboardLayout = () => {
       { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
       { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
       { label: 'Facebook pages', to: '/dashboards/meta/pages', end: false },
+      { label: 'Google Ads', to: '/dashboards/google-ads', end: false },
     ],
     [],
   );
@@ -366,7 +387,9 @@ const DashboardLayout = () => {
       if (!lastSnapshotGeneratedAt) {
         return 'Demo dataset active';
       }
-      return snapshotRelative ? `Demo data - ${snapshotRelative}` : 'Demo dataset active';
+      return snapshotRelative
+        ? `Demo dataset active - ${snapshotRelative}`
+        : 'Demo dataset active';
     }
     if (!lastSnapshotGeneratedAt) {
       return 'Waiting for live snapshot…';
@@ -499,7 +522,7 @@ const DashboardLayout = () => {
           <Breadcrumbs items={breadcrumbs} />
         </div>
       </div>
-      {location.pathname === '/dashboards' ? null : (
+      {location.pathname === '/dashboards' || hideGlobalFilters ? null : (
         <FilterBar state={filters} defaultState={defaultFilters} onChange={handleFilterChange} />
       )}
       {datasetMode === 'dummy' ? (

@@ -51,7 +51,7 @@ test.describe('tenant switching', () => {
     });
 
     await page.route('**/mock/tenants.json', (route) => fulfillJson(route, TENANTS));
-    await page.route('**/sample_metrics.json', (route) => fulfillJson(route, metricsSnapshot));
+    await page.route('**/sample_metrics.json**', (route) => fulfillJson(route, metricsSnapshot));
 
     await dashboard.open();
     await dashboard.waitForMetricsLoaded(campaignSnapshot.rows.length);
@@ -71,6 +71,6 @@ test.describe('tenant switching', () => {
     expect(requestCounts.metricsApi).toBe(0);
 
     await page.unroute('**/mock/tenants.json');
-    await page.unroute('**/sample_metrics.json');
+    await page.unroute('**/sample_metrics.json**');
   });
 });

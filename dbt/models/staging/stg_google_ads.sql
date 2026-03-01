@@ -1,5 +1,11 @@
 {{ config(materialized='view') }}
 
+{% if var('google_ads_ingestion_engine', 'airbyte') == 'sdk' %}
+
+select * from {{ ref('stg_google_ads_sdk') }}
+
+{% else %}
+
 with source as (
     select *
     from {{ source('raw', 'google_ads_insights') }}
@@ -33,3 +39,5 @@ select
 from cleaned c
 left join {{ ref('geo_parish_lookup') }} g
     on lower(c.region_name) = lower(g.region_name)
+
+{% endif %}

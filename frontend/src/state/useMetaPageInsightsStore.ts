@@ -1,10 +1,13 @@
 import { create } from 'zustand';
 
 import { ApiError } from '../lib/apiClient';
+import { toMetaPageDateParams } from '../lib/metaPageDateRange';
 import {
   callbackMetaOAuth,
+  listMetaMetrics,
   loadMetaPageOverview,
   loadMetaPagePosts,
+  loadMetaPageTimeseries,
   loadMetaPages,
   loadMetaPostDetail,
   loadMetaPostTimeseries,
@@ -17,6 +20,7 @@ import {
   type MetaPagesResponse,
   type MetaPostDetailResponse,
   type MetaPostsResponse,
+  type MetaMetricOption,
   type MetaTimeseriesResponse,
 } from '../lib/metaPageInsights';
 
@@ -29,6 +33,15 @@ type Filters = {
   metric: string;
   period: string;
   showAllMetrics: boolean;
+};
+
+type PostsQuery = {
+  q: string;
+  mediaType: string;
+  sort: string;
+  metric: string;
+  limit: number;
+  offset: number;
 };
 
 type MetaPageInsightsState = {
@@ -45,36 +58,32 @@ type MetaPageInsightsState = {
   selectedPageId: string;
   selectedPostId: string;
   filters: Filters;
+  postsQuery: PostsQuery;
   overview: MetaOverviewResponse | null;
   timeseries: MetaTimeseriesResponse | null;
   posts: MetaPostsResponse | null;
   postDetail: MetaPostDetailResponse | null;
   postTimeseries: MetaTimeseriesResponse | null;
+  metrics: {
+    page: MetaMetricOption[];
+    post: MetaMetricOption[];
+  };
   setFilters: (value: Partial<Filters>) => void;
+  setPostsQuery: (value: Partial<PostsQuery>) => void;
   setSelectedPageId: (pageId: string) => void;
   setSelectedPostId: (postId: string) => void;
   loadPages: () => Promise<void>;
+  loadMetricRegistry: () => Promise<void>;
   connectOAuthStart: () => Promise<void>;
   connectOAuthCallback: (code: string, state: string) => Promise<void>;
   selectDefaultPage: (pageId: string) => Promise<void>;
   loadOverviewAndTimeseries: (pageId: string) => Promise<void>;
-  loadPosts: (pageId: string) => Promise<void>;
+  loadTimeseries: (pageId: string) => Promise<void>;
+  loadPosts: (pageId: string, overrides?: Partial<PostsQuery>) => Promise<void>;
   loadPostDetail: (postId: string) => Promise<void>;
   loadPostTimeseries: (postId: string) => Promise<void>;
   refreshPage: (pageId: string) => Promise<Record<string, string>>;
 };
-
-function formatDate(value: Date): string {
-  return value.toISOString().slice(0, 10);
-}
-
-function defaultDateRange(): { since: string; until: string } {
-  const until = new Date();
-  until.setDate(until.getDate() - 1);
-  const since = new Date(until);
-  since.setDate(until.getDate() - 27);
-  return { since: formatDate(since), until: formatDate(until) };
-}
 
 function classifyError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
@@ -100,8 +109,6 @@ function clearOAuthFlowMarker(): void {
   window.sessionStorage.removeItem(META_OAUTH_FLOW_SESSION_KEY);
 }
 
-const defaultRange = defaultDateRange();
-
 export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get) => ({
   pagesStatus: 'idle',
   oauthStatus: 'idle',
@@ -117,18 +124,31 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
   selectedPostId: '',
   filters: {
     datePreset: 'last_28d',
-    since: defaultRange.since,
-    until: defaultRange.until,
+    since: '',
+    until: '',
     metric: 'page_post_engagements',
     period: 'day',
     showAllMetrics: false,
+  },
+  postsQuery: {
+    q: '',
+    mediaType: '',
+    sort: 'created_desc',
+    metric: 'post_media_view',
+    limit: 50,
+    offset: 0,
   },
   overview: null,
   timeseries: null,
   posts: null,
   postDetail: null,
   postTimeseries: null,
+  metrics: {
+    page: [],
+    post: [],
+  },
   setFilters: (value) => set((state) => ({ filters: { ...state.filters, ...value } })),
+  setPostsQuery: (value) => set((state) => ({ postsQuery: { ...state.postsQuery, ...value } })),
   setSelectedPageId: (pageId) => set({ selectedPageId: pageId }),
   setSelectedPostId: (postId) => set({ selectedPostId: postId }),
   loadPages: async () => {
@@ -143,6 +163,17 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
       }));
     } catch (error) {
       set({ pagesStatus: 'error', error: classifyError(error, 'Unable to load Facebook Pages.') });
+    }
+  },
+  loadMetricRegistry: async () => {
+    try {
+      const [page, post] = await Promise.all([
+        listMetaMetrics({ level: 'PAGE' }),
+        listMetaMetrics({ level: 'POST' }),
+      ]);
+      set({ metrics: { page: page.results ?? [], post: post.results ?? [] } });
+    } catch {
+      set({ metrics: { page: [], post: [] } });
     }
   },
   connectOAuthStart: async () => {
@@ -195,44 +226,82 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
     const { filters } = get();
     set({ dashboardStatus: 'loading', error: undefined });
     try {
-      const overview = await loadMetaPageOverview(pageId, {
-        date_preset: filters.datePreset,
+      const overviewParams = toMetaPageDateParams({
+        datePreset: filters.datePreset,
         since: filters.since,
         until: filters.until,
       });
-      const selectedMetric = filters.metric || overview.primary_metric || Object.keys(overview.daily_series)[0] || '';
-      const series = overview.daily_series[selectedMetric] ?? [];
-      const points = series.map((point) => ({
-        end_time: `${point.date}T00:00:00Z`,
-        value: point.value,
-      }));
-      const timeseries: MetaTimeseriesResponse = {
-        page_id: pageId,
+      const overview = await loadMetaPageOverview(pageId, overviewParams);
+      const selectedMetric =
+        filters.metric || overview.primary_metric || Object.keys(overview.daily_series)[0] || '';
+
+      const timeseriesDateParams = toMetaPageDateParams({
+        datePreset: filters.datePreset,
+        since: overview.since || filters.since,
+        until: overview.until || filters.until,
+      });
+      const timeseriesParams = {
+        ...timeseriesDateParams,
         metric: selectedMetric,
-        period: 'day',
-        metric_availability: overview.metric_availability,
-        points,
+        period: filters.period || 'day',
       };
+      const timeseries = await loadMetaPageTimeseries(pageId, timeseriesParams);
       set({
         overview,
         timeseries,
         dashboardStatus: 'loaded',
-        filters: { ...filters, metric: selectedMetric || filters.metric },
+        filters: {
+          ...filters,
+          metric: selectedMetric || filters.metric,
+          since: overview.since || filters.since,
+          until: overview.until || filters.until,
+        },
       });
     } catch (error) {
       set({ dashboardStatus: 'error', error: classifyError(error, 'Unable to load page overview.') });
     }
   },
-  loadPosts: async (pageId) => {
-    const { filters } = get();
+  loadTimeseries: async (pageId) => {
+    const { filters, overview } = get();
+    set({ dashboardStatus: 'loading', error: undefined });
+    try {
+      const timeseriesParams = {
+        ...toMetaPageDateParams({
+          datePreset: filters.datePreset,
+          since: filters.since,
+          until: filters.until,
+        }),
+        metric: filters.metric || overview?.primary_metric || 'page_post_engagements',
+        period: filters.period || 'day',
+      };
+      const timeseries = await loadMetaPageTimeseries(pageId, timeseriesParams);
+      set({ timeseries, dashboardStatus: 'loaded' });
+    } catch (error) {
+      set({ dashboardStatus: 'error', error: classifyError(error, 'Unable to load page timeseries.') });
+    }
+  },
+  loadPosts: async (pageId, overrides) => {
+    const { filters, postsQuery } = get();
     set({ postsStatus: 'loading', error: undefined });
     try {
-      const posts = await loadMetaPagePosts(pageId, {
-        date_preset: filters.datePreset,
-        since: filters.since,
-        until: filters.until,
-      });
-      set({ posts, postsStatus: 'loaded' });
+      const nextQuery = { ...postsQuery, ...overrides };
+      const params: Record<string, unknown> = {
+        ...toMetaPageDateParams({
+          datePreset: filters.datePreset,
+          since: filters.since,
+          until: filters.until,
+        }),
+        limit: nextQuery.limit,
+        offset: nextQuery.offset,
+        q: nextQuery.q || undefined,
+        media_type: nextQuery.mediaType || undefined,
+        sort: nextQuery.sort || undefined,
+      };
+      if (nextQuery.sort?.startsWith('metric_')) {
+        params.sort_metric = nextQuery.metric || 'post_media_view';
+      }
+      const posts = await loadMetaPagePosts(pageId, params as never);
+      set({ postsQuery: nextQuery, posts, postsStatus: 'loaded' });
     } catch (error) {
       set({ postsStatus: 'error', error: classifyError(error, 'Unable to load page posts.') });
     }
