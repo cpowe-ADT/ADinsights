@@ -24,7 +24,7 @@ surface_patterns:
     - dbt/snapshots/.*\.(sql|yml)
   integration_contract:
     - ^infrastructure/airbyte/.*
-    - ^integrations/.*
+    - ^integrations/(?!.*(?:^|/)(?:package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$).*
   contract_docs:
     - docs/project/api-contract-changelog.md
     - docs/project/integration-data-contract-matrix.md
