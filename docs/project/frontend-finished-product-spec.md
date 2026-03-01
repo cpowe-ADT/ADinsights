@@ -10,6 +10,7 @@ Sources: README.md, docs/task_breakdown.md, docs/workstreams.md, UI screenshots 
 dashboard, Campaigns dashboard, Budget pacing).
 
 Legend:
+
 - MVP: must-have for a usable multi-tenant analytics product.
 - Post-MVP: advanced analytics, reporting, and ops management features.
 - Enterprise: UAC, approvals, agency portfolio, and compliance features.
@@ -32,6 +33,7 @@ and global filters shared across all analytics views:
 - **Admin/Settings**: profile/me, users/roles, tenant/workspace settings, entitlements, audit log, approvals/why-denied (Enterprise), ops health/sync health.
 
 Cross-cutting UI (global):
+
 - Tenant switcher + tenant context banner.
 - Dataset mode toggle (live warehouse default; demo opt-in).
 - Snapshot freshness indicator (relative + absolute timestamp, stale warning).
@@ -43,15 +45,15 @@ Cross-cutting UI (global):
 The tables below are a non-duplicative index: each module links to the detailed route specs in
 Section A and API/contracts in Section E.
 
-| Module | MVP routes | Post‑MVP routes | Enterprise routes |
-| --- | --- | --- | --- |
-| Onboarding | `/login`, `/password-reset`, `/invite`, `/` | `/me` | — |
-| Data connections | `/dashboards/data-sources` (placeholder) | `/ops/sync-health`, `/dashboards/uploads`, `/dashboards/uploads/:id` | — |
-| Dashboards | `/dashboards/create`, `/dashboards/campaigns`, `/dashboards/creatives`, `/dashboards/budget`, `/dashboards/map` | `/dashboards` (library) | `/agency/portfolio` |
-| Reporting | — | `/reports`, `/reports/new`, `/reports/:id` | `/board-packs`, `/board-packs/:id` |
-| Alerts/AI | — | `/alerts`, `/alerts/:id`, `/summaries`, `/summaries/:id` | — |
-| Admin/Settings | — | `/me`, `/ops/health` | `/approvals`, `/approvals/:id`, `/ops/audit`, `/why-denied`, `/support/impersonate`, `/access-review`, `/agency/tenants` |
-| Docs/Help | `/` (links) | — | — |
+| Module           | MVP routes                                                                                                      | Post‑MVP routes                                                      | Enterprise routes                                                                                                        |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Onboarding       | `/login`, `/password-reset`, `/invite`, `/`                                                                     | `/me`                                                                | —                                                                                                                        |
+| Data connections | `/dashboards/data-sources` (placeholder)                                                                        | `/ops/sync-health`, `/dashboards/uploads`, `/dashboards/uploads/:id` | —                                                                                                                        |
+| Dashboards       | `/dashboards/create`, `/dashboards/campaigns`, `/dashboards/creatives`, `/dashboards/budget`, `/dashboards/map` | `/dashboards` (library)                                              | `/agency/portfolio`                                                                                                      |
+| Reporting        | —                                                                                                               | `/reports`, `/reports/new`, `/reports/:id`                           | `/board-packs`, `/board-packs/:id`                                                                                       |
+| Alerts/AI        | —                                                                                                               | `/alerts`, `/alerts/:id`, `/summaries`, `/summaries/:id`             | —                                                                                                                        |
+| Admin/Settings   | —                                                                                                               | `/me`, `/ops/health`                                                 | `/approvals`, `/approvals/:id`, `/ops/audit`, `/why-denied`, `/support/impersonate`, `/access-review`, `/agency/tenants` |
+| Docs/Help        | `/` (links)                                                                                                     | —                                                                    | —                                                                                                                        |
 
 ## A1) Feature inventory by module (end-user; no duplicates)
 
@@ -60,6 +62,7 @@ references routes from Section A; route entries remain the source of truth for v
 states so we don’t duplicate those details here.
 
 Notes on roles:
+
 - This spec uses the simplified tenant roles **Owner/Admin/Analyst/Viewer** as shorthand.
 - Enterprise/UAC roles (agency/client/support variants) are defined in `docs/security/uac-spec.md`.
 
@@ -231,6 +234,7 @@ Notes on roles:
 ## A) Pages/Routes
 
 ### MVP
+
 - Login (/login)
   - view: email/password login, optional SSO placeholder, system status hint.
   - filter: n/a.
@@ -324,6 +328,7 @@ Notes on roles:
   - stale data: show invite expiry timestamp if available.
 
 ### Post-MVP
+
 - Data sources (/dashboards/data-sources)
   - view: connector list, status, schedule, last sync, next run.
   - filter: provider, status, workspace.
@@ -452,6 +457,7 @@ Notes on roles:
   - stale data: last audit refresh timestamp.
 
 ### Enterprise
+
 - Agency portfolio (/agency/portfolio)
   - view: aggregate KPIs across managed tenants (no drill-through).
   - filter: time range, agency.
@@ -519,6 +525,7 @@ Notes on roles:
 ## B) Global UI Components
 
 ### MVP
+
 - App shell: top nav, breadcrumbs, account pill, logout.
 - Tenant switcher: searchable, keyboard-friendly, shows active tenant.
 - Dataset toggle: demo vs live; persisted selection.
@@ -530,6 +537,7 @@ Notes on roles:
 - System feedback: toasts, skeleton loaders, error banners.
 
 ### Post-MVP
+
 - Dashboard library cards: last viewed, owner, quick actions.
 - Report builder blocks: narrative editor, widget picker, layout grid.
 - Export dialogs: PDF/PNG/CSV options with watermark preview.
@@ -538,6 +546,7 @@ Notes on roles:
 - Connector cards: status pill, schedule controls, run now.
 
 ### Enterprise
+
 - Approval widgets: status pills, comment threads, embargo banners.
 - Entitlement badges: plan tags, "why denied" inline cues.
 - Step-up auth modal: MFA prompt with reason capture.
@@ -548,6 +557,7 @@ Notes on roles:
 ## C) Key User Actions
 
 ### MVP
+
 - Authenticate, refresh session, log out.
 - Switch tenant context; keep tenant label visible.
 - Toggle demo/live data; handle adapter availability.
@@ -556,6 +566,7 @@ Notes on roles:
 - Save layout and copy a shareable link.
 
 ### Post-MVP
+
 - Connect data sources; test and schedule syncs.
 - Upload CSVs; map columns, validate, monitor jobs.
 - Build and export reports; schedule deliveries.
@@ -563,6 +574,7 @@ Notes on roles:
 - Edit budget plans; compare plan vs actual.
 
 ### Enterprise
+
 - Approve/reject drafts and budget proposals.
 - Generate and schedule board packs with watermarks.
 - Use impersonation with consent and time-boxed sessions.
@@ -572,16 +584,19 @@ Notes on roles:
 ## D) Permissions/Roles
 
 ### MVP
+
 - Tenant-scoped RBAC with role-aware navigation and disabled actions.
 - Demo/live data toggle allowed for all roles; live data gated by adapters.
 - Copy link available to all; exports gated by role/entitlement (Post-MVP).
 
 ### Post-MVP
+
 - Workspace scoping on dashboards, reports, and alerts.
 - Connector management limited to tenant admins/team leads.
 - CSV uploads limited to entitled roles; high-risk actions logged.
 
 ### Enterprise
+
 - Role catalog per UAC spec (platform, agency, client roles).
 - Draft -> Review -> Publish enforced; approvals logged.
 - Exports watermarked; CSV disabled unless entitled + step-up auth.
@@ -590,6 +605,7 @@ Notes on roles:
 ## E) API Dependencies
 
 ### MVP
+
 - Auth: POST /api/auth/login/, POST /api/auth/refresh/, GET /api/me/.
 - Tenant switch: POST /api/auth/switch-tenant/.
 - Password reset: POST /api/auth/password-reset/, POST /api/auth/password-reset/confirm/.
@@ -599,6 +615,7 @@ Notes on roles:
 - Geo: parish geometry endpoint or static GeoJSON.
 
 ### Post-MVP
+
 - Airbyte connections: GET /api/airbyte/connections/, summary, lifecycle endpoints.
 - Airbyte telemetry: GET /api/airbyte/telemetry/.
 - CSV upload + jobs: upload, mapping, status endpoints.
@@ -607,6 +624,7 @@ Notes on roles:
 - Admin audit: audit log endpoints.
 
 ### Enterprise
+
 - UAC: role bindings, entitlements, approvals workflow endpoints.
 - Board packs: schedule + generate endpoints.
 - Impersonation: consent + session endpoints.
@@ -631,18 +649,21 @@ and frontend types:
 ## F) Empty/Error/Loading States
 
 ### MVP
+
 - Skeleton loaders for KPIs, charts, tables, maps.
 - Clear empty states with actionable CTAs (refresh data, connect sources).
 - Errors surfaced inline with retry and runbook links when applicable.
 - Stale data banner with snapshot timestamp; warning tone on stale.
 
 ### Post-MVP
+
 - Connector errors: distinguish stale vs misconfigured credentials.
 - CSV validation errors: aggregated error tables + retry mapping.
 - Report export failures: retry + audit event logging.
 - Alert delivery failures: show reason and next retry time.
 
 ### Enterprise
+
 - Approval blocks: embargo/blackout messaging with timestamps.
 - Entitlement denied: "why denied" explanation with request access CTA.
 - Step-up required: MFA modal and audit capture on cancel.
@@ -662,6 +683,7 @@ All screens that call the API must consistently handle:
 ## G) Analytics/Telemetry Events
 
 ### MVP
+
 - Auth lifecycle: login success/failure, logout, token refresh errors.
 - Tenant context: tenant switch, dataset toggle changes.
 - Exploration: dashboard view, filter change, map metric change.
@@ -669,12 +691,14 @@ All screens that call the API must consistently handle:
 - Sharing: copy link, save layout.
 
 ### Post-MVP
+
 - Data ops: connector create/update, run now, pause/resume.
 - CSV uploads: upload start/finish, validation errors.
 - Reports: create/edit/export, schedule delivery.
 - Alerts: create/edit/pause, delivery status.
 
 ### Enterprise
+
 - Approvals: submitted, approved, rejected, comments added.
 - Board packs: scheduled, generated, delivered.
 - Security: step-up auth triggered, impersonation start/end.
@@ -683,6 +707,7 @@ All screens that call the API must consistently handle:
 ## Frontend acceptance checklist
 
 ### MVP
+
 - Login, tenant switch, and logout flow works end-to-end.
 - Dashboards load live data by default; demo mode is opt-in only.
 - Snapshot freshness banner shows relative + absolute timestamps and stale warnings.
@@ -690,16 +715,19 @@ All screens that call the API must consistently handle:
 - Empty and error states render with retry actions across all dashboards.
 
 ### Post-MVP
+
 - Data sources management shows status, schedules, run-now controls, and last sync timestamps.
 - CSV upload wizard validates, maps, and reports job status with error handling.
 - Report builder exports PDF/PNG with filters and timestamps applied.
 - Alerts and AI summaries support create/edit/schedule flows.
 
 ### Enterprise
+
 - Draft -> Review -> Publish workflow enforces role gates and records audit events.
 - Board packs schedule, generate, watermark, and export successfully.
 - Step-up auth and impersonation flows display required banners and logs.
 - "Why denied" explanations surface when entitlement blocks an action.
 
 ### Review gate
+
 - Spec reviewed by Lina (Frontend Architect) and Joel (Design System), with feedback merged.

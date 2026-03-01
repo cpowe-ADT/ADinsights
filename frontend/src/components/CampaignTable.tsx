@@ -104,7 +104,9 @@ const CampaignTable = ({
   }, [filters]);
 
   const hasActiveFilters = useMemo(() => {
-    return serializeFilterQueryParams(filters) !== serializeFilterQueryParams(createDefaultFilterState());
+    return (
+      serializeFilterQueryParams(filters) !== serializeFilterQueryParams(createDefaultFilterState())
+    );
   }, [filters]);
 
   const [sorting, setSorting] = useState<SortingState>(() => {
@@ -304,13 +306,13 @@ const CampaignTable = ({
   const emptyTitle = selectedParish
     ? `No campaigns in ${selectedParish}`
     : hasActiveFilters
-    ? 'No campaigns match these filters'
-    : 'No campaign rows yet';
+      ? 'No campaigns match these filters'
+      : 'No campaign rows yet';
   const emptyMessage = selectedParish
     ? 'Try clearing the parish filter to see all campaigns.'
     : hasActiveFilters
-    ? 'Try widening the date range or clearing filters.'
-    : 'Campaign rows will appear after your next sync finishes.';
+      ? 'Try widening the date range or clearing filters.'
+      : 'Campaign rows will appear after your next sync finishes.';
   const emptyActionLabel =
     selectedParish || hasActiveFilters ? 'Clear filters' : onReload ? 'Refresh data' : undefined;
 

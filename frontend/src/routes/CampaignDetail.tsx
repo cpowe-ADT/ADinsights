@@ -24,7 +24,14 @@ const formatDate = (value?: string): string => {
 };
 
 const CampaignNotFoundIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2">
+  <svg
+    width="48"
+    height="48"
+    viewBox="0 0 48 48"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+  >
     <rect x="8" y="12" width="32" height="24" rx="4" />
     <path d="M12 18h24M12 24h24M12 30h18" strokeLinecap="round" />
     <path d="m32 30 6 6" strokeLinecap="round" />
@@ -33,7 +40,14 @@ const CampaignNotFoundIcon = () => (
 );
 
 const CreativesEmptyIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2">
+  <svg
+    width="48"
+    height="48"
+    viewBox="0 0 48 48"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+  >
     <rect x="10" y="12" width="12" height="16" rx="2.5" />
     <rect x="26" y="12" width="12" height="16" rx="2.5" />
     <path d="M12 34h24" strokeLinecap="round" />
@@ -105,9 +119,25 @@ const CampaignDetail = (): JSX.Element => {
         { label: 'Platform', value: activeCampaign.platform ?? '—' },
         { label: 'Objective', value: activeCampaign.objective ?? '—' },
         { label: 'Primary parish', value: activeCampaign.parish ?? '—' },
-        { label: 'CTR', value: typeof activeCampaign.ctr === 'number' ? formatPercent(activeCampaign.ctr, 2) : '—' },
-        { label: 'CPC', value: typeof activeCampaign.cpc === 'number' ? formatCurrency(activeCampaign.cpc, currency, 2) : '—' },
-        { label: 'CPM', value: typeof activeCampaign.cpm === 'number' ? formatCurrency(activeCampaign.cpm, currency, 2) : '—' },
+        {
+          label: 'CTR',
+          value:
+            typeof activeCampaign.ctr === 'number' ? formatPercent(activeCampaign.ctr, 2) : '—',
+        },
+        {
+          label: 'CPC',
+          value:
+            typeof activeCampaign.cpc === 'number'
+              ? formatCurrency(activeCampaign.cpc, currency, 2)
+              : '—',
+        },
+        {
+          label: 'CPM',
+          value:
+            typeof activeCampaign.cpm === 'number'
+              ? formatCurrency(activeCampaign.cpm, currency, 2)
+              : '—',
+        },
         { label: 'Start date', value: formatDate(activeCampaign.startDate) },
         { label: 'End date', value: formatDate(activeCampaign.endDate) },
       ]

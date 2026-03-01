@@ -73,7 +73,8 @@ const DatasetToggle = (): JSX.Element | null => {
   const nextLabel = mode === 'live' ? 'Use demo data' : 'Use live data';
   const badge = DATASET_LABELS[mode];
 
-  const disabled = isLoading || (mode === 'dummy' && !hasLiveData) || (mode === 'live' && !hasDemoData);
+  const disabled =
+    isLoading || (mode === 'dummy' && !hasLiveData) || (mode === 'live' && !hasDemoData);
   const statusMessage =
     mode === 'live'
       ? 'Live warehouse metrics (default).'
@@ -128,11 +129,7 @@ const DatasetToggle = (): JSX.Element | null => {
       >
         {isLoading ? 'Checking datasets…' : nextLabel}
       </button>
-      <p
-        id={statusDescriptionId}
-        className="dataset-toggle__status"
-        aria-live="polite"
-      >
+      <p id={statusDescriptionId} className="dataset-toggle__status" aria-live="polite">
         {statusMessage}
       </p>
       {mode === 'dummy' && demoTenants.length > 0 ? (
@@ -170,15 +167,9 @@ const DatasetToggle = (): JSX.Element | null => {
         </span>
       ) : null}
       {isLoading ? (
-        <span className="dataset-toggle__error">
-          Loading dataset availability…
-        </span>
+        <span className="dataset-toggle__error">Loading dataset availability…</span>
       ) : null}
-      {error ? (
-        <span className="dataset-toggle__error">
-          {error}
-        </span>
-      ) : null}
+      {error ? <span className="dataset-toggle__error">{error}</span> : null}
       {!hasLiveData && mode === 'dummy' ? (
         <span className="dataset-toggle__error" role="status">
           Live warehouse data unavailable.

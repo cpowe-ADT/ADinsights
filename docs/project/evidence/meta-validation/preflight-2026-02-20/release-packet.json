@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.1.0",
+  "release_status": "GATE_PASS",
+  "gate_results": {
+    "scope_control": {
+      "status": "PASS",
+      "rationale": "Scope status 'PASS_SINGLE_SCOPE' is acceptable.",
+      "evidence": [
+        "PASS_SINGLE_SCOPE"
+      ]
+    },
+    "contract_integrity": {
+      "status": "PASS",
+      "rationale": "Contract status 'PASS_NO_CONTRACT_CHANGE' is acceptable.",
+      "evidence": [
+        "PASS_NO_CONTRACT_CHANGE"
+      ]
+    },
+    "test_coverage": {
+      "status": "INFO",
+      "rationale": "Required tests identified; pending explicit execution/verification.",
+      "evidence": [
+        "docs-only change (no canonical code test)"
+      ]
+    },
+    "security_pii_secrets": {
+      "status": "PASS",
+      "rationale": "No security-sensitive prompt/path signals detected.",
+      "evidence": []
+    },
+    "runbook_ops_readiness": {
+      "status": "PASS",
+      "rationale": "Required runbook artifacts are present.",
+      "evidence": []
+    },
+    "documentation_completeness": {
+      "status": "INFO",
+      "rationale": "Documentation updates are required before release.",
+      "evidence": [
+        "docs/ops/doc-index.md",
+        "docs/ops/agent-activity-log.md"
+      ]
+    },
+    "rollout_rollback_plan": {
+      "status": "PASS",
+      "rationale": "Deployment runbook exists for rollout/rollback planning.",
+      "evidence": [
+        "docs/runbooks/deployment.md"
+      ]
+    },
+    "observability": {
+      "status": "PASS",
+      "rationale": "Observability gate not explicitly blocked by packet/check evidence.",
+      "evidence": []
+    }
+  },
+  "blocking_issues": [],
+  "warnings": [],
+  "pending_items": [
+    "Run and verify required tests before release.",
+    "Complete required documentation updates before release."
+  ],
+  "required_approvers": [
+    "Raj"
+  ],
+  "required_artifacts": [
+    "docs/runbooks/release-checklist.md",
+    "docs/runbooks/deployment.md",
+    "docs/runbooks/operations.md",
+    "docs/project/api-contract-changelog.md",
+    "docs/project/integration-data-contract-matrix.md"
+  ],
+  "recommended_next_action": "Proceed with release checklist execution and staged rollout.",
+  "evidence": [
+    {
+      "type": "scope_status",
+      "value": "PASS_SINGLE_SCOPE",
+      "strength": 0.9,
+      "source": "scope_packet"
+    },
+    {
+      "type": "contract_status",
+      "value": "PASS_NO_CONTRACT_CHANGE",
+      "strength": 0.9,
+      "source": "contract_packet"
+    }
+  ],
+  "executive_summary": "Release status GATE_PASS. Blocking issues: 0. Warnings: 0. Pending items: 2.",
+  "advisory_only": true,
+  "signals": {
+    "run_checks": false,
+    "check_results": [],
+    "router_packet_present": true,
+    "scope_packet_present": true,
+    "contract_packet_present": true,
+    "changed_files": [
+      "docs/project/evidence/meta-validation/preflight-2026-02-20/contract-packet.json",
+      "docs/project/evidence/meta-validation/preflight-2026-02-20/router-packet.json",
+      "docs/project/evidence/meta-validation/preflight-2026-02-20/scope-packet.json",
+      "docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.md",
+      "docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.tsv"
+    ]
+  }
+}

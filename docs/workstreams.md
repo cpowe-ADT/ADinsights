@@ -31,6 +31,7 @@ This execution plan aligns Facebook Graph + Meta Marketing API onboarding with r
    - Ensure docs, API contracts, and test matrix stay synchronized across backend/frontend/dbt.
 
 ## 1. Airbyte Ingestion & Telemetry (`backend/integrations/`, `backend/core/tasks.py`)
+
 - **Owner / Effort** – Primary: Maya (Integrations); Backup: Leo (Celery). Effort: Medium.
 - **Success criteria / KPIs**
   - CRUD + schedule APIs deployed with OpenAPI docs updated.
@@ -52,6 +53,7 @@ This execution plan aligns Facebook Graph + Meta Marketing API onboarding with r
   - Cross-stream sync: weekly touchpoint with dbt lead for schema changes.
 
 ## 2. dbt Modeling & Warehouse Views (`dbt/`)
+
 - **Owner / Effort** – Primary: Priya; Backup: Martin. Effort: Large.
 - **Success criteria / KPIs**
   - Staging + mart models pass `dbt test` (no warnings).
@@ -70,6 +72,7 @@ This execution plan aligns Facebook Graph + Meta Marketing API onboarding with r
   - Cross-stream sync with backend metrics + frontend if new fields added.
 
 ## 3. Backend Metrics + Snapshots (`backend/analytics/`, `backend/adapters/`)
+
 - **Owner / Effort** – Primary: Sofia; Backup: Andre. Effort: Medium.
 - **Success criteria / KPIs**
   - `/api/metrics/combined/` responds with `snapshot_generated_at`.
@@ -89,6 +92,7 @@ This execution plan aligns Facebook Graph + Meta Marketing API onboarding with r
   - Cross-stream sync: notify frontend when endpoints change.
 
 ## 4. Frontend Experience (`frontend/src/`)
+
 - **Owner / Effort** – Primary: Lina; Backup: Joel. Effort: Large.
 - **Success criteria / KPIs**
   - Dashboard defaults to warehouse data; demo mode opt-in.
@@ -114,6 +118,7 @@ This execution plan aligns Facebook Graph + Meta Marketing API onboarding with r
   - Cross-stream sync with backend metrics for payload shifts.
 
 ## 5. Secrets & KMS (`backend/core/crypto/`, `scripts/`)
+
 - **Owner / Effort** – Primary: Nina; Backup: Victor. Effort: Medium.
 - **Success criteria / KPIs**
   - Production KMS client functional; rotation command documented.
@@ -130,6 +135,7 @@ This execution plan aligns Facebook Graph + Meta Marketing API onboarding with r
   - Cross-stream sync: notify ops if rotation schedule changes.
 
 ## 6. Observability & Alerts (`backend/core/observability.py`, `docs/runbooks/`)
+
 - **Owner / Effort** – Primary: Omar; Backup: Hannah. Effort: Medium.
 - **Success criteria / KPIs**
   - Structured logs capture tenant/task IDs.
@@ -149,6 +155,7 @@ This execution plan aligns Facebook Graph + Meta Marketing API onboarding with r
   - Detailed checklist: `docs/ops/stream6-definition-of-done.md`.
 
 ## 7. BI & Deployment (`deploy/`, `docs/BI`, `docs/runbooks/deployment.md`)
+
 - **Owner / Effort** – Primary: Carlos; Backup: Mei. Effort: Medium.
 - **Success criteria / KPIs**
   - Superset/Metabase configs reproducible via git.
@@ -165,20 +172,25 @@ This execution plan aligns Facebook Graph + Meta Marketing API onboarding with r
   - Cross-stream sync with backend/dbt when new metrics appear.
 
 ### General Instructions
+
 1. Stay within the assigned folder per workstream; no cross-folder edits unless
-reviewed with the owning engineer.
+   reviewed with the owning engineer.
 2. Follow AGENTS testing matrix: backend (`ruff`, `pytest`), frontend (`npm test`
-+ `npm run build`), dbt (`dbt run/test`), docs (no code yet).
+
+- `npm run build`), dbt (`dbt run/test`), docs (no code yet).
+
 3. Update the relevant docs/runbooks whenever a contract changes.
 4. For PRs: describe which workstream the change belongs to and link to the
-corresponding plan section.
+   corresponding plan section.
 
 ### Cross-Stream Pending Items
+
 - Verify SES sender identity + DMARC/DKIM for `adtelligent.net`, confirm the final "from" address,
   and update the runbooks/env defaults before production launch.
 - Define a production CORS policy and implement API rate limiting/throttling for public endpoints.
 
 ### Reviewer Personas & Skills
+
 - **Maya (Integrations Lead)** – Backend engineer specializing in Airbyte/Celery orchestration. Focuses on API stability, scheduling logic, and retry semantics. Expects `ruff` + unit tests before review and examines OpenAPI/contract updates.
 - **Leo (Celery/Scheduler Specialist)** – Deep knowledge of async task tuning and observability. Looks for proper `tenant_context` usage, metrics instrumentation, and failure handling paths.
 - **Priya (dbt Architect)** – Owns warehouse models; scrutinizes macro reuse, incremental strategies, and freshness enforcement. Requires dbt logs and docs for every change.

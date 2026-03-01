@@ -55,3 +55,6 @@ __pycache__/
 
 # Exporter generated reports
 integrations/exporter/out/
+
+# Local split worktrees
+.split/
