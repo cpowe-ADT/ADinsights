@@ -1495,7 +1495,7 @@ const DataSources = () => {
                           }))
                         }
                       >
-                        {metaOAuthSelection.pages.map((page) => (
+                        {(metaOAuthSelection.pages ?? []).map((page) => (
                           <option key={page.id} value={page.id}>
                             {page.name}
                           </option>
@@ -1513,7 +1513,7 @@ const DataSources = () => {
                           }))
                         }
                       >
-                        {metaOAuthSelection.adAccounts.map((account) => (
+                        {(metaOAuthSelection.adAccounts ?? []).map((account) => (
                           <option key={account.id} value={account.id}>
                             {account.name?.trim() ? `${account.name} (${account.id})` : account.id}
                           </option>
@@ -1534,7 +1534,7 @@ const DataSources = () => {
                         }
                       >
                         <option value="">No Instagram account selected</option>
-                        {metaOAuthSelection.instagramAccounts.map((account) => (
+                        {(metaOAuthSelection.instagramAccounts ?? []).map((account) => (
                           <option key={account.id} value={account.id}>
                             {account.username?.trim()
                               ? `@${account.username} (${account.id})`

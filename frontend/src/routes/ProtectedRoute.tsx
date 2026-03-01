@@ -6,6 +6,12 @@ import FullPageLoader from '../components/FullPageLoader';
 const ProtectedRoute = () => {
   const location = useLocation();
   const { isAuthenticated, status, statusMessage } = useAuth();
+  const hasStoredAuth =
+    typeof window !== 'undefined' && Boolean(window.localStorage.getItem('adinsights.auth'));
+
+  if (isAuthenticated || (status === 'idle' && hasStoredAuth)) {
+    return <Outlet />;
+  }
 
   if (status === 'checking' || status === 'authenticating') {
     return <FullPageLoader message={statusMessage ?? 'Signing you in…'} />;
@@ -14,7 +20,6 @@ const ProtectedRoute = () => {
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
-
   return <Outlet />;
 };
 

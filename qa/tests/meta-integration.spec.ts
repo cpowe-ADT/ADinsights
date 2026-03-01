@@ -1,5 +1,46 @@
 import { expect, test } from './fixtures/base';
 
+async function ensureSignedIn(
+  page: import('@playwright/test').Page,
+  fallbackPath: string,
+): Promise<void> {
+  await page.waitForTimeout(100);
+  if (!page.url().includes('/login')) {
+    await page.waitForURL('**/login', { timeout: 1500 }).catch(() => undefined);
+  }
+  if (!page.url().includes('/login')) {
+    return;
+  }
+  const destination = await page.evaluate((fallback) => {
+    const state = window.history.state as
+      | { usr?: { from?: { pathname?: string; search?: string; hash?: string } } }
+      | undefined;
+    const from = state?.usr?.from;
+    if (!from?.pathname) {
+      return fallback;
+    }
+    return `${from.pathname}${from.search ?? ''}${from.hash ?? ''}`;
+  }, fallbackPath);
+  await page.evaluate((targetPath) => {
+    const exp = Math.floor(Date.now() / 1000) + 60 * 60;
+    const toBase64Url = (value: string) =>
+      btoa(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    const header = toBase64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+    const payload = toBase64Url(JSON.stringify({ exp }));
+    window.localStorage.setItem(
+      'adinsights.auth',
+      JSON.stringify({
+        access: `${header}.${payload}.signature`,
+        refresh: 'refresh-token',
+        tenantId: 'tenant-qa',
+        user: { email: 'qa@example.com' },
+      }),
+    );
+    window.location.assign(targetPath);
+  }, destination);
+  await page.waitForURL((url) => !url.pathname.startsWith('/login'));
+}
+
 test.describe('meta integration flows', () => {
   test('oauth callback with missing permissions shows re-request path', async ({
     page,
@@ -7,7 +48,7 @@ test.describe('meta integration flows', () => {
   }) => {
     test.skip(!mockMode, 'Mock mode only');
 
-    await page.route('**/api/integrations/meta/setup/', async (route) => {
+    await page.route('**/api/integrations/meta/setup/**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -62,14 +103,18 @@ test.describe('meta integration flows', () => {
       });
     });
 
+    await page.addInitScript(() =>
+      window.sessionStorage.setItem('adinsights.meta.oauth.flow', 'marketing'),
+    );
     await page.goto('/dashboards/data-sources?code=oauth-code&state=oauth-state');
+    await ensureSignedIn(page, '/dashboards/data-sources?code=oauth-code&state=oauth-state');
     await expect(page.getByText(/required permissions are missing/i)).toBeVisible();
   });
 
   test('oauth callback success shows page and ad-account selection', async ({ page, mockMode }) => {
     test.skip(!mockMode, 'Mock mode only');
 
-    await page.route('**/api/integrations/meta/setup/', async (route) => {
+    await page.route('**/api/integrations/meta/setup/**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -130,7 +175,11 @@ test.describe('meta integration flows', () => {
       });
     });
 
+    await page.addInitScript(() =>
+      window.sessionStorage.setItem('adinsights.meta.oauth.flow', 'marketing'),
+    );
     await page.goto('/dashboards/data-sources?code=oauth-code&state=oauth-state');
+    await ensureSignedIn(page, '/dashboards/data-sources?code=oauth-code&state=oauth-state');
     await expect(page.getByText(/save selected business page/i)).toBeVisible();
   });
 
@@ -218,10 +267,12 @@ test.describe('meta integration flows', () => {
     });
 
     await page.goto('/dashboards/meta/accounts');
-    await expect(page.getByRole('heading', { name: /ad accounts/i })).toBeVisible();
+    await ensureSignedIn(page, '/dashboards/meta/accounts');
+    await expect(page.getByRole('heading', { level: 1, name: /^Ad accounts$/i })).toBeVisible();
     await expect(page.getByText('Primary Account')).toBeVisible();
 
     await page.goto('/dashboards/meta/insights');
+    await ensureSignedIn(page, '/dashboards/meta/insights');
     await expect(page.getByRole('heading', { name: /insights dashboard/i })).toBeVisible();
     await expect(page.getByText('ad-1')).toBeVisible();
     await expect(page.getByText('ad-2')).toBeVisible();
@@ -282,6 +333,7 @@ test.describe('meta integration flows', () => {
     });
 
     await page.goto('/dashboards/meta/insights');
+    await ensureSignedIn(page, '/dashboards/meta/insights');
     await expect(page.getByText(/unable to load insights/i)).toBeVisible();
     await page.getByRole('button', { name: /retry/i }).click();
     await expect(page.getByText('ad-3')).toBeVisible();
@@ -307,6 +359,7 @@ test.describe('meta integration flows', () => {
     });
 
     await page.goto('/dashboards/meta/insights');
+    await ensureSignedIn(page, '/dashboards/meta/insights');
     await expect(page.getByText(/unable to load insights/i)).toBeVisible();
     await expect(page.getByText(/missing meta permissions/i)).toBeVisible();
   });

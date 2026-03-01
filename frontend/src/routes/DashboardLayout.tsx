@@ -387,7 +387,9 @@ const DashboardLayout = () => {
       if (!lastSnapshotGeneratedAt) {
         return 'Demo dataset active';
       }
-      return snapshotRelative ? `Demo data - ${snapshotRelative}` : 'Demo dataset active';
+      return snapshotRelative
+        ? `Demo dataset active - ${snapshotRelative}`
+        : 'Demo dataset active';
     }
     if (!lastSnapshotGeneratedAt) {
       return 'Waiting for live snapshot…';
