@@ -87,9 +87,7 @@ function classifyLoadError(
   }
   if (status === 403) {
     return {
-      message:
-        apiMessage ||
-        'Permission denied by Meta. Re-run OAuth with required permissions.',
+      message: apiMessage || 'Permission denied by Meta. Re-run OAuth with required permissions.',
       code: 'permission_error',
     };
   }

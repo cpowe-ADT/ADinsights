@@ -92,9 +92,27 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
           averageRoas: 4.2,
         },
         trend: [
-          { date: '2024-09-01', spend: 780_000, conversions: 980, clicks: 16_200, impressions: 310_000 },
-          { date: '2024-09-02', spend: 690_000, conversions: 910, clicks: 15_400, impressions: 295_000 },
-          { date: '2024-09-03', spend: 640_000, conversions: 870, clicks: 14_950, impressions: 288_000 },
+          {
+            date: '2024-09-01',
+            spend: 780_000,
+            conversions: 980,
+            clicks: 16_200,
+            impressions: 310_000,
+          },
+          {
+            date: '2024-09-02',
+            spend: 690_000,
+            conversions: 910,
+            clicks: 15_400,
+            impressions: 295_000,
+          },
+          {
+            date: '2024-09-03',
+            spend: 640_000,
+            conversions: 870,
+            clicks: 14_950,
+            impressions: 288_000,
+          },
         ],
         rows: [
           {
@@ -255,9 +273,27 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
           averageRoas: 5.1,
         },
         trend: [
-          { date: '2024-09-01', spend: 98_000, conversions: 2_300, clicks: 31_200, impressions: 480_000 },
-          { date: '2024-09-02', spend: 102_000, conversions: 2_400, clicks: 30_500, impressions: 520_000 },
-          { date: '2024-09-03', spend: 110_000, conversions: 2_500, clicks: 30_300, impressions: 450_000 },
+          {
+            date: '2024-09-01',
+            spend: 98_000,
+            conversions: 2_300,
+            clicks: 31_200,
+            impressions: 480_000,
+          },
+          {
+            date: '2024-09-02',
+            spend: 102_000,
+            conversions: 2_400,
+            clicks: 30_500,
+            impressions: 520_000,
+          },
+          {
+            date: '2024-09-03',
+            spend: 110_000,
+            conversions: 2_500,
+            clicks: 30_300,
+            impressions: 450_000,
+          },
         ],
         rows: [
           {
@@ -418,9 +454,27 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
           averageRoas: 3.7,
         },
         trend: [
-          { date: '2024-09-01', spend: 320_000, conversions: 520, clicks: 9_200, impressions: 160_000 },
-          { date: '2024-09-02', spend: 290_000, conversions: 500, clicks: 8_900, impressions: 150_000 },
-          { date: '2024-09-03', spend: 310_000, conversions: 540, clicks: 9_300, impressions: 155_000 },
+          {
+            date: '2024-09-01',
+            spend: 320_000,
+            conversions: 520,
+            clicks: 9_200,
+            impressions: 160_000,
+          },
+          {
+            date: '2024-09-02',
+            spend: 290_000,
+            conversions: 500,
+            clicks: 8_900,
+            impressions: 150_000,
+          },
+          {
+            date: '2024-09-03',
+            spend: 310_000,
+            conversions: 540,
+            clicks: 9_300,
+            impressions: 155_000,
+          },
         ],
         rows: [
           {
@@ -579,4 +633,3 @@ export const defaultDemoTenant: DemoTenantKey = 'bank-of-jamaica';
 export function getDemoSnapshot(tenant: DemoTenantKey): DemoTenantSnapshot {
   return demoSnapshots[tenant] ?? demoSnapshots[defaultDemoTenant];
 }
-

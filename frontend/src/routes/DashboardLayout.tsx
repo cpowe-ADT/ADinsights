@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate, type NavLinkRenderProps } from 'react-router-dom';
+import {
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+  type NavLinkRenderProps,
+} from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -40,6 +46,21 @@ const segmentLabels: Record<string, string> = {
   accounts: 'Accounts',
   insights: 'Insights',
   status: 'Status',
+  pages: 'Facebook Pages',
+  overview: 'Overview',
+  posts: 'Posts',
+  google: 'Google',
+  'google-ads': 'Google Ads',
+  executive: 'Executive overview',
+  channels: 'Channel views',
+  keywords: 'Keywords & search terms',
+  assets: 'Ads & assets',
+  pmax: 'Performance Max',
+  breakdowns: 'Audience & breakdowns',
+  conversions: 'Conversions & attribution',
+  'change-log': 'Change log & governance',
+  recommendations: 'Recommendations',
+  reports: 'Reports & exports',
   map: 'Map',
   uploads: 'CSV uploads',
 };
@@ -107,6 +128,14 @@ const DashboardLayout = () => {
     const searchParams = new URLSearchParams(location.search);
     return parseFilterQueryParams(searchParams, defaultFilters);
   }, [defaultFilters, location.search]);
+
+  const hideGlobalFilters = useMemo(() => {
+    return (
+      location.pathname.startsWith('/dashboards/meta/pages') ||
+      location.pathname.startsWith('/dashboards/meta/posts') ||
+      location.pathname.startsWith('/dashboards/google-ads')
+    );
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!areFiltersEqual(filters, urlFilters)) {
@@ -202,9 +231,13 @@ const DashboardLayout = () => {
   }, [selectedMetric, setSelectedMetric, setSelectedParish]);
 
   const errors = useMemo(() => {
-    return [campaign, creative, budget, parish]
-      .filter((slice) => slice.status === 'error' && slice.error)
-      .map((slice) => slice.error as string);
+    return Array.from(
+      new Set(
+        [campaign, creative, budget, parish]
+          .filter((slice) => slice.status === 'error' && slice.error)
+          .map((slice) => slice.error as string),
+      ),
+    );
   }, [budget, campaign, creative, parish]);
 
   const navLinks = useMemo(
@@ -216,6 +249,8 @@ const DashboardLayout = () => {
       { label: 'Budget pacing', to: '/dashboards/budget', end: false },
       { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
       { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
+      { label: 'Facebook pages', to: '/dashboards/meta/pages', end: false },
+      { label: 'Google Ads', to: '/dashboards/google-ads', end: false },
     ],
     [],
   );
@@ -352,7 +387,9 @@ const DashboardLayout = () => {
       if (!lastSnapshotGeneratedAt) {
         return 'Demo dataset active';
       }
-      return snapshotRelative ? `Demo data - ${snapshotRelative}` : 'Demo dataset active';
+      return snapshotRelative
+        ? `Demo dataset active - ${snapshotRelative}`
+        : 'Demo dataset active';
     }
     if (!lastSnapshotGeneratedAt) {
       return 'Waiting for live snapshot…';
@@ -384,8 +421,7 @@ const DashboardLayout = () => {
             <div className="dashboard-header__brand">
               <p className="dashboard-header__title">ADinsights</p>
               <p className="muted">
-                Active tenant{' '}
-                <strong>{activeTenantLabel ?? tenantId ?? 'Select a tenant'}</strong>
+                Active tenant <strong>{activeTenantLabel ?? tenantId ?? 'Select a tenant'}</strong>
                 {selectedParish ? (
                   <span>
                     {' • '}Filtering to <strong>{selectedParish}</strong>
@@ -403,7 +439,11 @@ const DashboardLayout = () => {
                   timestamp={snapshotAbsolute}
                 />
               </div>
-              <div className="dashboard-header__controls" role="toolbar" aria-label="Dashboard quick actions">
+              <div
+                className="dashboard-header__controls"
+                role="toolbar"
+                aria-label="Dashboard quick actions"
+              >
                 <label htmlFor="metric-select" className="dashboard-field">
                   <span className="dashboard-field__label">Map metric</span>
                   <select
@@ -432,7 +472,11 @@ const DashboardLayout = () => {
                   <span>{theme === 'dark' ? 'Light' : 'Dark'} mode</span>
                 </button>
                 <div className="dashboard-header__divider" role="presentation" />
-                <div className="dashboard-header__actions-row" role="group" aria-label="Layout actions">
+                <div
+                  className="dashboard-header__actions-row"
+                  role="group"
+                  aria-label="Layout actions"
+                >
                   <button type="button" className="button secondary" onClick={handleSaveLayout}>
                     {SaveIcon}
                     Save layout
@@ -446,7 +490,11 @@ const DashboardLayout = () => {
                     Copy link
                   </button>
                 </div>
-                <div className="dashboard-header__account" role="group" aria-label="Account actions">
+                <div
+                  className="dashboard-header__account"
+                  role="group"
+                  aria-label="Account actions"
+                >
                   <span className="muted user-pill">{accountLabel}</span>
                   <button type="button" className="button tertiary" onClick={logout}>
                     Log out
@@ -474,7 +522,7 @@ const DashboardLayout = () => {
           <Breadcrumbs items={breadcrumbs} />
         </div>
       </div>
-      {location.pathname === '/dashboards' ? null : (
+      {location.pathname === '/dashboards' || hideGlobalFilters ? null : (
         <FilterBar state={filters} defaultState={defaultFilters} onChange={handleFilterChange} />
       )}
       {datasetMode === 'dummy' ? (

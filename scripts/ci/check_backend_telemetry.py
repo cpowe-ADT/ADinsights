@@ -17,11 +17,12 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.utils import timezone
 from jsonschema import Draft7Validator
-from rest_framework.test import APIClient
 
 # Ensure the backend package is importable before configuring Django.
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_ROOT = REPO_ROOT / "backend"
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
@@ -175,6 +176,9 @@ def create_authenticated_user(tenant: "Tenant"):
 
 
 def fetch_endpoints(user) -> dict[str, EndpointResult]:
+    # Import after configure_django() has run to avoid accessing Django settings too early.
+    from rest_framework.test import APIClient
+
     authed_client = APIClient()
     authed_client.force_authenticate(user=user)
     aggregate = authed_client.get("/api/dashboards/aggregate-snapshot/")
@@ -242,6 +246,11 @@ def build_markdown(
     aggregate = payloads["aggregate"].payload
     airbyte = payloads["airbyte"].payload
     dbt = payloads["dbt"].payload
+    aggregate_metrics = aggregate.get("metrics", {})
+    campaign_metrics = aggregate_metrics.get("campaign_metrics") or aggregate.get("campaign", {})
+    creative_metrics = aggregate_metrics.get("creative_metrics") or aggregate.get("creative", [])
+    budget_metrics = aggregate_metrics.get("budget_metrics") or aggregate.get("budget", [])
+    parish_metrics = aggregate_metrics.get("parish_metrics") or aggregate.get("parish", [])
 
     lines = ["# Backend Telemetry Schema Guard", ""]
     generated = timezone.now().isoformat()
@@ -251,12 +260,12 @@ def build_markdown(
 
     lines.append("## Snapshot Highlights")
     lines.append(
-        f"- Aggregate snapshot sections: campaign={len(aggregate['campaign'].get('rows', []))} rows, "
-        f"creative={len(aggregate['creative'])} creatives, budget={len(aggregate['budget'])} budgets, "
-        f"parish={len(aggregate['parish'])} parishes"
+        f"- Aggregate snapshot sections: campaign={len(campaign_metrics.get('rows', []))} rows, "
+        f"creative={len(creative_metrics)} creatives, budget={len(budget_metrics)} budgets, "
+        f"parish={len(parish_metrics)} parishes"
     )
     lines.append(
-        "- Campaign currency: " + aggregate["campaign"]["summary"].get("currency", "unknown")
+        "- Campaign currency: " + campaign_metrics.get("summary", {}).get("currency", "unknown")
     )
     lines.append(
         f"- Airbyte status: {airbyte['status']} (job {airbyte['last_sync']['last_job_id']})"
@@ -302,6 +311,11 @@ def build_json_summary(
     aggregate = payloads["aggregate"].payload
     airbyte = payloads["airbyte"].payload
     dbt = payloads["dbt"].payload
+    aggregate_metrics = aggregate.get("metrics", {})
+    campaign_metrics = aggregate_metrics.get("campaign_metrics") or aggregate.get("campaign", {})
+    creative_metrics = aggregate_metrics.get("creative_metrics") or aggregate.get("creative", [])
+    budget_metrics = aggregate_metrics.get("budget_metrics") or aggregate.get("budget", [])
+    parish_metrics = aggregate_metrics.get("parish_metrics") or aggregate.get("parish", [])
 
     correlation_id = str(uuid.uuid4())
     timestamp = timezone.now().isoformat()
@@ -312,11 +326,11 @@ def build_json_summary(
         "correlation_id": correlation_id,
         "timestamp": timestamp,
         "aggregate_snapshot": {
-            "campaign_rows": len(aggregate["campaign"].get("rows", [])),
-            "creative_count": len(aggregate["creative"]),
-            "budget_count": len(aggregate["budget"]),
-            "parish_count": len(aggregate["parish"]),
-            "currency": aggregate["campaign"]["summary"].get("currency"),
+            "campaign_rows": len(campaign_metrics.get("rows", [])),
+            "creative_count": len(creative_metrics),
+            "budget_count": len(budget_metrics),
+            "parish_count": len(parish_metrics),
+            "currency": campaign_metrics.get("summary", {}).get("currency"),
         },
         "airbyte_health": {
             "status": airbyte["status"],

@@ -86,7 +86,7 @@ function isFeatureCollection(value: unknown): value is FeatureCollection {
 }
 
 const resolvedEnv = typeof import.meta !== 'undefined' ? import.meta.env : undefined;
-const MIN_PARISH_FEATURES = resolvedEnv?.MODE === 'test' ? 1 : 10;
+const MIN_PARISH_FEATURES = resolvedEnv?.MODE === 'test' || MOCK_MODE ? 1 : 10;
 
 function isReasonableParishGeometry(collection: FeatureCollection): boolean {
   if (!Array.isArray(collection.features) || collection.features.length < MIN_PARISH_FEATURES) {
@@ -616,8 +616,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
         fill = fills[5];
       }
 
-      const isSelected =
-        selectedParish && normalizeParishName(selectedParish) === normalized;
+      const isSelected = selectedParish && normalizeParishName(selectedParish) === normalized;
       const stroke = isSelected ? highlightColor : borderColor;
       const strokeWidth = isSelected ? 2 : 1;
 
@@ -649,15 +648,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     });
 
     return paths;
-  }, [
-    breaks,
-    borderColor,
-    geojson,
-    highlightColor,
-    metricByParish,
-    palette.fills,
-    selectedParish,
-  ]);
+  }, [breaks, borderColor, geojson, highlightColor, metricByParish, palette.fills, selectedParish]);
 
   useEffect(() => {
     styleForParishRef.current = styleForParish;
@@ -966,12 +957,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     <div className={styles.mapShell} style={{ height }}>
       <div ref={mapNodeRef} className={`leaflet-container ${styles.map}`} />
       {showSvgFallback ? (
-        <svg
-          className={styles.mapSvg}
-          viewBox="0 0 1000 1000"
-          role="img"
-          aria-label="Parish map"
-        >
+        <svg className={styles.mapSvg} viewBox="0 0 1000 1000" role="img" aria-label="Parish map">
           {svgPaths.map((path) => {
             const label = path.name.split('-')[0] ?? path.name;
             return (

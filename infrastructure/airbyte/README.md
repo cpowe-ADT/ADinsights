@@ -50,47 +50,47 @@ bootstrapping any tenants.
 
 ### Global
 
-| Variable | Purpose |
-| --- | --- |
-| `AIRBYTE_BASE_URL` | Base URL for the API (also consumed by the helper scripts). |
-| `AIRBYTE_API_AUTH_HEADER` | Optional pre-formatted `Authorization` header sent to the API. |
-| `AIRBYTE_DEFAULT_TIMEZONE` | Canonical timezone for cron schedules (defaults to `America/Jamaica`). |
-| `AIRBYTE_DEFAULT_METRICS_*` | Default hourly metrics cron / interval definitions aligned with the SLA window (06:00–22:00 hourly). |
-| `AIRBYTE_DEFAULT_DAILY_*` | Default daily cron / interval definitions for dimensions refreshes (02:15 daily). |
-| `AIRBYTE_DEFAULT_STREAM_PREFIX` | Prefix prepended to every connection's destination stream. |
-| `AIRBYTE_DEFAULT_DESTINATION_NAMESPACE` | Warehouse schema / namespace when tenants do not supply their own. |
-| `AIRBYTE_DEFAULT_DESTINATION_BUCKET` | Object store landing bucket when destinations require it (optional). |
+| Variable                                | Purpose                                                                                              |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `AIRBYTE_BASE_URL`                      | Base URL for the API (also consumed by the helper scripts).                                          |
+| `AIRBYTE_API_AUTH_HEADER`               | Optional pre-formatted `Authorization` header sent to the API.                                       |
+| `AIRBYTE_DEFAULT_TIMEZONE`              | Canonical timezone for cron schedules (defaults to `America/Jamaica`).                               |
+| `AIRBYTE_DEFAULT_METRICS_*`             | Default hourly metrics cron / interval definitions aligned with the SLA window (06:00–22:00 hourly). |
+| `AIRBYTE_DEFAULT_DAILY_*`               | Default daily cron / interval definitions for dimensions refreshes (02:15 daily).                    |
+| `AIRBYTE_DEFAULT_STREAM_PREFIX`         | Prefix prepended to every connection's destination stream.                                           |
+| `AIRBYTE_DEFAULT_DESTINATION_NAMESPACE` | Warehouse schema / namespace when tenants do not supply their own.                                   |
+| `AIRBYTE_DEFAULT_DESTINATION_BUCKET`    | Object store landing bucket when destinations require it (optional).                                 |
 
 ### Connection templates
 
 Provide "golden" connection IDs to clone sync catalogs and operations for each connector. These template connections should live
 in a sandbox workspace that mirrors production configurations.
 
-| Variable | Usage |
-| --- | --- |
-| `AIRBYTE_TEMPLATE_DESTINATION_ID` | Destination UUID for template Meta/Google connections created by the provisioning script. |
-| `AIRBYTE_TEMPLATE_META_METRICS_CONNECTION_ID` | Base Meta Marketing metrics connection. |
-| `AIRBYTE_TEMPLATE_GOOGLE_METRICS_CONNECTION_ID` | Base Google Ads metrics connection. |
-| `AIRBYTE_TEMPLATE_DIMENSIONS_DAILY_CONNECTION_ID` | Base daily dimensions connection. |
+| Variable                                          | Usage                                                                                     |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `AIRBYTE_TEMPLATE_DESTINATION_ID`                 | Destination UUID for template Meta/Google connections created by the provisioning script. |
+| `AIRBYTE_TEMPLATE_META_METRICS_CONNECTION_ID`     | Base Meta Marketing metrics connection.                                                   |
+| `AIRBYTE_TEMPLATE_GOOGLE_METRICS_CONNECTION_ID`   | Base Google Ads metrics connection.                                                       |
+| `AIRBYTE_TEMPLATE_DIMENSIONS_DAILY_CONNECTION_ID` | Base daily dimensions connection.                                                         |
 
 ### Tenants
 
 `AIRBYTE_TENANTS` lists tenant slugs. Every slug expands into environment variables using the pattern `AIRBYTE_<SLUG>_*` where the
 slug is upper-cased and dashes become underscores. Key variables per tenant include:
 
-| Pattern | Purpose |
-| --- | --- |
-| `AIRBYTE_<SLUG>_WORKSPACE_ID` | Workspace UUID that owns the tenant's resources. |
-| `AIRBYTE_<SLUG>_DESTINATION_ID` | Destination UUID for the tenant's warehouse/bucket. |
-| `AIRBYTE_<SLUG>_DESTINATION_NAMESPACE` | Optional schema override for JDBC destinations. |
-| `AIRBYTE_<SLUG>_DESTINATION_BUCKET` | Optional object-store bucket for file-based destinations. |
-| `AIRBYTE_<SLUG>_STREAM_PREFIX` | Default namespace prefix applied to all connections. |
-| `AIRBYTE_<SLUG>_<GROUP>_CRON` | Tenant-specific cron expression for a schedule group (`METRICS`, `DAILY`, etc.). |
-| `AIRBYTE_<SLUG>_<GROUP>_BASIC_UNITS` / `_BASIC_TIME_UNIT` | Interval fallback for `basic` schedules when cron is omitted. |
-| `AIRBYTE_<SLUG>_<TEMPLATE>_NAME` | Override the generated connection name for a template (e.g. `META_METRICS`). |
-| `AIRBYTE_<SLUG>_<TEMPLATE>_STATUS` | Desired status (`active`/`inactive`) for a connection template. |
-| `AIRBYTE_<SLUG>_<TEMPLATE>_PREFIX` | Per-connection prefix override. |
-| `AIRBYTE_<SLUG>_<TEMPLATE>_CONNECTION_ID` | Optional existing connection to update in-place instead of creating a new one. |
+| Pattern                                                   | Purpose                                                                          |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `AIRBYTE_<SLUG>_WORKSPACE_ID`                             | Workspace UUID that owns the tenant's resources.                                 |
+| `AIRBYTE_<SLUG>_DESTINATION_ID`                           | Destination UUID for the tenant's warehouse/bucket.                              |
+| `AIRBYTE_<SLUG>_DESTINATION_NAMESPACE`                    | Optional schema override for JDBC destinations.                                  |
+| `AIRBYTE_<SLUG>_DESTINATION_BUCKET`                       | Optional object-store bucket for file-based destinations.                        |
+| `AIRBYTE_<SLUG>_STREAM_PREFIX`                            | Default namespace prefix applied to all connections.                             |
+| `AIRBYTE_<SLUG>_<GROUP>_CRON`                             | Tenant-specific cron expression for a schedule group (`METRICS`, `DAILY`, etc.). |
+| `AIRBYTE_<SLUG>_<GROUP>_BASIC_UNITS` / `_BASIC_TIME_UNIT` | Interval fallback for `basic` schedules when cron is omitted.                    |
+| `AIRBYTE_<SLUG>_<TEMPLATE>_NAME`                          | Override the generated connection name for a template (e.g. `META_METRICS`).     |
+| `AIRBYTE_<SLUG>_<TEMPLATE>_STATUS`                        | Desired status (`active`/`inactive`) for a connection template.                  |
+| `AIRBYTE_<SLUG>_<TEMPLATE>_PREFIX`                        | Per-connection prefix override.                                                  |
+| `AIRBYTE_<SLUG>_<TEMPLATE>_CONNECTION_ID`                 | Optional existing connection to update in-place instead of creating a new one.   |
 
 Set `AIRBYTE_WORKSPACE_ID` to your primary tenant's workspace ID to preserve compatibility with legacy scripts such as the
 Airbyte health check.
@@ -99,11 +99,11 @@ Airbyte health check.
 
 Provisioning and validation scripts live in `infrastructure/airbyte/scripts/`:
 
-| Script | Description |
-| --- | --- |
+| Script                                | Description                                                                                                                                                     |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `provision_meta_google_connectors.py` | Creates/updates Meta + Google sources, validates credentials with source connection checks, discovers stream catalogs, and upserts template metric connections. |
-| `validate_tenant_config.py` | Smoke test for environment configuration. Confirms workspaces and destinations exist and validates cron/interval hints before changes are applied. |
-| `bootstrap_connections.py` | Clones the template connections for every tenant, applies tenant-specific destination namespaces/prefixes, and enforces schedules that honor the SLA windows. |
+| `validate_tenant_config.py`           | Smoke test for environment configuration. Confirms workspaces and destinations exist and validates cron/interval hints before changes are applied.              |
+| `bootstrap_connections.py`            | Clones the template connections for every tenant, applies tenant-specific destination namespaces/prefixes, and enforces schedules that honor the SLA windows.   |
 
 Create/update the Meta + Google template connectors first:
 
@@ -201,38 +201,38 @@ All files assume credentials are injected from environment variables using Airby
 
 ### Meta Ads secrets & tuning knobs
 
-| Variable | Description |
-| --- | --- |
-| `AIRBYTE_META_ACCOUNT_ID` | Ads account to query (prefixed with `act_`). |
-| `AIRBYTE_META_ACCESS_TOKEN` | Long-lived system token with `ads_read` scope. |
-| `AIRBYTE_META_APP_ID` / `AIRBYTE_META_APP_SECRET` | App credentials used for token refreshes. |
-| `AIRBYTE_META_START_DATE` | ISO timestamp for the initial backfill (defaults to `2023-01-01T00:00:00Z`). |
-| `AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS` | Rolling attribution window (default `3` days). |
-| `AIRBYTE_META_HOURLY_WINDOW_DAYS` | Additional sync window applied to incremental jobs (default `3`). |
-| `AIRBYTE_META_ATTRIBUTION_WINDOW_DAYS` | Horizon for attribution metrics (default `30`). |
+| Variable                                          | Description                                                                  |
+| ------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `AIRBYTE_META_ACCOUNT_ID`                         | Ads account to query (prefixed with `act_`).                                 |
+| `AIRBYTE_META_ACCESS_TOKEN`                       | Long-lived system token with `ads_read` scope.                               |
+| `AIRBYTE_META_APP_ID` / `AIRBYTE_META_APP_SECRET` | App credentials used for token refreshes.                                    |
+| `AIRBYTE_META_START_DATE`                         | ISO timestamp for the initial backfill (defaults to `2023-01-01T00:00:00Z`). |
+| `AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS`             | Rolling attribution window (default `3` days).                               |
+| `AIRBYTE_META_HOURLY_WINDOW_DAYS`                 | Additional sync window applied to incremental jobs (default `3`).            |
+| `AIRBYTE_META_ATTRIBUTION_WINDOW_DAYS`            | Horizon for attribution metrics (default `30`).                              |
 
 ### Google Ads secrets & tuning knobs
 
-| Variable | Description |
-| --- | --- |
-| `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN` | Manager account developer token. |
-| `AIRBYTE_GOOGLE_ADS_CLIENT_ID` / `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET` | OAuth client configured for API access. |
-| `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN` | Refresh token tied to the Ads manager. |
-| `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID` | Customer ID (without dashes) that owns the campaigns. |
-| `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID` | Login customer for MCC hierarchies. |
-| `AIRBYTE_GOOGLE_ADS_START_DATE` | YYYY-MM-DD start date for backfills (default `2023-01-01`). |
-| `AIRBYTE_GOOGLE_ADS_CONVERSION_WINDOW_DAYS` | Conversion lag considered during syncs (default `30`). |
-| `AIRBYTE_GOOGLE_ADS_LOOKBACK_WINDOW_DAYS` | Additional incremental replay window (default `3`). |
-| `AIRBYTE_GOOGLE_ADS_CUSTOM_QUERY` | Optional override for the GAQL metrics query (defaults to packaged query). |
+| Variable                                                            | Description                                                                |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`                                | Manager account developer token.                                           |
+| `AIRBYTE_GOOGLE_ADS_CLIENT_ID` / `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET` | OAuth client configured for API access.                                    |
+| `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN`                                  | Refresh token tied to the Ads manager.                                     |
+| `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`                                    | Customer ID (without dashes) that owns the campaigns.                      |
+| `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID`                              | Login customer for MCC hierarchies.                                        |
+| `AIRBYTE_GOOGLE_ADS_START_DATE`                                     | YYYY-MM-DD start date for backfills (default `2023-01-01`).                |
+| `AIRBYTE_GOOGLE_ADS_CONVERSION_WINDOW_DAYS`                         | Conversion lag considered during syncs (default `30`).                     |
+| `AIRBYTE_GOOGLE_ADS_LOOKBACK_WINDOW_DAYS`                           | Additional incremental replay window (default `3`).                        |
+| `AIRBYTE_GOOGLE_ADS_CUSTOM_QUERY`                                   | Optional override for the GAQL metrics query (defaults to packaged query). |
 
-| Connector             | Required environment variables |
-| --------------------- | -------------------------------- |
+| Connector             | Required environment variables                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Google Ads            | `AIRBYTE_GOOGLE_ADS_DEVELOPER_TOKEN`, `AIRBYTE_GOOGLE_ADS_CLIENT_ID`, `AIRBYTE_GOOGLE_ADS_CLIENT_SECRET`, `AIRBYTE_GOOGLE_ADS_REFRESH_TOKEN`, `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_LOGIN_CUSTOMER_ID`, `AIRBYTE_GOOGLE_ADS_START_DATE` (optional), `AIRBYTE_GOOGLE_ADS_CONVERSION_WINDOW_DAYS` (optional), `AIRBYTE_GOOGLE_ADS_LOOKBACK_WINDOW_DAYS` (optional), `AIRBYTE_GOOGLE_ADS_CUSTOM_QUERY` (optional) |
-| Meta Marketing API    | `AIRBYTE_META_ACCOUNT_ID`, `AIRBYTE_META_ACCESS_TOKEN`, `AIRBYTE_META_START_DATE` (optional), `AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS` (optional), `AIRBYTE_META_ATTRIBUTION_WINDOW_DAYS` (optional) |
-| Google Analytics 4    | `AIRBYTE_GA4_CLIENT_ID`, `AIRBYTE_GA4_CLIENT_SECRET`, `AIRBYTE_GA4_REFRESH_TOKEN`, `AIRBYTE_GA4_PROPERTY_ID`, `AIRBYTE_GA4_START_DATE` (optional), `AIRBYTE_GA4_LOOKBACK_WINDOW_DAYS` (optional) |
-| Search Console        | `AIRBYTE_SEARCH_CONSOLE_CLIENT_ID`, `AIRBYTE_SEARCH_CONSOLE_CLIENT_SECRET`, `AIRBYTE_SEARCH_CONSOLE_REFRESH_TOKEN`, `AIRBYTE_SEARCH_CONSOLE_SITE_URL`, `AIRBYTE_SEARCH_CONSOLE_START_DATE` (optional), `AIRBYTE_SEARCH_CONSOLE_LOOKBACK_WINDOW_DAYS` (optional) |
-| LinkedIn Ads (custom) | `AIRBYTE_LINKEDIN_ACCOUNT_ID`, `AIRBYTE_LINKEDIN_ACCESS_TOKEN`, `AIRBYTE_LINKEDIN_START_DATE` (optional), `AIRBYTE_LINKEDIN_LOOKBACK_DAYS` (optional) |
-| TikTok Ads (custom)   | `AIRBYTE_TIKTOK_ADVERTISER_ID`, `AIRBYTE_TIKTOK_ACCESS_TOKEN`, `AIRBYTE_TIKTOK_START_DATE` (optional), `AIRBYTE_TIKTOK_LOOKBACK_DAYS` (optional) |
+| Meta Marketing API    | `AIRBYTE_META_ACCOUNT_ID`, `AIRBYTE_META_ACCESS_TOKEN`, `AIRBYTE_META_START_DATE` (optional), `AIRBYTE_META_INSIGHTS_LOOKBACK_DAYS` (optional), `AIRBYTE_META_ATTRIBUTION_WINDOW_DAYS` (optional)                                                                                                                                                                                                                              |
+| Google Analytics 4    | `AIRBYTE_GA4_CLIENT_ID`, `AIRBYTE_GA4_CLIENT_SECRET`, `AIRBYTE_GA4_REFRESH_TOKEN`, `AIRBYTE_GA4_PROPERTY_ID`, `AIRBYTE_GA4_START_DATE` (optional), `AIRBYTE_GA4_LOOKBACK_WINDOW_DAYS` (optional)                                                                                                                                                                                                                               |
+| Search Console        | `AIRBYTE_SEARCH_CONSOLE_CLIENT_ID`, `AIRBYTE_SEARCH_CONSOLE_CLIENT_SECRET`, `AIRBYTE_SEARCH_CONSOLE_REFRESH_TOKEN`, `AIRBYTE_SEARCH_CONSOLE_SITE_URL`, `AIRBYTE_SEARCH_CONSOLE_START_DATE` (optional), `AIRBYTE_SEARCH_CONSOLE_LOOKBACK_WINDOW_DAYS` (optional)                                                                                                                                                                |
+| LinkedIn Ads (custom) | `AIRBYTE_LINKEDIN_ACCOUNT_ID`, `AIRBYTE_LINKEDIN_ACCESS_TOKEN`, `AIRBYTE_LINKEDIN_START_DATE` (optional), `AIRBYTE_LINKEDIN_LOOKBACK_DAYS` (optional)                                                                                                                                                                                                                                                                          |
+| TikTok Ads (custom)   | `AIRBYTE_TIKTOK_ADVERTISER_ID`, `AIRBYTE_TIKTOK_ACCESS_TOKEN`, `AIRBYTE_TIKTOK_START_DATE` (optional), `AIRBYTE_TIKTOK_LOOKBACK_DAYS` (optional)                                                                                                                                                                                                                                                                               |
 
 ### Authentication & Rollout Notes
 

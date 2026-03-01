@@ -34,6 +34,7 @@ aws sesv2 get-email-identity --email-identity adtelligent.net --region "$AWS_REG
 ```
 
 Expected:
+
 - `ProductionAccessEnabled` is `true`.
 - `VerifiedForSendingStatus` is `true`.
 - DKIM status is `SUCCESS`.
@@ -46,6 +47,7 @@ dig +short TXT _dmarc.adtelligent.net
 ```
 
 Expected:
+
 - SPF record includes the approved SES sender policy.
 - DMARC policy exists and aligns with sender domain policy.
 
@@ -81,6 +83,7 @@ cp "$EVIDENCE_DIR/templates/ses-verification-template.md" \
 ```
 
 Attach:
+
 - SES identity screenshots/JSON
 - DKIM/SPF/DMARC proof
 - invite/password-reset delivery proof (headers/screenshots)
@@ -136,6 +139,7 @@ cp "$EVIDENCE_DIR/templates/kms-provisioning-template.md" \
 ```
 
 Attach:
+
 - key/alias metadata (redacted)
 - policy permission proof
 - smoke + dry-run outputs
@@ -171,6 +175,7 @@ cp "$EVIDENCE_DIR/templates/airbyte-prod-readiness-template.md" \
 ```
 
 Attach:
+
 - script outputs
 - connection IDs (redacted where needed)
 - controlled sync proof
@@ -182,6 +187,7 @@ Use scenario instructions in `docs/runbooks/observability-alert-simulations.md`.
 ### 4.1 Minimum required proof
 
 Run and capture all four:
+
 1. Consecutive sync failures
 2. Unexpectedly empty sync
 3. Stale `/api/health/airbyte/`
@@ -195,6 +201,7 @@ cp "$EVIDENCE_DIR/templates/observability-simulation-template.md" \
 ```
 
 Attach:
+
 - alert IDs
 - route targets (Slack/email/pager)
 - fired + acknowledged timestamps
@@ -242,6 +249,7 @@ cp "$EVIDENCE_DIR/templates/staging-rehearsal-template.md" \
 ## 7) Definition of done
 
 All are true:
+
 1. Evidence files exist for `S7-D`, `P1-X1`, `P1-X2`, `P1-X4`, `P1-X9`.
 2. Raj/Mira sign-off links are recorded.
 3. `docs/project/phase1-execution-backlog.md` entries are updated to `Done` with evidence paths.
