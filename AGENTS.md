@@ -15,6 +15,7 @@ This file serves as the operational prompt for any agent working on ADinsights. 
 - API contract changelog: `docs/project/api-contract-changelog.md`
 - Integration data contract matrix: `docs/project/integration-data-contract-matrix.md`
 - Release checklist: `docs/runbooks/release-checklist.md`
+- Google Ads SDK migration runbook: `docs/runbooks/google-ads-sdk-migration.md`
 - Meta App Review + validation runbook: `docs/runbooks/meta-app-review-validation.md`
 - Meta Page Insights operations runbook: `docs/runbooks/meta-page-insights-operations.md`
 - Meta Page Insights data dictionary: `docs/project/meta-page-insights-data-dictionary.md`

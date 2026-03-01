@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -6,6 +6,7 @@ import MetaPagePostsPage from '../MetaPagePostsPage';
 
 const storeMock = vi.hoisted(() => ({
   state: {
+    pages: [{ id: '1', page_id: 'page-1', name: 'Page 1', can_analyze: true, is_default: true }],
     postsStatus: 'loaded',
     posts: {
       page_id: 'page-1',
@@ -13,6 +14,11 @@ const storeMock = vi.hoisted(() => ({
       since: '2026-01-01',
       until: '2026-01-28',
       last_synced_at: '2026-01-28T00:00:00Z',
+      count: 2,
+      limit: 50,
+      offset: 0,
+      next_offset: null,
+      prev_offset: null,
       metric_availability: {
         post_media_view: { supported: false, last_checked_at: null, reason: 'Not available for this Page' },
       },
@@ -40,6 +46,25 @@ const storeMock = vi.hoisted(() => ({
       ],
     },
     error: undefined,
+    filters: {
+      datePreset: 'last_28d',
+      since: '2026-01-01',
+      until: '2026-01-28',
+      metric: 'page_post_engagements',
+      period: 'day',
+      showAllMetrics: false,
+    },
+    postsQuery: {
+      q: '',
+      mediaType: '',
+      sort: 'created_desc',
+      metric: 'post_media_view',
+      limit: 50,
+      offset: 0,
+    },
+    setFilters: vi.fn(),
+    setPostsQuery: vi.fn(),
+    loadPages: vi.fn(),
     loadPosts: vi.fn(),
   },
 }));
@@ -48,27 +73,39 @@ vi.mock('../../state/useMetaPageInsightsStore', () => ({
   default: (selector: (state: typeof storeMock.state) => unknown) => selector(storeMock.state),
 }));
 
+vi.mock('../../lib/metaPageInsights', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../lib/metaPageInsights')>();
+  return {
+    ...original,
+    listMetaPageExports: vi.fn().mockResolvedValue([]),
+    createMetaPageExport: vi.fn().mockResolvedValue({}),
+    downloadExportArtifact: vi.fn().mockResolvedValue({ blob: new Blob(), filename: 'export.csv', contentType: 'text/csv' }),
+  };
+});
+
 describe('MetaPagePostsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders posts table with filter and availability badge', () => {
-    render(
-      <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/posts']}>
-        <Routes>
-          <Route path="/dashboards/meta/pages/:pageId/posts" element={<MetaPagePostsPage />} />
-          <Route path="/dashboards/meta/posts/:postId" element={<div>Post detail</div>} />
-        </Routes>
-      </MemoryRouter>,
-    );
+  it('renders posts table and updates query on search', async () => {
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/posts']}>
+          <Routes>
+            <Route path="/dashboards/meta/pages/:pageId/posts" element={<MetaPagePostsPage />} />
+            <Route path="/dashboards/meta/posts/:postId" element={<div>Post detail</div>} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
 
     expect(screen.getByText('post-1')).toBeInTheDocument();
     expect(screen.getAllByText('Not available for this Page').length).toBeGreaterThan(0);
 
-    const input = screen.getByLabelText('Filter posts');
+    storeMock.state.setPostsQuery.mockClear();
+    const input = screen.getByPlaceholderText('Search post message');
     fireEvent.change(input, { target: { value: 'Another' } });
-    expect(screen.queryByText('post-1')).not.toBeInTheDocument();
-    expect(screen.getByText('post-2')).toBeInTheDocument();
+    expect(storeMock.state.setPostsQuery).toHaveBeenCalledWith({ q: 'Another', offset: 0 });
   });
 });
