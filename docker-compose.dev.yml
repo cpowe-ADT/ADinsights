@@ -33,6 +33,11 @@ services:
       dockerfile: Dockerfile
     env_file:
       - ./backend/.env.dev
+    environment:
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
+      DEV_BACKEND_URL: ${DEV_BACKEND_URL:-}
+      DEV_FRONTEND_URL: ${DEV_FRONTEND_URL:-}
+      DEV_ACTIVE_PROFILE: ${DEV_ACTIVE_PROFILE:-}
     volumes:
       - ./backend:/app
       - ./scripts:/app/scripts:ro
@@ -57,6 +62,11 @@ services:
       dockerfile: Dockerfile
     env_file:
       - ./backend/.env.dev
+    environment:
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
+      DEV_BACKEND_URL: ${DEV_BACKEND_URL:-}
+      DEV_FRONTEND_URL: ${DEV_FRONTEND_URL:-}
+      DEV_ACTIVE_PROFILE: ${DEV_ACTIVE_PROFILE:-}
     volumes:
       - ./backend:/app
     depends_on:
@@ -75,6 +85,11 @@ services:
       dockerfile: Dockerfile
     env_file:
       - ./backend/.env.dev
+    environment:
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
+      DEV_BACKEND_URL: ${DEV_BACKEND_URL:-}
+      DEV_FRONTEND_URL: ${DEV_FRONTEND_URL:-}
+      DEV_ACTIVE_PROFILE: ${DEV_ACTIVE_PROFILE:-}
     volumes:
       - ./backend:/app
     depends_on:

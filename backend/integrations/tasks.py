@@ -12,6 +12,7 @@ from celery import shared_task
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
+import httpx
 
 from alerts.models import AlertRun
 from accounts.tenant_context import tenant_context
@@ -26,6 +27,24 @@ from integrations.airbyte import (
     AirbyteSyncService,
 )
 from integrations.meta_graph import MetaGraphClient, MetaGraphClientError, MetaGraphConfigurationError
+from integrations.google_ads.client import GoogleAdsSdkClient, GoogleAdsSdkError
+from integrations.google_ads.parity import (
+    ParityThresholds,
+    evaluate_google_ads_parity as evaluate_google_ads_parity_window,
+    persist_parity_run,
+)
+from integrations.google_ads.repository import (
+    upsert_accessible_customer_rows,
+    upsert_ad_group_ad_daily_rows,
+    upsert_asset_group_daily_rows,
+    upsert_campaign_daily_rows,
+    upsert_change_event_rows,
+    upsert_conversion_action_daily_rows,
+    upsert_geographic_daily_rows,
+    upsert_keyword_daily_rows,
+    upsert_recommendation_rows,
+    upsert_search_term_daily_rows,
+)
 from integrations.meta_page_insights.insights_discovery import validate_metrics
 from integrations.meta_page_insights.metric_pack_loader import is_blocked_metric
 from integrations.meta_page_insights.token_service import sync_pages_for_connection
@@ -36,9 +55,11 @@ from integrations.models import (
     MetaConnection,
     MetaInsightPoint,
     MetaMetricRegistry,
+    MetaMetricSupportStatus,
     MetaPage,
     MetaPost,
     MetaPostInsightPoint,
+    GoogleAdsSyncState,
     PlatformCredential,
 )
 from integrations.services.insights_parser import (
@@ -60,6 +81,475 @@ from core.tasks import BaseAdInsightsTask
 logger = logging.getLogger(__name__)
 DEFAULT_META_INSIGHTS_LOOKBACK_DAYS = 3
 DEFAULT_META_INSIGHTS_LEVEL = "ad"
+
+
+def _token_status_for_expiry(*, expires_at: datetime | None, now: datetime) -> tuple[str, str]:
+    if expires_at is None:
+        return (PlatformCredential.TOKEN_STATUS_VALID, "")
+    if expires_at <= now:
+        return (
+            PlatformCredential.TOKEN_STATUS_INVALID,
+            "Token expiry timestamp is in the past.",
+        )
+    if expires_at <= now + timedelta(days=7):
+        return (
+            PlatformCredential.TOKEN_STATUS_EXPIRING,
+            "Token expiry is within 7 days.",
+        )
+    return (PlatformCredential.TOKEN_STATUS_VALID, "")
+
+
+def _normalize_google_customer_id(raw_value: str) -> str:
+    return "".join(ch for ch in raw_value if ch.isdigit())
+
+
+def _resolve_google_sync_state(
+    *,
+    tenant,
+    account_id: str,
+) -> GoogleAdsSyncState:
+    desired_default = (getattr(settings, "GOOGLE_ADS_SYNC_ENGINE_DEFAULT", "sdk") or "sdk").strip().lower()
+    if desired_default not in {GoogleAdsSyncState.ENGINE_SDK, GoogleAdsSyncState.ENGINE_AIRBYTE}:
+        desired_default = GoogleAdsSyncState.ENGINE_SDK
+    state, _ = GoogleAdsSyncState.all_objects.get_or_create(
+        tenant=tenant,
+        account_id=account_id,
+        defaults={
+            "desired_engine": desired_default,
+            "effective_engine": desired_default,
+        },
+    )
+    return state
+
+
+def _trigger_google_sdk_rollback(
+    *,
+    state: GoogleAdsSyncState,
+    reason: str,
+) -> None:
+    state.effective_engine = GoogleAdsSyncState.ENGINE_AIRBYTE
+    state.fallback_active = True
+    state.rollback_reason = reason
+    state.save(update_fields=["effective_engine", "fallback_active", "rollback_reason", "updated_at"])
+    AlertRun.objects.create(
+        rule_slug="google_ads_sdk_auto_rollback",
+        status=AlertRun.Status.SUCCESS,
+        row_count=1,
+        raw_results=[
+            {
+                "tenant_id": str(state.tenant_id),
+                "account_id": state.account_id,
+                "reason": reason,
+            }
+        ],
+        llm_summary="Google Ads SDK auto-rollback activated.",
+        error_message="",
+    )
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def sync_google_ads_sdk_incremental(
+    self,
+    tenant_id: str | None = None,
+    window_start_iso: str | None = None,
+    window_end_iso: str | None = None,
+):  # noqa: ANN001
+    """Run Google Ads SDK incremental sync and persist canonical SDK rows."""
+
+    now = timezone.now()
+    today = timezone.localdate()
+    lookback_days = max(int(getattr(settings, "GOOGLE_ADS_LOOKBACK_WINDOW_DAYS", 3) or 3), 1)
+    window_end = (
+        date.fromisoformat(window_end_iso)
+        if window_end_iso
+        else (today - timedelta(days=1))
+    )
+    window_start = (
+        date.fromisoformat(window_start_iso)
+        if window_start_iso
+        else (window_end - timedelta(days=lookback_days))
+    )
+
+    with tenant_context(None):
+        credential_qs = PlatformCredential.all_objects.filter(
+            provider=PlatformCredential.GOOGLE
+        ).select_related("tenant")
+        if tenant_id:
+            credential_qs = credential_qs.filter(tenant_id=tenant_id)
+        credentials = list(credential_qs)
+
+    processed = 0
+    synced = 0
+    skipped = 0
+    failed = 0
+    for credential in credentials:
+        processed += 1
+        tenant_id = str(credential.tenant_id)
+        with tenant_context(tenant_id):
+            account_id = _normalize_google_customer_id(credential.account_id)
+            if not account_id:
+                failed += 1
+                continue
+            sync_state = _resolve_google_sync_state(tenant=credential.tenant, account_id=account_id)
+            sync_state.last_sync_attempt_at = now
+            sync_state.save(update_fields=["last_sync_attempt_at", "updated_at"])
+
+            if sync_state.effective_engine != GoogleAdsSyncState.ENGINE_SDK:
+                skipped += 1
+                continue
+
+            try:
+                client = GoogleAdsSdkClient(
+                    credential=credential,
+                    login_customer_id=getattr(settings, "GOOGLE_ADS_LOGIN_CUSTOMER_ID", None),
+                )
+                campaign_rows = client.fetch_campaign_daily(
+                    customer_id=account_id,
+                    start_date=window_start,
+                    end_date=window_end,
+                )
+                ad_rows = client.fetch_ad_group_ad_daily(
+                    customer_id=account_id,
+                    start_date=window_start,
+                    end_date=window_end,
+                )
+                geo_rows = client.fetch_geographic_daily(
+                    customer_id=account_id,
+                    start_date=window_start,
+                    end_date=window_end,
+                )
+                accessible_rows = client.fetch_accessible_customers(customer_id=account_id)
+
+                upsert_campaign_daily_rows(tenant=credential.tenant, rows=campaign_rows)
+                upsert_ad_group_ad_daily_rows(tenant=credential.tenant, rows=ad_rows)
+                upsert_geographic_daily_rows(tenant=credential.tenant, rows=geo_rows)
+                upsert_accessible_customer_rows(tenant=credential.tenant, rows=accessible_rows)
+
+                optional_errors: dict[str, dict[str, Any]] = {}
+                try:
+                    keyword_rows = client.fetch_keyword_daily(
+                        customer_id=account_id,
+                        start_date=window_start,
+                        end_date=window_end,
+                    )
+                    upsert_keyword_daily_rows(tenant=credential.tenant, rows=keyword_rows)
+                except GoogleAdsSdkError as exc:
+                    optional_errors["keyword_daily"] = {
+                        "classification": exc.classification,
+                        "request_id": exc.request_id,
+                        "message": str(exc),
+                    }
+
+                try:
+                    search_term_rows = client.fetch_search_term_daily(
+                        customer_id=account_id,
+                        start_date=window_start,
+                        end_date=window_end,
+                    )
+                    upsert_search_term_daily_rows(tenant=credential.tenant, rows=search_term_rows)
+                except GoogleAdsSdkError as exc:
+                    optional_errors["search_term_daily"] = {
+                        "classification": exc.classification,
+                        "request_id": exc.request_id,
+                        "message": str(exc),
+                    }
+
+                try:
+                    asset_group_rows = client.fetch_asset_group_daily(
+                        customer_id=account_id,
+                        start_date=window_start,
+                        end_date=window_end,
+                    )
+                    upsert_asset_group_daily_rows(tenant=credential.tenant, rows=asset_group_rows)
+                except GoogleAdsSdkError as exc:
+                    optional_errors["asset_group_daily"] = {
+                        "classification": exc.classification,
+                        "request_id": exc.request_id,
+                        "message": str(exc),
+                    }
+
+                try:
+                    conversion_action_rows = client.fetch_conversion_action_daily(
+                        customer_id=account_id,
+                        start_date=window_start,
+                        end_date=window_end,
+                    )
+                    upsert_conversion_action_daily_rows(
+                        tenant=credential.tenant,
+                        rows=conversion_action_rows,
+                    )
+                except GoogleAdsSdkError as exc:
+                    optional_errors["conversion_action_daily"] = {
+                        "classification": exc.classification,
+                        "request_id": exc.request_id,
+                        "message": str(exc),
+                    }
+
+                change_window_start = datetime.combine(
+                    window_start,
+                    datetime.min.time(),
+                    tzinfo=dt_timezone.utc,
+                )
+                change_window_end = datetime.combine(
+                    window_end + timedelta(days=1),
+                    datetime.min.time(),
+                    tzinfo=dt_timezone.utc,
+                )
+                try:
+                    change_event_rows = client.fetch_change_events(
+                        customer_id=account_id,
+                        start_datetime=change_window_start,
+                        end_datetime=change_window_end,
+                    )
+                    upsert_change_event_rows(tenant=credential.tenant, rows=change_event_rows)
+                except GoogleAdsSdkError as exc:
+                    optional_errors["change_events"] = {
+                        "classification": exc.classification,
+                        "request_id": exc.request_id,
+                        "message": str(exc),
+                    }
+
+                try:
+                    recommendation_rows = client.fetch_recommendations(customer_id=account_id)
+                    upsert_recommendation_rows(tenant=credential.tenant, rows=recommendation_rows)
+                except GoogleAdsSdkError as exc:
+                    optional_errors["recommendations"] = {
+                        "classification": exc.classification,
+                        "request_id": exc.request_id,
+                        "message": str(exc),
+                    }
+
+                if optional_errors:
+                    sync_state.metadata = {
+                        **(sync_state.metadata or {}),
+                        "optional_fetch_errors": optional_errors,
+                    }
+                    sync_state.save(update_fields=["metadata", "updated_at"])
+            except GoogleAdsSdkError as exc:
+                failed += 1
+                sync_state.consecutive_sdk_failures += 1
+                sync_state.last_sync_error = str(exc)
+                sync_state.metadata = {
+                    **(sync_state.metadata or {}),
+                    "last_sdk_error": {
+                        "classification": exc.classification,
+                        "request_id": exc.request_id,
+                    },
+                }
+                sync_state.save(
+                    update_fields=[
+                        "consecutive_sdk_failures",
+                        "last_sync_error",
+                        "metadata",
+                        "updated_at",
+                    ]
+                )
+                if sync_state.consecutive_sdk_failures >= 3:
+                    _trigger_google_sdk_rollback(
+                        state=sync_state,
+                        reason="Three consecutive SDK sync failures.",
+                    )
+                continue
+
+            synced += 1
+            sync_state.consecutive_sdk_failures = 0
+            sync_state.last_sync_success_at = timezone.now()
+            sync_state.last_sync_error = ""
+            sync_state.save(
+                update_fields=[
+                    "consecutive_sdk_failures",
+                    "last_sync_success_at",
+                    "last_sync_error",
+                    "updated_at",
+                ]
+            )
+
+    return {
+        "processed": processed,
+        "synced": synced,
+        "skipped": skipped,
+        "failed": failed,
+        "window_start": window_start.isoformat(),
+        "window_end": window_end.isoformat(),
+    }
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def sync_google_ads_sdk_finalize_daily(self):  # noqa: ANN001
+    """Run finalized Google Ads SDK sync (yesterday + lookback) for daily reporting truth."""
+
+    today = timezone.localdate()
+    lookback_days = max(int(getattr(settings, "GOOGLE_ADS_LOOKBACK_WINDOW_DAYS", 3) or 3), 1)
+    window_end = today - timedelta(days=1)
+    window_start = window_end - timedelta(days=lookback_days)
+    return sync_google_ads_sdk_incremental(
+        self,
+        window_start_iso=window_start.isoformat(),
+        window_end_iso=window_end.isoformat(),
+    )
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def refresh_google_ads_tokens(self):  # noqa: ANN001
+    """Refresh access tokens for stored Google Ads OAuth credentials."""
+
+    with tenant_context(None):
+        credentials = list(
+            PlatformCredential.all_objects.filter(provider=PlatformCredential.GOOGLE).select_related("tenant")
+        )
+
+    refreshed = 0
+    failed = 0
+    client_id = (getattr(settings, "GOOGLE_ADS_CLIENT_ID", "") or "").strip()
+    client_secret = (getattr(settings, "GOOGLE_ADS_CLIENT_SECRET", "") or "").strip()
+    if not client_id or not client_secret:
+        raise self.retry_with_backoff(
+            exc=ValueError("GOOGLE_ADS_CLIENT_ID and GOOGLE_ADS_CLIENT_SECRET are required."),
+            base_delay=300,
+            max_delay=900,
+        )
+
+    for credential in credentials:
+        tenant_id = str(credential.tenant_id)
+        with tenant_context(tenant_id):
+            refresh_token = credential.decrypt_refresh_token()
+            if not refresh_token:
+                failed += 1
+                continue
+            try:
+                response = httpx.post(
+                    "https://oauth2.googleapis.com/token",
+                    data={
+                        "client_id": client_id,
+                        "client_secret": client_secret,
+                        "refresh_token": refresh_token,
+                        "grant_type": "refresh_token",
+                    },
+                    timeout=30.0,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                access_token = str(payload.get("access_token") or "").strip()
+                expires_in = int(payload.get("expires_in") or 0)
+                if not access_token:
+                    raise ValueError("Missing access_token in refresh response.")
+            except Exception:  # pragma: no cover - network path
+                failed += 1
+                credential.token_status = PlatformCredential.TOKEN_STATUS_REAUTH_REQUIRED
+                credential.token_status_reason = "Google token refresh failed."
+                credential.last_refresh_attempt_at = timezone.now()
+                credential.save(
+                    update_fields=[
+                        "token_status",
+                        "token_status_reason",
+                        "last_refresh_attempt_at",
+                        "updated_at",
+                    ]
+                )
+                continue
+
+            expires_at = timezone.now() + timedelta(seconds=expires_in) if expires_in > 0 else None
+            token_status, status_reason = _token_status_for_expiry(
+                expires_at=expires_at,
+                now=timezone.now(),
+            )
+            credential.expires_at = expires_at
+            credential.token_status = token_status
+            credential.token_status_reason = status_reason
+            credential.last_refresh_attempt_at = timezone.now()
+            credential.last_refreshed_at = timezone.now()
+            credential.set_raw_tokens(access_token, None)
+            credential.save()
+            refreshed += 1
+
+    return {"refreshed": refreshed, "failed": failed}
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def evaluate_google_ads_parity(self):  # noqa: ANN001
+    """Compare SDK metrics against baseline and auto-fallback when thresholds fail."""
+
+    if not bool(getattr(settings, "GOOGLE_ADS_PARITY_ENABLED", True)):
+        return {"skipped": True, "reason": "parity_disabled"}
+
+    thresholds = ParityThresholds(
+        spend_max_delta_pct=Decimal(str(getattr(settings, "GOOGLE_ADS_PARITY_SPEND_MAX_DELTA_PCT", 1.0))),
+        clicks_max_delta_pct=Decimal(str(getattr(settings, "GOOGLE_ADS_PARITY_CLICKS_MAX_DELTA_PCT", 2.0))),
+        conversions_max_delta_pct=Decimal(
+            str(getattr(settings, "GOOGLE_ADS_PARITY_CONVERSIONS_MAX_DELTA_PCT", 2.0))
+        ),
+    )
+    window_end = timezone.localdate() - timedelta(days=1)
+    window_start = window_end
+
+    with tenant_context(None):
+        states = list(
+            GoogleAdsSyncState.all_objects.filter(
+                desired_engine=GoogleAdsSyncState.ENGINE_SDK,
+            ).select_related("tenant")
+        )
+
+    passed = 0
+    failed = 0
+    for state in states:
+        tenant_id = str(state.tenant_id)
+        with tenant_context(tenant_id):
+            result = evaluate_google_ads_parity_window(
+                tenant=state.tenant,
+                account_id=state.account_id,
+                window_start=window_start,
+                window_end=window_end,
+                thresholds=thresholds,
+            )
+            persist_parity_run(
+                tenant=state.tenant,
+                account_id=state.account_id,
+                window_start=window_start,
+                window_end=window_end,
+                result=result,
+            )
+            if result.passed:
+                passed += 1
+                state.parity_state = GoogleAdsSyncState.PARITY_PASS
+                state.last_parity_passed_at = timezone.now()
+                state.consecutive_parity_failures = 0
+                state.save(
+                    update_fields=[
+                        "parity_state",
+                        "last_parity_passed_at",
+                        "consecutive_parity_failures",
+                        "updated_at",
+                    ]
+                )
+                continue
+
+            failed += 1
+            state.parity_state = GoogleAdsSyncState.PARITY_FAIL
+            state.consecutive_parity_failures += 1
+            state.metadata = {
+                **(state.metadata or {}),
+                "last_parity_reasons": result.reasons,
+            }
+            state.save(
+                update_fields=[
+                    "parity_state",
+                    "consecutive_parity_failures",
+                    "metadata",
+                    "updated_at",
+                ]
+            )
+            if state.consecutive_parity_failures >= 2:
+                _trigger_google_sdk_rollback(
+                    state=state,
+                    reason="Two consecutive parity failures.",
+                )
+
+    return {
+        "window_start": window_start.isoformat(),
+        "window_end": window_end.isoformat(),
+        "passed": passed,
+        "failed": failed,
+    }
 
 
 @shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
@@ -1138,8 +1628,8 @@ def sync_meta_page_insights(  # noqa: ANN001
         for page in pages:
             tenant_id = str(page.tenant_id)
             with tenant_context(tenant_id):
-                page_token = page.decrypt_page_token()
-                if not page_token:
+                page_tokens = _candidate_page_tokens(page)
+                if not page_tokens:
                     logger.warning("meta.page_insights.missing_token", extra={"tenant_id": tenant_id, "page_id": page.page_id})
                     continue
 
@@ -1158,6 +1648,7 @@ def sync_meta_page_insights(  # noqa: ANN001
                     rows_processed = _sync_page_metric_window(
                         client=client,
                         page=page,
+                        page_tokens=page_tokens,
                         metrics=registry_metrics,
                         since=window_since,
                         until=window_until,
@@ -1214,16 +1705,17 @@ def sync_meta_post_insights(  # noqa: ANN001
         for page in pages:
             tenant_id = str(page.tenant_id)
             with tenant_context(tenant_id):
-                page_token = page.decrypt_page_token()
-                if not page_token:
+                page_tokens = _candidate_page_tokens(page)
+                if not page_tokens:
                     continue
 
                 since, until = _resolve_sync_window(mode=mode, now=now)
-                posts_payload = client.fetch_page_posts(
-                    page_id=page.page_id,
-                    since=since.isoformat(),
-                    until=until.isoformat(),
-                    token=page_token,
+                posts_payload = _fetch_page_posts_with_fallback(
+                    client=client,
+                    page=page,
+                    page_tokens=page_tokens,
+                    since=since,
+                    until=until,
                 )
                 posts = _upsert_meta_posts(page=page, rows=posts_payload)
                 if not posts:
@@ -1242,7 +1734,7 @@ def sync_meta_post_insights(  # noqa: ANN001
                     rows_processed = _sync_post_metric_window(
                         client=client,
                         post=post,
-                        page_token=page_token,
+                        page_tokens=page_tokens,
                         metrics=registry_metrics,
                         since=since,
                         until=until,
@@ -1391,14 +1883,15 @@ def sync_page_posts(self, page_id: str | None = None, mode: str = "incremental")
     total_posts = 0
     with MetaInsightsGraphClient.from_settings() as client:
         for page in pages:
-            token = page.decrypt_page_token()
-            if not token:
+            page_tokens = _candidate_page_tokens(page)
+            if not page_tokens:
                 continue
-            payload = client.fetch_page_posts(
-                page_id=page.page_id,
-                since=since.isoformat(),
-                until=until.isoformat(),
-                token=token,
+            payload = _fetch_page_posts_with_fallback(
+                client=client,
+                page=page,
+                page_tokens=page_tokens,
+                since=since,
+                until=until,
             )
             posts = _upsert_meta_posts(page=page, rows=payload)
             total_posts += len(posts)
@@ -1437,6 +1930,7 @@ def _sync_page_metric_window(
     *,
     client: MetaInsightsGraphClient,
     page: MetaPage,
+    page_tokens: list[str],
     metrics: list[str],
     since: date,
     until: date,
@@ -1447,6 +1941,7 @@ def _sync_page_metric_window(
         rows_processed += _sync_page_metric_chunk(
             client=client,
             page=page,
+            page_tokens=page_tokens,
             metric_chunk=chunk,
             since=since,
             until=until,
@@ -1458,6 +1953,7 @@ def _sync_page_metric_chunk(
     *,
     client: MetaInsightsGraphClient,
     page: MetaPage,
+    page_tokens: list[str],
     metric_chunk: list[str],
     since: date,
     until: date,
@@ -1465,54 +1961,111 @@ def _sync_page_metric_chunk(
     if not metric_chunk:
         return 0
 
-    page_token = page.decrypt_page_token()
-    if not page_token:
+    if not page_tokens:
         return 0
 
-    try:
-        payload = client.fetch_page_insights(
-            page_id=page.page_id,
-            metrics=metric_chunk,
-            period="day",
-            since=since.isoformat(),
-            until=until.isoformat(),
-            token=page_token,
-        )
-    except MetaInsightsGraphClientError as exc:
-        if exc.error_code == 100:
-            if len(metric_chunk) == 1:
-                mark_metric_invalid(MetaMetricRegistry.LEVEL_PAGE, metric_chunk[0])
-                return 0
-            midpoint = max(len(metric_chunk) // 2, 1)
-            left = metric_chunk[:midpoint]
-            right = metric_chunk[midpoint:]
-            return _sync_page_metric_chunk(
-                client=client,
-                page=page,
-                metric_chunk=left,
-                since=since,
-                until=until,
-            ) + _sync_page_metric_chunk(
-                client=client,
-                page=page,
-                metric_chunk=right,
-                since=since,
-                until=until,
+    payload: dict[str, Any] | None = None
+    last_error: MetaInsightsGraphClientError | None = None
+    for token in page_tokens:
+        try:
+            payload = client.fetch_page_insights(
+                page_id=page.page_id,
+                metrics=metric_chunk,
+                period="day",
+                since=since.isoformat(),
+                until=until.isoformat(),
+                token=token,
             )
-        if exc.error_code == 3001 and exc.error_subcode == 1504028:
+            _mark_metric_support(
+                page=page,
+                level=MetaMetricRegistry.LEVEL_PAGE,
+                metric_chunk=metric_chunk,
+                supported=True,
+                last_error={},
+            )
+            break
+        except MetaInsightsGraphClientError as exc:
+            last_error = exc
+            if _is_auth_or_permission_error(exc):
+                continue
+            if exc.error_code == 100:
+                if len(metric_chunk) == 1:
+                    mark_metric_invalid(MetaMetricRegistry.LEVEL_PAGE, metric_chunk[0])
+                    _mark_metric_support(
+                        page=page,
+                        level=MetaMetricRegistry.LEVEL_PAGE,
+                        metric_chunk=metric_chunk,
+                        supported=False,
+                        last_error=_error_payload(exc),
+                    )
+                    return 0
+                midpoint = max(len(metric_chunk) // 2, 1)
+                left = metric_chunk[:midpoint]
+                right = metric_chunk[midpoint:]
+                return _sync_page_metric_chunk(
+                    client=client,
+                    page=page,
+                    page_tokens=page_tokens,
+                    metric_chunk=left,
+                    since=since,
+                    until=until,
+                ) + _sync_page_metric_chunk(
+                    client=client,
+                    page=page,
+                    page_tokens=page_tokens,
+                    metric_chunk=right,
+                    since=since,
+                    until=until,
+                )
+            if exc.error_code == 3001 and exc.error_subcode == 1504028:
+                _mark_metric_support(
+                    page=page,
+                    level=MetaMetricRegistry.LEVEL_PAGE,
+                    metric_chunk=metric_chunk,
+                    supported=False,
+                    last_error=_error_payload(exc),
+                )
+                return 0
+            if exc.retryable:
+                raise
+            logger.warning(
+                "meta.page_insights.chunk_failed",
+                extra={
+                    "tenant_id": str(page.tenant_id),
+                    "page_id": page.page_id,
+                    "metric_chunk": metric_chunk,
+                    "status_code": exc.status_code,
+                    "error_code": exc.error_code,
+                },
+            )
+            _mark_metric_support(
+                page=page,
+                level=MetaMetricRegistry.LEVEL_PAGE,
+                metric_chunk=metric_chunk,
+                supported=False,
+                last_error=_error_payload(exc),
+            )
             return 0
-        if exc.retryable:
-            raise
-        logger.warning(
-            "meta.page_insights.chunk_failed",
-            extra={
-                "tenant_id": str(page.tenant_id),
-                "page_id": page.page_id,
-                "metric_chunk": metric_chunk,
-                "status_code": exc.status_code,
-                "error_code": exc.error_code,
-            },
-        )
+
+    if payload is None:
+        if last_error is not None:
+            logger.warning(
+                "meta.page_insights.chunk_auth_failed",
+                extra={
+                    "tenant_id": str(page.tenant_id),
+                    "page_id": page.page_id,
+                    "metric_chunk": metric_chunk,
+                    "status_code": last_error.status_code,
+                    "error_code": last_error.error_code,
+                },
+            )
+            _mark_metric_support(
+                page=page,
+                level=MetaMetricRegistry.LEVEL_PAGE,
+                metric_chunk=metric_chunk,
+                supported=False,
+                last_error=_error_payload(last_error),
+            )
         return 0
 
     points, metadata = normalize_insights_payload(payload)
@@ -1532,7 +2085,7 @@ def _sync_post_metric_window(
     *,
     client: MetaInsightsGraphClient,
     post: MetaPost,
-    page_token: str,
+    page_tokens: list[str],
     metrics: list[str],
     since: date,
     until: date,
@@ -1543,7 +2096,7 @@ def _sync_post_metric_window(
         rows_processed += _sync_post_metric_chunk(
             client=client,
             post=post,
-            page_token=page_token,
+            page_tokens=page_tokens,
             metric_chunk=chunk,
             since=since,
             until=until,
@@ -1555,60 +2108,118 @@ def _sync_post_metric_chunk(
     *,
     client: MetaInsightsGraphClient,
     post: MetaPost,
-    page_token: str,
+    page_tokens: list[str],
     metric_chunk: list[str],
     since: date,
     until: date,
 ) -> int:
     if not metric_chunk:
         return 0
+    if not page_tokens:
+        return 0
 
-    try:
-        payload = client.fetch_post_insights(
-            post_id=post.post_id,
-            metrics=metric_chunk,
-            period="lifetime",
-            since=since.isoformat(),
-            until=until.isoformat(),
-            token=page_token,
-        )
-    except MetaInsightsGraphClientError as exc:
-        if exc.error_code == 100:
-            if len(metric_chunk) == 1:
-                mark_metric_invalid(MetaMetricRegistry.LEVEL_POST, metric_chunk[0])
-                return 0
-            midpoint = max(len(metric_chunk) // 2, 1)
-            left = metric_chunk[:midpoint]
-            right = metric_chunk[midpoint:]
-            return _sync_post_metric_chunk(
-                client=client,
-                post=post,
-                page_token=page_token,
-                metric_chunk=left,
-                since=since,
-                until=until,
-            ) + _sync_post_metric_chunk(
-                client=client,
-                post=post,
-                page_token=page_token,
-                metric_chunk=right,
-                since=since,
-                until=until,
+    payload: dict[str, Any] | None = None
+    last_error: MetaInsightsGraphClientError | None = None
+    for token in page_tokens:
+        try:
+            payload = client.fetch_post_insights(
+                post_id=post.post_id,
+                metrics=metric_chunk,
+                period="lifetime",
+                since=since.isoformat(),
+                until=until.isoformat(),
+                token=token,
             )
-        if exc.error_code == 3001 and exc.error_subcode == 1504028:
+            _mark_metric_support(
+                page=post.page,
+                level=MetaMetricRegistry.LEVEL_POST,
+                metric_chunk=metric_chunk,
+                supported=True,
+                last_error={},
+            )
+            break
+        except MetaInsightsGraphClientError as exc:
+            last_error = exc
+            if _is_auth_or_permission_error(exc):
+                continue
+            if exc.error_code == 100:
+                if len(metric_chunk) == 1:
+                    mark_metric_invalid(MetaMetricRegistry.LEVEL_POST, metric_chunk[0])
+                    _mark_metric_support(
+                        page=post.page,
+                        level=MetaMetricRegistry.LEVEL_POST,
+                        metric_chunk=metric_chunk,
+                        supported=False,
+                        last_error=_error_payload(exc),
+                    )
+                    return 0
+                midpoint = max(len(metric_chunk) // 2, 1)
+                left = metric_chunk[:midpoint]
+                right = metric_chunk[midpoint:]
+                return _sync_post_metric_chunk(
+                    client=client,
+                    post=post,
+                    page_tokens=page_tokens,
+                    metric_chunk=left,
+                    since=since,
+                    until=until,
+                ) + _sync_post_metric_chunk(
+                    client=client,
+                    post=post,
+                    page_tokens=page_tokens,
+                    metric_chunk=right,
+                    since=since,
+                    until=until,
+                )
+            if exc.error_code == 3001 and exc.error_subcode == 1504028:
+                _mark_metric_support(
+                    page=post.page,
+                    level=MetaMetricRegistry.LEVEL_POST,
+                    metric_chunk=metric_chunk,
+                    supported=False,
+                    last_error=_error_payload(exc),
+                )
+                return 0
+            if exc.retryable:
+                raise
+            logger.warning(
+                "meta.post_insights.chunk_failed",
+                extra={
+                    "tenant_id": str(post.tenant_id),
+                    "post_id": post.post_id,
+                    "metric_chunk": metric_chunk,
+                    "status_code": exc.status_code,
+                    "error_code": exc.error_code,
+                },
+            )
+            _mark_metric_support(
+                page=post.page,
+                level=MetaMetricRegistry.LEVEL_POST,
+                metric_chunk=metric_chunk,
+                supported=False,
+                last_error=_error_payload(exc),
+            )
             return 0
-        if exc.retryable:
-            raise
-        logger.warning(
-            "meta.post_insights.chunk_failed",
-            extra={
-                "tenant_id": str(post.tenant_id),
-                "post_id": post.post_id,
-                "metric_chunk": metric_chunk,
-                "status_code": exc.status_code,
-                "error_code": exc.error_code,
-            },
-        )
+
+    if payload is None:
+        if last_error is not None:
+            logger.warning(
+                "meta.post_insights.chunk_auth_failed",
+                extra={
+                    "tenant_id": str(post.tenant_id),
+                    "post_id": post.post_id,
+                    "metric_chunk": metric_chunk,
+                    "status_code": last_error.status_code,
+                    "error_code": last_error.error_code,
+                },
+            )
+            _mark_metric_support(
+                page=post.page,
+                level=MetaMetricRegistry.LEVEL_POST,
+                metric_chunk=metric_chunk,
+                supported=False,
+                last_error=_error_payload(last_error),
+            )
         return 0
 
     fallback_end_time = post.created_time or timezone.now()
@@ -1623,6 +2234,103 @@ def _sync_post_metric_chunk(
         )
 
     return _upsert_meta_post_insight_points(post=post, points=points)
+
+
+def _candidate_page_tokens(page: MetaPage) -> list[str]:
+    tokens: list[str] = []
+
+    page_token = page.decrypt_page_token()
+    if isinstance(page_token, str) and page_token.strip():
+        tokens.append(page_token.strip())
+
+    candidates: list[MetaConnection] = []
+    if page.connection_id:
+        connection = MetaConnection.all_objects.filter(pk=page.connection_id).first()
+        if connection is not None:
+            candidates.append(connection)
+
+    latest_connection = (
+        MetaConnection.all_objects.filter(tenant=page.tenant, is_active=True).order_by("-updated_at").first()
+    )
+    if latest_connection is not None and all(str(row.pk) != str(latest_connection.pk) for row in candidates):
+        candidates.append(latest_connection)
+
+    for candidate in candidates:
+        token = candidate.decrypt_token()
+        if not isinstance(token, str):
+            continue
+        normalized = token.strip()
+        if normalized and normalized not in tokens:
+            tokens.append(normalized)
+
+    return tokens
+
+
+def _is_auth_or_permission_error(exc: MetaInsightsGraphClientError) -> bool:
+    return exc.error_code in {10, 190, 200}
+
+
+def _error_payload(exc: MetaInsightsGraphClientError) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "message": str(exc),
+        "status_code": exc.status_code,
+        "error_code": exc.error_code,
+        "error_subcode": exc.error_subcode,
+    }
+    return {key: value for key, value in payload.items() if value not in {None, ""}}
+
+
+def _mark_metric_support(
+    *,
+    page: MetaPage,
+    level: str,
+    metric_chunk: list[str],
+    supported: bool,
+    last_error: dict[str, Any],
+) -> None:
+    if not metric_chunk:
+        return
+    checked_at = timezone.now()
+    for metric_key in metric_chunk:
+        MetaMetricSupportStatus.all_objects.update_or_create(
+            tenant=page.tenant,
+            page=page,
+            level=level,
+            metric_key=metric_key,
+            defaults={
+                "supported": supported,
+                "last_checked_at": checked_at,
+                "last_error": last_error,
+            },
+        )
+
+
+def _fetch_page_posts_with_fallback(
+    *,
+    client: MetaInsightsGraphClient,
+    page: MetaPage,
+    page_tokens: list[str],
+    since: date,
+    until: date,
+) -> list[dict[str, Any]]:
+    last_error: MetaInsightsGraphClientError | None = None
+    for token in page_tokens:
+        try:
+            return client.fetch_page_posts(
+                page_id=page.page_id,
+                since=since.isoformat(),
+                until=until.isoformat(),
+                token=token,
+            )
+        except MetaInsightsGraphClientError as exc:
+            last_error = exc
+            if _is_auth_or_permission_error(exc):
+                continue
+            raise
+
+    if last_error is not None:
+        raise last_error
+    return []
 
 
 def _upsert_meta_insight_points(*, page: MetaPage, points) -> int:
@@ -1733,7 +2441,7 @@ def _upsert_meta_posts(*, page: MetaPage, rows: list[dict[str, Any]]) -> list[Me
 
 
 def _resolve_sync_window(*, mode: str, now: datetime) -> tuple[date, date]:
-    end_date = now.date()
+    end_date = timezone.localdate() - timedelta(days=1)
     if mode == "backfill":
         backfill_days = max(int(getattr(settings, "META_PAGE_INSIGHTS_BACKFILL_DAYS", 90)), 1)
         return end_date - timedelta(days=backfill_days), end_date

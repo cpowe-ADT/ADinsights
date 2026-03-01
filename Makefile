@@ -77,7 +77,7 @@ dev-session:
 
 dev-ready: dev-bootstrap dev-data dev-session
 
-.PHONY: adinsights-preflight
+.PHONY: adinsights-preflight meta-live-smoke
 
 adinsights-preflight:
 	@if [ -z "$(PROMPT)" ]; then \
@@ -88,3 +88,17 @@ adinsights-preflight:
 		--prompt "$(PROMPT)" \
 		--changed-files-from-git \
 		--format markdown
+
+meta-live-smoke:
+	@if [ -z "$(META_LIVE_SMOKE_USER_TOKEN)" ] || [ -z "$(META_LIVE_SMOKE_PAGE_ID)" ]; then \
+		echo "Usage: make meta-live-smoke META_LIVE_SMOKE_USER_TOKEN='...' META_LIVE_SMOKE_PAGE_ID='...' [META_LIVE_SMOKE_PAGE_TOKEN='...'] [META_LIVE_SMOKE_PAGE_NAME='...'] [META_LIVE_SMOKE_PAGE_METRIC='...'] [META_LIVE_SMOKE_POST_METRIC='...']"; \
+		exit 1; \
+	fi
+	@META_LIVE_SMOKE_ENABLED=1 \
+	META_LIVE_SMOKE_USER_TOKEN="$(META_LIVE_SMOKE_USER_TOKEN)" \
+	META_LIVE_SMOKE_PAGE_ID="$(META_LIVE_SMOKE_PAGE_ID)" \
+	META_LIVE_SMOKE_PAGE_TOKEN="$(META_LIVE_SMOKE_PAGE_TOKEN)" \
+	META_LIVE_SMOKE_PAGE_NAME="$(META_LIVE_SMOKE_PAGE_NAME)" \
+	META_LIVE_SMOKE_PAGE_METRIC="$(META_LIVE_SMOKE_PAGE_METRIC)" \
+	META_LIVE_SMOKE_POST_METRIC="$(META_LIVE_SMOKE_POST_METRIC)" \
+	pytest -q backend/tests/integration/test_meta_page_live_smoke.py

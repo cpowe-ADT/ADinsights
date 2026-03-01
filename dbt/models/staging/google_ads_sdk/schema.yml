@@ -1,0 +1,41 @@
+version: 2
+
+sources:
+  - name: google_ads_sdk_raw
+    schema: "{{ var('raw_google_ads_sdk_schema', 'raw_google_ads_sdk') }}"
+    tables:
+      - name: campaign_daily
+      - name: ad_group_ad_daily
+      - name: keyword_daily
+      - name: search_term_daily
+      - name: asset_group_daily
+      - name: conversion_action_daily
+
+models:
+  - name: stg_google_ads_sdk
+    description: Google Ads SDK canonical staging model (ad group ad daily grain).
+    columns:
+      - name: tenant_id
+      - name: ad_account_id
+      - name: campaign_id
+      - name: campaign_name
+      - name: adset_id
+      - name: ad_id
+      - name: ad_name
+      - name: date_day
+      - name: region_name
+      - name: spend
+      - name: impressions
+      - name: clicks
+      - name: conversions
+      - name: effective_from
+  - name: stg_google_ads_sdk_campaign_daily
+    description: Google Ads SDK campaign daily staging model.
+  - name: stg_google_ads_sdk_keyword_daily
+    description: Google Ads SDK keyword daily staging model.
+  - name: stg_google_ads_sdk_search_term_daily
+    description: Google Ads SDK search term daily staging model.
+  - name: stg_google_ads_sdk_asset_group_daily
+    description: Google Ads SDK Performance Max asset group daily staging model.
+  - name: stg_google_ads_sdk_conversion_action_daily
+    description: Google Ads SDK conversion action daily staging model.

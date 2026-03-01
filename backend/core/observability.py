@@ -9,12 +9,14 @@ import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
+from urllib.parse import urlsplit
 
 from celery import Task
 from django.conf import settings
 
-from core.metrics import observe_task
 from accounts.tenant_context import get_current_tenant_id
+from core.frontend_runtime import origin_from_url
+from core.metrics import observe_task
 
 _correlation_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "correlation_id", default=None
@@ -177,6 +179,7 @@ class APILoggingMiddleware:
         if not request.path.startswith(self._api_prefixes):
             return self.get_response(request)
 
+        dataset_markers = self._extract_dataset_markers(request)
         start = time.perf_counter()
         response = self.get_response(request)
         duration_ms = round((time.perf_counter() - start) * 1000, 2)
@@ -184,6 +187,7 @@ class APILoggingMiddleware:
         view_name = resolver_match.view_name if resolver_match else None
         user = getattr(request, "user", None)
         tenant_id = getattr(user, "tenant_id", None) if getattr(user, "is_authenticated", False) else None
+        request_host, request_port = self._request_host_and_port(request)
         self.logger.info(
             "request.completed",
             extra={
@@ -198,9 +202,72 @@ class APILoggingMiddleware:
                 "tenant_id": str(tenant_id) if tenant_id else None,
                 "remote_addr": request.META.get("HTTP_X_FORWARDED_FOR")
                 or request.META.get("REMOTE_ADDR"),
+                "runtime": {
+                    "request_host": request_host,
+                    "request_port": request_port,
+                    "origin": origin_from_url(request.headers.get("Origin")),
+                    "referer_origin": origin_from_url(request.headers.get("Referer")),
+                    "dataset_markers": dataset_markers or None,
+                },
             },
         )
         return response
+
+    @staticmethod
+    def _request_host_and_port(request) -> tuple[str | None, int | None]:  # noqa: ANN001
+        try:
+            host = request.get_host().strip()
+        except Exception:  # pragma: no cover - defensive parsing
+            return None, None
+        if not host:
+            return None, None
+        parsed = urlsplit(f"//{host}")
+        return host, parsed.port
+
+    @staticmethod
+    def _extract_dataset_markers(request) -> dict[str, Any]:  # noqa: ANN001
+        markers: dict[str, Any] = {}
+        for key in ("source", "dataset_source", "demo_tenant"):
+            value = request.GET.get(key)
+            if isinstance(value, str):
+                normalized = value.strip()
+                if normalized:
+                    markers[key] = normalized
+
+        content_type = (request.META.get("CONTENT_TYPE") or "").lower()
+        if request.method not in {"POST", "PUT", "PATCH"} or "application/json" not in content_type:
+            return markers
+
+        try:
+            raw_body = request.body
+        except Exception:  # pragma: no cover - defensive body access
+            return markers
+        if not raw_body:
+            return markers
+
+        try:
+            payload = json.loads(raw_body.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return markers
+        if not isinstance(payload, dict):
+            return markers
+
+        for key in ("source", "dataset_source", "demo_tenant"):
+            value = payload.get(key)
+            if isinstance(value, str):
+                normalized = value.strip()
+                if normalized and key not in markers:
+                    markers[key] = normalized
+
+        runtime_context = payload.get("runtime_context")
+        if isinstance(runtime_context, dict):
+            value = runtime_context.get("dataset_source")
+            if isinstance(value, str):
+                normalized = value.strip()
+                if normalized and "dataset_source" not in markers:
+                    markers["dataset_source"] = normalized
+
+        return markers
 
 
 class InstrumentedTask(Task):

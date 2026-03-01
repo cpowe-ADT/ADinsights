@@ -1,0 +1,2 @@
+customer_id,campaign_id,campaign_name,advertising_channel_type,campaign_status,date_day,cost_micros,impressions,clicks,conversions,conversions_value,updated_at,ingested_at
+123456789,111111111,Sample Campaign,SEARCH,ENABLED,2024-01-01,300000000,1500,120,6,900,2024-01-02 00:00:00,2024-01-02 00:00:00
