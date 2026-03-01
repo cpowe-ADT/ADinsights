@@ -25,26 +25,26 @@ Every permission submission should include:
 
 Complete all rows below before submission.
 
-| Permission | Use case text must include | Screencast proof must include |
-| --- | --- | --- |
-| `ads_read` | ADinsights reads ad performance data on behalf of onboarded business customers for tenant-scoped dashboards and analytics. | Complete Facebook login and permission grant, then impressions/conversions/spend/clicks/reach displayed in ADinsights. |
-| `ads_management` | ADinsights uses ad-management access on behalf of business customers to support campaign/account operations and reporting continuity. | Complete Facebook login and permission grant, then post-grant ad performance access in ADinsights. |
-| `business_management` | ADinsights reads/manages Business Manager assets on behalf of businesses to bind ad accounts during onboarding. | Complete Facebook login and permission grant, then successful business asset selection with ad performance access. |
-| `pages_read_engagement` | ADinsights reads Page context on behalf of businesses for onboarding verification and account linkage. | Complete Facebook login and permission grant, then Page-linked content/metadata shown in ADinsights. |
-| `pages_show_list` | ADinsights lists managed Pages so business users can verify ownership and connect the correct Page. | Complete Facebook login and permission grant, then managed Page list shown and selected in ADinsights setup. |
+| Permission              | Use case text must include                                                                                                            | Screencast proof must include                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `ads_read`              | ADinsights reads ad performance data on behalf of onboarded business customers for tenant-scoped dashboards and analytics.            | Complete Facebook login and permission grant, then impressions/conversions/spend/clicks/reach displayed in ADinsights. |
+| `ads_management`        | ADinsights uses ad-management access on behalf of business customers to support campaign/account operations and reporting continuity. | Complete Facebook login and permission grant, then post-grant ad performance access in ADinsights.                     |
+| `business_management`   | ADinsights reads/manages Business Manager assets on behalf of businesses to bind ad accounts during onboarding.                       | Complete Facebook login and permission grant, then successful business asset selection with ad performance access.     |
+| `pages_read_engagement` | ADinsights reads Page context on behalf of businesses for onboarding verification and account linkage.                                | Complete Facebook login and permission grant, then Page-linked content/metadata shown in ADinsights.                   |
+| `pages_show_list`       | ADinsights lists managed Pages so business users can verify ownership and connect the correct Page.                                   | Complete Facebook login and permission grant, then managed Page list shown and selected in ADinsights setup.           |
 
 ## 3) Optional Near-Term Submission Items
 
 Only submit permissions below when the corresponding feature is active in ADinsights.
 
-| Permission | Feature gate condition | Use case text must include | Screencast proof must include |
-| --- | --- | --- | --- |
-| `instagram_basic` | Instagram account discovery is enabled. | Specific profile fields required on behalf of business customers (for example username, ID) and where displayed in ADinsights. | Complete Facebook login with Instagram selection, then metadata displayed in ADinsights. |
-| `instagram_manage_insights` | Instagram insights are shown in product. | How ADinsights retrieves and uses Instagram insights on behalf of businesses for reporting workflows. | Complete Facebook login, then Instagram insights retrieval and display in ADinsights. |
-| `catalog_management` | Catalog workflows are enabled. | Why ADinsights must manage product catalogs for client businesses. | Login + catalog create/update/delete flow in ADinsights. |
-| `pages_manage_ads` | Page ad-management flow is enabled. | Why ADinsights creates/manages ads for business Pages. | Login + Page ad creation/management success in ADinsights. |
-| `pages_manage_metadata` | Page webhook/settings management is enabled. | Why ADinsights needs webhook/settings access for Page administration. | Login + webhook subscription or settings update flow in ADinsights. |
-| `pages_messaging` | Messenger integration is enabled. | Messaging functions offered to onboarded business users. | Login + message send from ADinsights + receipt in Messenger client + cURL generation flow. |
+| Permission                  | Feature gate condition                       | Use case text must include                                                                                                     | Screencast proof must include                                                              |
+| --------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `instagram_basic`           | Instagram account discovery is enabled.      | Specific profile fields required on behalf of business customers (for example username, ID) and where displayed in ADinsights. | Complete Facebook login with Instagram selection, then metadata displayed in ADinsights.   |
+| `instagram_manage_insights` | Instagram insights are shown in product.     | How ADinsights retrieves and uses Instagram insights on behalf of businesses for reporting workflows.                          | Complete Facebook login, then Instagram insights retrieval and display in ADinsights.      |
+| `catalog_management`        | Catalog workflows are enabled.               | Why ADinsights must manage product catalogs for client businesses.                                                             | Login + catalog create/update/delete flow in ADinsights.                                   |
+| `pages_manage_ads`          | Page ad-management flow is enabled.          | Why ADinsights creates/manages ads for business Pages.                                                                         | Login + Page ad creation/management success in ADinsights.                                 |
+| `pages_manage_metadata`     | Page webhook/settings management is enabled. | Why ADinsights needs webhook/settings access for Page administration.                                                          | Login + webhook subscription or settings update flow in ADinsights.                        |
+| `pages_messaging`           | Messenger integration is enabled.            | Messaging functions offered to onboarded business users.                                                                       | Login + message send from ADinsights + receipt in Messenger client + cURL generation flow. |
 
 ## 4) Evidence Packet Requirements
 

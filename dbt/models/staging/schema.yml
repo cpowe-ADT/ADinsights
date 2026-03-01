@@ -163,7 +163,7 @@ models:
         tests:
           - expression_is_true:
               arguments:
-                expression: "coalesce(sessions, 0) >= 0"
+                expression: 'coalesce(sessions, 0) >= 0'
               config:
                 enabled: "{{ var('enable_ga4', False) }}"
   - name: stg_search_console
@@ -188,6 +188,6 @@ models:
         tests:
           - expression_is_true:
               arguments:
-                expression: "coalesce(impressions, 0) >= 0"
+                expression: 'coalesce(impressions, 0) >= 0'
               config:
                 enabled: "{{ var('enable_search_console', False) }}"

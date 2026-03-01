@@ -10,44 +10,22 @@
     "scripts",
     "qa"
   ],
-  "required_reviewers": [
-    "Raj",
-    "Mira",
-    "Sofia",
-    "Priya",
-    "Hannah",
-    "Lina",
-    "Maya",
-    "Nina"
-  ],
+  "required_reviewers": ["Raj", "Mira", "Sofia", "Priya", "Hannah", "Lina", "Maya", "Nina"],
   "required_tests_by_folder": {
-    "backend": [
-      "ruff check backend && pytest -q backend"
-    ],
+    "backend": ["ruff check backend && pytest -q backend"],
     "dbt": [
       "make dbt-deps && dbt --project-dir dbt run --select staging && dbt snapshot && dbt --project-dir dbt run --select marts"
     ],
-    "docs": [
-      "docs-only change (no canonical code test)"
-    ],
-    "frontend": [
-      "cd frontend && npm ci && npm test -- --run && npm run build"
-    ],
-    "infrastructure": [
-      "cd infrastructure/airbyte && docker compose config"
-    ],
+    "docs": ["docs-only change (no canonical code test)"],
+    "frontend": ["cd frontend && npm ci && npm test -- --run && npm run build"],
+    "infrastructure": ["cd infrastructure/airbyte && docker compose config"],
     "scripts": [
       "ruff check backend",
       "pytest backend/tests/test_dek_manager.py scripts/tests/test_rotate_deks.py"
     ],
-    "qa": [
-      "cd frontend && npm ci && npm test -- --run && npm run build"
-    ]
+    "qa": ["cd frontend && npm ci && npm test -- --run && npm run build"]
   },
-  "required_docs_updates": [
-    "docs/ops/doc-index.md",
-    "docs/ops/agent-activity-log.md"
-  ],
+  "required_docs_updates": ["docs/ops/doc-index.md", "docs/ops/agent-activity-log.md"],
   "recommended_next_action": "Route to Raj + Mira before implementation and capture architecture rationale/rollback notes.",
   "rationale": [
     "Evidence source: git_changed_files.",

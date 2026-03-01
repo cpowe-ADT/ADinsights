@@ -249,6 +249,40 @@ def test_openapi_schema_includes_social_connection_status():
 
 
 @pytest.mark.django_db
+def test_openapi_schema_includes_google_ads_paths():
+    client = APIClient()
+    response = client.get("/api/schema/")
+    assert response.status_code == 200
+    payload = yaml.safe_load(response.content.decode("utf-8"))
+    paths = payload.get("paths", {})
+    assert "/api/integrations/google_ads/setup/" in paths
+    assert "/api/integrations/google_ads/oauth/start/" in paths
+    assert "/api/integrations/google_ads/oauth/exchange/" in paths
+    assert "/api/integrations/google_ads/status/" in paths
+    assert "/api/integrations/google_ads/reference/summary/" in paths
+    assert "/api/integrations/google_ads/provision/" in paths
+    assert "/api/integrations/google_ads/sync/" in paths
+    assert "/api/integrations/google_ads/disconnect/" in paths
+
+
+@pytest.mark.django_db
+def test_openapi_schema_includes_meta_page_insights_paths():
+    client = APIClient()
+    response = client.get("/api/schema/")
+    assert response.status_code == 200
+    payload = yaml.safe_load(response.content.decode("utf-8"))
+    paths = payload.get("paths", {})
+    assert "/api/integrations/meta/oauth/callback/" in paths
+    assert "/api/integrations/meta/pages/" in paths
+    assert "/api/integrations/meta/pages/{page_id}/select/" in paths
+    assert "/api/metrics/meta/pages/{page_id}/overview/" in paths
+    assert "/api/metrics/meta/pages/{page_id}/timeseries/" in paths
+    assert "/api/metrics/meta/pages/{page_id}/posts/" in paths
+    assert "/api/metrics/meta/posts/{post_id}/timeseries/" in paths
+    assert "/api/metrics/meta/pages/{page_id}/refresh/" in paths
+
+
+@pytest.mark.django_db
 def test_openapi_schema_operation_ids_are_unique():
     client = APIClient()
     response = client.get("/api/schema/")

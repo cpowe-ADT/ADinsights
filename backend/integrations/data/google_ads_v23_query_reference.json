@@ -1,0 +1,729 @@
+{
+  "field_attributes": {
+    "category": "Artifact category (resource, segment, metric, or attribute).",
+    "data_type": "The underlying data type of the field.",
+    "filterable": "Whether the field can be used in GAQL WHERE conditions.",
+    "repeated": "Whether the field returns a repeated/list value.",
+    "selectable": "Whether the field can be selected in GAQL SELECT.",
+    "sortable": "Whether the field can be used in GAQL ORDER BY.",
+    "type": "The typed field classification exposed by Google Ads API metadata.",
+    "url": "Canonical URL for field metadata documentation."
+  },
+  "overview": "These pages serve as reference for the resources that can be queried in the Google Ads API using GoogleAdsService.SearchStream or GoogleAdsService.Search . To familiarize yourself instead with various reporting concepts, refer to the reporting guide . Each resource name is linked to to its own page. On each page, the following lists are shown: Artifacts (resources, segments, or metrics) that can be used in the same SELECT clause with the resource Attributed resources whose fields will not segment metrics, when included in the same SELECT and WHERE clauses of these resource fields Presented after those lists are the tables consisting of names of resource fields, segments, and metrics that can be included in a search query, when this resource is specified in the FROM clause. Each name is linked to the table that contains its metadata: category data type type URL filterable selectable sortable repeated Filterable This row indicates whether the field can be used in the conditions of the WHERE clause of the GAQL query. Selectable This row indicates whether the field can be specified in the SELECT clause of the GAQL query. Sortable This row indicates whether the field can be sorted and used in the ORDER BY clause of the GAQL query. Repeated This row indicates whether the field is repeated , which should be handled as a list.",
+  "resource_count": 178,
+  "resource_types": [
+    {
+      "description": "Represents a view of BiddingStrategies owned by and shared with the customer. In contrast to BiddingStrategy, this resource includes strategies owned by managers of the customer and shared with this customer - in addition to strategies owned by this customer. This resource does not provide metrics and only exposes a limited subset of the BiddingStrategy attributes.",
+      "name": "accessible_bidding_strategy"
+    },
+    {
+      "description": "An account-level budget. It contains information about the budget itself, as well as the most recently approved changes to the budget and proposed changes that are pending approval. The proposed changes that are pending approval, if any, are found in 'pending_proposal'. Effective details about the budget are found in fields prefixed 'approved_', 'adjusted_' and those without a prefix. Since some effective details may differ from what the user had originally requested (for example, spending limit), these differences are juxtaposed through 'proposed_', 'approved_', and possibly 'adjusted_' fields. This resource is mutated using AccountBudgetProposal and cannot be mutated directly. A budget may have at most one pending proposal at any given time. It is read through pending_proposal. Once approved, a budget may be subject to adjustments, such as credit adjustments. Adjustments create differences between the 'approved' and 'adjusted' fields, which would otherwise be identical.",
+      "name": "account_budget"
+    },
+    {
+      "description": "An account-level budget proposal. All fields prefixed with 'proposed' may not necessarily be applied directly. For example, proposed spending limits may be adjusted before their application. This is true if the 'proposed' field has an 'approved' counterpart, for example, spending limits. Note that the proposal type (proposal_type) changes which fields are required and which must remain empty.",
+      "name": "account_budget_proposal"
+    },
+    {
+      "description": "Represents the data sharing connection between a Google Ads account and another account",
+      "name": "account_link"
+    },
+    {
+      "description": "An ad.",
+      "name": "ad"
+    },
+    {
+      "description": "An ad group.",
+      "name": "ad_group"
+    },
+    {
+      "description": "An ad group ad.",
+      "name": "ad_group_ad"
+    },
+    {
+      "description": "A view on the usage of ad group ad asset combination. Now we only support AdGroupAdAssetCombinationView for Responsive Search Ads, with more ad types planned for the future.",
+      "name": "ad_group_ad_asset_combination_view"
+    },
+    {
+      "description": "A link between an AdGroupAd and an Asset. AdGroupAdAssetView supports AppAds, Demand Gen campaigns, and Responsive Search Ads.",
+      "name": "ad_group_ad_asset_view"
+    },
+    {
+      "description": "A relationship between an ad group ad and a label.",
+      "name": "ad_group_ad_label"
+    },
+    {
+      "description": "A link between an ad group and an asset.",
+      "name": "ad_group_asset"
+    },
+    {
+      "description": "AdGroupAssetSet is the linkage between an ad group and an asset set. Creating an AdGroupAssetSet links an asset set with an ad group.",
+      "name": "ad_group_asset_set"
+    },
+    {
+      "description": "An ad group audience view. Includes performance data from interests and remarketing lists for Display Network and YouTube Network ads, and remarketing lists for search ads (RLSA), aggregated at the audience level.",
+      "name": "ad_group_audience_view"
+    },
+    {
+      "description": "Represents an ad group bid modifier.",
+      "name": "ad_group_bid_modifier"
+    },
+    {
+      "description": "An ad group criterion. The ad_group_criterion report only returns criteria that were explicitly added to the ad group.",
+      "name": "ad_group_criterion"
+    },
+    {
+      "description": "A customizer value for the associated CustomizerAttribute at the AdGroupCriterion level.",
+      "name": "ad_group_criterion_customizer"
+    },
+    {
+      "description": "A relationship between an ad group criterion and a label.",
+      "name": "ad_group_criterion_label"
+    },
+    {
+      "description": "An ad group criterion simulation. Supported combinations of advertising channel type, criterion type, simulation type, and simulation modification method are detailed below respectively. Hotel AdGroupCriterion simulation operations starting in V5. 1. DISPLAY - KEYWORD - CPC_BID - UNIFORM 2. SEARCH - KEYWORD - CPC_BID - UNIFORM 3. SHOPPING - LISTING_GROUP - CPC_BID - UNIFORM 4. HOTEL - LISTING_GROUP - CPC_BID - UNIFORM 5. HOTEL - LISTING_GROUP - PERCENT_CPC_BID - UNIFORM",
+      "name": "ad_group_criterion_simulation"
+    },
+    {
+      "description": "A customizer value for the associated CustomizerAttribute at the AdGroup level.",
+      "name": "ad_group_customizer"
+    },
+    {
+      "description": "A relationship between an ad group and a label.",
+      "name": "ad_group_label"
+    },
+    {
+      "description": "An ad group simulation. Supported combinations of advertising channel type, simulation type and simulation modification method is detailed below respectively. 1. SEARCH - CPC_BID - DEFAULT 2. SEARCH - CPC_BID - UNIFORM 3. SEARCH - TARGET_CPA - UNIFORM 4. SEARCH - TARGET_ROAS - UNIFORM 5. DISPLAY - CPC_BID - DEFAULT 6. DISPLAY - CPC_BID - UNIFORM 7. DISPLAY - TARGET_CPA - UNIFORM",
+      "name": "ad_group_simulation"
+    },
+    {
+      "description": "An ad parameter that is used to update numeric values (such as prices or inventory levels) in any text line of an ad (including URLs). There can be a maximum of two AdParameters per ad group criterion. (One with parameter_index = 1 and one with parameter_index = 2.) In the ad the parameters are referenced by a placeholder of the form \"{param#:value}\". For example, \"{param1:$17}\"",
+      "name": "ad_parameter"
+    },
+    {
+      "description": "An ad schedule view summarizes the performance of campaigns by AdSchedule criteria.",
+      "name": "ad_schedule_view"
+    },
+    {
+      "description": "An age range view.",
+      "name": "age_range_view"
+    },
+    {
+      "description": "AiMaxSearchTermAdCombinationView Resource.",
+      "name": "ai_max_search_term_ad_combination_view"
+    },
+    {
+      "description": "An Android privacy shared key view for Google ad group key.",
+      "name": "android_privacy_shared_key_google_ad_group"
+    },
+    {
+      "description": "An Android privacy shared key view for Google campaign key.",
+      "name": "android_privacy_shared_key_google_campaign"
+    },
+    {
+      "description": "An Android privacy shared key view for Google network type key.",
+      "name": "android_privacy_shared_key_google_network_type"
+    },
+    {
+      "description": "Represents an applied incentive.",
+      "name": "applied_incentive"
+    },
+    {
+      "description": "Asset is a part of an ad which can be shared across multiple ads. It can be an image (ImageAsset), a video (YoutubeVideoAsset), etc. Assets are immutable and cannot be removed. To stop an asset from serving, remove the asset from the entity that is using it.",
+      "name": "asset"
+    },
+    {
+      "description": "An asset field type view. This view reports non-overcounted metrics for each asset field type when the asset is used as extension.",
+      "name": "asset_field_type_view"
+    },
+    {
+      "description": "An asset group. AssetGroupAsset is used to link an asset to the asset group. AssetGroupSignal is used to associate a signal to an asset group.",
+      "name": "asset_group"
+    },
+    {
+      "description": "AssetGroupAsset is the link between an asset and an asset group. Adding an AssetGroupAsset links an asset with an asset group.",
+      "name": "asset_group_asset"
+    },
+    {
+      "description": "AssetGroupListingGroupFilter represents a listing group filter tree node in an asset group.",
+      "name": "asset_group_listing_group_filter"
+    },
+    {
+      "description": "An asset group product group view.",
+      "name": "asset_group_product_group_view"
+    },
+    {
+      "description": "AssetGroupSignal represents a signal in an asset group. The existence of a signal tells the performance max campaign who's most likely to convert. Performance Max uses the signal to look for new people with similar or stronger intent to find conversions across Search, Display, Video, and more.",
+      "name": "asset_group_signal"
+    },
+    {
+      "description": "A view on the usage of asset group asset top combinations.",
+      "name": "asset_group_top_combination_view"
+    },
+    {
+      "description": "An asset set representing a collection of assets. Use AssetSetAsset to link an asset to the asset set.",
+      "name": "asset_set"
+    },
+    {
+      "description": "AssetSetAsset is the link between an asset and an asset set. Adding an AssetSetAsset links an asset with an asset set.",
+      "name": "asset_set_asset"
+    },
+    {
+      "description": "An asset set type view. This view reports non-overcounted metrics for each asset set type. Child asset set types are not included in this report. Their stats are aggregated under the parent asset set type.",
+      "name": "asset_set_type_view"
+    },
+    {
+      "description": "Audience is an effective targeting option that lets you intersect different segment attributes, such as detailed demographics and affinities, to create audiences that represent sections of your target segments.",
+      "name": "audience"
+    },
+    {
+      "description": "A list of mutates being processed asynchronously. The mutates are uploaded by the user. The mutates themselves aren't readable and the results of the job can only be read using BatchJobService.ListBatchJobResults.",
+      "name": "batch_job"
+    },
+    {
+      "description": "Represents a bidding data exclusion. Bidding data exclusions can be set in client accounts only, and cannot be used in manager accounts. See \"About data exclusions\" at https://support.google.com/google-ads/answer/10370710 .",
+      "name": "bidding_data_exclusion"
+    },
+    {
+      "description": "Represents a bidding seasonality adjustment. Cannot be used in manager accounts. See \"About seasonality adjustments\" at https://support.google.com/google-ads/answer/10369906 .",
+      "name": "bidding_seasonality_adjustment"
+    },
+    {
+      "description": "A bidding strategy.",
+      "name": "bidding_strategy"
+    },
+    {
+      "description": "A bidding strategy simulation. Supported combinations of simulation type and simulation modification method are detailed below respectively. 1. TARGET_CPA - UNIFORM 2. TARGET_ROAS - UNIFORM",
+      "name": "bidding_strategy_simulation"
+    },
+    {
+      "description": "A billing setup, which associates a payments account and an advertiser. A billing setup is specific to one advertiser.",
+      "name": "billing_setup"
+    },
+    {
+      "description": "A call view that includes data for call tracking of call-only ads or call extensions.",
+      "name": "call_view"
+    },
+    {
+      "description": "A campaign.",
+      "name": "campaign"
+    },
+    {
+      "description": "A campaign-level aggregate asset view that shows where the asset is linked, performamce of the asset and stats.",
+      "name": "campaign_aggregate_asset_view"
+    },
+    {
+      "description": "A link between a Campaign and an Asset.",
+      "name": "campaign_asset"
+    },
+    {
+      "description": "CampaignAssetSet is the linkage between a campaign and an asset set. Adding a CampaignAssetSet links an asset set with a campaign.",
+      "name": "campaign_asset_set"
+    },
+    {
+      "description": "A campaign audience view. Includes performance data from interests and remarketing lists for Display Network and YouTube Network ads, and remarketing lists for search ads (RLSA), aggregated by campaign and audience criterion. This view only includes audiences attached at the campaign level.",
+      "name": "campaign_audience_view"
+    },
+    {
+      "description": "Represents a bid-modifiable only criterion at the campaign level.",
+      "name": "campaign_bid_modifier"
+    },
+    {
+      "description": "A campaign budget.",
+      "name": "campaign_budget"
+    },
+    {
+      "description": "The biddability setting for the specified campaign only for all conversion actions with a matching category and origin.",
+      "name": "campaign_conversion_goal"
+    },
+    {
+      "description": "A campaign criterion.",
+      "name": "campaign_criterion"
+    },
+    {
+      "description": "A customizer value for the associated CustomizerAttribute at the Campaign level.",
+      "name": "campaign_customizer"
+    },
+    {
+      "description": "A campaign draft.",
+      "name": "campaign_draft"
+    },
+    {
+      "description": "A link between a campaign and a goal enabling campaign-specific optimization.",
+      "name": "campaign_goal_config"
+    },
+    {
+      "description": "A campaign group.",
+      "name": "campaign_group"
+    },
+    {
+      "description": "Represents a relationship between a campaign and a label.",
+      "name": "campaign_label"
+    },
+    {
+      "description": "Campaign level customer lifecycle goal settings.",
+      "name": "campaign_lifecycle_goal"
+    },
+    {
+      "description": "This report provides a high-level view of search demand at the campaign level by grouping similar search terms into categories and showing their search volume. Historical data is available starting March 2023.",
+      "name": "campaign_search_term_insight"
+    },
+    {
+      "description": "This report provides granular performance data, including cost metrics, for each individual search term that triggered your ads. If keyword-related segments are used, Performance Max data will be excluded from the results.",
+      "name": "campaign_search_term_view"
+    },
+    {
+      "description": "CampaignSharedSets are used for managing the shared sets associated with a campaign.",
+      "name": "campaign_shared_set"
+    },
+    {
+      "description": "A campaign simulation. Supported combinations of advertising channel type, simulation type and simulation modification method is detailed below respectively. * SEARCH - CPC_BID - UNIFORM * SEARCH - CPC_BID - SCALING * SEARCH - TARGET_CPA - UNIFORM * SEARCH - TARGET_CPA - SCALING * SEARCH - TARGET_ROAS - UNIFORM * SEARCH - TARGET_IMPRESSION_SHARE - UNIFORM * SEARCH - BUDGET - UNIFORM * SHOPPING - BUDGET - UNIFORM * SHOPPING - TARGET_ROAS - UNIFORM * MULTI_CHANNEL - TARGET_CPA - UNIFORM * MULTI_CHANNEL - TARGET_ROAS - UNIFORM * DEMAND_GEN - TARGET_CPA - DEFAULT * DISPLAY - TARGET_CPA - UNIFORM * PERFORMANCE_MAX - TARGET_CPA - UNIFORM * PERFORMANCE_MAX - TARGET_ROAS - UNIFORM * PERFORMANCE_MAX - BUDGET - UNIFORM",
+      "name": "campaign_simulation"
+    },
+    {
+      "description": "A carrier criterion that can be used in campaign targeting.",
+      "name": "carrier_constant"
+    },
+    {
+      "description": "Describes the granular change of returned resources of certain resource types. Changes made through the UI or API in the past 30 days are included. Previous and new values of the changed fields are shown. ChangeEvent could have up to 3 minutes delay to reflect a new change.",
+      "name": "change_event"
+    },
+    {
+      "description": "Describes the status of returned resource. ChangeStatus could have up to 3 minutes delay to reflect a new change.",
+      "name": "change_status"
+    },
+    {
+      "description": "A channel-level aggregate asset view that shows where the asset is linked, performamce of the asset and stats.",
+      "name": "channel_aggregate_asset_view"
+    },
+    {
+      "description": "A click view with metrics aggregated at each click level, including both valid and invalid clicks. For non-Search campaigns, metrics.clicks represents the number of valid and invalid interactions. Queries including ClickView must have a filter limiting the results to one day and can be requested for dates back to 90 days before the time of the request. GCLIDs are not available in this report for App Campaigns for Installs (ACi) and App Campaigns for Pre-registration (ACpre).",
+      "name": "click_view"
+    },
+    {
+      "description": "Describe a resource for combined audiences which includes different audiences.",
+      "name": "combined_audience"
+    },
+    {
+      "description": "A content criterion view.",
+      "name": "content_criterion_view"
+    },
+    {
+      "description": "A conversion action.",
+      "name": "conversion_action"
+    },
+    {
+      "description": "A conversion custom variable See \"About custom variables for conversions\" at https://support.google.com/google-ads/answer/9964350",
+      "name": "conversion_custom_variable"
+    },
+    {
+      "description": "Conversion goal settings for a Campaign.",
+      "name": "conversion_goal_campaign_config"
+    },
+    {
+      "description": "A conversion value rule",
+      "name": "conversion_value_rule"
+    },
+    {
+      "description": "A conversion value rule set is a collection of conversion value rules that lets you adjust conversion values based on the dimensions specified in the dimensions field.",
+      "name": "conversion_value_rule_set"
+    },
+    {
+      "description": "A currency constant.",
+      "name": "currency_constant"
+    },
+    {
+      "description": "A custom audience. This is a list of users by interest. The unique key of a custom audience consists of the following fields: name. Violating the unique key constraint produces error: CustomAudienceError.NAME_ALREADY_USED",
+      "name": "custom_audience"
+    },
+    {
+      "description": "Custom conversion goal that can make arbitrary conversion actions biddable.",
+      "name": "custom_conversion_goal"
+    },
+    {
+      "description": "A custom interest. This is a list of users by interest.",
+      "name": "custom_interest"
+    },
+    {
+      "description": "A customer.",
+      "name": "customer"
+    },
+    {
+      "description": "A link between a customer and an asset.",
+      "name": "customer_asset"
+    },
+    {
+      "description": "CustomerAssetSet is the linkage between a customer and an asset set. Adding a CustomerAssetSet links an asset set with a customer.",
+      "name": "customer_asset_set"
+    },
+    {
+      "description": "A link between the given customer and a client customer. CustomerClients only exist for manager customers. All direct and indirect client customers are included, as well as the manager itself.",
+      "name": "customer_client"
+    },
+    {
+      "description": "Represents customer client link relationship.",
+      "name": "customer_client_link"
+    },
+    {
+      "description": "Biddability control for conversion actions with a matching category and origin.",
+      "name": "customer_conversion_goal"
+    },
+    {
+      "description": "A customizer value for the associated CustomizerAttribute at the Customer level.",
+      "name": "customer_customizer"
+    },
+    {
+      "description": "Represents a relationship between a customer and a label. This customer may not have access to all the labels attached to it. Additional CustomerLabels may be returned by increasing permissions with login-customer-id.",
+      "name": "customer_label"
+    },
+    {
+      "description": "Account level customer lifecycle goal settings.",
+      "name": "customer_lifecycle_goal"
+    },
+    {
+      "description": "Represents customer-manager link relationship.",
+      "name": "customer_manager_link"
+    },
+    {
+      "description": "A negative criterion for exclusions at the customer level.",
+      "name": "customer_negative_criterion"
+    },
+    {
+      "description": "This report provides a high-level view of search demand at the customer level by grouping similar search terms into categories and showing their search volume. Historical data is available starting March 2023.",
+      "name": "customer_search_term_insight"
+    },
+    {
+      "description": "Represents the permission of a single user onto a single customer.",
+      "name": "customer_user_access"
+    },
+    {
+      "description": "Represent an invitation to a new user on this customer account.",
+      "name": "customer_user_access_invitation"
+    },
+    {
+      "description": "A customizer attribute. Use CustomerCustomizer, CampaignCustomizer, AdGroupCustomizer, or AdGroupCriterionCustomizer to associate a customizer attribute and set its value at the customer, campaign, ad group, or ad group criterion level, respectively.",
+      "name": "customizer_attribute"
+    },
+    {
+      "description": "Represents the data sharing connection between a Google Ads customer and another product's data.",
+      "name": "data_link"
+    },
+    {
+      "description": "A detail content suitability placement view.",
+      "name": "detail_content_suitability_placement_view"
+    },
+    {
+      "description": "A view with metrics aggregated by ad group and URL or YouTube video. This view primarily surfaces placement data from the Google Display Network. While you can select segments like segments.ad_network_type , this view generally does not include placement data from other networks, such as the Search Partners network. To understand performance on Search Partners, consider other reports and segmentations.",
+      "name": "detail_placement_view"
+    },
+    {
+      "description": "A detailed demographic: a particular interest-based vertical to be targeted to reach users based on long-term life facts.",
+      "name": "detailed_demographic"
+    },
+    {
+      "description": "A display keyword view. Provides performance data for keywords used in Display Network campaigns. This view lets you analyze how your display keywords are performing across various segments. This view is primarily used to track the effectiveness of keyword targeting within your Display campaigns. To understand which network the metrics apply to, you can select the segments.ad_network_type field in your query. This field will segment the data by networks such as the Google Display Network, YouTube, Gmail, and so on. You can select fields from this resource along with metrics like impressions, clicks, and conversions to gauge performance. Attributed resources like ad_group and campaign can also be selected without segmenting metrics.",
+      "name": "display_keyword_view"
+    },
+    {
+      "description": "A distance view with metrics aggregated by the user's distance from an advertiser's location extensions. Each DistanceBucket includes all impressions that fall within its distance and a single impression will contribute to the metrics for all DistanceBuckets that include the user's distance.",
+      "name": "distance_view"
+    },
+    {
+      "description": "A category generated automatically by crawling a domain. If a campaign uses the DynamicSearchAdsSetting, then domain categories will be generated for the domain. The categories can be targeted using WebpageConditionInfo. See: https://support.google.com/google-ads/answer/2471185",
+      "name": "domain_category"
+    },
+    {
+      "description": "A dynamic search ads search term view.",
+      "name": "dynamic_search_ads_search_term_view"
+    },
+    {
+      "description": "A landing page view with metrics aggregated at the expanded final URL level.",
+      "name": "expanded_landing_page_view"
+    },
+    {
+      "description": "A Google ads experiment for users to experiment changes on multiple campaigns, compare the performance, and apply the effective changes.",
+      "name": "experiment"
+    },
+    {
+      "description": "A Google ads experiment for users to experiment changes on multiple campaigns, compare the performance, and apply the effective changes.",
+      "name": "experiment_arm"
+    },
+    {
+      "description": "FinalUrlExpansionAssetView Resource.",
+      "name": "final_url_expansion_asset_view"
+    },
+    {
+      "description": "A gender view. The gender_view resource reflects the effective serving state, rather than what criteria were added. An ad group without gender criteria by default shows to all genders, so all genders appear in gender_view with stats.",
+      "name": "gender_view"
+    },
+    {
+      "description": "A geo target constant.",
+      "name": "geo_target_constant"
+    },
+    {
+      "description": "A geographic view. Geographic View includes all metrics aggregated at the country level, one row per country. It reports metrics at either actual physical location of the user or an area of interest. If other segment fields are used, you may get more than one row per country.",
+      "name": "geographic_view"
+    },
+    {
+      "description": "Representation of goals.",
+      "name": "goal"
+    },
+    {
+      "description": "A group content suitability placement view.",
+      "name": "group_content_suitability_placement_view"
+    },
+    {
+      "description": "A group placement view.",
+      "name": "group_placement_view"
+    },
+    {
+      "description": "A hotel group view.",
+      "name": "hotel_group_view"
+    },
+    {
+      "description": "A hotel performance view.",
+      "name": "hotel_performance_view"
+    },
+    {
+      "description": "A hotel reconciliation. It contains conversion information from Hotel bookings to reconcile with advertiser records. These rows may be updated or canceled before billing through Bulk Uploads.",
+      "name": "hotel_reconciliation"
+    },
+    {
+      "description": "An income range view.",
+      "name": "income_range_view"
+    },
+    {
+      "description": "A Keyword Planner plan. Max number of saved keyword plans: 10000. It's possible to remove plans if limit is reached.",
+      "name": "keyword_plan"
+    },
+    {
+      "description": "A Keyword Planner ad group. Max number of keyword plan ad groups per plan: 200.",
+      "name": "keyword_plan_ad_group"
+    },
+    {
+      "description": "A Keyword Plan ad group keyword. Max number of keyword plan keywords per plan: 10000.",
+      "name": "keyword_plan_ad_group_keyword"
+    },
+    {
+      "description": "A Keyword Plan campaign. Max number of keyword plan campaigns per plan allowed: 1.",
+      "name": "keyword_plan_campaign"
+    },
+    {
+      "description": "A Keyword Plan Campaign keyword. Only negative keywords are supported for Campaign Keyword.",
+      "name": "keyword_plan_campaign_keyword"
+    },
+    {
+      "description": "A Smart Campaign keyword theme constant.",
+      "name": "keyword_theme_constant"
+    },
+    {
+      "description": "A keyword view.",
+      "name": "keyword_view"
+    },
+    {
+      "description": "A label.",
+      "name": "label"
+    },
+    {
+      "description": "A landing page view with metrics aggregated at the unexpanded final URL level.",
+      "name": "landing_page_view"
+    },
+    {
+      "description": "A language.",
+      "name": "language_constant"
+    },
+    {
+      "description": "Data from lead form submissions.",
+      "name": "lead_form_submission_data"
+    },
+    {
+      "description": "A life event: a particular interest-based vertical to be targeted to reach users when they are in the midst of important life milestones.",
+      "name": "life_event"
+    },
+    {
+      "description": "A local services employee resource.",
+      "name": "local_services_employee"
+    },
+    {
+      "description": "Data from Local Services Lead. Contains details of Lead which is generated when user calls, messages or books service from advertiser. More info: https://ads.google.com/local-services-ads",
+      "name": "local_services_lead"
+    },
+    {
+      "description": "Data from Local Services Lead Conversation. Contains details of Lead Conversation which is generated when user calls, messages or books service from advertiser. These are appended to a Lead. More info: https://ads.google.com/local-services-ads",
+      "name": "local_services_lead_conversation"
+    },
+    {
+      "description": "A local services verification resource.",
+      "name": "local_services_verification_artifact"
+    },
+    {
+      "description": "A location interest view summarizes the performance of adgroup location interest criteria.",
+      "name": "location_interest_view"
+    },
+    {
+      "description": "A location view summarizes the performance of campaigns by a Location criterion. If no Location criterion is set, no results are returned; instead, use geographic_view or user_location_view for visitor location data.",
+      "name": "location_view"
+    },
+    {
+      "description": "A managed placement view.",
+      "name": "managed_placement_view"
+    },
+    {
+      "description": "A view that reports metrics for locations where users showed interest, and which matched the advertiser's location interest targeting (defined as geo targets at the AdGroup level). The data is aggregated at the country level by default. This view is currently only available for AI Max campaigns.",
+      "name": "matched_location_interest_view"
+    },
+    {
+      "description": "A media file.",
+      "name": "media_file"
+    },
+    {
+      "description": "A mobile application category constant.",
+      "name": "mobile_app_category_constant"
+    },
+    {
+      "description": "A mobile device constant.",
+      "name": "mobile_device_constant"
+    },
+    {
+      "description": "Offline conversion upload summary at customer level.",
+      "name": "offline_conversion_upload_client_summary"
+    },
+    {
+      "description": "Offline conversion upload summary at conversion action level.",
+      "name": "offline_conversion_upload_conversion_action_summary"
+    },
+    {
+      "description": "A job containing offline user data of store visitors, or user list members that will be processed asynchronously. The uploaded data isn't readable and the processing results of the job can only be read using GoogleAdsService.Search/SearchStream.",
+      "name": "offline_user_data_job"
+    },
+    {
+      "description": "A mobile operating system version or a range of versions, depending on operator_type . List of available mobile platforms at https://developers.google.com/google-ads/api/reference/data/codes-formats#mobile-platforms",
+      "name": "operating_system_version_constant"
+    },
+    {
+      "description": "A paid organic search term view providing a view of search stats across ads and organic listings aggregated by search term at the ad group level.",
+      "name": "paid_organic_search_term_view"
+    },
+    {
+      "description": "A parental status view.",
+      "name": "parental_status_view"
+    },
+    {
+      "description": "A per store view. This view provides per store impression reach and local action conversion stats for advertisers.",
+      "name": "per_store_view"
+    },
+    {
+      "description": "A view with impression metrics for Performance Max campaign placements.",
+      "name": "performance_max_placement_view"
+    },
+    {
+      "description": "A Product Category.",
+      "name": "product_category_constant"
+    },
+    {
+      "description": "A product group view.",
+      "name": "product_group_view"
+    },
+    {
+      "description": "Represents the data sharing connection between a Google Ads customer and another product.",
+      "name": "product_link"
+    },
+    {
+      "description": "Represents an invitation for data sharing connection between a Google Ads account and another account.",
+      "name": "product_link_invitation"
+    },
+    {
+      "description": "Qualifying Questions for Lead Form.",
+      "name": "qualifying_question"
+    },
+    {
+      "description": "A recommendation.",
+      "name": "recommendation"
+    },
+    {
+      "description": "Recommendation Subscription resource",
+      "name": "recommendation_subscription"
+    },
+    {
+      "description": "A remarketing action. A snippet of JavaScript code that will collect the product id and the type of page people visited (product page, shopping cart page, purchase page, general site visit) on an advertiser's website.",
+      "name": "remarketing_action"
+    },
+    {
+      "description": "A search term view with metrics aggregated by search term at the ad group level. This view does not include Performance Max data. If you are looking for Performance Max search term data, use the CampaignSearchTermView instead.",
+      "name": "search_term_view"
+    },
+    {
+      "description": "A criterion belonging to a shared set.",
+      "name": "shared_criterion"
+    },
+    {
+      "description": "SharedSets are used for sharing criterion exclusions across multiple campaigns.",
+      "name": "shared_set"
+    },
+    {
+      "description": "Shopping performance view. Provides Shopping campaign and Performance Max campaign statistics aggregated at several product dimension levels. Product dimension values from Merchant Center such as brand, category, custom attributes, product condition, and product type will reflect the state of each dimension as of the date and time when the corresponding event was recorded. The number of impressions and clicks that shopping_performance_view returns stats for may be different from campaign reports. shopping_performance_view shows impressions and clicks on products appearing in ads, while campaign reports show impressions and clicks on the ads themselves. Depending on the format, an ad can show from zero to several products, so the numbers may not match. In Google Ads UI, you can query impressions and clicks of products appearing in ads by selecting a column from \"Product attributes\" in the report editor. For example, selecting the \"Brand\" column is equivalent to selecting segments.product_brand .",
+      "name": "shopping_performance_view"
+    },
+    {
+      "description": "A shopping product from Google Merchant Center that can be advertised by campaigns. The resource returns currently existing products from Google Merchant Center accounts linked with the customer. A campaign includes a product by specifying its merchant id (or, if available, the Multi Client Account id of the merchant) in the ShoppingSetting , and can limit the inclusion to products having a specified feed label. Standard Shopping campaigns can also limit the inclusion through a campaign_criterion.listing_scope . Queries to this resource specify a scope: Account: - Filters on campaigns or ad groups are not specified. - All products from the linked Google Merchant Center accounts are returned. - Metrics and some fields (see the per-field documentation) are aggregated across all Shopping and Performance Max campaigns that include a product. Campaign: - An equality filter on campaign is specified. Supported campaign types are Shopping, Performance Max, Demand Gen, Video. - Only products that are included by the specified campaign are returned. - Metrics and some fields (see the per-field documentation) are restricted to the specified campaign. - Only the following metrics are supported for Demand Gen and Video campaigns: impressions, clicks, ctr. Ad group: - An equality filter on ad group and campaign is specified. Supported campaign types are Shopping, Demand Gen, Video. - Only products that are included by the specified campaign are returned. - Metrics and some fields (see the per-field documentation) are restricted to the specified ad group. - Only the following metrics are supported for Demand Gen and Video campaigns: impressions, clicks, ctr. Note that segmentation by date segments is not permitted and will return UNSUPPORTED_DATE_SEGMENTATION error. On the other hand, filtering on date segments is allowed.",
+      "name": "shopping_product"
+    },
+    {
+      "description": "A Smart campaign search term view.",
+      "name": "smart_campaign_search_term_view"
+    },
+    {
+      "description": "Settings for configuring Smart campaigns.",
+      "name": "smart_campaign_setting"
+    },
+    {
+      "description": "A targeting expansion view with metrics. Returns metrics for automated expansion over manual targeting.",
+      "name": "targeting_expansion_view"
+    },
+    {
+      "description": "A data sharing connection, allowing the import of third party app analytics into a Google Ads Customer.",
+      "name": "third_party_app_analytics_link"
+    },
+    {
+      "description": "Use topics to target or exclude placements in the Google Display Network based on the category into which the placement falls (for example, \"Pets & Animals/Pets/Dogs\").",
+      "name": "topic_constant"
+    },
+    {
+      "description": "A topic view.",
+      "name": "topic_view"
+    },
+    {
+      "description": "A travel activity group view.",
+      "name": "travel_activity_group_view"
+    },
+    {
+      "description": "A travel activity performance view.",
+      "name": "travel_activity_performance_view"
+    },
+    {
+      "description": "A user interest: a particular interest-based vertical to be targeted.",
+      "name": "user_interest"
+    },
+    {
+      "description": "A user list. This is a list of users a customer may target.",
+      "name": "user_list"
+    },
+    {
+      "description": "A user list customer type",
+      "name": "user_list_customer_type"
+    },
+    {
+      "description": "A user location view. User Location View includes all metrics aggregated at the country level, one row per country. It reports metrics at the actual physical location of the user by targeted or not targeted location. If other segment fields are used, you may get more than one row per country.",
+      "name": "user_location_view"
+    },
+    {
+      "description": "A video.",
+      "name": "video"
+    },
+    {
+      "description": "A webpage view.",
+      "name": "webpage_view"
+    }
+  ],
+  "version": "v23"
+}

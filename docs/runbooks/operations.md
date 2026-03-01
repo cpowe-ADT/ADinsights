@@ -11,22 +11,22 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 
 ## Health Checks
 
-| Component             | Check                                            | Command                                                     |
-| --------------------- | ------------------------------------------------ | ----------------------------------------------------------- |
-| Frontend              | Vite build + smoke test                          | `npm run build` (from `frontend/`)                          |
-| Backend               | Django API health endpoint                       | `curl https://api.<env>.adinsights.com/api/health/`         |
-| Airbyte Orchestration | API health endpoint + status payload             | `curl https://api.<env>.adinsights.com/api/health/airbyte/` |
-| dbt Orchestration     | API health endpoint (exposes latest run results) | `curl https://api.<env>.adinsights.com/api/health/dbt/`     |
-| Sync health aggregate | Tenant connection state rollup                   | `curl https://api.<env>.adinsights.com/api/ops/sync-health/` |
-| Health overview       | Consolidated service health cards                | `curl https://api.<env>.adinsights.com/api/ops/health-overview/` |
+| Component             | Check                                                        | Command                                                                                                                                                                            |
+| --------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frontend              | Vite build + smoke test                                      | `npm run build` (from `frontend/`)                                                                                                                                                 |
+| Backend               | Django API health endpoint                                   | `curl https://api.<env>.adinsights.com/api/health/`                                                                                                                                |
+| Airbyte Orchestration | API health endpoint + status payload                         | `curl https://api.<env>.adinsights.com/api/health/airbyte/`                                                                                                                        |
+| dbt Orchestration     | API health endpoint (exposes latest run results)             | `curl https://api.<env>.adinsights.com/api/health/dbt/`                                                                                                                            |
+| Sync health aggregate | Tenant connection state rollup                               | `curl https://api.<env>.adinsights.com/api/ops/sync-health/`                                                                                                                       |
+| Health overview       | Consolidated service health cards                            | `curl https://api.<env>.adinsights.com/api/ops/health-overview/`                                                                                                                   |
 | Connector lifecycle   | Meta OAuth + page/ad account connect + provision/sync/logout | `curl https://api.<env>.adinsights.com/api/integrations/meta/setup/`, `POST .../meta/oauth/start/`, `POST .../meta/provision/`, `POST .../meta/sync/`, and `POST .../meta/logout/` |
-| Social status checker | Platform-level social onboarding/sync status     | `curl https://api.<env>.adinsights.com/api/integrations/social/status/` |
-| Web analytics (GA4)   | GA4 pilot rows                                   | `curl https://api.<env>.adinsights.com/api/analytics/web/ga4/` |
-| Web analytics (GSC)   | Search Console pilot rows                        | `curl https://api.<env>.adinsights.com/api/analytics/web/search-console/` |
-| Superset              | `/health` endpoint                               | `curl https://bi.<env>.adinsights.com/health`               |
-| Scheduler             | APScheduler heartbeat logs                       | Check `scheduler` container logs for `Scheduler started`    |
-| dbt Freshness         | dbt source freshness check                       | `make dbt-freshness` (local) or scheduler job output        |
-| Data contracts        | Cross-stream contract gate                       | `python3 infrastructure/airbyte/scripts/check_data_contracts.py` |
+| Social status checker | Platform-level social onboarding/sync status                 | `curl https://api.<env>.adinsights.com/api/integrations/social/status/`                                                                                                            |
+| Web analytics (GA4)   | GA4 pilot rows                                               | `curl https://api.<env>.adinsights.com/api/analytics/web/ga4/`                                                                                                                     |
+| Web analytics (GSC)   | Search Console pilot rows                                    | `curl https://api.<env>.adinsights.com/api/analytics/web/search-console/`                                                                                                          |
+| Superset              | `/health` endpoint                                           | `curl https://bi.<env>.adinsights.com/health`                                                                                                                                      |
+| Scheduler             | APScheduler heartbeat logs                                   | Check `scheduler` container logs for `Scheduler started`                                                                                                                           |
+| dbt Freshness         | dbt source freshness check                                   | `make dbt-freshness` (local) or scheduler job output                                                                                                                               |
+| Data contracts        | Cross-stream contract gate                                   | `python3 infrastructure/airbyte/scripts/check_data_contracts.py`                                                                                                                   |
 
 The Airbyte health endpoint surfaces the most recent sync metadata per tenant and flags jobs that
 are older than one hour. The dbt health endpoint reads the most recent `run_results.json` and marks
@@ -42,6 +42,7 @@ For Post-MVP operations pages, validate `/api/ops/sync-health/` and
 `/api/ops/health-overview/` during the same incident window so frontend and backend status signals stay aligned.
 
 For social onboarding, use `GET /api/integrations/social/status/` and verify each platform status:
+
 - `not_connected`: no credential onboarded.
 - `started_not_complete`: onboarding started but missing assets/provision defaults.
 - `complete`: assets connected but not currently active/fresh.
@@ -50,6 +51,10 @@ For social onboarding, use `GET /api/integrations/social/status/` and verify eac
 ## Meta Marketing API direct-sync operations
 
 Use this section for the direct PostgreSQL-backed `/api/meta/*` contract.
+
+For Facebook Page Insights + Page Post Insights ingestion and dashboard operations, use:
+
+- `docs/runbooks/meta-page-insights-operations.md`
 
 ### Scheduled jobs (`America/Jamaica`)
 
@@ -82,10 +87,12 @@ Use this section for the direct PostgreSQL-backed `/api/meta/*` contract.
    - Action: allow bounded retries (base-2 exponential, max 5 attempts with jitter) to complete; if sustained, temporarily reduce manual sync frequency and retry in next hourly window.
 
 Validation evidence for staging/test-app runs should be stored at:
+
 - `docs/project/evidence/meta-validation/<timestamp>.md`
 - Template: `docs/project/evidence/meta-validation/_TEMPLATE.md`
 
 Meta OAuth configuration requirements for browser-redirect flow:
+
 - `META_APP_ID`
 - `META_APP_SECRET`
 - `META_LOGIN_CONFIG_ID` (required when `META_LOGIN_CONFIG_REQUIRED=1`)
@@ -115,6 +122,7 @@ Use this flow when local Meta provisioning/sync fails because Airbyte is unreach
    - `curl -sS http://localhost:18001/api/v1/health`
 
 Known failure modes:
+
 - Port collision: startup fails or health endpoint is unreachable. Free conflicting ports or update `.env` and backend `AIRBYTE_API_URL` consistently.
 - Empty Airbyte DB schema (`airbyte_metadata` missing): `airbyte-server` crashes with relation-not-found errors. Ensure `airbyte-bootloader` runs successfully before `server`/`worker`, then recreate the Airbyte stack.
 - Connector runtime cannot find `source_config.json`: Airbyte jobs fail with `FileNotFoundError` from the source container. Ensure worker mount wiring is volume-name based (`WORKSPACE_DOCKER_MOUNT=airbyte-workspace`, `LOCAL_DOCKER_MOUNT=airbyte-local`) and recreate `airbyte-worker`.
@@ -234,7 +242,7 @@ what signals should trigger alerts.
 ### Escalation
 
 - Page Data Engineering if stale snapshots persist after one manual refresh attempt or if
-  >20% of tenants report stale snapshots in a single monitoring interval.
+  > 20% of tenants report stale snapshots in a single monitoring interval.
 - Page Platform if API sampling fails or `/api/metrics/combined/` returns non-200 status codes.
 
 ## Airbyte Webhook Operations

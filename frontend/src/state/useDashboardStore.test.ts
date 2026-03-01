@@ -230,6 +230,43 @@ describe('useDashboardStore', () => {
     expect(state.campaign.data?.rows).toHaveLength(1);
   });
 
+  it('accepts root-relative creative thumbnail URLs from aggregated metrics', async () => {
+    vi.stubEnv('VITE_MOCK_MODE', 'false');
+
+    const snapshotResponse = {
+      metrics: {
+        campaign_metrics: campaignData,
+        creative_metrics: [
+          {
+            ...creativeData[0],
+            thumbnailUrl: '/mock/assets/creative-thumb.jpg',
+          },
+        ],
+        budget_metrics: budgetData,
+        parish_metrics: parishData,
+      },
+      tenant_id: 'tenant-xyz',
+      generated_at: '2024-09-05T00:00:00Z',
+    } satisfies Record<string, unknown>;
+
+    const fetchMock = vi.fn<(url: RequestInfo | URL) => Promise<Response>>().mockResolvedValueOnce(
+      new Response(JSON.stringify(snapshotResponse), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+    const { default: useDashboardStore } = await import('./useDashboardStore');
+    await useDashboardStore.getState().loadAll('tenant-xyz', { force: true });
+
+    const state = useDashboardStore.getState();
+    expect(state.campaign.status).toBe('loaded');
+    expect(state.creative.status).toBe('loaded');
+    expect(state.creative.error).toBeUndefined();
+    expect(state.creative.data?.[0]?.thumbnailUrl).toBe('/mock/assets/creative-thumb.jpg');
+  });
+
   it('filters local rows by channel and campaign query', async () => {
     const { default: useDashboardStore } = await import('./useDashboardStore');
 
@@ -357,14 +394,12 @@ describe('useDashboardStore', () => {
       generated_at: '2024-09-05T00:00:00Z',
     } satisfies Record<string, unknown>;
 
-    const fetchMock = vi
-      .fn<(url: RequestInfo | URL) => Promise<Response>>()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(snapshotResponse), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
+    const fetchMock = vi.fn<(url: RequestInfo | URL) => Promise<Response>>().mockResolvedValueOnce(
+      new Response(JSON.stringify(snapshotResponse), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
 
     globalThis.fetch = fetchMock as typeof globalThis.fetch;
 
@@ -477,14 +512,12 @@ describe('useDashboardStore', () => {
       tenant_id: 'grace-kennedy',
     };
 
-    const fetchMock = vi
-      .fn<(url: RequestInfo | URL) => Promise<Response>>()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(snapshotResponse), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
+    const fetchMock = vi.fn<(url: RequestInfo | URL) => Promise<Response>>().mockResolvedValueOnce(
+      new Response(JSON.stringify(snapshotResponse), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
 
     globalThis.fetch = fetchMock as typeof globalThis.fetch;
 
