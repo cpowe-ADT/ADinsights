@@ -139,7 +139,9 @@ const DataTable = <TData,>({
 
   const rowCount = table.getRowModel().rows.length;
 
-  const regionProps = labelledBy ? { 'aria-labelledby': labelledBy } : { 'aria-label': regionLabel };
+  const regionProps = labelledBy
+    ? { 'aria-labelledby': labelledBy }
+    : { 'aria-label': regionLabel };
 
   return (
     <div className={classNames('data-table', `data-table--${density}`)}>

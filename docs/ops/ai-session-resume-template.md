@@ -3,6 +3,7 @@
 Purpose: copy/paste for new Codex sessions to rebuild context fast.
 
 ## Paste this at session start
+
 ```
 I am resuming work on ADinsights. I will:
 1) Read AGENTS.md (guardrails, tests, schedules).

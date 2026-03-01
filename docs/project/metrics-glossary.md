@@ -3,6 +3,7 @@
 Purpose: align definitions across frontend, backend, dbt, and BI.
 
 ## Core Metrics
+
 - **Spend**: total media cost in tenant currency.
 - **Impressions**: total ad impressions.
 - **Clicks**: total ad clicks.
@@ -13,5 +14,6 @@ Purpose: align definitions across frontend, backend, dbt, and BI.
 - **CPM**: spend / (impressions / 1000).
 
 ## Notes
+
 - Always use aggregated metrics; never user-level data.
 - Currency normalization is handled in dbt staging.

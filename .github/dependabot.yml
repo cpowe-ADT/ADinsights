@@ -1,46 +1,46 @@
 version: 2
 updates:
-  - package-ecosystem: "pip"
-    directory: "/backend"
+  - package-ecosystem: 'pip'
+    directory: '/backend'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
-      - "backend"
+      - 'dependencies'
+      - 'backend'
 
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
-      - "frontend"
+      - 'dependencies'
+      - 'frontend'
 
-  - package-ecosystem: "npm"
-    directory: "/frontend"
+  - package-ecosystem: 'npm'
+    directory: '/frontend'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
-      - "frontend"
+      - 'dependencies'
+      - 'frontend'
 
-  - package-ecosystem: "npm"
-    directory: "/qa"
+  - package-ecosystem: 'npm'
+    directory: '/qa'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
-      - "qa"
+      - 'dependencies'
+      - 'qa'
 
-  - package-ecosystem: "npm"
-    directory: "/integrations/exporter"
+  - package-ecosystem: 'npm'
+    directory: '/integrations/exporter'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
-      - "integrations"
+      - 'dependencies'
+      - 'integrations'

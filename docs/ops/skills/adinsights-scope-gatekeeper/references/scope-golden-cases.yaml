@@ -1,7 +1,7 @@
 cases:
   - name: single frontend scope passes
     input:
-      prompt: "Working on /frontend/src/routes/DataSources.tsx"
+      prompt: 'Working on /frontend/src/routes/DataSources.tsx'
       paths:
         - frontend/src/routes/DataSources.tsx
     expect:
@@ -16,7 +16,7 @@ cases:
 
   - name: cross backend and frontend escalates cross scope
     input:
-      prompt: "Need backend and frontend updates"
+      prompt: 'Need backend and frontend updates'
       paths:
         - backend/integrations/views.py
         - frontend/src/routes/DataSources.tsx
@@ -30,7 +30,7 @@ cases:
 
   - name: architecture sensitive change escalates Raj and Mira
     input:
-      prompt: "Update core routing and React shell"
+      prompt: 'Update core routing and React shell'
       paths:
         - backend/core/urls.py
         - frontend/src/main.tsx
@@ -45,7 +45,7 @@ cases:
 
   - name: contract risk change is signal-first and invokes contract guard
     input:
-      prompt: "Update API serializer and contract changelog"
+      prompt: 'Update API serializer and contract changelog'
       paths:
         - backend/integrations/serializers.py
     expect:
@@ -59,7 +59,7 @@ cases:
 
   - name: missing scope evidence warns unclear
     input:
-      prompt: "Can you handle this quickly?"
+      prompt: 'Can you handle this quickly?'
     expect:
       scope_status: WARN_UNCLEAR_SCOPE
       required_reviewers_exact: []
@@ -69,7 +69,7 @@ cases:
 
   - name: docs bucket includes docs-maintenance updates only
     input:
-      prompt: "Update docs/ops/doc-index.md and docs/ops/testing-cheat-sheet.md"
+      prompt: 'Update docs/ops/doc-index.md and docs/ops/testing-cheat-sheet.md'
       paths:
         - docs/ops/doc-index.md
         - docs/ops/testing-cheat-sheet.md
@@ -84,7 +84,7 @@ cases:
 
   - name: frontend api helper path is not a contract signal
     input:
-      prompt: "Refactor frontend API helper"
+      prompt: 'Refactor frontend API helper'
       paths:
         - frontend/src/lib/apiClient.ts
     expect:

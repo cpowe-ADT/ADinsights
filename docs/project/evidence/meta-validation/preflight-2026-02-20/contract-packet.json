@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0.0",
+  "contract_status": "PASS_NO_CONTRACT_CHANGE",
+  "breaking_change_detected": false,
+  "contract_surfaces_touched": [],
+  "required_docs_updates": [],
+  "required_reviewers": [
+    "Raj"
+  ],
+  "required_tests": [],
+  "rationale": [
+    "Evidence source: git_changed_files.",
+    "Detected 2 path(s): docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.md, docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.tsv."
+  ],
+  "evidence": [
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.tsv",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    }
+  ],
+  "next_actions": [
+    "Proceed with normal single-stream review and canonical tests."
+  ],
+  "ci_strict_evaluation": {
+    "enabled": false,
+    "strict_level": "breaking_only",
+    "would_fail_ci": false
+  },
+  "advisory_only": true,
+  "signals": {
+    "prompt_paths": [],
+    "packet_paths": [
+      "docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.md",
+      "docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.tsv"
+    ],
+    "explicit_paths": [],
+    "changed_files": [
+      "docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.md",
+      "docs/project/evidence/meta-validation/preflight-2026-02-20/pr-split-plan-2026-02-20.tsv"
+    ],
+    "used_git_changed_files": true,
+    "evidence_source": "git_changed_files"
+  }
+}
