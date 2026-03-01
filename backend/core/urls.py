@@ -9,6 +9,7 @@ from analytics.phase2_views import (
     AISummaryViewSet,
     AlertsViewSet,
     DashboardLibraryView,
+    ExportDownloadView,
     HealthOverviewView,
     ReportDefinitionViewSet,
     SyncHealthView,
@@ -60,6 +61,39 @@ from integrations.views import (
     SocialConnectionStatusView,
     MetaSyncView,
     PlatformCredentialViewSet,
+)
+from integrations.meta_page_views import (
+    MetaOAuthCallbackView,
+    MetaPagesView,
+    MetaPageSelectView,
+    MetaPageRefreshView,
+    MetaPageOverviewView,
+    MetaPageTimeseriesView,
+    MetaPagePostsView,
+    MetaPostTimeseriesView,
+)
+from integrations.page_insights_views import (
+    MetaConnectCallbackAliasView,
+    MetaConnectStartAliasView,
+    MetaPageExportsView,
+    MetaPageInsightsSyncView,
+    MetaPageOverviewInsightsView,
+    MetaPagePostsInsightsView,
+    MetaPageTimeseriesInsightsView,
+    MetaPagesInsightsListView,
+    MetaMetricsListView,
+    MetaPostDetailInsightsView,
+    MetaPostTimeseriesInsightsView,
+)
+from integrations.google_ads_views import (
+    GoogleAdsDisconnectView,
+    GoogleAdsOAuthExchangeView,
+    GoogleAdsOAuthStartView,
+    GoogleAdsProvisionView,
+    GoogleAdsReferenceSummaryView,
+    GoogleAdsSetupView,
+    GoogleAdsStatusView,
+    GoogleAdsSyncView,
 )
 from . import views as core_views
 from .viewsets import AirbyteTelemetryViewSet
@@ -164,6 +198,11 @@ urlpatterns = [
         HealthOverviewView.as_view(),
         name="ops-health-overview",
     ),
+    path(
+        "api/exports/<uuid:export_job_id>/download/",
+        ExportDownloadView.as_view(),
+        name="report-export-download",
+    ),
     path("api/analytics/", include("analytics.urls")),
     path("api/meta/accounts/", MetaAccountsListView.as_view(), name="meta-accounts"),
     path("api/meta/campaigns/", MetaCampaignListView.as_view(), name="meta-campaigns"),
@@ -181,9 +220,34 @@ urlpatterns = [
         name="meta-oauth-start",
     ),
     path(
+        "api/meta/connect/start/",
+        MetaConnectStartAliasView.as_view(),
+        name="meta-connect-start",
+    ),
+    path(
         "api/integrations/meta/oauth/exchange/",
         MetaOAuthExchangeView.as_view(),
         name="meta-oauth-exchange",
+    ),
+    path(
+        "api/meta/connect/callback/",
+        MetaConnectCallbackAliasView.as_view(),
+        name="meta-connect-callback",
+    ),
+    path(
+        "api/integrations/meta/oauth/callback/",
+        MetaOAuthCallbackView.as_view(),
+        name="meta-oauth-callback",
+    ),
+    path(
+        "api/integrations/meta/pages/",
+        MetaPagesView.as_view(),
+        name="meta-pages",
+    ),
+    path(
+        "api/integrations/meta/pages/<str:page_id>/select/",
+        MetaPageSelectView.as_view(),
+        name="meta-page-select",
     ),
     path(
         "api/integrations/meta/pages/connect/",
@@ -211,9 +275,119 @@ urlpatterns = [
         name="meta-sync-state",
     ),
     path(
+        "api/metrics/meta/pages/<str:page_id>/refresh/",
+        MetaPageRefreshView.as_view(),
+        name="meta-page-refresh",
+    ),
+    path(
+        "api/metrics/meta/pages/<str:page_id>/overview/",
+        MetaPageOverviewView.as_view(),
+        name="meta-page-overview",
+    ),
+    path(
+        "api/metrics/meta/pages/<str:page_id>/timeseries/",
+        MetaPageTimeseriesView.as_view(),
+        name="meta-page-timeseries",
+    ),
+    path(
+        "api/metrics/meta/pages/<str:page_id>/posts/",
+        MetaPagePostsView.as_view(),
+        name="meta-page-posts",
+    ),
+    path(
+        "api/metrics/meta/posts/<str:post_id>/timeseries/",
+        MetaPostTimeseriesView.as_view(),
+        name="meta-post-timeseries",
+    ),
+    path(
+        "api/meta/pages/",
+        MetaPagesInsightsListView.as_view(),
+        name="meta-pages-insights-list",
+    ),
+    path(
+        "api/meta/pages/<str:page_id>/sync/",
+        MetaPageInsightsSyncView.as_view(),
+        name="meta-page-insights-sync",
+    ),
+    path(
+        "api/meta/pages/<str:page_id>/overview/",
+        MetaPageOverviewInsightsView.as_view(),
+        name="meta-page-insights-overview",
+    ),
+    path(
+        "api/meta/pages/<str:page_id>/timeseries/",
+        MetaPageTimeseriesInsightsView.as_view(),
+        name="meta-page-insights-timeseries",
+    ),
+    path(
+        "api/meta/pages/<str:page_id>/posts/",
+        MetaPagePostsInsightsView.as_view(),
+        name="meta-page-insights-posts",
+    ),
+    path(
+        "api/meta/pages/<str:page_id>/exports/",
+        MetaPageExportsView.as_view(),
+        name="meta-page-exports",
+    ),
+    path(
+        "api/meta/posts/<str:post_id>/",
+        MetaPostDetailInsightsView.as_view(),
+        name="meta-post-insights-detail",
+    ),
+    path(
+        "api/meta/posts/<str:post_id>/timeseries/",
+        MetaPostTimeseriesInsightsView.as_view(),
+        name="meta-post-insights-timeseries",
+    ),
+    path(
+        "api/meta/metrics/",
+        MetaMetricsListView.as_view(),
+        name="meta-metrics-list",
+    ),
+    path(
         "api/integrations/meta/logout/",
         MetaLogoutView.as_view(),
         name="meta-logout",
+    ),
+    path(
+        "api/integrations/google_ads/setup/",
+        GoogleAdsSetupView.as_view(),
+        name="google-ads-setup",
+    ),
+    path(
+        "api/integrations/google_ads/oauth/start/",
+        GoogleAdsOAuthStartView.as_view(),
+        name="google-ads-oauth-start",
+    ),
+    path(
+        "api/integrations/google_ads/oauth/exchange/",
+        GoogleAdsOAuthExchangeView.as_view(),
+        name="google-ads-oauth-exchange",
+    ),
+    path(
+        "api/integrations/google_ads/provision/",
+        GoogleAdsProvisionView.as_view(),
+        name="google-ads-provision",
+    ),
+    path(
+        "api/integrations/google_ads/sync/",
+        GoogleAdsSyncView.as_view(),
+        name="google-ads-sync",
+    ),
+    path(
+        "api/integrations/google_ads/status/",
+        GoogleAdsStatusView.as_view(),
+        name="google-ads-status",
+    ),
+    path(
+        "api/integrations/google_ads/reference/summary/",
+        GoogleAdsReferenceSummaryView.as_view(),
+        name="google-ads-reference-summary",
+    ),
+    path(
+        "api/integrations/google_ads/disconnect/",
+        GoogleAdsDisconnectView.as_view(),
+        name="google-ads-disconnect",
     ),
     path(
         "api/integrations/social/status/",
