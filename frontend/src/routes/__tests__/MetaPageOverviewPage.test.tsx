@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -7,6 +7,22 @@ import MetaPageOverviewPage from '../MetaPageOverviewPage';
 const storeMock = vi.hoisted(() => ({
   state: {
     pages: [{ id: '1', page_id: 'page-1', name: 'Page 1', can_analyze: true, is_default: true }],
+    metrics: {
+      page: [
+        {
+          metric_key: 'page_post_engagements',
+          level: 'PAGE',
+          status: 'ACTIVE',
+          replacement_metric_key: '',
+          supported_periods: ['day', 'week', 'days_28'],
+          supports_breakdowns: [],
+          title: 'Engagements',
+          description: '',
+          is_default: true,
+        },
+      ],
+      post: [],
+    },
     dashboardStatus: 'loaded',
     overview: {
       page_id: 'page-1',
@@ -28,9 +44,20 @@ const storeMock = vi.hoisted(() => ({
       },
       primary_metric: 'page_post_engagements',
     },
+    timeseries: {
+      page_id: 'page-1',
+      metric: 'page_post_engagements',
+      period: 'day',
+      metric_availability: {
+        page_post_engagements: { supported: true, last_checked_at: null, reason: '' },
+      },
+      points: [{ end_time: '2026-01-20T00:00:00Z', value: 10 }],
+    },
     error: undefined,
     loadPages: vi.fn(),
+    loadMetricRegistry: vi.fn(),
     loadOverviewAndTimeseries: vi.fn(),
+    loadTimeseries: vi.fn(),
     refreshPage: vi.fn(),
     filters: {
       datePreset: 'last_28d',
@@ -52,22 +79,36 @@ vi.mock('../../components/TrendChart', () => ({
   default: () => <div>Trend chart</div>,
 }));
 
+vi.mock('../../lib/metaPageInsights', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../lib/metaPageInsights')>();
+  return {
+    ...original,
+    listMetaPageExports: vi.fn().mockResolvedValue([]),
+    createMetaPageExport: vi.fn().mockResolvedValue({}),
+    downloadExportArtifact: vi.fn().mockResolvedValue({ blob: new Blob(), filename: 'export.csv', contentType: 'text/csv' }),
+  };
+});
+
 describe('MetaPageOverviewPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders KPI cards and hides unsupported metric card', () => {
-    const { container } = render(
-      <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
-        <Routes>
-          <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
+  it('renders KPI cards and hides unsupported metric card', async () => {
+    let container: HTMLElement;
+    await act(async () => {
+      const result = render(
+        <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
+          <Routes>
+            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+      container = result.container;
+    });
 
     expect(screen.getAllByText('page_post_engagements').length).toBeGreaterThan(0);
-    expect(container.querySelectorAll('.meta-kpi-card-v2')).toHaveLength(1);
+    expect(container!.querySelectorAll('.meta-kpi-card-v2')).toHaveLength(1);
     expect(screen.getByText('Some metrics are not available for this Page.')).toBeInTheDocument();
   });
 });

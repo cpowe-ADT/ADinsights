@@ -185,28 +185,59 @@ class MetaGraphClient:
         return self._parse_access_token_payload(payload)
 
     def list_pages(self, *, user_access_token: str) -> list[MetaPage]:
-        rows = self._paginated_data(
-            "/me/accounts",
-            params={
-                "fields": (
-                    "id,name,access_token,category,tasks,perms,"
-                    "instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count},"
-                    "connected_instagram_account{id,username,name,profile_picture_url,followers_count,media_count}"
-                ),
-                "limit": 200,
-                "access_token": user_access_token,
-            },
-            request_name="list_pages",
+        fields_with_perms = (
+            "id,name,access_token,category,tasks,perms,"
+            "instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count},"
+            "connected_instagram_account{id,username,name,profile_picture_url,followers_count,media_count}"
         )
+        fields_without_perms = (
+            "id,name,access_token,category,tasks,"
+            "instagram_business_account{id,username,name,profile_picture_url,followers_count,media_count},"
+            "connected_instagram_account{id,username,name,profile_picture_url,followers_count,media_count}"
+        )
+        params = {
+            "fields": fields_with_perms,
+            "limit": 200,
+            "access_token": user_access_token,
+        }
+
+        try:
+            rows = self._paginated_data(
+                "/me/accounts",
+                params=params,
+                request_name="list_pages",
+            )
+        except MetaGraphClientError as exc:
+            if not self._is_nonexisting_field_error(exc, field_name="perms"):
+                raise
+            logger.info(
+                "meta.graph.list_pages.retry_without_perms",
+                extra={"status_code": exc.status_code, "error_code": exc.error_code},
+            )
+            rows = self._paginated_data(
+                "/me/accounts",
+                params={
+                    "fields": fields_without_perms,
+                    "limit": 200,
+                    "access_token": user_access_token,
+                },
+                request_name="list_pages",
+            )
+
         pages: list[MetaPage] = []
         for row in rows:
             if not isinstance(row, dict):
                 continue
             page_id = row.get("id")
             page_name = row.get("name")
-            page_access_token = row.get("access_token")
+            page_access_token_raw = row.get("access_token")
             if not isinstance(page_id, str) or not isinstance(page_name, str):
                 continue
+            page_access_token = (
+                page_access_token_raw.strip()
+                if isinstance(page_access_token_raw, str) and page_access_token_raw.strip()
+                else user_access_token
+            )
             if not isinstance(page_access_token, str) or not page_access_token.strip():
                 continue
             tasks = row.get("tasks")
@@ -234,6 +265,24 @@ class MetaGraphClient:
                 )
             )
         return pages
+
+    @staticmethod
+    def _is_nonexisting_field_error(exc: MetaGraphClientError, *, field_name: str) -> bool:
+        if exc.error_code != 100:
+            return False
+        message = str(exc) or ""
+        payload = exc.payload if isinstance(exc.payload, dict) else {}
+        error_payload = payload.get("error")
+        if isinstance(error_payload, dict):
+            payload_message = error_payload.get("message")
+            if isinstance(payload_message, str) and payload_message.strip():
+                message = payload_message
+        normalized_message = message.lower()
+        normalized_field = field_name.lower()
+        return (
+            "nonexisting field" in normalized_message
+            and f"({normalized_field})" in normalized_message
+        )
 
     def list_instagram_accounts(self, *, pages: list[MetaPage]) -> list[MetaInstagramAccount]:
         accounts_by_id: dict[str, MetaInstagramAccount] = {}

@@ -3,7 +3,6 @@ import {
   type ColumnDef,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
   getSortedRowModel,
   type SortingState,
   useReactTable,
@@ -22,20 +21,6 @@ type PostsTableProps = {
 
 const PostsTable = ({ rows, metricKey, availability, onOpenPost }: PostsTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'created_time', desc: true }]);
-  const [query, setQuery] = useState('');
-
-  const filteredRows = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) {
-      return rows;
-    }
-    return rows.filter((row) => {
-      return (
-        row.post_id.toLowerCase().includes(normalized) ||
-        (row.message_snippet || '').toLowerCase().includes(normalized)
-      );
-    });
-  }, [query, rows]);
 
   const columns = useMemo<Array<ColumnDef<MetaPostListItem>>>(
     () => [
@@ -60,6 +45,22 @@ const PostsTable = ({ rows, metricKey, availability, onOpenPost }: PostsTablePro
         accessorKey: 'message_snippet',
         header: 'Message',
         cell: (context) => context.getValue<string>() || '—',
+      },
+      {
+        accessorKey: 'permalink',
+        header: 'Facebook',
+        enableSorting: false,
+        cell: (context) => {
+          const href = context.getValue<string>();
+          if (!href) {
+            return '—';
+          }
+          return (
+            <a href={href} target="_blank" rel="noreferrer">
+              Open
+            </a>
+          );
+        },
       },
       {
         id: 'metric_value',
@@ -90,12 +91,11 @@ const PostsTable = ({ rows, metricKey, availability, onOpenPost }: PostsTablePro
   );
 
   const table = useReactTable({
-    data: filteredRows,
+    data: rows,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
 
@@ -103,13 +103,6 @@ const PostsTable = ({ rows, metricKey, availability, onOpenPost }: PostsTablePro
     <article className="panel">
       <div className="meta-posts-toolbar">
         <h3>Posts</h3>
-        <input
-          className="meta-posts-filter"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Filter posts"
-          aria-label="Filter posts"
-        />
       </div>
       <div className="table-responsive">
         <table className="dashboard-table">

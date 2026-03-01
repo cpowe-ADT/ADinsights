@@ -249,6 +249,23 @@ def test_openapi_schema_includes_social_connection_status():
 
 
 @pytest.mark.django_db
+def test_openapi_schema_includes_google_ads_paths():
+    client = APIClient()
+    response = client.get("/api/schema/")
+    assert response.status_code == 200
+    payload = yaml.safe_load(response.content.decode("utf-8"))
+    paths = payload.get("paths", {})
+    assert "/api/integrations/google_ads/setup/" in paths
+    assert "/api/integrations/google_ads/oauth/start/" in paths
+    assert "/api/integrations/google_ads/oauth/exchange/" in paths
+    assert "/api/integrations/google_ads/status/" in paths
+    assert "/api/integrations/google_ads/reference/summary/" in paths
+    assert "/api/integrations/google_ads/provision/" in paths
+    assert "/api/integrations/google_ads/sync/" in paths
+    assert "/api/integrations/google_ads/disconnect/" in paths
+
+
+@pytest.mark.django_db
 def test_openapi_schema_includes_meta_page_insights_paths():
     client = APIClient()
     response = client.get("/api/schema/")

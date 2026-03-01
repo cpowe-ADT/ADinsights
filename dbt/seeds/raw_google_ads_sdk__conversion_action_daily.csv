@@ -1,0 +1,2 @@
+customer_id,conversion_action_id,conversion_action_name,conversion_action_type,date_day,conversions,all_conversions,conversions_value,updated_at,ingested_at
+123456789,777777777,Lead Form,SUBMIT_LEAD_FORM,2024-01-01,2,2,200,2024-01-02 00:00:00,2024-01-02 00:00:00

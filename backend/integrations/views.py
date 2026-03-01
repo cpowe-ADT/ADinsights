@@ -24,7 +24,12 @@ from accounts.audit import log_audit_event
 from accounts.models import AuditLog
 from accounts.tenant_context import tenant_context
 from core.db_error_responses import schema_out_of_date_response
-from core.frontend_runtime import resolve_frontend_redirect_uri
+from core.frontend_runtime import (
+    build_runtime_context,
+    extract_dataset_source,
+    extract_runtime_client_origin,
+    resolve_frontend_redirect_uri,
+)
 from core.metrics import observe_airbyte_sync
 from core.observability import emit_observability_event
 from integrations.airbyte.client import (
@@ -49,6 +54,8 @@ from .models import (
     CampaignBudget,
     ConnectionSyncUpdate,
     MetaAccountSyncState,
+    MetaConnection,
+    MetaPage,
     PlatformCredential,
     TenantAirbyteSyncStatus,
 )
@@ -101,6 +108,7 @@ DEFAULT_META_OAUTH_SCOPES = [
 DEFAULT_META_PAGE_INSIGHTS_OAUTH_SCOPES = [
     "pages_show_list",
     "pages_read_engagement",
+    "read_insights",
     "pages_manage_metadata",
 ]
 DEFAULT_META_INSTAGRAM_REQUIRED_SCOPES = [
@@ -110,10 +118,42 @@ DEFAULT_META_INSTAGRAM_REQUIRED_SCOPES = [
 DEFAULT_META_LOGIN_IGNORED_SCOPES = {
     "instagram_basic",
     "instagram_manage_insights",
-    "read_insights",
 }
+DEFAULT_META_PAGE_INSIGHTS_TASKS = {"ANALYZE", "MANAGE", "ADVERTISE"}
+DEFAULT_META_PAGE_INSIGHTS_PERMS = {"ADMINISTER", "BASIC_ADMIN", "CREATE_ADS"}
 SOCIAL_STATUS_STALE_THRESHOLD_MINUTES = 60
 SOCIAL_SUCCESS_STATUSES = {"succeeded", "success", "completed"}
+
+
+def _resolve_meta_redirect_uri(
+    *,
+    request=None,  # noqa: ANN001 - DRF request
+    payload: Mapping[str, Any] | None = None,
+) -> tuple[str, dict[str, Any]]:
+    runtime_context_origin = extract_runtime_client_origin(request=request, payload=payload)
+    try:
+        redirect_uri, resolution, redirect_source = resolve_frontend_redirect_uri(
+            path="/dashboards/data-sources",
+            explicit_redirect_uri=(getattr(settings, "META_OAUTH_REDIRECT_URI", "") or "").strip(),
+            request=request,
+            runtime_context_origin=runtime_context_origin,
+            missing_message=(
+                "META_OAUTH_REDIRECT_URI or FRONTEND_BASE_URL must be configured for Meta OAuth."
+            ),
+        )
+    except ValueError as exc:
+        raise MetaGraphConfigurationError(str(exc)) from exc
+
+    dataset_source = extract_dataset_source(request=request, payload=payload)
+    return (
+        redirect_uri,
+        build_runtime_context(
+            redirect_uri=redirect_uri,
+            redirect_source=redirect_source,
+            resolution=resolution,
+            dataset_source=dataset_source,
+        ),
+    )
 
 
 def _meta_redirect_uri(
@@ -121,16 +161,8 @@ def _meta_redirect_uri(
     request=None,  # noqa: ANN001 - DRF request
     payload: Mapping[str, Any] | None = None,
 ) -> str:
-    try:
-        return resolve_frontend_redirect_uri(
-            path="/dashboards/data-sources",
-            explicit_redirect_uri=(getattr(settings, "META_OAUTH_REDIRECT_URI", "") or "").strip(),
-            request=request,
-            payload=payload,
-            missing_message="META_OAUTH_REDIRECT_URI or FRONTEND_BASE_URL must be configured for Meta OAuth.",
-        )
-    except ValueError as exc:
-        raise MetaGraphConfigurationError(str(exc)) from exc
+    redirect_uri, _ = _resolve_meta_redirect_uri(request=request, payload=payload)
+    return redirect_uri
 
 
 def _meta_state_payload(*, request) -> dict[str, str]:
@@ -366,6 +398,43 @@ def _normalize_scopes(raw_scopes: Any) -> list[str]:
     return normalized
 
 
+def _normalize_string_list(raw_values: Any) -> list[str]:
+    if not isinstance(raw_values, list):
+        return []
+    return sorted(
+        {
+            str(value).strip()
+            for value in raw_values
+            if isinstance(value, str) and str(value).strip()
+        }
+    )
+
+
+def _can_analyze_meta_page(*, tasks: list[str], perms: list[str]) -> bool:
+    task_set = {task.upper() for task in tasks}
+    if task_set.intersection(DEFAULT_META_PAGE_INSIGHTS_TASKS):
+        return True
+    perm_set = {perm.upper() for perm in perms}
+    if perm_set.intersection(DEFAULT_META_PAGE_INSIGHTS_PERMS):
+        return True
+    return not task_set and not perm_set
+
+
+def _cached_private_page_records(cached_payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    raw = cached_payload.get("pages_private")
+    if not isinstance(raw, list):
+        return {}
+    records: dict[str, dict[str, Any]] = {}
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        page_id = str(item.get("id") or "").strip()
+        if not page_id:
+            continue
+        records[page_id] = item
+    return records
+
+
 def _resolve_meta_login_scopes(*, flow: str = META_OAUTH_FLOW_MARKETING) -> tuple[list[str], list[str]]:
     if flow == META_OAUTH_FLOW_PAGE_INSIGHTS:
         configured_scopes = getattr(
@@ -505,6 +574,8 @@ def _upsert_meta_account_sync_state(
 
 
 def _airbyte_exception_response(exc: AirbyteClientError) -> Response:
+    if getattr(exc, "status_code", None) is not None:
+        return Response({"detail": str(exc)}, status=int(exc.status_code))
     status_code = (
         status.HTTP_504_GATEWAY_TIMEOUT
         if isinstance(exc.__cause__, httpx.TimeoutException)
@@ -720,11 +791,16 @@ class MetaSetupView(APIView):
         app_secret = (getattr(settings, "META_APP_SECRET", "") or "").strip()
         login_configuration_id = _meta_login_configuration_id()
         login_configuration_required = _meta_login_configuration_required()
-        frontend_base_url = (getattr(settings, "FRONTEND_BASE_URL", "") or "").strip()
-        redirect_uri_configured = bool(
-            (getattr(settings, "META_OAUTH_REDIRECT_URI", "") or "").strip()
-            or frontend_base_url
-        )
+        resolved_redirect_uri = None
+        runtime_context = None
+        try:
+            resolved_redirect_uri, runtime_context = _resolve_meta_redirect_uri(
+                request=request,
+                payload=request.GET,
+            )
+            redirect_uri_configured = True
+        except MetaGraphConfigurationError:
+            redirect_uri_configured = False
         login_configuration_ready = bool(login_configuration_id) or not login_configuration_required
         scopes, ignored_scopes = _resolve_meta_login_scopes()
         scope_set = {scope.strip() for scope in scopes if isinstance(scope, str) and scope.strip()}
@@ -826,11 +902,6 @@ class MetaSetupView(APIView):
             }
         )
 
-        try:
-            resolved_redirect_uri = _meta_redirect_uri(request=request, payload=request.GET)
-        except MetaGraphConfigurationError:
-            resolved_redirect_uri = None
-
         return Response(
             {
                 "provider": "meta_ads",
@@ -847,6 +918,7 @@ class MetaSetupView(APIView):
                 "login_configuration_id": login_configuration_id or None,
                 "login_configuration_required": login_configuration_required,
                 "login_mode": "facebook_login_for_business",
+                "runtime_context": runtime_context,
             }
         )
 
@@ -940,9 +1012,21 @@ class MetaOAuthExchangeView(APIView):
             {
                 "tenant_id": str(request.user.tenant_id),
                 "user_id": str(request.user.id),
+                "app_scoped_user_id": str(token_debug.get("user_id") or request.user.id),
                 "user_access_token": token.access_token,
                 "token_expires_at": expires_at,
                 "pages": [page.as_public_dict() for page in pages],
+                "pages_private": [
+                    {
+                        "id": page.id,
+                        "name": page.name,
+                        "category": page.category,
+                        "tasks": page.tasks or [],
+                        "perms": page.perms or [],
+                        "access_token": page.access_token,
+                    }
+                    for page in pages
+                ],
                 "ad_accounts": [account.as_public_dict() for account in ad_accounts],
                 "instagram_accounts": [
                     instagram_account.as_public_dict() for instagram_account in instagram_accounts
@@ -1222,6 +1306,11 @@ class MetaPageConnectView(APIView):
         token_status, token_status_reason = _token_status_for_expiry(expires_at=expires_at, now=now)
         granted_permissions = _normalize_scopes(cached_payload.get("granted_permissions"))
         declined_permissions = _normalize_scopes(cached_payload.get("declined_permissions"))
+        selected_page_id = str(selected_page.get("id") or "").strip()
+        private_pages = _cached_private_page_records(cached_payload)
+        app_scoped_user_id = str(cached_payload.get("app_scoped_user_id") or request.user.id).strip()
+        if not app_scoped_user_id:
+            app_scoped_user_id = str(request.user.id)
 
         with transaction.atomic():
             credential, _ = PlatformCredential.objects.select_for_update().get_or_create(
@@ -1242,6 +1331,65 @@ class MetaPageConnectView(APIView):
             credential.mark_refresh_token_for_clear()
             credential.set_raw_tokens(user_access_token, None)
             credential.save()
+
+            MetaConnection.objects.filter(tenant=request.user.tenant, is_active=True).update(is_active=False)
+            page_connection, _ = MetaConnection.objects.select_for_update().get_or_create(
+                tenant=request.user.tenant,
+                user=request.user,
+                app_scoped_user_id=app_scoped_user_id,
+                defaults={
+                    "token_expires_at": expires_at,
+                    "scopes": granted_permissions,
+                    "is_active": True,
+                },
+            )
+            page_connection.token_expires_at = expires_at
+            page_connection.scopes = granted_permissions
+            page_connection.is_active = True
+            page_connection.set_raw_token(user_access_token)
+            page_connection.save()
+
+            MetaPage.objects.filter(tenant=request.user.tenant).exclude(page_id=selected_page_id).update(
+                is_default=False
+            )
+            for page_payload in pages:
+                if not isinstance(page_payload, dict):
+                    continue
+                page_id = str(page_payload.get("id") or "").strip()
+                if not page_id:
+                    continue
+                name = str(page_payload.get("name") or page_id).strip() or page_id
+                category = str(page_payload.get("category") or "").strip()
+                tasks = _normalize_string_list(page_payload.get("tasks"))
+                perms = _normalize_string_list(page_payload.get("perms"))
+                private_payload = private_pages.get(page_id, {})
+                page_token = str(private_payload.get("access_token") or "").strip() or user_access_token
+                can_analyze = _can_analyze_meta_page(tasks=tasks, perms=perms)
+
+                page_record, _ = MetaPage.objects.select_for_update().get_or_create(
+                    tenant=request.user.tenant,
+                    page_id=page_id,
+                    defaults={
+                        "connection": page_connection,
+                        "name": name,
+                        "category": category,
+                        "page_token_expires_at": expires_at,
+                        "can_analyze": can_analyze,
+                        "tasks": tasks,
+                        "perms": perms,
+                        "is_default": page_id == selected_page_id,
+                    },
+                )
+                page_record.connection = page_connection
+                page_record.name = name
+                page_record.category = category
+                page_record.page_token_expires_at = expires_at
+                page_record.can_analyze = can_analyze
+                page_record.tasks = tasks
+                page_record.perms = perms
+                page_record.is_default = page_id == selected_page_id
+                page_record.set_raw_page_token(page_token)
+                page_record.save()
 
         cache.delete(cache_key)
         log_audit_event(
@@ -1271,6 +1419,7 @@ class MetaPageConnectView(APIView):
                 "granted_permissions": cached_payload.get("granted_permissions", []),
                 "declined_permissions": cached_payload.get("declined_permissions", []),
                 "missing_required_permissions": missing_required_permissions,
+                "page_insights_connected": True,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -1627,16 +1776,27 @@ class MetaSyncView(APIView):
 
         try:
             with AirbyteClient.from_settings() as client:
-                payload = client.trigger_sync(str(connection.connection_id))
+                reused_existing_job = False
+                try:
+                    payload = client.trigger_sync(str(connection.connection_id))
+                except AirbyteClientError as exc:
+                    if getattr(exc, "status_code", None) != status.HTTP_409_CONFLICT:
+                        raise
+                    latest_job = client.latest_job(str(connection.connection_id))
+                    if latest_job is None:
+                        raise
+                    payload = {"job": latest_job}
+                    reused_existing_job = True
         except AirbyteClientConfigurationError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         except AirbyteClientError as exc:
             return _airbyte_exception_response(exc)
 
         job_id = extract_job_id(payload)
+        job_status = extract_job_status(payload) or ("running" if reused_existing_job else "pending")
         sync_started_at = timezone.now()
         if job_id is not None:
-            connection.record_sync(job_id=job_id, job_status="pending", job_created_at=sync_started_at)
+            connection.record_sync(job_id=job_id, job_status=job_status, job_created_at=sync_started_at)
 
         account_id = _resolve_meta_account_for_connection(connection=connection)
         if account_id:
@@ -1646,7 +1806,7 @@ class MetaSyncView(APIView):
                 account_id=account_id,
                 connection=connection,
                 job_id=str(job_id) if job_id is not None else None,
-                job_status="pending",
+                job_status=job_status,
                 sync_started_at=sync_started_at,
                 window_start=window_start,
                 window_end=window_end,
@@ -1662,6 +1822,7 @@ class MetaSyncView(APIView):
                 "provider": PlatformCredential.META,
                 "connection_id": str(connection.connection_id),
                 "job_id": str(job_id) if job_id is not None else None,
+                "reused_existing_job": reused_existing_job,
             },
         )
 
@@ -1670,6 +1831,8 @@ class MetaSyncView(APIView):
                 "provider": "meta_ads",
                 "connection_id": str(connection.connection_id),
                 "job_id": str(job_id) if job_id is not None else None,
+                "reused_existing_job": reused_existing_job,
+                "sync_status": "already_running" if reused_existing_job else "queued",
             },
             status=status.HTTP_202_ACCEPTED if job_id is not None else status.HTTP_200_OK,
         )
@@ -1781,13 +1944,13 @@ class SocialConnectionStatusView(APIView):
 
         app_id = (getattr(settings, "META_APP_ID", "") or "").strip()
         app_secret = (getattr(settings, "META_APP_SECRET", "") or "").strip()
-        frontend_base_url = (getattr(settings, "FRONTEND_BASE_URL", "") or "").strip()
         login_configuration_id = _meta_login_configuration_id()
         login_configuration_required = _meta_login_configuration_required()
-        redirect_uri_configured = bool(
-            (getattr(settings, "META_OAUTH_REDIRECT_URI", "") or "").strip()
-            or frontend_base_url
-        )
+        try:
+            _meta_redirect_uri(request=request, payload=request.GET)
+            redirect_uri_configured = True
+        except MetaGraphConfigurationError:
+            redirect_uri_configured = False
         workspace_id = (getattr(settings, "AIRBYTE_DEFAULT_WORKSPACE_ID", "") or "").strip()
         destination_id = (getattr(settings, "AIRBYTE_DEFAULT_DESTINATION_ID", "") or "").strip()
         login_configuration_ready = bool(login_configuration_id) or not login_configuration_required
@@ -2161,6 +2324,8 @@ class AirbyteConnectionViewSet(viewsets.ModelViewSet):
             )
 
     def _error_response(self, exc: AirbyteClientError) -> Response:
+        if getattr(exc, "status_code", None) is not None:
+            return Response({"detail": str(exc)}, status=int(exc.status_code))
         status_code = (
             status.HTTP_504_GATEWAY_TIMEOUT
             if isinstance(exc.__cause__, httpx.TimeoutException)

@@ -1,0 +1,2 @@
+customer_id,campaign_id,ad_group_id,criterion_id,keyword_text,match_type,criterion_status,quality_score,date_day,cost_micros,impressions,clicks,conversions,conversions_value,updated_at,ingested_at
+123456789,111111111,222222222,444444444,sample keyword,EXACT,ENABLED,7,2024-01-01,60000000,400,30,2,250,2024-01-02 00:00:00,2024-01-02 00:00:00

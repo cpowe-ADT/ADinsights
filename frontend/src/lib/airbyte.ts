@@ -88,12 +88,15 @@ export interface MetaOAuthStartResponse {
   login_configuration_id?: string | null;
 }
 
+export interface RuntimeContextPayload {
+  client_origin?: string;
+  client_port?: number;
+  dataset_source?: string;
+}
+
 export interface MetaOAuthStartPayload {
   auth_type?: 'rerequest';
-  runtime_context?: {
-    client_origin?: string;
-    client_port?: number;
-  };
+  runtime_context?: RuntimeContextPayload;
 }
 
 export interface MetaOAuthPage {
@@ -197,6 +200,20 @@ export interface MetaSetupStatusResponse {
   login_configuration_id?: string | null;
   login_configuration_required?: boolean;
   login_mode?: string;
+  runtime_context?: {
+    redirect_uri?: string | null;
+    redirect_source?: string | null;
+    request_origin?: string | null;
+    request_referer_origin?: string | null;
+    request_host?: string | null;
+    request_port?: number | null;
+    resolved_frontend_origin?: string | null;
+    frontend_base_url_origin?: string | null;
+    dev_active_profile?: string | null;
+    dev_backend_url?: string | null;
+    dev_frontend_url?: string | null;
+    dataset_source?: string | null;
+  };
 }
 
 export type SocialConnectionPlatform = 'meta' | 'instagram';
@@ -274,10 +291,7 @@ export async function startMetaOAuth(
 export async function exchangeMetaOAuthCode(payload: {
   code: string;
   state: string;
-  runtime_context?: {
-    client_origin?: string;
-    client_port?: number;
-  };
+  runtime_context?: RuntimeContextPayload;
 }): Promise<MetaOAuthExchangeResponse> {
   return apiClient.post<MetaOAuthExchangeResponse>('/integrations/meta/oauth/exchange/', payload);
 }
@@ -301,8 +315,16 @@ export async function syncMetaIntegration(): Promise<{
   provider: 'meta_ads';
   connection_id: string;
   job_id?: string | null;
+  reused_existing_job?: boolean;
+  sync_status?: 'queued' | 'already_running';
 }> {
-  return apiClient.post<{ provider: 'meta_ads'; connection_id: string; job_id?: string | null }>(
+  return apiClient.post<{
+    provider: 'meta_ads';
+    connection_id: string;
+    job_id?: string | null;
+    reused_existing_job?: boolean;
+    sync_status?: 'queued' | 'already_running';
+  }>(
     '/integrations/meta/sync/',
   );
 }
@@ -319,8 +341,22 @@ export async function logoutMetaOAuth(): Promise<{
   }>('/integrations/meta/logout/');
 }
 
-export async function loadMetaSetupStatus(): Promise<MetaSetupStatusResponse> {
-  return apiClient.get<MetaSetupStatusResponse>('/integrations/meta/setup/');
+export async function loadMetaSetupStatus(
+  runtimeContext?: RuntimeContextPayload,
+): Promise<MetaSetupStatusResponse> {
+  const params = new URLSearchParams();
+  if (runtimeContext?.dataset_source?.trim()) {
+    params.set('dataset_source', runtimeContext.dataset_source.trim());
+  }
+  if (runtimeContext?.client_origin?.trim()) {
+    params.set('client_origin', runtimeContext.client_origin.trim());
+  }
+  if (typeof runtimeContext?.client_port === 'number' && Number.isFinite(runtimeContext.client_port)) {
+    params.set('client_port', String(runtimeContext.client_port));
+  }
+  const suffix = params.toString();
+  const path = suffix ? `/integrations/meta/setup/?${suffix}` : '/integrations/meta/setup/';
+  return apiClient.get<MetaSetupStatusResponse>(path);
 }
 
 export async function loadSocialConnectionStatus(

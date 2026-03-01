@@ -1,0 +1,126 @@
+.gads-workspace__header {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+}
+
+.gads-workspace__filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.gads-workspace__header-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.gads-workspace__kpi-strip {
+  margin-top: 1rem;
+}
+
+.gads-workspace__kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.6rem;
+}
+
+.gads-workspace__tabs-panel {
+  margin-top: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.gads-workspace__tabs {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.gads-workspace__tab.is-active,
+.button.secondary.is-active {
+  border-color: var(--accent, #2f5dff);
+  box-shadow: 0 0 0 1px var(--accent, #2f5dff) inset;
+}
+
+.gads-workspace__content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.gads-workspace__rail {
+  position: sticky;
+  top: 76px;
+  max-height: calc(100vh - 110px);
+  overflow: auto;
+}
+
+.gads-workspace__insight-list,
+.gads-workspace__alert-list {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.gads-workspace__insight-list li,
+.gads-workspace__alert-list li {
+  margin-bottom: 0.5rem;
+}
+
+.gads-workspace__keyvals {
+  display: grid;
+  grid-template-columns: minmax(140px, auto) 1fr;
+  gap: 0.35rem 0.75rem;
+  margin: 0;
+}
+
+.gads-workspace__keyvals dt {
+  color: var(--text-muted, #6e7787);
+}
+
+.gads-workspace__keyvals dd {
+  margin: 0;
+}
+
+.gads-workspace__tab-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.gads-workspace__tab-grid--with-drawer {
+  grid-template-columns: minmax(0, 1fr) 300px;
+}
+
+.gads-workspace__drawer {
+  position: sticky;
+  top: 76px;
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+}
+
+.gads-workspace__drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 1024px) {
+  .gads-workspace__content-grid,
+  .gads-workspace__tab-grid--with-drawer {
+    grid-template-columns: 1fr;
+  }
+
+  .gads-workspace__rail,
+  .gads-workspace__drawer {
+    position: static;
+    max-height: none;
+  }
+}

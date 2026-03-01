@@ -59,7 +59,8 @@ function decodeJwtExpiration(token: string): number | null {
       return null;
     }
     const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const decoded = atob(normalized);
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+    const decoded = atob(padded);
     const parsed = JSON.parse(decoded) as { exp?: number };
     return typeof parsed.exp === 'number' ? parsed.exp : null;
   } catch (error) {

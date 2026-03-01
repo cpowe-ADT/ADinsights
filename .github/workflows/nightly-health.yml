@@ -45,23 +45,32 @@ jobs:
             {
               echo "## Observability health summary"
               echo ""
-              python3 - <<'PY'
-import csv
-from pathlib import Path
-
-path = Path("observability-health.csv")
-with path.open() as handle:
-    rows = list(csv.reader(handle))
-
-if len(rows) <= 1:
-    print("_No probe results recorded._")
-else:
-    header = rows[0]
-    print("| " + " | ".join(header) + " |")
-    print("|" + "|".join([" --- "] * len(header)) + "|")
-    for row in rows[1:]:
-        print("| " + " | ".join(row) + " |")
-PY
+              if [ "$(wc -l < observability-health.csv)" -le 1 ]; then
+                echo "_No probe results recorded._"
+              else
+                awk -F',' '
+                  NR == 1 {
+                    printf("|");
+                    for (i = 1; i <= NF; i++) {
+                      printf(" %s |", $i);
+                    }
+                    print "";
+                    printf("|");
+                    for (i = 1; i <= NF; i++) {
+                      printf(" --- |");
+                    }
+                    print "";
+                    next;
+                  }
+                  {
+                    printf("|");
+                    for (i = 1; i <= NF; i++) {
+                      printf(" %s |", $i);
+                    }
+                    print "";
+                  }
+                ' observability-health.csv
+              fi
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 

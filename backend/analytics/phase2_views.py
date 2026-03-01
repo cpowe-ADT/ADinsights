@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import json
 import logging
+import mimetypes
+from pathlib import Path
 from datetime import timedelta
 from typing import Any
 
 from django.http import HttpResponseBase
+from django.http import FileResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -298,6 +302,48 @@ class HealthOverviewView(APIView):
         except (ValueError, TypeError, UnicodeDecodeError):
             return {}
         return {}
+
+
+class ExportDownloadView(APIView):
+    permission_classes = [IsAuthenticated]
+    schema = AutoSchema(operation_id_base="ReportExportDownload")
+
+    def get(self, request, export_job_id: str) -> FileResponse | Response:  # noqa: D401
+        job = get_object_or_404(
+            ReportExportJob.objects.filter(tenant_id=request.user.tenant_id),
+            id=export_job_id,
+        )
+        if job.status != ReportExportJob.STATUS_COMPLETED or not job.artifact_path:
+            return Response(
+                {"detail": "Export is not ready."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        if not job.artifact_path.startswith("/exports/"):
+            return Response(
+                {"detail": "Export artifact path is invalid."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        base_dir = Path(__file__).resolve().parents[2] / "integrations" / "exporter" / "out"
+        artifact_rel = job.artifact_path.lstrip("/")
+        artifact_path = (base_dir / artifact_rel).resolve()
+        if not str(artifact_path).startswith(str(base_dir.resolve())):
+            return Response(
+                {"detail": "Export artifact path is unsafe."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        if not artifact_path.exists():
+            return Response(
+                {"detail": "Export artifact file was not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        content_type, _ = mimetypes.guess_type(str(artifact_path))
+        content_type = content_type or "application/octet-stream"
+
+        response = FileResponse(artifact_path.open("rb"), content_type=content_type)
+        response["Content-Disposition"] = f'attachment; filename="{artifact_path.name}"'
+        return response
 
 
 class DashboardLibraryView(APIView):

@@ -6,7 +6,7 @@
 
     {% if should_skip %}
         {% do log('Skipping CI fixture relation creation for this dbt invocation.', info=True) %}
-        {% do return('') %}
+        {% do return('select 1') %}
     {% endif %}
 
     {% set raw_schema = var('raw_schema', 'raw') %}

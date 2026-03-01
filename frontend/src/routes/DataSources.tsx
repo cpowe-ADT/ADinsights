@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 
 import EmptyState from '../components/EmptyState';
 import { useToast } from '../components/ToastProvider';
+import { ApiError } from '../lib/apiClient';
 import {
   connectMetaPage,
   createAirbyteConnection,
@@ -33,6 +34,7 @@ import {
   META_OAUTH_FLOW_SESSION_KEY,
 } from '../lib/metaPageInsights';
 import { buildRuntimeContextPayload } from '../lib/runtimeContext';
+import { useDatasetStore } from '../state/useDatasetStore';
 
 const DataSourcesIcon = () => (
   <svg
@@ -298,6 +300,11 @@ const DataSources = () => {
     'https://github.com/cpowe-ADT/ADinsights/blob/main/docs/runbooks/csv-uploads.md';
 
   const { pushToast } = useToast();
+  const datasetSource = useDatasetStore((state) => state.source);
+  const runtimeContext = useMemo(
+    () => buildRuntimeContextPayload(datasetSource),
+    [datasetSource],
+  );
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [connections, setConnections] = useState<AirbyteConnectionRecord[]>([]);
   const [summary, setSummary] = useState<AirbyteConnectionsSummary | null>(null);
@@ -422,7 +429,7 @@ const DataSources = () => {
     }
     let cancelled = false;
     setMetaSetupLoading(true);
-    void loadMetaSetupStatus()
+    void loadMetaSetupStatus(runtimeContext)
       .then((payload) => {
         if (cancelled) {
           return;
@@ -444,7 +451,7 @@ const DataSources = () => {
     return () => {
       cancelled = true;
     };
-  }, [connectProvider]);
+  }, [connectProvider, runtimeContext]);
 
   const resetMetaOAuthState = useCallback(() => {
     setMetaConnectStep('idle');
@@ -484,8 +491,114 @@ const DataSources = () => {
       const nextUrl = `${window.location.pathname}${window.location.hash}`;
       window.history.replaceState({}, document.title, nextUrl);
     };
-    const runtimeContext = buildRuntimeContextPayload();
+    const clearOAuthMarkers = () => {
+      window.sessionStorage.removeItem(META_OAUTH_FLOW_SESSION_KEY);
+      clearOAuthParams();
+    };
     const oauthFlow = window.sessionStorage.getItem(META_OAUTH_FLOW_SESSION_KEY);
+
+    const isWrongOAuthFlowError = (error: unknown): boolean => {
+      if (error instanceof ApiError) {
+        const code = (error.payload as { code?: unknown } | undefined)?.code;
+        if (typeof code === 'string' && code === 'wrong_oauth_flow') {
+          return true;
+        }
+      }
+      if (!(error instanceof Error)) {
+        return false;
+      }
+      const message = error.message.toLowerCase();
+      return (
+        message.includes('wrong_oauth_flow') ||
+        message.includes('oauth state belongs to the marketing flow') ||
+        message.includes('page insights flow')
+      );
+    };
+
+    const handlePageInsightsCallback = async () => {
+      const response = await callbackMetaOAuth(code ?? '', state ?? '');
+      const missingPermissions = response.missing_required_permissions ?? [];
+      if (missingPermissions.length > 0) {
+        pushToast(
+          `Missing required permissions: ${missingPermissions.join(', ')}`,
+          { tone: 'error' },
+        );
+        return;
+      }
+      const pageCount = response.pages?.length ?? 0;
+      const fallbackDefaultPageId =
+        response.pages?.find((page) => page.is_default)?.page_id ?? response.pages?.[0]?.page_id;
+      const defaultPageId = response.default_page_id ?? fallbackDefaultPageId;
+      pushToast(
+        pageCount > 0
+          ? 'Meta Page Insights connected. Loading page dashboard.'
+          : 'Meta connected, but no eligible Pages were returned.',
+        { tone: pageCount > 0 ? 'success' : 'error' },
+      );
+      if (import.meta.env.MODE === 'test') {
+        return;
+      }
+      const destination = defaultPageId
+        ? `/dashboards/meta/pages/${defaultPageId}/overview`
+        : '/dashboards/meta/pages';
+      window.location.assign(destination);
+    };
+
+    const handleMarketingCallback = async () => {
+      setConnectProvider('META');
+      setConnectForm(buildInitialConnectForm('META'));
+      setMetaConnectStep('oauth-pending');
+
+      const response = await exchangeMetaOAuthCode({
+        code: code ?? '',
+        state: state ?? '',
+        runtime_context: runtimeContext,
+      });
+      setMetaPermissionDiagnostics({
+        grantedPermissions: response.granted_permissions ?? [],
+        declinedPermissions: response.declined_permissions ?? [],
+        missingRequiredPermissions: response.missing_required_permissions ?? [],
+        tokenDebugValid: Boolean(response.token_debug_valid),
+        oauthConnectedButMissingPermissions: Boolean(
+          response.oauth_connected_but_missing_permissions,
+        ),
+      });
+      if (response.missing_required_permissions.length) {
+        setMetaConnectStep('oauth-pending');
+        pushToast(
+          'Meta OAuth connected, but required permissions are missing. Re-request permissions and reconnect.',
+          { tone: 'error' },
+        );
+        return;
+      }
+      const firstPageId = response.pages[0]?.id ?? '';
+      const firstAdAccountId = response.ad_accounts[0]?.id ?? '';
+      const firstInstagramAccountId = response.instagram_accounts[0]?.id ?? '';
+      setMetaOAuthSelection({
+        selectionToken: response.selection_token,
+        pages: response.pages,
+        adAccounts: response.ad_accounts,
+        instagramAccounts: response.instagram_accounts,
+        selectedPageId: firstPageId,
+        selectedAdAccountId: firstAdAccountId,
+        selectedInstagramAccountId: firstInstagramAccountId,
+      });
+      if (!response.ad_accounts.length) {
+        setMetaConnectStep('oauth-pending');
+        pushToast(
+          'Meta OAuth complete, but no ad accounts were returned. Add ad account access in Meta Business Manager and reconnect.',
+          { tone: 'error' },
+        );
+        return;
+      }
+      setMetaConnectStep('page-selection');
+      pushToast(
+        'Meta OAuth complete. Select your business page and ad account to finish setup.',
+        {
+          tone: 'success',
+        },
+      );
+    };
 
     if (oauthError) {
       pushToast(
@@ -494,124 +607,41 @@ const DataSources = () => {
           : `OAuth failed: ${oauthError}`,
         { tone: 'error' },
       );
-      clearOAuthParams();
+      clearOAuthMarkers();
       return;
     }
-
-    if (oauthFlow === META_OAUTH_FLOW_PAGE_INSIGHTS) {
-      setMetaOAuthExchanging(true);
-      void callbackMetaOAuth(code ?? '', state ?? '')
-        .then((response) => {
-          const missingPermissions = response.missing_required_permissions ?? [];
-          if (missingPermissions.length > 0) {
-            pushToast(
-              `Missing required permissions: ${missingPermissions.join(', ')}`,
-              { tone: 'error' },
-            );
-            return;
-          }
-          const pageCount = response.pages?.length ?? 0;
-          const fallbackDefaultPageId =
-            response.pages?.find((page) => page.is_default)?.page_id ?? response.pages?.[0]?.page_id;
-          const defaultPageId = response.default_page_id ?? fallbackDefaultPageId;
-          pushToast(
-            pageCount > 0
-              ? 'Meta Page Insights connected. Loading page dashboard.'
-              : 'Meta connected, but no eligible Pages were returned.',
-            { tone: pageCount > 0 ? 'success' : 'error' },
-          );
-          if (import.meta.env.MODE === 'test') {
-            return;
-          }
-          const destination = defaultPageId
-            ? `/dashboards/meta/pages/${defaultPageId}/overview`
-            : '/dashboards/meta/pages';
-          window.location.assign(destination);
-        })
-        .catch((oauthExchangeError) => {
-          const message =
-            oauthExchangeError instanceof Error
-              ? oauthExchangeError.message
-              : 'Meta OAuth callback failed for Page Insights.';
-          pushToast(message, { tone: 'error' });
-        })
-        .finally(() => {
-          setMetaOAuthExchanging(false);
-          window.sessionStorage.removeItem(META_OAUTH_FLOW_SESSION_KEY);
-          clearOAuthParams();
-        });
-      return;
-    }
-
-    setConnectProvider('META');
-    setConnectForm(buildInitialConnectForm('META'));
-    setMetaConnectStep('oauth-pending');
 
     setMetaOAuthExchanging(true);
-    void exchangeMetaOAuthCode({
-      code: code ?? '',
-      state: state ?? '',
-      runtime_context: runtimeContext,
-    })
-      .then((response) => {
-        setMetaPermissionDiagnostics({
-          grantedPermissions: response.granted_permissions ?? [],
-          declinedPermissions: response.declined_permissions ?? [],
-          missingRequiredPermissions: response.missing_required_permissions ?? [],
-          tokenDebugValid: Boolean(response.token_debug_valid),
-          oauthConnectedButMissingPermissions: Boolean(
-            response.oauth_connected_but_missing_permissions,
-          ),
-        });
-        if (response.missing_required_permissions.length) {
-          setMetaConnectStep('oauth-pending');
-          pushToast(
-            'Meta OAuth connected, but required permissions are missing. Re-request permissions and reconnect.',
-            { tone: 'error' },
-          );
-          return;
+    void (async () => {
+      try {
+        const shouldTryPageInsightsFirst =
+          oauthFlow === META_OAUTH_FLOW_PAGE_INSIGHTS || !oauthFlow;
+        if (shouldTryPageInsightsFirst) {
+          try {
+            await handlePageInsightsCallback();
+            return;
+          } catch (pageInsightsError) {
+            const shouldFallbackToMarketing =
+              oauthFlow !== META_OAUTH_FLOW_PAGE_INSIGHTS &&
+              isWrongOAuthFlowError(pageInsightsError);
+            if (!shouldFallbackToMarketing) {
+              throw pageInsightsError;
+            }
+          }
         }
-        const firstPageId = response.pages[0]?.id ?? '';
-        const firstAdAccountId = response.ad_accounts[0]?.id ?? '';
-        const firstInstagramAccountId = response.instagram_accounts[0]?.id ?? '';
-        setMetaOAuthSelection({
-          selectionToken: response.selection_token,
-          pages: response.pages,
-          adAccounts: response.ad_accounts,
-          instagramAccounts: response.instagram_accounts,
-          selectedPageId: firstPageId,
-          selectedAdAccountId: firstAdAccountId,
-          selectedInstagramAccountId: firstInstagramAccountId,
-        });
-        if (!response.ad_accounts.length) {
-          setMetaConnectStep('oauth-pending');
-          pushToast(
-            'Meta OAuth complete, but no ad accounts were returned. Add ad account access in Meta Business Manager and reconnect.',
-            { tone: 'error' },
-          );
-          return;
-        }
-        setMetaConnectStep('page-selection');
-        pushToast(
-          'Meta OAuth complete. Select your business page and ad account to finish setup.',
-          {
-            tone: 'success',
-          },
-        );
-      })
-      .catch((oauthExchangeError) => {
+        await handleMarketingCallback();
+      } catch (oauthExchangeError) {
         const message =
           oauthExchangeError instanceof Error
             ? oauthExchangeError.message
-            : 'Meta OAuth code exchange failed.';
+            : 'Meta OAuth callback failed.';
         pushToast(message, { tone: 'error' });
-      })
-      .finally(() => {
+      } finally {
         setMetaOAuthExchanging(false);
-        window.sessionStorage.removeItem(META_OAUTH_FLOW_SESSION_KEY);
-        clearOAuthParams();
-      });
-  }, [pushToast]);
+        clearOAuthMarkers();
+      }
+    })();
+  }, [pushToast, runtimeContext]);
 
   const handleStartMetaOAuth = useCallback(
     async (options?: { openPanelOnError?: boolean; authType?: 'rerequest' }) => {
@@ -623,8 +653,11 @@ const DataSources = () => {
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(META_OAUTH_PROVIDER_KEY, 'META');
         }
-        const runtimeContext = buildRuntimeContextPayload();
-        const hasRuntimeContext = Boolean(runtimeContext.client_origin || runtimeContext.client_port);
+        const hasRuntimeContext = Boolean(
+          runtimeContext.client_origin ||
+            runtimeContext.client_port ||
+            runtimeContext.dataset_source,
+        );
         const response = await startMetaOAuth(
           options?.authType || hasRuntimeContext
             ? {
@@ -654,7 +687,7 @@ const DataSources = () => {
         setMetaOAuthStarting(false);
       }
     },
-    [metaOAuthExchanging, metaOAuthStarting, pushToast, resetMetaOAuthState],
+    [metaOAuthExchanging, metaOAuthStarting, pushToast, resetMetaOAuthState, runtimeContext],
   );
 
   const handleMetaPageConnect = useCallback(async () => {
@@ -1360,6 +1393,38 @@ const DataSources = () => {
                             ? '(required)'
                             : '(optional)'}
                         </p>
+                        {metaSetupStatus.runtime_context ? (
+                          <>
+                            <p className="status-message muted">
+                              Runtime redirect source:{' '}
+                              {metaSetupStatus.runtime_context.redirect_source || 'unavailable'}
+                            </p>
+                            <p className="status-message muted">
+                              Runtime frontend origin:{' '}
+                              {metaSetupStatus.runtime_context.resolved_frontend_origin ||
+                                'unresolved'}
+                            </p>
+                            <p className="status-message muted">
+                              Runtime request host:{' '}
+                              {metaSetupStatus.runtime_context.request_host || 'unavailable'}
+                              {metaSetupStatus.runtime_context.request_port
+                                ? `:${metaSetupStatus.runtime_context.request_port}`
+                                : ''}
+                            </p>
+                            {metaSetupStatus.runtime_context.dev_active_profile ? (
+                              <p className="status-message muted">
+                                Active launcher profile:{' '}
+                                {metaSetupStatus.runtime_context.dev_active_profile}
+                              </p>
+                            ) : null}
+                            {metaSetupStatus.runtime_context.dataset_source ? (
+                              <p className="status-message muted">
+                                Dataset source:{' '}
+                                {metaSetupStatus.runtime_context.dataset_source}
+                              </p>
+                            ) : null}
+                          </>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>
@@ -1430,7 +1495,7 @@ const DataSources = () => {
                           }))
                         }
                       >
-                        {metaOAuthSelection.pages.map((page) => (
+                        {(metaOAuthSelection.pages ?? []).map((page) => (
                           <option key={page.id} value={page.id}>
                             {page.name}
                           </option>
@@ -1448,7 +1513,7 @@ const DataSources = () => {
                           }))
                         }
                       >
-                        {metaOAuthSelection.adAccounts.map((account) => (
+                        {(metaOAuthSelection.adAccounts ?? []).map((account) => (
                           <option key={account.id} value={account.id}>
                             {account.name?.trim() ? `${account.name} (${account.id})` : account.id}
                           </option>
@@ -1469,7 +1534,7 @@ const DataSources = () => {
                         }
                       >
                         <option value="">No Instagram account selected</option>
-                        {metaOAuthSelection.instagramAccounts.map((account) => (
+                        {(metaOAuthSelection.instagramAccounts ?? []).map((account) => (
                           <option key={account.id} value={account.id}>
                             {account.username?.trim()
                               ? `@${account.username} (${account.id})`

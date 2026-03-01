@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApiError } from '../../lib/apiClient';
 import DataSources from '../DataSources';
 
 const pushToast = vi.fn();
@@ -318,6 +319,13 @@ describe('DataSources connect flow', () => {
 
   it('handles oauth callback without provider session marker and supports rerequest', async () => {
     const user = userEvent.setup();
+    metaPageInsightsMocks.callbackMetaOAuth.mockRejectedValueOnce(
+      new ApiError(
+        'OAuth state belongs to the marketing flow. Use /api/integrations/meta/oauth/exchange/.',
+        400,
+        { detail: 'OAuth state belongs to the marketing flow.', code: 'wrong_oauth_flow' },
+      ),
+    );
     airbyteMocks.exchangeMetaOAuthCode.mockResolvedValueOnce({
       selection_token: 'selection-token-2',
       expires_in_seconds: 600,
@@ -368,6 +376,22 @@ describe('DataSources connect flow', () => {
         }),
       );
     });
+  });
+
+  it('handles page-insights callback even when oauth flow marker is missing', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/dashboards/data-sources?code=oauth-code&state=oauth-state',
+    );
+    window.sessionStorage.removeItem('adinsights.meta.oauth.flow');
+
+    render(<DataSources />);
+
+    await waitFor(() => {
+      expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith('oauth-code', 'oauth-state');
+    });
+    expect(airbyteMocks.exchangeMetaOAuthCode).not.toHaveBeenCalled();
   });
 
   it('routes page-insights oauth callback to meta connect callback API', async () => {

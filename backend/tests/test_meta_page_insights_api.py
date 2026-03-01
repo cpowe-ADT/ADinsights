@@ -167,6 +167,7 @@ def test_meta_connect_callback_persists_pages_without_ad_account_requirement(
 
         def list_permissions(self, *, user_access_token: str):
             return [
+                {"permission": "read_insights", "status": "granted"},
                 {"permission": "pages_read_engagement", "status": "granted"},
             ]
 
@@ -202,6 +203,139 @@ def test_meta_connect_callback_persists_pages_without_ad_account_requirement(
     assert payload["tasks"]["sync_page_insights"] == "task-page"
     page = MetaPage.objects.get(tenant=user.tenant, page_id="page-1")
     assert page.can_analyze is True
+
+
+@pytest.mark.django_db
+def test_meta_connect_callback_marks_page_analyzable_when_capability_metadata_missing(
+    api_client,
+    user,
+    monkeypatch,
+    settings,
+):
+    _authenticate(api_client, username="user@example.com", password="password123")
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_APP_SECRET = "meta-app-secret"
+    settings.META_LOGIN_CONFIG_REQUIRED = False
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+
+    start_response = api_client.post(reverse("meta-connect-start"), {}, format="json")
+    assert start_response.status_code == 200
+    state = start_response.json()["state"]
+
+    class DummyPage:
+        id = "page-1"
+        name = "Business Page"
+        access_token = "page-access-token"
+        tasks = []
+        perms = []
+
+    class DummyTask:
+        def __init__(self, task_id: str):
+            self.id = task_id
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def exchange_code(self, *, code: str, redirect_uri: str):
+            return type("Token", (), {"access_token": "short-token", "expires_in": 3600})()
+
+        def exchange_for_long_lived_user_token(self, *, short_lived_user_token: str):
+            return type("Token", (), {"access_token": "long-token", "expires_in": 7200})()
+
+        def debug_token(self, *, input_token: str):
+            return {"is_valid": True, "user_id": "meta-user-1"}
+
+        def list_permissions(self, *, user_access_token: str):
+            return [
+                {"permission": "read_insights", "status": "granted"},
+                {"permission": "pages_read_engagement", "status": "granted"},
+            ]
+
+        def list_pages(self, *, user_access_token: str):
+            return [DummyPage()]
+
+    monkeypatch.setattr("integrations.meta_page_views.MetaGraphClient.from_settings", lambda: DummyClient())
+    monkeypatch.setattr(
+        "integrations.meta_page_views.sync_page_posts.delay",
+        lambda **kwargs: DummyTask("task-posts"),
+    )
+    monkeypatch.setattr(
+        "integrations.meta_page_views.discover_supported_metrics.delay",
+        lambda **kwargs: DummyTask("task-discover"),
+    )
+    monkeypatch.setattr(
+        "integrations.meta_page_views.sync_page_insights.delay",
+        lambda **kwargs: DummyTask("task-page"),
+    )
+    monkeypatch.setattr(
+        "integrations.meta_page_views.sync_post_insights.delay",
+        lambda **kwargs: DummyTask("task-post-insights"),
+    )
+
+    response = api_client.post(
+        reverse("meta-connect-callback"),
+        {"code": "oauth-code", "state": state},
+        format="json",
+    )
+    assert response.status_code == 200
+    page = MetaPage.objects.get(tenant=user.tenant, page_id="page-1")
+    assert page.can_analyze is True
+
+
+@pytest.mark.django_db
+def test_meta_connect_callback_rejects_invalid_debug_token(
+    api_client,
+    user,
+    monkeypatch,
+    settings,
+):
+    _authenticate(api_client, username="user@example.com", password="password123")
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_APP_SECRET = "meta-app-secret"
+    settings.META_LOGIN_CONFIG_REQUIRED = False
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+
+    start_response = api_client.post(reverse("meta-connect-start"), {}, format="json")
+    assert start_response.status_code == 200
+    state = start_response.json()["state"]
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def exchange_code(self, *, code: str, redirect_uri: str):
+            assert code == "oauth-code"
+            return type("Token", (), {"access_token": "short-token", "expires_in": 3600})()
+
+        def exchange_for_long_lived_user_token(self, *, short_lived_user_token: str):
+            return type("Token", (), {"access_token": "long-token", "expires_in": 7200})()
+
+        def debug_token(self, *, input_token: str):
+            return {"is_valid": False}
+
+        def list_permissions(self, *, user_access_token: str):  # pragma: no cover - should not be called
+            return []
+
+        def list_pages(self, *, user_access_token: str):  # pragma: no cover - should not be called
+            return []
+
+    monkeypatch.setattr("integrations.meta_page_views.MetaGraphClient.from_settings", lambda: DummyClient())
+
+    response = api_client.post(
+        reverse("meta-connect-callback"),
+        {"code": "oauth-code", "state": state},
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "debug_token" in response.json()["detail"]
+    assert MetaConnection.objects.filter(tenant=user.tenant).count() == 0
 
 
 @pytest.mark.django_db

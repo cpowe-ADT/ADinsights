@@ -249,6 +249,98 @@ class TenantMetricsSnapshot(models.Model):
         return f"TenantMetricsSnapshot<{self.tenant_id}:{self.source}>"
 
 
+class GoogleAdsSavedView(models.Model):
+    """Persisted filter/view presets for Google Ads reporting surfaces."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="google_ads_saved_views"
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    filters = models.JSONField(default=dict, blank=True)
+    columns = models.JSONField(default=list, blank=True)
+    is_shared = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_google_ads_saved_views",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_google_ads_saved_views",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("-updated_at", "name")
+        indexes = [
+            models.Index(fields=["tenant", "is_shared"], name="gads_saved_view_tenant_shared"),
+        ]
+
+
+class GoogleAdsExportJob(models.Model):
+    """Track Google Ads dashboard export requests and generated artifacts."""
+
+    FORMAT_CSV = "csv"
+    FORMAT_PDF = "pdf"
+    FORMAT_CHOICES = [
+        (FORMAT_CSV, "CSV"),
+        (FORMAT_PDF, "PDF"),
+    ]
+
+    STATUS_QUEUED = "queued"
+    STATUS_RUNNING = "running"
+    STATUS_COMPLETED = "completed"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [
+        (STATUS_QUEUED, "Queued"),
+        (STATUS_RUNNING, "Running"),
+        (STATUS_COMPLETED, "Completed"),
+        (STATUS_FAILED, "Failed"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="google_ads_export_jobs"
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="google_ads_export_jobs",
+    )
+    name = models.CharField(max_length=255, blank=True, default="")
+    export_format = models.CharField(max_length=8, choices=FORMAT_CHOICES, default=FORMAT_CSV)
+    filters = models.JSONField(default=dict, blank=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_QUEUED)
+    artifact_path = models.CharField(max_length=512, blank=True, default="")
+    error_message = models.TextField(blank=True, default="")
+    metadata = models.JSONField(default=dict, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=["tenant", "status"], name="gads_export_tenant_status"),
+        ]
+
+
 class ReportDefinition(models.Model):
     """Tenant-scoped report definition used by reporting UIs and exports."""
 

@@ -16,6 +16,17 @@ logger = logging.getLogger(__name__)
 class AirbyteClientError(RuntimeError):
     """Raised when the Airbyte API responds with an error."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        payload: Any = None,
+    ) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.payload = payload
+
 
 class AirbyteClientConfigurationError(RuntimeError):
     """Raised when the client cannot be constructed from settings."""
@@ -57,8 +68,15 @@ class AirbyteClient:
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             detail = exc.response.text
+            parsed_payload: Any = None
+            try:
+                parsed_payload = exc.response.json()
+            except ValueError:
+                parsed_payload = detail
             raise AirbyteClientError(
-                f"Airbyte API {path} failed with HTTP {exc.response.status_code}: {detail}"
+                f"Airbyte API {path} failed with HTTP {exc.response.status_code}: {detail}",
+                status_code=exc.response.status_code,
+                payload=parsed_payload,
             ) from exc
         except httpx.HTTPError as exc:
             raise AirbyteClientError(f"Airbyte API {path} request failed: {exc}") from exc
@@ -88,6 +106,18 @@ class AirbyteClient:
         try:
             response = self._client.post("/api/v1/connections/sync", json={"connectionId": connection_id})
             response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text
+            parsed_payload: Any = None
+            try:
+                parsed_payload = exc.response.json()
+            except ValueError:
+                parsed_payload = detail
+            raise AirbyteClientError(
+                f"Failed to trigger sync for {connection_id}: {exc}",
+                status_code=exc.response.status_code,
+                payload=parsed_payload,
+            ) from exc
         except httpx.HTTPError as exc:  # pragma: no cover - httpx provides detail
             raise AirbyteClientError(f"Failed to trigger sync for {connection_id}: {exc}") from exc
         payload = response.json()
@@ -100,6 +130,18 @@ class AirbyteClient:
         try:
             response = self._client.post("/api/v1/jobs/get", json={"id": job_id})
             response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text
+            parsed_payload: Any = None
+            try:
+                parsed_payload = exc.response.json()
+            except ValueError:
+                parsed_payload = detail
+            raise AirbyteClientError(
+                f"Failed to fetch job {job_id}: {exc}",
+                status_code=exc.response.status_code,
+                payload=parsed_payload,
+            ) from exc
         except httpx.HTTPError as exc:  # pragma: no cover - httpx provides detail
             raise AirbyteClientError(f"Failed to fetch job {job_id}: {exc}") from exc
         payload = response.json()
@@ -119,6 +161,18 @@ class AirbyteClient:
                 },
             )
             response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text
+            parsed_payload: Any = None
+            try:
+                parsed_payload = exc.response.json()
+            except ValueError:
+                parsed_payload = detail
+            raise AirbyteClientError(
+                f"Failed to list jobs for {connection_id}: {exc}",
+                status_code=exc.response.status_code,
+                payload=parsed_payload,
+            ) from exc
         except httpx.HTTPError as exc:  # pragma: no cover - httpx provides detail
             raise AirbyteClientError(f"Failed to list jobs for {connection_id}: {exc}") from exc
         payload: Dict[str, Any] = response.json()

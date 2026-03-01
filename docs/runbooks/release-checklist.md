@@ -28,6 +28,11 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
   - `POST /api/integrations/{provider}/sync/` returns `200`/`202`
   - `POST /api/integrations/{provider}/reconnect/` returns OAuth authorize URL
   - `POST /api/integrations/{provider}/disconnect/` pauses connection and removes credentials
+- [ ] Google Ads SDK migration status fields validate on staging tenant:
+  - `sync_engine` reports `sdk|airbyte`
+  - `fallback_active` reports boolean rollback state
+  - `parity_state` reports `unknown|pass|fail`
+  - `last_parity_passed_at` populated after parity pass
 - [ ] Snapshot freshness within SLA for demo tenant.
 - [ ] Frontend loads with `VITE_MOCK_MODE=false` and renders live data.
 - [ ] Frontend Post-MVP routes render with live API responses:
@@ -36,11 +41,20 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 ## Production Readiness
 
 - [ ] Secrets/KMS rotation verified (no logs leak secrets).
+- [ ] Google OAuth client secret rotation evidence captured (old secret revoked, refresh tokens reissued, secrets manager updated).
 - [ ] SES sender identity verified and password reset/invite emails deliver successfully.
 - [ ] Observability dashboards + alerts configured and tested.
 - [ ] Observability simulation checklist completed in staging: `docs/runbooks/observability-alert-simulations.md`.
 - [ ] dbt runs green (staging + marts + tests).
 - [ ] Airbyte syncs verified for Meta + Google sources.
+- [ ] Google Ads SDK parity gate met for each tenant before SDK primary cutover:
+  - 7 consecutive daily parity passes
+  - spend drift <= 1.0%
+  - clicks drift <= 2.0%
+  - conversions drift <= 2.0%
+- [ ] Auto-rollback controls validated:
+  - fallback to Airbyte after 2 consecutive parity failures
+  - fallback to Airbyte after 3 consecutive SDK sync failures
 - [ ] GA4 and Search Console pilot sources validated in target environment (or explicitly feature-flagged off with rollback note).
 - [ ] CORS allowlist configured with explicit origins (`CORS_ALLOWED_ORIGINS`); wildcard origins disabled in production.
 - [ ] DRF auth/public throttles configured (`DRF_THROTTLE_AUTH_BURST`, `DRF_THROTTLE_AUTH_SUSTAINED`, `DRF_THROTTLE_PUBLIC`) and smoke-tested for `429` behavior.
