@@ -104,6 +104,12 @@ env = environ.Env(
     AIRBYTE_DEFAULT_WORKSPACE_ID=(str, ""),
     AIRBYTE_DEFAULT_DESTINATION_ID=(str, ""),
     AIRBYTE_SOURCE_DEFINITION_META=(str, ""),
+    GOOGLE_ADS_SYNC_ENGINE_DEFAULT=(str, "sdk"),
+    GOOGLE_ADS_PARITY_ENABLED=(bool, True),
+    GOOGLE_ADS_PARITY_SPEND_MAX_DELTA_PCT=(float, 1.0),
+    GOOGLE_ADS_PARITY_CLICKS_MAX_DELTA_PCT=(float, 2.0),
+    GOOGLE_ADS_PARITY_CONVERSIONS_MAX_DELTA_PCT=(float, 2.0),
+    GOOGLE_ADS_TODAY_CACHE_TTL_SECONDS=(int, 300),
     DRF_THROTTLE_AUTH_BURST=(str, "10/min"),
     DRF_THROTTLE_AUTH_SUSTAINED=(str, "100/day"),
     DRF_THROTTLE_PUBLIC=(str, "120/min"),
@@ -282,6 +288,22 @@ CELERY_BEAT_SCHEDULE = {
         "task": "integrations.tasks.sync_meta_insights_incremental",
         "schedule": crontab(minute=0, hour="6-22"),
     },
+    "google-ads-sdk-sync-hourly": {
+        "task": "integrations.tasks.sync_google_ads_sdk_incremental",
+        "schedule": crontab(minute=0, hour="6-22"),
+    },
+    "google-ads-sdk-finalize-daily": {
+        "task": "integrations.tasks.sync_google_ads_sdk_finalize_daily",
+        "schedule": crontab(hour=5, minute=0),
+    },
+    "google-ads-refresh-tokens-hourly": {
+        "task": "integrations.tasks.refresh_google_ads_tokens",
+        "schedule": crontab(minute=10, hour="6-22"),
+    },
+    "google-ads-parity-daily": {
+        "task": "integrations.tasks.evaluate_google_ads_parity",
+        "schedule": crontab(hour=5, minute=40),
+    },
     "meta-sync-hierarchy-daily": {
         "task": "integrations.tasks.sync_meta_hierarchy",
         "schedule": crontab(hour=2, minute=15),
@@ -371,6 +393,34 @@ EMAIL_FROM_ADDRESS = env("EMAIL_FROM_ADDRESS")
 SES_CONFIGURATION_SET = _optional(env("SES_CONFIGURATION_SET", default=None))
 SES_EXPECTED_FROM_DOMAIN = _optional(env("SES_EXPECTED_FROM_DOMAIN", default=None))
 FRONTEND_BASE_URL = env("FRONTEND_BASE_URL")
+GOOGLE_ADS_CLIENT_ID = _optional(env("GOOGLE_ADS_CLIENT_ID", default=None))
+GOOGLE_ADS_CLIENT_SECRET = _optional(env("GOOGLE_ADS_CLIENT_SECRET", default=None))
+GOOGLE_ADS_DEVELOPER_TOKEN = _optional(env("GOOGLE_ADS_DEVELOPER_TOKEN", default=None))
+GOOGLE_ADS_OAUTH_REDIRECT_URI = _optional(env("GOOGLE_ADS_OAUTH_REDIRECT_URI", default=None))
+GOOGLE_ADS_OAUTH_SCOPES = env.list(
+    "GOOGLE_ADS_OAUTH_SCOPES",
+    default=[
+        "https://www.googleapis.com/auth/adwords",
+        "openid",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
+    ],
+)
+GOOGLE_ADS_LOGIN_CUSTOMER_ID = _optional(env("GOOGLE_ADS_LOGIN_CUSTOMER_ID", default=None))
+GOOGLE_ADS_START_DATE = env("GOOGLE_ADS_START_DATE", default="2024-01-01")
+GOOGLE_ADS_CONVERSION_WINDOW_DAYS = env.int("GOOGLE_ADS_CONVERSION_WINDOW_DAYS", default=30)
+GOOGLE_ADS_LOOKBACK_WINDOW_DAYS = env.int("GOOGLE_ADS_LOOKBACK_WINDOW_DAYS", default=3)
+GOOGLE_ADS_SYNC_ENGINE_DEFAULT = env("GOOGLE_ADS_SYNC_ENGINE_DEFAULT", default="sdk").strip().lower()
+if GOOGLE_ADS_SYNC_ENGINE_DEFAULT not in {"sdk", "airbyte"}:
+    GOOGLE_ADS_SYNC_ENGINE_DEFAULT = "sdk"
+GOOGLE_ADS_PARITY_ENABLED = env.bool("GOOGLE_ADS_PARITY_ENABLED", default=True)
+GOOGLE_ADS_PARITY_SPEND_MAX_DELTA_PCT = env.float("GOOGLE_ADS_PARITY_SPEND_MAX_DELTA_PCT", default=1.0)
+GOOGLE_ADS_PARITY_CLICKS_MAX_DELTA_PCT = env.float("GOOGLE_ADS_PARITY_CLICKS_MAX_DELTA_PCT", default=2.0)
+GOOGLE_ADS_PARITY_CONVERSIONS_MAX_DELTA_PCT = env.float(
+    "GOOGLE_ADS_PARITY_CONVERSIONS_MAX_DELTA_PCT",
+    default=2.0,
+)
+GOOGLE_ADS_TODAY_CACHE_TTL_SECONDS = env.int("GOOGLE_ADS_TODAY_CACHE_TTL_SECONDS", default=300)
 META_APP_ID = _optional(env("META_APP_ID", default=None))
 META_APP_SECRET = _optional(env("META_APP_SECRET", default=None))
 META_OAUTH_REDIRECT_URI = _optional(env("META_OAUTH_REDIRECT_URI", default=None))
@@ -399,6 +449,7 @@ META_POST_INSIGHTS_NIGHTLY_MINUTE = env.int("META_POST_INSIGHTS_NIGHTLY_MINUTE",
 AIRBYTE_DEFAULT_WORKSPACE_ID = _optional(env("AIRBYTE_DEFAULT_WORKSPACE_ID", default=None))
 AIRBYTE_DEFAULT_DESTINATION_ID = _optional(env("AIRBYTE_DEFAULT_DESTINATION_ID", default=None))
 AIRBYTE_SOURCE_DEFINITION_META = _optional(env("AIRBYTE_SOURCE_DEFINITION_META", default=None))
+AIRBYTE_SOURCE_DEFINITION_GOOGLE = _optional(env("AIRBYTE_SOURCE_DEFINITION_GOOGLE", default=None))
 
 SENTRY_DSN = _optional(env("SENTRY_DSN", default=None))
 SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="development")

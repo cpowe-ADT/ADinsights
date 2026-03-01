@@ -8,6 +8,7 @@ from integrations.models import (
     MetaConnection,
     MetaInsightPoint,
     MetaMetricRegistry,
+    MetaMetricSupportStatus,
     MetaPage,
     MetaPost,
     MetaPostInsightPoint,
@@ -150,6 +151,87 @@ def test_sync_meta_page_insights_upsert_is_idempotent(monkeypatch, user):
     assert first["rows_processed"] == 1
     assert second["rows_processed"] == 1
     assert MetaInsightPoint.all_objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_sync_meta_page_insights_retries_with_connection_token(monkeypatch, user):
+    page = _create_page(user)
+    page.set_raw_page_token("expired-page-token")
+    page.save(update_fields=["page_token_enc", "page_token_nonce", "page_token_tag", "updated_at"])
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def fetch_page_insights(self, **kwargs):  # noqa: ANN003
+            if kwargs["token"] == "expired-page-token":
+                raise MetaInsightsGraphClientError(
+                    "OAuth token expired",
+                    error_code=190,
+                    retryable=False,
+                )
+            return {
+                "data": [
+                    {
+                        "name": "page_post_engagements",
+                        "period": "day",
+                        "values": [
+                            {
+                                "value": 12,
+                                "end_time": "2026-02-18T08:00:00+0000",
+                            }
+                        ],
+                    }
+                ]
+            }
+
+    monkeypatch.setattr("integrations.tasks.MetaInsightsGraphClient.from_settings", lambda: DummyClient())
+
+    result = sync_meta_page_insights.run(page_pk=str(page.pk), metrics=["page_post_engagements"])
+    assert result["rows_processed"] == 1
+    assert MetaInsightPoint.all_objects.filter(page=page, metric_key="page_post_engagements").exists()
+    support = MetaMetricSupportStatus.all_objects.get(
+        tenant=page.tenant,
+        page=page,
+        level=MetaMetricRegistry.LEVEL_PAGE,
+        metric_key="page_post_engagements",
+    )
+    assert support.supported is True
+
+
+@pytest.mark.django_db
+def test_sync_meta_page_insights_marks_support_error_for_permission_failure(monkeypatch, user):
+    page = _create_page(user)
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def fetch_page_insights(self, **kwargs):  # noqa: ANN003
+            raise MetaInsightsGraphClientError(
+                "Missing permission: read_insights",
+                error_code=10,
+                retryable=False,
+            )
+
+    monkeypatch.setattr("integrations.tasks.MetaInsightsGraphClient.from_settings", lambda: DummyClient())
+
+    result = sync_meta_page_insights.run(page_pk=str(page.pk), metrics=["page_post_engagements"])
+    assert result["rows_processed"] == 0
+    support = MetaMetricSupportStatus.all_objects.get(
+        tenant=page.tenant,
+        page=page,
+        level=MetaMetricRegistry.LEVEL_PAGE,
+        metric_key="page_post_engagements",
+    )
+    assert support.supported is False
+    assert support.last_error["error_code"] == 10
 
 
 @pytest.mark.django_db

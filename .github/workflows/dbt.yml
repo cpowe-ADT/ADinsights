@@ -50,6 +50,8 @@ jobs:
           ./scripts/dbt-wrapper.sh "dbt" "$DBT_PROJECT_DIR" "$DBT_PROFILES_DIR" deps
 
       - name: Seed CI fixtures
+        env:
+          CI_SKIP_FIXTURE_VIEWS: 'true'
         run: |
           ./scripts/dbt-wrapper.sh "dbt" "$DBT_PROJECT_DIR" "$DBT_PROFILES_DIR" seed --full-refresh
 

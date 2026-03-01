@@ -1,4 +1,5 @@
 import apiClient, { appendQueryParams, type QueryParams } from './apiClient';
+import { buildRuntimeContextPayload } from './runtimeContext';
 
 export type MetricStatus = 'ACTIVE' | 'DEPRECATED' | 'INVALID' | 'UNKNOWN';
 export const META_OAUTH_FLOW_SESSION_KEY = 'adinsights.meta.oauth.flow';
@@ -50,8 +51,11 @@ export interface MetaMetricOption {
   level: 'PAGE' | 'POST';
   status: MetricStatus;
   replacement_metric_key: string;
+  supported_periods?: string[];
+  supports_breakdowns?: string[];
   title: string;
   description: string;
+  is_default?: boolean;
 }
 
 export interface MetaOverviewCard {
@@ -96,6 +100,11 @@ export interface MetaPostsResponse {
   since: string;
   until: string;
   last_synced_at: string | null;
+  count?: number;
+  limit?: number;
+  offset?: number;
+  next_offset?: number | null;
+  prev_offset?: number | null;
   metric_availability: Record<string, MetricAvailabilityEntry>;
   results: MetaPostListItem[];
 }
@@ -132,19 +141,44 @@ export interface MetaSyncResponse {
   tasks: Record<string, string>;
 }
 
+export type MetaExportJob = {
+  id: string;
+  report_id: string;
+  export_format: 'csv' | 'pdf' | 'png';
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  artifact_path: string;
+  error_message: string;
+  metadata: Record<string, unknown>;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 function withQuery(path: string, params?: QueryParams): string {
   return params ? appendQueryParams(path, params) : path;
 }
 
 export async function startMetaOAuth(authType?: 'rerequest') {
+  const runtimeContext = buildRuntimeContextPayload();
+  const hasRuntimeContext = Boolean(runtimeContext.client_origin || runtimeContext.client_port);
   return apiClient.post<{ authorize_url: string; state: string; redirect_uri: string }>(
     '/meta/connect/start/',
-    authType ? { auth_type: authType } : {},
+    authType || hasRuntimeContext
+      ? {
+          ...(authType ? { auth_type: authType } : {}),
+          ...(hasRuntimeContext ? { runtime_context: runtimeContext } : {}),
+        }
+      : {},
   );
 }
 
 export async function callbackMetaOAuth(code: string, state: string): Promise<MetaOAuthCallbackResponse> {
-  return apiClient.post<MetaOAuthCallbackResponse>('/meta/connect/callback/', { code, state });
+  const runtimeContext = buildRuntimeContextPayload();
+  const hasRuntimeContext = Boolean(runtimeContext.client_origin || runtimeContext.client_port);
+  return apiClient.post<MetaOAuthCallbackResponse>(
+    '/meta/connect/callback/',
+    hasRuntimeContext ? { code, state, runtime_context: runtimeContext } : { code, state },
+  );
 }
 
 export async function selectMetaPage(pageId: string): Promise<{ page_id: string; selected: boolean }> {
@@ -169,7 +203,17 @@ export async function loadMetaPageOverview(
 
 export async function loadMetaPagePosts(
   pageId: string,
-  params?: { date_preset?: string; since?: string; until?: string; limit?: number },
+  params?: {
+    date_preset?: string;
+    since?: string;
+    until?: string;
+    limit?: number;
+    offset?: number;
+    q?: string;
+    media_type?: string;
+    sort?: string;
+    sort_metric?: string;
+  },
 ): Promise<MetaPostsResponse> {
   const payload = await apiClient.get<MetaPostsResponse>(withQuery(`/meta/pages/${pageId}/posts/`, params));
   return {
@@ -180,6 +224,13 @@ export async function loadMetaPagePosts(
       message: item.message ?? item.message_snippet,
     })),
   };
+}
+
+export async function loadMetaPageTimeseries(
+  pageId: string,
+  params: { metric: string; period?: string; date_preset?: string; since?: string; until?: string },
+): Promise<MetaTimeseriesResponse> {
+  return apiClient.get<MetaTimeseriesResponse>(withQuery(`/meta/pages/${pageId}/timeseries/`, params));
 }
 
 export async function loadMetaPostDetail(postId: string): Promise<MetaPostDetailResponse> {
@@ -198,4 +249,38 @@ export async function refreshMetaPageInsights(
   payload?: { mode?: 'incremental' | 'backfill' },
 ): Promise<MetaSyncResponse> {
   return apiClient.post<MetaSyncResponse>(`/meta/pages/${pageId}/sync/`, payload ?? {});
+}
+
+export async function listMetaMetrics(params: { level: 'PAGE' | 'POST'; include_all?: boolean }): Promise<{
+  results: MetaMetricOption[];
+  count: number;
+}> {
+  return apiClient.get<{ results: MetaMetricOption[]; count: number }>(withQuery('/meta/metrics/', params));
+}
+
+export async function listMetaPageExports(pageId: string): Promise<MetaExportJob[]> {
+  return apiClient.get<MetaExportJob[]>(`/meta/pages/${pageId}/exports/`);
+}
+
+export async function createMetaPageExport(
+  pageId: string,
+  payload: {
+    export_format: 'csv' | 'pdf' | 'png';
+    date_preset?: string;
+    since?: string;
+    until?: string;
+    trend_metric?: string;
+    trend_period?: string;
+    posts_metric?: string;
+    posts_sort?: string;
+    q?: string;
+    media_type?: string;
+    posts_limit?: number;
+  },
+): Promise<MetaExportJob> {
+  return apiClient.post<MetaExportJob>(`/meta/pages/${pageId}/exports/`, payload);
+}
+
+export async function downloadExportArtifact(exportJobId: string) {
+  return apiClient.download(`/exports/${exportJobId}/download/`);
 }

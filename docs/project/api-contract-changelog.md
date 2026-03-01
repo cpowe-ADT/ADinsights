@@ -13,6 +13,31 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-02-23**
+  - Endpoint: `GET /api/analytics/google-ads/workspace/summary/`
+  - Change: Added non-breaking composite workspace summary payload for unified Google Ads first paint. Response extends executive payload shape with `alerts_summary`, `governance_summary`, `top_insights`, and `workspace_generated_at`.
+  - Impact: Unified `/dashboards/google-ads` workspace can load KPI strip, top insights rail, and governance/alert badges in one call while keeping existing tab-detail endpoints unchanged. Legacy dashboard routes (`/dashboards/google-ads/*`) continue through compatibility redirects to query-driven workspace tabs.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-22**
+  - Endpoint: `GET /api/analytics/google-ads/executive/`, `GET /api/analytics/google-ads/campaigns/`, `GET /api/analytics/google-ads/campaigns/{campaign_id}/`, `GET /api/analytics/google-ads/channels/`, `GET /api/analytics/google-ads/ad-groups/`, `GET /api/analytics/google-ads/ads/`, `GET /api/analytics/google-ads/assets/`, `GET /api/analytics/google-ads/keywords/`, `GET /api/analytics/google-ads/search-terms/`, `GET /api/analytics/google-ads/search-term-insights/`, `GET /api/analytics/google-ads/pmax/asset-groups/`, `GET /api/analytics/google-ads/breakdowns/`, `GET /api/analytics/google-ads/conversions/actions/`, `GET /api/analytics/google-ads/budgets/pacing/`, `GET /api/analytics/google-ads/change-events/`, `GET /api/analytics/google-ads/recommendations/`, `POST /api/analytics/google-ads/exports/`, `GET /api/analytics/google-ads/exports/{job_id}/`, `GET /api/analytics/google-ads/exports/{job_id}/download/`, `GET|POST|PATCH|DELETE /api/analytics/google-ads/saved-views/`, `GET|POST|PATCH|DELETE /api/analytics/google-ads/account-assignments/`
+  - Change: Added MVP Google Ads analytics API surface for executive reporting, campaign/channel/keyword/search-term/PMax/breakdown/conversion/pacing/governance/recommendation views, plus Google Ads-specific export jobs and saved views. Added account-assignment management endpoint for tenant-scoped account RBAC and customer filtering in reporting endpoints.
+  - Impact: Frontend can render dedicated Google Ads dashboard navigation and data pages using tenant-scoped server aggregation without changing existing integration setup/sync/status routes.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-21**
+  - Endpoint: `GET /api/integrations/meta/setup/`, `GET /api/integrations/google_ads/setup/`, `POST /api/integrations/meta/oauth/start/`, `POST /api/integrations/meta/oauth/exchange/`, `POST /api/meta/connect/callback/`
+  - Change: Added additive `runtime_context` diagnostics payload on setup responses containing resolved redirect details (`redirect_uri`, `redirect_source`), request host/origin metadata, launcher profile/runtime URLs (`DEV_ACTIVE_PROFILE`, `DEV_BACKEND_URL`, `DEV_FRONTEND_URL` when present), and optional dataset source echo. Added optional `runtime_context` request payload support on Meta OAuth start/exchange/callback for tracking-only metadata (non-breaking).
+  - Impact: Frontend/operator setup flows can verify localhost profile/port alignment and redirect-source precedence without changing existing required response fields.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend)
+- **2026-02-21**
+  - Endpoint: `GET /api/integrations/google_ads/status/`, `POST /api/integrations/google_ads/sync/`, `POST /api/integrations/google_ads/provision/`
+  - Change: Added Google Ads SDK migration status metadata (`sync_engine`, `fallback_active`, `parity_state`, `last_parity_passed_at`) and runtime sync-engine preference handling in provisioning. Sync endpoint now dispatches SDK task execution when tenant sync state engine is `sdk`; otherwise it preserves existing Airbyte trigger behavior.
+  - Impact: Existing Google Ads routes remain path-compatible while clients gain visibility into SDK/rollback state during migration.
+  - Owner: Maya (Integrations) + Sofia (Backend Metrics)
+- **2026-02-21**
+  - Endpoint: `GET /api/meta/metrics/`, `GET /api/meta/pages/{page_id}/timeseries/`, `GET /api/meta/pages/{page_id}/posts/`, `GET|POST /api/meta/pages/{page_id}/exports/`, `GET /api/exports/{export_job_id}/download/`
+  - Change: Added Meta Page metric registry listing (`/api/meta/metrics/`) and page timeseries (`/api/meta/pages/{page_id}/timeseries/`) to support metric/period pickers. Extended `/api/meta/pages/{page_id}/posts/` with filtering/sorting/pagination (`q`, `media_type`, `sort`, `sort_metric`, `limit`, `offset`) and added pagination metadata fields (`count`, `next_offset`, `prev_offset`). Added dashboard export lifecycle for Facebook Pages: `/api/meta/pages/{page_id}/exports/` creates queued export jobs (CSV/PDF/PNG) and `/api/exports/{export_job_id}/download/` streams completed artifacts.
+  - Impact: Facebook Pages dashboard can render server-derived timeseries by period, paginate/filter posts without client-side overfetch, and generate downloadable exports using aggregated metrics only.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
 - **2026-02-20**
   - Endpoint: `POST /api/meta/connect/start/`, `POST /api/meta/connect/callback/`, `POST /api/integrations/meta/oauth/exchange/`, `POST /api/integrations/meta/pages/{page_id}/select/`
   - Change: Split OAuth flow intent for Page Insights vs marketing exchange. `/api/meta/connect/start/` now uses page-only OAuth scopes from `META_PAGE_INSIGHTS_OAUTH_SCOPES`, while `/api/meta/connect/callback/` executes page-connection persistence (`MetaConnection` + `MetaPage`) and returns `default_page_id` plus bootstrap task ids. Marketing exchange rejects page-flow state with `code=wrong_oauth_flow`. Scope sanitization now strips invalid Facebook Login scopes (`read_insights`, `instagram_*`) case-insensitively before building authorize URL.
