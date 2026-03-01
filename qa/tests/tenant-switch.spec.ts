@@ -21,7 +21,10 @@ const metricsSnapshot = {
 } as const;
 
 test.describe('tenant switching', () => {
-  test('switches tenants and uses fixture fallbacks when APIs are unavailable', async ({ page, mockMode }) => {
+  test('switches tenants and uses fixture fallbacks when APIs are unavailable', async ({
+    page,
+    mockMode,
+  }) => {
     test.skip(!mockMode, 'This spec runs in mock mode for deterministic UI coverage.');
     const dashboard = new DashboardPage(page);
 
@@ -48,11 +51,13 @@ test.describe('tenant switching', () => {
     });
 
     await page.route('**/mock/tenants.json', (route) => fulfillJson(route, TENANTS));
-    await page.route('**/sample_metrics.json', (route) => fulfillJson(route, metricsSnapshot));
+    await page.route('**/sample_metrics.json**', (route) => fulfillJson(route, metricsSnapshot));
 
     await dashboard.open();
     await dashboard.waitForMetricsLoaded(campaignSnapshot.rows.length);
-    await expect(page.locator('.snapshot-indicator__text', { hasText: 'Demo dataset active' })).toBeVisible();
+    await expect(
+      page.locator('.snapshot-indicator__text', { hasText: 'Demo dataset active' }),
+    ).toBeVisible();
     await page.getByRole('button', { name: /Choose a tenant|Switch dashboards/i }).click();
 
     // Select the second tenant and confirm the header updates.
@@ -66,6 +71,6 @@ test.describe('tenant switching', () => {
     expect(requestCounts.metricsApi).toBe(0);
 
     await page.unroute('**/mock/tenants.json');
-    await page.unroute('**/sample_metrics.json');
+    await page.unroute('**/sample_metrics.json**');
   });
 });

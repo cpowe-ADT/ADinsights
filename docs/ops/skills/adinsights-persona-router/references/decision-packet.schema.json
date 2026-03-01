@@ -117,11 +117,7 @@
     },
     "downstream_recommendations": {
       "type": "object",
-      "required": [
-        "invoke_scope_gatekeeper",
-        "invoke_contract_guard",
-        "invoke_release_readiness"
-      ],
+      "required": ["invoke_scope_gatekeeper", "invoke_contract_guard", "invoke_release_readiness"],
       "properties": {
         "invoke_scope_gatekeeper": { "type": "boolean" },
         "invoke_contract_guard": { "type": "boolean" },

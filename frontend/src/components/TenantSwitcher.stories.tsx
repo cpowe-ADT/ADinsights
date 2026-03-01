@@ -77,28 +77,32 @@ const StoryAuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [tenantId]);
 
-  const contextValue = useMemo<AuthContextValue>(() => ({
-    status: 'authenticated',
-    isAuthenticated: true,
-    accessToken: 'story-token',
-    tenantId,
-    user: { email: 'analyst@example.com' },
-    error: undefined,
-    login: async () => undefined,
-    logout: () => undefined,
-    setActiveTenant: (nextTenantId?: string, label?: string) => {
-      if (!nextTenantId) {
-        return;
-      }
-      setTenantId(nextTenantId);
-      useDashboardStore.setState({
-        activeTenantId: nextTenantId,
-        activeTenantLabel: label ?? tenantFixtures.find((tenant) => tenant.id === nextTenantId)?.name,
-        lastLoadedTenantId: nextTenantId,
-      });
-    },
-    statusMessage: undefined,
-  }), [tenantId]);
+  const contextValue = useMemo<AuthContextValue>(
+    () => ({
+      status: 'authenticated',
+      isAuthenticated: true,
+      accessToken: 'story-token',
+      tenantId,
+      user: { email: 'analyst@example.com' },
+      error: undefined,
+      login: async () => undefined,
+      logout: () => undefined,
+      setActiveTenant: (nextTenantId?: string, label?: string) => {
+        if (!nextTenantId) {
+          return;
+        }
+        setTenantId(nextTenantId);
+        useDashboardStore.setState({
+          activeTenantId: nextTenantId,
+          activeTenantLabel:
+            label ?? tenantFixtures.find((tenant) => tenant.id === nextTenantId)?.name,
+          lastLoadedTenantId: nextTenantId,
+        });
+      },
+      statusMessage: undefined,
+    }),
+    [tenantId],
+  );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };

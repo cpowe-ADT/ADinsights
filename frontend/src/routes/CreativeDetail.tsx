@@ -11,7 +11,14 @@ import { formatCurrency, formatNumber, formatPercent, formatRatio } from '../lib
 import useDashboardStore from '../state/useDashboardStore';
 
 const CreativeNotFoundIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2">
+  <svg
+    width="48"
+    height="48"
+    viewBox="0 0 48 48"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+  >
     <rect x="10" y="12" width="28" height="20" rx="3" />
     <path d="M18 18h12" strokeLinecap="round" />
     <path d="M18 24h12" strokeLinecap="round" />

@@ -137,9 +137,7 @@ export const buildFilterQueryParams = (filters: FilterBarState): Record<string, 
     [FILTER_QUERY_KEYS.endDate]: end,
   };
 
-  const channelValues = filters.channels
-    .map(normalizeChannelValue)
-    .filter(Boolean);
+  const channelValues = filters.channels.map(normalizeChannelValue).filter(Boolean);
   if (channelValues.length > 0) {
     params[FILTER_QUERY_KEYS.channels] = Array.from(new Set(channelValues)).join(',');
   }
@@ -194,8 +192,8 @@ export const parseFilterQueryParams = (
     dateRangeParam && DATE_RANGE_PRESETS.has(dateRangeParam as DateRangePreset)
       ? (dateRangeParam as DateRangePreset)
       : startParam || endParam
-      ? 'custom'
-      : fallback.dateRange;
+        ? 'custom'
+        : fallback.dateRange;
 
   return {
     dateRange: resolvedDateRange,

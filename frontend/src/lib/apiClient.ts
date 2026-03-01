@@ -13,6 +13,7 @@ export type QueryParams = Record<string, QueryParamValue>;
 export type ApiErrorPayload = {
   detail?: string;
   message?: string;
+  code?: string;
   errors?: string[];
   warnings?: string[];
 };
@@ -124,6 +125,10 @@ function buildHeaders(baseHeaders: RequestOptions['headers'], includeAuth: boole
 async function parseErrorResponse(
   response: Response,
 ): Promise<{ message: string; payload?: ApiErrorPayload }> {
+  const fallbackMessage =
+    response.status >= 500
+      ? `Server error (${response.status}). Please check backend logs.`
+      : `Request failed with status ${response.status}`;
   try {
     const contentType = response.headers.get('content-type');
     if (contentType?.includes('application/json')) {
@@ -133,10 +138,13 @@ async function parseErrorResponse(
       if (message) {
         return { message, payload };
       }
-      return { message: `Request failed with status ${response.status}`, payload };
+      return { message: fallbackMessage, payload };
     } else {
       const text = await response.text();
       if (text) {
+        if (response.status >= 500) {
+          return { message: fallbackMessage };
+        }
         return { message: text };
       }
     }
@@ -144,7 +152,7 @@ async function parseErrorResponse(
     console.warn('Failed to parse API error response', error);
   }
 
-  return { message: `Request failed with status ${response.status}` };
+  return { message: fallbackMessage };
 }
 
 async function requestInternal<T>(
@@ -244,12 +252,42 @@ export async function del<T>(
   return requestInternal<T>(path, { ...options, method: 'DELETE' });
 }
 
+export async function download(
+  path: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<{ blob: Blob; filename: string; contentType: string }> {
+  const url = resolveUrl(path);
+  const headers = buildHeaders(undefined, true);
+  headers.set('Accept', '*/*');
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+    signal: options.signal,
+  });
+
+  if (!response.ok) {
+    const { message, payload } = await parseErrorResponse(response);
+    throw new ApiError(message, response.status, payload);
+  }
+
+  const contentType = response.headers.get('content-type') ?? 'application/octet-stream';
+  const disposition = response.headers.get('content-disposition') ?? '';
+  const match = disposition.match(/filename=\"?([^\";]+)\"?/i);
+  const filename = match?.[1] ? match[1] : 'download';
+
+  const blob = await response.blob();
+  return { blob, filename, contentType };
+}
+
 const apiClient = {
   request,
   get,
   post,
   patch,
   delete: del,
+  download,
   setAccessToken,
   setRefreshHandler,
   setUnauthorizedHandler,
