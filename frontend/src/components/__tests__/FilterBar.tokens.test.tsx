@@ -65,12 +65,22 @@ const renderFilterBar = (theme: ThemeName) => {
 };
 
 const expectAppStylesUseTokens = () => {
-  expect(appStylesSource).toMatch(/\.filter-bar[\s\S]*background:\s*var\(--shell-filterbar-surface\)/);
-  expect(appStylesSource).toMatch(/\.filter-bar[\s\S]*border-bottom:\s*1px\s+solid\s+var\(--shell-filterbar-border\)/);
-  expect(appStylesSource).toMatch(/\.filter-chip[\s\S]*background:\s*var\(--shell-filterchip-surface\)/);
+  expect(appStylesSource).toMatch(
+    /\.filter-bar[\s\S]*background:\s*var\(--shell-filterbar-surface\)/,
+  );
+  expect(appStylesSource).toMatch(
+    /\.filter-bar[\s\S]*border-bottom:\s*1px\s+solid\s+var\(--shell-filterbar-border\)/,
+  );
+  expect(appStylesSource).toMatch(
+    /\.filter-chip[\s\S]*background:\s*var\(--shell-filterchip-surface\)/,
+  );
   expect(appStylesSource).toMatch(/\.filter-chip[\s\S]*color:\s*var\(--shell-filterchip-text\)/);
-  expect(appStylesSource).toMatch(/\.filter-chip--active[\s\S]*background:\s*var\(--shell-filterchip-active\)/);
-  expect(appStylesSource).toMatch(/\.filter-chip--active[\s\S]*color:\s*var\(--shell-filterchip-text-active\)/);
+  expect(appStylesSource).toMatch(
+    /\.filter-chip--active[\s\S]*background:\s*var\(--shell-filterchip-active\)/,
+  );
+  expect(appStylesSource).toMatch(
+    /\.filter-chip--active[\s\S]*color:\s*var\(--shell-filterchip-text-active\)/,
+  );
 };
 
 const expectThemeStylesDeclareTokens = (theme: ThemeName) => {

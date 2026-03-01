@@ -82,8 +82,8 @@ free from theme-specific logic.
 
 ## Component checklist (dashboard refresh)
 
-| Component | Light theme | Dark theme | Notes |
-| --- | --- | --- | --- |
-| KPI stat cards | ✅ | ✅ | Uses `--stat-card-*` tokens and matches spacing guidance above. |
-| Parish map | ✅ | ✅ | Legend/tooltips consume `--map-*` tokens; hover/focus contrast ≥3:1. |
-| Campaign data table | ✅ | ✅ | Tokenized rows, hover, selected, and density controls; focus rings preserved. |
+| Component           | Light theme | Dark theme | Notes                                                                         |
+| ------------------- | ----------- | ---------- | ----------------------------------------------------------------------------- |
+| KPI stat cards      | ✅          | ✅         | Uses `--stat-card-*` tokens and matches spacing guidance above.               |
+| Parish map          | ✅          | ✅         | Legend/tooltips consume `--map-*` tokens; hover/focus contrast ≥3:1.          |
+| Campaign data table | ✅          | ✅         | Tokenized rows, hover, selected, and density controls; focus rings preserved. |

@@ -14,11 +14,13 @@ Scope date: 2026-02-19 (America/Jamaica).
 ## Folder-isolated PR tracks
 
 1. `backend/`
+
 - Purpose: stabilize `/api/meta/*`, OAuth scope gating, sync lifecycle, retry/backoff, and tenant-safe persistence.
 - Required checks: `ruff check backend && pytest -q backend`.
 - Owner review: Sofia + Maya.
 
 2. `dbt/`
+
 - Purpose: fix staging/snapshot compatibility and harden Meta marts (`campaign history`, `daily performance`, `ad performance`).
 - Required checks:
   - `make dbt-deps`
@@ -28,11 +30,13 @@ Scope date: 2026-02-19 (America/Jamaica).
 - Owner review: Priya.
 
 3. `frontend/`
+
 - Purpose: resilient Meta state handling (`loading`, `stale`, `retry`, `permission`, `token-expired`) and route integration.
 - Required checks: `cd frontend && npm ci && npm test -- --run && npm run build`.
 - Owner review: Lina.
 
 4. `infrastructure/airbyte/`
+
 - Purpose: template/provisioning parity and contract checks without secret leakage.
 - Required checks:
   - `cd infrastructure/airbyte && docker compose config`
@@ -40,11 +44,13 @@ Scope date: 2026-02-19 (America/Jamaica).
 - Owner review: Maya.
 
 5. `qa/`
+
 - Purpose: Playwright coverage for OAuth callback success/missing-scope paths and 429/403 UI behavior.
 - Required checks: `cd qa && npx playwright test tests/meta-integration.spec.ts`.
 - Owner review: Lina + Sofia.
 
 6. `docs/`
+
 - Purpose: contract log, matrix, operations runbook, and app-review validation evidence pack.
 - Required docs:
   - `docs/project/api-contract-changelog.md`

@@ -1,10 +1,12 @@
 # dbt Failure Runbook
 
 ## Trigger
+
 - dbt runs fail in CI or scheduled jobs.
 - Warehouse-derived metrics endpoints return stale data.
 
 ## Triage
+
 - From repo root, ensure dependencies resolve:
   - `make dbt-deps`
 - Validate the dbt project parses:
@@ -14,6 +16,7 @@
   - `dbt/target/logs/dbt.log`
 
 ## Recovery
+
 - Re-run staging models:
   - `dbt --project-dir dbt run --select staging`
 - Re-run tests for failing models:
@@ -21,6 +24,7 @@
 - If schema changes are involved, coordinate a rollback and re-run.
 
 ## Escalation
+
 - Escalate if:
   - Failures persist across two runs.
   - Source schemas changed upstream without versioned updates.
