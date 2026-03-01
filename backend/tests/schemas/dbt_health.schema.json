@@ -11,29 +11,29 @@
     "status"
   ],
   "properties": {
-    "component": {"enum": ["dbt"]},
-    "run_results_path": {"type": "string"},
-    "generated_at": {"type": "string"},
+    "component": { "enum": ["dbt"] },
+    "run_results_path": { "type": "string" },
+    "generated_at": { "type": "string" },
     "failing_models": {
       "type": "array",
-      "items": {"type": "string"}
+      "items": { "type": "string" }
     },
     "failing_models_detail": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "unique_id": {"type": ["string", "null"]},
-          "status": {"type": ["string", "null"]},
-          "message": {"type": ["string", "null"]},
-          "adapter_response": {"type": ["object", "null"]}
+          "unique_id": { "type": ["string", "null"] },
+          "status": { "type": ["string", "null"] },
+          "message": { "type": ["string", "null"] },
+          "adapter_response": { "type": ["object", "null"] }
         },
         "additionalProperties": true
       }
     },
-    "status": {"enum": ["ok"]},
-    "stale": {"type": "boolean"},
-    "detail": {"type": "string"}
+    "status": { "enum": ["ok"] },
+    "stale": { "type": "boolean" },
+    "detail": { "type": "string" }
   },
   "additionalProperties": true
 }

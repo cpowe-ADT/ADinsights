@@ -10,6 +10,7 @@ description: Evaluate ADinsights scope risk for AI coding sessions. Use when req
 Assess proposed or detected file scope against ADinsights guardrails, then return an advisory decision packet that includes escalation routing, folder-level tests, and scope-owned docs maintenance signals.
 
 ## Context Load Order
+
 1. Open `AGENTS.md`.
 2. Open `docs/workstreams.md`.
 3. Open `docs/ops/escalation-rules.md`.
@@ -17,7 +18,9 @@ Assess proposed or detected file scope against ADinsights guardrails, then retur
 5. Open `references/scope-rules.yaml`.
 
 ## Inputs and Evidence Priority
+
 Use these inputs in this order:
+
 1. `--changed-files-from-git` output if provided and non-empty.
 2. Explicit path hints (`--changed-file` and `--path`).
 3. Prompt-extracted path hints.
@@ -25,7 +28,9 @@ Use these inputs in this order:
 If no reliable path evidence exists, return `WARN_UNCLEAR_SCOPE`.
 
 ## Decision Outcomes
+
 Return exactly one status:
+
 - `PASS_SINGLE_SCOPE`
 - `WARN_UNCLEAR_SCOPE`
 - `ESCALATE_CROSS_SCOPE`
@@ -36,7 +41,9 @@ Always treat results as advisory-first; do not hard-block.
 Contract risk is signal-first and delegated to contract guard for final contract classification.
 
 ## Output Contract
+
 Return a scope packet with:
+
 - `schema_version` (`1.1.0`)
 - `scope_status`
 - `touched_top_level_folders`
@@ -53,10 +60,12 @@ Return a scope packet with:
   - `invoke_release_readiness`
 
 ## Router Handoff
+
 If a persona-router packet indicates `invoke_scope_gatekeeper=true`, run this skill before implementation planning.
 When `contract_risk_signal=true`, invoke `adinsights-contract-guard` before merge planning.
 
 ## Guardrails
+
 - Keep single-top-level-folder rule as the default path.
 - Route cross-folder changes to Raj.
 - Route architecture-sensitive changes to Raj + Mira.
@@ -64,6 +73,7 @@ When `contract_risk_signal=true`, invoke `adinsights-contract-guard` before merg
 - Keep recommendations aligned with AGENTS test matrix and runbooks.
 
 ## Maintenance
+
 - Keep rules in `references/scope-rules.yaml` synchronized with AGENTS and workstream docs.
 - Run `scripts/validate_scope_rules.py` after rules edits.
 - Run `scripts/run_scope_golden_tests.py` before syncing.
