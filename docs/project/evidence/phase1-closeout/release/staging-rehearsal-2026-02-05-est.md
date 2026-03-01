@@ -9,10 +9,12 @@ Execute Phase 1 release rehearsal sequence in dependency order and capture readi
 ## Sequence and outcomes
 
 1. Backend checks
+
 - Command: `ruff check backend && pytest -q backend`
 - Result: PASS
 
 2. dbt checks
+
 - Commands:
   - `make dbt-deps`
   - `DBT_PROFILES_DIR=dbt dbt run --project-dir dbt --select staging`
@@ -21,10 +23,12 @@ Execute Phase 1 release rehearsal sequence in dependency order and capture readi
 - Result: PASS
 
 3. Airbyte compose readiness
+
 - Command: `cd infrastructure/airbyte && docker compose config`
 - Result: PASS
 
 4. API health smoke probe
+
 - Probed endpoints:
   - `/api/health/`
   - `/api/health/airbyte/`

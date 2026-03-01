@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
+
 from django.db.models import Q, QuerySet
 from django.utils.dateparse import parse_date
 from rest_framework import permissions
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
+
+from core.db_error_responses import schema_out_of_date_response
 
 from .meta_serializers import (
     MetaAccountSerializer,
@@ -17,6 +21,8 @@ from .meta_serializers import (
     MetaInsightsQuerySerializer,
 )
 from .models import Ad, AdAccount, AdSet, Campaign, RawPerformanceRecord
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize_account_id(value: str) -> str:
@@ -175,6 +181,20 @@ class MetaAdsListView(TenantScopedMetaListView):
 
 class MetaInsightsListView(TenantScopedMetaListView):
     serializer_class = MetaInsightSerializer
+
+    def list(self, request, *args, **kwargs):
+        try:
+            return super().list(request, *args, **kwargs)
+        except Exception as exc:  # pragma: no cover - exercised by API tests
+            schema_response = schema_out_of_date_response(
+                exc=exc,
+                logger=logger,
+                endpoint="analytics.meta_insights.list",
+                tenant_id=getattr(request.user, "tenant_id", None),
+            )
+            if schema_response is not None:
+                return schema_response
+            raise
 
     def get_queryset(self):
         serializer = MetaInsightsQuerySerializer(data=self.request.query_params)

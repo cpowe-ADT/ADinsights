@@ -2,6 +2,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
+from django.db import OperationalError
 from django.urls import reverse
 
 from accounts.models import Tenant
@@ -219,3 +220,23 @@ def test_meta_insights_endpoint_validates_date_bounds(api_client, user):
     )
     assert response.status_code == 400
     assert "until" in response.json()
+
+
+@pytest.mark.django_db
+def test_meta_insights_returns_schema_out_of_date_when_db_is_behind(api_client, user, monkeypatch):
+    _authenticate(api_client, user)
+
+    def _raise_schema_error(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise OperationalError("no such column: analytics_rawperformancerecord.level")
+
+    monkeypatch.setattr(
+        "analytics.meta_views.RawPerformanceRecord.objects.select_related",
+        _raise_schema_error,
+    )
+
+    response = api_client.get(reverse("meta-insights"))
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["code"] == "schema_out_of_date"
+    assert "Run backend migrations" in payload["detail"]

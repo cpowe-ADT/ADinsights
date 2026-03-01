@@ -4,16 +4,11 @@
   "type": "object",
   "required": ["tenant_id", "generated_at", "metrics"],
   "properties": {
-    "tenant_id": {"type": "string"},
-    "generated_at": {"type": "string"},
+    "tenant_id": { "type": "string" },
+    "generated_at": { "type": "string" },
     "metrics": {
       "type": "object",
-      "required": [
-        "campaign_metrics",
-        "creative_metrics",
-        "budget_metrics",
-        "parish_metrics"
-      ],
+      "required": ["campaign_metrics", "creative_metrics", "budget_metrics", "parish_metrics"],
       "properties": {
         "campaign_metrics": {
           "type": "object",
@@ -30,12 +25,12 @@
                 "averageRoas"
               ],
               "properties": {
-                "currency": {"type": "string"},
-                "totalSpend": {"type": "number"},
-                "totalImpressions": {"type": "number"},
-                "totalClicks": {"type": "number"},
-                "totalConversions": {"type": "number"},
-                "averageRoas": {"type": "number"}
+                "currency": { "type": "string" },
+                "totalSpend": { "type": "number" },
+                "totalImpressions": { "type": "number" },
+                "totalClicks": { "type": "number" },
+                "totalConversions": { "type": "number" },
+                "averageRoas": { "type": "number" }
               },
               "additionalProperties": true
             },
@@ -45,11 +40,11 @@
                 "type": "object",
                 "required": ["date", "spend", "conversions", "clicks", "impressions"],
                 "properties": {
-                  "date": {"type": "string"},
-                  "spend": {"type": "number"},
-                  "conversions": {"type": "number"},
-                  "clicks": {"type": "number"},
-                  "impressions": {"type": "number"}
+                  "date": { "type": "string" },
+                  "spend": { "type": "number" },
+                  "conversions": { "type": "number" },
+                  "clicks": { "type": "number" },
+                  "impressions": { "type": "number" }
                 },
                 "additionalProperties": true
               }
@@ -76,21 +71,21 @@
                   "endDate"
                 ],
                 "properties": {
-                  "id": {"type": "string"},
-                  "name": {"type": "string"},
-                  "platform": {"type": "string"},
-                  "status": {"type": "string"},
-                  "parish": {"type": "string"},
-                  "spend": {"type": "number"},
-                  "impressions": {"type": "number"},
-                  "clicks": {"type": "number"},
-                  "conversions": {"type": "number"},
-                  "roas": {"type": "number"},
-                  "ctr": {"type": "number"},
-                  "cpc": {"type": "number"},
-                  "cpm": {"type": "number"},
-                  "startDate": {"type": "string"},
-                  "endDate": {"type": "string"}
+                  "id": { "type": "string" },
+                  "name": { "type": "string" },
+                  "platform": { "type": "string" },
+                  "status": { "type": "string" },
+                  "parish": { "type": "string" },
+                  "spend": { "type": "number" },
+                  "impressions": { "type": "number" },
+                  "clicks": { "type": "number" },
+                  "conversions": { "type": "number" },
+                  "roas": { "type": "number" },
+                  "ctr": { "type": "number" },
+                  "cpc": { "type": "number" },
+                  "cpm": { "type": "number" },
+                  "startDate": { "type": "string" },
+                  "endDate": { "type": "string" }
                 },
                 "additionalProperties": true
               }
@@ -117,18 +112,18 @@
               "ctr"
             ],
             "properties": {
-              "id": {"type": "string"},
-              "name": {"type": "string"},
-              "campaignId": {"type": "string"},
-              "campaignName": {"type": "string"},
-              "platform": {"type": "string"},
-              "parish": {"type": "string"},
-              "spend": {"type": "number"},
-              "impressions": {"type": "number"},
-              "clicks": {"type": "number"},
-              "conversions": {"type": "number"},
-              "roas": {"type": "number"},
-              "ctr": {"type": "number"}
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "campaignId": { "type": "string" },
+              "campaignName": { "type": "string" },
+              "platform": { "type": "string" },
+              "parish": { "type": "string" },
+              "spend": { "type": "number" },
+              "impressions": { "type": "number" },
+              "clicks": { "type": "number" },
+              "conversions": { "type": "number" },
+              "roas": { "type": "number" },
+              "ctr": { "type": "number" }
             },
             "additionalProperties": true
           }
@@ -149,18 +144,18 @@
               "endDate"
             ],
             "properties": {
-              "id": {"type": "string"},
-              "campaignName": {"type": "string"},
+              "id": { "type": "string" },
+              "campaignName": { "type": "string" },
               "parishes": {
                 "type": "array",
-                "items": {"type": "string"}
+                "items": { "type": "string" }
               },
-              "monthlyBudget": {"type": "number"},
-              "spendToDate": {"type": "number"},
-              "projectedSpend": {"type": "number"},
-              "pacingPercent": {"type": "number"},
-              "startDate": {"type": "string"},
-              "endDate": {"type": "string"}
+              "monthlyBudget": { "type": "number" },
+              "spendToDate": { "type": "number" },
+              "projectedSpend": { "type": "number" },
+              "pacingPercent": { "type": "number" },
+              "startDate": { "type": "string" },
+              "endDate": { "type": "string" }
             },
             "additionalProperties": true
           }
@@ -180,14 +175,14 @@
               "currency"
             ],
             "properties": {
-              "parish": {"type": "string"},
-              "spend": {"type": "number"},
-              "impressions": {"type": "number"},
-              "clicks": {"type": "number"},
-              "conversions": {"type": "number"},
-              "roas": {"type": "number"},
-              "campaignCount": {"type": "number"},
-              "currency": {"type": "string"}
+              "parish": { "type": "string" },
+              "spend": { "type": "number" },
+              "impressions": { "type": "number" },
+              "clicks": { "type": "number" },
+              "conversions": { "type": "number" },
+              "roas": { "type": "number" },
+              "campaignCount": { "type": "number" },
+              "currency": { "type": "string" }
             },
             "additionalProperties": true
           }

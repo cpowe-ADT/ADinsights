@@ -20,14 +20,7 @@
     "cross_stream": true,
     "strong_conflict_count": 0
   },
-  "touched_streams": [
-    "S1",
-    "S2",
-    "S3",
-    "S4",
-    "S5",
-    "S6"
-  ],
+  "touched_streams": ["S1", "S2", "S3", "S4", "S5", "S6"],
   "required_tests": [
     "ruff check backend",
     "pytest backend/tests/test_airbyte_*.py",
@@ -66,10 +59,7 @@
   ],
   "escalation_decision": {
     "advisory_only": true,
-    "required_reviewers": [
-      "Raj",
-      "Mira"
-    ],
+    "required_reviewers": ["Raj", "Mira"],
     "reason": "Multiple streams detected in routing evidence."
   },
   "recommended_report_template": "C",
@@ -963,14 +953,7 @@
   "signals": {
     "explicit_persona_id": null,
     "explicit_stream_ids": [],
-    "folder_stream_ids": [
-      "S1",
-      "S2",
-      "S3",
-      "S4",
-      "S5",
-      "S6"
-    ],
+    "folder_stream_ids": ["S1", "S2", "S3", "S4", "S5", "S6"],
     "keyword_stream_ids": [],
     "explicit_paths": [],
     "changed_files": [
@@ -1114,27 +1097,12 @@
     "prompt_paths": [],
     "used_git_changed_files": true,
     "folder_matches": {
-      "S1": [
-        "backend/integrations",
-        "infrastructure/airbyte"
-      ],
-      "S2": [
-        "dbt/",
-        "dbt/models",
-        "dbt/snapshots"
-      ],
-      "S3": [
-        "backend/analytics"
-      ],
-      "S4": [
-        "frontend/src"
-      ],
-      "S5": [
-        "backend/core/crypto"
-      ],
-      "S6": [
-        "backend/core/observability.py"
-      ]
+      "S1": ["backend/integrations", "infrastructure/airbyte"],
+      "S2": ["dbt/", "dbt/models", "dbt/snapshots"],
+      "S3": ["backend/analytics"],
+      "S4": ["frontend/src"],
+      "S5": ["backend/core/crypto"],
+      "S6": ["backend/core/observability.py"]
     },
     "keyword_matches": {},
     "contract_sensitive": true,
