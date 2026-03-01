@@ -21,7 +21,12 @@ interface StoreBootstrapProps {
   children: ReactNode;
 }
 
-const StoreBootstrap = ({ tenantId, datasetMode = 'dummy', snapshotVariant = 'fresh', children }: StoreBootstrapProps) => {
+const StoreBootstrap = ({
+  tenantId,
+  datasetMode = 'dummy',
+  snapshotVariant = 'fresh',
+  children,
+}: StoreBootstrapProps) => {
   const datasetSnapshot = useRef(useDatasetStore.getState());
   const dashboardSnapshot = useRef(useDashboardStore.getState());
 
@@ -50,7 +55,10 @@ const StoreBootstrap = ({ tenantId, datasetMode = 'dummy', snapshotVariant = 'fr
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = resolveUrl(input);
-      if (url.includes('/dashboards/parish-geometry/') || url.includes('/analytics/parish-geometry/')) {
+      if (
+        url.includes('/dashboards/parish-geometry/') ||
+        url.includes('/analytics/parish-geometry/')
+      ) {
         return originalFetch('/jm_parishes.json', init);
       }
       return originalFetch(input, init);
@@ -131,7 +139,12 @@ interface DashboardStoryProps {
   snapshotVariant?: 'fresh' | 'stale' | 'pending';
 }
 
-const DashboardStory = ({ tenantId, theme, datasetMode = 'dummy', snapshotVariant = 'fresh' }: DashboardStoryProps) => {
+const DashboardStory = ({
+  tenantId,
+  theme,
+  datasetMode = 'dummy',
+  snapshotVariant = 'fresh',
+}: DashboardStoryProps) => {
   const { setTheme } = useTheme();
   const snapshot = getDemoSnapshot(tenantId);
 
@@ -163,7 +176,11 @@ const DashboardStory = ({ tenantId, theme, datasetMode = 'dummy', snapshotVarian
 
   return (
     <AuthContext.Provider value={authValue}>
-      <StoreBootstrap tenantId={snapshot.id} datasetMode={datasetMode} snapshotVariant={snapshotVariant}>
+      <StoreBootstrap
+        tenantId={snapshot.id}
+        datasetMode={datasetMode}
+        snapshotVariant={snapshotVariant}
+      >
         <CampaignDashboard />
       </StoreBootstrap>
     </AuthContext.Provider>

@@ -7,7 +7,14 @@ import { useAuth } from '../auth/AuthContext';
 import useDashboardStore from '../state/useDashboardStore';
 
 const BudgetEmptyIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2">
+  <svg
+    width="48"
+    height="48"
+    viewBox="0 0 48 48"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+  >
     <rect x="10" y="12" width="28" height="20" rx="3" />
     <path d="M16 20h16M16 26h10" strokeLinecap="round" />
     <path d="M28 30h8" strokeLinecap="round" />

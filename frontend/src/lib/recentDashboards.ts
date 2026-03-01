@@ -46,7 +46,7 @@ const fallbackDashboards: RecentDashboard[] = [
 ];
 
 const resolveRecentDashboards = (payload: RecentDashboardsResponse): RecentDashboard[] => {
-  const items = Array.isArray(payload) ? payload : payload.results ?? [];
+  const items = Array.isArray(payload) ? payload : (payload.results ?? []);
   return items
     .map((item) => {
       const id = item.id ? String(item.id) : '';

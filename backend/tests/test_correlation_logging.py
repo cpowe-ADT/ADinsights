@@ -56,3 +56,30 @@ def test_correlation_id_generated_when_missing(api_client):
     finally:
         logger.removeHandler(handler)
     assert getattr(record, "correlation_id", None) == generated
+
+
+@pytest.mark.django_db
+def test_access_log_includes_runtime_context_markers(api_client, user):
+    api_client.force_authenticate(user=user)
+    handler = _ListHandler()
+    logger = logging.getLogger("api.access")
+    logger.addHandler(handler)
+    logger.setLevel("INFO")
+
+    response = api_client.post(
+        "/api/integrations/meta/oauth/start/",
+        {"runtime_context": {"dataset_source": "demo"}},
+        format="json",
+        HTTP_ORIGIN="http://localhost:5175",
+    )
+
+    assert response.status_code in {200, 503}
+    try:
+        record = next(r for r in handler.records if r.getMessage() == "request.completed")
+    finally:
+        logger.removeHandler(handler)
+
+    runtime = getattr(record, "runtime", None)
+    assert isinstance(runtime, dict)
+    assert runtime.get("origin") == "http://localhost:5175"
+    assert runtime.get("dataset_markers", {}).get("dataset_source") == "demo"

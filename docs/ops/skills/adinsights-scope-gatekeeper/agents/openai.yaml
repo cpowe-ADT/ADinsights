@@ -1,4 +1,4 @@
 interface:
-  display_name: "ADinsights Scope Gatekeeper"
-  short_description: "Advisory scope and escalation checks"
-  default_prompt: "Use $adinsights-scope-gatekeeper to validate single-folder scope and escalation routing."
+  display_name: 'ADinsights Scope Gatekeeper'
+  short_description: 'Advisory scope and escalation checks'
+  default_prompt: 'Use $adinsights-scope-gatekeeper to validate single-folder scope and escalation routing.'
