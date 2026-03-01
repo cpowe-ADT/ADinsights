@@ -28,6 +28,24 @@ describe('metaPageInsights client', () => {
     expect(apiMocks.get).toHaveBeenCalledWith('/meta/pages/');
   });
 
+  it('starts meta oauth with runtime context payload', async () => {
+    apiMocks.post.mockResolvedValue({
+      authorize_url: 'https://facebook.com/dialog/oauth',
+      state: 'state',
+      redirect_uri: 'http://localhost:5175/dashboards/data-sources',
+    });
+    const { startMetaOAuth } = await import('./metaPageInsights');
+    await startMetaOAuth();
+    expect(apiMocks.post).toHaveBeenCalledWith(
+      '/meta/connect/start/',
+      expect.objectContaining({
+        runtime_context: expect.objectContaining({
+          client_origin: expect.any(String),
+        }),
+      }),
+    );
+  });
+
   it('loads overview with date preset query params', async () => {
     apiMocks.get.mockResolvedValue({
       page_id: '1',

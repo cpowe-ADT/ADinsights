@@ -5,9 +5,11 @@ import { ApiError } from '../lib/apiClient';
 const apiMocks = vi.hoisted(() => ({
   startMetaOAuth: vi.fn(),
   callbackMetaOAuth: vi.fn(),
+  listMetaMetrics: vi.fn(),
   loadMetaPages: vi.fn(),
   loadMetaPageOverview: vi.fn(),
   loadMetaPagePosts: vi.fn(),
+  loadMetaPageTimeseries: vi.fn(),
   loadMetaPostDetail: vi.fn(),
   loadMetaPostTimeseries: vi.fn(),
   refreshMetaPageInsights: vi.fn(),
@@ -19,9 +21,11 @@ vi.mock('../lib/metaPageInsights', () => ({
   META_OAUTH_FLOW_SESSION_KEY: 'adinsights.meta.oauth.flow',
   startMetaOAuth: apiMocks.startMetaOAuth,
   callbackMetaOAuth: apiMocks.callbackMetaOAuth,
+  listMetaMetrics: apiMocks.listMetaMetrics,
   loadMetaPages: apiMocks.loadMetaPages,
   loadMetaPageOverview: apiMocks.loadMetaPageOverview,
   loadMetaPagePosts: apiMocks.loadMetaPagePosts,
+  loadMetaPageTimeseries: apiMocks.loadMetaPageTimeseries,
   loadMetaPostDetail: apiMocks.loadMetaPostDetail,
   loadMetaPostTimeseries: apiMocks.loadMetaPostTimeseries,
   refreshMetaPageInsights: apiMocks.refreshMetaPageInsights,
@@ -67,6 +71,16 @@ describe('useMetaPageInsightsStore', () => {
       },
       primary_metric: 'page_post_engagements',
     });
+    apiMocks.loadMetaPageTimeseries.mockResolvedValue({
+      page_id: 'page-1',
+      metric: 'page_post_engagements',
+      resolved_metric: 'page_post_engagements',
+      period: 'day',
+      metric_availability: {
+        page_post_engagements: { supported: true, last_checked_at: null, reason: '' },
+      },
+      points: [{ end_time: '2026-01-20T00:00:00Z', value: 10 }],
+    });
 
     const { default: useMetaPageInsightsStore } = await import('./useMetaPageInsightsStore');
     await useMetaPageInsightsStore.getState().loadOverviewAndTimeseries('page-1');
@@ -91,7 +105,7 @@ describe('useMetaPageInsightsStore', () => {
   it('captures errors on posts load', async () => {
     apiMocks.loadMetaPagePosts.mockRejectedValue(new ApiError('Forbidden', 403, { detail: 'Forbidden' }));
     const { default: useMetaPageInsightsStore } = await import('./useMetaPageInsightsStore');
-    await useMetaPageInsightsStore.getState().loadPosts('page-1');
+    await useMetaPageInsightsStore.getState().loadPosts('page-1', { offset: 0 });
     const state = useMetaPageInsightsStore.getState();
     expect(state.postsStatus).toBe('error');
     expect(state.error).toContain('Forbidden');

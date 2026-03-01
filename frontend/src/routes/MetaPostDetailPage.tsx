@@ -10,6 +10,8 @@ import '../styles/dashboard.css';
 const MetaPostDetailPage = () => {
   const { postId = '' } = useParams();
   const [metric, setMetric] = useState('post_media_view');
+  const [period, setPeriod] = useState('lifetime');
+  const [showFullMessage, setShowFullMessage] = useState(false);
 
   const {
     postStatus,
@@ -49,9 +51,9 @@ const MetaPostDetailPage = () => {
     if (!postId || !metric) {
       return;
     }
-    setFilters({ metric });
+    setFilters({ metric, period });
     void loadPostTimeseries(postId);
-  }, [postId, metric, loadPostTimeseries, setFilters]);
+  }, [postId, metric, period, loadPostTimeseries, setFilters]);
 
   const points = (postTimeseries?.points ?? []).map((point) => ({
     date: point.end_time.slice(0, 10),
@@ -91,7 +93,26 @@ const MetaPostDetailPage = () => {
         <>
           <article className="panel">
             <h3>{postDetail.post_id}</h3>
-            <p>{postDetail.message || 'No message'}</p>
+            {postDetail.message ? (
+              <>
+                <p>
+                  {showFullMessage || postDetail.message.length <= 280
+                    ? postDetail.message
+                    : `${postDetail.message.slice(0, 280)}…`}
+                </p>
+                {postDetail.message.length > 280 ? (
+                  <button
+                    type="button"
+                    className="button tertiary"
+                    onClick={() => setShowFullMessage((prev) => !prev)}
+                  >
+                    {showFullMessage ? 'Show less' : 'Show more'}
+                  </button>
+                ) : null}
+              </>
+            ) : (
+              <p>No message</p>
+            )}
             <p>
               <strong>Media:</strong> {postDetail.media_type || '—'}
             </p>
@@ -118,6 +139,15 @@ const MetaPostDetailPage = () => {
                 ))}
               </select>
               <MetricAvailabilityBadge metric={metric} availability={postDetail.metric_availability[metric]} />
+            </div>
+            <div className="meta-posts-metric-select" style={{ marginTop: '0.75rem' }}>
+              <label htmlFor="meta-post-detail-period">Period</label>
+              <select id="meta-post-detail-period" value={period} onChange={(event) => setPeriod(event.target.value)}>
+                <option value="lifetime">lifetime</option>
+                <option value="day">day</option>
+                <option value="week">week</option>
+                <option value="days_28">days_28</option>
+              </select>
             </div>
           </article>
 
