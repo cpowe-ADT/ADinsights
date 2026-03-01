@@ -6,7 +6,8 @@ models:
     tests:
       - unique_combination:
           arguments:
-            combination: ['tenant_id', 'source_platform', 'ad_account_id', 'campaign_id', 'dbt_valid_from']
+            combination:
+              ['tenant_id', 'source_platform', 'ad_account_id', 'campaign_id', 'dbt_valid_from']
     columns:
       - name: tenant_id
         tests:
@@ -35,7 +36,8 @@ models:
     tests:
       - unique_combination:
           arguments:
-            combination: ['tenant_id', 'source_platform', 'ad_account_id', 'adset_id', 'dbt_valid_from']
+            combination:
+              ['tenant_id', 'source_platform', 'ad_account_id', 'adset_id', 'dbt_valid_from']
     columns:
       - name: tenant_id
         tests:
@@ -56,7 +58,8 @@ models:
     tests:
       - unique_combination:
           arguments:
-            combination: ['tenant_id', 'source_platform', 'ad_account_id', 'ad_id', 'dbt_valid_from']
+            combination:
+              ['tenant_id', 'source_platform', 'ad_account_id', 'ad_id', 'dbt_valid_from']
     columns:
       - name: tenant_id
         tests:

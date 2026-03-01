@@ -67,13 +67,20 @@ const AuditLogPage = () => {
         <div>
           <p className="dashboardEyebrow">Operations</p>
           <h1 className="dashboardHeading">Audit Log</h1>
-          <p className="phase2-page__subhead">Tenant-scoped operational and security event history.</p>
+          <p className="phase2-page__subhead">
+            Tenant-scoped operational and security event history.
+          </p>
         </div>
         <div className="phase2-row-actions">
           <button type="button" className="button secondary" onClick={() => void load()}>
             Refresh
           </button>
-          <button type="button" className="button tertiary" onClick={exportJson} disabled={rows.length === 0}>
+          <button
+            type="button"
+            className="button tertiary"
+            onClick={exportJson}
+            disabled={rows.length === 0}
+          >
             Export JSON
           </button>
         </div>
@@ -100,7 +107,9 @@ const AuditLogPage = () => {
         </label>
       </div>
 
-      <p className="phase2-note">Showing {rows.length} of {count} events.</p>
+      <p className="phase2-note">
+        Showing {rows.length} of {count} events.
+      </p>
 
       {rows.length === 0 ? (
         <DashboardState

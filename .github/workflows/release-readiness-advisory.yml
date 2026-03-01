@@ -64,6 +64,7 @@ jobs:
           cat changed-files.txt
 
       - name: Run preflight skillchain (advisory)
+        continue-on-error: true
         run: |
           set -euo pipefail
           ARGS=()
