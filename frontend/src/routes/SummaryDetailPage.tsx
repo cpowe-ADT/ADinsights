@@ -58,7 +58,8 @@ const SummaryDetailPage = () => {
           <p className="dashboardEyebrow">AI Summaries</p>
           <h1 className="dashboardHeading">{summary.title}</h1>
           <p className="phase2-page__subhead">
-            Generated {formatRelativeTime(summary.generated_at)} ({formatAbsoluteTime(summary.generated_at)})
+            Generated {formatRelativeTime(summary.generated_at)} (
+            {formatAbsoluteTime(summary.generated_at)})
           </p>
         </div>
         <div className="phase2-row-actions">

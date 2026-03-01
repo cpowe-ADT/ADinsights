@@ -129,15 +129,15 @@ export const useDatasetStore = create<DatasetState>()(
             demoTenants.length === 0
               ? existingDemoTenantId
               : demoTenants.some((tenant) => tenant.id === existingDemoTenantId)
-              ? existingDemoTenantId
-              : demoTenants[0].id;
+                ? existingDemoTenantId
+                : demoTenants[0].id;
 
           const resolvedError =
             resolvedMode === 'live' && !liveAvailable
               ? 'Live warehouse metrics are unavailable.'
               : resolvedMode === 'dummy' && !demoAvailable
-              ? 'Demo dataset is unavailable.'
-              : undefined;
+                ? 'Demo dataset is unavailable.'
+                : undefined;
 
           set({
             adapters: keys,

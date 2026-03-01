@@ -38,7 +38,8 @@ const DatasetStory = ({ datasetState }: StoryArgs) => {
     useDashboardStore.setState(
       {
         ...dashboardSnapshot,
-        activeTenantId: datasetState.demoTenantId ?? dashboardSnapshot.activeTenantId ?? demoTenants[0]?.id,
+        activeTenantId:
+          datasetState.demoTenantId ?? dashboardSnapshot.activeTenantId ?? demoTenants[0]?.id,
         loadAll: async () => undefined,
       },
       true,

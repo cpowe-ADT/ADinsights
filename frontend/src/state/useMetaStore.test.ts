@@ -94,14 +94,12 @@ describe('useMetaStore', () => {
   });
 
   it('sets error state and recovers on retryAll', async () => {
-    metaMocks.loadMetaAccounts
-      .mockRejectedValueOnce(new Error('429 from API'))
-      .mockResolvedValue({
-        count: 0,
-        next: null,
-        previous: null,
-        results: [],
-      });
+    metaMocks.loadMetaAccounts.mockRejectedValueOnce(new Error('429 from API')).mockResolvedValue({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    });
     metaMocks.loadMetaCampaigns.mockResolvedValue({
       count: 0,
       next: null,
