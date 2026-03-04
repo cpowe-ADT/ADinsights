@@ -14,7 +14,7 @@ prometheus-client==0.20.0
 jsonschema==4.22.0
 inflection==0.5.1
 uritemplate==4.1.1
-PyYAML==6.0.2
+PyYAML==6.0.3
 Faker==25.2.0
 pytest==9.0.2
 pytest-django==4.8.0
