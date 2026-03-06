@@ -11,7 +11,11 @@ from django.utils import timezone
 from integrations.airbyte import AirbyteClientConfigurationError, AirbyteClientError
 from integrations.airbyte.service import AirbyteSyncService
 from integrations.models import AirbyteConnection, AirbyteJobTelemetry, PlatformCredential, TenantAirbyteSyncStatus
-from integrations.tasks import trigger_scheduled_airbyte_syncs
+from integrations.tasks import (
+    RETRY_REASON_AIRBYTE_CLIENT_CONFIGURATION,
+    RETRY_REASON_AIRBYTE_CLIENT_ERROR,
+    trigger_scheduled_airbyte_syncs,
+)
 
 
 @pytest.mark.django_db
@@ -166,6 +170,145 @@ def test_sync_airbyte_command(monkeypatch, settings):
 
 
 @pytest.mark.django_db
+def test_reconcile_airbyte_sync_status_dry_run(tenant):
+    now = timezone.now()
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta stale",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=60,
+        last_synced_at=now - timedelta(hours=3),
+        last_job_status="running",
+        last_job_id="142",
+        last_job_updated_at=now - timedelta(hours=3),
+    )
+    TenantAirbyteSyncStatus.update_for_connection(connection)
+
+    output = io.StringIO()
+    call_command("reconcile_airbyte_sync_status", "--stale-minutes", "120", stdout=output)
+
+    connection.refresh_from_db()
+    assert connection.last_job_status == "running"
+    assert "Dry-run" in output.getvalue()
+    assert "candidates=1" in output.getvalue()
+
+
+@pytest.mark.django_db
+def test_reconcile_airbyte_sync_status_apply_updates_remote_failure(monkeypatch, settings, tenant):
+    from integrations.management.commands import reconcile_airbyte_sync_status as command_module
+
+    settings.AIRBYTE_API_URL = "http://airbyte"
+    settings.AIRBYTE_API_TOKEN = "token"
+    now = timezone.now()
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta stale",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=60,
+        last_synced_at=now - timedelta(hours=3),
+        last_job_status="running",
+        last_job_id="142",
+        last_job_updated_at=now - timedelta(hours=3),
+    )
+    TenantAirbyteSyncStatus.update_for_connection(connection)
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN002, ANN003
+            return None
+
+        def latest_job(self, connection_id: str):
+            assert connection_id == str(connection.connection_id)
+            return {
+                "job": {
+                    "id": 145,
+                    "status": "failed",
+                    "createdAt": int((now - timedelta(minutes=2)).timestamp()),
+                    "updatedAt": int((now - timedelta(minutes=1)).timestamp()),
+                    "errorMessage": "upstream timeout",
+                }
+            }
+
+    monkeypatch.setattr(
+        command_module.AirbyteClient, "from_settings", classmethod(lambda cls: DummyClient())
+    )
+
+    output = io.StringIO()
+    call_command("reconcile_airbyte_sync_status", "--apply", stdout=output)
+
+    connection.refresh_from_db()
+    status = TenantAirbyteSyncStatus.all_objects.get(tenant=tenant)
+    assert connection.last_job_status == "failed"
+    assert connection.last_job_id == "145"
+    assert "timeout" in connection.last_job_error
+    assert status.last_job_status == "failed"
+    assert "updated=1" in output.getvalue()
+
+
+@pytest.mark.django_db
+def test_reconcile_airbyte_sync_status_force_fails_remote_running(monkeypatch, settings, tenant):
+    from integrations.management.commands import reconcile_airbyte_sync_status as command_module
+
+    settings.AIRBYTE_API_URL = "http://airbyte"
+    settings.AIRBYTE_API_TOKEN = "token"
+    now = timezone.now()
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta stale",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=60,
+        last_synced_at=now - timedelta(hours=4),
+        last_job_status="running",
+        last_job_id="142",
+        last_job_updated_at=now - timedelta(hours=4),
+    )
+    TenantAirbyteSyncStatus.update_for_connection(connection)
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN002, ANN003
+            return None
+
+        def latest_job(self, connection_id: str):
+            assert connection_id == str(connection.connection_id)
+            return {
+                "job": {
+                    "id": 142,
+                    "status": "running",
+                    "createdAt": int((now - timedelta(hours=4)).timestamp()),
+                    "updatedAt": int((now - timedelta(hours=4)).timestamp()),
+                }
+            }
+
+    monkeypatch.setattr(
+        command_module.AirbyteClient, "from_settings", classmethod(lambda cls: DummyClient())
+    )
+
+    output = io.StringIO()
+    call_command(
+        "reconcile_airbyte_sync_status",
+        "--apply",
+        "--force-stale-failure",
+        stdout=output,
+    )
+
+    connection.refresh_from_db()
+    assert connection.last_job_status == "failed"
+    assert "Marked failed by reconcile_airbyte_sync_status" in connection.last_job_error
+    assert "forced_failed=1" in output.getvalue()
+
+
+@pytest.mark.django_db
 def test_airbyte_celery_task(monkeypatch, tenant):
     connection = AirbyteConnection.objects.create(
         tenant=tenant,
@@ -249,8 +392,15 @@ def test_airbyte_celery_task_retries_on_configuration_error(monkeypatch):
     def raise_config_error(cls):  # noqa: ANN001
         raise AirbyteClientConfigurationError("AIRBYTE_API_URL must be configured")
 
-    def fake_retry_with_backoff(self, *, exc, base_delay=None, max_delay=None):
-        raise RetryCalled({"exc": exc, "base_delay": base_delay, "max_delay": max_delay})
+    def fake_retry_with_backoff(self, *, exc, base_delay=None, max_delay=None, reason=None):
+        raise RetryCalled(
+            {
+                "exc": exc,
+                "base_delay": base_delay,
+                "max_delay": max_delay,
+                "reason": reason,
+            }
+        )
 
     monkeypatch.setattr(tasks_module.AirbyteClient, "from_settings", classmethod(raise_config_error))
     monkeypatch.setattr(tasks_module.BaseAdInsightsTask, "retry_with_backoff", fake_retry_with_backoff)
@@ -262,6 +412,7 @@ def test_airbyte_celery_task_retries_on_configuration_error(monkeypatch):
     assert isinstance(payload["exc"], AirbyteClientConfigurationError)
     assert payload["base_delay"] == 300
     assert payload["max_delay"] == 900
+    assert payload["reason"] == RETRY_REASON_AIRBYTE_CLIENT_CONFIGURATION
 
 
 @pytest.mark.django_db
@@ -285,8 +436,15 @@ def test_airbyte_celery_task_retries_on_client_error(monkeypatch):
         def sync_due_connections(self):
             raise AirbyteClientError("boom")
 
-    def fake_retry_with_backoff(self, *, exc, base_delay=None, max_delay=None):
-        raise RetryCalled({"exc": exc, "base_delay": base_delay, "max_delay": max_delay})
+    def fake_retry_with_backoff(self, *, exc, base_delay=None, max_delay=None, reason=None):
+        raise RetryCalled(
+            {
+                "exc": exc,
+                "base_delay": base_delay,
+                "max_delay": max_delay,
+                "reason": reason,
+            }
+        )
 
     monkeypatch.setattr(
         tasks_module.AirbyteClient,
@@ -304,3 +462,4 @@ def test_airbyte_celery_task_retries_on_client_error(monkeypatch):
     assert isinstance(payload["exc"], AirbyteClientError)
     assert payload["base_delay"] is None
     assert payload["max_delay"] is None
+    assert payload["reason"] == RETRY_REASON_AIRBYTE_CLIENT_ERROR

@@ -18,6 +18,36 @@ _RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
 _RETRYABLE_META_ERROR_CODES = {1, 2, 4, 17, 32, 613, 80001}
 _DEFAULT_PAGE_CAP = 50
 _DEFAULT_ROW_CAP = 10000
+META_GRAPH_RETRY_REASON_TRANSPORT = "meta_graph_transport_error"
+META_GRAPH_RETRY_REASON_RATE_LIMITED = "meta_graph_rate_limited"
+META_GRAPH_RETRY_REASON_UPSTREAM_5XX = "meta_graph_upstream_5xx"
+META_GRAPH_RETRY_REASON_TRANSIENT = "meta_graph_transient_error"
+META_GRAPH_RETRY_REASON_RETRYABLE = "meta_graph_retryable"
+
+
+def _classify_retry_reason(*, status_code: int, payload: Any) -> str:
+    if status_code == 429:
+        return META_GRAPH_RETRY_REASON_RATE_LIMITED
+    if status_code in {500, 502, 503, 504}:
+        return META_GRAPH_RETRY_REASON_UPSTREAM_5XX
+    if not isinstance(payload, dict):
+        return META_GRAPH_RETRY_REASON_RETRYABLE
+    error_payload = payload.get("error")
+    if not isinstance(error_payload, dict):
+        return META_GRAPH_RETRY_REASON_RETRYABLE
+    if bool(error_payload.get("is_transient")):
+        return META_GRAPH_RETRY_REASON_TRANSIENT
+
+    raw_code = error_payload.get("code")
+    try:
+        code = int(raw_code) if raw_code is not None else None
+    except (TypeError, ValueError):
+        code = None
+    if code in {4, 17, 32, 613, 80001}:
+        return META_GRAPH_RETRY_REASON_RATE_LIMITED
+    if code in _RETRYABLE_META_ERROR_CODES:
+        return META_GRAPH_RETRY_REASON_TRANSIENT
+    return META_GRAPH_RETRY_REASON_RETRYABLE
 
 
 class MetaGraphConfigurationError(RuntimeError):
@@ -479,7 +509,7 @@ class MetaGraphClient:
                 self._observe_retry(
                     request_name=request_name,
                     attempt=attempt,
-                    reason="transport_error",
+                    reason=META_GRAPH_RETRY_REASON_TRANSPORT,
                     status_code=None,
                 )
                 self._sleep_with_backoff(attempt)
@@ -507,7 +537,10 @@ class MetaGraphClient:
                 self._observe_retry(
                     request_name=request_name,
                     attempt=attempt,
-                    reason="http_retryable",
+                    reason=_classify_retry_reason(
+                        status_code=response.status_code,
+                        payload=payload,
+                    ),
                     status_code=response.status_code,
                 )
                 self._sleep_with_backoff(attempt)

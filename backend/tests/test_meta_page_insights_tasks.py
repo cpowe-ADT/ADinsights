@@ -14,7 +14,17 @@ from integrations.models import (
     MetaPostInsightPoint,
 )
 from integrations.services.meta_graph_client import MetaInsightsGraphClientError
-from integrations.tasks import sync_meta_page_insights, sync_meta_post_insights
+from integrations.tasks import (
+    RETRY_REASON_META_GRAPH_CLIENT_ERROR,
+    RETRY_REASON_META_GRAPH_RATE_LIMITED,
+    RETRY_REASON_META_GRAPH_TRANSPORT,
+    RETRY_REASON_META_GRAPH_UPSTREAM_TIMEOUT,
+    RETRY_REASON_META_GRAPH_UPSTREAM_5XX,
+    _classify_meta_insights_retry_reason,
+    sync_meta_page_insights,
+    sync_meta_post_insights,
+    sync_page_posts,
+)
 
 
 def _create_page(user) -> MetaPage:
@@ -276,3 +286,148 @@ def test_sync_meta_post_insights_upserts_post_points(monkeypatch, user):
     point = MetaPostInsightPoint.all_objects.get(post=post, metric_key="post_reactions_like_total")
     assert point.value_num == 226
     assert point.end_time == datetime(2026, 2, 10, 8, 0, tzinfo=dt_timezone.utc)
+
+
+@pytest.mark.django_db
+def test_sync_meta_page_insights_retries_retryable_errors_with_reason(monkeypatch, user):
+    page = _create_page(user)
+    captured: dict[str, object] = {}
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def fetch_page_insights(self, **kwargs):  # noqa: ANN003
+            raise MetaInsightsGraphClientError(
+                "Upstream unavailable",
+                status_code=503,
+                retryable=True,
+            )
+
+    def fake_retry(self, *, exc=None, base_delay=None, max_delay=None, reason=None):  # noqa: ANN001
+        captured["exc"] = exc
+        captured["reason"] = reason
+        raise RuntimeError("retry scheduled")
+
+    monkeypatch.setattr("integrations.tasks.MetaInsightsGraphClient.from_settings", lambda: DummyClient())
+    monkeypatch.setattr("integrations.tasks.BaseAdInsightsTask.retry_with_backoff", fake_retry)
+
+    with pytest.raises(RuntimeError, match="retry scheduled"):
+        sync_meta_page_insights.run(page_pk=str(page.pk), metrics=["page_post_engagements"])
+
+    assert isinstance(captured["exc"], MetaInsightsGraphClientError)
+    assert captured["reason"] == RETRY_REASON_META_GRAPH_UPSTREAM_5XX
+
+
+@pytest.mark.django_db
+def test_sync_meta_post_insights_retries_retryable_errors_with_reason(monkeypatch, user):
+    page = _create_page(user)
+    captured: dict[str, object] = {}
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def fetch_page_posts(self, **kwargs):  # noqa: ANN003
+            return [
+                {
+                    "id": "page-1_111",
+                    "message": "Hello",
+                    "permalink_url": "https://example.com/post/111",
+                    "created_time": "2026-02-10T08:00:00+0000",
+                    "updated_time": "2026-02-10T08:00:00+0000",
+                }
+            ]
+
+        def fetch_post_insights(self, **kwargs):  # noqa: ANN003
+            raise MetaInsightsGraphClientError(
+                "Rate limit exceeded",
+                error_code=80001,
+                retryable=True,
+            )
+
+    def fake_retry(self, *, exc=None, base_delay=None, max_delay=None, reason=None):  # noqa: ANN001
+        captured["exc"] = exc
+        captured["reason"] = reason
+        raise RuntimeError("retry scheduled")
+
+    monkeypatch.setattr("integrations.tasks.MetaInsightsGraphClient.from_settings", lambda: DummyClient())
+    monkeypatch.setattr("integrations.tasks.BaseAdInsightsTask.retry_with_backoff", fake_retry)
+
+    with pytest.raises(RuntimeError, match="retry scheduled"):
+        sync_meta_post_insights.run(page_pk=str(page.pk), metrics=["post_reactions_like_total"])
+
+    assert isinstance(captured["exc"], MetaInsightsGraphClientError)
+    assert captured["reason"] == RETRY_REASON_META_GRAPH_RATE_LIMITED
+
+
+@pytest.mark.django_db
+def test_sync_page_posts_retries_retryable_errors_with_reason(monkeypatch, user):
+    _create_page(user)
+    captured: dict[str, object] = {}
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def fetch_page_posts(self, **kwargs):  # noqa: ANN003
+            raise MetaInsightsGraphClientError(
+                "Upstream unavailable",
+                status_code=503,
+                retryable=True,
+            )
+
+    def fake_retry(self, *, exc=None, base_delay=None, max_delay=None, reason=None):  # noqa: ANN001
+        captured["exc"] = exc
+        captured["reason"] = reason
+        raise RuntimeError("retry scheduled")
+
+    monkeypatch.setattr("integrations.tasks.MetaInsightsGraphClient.from_settings", lambda: DummyClient())
+    monkeypatch.setattr("integrations.tasks.BaseAdInsightsTask.retry_with_backoff", fake_retry)
+
+    with pytest.raises(RuntimeError, match="retry scheduled"):
+        sync_page_posts.run(page_id="page-1", mode="incremental")
+
+    assert isinstance(captured["exc"], MetaInsightsGraphClientError)
+    assert captured["reason"] == RETRY_REASON_META_GRAPH_UPSTREAM_5XX
+
+
+@pytest.mark.parametrize(
+    ("exc", "expected_reason"),
+    [
+        (
+            MetaInsightsGraphClientError(
+                "gateway timeout",
+                status_code=504,
+                retryable=True,
+            ),
+            RETRY_REASON_META_GRAPH_UPSTREAM_TIMEOUT,
+        ),
+        (
+            MetaInsightsGraphClientError(
+                "transport",
+                retryable=True,
+            ),
+            RETRY_REASON_META_GRAPH_TRANSPORT,
+        ),
+        (
+            MetaInsightsGraphClientError(
+                "conflict",
+                status_code=409,
+                retryable=True,
+            ),
+            RETRY_REASON_META_GRAPH_CLIENT_ERROR,
+        ),
+    ],
+)
+def test_classify_meta_insights_retry_reason_prefers_explicit_reason_groups(exc, expected_reason):
+    assert _classify_meta_insights_retry_reason(exc) == expected_reason

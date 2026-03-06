@@ -24,7 +24,7 @@ This runbook explains how to triage and remediate failures in the repository's G
 
 - From the workflow **Summary** tab, scroll to the **Artifacts** section to download bundles such as `frontend-dist.zip`, `dbt-staging-artifacts`, or `backend-ci-summary.json`.
 - The `dbt-staging-artifacts` bundle now includes compiled SQL (`dbt/target/compiled`), run logs (`dbt/logs/dbt.log`), docs metadata (`catalog.json`, `graph_summary.json`, and `semantic_manifest.json`), the standard `manifest.json`, `run_results.json`, `graph.gpickle`, `partial_parse.msgpack`, and the machine-readable `artifact-inventory.json` manifest generated in CI.
-- Artifact names map to the validation steps in the logs. For example, the `Publish backend timings` step uploads `ci-metrics.csv`; confirm the upload succeeded before debugging runtime regressions.
+- Artifact names map to the validation steps in the logs. For example, the backend workflow uploads `ci-metrics.csv` and `backend-release-smoke.json`; confirm both uploads succeeded before debugging runtime regressions.
 - Inspect `artifact-inventory.json` to quickly list which staging models and schema tests ran in CI along with their statuses. This is useful when validating that optional connectors executed or when triaging flaky tests.
 - If an artifact is missing, cross-check the job logs for `upload-artifact` failures (often due to size limits) and re-run the job once the issue is addressed.
 
@@ -84,6 +84,13 @@ When local lockfiles diverge from what CI expects, npm or pip will fail with has
 1. Reproduce locally with the same commands CI runs: `ruff check backend` and `pytest -q backend`.
 2. Ensure that required environment variables are set. You can list them with `scripts/ci/print-env-keys.sh`.
 3. Fix the failing tests or lint violations, commit, and push. The backend workflow will re-run automatically.
+
+### Backend release smoke failures
+
+1. Download `backend-release-smoke.json` and inspect `missing_metrics`, `missing_metric_labels`, and `unknown_retry_share`.
+2. Reproduce locally with `python3 backend/manage.py backend_release_smoke --strict-observability`.
+3. If label checks fail, verify `celery_task_queue_starts_total` emits `queue_name=sync|snapshot|summary` samples in `/metrics/app/`.
+4. If unknown retry share fails, update retry reason taxonomy coverage for touched task paths and rerun backend tests.
 
 ### dbt failures in staging builds
 

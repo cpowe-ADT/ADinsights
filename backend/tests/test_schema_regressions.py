@@ -33,6 +33,22 @@ def load_schema(name: str) -> dict:
     return json.loads((SCHEMA_DIR / name).read_text())
 
 
+@pytest.fixture(scope="module")
+def openapi_schema_payload(django_db_setup, django_db_blocker):  # noqa: ARG001
+    with django_db_blocker.unblock():
+        client = APIClient()
+        response = client.get("/api/schema/")
+    assert response.status_code == 200
+    return yaml.safe_load(response.content.decode("utf-8"))
+
+
+@pytest.fixture(scope="module")
+def openapi_paths(openapi_schema_payload):
+    paths = openapi_schema_payload.get("paths", {})
+    assert isinstance(paths, dict)
+    return paths
+
+
 @pytest.fixture
 def telemetry_setup(settings):
     settings.ENABLE_FAKE_ADAPTER = True
@@ -208,53 +224,28 @@ def test_dbt_health_schema(telemetry_setup, dbt_run_results):
     assert payload["generated_at"], "Generated timestamp should be populated"
 
 
-@pytest.mark.django_db
-def test_openapi_schema_includes_airbyte_connection_summary():
-    client = APIClient()
-    response = client.get("/api/schema/")
-    assert response.status_code == 200
-    payload = yaml.safe_load(response.content.decode("utf-8"))
-    paths = payload.get("paths", {})
+def test_openapi_schema_includes_airbyte_connection_summary(openapi_paths):
+    paths = openapi_paths
     assert "/api/airbyte/connections/summary/" in paths
 
 
-@pytest.mark.django_db
-def test_openapi_schema_includes_airbyte_telemetry():
-    client = APIClient()
-    response = client.get("/api/schema/")
-    assert response.status_code == 200
-    payload = yaml.safe_load(response.content.decode("utf-8"))
-    paths = payload.get("paths", {})
+def test_openapi_schema_includes_airbyte_telemetry(openapi_paths):
+    paths = openapi_paths
     assert "/api/airbyte/telemetry/" in paths
 
 
-@pytest.mark.django_db
-def test_openapi_schema_includes_metrics_upload():
-    client = APIClient()
-    response = client.get("/api/schema/")
-    assert response.status_code == 200
-    payload = yaml.safe_load(response.content.decode("utf-8"))
-    paths = payload.get("paths", {})
+def test_openapi_schema_includes_metrics_upload(openapi_paths):
+    paths = openapi_paths
     assert "/api/uploads/metrics/" in paths
 
 
-@pytest.mark.django_db
-def test_openapi_schema_includes_social_connection_status():
-    client = APIClient()
-    response = client.get("/api/schema/")
-    assert response.status_code == 200
-    payload = yaml.safe_load(response.content.decode("utf-8"))
-    paths = payload.get("paths", {})
+def test_openapi_schema_includes_social_connection_status(openapi_paths):
+    paths = openapi_paths
     assert "/api/integrations/social/status/" in paths
 
 
-@pytest.mark.django_db
-def test_openapi_schema_includes_google_ads_paths():
-    client = APIClient()
-    response = client.get("/api/schema/")
-    assert response.status_code == 200
-    payload = yaml.safe_load(response.content.decode("utf-8"))
-    paths = payload.get("paths", {})
+def test_openapi_schema_includes_google_ads_paths(openapi_paths):
+    paths = openapi_paths
     assert "/api/integrations/google_ads/setup/" in paths
     assert "/api/integrations/google_ads/oauth/start/" in paths
     assert "/api/integrations/google_ads/oauth/exchange/" in paths
@@ -265,13 +256,8 @@ def test_openapi_schema_includes_google_ads_paths():
     assert "/api/integrations/google_ads/disconnect/" in paths
 
 
-@pytest.mark.django_db
-def test_openapi_schema_includes_meta_page_insights_paths():
-    client = APIClient()
-    response = client.get("/api/schema/")
-    assert response.status_code == 200
-    payload = yaml.safe_load(response.content.decode("utf-8"))
-    paths = payload.get("paths", {})
+def test_openapi_schema_includes_meta_page_insights_paths(openapi_paths):
+    paths = openapi_paths
     assert "/api/integrations/meta/oauth/callback/" in paths
     assert "/api/integrations/meta/pages/" in paths
     assert "/api/integrations/meta/pages/{page_id}/select/" in paths
@@ -282,14 +268,8 @@ def test_openapi_schema_includes_meta_page_insights_paths():
     assert "/api/metrics/meta/pages/{page_id}/refresh/" in paths
 
 
-@pytest.mark.django_db
-def test_openapi_schema_operation_ids_are_unique():
-    client = APIClient()
-    response = client.get("/api/schema/")
-    assert response.status_code == 200
-    payload = yaml.safe_load(response.content.decode("utf-8"))
-    paths = payload.get("paths", {})
-
+def test_openapi_schema_operation_ids_are_unique(openapi_paths):
+    paths = openapi_paths
     operation_ids: list[str] = []
     for path_item in paths.values():
         if not isinstance(path_item, dict):

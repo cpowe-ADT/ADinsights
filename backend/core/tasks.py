@@ -8,6 +8,7 @@ from celery import shared_task
 from django.utils import timezone
 
 from core.crypto.dek_manager import rotate_all_tenant_deks
+from core.metrics import observe_task_retry
 from accounts.tenant_context import tenant_context
 from accounts.audit import log_audit_event
 from accounts.models import Tenant, User
@@ -22,6 +23,29 @@ from integrations.models import AirbyteConnection, PlatformCredential
 from core.observability import InstrumentedTask
 
 logger = logging.getLogger(__name__)
+
+
+AIRBYTE_RETRY_REASON_CLIENT_CONFIGURATION = "airbyte_client_configuration_error"
+AIRBYTE_RETRY_REASON_CLIENT_ERROR = "airbyte_client_error"
+AIRBYTE_RETRY_REASON_RATE_LIMITED = "airbyte_rate_limited"
+AIRBYTE_RETRY_REASON_UPSTREAM_5XX = "airbyte_upstream_5xx"
+AIRBYTE_RETRY_REASON_UPSTREAM_TIMEOUT = "airbyte_upstream_timeout"
+AIRBYTE_RETRY_REASON_UNKNOWN = "airbyte_unknown_error"
+
+
+def _classify_airbyte_retry_reason(exc: Exception | None) -> str:
+    if isinstance(exc, AirbyteClientConfigurationError):
+        return AIRBYTE_RETRY_REASON_CLIENT_CONFIGURATION
+    if isinstance(exc, AirbyteClientError):
+        status_code = getattr(exc, "status_code", None)
+        if status_code == 429:
+            return AIRBYTE_RETRY_REASON_RATE_LIMITED
+        if status_code in {408, 504}:
+            return AIRBYTE_RETRY_REASON_UPSTREAM_TIMEOUT
+        if isinstance(status_code, int) and status_code >= 500:
+            return AIRBYTE_RETRY_REASON_UPSTREAM_5XX
+        return AIRBYTE_RETRY_REASON_CLIENT_ERROR
+    return AIRBYTE_RETRY_REASON_UNKNOWN
 
 
 class BaseAdInsightsTask(InstrumentedTask):
@@ -66,6 +90,7 @@ class BaseAdInsightsTask(InstrumentedTask):
         exc: Exception | None = None,
         base_delay: int | None = None,
         max_delay: int | None = None,
+        reason: str | None = None,
     ):
         """Retry the task using exponential backoff with jitter."""
 
@@ -75,6 +100,8 @@ class BaseAdInsightsTask(InstrumentedTask):
         delay = min(base * (2**attempt), maximum)
         jitter = random.randint(0, base)
         countdown = min(delay + jitter, maximum)
+        failure_reason = reason or _classify_airbyte_retry_reason(exc)
+        observe_task_retry(task_name=self.name, reason=failure_reason)
         logger.warning(
             "task.retry.scheduled",
             extra={
@@ -83,6 +110,8 @@ class BaseAdInsightsTask(InstrumentedTask):
                 "countdown": countdown,
                 "base_delay": base,
                 "max_delay": maximum,
+                "failure_reason": failure_reason,
+                "error_type": type(exc).__name__ if exc is not None else None,
             },
         )
         return self.retry(exc=exc, countdown=countdown)
@@ -150,22 +179,31 @@ def _sync_provider_connections(
                 service = AirbyteSyncService(client)
                 updates = service.sync_connections(due_connections, triggered_at=now)
         except AirbyteClientConfigurationError as exc:
+            failure_reason = _classify_airbyte_retry_reason(exc)
             logger.error(
                 "Airbyte client misconfigured",
-                extra=base_extra,
+                extra={**base_extra, "failure_reason": failure_reason},
                 exc_info=exc,
             )
-            raise _retry_task(task, exc=exc, base_delay=300, max_delay=900)
+            raise _retry_task(
+                task,
+                exc=exc,
+                reason=failure_reason,
+                base_delay=300,
+                max_delay=900,
+            )
         except AirbyteClientError as exc:
+            failure_reason = _classify_airbyte_retry_reason(exc)
             logger.warning(
                 "Airbyte sync failed",
                 extra={
                     **base_extra,
                     "connection_ids": [str(connection.connection_id) for connection in due_connections],
+                    "failure_reason": failure_reason,
                 },
                 exc_info=exc,
             )
-            raise _retry_task(task, exc=exc)
+            raise _retry_task(task, exc=exc, reason=failure_reason)
 
         if not updates:
             logger.info(
@@ -247,10 +285,46 @@ def sync_google_metrics(self, tenant_id: str, triggered_by_user_id: Optional[str
     return _sync_provider_connections(self, tenant=tenant, user=user, provider=PlatformCredential.GOOGLE)
 
 
-def _retry_task(task, *, exc: Exception, base_delay: int | None = None, max_delay: int | None = None):
+def _retry_task(
+    task,
+    *,
+    exc: Exception,
+    reason: str | None = None,
+    base_delay: int | None = None,
+    max_delay: int | None = None,
+):
+    task_name = getattr(task, "name", "unknown")
+    failure_reason = reason or _classify_airbyte_retry_reason(exc)
     helper = getattr(task, "retry_with_backoff", None)
     if callable(helper):
-        return helper(exc=exc, base_delay=base_delay, max_delay=max_delay)
+        try:
+            return helper(
+                exc=exc,
+                base_delay=base_delay,
+                max_delay=max_delay,
+                reason=failure_reason,
+            )
+        except TypeError:
+            observe_task_retry(task_name=task_name, reason=failure_reason)
+            logger.warning(
+                "task.retry.legacy_helper",
+                extra={
+                    "task": task_name,
+                    "failure_reason": failure_reason,
+                    "error_type": type(exc).__name__,
+                },
+            )
+            return helper(exc=exc, base_delay=base_delay, max_delay=max_delay)
     # Fallback for tasks/tests that bypass BaseAdInsightsTask
     countdown = base_delay or getattr(task, "default_retry_delay", None)
+    observe_task_retry(task_name=task_name, reason=failure_reason)
+    logger.warning(
+        "task.retry.fallback",
+        extra={
+            "task": task_name,
+            "countdown": countdown,
+            "failure_reason": failure_reason,
+            "error_type": type(exc).__name__,
+        },
+    )
     return task.retry(exc=exc, countdown=countdown)

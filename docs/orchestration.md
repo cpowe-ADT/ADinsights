@@ -1,58 +1,56 @@
 # Orchestration Plan
 
-This document outlines how ADinsights keeps paid media data synchronized and models refreshed. The approach assumes a containerized deployment (e.g., ECS/Kubernetes) but is portable to any scheduler that can run Docker images.
+This document defines the behavior-preserving Celery orchestration profile used by ADinsights in `America/Jamaica`.
 
-## Airbyte Syncs (Hourly)
+## Source of truth
 
-- **Scheduler**: Celery beat (preferred) or a cron entry that runs the Django management command below.
-- **Bootstrap**:
-  1. Export the environment variables listed in the root README so Airbyte source templates resolve secrets (`AIRBYTE_*`). Include account-level identifiers such as `AIRBYTE_META_ACCOUNT_ID`, `AIRBYTE_GOOGLE_ADS_CUSTOMER_ID`, and `AIRBYTE_TIKTOK_ADVERTISER_ID`.
-  2. Insert `integrations.AirbyteConnection` rows per tenant via Django admin or the shell:
-     ```python
-     from integrations.models import AirbyteConnection
-     AirbyteConnection.objects.create(
-         tenant=<tenant>,
-         name="Meta Incremental",
-         connection_id="<airbyte-connection-uuid>",
-         schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
-         interval_minutes=60,
-     )
-     ```
-  3. Configure `AIRBYTE_API_URL` and `AIRBYTE_API_TOKEN` (or username/password) so the backend can authenticate with Airbyte.
-  4. The first orchestration run will upsert `integrations.TenantAirbyteSyncStatus` rows per tenant, capturing the most recent connection, job metadata, and timestamp for observability dashboards.
-- **Command**:
-  ```bash
-  python manage.py sync_airbyte
-  ```
-  The command (and the optional `integrations.tasks.trigger_scheduled_airbyte_syncs` Celery task) call the Airbyte API for each due connection, trigger sync jobs, and persist job metadata on both the `AirbyteConnection` record and the tenant-level `TenantAirbyteSyncStatus` table.
-- **Cadence**: For hourly feeds schedule the command at `5 * * * *` to start after the hour. In production, Meta and Google metrics sync hourly between 06:00–22:00 America/Jamaica, with dimension syncs at 02:15. Lower-frequency connections can use cron expressions or longer intervals in their respective model rows.
-- **Backfill strategy**: Each incremental stream keeps a lookback window (Meta: 3-day; Google: daily GAQL) via the configured cursors. Airbyte's state management ensures only new slices are processed.
-- **Monitoring**: Ship job events to CloudWatch/Stackdriver and configure alerts for repeated failures or API quota errors. The `AirbyteConnection` table acts as the source of truth for the last successful attempt per tenant.
+- Runtime and beat schedule config live in `backend/core/settings.py`.
+- Queue routing uses `CELERY_TASK_ROUTES` and `CELERY_BEAT_SCHEDULE` without changing API response contracts.
+- Tenant isolation remains enforced through the existing `tenant_context` + `SET app.tenant_id` flow in task execution paths.
 
-## dbt Transformations (Nightly)
+## Queue classes
 
-- **Scheduler**: Celery beat task that queues a `dbt run` worker each night at 02:00 local time (07:00 UTC) when API activity is low.
-- **Task payload**:
-  ```python
-  app.conf.beat_schedule = {
-      "dbt-nightly": {
-          "task": "orchestration.run_dbt",
-          "schedule": crontab(hour=2, minute=0),
-          "args": (["seed", "run", "test"],),
-      }
-  }
-  ```
-- **Worker implementation**: `orchestration.run_dbt` spins up a container with the analytics warehouse credentials and runs `dbt deps && dbt seed && dbt run --select state:modified+ && dbt test`.
-- **Dependencies**: The dbt task waits for the latest Airbyte sync job to finish (polling the Airbyte API). If sync failures occur, it raises a retry and alerts the data team.
+- `sync` queue: ingestion and provider sync workloads (`core.tasks.sync_*`, `integrations.tasks.sync_*`, `integrations.tasks.refresh_*`, parity checks, and scheduled Airbyte triggers).
+- `snapshot` queue: metrics snapshot generation (`analytics.sync_metrics_snapshots`).
+- `summary` queue: async summaries/exports (`analytics.ai_daily_summary`, `analytics.run_report_export_job`).
+- `default` queue: fallback for tasks that are not explicitly routed.
 
-## Metadata & Logging
+## Local worker profile (`docker-compose.dev.yml`)
 
-- Persist Airbyte job metadata to a warehouse table for observability.
-- Log Celery task outcomes and durations for historical SLA reporting.
-- Use a shared notification channel (Slack/MS Teams) for both sync and transformation alerts.
+Development runs dedicated workers per queue class with conservative defaults:
 
-## Future Enhancements
+- `celery_worker` (sync/default queues): `default,sync`, concurrency `4`
+- `celery_worker_snapshot` (snapshot queue): `snapshot`, concurrency `2`
+- `celery_worker_summary` (summary queue): `summary`, concurrency `1`
 
-- Replace cron with a managed scheduler (e.g., MWAA, Dagster, or Prefect) once workloads grow.
-- Add data quality gates (dbt expectations, Great Expectations) to block downstream dashboards when anomalies occur.
-- Integrate auto-retries with exponential backoff for quota/timeout errors.
+Each worker uses prefetch `1` and bounded task recycling (`--max-tasks-per-child`) to reduce long-lived worker drift.
+
+Tune via `backend/.env.dev` / `backend/.env.sample`:
+
+- Global task safety: `CELERY_TASK_ACKS_LATE`, `CELERY_TASK_REJECT_ON_WORKER_LOST`, `CELERY_TASK_TRACK_STARTED`
+- Sync worker: `CELERY_WORKER_SYNC_QUEUES`, `CELERY_WORKER_SYNC_CONCURRENCY`, `CELERY_WORKER_SYNC_PREFETCH_MULTIPLIER`, `CELERY_WORKER_SYNC_MAX_TASKS_PER_CHILD`
+- Snapshot worker: `CELERY_WORKER_SNAPSHOT_QUEUES`, `CELERY_WORKER_SNAPSHOT_CONCURRENCY`, `CELERY_WORKER_SNAPSHOT_PREFETCH_MULTIPLIER`, `CELERY_WORKER_SNAPSHOT_MAX_TASKS_PER_CHILD`
+- Summary worker: `CELERY_WORKER_SUMMARY_QUEUES`, `CELERY_WORKER_SUMMARY_CONCURRENCY`, `CELERY_WORKER_SUMMARY_PREFETCH_MULTIPLIER`, `CELERY_WORKER_SUMMARY_MAX_TASKS_PER_CHILD`
+
+## Schedule windows
+
+- Hourly sync window: 06:00–22:00 (`airbyte-scheduled-syncs-hourly`, Meta and Google sync tasks).
+- Daily dimension/maintenance window: 02:15+ (hierarchy and credential lifecycle tasks).
+- Snapshot cadence: every 30 minutes (`metrics-snapshot-sync`).
+- Daily summary cadence: 06:10 (`ai-daily-summary`).
+- Weekly DEK rotation: Sundays 01:30 (`rotate-tenant-deks`).
+
+## Validation and observability checks
+
+- Validate compose rendering:
+  - `docker compose -f docker-compose.dev.yml config`
+- Validate backend checks after orchestration changes:
+  - `ruff check backend && pytest -q backend`
+- Verify health and metrics endpoints:
+  - `curl -fsS http://localhost:8000/api/health/`
+  - `curl -fsS http://localhost:8000/api/health/airbyte/`
+  - `curl -fsS http://localhost:8000/api/health/dbt/`
+  - `curl -fsS http://localhost:8000/api/timezone/`
+  - `curl -fsS http://localhost:8000/metrics/app/ | rg 'celery_task_executions_total|celery_task_duration_seconds|airbyte_sync_latency_seconds|dbt_run_duration_seconds'`
+- Run release-readiness smoke command (strict observability profile):
+  - `python3 backend/manage.py backend_release_smoke --strict-observability`

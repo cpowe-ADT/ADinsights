@@ -18,8 +18,11 @@ from core.metrics import observe_dbt_run, render_metrics
 from integrations.models import AirbyteJobTelemetry, TenantAirbyteSyncStatus
 
 AIRBYTE_STALE_THRESHOLD = timedelta(hours=1)
+AIRBYTE_RUNNING_STALE_THRESHOLD = timedelta(hours=2)
 DBT_STALE_THRESHOLD = timedelta(hours=24)
-RUN_RESULTS_PATH = (Path(settings.BASE_DIR).parent / "dbt" / "target" / "run_results.json")
+DEFAULT_RUN_RESULTS_PATH = (Path(settings.BASE_DIR).parent / "dbt" / "target" / "run_results.json")
+CONTAINER_RUN_RESULTS_PATH = Path(settings.BASE_DIR) / "dbt" / "target" / "run_results.json"
+RUN_RESULTS_PATH = DEFAULT_RUN_RESULTS_PATH
 
 AIRBYTE_SUCCESS_STATUSES = {"succeeded", "success"}
 AIRBYTE_FAILURE_STATUSES = {
@@ -29,6 +32,27 @@ AIRBYTE_FAILURE_STATUSES = {
     "cancelled",
     "canceled",
 }
+AIRBYTE_RUNNING_STATUSES = {"running", "pending", "incomplete"}
+
+
+def _resolve_run_results_path() -> Path:
+    if RUN_RESULTS_PATH != DEFAULT_RUN_RESULTS_PATH:
+        return RUN_RESULTS_PATH
+    if RUN_RESULTS_PATH.exists():
+        return RUN_RESULTS_PATH
+    if CONTAINER_RUN_RESULTS_PATH.exists():
+        return CONTAINER_RUN_RESULTS_PATH
+    return RUN_RESULTS_PATH
+
+
+def _airbyte_job_is_stuck(*, latest_status: TenantAirbyteSyncStatus, now: datetime) -> tuple[bool, int | None]:
+    reference = latest_status.last_job_updated_at or latest_status.last_synced_at
+    if reference is None:
+        return False, None
+    if timezone.is_naive(reference):  # pragma: no cover - DB backend dependent
+        reference = timezone.make_aware(reference)
+    age_seconds = int((now - reference).total_seconds())
+    return age_seconds > int(AIRBYTE_RUNNING_STALE_THRESHOLD.total_seconds()), age_seconds
 
 
 def health(request):
@@ -77,6 +101,8 @@ def airbyte_health(request):
 
     now = timezone.now()
     is_stale = now - latest_status.last_synced_at > AIRBYTE_STALE_THRESHOLD
+    if is_stale and latest_status.last_connection_id:
+        is_stale = latest_status.last_connection.should_trigger(now)
     response_data["stale"] = is_stale
     if is_stale:
         response_data.update({"status": "stale", "detail": "Latest Airbyte sync is older than the freshness threshold."})
@@ -95,6 +121,16 @@ def airbyte_health(request):
             if latest_status.last_job_error:
                 response_data["error"] = latest_status.last_job_error
             return JsonResponse(response_data, status=502)
+        if job_status in AIRBYTE_RUNNING_STATUSES:
+            is_stuck, age_seconds = _airbyte_job_is_stuck(latest_status=latest_status, now=now)
+            if age_seconds is not None:
+                response_data["running_age_seconds"] = age_seconds
+            if is_stuck:
+                response_data["status"] = "running_stale"
+                response_data["detail"] = (
+                    "Latest Airbyte sync has remained in a running state beyond the stale threshold."
+                )
+                return JsonResponse(response_data, status=503)
         if job_status not in AIRBYTE_SUCCESS_STATUSES:
             response_data["status"] = "pending"
             response_data["detail"] = f"Latest Airbyte sync is in status '{latest_status.last_job_status}'."
@@ -130,17 +166,18 @@ def server_error(request):  # noqa: ANN001 - Django signature
 
 
 def dbt_health(request):
+    run_results_path = _resolve_run_results_path()
     response_data: Dict[str, Any] = {
         "component": "dbt",
-        "run_results_path": str(RUN_RESULTS_PATH),
+        "run_results_path": str(run_results_path),
     }
 
-    if not RUN_RESULTS_PATH.exists():
+    if not run_results_path.exists():
         response_data.update({"status": "missing_run_results", "detail": "dbt run_results.json not found."})
         return JsonResponse(response_data, status=503)
 
     try:
-        run_results = json.loads(RUN_RESULTS_PATH.read_text())
+        run_results = json.loads(run_results_path.read_text())
     except json.JSONDecodeError as exc:  # pragma: no cover - unexpected corruption
         response_data.update({"status": "invalid_run_results", "detail": str(exc)})
         return JsonResponse(response_data, status=500)

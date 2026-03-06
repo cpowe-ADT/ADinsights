@@ -151,33 +151,42 @@ class AirbyteClient:
     def latest_job(self, connection_id: str) -> Optional[Dict[str, Any]]:
         """Return the most recent job for the connection, if available."""
 
-        try:
-            response = self._client.post(
-                "/api/v1/jobs/list",
-                json={
-                    "configTypes": ["sync"],
-                    "connectionId": connection_id,
-                    "pagination": {"pageSize": 1},
-                },
-            )
-            response.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            detail = exc.response.text
-            parsed_payload: Any = None
+        list_payloads = (
+            {
+                "configTypes": ["sync"],
+                "connectionId": connection_id,
+                "pagination": {"pageSize": 1},
+            },
+            {
+                "configTypes": ["sync"],
+                "configId": connection_id,
+                "pagination": {"pageSize": 1},
+            },
+        )
+
+        for payload in list_payloads:
             try:
-                parsed_payload = exc.response.json()
-            except ValueError:
-                parsed_payload = detail
-            raise AirbyteClientError(
-                f"Failed to list jobs for {connection_id}: {exc}",
-                status_code=exc.response.status_code,
-                payload=parsed_payload,
-            ) from exc
-        except httpx.HTTPError as exc:  # pragma: no cover - httpx provides detail
-            raise AirbyteClientError(f"Failed to list jobs for {connection_id}: {exc}") from exc
-        payload: Dict[str, Any] = response.json()
-        jobs = payload.get("jobs", [])
-        return jobs[0] if jobs else None
+                response = self._client.post("/api/v1/jobs/list", json=payload)
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                detail = exc.response.text
+                parsed_payload: Any = None
+                try:
+                    parsed_payload = exc.response.json()
+                except ValueError:
+                    parsed_payload = detail
+                raise AirbyteClientError(
+                    f"Failed to list jobs for {connection_id}: {exc}",
+                    status_code=exc.response.status_code,
+                    payload=parsed_payload,
+                ) from exc
+            except httpx.HTTPError as exc:  # pragma: no cover - httpx provides detail
+                raise AirbyteClientError(f"Failed to list jobs for {connection_id}: {exc}") from exc
+            body: Dict[str, Any] = response.json()
+            jobs = body.get("jobs", [])
+            if jobs:
+                return jobs[0]
+        return None
 
     def list_sources(self, workspace_id: str) -> list[Dict[str, Any]]:
         payload = self._post("/api/v1/sources/list", {"workspaceId": workspace_id})

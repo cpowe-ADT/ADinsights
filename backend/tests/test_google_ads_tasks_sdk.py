@@ -13,7 +13,11 @@ from integrations.google_ads.client import (
     GoogleAdsSdkError,
 )
 from integrations.models import GoogleAdsSyncState, PlatformCredential
-from integrations.tasks import sync_google_ads_sdk_incremental
+from integrations.tasks import (
+    RETRY_REASON_GOOGLE_OAUTH_CONFIGURATION,
+    refresh_google_ads_tokens,
+    sync_google_ads_sdk_incremental,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -156,3 +160,33 @@ def test_sync_google_ads_sdk_incremental_auto_rolls_back_after_three_failures(mo
     assert state.effective_engine == GoogleAdsSyncState.ENGINE_AIRBYTE
     assert state.fallback_active is True
     assert AlertRun.objects.filter(rule_slug="google_ads_sdk_auto_rollback").exists()
+
+
+def test_refresh_google_ads_tokens_retries_when_oauth_config_missing(monkeypatch, tenant, settings):
+    _create_google_credential(tenant)
+    settings.GOOGLE_ADS_CLIENT_ID = ""
+    settings.GOOGLE_ADS_CLIENT_SECRET = ""
+
+    class RetryCalled(Exception):
+        pass
+
+    def fake_retry_with_backoff(self, *, exc=None, base_delay=None, max_delay=None, reason=None):  # noqa: ANN001
+        raise RetryCalled(
+            {
+                "exc": exc,
+                "base_delay": base_delay,
+                "max_delay": max_delay,
+                "reason": reason,
+            }
+        )
+
+    monkeypatch.setattr("integrations.tasks.BaseAdInsightsTask.retry_with_backoff", fake_retry_with_backoff)
+
+    with pytest.raises(RetryCalled) as excinfo:
+        refresh_google_ads_tokens.run()
+
+    payload = excinfo.value.args[0]
+    assert isinstance(payload["exc"], ValueError)
+    assert payload["base_delay"] == 300
+    assert payload["max_delay"] == 900
+    assert payload["reason"] == RETRY_REASON_GOOGLE_OAUTH_CONFIGURATION

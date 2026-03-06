@@ -14,6 +14,7 @@ jobs:
       SECRETS_PROVIDER: env
       KMS_PROVIDER: local
       KMS_KEY_ID: test-key
+      RUN_BACKEND_INTEGRATION_TESTS: "1"
     steps:
       - uses: actions/checkout@v4
 

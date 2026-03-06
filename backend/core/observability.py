@@ -16,7 +16,7 @@ from django.conf import settings
 
 from accounts.tenant_context import get_current_tenant_id
 from core.frontend_runtime import origin_from_url
-from core.metrics import observe_task
+from core.metrics import observe_task, observe_task_queue_start
 
 _correlation_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "correlation_id", default=None
@@ -183,6 +183,7 @@ class APILoggingMiddleware:
         start = time.perf_counter()
         response = self.get_response(request)
         duration_ms = round((time.perf_counter() - start) * 1000, 2)
+        metrics_context = self._extract_metrics_context(request)
         resolver_match = getattr(request, "resolver_match", None)
         view_name = resolver_match.view_name if resolver_match else None
         user = getattr(request, "user", None)
@@ -208,6 +209,7 @@ class APILoggingMiddleware:
                     "origin": origin_from_url(request.headers.get("Origin")),
                     "referer_origin": origin_from_url(request.headers.get("Referer")),
                     "dataset_markers": dataset_markers or None,
+                    "metrics": metrics_context,
                 },
             },
         )
@@ -269,6 +271,92 @@ class APILoggingMiddleware:
 
         return markers
 
+    @staticmethod
+    def _extract_metrics_context(request) -> dict[str, Any] | None:  # noqa: ANN001
+        payload = getattr(request, "_metrics_context", None)
+        if not isinstance(payload, dict):
+            return None
+
+        sanitized: dict[str, Any] = {}
+        for key, value in payload.items():
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                sanitized[key] = value
+        return sanitized or None
+
+
+def _coerce_utc_datetime(value: object) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        resolved = value
+    elif isinstance(value, (int, float)):
+        resolved = datetime.fromtimestamp(float(value), tz=timezone.utc)
+    elif isinstance(value, str):
+        trimmed = value.strip()
+        if not trimmed:
+            return None
+        if trimmed.replace(".", "", 1).isdigit():
+            resolved = datetime.fromtimestamp(float(trimmed), tz=timezone.utc)
+        else:
+            try:
+                resolved = datetime.fromisoformat(trimmed.replace("Z", "+00:00"))
+            except ValueError:
+                return None
+    else:
+        return None
+
+    if resolved.tzinfo is None:
+        return resolved.replace(tzinfo=timezone.utc)
+    return resolved.astimezone(timezone.utc)
+
+
+def extract_task_queue_name(request, *, default_queue: str | None = None) -> str:  # noqa: ANN001
+    delivery_info = getattr(request, "delivery_info", None)
+    if isinstance(delivery_info, dict):
+        for key in ("routing_key", "queue"):
+            value = delivery_info.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+    headers = getattr(request, "headers", None)
+    if isinstance(headers, dict):
+        for key in ("routing_key", "queue"):
+            value = headers.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+    fallback = (default_queue or "unknown").strip()
+    return fallback or "unknown"
+
+
+def extract_task_queue_wait_seconds(
+    request, *, now: datetime | None = None  # noqa: ANN001
+) -> float | None:
+    published_at: datetime | None = None
+    headers = getattr(request, "headers", None)
+    if isinstance(headers, dict):
+        for key in ("sent_at", "published_at", "x-sent-at"):
+            published_at = _coerce_utc_datetime(headers.get(key))
+            if published_at is not None:
+                break
+
+    properties = getattr(request, "properties", None)
+    if published_at is None and isinstance(properties, dict):
+        for key in ("timestamp", "published_at"):
+            published_at = _coerce_utc_datetime(properties.get(key))
+            if published_at is not None:
+                break
+
+    if published_at is None:
+        return None
+
+    reference_now = now or datetime.now(tz=timezone.utc)
+    if reference_now.tzinfo is None:
+        reference_now = reference_now.replace(tzinfo=timezone.utc)
+    else:
+        reference_now = reference_now.astimezone(timezone.utc)
+    return max((reference_now - published_at).total_seconds(), 0.0)
+
 
 class InstrumentedTask(Task):
     """Celery task base class that emits structured lifecycle logs."""
@@ -278,11 +366,27 @@ class InstrumentedTask(Task):
 
     def before_start(self, task_id, args, kwargs):  # noqa: ANN001 - celery hook
         self.request._start_time = time.perf_counter()
+        queue_name = extract_task_queue_name(
+            self.request,
+            default_queue=getattr(settings, "CELERY_TASK_DEFAULT_QUEUE", "default"),
+        )
+        queue_wait_seconds = extract_task_queue_wait_seconds(self.request)
+        self.request._queue_name = queue_name
+        self.request._queue_wait_seconds = queue_wait_seconds
+        observe_task_queue_start(
+            task_name=self.name,
+            queue_name=queue_name,
+            queue_wait_seconds=queue_wait_seconds,
+        )
         set_correlation_id(task_id)
         set_task_id(task_id)
+        extra = self._task_extra(task_id, args, kwargs)
+        extra["queue_name"] = queue_name
+        if queue_wait_seconds is not None:
+            extra["queue_wait_ms"] = round(queue_wait_seconds * 1000, 2)
         self.logger.info(
             "task.started",
-            extra=self._task_extra(task_id, args, kwargs),
+            extra=extra,
         )
         super().before_start(task_id, args, kwargs)
 
@@ -290,11 +394,20 @@ class InstrumentedTask(Task):
         start_time = getattr(self.request, "_start_time", None)
         duration_ms = round((time.perf_counter() - start_time) * 1000, 2) if start_time else None
         duration_seconds = (duration_ms / 1000) if duration_ms is not None else None
+        queue_name = getattr(self.request, "_queue_name", None) or extract_task_queue_name(
+            self.request,
+            default_queue=getattr(settings, "CELERY_TASK_DEFAULT_QUEUE", "default"),
+        )
+        queue_wait_seconds = getattr(self.request, "_queue_wait_seconds", None)
         extra = self._task_extra(task_id, args, kwargs)
         extra.update(
             {
                 "status": status,
                 "duration_ms": duration_ms,
+                "queue_name": queue_name,
+                "queue_wait_ms": round(queue_wait_seconds * 1000, 2)
+                if queue_wait_seconds is not None
+                else None,
             }
         )
         if einfo:

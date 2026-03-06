@@ -81,6 +81,17 @@ from core.tasks import BaseAdInsightsTask
 logger = logging.getLogger(__name__)
 DEFAULT_META_INSIGHTS_LOOKBACK_DAYS = 3
 DEFAULT_META_INSIGHTS_LEVEL = "ad"
+RETRY_REASON_GOOGLE_OAUTH_CONFIGURATION = "google_oauth_configuration_error"
+RETRY_REASON_AIRBYTE_CLIENT_CONFIGURATION = "airbyte_client_configuration_error"
+RETRY_REASON_AIRBYTE_CLIENT_ERROR = "airbyte_client_error"
+RETRY_REASON_META_GRAPH_CONFIGURATION = "meta_graph_configuration_error"
+RETRY_REASON_META_GRAPH_RATE_LIMITED = "meta_graph_rate_limited"
+RETRY_REASON_META_GRAPH_UPSTREAM_5XX = "meta_graph_upstream_5xx"
+RETRY_REASON_META_GRAPH_UPSTREAM_TIMEOUT = "meta_graph_upstream_timeout"
+RETRY_REASON_META_GRAPH_TRANSPORT = "meta_graph_transport_error"
+RETRY_REASON_META_GRAPH_CLIENT_ERROR = "meta_graph_client_error"
+RETRY_REASON_META_GRAPH_TRANSIENT = "meta_graph_transient_error"
+RETRY_REASON_META_GRAPH_UNKNOWN = "meta_graph_unknown_error"
 
 
 def _token_status_for_expiry(*, expires_at: datetime | None, now: datetime) -> tuple[str, str]:
@@ -101,6 +112,22 @@ def _token_status_for_expiry(*, expires_at: datetime | None, now: datetime) -> t
 
 def _normalize_google_customer_id(raw_value: str) -> str:
     return "".join(ch for ch in raw_value if ch.isdigit())
+
+
+def _classify_meta_insights_retry_reason(exc: MetaInsightsGraphClientError) -> str:
+    if exc.error_code in {4, 17, 32, 613, 80001} or exc.status_code == 429:
+        return RETRY_REASON_META_GRAPH_RATE_LIMITED
+    if exc.status_code in {408, 504}:
+        return RETRY_REASON_META_GRAPH_UPSTREAM_TIMEOUT
+    if exc.status_code in {500, 502, 503}:
+        return RETRY_REASON_META_GRAPH_UPSTREAM_5XX
+    if exc.status_code is None and exc.error_code is None and exc.retryable:
+        return RETRY_REASON_META_GRAPH_TRANSPORT
+    if isinstance(exc.status_code, int) and 400 <= exc.status_code < 500:
+        return RETRY_REASON_META_GRAPH_CLIENT_ERROR
+    if exc.retryable:
+        return RETRY_REASON_META_GRAPH_TRANSIENT
+    return RETRY_REASON_META_GRAPH_UNKNOWN
 
 
 def _resolve_google_sync_state(
@@ -407,6 +434,7 @@ def refresh_google_ads_tokens(self):  # noqa: ANN001
             exc=ValueError("GOOGLE_ADS_CLIENT_ID and GOOGLE_ADS_CLIENT_SECRET are required."),
             base_delay=300,
             max_delay=900,
+            reason=RETRY_REASON_GOOGLE_OAUTH_CONFIGURATION,
         )
 
     for credential in credentials:
@@ -570,14 +598,19 @@ def trigger_scheduled_airbyte_syncs(self):  # noqa: ANN001
                 extra={"triggered": triggered},
                 exc_info=exc,
             )
-            raise self.retry_with_backoff(exc=exc, base_delay=300, max_delay=900)
+            raise self.retry_with_backoff(
+                exc=exc,
+                base_delay=300,
+                max_delay=900,
+                reason=RETRY_REASON_AIRBYTE_CLIENT_CONFIGURATION,
+            )
         except AirbyteClientError as exc:
             logger.warning(
                 "airbyte.sync.failed",
                 extra={"triggered": triggered},
                 exc_info=exc,
             )
-            raise self.retry_with_backoff(exc=exc)
+            raise self.retry_with_backoff(exc=exc, reason=RETRY_REASON_AIRBYTE_CLIENT_ERROR)
     logger.info("airbyte.sync.completed", extra={"triggered": triggered})
     return triggered
 
@@ -659,7 +692,12 @@ def refresh_meta_tokens(self):  # noqa: ANN001
         client = MetaGraphClient.from_settings()
     except MetaGraphConfigurationError as exc:
         logger.error("meta.credential_lifecycle.misconfigured", exc_info=exc)
-        raise self.retry_with_backoff(exc=exc, base_delay=300, max_delay=900)
+        raise self.retry_with_backoff(
+            exc=exc,
+            base_delay=300,
+            max_delay=900,
+            reason=RETRY_REASON_META_GRAPH_CONFIGURATION,
+        )
 
     with client:
         for credential in credentials:
@@ -881,7 +919,12 @@ def _sync_meta_accounts_core(*, task) -> dict[str, int]:
         client = MetaGraphClient.from_settings()
     except MetaGraphConfigurationError as exc:
         logger.error("meta.sync.accounts.misconfigured", exc_info=exc)
-        raise task.retry_with_backoff(exc=exc, base_delay=300, max_delay=900)
+        raise task.retry_with_backoff(
+            exc=exc,
+            base_delay=300,
+            max_delay=900,
+            reason=RETRY_REASON_META_GRAPH_CONFIGURATION,
+        )
 
     processed = succeeded = failed = accounts_synced = 0
     correlation_id = getattr(getattr(task, "request", None), "id", "") or ""
@@ -985,7 +1028,12 @@ def _sync_meta_hierarchy_core(*, task) -> dict[str, int]:
         client = MetaGraphClient.from_settings()
     except MetaGraphConfigurationError as exc:
         logger.error("meta.sync.hierarchy.misconfigured", exc_info=exc)
-        raise task.retry_with_backoff(exc=exc, base_delay=300, max_delay=900)
+        raise task.retry_with_backoff(
+            exc=exc,
+            base_delay=300,
+            max_delay=900,
+            reason=RETRY_REASON_META_GRAPH_CONFIGURATION,
+        )
 
     processed = succeeded = failed = 0
     campaigns_synced = adsets_synced = ads_synced = 0
@@ -1195,7 +1243,12 @@ def _sync_meta_insights_core(
         client = MetaGraphClient.from_settings()
     except MetaGraphConfigurationError as exc:
         logger.error("meta.sync.insights.misconfigured", exc_info=exc)
-        raise task.retry_with_backoff(exc=exc, base_delay=300, max_delay=900)
+        raise task.retry_with_backoff(
+            exc=exc,
+            base_delay=300,
+            max_delay=900,
+            reason=RETRY_REASON_META_GRAPH_CONFIGURATION,
+        )
 
     processed = succeeded = failed = insights_synced = 0
     correlation_id = getattr(getattr(task, "request", None), "id", "") or ""
@@ -1624,50 +1677,68 @@ def sync_meta_page_insights(  # noqa: ANN001
     if not pages:
         return {"pages_processed": 0, "rows_processed": 0}
 
-    with MetaInsightsGraphClient.from_settings() as client:
-        for page in pages:
-            tenant_id = str(page.tenant_id)
-            with tenant_context(tenant_id):
-                page_tokens = _candidate_page_tokens(page)
-                if not page_tokens:
-                    logger.warning("meta.page_insights.missing_token", extra={"tenant_id": tenant_id, "page_id": page.page_id})
-                    continue
+    try:
+        with MetaInsightsGraphClient.from_settings() as client:
+            for page in pages:
+                tenant_id = str(page.tenant_id)
+                with tenant_context(tenant_id):
+                    page_tokens = _candidate_page_tokens(page)
+                    if not page_tokens:
+                        logger.warning("meta.page_insights.missing_token", extra={"tenant_id": tenant_id, "page_id": page.page_id})
+                        continue
 
-                registry_metrics = list(metrics or get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE))
-                for metric in registry_metrics:
-                    if is_blocked_metric(metric):
-                        mark_metric_invalid(MetaMetricRegistry.LEVEL_PAGE, metric)
-                registry_metrics = [metric for metric in registry_metrics if metric and not is_blocked_metric(metric)]
-                if not registry_metrics:
-                    continue
+                    registry_metrics = list(metrics or get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE))
+                    for metric in registry_metrics:
+                        if is_blocked_metric(metric):
+                            mark_metric_invalid(MetaMetricRegistry.LEVEL_PAGE, metric)
+                    registry_metrics = [metric for metric in registry_metrics if metric and not is_blocked_metric(metric)]
+                    if not registry_metrics:
+                        continue
 
-                since, until = _resolve_sync_window(mode=mode, now=now)
-                chunk_size = max(int(getattr(settings, "META_PAGE_INSIGHTS_METRIC_CHUNK_SIZE", 10)), 1)
+                    since, until = _resolve_sync_window(mode=mode, now=now)
+                    chunk_size = max(int(getattr(settings, "META_PAGE_INSIGHTS_METRIC_CHUNK_SIZE", 10)), 1)
 
-                for window_since, window_until in _window_chunks(since=since, until=until, max_days=90):
-                    rows_processed = _sync_page_metric_window(
-                        client=client,
-                        page=page,
-                        page_tokens=page_tokens,
-                        metrics=registry_metrics,
-                        since=window_since,
-                        until=window_until,
-                        chunk_size=chunk_size,
-                    )
-                    total_rows_processed += rows_processed
-                    emit_observability_event(
-                        logger,
-                        "meta.page_insights.synced",
-                        tenant_id=tenant_id,
-                        task_id=task_id,
-                        correlation_id=task_id,
-                        page_id=page.page_id,
-                        rows_processed=rows_processed,
-                        api_cost_units=None,
-                    )
-                page.last_synced_at = now
-                page.save(update_fields=["last_synced_at", "updated_at"])
-                pages_processed += 1
+                    for window_since, window_until in _window_chunks(since=since, until=until, max_days=90):
+                        rows_processed = _sync_page_metric_window(
+                            client=client,
+                            page=page,
+                            page_tokens=page_tokens,
+                            metrics=registry_metrics,
+                            since=window_since,
+                            until=window_until,
+                            chunk_size=chunk_size,
+                        )
+                        total_rows_processed += rows_processed
+                        emit_observability_event(
+                            logger,
+                            "meta.page_insights.synced",
+                            tenant_id=tenant_id,
+                            task_id=task_id,
+                            correlation_id=task_id,
+                            page_id=page.page_id,
+                            rows_processed=rows_processed,
+                            api_cost_units=None,
+                        )
+                    page.last_synced_at = now
+                    page.save(update_fields=["last_synced_at", "updated_at"])
+                    pages_processed += 1
+    except MetaInsightsGraphClientError as exc:
+        if not exc.retryable:
+            raise
+        failure_reason = _classify_meta_insights_retry_reason(exc)
+        logger.warning(
+            "meta.page_insights.retry_scheduled",
+            extra={
+                "task_id": task_id,
+                "page_pk": page_pk,
+                "mode": mode,
+                "failure_reason": failure_reason,
+                "error_code": exc.error_code,
+                "status_code": exc.status_code,
+            },
+            exc_info=exc,
+        )
+        raise self.retry_with_backoff(exc=exc, reason=failure_reason)
 
     return {
         "pages_processed": pages_processed,
@@ -1701,61 +1772,79 @@ def sync_meta_post_insights(  # noqa: ANN001
     if not pages:
         return {"pages_processed": 0, "posts_processed": 0, "rows_processed": 0}
 
-    with MetaInsightsGraphClient.from_settings() as client:
-        for page in pages:
-            tenant_id = str(page.tenant_id)
-            with tenant_context(tenant_id):
-                page_tokens = _candidate_page_tokens(page)
-                if not page_tokens:
-                    continue
+    try:
+        with MetaInsightsGraphClient.from_settings() as client:
+            for page in pages:
+                tenant_id = str(page.tenant_id)
+                with tenant_context(tenant_id):
+                    page_tokens = _candidate_page_tokens(page)
+                    if not page_tokens:
+                        continue
 
-                since, until = _resolve_sync_window(mode=mode, now=now)
-                posts_payload = _fetch_page_posts_with_fallback(
-                    client=client,
-                    page=page,
-                    page_tokens=page_tokens,
-                    since=since,
-                    until=until,
-                )
-                posts = _upsert_meta_posts(page=page, rows=posts_payload)
-                if not posts:
-                    continue
-
-                registry_metrics = list(metrics or get_default_metric_keys(MetaMetricRegistry.LEVEL_POST))
-                for metric in registry_metrics:
-                    if is_blocked_metric(metric):
-                        mark_metric_invalid(MetaMetricRegistry.LEVEL_POST, metric)
-                registry_metrics = [metric for metric in registry_metrics if metric and not is_blocked_metric(metric)]
-                if not registry_metrics:
-                    continue
-
-                chunk_size = max(int(getattr(settings, "META_PAGE_INSIGHTS_METRIC_CHUNK_SIZE", 10)), 1)
-                for post in posts:
-                    rows_processed = _sync_post_metric_window(
+                    since, until = _resolve_sync_window(mode=mode, now=now)
+                    posts_payload = _fetch_page_posts_with_fallback(
                         client=client,
-                        post=post,
+                        page=page,
                         page_tokens=page_tokens,
-                        metrics=registry_metrics,
                         since=since,
                         until=until,
-                        chunk_size=chunk_size,
                     )
-                    total_rows_processed += rows_processed
-                    posts_processed += 1
+                    posts = _upsert_meta_posts(page=page, rows=posts_payload)
+                    if not posts:
+                        continue
 
-                emit_observability_event(
-                    logger,
-                    "meta.post_insights.synced",
-                    tenant_id=tenant_id,
-                    task_id=task_id,
-                    correlation_id=task_id,
-                    page_id=page.page_id,
-                    rows_processed=total_rows_processed,
-                    api_cost_units=None,
-                )
-                page.last_posts_synced_at = now
-                page.save(update_fields=["last_posts_synced_at", "updated_at"])
-                pages_processed += 1
+                    registry_metrics = list(metrics or get_default_metric_keys(MetaMetricRegistry.LEVEL_POST))
+                    for metric in registry_metrics:
+                        if is_blocked_metric(metric):
+                            mark_metric_invalid(MetaMetricRegistry.LEVEL_POST, metric)
+                    registry_metrics = [metric for metric in registry_metrics if metric and not is_blocked_metric(metric)]
+                    if not registry_metrics:
+                        continue
+
+                    chunk_size = max(int(getattr(settings, "META_PAGE_INSIGHTS_METRIC_CHUNK_SIZE", 10)), 1)
+                    for post in posts:
+                        rows_processed = _sync_post_metric_window(
+                            client=client,
+                            post=post,
+                            page_tokens=page_tokens,
+                            metrics=registry_metrics,
+                            since=since,
+                            until=until,
+                            chunk_size=chunk_size,
+                        )
+                        total_rows_processed += rows_processed
+                        posts_processed += 1
+
+                    emit_observability_event(
+                        logger,
+                        "meta.post_insights.synced",
+                        tenant_id=tenant_id,
+                        task_id=task_id,
+                        correlation_id=task_id,
+                        page_id=page.page_id,
+                        rows_processed=total_rows_processed,
+                        api_cost_units=None,
+                    )
+                    page.last_posts_synced_at = now
+                    page.save(update_fields=["last_posts_synced_at", "updated_at"])
+                    pages_processed += 1
+    except MetaInsightsGraphClientError as exc:
+        if not exc.retryable:
+            raise
+        failure_reason = _classify_meta_insights_retry_reason(exc)
+        logger.warning(
+            "meta.post_insights.retry_scheduled",
+            extra={
+                "task_id": task_id,
+                "page_pk": page_pk,
+                "mode": mode,
+                "failure_reason": failure_reason,
+                "error_code": exc.error_code,
+                "status_code": exc.status_code,
+            },
+            exc_info=exc,
+        )
+        raise self.retry_with_backoff(exc=exc, reason=failure_reason)
 
     return {
         "pages_processed": pages_processed,
@@ -1881,22 +1970,40 @@ def sync_page_posts(self, page_id: str | None = None, mode: str = "incremental")
         since = until - timedelta(days=lookback_days)
 
     total_posts = 0
-    with MetaInsightsGraphClient.from_settings() as client:
-        for page in pages:
-            page_tokens = _candidate_page_tokens(page)
-            if not page_tokens:
-                continue
-            payload = _fetch_page_posts_with_fallback(
-                client=client,
-                page=page,
-                page_tokens=page_tokens,
-                since=since,
-                until=until,
-            )
-            posts = _upsert_meta_posts(page=page, rows=payload)
-            total_posts += len(posts)
-            page.last_posts_synced_at = now
-            page.save(update_fields=["last_posts_synced_at", "updated_at"])
+    try:
+        with MetaInsightsGraphClient.from_settings() as client:
+            for page in pages:
+                page_tokens = _candidate_page_tokens(page)
+                if not page_tokens:
+                    continue
+                payload = _fetch_page_posts_with_fallback(
+                    client=client,
+                    page=page,
+                    page_tokens=page_tokens,
+                    since=since,
+                    until=until,
+                )
+                posts = _upsert_meta_posts(page=page, rows=payload)
+                total_posts += len(posts)
+                page.last_posts_synced_at = now
+                page.save(update_fields=["last_posts_synced_at", "updated_at"])
+    except MetaInsightsGraphClientError as exc:
+        if not exc.retryable:
+            raise
+        failure_reason = _classify_meta_insights_retry_reason(exc)
+        logger.warning(
+            "meta.page_posts.retry_scheduled",
+            extra={
+                "task_id": getattr(getattr(self, "request", None), "id", "") or "",
+                "page_id": page_id,
+                "mode": mode,
+                "failure_reason": failure_reason,
+                "error_code": exc.error_code,
+                "status_code": exc.status_code,
+            },
+            exc_info=exc,
+        )
+        raise self.retry_with_backoff(exc=exc, reason=failure_reason)
     return {"page_id": page_id, "posts_processed": total_posts, "pages_processed": len(pages)}
 
 

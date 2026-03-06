@@ -9,6 +9,8 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 - [ ] Relevant tests run and green (see stream-specific commands).
 - [ ] Data-contract gate passes: `python3 infrastructure/airbyte/scripts/check_data_contracts.py`.
 - [ ] Observability prereq gate passes: `python3 infrastructure/airbyte/scripts/verify_observability_prereqs.py`.
+- [ ] Backend release smoke gate passes (backend stream):
+  - `python3 backend/manage.py backend_release_smoke --strict-observability`
 - [ ] Any API contract changes recorded in `docs/project/api-contract-changelog.md`.
 - [ ] Runbooks updated for behavior changes.
 - [ ] Design system docs updated for UI changes.
@@ -18,6 +20,8 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 - [ ] `docker compose config` (Airbyte/deploy) renders clean.
 - [ ] Backend health endpoints return 200:
   - `/api/health/`, `/api/health/airbyte/`, `/api/health/dbt/`, `/api/timezone/`
+- [ ] Backend observability metrics are present and labeled as expected:
+  - `curl -fsS http://localhost:8000/metrics/app/ | rg 'celery_task_executions_total|celery_task_retries_total|celery_task_queue_starts_total|celery_task_queue_wait_seconds|combined_metrics_request_duration_seconds|airbyte_sync_latency_seconds|dbt_run_duration_seconds'`
 - [ ] Post-MVP ops endpoints return 200 with expected payload shape:
   - `/api/ops/sync-health/`, `/api/ops/health-overview/`
 - [ ] Connector lifecycle endpoints return expected status and sync behavior:

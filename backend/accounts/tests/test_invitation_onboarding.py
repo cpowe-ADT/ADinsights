@@ -5,16 +5,22 @@ import pytest
 from accounts.models import Invitation, Role, Tenant, User, assign_role, seed_default_roles
 
 
+def _create_admin_user(*, tenant: Tenant, email: str, password: str = "password123") -> User:
+    user = User.objects.create_user(
+        username=email,
+        email=email,
+        tenant=tenant,
+        password=password,
+    )
+    assign_role(user, Role.ADMIN)
+    return user
+
+
 @pytest.mark.django_db
 def test_admin_can_resend_invitation_and_complete_onboarding(api_client):
     seed_default_roles()
     tenant = Tenant.objects.create(name="Flow Tenant")
-    admin = User.objects.create_user(
-        username="admin@flow.com", email="admin@flow.com", tenant=tenant
-    )
-    admin.set_password("password123")
-    admin.save()
-    assign_role(admin, Role.ADMIN)
+    admin = _create_admin_user(tenant=tenant, email="admin@flow.com")
 
     api_client.force_authenticate(user=admin)
 
@@ -67,19 +73,9 @@ def test_resend_invitation_rejected_for_other_tenant(api_client):
     tenant_alpha = Tenant.objects.create(name="Alpha")
     tenant_beta = Tenant.objects.create(name="Beta")
 
-    admin_alpha = User.objects.create_user(
-        username="alpha@tenant.com", email="alpha@tenant.com", tenant=tenant_alpha
-    )
-    admin_alpha.set_password("password123")
-    admin_alpha.save()
-    assign_role(admin_alpha, Role.ADMIN)
+    admin_alpha = _create_admin_user(tenant=tenant_alpha, email="alpha@tenant.com")
 
-    admin_beta = User.objects.create_user(
-        username="beta@tenant.com", email="beta@tenant.com", tenant=tenant_beta
-    )
-    admin_beta.set_password("password123")
-    admin_beta.save()
-    assign_role(admin_beta, Role.ADMIN)
+    admin_beta = _create_admin_user(tenant=tenant_beta, email="beta@tenant.com")
 
     role = Role.objects.get(name=Role.VIEWER)
     foreign_invitation = Invitation.objects.create(

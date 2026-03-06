@@ -17,7 +17,12 @@ our telemetry payloads before they affect downstream dashboards or analysts.
   2. **Pytest telemetry** – runs `pytest backend` with coverage, generates
      `backend-ci-summary.json`, `ci-metrics.csv`, JUnit XML, and HTML coverage
      reports that mirror the main backend workflow artifacts.
-  3. **Telemetry schema guard** – executes
+  3. **Backend release smoke** – runs
+     `python backend/manage.py backend_release_smoke --strict-observability`
+     against the Django test client and uploads `backend-release-smoke.json`.
+     The step fails when required health endpoints or observability metrics
+     drift.
+  4. **Telemetry schema guard** – executes
      `scripts/ci/check_backend_telemetry.py` to hydrate telemetry fixtures,
      validate payloads against JSON Schema baselines, and publish human-friendly
      summaries.
@@ -31,6 +36,7 @@ variables as the core backend workflow to minimise surprises.
 | -------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------- |
 | `backend-ci-summary.json`        | Pytest telemetry       | Aggregated pass/fail counts for dashboards.                                                     |
 | `ci-metrics.csv`                 | Pytest telemetry       | Time-series friendly metrics for observability pipelines.                                       |
+| `backend-release-smoke.json`     | Backend release smoke  | Endpoint + metric guardrail result, including missing metrics/labels and unknown retry share.  |
 | `backend-tests/junit.xml`        | Pytest telemetry       | Raw JUnit output for CI surfaces.                                                               |
 | `backend-coverage/`              | Pytest telemetry       | `coverage.xml` + HTML coverage report.                                                          |
 | `backend-telemetry-summary.md`   | Telemetry schema guard | Markdown digest of telemetry payloads per tenant.                                               |
@@ -74,6 +80,8 @@ Canonical schemas live under `backend/tests/schemas/`. They cover:
 | Telemetry schema guard fails with `Apps aren't loaded yet`. | Django environment not configured before script execution. | Ensure `scripts/ci/check_backend_telemetry.py` runs from repo root or call `python -m scripts.ci.check_backend_telemetry`. |
 | Airbyte health reports `stale` in CI.                       | Fixture timestamps older than one hour.                    | Re-run the schema guard script locally to refresh timestamps or update fixtures.                                           |
 | dbt health reports `missing_run_results`.                   | `dbt/target/run_results.json` missing.                     | Verify the script copied the template; rerun the guard script.                                                             |
+| Backend release smoke fails with missing queue labels.      | Queue start metric samples were not emitted for all queue classes (`sync`, `snapshot`, `summary`). | Confirm the workflow's metric seeding snippet still records all queue labels and rerun the workflow.                      |
+| Backend release smoke fails unknown retry share check.      | `celery_task_retries_total{reason="unknown"}` exceeds strict threshold (`0.10`). | Validate retry reason taxonomy coverage for touched tasks and rerun once reasons are emitted explicitly.                  |
 | Markdown summary references multiple tenants.               | Fixtures accidentally seeded additional tenants.           | Reset the database (`rm backend/db.sqlite3`) and rerun the script; confirm fixture only contains `Telemetry Tenant`.       |
 
 ## Related Documentation

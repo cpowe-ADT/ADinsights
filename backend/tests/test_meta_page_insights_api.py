@@ -15,20 +15,13 @@ from integrations.models import (
 )
 
 
-def _authenticate(api_client, *, username: str, password: str) -> None:
-    token = api_client.post(
-        reverse("token_obtain_pair"),
-        {"username": username, "password": password},
-        format="json",
-    ).json()["access"]
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+def _authenticate(api_client, *, username: str) -> None:
+    user = User.objects.get(username=username)
+    api_client.force_authenticate(user=user)
 
 
 def _create_user(*, tenant: Tenant, username: str) -> User:
-    user = User.objects.create_user(username=username, email=username, tenant=tenant)
-    user.set_password("password123")
-    user.save()
-    return user
+    return User.objects.create_user(username=username, email=username, tenant=tenant)
 
 
 def _create_page_for_user(user: User) -> MetaPage:
@@ -58,7 +51,7 @@ def _create_page_for_user(user: User) -> MetaPage:
 
 @pytest.mark.django_db
 def test_meta_oauth_callback_creates_connection_and_pages(api_client, user, monkeypatch, settings):
-    _authenticate(api_client, username="user@example.com", password="password123")
+    _authenticate(api_client, username="user@example.com")
     settings.META_APP_ID = "meta-app-id"
     settings.META_APP_SECRET = "meta-app-secret"
     settings.META_LOGIN_CONFIG_ID = "2323589144820085"
@@ -127,7 +120,7 @@ def test_meta_connect_callback_persists_pages_without_ad_account_requirement(
     monkeypatch,
     settings,
 ):
-    _authenticate(api_client, username="user@example.com", password="password123")
+    _authenticate(api_client, username="user@example.com")
     settings.META_APP_ID = "meta-app-id"
     settings.META_APP_SECRET = "meta-app-secret"
     settings.META_LOGIN_CONFIG_REQUIRED = False
@@ -212,7 +205,7 @@ def test_meta_connect_callback_marks_page_analyzable_when_capability_metadata_mi
     monkeypatch,
     settings,
 ):
-    _authenticate(api_client, username="user@example.com", password="password123")
+    _authenticate(api_client, username="user@example.com")
     settings.META_APP_ID = "meta-app-id"
     settings.META_APP_SECRET = "meta-app-secret"
     settings.META_LOGIN_CONFIG_REQUIRED = False
@@ -293,7 +286,7 @@ def test_meta_connect_callback_rejects_invalid_debug_token(
     monkeypatch,
     settings,
 ):
-    _authenticate(api_client, username="user@example.com", password="password123")
+    _authenticate(api_client, username="user@example.com")
     settings.META_APP_ID = "meta-app-id"
     settings.META_APP_SECRET = "meta-app-secret"
     settings.META_LOGIN_CONFIG_REQUIRED = False
@@ -340,7 +333,7 @@ def test_meta_connect_callback_rejects_invalid_debug_token(
 
 @pytest.mark.django_db
 def test_meta_pages_select_overview_timeseries_posts_and_refresh(api_client, user, monkeypatch):
-    _authenticate(api_client, username="user@example.com", password="password123")
+    _authenticate(api_client, username="user@example.com")
     page = _create_page_for_user(user)
 
     MetaInsightPoint.all_objects.create(
@@ -439,11 +432,11 @@ def test_meta_page_endpoints_are_tenant_scoped(api_client):
 
     _create_page_for_user(user_a)
 
-    _authenticate(api_client, username="b@example.com", password="password123")
+    _authenticate(api_client, username="b@example.com")
     response = api_client.get(reverse("meta-page-overview", kwargs={"page_id": "page-1"}))
     assert response.status_code == 404
 
     # sanity check: owner tenant can read
-    _authenticate(api_client, username="a@example.com", password="password123")
+    _authenticate(api_client, username="a@example.com")
     ok = api_client.get(reverse("meta-page-overview", kwargs={"page_id": "page-1"}))
     assert ok.status_code == 200

@@ -9,6 +9,8 @@ from urllib.parse import urlsplit
 
 import environ
 from celery.schedules import crontab
+from kombu import Queue
+from django.core.exceptions import ImproperlyConfigured
 
 from config.logging import build_logging_config
 from core.crypto.kms import validate_kms_configuration
@@ -28,6 +30,8 @@ env = environ.Env(
     DJANGO_LOG_LEVEL=(str, "INFO"),
     APP_VERSION=(str, "0.0.0-dev"),
     METRICS_SNAPSHOT_TTL=(int, 300),
+    METRICS_SNAPSHOT_STALE_TTL_SECONDS=(int, 3600),
+    METRICS_SNAPSHOT_SYNC_LOCK_TTL_SECONDS=(int, 900),
     ENABLE_FAKE_ADAPTER=(bool, False),
     ENABLE_WAREHOUSE_ADAPTER=(bool, False),
     ENABLE_DEMO_ADAPTER=(bool, False),
@@ -113,6 +117,34 @@ env = environ.Env(
     DRF_THROTTLE_AUTH_BURST=(str, "10/min"),
     DRF_THROTTLE_AUTH_SUSTAINED=(str, "100/day"),
     DRF_THROTTLE_PUBLIC=(str, "120/min"),
+    CELERY_TASK_DEFAULT_QUEUE=(str, "default"),
+    CELERY_QUEUE_SYNC=(str, "sync"),
+    CELERY_QUEUE_SNAPSHOT=(str, "snapshot"),
+    CELERY_QUEUE_SUMMARY=(str, "summary"),
+    CELERY_WORKER_CONCURRENCY=(int, 4),
+    CELERY_WORKER_CONCURRENCY_BUDGET=(int, 7),
+    CELERY_WORKER_MAX_CONCURRENCY_PER_PROFILE=(int, 16),
+    CELERY_WORKER_MAX_PREFETCH_MULTIPLIER=(int, 4),
+    CELERY_WORKER_SYNC_MAX_TO_BACKGROUND_RATIO=(int, 4),
+    CELERY_WORKER_PREFETCH_MULTIPLIER=(int, 1),
+    CELERY_WORKER_MAX_TASKS_PER_CHILD=(int, 200),
+    CELERY_WORKER_MAX_MEMORY_PER_CHILD=(int, 0),
+    CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB=(int, 0),
+    CELERY_WORKER_SYNC_QUEUES=(list, ["default", "sync"]),
+    CELERY_WORKER_SYNC_CONCURRENCY=(int, 4),
+    CELERY_WORKER_SYNC_PREFETCH_MULTIPLIER=(int, 1),
+    CELERY_WORKER_SYNC_MAX_TASKS_PER_CHILD=(int, 200),
+    CELERY_WORKER_SNAPSHOT_QUEUES=(list, ["snapshot"]),
+    CELERY_WORKER_SNAPSHOT_CONCURRENCY=(int, 2),
+    CELERY_WORKER_SNAPSHOT_PREFETCH_MULTIPLIER=(int, 1),
+    CELERY_WORKER_SNAPSHOT_MAX_TASKS_PER_CHILD=(int, 100),
+    CELERY_WORKER_SUMMARY_QUEUES=(list, ["summary"]),
+    CELERY_WORKER_SUMMARY_CONCURRENCY=(int, 1),
+    CELERY_WORKER_SUMMARY_PREFETCH_MULTIPLIER=(int, 1),
+    CELERY_WORKER_SUMMARY_MAX_TASKS_PER_CHILD=(int, 100),
+    CELERY_TASK_ACKS_LATE=(bool, True),
+    CELERY_TASK_REJECT_ON_WORKER_LOST=(bool, True),
+    CELERY_TASK_TRACK_STARTED=(bool, True),
     CELERY_TASK_ALWAYS_EAGER=(bool, False),
     CELERY_TASK_EAGER_PROPAGATES=(bool, True),
 )
@@ -135,12 +167,21 @@ def _origin_from_url(value: str | None) -> str | None:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
+def _normalize_queue_list(values: list[str], *, default: tuple[str, ...]) -> tuple[str, ...]:
+    normalized = [value.strip() for value in values if isinstance(value, str) and value.strip()]
+    if not normalized:
+        return default
+    return tuple(dict.fromkeys(normalized))
+
+
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 ENABLE_TENANCY = env.bool("ENABLE_TENANCY", default=True)
 API_VERSION = env("API_VERSION")
 METRICS_SNAPSHOT_TTL = env.int("METRICS_SNAPSHOT_TTL")
+METRICS_SNAPSHOT_STALE_TTL_SECONDS = max(env.int("METRICS_SNAPSHOT_STALE_TTL_SECONDS"), 1)
+METRICS_SNAPSHOT_SYNC_LOCK_TTL_SECONDS = max(env.int("METRICS_SNAPSHOT_SYNC_LOCK_TTL_SECONDS"), 1)
 # In local DEBUG sessions, keep demo/fake adapters on by default so dashboard
 # toggles always have a working non-live data source unless explicitly disabled.
 ENABLE_FAKE_ADAPTER = env.bool("ENABLE_FAKE_ADAPTER", default=DEBUG)
@@ -259,10 +300,115 @@ LOGGING = build_logging_config(env("DJANGO_LOG_LEVEL"))
 
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
-CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TASK_DEFAULT_QUEUE = env("CELERY_TASK_DEFAULT_QUEUE", default="default")
+CELERY_QUEUE_SYNC = env("CELERY_QUEUE_SYNC", default="sync")
+CELERY_QUEUE_SNAPSHOT = env("CELERY_QUEUE_SNAPSHOT", default="snapshot")
+CELERY_QUEUE_SUMMARY = env("CELERY_QUEUE_SUMMARY", default="summary")
+CELERY_WORKER_CONCURRENCY = max(env.int("CELERY_WORKER_CONCURRENCY", default=4), 1)
+CELERY_WORKER_CONCURRENCY_BUDGET = max(
+    env.int("CELERY_WORKER_CONCURRENCY_BUDGET", default=7),
+    3,
+)
+CELERY_WORKER_MAX_CONCURRENCY_PER_PROFILE = max(
+    env.int("CELERY_WORKER_MAX_CONCURRENCY_PER_PROFILE", default=16),
+    1,
+)
+CELERY_WORKER_MAX_PREFETCH_MULTIPLIER = max(
+    env.int("CELERY_WORKER_MAX_PREFETCH_MULTIPLIER", default=4),
+    1,
+)
+CELERY_WORKER_SYNC_MAX_TO_BACKGROUND_RATIO = max(
+    env.int("CELERY_WORKER_SYNC_MAX_TO_BACKGROUND_RATIO", default=4),
+    1,
+)
+CELERY_WORKER_PREFETCH_MULTIPLIER = max(
+    env.int("CELERY_WORKER_PREFETCH_MULTIPLIER", default=1), 1
+)
+CELERY_WORKER_MAX_TASKS_PER_CHILD = max(
+    env.int("CELERY_WORKER_MAX_TASKS_PER_CHILD", default=200), 1
+)
+CELERY_WORKER_MAX_MEMORY_PER_CHILD = max(
+    env.int(
+        "CELERY_WORKER_MAX_MEMORY_PER_CHILD",
+        default=env.int("CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB", default=0),
+    ),
+    0,
+)
+CELERY_WORKER_SYNC_QUEUES = _normalize_queue_list(
+    env.list("CELERY_WORKER_SYNC_QUEUES", default=[CELERY_TASK_DEFAULT_QUEUE, CELERY_QUEUE_SYNC]),
+    default=(CELERY_TASK_DEFAULT_QUEUE, CELERY_QUEUE_SYNC),
+)
+CELERY_WORKER_SYNC_CONCURRENCY = max(
+    env.int("CELERY_WORKER_SYNC_CONCURRENCY", default=CELERY_WORKER_CONCURRENCY),
+    1,
+)
+CELERY_WORKER_SYNC_PREFETCH_MULTIPLIER = max(
+    env.int("CELERY_WORKER_SYNC_PREFETCH_MULTIPLIER", default=CELERY_WORKER_PREFETCH_MULTIPLIER),
+    1,
+)
+CELERY_WORKER_SYNC_MAX_TASKS_PER_CHILD = max(
+    env.int("CELERY_WORKER_SYNC_MAX_TASKS_PER_CHILD", default=CELERY_WORKER_MAX_TASKS_PER_CHILD),
+    1,
+)
+CELERY_WORKER_SNAPSHOT_QUEUES = _normalize_queue_list(
+    env.list("CELERY_WORKER_SNAPSHOT_QUEUES", default=[CELERY_QUEUE_SNAPSHOT]),
+    default=(CELERY_QUEUE_SNAPSHOT,),
+)
+CELERY_WORKER_SNAPSHOT_CONCURRENCY = max(
+    env.int("CELERY_WORKER_SNAPSHOT_CONCURRENCY", default=2),
+    1,
+)
+CELERY_WORKER_SNAPSHOT_PREFETCH_MULTIPLIER = max(
+    env.int("CELERY_WORKER_SNAPSHOT_PREFETCH_MULTIPLIER", default=1),
+    1,
+)
+CELERY_WORKER_SNAPSHOT_MAX_TASKS_PER_CHILD = max(
+    env.int("CELERY_WORKER_SNAPSHOT_MAX_TASKS_PER_CHILD", default=100),
+    1,
+)
+CELERY_WORKER_SUMMARY_QUEUES = _normalize_queue_list(
+    env.list("CELERY_WORKER_SUMMARY_QUEUES", default=[CELERY_QUEUE_SUMMARY]),
+    default=(CELERY_QUEUE_SUMMARY,),
+)
+CELERY_WORKER_SUMMARY_CONCURRENCY = max(
+    env.int("CELERY_WORKER_SUMMARY_CONCURRENCY", default=1),
+    1,
+)
+CELERY_WORKER_SUMMARY_PREFETCH_MULTIPLIER = max(
+    env.int("CELERY_WORKER_SUMMARY_PREFETCH_MULTIPLIER", default=1),
+    1,
+)
+CELERY_WORKER_SUMMARY_MAX_TASKS_PER_CHILD = max(
+    env.int("CELERY_WORKER_SUMMARY_MAX_TASKS_PER_CHILD", default=100),
+    1,
+)
+CELERY_TASK_ACKS_LATE = env.bool("CELERY_TASK_ACKS_LATE", default=True)
+CELERY_TASK_REJECT_ON_WORKER_LOST = env.bool(
+    "CELERY_TASK_REJECT_ON_WORKER_LOST", default=True
+)
+CELERY_TASK_TRACK_STARTED = env.bool("CELERY_TASK_TRACK_STARTED", default=True)
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
 CELERY_TASK_EAGER_PROPAGATES = env.bool("CELERY_TASK_EAGER_PROPAGATES", default=True)
+CELERY_TASK_ROUTES = {
+    "core.tasks.sync_meta_metrics": {"queue": CELERY_QUEUE_SYNC},
+    "core.tasks.sync_google_metrics": {"queue": CELERY_QUEUE_SYNC},
+    "integrations.tasks.sync_*": {"queue": CELERY_QUEUE_SYNC},
+    "integrations.tasks.evaluate_*": {"queue": CELERY_QUEUE_SYNC},
+    "integrations.tasks.trigger_scheduled_airbyte_syncs": {"queue": CELERY_QUEUE_SYNC},
+    "integrations.tasks.remind_expiring_credentials": {"queue": CELERY_QUEUE_SYNC},
+    "integrations.tasks.refresh_*": {"queue": CELERY_QUEUE_SYNC},
+    "analytics.sync_metrics_snapshots": {"queue": CELERY_QUEUE_SNAPSHOT},
+    "analytics.tasks.sync_metrics_snapshots": {"queue": CELERY_QUEUE_SNAPSHOT},
+    "analytics.ai_daily_summary": {"queue": CELERY_QUEUE_SUMMARY},
+    "analytics.run_report_export_job": {"queue": CELERY_QUEUE_SUMMARY},
+}
+CELERY_TASK_QUEUES = (
+    Queue(CELERY_TASK_DEFAULT_QUEUE),
+    Queue(CELERY_QUEUE_SYNC),
+    Queue(CELERY_QUEUE_SNAPSHOT),
+    Queue(CELERY_QUEUE_SUMMARY),
+)
 CELERY_BEAT_SCHEDULE = {
     "alerts-quarter-hourly": {
         "task": "alerts.tasks.run_alert_cycle",
@@ -271,42 +417,52 @@ CELERY_BEAT_SCHEDULE = {
     "airbyte-scheduled-syncs-hourly": {
         "task": "integrations.tasks.trigger_scheduled_airbyte_syncs",
         "schedule": crontab(minute=0, hour="6-22"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "credential-rotation-reminders": {
         "task": "integrations.tasks.remind_expiring_credentials",
         "schedule": crontab(hour=2, minute=0),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "meta-credential-lifecycle-hourly": {
         "task": "integrations.tasks.refresh_meta_tokens",
         "schedule": crontab(minute=0, hour="6-22"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "meta-sync-accounts-hourly": {
         "task": "integrations.tasks.sync_meta_accounts",
         "schedule": crontab(minute=0, hour="6-22"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "meta-sync-insights-hourly": {
         "task": "integrations.tasks.sync_meta_insights_incremental",
         "schedule": crontab(minute=0, hour="6-22"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "google-ads-sdk-sync-hourly": {
         "task": "integrations.tasks.sync_google_ads_sdk_incremental",
         "schedule": crontab(minute=0, hour="6-22"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "google-ads-sdk-finalize-daily": {
         "task": "integrations.tasks.sync_google_ads_sdk_finalize_daily",
         "schedule": crontab(hour=5, minute=0),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "google-ads-refresh-tokens-hourly": {
         "task": "integrations.tasks.refresh_google_ads_tokens",
         "schedule": crontab(minute=10, hour="6-22"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "google-ads-parity-daily": {
         "task": "integrations.tasks.evaluate_google_ads_parity",
         "schedule": crontab(hour=5, minute=40),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "meta-sync-hierarchy-daily": {
         "task": "integrations.tasks.sync_meta_hierarchy",
         "schedule": crontab(hour=2, minute=15),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "meta-page-insights-nightly": {
         "task": "integrations.tasks.sync_meta_page_insights",
@@ -314,6 +470,7 @@ CELERY_BEAT_SCHEDULE = {
             hour=env.int("META_PAGE_INSIGHTS_NIGHTLY_HOUR", default=3),
             minute=env.int("META_PAGE_INSIGHTS_NIGHTLY_MINUTE", default=10),
         ),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "meta-post-insights-nightly": {
         "task": "integrations.tasks.sync_meta_post_insights",
@@ -321,40 +478,179 @@ CELERY_BEAT_SCHEDULE = {
             hour=env.int("META_POST_INSIGHTS_NIGHTLY_HOUR", default=3),
             minute=env.int("META_POST_INSIGHTS_NIGHTLY_MINUTE", default=20),
         ),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "meta-sync-pages-hourly": {
         "task": "integrations.tasks.sync_meta_pages",
         "schedule": crontab(minute=5, hour="6-22"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "meta-discover-page-metrics-daily": {
         "task": "integrations.tasks.discover_supported_metrics",
         "schedule": crontab(hour=4, minute=0),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "meta-page-posts-hourly": {
         "task": "integrations.tasks.sync_page_posts",
         "schedule": crontab(minute=15, hour="6-22"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "meta-page-insights-hourly": {
         "task": "integrations.tasks.sync_page_insights",
         "schedule": crontab(minute=20, hour="6-22"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "meta-post-insights-hourly": {
         "task": "integrations.tasks.sync_post_insights",
         "schedule": crontab(minute=25, hour="6-22"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "rotate-tenant-deks": {
         "task": "core.tasks.rotate_deks",
         "schedule": crontab(hour=1, minute=30, day_of_week="sun"),
     },
     "metrics-snapshot-sync": {
-        "task": "analytics.tasks.sync_metrics_snapshots",
+        "task": "analytics.sync_metrics_snapshots",
         "schedule": crontab(minute="*/30"),
+        "options": {"queue": CELERY_QUEUE_SNAPSHOT},
     },
     "ai-daily-summary": {
         "task": "analytics.ai_daily_summary",
         "schedule": crontab(hour=6, minute=10),
+        "options": {"queue": CELERY_QUEUE_SUMMARY},
     },
 }
+
+
+def _validate_celery_runtime_configuration() -> None:
+    queue_settings = {
+        "CELERY_TASK_DEFAULT_QUEUE": CELERY_TASK_DEFAULT_QUEUE,
+        "CELERY_QUEUE_SYNC": CELERY_QUEUE_SYNC,
+        "CELERY_QUEUE_SNAPSHOT": CELERY_QUEUE_SNAPSHOT,
+        "CELERY_QUEUE_SUMMARY": CELERY_QUEUE_SUMMARY,
+    }
+    normalized_queues: dict[str, str] = {}
+    for key, value in queue_settings.items():
+        queue_name = str(value or "").strip()
+        if not queue_name:
+            raise ImproperlyConfigured(f"{key} must be non-empty.")
+        normalized_queues[key] = queue_name
+
+    queue_values = list(normalized_queues.values())
+    if len(set(queue_values)) != len(queue_values):
+        raise ImproperlyConfigured("Celery queue names must be distinct.")
+
+    if CELERY_WORKER_CONCURRENCY < 1:
+        raise ImproperlyConfigured("CELERY_WORKER_CONCURRENCY must be >= 1.")
+    if CELERY_WORKER_PREFETCH_MULTIPLIER < 1:
+        raise ImproperlyConfigured("CELERY_WORKER_PREFETCH_MULTIPLIER must be >= 1.")
+    if CELERY_WORKER_MAX_TASKS_PER_CHILD < 1:
+        raise ImproperlyConfigured("CELERY_WORKER_MAX_TASKS_PER_CHILD must be >= 1.")
+    if CELERY_WORKER_MAX_MEMORY_PER_CHILD < 0:
+        raise ImproperlyConfigured("CELERY_WORKER_MAX_MEMORY_PER_CHILD must be >= 0.")
+    if CELERY_WORKER_CONCURRENCY_BUDGET < 3:
+        raise ImproperlyConfigured("CELERY_WORKER_CONCURRENCY_BUDGET must be >= 3.")
+    if CELERY_WORKER_MAX_CONCURRENCY_PER_PROFILE < 1:
+        raise ImproperlyConfigured("CELERY_WORKER_MAX_CONCURRENCY_PER_PROFILE must be >= 1.")
+    if CELERY_WORKER_MAX_PREFETCH_MULTIPLIER < 1:
+        raise ImproperlyConfigured("CELERY_WORKER_MAX_PREFETCH_MULTIPLIER must be >= 1.")
+    if CELERY_WORKER_SYNC_MAX_TO_BACKGROUND_RATIO < 1:
+        raise ImproperlyConfigured("CELERY_WORKER_SYNC_MAX_TO_BACKGROUND_RATIO must be >= 1.")
+    worker_profiles = {
+        "CELERY_WORKER_SYNC": {
+            "queues": CELERY_WORKER_SYNC_QUEUES,
+            "required_queue": CELERY_QUEUE_SYNC,
+            "concurrency": CELERY_WORKER_SYNC_CONCURRENCY,
+            "prefetch_multiplier": CELERY_WORKER_SYNC_PREFETCH_MULTIPLIER,
+            "max_tasks_per_child": CELERY_WORKER_SYNC_MAX_TASKS_PER_CHILD,
+        },
+        "CELERY_WORKER_SNAPSHOT": {
+            "queues": CELERY_WORKER_SNAPSHOT_QUEUES,
+            "required_queue": CELERY_QUEUE_SNAPSHOT,
+            "concurrency": CELERY_WORKER_SNAPSHOT_CONCURRENCY,
+            "prefetch_multiplier": CELERY_WORKER_SNAPSHOT_PREFETCH_MULTIPLIER,
+            "max_tasks_per_child": CELERY_WORKER_SNAPSHOT_MAX_TASKS_PER_CHILD,
+        },
+        "CELERY_WORKER_SUMMARY": {
+            "queues": CELERY_WORKER_SUMMARY_QUEUES,
+            "required_queue": CELERY_QUEUE_SUMMARY,
+            "concurrency": CELERY_WORKER_SUMMARY_CONCURRENCY,
+            "prefetch_multiplier": CELERY_WORKER_SUMMARY_PREFETCH_MULTIPLIER,
+            "max_tasks_per_child": CELERY_WORKER_SUMMARY_MAX_TASKS_PER_CHILD,
+        },
+    }
+
+    known_queues = set(queue_values)
+    for profile_name, profile in worker_profiles.items():
+        queues = tuple(profile["queues"])
+        if not queues:
+            raise ImproperlyConfigured(f"{profile_name}_QUEUES must include at least one queue.")
+        if profile["required_queue"] not in queues:
+            raise ImproperlyConfigured(
+                f"{profile_name}_QUEUES must include {profile['required_queue']!r}."
+            )
+        for queue_name in queues:
+            if queue_name not in known_queues:
+                raise ImproperlyConfigured(
+                    f"{profile_name}_QUEUES references unknown queue {queue_name!r}."
+                )
+        if int(profile["concurrency"]) < 1:
+            raise ImproperlyConfigured(f"{profile_name}_CONCURRENCY must be >= 1.")
+        if int(profile["concurrency"]) > CELERY_WORKER_MAX_CONCURRENCY_PER_PROFILE:
+            raise ImproperlyConfigured(
+                f"{profile_name}_CONCURRENCY must be <= {CELERY_WORKER_MAX_CONCURRENCY_PER_PROFILE}."
+            )
+        if int(profile["prefetch_multiplier"]) < 1:
+            raise ImproperlyConfigured(
+                f"{profile_name}_PREFETCH_MULTIPLIER must be >= 1."
+            )
+        if int(profile["prefetch_multiplier"]) > CELERY_WORKER_MAX_PREFETCH_MULTIPLIER:
+            raise ImproperlyConfigured(
+                f"{profile_name}_PREFETCH_MULTIPLIER must be <= {CELERY_WORKER_MAX_PREFETCH_MULTIPLIER}."
+            )
+        if int(profile["max_tasks_per_child"]) < 1:
+            raise ImproperlyConfigured(
+                f"{profile_name}_MAX_TASKS_PER_CHILD must be >= 1."
+            )
+
+    total_profile_concurrency = (
+        CELERY_WORKER_SYNC_CONCURRENCY
+        + CELERY_WORKER_SNAPSHOT_CONCURRENCY
+        + CELERY_WORKER_SUMMARY_CONCURRENCY
+    )
+    if total_profile_concurrency > CELERY_WORKER_CONCURRENCY_BUDGET:
+        raise ImproperlyConfigured(
+            "Combined worker profile concurrency exceeds CELERY_WORKER_CONCURRENCY_BUDGET."
+        )
+    background_profile_concurrency = (
+        CELERY_WORKER_SNAPSHOT_CONCURRENCY + CELERY_WORKER_SUMMARY_CONCURRENCY
+    )
+    if CELERY_WORKER_SYNC_CONCURRENCY > (
+        background_profile_concurrency * CELERY_WORKER_SYNC_MAX_TO_BACKGROUND_RATIO
+    ):
+        raise ImproperlyConfigured(
+            "CELERY_WORKER_SYNC_CONCURRENCY exceeds fairness ratio versus snapshot/summary workers."
+        )
+
+    for route_name, route in CELERY_TASK_ROUTES.items():
+        queue_name = str((route or {}).get("queue") or "").strip()
+        if queue_name and queue_name not in known_queues:
+            raise ImproperlyConfigured(
+                f"CELERY_TASK_ROUTES[{route_name!r}] references unknown queue {queue_name!r}."
+            )
+
+    for schedule_name, entry in CELERY_BEAT_SCHEDULE.items():
+        options = (entry or {}).get("options")
+        if not isinstance(options, dict):
+            continue
+        queue_name = str(options.get("queue") or "").strip()
+        if queue_name and queue_name not in known_queues:
+            raise ImproperlyConfigured(
+                f"CELERY_BEAT_SCHEDULE[{schedule_name!r}] references unknown queue {queue_name!r}."
+            )
+
+
+_validate_celery_runtime_configuration()
 
 SECRETS_PROVIDER = env("SECRETS_PROVIDER")
 KMS_PROVIDER = env("KMS_PROVIDER")

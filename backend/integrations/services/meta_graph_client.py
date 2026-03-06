@@ -15,6 +15,22 @@ logger = logging.getLogger(__name__)
 
 _RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
 _RETRYABLE_GRAPH_CODES = {80001}
+_RATE_LIMITED_GRAPH_CODES = {4, 17, 32, 613, 80001}
+META_PAGE_RETRY_REASON_TRANSPORT = "meta_page_insights_transport_error"
+META_PAGE_RETRY_REASON_RATE_LIMITED = "meta_page_insights_rate_limited"
+META_PAGE_RETRY_REASON_UPSTREAM_5XX = "meta_page_insights_upstream_5xx"
+META_PAGE_RETRY_REASON_TRANSIENT = "meta_page_insights_transient_error"
+META_PAGE_RETRY_REASON_RETRYABLE = "meta_page_insights_retryable"
+
+
+def _classify_retry_reason(*, status_code: int | None, error_code: int | None, retryable: bool) -> str:
+    if status_code == 429 or error_code in _RATE_LIMITED_GRAPH_CODES:
+        return META_PAGE_RETRY_REASON_RATE_LIMITED
+    if status_code in {500, 502, 503, 504}:
+        return META_PAGE_RETRY_REASON_UPSTREAM_5XX
+    if retryable:
+        return META_PAGE_RETRY_REASON_TRANSIENT
+    return META_PAGE_RETRY_REASON_RETRYABLE
 
 
 class MetaInsightsGraphClientError(RuntimeError):
@@ -84,8 +100,8 @@ class MetaInsightsGraphClient:
                 response = self._client.request(method, url, params=request_params)
             except httpx.HTTPError as exc:
                 retryable = attempt < self.max_attempts
-                observe_meta_graph_retry(reason="transport_error")
                 if retryable:
+                    observe_meta_graph_retry(reason=META_PAGE_RETRY_REASON_TRANSPORT)
                     self._sleep_backoff(attempt)
                     continue
                 raise MetaInsightsGraphClientError(
@@ -104,7 +120,13 @@ class MetaInsightsGraphClient:
 
             last_message = details["message"] or f"Meta Graph request failed with status {response.status_code}."
             if retryable and attempt < self.max_attempts:
-                observe_meta_graph_retry(reason="meta_retryable")
+                observe_meta_graph_retry(
+                    reason=_classify_retry_reason(
+                        status_code=response.status_code,
+                        error_code=details["error_code"],
+                        retryable=retryable,
+                    )
+                )
                 self._sleep_backoff(attempt)
                 continue
 

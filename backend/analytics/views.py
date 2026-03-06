@@ -7,21 +7,22 @@ import json
 import logging
 import subprocess
 import sys
-from datetime import datetime, timedelta
+import time
+from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 from django.conf import settings
 from django.db import connection
-from django.utils import timezone
-from django.utils.dateparse import parse_date, parse_datetime
 from django.http import StreamingHttpResponse
+from django.utils import timezone
+from django.utils.dateparse import parse_date
 from rest_framework import permissions, status, viewsets
-from rest_framework.generics import GenericAPIView
-from rest_framework.parsers import MultiPartParser
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.generics import GenericAPIView
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -43,15 +44,21 @@ from .serializers import (
     AdSetSerializer,
     AggregateSnapshotSerializer,
     CampaignSerializer,
-    CombinedMetricsQueryParamsSerializer,
     MetricRecordSerializer,
     MetricsQueryParamsSerializer,
     RawPerformanceRecordSerializer,
     UploadMetricsRequestSerializer,
     UploadMetricsStatusSerializer,
 )
+from core.metrics import observe_combined_metrics_request
+from core.observability import emit_observability_event
 
 from accounts.audit import log_audit_event
+from analytics.combined_metrics_service import (
+    default_adapter_key,
+    load_combined_metrics_payload,
+    parse_cache_flag,
+)
 from analytics.snapshots import (
     default_snapshot_metrics,
     fetch_snapshot_metrics,
@@ -259,22 +266,27 @@ class CombinedMetricsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request) -> Response:  # noqa: D401 - DRF signature
+        started = time.perf_counter()
+        source = request.query_params.get("source", "unknown")
+        cache_outcome = "rejected"
+        has_filters = False
+        snapshot_written = False
+        query_count = 0
+        status_label = "rejected"
+
         registry = _build_registry()
         if not registry:
+            cache_outcome = "no_registry"
             return Response(
                 {"detail": "No analytics adapters are enabled."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        if "warehouse" in registry:
-            default_key = "warehouse"
-        elif "fake" in registry:
-            default_key = "fake"
-        else:
-            default_key = next(iter(registry))
+        default_key = default_adapter_key(registry)
         source = request.query_params.get("source", default_key)
         adapter = registry.get(source)
         if adapter is None:
+            cache_outcome = "unknown_source"
             return Response(
                 {"detail": f"Unknown adapter '{source}'."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -282,54 +294,67 @@ class CombinedMetricsView(APIView):
 
         tenant_id = getattr(request.user, "tenant_id", None)
         if tenant_id is None:
+            cache_outcome = "missing_tenant"
             return Response(
                 {"detail": "Unable to resolve tenant."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        filters_data = request.query_params
-        parishes = request.query_params.getlist("parish")
-        if len(parishes) > 1:
-            filters_data = request.query_params.copy()
-            filters_data["parish"] = ",".join(parishes)
-
-        filters_serializer = CombinedMetricsQueryParamsSerializer(data=filters_data)
-        filters_serializer.is_valid(raise_exception=True)
-        filters = filters_serializer.validated_data
-        has_filters = bool(filters.get("start_date") or filters.get("end_date") or filters.get("parish"))
-
-        ttl_seconds = getattr(settings, "METRICS_SNAPSHOT_TTL", 300)
-        cache_enabled = request.query_params.get("cache", "true").lower() != "false"
-        tenant = request.user.tenant
-        snapshot = (
-            TenantMetricsSnapshot.latest_for(tenant=tenant, source=source)
-            if cache_enabled and not has_filters
-            else None
-        )
-        if snapshot and snapshot.is_fresh(ttl_seconds):
-            cached_payload = dict(snapshot.payload)
-            cached_payload["snapshot_generated_at"] = snapshot.generated_at.isoformat()
-            return Response(cached_payload)
-
-        options = request.query_params.dict()
-        if parishes:
-            options["parish"] = parishes
-        options.update(filters)
-        payload = adapter.fetch_metrics(
-            tenant_id=str(tenant_id),
-            options=options,
-        )
-        combined, generated_at = _normalize_combined_payload(payload)
-        if not has_filters:
-            TenantMetricsSnapshot.objects.update_or_create(
-                tenant=tenant,
+        try:
+            result = load_combined_metrics_payload(
+                tenant=request.user.tenant,
+                tenant_id=str(tenant_id),
                 source=source,
-                defaults={
-                    "payload": combined,
-                    "generated_at": generated_at,
-                },
+                adapter=adapter,
+                query_params=request.query_params,
+                ttl_seconds=getattr(settings, "METRICS_SNAPSHOT_TTL", 300),
+                cache_enabled=parse_cache_flag(request.query_params.get("cache", "true")),
             )
-        return Response(combined)
+            cache_outcome = result.cache_outcome
+            has_filters = result.has_filters
+            snapshot_written = result.snapshot_written
+            query_count = result.query_count
+            status_label = "success"
+            return Response(result.payload)
+        except Exception:
+            cache_outcome = "error"
+            status_label = "error"
+            raise
+        finally:
+            duration_seconds = max(time.perf_counter() - started, 0.0)
+            metrics_context = {
+                "source": source,
+                "cache_outcome": cache_outcome,
+                "has_filters": has_filters,
+                "snapshot_written": snapshot_written,
+                "query_count": query_count,
+                "duration_ms": round(duration_seconds * 1000, 2),
+                "status": status_label,
+            }
+            request._metrics_context = metrics_context
+            raw_request = getattr(request, "_request", None)
+            if raw_request is not None:
+                raw_request._metrics_context = metrics_context
+            observe_combined_metrics_request(
+                source=source,
+                cache_outcome=cache_outcome,
+                status=status_label,
+                duration_seconds=duration_seconds,
+                query_count=query_count,
+                snapshot_written=snapshot_written,
+                has_filters=has_filters,
+            )
+            emit_observability_event(
+                logger,
+                "metrics.combined.request",
+                source=source,
+                cache_outcome=cache_outcome,
+                status=status_label,
+                has_filters=has_filters,
+                snapshot_written=snapshot_written,
+                query_count=query_count,
+                duration_ms=round(duration_seconds * 1000, 2),
+            )
 
 
 class DemoSeedView(APIView):
@@ -731,35 +756,3 @@ def _fetch_metric_rows(*, tenant_id: str, filters: dict[str, Any]) -> list[dict[
         cursor.execute(sql_query, query_params)
         columns: Sequence[str] = [col[0] for col in cursor.description]
         return [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-
-def _resolve_snapshot_timestamp(candidate: Any) -> datetime:
-    if isinstance(candidate, datetime):
-        resolved = candidate
-    elif isinstance(candidate, str):
-        parsed = parse_datetime(candidate)
-        resolved = parsed if parsed is not None else None
-    else:
-        resolved = None
-    if resolved is None:
-        resolved = timezone.now()
-    if timezone.is_naive(resolved):  # pragma: no cover - depends on db backend
-        resolved = timezone.make_aware(resolved)
-    return resolved
-
-
-def _normalize_combined_payload(payload: Mapping[str, Any]) -> tuple[dict[str, Any], datetime]:
-    normalized: dict[str, Any] = dict(payload)
-    metrics = normalized.get("metrics")
-    if isinstance(metrics, Mapping):
-        normalized.setdefault("campaign", metrics.get("campaign_metrics"))
-        normalized.setdefault("creative", metrics.get("creative_metrics") or [])
-        normalized.setdefault("budget", metrics.get("budget_metrics") or [])
-        normalized.setdefault("parish", metrics.get("parish_metrics") or [])
-
-    generated_at = _resolve_snapshot_timestamp(
-        normalized.get("snapshot_generated_at") or normalized.get("generated_at")
-    )
-    normalized["snapshot_generated_at"] = generated_at.isoformat()
-    normalized.pop("generated_at", None)
-    return normalized, generated_at

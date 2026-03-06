@@ -34,6 +34,40 @@ CELERY_TASK_DURATION = Histogram(
     ),
 )
 
+CELERY_TASK_RETRY_TOTAL = Counter(
+    "celery_task_retries_total",
+    "Total number of Celery retries partitioned by task and failure reason.",
+    ("task_name", "reason"),
+)
+
+CELERY_TASK_QUEUE_START_TOTAL = Counter(
+    "celery_task_queue_starts_total",
+    "Total number of Celery task starts partitioned by task and queue.",
+    ("task_name", "queue_name"),
+)
+
+CELERY_TASK_QUEUE_WAIT = Histogram(
+    "celery_task_queue_wait_seconds",
+    "Observed wait time between task publish and worker start.",
+    ("task_name", "queue_name"),
+    buckets=(
+        0.01,
+        0.05,
+        0.1,
+        0.25,
+        0.5,
+        1,
+        2,
+        5,
+        10,
+        30,
+        60,
+        120,
+        300,
+        600,
+    ),
+)
+
 AIRBYTE_SYNC_LATENCY = Histogram(
     "airbyte_sync_latency_seconds",
     "Latency for Airbyte sync attempts partitioned by tenant and provider.",
@@ -81,6 +115,42 @@ DBT_RUN_DURATION = Histogram(
         600,
         1200,
     ),
+)
+
+COMBINED_METRICS_REQUEST_TOTAL = Counter(
+    "combined_metrics_requests_total",
+    "Combined metrics endpoint requests by source, cache outcome, and status.",
+    ("source", "cache_outcome", "status", "has_filters"),
+)
+
+COMBINED_METRICS_REQUEST_DURATION = Histogram(
+    "combined_metrics_request_duration_seconds",
+    "Latency of combined metrics endpoint requests.",
+    ("source", "cache_outcome"),
+    buckets=(
+        0.01,
+        0.05,
+        0.1,
+        0.25,
+        0.5,
+        1,
+        2,
+        5,
+        10,
+    ),
+)
+
+COMBINED_METRICS_QUERY_COUNT = Histogram(
+    "combined_metrics_query_count",
+    "Database query count observed per combined metrics request.",
+    ("source", "cache_outcome"),
+    buckets=(0, 1, 2, 3, 5, 8, 13, 21, 34),
+)
+
+COMBINED_METRICS_SNAPSHOT_WRITES_TOTAL = Counter(
+    "combined_metrics_snapshot_writes_total",
+    "Snapshot write outcomes for combined metrics requests.",
+    ("source", "result"),
 )
 
 META_TOKEN_VALIDATIONS_TOTAL = Counter(
@@ -148,6 +218,29 @@ def observe_task(task_name: str, status: str, duration_seconds: float | None) ->
         CELERY_TASK_DURATION.labels(task_name=task_name).observe(duration_seconds)
 
 
+def observe_task_retry(*, task_name: str, reason: str | None) -> None:
+    """Record a task retry event with a failure-reason label."""
+
+    reason_label = (reason or "unknown").strip().lower() or "unknown"
+    CELERY_TASK_RETRY_TOTAL.labels(task_name=task_name, reason=reason_label).inc()
+
+
+def observe_task_queue_start(
+    *,
+    task_name: str,
+    queue_name: str | None,
+    queue_wait_seconds: float | None,
+) -> None:
+    """Record queue-level start and wait metrics for Celery tasks."""
+
+    queue_label = (queue_name or "unknown").strip().lower() or "unknown"
+    CELERY_TASK_QUEUE_START_TOTAL.labels(task_name=task_name, queue_name=queue_label).inc()
+    if queue_wait_seconds is not None:
+        CELERY_TASK_QUEUE_WAIT.labels(task_name=task_name, queue_name=queue_label).observe(
+            queue_wait_seconds
+        )
+
+
 def observe_airbyte_sync(
     *,
     tenant_id: str,
@@ -188,6 +281,7 @@ def observe_airbyte_sync(
         if _OTEL_SYNC_ERRORS is not None:
             _OTEL_SYNC_ERRORS.add(1, attributes=dict(attributes))
 
+
 def observe_dbt_run(status: str, duration_seconds: float | None) -> None:
     """Record metrics for dbt runs when duration is available."""
 
@@ -195,6 +289,43 @@ def observe_dbt_run(status: str, duration_seconds: float | None) -> None:
         return
     status_label = (status or "unknown").lower()
     DBT_RUN_DURATION.labels(status=status_label).observe(duration_seconds)
+
+
+def observe_combined_metrics_request(
+    *,
+    source: str | None,
+    cache_outcome: str | None,
+    status: str | None,
+    duration_seconds: float | None,
+    query_count: int | None,
+    snapshot_written: bool,
+    has_filters: bool,
+) -> None:
+    source_label = (source or "unknown").strip().lower()
+    cache_label = (cache_outcome or "unknown").strip().lower()
+    status_label = (status or "unknown").strip().lower()
+    filters_label = "true" if has_filters else "false"
+    COMBINED_METRICS_REQUEST_TOTAL.labels(
+        source=source_label,
+        cache_outcome=cache_label,
+        status=status_label,
+        has_filters=filters_label,
+    ).inc()
+    if duration_seconds is not None:
+        COMBINED_METRICS_REQUEST_DURATION.labels(
+            source=source_label,
+            cache_outcome=cache_label,
+        ).observe(duration_seconds)
+    if query_count is not None:
+        COMBINED_METRICS_QUERY_COUNT.labels(
+            source=source_label,
+            cache_outcome=cache_label,
+        ).observe(query_count)
+    write_result = "written" if snapshot_written else "skipped"
+    COMBINED_METRICS_SNAPSHOT_WRITES_TOTAL.labels(
+        source=source_label,
+        result=write_result,
+    ).inc()
 
 
 def observe_meta_token_validation(status: str) -> None:
@@ -238,10 +369,17 @@ def reset_metrics(registries: Iterable[Histogram | Counter] | None = None) -> No
     collectors = registries or (
         CELERY_TASK_TOTAL,
         CELERY_TASK_DURATION,
+        CELERY_TASK_RETRY_TOTAL,
+        CELERY_TASK_QUEUE_START_TOTAL,
+        CELERY_TASK_QUEUE_WAIT,
         AIRBYTE_SYNC_LATENCY,
         AIRBYTE_ROWS_SYNCED,
         AIRBYTE_SYNC_ERRORS,
         DBT_RUN_DURATION,
+        COMBINED_METRICS_REQUEST_TOTAL,
+        COMBINED_METRICS_REQUEST_DURATION,
+        COMBINED_METRICS_QUERY_COUNT,
+        COMBINED_METRICS_SNAPSHOT_WRITES_TOTAL,
         META_TOKEN_VALIDATIONS_TOTAL,
         META_TOKEN_REFRESH_ATTEMPTS_TOTAL,
         META_GRAPH_RETRY_TOTAL,

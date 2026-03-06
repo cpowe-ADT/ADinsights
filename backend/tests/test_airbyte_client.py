@@ -60,3 +60,44 @@ def test_airbyte_client_requests(monkeypatch):
     assert calls[1][0].endswith("/jobs/get")
     assert calls[1][1] == {"id": 42}
     assert calls[2][0].endswith("/jobs/list")
+
+
+def test_airbyte_client_latest_job_fallbacks_to_config_id(monkeypatch):
+    calls: list[tuple[str, dict]] = []
+
+    class DummyResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):  # noqa: D401 - httpx compatibility
+            return None
+
+        def json(self):
+            return self._payload
+
+    class DummyHttpClient:
+        def __init__(self, *args, **kwargs):  # noqa: D401 - mimic httpx
+            self.closed = False
+
+        def post(self, path, json):
+            calls.append((path, json))
+            if path.endswith("/jobs/list") and "connectionId" in json:
+                return DummyResponse({"jobs": []})
+            if path.endswith("/jobs/list") and "configId" in json:
+                return DummyResponse({"jobs": [{"id": 77, "status": "failed"}]})
+            return DummyResponse({})
+
+        def close(self):
+            self.closed = True
+
+    monkeypatch.setattr("integrations.airbyte.client.httpx.Client", DummyHttpClient)
+
+    with AirbyteClient(base_url="http://airbyte", token="token") as client:
+        latest_payload = client.latest_job("abc")
+
+    assert latest_payload is not None
+    assert latest_payload["id"] == 77
+    assert calls[0][0].endswith("/jobs/list")
+    assert calls[0][1]["connectionId"] == "abc"
+    assert calls[1][0].endswith("/jobs/list")
+    assert calls[1][1]["configId"] == "abc"

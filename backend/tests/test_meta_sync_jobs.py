@@ -5,9 +5,10 @@ from decimal import Decimal
 import pytest
 
 from analytics.models import Ad, AdAccount, AdSet, Campaign, RawPerformanceRecord
-from integrations.meta_graph import MetaGraphClientError
+from integrations.meta_graph import MetaGraphClientError, MetaGraphConfigurationError
 from integrations.models import APIErrorLog, MetaAccountSyncState, PlatformCredential
 from integrations.tasks import (
+    RETRY_REASON_META_GRAPH_CONFIGURATION,
     sync_meta_accounts,
     sync_meta_hierarchy,
     sync_meta_insights_incremental,
@@ -241,3 +242,44 @@ def test_sync_meta_accounts_logs_api_error(monkeypatch, user):
     log = APIErrorLog.objects.get(tenant=user.tenant, provider=PlatformCredential.META)
     assert log.status_code == 429
     assert log.is_retryable is True
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "task_call",
+    [
+        lambda: sync_meta_accounts.run(),
+        lambda: sync_meta_hierarchy.run(),
+        lambda: sync_meta_insights_incremental.run(),
+    ],
+)
+def test_meta_sync_tasks_retry_with_configuration_reason(monkeypatch, user, task_call):
+    _seed_meta_credential(user)
+
+    class RetryCalled(Exception):
+        pass
+
+    def raise_configuration_error():
+        raise MetaGraphConfigurationError("META_APP_ID is required")
+
+    def fake_retry_with_backoff(self, *, exc=None, base_delay=None, max_delay=None, reason=None):  # noqa: ANN001
+        raise RetryCalled(
+            {
+                "exc": exc,
+                "base_delay": base_delay,
+                "max_delay": max_delay,
+                "reason": reason,
+            }
+        )
+
+    monkeypatch.setattr("integrations.tasks.MetaGraphClient.from_settings", raise_configuration_error)
+    monkeypatch.setattr("integrations.tasks.BaseAdInsightsTask.retry_with_backoff", fake_retry_with_backoff)
+
+    with pytest.raises(RetryCalled) as excinfo:
+        task_call()
+
+    payload = excinfo.value.args[0]
+    assert isinstance(payload["exc"], MetaGraphConfigurationError)
+    assert payload["base_delay"] == 300
+    assert payload["max_delay"] == 900
+    assert payload["reason"] == RETRY_REASON_META_GRAPH_CONFIGURATION

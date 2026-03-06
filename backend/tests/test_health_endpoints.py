@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import uuid
+from datetime import datetime
 from datetime import timedelta
 
 import pytest
@@ -10,7 +12,13 @@ from django.test import Client, override_settings
 from django.urls import path
 from django.utils import timezone
 
-from core.metrics import observe_task, observe_dbt_run, reset_metrics
+from core.metrics import (
+    observe_dbt_run,
+    observe_task,
+    observe_task_queue_start,
+    observe_task_retry,
+    reset_metrics,
+)
 from integrations.models import (
     AirbyteConnection,
     AirbyteJobTelemetry,
@@ -28,6 +36,15 @@ urlpatterns = [
 ]
 
 handler500 = "core.views.server_error"
+
+
+def _histogram_sum_for_queue(*, body: str, metric_name: str, queue_name: str) -> float:
+    pattern = re.compile(
+        rf'{metric_name}_sum\{{[^}}]*queue_name="{queue_name}"[^}}]*\}}\s+([0-9.]+)'
+    )
+    match = pattern.search(body)
+    assert match is not None
+    return float(match.group(1))
 
 
 @pytest.mark.django_db
@@ -196,6 +213,65 @@ def test_airbyte_health_flags_stale_sync(api_client, tenant, settings):
     assert payload["stale"] is True
 
 
+@pytest.mark.django_db
+def test_airbyte_health_cron_sync_not_stale_outside_window(api_client, tenant, settings, monkeypatch):
+    settings.AIRBYTE_API_URL = "http://airbyte.local"
+    settings.AIRBYTE_API_TOKEN = "token"
+    last_sync_time = timezone.make_aware(datetime(2026, 3, 1, 22, 38, 24))
+    now = timezone.make_aware(datetime(2026, 3, 2, 1, 0, 0))
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_CRON,
+        cron_expression="0 6-22 * * *",
+        last_synced_at=last_sync_time,
+        last_job_status="succeeded",
+        last_job_id="sync-1",
+    )
+    TenantAirbyteSyncStatus.update_for_connection(connection)
+    monkeypatch.setattr("core.views.timezone.now", lambda: now)
+
+    response = api_client.get("/api/health/airbyte/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["stale"] is False
+
+
+@pytest.mark.django_db
+def test_airbyte_health_flags_running_job_stale_outside_window(
+    api_client, tenant, settings, monkeypatch
+):
+    settings.AIRBYTE_API_URL = "http://airbyte.local"
+    settings.AIRBYTE_API_TOKEN = "token"
+    last_sync_time = timezone.make_aware(datetime(2026, 3, 1, 22, 38, 24))
+    now = timezone.make_aware(datetime(2026, 3, 2, 1, 30, 0))
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_CRON,
+        cron_expression="0 6-22 * * *",
+        last_synced_at=last_sync_time,
+        last_job_status="running",
+        last_job_id="sync-running-1",
+    )
+    TenantAirbyteSyncStatus.update_for_connection(connection)
+    monkeypatch.setattr("core.views.timezone.now", lambda: now)
+
+    response = api_client.get("/api/health/airbyte/")
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["status"] == "running_stale"
+    assert payload["stale"] is False
+    assert payload["running_age_seconds"] >= 9000
+
+
 def test_dbt_health_missing_run_results(api_client, monkeypatch, tmp_path):
     from core import views as core_views
 
@@ -230,6 +306,34 @@ def test_dbt_health_ok(api_client, monkeypatch, tmp_path):
     assert payload["status"] == "ok"
     assert payload["failing_models"] == []
     assert payload["failing_models_detail"] == []
+
+
+def test_dbt_health_uses_container_fallback_path(api_client, monkeypatch, tmp_path):
+    from core import views as core_views
+
+    default_path = tmp_path / "missing" / "run_results.json"
+    fallback_path = tmp_path / "container" / "run_results.json"
+    fallback_path.parent.mkdir(parents=True, exist_ok=True)
+    fallback_path.write_text(
+        json.dumps(
+            {
+                "metadata": {"generated_at": timezone.now().isoformat()},
+                "results": [
+                    {"status": "success", "unique_id": "model.ads.reporting"},
+                ],
+            }
+        )
+    )
+
+    monkeypatch.setattr(core_views, "DEFAULT_RUN_RESULTS_PATH", default_path)
+    monkeypatch.setattr(core_views, "RUN_RESULTS_PATH", default_path)
+    monkeypatch.setattr(core_views, "CONTAINER_RUN_RESULTS_PATH", fallback_path)
+
+    response = api_client.get("/api/health/dbt/")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["run_results_path"] == str(fallback_path)
 
 
 def test_dbt_health_flags_stale(api_client, monkeypatch, tmp_path):
@@ -296,12 +400,53 @@ def test_dbt_health_reports_failing_models(api_client, monkeypatch, tmp_path):
 def test_prometheus_metrics_endpoint(api_client):
     reset_metrics()
     observe_task("core.tasks.rotate_deks", "SUCCESS", 0.42)
+    observe_task_retry(task_name="core.tasks.sync_meta_metrics", reason="airbyte_client_error")
+    observe_task_queue_start(
+        task_name="integrations.tasks.sync_meta_accounts",
+        queue_name="sync",
+        queue_wait_seconds=0.75,
+    )
+    observe_task_queue_start(
+        task_name="analytics.sync_metrics_snapshots",
+        queue_name="snapshot",
+        queue_wait_seconds=1.25,
+    )
+    observe_task_queue_start(
+        task_name="analytics.ai_daily_summary",
+        queue_name="summary",
+        queue_wait_seconds=2.5,
+    )
     observe_dbt_run("success", 1.5)
 
     response = api_client.get("/metrics/app/")
     assert response.status_code == 200
     body = response.content.decode("utf-8")
     assert "celery_task_executions_total" in body
+    assert "celery_task_retries_total" in body
+    assert "celery_task_queue_starts_total" in body
+    assert "celery_task_queue_wait_seconds" in body
+    assert 'queue_name="sync"' in body
+    assert 'queue_name="snapshot"' in body
+    assert 'queue_name="summary"' in body
+    queue_wait_sync = _histogram_sum_for_queue(
+        body=body,
+        metric_name="celery_task_queue_wait_seconds",
+        queue_name="sync",
+    )
+    queue_wait_snapshot = _histogram_sum_for_queue(
+        body=body,
+        metric_name="celery_task_queue_wait_seconds",
+        queue_name="snapshot",
+    )
+    queue_wait_summary = _histogram_sum_for_queue(
+        body=body,
+        metric_name="celery_task_queue_wait_seconds",
+        queue_name="summary",
+    )
+    assert queue_wait_sync == pytest.approx(0.75)
+    assert queue_wait_snapshot == pytest.approx(1.25)
+    assert queue_wait_summary == pytest.approx(2.5)
+    assert queue_wait_summary > queue_wait_snapshot > queue_wait_sync
     assert "celery_task_duration_seconds" in body
     assert "dbt_run_duration_seconds" in body
 

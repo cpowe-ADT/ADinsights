@@ -82,6 +82,14 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         default="ci-metrics.csv",
         help="Filename for the metrics CSV output.",
     )
+    parser.add_argument(
+        "--release-smoke",
+        default=None,
+        help=(
+            "Optional path to backend_release_smoke JSON output. "
+            "When provided, it is included in summary artifacts."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -200,8 +208,21 @@ def parse_coverage_report(path: Path) -> CoverageResult:
     )
 
 
+def parse_release_smoke_report(path: Path) -> dict[str, object]:
+    with path.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError("release smoke report must be a JSON object")
+    return payload
+
+
 def build_summary(
-    suites: list[SuiteResult], coverage: CoverageResult, junit_path: Path, coverage_path: Path
+    suites: list[SuiteResult],
+    coverage: CoverageResult,
+    junit_path: Path,
+    coverage_path: Path,
+    release_smoke_path: Path | None = None,
+    release_smoke: dict[str, object] | None = None,
 ) -> dict[str, object]:
     total_tests = sum(suite.tests for suite in suites)
     total_errors = sum(suite.errors for suite in suites)
@@ -211,6 +232,11 @@ def build_summary(
     total_duration = sum(suite.duration for suite in suites)
 
     status = "passed" if (total_errors + total_failures) == 0 else "failed"
+    release_smoke_ok = None
+    if isinstance(release_smoke, dict):
+        release_smoke_ok = bool(release_smoke.get("ok"))
+        if release_smoke_ok is False:
+            status = "failed"
 
     suites_payload = [
         {
@@ -232,6 +258,7 @@ def build_summary(
         "inputs": {
             "junit_xml": str(junit_path),
             "coverage_xml": str(coverage_path),
+            "release_smoke_json": str(release_smoke_path) if release_smoke_path else None,
         },
         "tests": {
             "total": total_tests,
@@ -255,6 +282,20 @@ def build_summary(
 
     if suites_payload:
         summary["timing"]["longest_suite"] = suites_payload[0]
+    if release_smoke is not None:
+        summary["release_smoke"] = {
+            "ok": release_smoke_ok,
+            "strict_external": release_smoke.get("strict_external"),
+            "strict_observability": release_smoke.get("strict_observability"),
+            "missing_metrics": release_smoke.get("missing_metrics"),
+            "missing_metric_labels": release_smoke.get("missing_metric_labels"),
+            "unknown_retry_share": release_smoke.get("unknown_retry_share"),
+            "max_unknown_retry_share": release_smoke.get("max_unknown_retry_share"),
+            "unknown_retry_reason_labels": release_smoke.get("unknown_retry_reason_labels"),
+            "unknown_retry_count": release_smoke.get("unknown_retry_count"),
+            "retry_total": release_smoke.get("retry_total"),
+            "checks": release_smoke.get("checks"),
+        }
 
     return summary
 
@@ -341,6 +382,77 @@ def build_metrics_rows(summary: dict[str, object]) -> list[dict[str, str]]:
             }
         )
 
+    release_smoke = summary.get("release_smoke")
+    if isinstance(release_smoke, dict):
+        release_smoke_ok = bool(release_smoke.get("ok"))
+        rows.append(
+            {
+                "scope": "release_smoke",
+                "metric": "status",
+                "value": "1" if release_smoke_ok else "0",
+                "unit": "bool",
+                "notes": (
+                    "strict_external={strict_external};strict_observability={strict_observability}"
+                ).format(
+                    strict_external=release_smoke.get("strict_external"),
+                    strict_observability=release_smoke.get("strict_observability"),
+                ),
+            }
+        )
+        missing_metrics = release_smoke.get("missing_metrics")
+        if isinstance(missing_metrics, list):
+            rows.append(
+                {
+                    "scope": "release_smoke",
+                    "metric": "missing_metrics_count",
+                    "value": f"{len(missing_metrics)}",
+                    "unit": "count",
+                    "notes": "backend_release_smoke missing metric names",
+                }
+            )
+        missing_metric_labels = release_smoke.get("missing_metric_labels")
+        if isinstance(missing_metric_labels, list):
+            rows.append(
+                {
+                    "scope": "release_smoke",
+                    "metric": "missing_metric_labels_count",
+                    "value": f"{len(missing_metric_labels)}",
+                    "unit": "count",
+                    "notes": "backend_release_smoke missing metric labels",
+                }
+            )
+        unknown_retry_share = release_smoke.get("unknown_retry_share")
+        if isinstance(unknown_retry_share, (int, float)):
+            rows.append(
+                {
+                    "scope": "release_smoke",
+                    "metric": "unknown_retry_share",
+                    "value": f"{unknown_retry_share}",
+                    "unit": "ratio",
+                    "notes": (
+                        "max_unknown_retry_share={max_unknown_retry_share}"
+                    ).format(
+                        max_unknown_retry_share=release_smoke.get("max_unknown_retry_share"),
+                    ),
+                }
+            )
+        unknown_retry_count = release_smoke.get("unknown_retry_count")
+        if isinstance(unknown_retry_count, (int, float)):
+            rows.append(
+                {
+                    "scope": "release_smoke",
+                    "metric": "unknown_retry_count",
+                    "value": f"{unknown_retry_count}",
+                    "unit": "count",
+                    "notes": (
+                        "retry_total={retry_total};labels={labels}"
+                    ).format(
+                        retry_total=release_smoke.get("retry_total"),
+                        labels=release_smoke.get("unknown_retry_reason_labels"),
+                    ),
+                }
+            )
+
     return rows
 
 
@@ -366,6 +478,7 @@ def main(argv: Iterable[str]) -> int:
 
     junit_path = Path(args.junit)
     coverage_path = Path(args.coverage)
+    release_smoke_path = Path(args.release_smoke) if args.release_smoke else None
 
     if not junit_path.exists():
         print(f"JUnit XML report not found: {junit_path}", file=sys.stderr)
@@ -373,6 +486,16 @@ def main(argv: Iterable[str]) -> int:
     if not coverage_path.exists():
         print(f"Coverage XML report not found: {coverage_path}", file=sys.stderr)
         return 1
+    release_smoke_payload: dict[str, object] | None = None
+    if release_smoke_path is not None:
+        if not release_smoke_path.exists():
+            print(f"Release smoke report not found: {release_smoke_path}", file=sys.stderr)
+            return 1
+        try:
+            release_smoke_payload = parse_release_smoke_report(release_smoke_path)
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            print(f"Invalid release smoke report ({release_smoke_path}): {exc}", file=sys.stderr)
+            return 1
 
     suites = parse_junit_report(junit_path)
     if not suites:
@@ -380,11 +503,23 @@ def main(argv: Iterable[str]) -> int:
         return 1
 
     coverage = parse_coverage_report(coverage_path)
-    summary = build_summary(suites, coverage, junit_path, coverage_path)
+    summary = build_summary(
+        suites,
+        coverage,
+        junit_path,
+        coverage_path,
+        release_smoke_path=release_smoke_path,
+        release_smoke=release_smoke_payload,
+    )
     metrics_rows = build_metrics_rows(summary)
 
     write_json(Path(args.json_output), summary)
     write_csv(Path(args.csv_output), metrics_rows)
+
+    release_smoke = summary.get("release_smoke")
+    if isinstance(release_smoke, dict) and release_smoke.get("ok") is False:
+        print("Release smoke report indicates failure.", file=sys.stderr)
+        return 1
 
     return 0
 

@@ -3,7 +3,12 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from integrations.meta_graph import MetaGraphClient, MetaGraphClientError
+from integrations.meta_graph import (
+    META_GRAPH_RETRY_REASON_RATE_LIMITED,
+    META_GRAPH_RETRY_REASON_TRANSPORT,
+    MetaGraphClient,
+    MetaGraphClientError,
+)
 
 
 def _response(status_code: int, payload: dict, *, headers: dict[str, str] | None = None) -> httpx.Response:
@@ -51,6 +56,7 @@ def test_meta_graph_client_paginates_ad_accounts(monkeypatch):
 def test_meta_graph_client_retries_then_succeeds(monkeypatch):
     client = MetaGraphClient(app_id="app", app_secret="secret", graph_version="v24.0")
     calls = {"count": 0}
+    observed_retry_reasons: list[str] = []
 
     def fake_request(method: str, url: str, params=None):  # noqa: ANN001
         calls["count"] += 1
@@ -63,10 +69,40 @@ def test_meta_graph_client_retries_then_succeeds(monkeypatch):
 
     monkeypatch.setattr(client._client, "request", fake_request)
     monkeypatch.setattr("integrations.meta_graph.time.sleep", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        "integrations.meta_graph.observe_meta_graph_retry",
+        lambda *, reason: observed_retry_reasons.append(reason),
+    )
 
     debug = client.debug_token(input_token="token")
     assert debug["is_valid"] is True
     assert calls["count"] == 2
+    assert observed_retry_reasons == [META_GRAPH_RETRY_REASON_RATE_LIMITED]
+
+
+@pytest.mark.django_db
+def test_meta_graph_client_emits_transport_retry_reason(monkeypatch):
+    client = MetaGraphClient(app_id="app", app_secret="secret", graph_version="v24.0")
+    calls = {"count": 0}
+    observed_retry_reasons: list[str] = []
+
+    def fake_request(method: str, url: str, params=None):  # noqa: ANN001
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise httpx.ReadTimeout("timeout")
+        return _response(200, {"data": {"is_valid": True}})
+
+    monkeypatch.setattr(client._client, "request", fake_request)
+    monkeypatch.setattr("integrations.meta_graph.time.sleep", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        "integrations.meta_graph.observe_meta_graph_retry",
+        lambda *, reason: observed_retry_reasons.append(reason),
+    )
+
+    debug = client.debug_token(input_token="token")
+    assert debug["is_valid"] is True
+    assert calls["count"] == 2
+    assert observed_retry_reasons == [META_GRAPH_RETRY_REASON_TRANSPORT]
 
 
 @pytest.mark.django_db

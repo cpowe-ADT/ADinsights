@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import csv
-from datetime import date
+from datetime import date, timedelta
+import logging
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,7 @@ from adapters.demo import DemoAdapter, clear_demo_seed_cache
 from adapters.fake import FakeAdapter
 from adapters.upload import UploadAdapter
 from analytics.models import TenantMetricsSnapshot
+from core.metrics import reset_metrics
 
 
 @pytest.fixture(autouse=True)
@@ -205,6 +207,242 @@ def test_combined_metrics_cache_bypass(monkeypatch, api_client, user):
 
     response = api_client.get("/api/metrics/combined/", {"cache": "false"})
     assert response.json()["campaign"]["summary"]["currency"] == "CAD"
+
+
+@pytest.mark.django_db
+def test_combined_metrics_stale_snapshot_refreshes(monkeypatch, api_client, user, settings):
+    settings.METRICS_SNAPSHOT_TTL = 10
+    api_client.force_authenticate(user=user)
+
+    TenantMetricsSnapshot.objects.create(
+        tenant=user.tenant,
+        source="fake",
+        payload={
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+            "snapshot_generated_at": (timezone.now() - timedelta(minutes=5)).isoformat(),
+        },
+        generated_at=timezone.now() - timedelta(minutes=5),
+    )
+
+    def refreshed_payload(self, *, tenant_id, options=None):  # noqa: D401 - test helper
+        return {
+            "campaign": {"summary": {"currency": "CAD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+        }
+
+    monkeypatch.setattr(FakeAdapter, "fetch_metrics", refreshed_payload, raising=False)
+
+    response = api_client.get("/api/metrics/combined/")
+    assert response.status_code == 200
+    assert response.json()["campaign"]["summary"]["currency"] == "CAD"
+
+    snapshot = TenantMetricsSnapshot.objects.get(tenant=user.tenant, source="fake")
+    assert snapshot.payload["campaign"]["summary"]["currency"] == "CAD"
+
+
+@pytest.mark.django_db
+def test_combined_metrics_stale_snapshot_noop_write_when_payload_unchanged(
+    monkeypatch, api_client, user, settings
+):
+    settings.METRICS_SNAPSHOT_TTL = 10
+    api_client.force_authenticate(user=user)
+
+    generated_at = timezone.now() - timedelta(minutes=5)
+    payload = {
+        "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+        "creative": [],
+        "budget": [],
+        "parish": [],
+        "snapshot_generated_at": generated_at.isoformat(),
+    }
+    snapshot = TenantMetricsSnapshot.objects.create(
+        tenant=user.tenant,
+        source="fake",
+        payload=payload,
+        generated_at=generated_at,
+    )
+    initial_updated_at = snapshot.updated_at
+
+    def unchanged_payload(self, *, tenant_id, options=None):  # noqa: D401 - test helper
+        return payload
+
+    monkeypatch.setattr(FakeAdapter, "fetch_metrics", unchanged_payload, raising=False)
+
+    captured_records: list[logging.LogRecord] = []
+
+    class CaptureHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:  # noqa: D401 - standard handler hook
+            captured_records.append(record)
+
+    handler = CaptureHandler()
+    handler.setLevel(logging.INFO)
+    logger = logging.getLogger("api.access")
+    logger.addHandler(handler)
+    try:
+        response = api_client.get("/api/metrics/combined/")
+    finally:
+        logger.removeHandler(handler)
+
+    assert response.status_code == 200
+    snapshot.refresh_from_db()
+    assert snapshot.updated_at == initial_updated_at
+    assert snapshot.generated_at == generated_at
+    assert captured_records
+    runtime_metrics = captured_records[-1].runtime["metrics"]
+    assert runtime_metrics["cache_outcome"] == "miss"
+    assert runtime_metrics["snapshot_written"] is False
+
+
+@pytest.mark.django_db
+def test_combined_metrics_emits_runtime_metrics_context(monkeypatch, api_client, user):
+    api_client.force_authenticate(user=user)
+
+    def payload(self, *, tenant_id, options=None):  # noqa: D401 - test helper
+        return {
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+        }
+
+    monkeypatch.setattr(FakeAdapter, "fetch_metrics", payload, raising=False)
+
+    captured_records: list[logging.LogRecord] = []
+
+    class CaptureHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:  # noqa: D401 - standard handler hook
+            captured_records.append(record)
+
+    handler = CaptureHandler()
+    handler.setLevel(logging.INFO)
+    logger = logging.getLogger("api.access")
+    logger.addHandler(handler)
+    try:
+        response = api_client.get("/api/metrics/combined/", {"cache": "false"})
+    finally:
+        logger.removeHandler(handler)
+
+    assert response.status_code == 200
+    assert captured_records
+    latest = captured_records[-1]
+    runtime_metrics = latest.runtime["metrics"]
+    assert runtime_metrics["source"] == "fake"
+    assert runtime_metrics["cache_outcome"] == "disabled"
+    assert runtime_metrics["status"] == "success"
+    assert runtime_metrics["has_filters"] is False
+    assert runtime_metrics["snapshot_written"] is True
+    assert runtime_metrics["query_count"] >= 1
+
+
+@pytest.mark.django_db
+def test_combined_metrics_cache_miss_without_snapshot_limits_query_count(
+    monkeypatch, api_client, user
+):
+    api_client.force_authenticate(user=user)
+
+    def payload(self, *, tenant_id, options=None):  # noqa: D401 - test helper
+        return {
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+        }
+
+    monkeypatch.setattr(FakeAdapter, "fetch_metrics", payload, raising=False)
+
+    captured_records: list[logging.LogRecord] = []
+
+    class CaptureHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:  # noqa: D401 - standard handler hook
+            captured_records.append(record)
+
+    handler = CaptureHandler()
+    handler.setLevel(logging.INFO)
+    logger = logging.getLogger("api.access")
+    logger.addHandler(handler)
+    try:
+        response = api_client.get("/api/metrics/combined/")
+    finally:
+        logger.removeHandler(handler)
+
+    assert response.status_code == 200
+    assert captured_records
+    runtime_metrics = captured_records[-1].runtime["metrics"]
+    assert runtime_metrics["cache_outcome"] == "miss"
+    assert runtime_metrics["query_count"] <= 2
+
+
+@pytest.mark.django_db
+def test_combined_metrics_cache_disabled_updates_existing_snapshot_with_single_write_query(
+    monkeypatch, api_client, user
+):
+    api_client.force_authenticate(user=user)
+
+    TenantMetricsSnapshot.objects.create(
+        tenant=user.tenant,
+        source="fake",
+        payload={
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+            "snapshot_generated_at": timezone.now().isoformat(),
+        },
+        generated_at=timezone.now(),
+    )
+
+    def payload(self, *, tenant_id, options=None):  # noqa: D401 - test helper
+        return {
+            "campaign": {"summary": {"currency": "CAD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+        }
+
+    monkeypatch.setattr(FakeAdapter, "fetch_metrics", payload, raising=False)
+
+    captured_records: list[logging.LogRecord] = []
+
+    class CaptureHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:  # noqa: D401 - standard handler hook
+            captured_records.append(record)
+
+    handler = CaptureHandler()
+    handler.setLevel(logging.INFO)
+    logger = logging.getLogger("api.access")
+    logger.addHandler(handler)
+    try:
+        response = api_client.get("/api/metrics/combined/", {"cache": "false"})
+    finally:
+        logger.removeHandler(handler)
+
+    assert response.status_code == 200
+    assert captured_records
+    runtime_metrics = captured_records[-1].runtime["metrics"]
+    assert runtime_metrics["cache_outcome"] == "disabled"
+    assert runtime_metrics["query_count"] == 1
+
+
+@pytest.mark.django_db
+def test_combined_metrics_exports_observability_metrics(api_client, user):
+    reset_metrics()
+    api_client.force_authenticate(user=user)
+
+    response = api_client.get("/api/metrics/combined/")
+    assert response.status_code == 200
+
+    metrics_response = api_client.get("/metrics/app/")
+    assert metrics_response.status_code == 200
+    body = metrics_response.content.decode("utf-8")
+    assert "combined_metrics_requests_total" in body
+    assert "combined_metrics_request_duration_seconds" in body
+    assert "combined_metrics_query_count" in body
+    assert "combined_metrics_snapshot_writes_total" in body
 
 
 @pytest.mark.django_db

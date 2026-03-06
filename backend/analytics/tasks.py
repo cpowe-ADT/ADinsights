@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import logging
 import subprocess
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Iterable, Sequence
+from uuid import uuid4
 
 from celery import shared_task
+from django.conf import settings
+from django.core.cache import cache
 from django.utils import timezone
 
 from accounts.models import Tenant
@@ -23,12 +28,18 @@ from analytics.snapshots import (
 from analytics.summaries import build_daily_summary_payload, summarize_daily_metrics
 from analytics.notifications import send_daily_summary_email
 from app.llm import get_llm_client
-from core.metrics import observe_task
+from core.metrics import observe_task, observe_task_retry
 from core.tasks import BaseAdInsightsTask
 
 logger = logging.getLogger(__name__)
 
 SNAPSHOT_STALE_TTL_SECONDS = 60 * 60  # 60 minutes
+SNAPSHOT_FAILURE_REASON_GENERATION = "snapshot_generation_failed"
+SNAPSHOT_FAILURE_REASON_LOCKED = "snapshot_generation_locked"
+DAILY_SUMMARY_FAILURE_REASON_GENERATION = "daily_summary_generation_failed"
+SNAPSHOT_SYNC_LOCK_KEY = "analytics.sync_metrics_snapshots.lock"
+SNAPSHOT_SYNC_LOCK_TTL_SECONDS = 15 * 60
+SNAPSHOT_LOCK_SCOPE_ALL = "all"
 
 
 @dataclass
@@ -115,6 +126,126 @@ def _count_payload_rows(payload: dict) -> dict[str, int]:
     }
 
 
+def evaluate_snapshot_freshness(
+    *,
+    generated_at: datetime,
+    now: datetime | None = None,
+    stale_ttl_seconds: int = SNAPSHOT_STALE_TTL_SECONDS,
+) -> tuple[bool, float]:
+    """Return stale flag and age seconds for a snapshot timestamp."""
+
+    reference_now = _ensure_aware(now) if now is not None else timezone.now()
+    age_seconds = max((reference_now - generated_at).total_seconds(), 0.0)
+    return age_seconds > stale_ttl_seconds, age_seconds
+
+
+def _snapshot_stale_ttl_seconds() -> int:
+    configured = getattr(
+        settings,
+        "METRICS_SNAPSHOT_STALE_TTL_SECONDS",
+        SNAPSHOT_STALE_TTL_SECONDS,
+    )
+    try:
+        return max(int(configured), 1)
+    except (TypeError, ValueError):  # pragma: no cover - defensive config parsing
+        return SNAPSHOT_STALE_TTL_SECONDS
+
+
+def _retry_analytics_task(
+    task,
+    *,
+    exc: Exception,
+    reason: str,
+    base_delay: int | None = None,
+    max_delay: int | None = None,
+):
+    task_name = getattr(task, "name", "unknown")
+    helper = getattr(task, "retry_with_backoff", None)
+    if not callable(helper):
+        countdown = base_delay or getattr(task, "default_retry_delay", None)
+        observe_task_retry(task_name=task_name, reason=reason)
+        logger.warning(
+            "analytics.task.retry.fallback",
+            extra={
+                "task": task_name,
+                "countdown": countdown,
+                "failure_reason": reason,
+                "error_type": type(exc).__name__,
+            },
+        )
+        return task.retry(exc=exc, countdown=countdown)
+    try:
+        return helper(
+            exc=exc,
+            base_delay=base_delay,
+            max_delay=max_delay,
+            reason=reason,
+        )
+    except TypeError:
+        observe_task_retry(task_name=task_name, reason=reason)
+        logger.warning(
+            "analytics.task.retry.legacy_helper",
+            extra={
+                "task": task_name,
+                "failure_reason": reason,
+                "error_type": type(exc).__name__,
+            },
+        )
+        return helper(exc=exc, base_delay=base_delay, max_delay=max_delay)
+
+
+def _normalize_snapshot_tenant_ids(tenant_ids: Sequence[str] | None) -> list[str]:
+    if not tenant_ids:
+        return []
+    normalized = {
+        str(tenant_id).strip()
+        for tenant_id in tenant_ids
+        if str(tenant_id).strip()
+    }
+    return sorted(normalized)
+
+
+def _snapshot_lock_scope(tenant_ids: Sequence[str] | None) -> str:
+    normalized = _normalize_snapshot_tenant_ids(tenant_ids)
+    if not normalized:
+        return SNAPSHOT_LOCK_SCOPE_ALL
+    digest = hashlib.sha1(",".join(normalized).encode("utf-8")).hexdigest()[:16]
+    return f"subset-{len(normalized)}-{digest}"
+
+
+def _snapshot_sync_lock_key_for_tenants(tenant_ids: Sequence[str] | None) -> str:
+    return f"{SNAPSHOT_SYNC_LOCK_KEY}:{_snapshot_lock_scope(tenant_ids)}"
+
+
+def _snapshot_sync_lock_ttl_seconds() -> int:
+    configured = getattr(
+        settings,
+        "METRICS_SNAPSHOT_SYNC_LOCK_TTL_SECONDS",
+        SNAPSHOT_SYNC_LOCK_TTL_SECONDS,
+    )
+    try:
+        return max(int(configured), 1)
+    except (TypeError, ValueError):  # pragma: no cover - defensive config parsing
+        return SNAPSHOT_SYNC_LOCK_TTL_SECONDS
+
+
+def _acquire_snapshot_sync_lock(*, lock_key: str, ttl_seconds: int) -> str | None:
+    token = str(uuid4())
+    acquired = cache.add(lock_key, token, timeout=max(ttl_seconds, 1))
+    if not acquired:
+        return None
+    return token
+
+
+def _release_snapshot_sync_lock(*, lock_key: str, token: str | None) -> None:
+    if not token:
+        return
+    with suppress(Exception):  # pragma: no cover - defensive unlock
+        current_token = cache.get(lock_key)
+        if current_token == token:
+            cache.delete(lock_key)
+
+
 def generate_snapshots_for_tenants(tenant_ids: Sequence[str] | None = None) -> list[SnapshotOutcome]:
     tenants: Iterable[Tenant]
     queryset = Tenant.objects.all().order_by("created_at")
@@ -123,6 +254,7 @@ def generate_snapshots_for_tenants(tenant_ids: Sequence[str] | None = None) -> l
     tenants = queryset
 
     outcomes: list[SnapshotOutcome] = []
+    stale_ttl_seconds = _snapshot_stale_ttl_seconds()
     for tenant in tenants:
         tenant_id = str(tenant.id)
         with tenant_context(tenant_id):
@@ -137,8 +269,10 @@ def generate_snapshots_for_tenants(tenant_ids: Sequence[str] | None = None) -> l
                 },
             )
             row_counts = _count_payload_rows(payload)
-            age_seconds = (timezone.now() - generated_at).total_seconds()
-            is_stale = age_seconds > SNAPSHOT_STALE_TTL_SECONDS
+            is_stale, age_seconds = evaluate_snapshot_freshness(
+                generated_at=generated_at,
+                stale_ttl_seconds=stale_ttl_seconds,
+            )
             outcomes.append(
                 SnapshotOutcome(
                     tenant_id=tenant_id,
@@ -156,6 +290,7 @@ def generate_snapshots_for_tenants(tenant_ids: Sequence[str] | None = None) -> l
                         "status": status,
                         "generated_at": generated_at.isoformat(),
                         "age_seconds": age_seconds,
+                        "stale_ttl_seconds": stale_ttl_seconds,
                         "row_counts": row_counts,
                     },
                 )
@@ -166,6 +301,7 @@ def generate_snapshots_for_tenants(tenant_ids: Sequence[str] | None = None) -> l
                     "status": status,
                     "generated_at": generated_at.isoformat(),
                     "age_seconds": age_seconds,
+                    "stale_ttl_seconds": stale_ttl_seconds,
                     "row_counts": row_counts,
                 },
             )
@@ -224,19 +360,71 @@ def generate_daily_summaries_for_tenants(
 )
 def sync_metrics_snapshots(self, tenant_ids: list[str] | None = None) -> dict:
     started = timezone.now()
+    normalized_tenant_ids = _normalize_snapshot_tenant_ids(tenant_ids)
+    lock_key = _snapshot_sync_lock_key_for_tenants(normalized_tenant_ids)
+    lock_ttl_seconds = _snapshot_sync_lock_ttl_seconds()
+    tenant_scope = _snapshot_lock_scope(normalized_tenant_ids)
+    lock_token = _acquire_snapshot_sync_lock(
+        lock_key=lock_key,
+        ttl_seconds=lock_ttl_seconds,
+    )
+    if lock_token is None:
+        duration = (timezone.now() - started).total_seconds()
+        observe_task(self.name, "skipped", duration)
+        logger.warning(
+            "metrics.snapshot.skipped.locked",
+            extra={
+                "task_id": getattr(getattr(self, "request", None), "id", None),
+                "tenant_count": len(normalized_tenant_ids) if normalized_tenant_ids else None,
+                "tenant_scope": tenant_scope,
+                "failure_reason": SNAPSHOT_FAILURE_REASON_LOCKED,
+                "lock_key": lock_key,
+                "lock_ttl_seconds": lock_ttl_seconds,
+            },
+        )
+        return {
+            "processed": 0,
+            "duration_seconds": duration,
+            "status_counts": {"default": 0, "fetched": 0},
+            "stale_count": 0,
+            "row_totals": {
+                "campaign_rows": 0,
+                "campaign_trend": 0,
+                "creative": 0,
+                "budget": 0,
+                "parish": 0,
+            },
+            "oldest_snapshot_generated_at": None,
+            "newest_snapshot_generated_at": None,
+            "skipped": True,
+            "reason": SNAPSHOT_FAILURE_REASON_LOCKED,
+            "tenant_scope": tenant_scope,
+        }
     try:
-        outcomes = generate_snapshots_for_tenants(tenant_ids)
+        outcomes = generate_snapshots_for_tenants(normalized_tenant_ids or None)
     except Exception as exc:  # pragma: no cover - surfaced via Celery retry mechanisms
         duration = (timezone.now() - started).total_seconds()
         observe_task(self.name, "failure", duration)
+        failure_reason = SNAPSHOT_FAILURE_REASON_GENERATION
         logger.exception(
             "metrics.snapshot.failed",
             extra={
                 "task_id": getattr(getattr(self, "request", None), "id", None),
-                "tenant_count": len(tenant_ids) if tenant_ids else None,
+                "tenant_count": len(normalized_tenant_ids) if normalized_tenant_ids else None,
+                "tenant_scope": tenant_scope,
+                "failure_reason": failure_reason,
+                "error_type": type(exc).__name__,
             },
         )
-        raise self.retry_with_backoff(exc=exc, base_delay=60, max_delay=900)
+        raise _retry_analytics_task(
+            self,
+            exc=exc,
+            reason=failure_reason,
+            base_delay=60,
+            max_delay=900,
+        )
+    finally:
+        _release_snapshot_sync_lock(lock_key=lock_key, token=lock_token)
 
     duration = (timezone.now() - started).total_seconds()
     observe_task(self.name, "success", duration)
@@ -257,6 +445,7 @@ def sync_metrics_snapshots(self, tenant_ids: list[str] | None = None) -> dict:
         "metrics.snapshot.completed",
         extra={
             "task_id": getattr(getattr(self, "request", None), "id", None),
+            "tenant_scope": tenant_scope,
             "processed": len(outcomes),
             "duration_seconds": duration,
             "status_counts": status_counts,
@@ -283,6 +472,7 @@ def sync_metrics_snapshots(self, tenant_ids: list[str] | None = None) -> dict:
         "newest_snapshot_generated_at": max(generated_at_values).isoformat()
         if generated_at_values
         else None,
+        "tenant_scope": tenant_scope,
     }
 
 
@@ -299,14 +489,23 @@ def ai_daily_summary(self, tenant_ids: list[str] | None = None) -> dict:
     except Exception as exc:  # pragma: no cover - surfaced via Celery retry mechanisms
         duration = (timezone.now() - started).total_seconds()
         observe_task(self.name, "failure", duration)
+        failure_reason = DAILY_SUMMARY_FAILURE_REASON_GENERATION
         logger.exception(
             "metrics.daily_summary.failed",
             extra={
                 "task_id": getattr(getattr(self, "request", None), "id", None),
                 "tenant_count": len(tenant_ids) if tenant_ids else None,
+                "failure_reason": failure_reason,
+                "error_type": type(exc).__name__,
             },
         )
-        raise self.retry_with_backoff(exc=exc, base_delay=60, max_delay=900)
+        raise _retry_analytics_task(
+            self,
+            exc=exc,
+            reason=failure_reason,
+            base_delay=60,
+            max_delay=900,
+        )
 
     duration = (timezone.now() - started).total_seconds()
     observe_task(self.name, "success", duration)

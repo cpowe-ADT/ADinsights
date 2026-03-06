@@ -54,7 +54,7 @@ __pycache__/
 *.tar.gz
 
 # Exporter generated reports
-integrations/exporter/out/
+backend/integrations/exporter/out/
 
 # Local split worktrees
 .split/

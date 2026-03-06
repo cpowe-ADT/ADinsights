@@ -76,7 +76,68 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    command: bash -lc "pip install --no-cache-dir -r requirements.txt 2>/dev/null || true && celery -A core worker -l INFO"
+    command: >
+      bash -lc "
+        pip install --no-cache-dir -r requirements.txt 2>/dev/null || true &&
+        celery -A core worker -l INFO -Q $${CELERY_WORKER_SYNC_QUEUES:-default,sync} --concurrency=$${CELERY_WORKER_SYNC_CONCURRENCY:-4} --prefetch-multiplier=$${CELERY_WORKER_SYNC_PREFETCH_MULTIPLIER:-1} \
+        --max-tasks-per-child=$${CELERY_WORKER_SYNC_MAX_TASKS_PER_CHILD:-200}
+      "
+    restart: on-failure
+
+  celery_worker_snapshot:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env.dev
+    environment:
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
+      DEV_BACKEND_URL: ${DEV_BACKEND_URL:-}
+      DEV_FRONTEND_URL: ${DEV_FRONTEND_URL:-}
+      DEV_ACTIVE_PROFILE: ${DEV_ACTIVE_PROFILE:-}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      backend:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command: >
+      bash -lc "
+        pip install --no-cache-dir -r requirements.txt 2>/dev/null || true &&
+        celery -A core worker -l INFO -Q $${CELERY_WORKER_SNAPSHOT_QUEUES:-snapshot} --concurrency=$${CELERY_WORKER_SNAPSHOT_CONCURRENCY:-2} --prefetch-multiplier=$${CELERY_WORKER_SNAPSHOT_PREFETCH_MULTIPLIER:-1} \
+        --max-tasks-per-child=$${CELERY_WORKER_SNAPSHOT_MAX_TASKS_PER_CHILD:-100}
+      "
+    restart: on-failure
+
+  celery_worker_summary:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env.dev
+    environment:
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
+      DEV_BACKEND_URL: ${DEV_BACKEND_URL:-}
+      DEV_FRONTEND_URL: ${DEV_FRONTEND_URL:-}
+      DEV_ACTIVE_PROFILE: ${DEV_ACTIVE_PROFILE:-}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      backend:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command: >
+      bash -lc "
+        pip install --no-cache-dir -r requirements.txt 2>/dev/null || true &&
+        celery -A core worker -l INFO -Q $${CELERY_WORKER_SUMMARY_QUEUES:-summary} --concurrency=$${CELERY_WORKER_SUMMARY_CONCURRENCY:-1} --prefetch-multiplier=$${CELERY_WORKER_SUMMARY_PREFETCH_MULTIPLIER:-1} \
+        --max-tasks-per-child=$${CELERY_WORKER_SUMMARY_MAX_TASKS_PER_CHILD:-100}
+      "
     restart: on-failure
 
   celery_beat:

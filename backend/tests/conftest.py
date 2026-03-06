@@ -37,6 +37,7 @@ import pytest
 from rest_framework.test import APIClient
 
 from accounts.models import Tenant, User
+from tests.integration.gating import is_integration_test_path, should_collect_path
 
 
 @pytest.fixture
@@ -46,14 +47,12 @@ def tenant(db) -> Tenant:
 
 @pytest.fixture
 def user(tenant) -> User:
-    user = User.objects.create_user(
+    return User.objects.create_user(
         username="user@example.com",
         email="user@example.com",
         tenant=tenant,
+        password="password123",
     )
-    user.set_password("password123")
-    user.save()
-    return user
 
 
 @pytest.fixture
@@ -76,3 +75,16 @@ def reset_local_kms(monkeypatch):
     settings.KMS_PROVIDER = "local"
     settings.AWS_REGION = "us-east-1"
     yield
+
+
+def pytest_ignore_collect(collection_path, config):  # noqa: ANN001, ARG001
+    return not should_collect_path(collection_path)
+
+
+def pytest_collection_modifyitems(config, items):  # noqa: ANN001
+    for item in items:
+        item_path = getattr(item, "path", getattr(item, "fspath", ""))
+        if "integration" in item.keywords or is_integration_test_path(item_path):
+            item.add_marker(pytest.mark.integration)
+            continue
+        item.add_marker(pytest.mark.fast)

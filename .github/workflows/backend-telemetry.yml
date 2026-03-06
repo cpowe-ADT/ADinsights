@@ -27,6 +27,7 @@ jobs:
       AWS_REGION: us-east-1
       AIRBYTE_API_URL: http://localhost:8001
       AIRBYTE_API_TOKEN: ci-placeholder
+      RUN_BACKEND_INTEGRATION_TESTS: "0"
     steps:
       - uses: actions/checkout@v4
 
@@ -77,23 +78,77 @@ jobs:
       - name: Run pytest with coverage
         run: |
           mkdir -p backend/test-results backend/htmlcov
-          pytest backend \
+          pytest -m "not integration" backend \
             --junitxml=backend/test-results/junit.xml \
             --cov=backend \
             --cov-report=xml:backend/coverage.xml \
             --cov-report=html:backend/htmlcov
 
+      - name: Run backend release smoke
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import io
+          import os
+          import sys
+          from pathlib import Path
+
+          repo_root = Path.cwd()
+          sys.path.insert(0, str(repo_root / "backend"))
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.test")
+
+          import django
+          django.setup()
+
+          from core.metrics import observe_task_queue_start, observe_task_retry
+          from django.core.management import call_command
+
+          observe_task_queue_start(
+              task_name="ci.backend_release_smoke",
+              queue_name="sync",
+              queue_wait_seconds=0.0,
+          )
+          observe_task_queue_start(
+              task_name="ci.backend_release_smoke",
+              queue_name="snapshot",
+              queue_wait_seconds=0.0,
+          )
+          observe_task_queue_start(
+              task_name="ci.backend_release_smoke",
+              queue_name="summary",
+              queue_wait_seconds=0.0,
+          )
+          observe_task_retry(
+              task_name="ci.backend_release_smoke",
+              reason="airbyte_client_error",
+          )
+
+          output = io.StringIO()
+          call_command("backend_release_smoke", "--strict-observability", stdout=output)
+          payload = output.getvalue()
+          print(payload)
+          (repo_root / "backend-release-smoke.json").write_text(payload, encoding="utf-8")
+          PY
+
       - name: Generate backend CI summary
         run: |
           python scripts/ci/backend-summary.py \
             --junit backend/test-results/junit.xml \
-            --coverage backend/coverage.xml
+            --coverage backend/coverage.xml \
+            --release-smoke backend-release-smoke.json
 
       - name: Upload backend CI summary
         uses: actions/upload-artifact@v4
         with:
           name: backend-ci-summary.json
           path: backend-ci-summary.json
+
+      - name: Upload backend release smoke
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-release-smoke.json
+          path: backend-release-smoke.json
 
       - name: Upload backend CI metrics
         uses: actions/upload-artifact@v4

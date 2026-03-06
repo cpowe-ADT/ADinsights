@@ -14,6 +14,21 @@ from accounts.models import (
 )
 
 
+def _create_user(*, tenant: Tenant, email: str, password: str = "password123") -> User:
+    return User.objects.create_user(
+        username=email,
+        email=email,
+        tenant=tenant,
+        password=password,
+    )
+
+
+def _create_admin_user(*, tenant: Tenant, email: str, password: str = "password123") -> User:
+    user = _create_user(tenant=tenant, email=email, password=password)
+    assign_role(user, Role.ADMIN)
+    return user
+
+
 @pytest.mark.django_db
 def test_tenant_signup_creates_admin(api_client):
     payload = {
@@ -59,23 +74,10 @@ def test_user_list_scoped_to_tenant(api_client):
     tenant_one = Tenant.objects.create(name="Tenant One")
     tenant_two = Tenant.objects.create(name="Tenant Two")
 
-    admin = User.objects.create_user(
-        username="admin@one.com", email="admin@one.com", tenant=tenant_one
-    )
-    admin.set_password("password123")
-    admin.save()
-    assign_role(admin, Role.ADMIN)
+    admin = _create_admin_user(tenant=tenant_one, email="admin@one.com")
 
-    User.objects.create_user(
-        username="alice@one.com",
-        email="alice@one.com",
-        tenant=tenant_one,
-    )
-    User.objects.create_user(
-        username="bob@two.com",
-        email="bob@two.com",
-        tenant=tenant_two,
-    )
+    _create_user(tenant=tenant_one, email="alice@one.com")
+    _create_user(tenant=tenant_two, email="bob@two.com")
 
     api_client.force_authenticate(user=admin)
     response = api_client.get("/api/users/")
@@ -90,18 +92,9 @@ def test_user_list_scoped_to_tenant(api_client):
 def test_viewer_cannot_assign_roles(api_client):
     tenant = Tenant.objects.create(name="Restricted Tenant")
 
-    admin = User.objects.create_user(
-        username="admin@tenant.com", email="admin@tenant.com", tenant=tenant
-    )
-    admin.set_password("password123")
-    admin.save()
-    assign_role(admin, Role.ADMIN)
+    _create_admin_user(tenant=tenant, email="admin@tenant.com")
 
-    viewer = User.objects.create_user(
-        username="viewer@tenant.com", email="viewer@tenant.com", tenant=tenant
-    )
-    viewer.set_password("password123")
-    viewer.save()
+    viewer = _create_user(tenant=tenant, email="viewer@tenant.com")
     assign_role(viewer, Role.VIEWER)
 
     api_client.force_authenticate(user=viewer)
@@ -119,16 +112,9 @@ def test_viewer_cannot_assign_roles(api_client):
 def test_admin_assign_role_records_audit_log(api_client):
     tenant = Tenant.objects.create(name="Role Tenant")
 
-    admin = User.objects.create_user(
-        username="admin@role.com", email="admin@role.com", tenant=tenant
-    )
-    admin.set_password("password123")
-    admin.save()
-    assign_role(admin, Role.ADMIN)
+    admin = _create_admin_user(tenant=tenant, email="admin@role.com")
 
-    teammate = User.objects.create_user(
-        username="analyst@role.com", email="analyst@role.com", tenant=tenant
-    )
+    teammate = _create_user(tenant=tenant, email="analyst@role.com")
 
     api_client.force_authenticate(user=admin)
     response = api_client.post(
@@ -154,12 +140,7 @@ def test_admin_assign_role_records_audit_log(api_client):
 @pytest.mark.django_db
 def test_invitation_flow(api_client):
     tenant = Tenant.objects.create(name="Invite Tenant")
-    admin = User.objects.create_user(
-        username="admin@invite.com", email="admin@invite.com", tenant=tenant
-    )
-    admin.set_password("password123")
-    admin.save()
-    assign_role(admin, Role.ADMIN)
+    admin = _create_admin_user(tenant=tenant, email="admin@invite.com")
 
     api_client.force_authenticate(user=admin)
     invite_response = api_client.post(

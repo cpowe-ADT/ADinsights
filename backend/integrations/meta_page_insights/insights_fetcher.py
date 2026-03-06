@@ -5,12 +5,28 @@ import time
 from datetime import date, timedelta
 from typing import Any, Callable, Literal
 
+from core.metrics import observe_meta_graph_retry
 from integrations.meta_page_insights.meta_client import (
     MetaPageInsightsApiError,
     MetaPageInsightsClient,
 )
 
 ObjectType = Literal["page", "post"]
+
+META_PAGE_RETRY_REASON_RATE_LIMITED = "meta_page_insights_rate_limited"
+META_PAGE_RETRY_REASON_UPSTREAM_5XX = "meta_page_insights_upstream_5xx"
+META_PAGE_RETRY_REASON_RETRYABLE = "meta_page_insights_retryable"
+META_PAGE_RETRY_REASON_UNKNOWN = "meta_page_insights_unknown"
+
+
+def _retry_reason(exc: MetaPageInsightsApiError) -> str:
+    if exc.error_code in {4, 17, 32, 613, 80001}:
+        return META_PAGE_RETRY_REASON_RATE_LIMITED
+    if isinstance(exc.status_code, int) and exc.status_code >= 500:
+        return META_PAGE_RETRY_REASON_UPSTREAM_5XX
+    if exc.retryable:
+        return META_PAGE_RETRY_REASON_RETRYABLE
+    return META_PAGE_RETRY_REASON_UNKNOWN
 
 
 def chunk_date_window(
@@ -45,6 +61,7 @@ def retry_with_backoff(
         except MetaPageInsightsApiError as exc:
             if not exc.retryable or attempt >= bounded_attempts:
                 raise
+            observe_meta_graph_retry(reason=_retry_reason(exc))
             delay = (2 ** (attempt - 1)) * base_delay_seconds + random.uniform(0, 1)
             sleeper(delay)
     raise RuntimeError("retry_with_backoff exhausted unexpectedly")
@@ -104,4 +121,3 @@ def _flatten_paged_rows(
             base_delay_seconds=1.0,
         )
     return rows
-
