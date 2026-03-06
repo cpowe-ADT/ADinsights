@@ -108,6 +108,9 @@ env = environ.Env(
     AIRBYTE_DEFAULT_WORKSPACE_ID=(str, ""),
     AIRBYTE_DEFAULT_DESTINATION_ID=(str, ""),
     AIRBYTE_SOURCE_DEFINITION_META=(str, ""),
+    AIRBYTE_RECONCILE_STALE_MINUTES=(int, 120),
+    AIRBYTE_RECONCILE_FORCE_STALE_FAILURE=(bool, False),
+    AIRBYTE_SYNC_HEALTH_REFRESH_MINUTE=(int, 40),
     GOOGLE_ADS_SYNC_ENGINE_DEFAULT=(str, "sdk"),
     GOOGLE_ADS_PARITY_ENABLED=(bool, True),
     GOOGLE_ADS_PARITY_SPEND_MAX_DELTA_PCT=(float, 1.0),
@@ -390,6 +393,9 @@ CELERY_TASK_TRACK_STARTED = env.bool("CELERY_TASK_TRACK_STARTED", default=True)
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
 CELERY_TASK_EAGER_PROPAGATES = env.bool("CELERY_TASK_EAGER_PROPAGATES", default=True)
+AIRBYTE_RECONCILE_STALE_MINUTES = env.int("AIRBYTE_RECONCILE_STALE_MINUTES", default=120)
+AIRBYTE_RECONCILE_FORCE_STALE_FAILURE = env.bool("AIRBYTE_RECONCILE_FORCE_STALE_FAILURE", default=False)
+AIRBYTE_SYNC_HEALTH_REFRESH_MINUTE = env.int("AIRBYTE_SYNC_HEALTH_REFRESH_MINUTE", default=40)
 CELERY_TASK_ROUTES = {
     "core.tasks.sync_meta_metrics": {"queue": CELERY_QUEUE_SYNC},
     "core.tasks.sync_google_metrics": {"queue": CELERY_QUEUE_SYNC},
@@ -417,6 +423,11 @@ CELERY_BEAT_SCHEDULE = {
     "airbyte-scheduled-syncs-hourly": {
         "task": "integrations.tasks.trigger_scheduled_airbyte_syncs",
         "schedule": crontab(minute=0, hour="6-22"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
+    },
+    "airbyte-sync-health-refresh-hourly": {
+        "task": "integrations.tasks.refresh_airbyte_sync_health",
+        "schedule": crontab(minute=AIRBYTE_SYNC_HEALTH_REFRESH_MINUTE, hour="6-22"),
         "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "credential-rotation-reminders": {
@@ -556,6 +567,10 @@ def _validate_celery_runtime_configuration() -> None:
         raise ImproperlyConfigured("CELERY_WORKER_MAX_PREFETCH_MULTIPLIER must be >= 1.")
     if CELERY_WORKER_SYNC_MAX_TO_BACKGROUND_RATIO < 1:
         raise ImproperlyConfigured("CELERY_WORKER_SYNC_MAX_TO_BACKGROUND_RATIO must be >= 1.")
+    if not 0 <= AIRBYTE_SYNC_HEALTH_REFRESH_MINUTE <= 59:
+        raise ImproperlyConfigured("AIRBYTE_SYNC_HEALTH_REFRESH_MINUTE must be between 0 and 59.")
+    if AIRBYTE_RECONCILE_STALE_MINUTES < 1:
+        raise ImproperlyConfigured("AIRBYTE_RECONCILE_STALE_MINUTES must be >= 1.")
     worker_profiles = {
         "CELERY_WORKER_SYNC": {
             "queues": CELERY_WORKER_SYNC_QUEUES,

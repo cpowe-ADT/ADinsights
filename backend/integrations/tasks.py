@@ -10,6 +10,7 @@ from typing import Any, List
 
 from celery import shared_task
 from django.conf import settings
+from django.core.management import CommandError, call_command
 from django.db import transaction
 from django.utils import timezone
 import httpx
@@ -613,6 +614,72 @@ def trigger_scheduled_airbyte_syncs(self):  # noqa: ANN001
             raise self.retry_with_backoff(exc=exc, reason=RETRY_REASON_AIRBYTE_CLIENT_ERROR)
     logger.info("airbyte.sync.completed", extra={"triggered": triggered})
     return triggered
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def refresh_airbyte_sync_health(self):  # noqa: ANN001
+    """Refresh backend Airbyte sync status records from live Airbyte job state."""
+
+    workspace_id = (getattr(settings, "AIRBYTE_DEFAULT_WORKSPACE_ID", "") or "").strip()
+    stale_minutes = max(int(getattr(settings, "AIRBYTE_RECONCILE_STALE_MINUTES", 120)), 1)
+    force_stale_failure = bool(getattr(settings, "AIRBYTE_RECONCILE_FORCE_STALE_FAILURE", False))
+
+    backfill_args = ["backfill_airbyte_sync_status", "--apply"]
+    if workspace_id:
+        backfill_args.extend(["--workspace-id", workspace_id])
+
+    reconcile_args = [
+        "reconcile_airbyte_sync_status",
+        "--stale-minutes",
+        str(stale_minutes),
+        "--apply",
+    ]
+    if force_stale_failure:
+        reconcile_args.append("--force-stale-failure")
+
+    with tenant_context(None):
+        try:
+            call_command(*backfill_args)
+            call_command(*reconcile_args)
+        except CommandError as exc:
+            error_text = str(exc)
+            is_configuration_error = "airbyte_" in error_text.lower() and "config" in error_text.lower()
+            reason = (
+                RETRY_REASON_AIRBYTE_CLIENT_CONFIGURATION
+                if is_configuration_error
+                else RETRY_REASON_AIRBYTE_CLIENT_ERROR
+            )
+            logger.warning(
+                "airbyte.sync_status_refresh.failed",
+                extra={
+                    "workspace_id": workspace_id or None,
+                    "stale_minutes": stale_minutes,
+                    "force_stale_failure": force_stale_failure,
+                },
+                exc_info=exc,
+            )
+            retry_kwargs = {
+                "exc": exc,
+                "reason": reason,
+            }
+            if is_configuration_error:
+                retry_kwargs["base_delay"] = 300
+                retry_kwargs["max_delay"] = 900
+            raise self.retry_with_backoff(**retry_kwargs)
+
+    logger.info(
+        "airbyte.sync_status_refresh.completed",
+        extra={
+            "workspace_id": workspace_id or None,
+            "stale_minutes": stale_minutes,
+            "force_stale_failure": force_stale_failure,
+        },
+    )
+    return {
+        "workspace_id": workspace_id or None,
+        "stale_minutes": stale_minutes,
+        "force_stale_failure": force_stale_failure,
+    }
 
 
 @shared_task(bind=True)
