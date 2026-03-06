@@ -10,7 +10,11 @@ from django.core.management.base import CommandError
 from django.utils import timezone
 
 from integrations.airbyte import AirbyteClientConfigurationError, AirbyteClientError
-from integrations.airbyte.service import AirbyteSyncService
+from integrations.airbyte.service import (
+    AirbyteSyncService,
+    extract_attempt_snapshot,
+    extract_job_error,
+)
 from integrations.models import AirbyteConnection, AirbyteJobTelemetry, PlatformCredential, TenantAirbyteSyncStatus
 from integrations.tasks import (
     RETRY_REASON_AIRBYTE_CLIENT_CONFIGURATION,
@@ -123,6 +127,63 @@ def test_airbyte_service_triggers_and_records(tenant):
     assert telemetry.bytes_synced == 1024
     assert telemetry.duration_seconds == 12
     assert float(telemetry.api_cost) == 3.5
+
+
+def test_extract_attempt_snapshot_supports_top_level_attempts():
+    now = timezone.now()
+    payload = {
+        "job": {
+            "id": 145,
+            "status": "failed",
+            "createdAt": int(now.timestamp()),
+            "updatedAt": int((now + timedelta(seconds=30)).timestamp()),
+        },
+        "attempts": [
+            {
+                "id": 0,
+                "status": "failed",
+                "createdAt": int(now.timestamp()),
+                "updatedAt": int((now + timedelta(seconds=9)).timestamp()),
+                "metrics": {
+                    "recordsEmitted": 5,
+                    "bytesEmitted": 512,
+                    "timeInMillis": 9000,
+                },
+            }
+        ],
+    }
+
+    snapshot = extract_attempt_snapshot(payload)
+    assert snapshot is not None
+    assert snapshot.duration_seconds == 9
+    assert snapshot.records_synced == 5
+    assert snapshot.bytes_synced == 512
+
+
+def test_extract_job_error_supports_top_level_attempt_failure_summary():
+    payload = {
+        "job": {
+            "id": 145,
+            "status": "failed",
+        },
+        "attempts": [
+            {
+                "id": 0,
+                "status": "failed",
+                "failureSummary": {
+                    "failures": [
+                        {
+                            "failureOrigin": "source",
+                            "failureType": "config_error",
+                            "externalMessage": "Meta access token expired.",
+                        }
+                    ]
+                },
+            }
+        ],
+    }
+
+    assert extract_job_error(payload) == "Meta access token expired."
 
 
 @pytest.mark.django_db

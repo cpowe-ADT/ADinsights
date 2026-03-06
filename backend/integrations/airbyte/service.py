@@ -170,13 +170,16 @@ def extract_job_created_at(payload) -> datetime | None:
 
 
 def extract_attempt_snapshot(payload: dict[str, Any]) -> AttemptSnapshot | None:
-    job = payload.get("job") if isinstance(payload, dict) else None
-    if not isinstance(job, dict):
+    if not isinstance(payload, dict):
         return None
-    attempts = job.get("attempts") or []
+    job = payload.get("job")
+    job_payload = job if isinstance(job, dict) else payload
+    if not isinstance(job_payload, dict):
+        return None
+    attempts = _extract_attempts(payload)
     if not attempts:
         return AttemptSnapshot(
-            started_at=_coerce_timestamp(job.get("createdAt")),
+            started_at=_coerce_timestamp(job_payload.get("createdAt")),
             duration_seconds=None,
             records_synced=None,
             bytes_synced=None,
@@ -192,7 +195,7 @@ def extract_attempt_snapshot(payload: dict[str, Any]) -> AttemptSnapshot | None:
     started_at = (
         _coerce_timestamp(latest.get("createdAt"))
         or _coerce_timestamp(latest.get("attempt", {}).get("createdAt"))
-        or _coerce_timestamp(job.get("createdAt"))
+        or _coerce_timestamp(job_payload.get("createdAt"))
     )
 
     ended_at = (
@@ -274,13 +277,58 @@ def extract_job_error(payload) -> str | None:
     job = payload.get("job") if isinstance(payload.get("job"), dict) else payload
     if not isinstance(job, dict):
         return None
-    failure_summary = job.get("failureSummary") or job.get("failure")
-    if isinstance(failure_summary, dict):
-        reason = failure_summary.get("failureReason") or failure_summary.get("stacktrace")
-        if reason:
-            return str(reason)
+    attempts = _extract_attempts(payload)
+    if attempts:
+        latest_attempt = attempts[-1]
+        if isinstance(latest_attempt, dict):
+            attempt_failure = latest_attempt.get("failureSummary") or latest_attempt.get("failure")
+            if not attempt_failure and isinstance(latest_attempt.get("attempt"), dict):
+                attempt_failure = (
+                    latest_attempt["attempt"].get("failureSummary")
+                    or latest_attempt["attempt"].get("failure")
+                )
+            reason = _extract_failure_reason(attempt_failure)
+            if reason:
+                return reason
+
+    reason = _extract_failure_reason(job.get("failureSummary") or job.get("failure"))
+    if reason:
+        return reason
     error_message = job.get("errorMessage") or job.get("error")
     return str(error_message) if error_message else None
+
+
+def _extract_attempts(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    attempts = payload.get("attempts")
+    if isinstance(attempts, list):
+        return [row for row in attempts if isinstance(row, dict)]
+    job = payload.get("job")
+    if isinstance(job, dict):
+        job_attempts = job.get("attempts")
+        if isinstance(job_attempts, list):
+            return [row for row in job_attempts if isinstance(row, dict)]
+    return []
+
+
+def _extract_failure_reason(failure_summary: Any) -> str | None:
+    if not isinstance(failure_summary, dict):
+        return None
+
+    failures = failure_summary.get("failures")
+    if isinstance(failures, list):
+        for failure in failures:
+            if not isinstance(failure, dict):
+                continue
+            for key in ("externalMessage", "failureReason", "internalMessage", "stacktrace"):
+                value = failure.get(key)
+                if value:
+                    return str(value)
+
+    for key in ("externalMessage", "failureReason", "internalMessage", "stacktrace"):
+        value = failure_summary.get(key)
+        if value:
+            return str(value)
+    return None
 
 
 def _persist_job_snapshot(
