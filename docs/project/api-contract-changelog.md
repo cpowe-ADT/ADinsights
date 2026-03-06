@@ -13,6 +13,11 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-03-06**
+  - Endpoint: `GET /api/health/airbyte/`
+  - Change: Added degraded-mode fallback when Airbyte status tables are unavailable (for example, pre-migration smoke environments). Endpoint now returns `503` with `status="status_store_unavailable"` instead of surfacing an internal `500` error.
+  - Impact: Release smoke checks and operators get deterministic health output during bootstrap/migration gaps; no changes to healthy-path payload fields.
+  - Owner: Sofia (Backend Metrics) + Omar (SRE)
 - **2026-02-23**
   - Endpoint: `GET /api/analytics/google-ads/workspace/summary/`
   - Change: Added non-breaking composite workspace summary payload for unified Google Ads first paint. Response extends executive payload shape with `alerts_summary`, `governance_summary`, `top_insights`, and `workspace_generated_at`.
