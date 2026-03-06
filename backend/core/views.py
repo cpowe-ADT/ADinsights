@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 from django.conf import settings
+from django.db import OperationalError, ProgrammingError
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 
@@ -69,12 +70,24 @@ def health_version(request):
 
 def airbyte_health(request):
     configured = _airbyte_is_configured()
-    with tenant_context(None):
-        latest_status = (
-            TenantAirbyteSyncStatus.objects.select_related("last_connection")
-            .order_by("-last_synced_at")
-            .first()
-        )
+    try:
+        with tenant_context(None):
+            latest_status = (
+                TenantAirbyteSyncStatus.objects.select_related("last_connection")
+                .order_by("-last_synced_at")
+                .first()
+            )
+    except (OperationalError, ProgrammingError):
+        response_data: Dict[str, Any] = {
+            "component": "airbyte",
+            "configured": configured,
+            "last_sync": None,
+            "recent_jobs": [],
+            "job_summary": None,
+            "status": "status_store_unavailable",
+            "detail": "Airbyte sync status tables are unavailable.",
+        }
+        return JsonResponse(response_data, status=503)
     response_data: Dict[str, Any] = {
         "component": "airbyte",
         "configured": configured,

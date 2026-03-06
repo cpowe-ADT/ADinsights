@@ -8,6 +8,7 @@ from datetime import datetime
 from datetime import timedelta
 
 import pytest
+from django.db import OperationalError
 from django.test import Client, override_settings
 from django.urls import path
 from django.utils import timezone
@@ -69,6 +70,34 @@ def test_airbyte_health_reports_missing_sync(api_client, settings):
     assert response.status_code == 503
     payload = response.json()
     assert payload["status"] == "no_recent_sync"
+
+
+def test_airbyte_health_handles_missing_status_tables(api_client, settings, monkeypatch):
+    from core import views as core_views
+
+    settings.AIRBYTE_API_URL = "http://airbyte.local"
+    settings.AIRBYTE_API_TOKEN = "token"
+
+    class _BrokenStatusQuerySet:
+        def order_by(self, *args, **kwargs):  # noqa: ANN002, ANN003
+            return self
+
+        def first(self):
+            raise OperationalError("no such table: integrations_tenantairbytesyncstatus")
+
+    class _BrokenStatusManager:
+        def select_related(self, *args, **kwargs):  # noqa: ANN002, ANN003
+            return _BrokenStatusQuerySet()
+
+    monkeypatch.setattr(core_views.TenantAirbyteSyncStatus, "objects", _BrokenStatusManager())
+
+    response = api_client.get("/api/health/airbyte/")
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["status"] == "status_store_unavailable"
+    assert payload["recent_jobs"] == []
+    assert payload["job_summary"] is None
 
 
 @pytest.mark.django_db
