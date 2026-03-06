@@ -37,6 +37,12 @@ class _DummyClient:
         return _DummyResponse(status_code=404, payload={"status": "error"})
 
 
+class _DummyClientWithDefaults(_DummyClient):
+    def __init__(self, *, metrics_body: str, external_status: int = 200):
+        super().__init__(metrics_body=metrics_body, external_status=external_status)
+        self.defaults: dict[str, str] = {}
+
+
 @pytest.mark.django_db
 def test_backend_release_smoke_command_passes_with_default_tolerances():
     stdout = StringIO()
@@ -50,6 +56,37 @@ def test_backend_release_smoke_command_passes_with_default_tolerances():
 def test_backend_release_smoke_command_fails_on_missing_metric():
     with pytest.raises(CommandError):
         call_command("backend_release_smoke", "--expect-metric", "definitely_missing_metric")
+
+
+def test_backend_release_smoke_resolves_http_host_from_allowed_hosts(monkeypatch):
+    from analytics.management.commands import backend_release_smoke as command_module
+
+    monkeypatch.setattr(command_module.settings, "ALLOWED_HOSTS", ["api.adinsights.local"], raising=False)
+
+    assert command_module._resolve_client_http_host() == "api.adinsights.local"
+
+
+def test_backend_release_smoke_resolves_http_host_from_wildcard_only(monkeypatch):
+    from analytics.management.commands import backend_release_smoke as command_module
+
+    monkeypatch.setattr(command_module.settings, "ALLOWED_HOSTS", ["*"], raising=False)
+
+    assert command_module._resolve_client_http_host() == "localhost"
+
+
+@pytest.mark.django_db
+def test_backend_release_smoke_sets_http_host_on_client_defaults(monkeypatch):
+    from analytics.management.commands import backend_release_smoke as command_module
+
+    metrics_body = "celery_task_executions_total{task_name=\"a\",status=\"success\"} 1\n"
+    dummy_client = _DummyClientWithDefaults(metrics_body=metrics_body)
+    monkeypatch.setattr(command_module, "Client", lambda: dummy_client)
+    monkeypatch.setattr(command_module.settings, "ALLOWED_HOSTS", ["internal.adinsights.local"], raising=False)
+
+    with pytest.raises(CommandError):
+        call_command("backend_release_smoke", "--expect-metric", "definitely_missing_metric")
+
+    assert dummy_client.defaults.get("HTTP_HOST") == "internal.adinsights.local"
 
 
 @pytest.mark.django_db
