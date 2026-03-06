@@ -658,14 +658,14 @@ def refresh_airbyte_sync_health(self):  # noqa: ANN001
                 },
                 exc_info=exc,
             )
-            retry_kwargs = {
-                "exc": exc,
-                "reason": reason,
-            }
             if is_configuration_error:
-                retry_kwargs["base_delay"] = 300
-                retry_kwargs["max_delay"] = 900
-            raise self.retry_with_backoff(**retry_kwargs)
+                raise self.retry_with_backoff(
+                    exc=exc,
+                    reason=reason,
+                    base_delay=300,
+                    max_delay=900,
+                )
+            raise self.retry_with_backoff(exc=exc, reason=reason)
 
     logger.info(
         "airbyte.sync_status_refresh.completed",
