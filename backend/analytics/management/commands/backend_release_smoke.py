@@ -5,6 +5,7 @@ import re
 from contextlib import suppress
 from dataclasses import dataclass
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.test import Client
 
@@ -87,6 +88,20 @@ def _parse_metric_label_expectation(raw: str) -> tuple[str, dict[str, str]]:
             )
         labels[key] = value
     return metric_name, labels
+
+
+def _resolve_client_http_host() -> str:
+    allowed_hosts = getattr(settings, "ALLOWED_HOSTS", []) or []
+    for raw_host in allowed_hosts:
+        if not isinstance(raw_host, str):
+            continue
+        host = raw_host.strip()
+        if not host or host == "*":
+            continue
+        normalized = host.lstrip(".")
+        if normalized:
+            return normalized
+    return "localhost"
 
 
 class Command(BaseCommand):
@@ -184,6 +199,10 @@ class Command(BaseCommand):
         ]
 
         client = Client()
+        http_host = _resolve_client_http_host()
+        defaults = getattr(client, "defaults", None)
+        if isinstance(defaults, dict):
+            defaults.setdefault("HTTP_HOST", http_host)
         failures: list[str] = []
         results: list[dict[str, object]] = []
         metrics_body = ""
@@ -259,6 +278,7 @@ class Command(BaseCommand):
             "ok": not failures,
             "strict_external": strict_external,
             "strict_observability": strict_observability,
+            "http_host": http_host,
             "checks": results,
             "expected_metrics": expected_metrics,
             "expected_metric_labels": [
