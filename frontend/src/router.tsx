@@ -1,58 +1,69 @@
+import { lazy, Suspense, type ReactElement } from 'react';
 import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
 
-import BudgetDashboard from './routes/BudgetDashboard';
-import CampaignDashboard from './routes/CampaignDashboard';
-import CampaignDetail from './routes/CampaignDetail';
-import CreativeDashboard from './routes/CreativeDashboard';
-import CreativeDetail from './routes/CreativeDetail';
-import AlertsPage from './routes/AlertsPage';
-import AlertDetailPage from './routes/AlertDetailPage';
-import AuditLogPage from './routes/AuditLogPage';
-import DashboardCreate from './routes/DashboardCreate';
-import DashboardLibrary from './routes/DashboardLibrary';
-import CsvUpload from './routes/CsvUpload';
-import DataSources from './routes/DataSources';
-import DashboardLayout from './routes/DashboardLayout';
-import HealthOverviewPage from './routes/HealthOverviewPage';
+import FullPageLoader from './components/FullPageLoader';
+import ErrorPage from './pages/ErrorPage';
 import Home from './pages/Home';
 import InviteAcceptPage from './routes/InviteAcceptPage';
 import LoginPage from './routes/LoginPage';
 import PasswordResetPage from './routes/PasswordResetPage';
-import ParishMapDetail from './routes/ParishMapDetail';
 import ProtectedRoute from './routes/ProtectedRoute';
-import ReportCreatePage from './routes/ReportCreatePage';
-import ReportDetailPage from './routes/ReportDetailPage';
-import ReportsPage from './routes/ReportsPage';
-import SummariesPage from './routes/SummariesPage';
-import SummaryDetailPage from './routes/SummaryDetailPage';
-import SyncHealthPage from './routes/SyncHealthPage';
-import MetaAccountsPage from './routes/MetaAccountsPage';
-import MetaCampaignOverviewPage from './routes/MetaCampaignOverviewPage';
-import MetaInsightsDashboardPage from './routes/MetaInsightsDashboardPage';
-import MetaConnectionStatusPage from './routes/MetaConnectionStatusPage';
-import MetaIntegrationPage from './routes/MetaIntegrationPage';
-import MetaPagesListPage from './routes/MetaPagesListPage';
-import MetaPageOverviewPage from './routes/MetaPageOverviewPage';
-import MetaPagePostsPage from './routes/MetaPagePostsPage';
-import MetaPostDetailPage from './routes/MetaPostDetailPage';
 import {
   GoogleAdsCampaignDrawerRedirect,
   GoogleAdsTabRedirect,
 } from './routes/google-ads/GoogleAdsLegacyRedirects';
-import GoogleAdsWorkspacePage from './routes/google-ads/GoogleAdsWorkspacePage';
-import GoogleAdsExecutivePage from './routes/google-ads/GoogleAdsExecutivePage';
-import GoogleAdsCampaignsPage from './routes/google-ads/GoogleAdsCampaignsPage';
-import GoogleAdsCampaignDetailPage from './routes/google-ads/GoogleAdsCampaignDetailPage';
-import GoogleAdsChannelsPage from './routes/google-ads/GoogleAdsChannelsPage';
-import GoogleAdsKeywordsPage from './routes/google-ads/GoogleAdsKeywordsPage';
-import GoogleAdsAssetsPage from './routes/google-ads/GoogleAdsAssetsPage';
-import GoogleAdsPmaxPage from './routes/google-ads/GoogleAdsPmaxPage';
-import GoogleAdsBreakdownsPage from './routes/google-ads/GoogleAdsBreakdownsPage';
-import GoogleAdsConversionsPage from './routes/google-ads/GoogleAdsConversionsPage';
-import GoogleAdsBudgetPage from './routes/google-ads/GoogleAdsBudgetPage';
-import GoogleAdsChangeLogPage from './routes/google-ads/GoogleAdsChangeLogPage';
-import GoogleAdsRecommendationsPage from './routes/google-ads/GoogleAdsRecommendationsPage';
-import GoogleAdsReportsPage from './routes/google-ads/GoogleAdsReportsPage';
+
+const AlertsPage = lazy(() => import('./routes/AlertsPage'));
+const AlertDetailPage = lazy(() => import('./routes/AlertDetailPage'));
+const AuditLogPage = lazy(() => import('./routes/AuditLogPage'));
+const BudgetDashboard = lazy(() => import('./routes/BudgetDashboard'));
+const CampaignDashboard = lazy(() => import('./routes/CampaignDashboard'));
+const CampaignDetail = lazy(() => import('./routes/CampaignDetail'));
+const CreativeDashboard = lazy(() => import('./routes/CreativeDashboard'));
+const CreativeDetail = lazy(() => import('./routes/CreativeDetail'));
+const CsvUpload = lazy(() => import('./routes/CsvUpload'));
+const DashboardCreate = lazy(() => import('./routes/DashboardCreate'));
+const DashboardLibrary = lazy(() => import('./routes/DashboardLibrary'));
+const DashboardLayout = lazy(() => import('./routes/DashboardLayout'));
+const DataSources = lazy(() => import('./routes/DataSources'));
+const GoogleAnalyticsDashboardPage = lazy(() => import('./routes/GoogleAnalyticsDashboardPage'));
+const GoogleAdsAssetsPage = lazy(() => import('./routes/google-ads/GoogleAdsAssetsPage'));
+const GoogleAdsBreakdownsPage = lazy(() => import('./routes/google-ads/GoogleAdsBreakdownsPage'));
+const GoogleAdsBudgetPage = lazy(() => import('./routes/google-ads/GoogleAdsBudgetPage'));
+const GoogleAdsCampaignDetailPage = lazy(
+  () => import('./routes/google-ads/GoogleAdsCampaignDetailPage'),
+);
+const GoogleAdsCampaignsPage = lazy(() => import('./routes/google-ads/GoogleAdsCampaignsPage'));
+const GoogleAdsChangeLogPage = lazy(() => import('./routes/google-ads/GoogleAdsChangeLogPage'));
+const GoogleAdsChannelsPage = lazy(() => import('./routes/google-ads/GoogleAdsChannelsPage'));
+const GoogleAdsConversionsPage = lazy(
+  () => import('./routes/google-ads/GoogleAdsConversionsPage'),
+);
+const GoogleAdsExecutivePage = lazy(() => import('./routes/google-ads/GoogleAdsExecutivePage'));
+const GoogleAdsKeywordsPage = lazy(() => import('./routes/google-ads/GoogleAdsKeywordsPage'));
+const GoogleAdsPmaxPage = lazy(() => import('./routes/google-ads/GoogleAdsPmaxPage'));
+const GoogleAdsRecommendationsPage = lazy(
+  () => import('./routes/google-ads/GoogleAdsRecommendationsPage'),
+);
+const GoogleAdsReportsPage = lazy(() => import('./routes/google-ads/GoogleAdsReportsPage'));
+const GoogleAdsWorkspacePage = lazy(() => import('./routes/google-ads/GoogleAdsWorkspacePage'));
+const HealthOverviewPage = lazy(() => import('./routes/HealthOverviewPage'));
+const MetaAccountsPage = lazy(() => import('./routes/MetaAccountsPage'));
+const MetaCampaignOverviewPage = lazy(() => import('./routes/MetaCampaignOverviewPage'));
+const MetaConnectionStatusPage = lazy(() => import('./routes/MetaConnectionStatusPage'));
+const MetaInsightsDashboardPage = lazy(() => import('./routes/MetaInsightsDashboardPage'));
+const MetaIntegrationPage = lazy(() => import('./routes/MetaIntegrationPage'));
+const MetaPagesListPage = lazy(() => import('./routes/MetaPagesListPage'));
+const MetaPageOverviewPage = lazy(() => import('./routes/MetaPageOverviewPage'));
+const MetaPagePostsPage = lazy(() => import('./routes/MetaPagePostsPage'));
+const MetaPostDetailPage = lazy(() => import('./routes/MetaPostDetailPage'));
+const ParishMapDetail = lazy(() => import('./routes/ParishMapDetail'));
+const ReportCreatePage = lazy(() => import('./routes/ReportCreatePage'));
+const ReportDetailPage = lazy(() => import('./routes/ReportDetailPage'));
+const ReportsPage = lazy(() => import('./routes/ReportsPage'));
+const SummariesPage = lazy(() => import('./routes/SummariesPage'));
+const SummaryDetailPage = lazy(() => import('./routes/SummaryDetailPage'));
+const SyncHealthPage = lazy(() => import('./routes/SyncHealthPage'));
 
 const MetaPageOverviewAliasRedirect = () => {
   const { pageId = '' } = useParams();
@@ -68,6 +79,10 @@ const MetaPostAliasRedirect = () => {
   const { postId = '' } = useParams();
   return <Navigate to={`/dashboards/meta/posts/${postId}`} replace />;
 };
+
+function withRouteLoader(element: ReactElement, message = 'Loading page…') {
+  return <Suspense fallback={<FullPageLoader message={message} />}>{element}</Suspense>;
+}
 
 function resolveBooleanFlag(value: unknown, defaultValue: boolean): boolean {
   if (typeof value !== 'string') {
@@ -104,6 +119,7 @@ export const router = createBrowserRouter(
     },
     {
       element: <ProtectedRoute />,
+      errorElement: <ErrorPage />,
       children: [
         {
           path: '/',
@@ -111,39 +127,39 @@ export const router = createBrowserRouter(
         },
         {
           path: '/ops/sync-health',
-          element: <SyncHealthPage />,
+          element: withRouteLoader(<SyncHealthPage />, 'Loading sync health…'),
         },
         {
           path: '/ops/health',
-          element: <HealthOverviewPage />,
+          element: withRouteLoader(<HealthOverviewPage />, 'Loading health overview…'),
         },
         {
           path: '/ops/audit',
-          element: <AuditLogPage />,
+          element: withRouteLoader(<AuditLogPage />, 'Loading audit logs…'),
         },
         {
           path: '/reports',
-          element: <ReportsPage />,
+          element: withRouteLoader(<ReportsPage />, 'Loading reports…'),
         },
         {
           path: '/reports/new',
-          element: <ReportCreatePage />,
+          element: withRouteLoader(<ReportCreatePage />, 'Loading report builder…'),
         },
         {
           path: '/reports/:reportId',
-          element: <ReportDetailPage />,
+          element: withRouteLoader(<ReportDetailPage />, 'Loading report…'),
         },
         {
           path: '/alerts',
-          element: <AlertsPage />,
+          element: withRouteLoader(<AlertsPage />, 'Loading alerts…'),
         },
         {
           path: '/alerts/:alertId',
-          element: <AlertDetailPage />,
+          element: withRouteLoader(<AlertDetailPage />, 'Loading alert detail…'),
         },
         {
           path: '/integrations/meta',
-          element: <MetaIntegrationPage />,
+          element: withRouteLoader(<MetaIntegrationPage />, 'Loading Meta integration…'),
         },
         {
           path: '/meta/pages',
@@ -163,135 +179,201 @@ export const router = createBrowserRouter(
         },
         {
           path: '/summaries',
-          element: <SummariesPage />,
+          element: withRouteLoader(<SummariesPage />, 'Loading summaries…'),
         },
         {
           path: '/summaries/:summaryId',
-          element: <SummaryDetailPage />,
+          element: withRouteLoader(<SummaryDetailPage />, 'Loading summary detail…'),
         },
         {
           path: '/dashboards',
-          element: <DashboardLayout />,
+          element: withRouteLoader(<DashboardLayout />, 'Loading dashboards…'),
           children: [
-            { index: true, element: <DashboardLibrary /> },
-            { path: 'create', element: <DashboardCreate /> },
-            { path: 'campaigns', element: <CampaignDashboard /> },
-            { path: 'campaigns/:campaignId', element: <CampaignDetail /> },
-            { path: 'creatives', element: <CreativeDashboard /> },
-            { path: 'creatives/:creativeId', element: <CreativeDetail /> },
-            { path: 'budget', element: <BudgetDashboard /> },
-            { path: 'data-sources', element: <DataSources /> },
-            { path: 'meta/accounts', element: <MetaAccountsPage /> },
-            { path: 'meta/campaigns', element: <MetaCampaignOverviewPage /> },
-            { path: 'meta/insights', element: <MetaInsightsDashboardPage /> },
-            { path: 'meta/status', element: <MetaConnectionStatusPage /> },
-            { path: 'meta/pages', element: <MetaPagesListPage /> },
+            {
+              index: true,
+              element: withRouteLoader(<DashboardLibrary />, 'Loading dashboards…'),
+            },
+            {
+              path: 'create',
+              element: withRouteLoader(<DashboardCreate />, 'Loading dashboard builder…'),
+            },
+            {
+              path: 'campaigns',
+              element: withRouteLoader(<CampaignDashboard />, 'Loading campaign dashboard…'),
+            },
+            {
+              path: 'campaigns/:campaignId',
+              element: withRouteLoader(<CampaignDetail />, 'Loading campaign detail…'),
+            },
+            {
+              path: 'creatives',
+              element: withRouteLoader(<CreativeDashboard />, 'Loading creative dashboard…'),
+            },
+            {
+              path: 'creatives/:creativeId',
+              element: withRouteLoader(<CreativeDetail />, 'Loading creative detail…'),
+            },
+            {
+              path: 'budget',
+              element: withRouteLoader(<BudgetDashboard />, 'Loading budget dashboard…'),
+            },
+            {
+              path: 'data-sources',
+              element: withRouteLoader(<DataSources />, 'Loading data sources…'),
+            },
+            {
+              path: 'web/ga4',
+              element: withRouteLoader(<GoogleAnalyticsDashboardPage />, 'Loading GA4 dashboard…'),
+            },
+            {
+              path: 'meta/accounts',
+              element: withRouteLoader(<MetaAccountsPage />, 'Loading Meta accounts…'),
+            },
+            {
+              path: 'meta/campaigns',
+              element: withRouteLoader(<MetaCampaignOverviewPage />, 'Loading Meta campaigns…'),
+            },
+            {
+              path: 'meta/insights',
+              element: withRouteLoader(<MetaInsightsDashboardPage />, 'Loading Meta insights…'),
+            },
+            {
+              path: 'meta/status',
+              element: withRouteLoader(<MetaConnectionStatusPage />, 'Loading Meta status…'),
+            },
+            {
+              path: 'meta/pages',
+              element: withRouteLoader(<MetaPagesListPage />, 'Loading Meta pages…'),
+            },
             { path: 'meta/pages/:pageId', element: <MetaPageOverviewAliasRedirect /> },
-            { path: 'meta/pages/:pageId/overview', element: <MetaPageOverviewPage /> },
-            { path: 'meta/pages/:pageId/posts', element: <MetaPagePostsPage /> },
-            { path: 'meta/posts/:postId', element: <MetaPostDetailPage /> },
+            {
+              path: 'meta/pages/:pageId/overview',
+              element: withRouteLoader(
+                <MetaPageOverviewPage />,
+                'Loading Meta page overview…',
+              ),
+            },
+            {
+              path: 'meta/pages/:pageId/posts',
+              element: withRouteLoader(<MetaPagePostsPage />, 'Loading Meta page posts…'),
+            },
+            {
+              path: 'meta/posts/:postId',
+              element: withRouteLoader(<MetaPostDetailPage />, 'Loading Meta post detail…'),
+            },
             {
               path: 'google-ads',
-              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
-                <GoogleAdsWorkspacePage />
-              ) : (
-                <Navigate to="/dashboards/google-ads/executive" replace />
-              ),
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED
+                ? withRouteLoader(
+                    <GoogleAdsWorkspacePage />,
+                    'Loading Google Ads workspace…',
+                  )
+                : <Navigate to="/dashboards/google-ads/executive" replace />,
             },
             {
               path: 'google-ads/executive',
-              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
-                <GoogleAdsTabRedirect tab="overview" />
-              ) : (
-                <GoogleAdsExecutivePage />
-              ),
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED
+                ? <GoogleAdsTabRedirect tab="overview" />
+                : withRouteLoader(<GoogleAdsExecutivePage />, 'Loading Google Ads overview…'),
             },
             {
               path: 'google-ads/campaigns',
-              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
-                <GoogleAdsTabRedirect tab="campaigns" />
-              ) : (
-                <GoogleAdsCampaignsPage />
-              ),
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED
+                ? <GoogleAdsTabRedirect tab="campaigns" />
+                : withRouteLoader(
+                    <GoogleAdsCampaignsPage />,
+                    'Loading Google Ads campaigns…',
+                  ),
             },
             {
               path: 'google-ads/campaigns/:campaignId',
-              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
-                <GoogleAdsCampaignDrawerRedirect />
-              ) : (
-                <GoogleAdsCampaignDetailPage />
-              ),
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED
+                ? <GoogleAdsCampaignDrawerRedirect />
+                : withRouteLoader(
+                    <GoogleAdsCampaignDetailPage />,
+                    'Loading Google Ads campaign…',
+                  ),
             },
             {
               path: 'google-ads/channels',
-              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
-                <GoogleAdsTabRedirect tab="campaigns" />
-              ) : (
-                <GoogleAdsChannelsPage />
-              ),
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED
+                ? <GoogleAdsTabRedirect tab="campaigns" />
+                : withRouteLoader(
+                    <GoogleAdsChannelsPage />,
+                    'Loading channel performance…',
+                  ),
             },
             {
               path: 'google-ads/keywords',
-              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
-                <GoogleAdsTabRedirect tab="search" extra={{ search_mode: 'keywords' }} />
-              ) : (
-                <GoogleAdsKeywordsPage />
-              ),
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED
+                ? <GoogleAdsTabRedirect tab="search" extra={{ search_mode: 'keywords' }} />
+                : withRouteLoader(
+                    <GoogleAdsKeywordsPage />,
+                    'Loading keyword performance…',
+                  ),
             },
             {
               path: 'google-ads/assets',
-              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
-                <GoogleAdsTabRedirect tab="assets" />
-              ) : (
-                <GoogleAdsAssetsPage />
-              ),
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED
+                ? <GoogleAdsTabRedirect tab="assets" />
+                : withRouteLoader(
+                    <GoogleAdsAssetsPage />,
+                    'Loading asset performance…',
+                  ),
             },
             {
               path: 'google-ads/pmax',
-              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? <GoogleAdsTabRedirect tab="pmax" /> : <GoogleAdsPmaxPage />,
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED
+                ? <GoogleAdsTabRedirect tab="pmax" />
+                : withRouteLoader(<GoogleAdsPmaxPage />, 'Loading Performance Max…'),
             },
             {
               path: 'google-ads/breakdowns',
-              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
-                <GoogleAdsTabRedirect tab="campaigns" />
-              ) : (
-                <GoogleAdsBreakdownsPage />
-              ),
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED
+                ? <GoogleAdsTabRedirect tab="campaigns" />
+                : withRouteLoader(<GoogleAdsBreakdownsPage />, 'Loading breakdowns…'),
             },
             {
               path: 'google-ads/conversions',
-              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
-                <GoogleAdsTabRedirect tab="conversions" />
-              ) : (
-                <GoogleAdsConversionsPage />
-              ),
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED
+                ? <GoogleAdsTabRedirect tab="conversions" />
+                : withRouteLoader(<GoogleAdsConversionsPage />, 'Loading conversions…'),
             },
             {
               path: 'google-ads/budget',
-              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? <GoogleAdsTabRedirect tab="pacing" /> : <GoogleAdsBudgetPage />,
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED
+                ? <GoogleAdsTabRedirect tab="pacing" />
+                : withRouteLoader(<GoogleAdsBudgetPage />, 'Loading budget pacing…'),
             },
             {
               path: 'google-ads/change-log',
-              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
-                <GoogleAdsTabRedirect tab="changes" />
-              ) : (
-                <GoogleAdsChangeLogPage />
-              ),
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED
+                ? <GoogleAdsTabRedirect tab="changes" />
+                : withRouteLoader(<GoogleAdsChangeLogPage />, 'Loading change log…'),
             },
             {
               path: 'google-ads/recommendations',
-              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? (
-                <GoogleAdsTabRedirect tab="recommendations" />
-              ) : (
-                <GoogleAdsRecommendationsPage />
-              ),
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED
+                ? <GoogleAdsTabRedirect tab="recommendations" />
+                : withRouteLoader(
+                    <GoogleAdsRecommendationsPage />,
+                    'Loading recommendations…',
+                  ),
             },
             {
               path: 'google-ads/reports',
-              element: GOOGLE_ADS_WORKSPACE_UNIFIED ? <GoogleAdsTabRedirect tab="reports" /> : <GoogleAdsReportsPage />,
+              element: GOOGLE_ADS_WORKSPACE_UNIFIED
+                ? <GoogleAdsTabRedirect tab="reports" />
+                : withRouteLoader(<GoogleAdsReportsPage />, 'Loading saved views…'),
             },
-            { path: 'map', element: <ParishMapDetail /> },
-            { path: 'uploads', element: <CsvUpload /> },
+            {
+              path: 'map',
+              element: withRouteLoader(<ParishMapDetail />, 'Loading parish map…'),
+            },
+            {
+              path: 'uploads',
+              element: withRouteLoader(<CsvUpload />, 'Loading CSV uploads…'),
+            },
           ],
         },
       ],

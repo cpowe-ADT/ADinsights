@@ -274,7 +274,7 @@ export async function download(
 
   const contentType = response.headers.get('content-type') ?? 'application/octet-stream';
   const disposition = response.headers.get('content-disposition') ?? '';
-  const match = disposition.match(/filename=\"?([^\";]+)\"?/i);
+  const match = disposition.match(/filename="?([^";]+)"?/i);
   const filename = match?.[1] ? match[1] : 'download';
 
   const blob = await response.blob();

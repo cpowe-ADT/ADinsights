@@ -10,6 +10,21 @@ export interface TenantOption {
 const TENANTS_ENDPOINT = '/tenants/';
 const TENANTS_FIXTURE_PATH = '/mock/tenants.json';
 
+function ensureTenantArray(value: unknown): TenantRecord[] {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (
+    value &&
+    typeof value === 'object' &&
+    'results' in value &&
+    Array.isArray((value as { results?: unknown }).results)
+  ) {
+    return (value as { results: TenantRecord[] }).results;
+  }
+  return [];
+}
+
 function normalizeTenantId(value: TenantRecord['id']): string {
   if (typeof value === 'string') {
     const trimmed = value.trim();
@@ -53,11 +68,12 @@ function normalizeTenant(record: TenantRecord): TenantOption {
 }
 
 export async function loadTenants(signal?: AbortSignal): Promise<TenantOption[]> {
-  const records = await fetchTenants({
+  const payload = await fetchTenants({
     path: TENANTS_ENDPOINT,
     mockPath: TENANTS_FIXTURE_PATH,
     signal,
   });
+  const records = ensureTenantArray(payload);
 
   const seen = new Set<string>();
   const tenants = records

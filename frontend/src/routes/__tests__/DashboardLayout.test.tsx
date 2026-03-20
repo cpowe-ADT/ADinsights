@@ -43,11 +43,15 @@ const storeMock = vi.hoisted(() => ({
   },
 }));
 
+const authMock = vi.hoisted(() => ({
+  user: { email: 'admin@example.com', roles: ['ADMIN'] },
+}));
+
 vi.mock('../../auth/AuthContext', () => ({
   useAuth: () => ({
     tenantId: 'tenant-1',
     logout: vi.fn(),
-    user: { email: 'admin@example.com' },
+    user: authMock.user,
   }),
 }));
 
@@ -96,6 +100,7 @@ vi.mock('../../state/useDatasetStore', () => ({
 describe('DashboardLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authMock.user = { email: 'admin@example.com', roles: ['ADMIN'] };
   });
 
   it('deduplicates repeated dashboard error messages', () => {
@@ -110,5 +115,22 @@ describe('DashboardLayout', () => {
     );
 
     expect(screen.getAllByText('Creative metrics invalid in aggregated response')).toHaveLength(1);
+  });
+
+  it('hides the create nav link for viewer-only users', () => {
+    authMock.user = { email: 'viewer@example.com', roles: ['VIEWER'] };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/campaigns']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="campaigns" element={<div>Campaigns</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole('link', { name: 'Create' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Campaigns' })).toBeInTheDocument();
   });
 });

@@ -16,7 +16,10 @@ import apiClient, {
   setRefreshHandler as setApiRefreshHandler,
   setUnauthorizedHandler as setApiUnauthorizedHandler,
 } from '../lib/apiClient';
-import useDashboardStore from '../state/useDashboardStore';
+import {
+  resetDashboardSession,
+  setDashboardSessionTenant,
+} from '../state/dashboardSession';
 
 const STORAGE_KEY = 'adinsights.auth';
 const REFRESH_LEEWAY_MS = 60_000;
@@ -117,7 +120,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     const normalizedTenantId =
       typeof nextTenantId === 'string' && nextTenantId.trim() ? nextTenantId.trim() : undefined;
     setTenantId(normalizedTenantId);
-    useDashboardStore.getState().setActiveTenant(normalizedTenantId, tenantLabel);
+    setDashboardSessionTenant(normalizedTenantId, tenantLabel);
   }, []);
 
   const clearRefreshTimer = useCallback(() => {
@@ -138,7 +141,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     setError(undefined);
     setStatusMessage(undefined);
     writeStoredTokens(null);
-    useDashboardStore.getState().reset();
+    resetDashboardSession();
   }, [clearRefreshTimer, syncActiveTenant]);
 
   const applyTokens = useCallback(

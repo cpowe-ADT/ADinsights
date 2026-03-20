@@ -7,18 +7,27 @@ import {
   connectMetaPage,
   createAirbyteConnection,
   createPlatformCredential,
+  exchangeGoogleAnalyticsOAuthCode,
   exchangeMetaOAuthCode,
+  loadGoogleAnalyticsProperties,
+  loadGoogleAnalyticsSetupStatus,
+  loadGoogleAnalyticsStatus,
   loadAirbyteConnections,
   loadAirbyteSummary,
   loadMetaSetupStatus,
   logoutMetaOAuth,
   loadSocialConnectionStatus,
+  provisionGoogleAnalytics,
   provisionMetaIntegration,
+  startGoogleAnalyticsOAuth,
   syncMetaIntegration,
   startMetaOAuth,
   triggerAirbyteSync,
   type AirbyteConnectionRecord,
   type AirbyteConnectionsSummary,
+  type GoogleAnalyticsPropertyRecord,
+  type GoogleAnalyticsSetupStatusResponse,
+  type GoogleAnalyticsStatusResponse,
   type MetaAdAccount,
   type MetaInstagramAccount,
   type MetaOAuthPage,
@@ -58,6 +67,7 @@ const STATUS_THRESHOLD_MINUTES = 60;
 const PROVIDER_LABELS: Record<string, string> = {
   META: 'Meta',
   GOOGLE: 'Google Ads',
+  GA4: 'Google Analytics 4',
   LINKEDIN: 'LinkedIn',
   TIKTOK: 'TikTok',
   UNKNOWN: 'Unknown provider',
@@ -69,8 +79,9 @@ const RUNNING_STATUSES = new Set(['running', 'pending', 'in_progress']);
 type LoadStatus = 'loading' | 'loaded' | 'error';
 
 type ConnectionState = 'healthy' | 'stale' | 'paused' | 'needs-attention' | 'syncing';
-type ConnectProvider = 'META' | 'GOOGLE';
+type ConnectProvider = 'META' | 'GOOGLE' | 'GA4';
 type MetaConnectStep = 'idle' | 'oauth-pending' | 'page-selection' | 'credential-connected';
+type Ga4ConnectStep = 'idle' | 'oauth-pending' | 'property-selection' | 'connected';
 type SocialStatusLoad = 'loading' | 'loaded' | 'error';
 
 interface ConnectFormState {
@@ -111,7 +122,7 @@ interface SocialPlatformCard extends Omit<SocialPlatformStatusRecord, 'platform'
   isPlaceholder?: boolean;
 }
 
-const META_OAUTH_PROVIDER_KEY = 'adinsights.meta.oauth.provider';
+const CONNECT_OAUTH_PROVIDER_KEY = 'adinsights.connect.oauth.provider';
 const EMPTY_META_PERMISSION_DIAGNOSTICS: MetaPermissionDiagnosticsState = {
   grantedPermissions: [],
   declinedPermissions: [],
@@ -123,10 +134,10 @@ const EMPTY_META_PERMISSION_DIAGNOSTICS: MetaPermissionDiagnosticsState = {
 const CONNECT_PROVIDER_LABELS: Record<ConnectProvider, string> = {
   META: 'Meta (Facebook & Instagram)',
   GOOGLE: 'Google Ads',
+  GA4: 'Google Analytics 4',
 };
 
-const CONNECT_PROVIDER_ACCOUNT_LABELS: Record<ConnectProvider, string> = {
-  META: 'Meta ad account ID',
+const CONNECT_PROVIDER_ACCOUNT_LABELS: Record<'GOOGLE', string> = {
   GOOGLE: 'Google Ads customer/account ID',
 };
 
@@ -156,7 +167,12 @@ const buildInitialConnectForm = (provider: ConnectProvider): ConnectFormState =>
   accessToken: '',
   refreshToken: '',
   linkConnection: provider === 'META',
-  connectionName: provider === 'META' ? 'Meta Metrics Connection' : 'Google Ads Metrics Connection',
+  connectionName:
+    provider === 'META'
+      ? 'Meta Metrics Connection'
+      : provider === 'GA4'
+        ? 'Google Analytics Property Connection'
+        : 'Google Ads Metrics Connection',
   connectionId: '',
   workspaceId: '',
   destinationId: '',
@@ -171,6 +187,21 @@ const resolveProviderLabel = (provider?: string | null): string => {
     return PROVIDER_LABELS.UNKNOWN;
   }
   return PROVIDER_LABELS[provider] ?? provider.toUpperCase();
+};
+
+const ensureConnectionsArray = (value: unknown): AirbyteConnectionRecord[] => {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (
+    value &&
+    typeof value === 'object' &&
+    'results' in value &&
+    Array.isArray((value as { results?: unknown }).results)
+  ) {
+    return (value as { results: AirbyteConnectionRecord[] }).results;
+  }
+  return [];
 };
 
 const formatSchedule = (connection: AirbyteConnectionRecord): string => {
@@ -291,6 +322,19 @@ const resolveSocialPrimaryAction = (status: SocialConnectionStatus, actions: str
   return 'View details';
 };
 
+const resolveGa4PrimaryAction = (status: GoogleAnalyticsStatusResponse['status']): string => {
+  if (status === 'not_connected') {
+    return 'Connect with Google';
+  }
+  if (status === 'started_not_complete') {
+    return 'Continue setup';
+  }
+  if (status === 'complete') {
+    return 'Open setup';
+  }
+  return 'Manage connection';
+};
+
 const DataSources = () => {
   const docsUrl =
     import.meta.env.VITE_DOCS_URL?.trim() ||
@@ -337,12 +381,27 @@ const DataSources = () => {
   const [metaSetupLoading, setMetaSetupLoading] = useState(false);
   const [metaPermissionDiagnostics, setMetaPermissionDiagnostics] =
     useState<MetaPermissionDiagnosticsState>(EMPTY_META_PERMISSION_DIAGNOSTICS);
+  const [ga4ConnectStep, setGa4ConnectStep] = useState<Ga4ConnectStep>('idle');
+  const [ga4Credential, setGa4Credential] = useState<PlatformCredentialRecord | null>(null);
+  const [ga4Properties, setGa4Properties] = useState<GoogleAnalyticsPropertyRecord[]>([]);
+  const [ga4SelectedPropertyId, setGa4SelectedPropertyId] = useState('');
+  const [ga4SetupStatus, setGa4SetupStatus] = useState<GoogleAnalyticsSetupStatusResponse | null>(
+    null,
+  );
+  const [ga4SetupLoading, setGa4SetupLoading] = useState(false);
+  const [ga4Status, setGa4Status] = useState<GoogleAnalyticsStatusResponse | null>(null);
+  const [ga4StatusLoad, setGa4StatusLoad] = useState<LoadStatus>('loading');
+  const [ga4StatusError, setGa4StatusError] = useState<string | null>(null);
+  const [ga4OAuthStarting, setGa4OAuthStarting] = useState(false);
+  const [ga4OAuthExchanging, setGa4OAuthExchanging] = useState(false);
+  const [ga4PropertiesLoading, setGa4PropertiesLoading] = useState(false);
   const [socialStatus, setSocialStatus] = useState<SocialPlatformStatusRecord[]>([]);
   const [socialStatusLoad, setSocialStatusLoad] = useState<SocialStatusLoad>('loading');
   const [socialStatusError, setSocialStatusError] = useState<string | null>(null);
   const [socialActionPendingPlatform, setSocialActionPendingPlatform] = useState<string | null>(
     null,
   );
+  const normalizedConnections = ensureConnectionsArray(connections);
   const socialSectionRef = useRef<HTMLElement | null>(null);
   const focusSocialView = useMemo(() => {
     if (typeof window === 'undefined') {
@@ -357,12 +416,14 @@ const DataSources = () => {
     setError(null);
     setSocialStatusLoad('loading');
     setSocialStatusError(null);
+    setGa4StatusLoad('loading');
+    setGa4StatusError(null);
     try {
       const [connectionsPayload, summaryPayload] = await Promise.all([
         loadAirbyteConnections(),
         loadAirbyteSummary(),
       ]);
-      setConnections(connectionsPayload);
+      setConnections(ensureConnectionsArray(connectionsPayload));
       setSummary(summaryPayload);
       setStatus('loaded');
 
@@ -379,6 +440,18 @@ const DataSources = () => {
         setSocialStatusLoad('error');
         setSocialStatusError(socialMessage);
       }
+
+      try {
+        const ga4Payload = await loadGoogleAnalyticsStatus();
+        setGa4Status(ga4Payload);
+        setGa4StatusLoad('loaded');
+      } catch (ga4Error) {
+        const ga4Message =
+          ga4Error instanceof Error ? ga4Error.message : 'Unable to load Google Analytics status.';
+        setGa4Status(null);
+        setGa4StatusLoad('error');
+        setGa4StatusError(ga4Message);
+      }
     } catch (loadError) {
       const message =
         loadError instanceof Error ? loadError.message : 'Unable to load data sources.';
@@ -386,6 +459,9 @@ const DataSources = () => {
       setSocialStatus([]);
       setSocialStatusLoad('loaded');
       setSocialStatusError(null);
+      setGa4Status(null);
+      setGa4StatusLoad('loaded');
+      setGa4StatusError(null);
       setStatus('error');
     }
   }, []);
@@ -453,6 +529,36 @@ const DataSources = () => {
     };
   }, [connectProvider, runtimeContext]);
 
+  useEffect(() => {
+    if (connectProvider !== 'GA4') {
+      return;
+    }
+    let cancelled = false;
+    setGa4SetupLoading(true);
+    void loadGoogleAnalyticsSetupStatus(runtimeContext)
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+        setGa4SetupStatus(payload);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setGa4SetupStatus(null);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setGa4SetupLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [connectProvider, runtimeContext]);
+
   const resetMetaOAuthState = useCallback(() => {
     setMetaConnectStep('idle');
     setMetaOAuthSelection({
@@ -472,6 +578,126 @@ const DataSources = () => {
     setMetaOAuthSavingPage(false);
   }, []);
 
+  const resetGa4State = useCallback(() => {
+    setGa4ConnectStep('idle');
+    setGa4Credential(null);
+    setGa4Properties([]);
+    setGa4SelectedPropertyId('');
+    setGa4OAuthStarting(false);
+    setGa4OAuthExchanging(false);
+    setGa4PropertiesLoading(false);
+  }, []);
+
+  const applyGa4Properties = useCallback((properties: GoogleAnalyticsPropertyRecord[]) => {
+    setGa4Properties(properties);
+    setGa4SelectedPropertyId((previous) => {
+      if (previous && properties.some((row) => row.property_id === previous)) {
+        return previous;
+      }
+      return properties[0]?.property_id ?? '';
+    });
+  }, []);
+
+  const handleLoadGa4Properties = useCallback(
+    async (options?: {
+      credentialId?: string;
+      silentError?: boolean;
+      showToastOnEmpty?: boolean;
+    }) => {
+      setGa4PropertiesLoading(true);
+      try {
+        const payload = await loadGoogleAnalyticsProperties(
+          options?.credentialId ? { credential_id: options.credentialId } : undefined,
+        );
+        setGa4Credential((previous) =>
+          previous ?? {
+            id: payload.credential_id,
+            provider: 'GOOGLE_ANALYTICS',
+            account_id: '',
+          },
+        );
+        applyGa4Properties(payload.properties ?? []);
+        if ((payload.properties ?? []).length > 0) {
+          setGa4ConnectStep('property-selection');
+        } else if (options?.showToastOnEmpty) {
+          pushToast('Google Analytics connected, but no GA4 properties were returned.', {
+            tone: 'error',
+          });
+        }
+      } catch (ga4PropertiesError) {
+        applyGa4Properties([]);
+        if (!options?.silentError) {
+          const message =
+            ga4PropertiesError instanceof Error
+              ? ga4PropertiesError.message
+              : 'Unable to load GA4 properties.';
+          pushToast(message, { tone: 'error' });
+        }
+      } finally {
+        setGa4PropertiesLoading(false);
+      }
+    },
+    [applyGa4Properties, pushToast],
+  );
+
+  const handleStartGoogleAnalyticsOAuth = useCallback(async () => {
+    if (ga4OAuthStarting || ga4OAuthExchanging) {
+      return;
+    }
+    setGa4OAuthStarting(true);
+    try {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(CONNECT_OAUTH_PROVIDER_KEY, 'GA4');
+      }
+      const hasRuntimeContext = Boolean(
+        runtimeContext.client_origin || runtimeContext.client_port || runtimeContext.dataset_source,
+      );
+      const response = await startGoogleAnalyticsOAuth(
+        hasRuntimeContext ? { runtime_context: runtimeContext } : undefined,
+      );
+      if (typeof window !== 'undefined') {
+        if (import.meta.env.MODE === 'test') {
+          return;
+        }
+        window.location.assign(response.authorize_url);
+      }
+    } catch (ga4StartError) {
+      const message =
+        ga4StartError instanceof Error ? ga4StartError.message : 'Unable to start GA4 OAuth.';
+      pushToast(message, { tone: 'error' });
+      setConnectProvider('GA4');
+      setConnectForm(buildInitialConnectForm('GA4'));
+      resetGa4State();
+    } finally {
+      setGa4OAuthStarting(false);
+    }
+  }, [ga4OAuthExchanging, ga4OAuthStarting, pushToast, resetGa4State, runtimeContext]);
+
+  useEffect(() => {
+    if (connectProvider !== 'GA4') {
+      return;
+    }
+    if (ga4Properties.length > 0 || ga4PropertiesLoading) {
+      return;
+    }
+    const hasStoredCredential =
+      Boolean(ga4Credential?.id) || Boolean(ga4Status?.metadata?.has_credential);
+    if (!hasStoredCredential) {
+      return;
+    }
+    void handleLoadGa4Properties({
+      credentialId: ga4Credential?.id,
+      silentError: true,
+    });
+  }, [
+    connectProvider,
+    ga4Credential?.id,
+    ga4Properties.length,
+    ga4PropertiesLoading,
+    ga4Status?.metadata,
+    handleLoadGa4Properties,
+  ]);
+
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
@@ -487,7 +713,7 @@ const DataSources = () => {
     }
 
     const clearOAuthParams = () => {
-      window.sessionStorage.removeItem(META_OAUTH_PROVIDER_KEY);
+      window.sessionStorage.removeItem(CONNECT_OAUTH_PROVIDER_KEY);
       const nextUrl = `${window.location.pathname}${window.location.hash}`;
       window.history.replaceState({}, document.title, nextUrl);
     };
@@ -496,6 +722,7 @@ const DataSources = () => {
       clearOAuthParams();
     };
     const oauthFlow = window.sessionStorage.getItem(META_OAUTH_FLOW_SESSION_KEY);
+    const oauthProvider = window.sessionStorage.getItem(CONNECT_OAUTH_PROVIDER_KEY);
 
     const isWrongOAuthFlowError = (error: unknown): boolean => {
       if (error instanceof ApiError) {
@@ -542,6 +769,27 @@ const DataSources = () => {
         ? `/dashboards/meta/pages/${defaultPageId}/overview`
         : '/dashboards/meta/pages';
       window.location.assign(destination);
+    };
+
+    const handleGoogleAnalyticsCallback = async () => {
+      setConnectProvider('GA4');
+      setConnectForm(buildInitialConnectForm('GA4'));
+      setGa4ConnectStep('oauth-pending');
+
+      const response = await exchangeGoogleAnalyticsOAuthCode({
+        code: code ?? '',
+        state: state ?? '',
+        runtime_context: runtimeContext,
+      });
+      setGa4Credential(response.credential);
+      setGa4ConnectStep('property-selection');
+      await handleLoadGa4Properties({
+        credentialId: response.credential.id,
+        showToastOnEmpty: true,
+      });
+      pushToast('Google Analytics connected. Select a GA4 property to finish setup.', {
+        tone: 'success',
+      });
     };
 
     const handleMarketingCallback = async () => {
@@ -601,13 +849,37 @@ const DataSources = () => {
     };
 
     if (oauthError) {
+      const providerLabel = oauthProvider === 'GA4' ? 'Google Analytics' : 'OAuth';
       pushToast(
         oauthErrorDescription?.trim()
-          ? `OAuth failed: ${oauthErrorDescription}`
-          : `OAuth failed: ${oauthError}`,
+          ? `${providerLabel} failed: ${oauthErrorDescription}`
+          : `${providerLabel} failed: ${oauthError}`,
         { tone: 'error' },
       );
-      clearOAuthMarkers();
+      if (oauthProvider === 'GA4') {
+        clearOAuthParams();
+      } else {
+        clearOAuthMarkers();
+      }
+      return;
+    }
+
+    if (oauthProvider === 'GA4') {
+      setGa4OAuthExchanging(true);
+      void (async () => {
+        try {
+          await handleGoogleAnalyticsCallback();
+        } catch (ga4ExchangeError) {
+          const message =
+            ga4ExchangeError instanceof Error
+              ? ga4ExchangeError.message
+              : 'Google Analytics OAuth callback failed.';
+          pushToast(message, { tone: 'error' });
+        } finally {
+          setGa4OAuthExchanging(false);
+          clearOAuthParams();
+        }
+      })();
       return;
     }
 
@@ -641,7 +913,7 @@ const DataSources = () => {
         clearOAuthMarkers();
       }
     })();
-  }, [pushToast, runtimeContext]);
+  }, [handleLoadGa4Properties, pushToast, runtimeContext]);
 
   const handleStartMetaOAuth = useCallback(
     async (options?: { openPanelOnError?: boolean; authType?: 'rerequest' }) => {
@@ -651,7 +923,7 @@ const DataSources = () => {
       setMetaOAuthStarting(true);
       try {
         if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(META_OAUTH_PROVIDER_KEY, 'META');
+          window.sessionStorage.setItem(CONNECT_OAUTH_PROVIDER_KEY, 'META');
         }
         const hasRuntimeContext = Boolean(
           runtimeContext.client_origin ||
@@ -774,18 +1046,18 @@ const DataSources = () => {
     (provider: ConnectProvider) => {
       setConnectProvider(provider);
       setConnectForm(buildInitialConnectForm(provider));
-      if (provider === 'META') {
-        resetMetaOAuthState();
-      }
+      resetMetaOAuthState();
+      resetGa4State();
     },
-    [resetMetaOAuthState],
+    [resetGa4State, resetMetaOAuthState],
   );
 
   const closeConnectPanel = useCallback(() => {
     setConnectProvider(null);
     setSavingConnect(false);
     resetMetaOAuthState();
-  }, [resetMetaOAuthState]);
+    resetGa4State();
+  }, [resetGa4State, resetMetaOAuthState]);
 
   const handleRunNow = useCallback(
     async (connection: AirbyteConnectionRecord) => {
@@ -835,7 +1107,7 @@ const DataSources = () => {
         return;
       }
       if (platformStatus.actions.includes('sync_now')) {
-        const metaConnection = connections
+        const metaConnection = normalizedConnections
           .filter((connection) => connection.provider === 'META')
           .sort((a, b) => {
             const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
@@ -849,7 +1121,7 @@ const DataSources = () => {
       }
       openConnectPanel('META');
     },
-    [connections, handleRunNow, handleStartMetaOAuth, openConnectPanel],
+    [handleRunNow, handleStartMetaOAuth, normalizedConnections, openConnectPanel],
   );
 
   const handleConnectSubmit = useCallback(
@@ -923,6 +1195,27 @@ const DataSources = () => {
               });
             }
           }
+        } else if (connectProvider === 'GA4') {
+          if (!ga4Credential?.id) {
+            pushToast('Complete Google OAuth first.', { tone: 'error' });
+            return;
+          }
+          const selectedProperty = ga4Properties.find(
+            (property) => property.property_id === ga4SelectedPropertyId,
+          );
+          if (!selectedProperty) {
+            pushToast('Select a GA4 property first.', { tone: 'error' });
+            return;
+          }
+
+          await provisionGoogleAnalytics({
+            credential_id: ga4Credential.id,
+            property_id: selectedProperty.property_id,
+            property_name: selectedProperty.property_name,
+            is_active: true,
+            sync_frequency: 'daily',
+          });
+          setGa4ConnectStep('connected');
         } else {
           const accountId = connectForm.accountId.trim();
           const accessToken = connectForm.accessToken.trim();
@@ -968,9 +1261,11 @@ const DataSources = () => {
         }
 
         pushToast(
-          connectForm.linkConnection
-            ? `${CONNECT_PROVIDER_LABELS[connectProvider]} connected and linked.`
-            : `${CONNECT_PROVIDER_LABELS[connectProvider]} credentials saved.`,
+          connectProvider === 'GA4'
+            ? 'Google Analytics 4 property connected.'
+            : connectForm.linkConnection
+              ? `${CONNECT_PROVIDER_LABELS[connectProvider]} connected and linked.`
+              : `${CONNECT_PROVIDER_LABELS[connectProvider]} credentials saved.`,
           { tone: 'success' },
         );
         closeConnectPanel();
@@ -990,6 +1285,9 @@ const DataSources = () => {
       loadData,
       metaConnectedCredential,
       metaPermissionDiagnostics,
+      ga4Credential,
+      ga4Properties,
+      ga4SelectedPropertyId,
       pushToast,
       savingConnect,
     ],
@@ -997,7 +1295,7 @@ const DataSources = () => {
 
   const providerOptions = useMemo(() => {
     const providers = new Set<string>();
-    connections.forEach((connection) => {
+    normalizedConnections.forEach((connection) => {
       providers.add(connection.provider ?? 'UNKNOWN');
     });
     return Array.from(providers)
@@ -1006,11 +1304,11 @@ const DataSources = () => {
         label: resolveProviderLabel(provider),
       }))
       .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
-  }, [connections]);
+  }, [normalizedConnections]);
 
   const filteredConnections = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return connections.filter((connection) => {
+    return normalizedConnections.filter((connection) => {
       const provider = connection.provider ?? 'UNKNOWN';
       if (providerFilter !== 'all' && provider !== providerFilter) {
         return false;
@@ -1025,7 +1323,7 @@ const DataSources = () => {
       const haystack = `${connection.name ?? ''} ${provider}`.toLowerCase();
       return haystack.includes(normalizedQuery);
     });
-  }, [connections, providerFilter, query, statusFilter]);
+  }, [normalizedConnections, providerFilter, query, statusFilter]);
 
   const socialCards = useMemo<SocialPlatformCard[]>(() => {
     const sourceMap = new Map<string, SocialPlatformStatusRecord>();
@@ -1061,6 +1359,18 @@ const DataSources = () => {
     return [...ordered, ...placeholders];
   }, [socialStatus]);
 
+  const handleGa4PrimaryAction = useCallback(() => {
+    openConnectPanel('GA4');
+  }, [openConnectPanel]);
+
+  const ga4StatusValue: GoogleAnalyticsStatusResponse['status'] =
+    ga4Status?.status ?? 'not_connected';
+  const ga4StatusLabel = resolveSocialStatusLabel(ga4StatusValue);
+  const ga4StatusTone = resolveSocialStatusTone(ga4StatusValue);
+  const ga4PrimaryActionLabel = resolveGa4PrimaryAction(ga4StatusValue);
+  const ga4LastCheckedLabel = formatRelativeTime(ga4Status?.last_checked_at ?? null) ?? '—';
+  const ga4LastSyncedLabel = formatRelativeTime(ga4Status?.last_synced_at ?? null) ?? 'Never';
+
   const latestSyncLabel = useMemo(() => {
     const lastSyncedAt = summary?.latest_sync?.last_synced_at;
     if (!lastSyncedAt) {
@@ -1078,19 +1388,19 @@ const DataSources = () => {
     if (summary) {
       return summary;
     }
-    const total = connections.length;
-    const active = connections.filter((connection) => connection.is_active !== false).length;
+    const total = normalizedConnections.length;
+    const active = normalizedConnections.filter((connection) => connection.is_active !== false).length;
     return {
       total,
       active,
       inactive: total - active,
-      due: connections.filter((connection) => resolveConnectionState(connection) === 'stale')
+      due: normalizedConnections.filter((connection) => resolveConnectionState(connection) === 'stale')
         .length,
       by_provider: {},
     };
-  }, [connections, summary]);
+  }, [normalizedConnections, summary]);
 
-  const hasConnections = connections.length > 0;
+  const hasConnections = normalizedConnections.length > 0;
   const hasFiltered = filteredConnections.length > 0;
 
   return (
@@ -1202,6 +1512,64 @@ const DataSources = () => {
           </div>
         </section>
 
+        <section className="social-connections-panel" aria-labelledby="web-analytics-title">
+          <div className="panel-header__title-row">
+            <h3 id="web-analytics-title">Web analytics</h3>
+            <span className={`status-pill ${ga4StatusLoad === 'loaded' ? ga4StatusTone : 'muted'}`}>
+              {ga4StatusLoad === 'loaded' ? ga4StatusLabel : 'Checking status'}
+            </span>
+          </div>
+          <p className="status-message muted">
+            Connect a GA4 property for tenant-scoped sessions, engagement, conversion, and revenue
+            reporting.
+          </p>
+          {ga4StatusLoad === 'loading' ? (
+            <p className="status-message muted">Loading Google Analytics status…</p>
+          ) : null}
+          {ga4StatusLoad === 'error' ? (
+            <p className="status-message error">
+              {ga4StatusError ?? 'Could not load Google Analytics status.'}
+            </p>
+          ) : null}
+          <div className="social-connections-grid">
+            <article className="social-connection-card">
+              <div className="social-connection-card__header">
+                <h4>Google Analytics 4</h4>
+                <span className={`status-pill ${ga4StatusTone}`}>{ga4StatusLabel}</span>
+              </div>
+              <p className="status-message muted">
+                {ga4Status?.reason?.message ??
+                  'Complete Google OAuth, choose a GA4 property, and verify the warehouse feed.'}
+              </p>
+              <dl className="social-connection-card__meta">
+                <div>
+                  <dt>Checked</dt>
+                  <dd>{ga4LastCheckedLabel}</dd>
+                </div>
+                <div>
+                  <dt>Last sync</dt>
+                  <dd>{ga4LastSyncedLabel}</dd>
+                </div>
+              </dl>
+              <div className="social-connection-card__actions">
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={handleGa4PrimaryAction}
+                  disabled={ga4OAuthStarting || ga4OAuthExchanging}
+                >
+                  {ga4OAuthStarting ? 'Redirecting…' : ga4PrimaryActionLabel}
+                </button>
+                {(ga4Status?.status === 'complete' || ga4Status?.status === 'active') && (
+                  <a className="button tertiary" href="/dashboards/web/ga4">
+                    Open dashboard
+                  </a>
+                )}
+              </div>
+            </article>
+          </div>
+        </section>
+
         <div className="data-sources-summary">
           <div className="summary-card">
             <p className="summary-card__label">Total connections</p>
@@ -1274,6 +1642,13 @@ const DataSources = () => {
             >
               Connect Google Ads
             </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => openConnectPanel('GA4')}
+            >
+              Connect Google Analytics
+            </button>
             <button type="button" className="button secondary" onClick={handleRefresh}>
               Refresh
             </button>
@@ -1289,7 +1664,7 @@ const DataSources = () => {
         <p className="status-message muted">
           Meta connects through Facebook OAuth so you can select a business page, ad account, and
           optional Instagram business account, then provision insights sync. Google Ads currently
-          uses direct credential entry.
+          uses direct credential entry, while GA4 uses Google OAuth plus property selection.
         </p>
 
         {connectProvider ? (
@@ -1298,7 +1673,11 @@ const DataSources = () => {
               <div>
                 <h3>{`Connect ${CONNECT_PROVIDER_LABELS[connectProvider]}`}</h3>
                 <p className="status-message muted">
-                  Save API credentials and optionally link an existing Airbyte connection record.
+                  {connectProvider === 'META'
+                    ? 'Complete Facebook OAuth, pick business assets, and optionally auto-provision the sync.'
+                    : connectProvider === 'GA4'
+                      ? 'Complete Google OAuth, select a GA4 property, and save the tenant-scoped analytics connection.'
+                      : 'Save API credentials and optionally link an existing Airbyte connection record.'}
                 </p>
               </div>
               <button
@@ -1608,6 +1987,98 @@ const DataSources = () => {
                   </label>
                 </div>
               </>
+            ) : connectProvider === 'GA4' ? (
+              <>
+                <div className="data-sources-connect-form__grid">
+                  <div className="dashboard-field">
+                    <span className="dashboard-field__label">GA4 setup checklist</span>
+                    {ga4SetupLoading ? (
+                      <p className="status-message muted">Checking backend setup…</p>
+                    ) : null}
+                    {!ga4SetupLoading && !ga4SetupStatus ? (
+                      <p className="status-message error">
+                        Could not load GA4 setup status. Confirm backend is running and authenticated.
+                      </p>
+                    ) : null}
+                    {ga4SetupStatus ? (
+                      <>
+                        <p className="status-message muted">
+                          OAuth ready:{' '}
+                          <span
+                            className={`status-pill ${ga4SetupStatus.ready_for_oauth ? 'success' : 'error'}`}
+                          >
+                            {ga4SetupStatus.ready_for_oauth ? 'Yes' : 'No'}
+                          </span>
+                        </p>
+                        <p className="status-message muted">
+                          Redirect URI: {ga4SetupStatus.redirect_uri || 'Not configured'}
+                        </p>
+                        <p className="status-message muted">
+                          OAuth scopes: {ga4SetupStatus.oauth_scopes.join(', ') || '—'}
+                        </p>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="data-sources-connect-form__grid">
+                  <div className="dashboard-field">
+                    <span className="dashboard-field__label">Google OAuth</span>
+                    <button
+                      type="button"
+                      className="button secondary"
+                      onClick={() => void handleStartGoogleAnalyticsOAuth()}
+                      disabled={ga4OAuthStarting || ga4OAuthExchanging}
+                      aria-busy={ga4OAuthStarting || ga4OAuthExchanging}
+                    >
+                      {ga4OAuthStarting ? 'Redirecting…' : 'Connect with Google'}
+                    </button>
+                  </div>
+                  <label className="dashboard-field">
+                    <span className="dashboard-field__label">OAuth status</span>
+                    <input type="text" value={ga4ConnectStep} readOnly aria-label="GA4 OAuth status" />
+                  </label>
+                </div>
+
+                <div className="data-sources-connect-form__grid">
+                  <label className="dashboard-field">
+                    <span className="dashboard-field__label">Connected account</span>
+                    <input
+                      type="text"
+                      value={ga4Credential?.account_id ?? ''}
+                      readOnly
+                      placeholder="Connect with Google to populate"
+                    />
+                  </label>
+                  <label className="dashboard-field">
+                    <span className="dashboard-field__label">GA4 property</span>
+                    {ga4PropertiesLoading ? (
+                      <p className="status-message muted">Loading available properties…</p>
+                    ) : ga4Properties.length > 0 ? (
+                      <select
+                        value={ga4SelectedPropertyId}
+                        onChange={(event) => setGa4SelectedPropertyId(event.target.value)}
+                      >
+                        {ga4Properties.map((property) => (
+                          <option key={property.property_id} value={property.property_id}>
+                            {`${property.property_name} (${property.account_name || property.property_id})`}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="status-message muted">
+                        Connect Google OAuth to load your available GA4 properties.
+                      </p>
+                    )}
+                  </label>
+                  <div className="dashboard-field">
+                    <span className="dashboard-field__label">Dashboard</span>
+                    <a className="button tertiary" href="/dashboards/web/ga4">
+                      Open GA4 dashboard
+                    </a>
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="data-sources-connect-form__grid">
                 <label className="dashboard-field">
@@ -1664,7 +2135,7 @@ const DataSources = () => {
               </div>
             )}
 
-            {connectForm.linkConnection ? (
+            {connectProvider !== 'GA4' && connectForm.linkConnection ? (
               <div className="data-sources-connect-form__grid">
                 <label className="dashboard-field">
                   <span className="dashboard-field__label">Connection name</span>
@@ -1784,7 +2255,11 @@ const DataSources = () => {
                 disabled={savingConnect}
                 aria-busy={savingConnect}
               >
-                {savingConnect ? 'Saving…' : 'Save connection'}
+                {savingConnect
+                  ? 'Saving…'
+                  : connectProvider === 'GA4'
+                    ? 'Save GA4 property'
+                    : 'Save connection'}
               </button>
             </div>
           </form>

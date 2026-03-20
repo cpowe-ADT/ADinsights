@@ -13,6 +13,13 @@ vi.mock('../lib/recentDashboards', () => ({
 import { fetchRecentDashboards } from '../lib/recentDashboards';
 
 const fetchRecentDashboardsMock = vi.mocked(fetchRecentDashboards);
+const authMock = vi.hoisted(() => ({
+  user: { email: 'admin@example.com', roles: ['ADMIN'] },
+}));
+
+vi.mock('../auth/AuthContext', () => ({
+  useAuth: () => authMock,
+}));
 
 const routerFuture = {
   v7_startTransition: true,
@@ -23,6 +30,7 @@ describe('Home', () => {
   beforeEach(() => {
     fetchRecentDashboardsMock.mockClear();
     fetchRecentDashboardsMock.mockResolvedValue([]);
+    authMock.user = { email: 'admin@example.com', roles: ['ADMIN'] };
   });
 
   const renderHome = () =>
@@ -55,6 +63,15 @@ describe('Home', () => {
     quickActionButtons.forEach((button) => {
       expect(button).toBeInTheDocument();
     });
+  });
+
+  it('hides create dashboard actions for viewer-only users', async () => {
+    authMock.user = { email: 'viewer@example.com', roles: ['VIEWER'] };
+    renderHome();
+    await waitFor(() => expect(fetchRecentDashboardsMock).toHaveBeenCalled());
+
+    expect(screen.queryByRole('button', { name: /create dashboard/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view campaigns/i })).toBeInTheDocument();
   });
 
   it('allows keyboard navigation through quick action cards', async () => {

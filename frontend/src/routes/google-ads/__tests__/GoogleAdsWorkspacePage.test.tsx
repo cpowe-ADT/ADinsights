@@ -5,14 +5,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import GoogleAdsWorkspacePage from '../GoogleAdsWorkspacePage';
 
-const useGoogleAdsWorkspaceDataMock = vi.hoisted(() => vi.fn());
+const googleAdsWorkspaceDataHookMock = vi.hoisted(() => vi.fn());
 const fetchGoogleAdsSavedViewsMock = vi.hoisted(() => vi.fn());
 const createGoogleAdsSavedViewMock = vi.hoisted(() => vi.fn());
 const updateGoogleAdsSavedViewMock = vi.hoisted(() => vi.fn());
 const createGoogleAdsExportMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../hooks/useGoogleAdsWorkspaceData', () => ({
-  default: (...args: unknown[]) => useGoogleAdsWorkspaceDataMock(...args),
+  default: (...args: unknown[]) => googleAdsWorkspaceDataHookMock(...args),
 }));
 
 vi.mock('../../../lib/googleAdsDashboard', () => ({
@@ -83,7 +83,7 @@ describe('GoogleAdsWorkspacePage', () => {
     createGoogleAdsSavedViewMock.mockResolvedValue({ id: 'view-1' });
     updateGoogleAdsSavedViewMock.mockResolvedValue({});
     createGoogleAdsExportMock.mockResolvedValue({ id: 'job-1', status: 'queued', download_url: null });
-    useGoogleAdsWorkspaceDataMock.mockReturnValue({
+    googleAdsWorkspaceDataHookMock.mockReturnValue({
       summary: summaryFixture,
       summaryStatus: 'success',
       summaryError: '',
@@ -156,4 +156,3 @@ describe('GoogleAdsWorkspacePage', () => {
     });
   });
 });
-
