@@ -35,10 +35,52 @@ class TenantAwareManager(models.Manager):
 
 
 class Role(models.Model):
+    # Software Management (Adtelligent)
+    SUPER_ADMIN = "SUPER_ADMIN"
+    SM_ADMIN = "SM_ADMIN"
+    SM_SUPPORT = "SM_SUPPORT"
+    SM_CONFIG_ADMIN = "SM_CONFIG_ADMIN"
+    SM_ENTITLEMENTS = "SM_ENTITLEMENTS"
+
+    # Agency (White-label Partner)
+    AGENCY_OWNER = "AGENCY_OWNER"
+    AGENCY_ADMIN = "AGENCY_ADMIN"
+    AGENCY_TEAM_LEAD = "AGENCY_TEAM_LEAD"
+    AGENCY_SENIOR_ANALYST = "AGENCY_SENIOR_ANALYST"
+    AGENCY_ANALYST = "AGENCY_ANALYST"
+
+    # Client/Tenant
+    CLIENT_TEAM_LEAD = "CLIENT_TEAM_LEAD"
+    CLIENT_SENIOR_LEAD = "CLIENT_SENIOR_LEAD"
+    CLIENT_JUNIOR = "CLIENT_JUNIOR"
+    EXECUTIVE_VIEW = "EXECUTIVE_VIEW"
+    NON_EXECUTIVE_VIEW = "NON_EXECUTIVE_VIEW"
+
+    # Legacy / Common (retained for compatibility)
     ADMIN = "ADMIN"
     ANALYST = "ANALYST"
     VIEWER = "VIEWER"
+
     ROLE_CHOICES = [
+        # Software Management
+        (SUPER_ADMIN, "Super Admin"),
+        (SM_ADMIN, "Admin (Portfolio Ops Lead)"),
+        (SM_SUPPORT, "Support (Time-boxed)"),
+        (SM_CONFIG_ADMIN, "White-label Configuration Admin"),
+        (SM_ENTITLEMENTS, "Entitlements Manager"),
+        # Agency
+        (AGENCY_OWNER, "Agency Owner"),
+        (AGENCY_ADMIN, "Agency Admin (Delegated)"),
+        (AGENCY_TEAM_LEAD, "Agency Team Lead"),
+        (AGENCY_SENIOR_ANALYST, "Agency Senior Analyst"),
+        (AGENCY_ANALYST, "Agency Analyst (Jr)"),
+        # Client/Tenant
+        (CLIENT_TEAM_LEAD, "Client Team Lead (Tenant Admin)"),
+        (CLIENT_SENIOR_LEAD, "Client Senior Lead"),
+        (CLIENT_JUNIOR, "Client Junior"),
+        (EXECUTIVE_VIEW, "Executive View"),
+        (NON_EXECUTIVE_VIEW, "Non-Executive View"),
+        # Legacy
         (ADMIN, "Admin"),
         (ANALYST, "Analyst"),
         (VIEWER, "Viewer"),

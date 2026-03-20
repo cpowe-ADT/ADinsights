@@ -19,6 +19,7 @@ from rest_framework.schemas.openapi import AutoSchema
 from rest_framework.views import APIView
 
 from accounts.audit import log_audit_event
+from accounts.permissions import HasPrivilege
 from analytics.models import AISummary, ReportDefinition, ReportExportJob, TenantMetricsSnapshot
 from integrations.models import AirbyteConnection
 from integrations.views import AlertRuleDefinitionViewSet
@@ -47,7 +48,8 @@ class ReportDefinitionSchema(AutoSchema):
 
 class ReportDefinitionViewSet(viewsets.ModelViewSet):
     serializer_class = ReportDefinitionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, HasPrivilege]
+    required_privilege = "dashboard_edit"
     schema = ReportDefinitionSchema()
 
     def get_queryset(self):
@@ -419,6 +421,41 @@ class DashboardLibraryView(APIView):
                     "updatedAt": report.updated_at.date().isoformat(),
                     "tags": ["Report"],
                     "description": report.description or "Saved report configuration.",
+                    "route": f"/reports/{report.id}",
+                }
+            )
+
+        return Response(items)
+
+
+class RecentDashboardsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request) -> Response:  # noqa: D401
+        tenant_id = request.user.tenant_id
+        try:
+            limit = int(request.query_params.get("limit", 3))
+        except (ValueError, TypeError):
+            limit = 3
+
+        # 1. Fetch recently updated reports for this tenant
+        reports = ReportDefinition.objects.filter(tenant_id=tenant_id, is_active=True).order_by("-updated_at")[:limit]
+
+        items = []
+        for report in reports:
+            owner = "Team"
+            if report.updated_by and report.updated_by.email:
+                owner = report.updated_by.email
+            elif report.created_by and report.created_by.email:
+                owner = report.created_by.email
+
+            items.append(
+                {
+                    "id": f"report-{report.id}",
+                    "name": report.name,
+                    "owner": owner,
+                    "last_viewed_at": report.updated_at.isoformat(),
+                    "last_viewed_label": f"Updated {report.updated_at.strftime('%b %d, %H:%M')}",
                     "route": f"/reports/{report.id}",
                 }
             )

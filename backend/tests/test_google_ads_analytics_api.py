@@ -55,6 +55,13 @@ def _assign_user_to_customer(*, user, customer_id: str = "1234567890") -> None:
     )
 
 
+def list_results(response):
+    body = response.json()
+    if isinstance(body, list):
+        return body
+    return body.get("results", [])
+
+
 def test_google_ads_executive_endpoint_returns_metrics(api_client: APIClient, user):
     api_client.force_authenticate(user=user)
     _seed_campaign_rows(tenant=user.tenant)
@@ -132,7 +139,7 @@ def test_google_ads_saved_views_crud(api_client: APIClient, user):
 
     list_response = api_client.get("/api/analytics/google-ads/saved-views/")
     assert list_response.status_code == 200
-    assert any(row["id"] == created_id for row in list_response.json())
+    assert any(row["id"] == created_id for row in list_results(list_response))
 
     assert GoogleAdsSavedView.objects.filter(id=created_id, tenant=user.tenant).exists()
 

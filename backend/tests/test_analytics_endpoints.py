@@ -8,9 +8,22 @@ from django.utils import timezone
 
 from accounts.models import Tenant
 from accounts.tenant_context import tenant_context
-from adapters.warehouse import WarehouseAdapter
+from adapters.warehouse import (
+    WAREHOUSE_SNAPSHOT_STATUS_DEFAULT,
+    WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
+    WAREHOUSE_SNAPSHOT_STATUS_KEY,
+    WarehouseAdapter,
+    WarehouseSnapshotUnavailable,
+)
 from analytics.models import Campaign, TenantMetricsSnapshot
 from integrations.models import AirbyteConnection, AirbyteJobTelemetry, TenantAirbyteSyncStatus, PlatformCredential
+
+
+def list_results(response):
+    body = response.json()
+    if isinstance(body, list):
+        return body
+    return body.get("results", [])
 
 
 @pytest.mark.django_db
@@ -33,8 +46,7 @@ def test_campaign_list_scoped_to_tenant(api_client, tenant, user):
     response = api_client.get("/api/analytics/campaigns/")
 
     assert response.status_code == 200
-    payload = response.json()
-    assert isinstance(payload, list)
+    payload = list_results(response)
     external_ids = {record["external_id"] for record in payload}
     assert external_ids == {"camp-tenant-a"}
 
@@ -113,13 +125,21 @@ def test_warehouse_adapter_returns_tenant_snapshot(tenant):
     TenantMetricsSnapshot.objects.create(
         tenant=tenant,
         source="warehouse",
-        payload={**snapshot_a_payload, "snapshot_generated_at": timezone.now().isoformat()},
+        payload={
+            **snapshot_a_payload,
+            "snapshot_generated_at": timezone.now().isoformat(),
+            WAREHOUSE_SNAPSHOT_STATUS_KEY: WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
+        },
         generated_at=timezone.now(),
     )
     TenantMetricsSnapshot.objects.create(
         tenant=other_tenant,
         source="warehouse",
-        payload={**snapshot_b_payload, "snapshot_generated_at": timezone.now().isoformat()},
+        payload={
+            **snapshot_b_payload,
+            "snapshot_generated_at": timezone.now().isoformat(),
+            WAREHOUSE_SNAPSHOT_STATUS_KEY: WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
+        },
         generated_at=timezone.now(),
     )
 
@@ -129,6 +149,28 @@ def test_warehouse_adapter_returns_tenant_snapshot(tenant):
 
     assert payload["campaign"]["summary"]["currency"] == "JMD"
     assert payload != snapshot_b_payload
+
+
+@pytest.mark.django_db
+def test_warehouse_adapter_rejects_default_snapshot_payload(tenant):
+    TenantMetricsSnapshot.objects.create(
+        tenant=tenant,
+        source="warehouse",
+        payload={
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+            "snapshot_generated_at": timezone.now().isoformat(),
+            WAREHOUSE_SNAPSHOT_STATUS_KEY: WAREHOUSE_SNAPSHOT_STATUS_DEFAULT,
+        },
+        generated_at=timezone.now(),
+    )
+
+    adapter = WarehouseAdapter()
+    with tenant_context(str(tenant.id)):
+        with pytest.raises(WarehouseSnapshotUnavailable):
+            adapter.fetch_metrics(tenant_id=str(tenant.id))
 
 
 @pytest.mark.django_db

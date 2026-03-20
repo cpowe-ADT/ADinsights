@@ -14,7 +14,7 @@ from jsonschema import validate
 from rest_framework.test import APIClient
 import yaml
 
-from accounts.models import Tenant
+from accounts.models import Role, Tenant, assign_role, seed_default_roles
 from analytics.models import TenantMetricsSnapshot
 from analytics.uploads import build_combined_payload
 from integrations.models import AirbyteConnection, AirbyteJobTelemetry, TenantAirbyteSyncStatus
@@ -161,7 +161,7 @@ def test_combined_metrics_schema(telemetry_setup, dbt_run_results):
     client = APIClient()
     client.force_authenticate(user=user)
 
-    response = client.get("/api/metrics/combined/")
+    response = client.get("/api/metrics/combined/", {"source": "fake"})
     assert response.status_code == 200
     payload = response.json()
 
@@ -172,12 +172,14 @@ def test_combined_metrics_schema(telemetry_setup, dbt_run_results):
 def test_upload_metrics_status_schema(telemetry_setup, dbt_run_results):
     tenant = telemetry_setup
     user_model = get_user_model()
+    seed_default_roles()
     user = user_model.objects.create_user(
         username="upload-schema@example.com",
         email="upload-schema@example.com",
         tenant=tenant,
         password="schema-pass-123",
     )
+    assign_role(user, Role.ANALYST)
 
     payload = build_combined_payload(
         campaign_rows=[
@@ -254,6 +256,16 @@ def test_openapi_schema_includes_google_ads_paths(openapi_paths):
     assert "/api/integrations/google_ads/provision/" in paths
     assert "/api/integrations/google_ads/sync/" in paths
     assert "/api/integrations/google_ads/disconnect/" in paths
+
+
+def test_openapi_schema_includes_google_analytics_paths(openapi_paths):
+    paths = openapi_paths
+    assert "/api/integrations/google_analytics/setup/" in paths
+    assert "/api/integrations/google_analytics/oauth/start/" in paths
+    assert "/api/integrations/google_analytics/oauth/exchange/" in paths
+    assert "/api/integrations/google_analytics/properties/" in paths
+    assert "/api/integrations/google_analytics/provision/" in paths
+    assert "/api/integrations/google_analytics/status/" in paths
 
 
 def test_openapi_schema_includes_meta_page_insights_paths(openapi_paths):

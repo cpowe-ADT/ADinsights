@@ -5,12 +5,27 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Iterable, Mapping, Sequence
 
-from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from analytics.models import TenantMetricsSnapshot
 
 from .base import AdapterInterface, MetricsAdapter, get_default_interfaces
+
+WAREHOUSE_SNAPSHOT_STATUS_KEY = "_warehouse_snapshot_status"
+WAREHOUSE_SNAPSHOT_STATUS_FETCHED = "fetched"
+WAREHOUSE_SNAPSHOT_STATUS_DEFAULT = "default"
+WAREHOUSE_UNAVAILABLE_DETAIL = (
+    "Warehouse metrics are unavailable because the warehouse snapshot is missing "
+    "or was generated from a default fallback payload."
+)
+
+
+class WarehouseSnapshotUnavailable(RuntimeError):
+    """Raised when live warehouse metrics cannot be served truthfully."""
+
+    def __init__(self, detail: str = WAREHOUSE_UNAVAILABLE_DETAIL) -> None:
+        super().__init__(detail)
+        self.detail = detail
 
 
 class WarehouseAdapter(MetricsAdapter):
@@ -30,29 +45,16 @@ class WarehouseAdapter(MetricsAdapter):
             source=self.key,
         ).order_by("-generated_at", "-created_at").first()
 
-        if snapshot and snapshot.payload:
-            payload = dict(snapshot.payload)
-            payload.setdefault("snapshot_generated_at", snapshot.generated_at.isoformat())
-            return self._apply_filters(payload, options)
+        if not snapshot or not snapshot.payload:
+            raise WarehouseSnapshotUnavailable()
 
-        return {
-            "campaign": {
-                "summary": {
-                    "currency": None,
-                    "totalSpend": 0,
-                    "totalImpressions": 0,
-                    "totalClicks": 0,
-                    "totalConversions": 0,
-                    "averageRoas": 0,
-                },
-                "trend": [],
-                "rows": [],
-            },
-            "creative": [],
-            "budget": [],
-            "parish": [],
-            "snapshot_generated_at": timezone.now().isoformat(),
-        }
+        payload = dict(snapshot.payload)
+        snapshot_status = payload.pop(WAREHOUSE_SNAPSHOT_STATUS_KEY, None)
+        if snapshot_status and snapshot_status != WAREHOUSE_SNAPSHOT_STATUS_FETCHED:
+            raise WarehouseSnapshotUnavailable()
+
+        payload.setdefault("snapshot_generated_at", snapshot.generated_at.isoformat())
+        return self._apply_filters(payload, options)
 
     @staticmethod
     def _parse_date(value: Any) -> date | None:

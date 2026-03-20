@@ -10,6 +10,11 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from accounts.models import Tenant
+from adapters.warehouse import (
+    WAREHOUSE_SNAPSHOT_STATUS_DEFAULT,
+    WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
+    WAREHOUSE_SNAPSHOT_STATUS_KEY,
+)
 from analytics.models import TenantMetricsSnapshot
 from analytics.tasks import (
     DAILY_SUMMARY_FAILURE_REASON_GENERATION,
@@ -105,6 +110,7 @@ def test_generate_snapshots_for_tenants_creates_payloads(tenant):
     snapshot = TenantMetricsSnapshot.objects.get(tenant=tenant, source="warehouse")
     assert snapshot.payload["campaign"]["summary"]["totalSpend"] == 100
     assert "snapshot_generated_at" in snapshot.payload
+    assert snapshot.payload[WAREHOUSE_SNAPSHOT_STATUS_KEY] == WAREHOUSE_SNAPSHOT_STATUS_FETCHED
 
 
 @pytest.mark.django_db
@@ -160,6 +166,16 @@ def test_generate_snapshots_normalizes_generated_at_timezone(tenant):
     assert timezone.is_aware(snapshot.generated_at)
     parsed = parse_datetime(snapshot.payload["snapshot_generated_at"])
     assert parsed is not None and timezone.is_aware(parsed)
+
+
+@pytest.mark.django_db
+def test_generate_snapshots_marks_default_payload_when_view_missing(tenant):
+    outcomes = generate_snapshots_for_tenants([str(tenant.id)])
+
+    assert len(outcomes) == 1
+    assert outcomes[0].status == "default"
+    snapshot = TenantMetricsSnapshot.objects.get(tenant=tenant, source="warehouse")
+    assert snapshot.payload[WAREHOUSE_SNAPSHOT_STATUS_KEY] == WAREHOUSE_SNAPSHOT_STATUS_DEFAULT
 
 
 def test_sync_metrics_snapshots_has_retry_policy():

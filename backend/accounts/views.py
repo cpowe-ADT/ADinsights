@@ -68,6 +68,7 @@ class PasswordResetRequestView(APIView):
             action="password_reset_requested",
             resource_type="user",
             resource_id=user.id,
+            request=request,
         )
 
         return Response(status=status.HTTP_202_ACCEPTED)
@@ -88,6 +89,7 @@ class PasswordResetConfirmView(APIView):
             action="password_reset_completed",
             resource_type="user",
             resource_id=user.id,
+            request=request,
         )
 
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -117,6 +119,7 @@ class TenantSwitchView(APIView):
             action="tenant_switched",
             resource_type="tenant",
             resource_id=tenant_id,
+            request=request,
         )
 
         return Response({"tenant_id": tenant_id}, status=status.HTTP_200_OK)
@@ -356,6 +359,7 @@ class UserRoleViewSet(
             metadata={
                 "role": user_role.role.name,
             },
+            request=self.request,
         )
 
     def perform_destroy(self, instance):
@@ -371,6 +375,7 @@ class UserRoleViewSet(
             resource_type="role",
             resource_id=user_id,
             metadata={"role": role_name},
+            request=self.request,
         )
 
 
@@ -429,6 +434,7 @@ class RoleAssignmentView(APIView):
             resource_type="role",
             resource_id=user_role.user_id,
             metadata={"role": user_role.role.name},
+            request=request,
         )
 
         response_serializer = UserRoleSerializer(

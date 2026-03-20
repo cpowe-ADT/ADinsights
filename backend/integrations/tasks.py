@@ -81,6 +81,7 @@ from core.tasks import BaseAdInsightsTask
 
 logger = logging.getLogger(__name__)
 DEFAULT_META_INSIGHTS_LOOKBACK_DAYS = 3
+META_DIRECT_SYNC_LOOKBACK_DAYS = 7
 DEFAULT_META_INSIGHTS_LEVEL = "ad"
 RETRY_REASON_GOOGLE_OAUTH_CONFIGURATION = "google_oauth_configuration_error"
 RETRY_REASON_AIRBYTE_CLIENT_CONFIGURATION = "airbyte_client_configuration_error"
@@ -93,6 +94,19 @@ RETRY_REASON_META_GRAPH_TRANSPORT = "meta_graph_transport_error"
 RETRY_REASON_META_GRAPH_CLIENT_ERROR = "meta_graph_client_error"
 RETRY_REASON_META_GRAPH_TRANSIENT = "meta_graph_transient_error"
 RETRY_REASON_META_GRAPH_UNKNOWN = "meta_graph_unknown_error"
+META_DIRECT_SYNC_ERROR_AUTH = "meta_auth_token"
+META_DIRECT_SYNC_ERROR_THROTTLING = "meta_throttling"
+META_DIRECT_SYNC_ERROR_REQUEST = "meta_schema_request_error"
+META_DIRECT_SYNC_ERROR_PERSISTENCE = "persistence_error"
+
+
+class MetaDirectSyncError(RuntimeError):
+    """Raised when the direct Meta reporting sync cannot proceed."""
+
+    def __init__(self, message: str, *, category: str, retryable: bool = False) -> None:
+        super().__init__(message)
+        self.category = category
+        self.retryable = retryable
 
 
 def _token_status_for_expiry(*, expires_at: datetime | None, now: datetime) -> tuple[str, str]:
@@ -129,6 +143,53 @@ def _classify_meta_insights_retry_reason(exc: MetaInsightsGraphClientError) -> s
     if exc.retryable:
         return RETRY_REASON_META_GRAPH_TRANSIENT
     return RETRY_REASON_META_GRAPH_UNKNOWN
+
+
+def _classify_meta_graph_retry_reason(exc: MetaGraphClientError) -> str:
+    if exc.error_code in {4, 17, 32, 613, 80001} or exc.status_code == 429:
+        return RETRY_REASON_META_GRAPH_RATE_LIMITED
+    if exc.status_code in {408, 504}:
+        return RETRY_REASON_META_GRAPH_UPSTREAM_TIMEOUT
+    if exc.status_code in {500, 502, 503}:
+        return RETRY_REASON_META_GRAPH_UPSTREAM_5XX
+    if exc.status_code is None and exc.error_code is None and exc.retryable:
+        return RETRY_REASON_META_GRAPH_TRANSPORT
+    if isinstance(exc.status_code, int) and 400 <= exc.status_code < 500:
+        return RETRY_REASON_META_GRAPH_CLIENT_ERROR
+    if exc.retryable:
+        return RETRY_REASON_META_GRAPH_TRANSIENT
+    return RETRY_REASON_META_GRAPH_UNKNOWN
+
+
+def _classify_meta_direct_sync_error(exc: Exception) -> str:
+    if isinstance(exc, MetaDirectSyncError):
+        return exc.category
+    if isinstance(exc, MetaGraphClientError):
+        if exc.error_code in {10, 190, 200}:
+            return META_DIRECT_SYNC_ERROR_AUTH
+        if exc.error_code in {4, 17, 32, 613, 80001} or exc.status_code == 429:
+            return META_DIRECT_SYNC_ERROR_THROTTLING
+        return META_DIRECT_SYNC_ERROR_REQUEST
+    return META_DIRECT_SYNC_ERROR_PERSISTENCE
+
+
+def _meta_direct_sync_should_retry(exc: Exception) -> bool:
+    if isinstance(exc, MetaDirectSyncError):
+        return exc.retryable
+    if isinstance(exc, MetaGraphClientError):
+        return exc.retryable
+    return False
+
+
+def _current_task_id(task) -> str | None:
+    request = getattr(task, "request", None)
+    if request is None:
+        return None
+    for attr in ("id", "root_id", "correlation_id"):
+        value = getattr(request, attr, None)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
 
 
 def _resolve_google_sync_state(
@@ -952,33 +1013,192 @@ def refresh_meta_credentials_lifecycle(self):  # noqa: ANN001
 
 
 @shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
-def sync_meta_accounts(self):  # noqa: ANN001
+def sync_meta_accounts(self, tenant_id: str | None = None, account_id: str | None = None):  # noqa: ANN001
     """Sync /me/adaccounts into analytics.AdAccount."""
 
-    return _sync_meta_accounts_core(task=self)
+    return _sync_meta_accounts_core(task=self, tenant_id=tenant_id, account_id=account_id)
 
 
 @shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
-def sync_meta_hierarchy(self):  # noqa: ANN001
+def sync_meta_hierarchy(self, tenant_id: str | None = None, account_id: str | None = None):  # noqa: ANN001
     """Sync campaigns, adsets, and ads for each tenant Meta ad account."""
 
-    return _sync_meta_hierarchy_core(task=self)
+    return _sync_meta_hierarchy_core(task=self, tenant_id=tenant_id, account_id=account_id)
 
 
 @shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
 def sync_meta_insights_incremental(
     self,  # noqa: ANN001
+    tenant_id: str | None = None,
+    account_id: str | None = None,
     level: str = DEFAULT_META_INSIGHTS_LEVEL,
     since: str | None = None,
     until: str | None = None,
 ):
     """Sync Meta insights using a bounded incremental date window."""
 
-    return _sync_meta_insights_core(task=self, level=level, since=since, until=until)
+    return _sync_meta_insights_core(
+        task=self,
+        tenant_id=tenant_id,
+        account_id=account_id,
+        level=level,
+        since=since,
+        until=until,
+    )
 
 
-def _sync_meta_accounts_core(*, task) -> dict[str, int]:
-    credentials = _meta_credentials()
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5, name="integrations.tasks.sync_meta_reporting_slice")
+def sync_meta_reporting_slice(
+    self,  # noqa: ANN001
+    tenant_id: str,
+    account_id: str,
+    job_id: str | None = None,
+    connection_pk: str | None = None,
+    level: str = DEFAULT_META_INSIGHTS_LEVEL,
+    since: str | None = None,
+    until: str | None = None,
+):
+    """Run the direct Meta reporting slice end to end for one tenant/account."""
+
+    normalized_account_id = _normalize_meta_account_id(account_id)
+    since_date, until_date = _resolve_meta_window(since=since, until=until, lookback_days=META_DIRECT_SYNC_LOOKBACK_DAYS)
+    credential = (
+        PlatformCredential.all_objects.select_related("tenant")
+        .filter(
+            tenant_id=tenant_id,
+            provider=PlatformCredential.META,
+            account_id=normalized_account_id,
+        )
+        .order_by("-updated_at")
+        .first()
+    )
+    if credential is None:
+        raise MetaDirectSyncError(
+            f"No Meta credential found for account {normalized_account_id}.",
+            category=META_DIRECT_SYNC_ERROR_AUTH,
+            retryable=False,
+        )
+
+    connection = None
+    if connection_pk:
+        connection = (
+            AirbyteConnection.all_objects.filter(
+                tenant_id=tenant_id,
+                pk=connection_pk,
+                provider=PlatformCredential.META,
+            )
+            .order_by("-updated_at")
+            .first()
+        )
+
+    current_job_id = job_id or _current_task_id(self)
+    _touch_meta_sync_state(
+        tenant=credential.tenant,
+        account_id=normalized_account_id,
+        connection=connection,
+        job_id=current_job_id,
+        job_status="running",
+        job_error="",
+        sync_started_at=timezone.now(),
+        window_start=since_date,
+        window_end=until_date,
+        sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+        rows_synced=0,
+        error_category="",
+    )
+
+    try:
+        accounts_result = _sync_meta_accounts_core(
+            task=self,
+            tenant_id=tenant_id,
+            account_id=normalized_account_id,
+            raise_on_error=True,
+        )
+        hierarchy_result = _sync_meta_hierarchy_core(
+            task=self,
+            tenant_id=tenant_id,
+            account_id=normalized_account_id,
+            raise_on_error=True,
+        )
+        insights_result = _sync_meta_insights_core(
+            task=self,
+            tenant_id=tenant_id,
+            account_id=normalized_account_id,
+            level=level,
+            since=since_date.isoformat(),
+            until=until_date.isoformat(),
+            raise_on_error=True,
+        )
+    except Exception as exc:
+        category = _classify_meta_direct_sync_error(exc)
+        _touch_meta_sync_state(
+            tenant=credential.tenant,
+            account_id=normalized_account_id,
+            connection=connection,
+            job_id=current_job_id,
+            job_status="failed",
+            job_error=str(exc),
+            sync_completed_at=timezone.now(),
+            window_start=since_date,
+            window_end=until_date,
+            sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+            rows_synced=0,
+            error_category=category,
+        )
+        if _meta_direct_sync_should_retry(exc):
+            reason = (
+                _classify_meta_graph_retry_reason(exc)
+                if isinstance(exc, MetaGraphClientError)
+                else RETRY_REASON_META_GRAPH_UNKNOWN
+            )
+            raise self.retry_with_backoff(exc=exc, reason=reason)
+        raise
+
+    records_queryset = RawPerformanceRecord.all_objects.filter(
+        tenant_id=tenant_id,
+        source="meta",
+        ad_account__external_id=normalized_account_id,
+        date__gte=since_date,
+        date__lte=until_date,
+    )
+    last_data_date = records_queryset.order_by("-date").values_list("date", flat=True).first()
+    rows_synced = int(insights_result.get("insights_synced", 0))
+    _touch_meta_sync_state(
+        tenant=credential.tenant,
+        account_id=normalized_account_id,
+        connection=connection,
+        job_id=job_id,
+        job_status="succeeded",
+        job_error="",
+        sync_completed_at=timezone.now(),
+        window_start=since_date,
+        window_end=until_date,
+        sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+        rows_synced=rows_synced,
+        data_date=last_data_date,
+        error_category="",
+    )
+    return {
+        "tenant_id": tenant_id,
+        "account_id": normalized_account_id,
+        "job_id": current_job_id or "",
+        "accounts_synced": int(accounts_result.get("accounts_synced", 0)),
+        "campaigns_synced": int(hierarchy_result.get("campaigns_synced", 0)),
+        "adsets_synced": int(hierarchy_result.get("adsets_synced", 0)),
+        "ads_synced": int(hierarchy_result.get("ads_synced", 0)),
+        "insights_synced": rows_synced,
+        "last_data_date": last_data_date.isoformat() if last_data_date else None,
+    }
+
+
+def _sync_meta_accounts_core(
+    *,
+    task,
+    tenant_id: str | None = None,
+    account_id: str | None = None,
+    raise_on_error: bool = False,
+) -> dict[str, int]:
+    credentials = _meta_credentials(tenant_id=tenant_id, account_id=account_id)
     if not credentials:
         return {"processed": 0, "succeeded": 0, "failed": 0, "accounts_synced": 0}
 
@@ -1015,7 +1235,15 @@ def _sync_meta_accounts_core(*, task) -> dict[str, int]:
                         job_status="failed",
                         job_error="Missing stored Meta access token.",
                         sync_completed_at=now,
+                        sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+                        error_category=META_DIRECT_SYNC_ERROR_AUTH,
                     )
+                    if raise_on_error:
+                        raise MetaDirectSyncError(
+                            "Missing stored Meta access token.",
+                            category=META_DIRECT_SYNC_ERROR_AUTH,
+                            retryable=False,
+                        )
                     continue
                 try:
                     rows = client.list_ad_accounts(user_access_token=access_token)
@@ -1034,7 +1262,11 @@ def _sync_meta_accounts_core(*, task) -> dict[str, int]:
                         job_status="failed",
                         job_error=str(exc),
                         sync_completed_at=timezone.now(),
+                        sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+                        error_category=_classify_meta_direct_sync_error(exc),
                     )
+                    if raise_on_error:
+                        raise
                     continue
 
                 batch_count = 0
@@ -1070,6 +1302,8 @@ def _sync_meta_accounts_core(*, task) -> dict[str, int]:
                     job_status="succeeded",
                     job_error="",
                     sync_completed_at=timezone.now(),
+                    sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+                    error_category="",
                 )
     return {
         "processed": processed,
@@ -1079,8 +1313,14 @@ def _sync_meta_accounts_core(*, task) -> dict[str, int]:
     }
 
 
-def _sync_meta_hierarchy_core(*, task) -> dict[str, int]:
-    credentials = _meta_credentials()
+def _sync_meta_hierarchy_core(
+    *,
+    task,
+    tenant_id: str | None = None,
+    account_id: str | None = None,
+    raise_on_error: bool = False,
+) -> dict[str, int]:
+    credentials = _meta_credentials(tenant_id=tenant_id, account_id=account_id)
     if not credentials:
         return {
             "processed": 0,
@@ -1119,7 +1359,15 @@ def _sync_meta_hierarchy_core(*, task) -> dict[str, int]:
                         job_status="failed",
                         job_error="Missing stored Meta access token.",
                         sync_completed_at=timezone.now(),
+                        sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+                        error_category=META_DIRECT_SYNC_ERROR_AUTH,
                     )
+                    if raise_on_error:
+                        raise MetaDirectSyncError(
+                            "Missing stored Meta access token.",
+                            category=META_DIRECT_SYNC_ERROR_AUTH,
+                            retryable=False,
+                        )
                     continue
                 account_external_id = _normalize_meta_account_id(credential.account_id)
                 ad_account = (
@@ -1166,7 +1414,11 @@ def _sync_meta_hierarchy_core(*, task) -> dict[str, int]:
                         job_status="failed",
                         job_error=str(exc),
                         sync_completed_at=timezone.now(),
+                        sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+                        error_category=_classify_meta_direct_sync_error(exc),
                     )
+                    if raise_on_error:
+                        raise
                     continue
 
                 with transaction.atomic():
@@ -1261,7 +1513,7 @@ def _sync_meta_hierarchy_core(*, task) -> dict[str, int]:
                                 "name": str(row.get("name") or "").strip() or external_id,
                                 "status": str(row.get("effective_status") or row.get("status") or "").strip(),
                                 "creative": creative,
-                                "preview_url": str(creative.get("thumbnail_url") or "").strip(),
+                                "preview_url": _truncate_text(creative.get("thumbnail_url"), max_length=200),
                             },
                         )
                         ads_synced += 1
@@ -1272,6 +1524,8 @@ def _sync_meta_hierarchy_core(*, task) -> dict[str, int]:
                     job_status="succeeded",
                     job_error="",
                     sync_completed_at=timezone.now(),
+                    sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+                    error_category="",
                 )
     return {
         "processed": processed,
@@ -1286,11 +1540,14 @@ def _sync_meta_hierarchy_core(*, task) -> dict[str, int]:
 def _sync_meta_insights_core(
     *,
     task,
+    tenant_id: str | None = None,
+    account_id: str | None = None,
     level: str = DEFAULT_META_INSIGHTS_LEVEL,
     since: str | None = None,
     until: str | None = None,
+    raise_on_error: bool = False,
 ) -> dict[str, int]:
-    credentials = _meta_credentials()
+    credentials = _meta_credentials(tenant_id=tenant_id, account_id=account_id)
     if not credentials:
         return {"processed": 0, "succeeded": 0, "failed": 0, "insights_synced": 0}
 
@@ -1298,13 +1555,13 @@ def _sync_meta_insights_core(
     if level_value not in {"account", "campaign", "adset", "ad"}:
         level_value = DEFAULT_META_INSIGHTS_LEVEL
 
-    today = timezone.localdate()
-    default_until = today - timedelta(days=1)
-    default_since = default_until - timedelta(days=int(getattr(settings, "META_INSIGHTS_LOOKBACK_DAYS", DEFAULT_META_INSIGHTS_LOOKBACK_DAYS)))
-    since_date = _parse_iso_date(since) or default_since
-    until_date = _parse_iso_date(until) or default_until
-    if since_date > until_date:
-        since_date, until_date = until_date, since_date
+    since_date, until_date = _resolve_meta_window(
+        since=since,
+        until=until,
+        lookback_days=int(
+            getattr(settings, "META_INSIGHTS_LOOKBACK_DAYS", DEFAULT_META_INSIGHTS_LOOKBACK_DAYS)
+        ),
+    )
 
     try:
         client = MetaGraphClient.from_settings()
@@ -1335,7 +1592,15 @@ def _sync_meta_insights_core(
                         window_start=since_date,
                         window_end=until_date,
                         sync_completed_at=timezone.now(),
+                        sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+                        error_category=META_DIRECT_SYNC_ERROR_AUTH,
                     )
+                    if raise_on_error:
+                        raise MetaDirectSyncError(
+                            "Missing stored Meta access token.",
+                            category=META_DIRECT_SYNC_ERROR_AUTH,
+                            retryable=False,
+                        )
                     continue
                 account_external_id = _normalize_meta_account_id(credential.account_id)
                 ad_account = (
@@ -1377,12 +1642,18 @@ def _sync_meta_insights_core(
                         window_start=since_date,
                         window_end=until_date,
                         sync_completed_at=timezone.now(),
+                        sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+                        error_category=_classify_meta_direct_sync_error(exc),
                     )
+                    if raise_on_error:
+                        raise
                     continue
 
                 campaign_cache: dict[str, Campaign | None] = {}
                 adset_cache: dict[str, AdSet | None] = {}
                 ad_cache: dict[str, Ad | None] = {}
+                credential_rows_synced = 0
+                latest_record_date = None
                 for row in rows:
                     if not isinstance(row, dict):
                         continue
@@ -1422,7 +1693,10 @@ def _sync_meta_insights_core(
                         date=record_date,
                         defaults=defaults,
                     )
+                    credential_rows_synced += 1
                     insights_synced += 1
+                    if latest_record_date is None or record_date > latest_record_date:
+                        latest_record_date = record_date
                 succeeded += 1
                 _touch_meta_sync_state(
                     tenant=credential.tenant,
@@ -1432,6 +1706,10 @@ def _sync_meta_insights_core(
                     window_start=since_date,
                     window_end=until_date,
                     sync_completed_at=timezone.now(),
+                    sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+                    rows_synced=credential_rows_synced,
+                    data_date=latest_record_date,
+                    error_category="",
                 )
     return {
         "processed": processed,
@@ -1441,13 +1719,36 @@ def _sync_meta_insights_core(
     }
 
 
-def _meta_credentials() -> list[PlatformCredential]:
+def _resolve_meta_window(
+    *,
+    since: str | None,
+    until: str | None,
+    lookback_days: int,
+) -> tuple[date, date]:
+    today = timezone.localdate()
+    default_until = today - timedelta(days=1)
+    default_since = default_until - timedelta(days=max(int(lookback_days) - 1, 0))
+    since_date = _parse_iso_date(since) or default_since
+    until_date = _parse_iso_date(until) or default_until
+    if since_date > until_date:
+        since_date, until_date = until_date, since_date
+    return since_date, until_date
+
+
+def _meta_credentials(
+    *,
+    tenant_id: str | None = None,
+    account_id: str | None = None,
+) -> list[PlatformCredential]:
     with tenant_context(None):
-        return list(
-            PlatformCredential.all_objects.filter(
-                provider=PlatformCredential.META,
-            ).select_related("tenant")
-        )
+        queryset = PlatformCredential.all_objects.filter(
+            provider=PlatformCredential.META,
+        ).select_related("tenant")
+        if tenant_id:
+            queryset = queryset.filter(tenant_id=tenant_id)
+        if account_id:
+            queryset = queryset.filter(account_id=_normalize_meta_account_id(account_id))
+        return list(queryset)
 
 
 def _normalize_meta_account_id(account_id: str) -> str:
@@ -1497,6 +1798,13 @@ def _parse_iso_date(value: str | None):
             return datetime.strptime(value, "%Y-%m-%d").date()
         except ValueError:
             return None
+
+
+def _truncate_text(value: object, *, max_length: int) -> str:
+    text = str(value or "").strip()
+    if len(text) <= max_length:
+        return text
+    return text[:max_length]
 
 
 def _insight_external_id(*, row: dict[str, object], level: str, account_id: str) -> str:
@@ -1570,25 +1878,47 @@ def _touch_meta_sync_state(
     *,
     tenant,
     account_id: str,
+    connection=None,
+    job_id: str | None = None,
     job_status: str,
     job_error: str,
-    sync_completed_at: datetime,
+    sync_started_at: datetime | None = None,
+    sync_completed_at: datetime | None = None,
     window_start=None,
     window_end=None,
+    sync_engine: str | None = None,
+    rows_synced: int | None = None,
+    data_date=None,
+    error_category: str | None = None,
 ) -> None:
     normalized = _normalize_meta_account_id(account_id)
     state, _ = MetaAccountSyncState.all_objects.get_or_create(
         tenant=tenant,
         account_id=normalized,
     )
+    if connection is not None:
+        state.connection = connection
+    if job_id is not None:
+        state.last_job_id = job_id
     state.last_job_status = job_status
     state.last_job_error = job_error
-    state.last_sync_completed_at = sync_completed_at
+    if sync_started_at is not None:
+        state.last_sync_started_at = sync_started_at
+    if sync_completed_at is not None:
+        state.last_sync_completed_at = sync_completed_at
     if window_start is not None:
         state.last_window_start = window_start
     if window_end is not None:
         state.last_window_end = window_end
-    if job_status.lower() in {"succeeded", "success", "completed"}:
+    if sync_engine is not None:
+        state.last_sync_engine = sync_engine
+    if rows_synced is not None:
+        state.last_rows_synced = max(int(rows_synced), 0)
+    if data_date is not None:
+        state.last_data_date = data_date
+    if error_category is not None:
+        state.last_error_category = error_category
+    if sync_completed_at is not None and job_status.lower() in {"succeeded", "success", "completed"}:
         state.last_success_at = sync_completed_at
     state.save()
 

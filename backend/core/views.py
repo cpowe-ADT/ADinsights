@@ -16,10 +16,26 @@ from accounts.tenant_context import tenant_context
 from analytics.models import TenantMetricsSnapshot
 
 from core.metrics import observe_dbt_run, render_metrics
-from integrations.models import AirbyteJobTelemetry, TenantAirbyteSyncStatus
+from integrations.airbyte import AirbyteClient, AirbyteClientConfigurationError, AirbyteClientError
+from integrations.airbyte.service import (
+    extract_attempt_snapshot,
+    extract_job_created_at,
+    extract_job_error,
+    extract_job_id,
+    extract_job_status,
+    extract_job_updated_at,
+    infer_completion_time,
+)
+from integrations.models import (
+    AirbyteConnection,
+    AirbyteJobTelemetry,
+    ConnectionSyncUpdate,
+    TenantAirbyteSyncStatus,
+)
 
 AIRBYTE_STALE_THRESHOLD = timedelta(hours=1)
 AIRBYTE_RUNNING_STALE_THRESHOLD = timedelta(hours=2)
+AIRBYTE_RECONCILE_ON_READ_THRESHOLD = timedelta(minutes=10)
 DBT_STALE_THRESHOLD = timedelta(hours=24)
 DEFAULT_RUN_RESULTS_PATH = (Path(settings.BASE_DIR).parent / "dbt" / "target" / "run_results.json")
 CONTAINER_RUN_RESULTS_PATH = Path(settings.BASE_DIR) / "dbt" / "target" / "run_results.json"
@@ -56,6 +72,64 @@ def _airbyte_job_is_stuck(*, latest_status: TenantAirbyteSyncStatus, now: dateti
     return age_seconds > int(AIRBYTE_RUNNING_STALE_THRESHOLD.total_seconds()), age_seconds
 
 
+def _maybe_refresh_airbyte_status(
+    *,
+    latest_status: TenantAirbyteSyncStatus | None,
+    now: datetime,
+) -> TenantAirbyteSyncStatus | None:
+    if latest_status is None or latest_status.last_connection is None:
+        return latest_status
+    if (latest_status.last_job_status or "").strip().lower() not in AIRBYTE_RUNNING_STATUSES:
+        return latest_status
+    reference = latest_status.last_job_updated_at or latest_status.last_synced_at
+    if reference is None:
+        return latest_status
+    if timezone.is_naive(reference):  # pragma: no cover - DB backend dependent
+        reference = timezone.make_aware(reference)
+    if now - reference < AIRBYTE_RECONCILE_ON_READ_THRESHOLD:
+        return latest_status
+
+    try:
+        with AirbyteClient.from_settings() as client:
+            latest_job = client.latest_job(str(latest_status.last_connection.connection_id))
+    except (AirbyteClientConfigurationError, AirbyteClientError):
+        return latest_status
+
+    remote_status = (extract_job_status(latest_job) or "").strip().lower() if latest_job else ""
+    if not remote_status or remote_status in AIRBYTE_RUNNING_STATUSES:
+        return latest_status
+
+    snapshot = extract_attempt_snapshot(latest_job) if latest_job else None
+    created_at = extract_job_created_at(latest_job) or reference
+    updated_at = extract_job_updated_at(latest_job) or now
+    completed_at = infer_completion_time(latest_job, snapshot) if snapshot else updated_at
+    error_message = extract_job_error(latest_job)
+    with tenant_context(str(latest_status.tenant_id) if latest_status.tenant_id else None):
+        AirbyteConnection.persist_sync_updates(
+            [
+                ConnectionSyncUpdate(
+                    connection=latest_status.last_connection,
+                    job_id=str(extract_job_id(latest_job)) if extract_job_id(latest_job) is not None else None,
+                    status=remote_status,
+                    created_at=created_at,
+                    updated_at=updated_at,
+                    completed_at=completed_at,
+                    duration_seconds=None,
+                    records_synced=None,
+                    bytes_synced=None,
+                    api_cost=None,
+                    error=error_message,
+                )
+            ]
+        )
+        refreshed = (
+            TenantAirbyteSyncStatus.objects.select_related("last_connection")
+            .filter(pk=latest_status.pk)
+            .first()
+        )
+    return refreshed or latest_status
+
+
 def health(request):
     return JsonResponse({"status": "ok"})
 
@@ -88,6 +162,7 @@ def airbyte_health(request):
             "detail": "Airbyte sync status tables are unavailable.",
         }
         return JsonResponse(response_data, status=503)
+    latest_status = _maybe_refresh_airbyte_status(latest_status=latest_status, now=timezone.now())
     response_data: Dict[str, Any] = {
         "component": "airbyte",
         "configured": configured,

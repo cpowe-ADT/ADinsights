@@ -283,6 +283,13 @@ REST_FRAMEWORK = {
         "accounts.authentication.ServiceAccountAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 100,
+    "DEFAULT_FILTER_BACKENDS": (
+        "core.filters.ScopeFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ),
     "DEFAULT_SCHEMA_CLASS": "rest_framework.schemas.openapi.AutoSchema",
     "DEFAULT_THROTTLE_RATES": {
         "auth_burst": env("DRF_THROTTLE_AUTH_BURST"),
@@ -721,6 +728,22 @@ GOOGLE_ADS_LOGIN_CUSTOMER_ID = _optional(env("GOOGLE_ADS_LOGIN_CUSTOMER_ID", def
 GOOGLE_ADS_START_DATE = env("GOOGLE_ADS_START_DATE", default="2024-01-01")
 GOOGLE_ADS_CONVERSION_WINDOW_DAYS = env.int("GOOGLE_ADS_CONVERSION_WINDOW_DAYS", default=30)
 GOOGLE_ADS_LOOKBACK_WINDOW_DAYS = env.int("GOOGLE_ADS_LOOKBACK_WINDOW_DAYS", default=3)
+GOOGLE_ANALYTICS_CLIENT_ID = _optional(env("GOOGLE_ANALYTICS_CLIENT_ID", default=None))
+GOOGLE_ANALYTICS_CLIENT_SECRET = _optional(
+    env("GOOGLE_ANALYTICS_CLIENT_SECRET", default=None)
+)
+GOOGLE_ANALYTICS_OAUTH_REDIRECT_URI = _optional(
+    env("GOOGLE_ANALYTICS_OAUTH_REDIRECT_URI", default=None)
+)
+GOOGLE_ANALYTICS_OAUTH_SCOPES = env.list(
+    "GOOGLE_ANALYTICS_OAUTH_SCOPES",
+    default=[
+        "https://www.googleapis.com/auth/analytics.readonly",
+        "openid",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
+    ],
+)
 GOOGLE_ADS_SYNC_ENGINE_DEFAULT = env("GOOGLE_ADS_SYNC_ENGINE_DEFAULT", default="sdk").strip().lower()
 if GOOGLE_ADS_SYNC_ENGINE_DEFAULT not in {"sdk", "airbyte"}:
     GOOGLE_ADS_SYNC_ENGINE_DEFAULT = "sdk"

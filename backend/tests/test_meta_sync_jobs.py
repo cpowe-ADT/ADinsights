@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 from decimal import Decimal
+import uuid
 
 import pytest
 
 from analytics.models import Ad, AdAccount, AdSet, Campaign, RawPerformanceRecord
 from integrations.meta_graph import MetaGraphClientError, MetaGraphConfigurationError
-from integrations.models import APIErrorLog, MetaAccountSyncState, PlatformCredential
+from integrations.models import APIErrorLog, AirbyteConnection, MetaAccountSyncState, PlatformCredential
 from integrations.tasks import (
     RETRY_REASON_META_GRAPH_CONFIGURATION,
     sync_meta_accounts,
     sync_meta_hierarchy,
     sync_meta_insights_incremental,
+    sync_meta_reporting_slice,
 )
 
 
@@ -131,6 +133,63 @@ def test_sync_meta_hierarchy_persists_campaign_adset_ad(monkeypatch, user):
 
 
 @pytest.mark.django_db
+def test_sync_meta_hierarchy_truncates_long_preview_url(monkeypatch, user):
+    _seed_meta_credential(user)
+
+    long_url = "https://example.com/" + ("thumb-" * 50)
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def list_campaigns(self, *, account_id: str, user_access_token: str):
+            return [
+                {
+                    "id": "cmp-1",
+                    "account_id": "123",
+                    "name": "Campaign 1",
+                    "status": "ACTIVE",
+                    "effective_status": "ACTIVE",
+                }
+            ]
+
+        def list_adsets(self, *, account_id: str, user_access_token: str):
+            return [
+                {
+                    "id": "adset-1",
+                    "campaign_id": "cmp-1",
+                    "name": "AdSet 1",
+                    "status": "ACTIVE",
+                    "effective_status": "ACTIVE",
+                }
+            ]
+
+        def list_ads(self, *, account_id: str, user_access_token: str):
+            return [
+                {
+                    "id": "ad-1",
+                    "campaign_id": "cmp-1",
+                    "adset_id": "adset-1",
+                    "name": "Ad 1",
+                    "status": "ACTIVE",
+                    "effective_status": "ACTIVE",
+                    "creative": {"id": "creative-1", "thumbnail_url": long_url},
+                }
+            ]
+
+    monkeypatch.setattr("integrations.tasks.MetaGraphClient.from_settings", lambda: DummyClient())
+
+    result = sync_meta_hierarchy.run()
+
+    assert result["ads_synced"] == 1
+    ad = Ad.objects.get(tenant=user.tenant, external_id="ad-1")
+    assert len(ad.preview_url) == 200
+
+
+@pytest.mark.django_db
 def test_sync_meta_insights_incremental_persists_metrics(monkeypatch, user):
     _seed_meta_credential(user)
     account = AdAccount.objects.create(
@@ -214,6 +273,165 @@ def test_sync_meta_insights_incremental_persists_metrics(monkeypatch, user):
     assert insight.cpc == Decimal("0.5")
     assert insight.cpm == Decimal("17.5")
     assert insight.conversions == 3
+
+
+@pytest.mark.django_db
+def test_sync_meta_reporting_slice_updates_direct_sync_state(monkeypatch, user):
+    _seed_meta_credential(user)
+    connection = AirbyteConnection.objects.create(
+        tenant=user.tenant,
+        name="Meta connection",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+    )
+    account = AdAccount.objects.create(
+        tenant=user.tenant,
+        external_id="act_123",
+        account_id="123",
+        currency="USD",
+    )
+    campaign = Campaign.objects.create(
+        tenant=user.tenant,
+        ad_account=account,
+        external_id="cmp-1",
+        name="Campaign 1",
+        platform="meta",
+        account_external_id="act_123",
+        status="ACTIVE",
+    )
+    adset = AdSet.objects.create(
+        tenant=user.tenant,
+        campaign=campaign,
+        external_id="adset-1",
+        name="AdSet 1",
+        status="ACTIVE",
+    )
+    Ad.objects.create(
+        tenant=user.tenant,
+        adset=adset,
+        external_id="ad-1",
+        name="Ad 1",
+        status="ACTIVE",
+    )
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def list_ad_accounts(self, *, user_access_token: str):
+            assert user_access_token == "meta-token"
+            return [
+                {
+                    "id": "act_123",
+                    "account_id": "123",
+                    "name": "Primary Account",
+                    "currency": "USD",
+                    "account_status": 1,
+                    "business_name": "Demo Biz",
+                }
+            ]
+
+        def list_campaigns(self, *, account_id: str, user_access_token: str):
+            assert account_id == "act_123"
+            return []
+
+        def list_adsets(self, *, account_id: str, user_access_token: str):
+            return []
+
+        def list_ads(self, *, account_id: str, user_access_token: str):
+            return []
+
+        def list_insights(
+            self,
+            *,
+            account_id: str,
+            user_access_token: str,
+            level: str,
+            since: str,
+            until: str,
+        ):
+            assert account_id == "act_123"
+            assert level == "ad"
+            return [
+                {
+                    "date_start": until,
+                    "account_id": "123",
+                    "campaign_id": "cmp-1",
+                    "adset_id": "adset-1",
+                    "ad_id": "ad-1",
+                    "impressions": "1000",
+                    "reach": "920",
+                    "clicks": "35",
+                    "spend": "17.5",
+                    "cpc": "0.5",
+                    "cpm": "17.5",
+                    "actions": [{"action_type": "purchase", "value": "3"}],
+                }
+            ]
+
+    monkeypatch.setattr("integrations.tasks.MetaGraphClient.from_settings", lambda: DummyClient())
+    task_id = "task-direct-1"
+    result = sync_meta_reporting_slice.apply(
+        kwargs={
+            "tenant_id": str(user.tenant.id),
+            "account_id": "act_123",
+            "job_id": task_id,
+            "connection_pk": str(connection.id),
+            "since": "2026-01-01",
+            "until": "2026-01-07",
+        },
+        task_id=task_id,
+    ).get()
+
+    assert result["job_id"] == task_id
+    state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
+    assert state.last_job_id == task_id
+    assert state.last_job_status == "succeeded"
+    assert state.last_sync_engine == MetaAccountSyncState.SYNC_ENGINE_DIRECT
+    assert state.last_rows_synced == 1
+    assert state.last_data_date.isoformat() == "2026-01-07"
+
+
+@pytest.mark.django_db
+def test_sync_meta_reporting_slice_marks_request_error(monkeypatch, user):
+    _seed_meta_credential(user)
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def list_ad_accounts(self, *, user_access_token: str):
+            raise MetaGraphClientError(
+                "Unsupported field set",
+                status_code=400,
+                error_code=100,
+                retryable=False,
+            )
+
+    monkeypatch.setattr("integrations.tasks.MetaGraphClient.from_settings", lambda: DummyClient())
+
+    with pytest.raises(MetaGraphClientError):
+        sync_meta_reporting_slice.apply(
+            kwargs={
+                "tenant_id": str(user.tenant.id),
+                "account_id": "act_123",
+                "job_id": "task-direct-fail",
+                "since": "2026-01-01",
+                "until": "2026-01-07",
+            },
+            task_id="task-direct-fail",
+        ).get(propagate=True)
+
+    state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
+    assert state.last_job_status == "failed"
+    assert state.last_sync_engine == MetaAccountSyncState.SYNC_ENGINE_DIRECT
+    assert state.last_error_category == "meta_schema_request_error"
 
 
 @pytest.mark.django_db

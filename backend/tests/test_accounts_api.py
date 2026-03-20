@@ -29,6 +29,13 @@ def _create_admin_user(*, tenant: Tenant, email: str, password: str = "password1
     return user
 
 
+def list_results(response):
+    body = response.json()
+    if isinstance(body, list):
+        return body
+    return body.get("results", [])
+
+
 @pytest.mark.django_db
 def test_tenant_signup_creates_admin(api_client):
     payload = {
@@ -84,7 +91,7 @@ def test_user_list_scoped_to_tenant(api_client):
     api_client.force_authenticate(user=None)
 
     assert response.status_code == 200
-    emails = {user["email"] for user in response.json()}
+    emails = {row["email"] for row in list_results(response)}
     assert emails == {"admin@one.com", "alice@one.com"}
 
 
@@ -133,7 +140,9 @@ def test_admin_assign_role_records_audit_log(api_client):
     )
     assert audit_entry.action == "role_assigned"
     assert audit_entry.resource_type == "role"
-    assert audit_entry.metadata == {"role": Role.ANALYST}
+    assert audit_entry.metadata["role"] == Role.ANALYST
+    assert "actor_ip" in audit_entry.metadata
+    assert "user_agent" in audit_entry.metadata
     assert audit_entry.user_id == admin.id
 
 

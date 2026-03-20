@@ -116,11 +116,22 @@ def test_social_status_active_when_connection_recent_success(api_client, user, s
     settings.AIRBYTE_DEFAULT_DESTINATION_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 
     _create_meta_credential(user)
-    _create_meta_connection(
+    connection = _create_meta_connection(
         user,
         is_active=True,
         last_synced_at=timezone.now() - timedelta(minutes=10),
         last_job_status="succeeded",
+    )
+    MetaAccountSyncState.objects.create(
+        tenant=user.tenant,
+        account_id="act_123",
+        connection=connection,
+        last_job_id="job-direct-1",
+        last_job_status="succeeded",
+        last_success_at=timezone.now() - timedelta(minutes=5),
+        last_window_end=timezone.localdate() - timedelta(days=1),
+        last_sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+        last_rows_synced=12,
     )
 
     response = api_client.get(reverse("social-connection-status"))
@@ -141,11 +152,22 @@ def test_social_status_instagram_active_when_linked_and_meta_active(api_client, 
     settings.AIRBYTE_DEFAULT_DESTINATION_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 
     credential = _create_meta_credential(user)
-    _create_meta_connection(
+    connection = _create_meta_connection(
         user,
         is_active=True,
         last_synced_at=timezone.now() - timedelta(minutes=10),
         last_job_status="succeeded",
+    )
+    MetaAccountSyncState.objects.create(
+        tenant=user.tenant,
+        account_id="act_123",
+        connection=connection,
+        last_job_id="job-direct-2",
+        last_job_status="succeeded",
+        last_success_at=timezone.now() - timedelta(minutes=5),
+        last_window_end=timezone.localdate() - timedelta(days=1),
+        last_sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+        last_rows_synced=8,
     )
     AuditLog.objects.create(
         tenant=user.tenant,
@@ -224,6 +246,52 @@ def test_social_status_uses_instagram_link_for_selected_meta_credential(api_clie
     payload = response.json()
     assert _platform(payload, "meta")["metadata"]["credential_account_id"] == "act_456"
     assert _platform(payload, "instagram")["status"] == "started_not_complete"
+
+
+@pytest.mark.django_db
+def test_social_status_prefers_connection_linked_valid_credential_over_newer_reauth_record(
+    api_client, user, settings
+):
+    _authenticate(api_client, user)
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_APP_SECRET = "meta-app-secret"
+    settings.META_LOGIN_CONFIG_ID = "2323589144820085"
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+    settings.AIRBYTE_DEFAULT_WORKSPACE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    settings.AIRBYTE_DEFAULT_DESTINATION_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+
+    active_credential = _create_meta_credential(user, account_id="act_123")
+    active_connection = _create_meta_connection(
+        user,
+        is_active=True,
+        last_synced_at=timezone.now() - timedelta(minutes=10),
+        last_job_status="succeeded",
+    )
+    MetaAccountSyncState.objects.create(
+        tenant=user.tenant,
+        account_id="act_123",
+        connection=active_connection,
+        last_job_id="job-1",
+        last_job_status="succeeded",
+        last_job_error="",
+        last_success_at=timezone.now() - timedelta(minutes=5),
+        last_window_end=timezone.localdate() - timedelta(days=1),
+        last_sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+        last_rows_synced=5,
+    )
+
+    stale_credential = _create_meta_credential(user, account_id="act_999")
+    stale_credential.token_status = PlatformCredential.TOKEN_STATUS_REAUTH_REQUIRED
+    stale_credential.token_status_reason = "Meta credential needs to be re-authorized."
+    stale_credential.save(update_fields=["token_status", "token_status_reason", "updated_at"])
+
+    response = api_client.get(reverse("social-connection-status"))
+
+    assert response.status_code == 200
+    payload = response.json()
+    meta = _platform(payload, "meta")
+    assert meta["status"] == "active"
+    assert meta["metadata"]["credential_account_id"] == active_credential.account_id
 
 
 @pytest.mark.django_db
