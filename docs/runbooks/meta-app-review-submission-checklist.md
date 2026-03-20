@@ -32,8 +32,19 @@ Complete all rows below before submission.
 | `business_management`   | ADinsights reads/manages Business Manager assets on behalf of businesses to bind ad accounts during onboarding.                       | Complete Facebook login and permission grant, then successful business asset selection with ad performance access.     |
 | `pages_read_engagement` | ADinsights reads Page context on behalf of businesses for onboarding verification and account linkage.                                | Complete Facebook login and permission grant, then Page-linked content/metadata shown in ADinsights.                   |
 | `pages_show_list`       | ADinsights lists managed Pages so business users can verify ownership and connect the correct Page.                                   | Complete Facebook login and permission grant, then managed Page list shown and selected in ADinsights setup.           |
+| `read_insights`         | ADinsights reads Page insights on behalf of businesses to provide engagement and reach reporting in tenant dashboards.                 | Complete Facebook login and permission grant, then Page insights (reach, views, etc.) displayed in ADinsights.         |
 
-## 3) Optional Near-Term Submission Items
+## 3) Release-Gate Rule: Scope Changes
+
+Any modification to the following backend constants **MUST** be reflected in the `docs/project/meta-permissions-catalog.yaml` and this checklist before the PR is merged:
+- `DEFAULT_META_OAUTH_SCOPES`
+- `DEFAULT_META_PAGE_INSIGHTS_OAUTH_SCOPES`
+- `DEFAULT_META_REQUIRED_SCOPES`
+- `REQUIRED_INSIGHTS_SCOPES`
+
+Failure to update the catalog triggers a release-gate block during security review.
+
+## 4) Optional Near-Term Submission Items
 
 Only submit permissions below when the corresponding feature is active in ADinsights.
 

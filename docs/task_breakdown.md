@@ -168,7 +168,7 @@ scheduled deliberately instead of rediscovered during reviews:
   provisioning of KMS keys and secrets manager bindings in production.
 - **Email deliverability** – runbook/env are ready; remaining work is external SES identity
   verification + sandbox exit for `adtelligent.net`.
-- **RLS/roles bootstrap** – document Postgres grants and add a `seed_roles` fixture/command.
+- [x] **RLS/roles bootstrap** – document Postgres grants and add a `seed_roles` fixture/command.
 
 ---
 
@@ -216,7 +216,7 @@ Delivered:
 
 ### MVP gaps
 
-- [ ] Home page: replace static recent dashboards with API-driven data + true empty state logic.
+- [x] Home page: replace static recent dashboards with API-driven data + true empty state logic. (MVP)
 
 ### Post-MVP gaps
 
