@@ -2,6 +2,10 @@
 
 One-line, timestamped notes of agent-driven changes to help preserve context between sessions. Newest entries at the top.
 
+## 2026-03-20
+
+- 2026-03-20T10:00:00-0500 fix(infra): implement cron parsing for Airbyte health check and verify backend throttling/metrics endpoints — Implemented a heuristic cron parser in `infrastructure/airbyte/scripts/airbyte_health_check.py` to resolve TODO, verified DRF throttling configuration with existing tests, and added `test_combined_metrics_returns_payload` to `backend/tests/test_analytics_endpoints.py` to verify `/api/metrics/combined/`. Pending commit.
+
 ## 2026-03-19
 
 - 2026-03-19T17:23:22-0500 chore(deploy): gate backend startup on Postgres readiness and bootstrap completion — Added Postgres health checks and conditional `depends_on` gating for `backend-setup`, `backend`, `scheduler`, and `superset`, fixed the malformed Postgres volume mount in `deploy/docker-compose.yml`, updated `deploy/README.md`, and verified `docker compose config` passes. Pending commit.

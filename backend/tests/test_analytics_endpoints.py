@@ -4,6 +4,7 @@ from datetime import date
 import uuid
 
 import pytest
+from django.test import override_settings
 from django.utils import timezone
 
 from accounts.models import Tenant
@@ -316,3 +317,16 @@ def test_warehouse_adapter_applies_filters(tenant):
     assert [row["id"] for row in filtered["creative"]] == ["cr-a"]
     assert [row["id"] for row in filtered["budget"]] == ["bdg-a"]
     assert [row["parish"] for row in filtered["parish"]] == ["Kingston"]
+
+
+@pytest.mark.django_db
+def test_combined_metrics_returns_payload(api_client, user):
+    api_client.force_authenticate(user=user)
+    with override_settings(ENABLE_FAKE_ADAPTER=True, ENABLE_WAREHOUSE_ADAPTER=False):
+        response = api_client.get("/api/metrics/combined/?source=fake")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "campaign" in data
+    assert "summary" in data["campaign"]
+
