@@ -15,7 +15,7 @@ def other_user(other_tenant):
         username="other@example.com",
         email="other@example.com",
         tenant=other_tenant,
-        password="password123"
+        password="password123"  # pragma: allowlist secret
     )
 
 @pytest.mark.django_db

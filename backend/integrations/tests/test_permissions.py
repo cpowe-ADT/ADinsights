@@ -10,7 +10,7 @@ def viewer_user(tenant):
         username="viewer@example.com",
         email="viewer@example.com",
         tenant=tenant,
-        password="password123"
+        password="password123"  # pragma: allowlist secret
     )
     assign_role(user, Role.VIEWER)
     return user
@@ -22,7 +22,7 @@ def admin_user(tenant):
         username="admin@example.com",
         email="admin@example.com",
         tenant=tenant,
-        password="password123"
+        password="password123"  # pragma: allowlist secret
     )
     assign_role(user, Role.ADMIN)
     return user

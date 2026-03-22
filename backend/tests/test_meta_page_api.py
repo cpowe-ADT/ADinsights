@@ -28,6 +28,18 @@ def _authenticate(api_client, *, username: str, password: str) -> None:
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
 
+def _recent_utc_datetime(*, days_ago: int = 1, hour: int = 8, minute: int = 0) -> datetime:
+    target_day = timezone.localdate() - timedelta(days=days_ago)
+    return datetime(
+        target_day.year,
+        target_day.month,
+        target_day.day,
+        hour,
+        minute,
+        tzinfo=dt_timezone.utc,
+    )
+
+
 def _create_page(user) -> MetaPage:
     connection = MetaConnection(
         tenant=user.tenant,
@@ -58,6 +70,7 @@ def _create_page(user) -> MetaPage:
 def test_meta_page_contract_endpoints_return_metric_availability(api_client, user):
     _authenticate(api_client, username="user@example.com", password="password123")
     page = _create_page(user)
+    target_time = _recent_utc_datetime()
 
     MetaMetricRegistry.objects.update_or_create(
         metric_key="page_post_engagements",
@@ -76,7 +89,7 @@ def test_meta_page_contract_endpoints_return_metric_availability(api_client, use
         metric_key="page_post_engagements",
         defaults={
             "supported": True,
-            "last_checked_at": datetime(2026, 2, 19, 10, 0, tzinfo=dt_timezone.utc),
+            "last_checked_at": _recent_utc_datetime(days_ago=0, hour=10),
             "last_error": {},
         },
     )
@@ -85,7 +98,7 @@ def test_meta_page_contract_endpoints_return_metric_availability(api_client, use
         page=page,
         metric_key="page_post_engagements",
         period="day",
-        end_time=datetime(2026, 2, 18, 8, 0, tzinfo=dt_timezone.utc),
+        end_time=target_time,
         value_num=55,
         breakdown_key_normalized="__none__",
     )
@@ -94,7 +107,7 @@ def test_meta_page_contract_endpoints_return_metric_availability(api_client, use
         tenant=user.tenant,
         page=page,
         post_id="page-api-1_1",
-        created_time=datetime(2026, 2, 18, 8, 0, tzinfo=dt_timezone.utc),
+        created_time=target_time,
         message="hello world",
         media_type="PHOTO",
         permalink_url="https://example.com/post/1",
@@ -114,7 +127,7 @@ def test_meta_page_contract_endpoints_return_metric_availability(api_client, use
         post=post,
         metric_key="post_media_view",
         period="lifetime",
-        end_time=datetime(2026, 2, 18, 8, 0, tzinfo=dt_timezone.utc),
+        end_time=target_time,
         value_num=12,
         breakdown_key_normalized="__none__",
     )
@@ -295,6 +308,8 @@ def test_meta_page_sync_pipeline_surfaces_graph_data_in_api(api_client, user, mo
 def test_meta_page_posts_support_filtering_sorting_and_pagination(api_client, user):
     _authenticate(api_client, username="user@example.com", password="password123")
     page = _create_page(user)
+    first_post_time = _recent_utc_datetime(hour=9)
+    second_post_time = _recent_utc_datetime(hour=10)
 
     MetaMetricRegistry.objects.update_or_create(
         metric_key="post_media_view",
@@ -311,7 +326,7 @@ def test_meta_page_posts_support_filtering_sorting_and_pagination(api_client, us
         tenant=user.tenant,
         page=page,
         post_id="page-api-1_a",
-        created_time=datetime(2026, 2, 18, 9, 0, tzinfo=dt_timezone.utc),
+        created_time=first_post_time,
         message="hello photo",
         media_type="PHOTO",
         permalink_url="https://example.com/post/a",
@@ -320,7 +335,7 @@ def test_meta_page_posts_support_filtering_sorting_and_pagination(api_client, us
         tenant=user.tenant,
         page=page,
         post_id="page-api-1_b",
-        created_time=datetime(2026, 2, 18, 10, 0, tzinfo=dt_timezone.utc),
+        created_time=second_post_time,
         message="hello video",
         media_type="VIDEO",
         permalink_url="https://example.com/post/b",
@@ -331,7 +346,7 @@ def test_meta_page_posts_support_filtering_sorting_and_pagination(api_client, us
         post=post_a,
         metric_key="post_media_view",
         period="lifetime",
-        end_time=datetime(2026, 2, 18, 10, 0, tzinfo=dt_timezone.utc),
+        end_time=second_post_time,
         value_num=5,
         breakdown_key_normalized="__none__",
     )
@@ -340,7 +355,7 @@ def test_meta_page_posts_support_filtering_sorting_and_pagination(api_client, us
         post=post_b,
         metric_key="post_media_view",
         period="lifetime",
-        end_time=datetime(2026, 2, 18, 10, 0, tzinfo=dt_timezone.utc),
+        end_time=second_post_time,
         value_num=50,
         breakdown_key_normalized="__none__",
     )

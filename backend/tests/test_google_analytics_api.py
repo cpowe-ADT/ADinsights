@@ -26,7 +26,7 @@ class DummyResponse:
 def test_google_analytics_setup_endpoint(api_client: APIClient, user, settings):
     api_client.force_authenticate(user=user)
     settings.GOOGLE_ANALYTICS_CLIENT_ID = "ga4-client-id"
-    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = "ga4-client-secret"
+    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = "ga4-client-secret"  # pragma: allowlist secret
     settings.GOOGLE_ANALYTICS_OAUTH_REDIRECT_URI = (
         "https://app.example.com/oauth/google-analytics/callback"
     )
@@ -42,7 +42,7 @@ def test_google_analytics_setup_endpoint(api_client: APIClient, user, settings):
 def test_google_analytics_oauth_start_endpoint(api_client: APIClient, user, settings):
     api_client.force_authenticate(user=user)
     settings.GOOGLE_ANALYTICS_CLIENT_ID = "ga4-client-id"
-    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = "ga4-client-secret"
+    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = "ga4-client-secret"  # pragma: allowlist secret
     settings.GOOGLE_ANALYTICS_OAUTH_REDIRECT_URI = (
         "https://app.example.com/oauth/google-analytics/callback"
     )
@@ -70,7 +70,7 @@ def test_google_analytics_oauth_exchange_persists_credential(
 ):
     api_client.force_authenticate(user=user)
     settings.GOOGLE_ANALYTICS_CLIENT_ID = "ga4-client-id"
-    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = "ga4-client-secret"
+    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = "ga4-client-secret"  # pragma: allowlist secret
     settings.GOOGLE_ANALYTICS_OAUTH_REDIRECT_URI = (
         "https://app.example.com/oauth/google-analytics/callback"
     )

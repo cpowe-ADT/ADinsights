@@ -30,7 +30,7 @@ def _make_credential(tenant, *, account_id: str = "ga4@example.com") -> Platform
 
 def test_google_analytics_client_fetch_traffic_acquisition(monkeypatch, tenant, settings):
     settings.GOOGLE_ANALYTICS_CLIENT_ID = "ga4-client-id"
-    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = "ga4-client-secret"
+    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = "ga4-client-secret"  # pragma: allowlist secret
     credential = _make_credential(tenant)
 
     class FakeCredentials:
@@ -133,7 +133,7 @@ def test_google_analytics_client_fetch_traffic_acquisition(monkeypatch, tenant, 
     assert credentials_kwargs["token"] == "access-token"
     assert credentials_kwargs["refresh_token"] == "refresh-token"
     assert credentials_kwargs["client_id"] == "ga4-client-id"
-    assert credentials_kwargs["client_secret"] == "ga4-client-secret"
+    assert credentials_kwargs["client_secret"] == "ga4-client-secret"  # pragma: allowlist secret
     assert credentials_kwargs["scopes"] == ["https://www.googleapis.com/auth/analytics.readonly"]
 
     assert rows == [
@@ -156,7 +156,7 @@ def test_google_analytics_client_fetch_traffic_acquisition(monkeypatch, tenant, 
 
 def test_google_analytics_client_raises_when_refresh_token_missing(tenant, settings):
     settings.GOOGLE_ANALYTICS_CLIENT_ID = "ga4-client-id"
-    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = "ga4-client-secret"
+    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = "ga4-client-secret"  # pragma: allowlist secret
     credential = PlatformCredential(
         tenant=tenant,
         provider=PlatformCredential.GOOGLE_ANALYTICS,

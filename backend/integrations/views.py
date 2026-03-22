@@ -710,7 +710,7 @@ def _meta_sync_state_is_active(*, sync_state: MetaAccountSyncState | None, now) 
         return False
     if sync_state.last_rows_synced <= 0:
         return False
-    expected_window_end = (now - timedelta(days=1)).date()
+    expected_window_end = timezone.localdate(now) - timedelta(days=1)
     if sync_state.last_window_end is not None and sync_state.last_window_end < expected_window_end:
         return False
     return sync_state.last_success_at is not None
