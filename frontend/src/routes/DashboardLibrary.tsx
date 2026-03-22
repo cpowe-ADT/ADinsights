@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { useAuth } from '../auth/AuthContext';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import FullPageLoader from '../components/FullPageLoader';
 import { fetchDashboardLibrary, type DashboardLibraryItem } from '../lib/dashboardLibrary';
+import { canAccessCreatorUi } from '../lib/rbac';
 
 import '../styles/dashboard.css';
 
@@ -33,7 +35,9 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
 });
 
 const DashboardLibrary = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const canCreate = canAccessCreatorUi(user);
   const [searchParams, setSearchParams] = useSearchParams();
   const forcedState = searchParams.get('state')?.toLowerCase() ?? '';
   const isForcedLoading = forcedState === 'loading';
@@ -147,8 +151,8 @@ const DashboardLibrary = () => {
         icon={<LibraryEmptyIcon />}
         title="No dashboards yet"
         message="Create your first dashboard to track performance and pacing."
-        actionLabel="Create dashboard"
-        onAction={() => navigate('/dashboards/create')}
+        actionLabel={canCreate ? 'Create dashboard' : undefined}
+        onAction={canCreate ? () => navigate('/dashboards/create') : undefined}
       />
     );
   }
@@ -163,9 +167,11 @@ const DashboardLibrary = () => {
             Browse curated views, then jump straight into analysis.
           </p>
         </div>
-        <Link className="button primary" to="/dashboards/create">
-          Create dashboard
-        </Link>
+        {canCreate ? (
+          <Link className="button primary" to="/dashboards/create">
+            Create dashboard
+          </Link>
+        ) : null}
       </header>
 
       <div className="dashboard-library__filters">

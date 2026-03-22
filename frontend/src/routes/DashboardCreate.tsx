@@ -1,8 +1,14 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useAuth } from '../auth/AuthContext';
+import DashboardState from '../components/DashboardState';
+import { canAccessCreatorUi } from '../lib/rbac';
+
 const DashboardCreate = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const canCreate = canAccessCreatorUi(user);
 
   const handleStartCampaigns = useCallback(() => {
     navigate('/dashboards/campaigns');
@@ -15,6 +21,19 @@ const DashboardCreate = () => {
   const handleUploadCsv = useCallback(() => {
     navigate('/dashboards/uploads');
   }, [navigate]);
+
+  if (!canCreate) {
+    return (
+      <DashboardState
+        variant="empty"
+        layout="page"
+        title="Read-only dashboard access"
+        message="Viewer access can browse dashboards, but cannot create new ones."
+        actionLabel="Back to library"
+        onAction={() => navigate('/dashboards')}
+      />
+    );
+  }
 
   return (
     <div className="dashboard-grid single-panel">

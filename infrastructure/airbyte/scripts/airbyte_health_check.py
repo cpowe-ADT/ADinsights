@@ -75,6 +75,58 @@ def _seconds_from_units(units: Optional[int], unit_name: Optional[str]) -> Optio
     return int(units * seconds_per_unit)
 
 
+def _parse_cron_interval(cron_expression: str) -> Optional[int]:
+    if not cron_expression:
+        return None
+
+    parts = cron_expression.strip().split()
+    if len(parts) != 5:
+        # We only support standard 5-part cron for now.
+        return None
+
+    minute, hour, day, month, dow = parts
+
+    # Helper to parse "*/N"
+    def get_step(field: str) -> Optional[int]:
+        if field.startswith("*/"):
+            try:
+                return int(field[2:])
+            except ValueError:
+                return None
+        return None
+
+    # Case 1: Every minute (* * * * *)
+    if minute == "*" and hour == "*" and day == "*" and month == "*" and dow == "*":
+        return 60
+
+    # Case 2: Every N minutes (*/N * * * *)
+    step_min = get_step(minute)
+    if step_min and hour == "*" and day == "*" and month == "*" and dow == "*":
+        return step_min * 60
+
+    # Case 3: Every hour (0 * * * *)
+    # Note: If minute is specific (e.g. 5 * * * *), it's still every hour, just at minute 5.
+    # So we check if minute is a specific number.
+    if minute.isdigit() and hour == "*" and day == "*" and month == "*" and dow == "*":
+        return 3600
+
+    # Case 4: Every N hours (0 */N * * *) or (5 */N * * *)
+    step_hour = get_step(hour)
+    if minute.isdigit() and step_hour and day == "*" and month == "*" and dow == "*":
+        return step_hour * 3600
+
+    # Case 5: Daily (0 0 * * *) or (30 14 * * *)
+    if minute.isdigit() and hour.isdigit() and day == "*" and month == "*" and dow == "*":
+        return 86400
+
+    # Case 6: Weekly (0 0 * * 0)
+    # If minute and hour are digits, day and month are *, and dow is digit.
+    if minute.isdigit() and hour.isdigit() and day == "*" and month == "*" and dow.isdigit():
+        return 7 * 86400
+
+    return None
+
+
 def _stale_threshold_seconds(connection: Dict) -> int:
     schedule_type = connection.get("scheduleType")
     schedule_data = connection.get("scheduleData") or {}
@@ -84,7 +136,13 @@ def _stale_threshold_seconds(connection: Dict) -> int:
         interval_seconds = _seconds_from_units(basic.get("units"), basic.get("timeUnit"))
         if interval_seconds:
             return int(interval_seconds * STALE_MULTIPLIER)
-    # TODO: consider parsing cron expressions; for now fallback to the default.
+    elif schedule_type == "cron":
+        cron_data = schedule_data.get("cron") or {}
+        cron_expression = cron_data.get("cronExpression")
+        interval_seconds = _parse_cron_interval(cron_expression)
+        if interval_seconds:
+            return int(interval_seconds * STALE_MULTIPLIER)
+
     return FALLBACK_STALE_MINUTES * 60
 
 

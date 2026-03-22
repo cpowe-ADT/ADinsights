@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+from datetime import timedelta
 import uuid
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 from django.core.cache import cache
+from django.utils import timezone
 from django.urls import reverse
 
-from integrations.airbyte.client import AirbyteClientError
 from integrations.models import (
     AirbyteConnection,
     MetaAccountSyncState,
@@ -867,6 +868,13 @@ def test_meta_provision_creates_airbyte_connection(api_client, user, monkeypatch
                             "supportedDestinationSyncModes": ["append_dedup"],
                             "defaultCursorField": ["date_start"],
                             "sourceDefinedPrimaryKey": [["ad_id"], ["date_start"]],
+                        },
+                        {
+                            "name": "campaigns",
+                            "supportedSyncModes": ["incremental"],
+                            "supportedDestinationSyncModes": ["append"],
+                            "defaultCursorField": ["updated_time"],
+                            "sourceDefinedPrimaryKey": [["id"]],
                         }
                     ]
                 }
@@ -878,6 +886,8 @@ def test_meta_provision_creates_airbyte_connection(api_client, user, monkeypatch
 
         def create_connection(self, payload):
             assert payload["destinationId"] == "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+            configured_streams = payload["syncCatalog"]["streams"]
+            assert [stream["stream"]["name"] for stream in configured_streams] == ["ads_insights"]
             return {"connectionId": str(uuid.uuid4())}
 
     monkeypatch.setattr("integrations.views.AirbyteClient.from_settings", lambda: DummyAirbyteClient())
@@ -971,7 +981,7 @@ def test_meta_provision_updates_existing_source_with_latest_credentials(api_clie
                 {
                     "name": "Meta Insights act_123",
                     "connectionId": existing_connection_id,
-                    "destinationId": settings.AIRBYTE_DEFAULT_DESTINATION_ID,
+                    "destinationId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
                     "operationIds": [],
                 }
             ]
@@ -1001,6 +1011,7 @@ def test_meta_provision_updates_existing_source_with_latest_credentials(api_clie
     assert updated_credentials["auth_type"] == "Service"
     assert updated_credentials["access_token"] == "rotated-token"
     assert observed["updated_connection"]["connectionId"] == existing_connection_id
+    assert observed["updated_connection"]["destinationId"] == settings.AIRBYTE_DEFAULT_DESTINATION_ID
     assert response.json()["source_reused"] is True
     assert response.json()["connection_reused"] is True
 
@@ -1040,8 +1051,15 @@ def test_meta_provision_rejects_non_ad_account_ids(api_client, user, settings):
 
 
 @pytest.mark.django_db
-def test_meta_sync_triggers_airbyte_job(api_client, user, monkeypatch):
+def test_meta_provision_accepts_explicit_uuid_workspace_and_destination_ids(
+    api_client, user, monkeypatch, settings
+):
     _authenticate(api_client, user)
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_APP_SECRET = "meta-app-secret"
+    settings.AIRBYTE_DEFAULT_WORKSPACE_ID = ""
+    settings.AIRBYTE_DEFAULT_DESTINATION_ID = ""
+
     credential = PlatformCredential.objects.create(
         tenant=user.tenant,
         provider=PlatformCredential.META,
@@ -1053,14 +1071,10 @@ def test_meta_sync_triggers_airbyte_job(api_client, user, monkeypatch):
     )
     credential.set_raw_tokens("meta-token", None)
     credential.save()
-    connection = AirbyteConnection.objects.create(
-        tenant=user.tenant,
-        name="Meta Connection",
-        connection_id=uuid.uuid4(),
-        provider=PlatformCredential.META,
-        schedule_type=AirbyteConnection.SCHEDULE_CRON,
-        cron_expression="0 6-22 * * *",
-    )
+
+    workspace_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    destination_id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+    observed: dict[str, object] = {}
 
     class DummyAirbyteClient:
         def __enter__(self):
@@ -1069,25 +1083,60 @@ def test_meta_sync_triggers_airbyte_job(api_client, user, monkeypatch):
         def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
             return None
 
-        def trigger_sync(self, connection_id: str):
-            assert connection_id == str(connection.connection_id)
-            return {"job": {"id": 77}}
+        def list_sources(self, incoming_workspace_id: str):
+            observed["workspace_id"] = incoming_workspace_id
+            return []
+
+        def create_source(self, payload):
+            return {"sourceId": "source-1"}
+
+        def check_source(self, source_id: str):
+            return {"jobInfo": {"status": "succeeded"}}
+
+        def discover_source_schema(self, source_id: str):
+            return {
+                "catalog": {
+                    "streams": [
+                        {
+                            "name": "ads_insights",
+                            "supportedSyncModes": ["incremental"],
+                            "supportedDestinationSyncModes": ["append_dedup"],
+                            "defaultCursorField": ["date_start"],
+                            "sourceDefinedPrimaryKey": [["ad_id"], ["date_start"]],
+                        }
+                    ]
+                }
+            }
+
+        def list_connections(self, incoming_workspace_id: str):
+            assert incoming_workspace_id == workspace_id
+            return []
+
+        def create_connection(self, payload):
+            observed["destination_id"] = payload["destinationId"]
+            return {"connectionId": str(uuid.uuid4())}
 
     monkeypatch.setattr("integrations.views.AirbyteClient.from_settings", lambda: DummyAirbyteClient())
 
-    response = api_client.post(reverse("meta-sync"), {}, format="json")
+    response = api_client.post(
+        reverse("meta-provision"),
+        {
+            "workspace_id": workspace_id,
+            "destination_id": destination_id,
+            "connection_name": "Meta Insights Connection",
+            "schedule_type": "cron",
+            "cron_expression": "0 6-22 * * *",
+        },
+        format="json",
+    )
 
-    assert response.status_code == 202
-    payload = response.json()
-    assert payload["provider"] == "meta_ads"
-    assert payload["job_id"] == "77"
-    state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
-    assert state.last_job_id == "77"
-    assert state.last_job_status == "pending"
+    assert response.status_code == 201
+    assert observed["workspace_id"] == workspace_id
+    assert observed["destination_id"] == destination_id
 
 
 @pytest.mark.django_db
-def test_meta_sync_reuses_running_job_on_airbyte_conflict(api_client, user, monkeypatch):
+def test_meta_sync_queues_direct_reporting_task(api_client, user, monkeypatch):
     _authenticate(api_client, user)
     credential = PlatformCredential.objects.create(
         tenant=user.tenant,
@@ -1108,38 +1157,182 @@ def test_meta_sync_reuses_running_job_on_airbyte_conflict(api_client, user, monk
         schedule_type=AirbyteConnection.SCHEDULE_CRON,
         cron_expression="0 6-22 * * *",
     )
+    observed: dict[str, object] = {}
 
-    class DummyAirbyteClient:
-        def __enter__(self):
-            return self
+    def fake_apply_async(*, kwargs=None, task_id=None, **_extra):  # noqa: ANN001
+        observed["kwargs"] = kwargs or {}
+        observed["task_id"] = task_id
+        return None
 
-        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
-            return None
-
-        def trigger_sync(self, connection_id: str):
-            assert connection_id == str(connection.connection_id)
-            raise AirbyteClientError(
-                f"Failed to trigger sync for {connection_id}: 409 conflict",
-                status_code=409,
-            )
-
-        def latest_job(self, connection_id: str):
-            assert connection_id == str(connection.connection_id)
-            return {"id": 88, "status": "running"}
-
-    monkeypatch.setattr("integrations.views.AirbyteClient.from_settings", lambda: DummyAirbyteClient())
+    monkeypatch.setattr("integrations.tasks.sync_meta_reporting_slice.apply_async", fake_apply_async)
 
     response = api_client.post(reverse("meta-sync"), {}, format="json")
 
     assert response.status_code == 202
     payload = response.json()
     assert payload["provider"] == "meta_ads"
-    assert payload["job_id"] == "88"
+    assert payload["job_id"]
+    assert observed["task_id"] == payload["job_id"]
+    assert observed["kwargs"]["tenant_id"] == str(user.tenant.id)
+    assert observed["kwargs"]["account_id"] == "act_123"
+    assert observed["kwargs"]["job_id"] == payload["job_id"]
+    assert observed["kwargs"]["connection_pk"] == str(connection.id)
+    state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
+    assert state.last_job_id == payload["job_id"]
+    assert state.last_job_status == "pending"
+    assert state.last_sync_engine == MetaAccountSyncState.SYNC_ENGINE_DIRECT
+
+
+@pytest.mark.django_db
+def test_meta_sync_reuses_existing_direct_job(api_client, user, monkeypatch):
+    _authenticate(api_client, user)
+    credential = PlatformCredential.objects.create(
+        tenant=user.tenant,
+        provider=PlatformCredential.META,
+        account_id="act_123",
+        expires_at=None,
+        access_token_enc=b"",
+        access_token_nonce=b"",
+        access_token_tag=b"",
+    )
+    credential.set_raw_tokens("meta-token", None)
+    credential.save()
+    connection = AirbyteConnection.objects.create(
+        tenant=user.tenant,
+        name="Meta Connection",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_CRON,
+        cron_expression="0 6-22 * * *",
+    )
+    MetaAccountSyncState.objects.create(
+        tenant=user.tenant,
+        account_id="act_123",
+        connection=connection,
+        last_job_id="job-existing",
+        last_job_status="running",
+        last_sync_started_at=timezone.now() - timedelta(minutes=10),
+        last_sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+    )
+
+    def fake_apply_async(*args, **kwargs):  # noqa: ANN001, ARG001
+        raise AssertionError("apply_async should not be called when a direct sync is already running")
+
+    monkeypatch.setattr("integrations.tasks.sync_meta_reporting_slice.apply_async", fake_apply_async)
+
+    response = api_client.post(reverse("meta-sync"), {}, format="json")
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["provider"] == "meta_ads"
+    assert payload["job_id"] == "job-existing"
     assert payload["reused_existing_job"] is True
     assert payload["sync_status"] == "already_running"
     state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
-    assert state.last_job_id == "88"
+    assert state.last_job_id == "job-existing"
     assert state.last_job_status == "running"
+
+
+@pytest.mark.django_db
+def test_meta_sync_prefers_valid_credential_when_connection_linked_state_points_to_reauth_record(
+    api_client, user, monkeypatch
+):
+    _authenticate(api_client, user)
+    valid_credential = PlatformCredential.objects.create(
+        tenant=user.tenant,
+        provider=PlatformCredential.META,
+        account_id="act_335732240",
+        expires_at=None,
+        access_token_enc=b"",
+        access_token_nonce=b"",
+        access_token_tag=b"",
+    )
+    valid_credential.set_raw_tokens("meta-token-valid", None)
+    valid_credential.save()
+
+    reauth_credential = PlatformCredential.objects.create(
+        tenant=user.tenant,
+        provider=PlatformCredential.META,
+        account_id="act_1023646075020889",
+        expires_at=None,
+        access_token_enc=b"",
+        access_token_nonce=b"",
+        access_token_tag=b"",
+        token_status=PlatformCredential.TOKEN_STATUS_REAUTH_REQUIRED,
+        token_status_reason="Meta credential needs to be re-authorized.",
+    )
+    reauth_credential.set_raw_tokens("meta-token-expired", None)
+    reauth_credential.save()
+
+    connection = AirbyteConnection.objects.create(
+        tenant=user.tenant,
+        name="Meta Connection",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_CRON,
+        cron_expression="0 6-22 * * *",
+        is_active=True,
+        last_job_status="failed",
+    )
+    MetaAccountSyncState.objects.create(
+        tenant=user.tenant,
+        account_id=reauth_credential.account_id,
+        connection=connection,
+        last_job_id="old-airbyte-job",
+        last_job_status="failed",
+        last_sync_engine=MetaAccountSyncState.SYNC_ENGINE_AIRBYTE,
+    )
+
+    observed: dict[str, object] = {}
+
+    def fake_apply_async(*, kwargs=None, task_id=None, **_extra):  # noqa: ANN001
+        observed["kwargs"] = kwargs or {}
+        observed["task_id"] = task_id
+        return None
+
+    monkeypatch.setattr("integrations.tasks.sync_meta_reporting_slice.apply_async", fake_apply_async)
+
+    response = api_client.post(reverse("meta-sync"), {}, format="json")
+
+    assert response.status_code == 202
+    assert observed["kwargs"]["account_id"] == valid_credential.account_id
+
+
+@pytest.mark.django_db
+def test_meta_sync_returns_accepted_when_eager_task_fails(api_client, user, monkeypatch, settings):
+    _authenticate(api_client, user)
+    credential = PlatformCredential.objects.create(
+        tenant=user.tenant,
+        provider=PlatformCredential.META,
+        account_id="act_123",
+        expires_at=None,
+        access_token_enc=b"",
+        access_token_nonce=b"",
+        access_token_tag=b"",
+    )
+    credential.set_raw_tokens("meta-token", None)
+    credential.save()
+    connection = AirbyteConnection.objects.create(
+        tenant=user.tenant,
+        name="Meta Connection",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_CRON,
+        cron_expression="0 6-22 * * *",
+    )
+    settings.CELERY_TASK_ALWAYS_EAGER = True
+
+    def fake_apply_async(*args, **kwargs):  # noqa: ANN001, ARG001
+        raise RuntimeError("task blew up in eager mode")
+
+    monkeypatch.setattr("integrations.tasks.sync_meta_reporting_slice.apply_async", fake_apply_async)
+
+    response = api_client.post(reverse("meta-sync"), {}, format="json")
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["provider"] == "meta_ads"
+    assert payload["connection_id"] == str(connection.connection_id)
 
 
 @pytest.mark.django_db

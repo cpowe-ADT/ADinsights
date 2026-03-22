@@ -19,6 +19,7 @@ class AdapterInterface:
 DEFAULT_INTERFACES: tuple[AdapterInterface, ...] = (
     AdapterInterface(key="meta", label="Meta Ads"),
     AdapterInterface(key="google_ads", label="Google Ads"),
+    AdapterInterface(key="google_analytics", label="Google Analytics"),
     AdapterInterface(key="tiktok", label="TikTok"),
 )
 

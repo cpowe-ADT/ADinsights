@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useAuth } from '../auth/AuthContext';
 import DashboardState from '../components/DashboardState';
 import EmptyState from '../components/EmptyState';
 import { useTheme } from '../components/ThemeProvider';
 import { fetchRecentDashboards, type RecentDashboard } from '../lib/recentDashboards';
+import { canAccessCreatorUi } from '../lib/rbac';
 import styles from './Home.module.css';
 
 const BANNER_STORAGE_KEY = 'adinsights.home.banner.dismissed';
@@ -176,7 +178,9 @@ const buildAnnouncementConfig = (releaseNotesUrl: string) => {
 
 const Home = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const canCreate = canAccessCreatorUi(user);
   const docsUrl =
     import.meta.env.VITE_DOCS_URL?.trim() ||
     'https://github.com/cpowe-ADT/ADinsights/blob/main/docs/ops/doc-index.md';
@@ -281,37 +285,40 @@ const Home = () => {
   );
 
   const quickActions: QuickAction[] = useMemo(
-    () => [
-      {
-        id: 'create-dashboard',
-        label: 'Create dashboard',
-        description: 'Start a new view with curated KPIs.',
-        icon: <LayoutIcon />,
-        action: handleCreateDashboard,
-      },
-      {
-        id: 'view-campaigns',
-        label: 'View campaigns',
-        description: 'Review cross-channel performance in one place.',
-        icon: <CampaignIcon />,
-        action: handleViewCampaigns,
-      },
-      {
-        id: 'open-map',
-        label: 'Open map',
-        description: 'Explore geo insights with the parish heatmap.',
-        icon: <MapIcon />,
-        action: handleOpenMap,
-      },
-      {
-        id: 'connect-socials',
-        label: 'Connect socials',
-        description: 'Connect Facebook/Instagram and monitor connection health.',
-        icon: <SocialIcon />,
-        action: handleConnectSocials,
-      },
-    ],
-    [handleConnectSocials, handleCreateDashboard, handleViewCampaigns, handleOpenMap],
+    () =>
+      [
+        canCreate
+          ? {
+              id: 'create-dashboard',
+              label: 'Create dashboard',
+              description: 'Start a new view with curated KPIs.',
+              icon: <LayoutIcon />,
+              action: handleCreateDashboard,
+            }
+          : null,
+        {
+          id: 'view-campaigns',
+          label: 'View campaigns',
+          description: 'Review cross-channel performance in one place.',
+          icon: <CampaignIcon />,
+          action: handleViewCampaigns,
+        },
+        {
+          id: 'open-map',
+          label: 'Open map',
+          description: 'Explore geo insights with the parish heatmap.',
+          icon: <MapIcon />,
+          action: handleOpenMap,
+        },
+        {
+          id: 'connect-socials',
+          label: 'Connect socials',
+          description: 'Connect Facebook/Instagram and monitor connection health.',
+          icon: <SocialIcon />,
+          action: handleConnectSocials,
+        },
+      ].filter((action): action is QuickAction => Boolean(action)),
+    [canCreate, handleConnectSocials, handleCreateDashboard, handleViewCampaigns, handleOpenMap],
   );
 
   const resourceLinks: ResourceLink[] = useMemo(
@@ -344,8 +351,12 @@ const Home = () => {
     dashboardsState === 'error' ? 'Recent dashboards unavailable' : 'No dashboards yet';
   const dashboardsEmptyMessage =
     dashboardsState === 'error'
-      ? 'We could not load recent dashboards. Create your first dashboard to get started.'
-      : 'Create your first dashboard to monitor campaign momentum and geo insights.';
+      ? canCreate
+        ? 'We could not load recent dashboards. Create your first dashboard to get started.'
+        : 'We could not load recent dashboards. Try again or browse existing dashboards later.'
+      : canCreate
+        ? 'Create your first dashboard to monitor campaign momentum and geo insights.'
+        : 'Dashboards will appear here once your team shares or creates them.';
 
   return (
     <div className={styles.homePage}>
@@ -363,9 +374,11 @@ const Home = () => {
             </div>
           </div>
           <div className={styles.heroActions}>
-            <button type="button" className={styles.primaryAction} onClick={handleCreateDashboard}>
-              Create dashboard
-            </button>
+            {canCreate ? (
+              <button type="button" className={styles.primaryAction} onClick={handleCreateDashboard}>
+                Create dashboard
+              </button>
+            ) : null}
             <button
               type="button"
               className={styles.themeAction}
@@ -488,8 +501,8 @@ const Home = () => {
                   icon={<DashboardPlaceholderIcon />}
                   title={dashboardsEmptyTitle}
                   message={dashboardsEmptyMessage}
-                  actionLabel="Create dashboard"
-                  onAction={handleCreateDashboard}
+                  actionLabel={canCreate ? 'Create dashboard' : undefined}
+                  onAction={canCreate ? handleCreateDashboard : undefined}
                   className={styles.emptyState}
                 />
               )}

@@ -22,6 +22,7 @@ from rest_framework.views import APIView
 
 from accounts.audit import log_audit_event
 from accounts.models import AuditLog
+from accounts.permissions import HasPrivilege
 from accounts.tenant_context import tenant_context
 from core.db_error_responses import schema_out_of_date_response
 from core.frontend_runtime import (
@@ -123,6 +124,8 @@ DEFAULT_META_PAGE_INSIGHTS_TASKS = {"ANALYZE", "MANAGE", "ADVERTISE"}
 DEFAULT_META_PAGE_INSIGHTS_PERMS = {"ADMINISTER", "BASIC_ADMIN", "CREATE_ADS"}
 SOCIAL_STATUS_STALE_THRESHOLD_MINUTES = 60
 SOCIAL_SUCCESS_STATUSES = {"succeeded", "success", "completed"}
+SOCIAL_RUNNING_STATUSES = {"running", "pending", "queued", "incomplete"}
+DEFAULT_META_REPORTING_STREAMS = {"ads_insights"}
 
 
 def _resolve_meta_redirect_uri(
@@ -226,9 +229,9 @@ def _meta_login_configuration_required() -> bool:
 
 
 def _is_unset_or_placeholder(value: Any) -> bool:
-    if not isinstance(value, str):
+    if value is None:
         return True
-    normalized = value.strip()
+    normalized = value.strip() if isinstance(value, str) else str(value).strip()
     if not normalized:
         return True
     lowered = normalized.lower()
@@ -245,7 +248,11 @@ def _find_by_name(items: list[dict[str, Any]], name: str) -> dict[str, Any] | No
     return None
 
 
-def _configured_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
+def _configured_catalog(
+    catalog: dict[str, Any],
+    *,
+    selected_stream_names: set[str] | None = None,
+) -> dict[str, Any]:
     raw_streams = catalog.get("streams") or []
     configured_streams: list[dict[str, Any]] = []
     for raw in raw_streams:
@@ -255,6 +262,11 @@ def _configured_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
         # or preconfigured streams (`{stream: {...}, config: {...}}`).
         stream_def = raw.get("stream") if isinstance(raw.get("stream"), dict) else raw
         if not isinstance(stream_def, dict):
+            continue
+        stream_name = str(stream_def.get("name") or "").strip()
+        if not stream_name:
+            continue
+        if selected_stream_names is not None and stream_name not in selected_stream_names:
             continue
 
         supported_sync_modes = stream_def.get("supportedSyncModes") or ["full_refresh"]
@@ -284,7 +296,7 @@ def _configured_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
             {
                 "stream": stream_def,
                 "config": {
-                    "aliasName": stream_def.get("name"),
+                    "aliasName": stream_name,
                     "selected": True,
                     "syncMode": sync_mode,
                     "destinationSyncMode": destination_sync_mode,
@@ -295,6 +307,8 @@ def _configured_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
         )
 
     if not configured_streams:
+        if selected_stream_names:
+            raise ValueError("Discovered catalog did not include the required Meta reporting streams.")
         raise ValueError("Discovered catalog has no streams.")
     return {"streams": configured_streams}
 
@@ -508,13 +522,14 @@ def _resolve_meta_account_for_connection(*, connection: AirbyteConnection) -> st
     if state is not None:
         return state.account_id
 
-    credential = (
-        PlatformCredential.objects.filter(
-            tenant_id=connection.tenant_id,
-            provider=PlatformCredential.META,
-        )
-        .order_by("-updated_at")
-        .first()
+    credential = _select_preferred_meta_credential(
+        list(
+            PlatformCredential.objects.filter(
+                tenant_id=connection.tenant_id,
+                provider=PlatformCredential.META,
+            ).order_by("-updated_at")
+        ),
+        preferred_connection=connection,
     )
     return credential.account_id if credential is not None else None
 
@@ -531,6 +546,10 @@ def _upsert_meta_account_sync_state(
     sync_completed_at: datetime | None = None,
     window_start: datetime.date | None = None,
     window_end: datetime.date | None = None,
+    sync_engine: str | None = None,
+    rows_synced: int | None = None,
+    data_date: datetime.date | None = None,
+    error_category: str | None = None,
 ) -> MetaAccountSyncState:
     normalized_account_id = _normalize_meta_account_id(account_id)
     state, _ = MetaAccountSyncState.all_objects.get_or_create(
@@ -563,6 +582,18 @@ def _upsert_meta_account_sync_state(
     if window_end is not None:
         state.last_window_end = window_end
         update_fields.append("last_window_end")
+    if sync_engine is not None:
+        state.last_sync_engine = sync_engine
+        update_fields.append("last_sync_engine")
+    if rows_synced is not None:
+        state.last_rows_synced = max(int(rows_synced), 0)
+        update_fields.append("last_rows_synced")
+    if data_date is not None:
+        state.last_data_date = data_date
+        update_fields.append("last_data_date")
+    if error_category is not None:
+        state.last_error_category = error_category
+        update_fields.append("last_error_category")
 
     if job_status and job_status.lower() in SOCIAL_SUCCESS_STATUSES:
         state.last_success_at = sync_completed_at or sync_started_at or timezone.now()
@@ -627,16 +658,134 @@ def _select_preferred_meta_connection(connections: list[AirbyteConnection], now)
             return (4, connection.updated_at)
         if connection.is_active and not connection.last_job_error:
             return (3, connection.updated_at)
-        if connection.is_active is False:
+        if connection.is_active:
             return (2, connection.updated_at)
-        return (1, connection.updated_at)
+        if connection.is_active is False:
+            return (1, connection.updated_at)
+        return (0, connection.updated_at)
 
     return sorted(connections, key=score, reverse=True)[0]
+
+
+def _meta_credential_status_priority(credential: PlatformCredential) -> int:
+    status_value = (credential.token_status or "").strip().lower()
+    if status_value == PlatformCredential.TOKEN_STATUS_VALID:
+        return 4
+    if status_value == PlatformCredential.TOKEN_STATUS_EXPIRING:
+        return 3
+    if status_value:
+        return 1
+    return 2
+
+
+def _meta_sync_state_priority(sync_state: MetaAccountSyncState | None) -> tuple[int, datetime]:
+    if sync_state is None:
+        return (0, datetime.min.replace(tzinfo=dt_timezone.utc))
+
+    status_value = (sync_state.last_job_status or "").strip().lower()
+    if status_value in SOCIAL_SUCCESS_STATUSES:
+        rank = 3
+    elif status_value in {"running", "pending", "incomplete"}:
+        rank = 2
+    elif status_value:
+        rank = 1
+    else:
+        rank = 0
+
+    last_activity = (
+        sync_state.last_success_at
+        or sync_state.last_sync_completed_at
+        or sync_state.updated_at
+        or datetime.min.replace(tzinfo=dt_timezone.utc)
+    )
+    return (rank, last_activity)
+
+
+def _meta_sync_state_is_active(*, sync_state: MetaAccountSyncState | None, now) -> bool:
+    if sync_state is None:
+        return False
+    if sync_state.last_sync_engine != MetaAccountSyncState.SYNC_ENGINE_DIRECT:
+        return False
+    if (sync_state.last_job_status or "").strip().lower() not in SOCIAL_SUCCESS_STATUSES:
+        return False
+    if sync_state.last_rows_synced <= 0:
+        return False
+    expected_window_end = timezone.localdate(now) - timedelta(days=1)
+    if sync_state.last_window_end is not None and sync_state.last_window_end < expected_window_end:
+        return False
+    return sync_state.last_success_at is not None
+
+
+def _meta_last_synced_at(
+    *,
+    sync_state: MetaAccountSyncState | None,
+    connection: AirbyteConnection | None,
+) -> datetime | None:
+    if sync_state is not None and sync_state.last_success_at is not None:
+        return sync_state.last_success_at
+    if connection is not None:
+        return connection.last_synced_at
+    return None
+
+
+def _select_preferred_meta_credential(
+    credentials: list[PlatformCredential],
+    *,
+    preferred_connection: AirbyteConnection | None = None,
+) -> PlatformCredential | None:
+    if not credentials:
+        return None
+
+    credentials_by_account = {
+        _normalize_meta_account_id(credential.account_id): credential for credential in credentials
+    }
+    if preferred_connection is not None:
+        preferred_state = (
+            MetaAccountSyncState.objects.filter(
+                tenant_id=preferred_connection.tenant_id,
+                connection=preferred_connection,
+            )
+            .order_by("-updated_at")
+            .first()
+        )
+        if preferred_state is not None:
+            matched = credentials_by_account.get(_normalize_meta_account_id(preferred_state.account_id))
+            if matched is not None and matched.token_status not in {
+                PlatformCredential.TOKEN_STATUS_INVALID,
+                PlatformCredential.TOKEN_STATUS_REAUTH_REQUIRED,
+            }:
+                return matched
+
+    sync_states: dict[str, MetaAccountSyncState] = {}
+    for sync_state in (
+        MetaAccountSyncState.objects.filter(
+            tenant_id=credentials[0].tenant_id,
+            account_id__in=list(credentials_by_account.keys()),
+        )
+        .order_by("-updated_at")
+    ):
+        normalized_account_id = _normalize_meta_account_id(sync_state.account_id)
+        sync_states.setdefault(normalized_account_id, sync_state)
+
+    def score(credential: PlatformCredential) -> tuple[int, int, int, datetime, datetime]:
+        sync_state = sync_states.get(_normalize_meta_account_id(credential.account_id))
+        sync_rank, last_activity = _meta_sync_state_priority(sync_state)
+        credential_updated_at = credential.updated_at or datetime.min.replace(tzinfo=dt_timezone.utc)
+        return (
+            _meta_credential_status_priority(credential),
+            1 if _is_meta_ad_account_id(credential.account_id) else 0,
+            sync_rank,
+            last_activity,
+            credential_updated_at,
+        )
+
+    return sorted(credentials, key=score, reverse=True)[0]
 
 
 def _resolve_meta_status(
     *,
     credential: PlatformCredential | None,
+    sync_state: MetaAccountSyncState | None,
     connection: AirbyteConnection | None,
     now,
     oauth_ready: bool,
@@ -687,43 +836,66 @@ def _resolve_meta_status(
             ["connect_oauth"],
         )
 
-    if not provisioning_defaults_ready or connection is None:
-        return (
-            "started_not_complete",
-            {
-                "code": "provisioning_incomplete",
-                "message": "Meta is connected but provisioning/sync setup is incomplete.",
-            },
-            ["provision"],
-        )
-
-    if _is_connection_active(connection, now):
+    if _meta_sync_state_is_active(sync_state=sync_state, now=now):
         return (
             "active",
             {
-                "code": "active_sync",
-                "message": "Meta connection is active and recently synced.",
+                "code": "active_direct_sync",
+                "message": "Meta direct sync completed successfully with fresh reporting rows.",
             },
             ["sync_now", "view"],
         )
 
-    if connection.is_active is False:
+    if sync_state is not None and (sync_state.last_job_status or "").strip().lower() in SOCIAL_RUNNING_STATUSES:
+        return (
+            "complete",
+            {
+                "code": "sync_in_progress",
+                "message": "Meta direct sync is currently running.",
+            },
+            ["view"],
+        )
+
+    if sync_state is not None and (sync_state.last_job_status or "").strip().lower() not in {
+        "",
+        *SOCIAL_SUCCESS_STATUSES,
+    }:
+        return (
+            "complete",
+            {
+                "code": "latest_sync_failed",
+                "message": sync_state.last_job_error or "The latest Meta direct sync failed.",
+            },
+            ["sync_now", "view"],
+        )
+
+    if connection is not None and connection.is_active is False:
         return (
             "complete",
             {
                 "code": "connection_paused",
-                "message": "Meta setup is complete, but sync is paused.",
+                "message": "Meta setup is complete, but the Airbyte connection is paused.",
             },
-            ["provision", "view"],
+            ["sync_now", "view"],
+        )
+
+    if sync_state is not None or connection is not None:
+        return (
+            "complete",
+            {
+                "code": "awaiting_recent_successful_sync",
+                "message": "Meta setup is complete and awaiting a recent successful direct sync.",
+            },
+            ["sync_now", "view"],
         )
 
     return (
-        "complete",
+        "started_not_complete",
         {
-            "code": "awaiting_recent_successful_sync",
-            "message": "Meta setup is complete, waiting for a recent successful sync.",
+            "code": "awaiting_initial_sync",
+            "message": "Meta is connected, but the first direct sync has not run yet.",
         },
-        ["sync_now", "view"],
+        ["sync_now"],
     )
 
 
@@ -1624,7 +1796,10 @@ class MetaProvisionView(APIView):
                         raise ValueError("Airbyte discover schema response missing catalog.")
 
                     source_id = candidate_source_id
-                    configured_catalog = _configured_catalog(catalog)
+                    configured_catalog = _configured_catalog(
+                        catalog,
+                        selected_stream_names=DEFAULT_META_REPORTING_STREAMS,
+                    )
                     break
 
                 if source_id is None or configured_catalog is None:
@@ -1651,9 +1826,7 @@ class MetaProvisionView(APIView):
                             "connectionId": existing_connection_id,
                             "name": connection_name,
                             "sourceId": source_id,
-                            "destinationId": str(
-                                existing_connection.get("destinationId") or destination_id
-                            ),
+                            "destinationId": str(destination_id),
                             "workspaceId": str(workspace_id),
                             "status": "active" if is_active else "inactive",
                             "syncCatalog": configured_catalog,
@@ -1726,6 +1899,7 @@ class MetaProvisionView(APIView):
             connection=connection_record,
             window_start=window_start,
             window_end=window_end,
+            sync_engine=MetaAccountSyncState.SYNC_ENGINE_AIRBYTE,
         )
 
         log_audit_event(
@@ -1763,74 +1937,112 @@ class MetaSyncView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):  # noqa: ANN001 - DRF signature
-        connection = (
-            AirbyteConnection.objects.filter(tenant_id=request.user.tenant_id, provider=PlatformCredential.META)
-            .order_by("-updated_at")
-            .first()
+        from .tasks import META_DIRECT_SYNC_LOOKBACK_DAYS, sync_meta_reporting_slice
+
+        tenant_id = request.user.tenant_id
+        now = timezone.now()
+        meta_connections = list(
+            AirbyteConnection.objects.filter(tenant_id=tenant_id, provider=PlatformCredential.META).order_by("-updated_at")
         )
-        if connection is None:
+        connection = _select_preferred_meta_connection(meta_connections, now)
+        meta_credentials = list(
+            PlatformCredential.objects.filter(
+                tenant_id=tenant_id,
+                provider=PlatformCredential.META,
+            ).order_by("-updated_at")
+        )
+        credential = _select_preferred_meta_credential(
+            meta_credentials,
+            preferred_connection=connection,
+        )
+        if credential is None:
             return Response(
-                {"detail": "No Meta Airbyte connection found for this tenant."},
+                {"detail": "No Meta credential found for this tenant."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        try:
-            with AirbyteClient.from_settings() as client:
-                reused_existing_job = False
-                try:
-                    payload = client.trigger_sync(str(connection.connection_id))
-                except AirbyteClientError as exc:
-                    if getattr(exc, "status_code", None) != status.HTTP_409_CONFLICT:
-                        raise
-                    latest_job = client.latest_job(str(connection.connection_id))
-                    if latest_job is None:
-                        raise
-                    payload = {"job": latest_job}
-                    reused_existing_job = True
-        except AirbyteClientConfigurationError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        except AirbyteClientError as exc:
-            return _airbyte_exception_response(exc)
-
-        job_id = extract_job_id(payload)
-        job_status = extract_job_status(payload) or ("running" if reused_existing_job else "pending")
-        sync_started_at = timezone.now()
-        if job_id is not None:
-            connection.record_sync(job_id=job_id, job_status=job_status, job_created_at=sync_started_at)
-
-        account_id = _resolve_meta_account_for_connection(connection=connection)
-        if account_id:
-            window_start, window_end = _default_meta_window(now=sync_started_at)
+        normalized_account_id = _normalize_meta_account_id(credential.account_id)
+        existing_state = (
+            MetaAccountSyncState.objects.filter(
+                tenant_id=tenant_id,
+                account_id=normalized_account_id,
+            )
+            .order_by("-updated_at")
+            .first()
+        )
+        reused_existing_job = False
+        if (
+            existing_state is not None
+            and (existing_state.last_job_status or "").strip().lower() in SOCIAL_RUNNING_STATUSES
+            and existing_state.last_sync_started_at is not None
+            and now - existing_state.last_sync_started_at <= timedelta(hours=1)
+        ):
+            reused_existing_job = True
+            job_id = existing_state.last_job_id or None
+        else:
+            window_end = (now - timedelta(days=1)).date()
+            window_start = window_end - timedelta(days=META_DIRECT_SYNC_LOOKBACK_DAYS - 1)
+            job_id = str(uuid.uuid4())
             _upsert_meta_account_sync_state(
-                tenant=connection.tenant,
-                account_id=account_id,
+                tenant=request.user.tenant,
+                account_id=normalized_account_id,
                 connection=connection,
-                job_id=str(job_id) if job_id is not None else None,
-                job_status=job_status,
-                sync_started_at=sync_started_at,
+                job_id=job_id,
+                job_status="pending",
+                job_error="",
+                sync_started_at=now,
                 window_start=window_start,
                 window_end=window_end,
+                sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+                rows_synced=0,
+                error_category="",
             )
+            try:
+                sync_meta_reporting_slice.apply_async(
+                    kwargs={
+                        "tenant_id": str(tenant_id),
+                        "account_id": normalized_account_id,
+                        "job_id": job_id,
+                        "connection_pk": str(connection.id) if connection is not None else None,
+                        "since": window_start.isoformat(),
+                        "until": window_end.isoformat(),
+                    },
+                    task_id=job_id,
+                )
+            except Exception as exc:
+                if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
+                    raise
+                logger.exception(
+                    "meta.sync.direct_task_failed_eager",
+                    extra={
+                        "tenant_id": str(tenant_id),
+                        "account_id": normalized_account_id,
+                        "job_id": job_id,
+                        "error_type": type(exc).__name__,
+                    },
+                )
 
         log_audit_event(
             tenant=request.user.tenant,
             user=request.user,
             action="meta_sync_triggered",
-            resource_type="airbyte_connection",
-            resource_id=connection.id,
+            resource_type="platform_credential",
+            resource_id=credential.id,
             metadata={
                 "provider": PlatformCredential.META,
-                "connection_id": str(connection.connection_id),
-                "job_id": str(job_id) if job_id is not None else None,
+                "account_id": normalized_account_id,
+                "connection_id": str(connection.connection_id) if connection is not None else None,
+                "job_id": job_id,
                 "reused_existing_job": reused_existing_job,
+                "sync_engine": MetaAccountSyncState.SYNC_ENGINE_DIRECT,
             },
         )
 
         return Response(
             {
                 "provider": "meta_ads",
-                "connection_id": str(connection.connection_id),
-                "job_id": str(job_id) if job_id is not None else None,
+                "connection_id": str(connection.connection_id) if connection is not None else None,
+                "job_id": job_id,
                 "reused_existing_job": reused_existing_job,
                 "sync_status": "already_running" if reused_existing_job else "queued",
             },
@@ -1907,13 +2119,12 @@ class SocialConnectionStatusView(APIView):
         now = timezone.now()
         tenant_id = request.user.tenant_id
 
-        meta_credential = (
+        meta_credentials = list(
             PlatformCredential.objects.filter(
                 tenant_id=tenant_id,
                 provider=PlatformCredential.META,
             )
             .order_by("-updated_at")
-            .first()
         )
         meta_connections = list(
             AirbyteConnection.objects.filter(
@@ -1922,6 +2133,10 @@ class SocialConnectionStatusView(APIView):
             ).order_by("-updated_at")
         )
         preferred_connection = _select_preferred_meta_connection(meta_connections, now)
+        meta_credential = _select_preferred_meta_credential(
+            meta_credentials,
+            preferred_connection=preferred_connection,
+        )
         meta_sync_state = None
         if meta_credential is not None:
             meta_sync_state = (
@@ -1959,6 +2174,7 @@ class SocialConnectionStatusView(APIView):
 
         meta_status, meta_reason, meta_actions = _resolve_meta_status(
             credential=meta_credential,
+            sync_state=meta_sync_state,
             connection=preferred_connection,
             now=now,
             oauth_ready=oauth_ready,
@@ -2020,7 +2236,10 @@ class SocialConnectionStatusView(APIView):
                     "status": meta_status,
                     "reason": meta_reason,
                     "last_checked_at": now,
-                    "last_synced_at": preferred_connection.last_synced_at if preferred_connection else None,
+                    "last_synced_at": _meta_last_synced_at(
+                        sync_state=meta_sync_state,
+                        connection=preferred_connection,
+                    ),
                     "actions": meta_actions,
                     "metadata": {
                         "has_credential": bool(meta_credential),
@@ -2057,6 +2276,20 @@ class SocialConnectionStatusView(APIView):
                             if meta_sync_state and meta_sync_state.last_window_end
                             else None
                         ),
+                        "sync_state_last_sync_engine": (
+                            meta_sync_state.last_sync_engine if meta_sync_state else None
+                        ),
+                        "sync_state_last_rows_synced": (
+                            meta_sync_state.last_rows_synced if meta_sync_state else 0
+                        ),
+                        "sync_state_last_data_date": (
+                            meta_sync_state.last_data_date.isoformat()
+                            if meta_sync_state and meta_sync_state.last_data_date
+                            else None
+                        ),
+                        "sync_state_last_error_category": (
+                            meta_sync_state.last_error_category if meta_sync_state else None
+                        ),
                         "sync_state_updated_at": (
                             meta_sync_state.updated_at.isoformat()
                             if meta_sync_state and meta_sync_state.updated_at
@@ -2070,7 +2303,10 @@ class SocialConnectionStatusView(APIView):
                     "status": instagram_status,
                     "reason": instagram_reason,
                     "last_checked_at": now,
-                    "last_synced_at": preferred_connection.last_synced_at if preferred_connection else None,
+                    "last_synced_at": _meta_last_synced_at(
+                        sync_state=meta_sync_state,
+                        connection=preferred_connection,
+                    ),
                     "actions": instagram_actions,
                     "metadata": {
                         "linked_instagram_account_id": instagram_linked_id,
@@ -2145,7 +2381,8 @@ class PlatformCredentialViewSet(viewsets.ModelViewSet):
 
 class AirbyteConnectionViewSet(viewsets.ModelViewSet):
     serializer_class = AirbyteConnectionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, HasPrivilege]
+    required_privilege = "workspace_manage"
 
     def get_queryset(self):
         user = self.request.user
@@ -2521,6 +2758,9 @@ class AirbyteWebhookView(APIView):
                         sync_completed_at=completed_at,
                         window_start=window_start,
                         window_end=window_end,
+                        sync_engine=MetaAccountSyncState.SYNC_ENGINE_AIRBYTE,
+                        rows_synced=records_synced or 0,
+                        error_category="",
                     )
 
             if update.job_id:
@@ -2648,7 +2888,8 @@ class AirbyteWebhookView(APIView):
 
 class CampaignBudgetViewSet(viewsets.ModelViewSet):
     serializer_class = CampaignBudgetSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, HasPrivilege]
+    required_privilege = "budget_edit"
 
     def get_queryset(self):
         user = self.request.user
@@ -2714,7 +2955,8 @@ class CampaignBudgetViewSet(viewsets.ModelViewSet):
 
 class AlertRuleDefinitionViewSet(viewsets.ModelViewSet):
     serializer_class = AlertRuleDefinitionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, HasPrivilege]
+    required_privilege = "dashboard_edit"
     schema = AutoSchema(operation_id_base="AdminAlertRuleDefinition")
 
     def get_queryset(self):

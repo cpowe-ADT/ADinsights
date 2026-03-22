@@ -36,7 +36,7 @@ django.setup()
 import pytest
 from rest_framework.test import APIClient
 
-from accounts.models import Tenant, User
+from accounts.models import Role, Tenant, User, assign_role, seed_default_roles
 from tests.integration.gating import is_integration_test_path, should_collect_path
 
 
@@ -47,12 +47,15 @@ def tenant(db) -> Tenant:
 
 @pytest.fixture
 def user(tenant) -> User:
-    return User.objects.create_user(
+    seed_default_roles()
+    user = User.objects.create_user(
         username="user@example.com",
         email="user@example.com",
         tenant=tenant,
         password="password123",
     )
+    assign_role(user, Role.ADMIN)
+    return user
 
 
 @pytest.fixture

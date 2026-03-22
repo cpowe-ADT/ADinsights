@@ -21,6 +21,13 @@ def authenticate(api_client, user):
     return token
 
 
+def list_results(response):
+    body = response.json()
+    if isinstance(body, list):
+        return body
+    return body.get("results", [])
+
+
 def test_login_creates_audit_log_and_list_filters(api_client, user, tenant):
     authenticate(api_client, user)
 
@@ -29,13 +36,13 @@ def test_login_creates_audit_log_and_list_filters(api_client, user, tenant):
 
     response = api_client.get(reverse("auditlog-list"))
     assert response.status_code == 200
-    body = response.json()
+    body = list_results(response)
     assert len(body) == 1
     assert body[0]["action"] == "login"
 
     filtered = api_client.get(reverse("auditlog-list"), {"action": "login"})
     assert filtered.status_code == 200
-    assert len(filtered.json()) == 1
+    assert len(list_results(filtered)) == 1
 
 
 def test_platform_credential_crud_logs(api_client, user, tenant):
@@ -188,7 +195,7 @@ def test_audit_log_endpoint_is_tenant_scoped(api_client, user, tenant, db):
 
     response = api_client.get(reverse("auditlog-list"))
     assert response.status_code == 200
-    body = response.json()
+    body = list_results(response)
     assert all(entry["tenant"] == str(tenant.id) for entry in body)
     assert log.id not in {entry["id"] for entry in body}
 
@@ -196,4 +203,4 @@ def test_audit_log_endpoint_is_tenant_scoped(api_client, user, tenant, db):
         reverse("auditlog-list"), {"resource_type": "auth", "action": "login"}
     )
     assert filtered.status_code == 200
-    assert all(entry["tenant"] == str(tenant.id) for entry in filtered.json())
+    assert all(entry["tenant"] == str(tenant.id) for entry in list_results(filtered))

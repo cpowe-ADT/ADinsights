@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
 
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import Tenant, User
 from integrations.models import (
@@ -47,6 +48,18 @@ def _create_page_for_user(user: User) -> MetaPage:
     page.set_raw_page_token("page-token")
     page.save()
     return page
+
+
+def _recent_utc_datetime(*, days_ago: int = 1, hour: int = 8, minute: int = 0) -> datetime:
+    target_day = timezone.localdate() - timedelta(days=days_ago)
+    return datetime(
+        target_day.year,
+        target_day.month,
+        target_day.day,
+        hour,
+        minute,
+        tzinfo=dt_timezone.utc,
+    )
 
 
 @pytest.mark.django_db
@@ -335,13 +348,14 @@ def test_meta_connect_callback_rejects_invalid_debug_token(
 def test_meta_pages_select_overview_timeseries_posts_and_refresh(api_client, user, monkeypatch):
     _authenticate(api_client, username="user@example.com")
     page = _create_page_for_user(user)
+    target_time = _recent_utc_datetime()
 
     MetaInsightPoint.all_objects.create(
         tenant=user.tenant,
         page=page,
         metric_key="page_post_engagements",
         period="day",
-        end_time=datetime(2026, 2, 18, 8, 0, tzinfo=dt_timezone.utc),
+        end_time=target_time,
         value_num=100,
         breakdown_key_normalized="__none__",
     )
@@ -350,7 +364,7 @@ def test_meta_pages_select_overview_timeseries_posts_and_refresh(api_client, use
         tenant=user.tenant,
         page=page,
         post_id="page-1_111",
-        created_time=datetime(2026, 2, 18, 8, 0, tzinfo=dt_timezone.utc),
+        created_time=target_time,
         message="hello",
         permalink_url="https://example.com/post/111",
     )
@@ -359,7 +373,7 @@ def test_meta_pages_select_overview_timeseries_posts_and_refresh(api_client, use
         post=post,
         metric_key="post_reactions_like_total",
         period="lifetime",
-        end_time=datetime(2026, 2, 18, 8, 0, tzinfo=dt_timezone.utc),
+        end_time=target_time,
         value_num=44,
         breakdown_key_normalized="__none__",
     )

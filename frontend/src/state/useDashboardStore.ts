@@ -26,6 +26,13 @@ import {
   buildMetricsFromUpload,
   type UploadedDataset,
 } from '../lib/uploadedMetrics';
+import {
+  getDashboardSessionState,
+  resetDashboardSession,
+  setDashboardSessionTenant,
+  subscribeDashboardSession,
+  type DashboardSessionState,
+} from './dashboardSession';
 import { getDatasetMode, getDatasetSource, getDemoTenantId } from './useDatasetStore';
 
 export type MetricKey = 'spend' | 'impressions' | 'clicks' | 'conversions' | 'roas';
@@ -210,6 +217,7 @@ function createInitialState(): Pick<
   | 'uploadedActive'
 > {
   const uploadState = loadUploadState();
+  const dashboardSession = getDashboardSessionState();
   return {
     filters: createDefaultFilterState(),
     selectedParish: undefined,
@@ -218,8 +226,8 @@ function createInitialState(): Pick<
     creative: initialSlice(),
     budget: initialSlice(),
     parish: initialSlice(),
-    activeTenantId: undefined,
-    activeTenantLabel: undefined,
+    activeTenantId: dashboardSession.activeTenantId,
+    activeTenantLabel: dashboardSession.activeTenantLabel,
     lastLoadedTenantId: undefined,
     lastLoadedFiltersKey: undefined,
     lastSnapshotGeneratedAt: undefined,
@@ -578,6 +586,30 @@ async function fetchDummySnapshot(path = '/sample_metrics.json'): Promise<Tenant
   return (await response.json()) as TenantMetricsSnapshot;
 }
 
+function applySessionStateToDashboard(
+  state: DashboardState,
+  session: DashboardSessionState,
+): Partial<DashboardState> | null {
+  const currentTenantId = normalizeTenantId(state.activeTenantId);
+  const nextTenantId = normalizeTenantId(session.activeTenantId);
+  const nextTenantLabel =
+    typeof session.activeTenantLabel === 'string' && session.activeTenantLabel.trim()
+      ? session.activeTenantLabel.trim()
+      : undefined;
+  const tenantChanged = currentTenantId !== nextTenantId;
+  const labelChanged = state.activeTenantLabel !== nextTenantLabel;
+
+  if (!tenantChanged && !labelChanged) {
+    return null;
+  }
+
+  return {
+    activeTenantId: nextTenantId,
+    activeTenantLabel: nextTenantLabel ?? (tenantChanged ? undefined : state.activeTenantLabel),
+    selectedParish: tenantChanged ? undefined : state.selectedParish,
+  };
+}
+
 const useDashboardStore = create<DashboardState>((set, get) => ({
   ...createInitialState(),
   getSavedTableView: (tableId) => loadSavedView(tableId),
@@ -639,20 +671,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
   },
   setSelectedMetric: (metric) => set({ selectedMetric: metric }),
   setActiveTenant: (tenantId, tenantLabel) => {
-    const normalizedTenantId = normalizeTenantId(tenantId);
-    const normalizedLabel =
-      typeof tenantLabel === 'string' && tenantLabel.trim() ? tenantLabel.trim() : undefined;
-
-    set((state) => {
-      const currentTenantId = normalizeTenantId(state.activeTenantId);
-      const hasChanged = normalizedTenantId !== currentTenantId;
-
-      return {
-        activeTenantId: normalizedTenantId,
-        activeTenantLabel: normalizedLabel ?? (hasChanged ? undefined : state.activeTenantLabel),
-        selectedParish: hasChanged ? undefined : state.selectedParish,
-      };
-    });
+    setDashboardSessionTenant(tenantId, tenantLabel);
   },
   loadAll: async (tenantId, options) => {
     const {
@@ -763,6 +782,21 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     const sourceOverride = getDatasetSource();
     const uploadSource = uploadedActive ? 'upload' : undefined;
     const metricsSource = uploadSource ?? sourceOverride;
+
+    if (!MOCK_MODE && !metricsSource) {
+      const message =
+        datasetMode === 'live'
+          ? 'Live warehouse metrics are unavailable.'
+          : 'Demo dataset is unavailable.';
+      set((state) => ({
+        campaign: { status: 'error', data: state.campaign.data, error: message },
+        creative: { status: 'error', data: state.creative.data, error: message },
+        budget: { status: 'error', data: state.budget.data, error: message },
+        parish: { status: 'error', data: state.parish.data, error: message },
+      }));
+      return;
+    }
+
     let metricsPath = withFilters(
       withSource(withTenant('/metrics/combined/', normalizedTenantId), metricsSource),
       filters,
@@ -1093,11 +1127,25 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     });
   },
   reset: () => {
-    set({
-      ...createInitialState(),
-    });
+    resetDashboardSession();
   },
 }));
+
+let lastDashboardSessionResetVersion = getDashboardSessionState().resetVersion;
+
+subscribeDashboardSession((sessionState) => {
+  useDashboardStore.setState((state) => {
+    if (sessionState.resetVersion !== lastDashboardSessionResetVersion) {
+      lastDashboardSessionResetVersion = sessionState.resetVersion;
+      return {
+        ...createInitialState(),
+      };
+    }
+
+    const nextState = applySessionStateToDashboard(state, sessionState);
+    return nextState ?? state;
+  });
+});
 
 export function isMockMode(): boolean {
   return MOCK_MODE;

@@ -54,6 +54,7 @@
     {% endif %}
 
     {% for fixture in fixtures %}
+        {% set backend_raw_sql = backend_raw_fixture_sql(fixture) %}
         {% set seed_relation = adapter.get_relation(
             database=seed_database,
             schema=seed_schema,
@@ -84,7 +85,10 @@
         {% endif %}
 
         {% set source_sql = None %}
-        {% if seed_relation %}
+        {% if backend_raw_sql %}
+            {% set source_sql = backend_raw_sql %}
+            {% do log('Using backend raw performance bridge for ' ~ fixture.identifier ~ '.', info=True) %}
+        {% elif seed_relation %}
             {% set source_sql %}
                 select * from {{ seed_relation }}
             {% endset %}

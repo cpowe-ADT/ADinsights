@@ -19,11 +19,13 @@ from core.crypto.fields import decrypt_value, encrypt_value
 class PlatformCredential(models.Model):
     META = "META"
     GOOGLE = "GOOGLE"
+    GOOGLE_ANALYTICS = "GOOGLE_ANALYTICS"
     LINKEDIN = "LINKEDIN"
     TIKTOK = "TIKTOK"
     PROVIDER_CHOICES = [
         (META, "Meta"),
         (GOOGLE, "Google Ads"),
+        (GOOGLE_ANALYTICS, "Google Analytics"),
         (LINKEDIN, "LinkedIn"),
         (TIKTOK, "TikTok"),
     ]
@@ -422,6 +424,13 @@ class TenantAirbyteSyncStatus(models.Model):
 class MetaAccountSyncState(models.Model):
     """Per-account Meta sync-state materialized for operations/status surfaces."""
 
+    SYNC_ENGINE_AIRBYTE = "airbyte"
+    SYNC_ENGINE_DIRECT = "direct"
+    SYNC_ENGINE_CHOICES = [
+        (SYNC_ENGINE_AIRBYTE, "Airbyte"),
+        (SYNC_ENGINE_DIRECT, "Direct"),
+    ]
+
     tenant = models.ForeignKey(
         Tenant, on_delete=models.CASCADE, related_name="meta_account_sync_states"
     )
@@ -441,6 +450,15 @@ class MetaAccountSyncState(models.Model):
     last_success_at = models.DateTimeField(null=True, blank=True)
     last_window_start = models.DateField(null=True, blank=True)
     last_window_end = models.DateField(null=True, blank=True)
+    last_sync_engine = models.CharField(
+        max_length=16,
+        choices=SYNC_ENGINE_CHOICES,
+        default=SYNC_ENGINE_AIRBYTE,
+        blank=True,
+    )
+    last_rows_synced = models.PositiveIntegerField(default=0)
+    last_data_date = models.DateField(null=True, blank=True)
+    last_error_category = models.CharField(max_length=64, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -505,6 +523,39 @@ class MetaConnection(models.Model):
     def decrypt_token(self) -> Optional[str]:
         key, _ = get_dek_for_tenant(self.tenant)
         return decrypt_value(self.token_enc, self.token_nonce, self.token_tag, key)
+
+
+class GoogleAnalyticsConnection(models.Model):
+    """Tenant-scoped Google Analytics 4 (GA4) property link."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="google_analytics_connections"
+    )
+    credentials = models.ForeignKey(
+        PlatformCredential,
+        on_delete=models.CASCADE,
+        related_name="google_analytics_connections",
+    )
+    property_id = models.CharField(max_length=128)
+    property_name = models.CharField(max_length=255)
+    is_active = models.BooleanField(default=True)
+    sync_frequency = models.CharField(max_length=32, default="daily")
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "property_id")
+        indexes = [
+            models.Index(fields=["tenant", "is_active"], name="ga4_conn_tenant_active"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - repr helper
+        return f"GA4<{self.property_name}:{self.property_id}>"
 
 
 class MetaPage(models.Model):

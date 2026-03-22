@@ -30,8 +30,9 @@ from adapters.base import MetricsAdapter
 from adapters.demo import DemoAdapter, clear_demo_seed_cache, _demo_seed_dir
 from adapters.fake import FakeAdapter
 from adapters.upload import UploadAdapter
-from adapters.warehouse import WarehouseAdapter
+from adapters.warehouse import WarehouseAdapter, WarehouseSnapshotUnavailable
 
+from accounts.permissions import HasPrivilege
 from .models import (
     Ad,
     AdSet,
@@ -253,10 +254,16 @@ class MetricsView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        payload = adapter.fetch_metrics(
-            tenant_id=str(tenant_id),
-            options=request.query_params,
-        )
+        try:
+            payload = adapter.fetch_metrics(
+                tenant_id=str(tenant_id),
+                options=request.query_params,
+            )
+        except WarehouseSnapshotUnavailable as exc:
+            return Response(
+                {"detail": exc.detail},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         return Response(payload)
 
 
@@ -282,8 +289,21 @@ class CombinedMetricsView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        default_key = default_adapter_key(registry)
-        source = request.query_params.get("source", default_key)
+        requested_source = request.query_params.get("source")
+        if requested_source:
+            source = requested_source
+        elif "warehouse" in registry:
+            source = default_adapter_key(registry)
+        else:
+            cache_outcome = "implicit_source_unavailable"
+            return Response(
+                {
+                    "detail": (
+                        "Explicit source is required when the warehouse adapter is unavailable."
+                    )
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         adapter = registry.get(source)
         if adapter is None:
             cache_outcome = "unknown_source"
@@ -316,6 +336,13 @@ class CombinedMetricsView(APIView):
             query_count = result.query_count
             status_label = "success"
             return Response(result.payload)
+        except WarehouseSnapshotUnavailable as exc:
+            cache_outcome = "warehouse_unavailable"
+            status_label = "warehouse_unavailable"
+            return Response(
+                {"detail": exc.detail},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         except Exception:
             cache_outcome = "error"
             status_label = "error"
@@ -492,7 +519,8 @@ class MetricsViewSet(viewsets.ViewSet):
 class UploadMetricsView(GenericAPIView):
     """Accept CSV uploads and store a combined metrics snapshot."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, HasPrivilege]
+    required_privilege = "job_run"
     parser_classes = [MultiPartParser]
 
     def get_serializer_class(self):  # noqa: D401 - DRF signature
@@ -611,7 +639,8 @@ class _Echo:
 class MetricsExportView(APIView):
     """Stream tenant metrics as a CSV attachment."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, HasPrivilege]
+    required_privilege = "csv_export"
 
     def get(self, request, *args, **kwargs):  # noqa: ANN001
         query_params = request.query_params.copy()

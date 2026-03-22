@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from accounts.models import Tenant
 from accounts.tenant_context import tenant_context
+from adapters.warehouse import WAREHOUSE_SNAPSHOT_STATUS_KEY
 from analytics.models import AISummary, ReportExportJob, TenantMetricsSnapshot
 from analytics.snapshots import (
     default_snapshot_metrics,
@@ -81,6 +82,7 @@ def _snapshot_payload_for_tenant(tenant_id: str) -> tuple[dict, datetime, str]:
     generated_at = _ensure_aware(metrics.generated_at)
     payload = snapshot_metrics_to_combined_payload(metrics)
     payload["snapshot_generated_at"] = generated_at.isoformat()
+    payload[WAREHOUSE_SNAPSHOT_STATUS_KEY] = status
     return payload, generated_at, status
 
 

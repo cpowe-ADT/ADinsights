@@ -9,7 +9,8 @@ services:
     ports:
       - '5173:80'
     depends_on:
-      - backend
+      backend:
+        condition: service_started
 
   backend:
     build:
@@ -29,8 +30,12 @@ services:
     ports:
       - '8000:8000'
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      backend-setup:
+        condition: service_completed_successfully
 
   scheduler:
     build:
@@ -48,8 +53,12 @@ services:
       TIME_ZONE: America/Jamaica
       DEBUG: '1'
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      backend-setup:
+        condition: service_completed_successfully
 
   superset:
     image: apache/superset:3.1.0
@@ -61,7 +70,8 @@ services:
     ports:
       - '8088:8088'
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   redis:
     image: redis:7
@@ -74,10 +84,38 @@ services:
       POSTGRES_DB: adinsights
       POSTGRES_USER: analytics
       POSTGRES_PASSWORD: analytics
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U analytics -d adinsights']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
     ports:
       - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
+
+  backend-setup:
+    image: ghcr.io/adinsights/backend:latest
+    environment:
+      DJANGO_SECRET_KEY: changeme
+      ALLOWED_HOSTS: '*'
+      DATABASE_URL: postgres://analytics:analytics@db:5432/adinsights
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      KMS_PROVIDER: local
+      KMS_KEY_ID: local-dev-kms
+      TIME_ZONE: America/Jamaica
+      DEBUG: '1'
+    command: >
+      bash -c "python manage.py migrate --noinput &&
+               python manage.py seed_roles &&
+               python manage.py enable_rls"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   llm:
     profiles:

@@ -208,6 +208,62 @@ def test_airbyte_health_reports_pending_sync(api_client, tenant, settings):
 
 
 @pytest.mark.django_db
+def test_airbyte_health_reconciles_stale_running_job(api_client, tenant, settings, monkeypatch):
+    settings.AIRBYTE_API_URL = "http://airbyte.local"
+    settings.AIRBYTE_API_TOKEN = "token"
+    now = timezone.now()
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Meta",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=30,
+        last_synced_at=now,
+        last_job_status="running",
+        last_job_id="101",
+        last_job_updated_at=now - timedelta(minutes=15),
+    )
+    TenantAirbyteSyncStatus.update_for_connection(connection)
+
+    class DummyAirbyteClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def latest_job(self, connection_id: str):
+            assert connection_id == str(connection.connection_id)
+            return {
+                "job": {
+                    "id": 101,
+                    "status": "failed",
+                    "createdAt": int((now - timedelta(minutes=20)).timestamp()),
+                    "updatedAt": int((now - timedelta(minutes=1)).timestamp()),
+                    "attempts": [
+                        {
+                            "attempt": {
+                                "status": "failed",
+                                "failureSummary": {"externalMessage": "remote failure"},
+                            }
+                        }
+                    ],
+                }
+            }
+
+    monkeypatch.setattr("core.views.AirbyteClient.from_settings", lambda: DummyAirbyteClient())
+
+    response = api_client.get("/api/health/airbyte/")
+
+    assert response.status_code == 502
+    payload = response.json()
+    assert payload["status"] == "sync_failed"
+    assert payload["last_sync"]["last_job_status"] == "failed"
+    assert payload["error"] == "remote failure"
+
+
+@pytest.mark.django_db
 def test_airbyte_health_flags_stale_sync(api_client, tenant, settings):
     settings.AIRBYTE_API_URL = "http://airbyte.local"
     settings.AIRBYTE_API_TOKEN = "token"

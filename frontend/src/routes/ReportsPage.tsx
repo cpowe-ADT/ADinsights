@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { useAuth } from '../auth/AuthContext';
 import DashboardState from '../components/DashboardState';
 import { listReports, type ReportDefinition } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
+import { canAccessCreatorUi } from '../lib/rbac';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 
 const ReportsPage = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const canCreate = canAccessCreatorUi(user);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [reports, setReports] = useState<ReportDefinition[]>([]);
   const [error, setError] = useState('Unable to load reports.');
@@ -83,9 +87,11 @@ const ReportsPage = () => {
           <button type="button" className="button secondary" onClick={() => void load()}>
             Refresh
           </button>
-          <Link to="/reports/new" className="button primary">
-            New report
-          </Link>
+          {canCreate ? (
+            <Link to="/reports/new" className="button primary">
+              New report
+            </Link>
+          ) : null}
         </div>
       </header>
 
@@ -95,8 +101,8 @@ const ReportsPage = () => {
           layout="page"
           title="No reports yet"
           message="Create your first report definition to unlock exports and scheduling."
-          actionLabel="Create report"
-          onAction={() => navigate('/reports/new')}
+          actionLabel={canCreate ? 'Create report' : undefined}
+          onAction={canCreate ? () => navigate('/reports/new') : undefined}
         />
       ) : (
         <div className="phase2-grid">

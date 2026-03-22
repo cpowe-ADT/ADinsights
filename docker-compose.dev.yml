@@ -158,7 +158,12 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
-    command: bash -lc "pip install --no-cache-dir -r requirements.txt 2>/dev/null || true && celery -A core beat -l INFO --schedule /tmp/celerybeat-schedule --pidfile /tmp/celerybeat.pid"
+    command: >
+      bash -lc "
+        pip install --no-cache-dir -r requirements.txt 2>/dev/null || true &&
+        rm -f /tmp/celerybeat.pid &&
+        celery -A core beat -l INFO --schedule /tmp/celerybeat-schedule --pidfile /tmp/celerybeat.pid
+      "
     restart: on-failure
 
   frontend:
@@ -174,7 +179,13 @@ services:
     depends_on:
       backend:
         condition: service_started
-    command: sh -c "npm ci --silent || true && npm run dev -- --host 0.0.0.0"
+    command: >
+      sh -c "
+        if [ ! -d node_modules ] || [ -z \"$(ls -A node_modules 2>/dev/null)\" ]; then
+          npm ci --silent || true;
+        fi &&
+        npm run dev -- --host 0.0.0.0
+      "
 
 volumes:
   pgdata:

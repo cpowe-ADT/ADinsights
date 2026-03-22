@@ -107,7 +107,27 @@ permissions:
     runtime_gate_required: true
     requested_in_default_oauth: true
     notes: 'Foundational dependency for Page-scoped and some ad-scoped permissions.'
-    last_reviewed_on: 2026-02-19
+    last_reviewed_on: 2026-03-16
+  - permission: read_insights
+    family: pages
+    dependencies:
+      - pages_read_engagement
+      - pages_show_list
+    allowed_usage:
+      - Read Page insights data for Facebook and Instagram accounts.
+    app_review_use_case_requirements:
+      - State that ADinsights reads Page insights on behalf of businesses to provide engagement and reach reporting.
+    app_review_screencast_requirements:
+      - Demonstrate the complete Facebook login process and permission grant.
+      - Demonstrate Page insights (reach, views, etc.) displayed in ADinsights.
+    adinsights_status: required_now
+    adinsights_feature_mapping:
+      - Meta Page Insights retrieval via /api/meta/pages/<id>/overview/.
+      - Tenant reporting dashboards fed by Meta Page metrics.
+    runtime_gate_required: true
+    requested_in_default_oauth: true
+    notes: 'Required for the Page Insights flow.'
+    last_reviewed_on: 2026-03-16
   - permission: instagram_basic
     family: instagram
     dependencies:

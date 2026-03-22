@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient, { appendQueryParams } from './apiClient';
 
 export interface AirbyteConnectionRecord {
   id: string;
@@ -80,6 +80,12 @@ export interface AirbyteConnectionsSummary {
   by_provider: Record<string, AirbyteConnectionSummaryCounts>;
   latest_sync?: AirbyteSyncStatusSummary | null;
 }
+
+type AirbyteConnectionsListResponse =
+  | AirbyteConnectionRecord[]
+  | {
+      results?: AirbyteConnectionRecord[];
+    };
 
 export interface MetaOAuthStartResponse {
   authorize_url: string;
@@ -216,6 +222,71 @@ export interface MetaSetupStatusResponse {
   };
 }
 
+export interface GoogleAnalyticsSetupStatusResponse {
+  provider: 'google_analytics';
+  ready_for_oauth: boolean;
+  oauth_scopes: string[];
+  redirect_uri?: string | null;
+  runtime_context?: {
+    redirect_uri?: string | null;
+    redirect_source?: string | null;
+    dataset_source?: string | null;
+  };
+}
+
+export interface GoogleAnalyticsOAuthStartPayload {
+  runtime_context?: RuntimeContextPayload;
+}
+
+export interface GoogleAnalyticsOAuthStartResponse {
+  authorize_url: string;
+  state: string;
+}
+
+export interface GoogleAnalyticsOAuthExchangeResponse {
+  credential: PlatformCredentialRecord;
+  refresh_token_received: boolean;
+}
+
+export interface GoogleAnalyticsPropertyRecord {
+  property: string;
+  property_id: string;
+  property_name: string;
+  account_name: string;
+}
+
+export interface GoogleAnalyticsPropertiesResponse {
+  credential_id: string;
+  properties: GoogleAnalyticsPropertyRecord[];
+}
+
+export interface GoogleAnalyticsProvisionResponse {
+  connection: {
+    id: string;
+    credential_id: string;
+    property_id: string;
+    property_name: string;
+    is_active: boolean;
+    sync_frequency: string;
+    last_synced_at?: string | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+  };
+}
+
+export interface GoogleAnalyticsStatusResponse {
+  provider: 'google_analytics';
+  status: 'not_connected' | 'started_not_complete' | 'complete' | 'active';
+  reason: {
+    message: string;
+    [key: string]: unknown;
+  };
+  actions: string[];
+  last_checked_at?: string | null;
+  last_synced_at?: string | null;
+  metadata: Record<string, unknown>;
+}
+
 export type SocialConnectionPlatform = 'meta' | 'instagram';
 export type SocialConnectionStatus =
   | 'not_connected'
@@ -248,13 +319,26 @@ const SUMMARY_ENDPOINT = '/airbyte/connections/summary/';
 const CONNECTIONS_FIXTURE = '/mock/airbyte_connections.json';
 const SUMMARY_FIXTURE = '/mock/airbyte_connections_summary.json';
 
+function normalizeAirbyteConnections(
+  payload: AirbyteConnectionsListResponse | null | undefined,
+): AirbyteConnectionRecord[] {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  if (Array.isArray(payload?.results)) {
+    return payload.results;
+  }
+  return [];
+}
+
 export async function loadAirbyteConnections(
   signal?: AbortSignal,
 ): Promise<AirbyteConnectionRecord[]> {
-  return apiClient.get<AirbyteConnectionRecord[]>(CONNECTIONS_ENDPOINT, {
+  const payload = await apiClient.get<AirbyteConnectionsListResponse>(CONNECTIONS_ENDPOINT, {
     mockPath: CONNECTIONS_FIXTURE,
     signal,
   });
+  return normalizeAirbyteConnections(payload);
 }
 
 export async function loadAirbyteSummary(signal?: AbortSignal): Promise<AirbyteConnectionsSummary> {
@@ -357,6 +441,72 @@ export async function loadMetaSetupStatus(
   const suffix = params.toString();
   const path = suffix ? `/integrations/meta/setup/?${suffix}` : '/integrations/meta/setup/';
   return apiClient.get<MetaSetupStatusResponse>(path);
+}
+
+export async function loadGoogleAnalyticsSetupStatus(
+  runtimeContext?: RuntimeContextPayload,
+): Promise<GoogleAnalyticsSetupStatusResponse> {
+  const params = new URLSearchParams();
+  if (runtimeContext?.dataset_source?.trim()) {
+    params.set('dataset_source', runtimeContext.dataset_source.trim());
+  }
+  if (runtimeContext?.client_origin?.trim()) {
+    params.set('client_origin', runtimeContext.client_origin.trim());
+  }
+  if (typeof runtimeContext?.client_port === 'number' && Number.isFinite(runtimeContext.client_port)) {
+    params.set('client_port', String(runtimeContext.client_port));
+  }
+  const suffix = params.toString();
+  const path = suffix
+    ? `/integrations/google_analytics/setup/?${suffix}`
+    : '/integrations/google_analytics/setup/';
+  return apiClient.get<GoogleAnalyticsSetupStatusResponse>(path);
+}
+
+export async function startGoogleAnalyticsOAuth(
+  payload?: GoogleAnalyticsOAuthStartPayload,
+): Promise<GoogleAnalyticsOAuthStartResponse> {
+  return apiClient.post<GoogleAnalyticsOAuthStartResponse>(
+    '/integrations/google_analytics/oauth/start/',
+    payload ?? {},
+  );
+}
+
+export async function exchangeGoogleAnalyticsOAuthCode(payload: {
+  code: string;
+  state: string;
+  runtime_context?: RuntimeContextPayload;
+}): Promise<GoogleAnalyticsOAuthExchangeResponse> {
+  return apiClient.post<GoogleAnalyticsOAuthExchangeResponse>(
+    '/integrations/google_analytics/oauth/exchange/',
+    payload,
+  );
+}
+
+export async function loadGoogleAnalyticsProperties(query?: {
+  credential_id?: string;
+}): Promise<GoogleAnalyticsPropertiesResponse> {
+  const path = query
+    ? appendQueryParams('/integrations/google_analytics/properties/', query)
+    : '/integrations/google_analytics/properties/';
+  return apiClient.get<GoogleAnalyticsPropertiesResponse>(path);
+}
+
+export async function provisionGoogleAnalytics(payload: {
+  credential_id: string;
+  property_id: string;
+  property_name: string;
+  is_active?: boolean;
+  sync_frequency?: string;
+}): Promise<GoogleAnalyticsProvisionResponse> {
+  return apiClient.post<GoogleAnalyticsProvisionResponse>(
+    '/integrations/google_analytics/provision/',
+    payload,
+  );
+}
+
+export async function loadGoogleAnalyticsStatus(): Promise<GoogleAnalyticsStatusResponse> {
+  return apiClient.get<GoogleAnalyticsStatusResponse>('/integrations/google_analytics/status/');
 }
 
 export async function loadSocialConnectionStatus(

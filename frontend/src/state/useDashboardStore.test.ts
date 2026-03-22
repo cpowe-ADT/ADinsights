@@ -191,6 +191,16 @@ describe('useDashboardStore', () => {
     globalThis.fetch = fetchMock as typeof globalThis.fetch;
 
     const { default: useDashboardStore } = await import('./useDashboardStore');
+    const { useDatasetStore } = await import('./useDatasetStore');
+    useDatasetStore.setState({
+      mode: 'live',
+      adapters: ['warehouse'],
+      status: 'loaded',
+      error: undefined,
+      source: 'warehouse',
+      demoTenants: [],
+      demoTenantId: undefined,
+    });
 
     await useDashboardStore.getState().loadAll('tenant-xyz');
 
@@ -258,6 +268,16 @@ describe('useDashboardStore', () => {
     globalThis.fetch = fetchMock as typeof globalThis.fetch;
 
     const { default: useDashboardStore } = await import('./useDashboardStore');
+    const { useDatasetStore } = await import('./useDatasetStore');
+    useDatasetStore.setState({
+      mode: 'live',
+      adapters: ['warehouse'],
+      status: 'loaded',
+      error: undefined,
+      source: 'warehouse',
+      demoTenants: [],
+      demoTenantId: undefined,
+    });
     await useDashboardStore.getState().loadAll('tenant-xyz', { force: true });
 
     const state = useDashboardStore.getState();
@@ -404,6 +424,16 @@ describe('useDashboardStore', () => {
     globalThis.fetch = fetchMock as typeof globalThis.fetch;
 
     const { default: useDashboardStore } = await import('./useDashboardStore');
+    const { useDatasetStore } = await import('./useDatasetStore');
+    useDatasetStore.setState({
+      mode: 'live',
+      adapters: ['warehouse'],
+      status: 'loaded',
+      error: undefined,
+      source: 'warehouse',
+      demoTenants: [],
+      demoTenantId: undefined,
+    });
 
     useDashboardStore.getState().setFilters({
       dateRange: 'custom',
@@ -424,6 +454,23 @@ describe('useDashboardStore', () => {
     expect(params.get('end_date')).toBe('2024-08-31');
     expect(params.get('channels')).toBe('meta,google_ads');
     expect(params.get('campaign_search')).toBe('Kingston');
+  });
+
+  it('fails fast when live mode has no warehouse source', async () => {
+    vi.stubEnv('VITE_MOCK_MODE', 'false');
+
+    const fetchMock = vi.fn<(url: RequestInfo | URL) => Promise<Response>>();
+    globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+    const { default: useDashboardStore } = await import('./useDashboardStore');
+
+    await useDashboardStore.getState().loadAll('tenant-xyz', { force: true });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    const state = useDashboardStore.getState();
+    expect(state.campaign.status).toBe('error');
+    expect(state.campaign.error).toBe('Live warehouse metrics are unavailable.');
+    expect(state.creative.error).toBe('Live warehouse metrics are unavailable.');
   });
 
   it('flags API errors without discarding previous data', async () => {
@@ -535,6 +582,38 @@ describe('useDashboardStore', () => {
     expect(state.campaign.status).toBe('loaded');
     expect(state.campaign.data?.summary.currency).toBe('JMD');
     expect(state.activeTenantId).toBe('grace-kennedy');
+  });
+
+  it('mirrors dashboard session tenant updates and reset events', async () => {
+    const { default: useDashboardStore } = await import('./useDashboardStore');
+    const {
+      resetDashboardSession,
+      setDashboardSessionTenant,
+    } = await import('./dashboardSession');
+
+    setDashboardSessionTenant('tenant-sync', 'Tenant Sync');
+
+    let state = useDashboardStore.getState();
+    expect(state.activeTenantId).toBe('tenant-sync');
+    expect(state.activeTenantLabel).toBe('Tenant Sync');
+
+    useDashboardStore.setState((current) => ({
+      ...current,
+      selectedParish: 'Kingston',
+    }));
+
+    setDashboardSessionTenant('tenant-next', 'Tenant Next');
+
+    state = useDashboardStore.getState();
+    expect(state.activeTenantId).toBe('tenant-next');
+    expect(state.activeTenantLabel).toBe('Tenant Next');
+    expect(state.selectedParish).toBeUndefined();
+
+    resetDashboardSession();
+
+    state = useDashboardStore.getState();
+    expect(state.activeTenantId).toBeUndefined();
+    expect(state.activeTenantLabel).toBeUndefined();
   });
 
   it('matches parish filters using canonical Saint/St normalization and supports clearing to all parishes', async () => {

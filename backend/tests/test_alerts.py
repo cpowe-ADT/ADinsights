@@ -11,6 +11,13 @@ from app import alerts as alert_rules
 from app.llm import LLMError
 
 
+def list_results(response):
+    payload = response.json()
+    if isinstance(payload, dict) and "results" in payload:
+        return payload["results"]
+    return payload
+
+
 @dataclass
 class StubEvaluator:
     rows: list[dict[str, object]]
@@ -138,7 +145,7 @@ def test_alert_history_api_returns_runs(api_client, user):
     api_client.force_authenticate(user=None)
 
     assert response.status_code == 200
-    payload = response.json()
+    payload = list_results(response)
     assert payload
     first = payload[0]
     assert first["rule_slug"] == "campaign_ctr_drop"

@@ -397,6 +397,10 @@ class MetaAccountSyncStateSerializer(serializers.ModelSerializer):
             "last_success_at",
             "last_window_start",
             "last_window_end",
+            "last_sync_engine",
+            "last_rows_synced",
+            "last_data_date",
+            "last_error_category",
             "updated_at",
         ]
         read_only_fields = fields

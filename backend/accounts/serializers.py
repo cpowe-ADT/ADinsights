@@ -103,6 +103,7 @@ class TenantTokenObtainPairSerializer(TokenObtainPairSerializer):
             action="login",
             resource_type="auth",
             resource_id=self.user.id,
+            request=self.context.get("request"),
         )
         return data
 

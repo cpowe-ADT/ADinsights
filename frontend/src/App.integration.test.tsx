@@ -437,6 +437,8 @@ describe('App integration', () => {
     vi.resetModules();
     vi.unstubAllEnvs();
     vi.stubEnv('VITE_MOCK_MODE', 'false');
+    window.localStorage.clear();
+    window.history.pushState({}, '', '/');
 
     const appModule: AppModule = await import('./App');
     App = appModule.default;
@@ -449,8 +451,6 @@ describe('App integration', () => {
 
     vi.restoreAllMocks();
     vi.clearAllMocks();
-    window.localStorage.clear();
-    window.history.pushState({}, '', '/');
     useDashboardStore.getState().reset();
 
     class ResizeObserverMock {

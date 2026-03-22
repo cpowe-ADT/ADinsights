@@ -28,6 +28,13 @@ class _BaseStubClient:
         return None
 
 
+def list_results(response):
+    body = response.json()
+    if isinstance(body, list):
+        return body
+    return body.get("results", [])
+
+
 @pytest.mark.django_db
 def test_airbyte_connections_health_success(api_client, user, tenant, monkeypatch):
     connection = AirbyteConnection.objects.create(
@@ -238,8 +245,7 @@ def test_airbyte_connection_create_and_list(api_client, user):
 
     list_response = api_client.get("/api/airbyte/connections/")
     assert list_response.status_code == 200
-    results = list_response.json()
-    assert isinstance(results, list)
+    results = list_results(list_response)
     assert len(results) == 1
     assert results[0]["id"] == created["id"]
 
@@ -350,7 +356,7 @@ def test_airbyte_connection_list_scoped_to_tenant(api_client, user, tenant):
     api_client.force_authenticate(user=user)
     response = api_client.get("/api/airbyte/connections/")
     assert response.status_code == 200
-    results = response.json()
+    results = list_results(response)
     assert {row["name"] for row in results} == {"Primary Sync"}
     assert str(other_tenant.connection_id) not in {row["connection_id"] for row in results}
 

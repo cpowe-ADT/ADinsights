@@ -11,6 +11,7 @@ from analytics.phase2_views import (
     DashboardLibraryView,
     ExportDownloadView,
     HealthOverviewView,
+    RecentDashboardsView,
     ReportDefinitionViewSet,
     SyncHealthView,
 )
@@ -94,6 +95,14 @@ from integrations.google_ads_views import (
     GoogleAdsSetupView,
     GoogleAdsStatusView,
     GoogleAdsSyncView,
+)
+from integrations.google_analytics.views import (
+    GoogleAnalyticsOAuthExchangeView,
+    GoogleAnalyticsOAuthStartView,
+    GoogleAnalyticsPropertiesView,
+    GoogleAnalyticsProvisionView,
+    GoogleAnalyticsSetupView,
+    GoogleAnalyticsStatusView,
 )
 from . import views as core_views
 from .viewsets import AirbyteTelemetryViewSet
@@ -181,6 +190,11 @@ urlpatterns = [
         "api/dashboards/library/",
         DashboardLibraryView.as_view(),
         name="dashboard-library",
+    ),
+    path(
+        "api/dashboards/recent/",
+        RecentDashboardsView.as_view(),
+        name="dashboard-recent",
     ),
     path("api/uploads/metrics/", UploadMetricsView.as_view(), name="metrics-upload"),
     path("api/metrics/", MetricsView.as_view(), name="metrics"),
@@ -388,6 +402,36 @@ urlpatterns = [
         "api/integrations/google_ads/disconnect/",
         GoogleAdsDisconnectView.as_view(),
         name="google-ads-disconnect",
+    ),
+    path(
+        "api/integrations/google_analytics/setup/",
+        GoogleAnalyticsSetupView.as_view(),
+        name="google-analytics-setup",
+    ),
+    path(
+        "api/integrations/google_analytics/oauth/start/",
+        GoogleAnalyticsOAuthStartView.as_view(),
+        name="google-analytics-oauth-start",
+    ),
+    path(
+        "api/integrations/google_analytics/oauth/exchange/",
+        GoogleAnalyticsOAuthExchangeView.as_view(),
+        name="google-analytics-oauth-exchange",
+    ),
+    path(
+        "api/integrations/google_analytics/properties/",
+        GoogleAnalyticsPropertiesView.as_view(),
+        name="google-analytics-properties",
+    ),
+    path(
+        "api/integrations/google_analytics/provision/",
+        GoogleAnalyticsProvisionView.as_view(),
+        name="google-analytics-provision",
+    ),
+    path(
+        "api/integrations/google_analytics/status/",
+        GoogleAnalyticsStatusView.as_view(),
+        name="google-analytics-status",
     ),
     path(
         "api/integrations/social/status/",

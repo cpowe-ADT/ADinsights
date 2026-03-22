@@ -13,6 +13,12 @@ from django.conf import settings
 from adapters.demo import DemoAdapter, clear_demo_seed_cache
 from adapters.fake import FakeAdapter
 from adapters.upload import UploadAdapter
+from adapters.warehouse import (
+    WAREHOUSE_SNAPSHOT_STATUS_DEFAULT,
+    WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
+    WAREHOUSE_SNAPSHOT_STATUS_KEY,
+    WAREHOUSE_UNAVAILABLE_DETAIL,
+)
 from analytics.models import TenantMetricsSnapshot
 from core.metrics import reset_metrics
 
@@ -114,7 +120,7 @@ def test_combined_metrics_endpoint_returns_sections(api_client, user):
     api_client.force_authenticate(user=user)
     adapter_payload = FakeAdapter().fetch_metrics(tenant_id=str(user.tenant_id))
 
-    response = api_client.get("/api/metrics/combined/")
+    response = api_client.get("/api/metrics/combined/", {"source": "fake"})
 
     assert response.status_code == 200
     payload = response.json()
@@ -130,6 +136,19 @@ def test_combined_metrics_requires_auth(api_client):
     response = api_client.get("/api/metrics/combined/")
 
     assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_combined_metrics_requires_explicit_source_without_warehouse(api_client, user):
+    api_client.force_authenticate(user=user)
+
+    response = api_client.get("/api/metrics/combined/")
+
+    assert response.status_code == 503
+    assert (
+        response.json()["detail"]
+        == "Explicit source is required when the warehouse adapter is unavailable."
+    )
 
 
 @pytest.mark.django_db
@@ -159,7 +178,7 @@ def test_combined_metrics_uses_snapshot(monkeypatch, api_client, user, settings)
 
     monkeypatch.setattr(FakeAdapter, "fetch_metrics", fake_fetch, raising=False)
 
-    response = api_client.get("/api/metrics/combined/")
+    response = api_client.get("/api/metrics/combined/", {"source": "fake"})
     assert response.status_code == 200
     first_payload = response.json()
     assert first_payload["campaign"]["summary"]["currency"] == "JMD"
@@ -170,7 +189,7 @@ def test_combined_metrics_uses_snapshot(monkeypatch, api_client, user, settings)
 
     monkeypatch.setattr(FakeAdapter, "fetch_metrics", fail_fetch, raising=False)
 
-    response = api_client.get("/api/metrics/combined/")
+    response = api_client.get("/api/metrics/combined/", {"source": "fake"})
     assert response.status_code == 200
     cached_payload = response.json()
     assert cached_payload == first_payload
@@ -202,10 +221,10 @@ def test_combined_metrics_cache_bypass(monkeypatch, api_client, user):
 
     monkeypatch.setattr(FakeAdapter, "fetch_metrics", rotating_fetch, raising=False)
 
-    response = api_client.get("/api/metrics/combined/")
+    response = api_client.get("/api/metrics/combined/", {"source": "fake"})
     assert response.json()["campaign"]["summary"]["currency"] == "USD"
 
-    response = api_client.get("/api/metrics/combined/", {"cache": "false"})
+    response = api_client.get("/api/metrics/combined/", {"source": "fake", "cache": "false"})
     assert response.json()["campaign"]["summary"]["currency"] == "CAD"
 
 
@@ -237,7 +256,7 @@ def test_combined_metrics_stale_snapshot_refreshes(monkeypatch, api_client, user
 
     monkeypatch.setattr(FakeAdapter, "fetch_metrics", refreshed_payload, raising=False)
 
-    response = api_client.get("/api/metrics/combined/")
+    response = api_client.get("/api/metrics/combined/", {"source": "fake"})
     assert response.status_code == 200
     assert response.json()["campaign"]["summary"]["currency"] == "CAD"
 
@@ -284,7 +303,7 @@ def test_combined_metrics_stale_snapshot_noop_write_when_payload_unchanged(
     logger = logging.getLogger("api.access")
     logger.addHandler(handler)
     try:
-        response = api_client.get("/api/metrics/combined/")
+        response = api_client.get("/api/metrics/combined/", {"source": "fake"})
     finally:
         logger.removeHandler(handler)
 
@@ -323,7 +342,7 @@ def test_combined_metrics_emits_runtime_metrics_context(monkeypatch, api_client,
     logger = logging.getLogger("api.access")
     logger.addHandler(handler)
     try:
-        response = api_client.get("/api/metrics/combined/", {"cache": "false"})
+        response = api_client.get("/api/metrics/combined/", {"source": "fake", "cache": "false"})
     finally:
         logger.removeHandler(handler)
 
@@ -366,7 +385,7 @@ def test_combined_metrics_cache_miss_without_snapshot_limits_query_count(
     logger = logging.getLogger("api.access")
     logger.addHandler(handler)
     try:
-        response = api_client.get("/api/metrics/combined/")
+        response = api_client.get("/api/metrics/combined/", {"source": "fake"})
     finally:
         logger.removeHandler(handler)
 
@@ -417,7 +436,7 @@ def test_combined_metrics_cache_disabled_updates_existing_snapshot_with_single_w
     logger = logging.getLogger("api.access")
     logger.addHandler(handler)
     try:
-        response = api_client.get("/api/metrics/combined/", {"cache": "false"})
+        response = api_client.get("/api/metrics/combined/", {"source": "fake", "cache": "false"})
     finally:
         logger.removeHandler(handler)
 
@@ -433,7 +452,7 @@ def test_combined_metrics_exports_observability_metrics(api_client, user):
     reset_metrics()
     api_client.force_authenticate(user=user)
 
-    response = api_client.get("/api/metrics/combined/")
+    response = api_client.get("/api/metrics/combined/", {"source": "fake"})
     assert response.status_code == 200
 
     metrics_response = api_client.get("/metrics/app/")
@@ -463,7 +482,12 @@ def test_combined_metrics_accepts_filter_params(monkeypatch, api_client, user):
 
     response = api_client.get(
         "/api/metrics/combined/",
-        {"start_date": "2024-09-01", "end_date": "2024-09-03", "parish": "Kingston"},
+        {
+            "source": "fake",
+            "start_date": "2024-09-01",
+            "end_date": "2024-09-03",
+            "parish": "Kingston",
+        },
     )
 
     assert response.status_code == 200
@@ -491,7 +515,7 @@ def test_combined_metrics_accepts_repeated_parish_params(monkeypatch, api_client
 
     response = api_client.get(
         "/api/metrics/combined/",
-        {"parish": ["Kingston", "St James"]},
+        {"source": "fake", "parish": ["Kingston", "St James"]},
     )
 
     assert response.status_code == 200
@@ -526,7 +550,7 @@ def test_combined_metrics_filters_do_not_update_cache(monkeypatch, api_client, u
 
     monkeypatch.setattr(FakeAdapter, "fetch_metrics", filtered_payload, raising=False)
 
-    response = api_client.get("/api/metrics/combined/", {"parish": "Kingston"})
+    response = api_client.get("/api/metrics/combined/", {"source": "fake", "parish": "Kingston"})
     assert response.status_code == 200
     assert response.json()["campaign"]["summary"]["currency"] == "CAD"
 
@@ -544,6 +568,7 @@ def test_combined_metrics_defaults_to_warehouse(api_client, user, settings, enab
         "budget": [],
         "parish": [],
         "snapshot_generated_at": timezone.now().isoformat(),
+        WAREHOUSE_SNAPSHOT_STATUS_KEY: WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
     }
 
     TenantMetricsSnapshot.objects.create(
@@ -561,6 +586,33 @@ def test_combined_metrics_defaults_to_warehouse(api_client, user, settings, enab
     assert payload["budget"] == snapshot_payload["budget"]
     assert payload["parish"] == snapshot_payload["parish"]
     assert "snapshot_generated_at" in payload
+
+
+@pytest.mark.django_db
+def test_combined_metrics_rejects_default_warehouse_snapshot(
+    api_client, user, settings, enable_warehouse_adapter
+):
+    settings.ENABLE_FAKE_ADAPTER = False
+    api_client.force_authenticate(user=user)
+
+    TenantMetricsSnapshot.objects.create(
+        tenant=user.tenant,
+        source="warehouse",
+        payload={
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+            "snapshot_generated_at": timezone.now().isoformat(),
+            WAREHOUSE_SNAPSHOT_STATUS_KEY: WAREHOUSE_SNAPSHOT_STATUS_DEFAULT,
+        },
+        generated_at=timezone.now(),
+    )
+
+    response = api_client.get("/api/metrics/combined/")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == WAREHOUSE_UNAVAILABLE_DETAIL
 
 
 @pytest.mark.django_db

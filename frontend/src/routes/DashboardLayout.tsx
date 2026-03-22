@@ -13,6 +13,7 @@ import FilterBar, { FilterBarState } from '../components/FilterBar';
 import { useTheme } from '../components/ThemeProvider';
 import { useToast } from '../components/ToastProvider';
 import { loadDashboardLayout, saveDashboardLayout } from '../lib/layoutPreferences';
+import { canAccessCreatorUi } from '../lib/rbac';
 import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
 import {
   areFiltersEqual,
@@ -81,6 +82,7 @@ const DashboardLayout = () => {
   const { theme, toggleTheme } = useTheme();
   const { pushToast } = useToast();
   const [isScrolled, setIsScrolled] = useState(false);
+  const canCreate = canAccessCreatorUi(user);
   const datasetMode = useDatasetStore((state) => state.mode);
   const availableAdapters = useDatasetStore((state) => state.adapters);
   const hasLiveData = availableAdapters.includes('warehouse');
@@ -241,18 +243,19 @@ const DashboardLayout = () => {
   }, [budget, campaign, creative, parish]);
 
   const navLinks = useMemo(
-    () => [
-      { label: 'Library', to: '/dashboards', end: true },
-      { label: 'Create', to: '/dashboards/create', end: false },
-      { label: 'Campaigns', to: '/dashboards/campaigns', end: false },
-      { label: 'Creatives', to: '/dashboards/creatives', end: false },
-      { label: 'Budget pacing', to: '/dashboards/budget', end: false },
-      { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
-      { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
-      { label: 'Facebook pages', to: '/dashboards/meta/pages', end: false },
-      { label: 'Google Ads', to: '/dashboards/google-ads', end: false },
-    ],
-    [],
+    () =>
+      [
+        { label: 'Library', to: '/dashboards', end: true },
+        canCreate ? { label: 'Create', to: '/dashboards/create', end: false } : null,
+        { label: 'Campaigns', to: '/dashboards/campaigns', end: false },
+        { label: 'Creatives', to: '/dashboards/creatives', end: false },
+        { label: 'Budget pacing', to: '/dashboards/budget', end: false },
+        { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
+        { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
+        { label: 'Facebook pages', to: '/dashboards/meta/pages', end: false },
+        { label: 'Google Ads', to: '/dashboards/google-ads', end: false },
+      ].filter((link): link is { label: string; to: string; end: boolean } => Boolean(link)),
+    [canCreate],
   );
 
   const campaignLookup = useMemo(() => {

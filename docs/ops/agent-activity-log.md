@@ -2,6 +2,36 @@
 
 One-line, timestamped notes of agent-driven changes to help preserve context between sessions. Newest entries at the top.
 
+## 2026-03-20
+
+- 2026-03-20T10:00:00-0500 fix(infra): implement cron parsing for Airbyte health check and verify backend throttling/metrics endpoints — Implemented a heuristic cron parser in `infrastructure/airbyte/scripts/airbyte_health_check.py` to resolve TODO, verified DRF throttling configuration with existing tests, and added `test_combined_metrics_returns_payload` to `backend/tests/test_analytics_endpoints.py` to verify `/api/metrics/combined/`. Pending commit.
+
+## 2026-03-19
+
+- 2026-03-19T17:23:22-0500 chore(deploy): gate backend startup on Postgres readiness and bootstrap completion — Added Postgres health checks and conditional `depends_on` gating for `backend-setup`, `backend`, `scheduler`, and `superset`, fixed the malformed Postgres volume mount in `deploy/docker-compose.yml`, updated `deploy/README.md`, and verified `docker compose config` passes. Pending commit.
+- 2026-03-19T17:04:02-0500 fix(frontend): clear repo-ready lint drift in api client and Google Ads workspace test — Removed the stale escaped filename regex in `src/lib/apiClient.ts`, renamed the Google Ads workspace test mock to satisfy hook linting, and verified `npm ci`, `npm run lint`, `npm test -- --run`, and `npm run build` all pass. Pending commit.
+
+## 2026-03-18
+
+- 2026-03-18T18:08:00-0500 feat(frontend): gate creator UI for viewer-only roles — Added shared frontend RBAC helpers and hid dashboard/report creation actions for viewer-only users, rendered read-only states on create pages, added role-based UI tests, and verified `npm ci`, `npm test -- --run`, and `npm run build`; `npm run lint` still fails on two pre-existing frontend issues outside this change and was logged as the next repo-ready item. Pending commit.
+- 2026-03-18T18:01:05-0500 feat(backend): implement GA4 Phase 2 SDK client and KPI helpers — Added a credential-backed `GoogleAnalyticsClient` with traffic-acquisition report parsing, expanded GA4 adapter summaries/rows for engagement and event KPIs, aligned backend packaging deps, and verified `ruff check backend` plus full `pytest -q backend` both pass. Pending commit.
+- 2026-03-18T17:54:26-0500 test(backend): stabilize canonical backend suite for pagination/privilege drift and finish GA4 Phase 1 contract alignment — Updated legacy backend tests for paginated list responses and seeded-role privilege expectations, completed the GA4 exchange/property/provision backend flow, and verified `ruff check backend` plus full `pytest -q backend` both pass. Pending commit.
+- 2026-03-18T16:39:45-0500 feat(backend): add GA4 OAuth/setup/property provisioning API surface — Added backend-only Google Analytics setup/start/exchange/properties/provision endpoints with tenant-scoped credential persistence and provisioning tests, plus OpenAPI path coverage; canonical backend lint passed, but full `pytest -q backend` exposed pre-existing pagination/privilege drift across legacy tests and was logged as the next repo-ready stabilization item in `docs/project/current-priority-todo.md`. Pending commit.
+
+## 2026-03-17
+
+- 2026-03-17T05:45:00-0500 feat(accounts): harden permissions.py with IsAnalyst, IsViewer and role hierarchy support.
+- 2026-03-17T06:00:00-0500 test(analytics): add backend tests for RecentDashboardsView covering isolation and limits.
+- 2026-03-17T06:15:00-0500 feat(reports): add template gallery and JSON formatter to ReportCreatePage.tsx.
+- 2026-03-17T06:30:00-0500 fix(settings): add default pagination (PageNumberPagination) to REST_FRAMEWORK.
+- 2026-03-17T06:45:00-0500 test(accounts): add end-to-end audit log tests with tenant isolation and filtering.
+- 2026-03-17T07:15:00-0500 feat(core): implement ScopeFilterBackend for DRF and integrate into default filter backends.
+- 2026-03-17T07:30:00-0500 feat(accounts): implement HasPrivilege permission class for fine-grained role-based capability checks.
+- 2026-03-17T07:45:00-0500 feat(audit): enrich log_audit_event with actor_ip and user_agent capture from request objects.
+- 2026-03-17T08:00:00-0500 feat(permissions): add "Why denied" trace messages to IsTenantUser and HasPrivilege.
+- 2026-03-17T08:15:00-0500 feat(api): secure key viewsets (Airbyte, Budgets, Reports) with HasPrivilege and required capabilities.
+- 2026-03-17T08:30:00-0500 docs(project): create google-analytics-buildout-plan.md and queue GA4 integration tasks.
+
 ## 2026-02-19
 
 - 2026-02-19T16:30:38-0500 feat(meta-metric-catalog): add canonical Page/Post metric catalog + generated docs workflow — Added `backend/integrations/data/meta_metric_catalog.json` (162 metric definitions), catalog loader/render helpers, `sync_meta_metric_catalog` command, migration `0011_sync_meta_metric_catalog.py`, generated `docs/project/meta-page-insights-metric-catalog.md`, and backend tests to enforce doc/catalog sync. Pending commit.

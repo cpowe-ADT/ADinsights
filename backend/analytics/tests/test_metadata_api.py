@@ -8,6 +8,13 @@ from accounts.models import Tenant, User
 from analytics.models import AdSet, Campaign, RawPerformanceRecord
 
 
+def list_results(response):
+    body = response.json()
+    if isinstance(body, list):
+        return body
+    return body.get("results", [])
+
+
 @pytest.mark.django_db
 def test_campaign_crud_scoped_to_tenant(api_client, tenant, user):
     api_client.force_authenticate(user=user)
@@ -28,7 +35,7 @@ def test_campaign_crud_scoped_to_tenant(api_client, tenant, user):
 
     list_response = api_client.get("/api/analytics/campaigns/")
     assert list_response.status_code == 200
-    data = list_response.json()
+    data = list_results(list_response)
     assert len(data) == 1
     assert data[0]["id"] == campaign_id
 
@@ -89,7 +96,7 @@ def test_adset_creation_enforces_tenant_scoping(api_client, tenant, user):
     api_client.force_authenticate(user=other_user)
     other_response = api_client.get("/api/analytics/adsets/")
     assert other_response.status_code == 200
-    assert other_response.json() == []
+    assert list_results(other_response) == []
 
     api_client.force_authenticate(user=None)
 
@@ -143,7 +150,7 @@ def test_performance_records_isolated_by_tenant(api_client, tenant, user):
 
     list_response = api_client.get("/api/analytics/performance-records/")
     assert list_response.status_code == 200
-    records = list_response.json()
+    records = list_results(list_response)
     assert len(records) == 1
     assert records[0]["external_id"] == "perf-tenant"
 

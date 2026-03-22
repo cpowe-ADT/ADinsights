@@ -17,6 +17,7 @@
    ```bash
    ./deploy_full_stack.sh
    ```
+   Compose now waits for PostgreSQL to report healthy before `backend-setup` runs migrations/RBAC bootstrap, and `backend` / `scheduler` wait for `backend-setup` to complete successfully before starting.
 3. (Optional) Start the `llm` proxy after authenticating:
    ```bash
    cd deploy && docker compose --profile llm up -d

@@ -11,6 +11,11 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from adapters.base import MetricsAdapter
+from adapters.warehouse import (
+    WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
+    WAREHOUSE_SNAPSHOT_STATUS_KEY,
+    WarehouseSnapshotUnavailable,
+)
 
 from .models import TenantMetricsSnapshot
 from .serializers import CombinedMetricsQueryParamsSerializer
@@ -151,6 +156,21 @@ def _normalize_combined_payload(payload: Mapping[str, Any]) -> tuple[dict[str, A
     return normalized, generated_at
 
 
+def _validate_and_clean_combined_payload(
+    *,
+    payload: Mapping[str, Any],
+    source: str,
+) -> dict[str, Any]:
+    cleaned = dict(payload)
+    if source == "warehouse":
+        snapshot_status = cleaned.pop(WAREHOUSE_SNAPSHOT_STATUS_KEY, None)
+        if snapshot_status and snapshot_status != WAREHOUSE_SNAPSHOT_STATUS_FETCHED:
+            raise WarehouseSnapshotUnavailable()
+    else:
+        cleaned.pop(WAREHOUSE_SNAPSHOT_STATUS_KEY, None)
+    return cleaned
+
+
 def load_combined_metrics_payload(
     *,
     tenant,
@@ -170,7 +190,10 @@ def load_combined_metrics_payload(
             else None
         )
         if snapshot and snapshot.is_fresh(ttl_seconds):
-            cached_payload = dict(snapshot.payload)
+            cached_payload = _validate_and_clean_combined_payload(
+                payload=snapshot.payload,
+                source=source,
+            )
             cached_payload["snapshot_generated_at"] = snapshot.generated_at.isoformat()
             return CombinedMetricsResult(
                 payload=cached_payload,
@@ -186,6 +209,7 @@ def load_combined_metrics_payload(
             options=options,
         )
         combined, generated_at = _normalize_combined_payload(payload)
+        combined = _validate_and_clean_combined_payload(payload=combined, source=source)
         snapshot_written = False
         if not has_filters:
             if snapshot is not None:

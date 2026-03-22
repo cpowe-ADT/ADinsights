@@ -13,6 +13,16 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-03-21**
+  - Endpoint: `GET /api/integrations/google_analytics/setup/`, `POST /api/integrations/google_analytics/oauth/start/`, `POST /api/integrations/google_analytics/oauth/exchange/`, `GET /api/integrations/google_analytics/properties/`, `POST /api/integrations/google_analytics/provision/`, `GET /api/integrations/google_analytics/status/`
+  - Change: Added tenant-scoped GA4 onboarding and connection-management contract for runtime readiness, OAuth state exchange, property discovery, provisioning, and connection status. Status surfaces preserve canonical onboarding states (`not_connected`, `started_not_complete`, `complete`, `active`) and expose redirect/runtime diagnostics needed by the Data Sources flow.
+  - Impact: Frontend can connect a GA4 property and monitor its sync/setup lifecycle through dedicated integration endpoints without changing the existing pilot reporting endpoint shape on `/api/analytics/web/ga4/`.
+  - Owner: Maya (Integrations) + Sofia (Backend Metrics) + Lina (Frontend)
+- **2026-03-21**
+  - Endpoint: Operational probe `python3 infrastructure/airbyte/scripts/airbyte_health_check.py`
+  - Change: Extended the Airbyte health-check script to derive stale thresholds from both basic schedules and a limited supported subset of cron expressions before falling back to `AIRBYTE_FALLBACK_STALE_MINUTES`.
+  - Impact: CI/operators get deterministic health classifications for cron-scheduled Airbyte connections instead of treating every cron connection as fallback-threshold based.
+  - Owner: Maya (Integrations) + Omar (SRE)
 - **2026-03-06**
   - Endpoint: `GET /api/health/airbyte/`
   - Change: Added degraded-mode fallback when Airbyte status tables are unavailable (for example, pre-migration smoke environments). Endpoint now returns `503` with `status="status_store_unavailable"` instead of surfacing an internal `500` error.
