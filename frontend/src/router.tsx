@@ -25,6 +25,7 @@ const CsvUpload = lazy(() => import('./routes/CsvUpload'));
 const DashboardCreate = lazy(() => import('./routes/DashboardCreate'));
 const DashboardLibrary = lazy(() => import('./routes/DashboardLibrary'));
 const DashboardLayout = lazy(() => import('./routes/DashboardLayout'));
+const SavedDashboardPage = lazy(() => import('./routes/SavedDashboardPage'));
 const DataSources = lazy(() => import('./routes/DataSources'));
 const GoogleAnalyticsDashboardPage = lazy(() => import('./routes/GoogleAnalyticsDashboardPage'));
 const GoogleAdsAssetsPage = lazy(() => import('./routes/google-ads/GoogleAdsAssetsPage'));
@@ -196,6 +197,10 @@ export const router = createBrowserRouter(
             {
               path: 'create',
               element: withRouteLoader(<DashboardCreate />, 'Loading dashboard builder…'),
+            },
+            {
+              path: 'saved/:dashboardId',
+              element: withRouteLoader(<SavedDashboardPage />, 'Loading saved dashboard…'),
             },
             {
               path: 'campaigns',

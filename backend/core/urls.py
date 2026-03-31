@@ -8,6 +8,7 @@ from alerts.views import AlertRunViewSet
 from analytics.phase2_views import (
     AISummaryViewSet,
     AlertsViewSet,
+    DashboardDefinitionViewSet,
     DashboardLibraryView,
     ExportDownloadView,
     HealthOverviewView,
@@ -130,6 +131,11 @@ router.register(r"audit-logs", AuditLogViewSet, basename="auditlog")
 router.register(r"alerts/runs", AlertRunViewSet, basename="alert-run")
 router.register(r"alerts", AlertsViewSet, basename="alerts")
 router.register(r"reports", ReportDefinitionViewSet, basename="report-definition")
+router.register(
+    r"dashboards/definitions",
+    DashboardDefinitionViewSet,
+    basename="dashboard-definition",
+)
 router.register(r"summaries", AISummaryViewSet, basename="ai-summary")
 router.register(r"service-accounts", ServiceAccountKeyViewSet, basename="service-account")
 
