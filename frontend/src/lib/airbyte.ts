@@ -234,6 +234,79 @@ export interface GoogleAnalyticsSetupStatusResponse {
   };
 }
 
+export interface GoogleAdsSetupStatusResponse {
+  provider: 'google_ads';
+  ready_for_oauth: boolean;
+  ready_for_provisioning_defaults: boolean;
+  checks: MetaSetupCheck[];
+  oauth_scopes: string[];
+  redirect_uri?: string | null;
+  source_definition_id: string;
+  runtime_context?: {
+    redirect_uri?: string | null;
+    redirect_source?: string | null;
+    dataset_source?: string | null;
+  };
+}
+
+export interface GoogleAdsOAuthStartPayload {
+  runtime_context?: RuntimeContextPayload;
+}
+
+export interface GoogleAdsOAuthStartResponse {
+  authorize_url: string;
+  state: string;
+  redirect_uri: string;
+  oauth_scopes: string[];
+}
+
+export interface GoogleAdsOAuthExchangeResponse {
+  credential: PlatformCredentialRecord;
+  refresh_token_received: boolean;
+}
+
+export interface GoogleAdsProvisionPayload {
+  external_account_id?: string;
+  login_customer_id?: string;
+  workspace_id?: string | null;
+  destination_id?: string | null;
+  source_definition_id?: string | null;
+  connection_name?: string;
+  is_active?: boolean;
+  schedule_type?: 'manual' | 'interval' | 'cron';
+  interval_minutes?: number | null;
+  cron_expression?: string;
+  sync_engine?: 'sdk' | 'airbyte';
+}
+
+export interface GoogleAdsProvisionResponse {
+  provider: 'google_ads';
+  credential: PlatformCredentialRecord;
+  connection: AirbyteConnectionRecord;
+  sync_engine: 'sdk' | 'airbyte';
+  fallback_active: boolean;
+  source_reused: boolean;
+  connection_reused: boolean;
+}
+
+export interface GoogleAdsStatusResponse {
+  provider: 'google_ads';
+  status: 'not_connected' | 'started_not_complete' | 'complete' | 'active';
+  reason: {
+    code?: string;
+    message: string;
+    [key: string]: unknown;
+  };
+  actions: string[];
+  last_checked_at?: string | null;
+  last_synced_at?: string | null;
+  sync_engine?: 'sdk' | 'airbyte';
+  fallback_active?: boolean;
+  parity_state?: 'unknown' | 'pass' | 'fail';
+  last_parity_passed_at?: string | null;
+  metadata: Record<string, unknown>;
+}
+
 export interface GoogleAnalyticsOAuthStartPayload {
   runtime_context?: RuntimeContextPayload;
 }
@@ -463,6 +536,24 @@ export async function loadGoogleAnalyticsSetupStatus(
   return apiClient.get<GoogleAnalyticsSetupStatusResponse>(path);
 }
 
+export async function loadGoogleAdsSetupStatus(
+  runtimeContext?: RuntimeContextPayload,
+): Promise<GoogleAdsSetupStatusResponse> {
+  const params = new URLSearchParams();
+  if (runtimeContext?.dataset_source?.trim()) {
+    params.set('dataset_source', runtimeContext.dataset_source.trim());
+  }
+  if (runtimeContext?.client_origin?.trim()) {
+    params.set('client_origin', runtimeContext.client_origin.trim());
+  }
+  if (typeof runtimeContext?.client_port === 'number' && Number.isFinite(runtimeContext.client_port)) {
+    params.set('client_port', String(runtimeContext.client_port));
+  }
+  const suffix = params.toString();
+  const path = suffix ? `/integrations/google_ads/setup/?${suffix}` : '/integrations/google_ads/setup/';
+  return apiClient.get<GoogleAdsSetupStatusResponse>(path);
+}
+
 export async function startGoogleAnalyticsOAuth(
   payload?: GoogleAnalyticsOAuthStartPayload,
 ): Promise<GoogleAnalyticsOAuthStartResponse> {
@@ -481,6 +572,35 @@ export async function exchangeGoogleAnalyticsOAuthCode(payload: {
     '/integrations/google_analytics/oauth/exchange/',
     payload,
   );
+}
+
+export async function startGoogleAdsOAuth(
+  payload?: GoogleAdsOAuthStartPayload,
+): Promise<GoogleAdsOAuthStartResponse> {
+  return apiClient.post<GoogleAdsOAuthStartResponse>('/integrations/google_ads/oauth/start/', payload ?? {});
+}
+
+export async function exchangeGoogleAdsOAuthCode(payload: {
+  code: string;
+  state: string;
+  customer_id: string;
+  login_customer_id?: string;
+  runtime_context?: RuntimeContextPayload;
+}): Promise<GoogleAdsOAuthExchangeResponse> {
+  return apiClient.post<GoogleAdsOAuthExchangeResponse>(
+    '/integrations/google_ads/oauth/exchange/',
+    payload,
+  );
+}
+
+export async function provisionGoogleAds(
+  payload: GoogleAdsProvisionPayload,
+): Promise<GoogleAdsProvisionResponse> {
+  return apiClient.post<GoogleAdsProvisionResponse>('/integrations/google_ads/provision/', payload);
+}
+
+export async function loadGoogleAdsStatus(): Promise<GoogleAdsStatusResponse> {
+  return apiClient.get<GoogleAdsStatusResponse>('/integrations/google_ads/status/');
 }
 
 export async function loadGoogleAnalyticsProperties(query?: {

@@ -92,6 +92,7 @@ vi.mock('../../state/useDashboardStore', async () => {
     filters: {
       dateRange: '7d' as const,
       customRange: { start: '2024-10-01', end: '2024-10-07' },
+      accountId: '',
       channels: [],
       campaignQuery: '',
     },

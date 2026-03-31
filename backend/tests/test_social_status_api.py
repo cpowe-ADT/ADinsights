@@ -329,6 +329,46 @@ def test_social_status_includes_meta_sync_state_metadata(api_client, user, setti
 
 
 @pytest.mark.django_db
+def test_social_status_reports_no_recent_reportable_data(api_client, user, settings):
+    _authenticate(api_client, user)
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_APP_SECRET = "meta-app-secret"
+    settings.META_LOGIN_CONFIG_ID = "2323589144820085"
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+    settings.AIRBYTE_DEFAULT_WORKSPACE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    settings.AIRBYTE_DEFAULT_DESTINATION_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+
+    _create_meta_credential(user, account_id="act_123")
+    connection = _create_meta_connection(
+        user,
+        is_active=True,
+        last_synced_at=timezone.now() - timedelta(minutes=10),
+        last_job_status="succeeded",
+    )
+    MetaAccountSyncState.objects.create(
+        tenant=user.tenant,
+        account_id="act_123",
+        connection=connection,
+        last_job_id="job-no-data",
+        last_job_status="succeeded",
+        last_job_error="",
+        last_success_at=timezone.now() - timedelta(minutes=5),
+        last_window_start=timezone.localdate() - timedelta(days=89),
+        last_window_end=timezone.localdate() - timedelta(days=1),
+        last_sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+        last_rows_synced=0,
+    )
+
+    response = api_client.get(reverse("social-connection-status"))
+
+    assert response.status_code == 200
+    payload = response.json()
+    meta = _platform(payload, "meta")
+    assert meta["status"] == "complete"
+    assert meta["reason"]["code"] == "no_recent_reportable_data"
+
+
+@pytest.mark.django_db
 def test_social_status_returns_schema_out_of_date_when_db_is_behind(api_client, user, monkeypatch):
     _authenticate(api_client, user)
 

@@ -16,6 +16,7 @@ from integrations.models import (
     MetaPage,
     PlatformCredential,
 )
+from integrations.tasks import META_DIRECT_SYNC_LOOKBACK_DAYS
 from integrations.views import META_OAUTH_SELECTION_CACHE_PREFIX
 
 
@@ -1177,6 +1178,10 @@ def test_meta_sync_queues_direct_reporting_task(api_client, user, monkeypatch):
     assert observed["kwargs"]["account_id"] == "act_123"
     assert observed["kwargs"]["job_id"] == payload["job_id"]
     assert observed["kwargs"]["connection_pk"] == str(connection.id)
+    window_end = timezone.localdate() - timedelta(days=1)
+    window_start = window_end - timedelta(days=META_DIRECT_SYNC_LOOKBACK_DAYS - 1)
+    assert observed["kwargs"]["since"] == window_start.isoformat()
+    assert observed["kwargs"]["until"] == window_end.isoformat()
     state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
     assert state.last_job_id == payload["job_id"]
     assert state.last_job_status == "pending"

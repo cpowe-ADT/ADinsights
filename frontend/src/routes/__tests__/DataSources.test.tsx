@@ -11,8 +11,11 @@ const airbyteMocks = vi.hoisted(() => ({
   loadAirbyteConnections: vi.fn(),
   loadAirbyteSummary: vi.fn(),
   triggerAirbyteSync: vi.fn(),
-  createPlatformCredential: vi.fn(),
-  createAirbyteConnection: vi.fn(),
+  loadGoogleAdsSetupStatus: vi.fn(),
+  loadGoogleAdsStatus: vi.fn(),
+  startGoogleAdsOAuth: vi.fn(),
+  exchangeGoogleAdsOAuthCode: vi.fn(),
+  provisionGoogleAds: vi.fn(),
   loadGoogleAnalyticsSetupStatus: vi.fn(),
   loadGoogleAnalyticsStatus: vi.fn(),
   startGoogleAnalyticsOAuth: vi.fn(),
@@ -40,8 +43,11 @@ vi.mock('../../lib/airbyte', () => ({
   loadAirbyteConnections: airbyteMocks.loadAirbyteConnections,
   loadAirbyteSummary: airbyteMocks.loadAirbyteSummary,
   triggerAirbyteSync: airbyteMocks.triggerAirbyteSync,
-  createPlatformCredential: airbyteMocks.createPlatformCredential,
-  createAirbyteConnection: airbyteMocks.createAirbyteConnection,
+  loadGoogleAdsSetupStatus: airbyteMocks.loadGoogleAdsSetupStatus,
+  loadGoogleAdsStatus: airbyteMocks.loadGoogleAdsStatus,
+  startGoogleAdsOAuth: airbyteMocks.startGoogleAdsOAuth,
+  exchangeGoogleAdsOAuthCode: airbyteMocks.exchangeGoogleAdsOAuthCode,
+  provisionGoogleAds: airbyteMocks.provisionGoogleAds,
   loadGoogleAnalyticsSetupStatus: airbyteMocks.loadGoogleAnalyticsSetupStatus,
   loadGoogleAnalyticsStatus: airbyteMocks.loadGoogleAnalyticsStatus,
   startGoogleAnalyticsOAuth: airbyteMocks.startGoogleAnalyticsOAuth,
@@ -84,16 +90,59 @@ describe('DataSources connect flow', () => {
       by_provider: {},
       latest_sync: null,
     });
-    airbyteMocks.createPlatformCredential.mockResolvedValue({
-      id: 'cred-1',
-      provider: 'META',
-      account_id: 'act_123',
+    airbyteMocks.loadGoogleAdsSetupStatus.mockResolvedValue({
+      provider: 'google_ads',
+      ready_for_oauth: true,
+      ready_for_provisioning_defaults: true,
+      checks: [],
+      oauth_scopes: ['https://www.googleapis.com/auth/adwords'],
+      redirect_uri: 'http://localhost:5173/dashboards/data-sources',
+      source_definition_id: '0b29e8f7-f64c-4a24-9e97-07c4603f8c04',
     });
-    airbyteMocks.createAirbyteConnection.mockResolvedValue({
-      id: 'conn-local-1',
-      name: 'Meta Metrics Connection',
-      connection_id: '11111111-1111-1111-1111-111111111111',
-      provider: 'META',
+    airbyteMocks.loadGoogleAdsStatus.mockResolvedValue({
+      provider: 'google_ads',
+      status: 'not_connected',
+      reason: { message: 'Google Ads OAuth has not been connected.' },
+      actions: ['connect_oauth'],
+      last_checked_at: '2026-02-17T20:00:00Z',
+      last_synced_at: null,
+      sync_engine: 'airbyte',
+      fallback_active: false,
+      parity_state: 'unknown',
+      last_parity_passed_at: null,
+      metadata: { has_credential: false, has_connection: false },
+    });
+    airbyteMocks.startGoogleAdsOAuth.mockResolvedValue({
+      authorize_url: 'https://accounts.google.com/o/oauth2/v2/auth?state=google-ads',
+      state: 'google-ads-state-1',
+      redirect_uri: 'http://localhost:5173/dashboards/data-sources',
+      oauth_scopes: ['https://www.googleapis.com/auth/adwords'],
+    });
+    airbyteMocks.exchangeGoogleAdsOAuthCode.mockResolvedValue({
+      credential: {
+        id: 'google-ads-cred-1',
+        provider: 'GOOGLE',
+        account_id: '1234567890',
+      },
+      refresh_token_received: true,
+    });
+    airbyteMocks.provisionGoogleAds.mockResolvedValue({
+      provider: 'google_ads',
+      credential: {
+        id: 'google-ads-cred-1',
+        provider: 'GOOGLE',
+        account_id: '1234567890',
+      },
+      connection: {
+        id: 'gads-conn-1',
+        name: 'Google Ads Metrics Connection',
+        connection_id: '11111111-1111-4111-8111-111111111111',
+        provider: 'GOOGLE',
+      },
+      sync_engine: 'sdk',
+      fallback_active: false,
+      source_reused: false,
+      connection_reused: false,
     });
     airbyteMocks.loadGoogleAnalyticsSetupStatus.mockResolvedValue({
       provider: 'google_analytics',
@@ -505,45 +554,71 @@ describe('DataSources connect flow', () => {
     await user.click(await screen.findByRole('button', { name: 'Connect Meta' }));
     await user.click(screen.getByRole('button', { name: 'Save connection' }));
 
-    expect(airbyteMocks.createPlatformCredential).not.toHaveBeenCalled();
+    expect(airbyteMocks.provisionMetaIntegration).not.toHaveBeenCalled();
     expect(pushToast).toHaveBeenCalledWith('Complete Meta OAuth and save a business page first.', {
       tone: 'error',
     });
   });
 
-  it('creates Google credential and links Airbyte connection when enabled', async () => {
+  it('completes Google Ads OAuth and provisions the connection', async () => {
     const user = userEvent.setup();
-    render(<DataSources />);
+    const view = render(<DataSources />);
 
     await user.click(await screen.findByRole('button', { name: 'Connect Google Ads' }));
     await user.type(screen.getByLabelText('Google Ads customer/account ID'), '1234567890');
-    await user.type(screen.getByLabelText('Access token'), 'google-access-token');
-    await user.click(screen.getByRole('checkbox', { name: /Also link Airbyte connection/i }));
+    await user.type(screen.getByLabelText('Login customer ID (optional)'), '0987654321');
+    const setupHeading = screen.getByRole('heading', { name: 'Connect Google Ads' });
+    const setupForm = setupHeading.closest('form');
+    expect(setupForm).not.toBeNull();
+    await user.click(
+      within(setupForm as HTMLFormElement).getByRole('button', { name: 'Connect Google Ads' }),
+    );
+
+    await waitFor(() => {
+      expect(airbyteMocks.startGoogleAdsOAuth).toHaveBeenCalledWith({
+        runtime_context: expect.any(Object),
+      });
+    });
+    expect(window.sessionStorage.getItem('adinsights.connect.oauth.provider')).toBe('GOOGLE');
+
+    window.history.replaceState(
+      {},
+      '',
+      '/dashboards/data-sources?code=oauth-code&state=oauth-state',
+    );
+    view.unmount();
+    render(<DataSources />);
+
+    await waitFor(() => {
+      expect(airbyteMocks.exchangeGoogleAdsOAuthCode).toHaveBeenCalledWith({
+        code: 'oauth-code',
+        state: 'oauth-state',
+        customer_id: '1234567890',
+        login_customer_id: '0987654321',
+        runtime_context: expect.any(Object),
+      });
+    });
+
     await user.clear(screen.getByLabelText('Connection name'));
     await user.type(screen.getByLabelText('Connection name'), 'Google Ads Metrics');
     await user.type(
-      screen.getByLabelText('Airbyte connection UUID'),
-      '11111111-1111-4111-8111-111111111111',
-    );
-    await user.type(
       screen.getByLabelText('Airbyte workspace UUID (optional)'),
       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    );
+    await user.type(
+      screen.getByLabelText('Airbyte destination UUID (optional)'),
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
     );
 
     await user.click(screen.getByRole('button', { name: 'Save connection' }));
 
     await waitFor(() => {
-      expect(airbyteMocks.createPlatformCredential).toHaveBeenCalledWith({
-        provider: 'GOOGLE',
-        account_id: '1234567890',
-        access_token: 'google-access-token',
-        refresh_token: null,
-      });
-      expect(airbyteMocks.createAirbyteConnection).toHaveBeenCalledWith({
-        name: 'Google Ads Metrics',
-        connection_id: '11111111-1111-4111-8111-111111111111',
+      expect(airbyteMocks.provisionGoogleAds).toHaveBeenCalledWith({
+        external_account_id: '1234567890',
+        login_customer_id: '0987654321',
         workspace_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-        provider: 'GOOGLE',
+        destination_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        connection_name: 'Google Ads Metrics',
         schedule_type: 'cron',
         is_active: true,
         interval_minutes: null,
@@ -561,12 +636,52 @@ describe('DataSources connect flow', () => {
     const setupForm = setupHeading.closest('form');
     expect(setupForm).not.toBeNull();
     await user.click(
-      within(setupForm as HTMLFormElement).getByRole('button', { name: 'Connect with Google' }),
+      within(setupForm as HTMLFormElement).getByRole('button', {
+        name: 'Connect Google Analytics',
+      }),
     );
 
     await waitFor(() => {
       expect(airbyteMocks.startGoogleAnalyticsOAuth).toHaveBeenCalled();
     });
+  });
+
+  it('shows separate Google Analytics and Google Ads cards with explicit setup labels', async () => {
+    render(<DataSources />);
+
+    expect(await screen.findByRole('heading', { name: 'Google Analytics 4' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Google Ads' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open GA4 setup' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Google Ads setup' })).toBeInTheDocument();
+    expect(screen.getByText(/website and app behavior/i)).toBeInTheDocument();
+    expect(screen.getByText(/paid campaign performance/i)).toBeInTheDocument();
+  });
+
+  it('disables GA4 OAuth start when GA4 setup is not ready', async () => {
+    const user = userEvent.setup();
+    airbyteMocks.loadGoogleAnalyticsSetupStatus.mockResolvedValue({
+      provider: 'google_analytics',
+      ready_for_oauth: false,
+      oauth_scopes: ['https://www.googleapis.com/auth/analytics.readonly'],
+      redirect_uri: '',
+      runtime_context: null,
+    });
+
+    render(<DataSources />);
+
+    await user.click(await screen.findByRole('button', { name: 'Connect Google Analytics' }));
+    const setupHeading = screen.getByRole('heading', { name: 'Connect Google Analytics 4' });
+    const setupForm = setupHeading.closest('form');
+    expect(setupForm).not.toBeNull();
+
+    const oauthButton = within(setupForm as HTMLFormElement).getByRole('button', {
+      name: 'Connect Google Analytics',
+    });
+    expect(oauthButton).toBeDisabled();
+    expect(
+      within(setupForm as HTMLFormElement).getByText(/GA4 OAuth is not ready/i),
+    ).toBeInTheDocument();
+    expect(airbyteMocks.startGoogleAnalyticsOAuth).not.toHaveBeenCalled();
   });
 
   it('loads GA4 properties for the exchanged credential after oauth callback', async () => {

@@ -383,6 +383,7 @@ describe('useDashboardStore', () => {
     useDashboardStore.getState().setFilters({
       dateRange: '7d',
       customRange: { start: '2024-08-01', end: '2024-08-07' },
+      accountId: '',
       channels: ['Google Ads'],
       campaignQuery: 'Search',
     });
@@ -438,6 +439,7 @@ describe('useDashboardStore', () => {
     useDashboardStore.getState().setFilters({
       dateRange: 'custom',
       customRange: { start: '2024-08-01', end: '2024-08-31' },
+      accountId: 'act_791712443035541',
       channels: ['Meta Ads', 'Google Ads'],
       campaignQuery: 'Kingston',
     });
@@ -452,6 +454,7 @@ describe('useDashboardStore', () => {
 
     expect(params.get('start_date')).toBe('2024-08-01');
     expect(params.get('end_date')).toBe('2024-08-31');
+    expect(params.get('account_id')).toBe('act_791712443035541');
     expect(params.get('channels')).toBe('meta,google_ads');
     expect(params.get('campaign_search')).toBe('Kingston');
   });

@@ -5,10 +5,11 @@ import { useToast } from '../components/ToastProvider';
 import { ApiError } from '../lib/apiClient';
 import {
   connectMetaPage,
-  createAirbyteConnection,
-  createPlatformCredential,
+  exchangeGoogleAdsOAuthCode,
   exchangeGoogleAnalyticsOAuthCode,
   exchangeMetaOAuthCode,
+  loadGoogleAdsSetupStatus,
+  loadGoogleAdsStatus,
   loadGoogleAnalyticsProperties,
   loadGoogleAnalyticsSetupStatus,
   loadGoogleAnalyticsStatus,
@@ -17,14 +18,18 @@ import {
   loadMetaSetupStatus,
   logoutMetaOAuth,
   loadSocialConnectionStatus,
+  provisionGoogleAds,
   provisionGoogleAnalytics,
   provisionMetaIntegration,
+  startGoogleAdsOAuth,
   startGoogleAnalyticsOAuth,
   syncMetaIntegration,
   startMetaOAuth,
   triggerAirbyteSync,
   type AirbyteConnectionRecord,
   type AirbyteConnectionsSummary,
+  type GoogleAdsSetupStatusResponse,
+  type GoogleAdsStatusResponse,
   type GoogleAnalyticsPropertyRecord,
   type GoogleAnalyticsSetupStatusResponse,
   type GoogleAnalyticsStatusResponse,
@@ -81,11 +86,13 @@ type LoadStatus = 'loading' | 'loaded' | 'error';
 type ConnectionState = 'healthy' | 'stale' | 'paused' | 'needs-attention' | 'syncing';
 type ConnectProvider = 'META' | 'GOOGLE' | 'GA4';
 type MetaConnectStep = 'idle' | 'oauth-pending' | 'page-selection' | 'credential-connected';
+type GoogleAdsConnectStep = 'idle' | 'oauth-pending' | 'connected';
 type Ga4ConnectStep = 'idle' | 'oauth-pending' | 'property-selection' | 'connected';
 type SocialStatusLoad = 'loading' | 'loaded' | 'error';
 
 interface ConnectFormState {
   accountId: string;
+  loginCustomerId: string;
   accessToken: string;
   refreshToken: string;
   linkConnection: boolean;
@@ -123,6 +130,7 @@ interface SocialPlatformCard extends Omit<SocialPlatformStatusRecord, 'platform'
 }
 
 const CONNECT_OAUTH_PROVIDER_KEY = 'adinsights.connect.oauth.provider';
+const GOOGLE_ADS_OAUTH_FORM_KEY = 'adinsights.google_ads.oauth.form';
 const EMPTY_META_PERMISSION_DIAGNOSTICS: MetaPermissionDiagnosticsState = {
   grantedPermissions: [],
   declinedPermissions: [],
@@ -164,9 +172,10 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 
 const buildInitialConnectForm = (provider: ConnectProvider): ConnectFormState => ({
   accountId: '',
+  loginCustomerId: '',
   accessToken: '',
   refreshToken: '',
-  linkConnection: provider === 'META',
+  linkConnection: provider === 'META' || provider === 'GOOGLE',
   connectionName:
     provider === 'META'
       ? 'Meta Metrics Connection'
@@ -324,15 +333,34 @@ const resolveSocialPrimaryAction = (status: SocialConnectionStatus, actions: str
 
 const resolveGa4PrimaryAction = (status: GoogleAnalyticsStatusResponse['status']): string => {
   if (status === 'not_connected') {
-    return 'Connect with Google';
+    return 'Open GA4 setup';
   }
   if (status === 'started_not_complete') {
-    return 'Continue setup';
+    return 'Continue GA4 setup';
   }
   if (status === 'complete') {
-    return 'Open setup';
+    return 'Open GA4 setup';
   }
-  return 'Manage connection';
+  return 'Manage GA4';
+};
+
+const resolveGoogleAdsPrimaryAction = (
+  status: GoogleAdsStatusResponse['status'],
+  actions: string[],
+): string => {
+  if (actions.includes('connect_oauth') || status === 'not_connected') {
+    return 'Open Google Ads setup';
+  }
+  if (actions.includes('provision') || status === 'started_not_complete') {
+    return 'Continue Google Ads setup';
+  }
+  if (actions.includes('sync_now')) {
+    return 'Run Google Ads sync';
+  }
+  if (status === 'complete') {
+    return 'Open Google Ads setup';
+  }
+  return 'Manage Google Ads';
 };
 
 const DataSources = () => {
@@ -381,6 +409,18 @@ const DataSources = () => {
   const [metaSetupLoading, setMetaSetupLoading] = useState(false);
   const [metaPermissionDiagnostics, setMetaPermissionDiagnostics] =
     useState<MetaPermissionDiagnosticsState>(EMPTY_META_PERMISSION_DIAGNOSTICS);
+  const [googleAdsConnectStep, setGoogleAdsConnectStep] =
+    useState<GoogleAdsConnectStep>('idle');
+  const [googleAdsCredential, setGoogleAdsCredential] =
+    useState<PlatformCredentialRecord | null>(null);
+  const [googleAdsSetupStatus, setGoogleAdsSetupStatus] =
+    useState<GoogleAdsSetupStatusResponse | null>(null);
+  const [googleAdsSetupLoading, setGoogleAdsSetupLoading] = useState(false);
+  const [googleAdsStatus, setGoogleAdsStatus] = useState<GoogleAdsStatusResponse | null>(null);
+  const [googleAdsStatusLoad, setGoogleAdsStatusLoad] = useState<LoadStatus>('loading');
+  const [googleAdsStatusError, setGoogleAdsStatusError] = useState<string | null>(null);
+  const [googleAdsOAuthStarting, setGoogleAdsOAuthStarting] = useState(false);
+  const [googleAdsOAuthExchanging, setGoogleAdsOAuthExchanging] = useState(false);
   const [ga4ConnectStep, setGa4ConnectStep] = useState<Ga4ConnectStep>('idle');
   const [ga4Credential, setGa4Credential] = useState<PlatformCredentialRecord | null>(null);
   const [ga4Properties, setGa4Properties] = useState<GoogleAnalyticsPropertyRecord[]>([]);
@@ -416,6 +456,8 @@ const DataSources = () => {
     setError(null);
     setSocialStatusLoad('loading');
     setSocialStatusError(null);
+    setGoogleAdsStatusLoad('loading');
+    setGoogleAdsStatusError(null);
     setGa4StatusLoad('loading');
     setGa4StatusError(null);
     try {
@@ -442,6 +484,18 @@ const DataSources = () => {
       }
 
       try {
+        const googleAdsPayload = await loadGoogleAdsStatus();
+        setGoogleAdsStatus(googleAdsPayload);
+        setGoogleAdsStatusLoad('loaded');
+      } catch (googleAdsError) {
+        const googleAdsMessage =
+          googleAdsError instanceof Error ? googleAdsError.message : 'Unable to load Google Ads status.';
+        setGoogleAdsStatus(null);
+        setGoogleAdsStatusLoad('error');
+        setGoogleAdsStatusError(googleAdsMessage);
+      }
+
+      try {
         const ga4Payload = await loadGoogleAnalyticsStatus();
         setGa4Status(ga4Payload);
         setGa4StatusLoad('loaded');
@@ -459,6 +513,9 @@ const DataSources = () => {
       setSocialStatus([]);
       setSocialStatusLoad('loaded');
       setSocialStatusError(null);
+      setGoogleAdsStatus(null);
+      setGoogleAdsStatusLoad('loaded');
+      setGoogleAdsStatusError(null);
       setGa4Status(null);
       setGa4StatusLoad('loaded');
       setGa4StatusError(null);
@@ -559,6 +616,58 @@ const DataSources = () => {
     };
   }, [connectProvider, runtimeContext]);
 
+  useEffect(() => {
+    if (connectProvider !== 'GOOGLE') {
+      return;
+    }
+    let cancelled = false;
+    setGoogleAdsSetupLoading(true);
+    void loadGoogleAdsSetupStatus(runtimeContext)
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+        setGoogleAdsSetupStatus(payload);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setGoogleAdsSetupStatus(null);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setGoogleAdsSetupLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [connectProvider, runtimeContext]);
+
+  useEffect(() => {
+    if (connectProvider !== 'GOOGLE') {
+      return;
+    }
+    const storedAccountId =
+      typeof googleAdsStatus?.metadata?.credential_account_id === 'string'
+        ? googleAdsStatus.metadata.credential_account_id
+        : '';
+    if (!storedAccountId) {
+      return;
+    }
+    setGoogleAdsConnectStep((previous) => (previous === 'idle' ? 'connected' : previous));
+    setConnectForm((previous) =>
+      previous.accountId.trim()
+        ? previous
+        : {
+            ...previous,
+            accountId: storedAccountId,
+          },
+    );
+  }, [connectProvider, googleAdsStatus]);
+
   const resetMetaOAuthState = useCallback(() => {
     setMetaConnectStep('idle');
     setMetaOAuthSelection({
@@ -576,6 +685,13 @@ const DataSources = () => {
     setMetaOAuthStarting(false);
     setMetaOAuthExchanging(false);
     setMetaOAuthSavingPage(false);
+  }, []);
+
+  const resetGoogleAdsState = useCallback(() => {
+    setGoogleAdsConnectStep('idle');
+    setGoogleAdsCredential(null);
+    setGoogleAdsOAuthStarting(false);
+    setGoogleAdsOAuthExchanging(false);
   }, []);
 
   const resetGa4State = useCallback(() => {
@@ -639,6 +755,53 @@ const DataSources = () => {
     },
     [applyGa4Properties, pushToast],
   );
+
+  const handleStartGoogleAdsOAuth = useCallback(async () => {
+    if (googleAdsOAuthStarting || googleAdsOAuthExchanging) {
+      return;
+    }
+    const customerId = connectForm.accountId.trim();
+    if (!customerId) {
+      pushToast('Google Ads customer/account ID is required before OAuth.', { tone: 'error' });
+      return;
+    }
+    setGoogleAdsOAuthStarting(true);
+    try {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(CONNECT_OAUTH_PROVIDER_KEY, 'GOOGLE');
+        window.sessionStorage.setItem(GOOGLE_ADS_OAUTH_FORM_KEY, JSON.stringify(connectForm));
+      }
+      const hasRuntimeContext = Boolean(
+        runtimeContext.client_origin || runtimeContext.client_port || runtimeContext.dataset_source,
+      );
+      const response = await startGoogleAdsOAuth(
+        hasRuntimeContext ? { runtime_context: runtimeContext } : undefined,
+      );
+      if (typeof window !== 'undefined') {
+        if (import.meta.env.MODE === 'test') {
+          return;
+        }
+        window.location.assign(response.authorize_url);
+      }
+    } catch (googleAdsStartError) {
+      const message =
+        googleAdsStartError instanceof Error
+          ? googleAdsStartError.message
+          : 'Unable to start Google Ads OAuth.';
+      pushToast(message, { tone: 'error' });
+      setConnectProvider('GOOGLE');
+      resetGoogleAdsState();
+    } finally {
+      setGoogleAdsOAuthStarting(false);
+    }
+  }, [
+    connectForm,
+    googleAdsOAuthExchanging,
+    googleAdsOAuthStarting,
+    pushToast,
+    resetGoogleAdsState,
+    runtimeContext,
+  ]);
 
   const handleStartGoogleAnalyticsOAuth = useCallback(async () => {
     if (ga4OAuthStarting || ga4OAuthExchanging) {
@@ -717,6 +880,9 @@ const DataSources = () => {
       const nextUrl = `${window.location.pathname}${window.location.hash}`;
       window.history.replaceState({}, document.title, nextUrl);
     };
+    const clearGoogleAdsOAuthForm = () => {
+      window.sessionStorage.removeItem(GOOGLE_ADS_OAUTH_FORM_KEY);
+    };
     const clearOAuthMarkers = () => {
       window.sessionStorage.removeItem(META_OAUTH_FLOW_SESSION_KEY);
       clearOAuthParams();
@@ -792,6 +958,52 @@ const DataSources = () => {
       });
     };
 
+    const handleGoogleAdsCallback = async () => {
+      const storedFormRaw = window.sessionStorage.getItem(GOOGLE_ADS_OAUTH_FORM_KEY);
+      const nextForm = buildInitialConnectForm('GOOGLE');
+      if (storedFormRaw) {
+        try {
+          const parsed = JSON.parse(storedFormRaw) as Partial<ConnectFormState>;
+          Object.assign(nextForm, {
+            ...parsed,
+            accessToken: '',
+            refreshToken: '',
+          });
+        } catch {
+          // Ignore malformed session state and fall back to defaults.
+        }
+      }
+      const customerId = nextForm.accountId.trim();
+      if (!customerId) {
+        throw new Error('Google Ads customer/account ID is missing. Restart the connect flow.');
+      }
+      setConnectProvider('GOOGLE');
+      setConnectForm(nextForm);
+      setGoogleAdsConnectStep('oauth-pending');
+
+      const response = await exchangeGoogleAdsOAuthCode({
+        code: code ?? '',
+        state: state ?? '',
+        customer_id: customerId,
+        login_customer_id: nextForm.loginCustomerId.trim() || undefined,
+        runtime_context: runtimeContext,
+      });
+      setGoogleAdsCredential(response.credential);
+      setGoogleAdsConnectStep('connected');
+      setConnectForm((previous) => ({
+        ...previous,
+        accountId: response.credential.account_id,
+      }));
+      pushToast(
+        response.refresh_token_received
+          ? 'Google Ads connected. Save the connection to finish provisioning.'
+          : 'Google Ads connected, but no refresh token was returned. Reconnect if sync fails.',
+        {
+          tone: response.refresh_token_received ? 'success' : 'error',
+        },
+      );
+    };
+
     const handleMarketingCallback = async () => {
       setConnectProvider('META');
       setConnectForm(buildInitialConnectForm('META'));
@@ -849,7 +1061,12 @@ const DataSources = () => {
     };
 
     if (oauthError) {
-      const providerLabel = oauthProvider === 'GA4' ? 'Google Analytics' : 'OAuth';
+      const providerLabel =
+        oauthProvider === 'GA4'
+          ? 'Google Analytics'
+          : oauthProvider === 'GOOGLE'
+            ? 'Google Ads'
+            : 'OAuth';
       pushToast(
         oauthErrorDescription?.trim()
           ? `${providerLabel} failed: ${oauthErrorDescription}`
@@ -861,6 +1078,26 @@ const DataSources = () => {
       } else {
         clearOAuthMarkers();
       }
+      return;
+    }
+
+    if (oauthProvider === 'GOOGLE') {
+      setGoogleAdsOAuthExchanging(true);
+      void (async () => {
+        try {
+          await handleGoogleAdsCallback();
+        } catch (googleAdsExchangeError) {
+          const message =
+            googleAdsExchangeError instanceof Error
+              ? googleAdsExchangeError.message
+              : 'Google Ads OAuth callback failed.';
+          pushToast(message, { tone: 'error' });
+        } finally {
+          setGoogleAdsOAuthExchanging(false);
+          clearGoogleAdsOAuthForm();
+          clearOAuthParams();
+        }
+      })();
       return;
     }
 
@@ -1046,18 +1283,20 @@ const DataSources = () => {
     (provider: ConnectProvider) => {
       setConnectProvider(provider);
       setConnectForm(buildInitialConnectForm(provider));
+      resetGoogleAdsState();
       resetMetaOAuthState();
       resetGa4State();
     },
-    [resetGa4State, resetMetaOAuthState],
+    [resetGa4State, resetGoogleAdsState, resetMetaOAuthState],
   );
 
   const closeConnectPanel = useCallback(() => {
     setConnectProvider(null);
     setSavingConnect(false);
+    resetGoogleAdsState();
     resetMetaOAuthState();
     resetGa4State();
-  }, [resetGa4State, resetMetaOAuthState]);
+  }, [resetGa4State, resetGoogleAdsState, resetMetaOAuthState]);
 
   const handleRunNow = useCallback(
     async (connection: AirbyteConnectionRecord) => {
@@ -1218,51 +1457,43 @@ const DataSources = () => {
           setGa4ConnectStep('connected');
         } else {
           const accountId = connectForm.accountId.trim();
-          const accessToken = connectForm.accessToken.trim();
-          if (!accountId || !accessToken) {
-            pushToast('Account ID and access token are required.', { tone: 'error' });
+          const hasGoogleAdsCredential = Boolean(
+            googleAdsCredential || googleAdsStatus?.metadata?.has_credential,
+          );
+          if (!accountId) {
+            pushToast('Google Ads customer/account ID is required.', { tone: 'error' });
+            return;
+          }
+          if (!hasGoogleAdsCredential) {
+            pushToast('Complete Google Ads OAuth first.', { tone: 'error' });
             return;
           }
 
-          await createPlatformCredential({
-            provider: connectProvider,
-            account_id: accountId,
-            access_token: accessToken,
-            refresh_token: connectForm.refreshToken.trim() || null,
-          });
-
           if (connectForm.linkConnection) {
-            const connectionId = connectForm.connectionId.trim();
-            if (!connectionId) {
-              pushToast('Airbyte connection UUID is required when linking Google.', {
-                tone: 'error',
-              });
-              return;
-            }
-            if (!UUID_REGEX.test(connectionId)) {
-              pushToast('Connection UUID format is invalid.', { tone: 'error' });
-              return;
-            }
-
             const scheduleType = connectForm.scheduleType;
-            const payload = {
-              name: connectForm.connectionName.trim(),
-              connection_id: connectionId,
+            await provisionGoogleAds({
+              external_account_id: accountId,
+              login_customer_id: connectForm.loginCustomerId.trim() || undefined,
               workspace_id: connectForm.workspaceId.trim() || null,
-              provider: connectProvider,
-              schedule_type: scheduleType,
+              destination_id: connectForm.destinationId.trim() || null,
+              connection_name: connectForm.connectionName.trim(),
               is_active: connectForm.isActive,
+              schedule_type: scheduleType,
               interval_minutes:
                 scheduleType === 'interval' ? Number(connectForm.intervalMinutes) : null,
               cron_expression: scheduleType === 'cron' ? connectForm.cronExpression.trim() : '',
-            } as const;
-            await createAirbyteConnection(payload);
+            });
+            setGoogleAdsConnectStep('connected');
           }
         }
 
         pushToast(
           connectProvider === 'GA4'
             ? 'Google Analytics 4 property connected.'
+            : connectProvider === 'GOOGLE'
+              ? connectForm.linkConnection
+                ? 'Google Ads connected and provisioned.'
+                : 'Google Ads OAuth connected.'
             : connectForm.linkConnection
               ? `${CONNECT_PROVIDER_LABELS[connectProvider]} connected and linked.`
               : `${CONNECT_PROVIDER_LABELS[connectProvider]} credentials saved.`,
@@ -1285,6 +1516,8 @@ const DataSources = () => {
       loadData,
       metaConnectedCredential,
       metaPermissionDiagnostics,
+      googleAdsCredential,
+      googleAdsStatus?.metadata,
       ga4Credential,
       ga4Properties,
       ga4SelectedPropertyId,
@@ -1363,6 +1596,10 @@ const DataSources = () => {
     openConnectPanel('GA4');
   }, [openConnectPanel]);
 
+  const handleGoogleAdsPrimaryAction = useCallback(() => {
+    openConnectPanel('GOOGLE');
+  }, [openConnectPanel]);
+
   const ga4StatusValue: GoogleAnalyticsStatusResponse['status'] =
     ga4Status?.status ?? 'not_connected';
   const ga4StatusLabel = resolveSocialStatusLabel(ga4StatusValue);
@@ -1370,6 +1607,21 @@ const DataSources = () => {
   const ga4PrimaryActionLabel = resolveGa4PrimaryAction(ga4StatusValue);
   const ga4LastCheckedLabel = formatRelativeTime(ga4Status?.last_checked_at ?? null) ?? '—';
   const ga4LastSyncedLabel = formatRelativeTime(ga4Status?.last_synced_at ?? null) ?? 'Never';
+  const ga4OauthReady = Boolean(ga4SetupStatus?.ready_for_oauth);
+
+  const googleAdsStatusValue: GoogleAdsStatusResponse['status'] =
+    googleAdsStatus?.status ?? 'not_connected';
+  const googleAdsStatusLabel = resolveSocialStatusLabel(googleAdsStatusValue);
+  const googleAdsStatusTone = resolveSocialStatusTone(googleAdsStatusValue);
+  const googleAdsPrimaryActionLabel = resolveGoogleAdsPrimaryAction(
+    googleAdsStatusValue,
+    googleAdsStatus?.actions ?? [],
+  );
+  const googleAdsLastCheckedLabel =
+    formatRelativeTime(googleAdsStatus?.last_checked_at ?? null) ?? '—';
+  const googleAdsLastSyncedLabel =
+    formatRelativeTime(googleAdsStatus?.last_synced_at ?? null) ?? 'Never';
+  const googleAdsOauthReady = Boolean(googleAdsSetupStatus?.ready_for_oauth);
 
   const latestSyncLabel = useMemo(() => {
     const lastSyncedAt = summary?.latest_sync?.last_synced_at;
@@ -1520,8 +1772,8 @@ const DataSources = () => {
             </span>
           </div>
           <p className="status-message muted">
-            Connect a GA4 property for tenant-scoped sessions, engagement, conversion, and revenue
-            reporting.
+            Use Google Analytics 4 for website and app behavior. Connect a GA4 property when you
+            want sessions, engagement, on-site conversions, and revenue reporting by property.
           </p>
           {ga4StatusLoad === 'loading' ? (
             <p className="status-message muted">Loading Google Analytics status…</p>
@@ -1539,7 +1791,7 @@ const DataSources = () => {
               </div>
               <p className="status-message muted">
                 {ga4Status?.reason?.message ??
-                  'Complete Google OAuth, choose a GA4 property, and verify the warehouse feed.'}
+                  'Choose this when you need website analytics. It does not import ad spend or campaign delivery from Google Ads.'}
               </p>
               <dl className="social-connection-card__meta">
                 <div>
@@ -1562,6 +1814,66 @@ const DataSources = () => {
                 </button>
                 {(ga4Status?.status === 'complete' || ga4Status?.status === 'active') && (
                   <a className="button tertiary" href="/dashboards/web/ga4">
+                    Open dashboard
+                  </a>
+                )}
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section className="social-connections-panel" aria-labelledby="paid-media-title">
+          <div className="panel-header__title-row">
+            <h3 id="paid-media-title">Paid media</h3>
+            <span
+              className={`status-pill ${googleAdsStatusLoad === 'loaded' ? googleAdsStatusTone : 'muted'}`}
+            >
+              {googleAdsStatusLoad === 'loaded' ? googleAdsStatusLabel : 'Checking status'}
+            </span>
+          </div>
+          <p className="status-message muted">
+            Use Google Ads for paid campaign performance. Connect a Google Ads account when you
+            want spend, clicks, impressions, conversions, and campaign-level delivery metrics.
+          </p>
+          {googleAdsStatusLoad === 'loading' ? (
+            <p className="status-message muted">Loading Google Ads status…</p>
+          ) : null}
+          {googleAdsStatusLoad === 'error' ? (
+            <p className="status-message error">
+              {googleAdsStatusError ?? 'Could not load Google Ads status.'}
+            </p>
+          ) : null}
+          <div className="social-connections-grid">
+            <article className="social-connection-card">
+              <div className="social-connection-card__header">
+                <h4>Google Ads</h4>
+                <span className={`status-pill ${googleAdsStatusTone}`}>{googleAdsStatusLabel}</span>
+              </div>
+              <p className="status-message muted">
+                {googleAdsStatus?.reason?.message ??
+                  'Choose this when you need paid media performance. It does not replace GA4 website analytics or property reporting.'}
+              </p>
+              <dl className="social-connection-card__meta">
+                <div>
+                  <dt>Checked</dt>
+                  <dd>{googleAdsLastCheckedLabel}</dd>
+                </div>
+                <div>
+                  <dt>Last sync</dt>
+                  <dd>{googleAdsLastSyncedLabel}</dd>
+                </div>
+              </dl>
+              <div className="social-connection-card__actions">
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={handleGoogleAdsPrimaryAction}
+                  disabled={googleAdsOAuthStarting || googleAdsOAuthExchanging}
+                >
+                  {googleAdsOAuthStarting ? 'Redirecting…' : googleAdsPrimaryActionLabel}
+                </button>
+                {(googleAdsStatus?.status === 'complete' || googleAdsStatus?.status === 'active') && (
+                  <a className="button tertiary" href="/dashboards/google-ads">
                     Open dashboard
                   </a>
                 )}
@@ -1663,8 +1975,10 @@ const DataSources = () => {
 
         <p className="status-message muted">
           Meta connects through Facebook OAuth so you can select a business page, ad account, and
-          optional Instagram business account, then provision insights sync. Google Ads currently
-          uses direct credential entry, while GA4 uses Google OAuth plus property selection.
+          optional Instagram business account, then provision insights sync. Google Analytics 4
+          handles website analytics at the property level. Google Ads handles paid media
+          performance at the ad account level. They both use Google OAuth but remain separate
+          integrations because they serve different reporting jobs.
         </p>
 
         {connectProvider ? (
@@ -1675,8 +1989,10 @@ const DataSources = () => {
                 <p className="status-message muted">
                   {connectProvider === 'META'
                     ? 'Complete Facebook OAuth, pick business assets, and optionally auto-provision the sync.'
+                    : connectProvider === 'GOOGLE'
+                      ? 'Use this flow for Google Ads campaign performance. Enter a Google Ads customer ID, complete Google OAuth, then optionally provision the sync connection.'
                     : connectProvider === 'GA4'
-                      ? 'Complete Google OAuth, select a GA4 property, and save the tenant-scoped analytics connection.'
+                      ? 'Use this flow for website analytics. Complete Google OAuth, select the GA4 property that owns your site data, and save the tenant-scoped analytics connection.'
                       : 'Save API credentials and optionally link an existing Airbyte connection record.'}
                 </p>
               </div>
@@ -2028,11 +2344,22 @@ const DataSources = () => {
                       type="button"
                       className="button secondary"
                       onClick={() => void handleStartGoogleAnalyticsOAuth()}
-                      disabled={ga4OAuthStarting || ga4OAuthExchanging}
+                      disabled={
+                        ga4OAuthStarting ||
+                        ga4OAuthExchanging ||
+                        ga4SetupLoading ||
+                        !ga4OauthReady
+                      }
                       aria-busy={ga4OAuthStarting || ga4OAuthExchanging}
                     >
-                      {ga4OAuthStarting ? 'Redirecting…' : 'Connect with Google'}
+                      {ga4OAuthStarting ? 'Redirecting…' : 'Connect Google Analytics'}
                     </button>
+                    {!ga4SetupLoading && !ga4OauthReady ? (
+                      <p className="status-message error">
+                        GA4 OAuth is not ready. Configure the GA4 client ID, client secret, and
+                        redirect URI first.
+                      </p>
+                    ) : null}
                   </div>
                   <label className="dashboard-field">
                     <span className="dashboard-field__label">OAuth status</span>
@@ -2077,6 +2404,144 @@ const DataSources = () => {
                       Open GA4 dashboard
                     </a>
                   </div>
+                </div>
+              </>
+            ) : connectProvider === 'GOOGLE' ? (
+              <>
+                <div className="data-sources-connect-form__grid">
+                  <div className="dashboard-field">
+                    <span className="dashboard-field__label">Google Ads setup checklist</span>
+                    {googleAdsSetupLoading ? (
+                      <p className="status-message muted">Checking backend setup…</p>
+                    ) : null}
+                    {!googleAdsSetupLoading && !googleAdsSetupStatus ? (
+                      <p className="status-message error">
+                        Could not load Google Ads setup status. Confirm backend is running and authenticated.
+                      </p>
+                    ) : null}
+                    {googleAdsSetupStatus ? (
+                      <>
+                        <p className="status-message muted">
+                          OAuth ready:{' '}
+                          <span
+                            className={`status-pill ${googleAdsSetupStatus.ready_for_oauth ? 'success' : 'error'}`}
+                          >
+                            {googleAdsSetupStatus.ready_for_oauth ? 'Yes' : 'No'}
+                          </span>
+                        </p>
+                        <p className="status-message muted">
+                          Provisioning defaults:{' '}
+                          <span
+                            className={`status-pill ${googleAdsSetupStatus.ready_for_provisioning_defaults ? 'success' : 'error'}`}
+                          >
+                            {googleAdsSetupStatus.ready_for_provisioning_defaults ? 'Ready' : 'Needs config'}
+                          </span>
+                        </p>
+                        <p className="status-message muted">
+                          Redirect URI: {googleAdsSetupStatus.redirect_uri || 'Not configured'}
+                        </p>
+                        <p className="status-message muted">
+                          OAuth scopes: {googleAdsSetupStatus.oauth_scopes.join(', ') || '—'}
+                        </p>
+                      </>
+                    ) : null}
+                    {googleAdsStatusLoad === 'error' ? (
+                      <p className="status-message error">
+                        {googleAdsStatusError ?? 'Could not load Google Ads status.'}
+                      </p>
+                    ) : null}
+                    {googleAdsStatus ? (
+                      <p className="status-message muted">
+                        Current status: {googleAdsStatus.reason?.message ?? googleAdsStatus.status}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="data-sources-connect-form__grid">
+                  <label className="dashboard-field">
+                    <span className="dashboard-field__label">Google Ads customer/account ID</span>
+                    <input
+                      type="text"
+                      value={connectForm.accountId}
+                      onChange={(event) => handleConnectFieldChange('accountId', event.target.value)}
+                      placeholder="1234567890"
+                      required
+                    />
+                  </label>
+                  <label className="dashboard-field">
+                    <span className="dashboard-field__label">Login customer ID (optional)</span>
+                    <input
+                      type="text"
+                      value={connectForm.loginCustomerId}
+                      onChange={(event) =>
+                        handleConnectFieldChange('loginCustomerId', event.target.value)
+                      }
+                      placeholder="1234567890"
+                    />
+                  </label>
+                  <div className="dashboard-field">
+                    <span className="dashboard-field__label">Google OAuth</span>
+                    <button
+                      type="button"
+                      className="button secondary"
+                      onClick={() => void handleStartGoogleAdsOAuth()}
+                      disabled={
+                        googleAdsOAuthStarting ||
+                        googleAdsOAuthExchanging ||
+                        googleAdsSetupLoading ||
+                        !googleAdsOauthReady
+                      }
+                      aria-busy={googleAdsOAuthStarting || googleAdsOAuthExchanging}
+                    >
+                      {googleAdsOAuthStarting ? 'Redirecting…' : 'Connect Google Ads'}
+                    </button>
+                    {!googleAdsSetupLoading && !googleAdsOauthReady ? (
+                      <p className="status-message error">
+                        Google Ads OAuth is not ready. Configure the Google Ads OAuth client and
+                        redirect URI first.
+                      </p>
+                    ) : null}
+                  </div>
+                  <label className="dashboard-field">
+                    <span className="dashboard-field__label">OAuth status</span>
+                    <input
+                      type="text"
+                      value={googleAdsConnectStep}
+                      readOnly
+                      aria-label="Google Ads OAuth status"
+                    />
+                  </label>
+                </div>
+
+                <div className="data-sources-connect-form__grid">
+                  <label className="dashboard-field">
+                    <span className="dashboard-field__label">Connected account</span>
+                    <input
+                      type="text"
+                      value={
+                        googleAdsCredential?.account_id ??
+                        (typeof googleAdsStatus?.metadata?.credential_account_id === 'string'
+                          ? googleAdsStatus.metadata.credential_account_id
+                          : '')
+                      }
+                      readOnly
+                      placeholder="Connect with Google to populate"
+                    />
+                  </label>
+                  <label className="dashboard-field data-sources-checkbox-field">
+                    <span className="dashboard-field__label">Auto-provision Airbyte</span>
+                    <div className="data-sources-checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={connectForm.linkConnection}
+                        onChange={(event) =>
+                          handleConnectFieldChange('linkConnection', event.target.checked)
+                        }
+                      />
+                      <span>Create or reuse a Google Ads Airbyte source/connection now</span>
+                    </div>
+                  </label>
                 </div>
               </>
             ) : (
@@ -2149,20 +2614,6 @@ const DataSources = () => {
                     required
                   />
                 </label>
-                {connectProvider === 'GOOGLE' ? (
-                  <label className="dashboard-field">
-                    <span className="dashboard-field__label">Airbyte connection UUID</span>
-                    <input
-                      type="text"
-                      value={connectForm.connectionId}
-                      onChange={(event) =>
-                        handleConnectFieldChange('connectionId', event.target.value)
-                      }
-                      placeholder="11111111-1111-1111-1111-111111111111"
-                      required
-                    />
-                  </label>
-                ) : null}
                 <label className="dashboard-field">
                   <span className="dashboard-field__label">Airbyte workspace UUID (optional)</span>
                   <input
@@ -2174,7 +2625,7 @@ const DataSources = () => {
                     placeholder="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
                   />
                 </label>
-                {connectProvider === 'META' ? (
+                {connectProvider === 'META' || connectProvider === 'GOOGLE' ? (
                   <label className="dashboard-field">
                     <span className="dashboard-field__label">
                       Airbyte destination UUID (optional)

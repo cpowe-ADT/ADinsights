@@ -175,7 +175,15 @@ class MetaGraphClient:
                 "META_APP_ID and META_APP_SECRET must be configured for Meta OAuth."
             )
         graph_version = (getattr(settings, "META_GRAPH_API_VERSION", "v24.0") or "v24.0").strip()
-        return cls(app_id=app_id, app_secret=app_secret, graph_version=graph_version)
+        timeout_seconds = float(getattr(settings, "META_GRAPH_TIMEOUT_SECONDS", 10.0) or 10.0)
+        max_attempts = int(getattr(settings, "META_GRAPH_MAX_ATTEMPTS", 5) or 5)
+        return cls(
+            app_id=app_id,
+            app_secret=app_secret,
+            graph_version=graph_version,
+            timeout_seconds=timeout_seconds,
+            max_attempts=max_attempts,
+        )
 
     def close(self) -> None:
         self._client.close()
@@ -454,7 +462,7 @@ class MetaGraphClient:
                     "id,account_id,campaign_id,adset_id,name,status,effective_status,"
                     "creative{id,name,thumbnail_url},created_time,updated_time"
                 ),
-                "limit": 200,
+                "limit": 50,
                 "access_token": user_access_token,
             },
             request_name="list_ads",

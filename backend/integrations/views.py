@@ -716,6 +716,16 @@ def _meta_sync_state_is_active(*, sync_state: MetaAccountSyncState | None, now) 
     return sync_state.last_success_at is not None
 
 
+def _meta_sync_state_has_no_recent_data(*, sync_state: MetaAccountSyncState | None) -> bool:
+    if sync_state is None:
+        return False
+    if sync_state.last_sync_engine != MetaAccountSyncState.SYNC_ENGINE_DIRECT:
+        return False
+    if (sync_state.last_job_status or "").strip().lower() not in SOCIAL_SUCCESS_STATUSES:
+        return False
+    return sync_state.last_rows_synced <= 0
+
+
 def _meta_last_synced_at(
     *,
     sync_state: MetaAccountSyncState | None,
@@ -865,6 +875,16 @@ def _resolve_meta_status(
             {
                 "code": "latest_sync_failed",
                 "message": sync_state.last_job_error or "The latest Meta direct sync failed.",
+            },
+            ["sync_now", "view"],
+        )
+
+    if _meta_sync_state_has_no_recent_data(sync_state=sync_state):
+        return (
+            "complete",
+            {
+                "code": "no_recent_reportable_data",
+                "message": "Meta is connected, but the latest direct sync found no reportable rows for the checked window.",
             },
             ["sync_now", "view"],
         )

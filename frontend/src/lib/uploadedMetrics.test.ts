@@ -68,6 +68,7 @@ describe('uploadedMetrics', () => {
     const filters: FilterBarState = {
       dateRange: 'custom',
       customRange: { start: '2024-10-01', end: '2024-10-31' },
+      accountId: '',
       channels: [],
       campaignQuery: '',
     };
