@@ -13,6 +13,22 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-03-30**
+  - Endpoint: Warehouse contract (`dbt` backend raw bridge + Meta/Google staging/reference marts)
+  - Change: Preserved real backend `tenant_id` values through bridge-backed Postgres warehouse builds instead of restamping rows as `tenant_demo`. Bridge-backed fixture views now refresh on dbt runs when their SQL changes so live warehouse marts stay aligned with the latest bridge contract.
+  - Impact: Tenant-scoped warehouse snapshots and `/api/metrics/combined/?source=warehouse` can resolve live Meta client data for the correct tenant instead of producing empty/stale results behind a successful dbt run.
+  - Owner: Priya (dbt) + Sofia (Backend Metrics)
+- **2026-03-30**
+  - Endpoint: `GET /api/metrics/combined/`
+  - Change: Added warehouse-only filtered query support for `start_date`, `end_date`, `account_id`, `channels`, `campaign_search`, and `parish` through direct warehouse daily aggregates. Warehouse responses now include additive `coverage` and `availability` metadata for truthful section states, while non-warehouse sources remain shape-compatible with the prior combined payload contract.
+  - Impact: Meta dashboard filters can drive real account/range/search queries without mutating cached fake/demo payloads or silently falling back when warehouse data is unavailable.
+  - Owner: Sofia (Backend Metrics) + Priya (dbt) + Lina (Frontend)
+- **2026-03-30**
+  - Endpoint: `GET /api/dashboards/library/`, `GET|POST /api/dashboards/definitions/`, `GET|PATCH|DELETE /api/dashboards/definitions/{id}/`, `POST /api/dashboards/definitions/{id}/duplicate/`
+  - Change: Added tenant-scoped saved-dashboard definition CRUD plus duplicate workflow, and changed dashboard library responses from a flat mixed list into `{ generatedAt, systemTemplates, savedDashboards }`. Saved dashboards are now backed by dedicated `DashboardDefinition` records and route to `/dashboards/saved/{id}` instead of reusing report definitions.
+  - Impact: The dashboard builder/library can create, open, rename, duplicate, archive/delete, and list tenant-scoped Meta dashboard presets separately from `/reports/*` export definitions.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend)
+
 - **2026-03-21**
   - Endpoint: `GET /api/integrations/google_analytics/setup/`, `POST /api/integrations/google_analytics/oauth/start/`, `POST /api/integrations/google_analytics/oauth/exchange/`, `GET /api/integrations/google_analytics/properties/`, `POST /api/integrations/google_analytics/provision/`, `GET /api/integrations/google_analytics/status/`
   - Change: Added tenant-scoped GA4 onboarding and connection-management contract for runtime readiness, OAuth state exchange, property discovery, provisioning, and connection status. Status surfaces preserve canonical onboarding states (`not_connected`, `started_not_complete`, `complete`, `active`) and expose redirect/runtime diagnostics needed by the Data Sources flow.

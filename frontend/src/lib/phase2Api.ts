@@ -1,14 +1,58 @@
 import apiClient, { appendQueryParams } from './apiClient';
 
+export type DashboardTemplateKey =
+  | 'meta_executive_overview'
+  | 'meta_campaign_performance'
+  | 'meta_creative_insights'
+  | 'meta_budget_pacing'
+  | 'meta_parish_map';
+
+export type DashboardMetricKey =
+  | 'spend'
+  | 'impressions'
+  | 'reach'
+  | 'clicks'
+  | 'conversions'
+  | 'roas'
+  | 'ctr'
+  | 'cpc'
+  | 'cpm'
+  | 'cpa'
+  | 'frequency';
+
 export type DashboardLibraryItem = {
   id: string;
+  kind: 'system_template' | 'saved_dashboard';
+  templateKey: DashboardTemplateKey;
   name: string;
-  type: 'Campaigns' | 'Creatives' | 'Budget pacing' | 'Parish map';
+  type: string;
   owner: string;
   updatedAt: string;
   tags: string[];
   description: string;
   route: string;
+  defaultMetric?: DashboardMetricKey;
+  isActive?: boolean;
+};
+
+export type DashboardLibraryResponse = {
+  generatedAt: string;
+  systemTemplates: DashboardLibraryItem[];
+  savedDashboards: DashboardLibraryItem[];
+};
+
+export type DashboardDefinition = {
+  id: string;
+  name: string;
+  description: string;
+  template_key: DashboardTemplateKey;
+  filters: Record<string, unknown>;
+  layout: Record<string, unknown>;
+  default_metric: DashboardMetricKey;
+  is_active: boolean;
+  owner_email?: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type ReportDefinition = {
@@ -118,8 +162,111 @@ export type PaginatedResponse<T> = {
   results: T[];
 };
 
-export async function fetchDashboardLibrary(signal?: AbortSignal): Promise<DashboardLibraryItem[]> {
-  return apiClient.get<DashboardLibraryItem[]>('/dashboards/library/', { signal });
+function normalizeDashboardLibraryItem(
+  item: Record<string, unknown>,
+  fallbackKind: DashboardLibraryItem['kind'],
+): DashboardLibraryItem {
+  return {
+    id: String(item.id ?? ''),
+    kind:
+      item.kind === 'saved_dashboard' || item.kind === 'system_template'
+        ? item.kind
+        : fallbackKind,
+    templateKey: String(item.template_key ?? item.templateKey ?? 'meta_campaign_performance') as DashboardTemplateKey,
+    name: String(item.name ?? ''),
+    type: String(item.type ?? 'Saved dashboard'),
+    owner: String(item.owner ?? 'Team'),
+    updatedAt: String(item.updatedAt ?? item.updated_at ?? ''),
+    tags: Array.isArray(item.tags) ? item.tags.map((tag) => String(tag)) : [],
+    description: String(item.description ?? ''),
+    route: String(item.route ?? ''),
+    defaultMetric: item.defaultMetric
+      ? (String(item.defaultMetric) as DashboardMetricKey)
+      : item.default_metric
+        ? (String(item.default_metric) as DashboardMetricKey)
+        : undefined,
+    isActive:
+      typeof item.isActive === 'boolean'
+        ? item.isActive
+        : typeof item.is_active === 'boolean'
+          ? item.is_active
+          : undefined,
+  };
+}
+
+function normalizeDashboardLibraryResponse(payload: Record<string, unknown>): DashboardLibraryResponse {
+  const systemTemplates = Array.isArray(payload.systemTemplates)
+    ? payload.systemTemplates.map((item) =>
+        normalizeDashboardLibraryItem(item as Record<string, unknown>, 'system_template'),
+      )
+    : [];
+  const savedDashboards = Array.isArray(payload.savedDashboards)
+    ? payload.savedDashboards.map((item) =>
+        normalizeDashboardLibraryItem(item as Record<string, unknown>, 'saved_dashboard'),
+      )
+    : [];
+
+  return {
+    generatedAt: String(payload.generatedAt ?? payload.generated_at ?? ''),
+    systemTemplates,
+    savedDashboards,
+  };
+}
+
+export async function fetchDashboardLibrary(
+  signal?: AbortSignal,
+): Promise<DashboardLibraryResponse> {
+  const payload = await apiClient.get<Record<string, unknown>>('/dashboards/library/', { signal });
+  return normalizeDashboardLibraryResponse(payload);
+}
+
+export async function listDashboardDefinitions(
+  signal?: AbortSignal,
+): Promise<DashboardDefinition[]> {
+  const payload = await apiClient.get<
+    DashboardDefinition[] | PaginatedResponse<DashboardDefinition>
+  >('/dashboards/definitions/', { signal });
+  return Array.isArray(payload) ? payload : payload.results;
+}
+
+export async function createDashboardDefinition(
+  payload: Pick<
+    DashboardDefinition,
+    'name' | 'description' | 'template_key' | 'filters' | 'layout' | 'default_metric' | 'is_active'
+  >,
+): Promise<DashboardDefinition> {
+  return apiClient.post<DashboardDefinition>('/dashboards/definitions/', payload);
+}
+
+export async function getDashboardDefinition(
+  dashboardId: string,
+  signal?: AbortSignal,
+): Promise<DashboardDefinition> {
+  return apiClient.get<DashboardDefinition>(`/dashboards/definitions/${dashboardId}/`, {
+    signal,
+  });
+}
+
+export async function updateDashboardDefinition(
+  dashboardId: string,
+  payload: Partial<
+    Pick<
+      DashboardDefinition,
+      'name' | 'description' | 'template_key' | 'filters' | 'layout' | 'default_metric' | 'is_active'
+    >
+  >,
+): Promise<DashboardDefinition> {
+  return apiClient.patch<DashboardDefinition>(`/dashboards/definitions/${dashboardId}/`, payload);
+}
+
+export async function deleteDashboardDefinition(dashboardId: string): Promise<void> {
+  await apiClient.delete(`/dashboards/definitions/${dashboardId}/`);
+}
+
+export async function duplicateDashboardDefinition(
+  dashboardId: string,
+): Promise<DashboardDefinition> {
+  return apiClient.post<DashboardDefinition>(`/dashboards/definitions/${dashboardId}/duplicate/`, {});
 }
 
 export async function fetchSyncHealth(signal?: AbortSignal): Promise<SyncHealthResponse> {

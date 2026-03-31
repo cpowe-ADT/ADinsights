@@ -13,7 +13,7 @@
 
 with meta as (
     select
-        {{ tenant_id_expr() }} as tenant_id,
+        tenant_id,
         'meta_ads' as source_platform,
         ad_account_id,
         campaign_id,
@@ -35,6 +35,7 @@ with meta as (
         parish_code,
         spend,
         impressions,
+        reach,
         clicks,
         conversions,
         effective_from
@@ -43,7 +44,7 @@ with meta as (
 
 google as (
     select
-        {{ tenant_id_expr() }} as tenant_id,
+        tenant_id,
         'google_ads' as source_platform,
         ad_account_id,
         campaign_id,
@@ -65,6 +66,7 @@ google as (
         parish_code,
         spend,
         impressions,
+        cast(0 as numeric) as reach,
         clicks,
         conversions,
         effective_from
@@ -77,7 +79,7 @@ google as (
 ,
 linkedin as (
     select
-        {{ tenant_id_expr() }} as tenant_id,
+        tenant_id,
         'linkedin' as source_platform,
         ad_account_id,
         campaign_id,
@@ -95,6 +97,7 @@ linkedin as (
         parish_code,
         spend,
         impressions,
+        cast(0 as numeric) as reach,
         clicks,
         null as conversions,
         effective_from
@@ -108,7 +111,7 @@ linkedin as (
 ,
 tiktok as (
     select
-        {{ tenant_id_expr() }} as tenant_id,
+        tenant_id,
         'tiktok' as source_platform,
         ad_account_id,
         campaign_id,
@@ -126,6 +129,7 @@ tiktok as (
         parish_code,
         spend,
         impressions,
+        cast(0 as numeric) as reach,
         clicks,
         null as conversions,
         effective_from

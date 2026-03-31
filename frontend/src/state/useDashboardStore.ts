@@ -35,7 +35,18 @@ import {
 } from './dashboardSession';
 import { getDatasetMode, getDatasetSource, getDemoTenantId } from './useDatasetStore';
 
-export type MetricKey = 'spend' | 'impressions' | 'clicks' | 'conversions' | 'roas';
+export type MetricKey =
+  | 'spend'
+  | 'impressions'
+  | 'reach'
+  | 'clicks'
+  | 'conversions'
+  | 'roas'
+  | 'ctr'
+  | 'cpc'
+  | 'cpm'
+  | 'cpa'
+  | 'frequency';
 
 export type LoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
@@ -43,9 +54,15 @@ export interface CampaignPerformanceSummary {
   currency: string;
   totalSpend: number;
   totalImpressions: number;
+  totalReach?: number;
   totalClicks: number;
   totalConversions: number;
   averageRoas: number;
+  ctr?: number;
+  cpc?: number;
+  cpm?: number;
+  cpa?: number;
+  frequency?: number;
 }
 
 export interface CampaignTrendPoint {
@@ -54,10 +71,13 @@ export interface CampaignTrendPoint {
   conversions: number;
   clicks: number;
   impressions: number;
+  reach?: number;
+  adAccountId?: string;
 }
 
 export interface CampaignPerformanceRow {
   id: string;
+  adAccountId?: string;
   name: string;
   platform: string;
   status: string;
@@ -65,12 +85,15 @@ export interface CampaignPerformanceRow {
   parish?: string;
   spend: number;
   impressions: number;
+  reach?: number;
   clicks: number;
   conversions: number;
   roas: number;
   ctr?: number;
   cpc?: number;
   cpm?: number;
+  cpa?: number;
+  frequency?: number;
   startDate?: string;
   endDate?: string;
 }
@@ -83,6 +106,7 @@ export interface CampaignPerformanceResponse {
 
 export interface CreativePerformanceRow {
   id: string;
+  adAccountId?: string;
   name: string;
   campaignId: string;
   campaignName: string;
@@ -90,19 +114,29 @@ export interface CreativePerformanceRow {
   parish?: string;
   spend: number;
   impressions: number;
+  reach?: number;
   clicks: number;
   conversions: number;
   roas: number;
   ctr?: number;
+  cpc?: number;
+  cpm?: number;
+  cpa?: number;
+  frequency?: number;
   thumbnailUrl?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface BudgetPacingRow {
   id: string;
+  adAccountId?: string;
   campaignName: string;
   parishes?: string[];
   platform?: string;
   monthlyBudget: number;
+  windowBudget?: number;
+  windowDays?: number;
   spendToDate: number;
   projectedSpend: number;
   pacingPercent: number;
@@ -111,14 +145,38 @@ export interface BudgetPacingRow {
 }
 
 export interface ParishAggregate {
+  adAccountId?: string;
   parish: string;
   spend: number;
   impressions: number;
+  reach?: number;
   clicks: number;
   conversions: number;
   roas?: number;
+  ctr?: number;
+  cpc?: number;
+  cpm?: number;
+  cpa?: number;
+  frequency?: number;
   campaignCount?: number;
   currency?: string;
+}
+
+export interface DashboardCoverage {
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+export interface DashboardSectionAvailability {
+  status: 'available' | 'empty' | 'unavailable';
+  reason?: string | null;
+}
+
+export interface DashboardAvailability {
+  campaign: DashboardSectionAvailability;
+  creative: DashboardSectionAvailability;
+  budget: DashboardSectionAvailability;
+  parish_map: DashboardSectionAvailability;
 }
 
 export interface TenantMetricsSnapshot {
@@ -137,6 +195,8 @@ export interface TenantMetricsSnapshot {
   tenant_id?: string;
   generated_at?: string;
   snapshot_generated_at?: string;
+  coverage?: DashboardCoverage;
+  availability?: DashboardAvailability;
   [key: string]: unknown;
 }
 
@@ -148,6 +208,8 @@ export interface TenantMetricsResolved {
   tenantId?: string;
   currency: string;
   snapshotGeneratedAt?: string;
+  coverage?: DashboardCoverage;
+  availability?: DashboardAvailability;
 }
 
 type AsyncSlice<T> = {
@@ -169,6 +231,8 @@ interface DashboardState {
   lastLoadedTenantId?: string;
   lastLoadedFiltersKey?: string;
   lastSnapshotGeneratedAt?: string;
+  coverage?: DashboardCoverage;
+  availability?: DashboardAvailability;
   metricsCache: Record<string, TenantMetricsResolved>;
   uploadedDataset?: UploadedDataset;
   uploadedActive: boolean;
@@ -212,6 +276,8 @@ function createInitialState(): Pick<
   | 'lastLoadedTenantId'
   | 'lastLoadedFiltersKey'
   | 'lastSnapshotGeneratedAt'
+  | 'coverage'
+  | 'availability'
   | 'metricsCache'
   | 'uploadedDataset'
   | 'uploadedActive'
@@ -231,6 +297,8 @@ function createInitialState(): Pick<
     lastLoadedTenantId: undefined,
     lastLoadedFiltersKey: undefined,
     lastSnapshotGeneratedAt: undefined,
+    coverage: undefined,
+    availability: undefined,
     metricsCache: {},
     uploadedDataset: uploadState.dataset,
     uploadedActive: uploadState.active,
@@ -374,6 +442,68 @@ function extractSnapshotTimestamp(
   return fallback;
 }
 
+function normalizeCoverage(value: unknown): DashboardCoverage | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const startDate =
+    typeof value.startDate === 'string'
+      ? value.startDate
+      : typeof value.start_date === 'string'
+        ? value.start_date
+        : null;
+  const endDate =
+    typeof value.endDate === 'string'
+      ? value.endDate
+      : typeof value.end_date === 'string'
+        ? value.end_date
+        : null;
+
+  if (!startDate && !endDate) {
+    return undefined;
+  }
+
+  return { startDate, endDate };
+}
+
+function normalizeSectionAvailability(value: unknown): DashboardSectionAvailability | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const status = value.status;
+  if (status !== 'available' && status !== 'empty' && status !== 'unavailable') {
+    return undefined;
+  }
+
+  return {
+    status,
+    reason: typeof value.reason === 'string' ? value.reason : null,
+  };
+}
+
+function normalizeAvailability(value: unknown): DashboardAvailability | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const campaign = normalizeSectionAvailability(value.campaign);
+  const creative = normalizeSectionAvailability(value.creative);
+  const budget = normalizeSectionAvailability(value.budget);
+  const parishMap = normalizeSectionAvailability(value.parish_map ?? value.parishMap);
+  if (!campaign || !creative || !budget || !parishMap) {
+    return undefined;
+  }
+
+  return {
+    campaign,
+    creative,
+    budget,
+    parish_map: parishMap,
+  };
+}
+
 function assertValidSchema<T>(schema: SchemaKey, payload: T, message: string): T {
   const valid = validate(schema, payload);
   if (!valid) {
@@ -450,6 +580,8 @@ function normalizeResolvedMetrics(input: {
   parish: ParishAggregate[];
   tenantId?: string;
   snapshotGeneratedAt?: string;
+  coverage?: DashboardCoverage;
+  availability?: DashboardAvailability;
 }): TenantMetricsResolved {
   const campaign = normalizeCampaignResponse(input.campaign);
   const parish = normalizeParishAggregates(input.parish, campaign.summary.currency);
@@ -463,6 +595,8 @@ function normalizeResolvedMetrics(input: {
     tenantId: input.tenantId,
     currency,
     snapshotGeneratedAt: input.snapshotGeneratedAt,
+    coverage: input.coverage,
+    availability: input.availability,
   };
 }
 
@@ -543,6 +677,8 @@ function parseTenantMetrics(snapshot: TenantMetricsSnapshot): TenantMetricsResol
       source,
       extractSnapshotTimestamp(snapshot, snapshot.generated_at),
     ),
+    coverage: normalizeCoverage(record['coverage'] ?? snapshot['coverage']),
+    availability: normalizeAvailability(record['availability'] ?? snapshot['availability']),
   });
 }
 
@@ -624,6 +760,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       lastLoadedFiltersKey: undefined,
       lastLoadedTenantId: undefined,
       lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+      coverage: undefined,
+      availability: undefined,
     }));
   },
   setUploadedActive: (active) => {
@@ -637,6 +775,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       lastLoadedFiltersKey: undefined,
       lastLoadedTenantId: undefined,
       lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+      coverage: undefined,
+      availability: undefined,
     }));
   },
   clearUploadedDataset: () => {
@@ -648,6 +788,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       lastLoadedFiltersKey: undefined,
       lastLoadedTenantId: undefined,
       lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+      coverage: undefined,
+      availability: undefined,
     }));
   },
   setFilters: (nextFilters) => {
@@ -717,6 +859,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           lastLoadedFiltersKey: filterKey,
           lastSnapshotGeneratedAt:
             cachedMetrics.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+          coverage: cachedMetrics.coverage ?? state.coverage,
+          availability: cachedMetrics.availability ?? state.availability,
           selectedParish: isTenantChange ? undefined : state.selectedParish,
           campaign: { status: 'loaded', data: cachedMetrics.campaign, error: undefined },
           creative: { status: 'loaded', data: cachedMetrics.creative, error: undefined },
@@ -733,6 +877,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           lastLoadedFiltersKey: filterKey,
           lastSnapshotGeneratedAt:
             cachedMetrics.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+          coverage: cachedMetrics.coverage ?? state.coverage,
+          availability: cachedMetrics.availability ?? state.availability,
           campaign: { status: 'loaded', data: cachedMetrics.campaign, error: undefined },
           creative: { status: 'loaded', data: cachedMetrics.creative, error: undefined },
           budget: { status: 'loaded', data: cachedMetrics.budget, error: undefined },
@@ -760,6 +906,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           lastLoadedTenantId: resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
           lastLoadedFiltersKey: filterKey,
           lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+          coverage: resolved.coverage ?? state.coverage,
+          availability: resolved.availability ?? state.availability,
           campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
           creative: { status: 'loaded', data: resolved.creative, error: undefined },
           budget: { status: 'loaded', data: resolved.budget, error: undefined },
@@ -818,6 +966,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           lastLoadedTenantId: resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
           lastLoadedFiltersKey: filterKey,
           lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+          coverage: resolved.coverage ?? state.coverage,
+          availability: resolved.availability ?? state.availability,
           campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
           creative: { status: 'loaded', data: resolved.creative, error: undefined },
           budget: { status: 'loaded', data: resolved.budget, error: undefined },
@@ -851,6 +1001,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
             lastLoadedTenantId: resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
             lastLoadedFiltersKey: filterKey,
             lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+            coverage: resolved.coverage ?? state.coverage,
+            availability: resolved.availability ?? state.availability,
             campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
             creative: { status: 'loaded', data: resolved.creative, error: undefined },
             budget: { status: 'loaded', data: resolved.budget, error: undefined },
@@ -877,6 +1029,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           lastLoadedTenantId: resolved.tenantId ?? normalizedTenantId ?? state.lastLoadedTenantId,
           lastLoadedFiltersKey: filterKey,
           lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+          coverage: resolved.coverage ?? state.coverage,
+          availability: resolved.availability ?? state.availability,
           campaign: { status: 'loaded', data: resolved.campaign, error: undefined },
           creative: { status: 'loaded', data: resolved.creative, error: undefined },
           budget: { status: 'loaded', data: resolved.budget, error: undefined },
@@ -988,6 +1142,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         lastLoadedFiltersKey: normalizedResolved ? filterKey : state.lastLoadedFiltersKey,
         lastSnapshotGeneratedAt:
           normalizedResolved?.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
+        coverage: normalizedResolved?.coverage ?? state.coverage,
+        availability: normalizedResolved?.availability ?? state.availability,
         campaign:
           campaignResult.status === 'fulfilled'
             ? { status: 'loaded', data: normalizedCampaign!, error: undefined }

@@ -63,12 +63,15 @@ const TrendPlaceholderIcon = () => (
 
 const CampaignDashboard = () => {
   const { tenantId } = useAuth();
-  const { campaign, campaignRows, loadAll, lastSnapshotGeneratedAt } = useDashboardStore(
+  const { campaign, campaignRows, loadAll, lastSnapshotGeneratedAt, availability, coverage } =
+    useDashboardStore(
     (state) => ({
       campaign: state.campaign,
       campaignRows: state.getCampaignRowsForSelectedParish(),
       loadAll: state.loadAll,
       lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+      availability: state.availability,
+      coverage: state.coverage,
     }),
   );
   const datasetMode = useDatasetStore((state) => state.mode);
@@ -80,6 +83,11 @@ const CampaignDashboard = () => {
     : null;
   const snapshotIsStale = isTimestampStale(lastSnapshotGeneratedAt, 60);
   const headingId = useId();
+  const campaignAvailability = availability?.campaign;
+  const coverageLabel =
+    coverage?.startDate && coverage?.endDate
+      ? `${coverage.startDate} to ${coverage.endDate}`
+      : null;
 
   const isInitialLoading = campaign.status === 'loading' && !campaign.data;
   const hasCampaignData = Boolean(campaign.data);
@@ -183,6 +191,11 @@ const CampaignDashboard = () => {
         sparkline: impressionsSeries,
       },
       {
+        label: 'Reach',
+        value: summary ? formatNumber(summary.totalReach ?? 0) : '—',
+        sparkline: impressionsSeries,
+      },
+      {
         label: 'Clicks',
         value: summary ? formatNumber(summary.totalClicks) : '—',
         sparkline: clicksSeries,
@@ -191,6 +204,31 @@ const CampaignDashboard = () => {
         label: 'Conversions',
         value: summary ? formatNumber(summary.totalConversions) : '—',
         sparkline: conversionsSeries,
+      },
+      {
+        label: 'CTR',
+        value: summary ? formatRatio(summary.ctr ?? 0, 2) : '—',
+        sparkline: clicksSeries,
+      },
+      {
+        label: 'CPC',
+        value: summary ? formatCurrency(summary.cpc ?? 0, currency) : '—',
+        sparkline: spendSeries,
+      },
+      {
+        label: 'CPM',
+        value: summary ? formatCurrency(summary.cpm ?? 0, currency) : '—',
+        sparkline: impressionsSeries,
+      },
+      {
+        label: 'CPA',
+        value: summary ? formatCurrency(summary.cpa ?? 0, currency) : '—',
+        sparkline: conversionsSeries,
+      },
+      {
+        label: 'Frequency',
+        value: summary ? formatRatio(summary.frequency ?? 0, 2) : '—',
+        sparkline: impressionsSeries,
       },
       {
         label: 'Avg. ROAS',
@@ -251,14 +289,62 @@ const CampaignDashboard = () => {
   }
 
   if (!hasCampaignData && !isInitialLoading) {
+    const emptyVariant = campaignAvailability?.reason === 'no_matching_filters' ? 'no-results' : 'empty';
+    const emptyTitle =
+      campaignAvailability?.reason === 'no_matching_filters'
+        ? 'No campaign rows match this view'
+        : campaignAvailability?.reason === 'no_recent_data'
+          ? 'No recent reportable data'
+          : 'No campaign insights yet';
+    const emptyMessage =
+      campaignAvailability?.reason === 'no_matching_filters'
+        ? 'No campaign rows matched the selected client, range, or search filters.'
+        : campaignAvailability?.reason === 'no_recent_data'
+          ? 'The selected Meta account is connected, but Meta returned no recent reportable campaign results for this window.'
+          : 'Campaign performance will appear once metrics are ingested for the selected Meta account.';
     return pageShell(
       <div className="dashboardGrid">
         <Card title="Campaign insights" className="chartCard">
           <DashboardState
-            variant="empty"
+            variant={emptyVariant}
             icon={<CampaignEmptyIcon />}
-            title="No campaign insights yet"
-            message="Campaign performance will appear once metrics are ingested."
+            title={emptyTitle}
+            message={emptyMessage}
+            actionLabel="Refresh data"
+            onAction={handleRetry}
+            layout="compact"
+          />
+        </Card>
+      </div>,
+    );
+  }
+
+  if (
+    !isInitialLoading &&
+    campaignAvailability?.status === 'empty' &&
+    (campaign.data?.rows.length ?? 0) === 0
+  ) {
+    const emptyVariant = campaignAvailability.reason === 'no_matching_filters' ? 'no-results' : 'empty';
+    const emptyTitle =
+      campaignAvailability.reason === 'no_matching_filters'
+        ? 'No campaign rows match this view'
+        : campaignAvailability.reason === 'no_recent_data'
+          ? 'No recent reportable data'
+          : 'No campaign insights yet';
+    const emptyMessage =
+      campaignAvailability.reason === 'no_matching_filters'
+        ? 'No campaign rows matched the selected client, range, or search filters.'
+        : campaignAvailability.reason === 'no_recent_data'
+          ? 'The selected Meta account is connected, but Meta returned no recent reportable campaign results for this window.'
+          : 'Campaign performance will appear once metrics are ingested for the selected Meta account.';
+    return pageShell(
+      <div className="dashboardGrid">
+        <Card title="Campaign insights" className="chartCard">
+          <DashboardState
+            variant={emptyVariant}
+            icon={<CampaignEmptyIcon />}
+            title={emptyTitle}
+            message={emptyMessage}
             actionLabel="Refresh data"
             onAction={handleRetry}
             layout="compact"
@@ -277,6 +363,7 @@ const CampaignDashboard = () => {
       </div>
 
       <Card className="chartCard" title="Daily spend trend">
+        {coverageLabel ? <p className="muted">Coverage: {coverageLabel}</p> : null}
         {isInitialLoading ? (
           <div className="widget-skeleton" aria-busy="true">
             <Skeleton height={220} borderRadius="1rem" />

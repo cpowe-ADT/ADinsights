@@ -498,6 +498,39 @@ def test_combined_metrics_accepts_filter_params(monkeypatch, api_client, user):
 
 
 @pytest.mark.django_db
+def test_combined_metrics_accepts_channel_and_campaign_search_filters(
+    monkeypatch, api_client, user
+):
+    api_client.force_authenticate(user=user)
+    captured: dict[str, object] = {}
+
+    def fake_fetch(self, *, tenant_id, options=None):  # noqa: D401 - test helper
+        captured["options"] = options or {}
+        return {
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+        }
+
+    monkeypatch.setattr(FakeAdapter, "fetch_metrics", fake_fetch, raising=False)
+
+    response = api_client.get(
+        "/api/metrics/combined/",
+        {
+            "source": "fake",
+            "channels": ["meta", "google_ads"],
+            "campaign_search": "Kingston launch",
+        },
+    )
+
+    assert response.status_code == 200
+    options = captured["options"]
+    assert options["channels"] == ["meta", "google_ads"]
+    assert options["campaign_search"] == "Kingston launch"
+
+
+@pytest.mark.django_db
 def test_combined_metrics_accepts_repeated_parish_params(monkeypatch, api_client, user):
     api_client.force_authenticate(user=user)
     captured: dict[str, object] = {}
@@ -557,6 +590,45 @@ def test_combined_metrics_filters_do_not_update_cache(monkeypatch, api_client, u
     snapshot = TenantMetricsSnapshot.objects.get(tenant=user.tenant, source="fake")
     assert snapshot.payload["campaign"]["summary"]["currency"] == "USD"
 
+
+@pytest.mark.django_db
+def test_combined_metrics_account_filter_bypasses_cache(monkeypatch, api_client, user):
+    api_client.force_authenticate(user=user)
+
+    TenantMetricsSnapshot.objects.create(
+        tenant=user.tenant,
+        source="fake",
+        payload={
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+            "snapshot_generated_at": timezone.now().isoformat(),
+        },
+        generated_at=timezone.now(),
+    )
+
+    def filtered_payload(self, *, tenant_id, options=None):  # noqa: D401 - test helper
+        assert options["account_id"] == "act_791712443035541"
+        return {
+            "campaign": {"summary": {"currency": "CAD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+        }
+
+    monkeypatch.setattr(FakeAdapter, "fetch_metrics", filtered_payload, raising=False)
+
+    response = api_client.get(
+        "/api/metrics/combined/",
+        {"source": "fake", "account_id": "act_791712443035541"},
+    )
+    assert response.status_code == 200
+    assert response.json()["campaign"]["summary"]["currency"] == "CAD"
+
+    snapshot = TenantMetricsSnapshot.objects.get(tenant=user.tenant, source="fake")
+    assert snapshot.payload["campaign"]["summary"]["currency"] == "USD"
+
 @pytest.mark.django_db
 def test_combined_metrics_defaults_to_warehouse(api_client, user, settings, enable_warehouse_adapter):
     settings.ENABLE_FAKE_ADAPTER = False
@@ -581,11 +653,85 @@ def test_combined_metrics_defaults_to_warehouse(api_client, user, settings, enab
     response = api_client.get("/api/metrics/combined/")
     assert response.status_code == 200
     payload = response.json()
-    assert payload["campaign"] == snapshot_payload["campaign"]
+    assert payload["campaign"]["summary"]["currency"] == "JMD"
     assert payload["creative"] == snapshot_payload["creative"]
     assert payload["budget"] == snapshot_payload["budget"]
     assert payload["parish"] == snapshot_payload["parish"]
+    assert payload["coverage"] == {"startDate": None, "endDate": None}
+    assert payload["availability"]["campaign"]["reason"] == "no_recent_data"
     assert "snapshot_generated_at" in payload
+
+
+@pytest.mark.django_db
+def test_combined_metrics_warehouse_filtered_query_supports_channels_and_campaign_search(
+    monkeypatch, api_client, user, settings, enable_warehouse_adapter
+):
+    settings.ENABLE_FAKE_ADAPTER = False
+    api_client.force_authenticate(user=user)
+
+    TenantMetricsSnapshot.objects.create(
+        tenant=user.tenant,
+        source="warehouse",
+        payload={
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+            "snapshot_generated_at": timezone.now().isoformat(),
+            WAREHOUSE_SNAPSHOT_STATUS_KEY: WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
+        },
+        generated_at=timezone.now(),
+    )
+
+    captured: dict[str, object] = {}
+
+    def filtered_payload(*, tenant, tenant_id, options, ttl_seconds):  # noqa: D401
+        captured["tenant_id"] = tenant_id
+        captured["options"] = options
+        captured["ttl_seconds"] = ttl_seconds
+        return {
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+            "coverage": {"startDate": "2026-02-01", "endDate": "2026-02-28"},
+            "availability": {
+                "campaign": {"status": "empty", "reason": "no_matching_filters"},
+                "creative": {"status": "empty", "reason": "no_matching_filters"},
+                "budget": {"status": "empty", "reason": "no_matching_filters"},
+                "parish_map": {"status": "unavailable", "reason": "geo_unavailable"},
+            },
+            "snapshot_generated_at": timezone.now().isoformat(),
+        }
+
+    monkeypatch.setattr(
+        "analytics.combined_metrics_service.load_filtered_warehouse_metrics",
+        filtered_payload,
+    )
+
+    response = api_client.get(
+        "/api/metrics/combined/",
+        {
+            "source": "warehouse",
+            "start_date": "2026-02-01",
+            "end_date": "2026-02-28",
+            "account_id": "act_791712443035541",
+            "channels": ["meta", "google_ads"],
+            "campaign_search": "Debt Reset",
+            "parish": "Kingston",
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["tenant_id"] == str(user.tenant_id)
+    options = captured["options"]
+    assert options["start_date"] == date(2026, 2, 1)
+    assert options["end_date"] == date(2026, 2, 28)
+    assert options["account_id"] == "act_791712443035541"
+    assert options["channels"] == ["meta", "google_ads"]
+    assert options["campaign_search"] == "Debt Reset"
+    assert options["parish"] == ["Kingston"]
+    assert response.json()["coverage"]["startDate"] == "2026-02-01"
 
 
 @pytest.mark.django_db
@@ -607,6 +753,34 @@ def test_combined_metrics_rejects_default_warehouse_snapshot(
             WAREHOUSE_SNAPSHOT_STATUS_KEY: WAREHOUSE_SNAPSHOT_STATUS_DEFAULT,
         },
         generated_at=timezone.now(),
+    )
+
+    response = api_client.get("/api/metrics/combined/")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == WAREHOUSE_UNAVAILABLE_DETAIL
+
+
+@pytest.mark.django_db
+def test_combined_metrics_rejects_stale_warehouse_snapshot(
+    api_client, user, settings, enable_warehouse_adapter
+):
+    settings.ENABLE_FAKE_ADAPTER = False
+    settings.METRICS_SNAPSHOT_STALE_TTL_SECONDS = 3600
+    api_client.force_authenticate(user=user)
+
+    TenantMetricsSnapshot.objects.create(
+        tenant=user.tenant,
+        source="warehouse",
+        payload={
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+            "snapshot_generated_at": (timezone.now() - timedelta(hours=2)).isoformat(),
+            WAREHOUSE_SNAPSHOT_STATUS_KEY: WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
+        },
+        generated_at=timezone.now() - timedelta(hours=2),
     )
 
     response = api_client.get("/api/metrics/combined/")

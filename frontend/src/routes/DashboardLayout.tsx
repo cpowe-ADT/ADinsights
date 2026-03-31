@@ -9,10 +9,14 @@ import {
 
 import { useAuth } from '../auth/AuthContext';
 import Breadcrumbs from '../components/Breadcrumbs';
-import FilterBar, { FilterBarState } from '../components/FilterBar';
+import FilterBar, {
+  type FilterBarAccountOption,
+  type FilterBarState,
+} from '../components/FilterBar';
 import { useTheme } from '../components/ThemeProvider';
 import { useToast } from '../components/ToastProvider';
 import { loadDashboardLayout, saveDashboardLayout } from '../lib/layoutPreferences';
+import { loadMetaAccounts } from '../lib/meta';
 import { canAccessCreatorUi } from '../lib/rbac';
 import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
 import {
@@ -27,12 +31,17 @@ import SnapshotIndicator from '../components/SnapshotIndicator';
 import StatusBanner from '../components/StatusBanner';
 import useDashboardStore from '../state/useDashboardStore';
 import { useDatasetStore } from '../state/useDatasetStore';
-
 const metricOptions = [
   { value: 'spend', label: 'Spend' },
   { value: 'impressions', label: 'Impressions' },
+  { value: 'reach', label: 'Reach' },
   { value: 'clicks', label: 'Clicks' },
+  { value: 'ctr', label: 'CTR' },
+  { value: 'cpc', label: 'CPC' },
+  { value: 'cpm', label: 'CPM' },
   { value: 'conversions', label: 'Conversions' },
+  { value: 'cpa', label: 'CPA' },
+  { value: 'frequency', label: 'Frequency' },
   { value: 'roas', label: 'ROAS' },
 ];
 
@@ -63,6 +72,7 @@ const segmentLabels: Record<string, string> = {
   recommendations: 'Recommendations',
   reports: 'Reports & exports',
   map: 'Map',
+  saved: 'Saved dashboard',
   uploads: 'CSV uploads',
 };
 
@@ -82,6 +92,7 @@ const DashboardLayout = () => {
   const { theme, toggleTheme } = useTheme();
   const { pushToast } = useToast();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [accountOptions, setAccountOptions] = useState<FilterBarAccountOption[]>([]);
   const canCreate = canAccessCreatorUi(user);
   const datasetMode = useDatasetStore((state) => state.mode);
   const availableAdapters = useDatasetStore((state) => state.adapters);
@@ -130,20 +141,68 @@ const DashboardLayout = () => {
     const searchParams = new URLSearchParams(location.search);
     return parseFilterQueryParams(searchParams, defaultFilters);
   }, [defaultFilters, location.search]);
+  const isSavedDashboardRoute = location.pathname.startsWith('/dashboards/saved/');
 
   const hideGlobalFilters = useMemo(() => {
     return (
       location.pathname.startsWith('/dashboards/meta/pages') ||
       location.pathname.startsWith('/dashboards/meta/posts') ||
-      location.pathname.startsWith('/dashboards/google-ads')
+      location.pathname.startsWith('/dashboards/google-ads') ||
+      location.pathname.startsWith('/dashboards/create')
     );
   }, [location.pathname]);
 
   useEffect(() => {
+    if (isSavedDashboardRoute) {
+      return;
+    }
     if (!areFiltersEqual(filters, urlFilters)) {
       setFilters(urlFilters);
     }
-  }, [filters, setFilters, urlFilters]);
+  }, [filters, isSavedDashboardRoute, setFilters, urlFilters]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!hasLiveData) {
+      setAccountOptions([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void loadMetaAccounts({ page_size: 200 })
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+        const options = payload.results
+          .map((account) => {
+            const value = account.external_id?.trim() || account.account_id?.trim() || '';
+            if (!value) {
+              return null;
+            }
+            const labelParts = [account.name?.trim(), account.account_id?.trim() || account.external_id];
+            return {
+              value,
+              label: labelParts.filter(Boolean).join(' · '),
+            };
+          })
+          .filter((option): option is FilterBarAccountOption => option !== null);
+        setAccountOptions(options);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        console.warn('Failed to load dashboard client accounts', error);
+        setAccountOptions([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasLiveData, tenantId]);
 
   useEffect(() => {
     const nextSearch = serializeFilterQueryParams(filters);
@@ -526,7 +585,12 @@ const DashboardLayout = () => {
         </div>
       </div>
       {location.pathname === '/dashboards' || hideGlobalFilters ? null : (
-        <FilterBar state={filters} defaultState={defaultFilters} onChange={handleFilterChange} />
+        <FilterBar
+          state={filters}
+          defaultState={defaultFilters}
+          availableAccounts={hasLiveData ? accountOptions : []}
+          onChange={handleFilterChange}
+        />
       )}
       {datasetMode === 'dummy' ? (
         <div className="dashboard-status">

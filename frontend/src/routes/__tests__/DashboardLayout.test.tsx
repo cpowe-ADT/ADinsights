@@ -10,6 +10,7 @@ const storeMock = vi.hoisted(() => ({
     filters: {
       dateRange: '7d' as const,
       customRange: { start: '2026-02-13', end: '2026-02-19' },
+      accountId: '',
       channels: [],
       campaignQuery: '',
     },
@@ -76,6 +77,15 @@ vi.mock('../../components/FilterBar', () => ({
   default: () => <div data-testid="filter-bar" />,
 }));
 
+vi.mock('../../lib/meta', () => ({
+  loadMetaAccounts: vi.fn().mockResolvedValue({
+    count: 0,
+    next: null,
+    previous: null,
+    results: [],
+  }),
+}));
+
 vi.mock('../../components/DatasetToggle', () => ({
   default: () => <div data-testid="dataset-toggle" />,
 }));
@@ -132,5 +142,28 @@ describe('DashboardLayout', () => {
 
     expect(screen.queryByRole('link', { name: 'Create' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Campaigns' })).toBeInTheDocument();
+  });
+
+  it('does not overwrite saved dashboard filters from an empty route query', () => {
+    storeMock.state.filters = {
+      dateRange: '90d',
+      customRange: { start: '2026-01-01', end: '2026-03-30' },
+      accountId: 'act_697812007883214',
+      channels: ['Meta Ads'],
+      campaignQuery: 'Debt Reset',
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/saved/dash-1']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="saved/:dashboardId" element={<div>Saved dashboard</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(storeMock.state.setFilters).not.toHaveBeenCalled();
+    expect(screen.getByText('Saved dashboard')).toBeInTheDocument();
   });
 });

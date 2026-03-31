@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 import uuid
 
 import pytest
@@ -175,6 +175,29 @@ def test_warehouse_adapter_rejects_default_snapshot_payload(tenant):
 
 
 @pytest.mark.django_db
+def test_warehouse_adapter_rejects_stale_snapshot_payload(tenant, settings):
+    settings.METRICS_SNAPSHOT_STALE_TTL_SECONDS = 3600
+    TenantMetricsSnapshot.objects.create(
+        tenant=tenant,
+        source="warehouse",
+        payload={
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+            "snapshot_generated_at": (timezone.now() - timedelta(hours=2)).isoformat(),
+            WAREHOUSE_SNAPSHOT_STATUS_KEY: WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
+        },
+        generated_at=timezone.now() - timedelta(hours=2),
+    )
+
+    adapter = WarehouseAdapter()
+    with tenant_context(str(tenant.id)):
+        with pytest.raises(WarehouseSnapshotUnavailable):
+            adapter.fetch_metrics(tenant_id=str(tenant.id))
+
+
+@pytest.mark.django_db
 def test_warehouse_adapter_applies_filters(tenant):
     payload = {
         "campaign": {
@@ -182,6 +205,7 @@ def test_warehouse_adapter_applies_filters(tenant):
             "trend": [
                 {
                     "date": "2024-09-01",
+                    "adAccountId": "act_111",
                     "parish": "Kingston",
                     "spend": 10,
                     "conversions": 1,
@@ -190,6 +214,7 @@ def test_warehouse_adapter_applies_filters(tenant):
                 },
                 {
                     "date": "2024-09-10",
+                    "adAccountId": "act_222",
                     "parish": "St James",
                     "spend": 20,
                     "conversions": 2,
@@ -200,6 +225,7 @@ def test_warehouse_adapter_applies_filters(tenant):
             "rows": [
                 {
                     "id": "cmp-a",
+                    "adAccountId": "act_111",
                     "name": "A",
                     "platform": "Meta",
                     "status": "Active",
@@ -214,6 +240,7 @@ def test_warehouse_adapter_applies_filters(tenant):
                 },
                 {
                     "id": "cmp-b",
+                    "adAccountId": "act_222",
                     "name": "B",
                     "platform": "Meta",
                     "status": "Active",
@@ -231,6 +258,7 @@ def test_warehouse_adapter_applies_filters(tenant):
         "creative": [
             {
                 "id": "cr-a",
+                "adAccountId": "act_111",
                 "name": "Creative A",
                 "campaignId": "cmp-a",
                 "campaignName": "A",
@@ -239,6 +267,7 @@ def test_warehouse_adapter_applies_filters(tenant):
             },
             {
                 "id": "cr-b",
+                "adAccountId": "act_222",
                 "name": "Creative B",
                 "campaignId": "cmp-b",
                 "campaignName": "B",
@@ -249,6 +278,7 @@ def test_warehouse_adapter_applies_filters(tenant):
         "budget": [
             {
                 "id": "bdg-a",
+                "adAccountId": "act_111",
                 "campaignName": "A",
                 "parishes": ["Kingston"],
                 "monthlyBudget": 100,
@@ -260,6 +290,7 @@ def test_warehouse_adapter_applies_filters(tenant):
             },
             {
                 "id": "bdg-b",
+                "adAccountId": "act_222",
                 "campaignName": "B",
                 "parishes": ["St James"],
                 "monthlyBudget": 200,
@@ -272,6 +303,7 @@ def test_warehouse_adapter_applies_filters(tenant):
         ],
         "parish": [
             {
+                "adAccountId": "act_111",
                 "parish": "Kingston",
                 "spend": 10,
                 "impressions": 100,
@@ -279,6 +311,7 @@ def test_warehouse_adapter_applies_filters(tenant):
                 "conversions": 1,
             },
             {
+                "adAccountId": "act_222",
                 "parish": "St James",
                 "spend": 20,
                 "impressions": 200,
@@ -301,6 +334,7 @@ def test_warehouse_adapter_applies_filters(tenant):
             tenant_id=str(tenant.id),
             options={
                 "parish": "Kingston",
+                "account_id": "111",
                 "start_date": date(2024, 9, 1),
                 "end_date": date(2024, 9, 15),
             },
@@ -329,4 +363,3 @@ def test_combined_metrics_returns_payload(api_client, user):
     data = response.json()
     assert "campaign" in data
     assert "summary" in data["campaign"]
-

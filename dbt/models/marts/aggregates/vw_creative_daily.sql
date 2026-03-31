@@ -19,6 +19,7 @@ with creative_daily as (
         max(ad_name) as ad_name,
         sum(spend) as spend,
         sum(impressions) as impressions,
+        sum(reach) as reach,
         sum(clicks) as clicks,
         sum(conversions) as conversions,
         sum(reported_conversions) as reported_conversions
@@ -38,6 +39,7 @@ enriched as (
         cd.ad_name,
         cd.spend,
         cd.impressions,
+        cd.reach,
         cd.clicks,
         cd.conversions,
         cd.reported_conversions,

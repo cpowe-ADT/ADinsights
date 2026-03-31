@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Iterable, Mapping, Sequence
 
+from django.conf import settings
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from analytics.models import TenantMetricsSnapshot
@@ -15,8 +17,8 @@ WAREHOUSE_SNAPSHOT_STATUS_KEY = "_warehouse_snapshot_status"
 WAREHOUSE_SNAPSHOT_STATUS_FETCHED = "fetched"
 WAREHOUSE_SNAPSHOT_STATUS_DEFAULT = "default"
 WAREHOUSE_UNAVAILABLE_DETAIL = (
-    "Warehouse metrics are unavailable because the warehouse snapshot is missing "
-    "or was generated from a default fallback payload."
+    "Warehouse metrics are unavailable because the warehouse snapshot is missing, "
+    "stale, or was generated from a default fallback payload."
 )
 
 
@@ -46,6 +48,13 @@ class WarehouseAdapter(MetricsAdapter):
         ).order_by("-generated_at", "-created_at").first()
 
         if not snapshot or not snapshot.payload:
+            raise WarehouseSnapshotUnavailable()
+
+        stale_ttl_seconds = max(
+            int(getattr(settings, "METRICS_SNAPSHOT_STALE_TTL_SECONDS", 3600) or 3600),
+            1,
+        )
+        if (timezone.now() - snapshot.generated_at).total_seconds() > stale_ttl_seconds:
             raise WarehouseSnapshotUnavailable()
 
         payload = dict(snapshot.payload)
@@ -83,6 +92,38 @@ class WarehouseAdapter(MetricsAdapter):
         return normalized
 
     @staticmethod
+    def _normalize_account_ids(account_id: Any) -> list[str]:
+        if account_id is None:
+            return []
+        values: Sequence[Any]
+        if isinstance(account_id, str):
+            values = account_id.split(",")
+        elif isinstance(account_id, Iterable) and not isinstance(account_id, (str, bytes)):
+            values = list(account_id)
+        else:
+            return []
+        normalized = [
+            value.strip()
+            for value in values
+            if isinstance(value, str) and value.strip()
+        ]
+        return normalized
+
+    @staticmethod
+    def _account_aliases(value: str) -> set[str]:
+        normalized = value.strip()
+        if not normalized:
+            return set()
+        aliases = {normalized}
+        if normalized.startswith("act_"):
+            numeric = normalized[4:]
+            if numeric:
+                aliases.add(numeric)
+        elif normalized.isdigit():
+            aliases.add(f"act_{normalized}")
+        return aliases
+
+    @staticmethod
     def _matches_parishes(value: Any, parishes: Sequence[str]) -> bool:
         if not parishes:
             return True
@@ -94,6 +135,26 @@ class WarehouseAdapter(MetricsAdapter):
         if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
             return any(
                 isinstance(item, str) and item.strip().lower() in normalized
+                for item in value
+            )
+        return False
+
+    @classmethod
+    def _matches_account_ids(cls, value: Any, account_ids: Sequence[str]) -> bool:
+        if not account_ids:
+            return True
+        normalized = {
+            alias
+            for account_id in account_ids
+            for alias in cls._account_aliases(account_id)
+        }
+        if not normalized:
+            return True
+        if isinstance(value, str):
+            return bool(cls._account_aliases(value) & normalized)
+        if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
+            return any(
+                isinstance(item, str) and bool(cls._account_aliases(item) & normalized)
                 for item in value
             )
         return False
@@ -136,8 +197,9 @@ class WarehouseAdapter(MetricsAdapter):
         start_date = self._parse_date(options.get("start_date"))
         end_date = self._parse_date(options.get("end_date"))
         parishes = self._normalize_parishes(options.get("parish"))
+        account_ids = self._normalize_account_ids(options.get("account_id"))
 
-        if not start_date and not end_date and not parishes:
+        if not start_date and not end_date and not parishes and not account_ids:
             return payload
 
         filtered: dict[str, Any] = dict(payload)
@@ -152,6 +214,14 @@ class WarehouseAdapter(MetricsAdapter):
                     self._parse_date(point.get("date")), start_date, end_date
                 )
             ]
+        trend = [
+            point
+            for point in trend
+            if self._matches_account_ids(
+                point.get("adAccountId") or point.get("ad_account_id"),
+                account_ids,
+            )
+        ]
         if parishes:
             trend = [
                 point
@@ -161,6 +231,14 @@ class WarehouseAdapter(MetricsAdapter):
                 )
             ]
         rows = list(campaign.get("rows") or [])
+        rows = [
+            row
+            for row in rows
+            if self._matches_account_ids(
+                row.get("adAccountId") or row.get("ad_account_id"),
+                account_ids,
+            )
+        ]
         if start_date or end_date:
             rows = [
                 row
@@ -182,11 +260,27 @@ class WarehouseAdapter(MetricsAdapter):
 
         creative = list(filtered.get("creative") or [])
         creative = [
+            row
+            for row in creative
+            if self._matches_account_ids(
+                row.get("adAccountId") or row.get("ad_account_id"),
+                account_ids,
+            )
+        ]
+        creative = [
             row for row in creative if self._matches_parishes(row.get("parish"), parishes)
         ]
         filtered["creative"] = creative
 
         budget = list(filtered.get("budget") or [])
+        budget = [
+            row
+            for row in budget
+            if self._matches_account_ids(
+                row.get("adAccountId") or row.get("ad_account_id"),
+                account_ids,
+            )
+        ]
         if start_date or end_date:
             budget = [
                 row
@@ -206,6 +300,14 @@ class WarehouseAdapter(MetricsAdapter):
         filtered["budget"] = budget
 
         parish_metrics = list(filtered.get("parish") or [])
+        parish_metrics = [
+            row
+            for row in parish_metrics
+            if self._matches_account_ids(
+                row.get("adAccountId") or row.get("ad_account_id"),
+                account_ids,
+            )
+        ]
         parish_metrics = [
             row
             for row in parish_metrics

@@ -21,9 +21,15 @@
         "currency": { "type": "string" },
         "totalSpend": { "type": "number" },
         "totalImpressions": { "type": "number" },
+        "totalReach": { "type": "number" },
         "totalClicks": { "type": "number" },
         "totalConversions": { "type": "number" },
-        "averageRoas": { "type": "number" }
+        "averageRoas": { "type": "number" },
+        "ctr": { "type": "number" },
+        "cpc": { "type": "number" },
+        "cpm": { "type": "number" },
+        "cpa": { "type": "number" },
+        "frequency": { "type": "number" }
       }
     },
     "trend": {
@@ -37,7 +43,9 @@
           "spend": { "type": "number" },
           "conversions": { "type": "number" },
           "clicks": { "type": "number" },
-          "impressions": { "type": "number" }
+          "impressions": { "type": "number" },
+          "reach": { "type": "number" },
+          "adAccountId": { "type": "string" }
         }
       }
     },
@@ -60,6 +68,7 @@
         ],
         "properties": {
           "id": { "type": "string" },
+          "adAccountId": { "type": "string" },
           "name": { "type": "string" },
           "platform": { "type": "string" },
           "status": { "type": "string" },
@@ -67,12 +76,15 @@
           "parish": { "type": "string" },
           "spend": { "type": "number" },
           "impressions": { "type": "number" },
+          "reach": { "type": "number" },
           "clicks": { "type": "number" },
           "conversions": { "type": "number" },
           "roas": { "type": "number" },
           "ctr": { "type": "number" },
           "cpc": { "type": "number" },
           "cpm": { "type": "number" },
+          "cpa": { "type": "number" },
+          "frequency": { "type": "number" },
           "startDate": { "type": "string", "format": "date" },
           "endDate": { "type": "string", "format": "date" }
         }

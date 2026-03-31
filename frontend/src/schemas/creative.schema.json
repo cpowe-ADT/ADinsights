@@ -20,6 +20,7 @@
     ],
     "properties": {
       "id": { "type": "string" },
+      "adAccountId": { "type": "string" },
       "name": { "type": "string" },
       "campaignId": { "type": "string" },
       "campaignName": { "type": "string" },
@@ -27,10 +28,17 @@
       "parish": { "type": "string" },
       "spend": { "type": "number" },
       "impressions": { "type": "number" },
+      "reach": { "type": "number" },
       "clicks": { "type": "number" },
       "conversions": { "type": "number" },
       "roas": { "type": "number" },
       "ctr": { "type": "number" },
+      "cpc": { "type": "number" },
+      "cpm": { "type": "number" },
+      "cpa": { "type": "number" },
+      "frequency": { "type": "number" },
+      "startDate": { "type": "string", "format": "date" },
+      "endDate": { "type": "string", "format": "date" },
       "thumbnailUrl": {
         "type": "string",
         "anyOf": [

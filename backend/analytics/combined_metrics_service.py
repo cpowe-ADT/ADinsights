@@ -19,6 +19,10 @@ from adapters.warehouse import (
 
 from .models import TenantMetricsSnapshot
 from .serializers import CombinedMetricsQueryParamsSerializer
+from .warehouse_metrics import (
+    enrich_combined_payload_metadata,
+    load_filtered_warehouse_metrics,
+)
 
 
 @dataclass(frozen=True)
@@ -57,7 +61,15 @@ def parse_cache_flag(value: Any) -> bool:
 
 
 def _resolve_filter_options(query_params) -> tuple[dict[str, Any], bool, list[str]]:  # noqa: ANN001
-    if not any(key in query_params for key in ("start_date", "end_date", "parish")):
+    filter_keys = (
+        "start_date",
+        "end_date",
+        "parish",
+        "account_id",
+        "channels",
+        "campaign_search",
+    )
+    if not any(key in query_params for key in filter_keys):
         return query_params.dict(), False, []
 
     filters_data = query_params
@@ -65,17 +77,29 @@ def _resolve_filter_options(query_params) -> tuple[dict[str, Any], bool, list[st
     if len(parishes) > 1:
         filters_data = query_params.copy()
         filters_data["parish"] = ",".join(parishes)
+    channels = query_params.getlist("channels")
+    if len(channels) > 1:
+        if filters_data is query_params:
+            filters_data = query_params.copy()
+        filters_data["channels"] = ",".join(channels)
 
     filters_serializer = CombinedMetricsQueryParamsSerializer(data=filters_data)
     filters_serializer.is_valid(raise_exception=True)
     filters = filters_serializer.validated_data
     has_filters = bool(
-        filters.get("start_date") or filters.get("end_date") or filters.get("parish")
+        filters.get("start_date")
+        or filters.get("end_date")
+        or filters.get("parish")
+        or filters.get("account_id")
+        or filters.get("channels")
+        or filters.get("campaign_search")
     )
 
     options = query_params.dict()
     if parishes:
         options["parish"] = parishes
+    if channels:
+        options["channels"] = channels
     options.update(filters)
     return options, has_filters, parishes
 
@@ -171,6 +195,17 @@ def _validate_and_clean_combined_payload(
     return cleaned
 
 
+def _prepare_response_payload(
+    *,
+    payload: Mapping[str, Any],
+    source: str,
+) -> dict[str, Any]:
+    response_payload = dict(payload)
+    if source == "warehouse":
+        response_payload = enrich_combined_payload_metadata(response_payload)
+    return response_payload
+
+
 def load_combined_metrics_payload(
     *,
     tenant,
@@ -184,14 +219,34 @@ def load_combined_metrics_payload(
     query_counter = _DatabaseQueryCounter()
     with connection.execute_wrapper(query_counter):
         options, has_filters, _parishes = _resolve_filter_options(query_params)
+        if source == "warehouse" and has_filters:
+            payload = load_filtered_warehouse_metrics(
+                tenant=tenant,
+                tenant_id=tenant_id,
+                options=options,
+                ttl_seconds=ttl_seconds,
+            )
+            return CombinedMetricsResult(
+                payload=payload,
+                source=source,
+                cache_outcome="warehouse_filtered_query",
+                has_filters=has_filters,
+                snapshot_written=False,
+                query_count=query_counter.count,
+            )
+
         snapshot = (
             TenantMetricsSnapshot.latest_for(tenant=tenant, source=source)
             if cache_enabled and not has_filters
             else None
         )
         if snapshot and snapshot.is_fresh(ttl_seconds):
-            cached_payload = _validate_and_clean_combined_payload(
+            canonical_payload = _validate_and_clean_combined_payload(
                 payload=snapshot.payload,
+                source=source,
+            )
+            cached_payload = _prepare_response_payload(
+                payload=canonical_payload,
                 source=source,
             )
             cached_payload["snapshot_generated_at"] = snapshot.generated_at.isoformat()
@@ -208,18 +263,25 @@ def load_combined_metrics_payload(
             tenant_id=tenant_id,
             options=options,
         )
-        combined, generated_at = _normalize_combined_payload(payload)
-        combined = _validate_and_clean_combined_payload(payload=combined, source=source)
+        canonical_payload, generated_at = _normalize_combined_payload(payload)
+        canonical_payload = _validate_and_clean_combined_payload(
+            payload=canonical_payload,
+            source=source,
+        )
+        combined = _prepare_response_payload(
+            payload=canonical_payload,
+            source=source,
+        )
         snapshot_written = False
         if not has_filters:
             if snapshot is not None:
                 if (
                     snapshot.generated_at == generated_at
-                    and _payloads_equal(snapshot.payload, combined)
+                    and _payloads_equal(snapshot.payload, canonical_payload)
                 ):
                     snapshot_written = False
                 else:
-                    snapshot.payload = combined
+                    snapshot.payload = canonical_payload
                     snapshot.generated_at = generated_at
                     snapshot.save(update_fields=["payload", "generated_at", "updated_at"])
                     snapshot_written = True
@@ -227,7 +289,7 @@ def load_combined_metrics_payload(
                 _create_snapshot_after_cache_miss(
                     tenant=tenant,
                     source=source,
-                    payload=combined,
+                    payload=canonical_payload,
                     generated_at=generated_at,
                 )
                 snapshot_written = True
@@ -235,7 +297,7 @@ def load_combined_metrics_payload(
                 _upsert_snapshot_without_cached_row(
                     tenant=tenant,
                     source=source,
-                    payload=combined,
+                    payload=canonical_payload,
                     generated_at=generated_at,
                 )
                 snapshot_written = True
