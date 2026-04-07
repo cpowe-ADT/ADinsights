@@ -116,6 +116,7 @@ const DashboardLayout = () => {
   const liveReason = useDatasetStore((state) => state.liveReason);
   const liveDetail = useDatasetStore((state) => state.liveDetail);
   const liveSnapshotGeneratedAt = useDatasetStore((state) => state.liveSnapshotGeneratedAt);
+  const loadAdapters = useDatasetStore((state) => state.loadAdapters);
   const hasLiveData = datasetSource === 'warehouse' || datasetSource === 'meta_direct';
 
   const {
@@ -183,6 +184,18 @@ const DashboardLayout = () => {
       setFilters(urlFilters);
     }
   }, [filters, isSavedDashboardRoute, setFilters, urlFilters]);
+
+  // In mock/e2e mode, DatasetToggle is hidden so it won't call loadAdapters.
+  // Load adapters here so liveReason is populated for status banners in tests.
+  useEffect(() => {
+    if (!MOCK_MODE) {
+      return;
+    }
+    if (datasetLoadStatus !== 'idle') {
+      return;
+    }
+    void loadAdapters();
+  }, [datasetLoadStatus, loadAdapters]);
 
   useEffect(() => {
     let cancelled = false;
