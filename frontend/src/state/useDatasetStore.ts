@@ -64,14 +64,15 @@ export const useDatasetStore = create<DatasetState>()(
       demoTenantId: undefined,
       setMode: (mode) => {
         const { adapters } = get();
-        set({
+        set((s) => ({
+          ...s,
           mode,
           error: undefined,
           source: computeSource(mode, adapters),
-        });
+        }));
       },
       setDemoTenantId: (tenantId) => {
-        set({ demoTenantId: tenantId });
+        set((s) => ({ ...s, demoTenantId: tenantId }));
       },
       toggleMode: () => {
         const { mode, adapters } = get();
@@ -80,22 +81,24 @@ export const useDatasetStore = create<DatasetState>()(
         const liveAvailable = adapters.includes(WAREHOUSE_KEY);
 
         if (next === 'dummy' && !demoAvailable) {
-          set({
+          set((s) => ({
+            ...s,
             error: 'Demo dataset is unavailable.',
             source: computeSource(mode, adapters),
-          });
+          }));
           return mode;
         }
 
         if (next === 'live' && !liveAvailable) {
-          set({
+          set((s) => ({
+            ...s,
             error: 'Live warehouse metrics are unavailable.',
             source: computeSource(mode, adapters),
-          });
+          }));
           return mode;
         }
 
-        set({ mode: next, error: undefined, source: computeSource(next, adapters) });
+        set((s) => ({ ...s, mode: next, error: undefined, source: computeSource(next, adapters) }));
         return next;
       },
       loadAdapters: async () => {
@@ -103,7 +106,7 @@ export const useDatasetStore = create<DatasetState>()(
           return;
         }
 
-        set({ status: 'loading', error: undefined });
+        set((s) => ({ ...s, status: 'loading', error: undefined }));
         try {
           const response = await apiClient.get<AdapterMetadata[]>('/adapters/');
           const keys = response.map((adapter) => adapter.key);
@@ -139,7 +142,8 @@ export const useDatasetStore = create<DatasetState>()(
                 ? 'Demo dataset is unavailable.'
                 : undefined;
 
-          set({
+          set((s) => ({
+            ...s,
             adapters: keys,
             status: 'loaded',
             error: resolvedError,
@@ -147,14 +151,15 @@ export const useDatasetStore = create<DatasetState>()(
             source: resolvedSource,
             demoTenants,
             demoTenantId: resolvedDemoTenantId,
-          });
+          }));
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unable to load datasets.';
-          set({
+          set((s) => ({
+            ...s,
             status: 'error',
             error: message,
             source: computeSource(get().mode, get().adapters),
-          });
+          }));
         }
       },
     }),
