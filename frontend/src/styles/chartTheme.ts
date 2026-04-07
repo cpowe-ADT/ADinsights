@@ -86,7 +86,7 @@ export const createTooltipProps = ({
   };
 
   return {
-    formatter: (value, name) => [formatter(value), name ?? ''],
+    formatter: (value, name) => [value !== undefined ? formatter(value) : '', name ?? ''],
     labelFormatter: labelFormatter ?? ((value) => toDateLabel(value)),
     contentStyle,
     itemStyle: { color: chartTheme.tooltip.color, paddingBottom: 4 },
@@ -96,4 +96,5 @@ export const createTooltipProps = ({
   };
 };
 
-export const axisTickFormatter = (value: ValueType) => formatCompactNumber(value);
+export const axisTickFormatter = (value: ValueType | undefined) =>
+  value !== undefined ? formatCompactNumber(value) : '';
