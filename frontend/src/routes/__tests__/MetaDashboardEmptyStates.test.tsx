@@ -93,6 +93,7 @@ const storeMock = vi.hoisted(() => ({
 const datasetStoreMock = vi.hoisted(() => ({
   state: {
     mode: 'live' as const,
+    source: 'warehouse' as 'warehouse' | 'meta_direct' | null | undefined,
     adapters: ['warehouse'],
     liveReason: 'ready' as
       | 'adapter_disabled'
@@ -112,6 +113,7 @@ vi.mock('../../state/useDatasetStore', () => ({
   useDatasetStore: (
     selector: (state: {
       mode: 'live' | 'dummy';
+      source?: 'warehouse' | 'meta_direct' | null;
       adapters: string[];
       liveReason?: 'adapter_disabled' | 'missing_snapshot' | 'stale_snapshot' | 'default_snapshot' | 'ready';
       liveDetail?: string;
@@ -221,6 +223,7 @@ describe('Meta dashboard empty states', () => {
     };
     datasetStoreMock.state = {
       mode: 'live',
+      source: 'warehouse' as const,
       adapters: [],
       liveReason: 'adapter_disabled',
       liveDetail: undefined,
@@ -244,6 +247,7 @@ describe('Meta dashboard empty states', () => {
     };
     datasetStoreMock.state = {
       mode: 'live',
+      source: 'warehouse' as const,
       adapters: ['warehouse'],
       liveReason: 'default_snapshot',
       liveDetail:
