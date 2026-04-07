@@ -104,14 +104,15 @@ export const useDatasetStore = create<DatasetState>()(
       setMode: (mode) => {
         const { adapters, warehouseAdapterEnabled, liveReason } = get();
         const nextSource = computeSource(mode, adapters, warehouseAdapterEnabled, liveReason);
-        set({
+        set((s) => ({
+          ...s,
           mode,
           error:
             mode === 'live' && nextSource === WAREHOUSE_KEY && liveReason && liveReason !== 'ready'
               ? messageForLiveDatasetReason(liveReason)
               : undefined,
           source: nextSource,
-        });
+        }));
       },
       setDemoTenantId: (tenantId) => {
         set((s) => ({ ...s, demoTenantId: tenantId }));
@@ -123,30 +124,33 @@ export const useDatasetStore = create<DatasetState>()(
         const liveAvailable = hasLiveSource(adapters, warehouseAdapterEnabled, liveReason);
 
         if (next === 'dummy' && !demoAvailable) {
-          set({
+          set((s) => ({
+            ...s,
             error: 'Demo dataset is unavailable.',
             source: computeSource(mode, adapters, warehouseAdapterEnabled, liveReason),
-          });
+          }));
           return mode;
         }
 
         if (next === 'live' && !liveAvailable) {
-          set({
+          set((s) => ({
+            ...s,
             error: messageForLiveDatasetReason(liveReason ?? 'adapter_disabled'),
             source: computeSource(mode, adapters, warehouseAdapterEnabled, liveReason),
-          });
+          }));
           return mode;
         }
 
         const nextSource = computeSource(next, adapters, warehouseAdapterEnabled, liveReason);
-        set({
+        set((s) => ({
+          ...s,
           mode: next,
           error:
             next === 'live' && nextSource === WAREHOUSE_KEY && liveReason && liveReason !== 'ready'
               ? messageForLiveDatasetReason(liveReason)
               : undefined,
           source: nextSource,
-        });
+        }));
         return next;
       },
       loadAdapters: async () => {
