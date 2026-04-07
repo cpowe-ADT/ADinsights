@@ -44,6 +44,33 @@ Timezone baseline: `America/Jamaica`.
 | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------ | ----------------------------------------------------------------------------------------------------- |
 | Upload API multipart files (`campaign_csv`, optional `parish_csv`, optional `budget_csv`) | Campaign required: `date`, `campaign_id`, `campaign_name`, `platform`, `spend`, `impressions`, `clicks`, `conversions`; Parish required: `parish`, `spend`, `impressions`, `clicks`, `conversions`; Budget required: `month`, `campaign_name`, `planned_budget` | Date/month string normalized to ISO, numeric coercion for spend/metrics, optional revenue/roas/pacing fields | Upload records treated as day/month values; operational schedule/reporting timezone remains `America/Jamaica` | Currency optional per row; fallback/default handled during payload build | Upload snapshot grain by campaign/date and parish/date | Immediate validation at upload; no API lookback | Stored in `TenantMetricsSnapshot` source `upload` (no Airbyte raw table) | Not modeled in dbt for Phase 1 | Directly serves `source=upload` on `/api/metrics/combined/` and can backfill campaign/parish/budget sections | 2026-02-06   | `docs/runbooks/csv-uploads.md`, `backend/analytics/uploads.py`, `frontend/src/lib/uploadedMetrics.ts` |
 
+## Meta Direct Adapter (Live Read Path, Phase 1)
+
+| Source API object/report | Selected fields | Expected type/unit | Timezone semantics | Currency semantics | Primary key grain | Lookback/latency notes | Destination raw columns | dbt staging columns | `/api/metrics/combined/` usage | validated_on | evidence_link |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Graph API live read via `MetaDirectAdapter` — `GET /{ad-account-id}/insights`, `GET /{page-id}/insights`, `/{page-id}/posts` | Ad account insights: `date_start`, `account_id`, `campaign_id`, `adset_id`, `ad_id`, `impressions`, `clicks`, `spend`, `reach`, `cpc`, `cpm`, `conversions`; Page insights: `name`, `period`, `values`; Posts: `id`, `message`, `created_time`, `insights` | Numeric metrics, ID strings, date strings | Source account timezone; read path is real-time with no orchestration lag | Account currency from `currency` field in ad account response | Per-request grain (no persistent storage in direct path) | No lookback window; direct API call per request; rate-limited by Graph API tier; tokens expire per Meta OAuth lifecycle | None — direct read path, not persisted to raw warehouse | None — bypasses Airbyte/dbt pipeline | Serves `source=meta_direct` on `/api/metrics/combined/` and powers Meta Pages live dashboard routes. Enabled via `ENABLE_META_DIRECT_ADAPTER` setting. | 2026-04-07 | `backend/adapters/meta_direct.py`, `backend/analytics/dataset_status.py`, `frontend/src/lib/liveAccountSelection.ts` |
+
+## dbt Mart Contract Updates (2026-04-07)
+
+The following mart models received additive column changes. Downstream consumers of warehouse snapshots should expect new optional fields.
+
+| Model | Change type | New/changed columns | Impact |
+|---|---|---|---|
+| `vw_campaign_daily` | Additive | Additional grouping/filter columns for live campaign grain | Additive; existing queries unaffected |
+| `all_ad_performance` | Additive | Cross-platform performance reference view extended | Additive; adds new join keys |
+| `dim_campaign` | Additive | Campaign dimension enriched with objective and status fields from SDK path | Additive; `objective` and `status` now available where previously NULL |
+| `fact_performance` | Additive | Fact table updated to align with SDK-sourced campaign grain | Additive; no dropped columns |
+
+## Saved Dashboards Contract (2026-04-07)
+
+New `DashboardDefinition` model and CRUD surface added.
+
+| Endpoint | Method | Contract | Notes |
+|---|---|---|---|
+| `/api/dashboards/recent/` | GET | Returns `[{id, name, owner, last_viewed_at, last_viewed_label, route}]` ordered by `updated_at` desc; `limit` query param (default 3) | Tenant-scoped |
+| `/api/dashboards/` | POST | Create saved dashboard | Requires `name`, optional `config` |
+| `/api/dashboards/<id>/` | GET/PUT/DELETE | Read/update/delete saved dashboard | Tenant-scoped |
+
 ## Open Validation Actions
 
 1. Meta authenticated portal validation remains a manual external step because Meta developer docs are crawler-restricted.
