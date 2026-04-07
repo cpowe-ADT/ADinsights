@@ -47,9 +47,6 @@ const DatasetToggle = (): JSX.Element | null => {
   const isLoading = status === 'loading';
   const statusDescriptionId = useId();
   useEffect(() => {
-    if (MOCK_MODE) {
-      return;
-    }
     if (status === 'loading') {
       return;
     }
