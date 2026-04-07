@@ -19,6 +19,7 @@ const metricsSnapshot = {
   creative: aggregatedMetricsResponse.creative,
   budget: aggregatedMetricsResponse.budget,
   parish: parishAggregates,
+  availability: aggregatedMetricsResponse.availability,
 } as const;
 
 async function expectNoSeriousViolations(page: import('@playwright/test').Page) {

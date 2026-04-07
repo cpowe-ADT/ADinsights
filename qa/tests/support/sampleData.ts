@@ -264,6 +264,12 @@ export const aggregatedMetricsResponse = {
   creative: creativeRows,
   budget: budgetRows,
   parish: parishAggregates,
+  availability: {
+    campaign: { status: 'available', reason: null },
+    creative: { status: 'available', reason: null },
+    budget: { status: 'available', reason: null },
+    parish_map: { status: 'available', reason: null, coverage_percent: 0.75 },
+  },
 };
 
 export function fulfillJson(route: import('@playwright/test').Route, payload: unknown): void {
