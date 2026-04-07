@@ -125,7 +125,7 @@ def _seed_meta_direct_reporting(*, tenant, account_external_id: str = "act_69781
 
 
 @pytest.mark.django_db
-def test_adapters_endpoint_lists_enabled_adapters(api_client, user):
+def test_adapters_endpoint_lists_enabled_adapters(api_client, user, enable_meta_direct_adapter):
     api_client.force_authenticate(user=user)
 
     response = api_client.get("/api/adapters/")
@@ -145,7 +145,7 @@ def enable_demo_adapter(settings):
 
 
 @pytest.mark.django_db
-def test_adapters_endpoint_includes_demo_options(api_client, user, enable_demo_adapter):
+def test_adapters_endpoint_includes_demo_options(api_client, user, enable_demo_adapter, enable_meta_direct_adapter):
     api_client.force_authenticate(user=user)
 
     response = api_client.get("/api/adapters/")

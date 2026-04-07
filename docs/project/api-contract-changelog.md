@@ -13,6 +13,12 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-04-07**
+  - Endpoints: `GET /api/adapters/`, `GET /api/datasets/status/`, `GET /api/dashboards/recent/`, `GET /api/dashboards/saved/<id>/`, `POST /api/dashboards/`, `PUT /api/dashboards/<id>/`, `DELETE /api/dashboards/<id>/`, Meta Pages and Google Ads integration endpoints
+  - Change: Added `meta_direct` adapter to the adapter registry (enabled via `ENABLE_META_DIRECT_ADAPTER`). `GET /api/adapters/` now includes `meta_direct` when enabled, ordered before `demo`/`fake`. Added `GET /api/dashboards/recent/` returning user-scoped saved dashboards with `id`, `name`, `owner`, `last_viewed_at`, `last_viewed_label`, `route` fields (route: `/dashboards/saved/<id>`). Added full saved-dashboard CRUD via `DashboardDefinition` model. dbt models `vw_campaign_daily`, `all_ad_performance`, `dim_campaign`, `fact_performance` updated with additive fields. Added `GET /api/datasets/status/` dataset freshness endpoint. Meta Pages, Google Ads, Google Analytics integration views hardened with explicit error shapes.
+  - Impact: Frontend `liveAccountSelection` and Meta Pages dashboard consume `meta_direct` adapter; saved dashboard flows use the new CRUD endpoints; downstream consumers of `vw_campaign_daily` and `dim_campaign` should expect additive columns.
+  - Owner: Integration / Dashboard team
+
 - **2026-04-05**
   - Endpoint: `GET /api/metrics/combined/`
   - Change: Combined-metrics responses now preserve an explicit `snapshot_generated_at: null` from non-warehouse adapters instead of rewriting it to request time. Cached snapshot hits also preserve the payload's explicit `null` freshness marker rather than substituting the cache row timestamp.
