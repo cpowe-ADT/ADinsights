@@ -51,21 +51,25 @@ const storeMock = vi.hoisted(() => ({
         rows: [],
       },
       error: undefined,
+      errorKind: undefined,
     },
     creative: {
       status: 'loaded' as const,
       data: [],
       error: undefined,
+      errorKind: undefined,
     },
     budget: {
       status: 'loaded' as const,
       data: [],
       error: undefined,
+      errorKind: undefined,
     },
     parish: {
       status: 'loaded' as const,
       data: [],
       error: undefined,
+      errorKind: undefined,
     },
     activeTenantLabel: 'Default Tenant',
     lastSnapshotGeneratedAt: undefined,
@@ -74,11 +78,29 @@ const storeMock = vi.hoisted(() => ({
       campaign: { status: 'empty' as const, reason: 'no_recent_data' },
       creative: { status: 'empty' as const, reason: 'no_recent_data' },
       budget: { status: 'empty' as const, reason: 'no_recent_data' },
-      parish_map: { status: 'unavailable' as const, reason: 'geo_unavailable' },
+      parish_map: {
+        status: 'unavailable' as const,
+        reason: 'geo_unavailable',
+        coveragePercent: 0,
+      },
     },
     getCampaignRowsForSelectedParish: () => [],
     getCreativeRowsForSelectedParish: () => [],
     getBudgetRowsForSelectedParish: () => [],
+  },
+}));
+
+const datasetStoreMock = vi.hoisted(() => ({
+  state: {
+    mode: 'live' as const,
+    adapters: ['warehouse'],
+    liveReason: 'ready' as
+      | 'adapter_disabled'
+      | 'missing_snapshot'
+      | 'stale_snapshot'
+      | 'default_snapshot'
+      | 'ready',
+    liveDetail: undefined as string | undefined,
   },
 }));
 
@@ -87,8 +109,14 @@ vi.mock('../../state/useDashboardStore', () => ({
 }));
 
 vi.mock('../../state/useDatasetStore', () => ({
-  useDatasetStore: (selector: (state: { mode: 'live' | 'dummy'; adapters: string[] }) => unknown) =>
-    selector({ mode: 'live', adapters: ['warehouse'] }),
+  useDatasetStore: (
+    selector: (state: {
+      mode: 'live' | 'dummy';
+      adapters: string[];
+      liveReason?: 'adapter_disabled' | 'missing_snapshot' | 'stale_snapshot' | 'default_snapshot' | 'ready';
+      liveDetail?: string;
+    }) => unknown,
+  ) => selector(datasetStoreMock.state),
 }));
 
 const authValue: AuthContextValue = {
@@ -113,6 +141,42 @@ function renderWithAuth(ui: ReactNode) {
 describe('Meta dashboard empty states', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    storeMock.state.campaign = {
+      status: 'loaded',
+      data: {
+        summary: {
+          currency: 'USD',
+          totalSpend: 0,
+          totalImpressions: 0,
+          totalReach: 0,
+          totalClicks: 0,
+          totalConversions: 0,
+          averageRoas: 0,
+        },
+        trend: [],
+        rows: [],
+      },
+      error: undefined,
+      errorKind: undefined,
+    };
+    storeMock.state.creative = {
+      status: 'loaded',
+      data: [],
+      error: undefined,
+      errorKind: undefined,
+    };
+    storeMock.state.budget = {
+      status: 'loaded',
+      data: [],
+      error: undefined,
+      errorKind: undefined,
+    };
+    datasetStoreMock.state = {
+      mode: 'live',
+      adapters: ['warehouse'],
+      liveReason: 'ready',
+      liveDetail: undefined,
+    };
   });
 
   it('shows a truthful no recent data message on the campaign dashboard', () => {
@@ -144,6 +208,54 @@ describe('Meta dashboard empty states', () => {
     expect(
       screen.getByText(
         'The selected Meta account is connected, but Meta returned no recent reportable budget-backed delivery for this window.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('shows a truthful blocked state on the campaign dashboard when live reporting is disabled', () => {
+    storeMock.state.campaign = {
+      status: 'error',
+      data: undefined,
+      error: 'Live reporting is not enabled in this environment.',
+      errorKind: 'generic',
+    };
+    datasetStoreMock.state = {
+      mode: 'live',
+      adapters: [],
+      liveReason: 'adapter_disabled',
+      liveDetail: undefined,
+    };
+
+    renderWithAuth(<CampaignDashboard />);
+
+    expect(screen.getByText('Live reporting disabled')).toBeInTheDocument();
+    expect(
+      screen.getAllByText('Live reporting is not enabled in this environment.'),
+    ).toHaveLength(2);
+  });
+
+  it('shows the exact warehouse blocker detail on the budget dashboard', () => {
+    storeMock.state.budget = {
+      status: 'error',
+      data: undefined,
+      error:
+        'Live warehouse data is blocked because the aggregate warehouse view `vw_dashboard_aggregate_snapshot` is unavailable in this local database.',
+      errorKind: 'generic',
+    };
+    datasetStoreMock.state = {
+      mode: 'live',
+      adapters: ['warehouse'],
+      liveReason: 'default_snapshot',
+      liveDetail:
+        'Live warehouse data is blocked because the aggregate warehouse view `vw_dashboard_aggregate_snapshot` is unavailable in this local database.',
+    };
+
+    renderWithAuth(<BudgetDashboard />);
+
+    expect(screen.getByText('Fallback live snapshot')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Live warehouse data is blocked because the aggregate warehouse view `vw_dashboard_aggregate_snapshot` is unavailable in this local database.',
       ),
     ).toBeInTheDocument();
   });

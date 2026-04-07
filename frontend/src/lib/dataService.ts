@@ -18,6 +18,13 @@ export interface TenantRecord {
   [key: string]: unknown;
 }
 
+interface PaginatedTenantResponse {
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
+  results: TenantRecord[];
+}
+
 export interface MetricsResponse {
   campaign: CampaignPerformanceResponse;
   creative: CreativePerformanceRow[];
@@ -70,7 +77,16 @@ export async function fetchParishAggregates(options: FetchOptions): Promise<Pari
 }
 
 export async function fetchTenants(options: FetchOptions): Promise<TenantRecord[]> {
-  return fetchJson<TenantRecord[]>({ ...options, schema: 'tenants' });
+  const payload = await apiClient.get<TenantRecord[] | PaginatedTenantResponse>(options.path, {
+    mockPath: options.mockPath,
+    signal: options.signal,
+  });
+
+  const records =
+    Array.isArray(payload) ? payload : Array.isArray(payload?.results) ? payload.results : [];
+
+  validate('tenants', records);
+  return records;
 }
 
 export async function fetchMetrics(path: string): Promise<MetricsResponse> {

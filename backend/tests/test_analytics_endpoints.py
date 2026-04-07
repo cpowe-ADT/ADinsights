@@ -10,9 +10,13 @@ from django.utils import timezone
 from accounts.models import Tenant
 from accounts.tenant_context import tenant_context
 from adapters.warehouse import (
+    WAREHOUSE_DEFAULT_DETAIL,
     WAREHOUSE_SNAPSHOT_STATUS_DEFAULT,
     WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
     WAREHOUSE_SNAPSHOT_STATUS_KEY,
+    WAREHOUSE_STALE_DETAIL,
+    WAREHOUSE_UNAVAILABLE_REASON_DEFAULT,
+    WAREHOUSE_UNAVAILABLE_REASON_STALE,
     WarehouseAdapter,
     WarehouseSnapshotUnavailable,
 )
@@ -170,8 +174,10 @@ def test_warehouse_adapter_rejects_default_snapshot_payload(tenant):
 
     adapter = WarehouseAdapter()
     with tenant_context(str(tenant.id)):
-        with pytest.raises(WarehouseSnapshotUnavailable):
+        with pytest.raises(WarehouseSnapshotUnavailable) as exc_info:
             adapter.fetch_metrics(tenant_id=str(tenant.id))
+    assert exc_info.value.detail == WAREHOUSE_DEFAULT_DETAIL
+    assert exc_info.value.reason == WAREHOUSE_UNAVAILABLE_REASON_DEFAULT
 
 
 @pytest.mark.django_db
@@ -193,8 +199,10 @@ def test_warehouse_adapter_rejects_stale_snapshot_payload(tenant, settings):
 
     adapter = WarehouseAdapter()
     with tenant_context(str(tenant.id)):
-        with pytest.raises(WarehouseSnapshotUnavailable):
+        with pytest.raises(WarehouseSnapshotUnavailable) as exc_info:
             adapter.fetch_metrics(tenant_id=str(tenant.id))
+    assert exc_info.value.detail == WAREHOUSE_STALE_DETAIL
+    assert exc_info.value.reason == WAREHOUSE_UNAVAILABLE_REASON_STALE
 
 
 @pytest.mark.django_db
@@ -229,7 +237,7 @@ def test_warehouse_adapter_applies_filters(tenant):
                     "name": "A",
                     "platform": "Meta",
                     "status": "Active",
-                    "parish": "Kingston",
+                    "parishes": ["Kingston"],
                     "spend": 10,
                     "impressions": 100,
                     "clicks": 5,
@@ -244,7 +252,7 @@ def test_warehouse_adapter_applies_filters(tenant):
                     "name": "B",
                     "platform": "Meta",
                     "status": "Active",
-                    "parish": "St James",
+                    "parishes": ["St James"],
                     "spend": 20,
                     "impressions": 200,
                     "clicks": 10,
@@ -263,7 +271,7 @@ def test_warehouse_adapter_applies_filters(tenant):
                 "campaignId": "cmp-a",
                 "campaignName": "A",
                 "platform": "Meta",
-                "parish": "Kingston",
+                "parishes": ["Kingston"],
             },
             {
                 "id": "cr-b",
@@ -272,7 +280,7 @@ def test_warehouse_adapter_applies_filters(tenant):
                 "campaignId": "cmp-b",
                 "campaignName": "B",
                 "platform": "Meta",
-                "parish": "St James",
+                "parishes": ["St James"],
             },
         ],
         "budget": [

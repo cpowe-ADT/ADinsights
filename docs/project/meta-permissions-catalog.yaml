@@ -2,7 +2,16 @@ version: 1
 coverage_scope: active_plus_near_term
 timezone: America/Jamaica
 source: meta_permissions_reference_compiled
-updated_on: 2026-02-19
+updated_on: 2026-04-04
+official_current_graph_changelog_version: v25.0
+repo_graph_api_version: v24.0
+oauth_flow_definitions:
+  default_marketing_oauth: /api/integrations/meta/oauth/start/
+  page_insights_oauth: /api/meta/connect/start/
+  ignored_in_current_facebook_login_authorize_requests:
+    - read_insights
+    - instagram_basic
+    - instagram_manage_insights
 permissions:
   - permission: ads_read
     family: facebook_ads
@@ -24,6 +33,7 @@ permissions:
       - Tenant reporting dashboards fed by Meta ad metrics.
     runtime_gate_required: true
     requested_in_default_oauth: true
+    requested_in_page_insights_oauth: false
     notes: 'Runtime gate accepts ads_read OR ads_management.'
     last_reviewed_on: 2026-02-19
   - permission: ads_management
@@ -47,6 +57,7 @@ permissions:
       - Meta ad account onboarding validation flow.
     runtime_gate_required: true
     requested_in_default_oauth: true
+    requested_in_page_insights_oauth: false
     notes: 'Runtime gate accepts ads_read OR ads_management.'
     last_reviewed_on: 2026-02-19
   - permission: business_management
@@ -68,6 +79,7 @@ permissions:
       - Tenant credential binding to authorized business assets.
     runtime_gate_required: true
     requested_in_default_oauth: true
+    requested_in_page_insights_oauth: false
     notes: 'Required by runtime gate for successful Meta provisioning flow.'
     last_reviewed_on: 2026-02-19
   - permission: pages_read_engagement
@@ -88,6 +100,7 @@ permissions:
       - Validation prerequisites before Meta provisioning/sync.
     runtime_gate_required: true
     requested_in_default_oauth: true
+    requested_in_page_insights_oauth: true
     notes: 'Required by runtime gate; also dependency for several optional scopes.'
     last_reviewed_on: 2026-02-19
   - permission: pages_show_list
@@ -106,27 +119,8 @@ permissions:
       - Page ownership verification for tenant credential setup.
     runtime_gate_required: true
     requested_in_default_oauth: true
+    requested_in_page_insights_oauth: true
     notes: 'Foundational dependency for Page-scoped and some ad-scoped permissions.'
-    last_reviewed_on: 2026-03-16
-  - permission: read_insights
-    family: pages
-    dependencies:
-      - pages_read_engagement
-      - pages_show_list
-    allowed_usage:
-      - Read Page insights data for Facebook and Instagram accounts.
-    app_review_use_case_requirements:
-      - State that ADinsights reads Page insights on behalf of businesses to provide engagement and reach reporting.
-    app_review_screencast_requirements:
-      - Demonstrate the complete Facebook login process and permission grant.
-      - Demonstrate Page insights (reach, views, etc.) displayed in ADinsights.
-    adinsights_status: required_now
-    adinsights_feature_mapping:
-      - Meta Page Insights retrieval via /api/meta/pages/<id>/overview/.
-      - Tenant reporting dashboards fed by Meta Page metrics.
-    runtime_gate_required: true
-    requested_in_default_oauth: true
-    notes: 'Required for the Page Insights flow.'
     last_reviewed_on: 2026-03-16
   - permission: instagram_basic
     family: instagram
@@ -145,8 +139,9 @@ permissions:
       - Optional Instagram account discovery in Meta onboarding.
       - Instagram identity mapping for reporting context.
     runtime_gate_required: false
-    requested_in_default_oauth: true
-    notes: 'Not required for core Meta ad insights runtime gate.'
+    requested_in_default_oauth: false
+    requested_in_page_insights_oauth: false
+    notes: 'Optional only. Current Facebook Login authorize requests ignore this scope in ADinsights.'
     last_reviewed_on: 2026-02-19
   - permission: instagram_manage_insights
     family: instagram
@@ -165,8 +160,9 @@ permissions:
     adinsights_feature_mapping:
       - Instagram performance enrichment for social status and analytics views.
     runtime_gate_required: false
-    requested_in_default_oauth: true
-    notes: 'Optional for Instagram insights features; not part of base Meta runtime gate.'
+    requested_in_default_oauth: false
+    requested_in_page_insights_oauth: false
+    notes: 'Optional only. Current Facebook Login authorize requests ignore this scope in ADinsights.'
     last_reviewed_on: 2026-02-19
   - permission: catalog_management
     family: commerce
@@ -184,6 +180,7 @@ permissions:
       - Reserved for future commerce-oriented campaign support.
     runtime_gate_required: false
     requested_in_default_oauth: true
+    requested_in_page_insights_oauth: false
     notes: 'Requested in default scope list but not currently required for active runtime path.'
     last_reviewed_on: 2026-02-19
   - permission: pages_manage_ads
@@ -202,6 +199,7 @@ permissions:
       - Reserved for future Page-level ad management surfaces.
     runtime_gate_required: false
     requested_in_default_oauth: true
+    requested_in_page_insights_oauth: false
     notes: 'Not needed for current read/provision flow; keep use constrained to active features.'
     last_reviewed_on: 2026-02-19
   - permission: pages_manage_metadata
@@ -220,6 +218,7 @@ permissions:
       - Reserved for webhook-driven Page lifecycle workflows.
     runtime_gate_required: false
     requested_in_default_oauth: true
+    requested_in_page_insights_oauth: true
     notes: 'Dependency for pages_messaging; optional for current ADinsights core flow.'
     last_reviewed_on: 2026-02-19
   - permission: pages_messaging
@@ -241,5 +240,6 @@ permissions:
       - Reserved for future CRM/messaging assist capabilities.
     runtime_gate_required: false
     requested_in_default_oauth: true
+    requested_in_page_insights_oauth: false
     notes: 'Not part of required Meta ad-data runtime gate.'
     last_reviewed_on: 2026-02-19

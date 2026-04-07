@@ -26,11 +26,8 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from adapters.base import MetricsAdapter
-from adapters.demo import DemoAdapter, clear_demo_seed_cache, _demo_seed_dir
-from adapters.fake import FakeAdapter
-from adapters.upload import UploadAdapter
-from adapters.warehouse import WarehouseAdapter, WarehouseSnapshotUnavailable
+from adapters.demo import clear_demo_seed_cache, _demo_seed_dir
+from adapters.warehouse import WarehouseSnapshotUnavailable
 
 from accounts.permissions import HasPrivilege
 from .models import (
@@ -60,6 +57,7 @@ from analytics.combined_metrics_service import (
     load_combined_metrics_payload,
     parse_cache_flag,
 )
+from analytics.dataset_status import build_adapter_registry, build_dataset_status_payload
 from analytics.snapshots import (
     default_snapshot_metrics,
     fetch_snapshot_metrics,
@@ -167,26 +165,6 @@ class RawPerformanceRecordViewSet(TenantScopedModelViewSet):
     )
     serializer_class = RawPerformanceRecordSerializer
 
-
-def _build_registry(*, include_upload: bool = True) -> dict[str, MetricsAdapter]:
-    """Return the enabled analytics adapters keyed by their slug."""
-
-    registry: dict[str, MetricsAdapter] = {}
-    if getattr(settings, "ENABLE_WAREHOUSE_ADAPTER", False):
-        warehouse = WarehouseAdapter()
-        registry[warehouse.key] = warehouse
-    if getattr(settings, "ENABLE_DEMO_ADAPTER", False):
-        demo = DemoAdapter()
-        registry[demo.key] = demo
-    if getattr(settings, "ENABLE_FAKE_ADAPTER", False):
-        fake = FakeAdapter()
-        registry[fake.key] = fake
-    if include_upload and getattr(settings, "ENABLE_UPLOAD_ADAPTER", False):
-        upload = UploadAdapter()
-        registry[upload.key] = upload
-    return registry
-
-
 @lru_cache(maxsize=1)
 def _campaign_view_has_tenant_column() -> bool:
     """Return True when vw_campaign_daily exposes a tenant_id column."""
@@ -215,9 +193,18 @@ class AdapterListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request) -> Response:  # noqa: D401 - DRF signature
-        registry = _build_registry()
+        registry = build_adapter_registry()
         payload = [adapter.metadata() for adapter in registry.values()]
         return Response(payload)
+
+
+class DatasetStatusView(APIView):
+    """Expose live/demo dataset readiness separately from adapter catalog."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request) -> Response:  # noqa: D401 - DRF signature
+        return Response(build_dataset_status_payload(tenant=request.user.tenant))
 
 
 class MetricsView(APIView):
@@ -226,7 +213,7 @@ class MetricsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request) -> Response:  # noqa: D401 - DRF signature
-        registry = _build_registry(include_upload=False)
+        registry = build_adapter_registry(include_upload=False)
         if not registry:
             return Response(
                 {"detail": "No analytics adapters are enabled."},
@@ -261,7 +248,7 @@ class MetricsView(APIView):
             )
         except WarehouseSnapshotUnavailable as exc:
             return Response(
-                {"detail": exc.detail},
+                exc.payload,
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         return Response(payload)
@@ -281,7 +268,7 @@ class CombinedMetricsView(APIView):
         query_count = 0
         status_label = "rejected"
 
-        registry = _build_registry()
+        registry = build_adapter_registry()
         if not registry:
             cache_outcome = "no_registry"
             return Response(
@@ -340,7 +327,7 @@ class CombinedMetricsView(APIView):
             cache_outcome = "warehouse_unavailable"
             status_label = "warehouse_unavailable"
             return Response(
-                {"detail": exc.detail},
+                exc.payload,
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         except Exception:

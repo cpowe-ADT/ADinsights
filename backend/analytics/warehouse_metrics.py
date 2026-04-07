@@ -13,11 +13,18 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from adapters.warehouse import (
+    WAREHOUSE_DEFAULT_DETAIL,
+    WAREHOUSE_MISSING_DETAIL,
+    WAREHOUSE_SNAPSHOT_STATUS_DETAIL_KEY,
     WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
     WAREHOUSE_SNAPSHOT_STATUS_KEY,
+    WAREHOUSE_STALE_DETAIL,
+    WAREHOUSE_UNAVAILABLE_REASON_DEFAULT,
+    WAREHOUSE_UNAVAILABLE_REASON_MISSING,
+    WAREHOUSE_UNAVAILABLE_REASON_STALE,
     WarehouseSnapshotUnavailable,
 )
-from analytics.models import TenantMetricsSnapshot
+from analytics.models import AdAccount, TenantMetricsSnapshot
 
 UNKNOWN_PARISH_LABELS = {"", "unknown", "unk", "n/a"}
 
@@ -355,6 +362,28 @@ def _coerce_int(value: Any) -> int:
         return 0
 
 
+def _coerce_text_list(value: Any) -> list[str]:
+    if isinstance(value, str):
+        trimmed = value.strip()
+        if not trimmed:
+            return []
+        if trimmed.startswith("[") and trimmed.endswith("]"):
+            try:
+                import json
+
+                parsed = json.loads(trimmed)
+            except ValueError:
+                parsed = None
+            if isinstance(parsed, list):
+                return [item.strip() for item in parsed if isinstance(item, str) and item.strip()]
+        return [item.strip() for item in trimmed.split(",") if item.strip()]
+
+    if isinstance(value, Sequence) and not isinstance(value, (bytes, str)):
+        return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+
+    return []
+
+
 def _normalize_date_string(value: Any) -> str | None:
     if isinstance(value, date):
         return value.isoformat()
@@ -370,6 +399,67 @@ def _extract_known_parishes(rows: Sequence[Mapping[str, Any]]) -> list[str]:
         if parish and parish.lower() not in UNKNOWN_PARISH_LABELS:
             parishes.append(parish)
     return parishes
+
+
+def _parish_coverage_percent(rows: Sequence[Mapping[str, Any]]) -> float:
+    total_rows = len(rows)
+    if total_rows == 0:
+        return 0.0
+    known_rows = sum(
+        1
+        for row in rows
+        if str(row.get("parish") or "").strip().lower() not in UNKNOWN_PARISH_LABELS
+        and str(row.get("parish") or "").strip()
+    )
+    return known_rows / total_rows
+
+
+def _normalize_currency(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    trimmed = value.strip().upper()
+    return trimmed or None
+
+
+def _build_account_currency_lookup(tenant_id: str) -> dict[str, str]:
+    lookup: dict[str, str] = {}
+    for record in AdAccount.objects.filter(tenant_id=tenant_id).values(
+        "external_id",
+        "account_id",
+        "currency",
+    ):
+        currency = _normalize_currency(record.get("currency"))
+        if not currency:
+            continue
+        for raw_value in (record.get("external_id"), record.get("account_id")):
+            if isinstance(raw_value, str):
+                for alias in _account_aliases(raw_value):
+                    lookup[alias] = currency
+    return lookup
+
+
+def _resolve_currency_for_accounts(
+    *,
+    tenant_id: str,
+    ranked_account_rows: Sequence[Mapping[str, Any]],
+    fallback: str = "USD",
+) -> str:
+    currency_lookup = _build_account_currency_lookup(tenant_id)
+    for row in ranked_account_rows:
+        account_id = row.get("ad_account_id")
+        if not isinstance(account_id, str):
+            continue
+        for alias in _account_aliases(account_id):
+            currency = currency_lookup.get(alias)
+            if currency:
+                return currency
+    return fallback
+
+
+def _distinct_parishes_sql(column: str, alias: str = "parishes") -> str:
+    if connection.vendor == "sqlite":
+        return f"json_group_array(distinct {column}) as {alias}"
+    return f"array_remove(array_agg(distinct {column}), null) as {alias}"
 
 
 def _derive_campaign_summary(summary: dict[str, Any]) -> dict[str, Any]:
@@ -409,17 +499,20 @@ def _build_availability(
     creative_available = bool(creative_rows)
     budget_available = bool(budget_rows)
     known_parishes = _extract_known_parishes(parish_rows)
+    coverage_percent = _parish_coverage_percent(parish_rows)
 
-    parish_status = {"status": "available", "reason": None}
+    parish_status = {"status": "available", "reason": None, "coverage_percent": coverage_percent}
     if not parish_rows:
         parish_status = {
             "status": "empty",
             "reason": empty_reason,
+            "coverage_percent": coverage_percent,
         }
     elif not known_parishes:
         parish_status = {
             "status": "unavailable",
             "reason": "geo_unavailable",
+            "coverage_percent": coverage_percent,
         }
 
     budget_reason = None
@@ -525,6 +618,7 @@ def enrich_combined_payload_metadata(payload: Mapping[str, Any]) -> dict[str, An
                 "reason": None
                 if _extract_known_parishes(parish_rows)
                 else ("geo_unavailable" if parish_rows else empty_reason),
+                "coverage_percent": _parish_coverage_percent(parish_rows),
             },
         }
 
@@ -534,19 +628,29 @@ def enrich_combined_payload_metadata(payload: Mapping[str, Any]) -> dict[str, An
 def _ensure_live_warehouse_snapshot(*, tenant, ttl_seconds: int) -> str:
     snapshot = TenantMetricsSnapshot.latest_for(tenant=tenant, source="warehouse")
     if not snapshot or not snapshot.payload:
-        raise WarehouseSnapshotUnavailable()
+        raise WarehouseSnapshotUnavailable(
+            WAREHOUSE_MISSING_DETAIL,
+            reason=WAREHOUSE_UNAVAILABLE_REASON_MISSING,
+        )
 
     stale_ttl_seconds = max(
         int(getattr(settings, "METRICS_SNAPSHOT_STALE_TTL_SECONDS", ttl_seconds) or ttl_seconds),
         1,
     )
     if (timezone.now() - snapshot.generated_at).total_seconds() > stale_ttl_seconds:
-        raise WarehouseSnapshotUnavailable()
+        raise WarehouseSnapshotUnavailable(
+            WAREHOUSE_STALE_DETAIL,
+            reason=WAREHOUSE_UNAVAILABLE_REASON_STALE,
+        )
 
     payload = dict(snapshot.payload)
     snapshot_status = payload.get(WAREHOUSE_SNAPSHOT_STATUS_KEY)
+    snapshot_status_detail = payload.get(WAREHOUSE_SNAPSHOT_STATUS_DETAIL_KEY)
     if snapshot_status and snapshot_status != WAREHOUSE_SNAPSHOT_STATUS_FETCHED:
-        raise WarehouseSnapshotUnavailable()
+        raise WarehouseSnapshotUnavailable(
+            snapshot_status_detail or WAREHOUSE_DEFAULT_DETAIL,
+            reason=WAREHOUSE_UNAVAILABLE_REASON_DEFAULT,
+        )
 
     return snapshot.generated_at.isoformat()
 
@@ -598,10 +702,23 @@ def _fetch_campaign_payload(
         include_search=True,
     )
     where_sql = " and ".join(where_clauses)
+    ranked_account_sql = f"""
+        select
+            c.ad_account_id as ad_account_id,
+            coalesce(sum(c.spend), 0) as spend
+        from vw_campaign_daily c
+        where {where_sql}
+        group by c.ad_account_id
+        order by spend desc, c.ad_account_id asc
+    """
+    ranked_account_rows = _fetch_rows(ranked_account_sql, params)
+    currency = _resolve_currency_for_accounts(
+        tenant_id=tenant_id,
+        ranked_account_rows=ranked_account_rows,
+    )
 
     summary_sql = f"""
         select
-            'USD' as currency,
             coalesce(sum(c.spend), 0) as total_spend,
             coalesce(sum(c.impressions), 0) as total_impressions,
             coalesce(sum(c.clicks), 0) as total_clicks,
@@ -618,7 +735,7 @@ def _fetch_campaign_payload(
     """
     summary_row = _fetch_one(summary_sql, params) or {}
     summary = {
-        "currency": summary_row.get("currency") or "USD",
+        "currency": currency,
         "totalSpend": _coerce_float(summary_row.get("total_spend")),
         "totalImpressions": _coerce_int(summary_row.get("total_impressions")),
         "totalClicks": _coerce_int(summary_row.get("total_clicks")),
@@ -665,12 +782,14 @@ def _fetch_campaign_payload(
             c.ad_account_id as ad_account_id,
             max(c.campaign_name) as name,
             max(c.source_platform) as source_platform,
-            coalesce(max(c.parish_name), 'Unknown') as parish,
+            {_distinct_parishes_sql("coalesce(c.parish_name, 'Unknown')")},
             coalesce(sum(c.spend), 0) as spend,
             coalesce(sum(c.impressions), 0) as impressions,
             coalesce(sum(c.clicks), 0) as clicks,
             coalesce(sum(c.conversions), 0) as conversions,
             {reach_sum_expr} as reach,
+            {"max(c.status)" if _relation_has_column("vw_campaign_daily", "status") else "cast(null as text)"} as status,
+            {"max(c.objective)" if _relation_has_column("vw_campaign_daily", "objective") else "cast(null as text)"} as objective,
             min(c.date_day) as start_date,
             max(c.date_day) as end_date
         from vw_campaign_daily c
@@ -686,14 +805,16 @@ def _fetch_campaign_payload(
         clicks = _coerce_int(row.get("clicks"))
         conversions = _coerce_int(row.get("conversions"))
         reach = _coerce_int(row.get("reach"))
+        parishes = _coerce_text_list(row.get("parishes"))
         rows.append(
             {
                 "id": row.get("id") or "",
                 "adAccountId": row.get("ad_account_id") or "",
                 "name": row.get("name") or "Unnamed campaign",
                 "platform": _platform_label(row.get("source_platform")),
-                "status": "ACTIVE",
-                "parish": row.get("parish") or "Unknown",
+                "status": row.get("status") or "Unknown",
+                "objective": row.get("objective") or "",
+                "parishes": parishes or ["Unknown"],
                 "spend": spend,
                 "impressions": impressions,
                 "reach": reach,
@@ -745,7 +866,7 @@ def _fetch_creative_rows(*, tenant_id: str, filters: WarehouseCombinedFilters) -
             c.campaign_id as campaign_id,
             {campaign_name_expr} as campaign_name,
             max(c.source_platform) as source_platform,
-            coalesce(max(c.parish_name), 'Unknown') as parish,
+            {_distinct_parishes_sql("coalesce(c.parish_name, 'Unknown')")},
             coalesce(sum(c.spend), 0) as spend,
             coalesce(sum(c.impressions), 0) as impressions,
             coalesce(sum(c.clicks), 0) as clicks,
@@ -767,6 +888,7 @@ def _fetch_creative_rows(*, tenant_id: str, filters: WarehouseCombinedFilters) -
         clicks = _coerce_int(row.get("clicks"))
         conversions = _coerce_int(row.get("conversions"))
         reach = _coerce_int(row.get("reach"))
+        parishes = _coerce_text_list(row.get("parishes"))
         rows.append(
             {
                 "id": row.get("id") or "",
@@ -775,7 +897,7 @@ def _fetch_creative_rows(*, tenant_id: str, filters: WarehouseCombinedFilters) -
                 "campaignId": row.get("campaign_id") or "",
                 "campaignName": row.get("campaign_name") or "Unknown campaign",
                 "platform": _platform_label(row.get("source_platform")),
-                "parish": row.get("parish") or "Unknown",
+                "parishes": parishes or ["Unknown"],
                 "spend": spend,
                 "impressions": impressions,
                 "reach": reach,
@@ -970,6 +1092,20 @@ def _fetch_parish_rows(*, tenant_id: str, filters: WarehouseCombinedFilters) -> 
         order by spend desc, parish asc
         limit 50
     """
+    ranked_account_sql = f"""
+        select
+            c.ad_account_id as ad_account_id,
+            coalesce(sum(c.spend), 0) as spend
+        from vw_campaign_daily c
+        where {" and ".join(where_clauses)}
+        group by c.ad_account_id
+        order by spend desc, c.ad_account_id asc
+    """
+    ranked_account_rows = _fetch_rows(ranked_account_sql, params)
+    currency = _resolve_currency_for_accounts(
+        tenant_id=tenant_id,
+        ranked_account_rows=ranked_account_rows,
+    )
     rows = []
     for row in _fetch_rows(sql, params):
         spend = _coerce_float(row.get("spend"))
@@ -993,7 +1129,7 @@ def _fetch_parish_rows(*, tenant_id: str, filters: WarehouseCombinedFilters) -> 
                 "cpa": (spend / conversions) if conversions else 0.0,
                 "frequency": (impressions / reach) if reach else 0.0,
                 "campaignCount": _coerce_int(row.get("campaign_count")),
-                "currency": "USD",
+                "currency": currency,
             }
         )
     return rows

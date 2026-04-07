@@ -60,7 +60,9 @@ const TablePlaceholderIcon = () => (
 const headers = [
   'Campaign',
   'Platform',
-  'Parish',
+  'Status',
+  'Objective',
+  'Parishes',
   'Spend',
   'Impressions',
   'Clicks',
@@ -81,6 +83,20 @@ const renderTruncatedText = (value: string | null | undefined) => {
       {text}
     </span>
   );
+};
+
+const formatParishList = (parishes: string[] | undefined) =>
+  parishes && parishes.length > 0 ? parishes.join(', ') : '—';
+
+const normalizeStatusTone = (status: string | undefined) => {
+  const normalized = status?.trim().toUpperCase() ?? '';
+  if (normalized.includes('ACTIVE')) {
+    return 'active';
+  }
+  if (normalized.includes('PAUSED')) {
+    return 'paused';
+  }
+  return 'unknown';
 };
 
 const CampaignTable = ({
@@ -140,11 +156,8 @@ const CampaignTable = ({
                 {row.original.name}
               </Link>
             </strong>
-            <span
-              className="campaign-meta dashboard-table__truncate"
-              title={row.original.status ?? undefined}
-            >
-              {row.original.status ?? '—'}
+            <span className="campaign-meta dashboard-table__truncate" title={row.original.platform ?? undefined}>
+              {row.original.platform ?? '—'}
             </span>
           </div>
         ),
@@ -155,9 +168,38 @@ const CampaignTable = ({
         cell: ({ getValue }) => renderTruncatedText(getValue() as string | undefined),
       },
       {
-        accessorKey: 'parish',
-        header: 'Parish',
-        cell: ({ getValue }) => renderTruncatedText(getValue() as string | undefined),
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ row }) => {
+          const value = row.original.status || 'Unknown';
+          const tone = normalizeStatusTone(value);
+          return <span className={`metric-status-badge metric-status-badge--${tone}`}>{value}</span>;
+        },
+      },
+      {
+        accessorKey: 'objective',
+        header: 'Objective',
+        sortingFn: (rowA, rowB) => {
+          const left = rowA.original.objective?.trim() ?? '';
+          const right = rowB.original.objective?.trim() ?? '';
+          if (!left && !right) {
+            return 0;
+          }
+          if (!left) {
+            return 1;
+          }
+          if (!right) {
+            return -1;
+          }
+          return left.localeCompare(right);
+        },
+        cell: ({ row }) => renderTruncatedText(row.original.objective || '—'),
+      },
+      {
+        id: 'parishes',
+        accessorFn: (row) => formatParishList(row.parishes),
+        header: 'Parishes',
+        cell: ({ row }) => renderTruncatedText(formatParishList(row.original.parishes)),
       },
       {
         accessorKey: 'spend',
@@ -242,7 +284,9 @@ const CampaignTable = ({
       .rows.map((row) => [
         row.original.name,
         row.original.platform,
-        row.original.parish ?? '—',
+        row.original.status ?? 'Unknown',
+        row.original.objective ?? '—',
+        formatParishList(row.original.parishes),
         formatCurrency(row.original.spend, currency),
         formatNumber(row.original.impressions),
         formatNumber(row.original.clicks),

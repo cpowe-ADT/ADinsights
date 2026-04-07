@@ -4,9 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import MetaPageOverviewPage from '../MetaPageOverviewPage';
 
+const airbyteMocks = vi.hoisted(() => ({
+  loadSocialConnectionStatus: vi.fn(),
+}));
+
 const storeMock = vi.hoisted(() => ({
   state: {
     pages: [{ id: '1', page_id: 'page-1', name: 'Page 1', can_analyze: true, is_default: true }],
+    missingRequiredPermissions: [],
     metrics: {
       page: [
         {
@@ -59,6 +64,7 @@ const storeMock = vi.hoisted(() => ({
     loadOverviewAndTimeseries: vi.fn(),
     loadTimeseries: vi.fn(),
     refreshPage: vi.fn(),
+    connectOAuthStart: vi.fn(),
     filters: {
       datePreset: 'last_28d',
       since: '2026-01-01',
@@ -79,6 +85,10 @@ vi.mock('../../components/TrendChart', () => ({
   default: () => <div>Trend chart</div>,
 }));
 
+vi.mock('../../lib/airbyte', () => ({
+  loadSocialConnectionStatus: airbyteMocks.loadSocialConnectionStatus,
+}));
+
 vi.mock('../../lib/metaPageInsights', async (importOriginal) => {
   const original = await importOriginal<typeof import('../../lib/metaPageInsights')>();
   return {
@@ -92,6 +102,11 @@ vi.mock('../../lib/metaPageInsights', async (importOriginal) => {
 describe('MetaPageOverviewPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    storeMock.state.missingRequiredPermissions = [];
+    airbyteMocks.loadSocialConnectionStatus.mockResolvedValue({
+      generated_at: '2026-04-04T16:00:00Z',
+      platforms: [],
+    });
   });
 
   it('renders KPI cards and hides unsupported metric card', async () => {
@@ -110,5 +125,57 @@ describe('MetaPageOverviewPage', () => {
     expect(screen.getAllByText('page_post_engagements').length).toBeGreaterThan(0);
     expect(container!.querySelectorAll('.meta-kpi-card-v2')).toHaveLength(1);
     expect(screen.getByText('Some metrics are not available for this Page.')).toBeInTheDocument();
+  });
+
+  it('shows reconnect guidance when page insights permissions are missing', async () => {
+    storeMock.state.missingRequiredPermissions = ['pages_read_engagement'];
+
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
+          <Routes>
+            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+
+    expect(screen.getByText('Reconnect Meta to restore insights access')).toBeInTheDocument();
+    expect(screen.getByText(/pages_read_engagement/)).toBeInTheDocument();
+  });
+
+  it('shows restore guidance when marketing access is orphaned', async () => {
+    airbyteMocks.loadSocialConnectionStatus.mockResolvedValue({
+      generated_at: '2026-04-04T16:00:00Z',
+      platforms: [
+        {
+          platform: 'meta',
+          display_name: 'Meta (Facebook)',
+          status: 'started_not_complete',
+          reason: {
+            code: 'orphaned_marketing_access',
+            message: 'Restore marketing access to resume ad account reporting.',
+          },
+          last_checked_at: '2026-04-04T16:00:00Z',
+          last_synced_at: null,
+          actions: ['recover_marketing_access', 'view'],
+          metadata: {
+            has_recoverable_marketing_access: true,
+          },
+        },
+      ],
+    });
+
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
+          <Routes>
+            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+
+    expect((await screen.findAllByText('Restore Meta marketing access')).length).toBeGreaterThan(0);
   });
 });

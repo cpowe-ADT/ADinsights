@@ -24,6 +24,8 @@ from accounts.audit import log_audit_event
 from accounts.models import AuditLog
 from accounts.permissions import HasPrivilege
 from accounts.tenant_context import tenant_context
+from analytics.dataset_status import build_dataset_status_payload
+from analytics.models import AdAccount
 from core.db_error_responses import schema_out_of_date_response
 from core.frontend_runtime import (
     build_runtime_context,
@@ -87,6 +89,7 @@ META_OAUTH_FLOW_MARKETING = "marketing"
 META_OAUTH_FLOW_PAGE_INSIGHTS = "page_insights"
 DEFAULT_CONNECTOR_CRON_EXPRESSION = "0 6-22 * * *"
 DEFAULT_CONNECTOR_TIMEZONE = "America/Jamaica"
+META_DIRECT_SYNC_FRESHNESS_GRACE_HOUR = 6
 # Airbyte OSS source definition ID for Facebook Marketing.
 DEFAULT_META_SOURCE_DEFINITION_ID = "e7778cfc-e97c-4458-9ecb-b4f2bba8946c"
 DEFAULT_META_REQUIRED_SCOPE_ANY = ("ads_read", "ads_management")
@@ -109,16 +112,22 @@ DEFAULT_META_OAUTH_SCOPES = [
 DEFAULT_META_PAGE_INSIGHTS_OAUTH_SCOPES = [
     "pages_show_list",
     "pages_read_engagement",
-    "read_insights",
     "pages_manage_metadata",
 ]
+DEFAULT_META_PAGE_INSIGHTS_REQUIRED_SCOPES = [
+    "pages_show_list",
+    "pages_read_engagement",
+]
+DEFAULT_META_PAGE_INSIGHTS_REQUIRED_SCOPE_SET = set(DEFAULT_META_PAGE_INSIGHTS_REQUIRED_SCOPES)
 DEFAULT_META_INSTAGRAM_REQUIRED_SCOPES = [
     "instagram_basic",
     "instagram_manage_insights",
 ]
+# Filter scopes that Facebook Login either ignores outright or rejects as invalid.
 DEFAULT_META_LOGIN_IGNORED_SCOPES = {
     "instagram_basic",
     "instagram_manage_insights",
+    "read_insights",
 }
 DEFAULT_META_PAGE_INSIGHTS_TASKS = {"ANALYZE", "MANAGE", "ADVERTISE"}
 DEFAULT_META_PAGE_INSIGHTS_PERMS = {"ADMINISTER", "BASIC_ADMIN", "CREATE_ADS"}
@@ -246,6 +255,25 @@ def _find_by_name(items: list[dict[str, Any]], name: str) -> dict[str, Any] | No
         if item.get("name") == name:
             return item
     return None
+
+
+def _is_meta_task_dispatch_error(exc: Exception) -> bool:
+    module_name = type(exc).__module__.lower()
+    if module_name.startswith("kombu") or module_name.startswith("amqp"):
+        return True
+
+    message = str(exc).lower()
+    return any(
+        fragment in message
+        for fragment in (
+            "redis",
+            "broker",
+            "transport",
+            "connection refused",
+            "connection reset",
+            "connection closed",
+        )
+    )
 
 
 def _configured_catalog(
@@ -412,6 +440,230 @@ def _normalize_scopes(raw_scopes: Any) -> list[str]:
     return normalized
 
 
+def _extract_granted_and_declined_permissions(permissions: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
+    granted_permissions = sorted(
+        {
+            str(row.get("permission")).strip()
+            for row in permissions
+            if isinstance(row, dict)
+            and str(row.get("status", "")).strip().lower() == "granted"
+            and str(row.get("permission", "")).strip()
+        }
+    )
+    declined_permissions = sorted(
+        {
+            str(row.get("permission")).strip()
+            for row in permissions
+            if isinstance(row, dict)
+            and str(row.get("status", "")).strip().lower() == "declined"
+            and str(row.get("permission", "")).strip()
+        }
+    )
+    return granted_permissions, declined_permissions
+
+
+def _meta_selection_defaults_for_tenant(
+    *,
+    request,
+    page_ids: set[str],
+    ad_account_ids: set[str],
+    instagram_account_ids: set[str],
+) -> dict[str, str | None]:
+    default_page_id = (
+        MetaPage.objects.filter(tenant=request.user.tenant, is_default=True)
+        .order_by("-updated_at")
+        .values_list("page_id", flat=True)
+        .first()
+    )
+    if default_page_id not in page_ids:
+        default_page_id = None
+
+    latest_meta_oauth_audit = (
+        AuditLog.objects.filter(
+            tenant_id=request.user.tenant_id,
+            action="meta_oauth_connected",
+            resource_type="platform_credential",
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    metadata = latest_meta_oauth_audit.metadata if latest_meta_oauth_audit else {}
+    default_ad_account_id: str | None = None
+    default_instagram_account_id: str | None = None
+    if isinstance(metadata, dict):
+        ad_account_value = str(metadata.get("ad_account_id") or "").strip()
+        instagram_value = str(metadata.get("instagram_account_id") or "").strip()
+        if ad_account_value and ad_account_value in ad_account_ids:
+            default_ad_account_id = ad_account_value
+        if instagram_value and instagram_value in instagram_account_ids:
+            default_instagram_account_id = instagram_value
+
+    return {
+        "default_page_id": default_page_id,
+        "default_ad_account_id": default_ad_account_id,
+        "default_instagram_account_id": default_instagram_account_id,
+    }
+
+
+def _cache_meta_selection_payload(
+    *,
+    request,
+    app_scoped_user_id: str,
+    user_access_token: str,
+    expires_at: str | None,
+    pages: list[Any],
+    ad_accounts: list[Any],
+    instagram_accounts: list[Any],
+    granted_permissions: list[str],
+    declined_permissions: list[str],
+    missing_required_permissions: list[str],
+    token_debug_valid: bool,
+    source: str | None = None,
+    recovered_from_existing_token: bool = False,
+) -> dict[str, Any]:
+    page_payloads = [page.as_public_dict() for page in pages]
+    ad_account_payloads = [
+        account.as_public_dict() if hasattr(account, "as_public_dict") else account
+        for account in ad_accounts
+    ]
+    instagram_payloads = [
+        instagram_account.as_public_dict() if hasattr(instagram_account, "as_public_dict") else instagram_account
+        for instagram_account in instagram_accounts
+    ]
+    selection_token = secrets.token_urlsafe(32)
+    cache_payload = {
+        "tenant_id": str(request.user.tenant_id),
+        "user_id": str(request.user.id),
+        "app_scoped_user_id": app_scoped_user_id,
+        "user_access_token": user_access_token,
+        "token_expires_at": expires_at,
+        "pages": page_payloads,
+        "pages_private": [
+            {
+                "id": page.id,
+                "name": page.name,
+                "category": page.category,
+                "tasks": page.tasks or [],
+                "perms": page.perms or [],
+                "access_token": page.access_token,
+            }
+            for page in pages
+        ],
+        "ad_accounts": ad_account_payloads,
+        "instagram_accounts": instagram_payloads,
+        "granted_permissions": granted_permissions,
+        "declined_permissions": declined_permissions,
+        "missing_required_permissions": missing_required_permissions,
+        "token_debug_valid": token_debug_valid,
+        "source": source,
+    }
+    cache.set(
+        f"{META_OAUTH_SELECTION_CACHE_PREFIX}{selection_token}",
+        cache_payload,
+        timeout=META_OAUTH_SELECTION_TTL_SECONDS,
+    )
+
+    defaults = _meta_selection_defaults_for_tenant(
+        request=request,
+        page_ids={str(page.get("id") or "").strip() for page in page_payloads if isinstance(page, dict)},
+        ad_account_ids={
+            _normalize_meta_account_id(str(account.get("id") or account.get("account_id") or "").strip())
+            for account in ad_account_payloads
+            if isinstance(account, dict)
+        },
+        instagram_account_ids={
+            str(instagram_account.get("id") or "").strip()
+            for instagram_account in instagram_payloads
+            if isinstance(instagram_account, dict)
+        },
+    )
+
+    return {
+        "selection_token": selection_token,
+        "expires_in_seconds": META_OAUTH_SELECTION_TTL_SECONDS,
+        "pages": page_payloads,
+        "ad_accounts": ad_account_payloads,
+        "instagram_accounts": instagram_payloads,
+        "granted_permissions": granted_permissions,
+        "declined_permissions": declined_permissions,
+        "missing_required_permissions": missing_required_permissions,
+        "token_debug_valid": token_debug_valid,
+        "oauth_connected_but_missing_permissions": bool(missing_required_permissions),
+        "source": source,
+        "recovered_from_existing_token": recovered_from_existing_token,
+        **defaults,
+    }
+
+
+def _discover_meta_assets_from_user_token(
+    *,
+    user_access_token: str,
+) -> dict[str, Any]:
+    with MetaGraphClient.from_settings() as client:
+        token_debug = client.debug_token(input_token=user_access_token)
+        debug_valid = bool(token_debug.get("is_valid"))
+        debug_app_id_raw = token_debug.get("app_id")
+        debug_app_id = str(debug_app_id_raw) if debug_app_id_raw is not None else ""
+        configured_app_id = (getattr(settings, "META_APP_ID", "") or "").strip()
+        if not debug_valid:
+            raise ValueError("Meta OAuth token failed debug_token validation.")
+        if configured_app_id and debug_app_id and debug_app_id != configured_app_id:
+            raise ValueError("Meta OAuth token app_id did not match META_APP_ID.")
+        permissions = client.list_permissions(user_access_token=user_access_token)
+        granted_permissions, declined_permissions = _extract_granted_and_declined_permissions(permissions)
+        pages = client.list_pages(user_access_token=user_access_token)
+        ad_accounts = client.list_ad_accounts(user_access_token=user_access_token)
+        instagram_accounts = client.list_instagram_accounts(pages=pages)
+
+    if not pages:
+        raise ValueError("No Facebook pages were returned for this account.")
+
+    return {
+        "token_debug": token_debug,
+        "token_debug_valid": debug_valid,
+        "granted_permissions": granted_permissions,
+        "declined_permissions": declined_permissions,
+        "missing_required_permissions": _missing_required_permissions(granted_permissions),
+        "pages": pages,
+        "ad_accounts": ad_accounts,
+        "instagram_accounts": instagram_accounts,
+    }
+
+
+def _upsert_meta_ad_accounts(
+    *,
+    tenant,
+    ad_accounts: list[dict[str, Any]],
+) -> int:
+    upserted = 0
+    for payload in ad_accounts:
+        if not isinstance(payload, dict):
+            continue
+        external_id = _normalize_meta_account_id(
+            str(payload.get("id") or payload.get("account_id") or "").strip()
+        )
+        if not external_id:
+            continue
+        account_id = str(payload.get("account_id") or "").strip() or external_id.replace("act_", "")
+        status_value = payload.get("account_status")
+        status_text = str(status_value) if status_value is not None else ""
+        AdAccount.all_objects.update_or_create(
+            tenant=tenant,
+            external_id=external_id,
+            defaults={
+                "account_id": account_id,
+                "name": str(payload.get("name") or "").strip(),
+                "currency": str(payload.get("currency") or "").strip(),
+                "status": status_text,
+                "business_name": str(payload.get("business_name") or "").strip(),
+                "metadata": payload,
+                "updated_time": timezone.now(),
+            },
+        )
+        upserted += 1
+    return upserted
+
+
 def _normalize_string_list(raw_values: Any) -> list[str]:
     if not isinstance(raw_values, list):
         return []
@@ -451,11 +703,16 @@ def _cached_private_page_records(cached_payload: dict[str, Any]) -> dict[str, di
 
 def _resolve_meta_login_scopes(*, flow: str = META_OAUTH_FLOW_MARKETING) -> tuple[list[str], list[str]]:
     if flow == META_OAUTH_FLOW_PAGE_INSIGHTS:
-        configured_scopes = getattr(
-            settings,
-            "META_PAGE_INSIGHTS_OAUTH_SCOPES",
-            DEFAULT_META_PAGE_INSIGHTS_OAUTH_SCOPES,
+        configured_scopes = list(
+            getattr(
+                settings,
+                "META_PAGE_INSIGHTS_OAUTH_SCOPES",
+                DEFAULT_META_PAGE_INSIGHTS_OAUTH_SCOPES,
+            )
         )
+        for required_scope in DEFAULT_META_PAGE_INSIGHTS_REQUIRED_SCOPES:
+            if required_scope not in configured_scopes:
+                configured_scopes.append(required_scope)
     else:
         configured_scopes = getattr(settings, "META_OAUTH_SCOPES", DEFAULT_META_OAUTH_SCOPES)
     resolved: list[str] = []
@@ -701,6 +958,12 @@ def _meta_sync_state_priority(sync_state: MetaAccountSyncState | None) -> tuple[
     return (rank, last_activity)
 
 
+def _meta_expected_window_end(*, now) -> datetime.date:
+    local_now = timezone.localtime(now)
+    days_back = 2 if local_now.hour < META_DIRECT_SYNC_FRESHNESS_GRACE_HOUR else 1
+    return local_now.date() - timedelta(days=days_back)
+
+
 def _meta_sync_state_is_active(*, sync_state: MetaAccountSyncState | None, now) -> bool:
     if sync_state is None:
         return False
@@ -710,7 +973,7 @@ def _meta_sync_state_is_active(*, sync_state: MetaAccountSyncState | None, now) 
         return False
     if sync_state.last_rows_synced <= 0:
         return False
-    expected_window_end = timezone.localdate(now) - timedelta(days=1)
+    expected_window_end = _meta_expected_window_end(now=now)
     if sync_state.last_window_end is not None and sync_state.last_window_end < expected_window_end:
         return False
     return sync_state.last_success_at is not None
@@ -797,11 +1060,60 @@ def _resolve_meta_status(
     credential: PlatformCredential | None,
     sync_state: MetaAccountSyncState | None,
     connection: AirbyteConnection | None,
+    page_connection: MetaConnection | None,
     now,
     oauth_ready: bool,
     provisioning_defaults_ready: bool,
 ) -> tuple[str, dict[str, str], list[str]]:
     if credential is None:
+        if page_connection is not None:
+            page_scopes = {
+                scope.strip()
+                for scope in (page_connection.scopes or [])
+                if isinstance(scope, str) and scope.strip()
+            }
+            missing_page_scopes = sorted(
+                DEFAULT_META_PAGE_INSIGHTS_REQUIRED_SCOPE_SET - page_scopes
+            )
+            if missing_page_scopes:
+                return (
+                    "started_not_complete",
+                    {
+                        "code": "page_insights_permissions_missing",
+                        "message": (
+                            "Meta Page Insights is connected, but required permissions are missing: "
+                            + ", ".join(missing_page_scopes)
+                            + ". Reconnect Meta to restore page reporting."
+                        ),
+                    },
+                    ["connect_oauth", "view"],
+                )
+            missing_marketing_scopes = _missing_required_permissions(sorted(page_scopes))
+            if missing_marketing_scopes:
+                return (
+                    "started_not_complete",
+                    {
+                        "code": "marketing_permissions_missing",
+                        "message": (
+                            "Meta Page Insights is connected, but the stored token is missing "
+                            "marketing permissions required for ad account recovery: "
+                            + ", ".join(missing_marketing_scopes)
+                            + ". Reconnect Meta with Facebook to restore ad account reporting."
+                        ),
+                    },
+                    ["connect_oauth", "view"],
+                )
+            return (
+                "started_not_complete",
+                {
+                    "code": "orphaned_marketing_access",
+                    "message": (
+                        "Meta Page Insights is connected, but marketing account access has to be restored "
+                        "before ad accounts, campaign reporting, and sync can resume."
+                    ),
+                },
+                ["recover_marketing_access", "view"],
+            )
         return (
             "not_connected",
             {
@@ -919,6 +1231,122 @@ def _resolve_meta_status(
     )
 
 
+def _resolve_meta_direct_sync_status(
+    *,
+    meta_status: str,
+    meta_reason: Mapping[str, str],
+) -> tuple[str, str]:
+    reason_code = (meta_reason.get("code") or "").strip()
+    reason_message = meta_reason.get("message") or "Meta reporting readiness is unavailable."
+
+    if meta_status == "not_connected":
+        return "blocked", reason_message
+
+    if reason_code in {
+        "page_insights_permissions_missing",
+        "marketing_permissions_missing",
+        "orphaned_marketing_access",
+        "credential_reauth_required",
+        "missing_ad_account_selection",
+        "oauth_not_ready",
+    }:
+        return "blocked", reason_message
+    if reason_code in {"awaiting_initial_sync", "awaiting_recent_successful_sync"}:
+        return "pending", reason_message
+    if reason_code == "sync_in_progress":
+        return "running", reason_message
+    if reason_code == "latest_sync_failed":
+        return "failed", reason_message
+    if reason_code == "connection_paused":
+        return "paused", reason_message
+    if reason_code == "no_recent_reportable_data":
+        return "complete_no_data", reason_message
+    if reason_code == "active_direct_sync":
+        return "complete", reason_message
+    if meta_status == "active":
+        return "complete", reason_message
+    return "blocked", reason_message
+
+
+def _resolve_reporting_readiness(
+    *,
+    meta_status: str,
+    meta_reason: Mapping[str, str],
+    dataset_status: Mapping[str, Any],
+) -> dict[str, Any]:
+    direct_sync_status, direct_sync_message = _resolve_meta_direct_sync_status(
+        meta_status=meta_status,
+        meta_reason=meta_reason,
+    )
+    live_status = dataset_status.get("live") if isinstance(dataset_status.get("live"), Mapping) else {}
+    live_reason = str(live_status.get("reason") or "adapter_disabled")
+    live_detail = (
+        str(live_status.get("detail")).strip()
+        if isinstance(live_status.get("detail"), str) and str(live_status.get("detail")).strip()
+        else None
+    )
+    snapshot_generated_at = live_status.get("snapshot_generated_at")
+
+    warehouse_status_map = {
+        "adapter_disabled": "disabled",
+        "missing_snapshot": "waiting_snapshot",
+        "stale_snapshot": "refreshing_snapshot",
+        "default_snapshot": "fallback_snapshot",
+        "ready": "ready",
+    }
+    warehouse_status = warehouse_status_map.get(live_reason, "unknown")
+
+    if meta_status == "not_connected":
+        stage = "meta_not_connected"
+        message = "Connect Meta first to enable direct sync and live reporting."
+    elif direct_sync_status == "blocked":
+        stage = "meta_setup_incomplete"
+        message = direct_sync_message
+    elif direct_sync_status == "pending":
+        stage = "waiting_for_direct_sync"
+        message = direct_sync_message
+    elif direct_sync_status == "running":
+        stage = "direct_sync_in_progress"
+        message = "Meta connected. Direct sync is running. Live reporting will update after the sync completes."
+    elif direct_sync_status == "failed":
+        stage = "direct_sync_failed"
+        message = direct_sync_message
+    elif direct_sync_status == "paused":
+        stage = "direct_sync_paused"
+        message = direct_sync_message
+    elif direct_sync_status == "complete_no_data":
+        stage = "direct_sync_complete_no_data"
+        message = direct_sync_message
+    elif live_reason == "adapter_disabled":
+        stage = "live_reporting_disabled"
+        message = (
+            "Meta connected. Direct sync complete. Live reporting is disabled in this environment."
+        )
+    elif live_reason == "missing_snapshot":
+        stage = "waiting_for_warehouse_snapshot"
+        message = live_detail or "Meta connected. Direct sync complete. Waiting for the first warehouse snapshot."
+    elif live_reason == "stale_snapshot":
+        stage = "warehouse_snapshot_refreshing"
+        message = live_detail or "Meta connected. Direct sync complete. Live data is refreshing."
+    elif live_reason == "default_snapshot":
+        stage = "warehouse_snapshot_fallback"
+        message = live_detail or "Meta connected. Direct sync complete. The latest warehouse snapshot is fallback data."
+    else:
+        stage = "live_reporting_ready"
+        message = "Meta connected. Direct sync complete. Live reporting is ready."
+
+    return {
+        "stage": stage,
+        "message": message,
+        "auth_status": meta_status,
+        "direct_sync_status": direct_sync_status,
+        "warehouse_status": warehouse_status,
+        "dataset_live_reason": live_reason,
+        "warehouse_adapter_enabled": bool(dataset_status.get("warehouse_adapter_enabled")),
+        "snapshot_generated_at": snapshot_generated_at,
+    }
+
+
 class MetaOAuthStartView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -931,7 +1359,19 @@ class MetaOAuthStartView(APIView):
             app_id = (getattr(settings, "META_APP_ID", "") or "").strip()
             if not app_id:
                 raise MetaGraphConfigurationError("META_APP_ID must be configured for Meta OAuth.")
-            redirect_uri = _meta_redirect_uri(request=request, payload=serializer.validated_data)
+            redirect_uri, runtime_context = _resolve_meta_redirect_uri(
+                request=request,
+                payload=serializer.validated_data,
+            )
+            if runtime_context.get("redirect_origin_matches_runtime") is False:
+                return Response(
+                    {
+                        "detail": runtime_context.get("redirect_origin_mismatch_message")
+                        or "Open the app on the configured OAuth redirect host and try again.",
+                        "runtime_context": runtime_context,
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
             login_configuration_id = _meta_login_configuration_id()
             login_configuration_required = _meta_login_configuration_required()
             if login_configuration_required and not login_configuration_id:
@@ -993,6 +1433,11 @@ class MetaSetupView(APIView):
             redirect_uri_configured = True
         except MetaGraphConfigurationError:
             redirect_uri_configured = False
+        runtime_redirect_ready = (
+            runtime_context.get("redirect_origin_matches_runtime") is not False
+            if runtime_context is not None
+            else True
+        )
         login_configuration_ready = bool(login_configuration_id) or not login_configuration_required
         scopes, ignored_scopes = _resolve_meta_login_scopes()
         scope_set = {scope.strip() for scope in scopes if isinstance(scope, str) and scope.strip()}
@@ -1005,7 +1450,13 @@ class MetaSetupView(APIView):
             (getattr(settings, "AIRBYTE_SOURCE_DEFINITION_META", "") or "").strip()
         )
 
-        ready_for_oauth = bool(app_id and app_secret and redirect_uri_configured and login_configuration_ready)
+        ready_for_oauth = bool(
+            app_id
+            and app_secret
+            and redirect_uri_configured
+            and login_configuration_ready
+            and runtime_redirect_ready
+        )
         ready_for_provisioning_defaults = bool(workspace_id and destination_id)
         meta_app_missing = []
         if not app_id:
@@ -1037,6 +1488,16 @@ class MetaSetupView(APIView):
                 "ok": redirect_uri_configured,
                 "env_vars": ["META_OAUTH_REDIRECT_URI", "FRONTEND_BASE_URL"],
                 "missing_env_vars": redirect_missing,
+            },
+            {
+                "key": "meta_runtime_redirect_origin",
+                "label": "Open the app on the same host as the configured OAuth redirect",
+                "ok": runtime_redirect_ready,
+                "details": (
+                    runtime_context.get("redirect_origin_mismatch_message")
+                    if runtime_context is not None
+                    else None
+                ),
             },
             {
                 "key": "meta_login_configuration_id",
@@ -1074,6 +1535,17 @@ class MetaSetupView(APIView):
                 "ok": not marketing_scope_missing,
                 "required_scopes": DEFAULT_META_REQUIRED_SCOPES,
                 "missing_scopes": marketing_scope_missing,
+            },
+            {
+                "key": "meta_live_reporting_environment",
+                "label": "Live warehouse reporting enabled in this environment",
+                "ok": bool(getattr(settings, "ENABLE_WAREHOUSE_ADAPTER", False)),
+                "details": (
+                    "Meta can connect in this profile, but live dashboards will stay unavailable until "
+                    "ENABLE_WAREHOUSE_ADAPTER=1 and warehouse snapshots are generated."
+                    if not getattr(settings, "ENABLE_WAREHOUSE_ADAPTER", False)
+                    else None
+                ),
             },
             {
                 "key": "meta_instagram_scopes",
@@ -1145,107 +1617,118 @@ class MetaOAuthExchangeView(APIView):
                     )
                 except MetaGraphClientError:
                     token = short_lived
-                token_debug = client.debug_token(input_token=token.access_token)
-                debug_valid = bool(token_debug.get("is_valid"))
-                debug_app_id_raw = token_debug.get("app_id")
-                debug_app_id = str(debug_app_id_raw) if debug_app_id_raw is not None else ""
-                configured_app_id = (getattr(settings, "META_APP_ID", "") or "").strip()
-                if not debug_valid:
-                    return Response(
-                        {"detail": "Meta OAuth token failed debug_token validation."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                if configured_app_id and debug_app_id and debug_app_id != configured_app_id:
-                    return Response(
-                        {"detail": "Meta OAuth token app_id did not match META_APP_ID."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                permissions = client.list_permissions(user_access_token=token.access_token)
-                granted_permissions = sorted(
-                    {
-                        str(row.get("permission")).strip()
-                        for row in permissions
-                        if isinstance(row, dict)
-                        and str(row.get("status", "")).strip().lower() == "granted"
-                        and str(row.get("permission", "")).strip()
-                    }
-                )
-                declined_permissions = sorted(
-                    {
-                        str(row.get("permission")).strip()
-                        for row in permissions
-                        if isinstance(row, dict)
-                        and str(row.get("status", "")).strip().lower() == "declined"
-                        and str(row.get("permission", "")).strip()
-                    }
-                )
-                missing_required_permissions = _missing_required_permissions(granted_permissions)
-                pages = client.list_pages(user_access_token=token.access_token)
-                ad_accounts = client.list_ad_accounts(user_access_token=token.access_token)
-                instagram_accounts = client.list_instagram_accounts(pages=pages)
+            discovered = _discover_meta_assets_from_user_token(user_access_token=token.access_token)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except MetaGraphConfigurationError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         except MetaGraphClientError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
 
-        if not pages:
-            return Response(
-                {"detail": "No Facebook pages were returned for this account."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         expires_at: str | None = None
         if token.expires_in is not None:
             expires_at = (timezone.now() + timedelta(seconds=token.expires_in)).isoformat()
-
-        selection_token = secrets.token_urlsafe(32)
-        cache.set(
-            f"{META_OAUTH_SELECTION_CACHE_PREFIX}{selection_token}",
-            {
-                "tenant_id": str(request.user.tenant_id),
-                "user_id": str(request.user.id),
-                "app_scoped_user_id": str(token_debug.get("user_id") or request.user.id),
-                "user_access_token": token.access_token,
-                "token_expires_at": expires_at,
-                "pages": [page.as_public_dict() for page in pages],
-                "pages_private": [
-                    {
-                        "id": page.id,
-                        "name": page.name,
-                        "category": page.category,
-                        "tasks": page.tasks or [],
-                        "perms": page.perms or [],
-                        "access_token": page.access_token,
-                    }
-                    for page in pages
-                ],
-                "ad_accounts": [account.as_public_dict() for account in ad_accounts],
-                "instagram_accounts": [
-                    instagram_account.as_public_dict() for instagram_account in instagram_accounts
-                ],
-                "granted_permissions": granted_permissions,
-                "declined_permissions": declined_permissions,
-                "missing_required_permissions": missing_required_permissions,
-                "token_debug_valid": debug_valid,
-            },
-            timeout=META_OAUTH_SELECTION_TTL_SECONDS,
+        return Response(
+            _cache_meta_selection_payload(
+                request=request,
+                app_scoped_user_id=str(discovered["token_debug"].get("user_id") or request.user.id),
+                user_access_token=token.access_token,
+                expires_at=expires_at,
+                pages=discovered["pages"],
+                ad_accounts=discovered["ad_accounts"],
+                instagram_accounts=discovered["instagram_accounts"],
+                granted_permissions=discovered["granted_permissions"],
+                declined_permissions=discovered["declined_permissions"],
+                missing_required_permissions=discovered["missing_required_permissions"],
+                token_debug_valid=discovered["token_debug_valid"],
+                source="oauth_exchange",
+                recovered_from_existing_token=False,
+            )
         )
 
+
+class MetaRecoveryPreviewView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):  # noqa: ANN001 - DRF signature
+        page_connection = (
+            MetaConnection.objects.filter(tenant=request.user.tenant, is_active=True)
+            .order_by("-updated_at")
+            .first()
+        )
+        if page_connection is None:
+            return Response(
+                {
+                    "detail": "No active Meta Page Insights connection is available to recover marketing access.",
+                    "code": "missing_meta_page_connection",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user_access_token = page_connection.decrypt_token()
+        if not user_access_token:
+            return Response(
+                {
+                    "detail": "Stored Meta Page Insights token is missing. Reconnect Meta with Facebook.",
+                    "code": "missing_meta_connection_token",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            discovered = _discover_meta_assets_from_user_token(user_access_token=user_access_token)
+        except ValueError as exc:
+            return Response(
+                {
+                    "detail": str(exc),
+                    "code": "meta_recovery_token_invalid",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except MetaGraphConfigurationError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except MetaGraphClientError as exc:
+            return Response(
+                {
+                    "detail": str(exc),
+                    "code": "meta_recovery_graph_error",
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        if discovered["missing_required_permissions"]:
+            return Response(
+                {
+                    "detail": (
+                        "Stored Meta connection is missing required marketing permissions. "
+                        "Reconnect Meta with Facebook to restore ad account reporting."
+                    ),
+                    "code": "marketing_permissions_missing",
+                    "missing_required_permissions": discovered["missing_required_permissions"],
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         return Response(
-            {
-                "selection_token": selection_token,
-                "expires_in_seconds": META_OAUTH_SELECTION_TTL_SECONDS,
-                "pages": [page.as_public_dict() for page in pages],
-                "ad_accounts": [account.as_public_dict() for account in ad_accounts],
-                "instagram_accounts": [
-                    instagram_account.as_public_dict() for instagram_account in instagram_accounts
-                ],
-                "granted_permissions": granted_permissions,
-                "declined_permissions": declined_permissions,
-                "missing_required_permissions": missing_required_permissions,
-                "token_debug_valid": debug_valid,
-                "oauth_connected_but_missing_permissions": bool(missing_required_permissions),
-            }
+            _cache_meta_selection_payload(
+                request=request,
+                app_scoped_user_id=page_connection.app_scoped_user_id or str(request.user.id),
+                user_access_token=user_access_token,
+                expires_at=(
+                    page_connection.token_expires_at.isoformat()
+                    if page_connection.token_expires_at is not None
+                    else None
+                ),
+                pages=discovered["pages"],
+                ad_accounts=discovered["ad_accounts"],
+                instagram_accounts=discovered["instagram_accounts"],
+                granted_permissions=discovered["granted_permissions"],
+                declined_permissions=discovered["declined_permissions"],
+                missing_required_permissions=discovered["missing_required_permissions"],
+                token_debug_valid=discovered["token_debug_valid"],
+                source="existing_meta_connection",
+                recovered_from_existing_token=True,
+            )
         )
 
 
@@ -1365,6 +1848,9 @@ class MetaPageConnectView(APIView):
         pages = cached_payload.get("pages")
         if not isinstance(pages, list):
             pages = []
+        ad_accounts = cached_payload.get("ad_accounts")
+        if not isinstance(ad_accounts, list):
+            ad_accounts = []
         selected_page = next(
             (
                 page
@@ -1437,8 +1923,7 @@ class MetaPageConnectView(APIView):
                 {"detail": "A Meta ad account selection is required to provision Marketing API insights."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        ad_accounts = cached_payload.get("ad_accounts")
-        if ad_account_input and isinstance(ad_accounts, list):
+        if ad_account_input and ad_accounts:
             normalized_requested = _normalize_meta_account_id(ad_account_input)
             selected_account = next(
                 (
@@ -1503,6 +1988,7 @@ class MetaPageConnectView(APIView):
         app_scoped_user_id = str(cached_payload.get("app_scoped_user_id") or request.user.id).strip()
         if not app_scoped_user_id:
             app_scoped_user_id = str(request.user.id)
+        upserted_accounts = 0
 
         with transaction.atomic():
             credential, _ = PlatformCredential.objects.select_for_update().get_or_create(
@@ -1583,6 +2069,11 @@ class MetaPageConnectView(APIView):
                 page_record.set_raw_page_token(page_token)
                 page_record.save()
 
+            upserted_accounts = _upsert_meta_ad_accounts(
+                tenant=request.user.tenant,
+                ad_accounts=ad_accounts,
+            )
+
         cache.delete(cache_key)
         log_audit_event(
             tenant=request.user.tenant,
@@ -1597,6 +2088,7 @@ class MetaPageConnectView(APIView):
                 "instagram_account_id": (
                     str(selected_instagram_account.get("id")) if selected_instagram_account else None
                 ),
+                "ad_accounts_upserted": upserted_accounts,
                 "granted_permissions": cached_payload.get("granted_permissions", []),
                 "declined_permissions": cached_payload.get("declined_permissions", []),
             },
@@ -1999,10 +2491,12 @@ class MetaSyncView(APIView):
         ):
             reused_existing_job = True
             job_id = existing_state.last_job_id or None
+            task_dispatch_mode = "queued"
         else:
-            window_end = (now - timedelta(days=1)).date()
+            window_end = timezone.localdate(now - timedelta(days=1))
             window_start = window_end - timedelta(days=META_DIRECT_SYNC_LOOKBACK_DAYS - 1)
             job_id = str(uuid.uuid4())
+            task_dispatch_mode = "queued"
             _upsert_meta_account_sync_state(
                 tenant=request.user.tenant,
                 account_id=normalized_account_id,
@@ -2017,30 +2511,44 @@ class MetaSyncView(APIView):
                 rows_synced=0,
                 error_category="",
             )
+            sync_kwargs = {
+                "tenant_id": str(tenant_id),
+                "account_id": normalized_account_id,
+                "job_id": job_id,
+                "connection_pk": str(connection.id) if connection is not None else None,
+                "since": window_start.isoformat(),
+                "until": window_end.isoformat(),
+            }
             try:
                 sync_meta_reporting_slice.apply_async(
-                    kwargs={
-                        "tenant_id": str(tenant_id),
-                        "account_id": normalized_account_id,
-                        "job_id": job_id,
-                        "connection_pk": str(connection.id) if connection is not None else None,
-                        "since": window_start.isoformat(),
-                        "until": window_end.isoformat(),
-                    },
+                    kwargs=sync_kwargs,
                     task_id=job_id,
                 )
             except Exception as exc:
-                if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
+                if _is_meta_task_dispatch_error(exc):
+                    logger.warning(
+                        "meta.sync.inline_fallback",
+                        extra={
+                            "tenant_id": str(tenant_id),
+                            "account_id": normalized_account_id,
+                            "job_id": job_id,
+                            "error": str(exc),
+                        },
+                    )
+                    sync_meta_reporting_slice.run(**sync_kwargs)
+                    task_dispatch_mode = "inline"
+                elif not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
                     raise
-                logger.exception(
-                    "meta.sync.direct_task_failed_eager",
-                    extra={
-                        "tenant_id": str(tenant_id),
-                        "account_id": normalized_account_id,
-                        "job_id": job_id,
-                        "error_type": type(exc).__name__,
-                    },
-                )
+                else:
+                    logger.exception(
+                        "meta.sync.direct_task_failed_eager",
+                        extra={
+                            "tenant_id": str(tenant_id),
+                            "account_id": normalized_account_id,
+                            "job_id": job_id,
+                            "error_type": type(exc).__name__,
+                        },
+                    )
 
         log_audit_event(
             tenant=request.user.tenant,
@@ -2055,6 +2563,7 @@ class MetaSyncView(APIView):
                 "job_id": job_id,
                 "reused_existing_job": reused_existing_job,
                 "sync_engine": MetaAccountSyncState.SYNC_ENGINE_DIRECT,
+                "task_dispatch_mode": task_dispatch_mode,
             },
         )
 
@@ -2065,6 +2574,7 @@ class MetaSyncView(APIView):
                 "job_id": job_id,
                 "reused_existing_job": reused_existing_job,
                 "sync_status": "already_running" if reused_existing_job else "queued",
+                "task_dispatch_mode": task_dispatch_mode,
             },
             status=status.HTTP_202_ACCEPTED if job_id is not None else status.HTTP_200_OK,
         )
@@ -2074,12 +2584,26 @@ class MetaLogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):  # noqa: ANN001 - DRF signature
-        queryset = PlatformCredential.objects.filter(
-            tenant_id=request.user.tenant_id,
-            provider=PlatformCredential.META,
-        )
-        existing_ids = [str(credential_id) for credential_id in queryset.values_list("id", flat=True)]
-        deleted_count, _ = queryset.delete()
+        with transaction.atomic():
+            credential_queryset = PlatformCredential.objects.filter(
+                tenant_id=request.user.tenant_id,
+                provider=PlatformCredential.META,
+            )
+            existing_ids = [
+                str(credential_id) for credential_id in credential_queryset.values_list("id", flat=True)
+            ]
+            deleted_credentials, _ = credential_queryset.delete()
+            page_connection_queryset = MetaConnection.objects.filter(tenant_id=request.user.tenant_id)
+            deleted_page_connections, _ = page_connection_queryset.delete()
+            page_queryset = MetaPage.objects.filter(tenant_id=request.user.tenant_id)
+            deleted_pages, _ = page_queryset.delete()
+            sync_state_queryset = MetaAccountSyncState.objects.filter(tenant_id=request.user.tenant_id)
+            deleted_sync_states, _ = sync_state_queryset.delete()
+            disabled_airbyte_connections = AirbyteConnection.objects.filter(
+                tenant_id=request.user.tenant_id,
+                provider=PlatformCredential.META,
+                is_active=True,
+            ).update(is_active=False, updated_at=timezone.now())
 
         log_audit_event(
             tenant=request.user.tenant,
@@ -2089,15 +2613,29 @@ class MetaLogoutView(APIView):
             resource_id=existing_ids[0] if existing_ids else None,
             metadata={
                 "provider": PlatformCredential.META,
-                "deleted_credentials": deleted_count,
+                "deleted_credentials": deleted_credentials,
+                "deleted_page_connections": deleted_page_connections,
+                "deleted_pages": deleted_pages,
+                "deleted_sync_states": deleted_sync_states,
+                "disabled_airbyte_connections": disabled_airbyte_connections,
             },
         )
 
         return Response(
             {
                 "provider": "meta_ads",
-                "disconnected": bool(deleted_count),
-                "deleted_credentials": deleted_count,
+                "disconnected": bool(
+                    deleted_credentials
+                    or deleted_page_connections
+                    or deleted_pages
+                    or deleted_sync_states
+                    or disabled_airbyte_connections
+                ),
+                "deleted_credentials": deleted_credentials,
+                "deleted_page_connections": deleted_page_connections,
+                "deleted_pages": deleted_pages,
+                "deleted_sync_states": deleted_sync_states,
+                "disabled_airbyte_connections": disabled_airbyte_connections,
             }
         )
 
@@ -2153,6 +2691,11 @@ class SocialConnectionStatusView(APIView):
             ).order_by("-updated_at")
         )
         preferred_connection = _select_preferred_meta_connection(meta_connections, now)
+        page_connection = (
+            MetaConnection.objects.filter(tenant_id=tenant_id, is_active=True)
+            .order_by("-updated_at")
+            .first()
+        )
         meta_credential = _select_preferred_meta_credential(
             meta_credentials,
             preferred_connection=preferred_connection,
@@ -2196,9 +2739,20 @@ class SocialConnectionStatusView(APIView):
             credential=meta_credential,
             sync_state=meta_sync_state,
             connection=preferred_connection,
+            page_connection=page_connection,
             now=now,
             oauth_ready=oauth_ready,
             provisioning_defaults_ready=provisioning_defaults_ready,
+        )
+        dataset_status = build_dataset_status_payload(tenant=request.user.tenant)
+        reporting_readiness = _resolve_reporting_readiness(
+            meta_status=meta_status,
+            meta_reason=meta_reason,
+            dataset_status=dataset_status,
+        )
+        has_recoverable_marketing_access = meta_reason.get("code") == "orphaned_marketing_access"
+        marketing_recovery_source = (
+            "existing_meta_connection" if has_recoverable_marketing_access else None
         )
 
         latest_meta_oauth_audit = (
@@ -2222,30 +2776,30 @@ class SocialConnectionStatusView(APIView):
             instagram_status = "not_connected"
             instagram_reason = {
                 "code": "missing_meta_credential",
-                "message": "Connect Meta first to enable Instagram business linking.",
+                "message": "Instagram business linking is managed through Meta setup. Connect Meta first.",
             }
-            instagram_actions = ["connect_oauth"]
+            instagram_actions = ["open_meta_setup"]
         elif not instagram_linked_id:
             instagram_status = "started_not_complete"
             instagram_reason = {
                 "code": "instagram_not_linked",
-                "message": "Meta is connected, but no Instagram business account is linked yet.",
+                "message": "Instagram business linking is optional and is completed inside the Meta asset-selection flow.",
             }
-            instagram_actions = ["select_assets"]
+            instagram_actions = ["open_meta_setup"]
         elif meta_status == "active":
             instagram_status = "active"
             instagram_reason = {
                 "code": "instagram_active_via_meta",
-                "message": "Instagram is linked and Meta sync is active.",
+                "message": "Instagram is linked through Meta setup and uses the active Meta connection.",
             }
             instagram_actions = ["view"]
         else:
             instagram_status = "complete"
             instagram_reason = {
                 "code": "instagram_linked_waiting_meta_active",
-                "message": "Instagram is linked and will report as active once Meta sync is active.",
+                "message": "Instagram is linked through Meta setup and will become active when Meta sync is active.",
             }
-            instagram_actions = ["sync_now", "view"]
+            instagram_actions = ["open_meta_setup", "view"]
 
         payload = {
             "generated_at": now,
@@ -2261,8 +2815,10 @@ class SocialConnectionStatusView(APIView):
                         connection=preferred_connection,
                     ),
                     "actions": meta_actions,
+                    "reporting_readiness": reporting_readiness,
                     "metadata": {
                         "has_credential": bool(meta_credential),
+                        "has_marketing_credential": bool(meta_credential),
                         "credential_account_id": meta_credential.account_id if meta_credential else None,
                         "has_valid_ad_account": bool(
                             meta_credential and _is_meta_ad_account_id(meta_credential.account_id)
@@ -2270,6 +2826,10 @@ class SocialConnectionStatusView(APIView):
                         "has_connection": bool(preferred_connection),
                         "connection_id": str(preferred_connection.id) if preferred_connection else None,
                         "connection_active": bool(preferred_connection and preferred_connection.is_active),
+                        "has_page_insights_connection": bool(page_connection),
+                        "page_insights_connection_id": str(page_connection.id) if page_connection else None,
+                        "has_recoverable_marketing_access": has_recoverable_marketing_access,
+                        "marketing_recovery_source": marketing_recovery_source,
                         "sync_state_last_job_status": (
                             meta_sync_state.last_job_status if meta_sync_state else None
                         ),
@@ -2315,6 +2875,7 @@ class SocialConnectionStatusView(APIView):
                             if meta_sync_state and meta_sync_state.updated_at
                             else None
                         ),
+                        "dataset_status": dataset_status,
                     },
                 },
                 {
@@ -2331,6 +2892,8 @@ class SocialConnectionStatusView(APIView):
                     "metadata": {
                         "linked_instagram_account_id": instagram_linked_id,
                         "meta_status": meta_status,
+                        "connection_contract": "linked_via_meta_setup",
+                        "standalone_oauth_supported": False,
                     },
                 },
             ],

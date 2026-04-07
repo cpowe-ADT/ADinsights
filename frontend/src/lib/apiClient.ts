@@ -14,6 +14,7 @@ export type ApiErrorPayload = {
   detail?: string;
   message?: string;
   code?: string;
+  reason?: string;
   errors?: string[];
   warnings?: string[];
 };

@@ -653,7 +653,7 @@ export function buildMetricsFromUpload(
         platform: row.platform,
         status: row.status ?? 'Active',
         objective: row.objective,
-        parish: row.parish ?? 'Unknown',
+        parishes: [row.parish ?? 'Unknown'],
         spend: row.spend,
         impressions: row.impressions,
         clicks: row.clicks,
@@ -673,6 +673,8 @@ export function buildMetricsFromUpload(
     existing.impressions += row.impressions;
     existing.clicks += row.clicks;
     existing.conversions += row.conversions;
+    const nextParishes = new Set([...(existing.parishes ?? []), row.parish ?? 'Unknown']);
+    existing.parishes = Array.from(nextParishes);
     const nextRevenue = (campaignRevenueMap.get(row.campaignId) ?? 0) + revenue;
     campaignRevenueMap.set(row.campaignId, nextRevenue);
     existing.roas = existing.spend > 0 ? nextRevenue / existing.spend : existing.roas;

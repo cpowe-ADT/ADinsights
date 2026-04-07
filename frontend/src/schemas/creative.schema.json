@@ -25,7 +25,10 @@
       "campaignId": { "type": "string" },
       "campaignName": { "type": "string" },
       "platform": { "type": "string" },
-      "parish": { "type": "string" },
+      "parishes": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
       "spend": { "type": "number" },
       "impressions": { "type": "number" },
       "reach": { "type": "number" },

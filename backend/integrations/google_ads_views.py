@@ -482,6 +482,11 @@ class GoogleAdsSetupView(APIView):
             redirect_uri_configured = True
         except ValueError:
             redirect_uri_configured = False
+        runtime_redirect_ready = (
+            runtime_context.get("redirect_origin_matches_runtime") is not False
+            if runtime_context is not None
+            else True
+        )
         workspace_id_raw = (getattr(settings, "AIRBYTE_DEFAULT_WORKSPACE_ID", "") or "").strip()
         destination_id_raw = (getattr(settings, "AIRBYTE_DEFAULT_DESTINATION_ID", "") or "").strip()
         workspace_id = "" if _is_unset_or_placeholder(workspace_id_raw) else workspace_id_raw
@@ -491,7 +496,9 @@ class GoogleAdsSetupView(APIView):
             (getattr(settings, "AIRBYTE_SOURCE_DEFINITION_GOOGLE", "") or "").strip()
         )
 
-        ready_for_oauth = bool(client_id and client_secret and redirect_uri_configured)
+        ready_for_oauth = bool(
+            client_id and client_secret and redirect_uri_configured and runtime_redirect_ready
+        )
         ready_for_provisioning_defaults = bool(workspace_id and destination_id)
         checks = [
             {
@@ -505,6 +512,16 @@ class GoogleAdsSetupView(APIView):
                 "label": "Google OAuth redirect configured",
                 "ok": redirect_uri_configured,
                 "env_vars": ["GOOGLE_ADS_OAUTH_REDIRECT_URI", "FRONTEND_BASE_URL"],
+            },
+            {
+                "key": "google_runtime_redirect_origin",
+                "label": "Open the app on the same host as the configured OAuth redirect",
+                "ok": runtime_redirect_ready,
+                "details": (
+                    runtime_context.get("redirect_origin_mismatch_message")
+                    if runtime_context is not None
+                    else None
+                ),
             },
             {
                 "key": "google_ads_developer_token",
@@ -563,7 +580,19 @@ class GoogleAdsOAuthStartView(APIView):
             )
 
         try:
-            redirect_uri = _google_redirect_uri(request=request, payload=serializer.validated_data)
+            redirect_uri, runtime_context = _resolve_google_redirect_uri(
+                request=request,
+                payload=serializer.validated_data,
+            )
+            if runtime_context.get("redirect_origin_matches_runtime") is False:
+                return Response(
+                    {
+                        "detail": runtime_context.get("redirect_origin_mismatch_message")
+                        or "Open the app on the configured OAuth redirect host and try again.",
+                        "runtime_context": runtime_context,
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 

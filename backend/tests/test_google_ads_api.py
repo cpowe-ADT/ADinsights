@@ -31,6 +31,30 @@ def test_google_ads_setup_endpoint(api_client: APIClient, user, settings):
     assert payload["runtime_context"]["redirect_source"] == "explicit_redirect_uri"
 
 
+def test_google_ads_setup_blocks_ready_for_oauth_when_runtime_origin_mismatches_redirect(
+    api_client: APIClient,
+    user,
+    settings,
+):
+    api_client.force_authenticate(user=user)
+    settings.GOOGLE_ADS_CLIENT_ID = "google-client-id"
+    settings.GOOGLE_ADS_CLIENT_SECRET = "google-client-secret"
+    settings.GOOGLE_ADS_DEVELOPER_TOKEN = "google-dev-token"
+    settings.GOOGLE_ADS_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+
+    response = api_client.get(
+        "/api/integrations/google_ads/setup/",
+        HTTP_ORIGIN="http://localhost:5175",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ready_for_oauth"] is False
+    runtime_check = next(check for check in payload["checks"] if check["key"] == "google_runtime_redirect_origin")
+    assert runtime_check["ok"] is False
+    assert "does not match the configured OAuth redirect origin" in runtime_check["details"]
+
+
 def test_google_ads_oauth_start_endpoint(api_client: APIClient, user, settings):
     api_client.force_authenticate(user=user)
     settings.GOOGLE_ADS_CLIENT_ID = "google-client-id"
@@ -43,6 +67,28 @@ def test_google_ads_oauth_start_endpoint(api_client: APIClient, user, settings):
     assert "authorize_url" in payload
     assert payload["authorize_url"].startswith("https://accounts.google.com/o/oauth2/v2/auth?")
     assert payload["state"]
+
+
+def test_google_ads_oauth_start_rejects_runtime_origin_mismatch_when_redirect_is_explicit(
+    api_client: APIClient,
+    user,
+    settings,
+):
+    api_client.force_authenticate(user=user)
+    settings.GOOGLE_ADS_CLIENT_ID = "google-client-id"
+    settings.GOOGLE_ADS_CLIENT_SECRET = "google-client-secret"
+    settings.GOOGLE_ADS_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+
+    response = api_client.post(
+        "/api/integrations/google_ads/oauth/start/",
+        {"runtime_context": {"client_origin": "http://localhost:5175", "client_port": 5175}},
+        format="json",
+    )
+
+    assert response.status_code == 409
+    payload = response.json()
+    assert payload["detail"].startswith("Open the app on http://localhost:5173")
+    assert payload["runtime_context"]["redirect_origin_matches_runtime"] is False
 
 
 def test_google_ads_oauth_start_uses_localhost_origin_when_redirect_not_explicit(
@@ -149,6 +195,83 @@ def test_google_ads_oauth_exchange_persists_credential(api_client: APIClient, us
     assert payload["credential"]["provider"] == PlatformCredential.GOOGLE
     assert payload["credential"]["account_id"] == "1234567890"
     assert payload["refresh_token_received"] is True
+
+
+def test_google_ads_provision_accepts_omitted_schedule_fields(
+    api_client: APIClient,
+    user,
+    settings,
+    monkeypatch,
+):
+    api_client.force_authenticate(user=user)
+    settings.GOOGLE_ADS_CLIENT_ID = "google-client-id"
+    settings.GOOGLE_ADS_CLIENT_SECRET = "google-client-secret"
+    settings.GOOGLE_ADS_DEVELOPER_TOKEN = "google-dev-token"
+    settings.AIRBYTE_DEFAULT_WORKSPACE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    settings.AIRBYTE_DEFAULT_DESTINATION_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+
+    credential = PlatformCredential(
+        tenant=user.tenant,
+        provider=PlatformCredential.GOOGLE,
+        account_id="1234567890",
+    )
+    credential.set_raw_tokens("token-access", "token-refresh")
+    credential.save()
+
+    observed: dict[str, object] = {}
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def list_sources(self, workspace_id: str):
+            return []
+
+        def create_source(self, payload):
+            return {"sourceId": "source-new"}
+
+        def check_source(self, source_id: str):
+            return {"status": "succeeded"}
+
+        def discover_source_schema(self, source_id: str):
+            return {
+                "catalog": {
+                    "streams": [
+                        {
+                            "name": "ad_group_ad",
+                            "supportedSyncModes": ["incremental"],
+                            "supportedDestinationSyncModes": ["append_dedup"],
+                            "defaultCursorField": ["segments.date"],
+                            "sourceDefinedPrimaryKey": [["campaign.id"], ["segments.date"]],
+                        }
+                    ]
+                }
+            }
+
+        def list_connections(self, workspace_id: str):
+            return []
+
+        def create_connection(self, payload):
+            observed["connection_payload"] = payload
+            return {"connectionId": str(uuid.uuid4())}
+
+    monkeypatch.setattr("integrations.google_ads_views.AirbyteClient.from_settings", lambda: DummyClient())
+
+    response = api_client.post(
+        "/api/integrations/google_ads/provision/",
+        {
+            "connection_name": "Google Ads Connection",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    connection_payload = observed["connection_payload"]
+    assert connection_payload["scheduleType"] == "cron"
+    assert connection_payload["scheduleData"]["cron"]["cronExpression"] == "0 0 6-22 * * ?"
 
 
 def test_google_ads_status_not_connected(api_client: APIClient, user):

@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import {
   DEFAULT_CHANNELS,
+  areFiltersEqual,
   createDefaultFilterState,
   type DateRangePreset,
   type FilterBarState,
@@ -41,6 +42,14 @@ const extendedDatePresets: { label: string; value: DateRangePreset }[] = [
   { label: 'Last 365 days', value: '365d' },
 ];
 
+function cloneFilterState(filters: FilterBarState): FilterBarState {
+  return {
+    ...filters,
+    channels: [...filters.channels],
+    customRange: { ...filters.customRange },
+  };
+}
+
 const FilterBar = ({
   availableChannels,
   availableAccounts,
@@ -52,7 +61,10 @@ const FilterBar = ({
     () => defaultState ?? createDefaultFilterState(),
     [defaultState],
   );
-  const [filters, setFilters] = useState<FilterBarState>(resolvedDefaultState);
+  const [internalFilters, setInternalFilters] = useState<FilterBarState>(() =>
+    cloneFilterState(resolvedDefaultState),
+  );
+  const filters = state ?? internalFilters;
   const [isCustomOpen, setIsCustomOpen] = useState(false);
   const [isChannelOpen, setIsChannelOpen] = useState(false);
 
@@ -65,16 +77,14 @@ const FilterBar = ({
   const channelPopoverId = useId();
 
   useEffect(() => {
-    if (!state) {
-      setFilters({
-        ...resolvedDefaultState,
-        customRange: { ...resolvedDefaultState.customRange },
-      });
+    if (state) {
       return;
     }
-    setFilters({
-      ...state,
-      customRange: { ...state.customRange },
+    setInternalFilters((previous) => {
+      if (areFiltersEqual(previous, resolvedDefaultState)) {
+        return previous;
+      }
+      return cloneFilterState(resolvedDefaultState);
     });
   }, [resolvedDefaultState, state]);
 
@@ -154,14 +164,14 @@ const FilterBar = ({
     : '';
 
   const commitFilters = (updater: FilterStateUpdater) => {
-    setFilters((previous) => {
-      const next =
-        typeof updater === 'function'
-          ? (updater as (previous: FilterBarState) => FilterBarState)(previous)
-          : updater;
-      onChange?.(next);
-      return next;
-    });
+    const next =
+      typeof updater === 'function'
+        ? (updater as (previous: FilterBarState) => FilterBarState)(filters)
+        : updater;
+    if (!state) {
+      setInternalFilters(cloneFilterState(next));
+    }
+    onChange?.(next);
   };
 
   const handleSelectPreset = (value: DateRangePreset) => {
@@ -280,7 +290,6 @@ const FilterBar = ({
                         />
                       </label>
                     </div>
-                    <p className="filter-popover__hint">Calendar sync coming soon.</p>
                   </div>
                 ) : null}
               </div>

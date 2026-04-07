@@ -145,6 +145,11 @@ export interface MetaOAuthExchangeResponse {
   missing_required_permissions: string[];
   token_debug_valid: boolean;
   oauth_connected_but_missing_permissions: boolean;
+  default_page_id?: string | null;
+  default_ad_account_id?: string | null;
+  default_instagram_account_id?: string | null;
+  source?: string | null;
+  recovered_from_existing_token?: boolean;
 }
 
 export interface MetaPageConnectResponse {
@@ -181,6 +186,11 @@ export interface MetaProvisionResponse {
   connection_reused: boolean;
 }
 
+export interface MetaRecoveryPreviewResponse extends MetaOAuthExchangeResponse {
+  source: 'existing_meta_connection';
+  recovered_from_existing_token: true;
+}
+
 export interface MetaSetupCheck {
   key: string;
   label: string;
@@ -190,6 +200,7 @@ export interface MetaSetupCheck {
   missing_scopes?: string[];
   env_vars?: string[];
   missing_env_vars?: string[];
+  details?: string | null;
 }
 
 export interface MetaSetupStatusResponse {
@@ -215,6 +226,10 @@ export interface MetaSetupStatusResponse {
     request_port?: number | null;
     resolved_frontend_origin?: string | null;
     frontend_base_url_origin?: string | null;
+    configured_redirect_origin?: string | null;
+    observed_runtime_origin?: string | null;
+    redirect_origin_matches_runtime?: boolean | null;
+    redirect_origin_mismatch_message?: string | null;
     dev_active_profile?: string | null;
     dev_backend_url?: string | null;
     dev_frontend_url?: string | null;
@@ -227,9 +242,20 @@ export interface GoogleAnalyticsSetupStatusResponse {
   ready_for_oauth: boolean;
   oauth_scopes: string[];
   redirect_uri?: string | null;
+  checks?: MetaSetupCheck[];
   runtime_context?: {
     redirect_uri?: string | null;
     redirect_source?: string | null;
+    request_origin?: string | null;
+    request_referer_origin?: string | null;
+    request_host?: string | null;
+    request_port?: number | null;
+    resolved_frontend_origin?: string | null;
+    frontend_base_url_origin?: string | null;
+    configured_redirect_origin?: string | null;
+    observed_runtime_origin?: string | null;
+    redirect_origin_matches_runtime?: boolean | null;
+    redirect_origin_mismatch_message?: string | null;
     dataset_source?: string | null;
   };
 }
@@ -245,6 +271,16 @@ export interface GoogleAdsSetupStatusResponse {
   runtime_context?: {
     redirect_uri?: string | null;
     redirect_source?: string | null;
+    request_origin?: string | null;
+    request_referer_origin?: string | null;
+    request_host?: string | null;
+    request_port?: number | null;
+    resolved_frontend_origin?: string | null;
+    frontend_base_url_origin?: string | null;
+    configured_redirect_origin?: string | null;
+    observed_runtime_origin?: string | null;
+    redirect_origin_matches_runtime?: boolean | null;
+    redirect_origin_mismatch_message?: string | null;
     dataset_source?: string | null;
   };
 }
@@ -367,6 +403,17 @@ export type SocialConnectionStatus =
   | 'complete'
   | 'active';
 
+export interface SocialReportingReadiness {
+  stage: string;
+  message: string;
+  auth_status: SocialConnectionStatus;
+  direct_sync_status: string;
+  warehouse_status: string;
+  dataset_live_reason: 'adapter_disabled' | 'missing_snapshot' | 'stale_snapshot' | 'default_snapshot' | 'ready';
+  warehouse_adapter_enabled: boolean;
+  snapshot_generated_at?: string | null;
+}
+
 export interface SocialPlatformStatusRecord {
   platform: SocialConnectionPlatform;
   display_name: string;
@@ -379,6 +426,7 @@ export interface SocialPlatformStatusRecord {
   last_checked_at?: string | null;
   last_synced_at?: string | null;
   actions: string[];
+  reporting_readiness?: SocialReportingReadiness;
   metadata: Record<string, unknown>;
 }
 
@@ -462,6 +510,10 @@ export async function connectMetaPage(payload: {
   return apiClient.post<MetaPageConnectResponse>('/integrations/meta/pages/connect/', payload);
 }
 
+export async function previewMetaRecovery(): Promise<MetaRecoveryPreviewResponse> {
+  return apiClient.post<MetaRecoveryPreviewResponse>('/integrations/meta/recovery/preview/', {});
+}
+
 export async function provisionMetaIntegration(
   payload: MetaProvisionPayload,
 ): Promise<MetaProvisionResponse> {
@@ -474,6 +526,7 @@ export async function syncMetaIntegration(): Promise<{
   job_id?: string | null;
   reused_existing_job?: boolean;
   sync_status?: 'queued' | 'already_running';
+  task_dispatch_mode?: 'queued' | 'inline';
 }> {
   return apiClient.post<{
     provider: 'meta_ads';
@@ -481,6 +534,7 @@ export async function syncMetaIntegration(): Promise<{
     job_id?: string | null;
     reused_existing_job?: boolean;
     sync_status?: 'queued' | 'already_running';
+    task_dispatch_mode?: 'queued' | 'inline';
   }>(
     '/integrations/meta/sync/',
   );
@@ -490,11 +544,19 @@ export async function logoutMetaOAuth(): Promise<{
   provider: 'meta_ads';
   disconnected: boolean;
   deleted_credentials: number;
+  deleted_page_connections: number;
+  deleted_pages: number;
+  deleted_sync_states: number;
+  disabled_airbyte_connections: number;
 }> {
   return apiClient.post<{
     provider: 'meta_ads';
     disconnected: boolean;
     deleted_credentials: number;
+    deleted_page_connections: number;
+    deleted_pages: number;
+    deleted_sync_states: number;
+    disabled_airbyte_connections: number;
   }>('/integrations/meta/logout/');
 }
 

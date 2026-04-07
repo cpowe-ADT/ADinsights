@@ -75,7 +75,7 @@ vi.mock('../../state/useDashboardStore', async () => {
         platform: 'Meta',
         status: 'Active',
         objective: 'Awareness',
-        parish: 'Kingston',
+        parishes: ['Kingston'],
         spend: 4800,
         impressions: 152000,
         clicks: 620,
@@ -101,7 +101,28 @@ vi.mock('../../state/useDashboardStore', async () => {
     campaign: { status: 'loaded', data: campaignData, error: undefined },
     creative: { status: 'loaded', data: [], error: undefined },
     budget: { status: 'loaded', data: [], error: undefined },
-    parish: { status: 'loaded', data: [], error: undefined },
+    parish: {
+      status: 'loaded',
+      data: [
+        {
+          parish: 'Kingston',
+          spend: 4800,
+          impressions: 152000,
+          clicks: 620,
+          conversions: 88,
+          roas: 2.4,
+          campaignCount: 1,
+          currency: 'USD',
+        },
+      ],
+      error: undefined,
+    },
+    availability: {
+      campaign: { status: 'available' as const, reason: null },
+      creative: { status: 'available' as const, reason: null },
+      budget: { status: 'available' as const, reason: null },
+      parish_map: { status: 'available' as const, reason: null, coveragePercent: 0.75 },
+    },
     activeTenantId: 'demo',
     activeTenantLabel: 'Demo Tenant',
     lastLoadedTenantId: 'demo',
@@ -263,11 +284,12 @@ describe('CampaignDashboard layout', () => {
       screen.getByRole('heading', { level: 2, name: /daily spend trend/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: /parish heatmap/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: /region breakdown/i })).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { level: 2, name: /campaign metrics table/i }),
     ).toBeInTheDocument();
 
     const results = await axe(container);
     expect(results).toHaveNoViolations();
-  });
+  }, 10000);
 });

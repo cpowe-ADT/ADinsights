@@ -6,12 +6,15 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Mapping
 
-from django.db import IntegrityError, connection
+from django.db import DatabaseError, IntegrityError, connection
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from adapters.base import MetricsAdapter
 from adapters.warehouse import (
+    WAREHOUSE_DEFAULT_DETAIL,
+    WAREHOUSE_SNAPSHOT_STATUS_DETAIL_KEY,
+    WAREHOUSE_UNAVAILABLE_REASON_DEFAULT,
     WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
     WAREHOUSE_SNAPSHOT_STATUS_KEY,
     WarehouseSnapshotUnavailable,
@@ -46,6 +49,34 @@ class _DatabaseQueryCounter:
     def __call__(self, execute, sql, params, many, context):  # noqa: ANN001
         self.count += 1
         return execute(sql, params, many, context)
+
+
+def _build_snapshot_result(
+    *,
+    snapshot: TenantMetricsSnapshot,
+    source: str,
+    cache_outcome: str,
+    has_filters: bool,
+    query_count: int,
+) -> CombinedMetricsResult:
+    canonical_payload = _validate_and_clean_combined_payload(
+        payload=snapshot.payload,
+        source=source,
+    )
+    cached_payload = _prepare_response_payload(
+        payload=canonical_payload,
+        source=source,
+    )
+    if "snapshot_generated_at" not in cached_payload:
+        cached_payload["snapshot_generated_at"] = snapshot.generated_at.isoformat()
+    return CombinedMetricsResult(
+        payload=cached_payload,
+        source=source,
+        cache_outcome=cache_outcome,
+        has_filters=has_filters,
+        snapshot_written=False,
+        query_count=query_count,
+    )
 
 
 def default_adapter_key(registry: Mapping[str, MetricsAdapter]) -> str:
@@ -148,7 +179,7 @@ def _upsert_snapshot_without_cached_row(
     )
 
 
-def _resolve_snapshot_timestamp(candidate: Any) -> datetime:
+def _parse_snapshot_timestamp(candidate: Any) -> datetime | None:
     if isinstance(candidate, datetime):
         resolved = candidate
     elif isinstance(candidate, str):
@@ -157,9 +188,16 @@ def _resolve_snapshot_timestamp(candidate: Any) -> datetime:
     else:
         resolved = None
     if resolved is None:
-        resolved = timezone.now()
+        return None
     if timezone.is_naive(resolved):  # pragma: no cover - depends on db backend
         resolved = timezone.make_aware(resolved)
+    return resolved
+
+
+def _resolve_snapshot_timestamp(candidate: Any) -> datetime:
+    resolved = _parse_snapshot_timestamp(candidate)
+    if resolved is None:
+        resolved = timezone.now()
     return resolved
 
 
@@ -172,10 +210,20 @@ def _normalize_combined_payload(payload: Mapping[str, Any]) -> tuple[dict[str, A
         normalized.setdefault("budget", metrics.get("budget_metrics") or [])
         normalized.setdefault("parish", metrics.get("parish_metrics") or [])
 
-    generated_at = _resolve_snapshot_timestamp(
-        normalized.get("snapshot_generated_at") or normalized.get("generated_at")
+    has_snapshot_key = "snapshot_generated_at" in normalized or "generated_at" in normalized
+    raw_snapshot = (
+        normalized.get("snapshot_generated_at")
+        if "snapshot_generated_at" in normalized
+        else normalized.get("generated_at")
     )
-    normalized["snapshot_generated_at"] = generated_at.isoformat()
+    parsed_snapshot = _parse_snapshot_timestamp(raw_snapshot)
+    generated_at = parsed_snapshot or timezone.now()
+    if parsed_snapshot is not None:
+        normalized["snapshot_generated_at"] = parsed_snapshot.isoformat()
+    elif has_snapshot_key and raw_snapshot is None:
+        normalized["snapshot_generated_at"] = None
+    else:
+        normalized["snapshot_generated_at"] = generated_at.isoformat()
     normalized.pop("generated_at", None)
     return normalized, generated_at
 
@@ -188,10 +236,15 @@ def _validate_and_clean_combined_payload(
     cleaned = dict(payload)
     if source == "warehouse":
         snapshot_status = cleaned.pop(WAREHOUSE_SNAPSHOT_STATUS_KEY, None)
+        snapshot_status_detail = cleaned.pop(WAREHOUSE_SNAPSHOT_STATUS_DETAIL_KEY, None)
         if snapshot_status and snapshot_status != WAREHOUSE_SNAPSHOT_STATUS_FETCHED:
-            raise WarehouseSnapshotUnavailable()
+            raise WarehouseSnapshotUnavailable(
+                snapshot_status_detail or WAREHOUSE_DEFAULT_DETAIL,
+                reason=WAREHOUSE_UNAVAILABLE_REASON_DEFAULT,
+            )
     else:
         cleaned.pop(WAREHOUSE_SNAPSHOT_STATUS_KEY, None)
+        cleaned.pop(WAREHOUSE_SNAPSHOT_STATUS_DETAIL_KEY, None)
     return cleaned
 
 
@@ -220,20 +273,34 @@ def load_combined_metrics_payload(
     with connection.execute_wrapper(query_counter):
         options, has_filters, _parishes = _resolve_filter_options(query_params)
         if source == "warehouse" and has_filters:
-            payload = load_filtered_warehouse_metrics(
-                tenant=tenant,
-                tenant_id=tenant_id,
-                options=options,
-                ttl_seconds=ttl_seconds,
-            )
-            return CombinedMetricsResult(
-                payload=payload,
-                source=source,
-                cache_outcome="warehouse_filtered_query",
-                has_filters=has_filters,
-                snapshot_written=False,
-                query_count=query_counter.count,
-            )
+            try:
+                payload = load_filtered_warehouse_metrics(
+                    tenant=tenant,
+                    tenant_id=tenant_id,
+                    options=options,
+                    ttl_seconds=ttl_seconds,
+                )
+                return CombinedMetricsResult(
+                    payload=payload,
+                    source=source,
+                    cache_outcome="warehouse_filtered_query",
+                    has_filters=has_filters,
+                    snapshot_written=False,
+                    query_count=query_counter.count,
+                )
+            except DatabaseError:
+                if connection.vendor != "sqlite":
+                    raise
+                snapshot = TenantMetricsSnapshot.latest_for(tenant=tenant, source=source)
+                if snapshot:
+                    return _build_snapshot_result(
+                        snapshot=snapshot,
+                        source=source,
+                        cache_outcome="warehouse_filtered_snapshot_fallback",
+                        has_filters=has_filters,
+                        query_count=query_counter.count,
+                    )
+                raise
 
         snapshot = (
             TenantMetricsSnapshot.latest_for(tenant=tenant, source=source)
@@ -241,21 +308,11 @@ def load_combined_metrics_payload(
             else None
         )
         if snapshot and snapshot.is_fresh(ttl_seconds):
-            canonical_payload = _validate_and_clean_combined_payload(
-                payload=snapshot.payload,
-                source=source,
-            )
-            cached_payload = _prepare_response_payload(
-                payload=canonical_payload,
-                source=source,
-            )
-            cached_payload["snapshot_generated_at"] = snapshot.generated_at.isoformat()
-            return CombinedMetricsResult(
-                payload=cached_payload,
+            return _build_snapshot_result(
+                snapshot=snapshot,
                 source=source,
                 cache_outcome="hit",
                 has_filters=has_filters,
-                snapshot_written=False,
                 query_count=query_counter.count,
             )
 

@@ -1,7 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import EmptyState from '../components/EmptyState';
+import {
+  loadSocialConnectionStatus,
+  previewMetaRecovery,
+  type MetaAdAccount,
+  type SocialPlatformStatusRecord,
+} from '../lib/airbyte';
 import useMetaStore from '../state/useMetaStore';
 
 function resolveAccountsErrorMessage(errorCode?: string, fallback?: string): string {
@@ -24,10 +30,104 @@ const MetaAccountsPage = () => {
     setFilters: state.setFilters,
     loadAccounts: state.loadAccounts,
   }));
+  const [metaStatus, setMetaStatus] = useState<SocialPlatformStatusRecord | null>(null);
+  const [recoveryAccounts, setRecoveryAccounts] = useState<MetaAdAccount[]>([]);
+  const [recoveryStatus, setRecoveryStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
   useEffect(() => {
     void loadAccounts();
   }, [filters.search, filters.status, filters.since, filters.until, loadAccounts]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadMetaStatus = async () => {
+      try {
+        const payload = await loadSocialConnectionStatus();
+        if (cancelled) {
+          return;
+        }
+        setMetaStatus(payload.platforms.find((row) => row.platform === 'meta') ?? null);
+      } catch {
+        if (!cancelled) {
+          setMetaStatus(null);
+        }
+      }
+    };
+
+    void loadMetaStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const shouldAttemptRecoveryPreview =
+      accounts.status === 'loaded' &&
+      accounts.rows.length === 0 &&
+      metaStatus?.reason.code === 'orphaned_marketing_access';
+    if (!shouldAttemptRecoveryPreview) {
+      setRecoveryAccounts([]);
+      setRecoveryStatus('idle');
+      setRecoveryError(null);
+      return;
+    }
+
+    const loadRecoveryPreview = async () => {
+      setRecoveryStatus('loading');
+      setRecoveryError(null);
+      try {
+        const payload = await previewMetaRecovery();
+        if (cancelled) {
+          return;
+        }
+        setRecoveryAccounts(payload.ad_accounts);
+        setRecoveryStatus('loaded');
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        setRecoveryAccounts([]);
+        setRecoveryStatus('error');
+        setRecoveryError(
+          error instanceof Error ? error.message : 'Unable to preview recoverable Meta ad accounts.',
+        );
+      }
+    };
+
+    void loadRecoveryPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accounts.rows.length, accounts.status, metaStatus?.reason.code]);
+
+  const showRecoveryFallback =
+    accounts.rows.length === 0 && recoveryStatus === 'loaded' && recoveryAccounts.length > 0;
+  const displayedAccountCount = showRecoveryFallback ? recoveryAccounts.length : accounts.count;
+  const orphanedMarketingAccess = metaStatus?.reason.code === 'orphaned_marketing_access';
+  const visibleRows = useMemo(
+    () =>
+      showRecoveryFallback
+        ? recoveryAccounts.map((account, index) => ({
+            id: `${account.id}-${index}`,
+            name: account.name || '—',
+            external_id: account.id,
+            account_id: account.account_id || '—',
+            currency: account.currency || '—',
+            status:
+              account.account_status !== null && account.account_status !== undefined
+                ? String(account.account_status)
+                : '—',
+            business_name: account.business_name || '—',
+          }))
+        : accounts.rows,
+    [accounts.rows, recoveryAccounts, showRecoveryFallback],
+  );
 
   return (
     <section className="dashboardPage">
@@ -44,8 +144,19 @@ const MetaAccountsPage = () => {
           <Link className="button tertiary" to="/dashboards/meta/status">
             Connection status
           </Link>
+          <Link className="button tertiary" to="/dashboards/data-sources?sources=social">
+            Connect socials
+          </Link>
         </div>
       </header>
+
+      <div className="panel" style={{ marginBottom: '1rem' }}>
+        <p className="status-message muted" style={{ margin: 0 }}>
+          Meta ad accounts and Facebook Pages are separate assets. JDIC and SLB appear here as ad
+          accounts when Meta returns them. Managed Pages remain listed under{' '}
+          <Link to="/dashboards/meta/pages">Facebook pages</Link>.
+        </p>
+      </div>
 
       <div className="panel" style={{ marginBottom: '1rem' }}>
         <div className="dashboard-header__controls">
@@ -98,6 +209,21 @@ const MetaAccountsPage = () => {
         </div>
       ) : null}
 
+      {orphanedMarketingAccess ? (
+        <div className="panel meta-warning-panel" role="status" style={{ marginBottom: '1rem' }}>
+          <h3>Restore Meta marketing access</h3>
+          <p>{metaStatus?.reason.message}</p>
+          <div className="dashboard-header__actions-row">
+            <Link className="button secondary" to="/dashboards/data-sources?sources=social">
+              Restore Meta marketing access
+            </Link>
+            <Link className="button tertiary" to="/dashboards/meta/status">
+              Connection status
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       {accounts.status === 'error' ? (
         <EmptyState
           icon={<span aria-hidden>!</span>}
@@ -113,14 +239,41 @@ const MetaAccountsPage = () => {
         <EmptyState
           icon={<span aria-hidden>0</span>}
           title="No ad accounts yet"
-          message="Connect Meta and run sync to populate ad accounts."
+          message={
+            showRecoveryFallback
+              ? 'Live-discovered Meta ad accounts are available below. Restore marketing access to persist them and restart sync.'
+              : orphanedMarketingAccess
+                ? 'Meta still has recoverable ad accounts through the stored token. Restore marketing access to persist them and restart sync.'
+                : 'Connect Meta and run sync to populate ad accounts.'
+          }
+          actionLabel={orphanedMarketingAccess ? 'Restore Meta marketing access' : 'Connect socials'}
+          onAction={() => {
+            window.location.assign('/dashboards/data-sources?sources=social');
+          }}
           className="panel"
         />
       ) : null}
 
-      {accounts.rows.length > 0 ? (
+      {recoveryStatus === 'loading' && accounts.rows.length === 0 ? (
+        <div className="dashboard-state dashboard-state--page">
+          Loading recoverable Meta ad accounts...
+        </div>
+      ) : null}
+
+      {recoveryStatus === 'error' && accounts.rows.length === 0 ? (
+        <div className="dashboard-state" role="status" style={{ marginBottom: '1rem' }}>
+          {recoveryError ?? 'Unable to preview recoverable Meta ad accounts.'}
+        </div>
+      ) : null}
+
+      {visibleRows.length > 0 ? (
         <div className="panel">
-          <h2>Accounts ({accounts.count})</h2>
+          <div className="panel-header__title-row">
+            <h2>Accounts ({displayedAccountCount})</h2>
+            {showRecoveryFallback ? (
+              <span className="status-pill warning">Live discovered, not yet restored</span>
+            ) : null}
+          </div>
           <div className="table-responsive">
             <table className="dashboard-table">
               <thead>
@@ -134,7 +287,7 @@ const MetaAccountsPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {accounts.rows.map((account) => (
+                {visibleRows.map((account) => (
                   <tr key={account.id} className="dashboard-table__row dashboard-table__row--zebra">
                     <td className="dashboard-table__cell">{account.name || '—'}</td>
                     <td className="dashboard-table__cell">{account.external_id}</td>

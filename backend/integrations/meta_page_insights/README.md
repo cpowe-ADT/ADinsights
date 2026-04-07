@@ -16,6 +16,9 @@ Required env vars (see `backend/.env.sample`):
 - `META_PAGE_INSIGHTS_INCREMENTAL_LOOKBACK_DAYS`
 - `META_PAGE_INSIGHTS_POST_RECENCY_DAYS`
 
+Page Insights OAuth should request `pages_show_list`, `pages_read_engagement`, and `pages_manage_metadata`.
+Do not include `read_insights`; Facebook Login rejects it as an invalid scope.
+
 ## Local Sync Commands
 
 Run from `backend/`:

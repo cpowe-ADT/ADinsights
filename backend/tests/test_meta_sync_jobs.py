@@ -408,7 +408,17 @@ def test_sync_meta_reporting_slice_updates_direct_sync_state(monkeypatch, user):
                 }
             ]
 
+    observed: dict[str, str] = {}
+
     monkeypatch.setattr("integrations.tasks.MetaGraphClient.from_settings", lambda: DummyClient())
+    def fake_trigger_snapshot_refresh(*, tenant_id: str) -> str:
+        observed["tenant_id"] = tenant_id
+        return "queued"
+
+    monkeypatch.setattr(
+        "integrations.tasks._trigger_warehouse_snapshot_refresh",
+        fake_trigger_snapshot_refresh,
+    )
     task_id = "task-direct-1"
     result = sync_meta_reporting_slice.apply(
         kwargs={
@@ -423,6 +433,8 @@ def test_sync_meta_reporting_slice_updates_direct_sync_state(monkeypatch, user):
     ).get()
 
     assert result["job_id"] == task_id
+    assert result["snapshot_refresh_mode"] == "queued"
+    assert observed["tenant_id"] == str(user.tenant.id)
     state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
     assert state.last_job_id == task_id
     assert state.last_job_status == "succeeded"

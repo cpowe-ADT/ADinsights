@@ -14,6 +14,15 @@ from django.utils.dateparse import parse_datetime
 
 logger = logging.getLogger(__name__)
 
+AGGREGATE_SNAPSHOT_VIEW_UNAVAILABLE_DETAIL = (
+    "Live warehouse data is blocked because the aggregate warehouse view "
+    "`vw_dashboard_aggregate_snapshot` is unavailable in this local database. "
+    "Start the Postgres/dbt warehouse stack before expecting real live dashboard data."
+)
+AGGREGATE_SNAPSHOT_ROWS_MISSING_DETAIL = (
+    "Live warehouse data is blocked because no aggregate warehouse rows were available for this tenant yet."
+)
+
 
 @dataclass(frozen=True)
 class SnapshotMetrics:
@@ -23,6 +32,12 @@ class SnapshotMetrics:
     creative_metrics: list[dict[str, Any]]
     budget_metrics: list[dict[str, Any]]
     parish_metrics: list[dict[str, Any]]
+
+
+@dataclass(frozen=True)
+class SnapshotFetchResult:
+    metrics: SnapshotMetrics | None
+    fallback_detail: str | None = None
 
 
 def _coerce_json_payload(value: Any) -> Any:
@@ -92,7 +107,7 @@ def _parse_generated_at(value: Any) -> datetime:
     return timezone.now()
 
 
-def fetch_snapshot_metrics(*, tenant_id: str) -> SnapshotMetrics | None:
+def fetch_snapshot_metrics_result(*, tenant_id: str) -> SnapshotFetchResult:
     sql = (
         "select tenant_id, generated_at, campaign_metrics, creative_metrics, "
         "budget_metrics, parish_metrics "
@@ -105,7 +120,10 @@ def fetch_snapshot_metrics(*, tenant_id: str) -> SnapshotMetrics | None:
             cursor.execute(sql, {"tenant_id": tenant_id})
             row = cursor.fetchone()
             if not row:
-                return None
+                return SnapshotFetchResult(
+                    metrics=None,
+                    fallback_detail=AGGREGATE_SNAPSHOT_ROWS_MISSING_DETAIL,
+                )
             columns = [col[0] for col in cursor.description]
             record = dict(zip(columns, row))
     except (ProgrammingError, OperationalError) as exc:
@@ -114,13 +132,19 @@ def fetch_snapshot_metrics(*, tenant_id: str) -> SnapshotMetrics | None:
             extra={"tenant_id": tenant_id},
             exc_info=exc,
         )
-        return None
+        return SnapshotFetchResult(
+            metrics=None,
+            fallback_detail=AGGREGATE_SNAPSHOT_VIEW_UNAVAILABLE_DETAIL,
+        )
     except DatabaseError:
         logger.warning(
             "vw_dashboard_aggregate_snapshot unavailable; returning empty payload",
             extra={"tenant_id": tenant_id},
         )
-        return None
+        return SnapshotFetchResult(
+            metrics=None,
+            fallback_detail=AGGREGATE_SNAPSHOT_VIEW_UNAVAILABLE_DETAIL,
+        )
 
     campaign_metrics = _coerce_json_payload(record.get("campaign_metrics"))
     creative_metrics = _coerce_json_payload(record.get("creative_metrics")) or []
@@ -135,7 +159,11 @@ def fetch_snapshot_metrics(*, tenant_id: str) -> SnapshotMetrics | None:
         budget_metrics=list(budget_metrics),
         parish_metrics=list(parish_metrics) or _default_parish_metrics(),
     )
-    return metrics
+    return SnapshotFetchResult(metrics=metrics)
+
+
+def fetch_snapshot_metrics(*, tenant_id: str) -> SnapshotMetrics | None:
+    return fetch_snapshot_metrics_result(tenant_id=tenant_id).metrics
 
 
 def snapshot_metrics_to_serializer_payload(metrics: SnapshotMetrics) -> dict[str, Any]:

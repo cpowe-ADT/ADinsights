@@ -13,7 +13,7 @@ def _create_page(user) -> MetaPage:
         tenant=user.tenant,
         user=user,
         app_scoped_user_id="meta-user-sync",
-        scopes=["read_insights", "pages_read_engagement"],
+        scopes=["pages_show_list", "pages_read_engagement"],
         is_active=True,
     )
     connection.set_raw_token("user-token")

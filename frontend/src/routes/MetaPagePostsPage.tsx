@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import EmptyState from '../components/EmptyState';
@@ -7,6 +7,7 @@ import PostsTable from '../components/PostsTable';
 import MetaPageExportHistory from '../components/meta/MetaPageExportHistory';
 import MetaPagesFilterBar from '../components/meta/MetaPagesFilterBar';
 import useMetaPageExports from '../hooks/useMetaPageExports';
+import { loadSocialConnectionStatus, type SocialPlatformStatusRecord } from '../lib/airbyte';
 import { toMetaPageDateParams } from '../lib/metaPageDateRange';
 import useMetaPageInsightsStore from '../state/useMetaPageInsightsStore';
 import '../styles/dashboard.css';
@@ -14,11 +15,13 @@ import '../styles/dashboard.css';
 const MetaPagePostsPage = () => {
   const { pageId = '' } = useParams();
   const navigate = useNavigate();
+  const [metaStatus, setMetaStatus] = useState<SocialPlatformStatusRecord | null>(null);
   const { jobs: exportJobs, error: exportError, status: exportStatus, refresh: refreshExports, createExport, download } =
     useMetaPageExports(pageId);
 
   const {
     pages,
+    missingRequiredPermissions,
     postsStatus,
     posts,
     error,
@@ -28,8 +31,10 @@ const MetaPagePostsPage = () => {
     setPostsQuery,
     loadPages,
     loadPosts,
+    connectOAuthStart,
   } = useMetaPageInsightsStore((state) => ({
     pages: state.pages,
+    missingRequiredPermissions: state.missingRequiredPermissions,
     postsStatus: state.postsStatus,
     posts: state.posts,
     error: state.error,
@@ -39,6 +44,7 @@ const MetaPagePostsPage = () => {
     setPostsQuery: state.setPostsQuery,
     loadPages: state.loadPages,
     loadPosts: state.loadPosts,
+    connectOAuthStart: state.connectOAuthStart,
   }));
 
   useEffect(() => {
@@ -73,6 +79,29 @@ const MetaPagePostsPage = () => {
     postsQuery.sort,
   ]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadStatus = async () => {
+      try {
+        const payload = await loadSocialConnectionStatus();
+        if (!cancelled) {
+          setMetaStatus(payload.platforms.find((row) => row.platform === 'meta') ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setMetaStatus(null);
+        }
+      }
+    };
+
+    void loadStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const runExportCsv = async () => {
     if (!pageId) {
       return;
@@ -95,6 +124,7 @@ const MetaPagePostsPage = () => {
   const metricKeys = useMemo(() => {
     return posts ? Object.keys(posts.metric_availability) : [];
   }, [posts]);
+  const orphanedMarketingAccess = metaStatus?.reason.code === 'orphaned_marketing_access';
 
   useEffect(() => {
     if (metricKeys.length === 0) {
@@ -134,6 +164,40 @@ const MetaPagePostsPage = () => {
         onChangeSince={(value) => setFilters({ since: value })}
         onChangeUntil={(value) => setFilters({ until: value })}
       />
+
+      {orphanedMarketingAccess ? (
+        <div className="panel meta-warning-panel" role="status">
+          <h3>Restore Meta marketing access</h3>
+          <p>{metaStatus?.reason.message}</p>
+          <div className="dashboard-header__actions-row">
+            <Link className="button secondary" to="/dashboards/data-sources?sources=social">
+              Restore Meta marketing access
+            </Link>
+            <Link className="button tertiary" to="/dashboards/meta/accounts">
+              Meta accounts
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {missingRequiredPermissions.length > 0 ? (
+        <div className="panel meta-warning-panel" role="status">
+          <h3>Reconnect Meta to restore post insights</h3>
+          <p>
+            The current Meta connection is missing: {missingRequiredPermissions.join(', ')}. Reconnect
+            Meta from Data Sources before refreshing or relying on post metrics.
+          </p>
+          <div className="dashboard-header__actions-row">
+            <button
+              className="button secondary"
+              type="button"
+              onClick={() => void connectOAuthStart({ authType: 'rerequest' })}
+            >
+              Re-request Meta permissions
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="meta-posts-metric-select">
         <label htmlFor="meta-posts-metric">Table metric</label>

@@ -32,7 +32,6 @@ Complete all rows below before submission.
 | `business_management`   | ADinsights reads/manages Business Manager assets on behalf of businesses to bind ad accounts during onboarding.                       | Complete Facebook login and permission grant, then successful business asset selection with ad performance access.     |
 | `pages_read_engagement` | ADinsights reads Page context on behalf of businesses for onboarding verification and account linkage.                                | Complete Facebook login and permission grant, then Page-linked content/metadata shown in ADinsights.                   |
 | `pages_show_list`       | ADinsights lists managed Pages so business users can verify ownership and connect the correct Page.                                   | Complete Facebook login and permission grant, then managed Page list shown and selected in ADinsights setup.           |
-| `read_insights`         | ADinsights reads Page insights on behalf of businesses to provide engagement and reach reporting in tenant dashboards.                 | Complete Facebook login and permission grant, then Page insights (reach, views, etc.) displayed in ADinsights.         |
 
 ## 3) Release-Gate Rule: Scope Changes
 
@@ -47,6 +46,8 @@ Failure to update the catalog triggers a release-gate block during security revi
 ## 4) Optional Near-Term Submission Items
 
 Only submit permissions below when the corresponding feature is active in ADinsights.
+These are not part of the current baseline Facebook Login authorize request and should not appear in
+the default screencast unless the active feature path explicitly requires them.
 
 | Permission                  | Feature gate condition                       | Use case text must include                                                                                                     | Screencast proof must include                                                              |
 | --------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
@@ -57,7 +58,7 @@ Only submit permissions below when the corresponding feature is active in ADinsi
 | `pages_manage_metadata`     | Page webhook/settings management is enabled. | Why ADinsights needs webhook/settings access for Page administration.                                                          | Login + webhook subscription or settings update flow in ADinsights.                        |
 | `pages_messaging`           | Messenger integration is enabled.            | Messaging functions offered to onboarded business users.                                                                       | Login + message send from ADinsights + receipt in Messenger client + cURL generation flow. |
 
-## 4) Evidence Packet Requirements
+## 5) Evidence Packet Requirements
 
 For each review run, save one artifact in `docs/project/evidence/meta-validation/` including:
 
@@ -71,16 +72,21 @@ For each review run, save one artifact in `docs/project/evidence/meta-validation
 
 Never include raw access tokens.
 
-## 5) Remediation Pointers
+## 6) Remediation Pointers
 
 - Missing required permissions in OAuth exchange/page connect:
   - Re-run OAuth with `auth_type=rerequest` and re-complete connect flow.
+- Invalid Facebook Login scope in setup docs or env:
+  - Do not request `read_insights`; Page Insights now relies on `pages_show_list`, `pages_read_engagement`, and `pages_manage_metadata`.
+- Instagram permissions added to the baseline login plan:
+  - Remove them unless an active Instagram feature explicitly requires them and the reviewer copy,
+    screencast, and product path all match.
 - Missing ad account visibility:
   - Confirm Business Manager access for the selected account, then repeat connect.
 - Optional permission requested without active feature:
   - Remove from submission scope until feature activation.
 
-## 6) Final QA Gate Before Submit
+## 7) Final QA Gate Before Submit
 
 - `required_now` permissions are complete and justified.
 - Optional permissions are requested only for active features.
@@ -89,3 +95,4 @@ Never include raw access tokens.
 - Evidence artifact is stored and redacted.
 - Use-case text explicitly states "on behalf of onboarded business customers."
 - Screencast script includes the words "complete Facebook login process."
+- Baseline Facebook Login evidence does not claim `read_insights` or imply a standalone Instagram OAuth flow.

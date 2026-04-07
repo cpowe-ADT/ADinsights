@@ -33,6 +33,7 @@ env = environ.Env(
     METRICS_SNAPSHOT_STALE_TTL_SECONDS=(int, 3600),
     METRICS_SNAPSHOT_SYNC_LOCK_TTL_SECONDS=(int, 900),
     ENABLE_FAKE_ADAPTER=(bool, False),
+    ENABLE_META_DIRECT_ADAPTER=(bool, False),
     ENABLE_WAREHOUSE_ADAPTER=(bool, False),
     ENABLE_DEMO_ADAPTER=(bool, False),
     ENABLE_UPLOAD_ADAPTER=(bool, True),
@@ -52,6 +53,7 @@ env = environ.Env(
     META_OAUTH_SCOPES=(
         list,
         [
+            # Keep optional Instagram scopes out of the baseline authorize request.
             "ads_management",
             "pages_show_list",
             "pages_read_engagement",
@@ -66,11 +68,13 @@ env = environ.Env(
     META_PAGE_INSIGHTS_OAUTH_SCOPES=(
         list,
         [
+            # Page Insights flow is Page-scoped; do not reintroduce read_insights here.
             "pages_show_list",
             "pages_read_engagement",
             "pages_manage_metadata",
         ],
     ),
+    # Keep the repo pin stable until an explicit Meta API version migration is validated end-to-end.
     META_GRAPH_API_VERSION=(str, "v24.0"),
     META_GRAPH_TIMEOUT_SECONDS=(float, 10.0),
     META_GRAPH_MAX_ATTEMPTS=(int, 5),
@@ -190,6 +194,7 @@ METRICS_SNAPSHOT_SYNC_LOCK_TTL_SECONDS = max(env.int("METRICS_SNAPSHOT_SYNC_LOCK
 # In local DEBUG sessions, keep demo/fake adapters on by default so dashboard
 # toggles always have a working non-live data source unless explicitly disabled.
 ENABLE_FAKE_ADAPTER = env.bool("ENABLE_FAKE_ADAPTER", default=DEBUG)
+ENABLE_META_DIRECT_ADAPTER = env.bool("ENABLE_META_DIRECT_ADAPTER", default=DEBUG)
 ENABLE_WAREHOUSE_ADAPTER = env.bool("ENABLE_WAREHOUSE_ADAPTER", default=False)
 ENABLE_DEMO_ADAPTER = env.bool("ENABLE_DEMO_ADAPTER", default=DEBUG)
 ENABLE_UPLOAD_ADAPTER = env.bool("ENABLE_UPLOAD_ADAPTER", default=True)

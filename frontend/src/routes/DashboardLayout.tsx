@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Link,
   NavLink,
   Outlet,
   useLocation,
@@ -16,9 +17,21 @@ import FilterBar, {
 import { useTheme } from '../components/ThemeProvider';
 import { useToast } from '../components/ToastProvider';
 import { loadDashboardLayout, saveDashboardLayout } from '../lib/layoutPreferences';
+import {
+  loadSocialConnectionStatus,
+  type SocialPlatformStatusRecord,
+} from '../lib/airbyte';
+import {
+  buildLiveAccountOption,
+  chooseDefaultLiveAccountOptionId,
+  setLastLiveAccountId,
+  sortLiveAccountOptions,
+} from '../lib/liveAccountSelection';
 import { loadMetaAccounts } from '../lib/meta';
 import { canAccessCreatorUi } from '../lib/rbac';
 import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
+import { MOCK_MODE } from '../lib/apiClient';
+import { messageForLiveDatasetReason } from '../lib/datasetStatus';
 import {
   areFiltersEqual,
   createDefaultFilterState,
@@ -42,7 +55,7 @@ const metricOptions = [
   { value: 'conversions', label: 'Conversions' },
   { value: 'cpa', label: 'CPA' },
   { value: 'frequency', label: 'Frequency' },
-  { value: 'roas', label: 'ROAS' },
+  { value: 'roas', label: 'Conv. / $' },
 ];
 
 const segmentLabels: Record<string, string> = {
@@ -93,10 +106,17 @@ const DashboardLayout = () => {
   const { pushToast } = useToast();
   const [isScrolled, setIsScrolled] = useState(false);
   const [accountOptions, setAccountOptions] = useState<FilterBarAccountOption[]>([]);
+  const [metaStatus, setMetaStatus] = useState<SocialPlatformStatusRecord | null>(null);
+  const [accountOptionsResolved, setAccountOptionsResolved] = useState(false);
+  const [metaStatusResolved, setMetaStatusResolved] = useState(false);
   const canCreate = canAccessCreatorUi(user);
   const datasetMode = useDatasetStore((state) => state.mode);
-  const availableAdapters = useDatasetStore((state) => state.adapters);
-  const hasLiveData = availableAdapters.includes('warehouse');
+  const datasetLoadStatus = useDatasetStore((state) => state.status);
+  const datasetSource = useDatasetStore((state) => state.source);
+  const liveReason = useDatasetStore((state) => state.liveReason);
+  const liveDetail = useDatasetStore((state) => state.liveDetail);
+  const liveSnapshotGeneratedAt = useDatasetStore((state) => state.liveSnapshotGeneratedAt);
+  const hasLiveData = datasetSource === 'warehouse' || datasetSource === 'meta_direct';
 
   const {
     loadAll,
@@ -130,9 +150,12 @@ const DashboardLayout = () => {
 
   const handleFilterChange = useCallback(
     (state: FilterBarState) => {
+      if (tenantId && state.accountId.trim() && state.accountId !== filters.accountId) {
+        setLastLiveAccountId(tenantId, state.accountId, 'user');
+      }
       setFilters(state);
     },
-    [setFilters],
+    [filters.accountId, setFilters, tenantId],
   );
 
   const defaultFilters = useMemo(() => createDefaultFilterState(), []);
@@ -165,31 +188,26 @@ const DashboardLayout = () => {
     let cancelled = false;
 
     if (!hasLiveData) {
+      setAccountOptionsResolved(true);
       setAccountOptions([]);
       return () => {
         cancelled = true;
       };
     }
 
+    setAccountOptionsResolved(false);
     void loadMetaAccounts({ page_size: 200 })
       .then((payload) => {
         if (cancelled) {
           return;
         }
-        const options = payload.results
-          .map((account) => {
-            const value = account.external_id?.trim() || account.account_id?.trim() || '';
-            if (!value) {
-              return null;
-            }
-            const labelParts = [account.name?.trim(), account.account_id?.trim() || account.external_id];
-            return {
-              value,
-              label: labelParts.filter(Boolean).join(' · '),
-            };
-          })
-          .filter((option): option is FilterBarAccountOption => option !== null);
+        const options = sortLiveAccountOptions(
+          payload.results
+            .map((account) => buildLiveAccountOption(account))
+            .filter((option): option is FilterBarAccountOption => option !== null),
+        );
         setAccountOptions(options);
+        setAccountOptionsResolved(true);
       })
       .catch((error) => {
         if (cancelled) {
@@ -197,12 +215,81 @@ const DashboardLayout = () => {
         }
         console.warn('Failed to load dashboard client accounts', error);
         setAccountOptions([]);
+        setAccountOptionsResolved(true);
       });
 
     return () => {
       cancelled = true;
     };
   }, [hasLiveData, tenantId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setMetaStatusResolved(false);
+    void loadSocialConnectionStatus()
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+        setMetaStatus(payload.platforms.find((row) => row.platform === 'meta') ?? null);
+        setMetaStatusResolved(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMetaStatus(null);
+          setMetaStatusResolved(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!tenantId || !hasLiveData || !accountOptionsResolved || !metaStatusResolved) {
+      return;
+    }
+    if (accountOptions.length === 0) {
+      return;
+    }
+
+    const validAccountIds = accountOptions.map((option) => option.value);
+    const currentAccountId = filters.accountId.trim();
+    if (currentAccountId && validAccountIds.includes(currentAccountId)) {
+      return;
+    }
+
+    const preferredAccountIds = [
+      typeof metaStatus?.metadata?.['credential_account_id'] === 'string'
+        ? metaStatus.metadata['credential_account_id']
+        : '',
+    ];
+    const defaultAccountId = chooseDefaultLiveAccountOptionId(
+      accountOptions,
+      tenantId,
+      preferredAccountIds,
+    );
+    if (!defaultAccountId) {
+      return;
+    }
+
+    setLastLiveAccountId(tenantId, defaultAccountId, 'auto');
+    setFilters({
+      ...filters,
+      accountId: defaultAccountId,
+    });
+  }, [
+    accountOptions,
+    accountOptionsResolved,
+    filters,
+    hasLiveData,
+    metaStatus,
+    metaStatusResolved,
+    setFilters,
+    tenantId,
+  ]);
 
   useEffect(() => {
     const nextSearch = serializeFilterQueryParams(filters);
@@ -219,12 +306,41 @@ const DashboardLayout = () => {
   const layoutHydratedRef = useRef(false);
 
   useEffect(() => {
+    if (!MOCK_MODE) {
+      if (datasetLoadStatus === 'idle' || datasetLoadStatus === 'loading') {
+        return;
+      }
+
+      if (!datasetSource) {
+        return;
+      }
+    }
+
+    if (hasLiveData) {
+      if (!accountOptionsResolved || !metaStatusResolved) {
+        return;
+      }
+      if (accountOptions.length > 0 && !filters.accountId.trim()) {
+        return;
+      }
+    }
+
     const delay = filters.campaignQuery.trim().length > 0 ? 350 : 0;
     const handle = window.setTimeout(() => {
       void loadAll(tenantId);
     }, delay);
     return () => window.clearTimeout(handle);
-  }, [filters, loadAll, tenantId]);
+  }, [
+    accountOptions.length,
+    accountOptionsResolved,
+    datasetLoadStatus,
+    datasetSource,
+    filters,
+    hasLiveData,
+    loadAll,
+    metaStatusResolved,
+    tenantId,
+  ]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -292,18 +408,29 @@ const DashboardLayout = () => {
   }, [selectedMetric, setSelectedMetric, setSelectedParish]);
 
   const errors = useMemo(() => {
+    const warehouseLiveBlocked =
+      datasetMode === 'live' && datasetSource === 'warehouse' && liveReason && liveReason !== 'ready';
     return Array.from(
       new Set(
         [campaign, creative, budget, parish]
           .filter((slice) => slice.status === 'error' && slice.error)
+          .filter((slice) => {
+            if (!warehouseLiveBlocked || !slice.error) {
+              return true;
+            }
+            return !/live warehouse metrics are unavailable|snapshot is stale|default fallback payload/i.test(
+              slice.error,
+            );
+          })
           .map((slice) => slice.error as string),
       ),
     );
-  }, [budget, campaign, creative, parish]);
+  }, [budget, campaign, creative, datasetMode, datasetSource, liveReason, parish]);
 
   const navLinks = useMemo(
     () =>
       [
+        { label: 'Home', to: '/', end: true },
         { label: 'Library', to: '/dashboards', end: true },
         canCreate ? { label: 'Create', to: '/dashboards/create', end: false } : null,
         { label: 'Campaigns', to: '/dashboards/campaigns', end: false },
@@ -439,40 +566,98 @@ const DashboardLayout = () => {
   );
 
   const accountLabel = (user as { email?: string } | undefined)?.email ?? 'Account';
+  const effectiveSnapshotGeneratedAt = liveSnapshotGeneratedAt ?? lastSnapshotGeneratedAt;
   const snapshotRelative = useMemo(
-    () => (lastSnapshotGeneratedAt ? formatRelativeTime(lastSnapshotGeneratedAt) : null),
-    [lastSnapshotGeneratedAt],
+    () => (effectiveSnapshotGeneratedAt ? formatRelativeTime(effectiveSnapshotGeneratedAt) : null),
+    [effectiveSnapshotGeneratedAt],
   );
-  const snapshotIsStale = isTimestampStale(lastSnapshotGeneratedAt, 60);
+  const snapshotIsStale = isTimestampStale(effectiveSnapshotGeneratedAt, 60);
+  const liveStatusMessage = useMemo(
+    () => {
+      if (datasetMode !== 'live') {
+        return null;
+      }
+      if (!datasetSource) {
+        return liveReason ? messageForLiveDatasetReason(liveReason, liveDetail) : null;
+      }
+      if (datasetSource === 'meta_direct') {
+        if (liveReason === 'adapter_disabled') {
+          return 'Showing direct Meta sync data. Warehouse reporting is not enabled in this environment.';
+        }
+        if (liveReason === 'missing_snapshot') {
+          return 'Showing direct Meta sync data while the first warehouse snapshot is still pending.';
+        }
+        if (liveReason === 'stale_snapshot') {
+          return 'Showing direct Meta sync data while the warehouse snapshot refresh completes.';
+        }
+        if (liveReason === 'default_snapshot') {
+          return `Showing direct Meta sync data. ${messageForLiveDatasetReason(liveReason, liveDetail)}`;
+        }
+        return 'Showing direct Meta sync data.';
+      }
+      return liveReason ? messageForLiveDatasetReason(liveReason, liveDetail) : null;
+    },
+    [datasetMode, datasetSource, liveDetail, liveReason],
+  );
   const snapshotStatusLabel = useMemo(() => {
     if (datasetMode !== 'live') {
-      if (!lastSnapshotGeneratedAt) {
+      if (!effectiveSnapshotGeneratedAt) {
         return 'Demo dataset active';
       }
       return snapshotRelative
         ? `Demo dataset active - ${snapshotRelative}`
         : 'Demo dataset active';
     }
-    if (!lastSnapshotGeneratedAt) {
+    if (datasetSource === 'meta_direct') {
+      return snapshotRelative ? `Direct Meta sync updated ${snapshotRelative}` : 'Direct Meta sync active';
+    }
+    if (liveReason === 'adapter_disabled') {
+      return 'Live reporting disabled';
+    }
+    if (liveReason === 'missing_snapshot') {
+      return 'Waiting for first live snapshot…';
+    }
+    if (liveReason === 'stale_snapshot') {
+      return 'Live data refreshing…';
+    }
+    if (liveReason === 'default_snapshot') {
+      return 'Fallback live snapshot';
+    }
+    if (!effectiveSnapshotGeneratedAt) {
       return 'Waiting for live snapshot…';
     }
     return snapshotRelative ? `Updated ${snapshotRelative}` : 'Live snapshot available';
-  }, [datasetMode, lastSnapshotGeneratedAt, snapshotRelative]);
+  }, [datasetMode, datasetSource, effectiveSnapshotGeneratedAt, liveReason, snapshotRelative]);
   const snapshotTone = useMemo(() => {
     if (datasetMode !== 'live') {
-      if (!lastSnapshotGeneratedAt) {
+      if (!effectiveSnapshotGeneratedAt) {
         return 'demo';
       }
       return snapshotIsStale ? 'stale' : 'demo';
     }
-    if (!lastSnapshotGeneratedAt) {
+    if (datasetSource === 'meta_direct') {
+      return snapshotIsStale ? 'stale' : 'fresh';
+    }
+    if (liveReason === 'adapter_disabled') {
+      return 'warning';
+    }
+    if (liveReason === 'missing_snapshot') {
+      return 'pending';
+    }
+    if (liveReason === 'stale_snapshot') {
+      return 'stale';
+    }
+    if (liveReason === 'default_snapshot') {
+      return 'warning';
+    }
+    if (!effectiveSnapshotGeneratedAt) {
       return 'pending';
     }
     return snapshotIsStale ? 'stale' : 'fresh';
-  }, [datasetMode, lastSnapshotGeneratedAt, snapshotIsStale]);
+  }, [datasetMode, datasetSource, effectiveSnapshotGeneratedAt, liveReason, snapshotIsStale]);
   const snapshotAbsolute = useMemo(
-    () => formatAbsoluteTime(lastSnapshotGeneratedAt),
-    [lastSnapshotGeneratedAt],
+    () => formatAbsoluteTime(effectiveSnapshotGeneratedAt),
+    [effectiveSnapshotGeneratedAt],
   );
 
   return (
@@ -539,6 +724,12 @@ const DashboardLayout = () => {
                   role="group"
                   aria-label="Layout actions"
                 >
+                  <Link
+                    className="button tertiary"
+                    to="/dashboards/data-sources?sources=social"
+                  >
+                    Connect socials
+                  </Link>
                   <button type="button" className="button secondary" onClick={handleSaveLayout}>
                     {SaveIcon}
                     Save layout
@@ -596,18 +787,24 @@ const DashboardLayout = () => {
         <div className="dashboard-status">
           <div className="dashboard-boundary">
             <StatusBanner
-              message="Demo dataset is active. Toggle to view live warehouse metrics."
+              message="Demo dataset is active. Toggle to view live client data."
               ariaLabel="Dataset status"
             />
           </div>
         </div>
       ) : null}
-      {datasetMode === 'live' && !hasLiveData ? (
+      {datasetMode === 'live' && liveReason && liveReason !== 'ready' ? (
         <div className="dashboard-status">
           <div className="dashboard-boundary">
             <StatusBanner
-              tone="warning"
-              message="Live warehouse metrics are unavailable. Switch to demo data to explore the interface."
+              tone={
+                datasetSource === 'meta_direct'
+                  ? 'warning'
+                  : liveReason === 'default_snapshot'
+                    ? 'error'
+                    : 'warning'
+              }
+              message={liveStatusMessage ?? 'Live data is unavailable.'}
               ariaLabel="Live data status"
             />
           </div>

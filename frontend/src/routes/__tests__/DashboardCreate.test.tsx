@@ -9,6 +9,20 @@ const apiMocks = vi.hoisted(() => ({
   loadMetaAccounts: vi.fn(),
   fetchDashboardMetrics: vi.fn(),
   createDashboardDefinition: vi.fn(),
+  loadSocialConnectionStatus: vi.fn(),
+}));
+
+const datasetStoreMock = vi.hoisted(() => ({
+  state: {
+    source: 'warehouse' as string | undefined,
+    liveReason: 'ready' as
+      | 'adapter_disabled'
+      | 'missing_snapshot'
+      | 'stale_snapshot'
+      | 'default_snapshot'
+      | 'ready',
+    liveDetail: undefined as string | undefined,
+  },
 }));
 
 vi.mock('../../auth/AuthContext', () => ({
@@ -26,6 +40,10 @@ vi.mock('../../lib/meta', () => ({
   loadMetaAccounts: apiMocks.loadMetaAccounts,
 }));
 
+vi.mock('../../lib/airbyte', () => ({
+  loadSocialConnectionStatus: apiMocks.loadSocialConnectionStatus,
+}));
+
 vi.mock('../../lib/dataService', () => ({
   fetchDashboardMetrics: apiMocks.fetchDashboardMetrics,
 }));
@@ -37,6 +55,16 @@ vi.mock('../../lib/phase2Api', async () => {
     createDashboardDefinition: apiMocks.createDashboardDefinition,
   };
 });
+
+vi.mock('../../state/useDatasetStore', () => ({
+  useDatasetStore: (
+    selector: (state: {
+      source?: string;
+      liveReason?: 'adapter_disabled' | 'missing_snapshot' | 'stale_snapshot' | 'default_snapshot' | 'ready';
+      liveDetail?: string;
+    }) => unknown,
+  ) => selector(datasetStoreMock.state),
+}));
 
 vi.mock('../../components/FilterBar', () => ({
   default: ({
@@ -76,6 +104,12 @@ vi.mock('../../components/FilterBar', () => ({
 describe('DashboardCreate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
+    datasetStoreMock.state = {
+      source: 'warehouse',
+      liveReason: 'ready',
+      liveDetail: undefined,
+    };
     apiMocks.loadMetaAccounts.mockResolvedValue({
       count: 1,
       next: null,
@@ -85,6 +119,24 @@ describe('DashboardCreate', () => {
           external_id: 'act_791712443035541',
           account_id: '791712443035541',
           name: "Students' Loan Bureau (SLB)",
+        },
+      ],
+    });
+    apiMocks.loadSocialConnectionStatus.mockResolvedValue({
+      generated_at: '2026-04-04T15:00:00Z',
+      platforms: [
+        {
+          platform: 'meta',
+          display_name: 'Meta (Facebook)',
+          status: 'active',
+          reason: {
+            code: 'active_direct_sync',
+            message: 'Meta direct sync completed successfully with fresh reporting rows.',
+          },
+          last_checked_at: '2026-04-04T15:00:00Z',
+          last_synced_at: '2026-04-04T14:55:00Z',
+          actions: ['sync_now', 'view'],
+          metadata: { credential_account_id: 'act_791712443035541' },
         },
       ],
     });
@@ -156,5 +208,259 @@ describe('DashboardCreate', () => {
       ),
     );
     expect(await screen.findByText('Saved dashboard route')).toBeInTheDocument();
+  });
+
+  it('prefers the connected live Meta account over placeholder numeric options when auto-selecting preview', async () => {
+    apiMocks.loadMetaAccounts.mockResolvedValueOnce({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        {
+          external_id: 'act_335732240',
+          account_id: '335732240',
+          name: '335732240',
+          business_name: 'Adtelligent',
+        },
+        {
+          external_id: 'act_791712443035541',
+          account_id: '791712443035541',
+          name: "Students' Loan Bureau (SLB)",
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/create']}>
+        <Routes>
+          <Route path="/dashboards/create" element={<DashboardCreate />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiMocks.fetchDashboardMetrics).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: expect.stringContaining('account_id=act_791712443035541'),
+        }),
+      );
+    });
+  });
+
+  it('waits for Meta status before defaulting so the credential account wins over the first fallback option', async () => {
+    let resolveSocialStatus:
+      | ((value: Awaited<ReturnType<typeof apiMocks.loadSocialConnectionStatus>>) => void)
+      | undefined;
+    const socialStatusPromise = new Promise<
+      Awaited<ReturnType<typeof apiMocks.loadSocialConnectionStatus>>
+    >((resolve) => {
+      resolveSocialStatus = resolve;
+    });
+
+    apiMocks.loadMetaAccounts.mockResolvedValueOnce({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        {
+          external_id: 'act_335732240',
+          account_id: '335732240',
+          name: '335732240',
+          business_name: 'Adtelligent',
+        },
+        {
+          external_id: 'act_697812007883214',
+          account_id: '697812007883214',
+          name: 'JDIC Adtelligent Ad Account',
+        },
+      ],
+    });
+    apiMocks.loadSocialConnectionStatus.mockReturnValueOnce(socialStatusPromise);
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/create']}>
+        <Routes>
+          <Route path="/dashboards/create" element={<DashboardCreate />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(apiMocks.fetchDashboardMetrics).not.toHaveBeenCalled();
+
+    resolveSocialStatus?.({
+      generated_at: '2026-04-05T00:00:00Z',
+      platforms: [
+        {
+          platform: 'meta',
+          display_name: 'Meta (Facebook)',
+          status: 'complete',
+          reason: {
+            code: 'awaiting_recent_successful_sync',
+            message: 'Meta setup is complete and awaiting a recent successful direct sync.',
+          },
+          last_checked_at: '2026-04-05T00:00:00Z',
+          last_synced_at: '2026-04-04T22:24:19Z',
+          actions: ['sync_now', 'view'],
+          metadata: { credential_account_id: 'act_697812007883214' },
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(apiMocks.fetchDashboardMetrics).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: expect.stringContaining('account_id=act_697812007883214'),
+        }),
+      );
+    });
+  });
+
+  it('shows a clear blocked-state preview message when live reporting is disabled', async () => {
+    datasetStoreMock.state = {
+      source: undefined,
+      liveReason: 'adapter_disabled',
+      liveDetail: undefined,
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/create']}>
+        <Routes>
+          <Route path="/dashboards/create" element={<DashboardCreate />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByText('Live reporting is not enabled in this environment.'),
+    ).toBeInTheDocument();
+    expect(apiMocks.fetchDashboardMetrics).not.toHaveBeenCalled();
+  });
+
+  it('uses the tenant-scoped stored live account when it is still available', async () => {
+    window.localStorage.setItem(
+      'adinsights.live-account-selection',
+      JSON.stringify({ 'tenant-1': 'act_456' }),
+    );
+    apiMocks.loadMetaAccounts.mockResolvedValueOnce({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        {
+          external_id: 'act_123',
+          account_id: '123',
+          name: 'Primary Account',
+        },
+        {
+          external_id: 'act_456',
+          account_id: '456',
+          name: 'Stored Account',
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/create']}>
+        <Routes>
+          <Route path="/dashboards/create" element={<DashboardCreate />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiMocks.fetchDashboardMetrics).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: expect.stringContaining('account_id=act_456'),
+        }),
+      );
+    });
+  });
+
+  it('shows an explicit blocked preview state when no Meta ad accounts are available', async () => {
+    apiMocks.loadMetaAccounts.mockResolvedValueOnce({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    });
+    apiMocks.loadSocialConnectionStatus.mockResolvedValueOnce({
+      generated_at: '2026-04-04T15:00:00Z',
+      platforms: [
+        {
+          platform: 'meta',
+          display_name: 'Meta (Facebook)',
+          status: 'not_connected',
+          reason: {
+            code: 'missing_meta_credential',
+            message: 'Meta OAuth has not been connected for this tenant.',
+          },
+          last_checked_at: '2026-04-04T15:00:00Z',
+          last_synced_at: null,
+          actions: ['connect_oauth'],
+          metadata: {},
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/create']}>
+        <Routes>
+          <Route path="/dashboards/create" element={<DashboardCreate />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByText('Connect Meta first to load ad accounts for dashboard preview.'),
+    ).toBeInTheDocument();
+    expect(apiMocks.fetchDashboardMetrics).not.toHaveBeenCalled();
+  });
+
+  it('shows the exact live warehouse blocker detail when preview is blocked by a fallback snapshot', async () => {
+    datasetStoreMock.state = {
+      source: 'warehouse',
+      liveReason: 'default_snapshot',
+      liveDetail:
+        'Live warehouse data is blocked because the aggregate warehouse view `vw_dashboard_aggregate_snapshot` is unavailable in this local database.',
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/create']}>
+        <Routes>
+          <Route path="/dashboards/create" element={<DashboardCreate />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByText(
+        'Live warehouse data is blocked because the aggregate warehouse view `vw_dashboard_aggregate_snapshot` is unavailable in this local database.',
+      ),
+    ).toBeInTheDocument();
+    expect(apiMocks.fetchDashboardMetrics).not.toHaveBeenCalled();
+  });
+
+  it('uses the direct Meta source for preview when warehouse reporting is unavailable', async () => {
+    datasetStoreMock.state = {
+      source: 'meta_direct',
+      liveReason: 'adapter_disabled',
+      liveDetail: undefined,
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/create']}>
+        <Routes>
+          <Route path="/dashboards/create" element={<DashboardCreate />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiMocks.fetchDashboardMetrics).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: expect.stringContaining('source=meta_direct'),
+        }),
+      );
+    });
   });
 });

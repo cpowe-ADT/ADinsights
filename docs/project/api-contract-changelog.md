@@ -13,6 +13,24 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-04-05**
+  - Endpoint: `GET /api/metrics/combined/`
+  - Change: Combined-metrics responses now preserve an explicit `snapshot_generated_at: null` from non-warehouse adapters instead of rewriting it to request time. Cached snapshot hits also preserve the payload's explicit `null` freshness marker rather than substituting the cache row timestamp.
+  - Impact: Frontend can distinguish `no_recent_data` from a genuinely fresh live snapshot and avoids showing empty Meta-direct accounts as "updated just now" after refresh.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend)
+
+- **2026-04-04**
+  - Endpoint: `GET /api/datasets/status/`, `GET /api/integrations/social/status/`, `GET /api/integrations/meta/setup/`, `POST /api/integrations/meta/oauth/start/`, `GET /api/integrations/google_ads/setup/`, `POST /api/integrations/google_ads/oauth/start/`, `GET /api/integrations/google_analytics/setup/`, `POST /api/integrations/google_analytics/oauth/start/`
+  - Change: Added additive live-reporting readiness contract on `GET /api/datasets/status/` with `live.enabled`, `live.reason` (`adapter_disabled`, `missing_snapshot`, `stale_snapshot`, `default_snapshot`, `ready`), `live.snapshot_generated_at`, `demo.enabled`, and `warehouse_adapter_enabled`. `GET /api/integrations/social/status/` now includes additive Meta `reporting_readiness` fields (`stage`, `message`, `direct_sync_status`, `warehouse_status`, `dataset_live_reason`) and the Instagram row now truthfully reports that Instagram business linking is managed through Meta setup rather than a standalone OAuth flow. OAuth setup/start contracts continue to preserve explicit redirect URIs deterministically, expose runtime redirect mismatch diagnostics, and reject OAuth start when the active frontend origin does not match the configured redirect origin. Launcher-backed dev runtime now forwards `META_OAUTH_REDIRECT_URI` with the selected frontend origin so alternate local profiles can work when the Meta app is configured for that exact redirect.
+  - Impact: Frontend can separate “Meta connected” from “direct sync complete” and “live reporting ready,” render truthful environment/snapshot-state blockers across dashboard routes, and stop offering an Instagram CTA that appears to be a broken standalone login path.
+  - Owner: Sofia (Backend Metrics) + Maya (Integrations) + Lina (Frontend)
+
+- **2026-04-01**
+  - Endpoint: `GET /api/metrics/combined/`, dashboard aggregate snapshots, `GET /api/dashboards/library/`
+  - Change: Campaign and creative row contracts now use `parishes: string[]` instead of `parish: string`. Warehouse-backed campaign rows now return truthful `status` and additive `objective` fields when present, campaign/parish currency values resolve from tenant ad-account metadata instead of a hardcoded `USD`, and `availability.parish_map` includes additive `coverage_percent`. Warehouse `503` responses now include machine-readable `code` and `reason` fields so stale snapshots can be distinguished from default or missing snapshots. Dashboard library reads now bootstrap three system presets for tenants with no active saved dashboards.
+  - Impact: Frontend and any downstream consumers must migrate row-level parish access to arrays, handle dynamic currencies and additive campaign metadata, branch stale-snapshot UX from generic failures using `reason/code`, and expect first-load preset creation as a side effect of the library endpoint.
+  - Owner: Sofia (Backend Metrics) + Priya (dbt) + Lina (Frontend)
+
 - **2026-03-30**
   - Endpoint: Warehouse contract (`dbt` backend raw bridge + Meta/Google staging/reference marts)
   - Change: Preserved real backend `tenant_id` values through bridge-backed Postgres warehouse builds instead of restamping rows as `tenant_demo`. Bridge-backed fixture views now refresh on dbt runs when their SQL changes so live warehouse marts stay aligned with the latest bridge contract.

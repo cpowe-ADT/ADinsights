@@ -7,6 +7,7 @@ from pathlib import Path
 from datetime import timedelta
 from typing import Any
 
+from django.db import transaction
 from django.http import HttpResponseBase
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
@@ -89,6 +90,86 @@ DASHBOARD_TEMPLATE_LIBRARY = (
         "route": f"/dashboards/create?template={DashboardDefinition.TEMPLATE_META_PARISH_MAP}",
     },
 )
+
+DEFAULT_DASHBOARD_PRESETS = (
+    {
+        "name": "Executive overview (30 days)",
+        "description": "System-created executive summary dashboard for the last 30 days.",
+        "template_key": DashboardDefinition.TEMPLATE_META_EXECUTIVE_OVERVIEW,
+        "default_metric": DashboardDefinition.METRIC_SPEND,
+        "filters": {
+            "dateRange": "30d",
+            "accountId": "",
+            "channels": [],
+            "campaignQuery": "",
+            "customRange": {"start": "", "end": ""},
+        },
+        "layout": {
+            "routeKind": "campaigns",
+            "widgets": ["kpis", "trend", "campaign_table", "budget_summary", "map"],
+        },
+    },
+    {
+        "name": "Campaign review (7 days)",
+        "description": "System-created campaign review dashboard for the last 7 days.",
+        "template_key": DashboardDefinition.TEMPLATE_META_CAMPAIGN_PERFORMANCE,
+        "default_metric": DashboardDefinition.METRIC_SPEND,
+        "filters": {
+            "dateRange": "7d",
+            "accountId": "",
+            "channels": [],
+            "campaignQuery": "",
+            "customRange": {"start": "", "end": ""},
+        },
+        "layout": {
+            "routeKind": "campaigns",
+            "widgets": ["kpis", "trend", "campaign_table", "map"],
+        },
+    },
+    {
+        "name": "Budget pacing (MTD)",
+        "description": "System-created budget pacing dashboard for month-to-date monitoring.",
+        "template_key": DashboardDefinition.TEMPLATE_META_BUDGET_PACING,
+        "default_metric": DashboardDefinition.METRIC_CPA,
+        "filters": {
+            "dateRange": "mtd",
+            "accountId": "",
+            "channels": [],
+            "campaignQuery": "",
+            "customRange": {"start": "", "end": ""},
+        },
+        "layout": {
+            "routeKind": "budget",
+            "widgets": ["budget_summary", "budget_table", "coverage"],
+        },
+    },
+)
+
+
+def ensure_default_dashboard_presets(*, tenant) -> None:
+    with transaction.atomic():
+        active_dashboards = DashboardDefinition.objects.select_for_update().filter(
+            tenant=tenant,
+            is_active=True,
+        )
+        if active_dashboards.exists():
+            return
+
+        for preset in DEFAULT_DASHBOARD_PRESETS:
+            DashboardDefinition.objects.get_or_create(
+                tenant=tenant,
+                name=preset["name"],
+                template_key=preset["template_key"],
+                defaults={
+                    "description": preset["description"],
+                    "filters": preset["filters"],
+                    "layout": preset["layout"],
+                    "default_metric": preset["default_metric"],
+                    "is_active": True,
+                    "created_by": None,
+                    "updated_by": None,
+                },
+            )
 
 
 class ReportDefinitionSchema(AutoSchema):
@@ -503,7 +584,9 @@ class DashboardLibraryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request) -> Response:  # noqa: D401
-        tenant_id = request.user.tenant_id
+        tenant = request.user.tenant
+        tenant_id = tenant.id
+        ensure_default_dashboard_presets(tenant=tenant)
         generated_at = (
             TenantMetricsSnapshot.objects.filter(tenant_id=tenant_id, source="warehouse")
             .order_by("-generated_at")

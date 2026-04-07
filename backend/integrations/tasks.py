@@ -193,6 +193,45 @@ def _current_task_id(task) -> str | None:
     return None
 
 
+def _is_task_dispatch_error(exc: Exception) -> bool:
+    module_name = type(exc).__module__.lower()
+    if module_name.startswith("kombu") or module_name.startswith("amqp"):
+        return True
+
+    message = str(exc).lower()
+    return any(
+        fragment in message
+        for fragment in (
+            "redis",
+            "broker",
+            "transport",
+            "connection refused",
+            "connection reset",
+            "connection closed",
+        )
+    )
+
+
+def _trigger_warehouse_snapshot_refresh(*, tenant_id: str) -> str:
+    if not getattr(settings, "ENABLE_WAREHOUSE_ADAPTER", False):
+        return "disabled"
+
+    from analytics.tasks import sync_metrics_snapshots
+
+    try:
+        sync_metrics_snapshots.apply_async(kwargs={"tenant_ids": [tenant_id]})
+        return "queued"
+    except Exception as exc:
+        if _is_task_dispatch_error(exc):
+            logger.warning(
+                "analytics.snapshot_refresh.inline_fallback",
+                extra={"tenant_id": tenant_id, "error": str(exc)},
+            )
+            sync_metrics_snapshots.run(tenant_ids=[tenant_id])
+            return "inline"
+        raise
+
+
 def _resolve_google_sync_state(
     *,
     tenant,
@@ -1201,6 +1240,7 @@ def sync_meta_reporting_slice(
         data_date=last_data_date,
         error_category="",
     )
+    snapshot_refresh_mode = _trigger_warehouse_snapshot_refresh(tenant_id=tenant_id)
     return {
         "tenant_id": tenant_id,
         "account_id": normalized_account_id,
@@ -1211,6 +1251,7 @@ def sync_meta_reporting_slice(
         "ads_synced": int(hierarchy_result.get("ads_synced", 0)),
         "insights_synced": rows_synced,
         "last_data_date": last_data_date.isoformat() if last_data_date else None,
+        "snapshot_refresh_mode": snapshot_refresh_mode,
     }
 
 

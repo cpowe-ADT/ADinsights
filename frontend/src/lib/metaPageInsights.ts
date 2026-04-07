@@ -37,6 +37,7 @@ export interface MetaOAuthCallbackResponse {
 export interface MetaPagesResponse {
   results: MetaPageRecord[];
   count: number;
+  missing_required_permissions?: string[];
 }
 
 export interface MetaKpi {

@@ -45,7 +45,7 @@ def _create_page(user) -> MetaPage:
         tenant=user.tenant,
         user=user,
         app_scoped_user_id="meta-user-api",
-        scopes=["read_insights", "pages_read_engagement"],
+        scopes=["pages_show_list", "pages_read_engagement"],
         is_active=True,
     )
     connection.set_raw_token("user-token")
@@ -463,7 +463,7 @@ def test_meta_page_sync_endpoint_triggers_all_tasks(api_client, user, monkeypatc
 def test_meta_page_sync_endpoint_blocks_when_required_permissions_missing(api_client, user):
     _authenticate(api_client, username="user@example.com", password="password123")
     page = _create_page(user)
-    page.connection.scopes = ["pages_read_engagement"]
+    page.connection.scopes = []
     page.connection.save(update_fields=["scopes", "updated_at"])
 
     response = api_client.post(
@@ -473,7 +473,70 @@ def test_meta_page_sync_endpoint_blocks_when_required_permissions_missing(api_cl
     )
     assert response.status_code == 400
     payload = response.json()
-    assert payload["missing_required_permissions"] == ["read_insights"]
+    assert payload["missing_required_permissions"] == ["pages_read_engagement"]
+
+
+@pytest.mark.django_db
+def test_meta_page_sync_endpoint_runs_inline_when_task_queue_unavailable(api_client, user, monkeypatch):
+    _authenticate(api_client, username="user@example.com", password="password123")
+    page = _create_page(user)
+    observed: list[tuple[str, dict[str, object]]] = []
+
+    class DummyTask:
+        def __init__(self, name: str):
+            self.name = name
+
+        def delay(self, **kwargs):  # noqa: ANN003
+            raise AttributeError("'NoneType' object has no attribute 'Redis'")
+
+        def run(self, **kwargs):  # noqa: ANN003
+            observed.append((self.name, kwargs))
+            return {"ok": True}
+
+    monkeypatch.setattr("integrations.page_insights_views.sync_page_posts", DummyTask("sync_page_posts"))
+    monkeypatch.setattr(
+        "integrations.page_insights_views.discover_supported_metrics",
+        DummyTask("discover_supported_metrics"),
+    )
+    monkeypatch.setattr("integrations.page_insights_views.sync_page_insights", DummyTask("sync_page_insights"))
+    monkeypatch.setattr("integrations.page_insights_views.sync_post_insights", DummyTask("sync_post_insights"))
+
+    response = api_client.post(
+        reverse("meta-page-insights-sync", kwargs={"page_id": page.page_id}),
+        {"mode": "incremental"},
+        format="json",
+    )
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["task_dispatch_mode"] == "inline"
+    assert set(payload["tasks"]) == {
+        "sync_page_posts",
+        "discover_supported_metrics",
+        "sync_page_insights",
+        "sync_post_insights",
+    }
+    assert {name for name, _kwargs in observed} == {
+        "sync_page_posts",
+        "discover_supported_metrics",
+        "sync_page_insights",
+        "sync_post_insights",
+    }
+
+
+@pytest.mark.django_db
+def test_meta_page_list_includes_missing_required_permissions(api_client, user):
+    _authenticate(api_client, username="user@example.com", password="password123")
+    page = _create_page(user)
+    page.connection.scopes = []
+    page.connection.save(update_fields=["scopes", "updated_at"])
+
+    response = api_client.get(reverse("meta-pages-insights-list"))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["count"] == 1
+    assert payload["missing_required_permissions"] == ["pages_read_engagement"]
 
 
 @pytest.mark.django_db

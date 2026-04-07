@@ -25,6 +25,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplateDefinition[] = [
       { id: 'trend', label: 'Trend chart', description: 'Daily campaign performance trend for the selected window.' },
       { id: 'campaign_table', label: 'Campaign table', description: 'Top campaign rows ordered by spend.' },
       { id: 'budget_summary', label: 'Budget summary', description: 'Projected spend and pacing context.' },
+      { id: 'region_breakdown', label: 'Region breakdown', description: 'Sortable parish-level performance table.' },
       { id: 'map', label: 'Map state', description: 'Graceful parish-map availability or unsupported state.' },
     ],
   },
@@ -38,6 +39,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplateDefinition[] = [
       { id: 'kpis', label: 'KPI strip', description: 'Primary campaign KPIs for the selected account and window.' },
       { id: 'trend', label: 'Trend chart', description: 'Daily spend and conversion trend for selected campaigns.' },
       { id: 'campaign_table', label: 'Campaign table', description: 'Campaign rows with efficiency metrics and dates.' },
+      { id: 'region_breakdown', label: 'Region breakdown', description: 'Parish performance table for map fallback and geo filtering.' },
       { id: 'map', label: 'Map card', description: 'Geo state shown truthfully when parish coverage is unavailable.' },
     ],
   },
@@ -73,6 +75,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplateDefinition[] = [
     defaultMetric: 'spend',
     widgets: [
       { id: 'map', label: 'Parish map', description: 'Choropleth or graceful unsupported state when geography is unavailable.' },
+      { id: 'region_breakdown', label: 'Region breakdown', description: 'Tabular parish breakdown shown when the map is unavailable or partial.' },
       { id: 'coverage', label: 'Coverage status', description: 'Selected account/date coverage and map availability state.' },
     ],
   },

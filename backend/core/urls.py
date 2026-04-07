@@ -21,6 +21,7 @@ from analytics.views import (
     UploadMetricsView,
     AggregateSnapshotView,
     CombinedMetricsView,
+    DatasetStatusView,
     DemoSeedView,
     MetricsExportView,
     MetricsView,
@@ -53,6 +54,7 @@ from integrations.views import (
     AlertRuleDefinitionViewSet,
     CampaignBudgetViewSet,
     MetaOAuthExchangeView,
+    MetaRecoveryPreviewView,
     MetaOAuthStartView,
     MetaSetupView,
     MetaPageConnectView,
@@ -192,6 +194,7 @@ urlpatterns = [
         name="api-schema",
     ),
     path("api/adapters/", AdapterListView.as_view(), name="adapter-list"),
+    path("api/datasets/status/", DatasetStatusView.as_view(), name="dataset-status"),
     path(
         "api/dashboards/library/",
         DashboardLibraryView.as_view(),
@@ -248,6 +251,11 @@ urlpatterns = [
         "api/integrations/meta/oauth/exchange/",
         MetaOAuthExchangeView.as_view(),
         name="meta-oauth-exchange",
+    ),
+    path(
+        "api/integrations/meta/recovery/preview/",
+        MetaRecoveryPreviewView.as_view(),
+        name="meta-recovery-preview",
     ),
     path(
         "api/meta/connect/callback/",

@@ -43,14 +43,17 @@ Use this as the connector execution list for Phase 1 closeout.
 ### Meta Marketing API (production readiness gate)
 
 - Auth model: Facebook Login OAuth (authorization code) -> long-lived user token exchange; user then selects business page + ad account for tenant credential binding.
-- Scopes/permissions: `ads_read`, `business_management`, `pages_show_list`, `pages_read_engagement`, `instagram_basic`, `instagram_manage_insights` (if Instagram account discovery is required).
+- Marketing scopes/permissions: `(ads_read OR ads_management)`, `business_management`, `pages_show_list`, `pages_read_engagement`.
+- Page Insights scopes/permissions: `pages_show_list`, `pages_read_engagement`, `pages_manage_metadata`.
+- Optional Instagram scopes: `instagram_basic`, `instagram_manage_insights` only when an active Instagram-linked feature requires them. In the current repo contract, Facebook Login authorize requests ignore them unless the flow is intentionally expanded.
+- Version note: Meta's public Graph/Marketing API changelog is `v25.0`, but ADinsights remains pinned to `META_GRAPH_API_VERSION=v24.0` until an explicit migration is validated end-to-end.
 - App approval required: Yes (Meta app + business verification per account policy).
 - Rate limits / quota units: Platform-managed; monitor via Airbyte job telemetry + API cost fields.
 - Reporting endpoints + dimensions: Ad/account insights with incremental lookback replay.
 - Historical lookback + data latency: 3-day replay window for late conversions; 28-day attribution horizon.
 - Currency + timezone behavior: Account-level currency; schedule timezone pinned to `America/Jamaica`.
 - Airbyte connector availability/maturity: Supported via Airbyte Meta source template.
-- Known gotchas: Token expiration/revocation, missing ad-account access, and app permission drift can silently stale syncs.
+- Known gotchas: Token expiration/revocation, missing ad-account access, optional Instagram linkage being absent, and warehouse snapshot readiness being separate from direct sync success. Do not treat these as one generic “Meta broken” state.
 - Validation owner + date: Maya + Leo, 2026-02-06
 - Authenticated portal validation evidence (manual): `docs/project/evidence/phase1-closeout/external/meta-authenticated-validation-required-2026-02-06-est.md`
 - Implemented API flow:
@@ -64,6 +67,11 @@ Use this as the connector execution list for Phase 1 closeout.
   - `python3 infrastructure/airbyte/scripts/validate_tenant_config.py`
   - `python3 infrastructure/airbyte/scripts/verify_production_readiness.py`
   - `python3 infrastructure/airbyte/scripts/airbyte_health_check.py`
+  - `GET /api/integrations/social/status/`
+  - `GET /api/datasets/status/`
+  - `GET /api/meta/accounts/`
+  - `GET /api/meta/pages/`
+  - `GET /api/metrics/combined/`
 
 ### Google Ads (production readiness gate)
 

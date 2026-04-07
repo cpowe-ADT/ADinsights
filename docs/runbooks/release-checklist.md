@@ -7,6 +7,13 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 
 - [ ] Work scoped to a single top-level folder per `docs/workstreams.md`.
 - [ ] Relevant tests run and green (see stream-specific commands).
+- [ ] dbt verification for mart-facing column changes uses the full dependency sequence:
+  - `make dbt-deps`
+  - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select staging`
+  - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' snapshot`
+  - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select all_ad_performance dim_campaign fact_performance`
+  - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select marts`
+  - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' test --select all_ad_performance dim_campaign fact_performance vw_campaign_daily`
 - [ ] Data-contract gate passes: `python3 infrastructure/airbyte/scripts/check_data_contracts.py`.
 - [ ] Observability prereq gate passes: `python3 infrastructure/airbyte/scripts/verify_observability_prereqs.py`.
 - [ ] Backend release smoke gate passes (backend stream):

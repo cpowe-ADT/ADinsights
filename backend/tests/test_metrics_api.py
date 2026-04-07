@@ -9,17 +9,23 @@ import pytest
 from django.utils import timezone
 
 from django.conf import settings
+from django.db import DatabaseError
 
 from adapters.demo import DemoAdapter, clear_demo_seed_cache
 from adapters.fake import FakeAdapter
+from adapters.meta_direct import MetaDirectAdapter
 from adapters.upload import UploadAdapter
 from adapters.warehouse import (
+    WAREHOUSE_DEFAULT_DETAIL,
     WAREHOUSE_SNAPSHOT_STATUS_DEFAULT,
     WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
     WAREHOUSE_SNAPSHOT_STATUS_KEY,
-    WAREHOUSE_UNAVAILABLE_DETAIL,
+    WAREHOUSE_STALE_DETAIL,
+    WAREHOUSE_UNAVAILABLE_CODE,
+    WAREHOUSE_UNAVAILABLE_REASON_DEFAULT,
+    WAREHOUSE_UNAVAILABLE_REASON_STALE,
 )
-from analytics.models import TenantMetricsSnapshot
+from analytics.models import Ad, AdAccount, AdSet, Campaign, RawPerformanceRecord, TenantMetricsSnapshot
 from core.metrics import reset_metrics
 
 
@@ -34,6 +40,90 @@ def enable_warehouse_adapter(settings):
     settings.ENABLE_WAREHOUSE_ADAPTER = True
 
 
+@pytest.fixture
+def enable_meta_direct_adapter(settings):
+    settings.ENABLE_META_DIRECT_ADAPTER = True
+
+
+def _seed_meta_direct_reporting(*, tenant, account_external_id: str = "act_697812007883214") -> AdAccount:
+    account = AdAccount.objects.create(
+        tenant=tenant,
+        external_id=account_external_id,
+        account_id=account_external_id.replace("act_", ""),
+        name="JDIC Adtelligent Ad Account",
+        currency="USD",
+        status="ACTIVE",
+    )
+    campaign = Campaign.objects.create(
+        tenant=tenant,
+        ad_account=account,
+        external_id="cmp-1",
+        name="Deposit Insurance Matters",
+        platform="meta",
+        account_external_id=account.external_id,
+        status="ACTIVE",
+        objective="OUTCOME_AWARENESS",
+        currency="USD",
+    )
+    adset = AdSet.objects.create(
+        tenant=tenant,
+        campaign=campaign,
+        external_id="adset-1",
+        name="JDIC Awareness Ad Set",
+        status="ACTIVE",
+        bid_strategy="LOWEST_COST_WITHOUT_CAP",
+        daily_budget=120,
+    )
+    ad = Ad.objects.create(
+        tenant=tenant,
+        adset=adset,
+        external_id="ad-1",
+        name="Creative A",
+        status="ACTIVE",
+        preview_url="https://example.com/preview",
+        creative={"thumbnail_url": "https://example.com/thumb.jpg"},
+    )
+    RawPerformanceRecord.objects.create(
+        tenant=tenant,
+        ad_account=account,
+        campaign=campaign,
+        adset=adset,
+        ad=ad,
+        external_id=ad.external_id,
+        source="meta",
+        level="ad",
+        date=date(2026, 4, 3),
+        impressions=1000,
+        reach=800,
+        clicks=50,
+        spend=75,
+        cpc=1.5,
+        cpm=75,
+        conversions=6,
+        currency="USD",
+    )
+    RawPerformanceRecord.objects.create(
+        tenant=tenant,
+        ad_account=account,
+        campaign=campaign,
+        adset=adset,
+        ad=ad,
+        external_id=ad.external_id,
+        source="meta",
+        level="ad",
+        date=date(2026, 4, 4),
+        impressions=800,
+        reach=640,
+        clicks=40,
+        spend=60,
+        cpc=1.5,
+        cpm=75,
+        conversions=4,
+        currency="USD",
+    )
+    return account
+
+
 @pytest.mark.django_db
 def test_adapters_endpoint_lists_enabled_adapters(api_client, user):
     api_client.force_authenticate(user=user)
@@ -42,7 +132,11 @@ def test_adapters_endpoint_lists_enabled_adapters(api_client, user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload == [FakeAdapter().metadata(), UploadAdapter().metadata()]
+    assert payload == [
+        MetaDirectAdapter().metadata(),
+        FakeAdapter().metadata(),
+        UploadAdapter().metadata(),
+    ]
 
 
 @pytest.fixture
@@ -59,9 +153,10 @@ def test_adapters_endpoint_includes_demo_options(api_client, user, enable_demo_a
     assert response.status_code == 200
     payload = response.json()
     demo_metadata = DemoAdapter().metadata()
+    meta_direct_metadata = MetaDirectAdapter().metadata()
     fake_metadata = FakeAdapter().metadata()
     upload_metadata = UploadAdapter().metadata()
-    assert payload == [demo_metadata, fake_metadata, upload_metadata]
+    assert payload == [meta_direct_metadata, demo_metadata, fake_metadata, upload_metadata]
     assert demo_metadata["options"]["demo_tenants"]  # type: ignore[index]
 
 
@@ -70,6 +165,108 @@ def test_adapters_endpoint_requires_authentication(api_client):
     response = api_client.get("/api/adapters/")
 
     assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_dataset_status_requires_authentication(api_client):
+    response = api_client.get("/api/datasets/status/")
+
+    assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_dataset_status_reports_adapter_disabled(api_client, user):
+    api_client.force_authenticate(user=user)
+
+    response = api_client.get("/api/datasets/status/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["live"]["enabled"] is False
+    assert payload["live"]["reason"] == "adapter_disabled"
+    assert payload["warehouse_adapter_enabled"] is False
+    assert payload["demo"]["enabled"] is True
+    assert payload["demo"]["source"] == "fake"
+
+
+@pytest.mark.django_db
+def test_dataset_status_reports_missing_snapshot(api_client, user, enable_warehouse_adapter):
+    api_client.force_authenticate(user=user)
+
+    response = api_client.get("/api/datasets/status/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["live"]["enabled"] is False
+    assert payload["live"]["reason"] == "missing_snapshot"
+    assert payload["warehouse_adapter_enabled"] is True
+
+
+@pytest.mark.django_db
+def test_dataset_status_reports_stale_snapshot(api_client, user, enable_warehouse_adapter, settings):
+    api_client.force_authenticate(user=user)
+    settings.METRICS_SNAPSHOT_STALE_TTL_SECONDS = 60
+    TenantMetricsSnapshot.objects.create(
+        tenant=user.tenant,
+        source="warehouse",
+        payload={
+            "campaign": {"summary": {"currency": "USD"}},
+            WAREHOUSE_SNAPSHOT_STATUS_KEY: WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
+        },
+        generated_at=timezone.now() - timedelta(minutes=5),
+    )
+
+    response = api_client.get("/api/datasets/status/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["live"]["enabled"] is False
+    assert payload["live"]["reason"] == "stale_snapshot"
+    assert payload["live"]["snapshot_generated_at"] is not None
+
+
+@pytest.mark.django_db
+def test_dataset_status_reports_default_snapshot(api_client, user, enable_warehouse_adapter):
+    api_client.force_authenticate(user=user)
+    TenantMetricsSnapshot.objects.create(
+        tenant=user.tenant,
+        source="warehouse",
+        payload={
+            "campaign": {"summary": {"currency": "USD"}},
+            WAREHOUSE_SNAPSHOT_STATUS_KEY: WAREHOUSE_SNAPSHOT_STATUS_DEFAULT,
+            "_warehouse_snapshot_status_detail": "Warehouse aggregate view is missing locally.",
+        },
+        generated_at=timezone.now(),
+    )
+
+    response = api_client.get("/api/datasets/status/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["live"]["enabled"] is False
+    assert payload["live"]["reason"] == "default_snapshot"
+    assert payload["live"]["detail"] == "Warehouse aggregate view is missing locally."
+
+
+@pytest.mark.django_db
+def test_dataset_status_reports_ready_snapshot(api_client, user, enable_warehouse_adapter):
+    api_client.force_authenticate(user=user)
+    TenantMetricsSnapshot.objects.create(
+        tenant=user.tenant,
+        source="warehouse",
+        payload={
+            "campaign": {"summary": {"currency": "USD"}},
+            WAREHOUSE_SNAPSHOT_STATUS_KEY: WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
+        },
+        generated_at=timezone.now(),
+    )
+
+    response = api_client.get("/api/datasets/status/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["live"]["enabled"] is True
+    assert payload["live"]["reason"] == "ready"
 
 
 @pytest.mark.django_db
@@ -96,6 +293,154 @@ def test_metrics_defaults_to_fake_adapter(api_client, user):
 
     assert response.status_code == 200
     assert response.json()["campaign"]["summary"]["currency"] == "USD"
+
+
+@pytest.mark.django_db
+def test_metrics_meta_direct_adapter_returns_aggregated_payload(
+    api_client,
+    user,
+    enable_meta_direct_adapter,
+):
+    api_client.force_authenticate(user=user)
+    account = _seed_meta_direct_reporting(tenant=user.tenant)
+    records = list(
+        RawPerformanceRecord.objects.filter(tenant=user.tenant, ad_account=account).order_by("pk")
+    )
+
+    response = api_client.get(
+        "/api/metrics/",
+        {
+            "source": "meta_direct",
+            "account_id": account.external_id,
+            "start_date": "2026-04-03",
+            "end_date": "2026-04-04",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["campaign"]["summary"]["totalSpend"] == pytest.approx(135.0)
+    assert payload["campaign"]["summary"]["totalClicks"] == 90
+    assert payload["campaign"]["rows"][0]["name"] == "Deposit Insurance Matters"
+    assert payload["creative"][0]["name"] == "Creative A"
+    assert payload["budget"][0]["monthlyBudget"] == pytest.approx(3600.0)
+    assert payload["availability"]["budget"]["status"] == "available"
+    assert payload["availability"]["parish_map"]["reason"] == "geo_unavailable"
+    assert payload["snapshot_generated_at"] == max(
+        (record.ingested_at or record.updated_at).isoformat() for record in records
+    )
+
+
+@pytest.mark.django_db
+def test_combined_metrics_meta_direct_source_returns_live_meta_payload(
+    api_client,
+    user,
+    enable_meta_direct_adapter,
+):
+    api_client.force_authenticate(user=user)
+    _seed_meta_direct_reporting(tenant=user.tenant)
+    expected_snapshot_generated_at = max(
+        (record.ingested_at or record.updated_at).isoformat()
+        for record in RawPerformanceRecord.objects.filter(tenant=user.tenant, source="meta")
+    )
+
+    response = api_client.get(
+        "/api/metrics/combined/",
+        {
+            "source": MetaDirectAdapter.key,
+            "start_date": "2026-04-03",
+            "end_date": "2026-04-04",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["campaign"]["summary"]["totalConversions"] == 10
+    assert payload["campaign"]["trend"][0]["date"] == "2026-04-03"
+    assert payload["availability"]["campaign"]["status"] == "available"
+    assert payload["availability"]["parish_map"]["status"] == "unavailable"
+    assert payload["snapshot_generated_at"] == expected_snapshot_generated_at
+
+
+@pytest.mark.django_db
+def test_meta_direct_adapter_accepts_list_channel_filters(user, enable_meta_direct_adapter):
+    _seed_meta_direct_reporting(tenant=user.tenant)
+
+    payload = MetaDirectAdapter().fetch_metrics(
+        tenant_id=str(user.tenant_id),
+        options={
+            "start_date": "2026-04-03",
+            "end_date": "2026-04-04",
+            "channels": ["meta"],
+        },
+    )
+
+    assert payload["campaign"]["summary"]["totalSpend"] == pytest.approx(135.0)
+    assert payload["availability"]["campaign"]["status"] == "available"
+
+
+@pytest.mark.django_db
+def test_combined_metrics_meta_direct_empty_account_preserves_null_snapshot_generated_at(
+    api_client,
+    user,
+    enable_meta_direct_adapter,
+):
+    api_client.force_authenticate(user=user)
+    AdAccount.objects.create(
+        tenant=user.tenant,
+        external_id="act_791712443035541",
+        account_id="791712443035541",
+        name="Students' Loan Bureau (SLB)",
+        currency="USD",
+        status="ACTIVE",
+    )
+
+    response = api_client.get(
+        "/api/metrics/combined/",
+        {
+            "source": MetaDirectAdapter.key,
+            "account_id": "act_791712443035541",
+            "start_date": "2026-03-30",
+            "end_date": "2026-04-05",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["availability"]["campaign"]["reason"] == "no_recent_data"
+    assert payload["snapshot_generated_at"] is None
+
+
+@pytest.mark.django_db
+def test_combined_metrics_snapshot_hit_preserves_explicit_null_snapshot_generated_at(
+    api_client,
+    user,
+    enable_meta_direct_adapter,
+    settings,
+):
+    settings.METRICS_SNAPSHOT_TTL = 600
+    api_client.force_authenticate(user=user)
+
+    snapshot = TenantMetricsSnapshot.objects.create(
+        tenant=user.tenant,
+        source=MetaDirectAdapter.key,
+        payload={
+            "campaign": {"summary": {"currency": "USD"}, "trend": [], "rows": []},
+            "creative": [],
+            "budget": [],
+            "parish": [],
+            "snapshot_generated_at": None,
+        },
+        generated_at=timezone.now(),
+    )
+
+    response = api_client.get("/api/metrics/combined/", {"source": MetaDirectAdapter.key})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["snapshot_generated_at"] is None
+    snapshot.refresh_from_db()
+    assert snapshot.payload["snapshot_generated_at"] is None
 
 
 @pytest.mark.django_db
@@ -699,7 +1044,11 @@ def test_combined_metrics_warehouse_filtered_query_supports_channels_and_campaig
                 "campaign": {"status": "empty", "reason": "no_matching_filters"},
                 "creative": {"status": "empty", "reason": "no_matching_filters"},
                 "budget": {"status": "empty", "reason": "no_matching_filters"},
-                "parish_map": {"status": "unavailable", "reason": "geo_unavailable"},
+                "parish_map": {
+                    "status": "unavailable",
+                    "reason": "geo_unavailable",
+                    "coverage_percent": 0.45,
+                },
             },
             "snapshot_generated_at": timezone.now().isoformat(),
         }
@@ -732,6 +1081,75 @@ def test_combined_metrics_warehouse_filtered_query_supports_channels_and_campaig
     assert options["campaign_search"] == "Debt Reset"
     assert options["parish"] == ["Kingston"]
     assert response.json()["coverage"]["startDate"] == "2026-02-01"
+    assert response.json()["availability"]["parish_map"]["coverage_percent"] == 0.45
+
+
+@pytest.mark.django_db
+def test_combined_metrics_warehouse_filtered_query_falls_back_to_snapshot_on_sqlite_error(
+    monkeypatch, api_client, user, settings, enable_warehouse_adapter
+):
+    settings.ENABLE_FAKE_ADAPTER = False
+    api_client.force_authenticate(user=user)
+
+    generated_at = timezone.now()
+    TenantMetricsSnapshot.objects.create(
+        tenant=user.tenant,
+        source="warehouse",
+        payload={
+            "campaign": {
+                "summary": {
+                    "currency": "JMD",
+                    "totalSpend": 1200,
+                    "totalImpressions": 1000,
+                    "totalClicks": 50,
+                    "totalConversions": 5,
+                    "averageRoas": 0.1,
+                },
+                "trend": [],
+                "rows": [],
+            },
+            "creative": [],
+            "budget": [],
+            "parish": [],
+            "coverage": {"startDate": "2026-03-01", "endDate": "2026-03-30"},
+            "availability": {
+                "campaign": {"status": "empty", "reason": "no_matching_filters"},
+                "creative": {"status": "empty", "reason": "no_matching_filters"},
+                "budget": {"status": "empty", "reason": "no_matching_filters"},
+                "parish_map": {
+                    "status": "empty",
+                    "reason": "no_matching_filters",
+                    "coverage_percent": 0.0,
+                },
+            },
+            "snapshot_generated_at": generated_at.isoformat(),
+            WAREHOUSE_SNAPSHOT_STATUS_KEY: WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
+        },
+        generated_at=generated_at,
+    )
+
+    def explode(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise DatabaseError("sqlite fallback")
+
+    monkeypatch.setattr(
+        "analytics.combined_metrics_service.load_filtered_warehouse_metrics",
+        explode,
+    )
+
+    response = api_client.get(
+        "/api/metrics/combined/",
+        {
+            "source": "warehouse",
+            "start_date": "2026-03-01",
+            "end_date": "2026-03-30",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["campaign"]["summary"]["currency"] == "JMD"
+    assert payload["coverage"] == {"startDate": "2026-03-01", "endDate": "2026-03-30"}
+    assert payload["snapshot_generated_at"] == generated_at.isoformat()
 
 
 @pytest.mark.django_db
@@ -758,7 +1176,11 @@ def test_combined_metrics_rejects_default_warehouse_snapshot(
     response = api_client.get("/api/metrics/combined/")
 
     assert response.status_code == 503
-    assert response.json()["detail"] == WAREHOUSE_UNAVAILABLE_DETAIL
+    assert response.json() == {
+        "detail": WAREHOUSE_DEFAULT_DETAIL,
+        "code": WAREHOUSE_UNAVAILABLE_CODE,
+        "reason": WAREHOUSE_UNAVAILABLE_REASON_DEFAULT,
+    }
 
 
 @pytest.mark.django_db
@@ -786,7 +1208,11 @@ def test_combined_metrics_rejects_stale_warehouse_snapshot(
     response = api_client.get("/api/metrics/combined/")
 
     assert response.status_code == 503
-    assert response.json()["detail"] == WAREHOUSE_UNAVAILABLE_DETAIL
+    assert response.json() == {
+        "detail": WAREHOUSE_STALE_DETAIL,
+        "code": WAREHOUSE_UNAVAILABLE_CODE,
+        "reason": WAREHOUSE_UNAVAILABLE_REASON_STALE,
+    }
 
 
 @pytest.mark.django_db

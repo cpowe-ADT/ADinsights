@@ -5,8 +5,10 @@ import DashboardState from '../components/DashboardState';
 import Card from '../components/ui/Card';
 import StatCard from '../components/ui/StatCard';
 import { useAuth } from '../auth/AuthContext';
+import { messageForLiveDatasetReason, titleForLiveDatasetReason } from '../lib/datasetStatus';
 import { formatCurrency, formatNumber, formatRatio } from '../lib/format';
 import useDashboardStore from '../state/useDashboardStore';
+import { useDatasetStore } from '../state/useDatasetStore';
 
 const CreativeEmptyIcon = () => (
   <svg
@@ -33,9 +35,18 @@ const CreativeDashboard = () => {
     availability: state.availability,
   }));
   const loadAll = useDashboardStore((state) => state.loadAll);
+  const datasetMode = useDatasetStore((state) => state.mode);
+  const datasetSource = useDatasetStore((state) => state.source);
+  const liveReason = useDatasetStore((state) => state.liveReason);
+  const liveDetail = useDatasetStore((state) => state.liveDetail);
 
   const currency = campaign.data?.summary.currency ?? 'USD';
   const creativeAvailability = availability?.creative;
+  const liveDatasetBlocked =
+    datasetMode === 'live' && datasetSource === 'warehouse' && liveReason && liveReason !== 'ready';
+  const liveDatasetMessage = liveReason
+    ? messageForLiveDatasetReason(liveReason, liveDetail)
+    : null;
   const shouldShowEmptyState =
     creativeAvailability?.status === 'empty' || (!creative.data && creative.status !== 'loading');
   const handleRetry = useCallback(() => {
@@ -54,8 +65,12 @@ const CreativeDashboard = () => {
       { label: 'Creatives', value: formatNumber(creativeRows.length) },
       { label: 'Spend', value: formatCurrency(totalSpend, currency) },
       { label: 'CTR', value: formatRatio(avgCtr, 2) },
-      { label: 'ROAS', value: formatRatio(avgRoas, 2) },
-    ];
+      {
+        label: 'Conv. / $',
+        value: formatRatio(avgRoas, 2),
+        tooltip: 'Conversion count divided by spend. Not revenue-based ROAS.',
+      },
+    ] as Array<{ label: string; value: string; tooltip?: string }>;
   }, [creativeRows, currency]);
 
   if (creative.status === 'loading' && !creative.data) {
@@ -65,11 +80,35 @@ const CreativeDashboard = () => {
   }
 
   if (creative.status === 'error' && !creative.data) {
+    if (liveDatasetBlocked) {
+      return (
+        <div className="dashboard-grid single-panel">
+          <section className="panel full-width">
+            <DashboardState
+              variant="empty"
+              icon={<CreativeEmptyIcon />}
+              title={titleForLiveDatasetReason(liveReason)}
+              message={liveDatasetMessage ?? 'Live warehouse metrics are unavailable.'}
+              actionLabel="Refresh data"
+              onAction={handleRetry}
+              layout="panel"
+            />
+          </section>
+        </div>
+      );
+    }
+    const errorTitle =
+      creative.errorKind === 'stale_snapshot'
+        ? 'Dashboard data is refreshing'
+        : creative.errorKind === 'network'
+          ? 'Unable to connect'
+          : 'Creative performance';
     return (
       <div className="dashboard-grid single-panel">
         <section className="panel full-width">
           <DashboardState
             variant="error"
+            title={errorTitle}
             message={creative.error ?? 'Unable to load creative performance.'}
             actionLabel="Retry load"
             onAction={handleRetry}
@@ -116,7 +155,7 @@ const CreativeDashboard = () => {
     <div className="dashboardGrid">
       <div className="kpiColumn" role="group" aria-label="Creative KPIs">
         {summaryCards.map((card) => (
-          <StatCard key={card.label} label={card.label} value={card.value} />
+          <StatCard key={card.label} label={card.label} value={card.value} tooltip={card.tooltip} />
         ))}
       </div>
 

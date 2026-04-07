@@ -58,3 +58,6 @@ backend/integrations/exporter/out/
 
 # Local split worktrees
 .split/
+
+# Playwright / test output artifacts
+output/

@@ -211,6 +211,31 @@ def test_dashboard_library_endpoint(api_client, user, tenant):
     assert all(item["name"] != "Saved report" for item in payload["savedDashboards"])
 
 
+def test_dashboard_library_bootstraps_default_presets_idempotently(api_client, user, tenant):
+    authenticate(api_client, user)
+
+    first_response = api_client.get(reverse("dashboard-library"))
+    assert first_response.status_code == 200
+    first_payload = first_response.json()
+    preset_names = {item["name"] for item in first_payload["savedDashboards"]}
+    assert preset_names == {
+        "Executive overview (30 days)",
+        "Campaign review (7 days)",
+        "Budget pacing (MTD)",
+    }
+    assert DashboardDefinition.objects.filter(tenant=tenant, is_active=True).count() == 3
+    assert all(
+        dashboard.created_by is None and dashboard.updated_by is None
+        for dashboard in DashboardDefinition.objects.filter(tenant=tenant)
+    )
+
+    second_response = api_client.get(reverse("dashboard-library"))
+    assert second_response.status_code == 200
+    second_payload = second_response.json()
+    assert {item["name"] for item in second_payload["savedDashboards"]} == preset_names
+    assert DashboardDefinition.objects.filter(tenant=tenant, is_active=True).count() == 3
+
+
 def test_dashboard_definitions_crud_duplicate_and_recent(api_client, user, tenant):
     authenticate(api_client, user)
 

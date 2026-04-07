@@ -74,6 +74,18 @@ function withQuery(path: string, params?: QueryParams): string {
   return params ? appendQueryParams(path, params) : path;
 }
 
+function ensureSavedViewsArray(
+  payload: GoogleAdsSavedView[] | GoogleAdsListResponse<GoogleAdsSavedView>,
+): GoogleAdsSavedView[] {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  if (payload && Array.isArray(payload.results)) {
+    return payload.results;
+  }
+  return [];
+}
+
 export function fetchGoogleAdsExecutive(params?: QueryParams) {
   return get<GoogleAdsExecutiveResponse>(withQuery('/analytics/google-ads/executive/', params));
 }
@@ -107,7 +119,9 @@ export function createGoogleAdsExport(payload: {
 }
 
 export function fetchGoogleAdsSavedViews() {
-  return get<GoogleAdsSavedView[]>('/analytics/google-ads/saved-views/');
+  return get<GoogleAdsSavedView[] | GoogleAdsListResponse<GoogleAdsSavedView>>(
+    '/analytics/google-ads/saved-views/',
+  ).then(ensureSavedViewsArray);
 }
 
 export function updateGoogleAdsSavedView(

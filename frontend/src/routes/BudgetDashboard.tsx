@@ -5,8 +5,10 @@ import DashboardState from '../components/DashboardState';
 import FilterStatus from '../components/FilterStatus';
 import StatCard from '../components/ui/StatCard';
 import { useAuth } from '../auth/AuthContext';
+import { messageForLiveDatasetReason, titleForLiveDatasetReason } from '../lib/datasetStatus';
 import { formatCurrency, formatNumber } from '../lib/format';
 import useDashboardStore from '../state/useDashboardStore';
+import { useDatasetStore } from '../state/useDatasetStore';
 
 const BudgetEmptyIcon = () => (
   <svg
@@ -32,9 +34,18 @@ const BudgetDashboard = () => {
     availability: state.availability,
   }));
   const loadAll = useDashboardStore((state) => state.loadAll);
+  const datasetMode = useDatasetStore((state) => state.mode);
+  const datasetSource = useDatasetStore((state) => state.source);
+  const liveReason = useDatasetStore((state) => state.liveReason);
+  const liveDetail = useDatasetStore((state) => state.liveDetail);
 
   const currency = campaign.data?.summary.currency ?? 'USD';
   const budgetAvailability = availability?.budget;
+  const liveDatasetBlocked =
+    datasetMode === 'live' && datasetSource === 'warehouse' && liveReason && liveReason !== 'ready';
+  const liveDatasetMessage = liveReason
+    ? messageForLiveDatasetReason(liveReason, liveDetail)
+    : null;
   const shouldShowEmptyState =
     budgetAvailability?.status !== 'available' || (!budget.data && budget.status !== 'loading');
   const handleRetry = useCallback(() => {
@@ -66,11 +77,35 @@ const BudgetDashboard = () => {
   }
 
   if (budget.status === 'error' && !budget.data) {
+    if (liveDatasetBlocked) {
+      return (
+        <div className="dashboard-grid single-panel">
+          <section className="panel full-width">
+            <DashboardState
+              variant="empty"
+              icon={<BudgetEmptyIcon />}
+              title={titleForLiveDatasetReason(liveReason)}
+              message={liveDatasetMessage ?? 'Live warehouse metrics are unavailable.'}
+              actionLabel="Refresh data"
+              onAction={handleRetry}
+              layout="panel"
+            />
+          </section>
+        </div>
+      );
+    }
+    const errorTitle =
+      budget.errorKind === 'stale_snapshot'
+        ? 'Dashboard data is refreshing'
+        : budget.errorKind === 'network'
+          ? 'Unable to connect'
+          : 'Budget pacing';
     return (
       <div className="dashboard-grid single-panel">
         <section className="panel full-width">
           <DashboardState
             variant="error"
+            title={errorTitle}
             message={budget.error ?? 'Unable to load budget pacing.'}
             actionLabel="Retry load"
             onAction={handleRetry}
