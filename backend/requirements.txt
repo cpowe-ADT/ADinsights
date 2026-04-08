@@ -13,7 +13,7 @@ boto3==1.42.60
 prometheus-client==0.20.0
 jsonschema==4.26.0
 inflection==0.5.1
-uritemplate==4.1.1
+uritemplate==4.2.0
 google-analytics-data==0.18.5
 PyYAML==6.0.3
 Faker==25.2.0
