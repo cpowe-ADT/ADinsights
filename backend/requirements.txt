@@ -1,7 +1,7 @@
 django==5.1.15
 djangorestframework==3.16.1
 djangorestframework-simplejwt==5.5.1
-django-environ==0.11.2
+django-environ==0.13.0
 psycopg2-binary==2.9.11
 celery==5.3.6
 redis==5.0.4
