@@ -207,6 +207,58 @@ LOGGING = build_logging_config(env("DJANGO_LOG_LEVEL"))
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
 CELERY_TASK_DEFAULT_QUEUE = "default"
+
+# Named workload queues
+CELERY_QUEUE_SYNC = "sync"
+CELERY_QUEUE_SNAPSHOT = "snapshot"
+CELERY_QUEUE_SUMMARY = "summary"
+
+from kombu import Queue  # noqa: E402
+
+CELERY_TASK_QUEUES = (
+    Queue(CELERY_TASK_DEFAULT_QUEUE),
+    Queue(CELERY_QUEUE_SYNC),
+    Queue(CELERY_QUEUE_SNAPSHOT),
+    Queue(CELERY_QUEUE_SUMMARY),
+)
+
+CELERY_TASK_ROUTES = {
+    "core.tasks.sync_meta_metrics": {"queue": CELERY_QUEUE_SYNC},
+    "integrations.tasks.sync_*": {"queue": CELERY_QUEUE_SYNC},
+    "integrations.tasks.refresh_*": {"queue": CELERY_QUEUE_SYNC},
+    "integrations.tasks.evaluate_*": {"queue": CELERY_QUEUE_SYNC},
+    "integrations.tasks.trigger_scheduled_airbyte_syncs": {"queue": CELERY_QUEUE_SYNC},
+    "analytics.sync_metrics_snapshots": {"queue": CELERY_QUEUE_SNAPSHOT},
+    "analytics.tasks.sync_metrics_snapshots": {"queue": CELERY_QUEUE_SNAPSHOT},
+    "analytics.run_report_export_job": {"queue": CELERY_QUEUE_SNAPSHOT},
+    "analytics.ai_daily_summary": {"queue": CELERY_QUEUE_SUMMARY},
+}
+
+# Worker profile settings
+CELERY_WORKER_CONCURRENCY = env.int("CELERY_WORKER_CONCURRENCY", default=4)
+CELERY_WORKER_PREFETCH_MULTIPLIER = env.int("CELERY_WORKER_PREFETCH_MULTIPLIER", default=1)
+CELERY_WORKER_MAX_TASKS_PER_CHILD = env.int("CELERY_WORKER_MAX_TASKS_PER_CHILD", default=500)
+CELERY_WORKER_MAX_MEMORY_PER_CHILD = env.int("CELERY_WORKER_MAX_MEMORY_PER_CHILD", default=0)
+CELERY_WORKER_CONCURRENCY_BUDGET = env.int("CELERY_WORKER_CONCURRENCY_BUDGET", default=8)
+CELERY_WORKER_MAX_CONCURRENCY_PER_PROFILE = env.int("CELERY_WORKER_MAX_CONCURRENCY_PER_PROFILE", default=4)
+CELERY_WORKER_MAX_PREFETCH_MULTIPLIER = env.int("CELERY_WORKER_MAX_PREFETCH_MULTIPLIER", default=4)
+CELERY_WORKER_SYNC_MAX_TO_BACKGROUND_RATIO = env.int("CELERY_WORKER_SYNC_MAX_TO_BACKGROUND_RATIO", default=3)
+
+CELERY_WORKER_SYNC_CONCURRENCY = env.int("CELERY_WORKER_SYNC_CONCURRENCY", default=2)
+CELERY_WORKER_SYNC_PREFETCH_MULTIPLIER = env.int("CELERY_WORKER_SYNC_PREFETCH_MULTIPLIER", default=1)
+CELERY_WORKER_SYNC_MAX_TASKS_PER_CHILD = env.int("CELERY_WORKER_SYNC_MAX_TASKS_PER_CHILD", default=200)
+CELERY_WORKER_SYNC_QUEUES = env.list("CELERY_WORKER_SYNC_QUEUES", default=[CELERY_QUEUE_SYNC])
+
+CELERY_WORKER_SNAPSHOT_CONCURRENCY = env.int("CELERY_WORKER_SNAPSHOT_CONCURRENCY", default=2)
+CELERY_WORKER_SNAPSHOT_PREFETCH_MULTIPLIER = env.int("CELERY_WORKER_SNAPSHOT_PREFETCH_MULTIPLIER", default=1)
+CELERY_WORKER_SNAPSHOT_MAX_TASKS_PER_CHILD = env.int("CELERY_WORKER_SNAPSHOT_MAX_TASKS_PER_CHILD", default=200)
+CELERY_WORKER_SNAPSHOT_QUEUES = env.list("CELERY_WORKER_SNAPSHOT_QUEUES", default=[CELERY_QUEUE_SNAPSHOT])
+
+CELERY_WORKER_SUMMARY_CONCURRENCY = env.int("CELERY_WORKER_SUMMARY_CONCURRENCY", default=1)
+CELERY_WORKER_SUMMARY_PREFETCH_MULTIPLIER = env.int("CELERY_WORKER_SUMMARY_PREFETCH_MULTIPLIER", default=1)
+CELERY_WORKER_SUMMARY_MAX_TASKS_PER_CHILD = env.int("CELERY_WORKER_SUMMARY_MAX_TASKS_PER_CHILD", default=100)
+CELERY_WORKER_SUMMARY_QUEUES = env.list("CELERY_WORKER_SUMMARY_QUEUES", default=[CELERY_QUEUE_SUMMARY])
+
 CELERY_BEAT_SCHEDULE = {
     "alerts-quarter-hourly": {
         "task": "alerts.tasks.run_alert_cycle",
@@ -215,20 +267,94 @@ CELERY_BEAT_SCHEDULE = {
     "credential-rotation-reminders": {
         "task": "integrations.tasks.remind_expiring_credentials",
         "schedule": crontab(hour=2, minute=0),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "rotate-tenant-deks": {
         "task": "core.tasks.rotate_deks",
         "schedule": crontab(hour=1, minute=30, day_of_week="sun"),
     },
+    "airbyte-scheduled-syncs-hourly": {
+        "task": "integrations.tasks.trigger_scheduled_airbyte_syncs",
+        "schedule": crontab(minute=0),
+        "options": {"queue": CELERY_QUEUE_SYNC},
+    },
     "metrics-snapshot-sync": {
-        "task": "analytics.tasks.sync_metrics_snapshots",
+        "task": "analytics.sync_metrics_snapshots",
         "schedule": crontab(minute="*/30"),
+        "options": {"queue": CELERY_QUEUE_SNAPSHOT},
     },
     "ai-daily-summary": {
         "task": "analytics.ai_daily_summary",
         "schedule": crontab(hour=6, minute=10),
+        "options": {"queue": CELERY_QUEUE_SUMMARY},
     },
 }
+
+def _validate_celery_runtime_configuration() -> None:  # noqa: C901
+    """Raise ImproperlyConfigured when the Celery queue/worker settings are inconsistent."""
+    from django.core.exceptions import ImproperlyConfigured  # noqa: PLC0415
+
+    import sys
+    mod = sys.modules[__name__]
+
+    queue_names = {q.name for q in mod.CELERY_TASK_QUEUES}
+
+    # 1. Queue names must be unique (default queue must not collide with named queues)
+    all_queue_list = [mod.CELERY_TASK_DEFAULT_QUEUE, mod.CELERY_QUEUE_SYNC, mod.CELERY_QUEUE_SNAPSHOT, mod.CELERY_QUEUE_SUMMARY]
+    if len(set(all_queue_list)) != len(all_queue_list):
+        raise ImproperlyConfigured("Celery queue names are not unique.")
+
+    # 2. Beat schedule entries with options must reference a known queue
+    for name, entry in mod.CELERY_BEAT_SCHEDULE.items():
+        options = entry.get("options")
+        if options is None:
+            continue
+        q = options.get("queue")
+        if q is not None and q not in queue_names:
+            raise ImproperlyConfigured(
+                f"Beat schedule '{name}' references unknown queue '{q}'."
+            )
+
+    # 3. Worker profile queues must be subsets of known queues
+    for attr in ("CELERY_WORKER_SYNC_QUEUES", "CELERY_WORKER_SNAPSHOT_QUEUES", "CELERY_WORKER_SUMMARY_QUEUES"):
+        for q in getattr(mod, attr):
+            if q not in queue_names:
+                raise ImproperlyConfigured(f"{attr} references unknown queue '{q}'.")
+
+    # 4. Each worker profile must include its primary queue
+    if mod.CELERY_QUEUE_SYNC not in mod.CELERY_WORKER_SYNC_QUEUES:
+        raise ImproperlyConfigured("CELERY_WORKER_SYNC_QUEUES must include CELERY_QUEUE_SYNC.")
+    if mod.CELERY_QUEUE_SNAPSHOT not in mod.CELERY_WORKER_SNAPSHOT_QUEUES:
+        raise ImproperlyConfigured("CELERY_WORKER_SNAPSHOT_QUEUES must include CELERY_QUEUE_SNAPSHOT.")
+    if mod.CELERY_QUEUE_SUMMARY not in mod.CELERY_WORKER_SUMMARY_QUEUES:
+        raise ImproperlyConfigured("CELERY_WORKER_SUMMARY_QUEUES must include CELERY_QUEUE_SUMMARY.")
+
+    # 5. Prefetch multipliers must not exceed cap
+    for attr in ("CELERY_WORKER_SYNC_PREFETCH_MULTIPLIER", "CELERY_WORKER_SNAPSHOT_PREFETCH_MULTIPLIER", "CELERY_WORKER_SUMMARY_PREFETCH_MULTIPLIER"):
+        if getattr(mod, attr) > mod.CELERY_WORKER_MAX_PREFETCH_MULTIPLIER:
+            raise ImproperlyConfigured(f"{attr} exceeds CELERY_WORKER_MAX_PREFETCH_MULTIPLIER.")
+
+    # 6. Per-profile concurrency must not exceed cap
+    for attr in ("CELERY_WORKER_SYNC_CONCURRENCY", "CELERY_WORKER_SNAPSHOT_CONCURRENCY", "CELERY_WORKER_SUMMARY_CONCURRENCY"):
+        if getattr(mod, attr) > mod.CELERY_WORKER_MAX_CONCURRENCY_PER_PROFILE:
+            raise ImproperlyConfigured(f"{attr} exceeds CELERY_WORKER_MAX_CONCURRENCY_PER_PROFILE.")
+
+    # 7. Total profile concurrency must not exceed budget
+    total = mod.CELERY_WORKER_SYNC_CONCURRENCY + mod.CELERY_WORKER_SNAPSHOT_CONCURRENCY + mod.CELERY_WORKER_SUMMARY_CONCURRENCY
+    if total > mod.CELERY_WORKER_CONCURRENCY_BUDGET:
+        raise ImproperlyConfigured(
+            f"Total profile concurrency ({total}) exceeds CELERY_WORKER_CONCURRENCY_BUDGET ({mod.CELERY_WORKER_CONCURRENCY_BUDGET})."
+        )
+
+    # 8. Sync fairness: sync concurrency must not overwhelm background workers
+    background = mod.CELERY_WORKER_SNAPSHOT_CONCURRENCY + mod.CELERY_WORKER_SUMMARY_CONCURRENCY
+    if background > 0 and mod.CELERY_WORKER_SYNC_CONCURRENCY > mod.CELERY_WORKER_SYNC_MAX_TO_BACKGROUND_RATIO * background:
+        raise ImproperlyConfigured(
+            "CELERY_WORKER_SYNC_CONCURRENCY exceeds allowed ratio vs background workers."
+        )
+
+
+_validate_celery_runtime_configuration()
 
 SECRETS_PROVIDER = env("SECRETS_PROVIDER")
 KMS_PROVIDER = env("KMS_PROVIDER")
