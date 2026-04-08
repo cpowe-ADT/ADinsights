@@ -1219,6 +1219,7 @@ def test_combined_metrics_rejects_stale_warehouse_snapshot(
 def test_fake_adapter_requires_flag(api_client, user, settings):
     settings.ENABLE_FAKE_ADAPTER = False
     settings.ENABLE_DEMO_ADAPTER = False
+    settings.ENABLE_META_DIRECT_ADAPTER = False
     api_client.force_authenticate(user=user)
 
     response = api_client.get("/api/metrics/", {"source": "fake"})
