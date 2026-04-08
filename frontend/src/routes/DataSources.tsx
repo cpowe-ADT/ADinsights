@@ -906,7 +906,9 @@ const DataSources = () => {
     try {
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem(CONNECT_OAUTH_PROVIDER_KEY, 'GOOGLE');
-        window.sessionStorage.setItem(GOOGLE_ADS_OAUTH_FORM_KEY, JSON.stringify(connectForm));
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { accessToken: _at, refreshToken: _rt, ...safeForm } = connectForm;
+        window.sessionStorage.setItem(GOOGLE_ADS_OAUTH_FORM_KEY, JSON.stringify(safeForm));
       }
       const hasRuntimeContext = Boolean(
         runtimeContext.client_origin || runtimeContext.client_port || runtimeContext.dataset_source,
