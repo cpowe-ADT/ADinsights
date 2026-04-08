@@ -11,6 +11,148 @@ Keep this brief and link to PRs or commits when available.
 - **Owner**
 
 ## Entries
+
+- **2026-04-08**
+  - Endpoint: `GET /api/audit-logs/`
+  - Change: Response is now paginated (`{count, next, previous, results}`). Previously returned a bare array. Supports `?page=N&page_size=N` (default 50, max 200). Filtering by `?action=` and `?resource_type=` unchanged.
+  - Impact: Consumers iterating the raw array must unwrap `results`; paginated clients can use `count` and `next`/`previous` for traversal.
+  - Owner: Sofia (Backend Metrics)
+
+- **2026-03-21**
+  - Endpoint: `GET /api/integrations/google_analytics/setup/`, `POST /api/integrations/google_analytics/oauth/start/`, `POST /api/integrations/google_analytics/oauth/exchange/`, `GET /api/integrations/google_analytics/properties/`, `POST /api/integrations/google_analytics/provision/`, `GET /api/integrations/google_analytics/status/`
+  - Change: Added tenant-scoped GA4 onboarding and connection-management contract for runtime readiness, OAuth state exchange, property discovery, provisioning, and connection status. Status surfaces preserve canonical onboarding states (`not_connected`, `started_not_complete`, `complete`, `active`) and expose redirect/runtime diagnostics needed by the Data Sources flow.
+  - Impact: Frontend can connect a GA4 property and monitor its sync/setup lifecycle through dedicated integration endpoints without changing the existing pilot reporting endpoint shape on `/api/analytics/web/ga4/`.
+  - Owner: Maya (Integrations) + Sofia (Backend Metrics) + Lina (Frontend)
+- **2026-03-21**
+  - Endpoint: Operational probe `python3 infrastructure/airbyte/scripts/airbyte_health_check.py`
+  - Change: Extended the Airbyte health-check script to derive stale thresholds from both basic schedules and a limited supported subset of cron expressions before falling back to `AIRBYTE_FALLBACK_STALE_MINUTES`.
+  - Impact: CI/operators get deterministic health classifications for cron-scheduled Airbyte connections instead of treating every cron connection as fallback-threshold based.
+  - Owner: Maya (Integrations) + Omar (SRE)
+- **2026-03-06**
+  - Endpoint: `GET /api/health/airbyte/`
+  - Change: Added degraded-mode fallback when Airbyte status tables are unavailable (for example, pre-migration smoke environments). Endpoint now returns `503` with `status="status_store_unavailable"` instead of surfacing an internal `500` error.
+  - Impact: Release smoke checks and operators get deterministic health output during bootstrap/migration gaps; no changes to healthy-path payload fields.
+  - Owner: Sofia (Backend Metrics) + Omar (SRE)
+- **2026-02-23**
+  - Endpoint: `GET /api/analytics/google-ads/workspace/summary/`
+  - Change: Added non-breaking composite workspace summary payload for unified Google Ads first paint. Response extends executive payload shape with `alerts_summary`, `governance_summary`, `top_insights`, and `workspace_generated_at`.
+  - Impact: Unified `/dashboards/google-ads` workspace can load KPI strip, top insights rail, and governance/alert badges in one call while keeping existing tab-detail endpoints unchanged. Legacy dashboard routes (`/dashboards/google-ads/*`) continue through compatibility redirects to query-driven workspace tabs.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-22**
+  - Endpoint: `GET /api/analytics/google-ads/executive/`, `GET /api/analytics/google-ads/campaigns/`, `GET /api/analytics/google-ads/campaigns/{campaign_id}/`, `GET /api/analytics/google-ads/channels/`, `GET /api/analytics/google-ads/ad-groups/`, `GET /api/analytics/google-ads/ads/`, `GET /api/analytics/google-ads/assets/`, `GET /api/analytics/google-ads/keywords/`, `GET /api/analytics/google-ads/search-terms/`, `GET /api/analytics/google-ads/search-term-insights/`, `GET /api/analytics/google-ads/pmax/asset-groups/`, `GET /api/analytics/google-ads/breakdowns/`, `GET /api/analytics/google-ads/conversions/actions/`, `GET /api/analytics/google-ads/budgets/pacing/`, `GET /api/analytics/google-ads/change-events/`, `GET /api/analytics/google-ads/recommendations/`, `POST /api/analytics/google-ads/exports/`, `GET /api/analytics/google-ads/exports/{job_id}/`, `GET /api/analytics/google-ads/exports/{job_id}/download/`, `GET|POST|PATCH|DELETE /api/analytics/google-ads/saved-views/`, `GET|POST|PATCH|DELETE /api/analytics/google-ads/account-assignments/`
+  - Change: Added MVP Google Ads analytics API surface for executive reporting, campaign/channel/keyword/search-term/PMax/breakdown/conversion/pacing/governance/recommendation views, plus Google Ads-specific export jobs and saved views. Added account-assignment management endpoint for tenant-scoped account RBAC and customer filtering in reporting endpoints.
+  - Impact: Frontend can render dedicated Google Ads dashboard navigation and data pages using tenant-scoped server aggregation without changing existing integration setup/sync/status routes.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-21**
+  - Endpoint: `GET /api/integrations/meta/setup/`, `GET /api/integrations/google_ads/setup/`, `POST /api/integrations/meta/oauth/start/`, `POST /api/integrations/meta/oauth/exchange/`, `POST /api/meta/connect/callback/`
+  - Change: Added additive `runtime_context` diagnostics payload on setup responses containing resolved redirect details (`redirect_uri`, `redirect_source`), request host/origin metadata, launcher profile/runtime URLs (`DEV_ACTIVE_PROFILE`, `DEV_BACKEND_URL`, `DEV_FRONTEND_URL` when present), and optional dataset source echo. Added optional `runtime_context` request payload support on Meta OAuth start/exchange/callback for tracking-only metadata (non-breaking).
+  - Impact: Frontend/operator setup flows can verify localhost profile/port alignment and redirect-source precedence without changing existing required response fields.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend)
+- **2026-02-21**
+  - Endpoint: `GET /api/integrations/google_ads/status/`, `POST /api/integrations/google_ads/sync/`, `POST /api/integrations/google_ads/provision/`
+  - Change: Added Google Ads SDK migration status metadata (`sync_engine`, `fallback_active`, `parity_state`, `last_parity_passed_at`) and runtime sync-engine preference handling in provisioning. Sync endpoint now dispatches SDK task execution when tenant sync state engine is `sdk`; otherwise it preserves existing Airbyte trigger behavior.
+  - Impact: Existing Google Ads routes remain path-compatible while clients gain visibility into SDK/rollback state during migration.
+  - Owner: Maya (Integrations) + Sofia (Backend Metrics)
+- **2026-02-21**
+  - Endpoint: `GET /api/meta/metrics/`, `GET /api/meta/pages/{page_id}/timeseries/`, `GET /api/meta/pages/{page_id}/posts/`, `GET|POST /api/meta/pages/{page_id}/exports/`, `GET /api/exports/{export_job_id}/download/`
+  - Change: Added Meta Page metric registry listing (`/api/meta/metrics/`) and page timeseries (`/api/meta/pages/{page_id}/timeseries/`) to support metric/period pickers. Extended `/api/meta/pages/{page_id}/posts/` with filtering/sorting/pagination (`q`, `media_type`, `sort`, `sort_metric`, `limit`, `offset`) and added pagination metadata fields (`count`, `next_offset`, `prev_offset`). Added dashboard export lifecycle for Facebook Pages: `/api/meta/pages/{page_id}/exports/` creates queued export jobs (CSV/PDF/PNG) and `/api/exports/{export_job_id}/download/` streams completed artifacts.
+  - Impact: Facebook Pages dashboard can render server-derived timeseries by period, paginate/filter posts without client-side overfetch, and generate downloadable exports using aggregated metrics only.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-20**
+  - Endpoint: `POST /api/meta/connect/start/`, `POST /api/meta/connect/callback/`, `POST /api/integrations/meta/oauth/exchange/`, `POST /api/integrations/meta/pages/{page_id}/select/`
+  - Change: Split OAuth flow intent for Page Insights vs marketing exchange. `/api/meta/connect/start/` now uses page-only OAuth scopes from `META_PAGE_INSIGHTS_OAUTH_SCOPES`, while `/api/meta/connect/callback/` executes page-connection persistence (`MetaConnection` + `MetaPage`) and returns `default_page_id` plus bootstrap task ids. Marketing exchange rejects page-flow state with `code=wrong_oauth_flow`. Scope sanitization now strips invalid Facebook Login scopes (`read_insights`, `instagram_*`) case-insensitively before building authorize URL.
+  - Impact: Facebook Page dashboard can onboard/connect without ad-account access and no longer gets blocked by “no ad accounts returned” or invalid-scope OAuth errors; ad-account marketing setup remains unchanged on `/api/integrations/meta/oauth/exchange/`.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-19**
+  - Endpoint: `POST /api/meta/connect/start/`, `POST /api/meta/connect/callback/`, `GET /api/meta/pages/`, `POST /api/meta/pages/{page_id}/sync/`, `GET /api/meta/pages/{page_id}/overview/`, `GET /api/meta/pages/{page_id}/posts/`, `GET /api/meta/posts/{post_id}/`, `GET /api/meta/posts/{post_id}/timeseries/`
+  - Change: Added canonical Facebook Page/Post Insights contract aliases under `/api/meta/*` with per-metric availability metadata, last-sync timestamps, and background sync trigger orchestration (`sync_page_posts`, `discover_supported_metrics`, `sync_page_insights`, `sync_post_insights`).
+  - Impact: Frontend can render a dedicated Facebook analytics slice without relying on legacy `/api/metrics/meta/*` paths; unsupported metrics are surfaced as availability flags instead of hard failures.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-19**
+  - Endpoint: `GET /api/integrations/meta/oauth/callback/`, `GET /api/integrations/meta/pages/`, `POST /api/integrations/meta/pages/{page_id}/select/`, `POST /api/metrics/meta/pages/{page_id}/refresh/`, `GET /api/metrics/meta/pages/{page_id}/overview/`, `GET /api/metrics/meta/pages/{page_id}/timeseries/`, `GET /api/metrics/meta/pages/{page_id}/posts/`, `GET /api/metrics/meta/posts/{post_id}/timeseries/`
+  - Change: Added Page/Post Insights contract surfaces backed by new encrypted page-credential and timeseries persistence models (`MetaConnection`, `MetaPage`, `MetaMetricRegistry`, `MetaInsightPoint`, `MetaPost`, `MetaPostInsightPoint`) with asynchronous refresh and registry-based invalid metric fallback.
+  - Impact: Frontend can render Page/Post Insights dashboards exclusively from backend storage, while invalid/deprecated metrics are represented explicitly in registry status and hidden by default in metric pickers.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-19**
+  - Endpoint: Warehouse contract (`dbt` Meta staging + snapshots + marts)
+  - Change: Hardened `stg_meta_insights` cross-database JSON parsing (DuckDB/Postgres compatibility), added fallback behavior when upstream `reach` is absent, and moved Meta SCD2 snapshots to explicit nodes (`meta_campaign_snapshot`, `meta_adset_snapshot`, `meta_ad_snapshot`) keyed by tenant-aware identifiers.
+  - Impact: Stabilizes local/CI dbt execution path and preserves tenant-safe snapshot grain without colliding with legacy snapshot relations.
+  - Owner: Priya (dbt) + Sofia (Backend Metrics)
+- **2026-02-19**
+  - Endpoint: `GET /api/meta/accounts/`, `GET /api/meta/campaigns/`, `GET /api/meta/adsets/`, `GET /api/meta/ads/`, `GET /api/meta/insights/`
+  - Change: Added tenant-scoped paginated Meta read APIs backed by PostgreSQL persistence, with query filters for status/search/date windows and foreign-key filters (`account_id`, `campaign_id`, `adset_id`, `level`).
+  - Impact: Frontend Meta account/campaign/insights screens can read directly from backend tables without querying Airbyte APIs; existing `/api/integrations/meta/*` OAuth/provision/sync routes remain unchanged.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-19**
+  - Endpoint: `POST /api/integrations/meta/oauth/exchange/`, `POST /api/integrations/meta/pages/connect/`
+  - Change: Enforced required scope gate as `(ads_read OR ads_management) AND business_management AND pages_read_engagement AND pages_show_list`; missing permissions now persist actionable credential status reasons for reauth/rerequest flow.
+  - Impact: OAuth completion blocks provisioning/sync when minimum Meta permissions are missing and surfaces deterministic remediation in UI.
+  - Owner: Sofia (Backend Metrics) + Maya (Integrations)
+- **2026-02-19**
+  - Endpoint: Scheduled tasks (`integrations.tasks.refresh_meta_tokens`, `integrations.tasks.sync_meta_accounts`, `integrations.tasks.sync_meta_hierarchy`, `integrations.tasks.sync_meta_insights_incremental`)
+  - Change: Added hourly token/account/insights sync and daily hierarchy sync schedules in `America/Jamaica`, plus persistent upstream failure records via `integrations.APIErrorLog`.
+  - Impact: Operational visibility for Meta failures improved (`tenant/account/endpoint/status_code/retryable`), and direct-sync datasets remain fresh for `/api/meta/*` consumers.
+  - Owner: Sofia (Backend Metrics) + Omar (SRE)
+- **2026-02-17**
+  - Endpoint: `GET /api/integrations/meta/setup/`, `POST /api/integrations/meta/oauth/start/`, `POST /api/integrations/meta/oauth/exchange/`, `POST /api/integrations/meta/pages/connect/`, `POST /api/integrations/meta/logout/`
+  - Change: Added manual browser-redirect OAuth hardening for Meta Login for Business (required `config_id` support), optional OAuth `auth_type=rerequest`, token identity validation via `debug_token`, permission diagnostics (`granted/declined/missing_required_permissions`), and tenant-scoped Meta logout/disconnect endpoint.
+  - Impact: Data Sources now supports permission-rerequest and stricter readiness validation before Meta provisioning; clients can call `POST /api/integrations/meta/logout/` to clear tenant Meta credentials.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-17**
+  - Endpoint: `GET /api/integrations/social/status/`
+  - Change: Added tenant-scoped social connection status payload for Meta + Instagram with canonical statuses (`not_connected`, `started_not_complete`, `complete`, `active`), reason metadata, recommended actions, and sync timestamps.
+  - Impact: Frontend Data Sources now renders social onboarding/health cards and Home links directly into social setup mode.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-17**
+  - Endpoint: `GET /api/schema/` metadata, `GET|POST /api/reports/{id}/exports/`, `GET|POST /api/alerts/`, `GET|POST /api/admin/alerts/`
+  - Change: OpenAPI operation IDs were deduplicated for report exports (method-specific) and tenant/admin alert-rule surfaces (distinct operation ID bases) without changing route paths or payloads.
+  - Impact: Schema consumers/codegen no longer receive duplicated `operationId` values.
+  - Owner: Sofia (Backend Metrics)
+- **2026-02-17**
+  - Endpoint: `POST /api/integrations/meta/oauth/start/` (frontend orchestration update)
+  - Change: Data Sources social card CTA now starts Meta OAuth directly for `connect_oauth` actions and falls back to opening the setup panel with errors surfaced when OAuth start fails.
+  - Impact: “Connect with Facebook” on social cards now initiates OAuth in one click while preserving setup troubleshooting flow.
+  - Owner: Lina (Frontend) + Maya (Integrations)
+- **2026-02-13**
+  - Endpoint: `GET /api/integrations/meta/setup/`, `POST /api/integrations/meta/oauth/start/`, `POST /api/integrations/meta/oauth/exchange/`, `POST /api/integrations/meta/pages/connect/`, `POST /api/integrations/meta/provision/`, `POST /api/integrations/meta/sync/`
+  - Change: Finalized Meta Marketing API connector flow with Facebook Login OAuth state validation, ad-account-required page connect, optional Instagram account selection, and Airbyte source/connection provisioning + initial sync trigger.
+  - Impact: Data Sources can complete Meta onboarding in one guided flow and immediately start Insights ingestion for reporting marts.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend) + Maya (Integrations)
+- **2026-02-08**
+  - Endpoint: Integration lifecycle APIs (planned, superseded by provider-specific rollout)
+  - Change: Initial plan captured for provider-generic connector lifecycle APIs; implementation proceeded with provider-specific Meta endpoints first.
+  - Impact: Historical planning reference only; use 2026-02-13 entry for currently implemented connector contracts.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend)
+- **2026-02-06**
+  - Endpoint: `GET /api/dashboards/library/`
+  - Change: Added dashboard library API endpoint to replace frontend mock data and include saved report-backed items.
+  - Impact: Frontend dashboard library now relies on backend response shape (`id`, `name`, `type`, `owner`, `updatedAt`, `tags`, `description`, `route`).
+  - Owner: Lina (Frontend) + Sofia (Backend)
+- **2026-02-06**
+  - Endpoint: `GET|POST /api/reports/`, `GET|PATCH|DELETE /api/reports/{id}/`, `GET|POST /api/reports/{id}/exports/`
+  - Change: Added report definition CRUD + export-job request/listing contracts.
+  - Impact: Enables Post-MVP report surfaces and export lifecycle UI; clients should handle queued/running/completed/failed job statuses.
+  - Owner: Sofia (Backend Metrics)
+- **2026-02-06**
+  - Endpoint: `GET /api/alerts/`, `GET /api/alerts/{id}/`
+  - Change: Added tenant-facing alert rule routes (mirroring admin rule definitions) for frontend alerts management pages.
+  - Impact: Post-MVP alerts list/detail pages can consume tenant-scoped rule definitions directly.
+  - Owner: Sofia (Backend Metrics)
+- **2026-02-06**
+  - Endpoint: `GET /api/summaries/`, `GET /api/summaries/{id}/`, `POST /api/summaries/refresh/`
+  - Change: Added persisted AI summary list/detail contracts and manual refresh endpoint.
+  - Impact: Frontend summaries views can render generated/fallback status and payload snapshots.
+  - Owner: Sofia (Backend Metrics)
+- **2026-02-06**
+  - Endpoint: `GET /api/ops/sync-health/`, `GET /api/ops/health-overview/`
+  - Change: Added operational aggregation endpoints for sync-health counts/rows and consolidated health cards.
+  - Impact: Powers Post-MVP `/ops/sync-health` and `/ops/health` pages with unified status semantics.
+  - Owner: Omar (SRE) + Sofia (Backend Metrics)
+- **2026-02-06**
+  - Endpoint: `GET /api/analytics/web/ga4/`, `GET /api/analytics/web/search-console/`
+  - Change: Added Phase 2 pilot web analytics endpoints for GA4/Search Console marts.
+  - Impact: Provides API exposure path for GA4/Search Console pilot ingestion without changing `/api/metrics/combined/`.
+  - Owner: Priya (dbt) + Sofia (Backend Metrics)
 - **2026-02-06**
   - Endpoint: `POST /api/token/`, `POST /api/token/refresh/`, `POST /api/auth/login/`, `POST /api/auth/password-reset/`, `POST /api/auth/password-reset/confirm/`, `POST /api/tenants/`, `POST /api/users/accept-invite/`
   - Change: Added DRF rate limiting for unauthenticated/auth flows; clients may now receive `429` when thresholds are exceeded.

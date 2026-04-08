@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.db import connection
 from rest_framework import mixins, permissions, status, viewsets
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -443,9 +444,16 @@ class RoleAssignmentView(APIView):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
+class _AuditLogPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = "page_size"
+    max_page_size = 200
+
+
 class AuditLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = AuditLogSerializer
     permission_classes = [IsTenantUser]
+    pagination_class = _AuditLogPagination
 
     def get_queryset(self):
         user = self.request.user
