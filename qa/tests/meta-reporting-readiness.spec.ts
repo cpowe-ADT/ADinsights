@@ -286,7 +286,7 @@ test.describe('meta reporting readiness', () => {
     }
 
     await page.goto('/dashboards/meta/accounts');
-    await expect(page.getByText('Primary Account')).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Primary Account' }).first()).toBeVisible();
     await expect(
       page.getByText(/Meta ad accounts and Facebook Pages are separate assets\./i),
     ).toBeVisible();
