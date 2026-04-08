@@ -53,7 +53,7 @@ test.describe('dashboard metrics grid', () => {
 
     const sortedBySpend = [...sampleRows].sort((a, b) => b.spend - a.spend);
     const firstRow = await dashboard.getFirstRow();
-    expect(firstRow.parish).toBe(sortedBySpend[0].parish);
+    expect(firstRow.parish).toBe(sortedBySpend[0].parishes[0]);
     expect(parseNumber(firstRow.impressions)).toBe(sortedBySpend[0].impressions);
 
     await dashboard.toggleSortByClicks();
@@ -61,7 +61,7 @@ test.describe('dashboard metrics grid', () => {
     const sortedByClicks = [...sampleRows].sort((a, b) => b.clicks - a.clicks);
     const parishes = await dashboard.getColumnValues('parish');
     const clicks = await dashboard.getNumericColumn('clicks');
-    expect(parishes).toEqual(sortedByClicks.map((r) => r.parish));
+    expect(parishes).toEqual(sortedByClicks.map((r) => r.parishes[0]));
     expect(clicks).toEqual(sortedByClicks.map((r) => r.clicks));
 
     if (!SKIP_SCREENSHOTS) {

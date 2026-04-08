@@ -3,7 +3,7 @@ type CampaignRow = {
   name: string;
   platform: string;
   status: string;
-  parish: string;
+  parishes: string[];
   spend: number;
   impressions: number;
   clicks: number;
@@ -43,7 +43,7 @@ type CreativeRow = {
   campaignId: string;
   campaignName: string;
   platform: string;
-  parish?: string;
+  parishes?: string[];
   spend: number;
   impressions: number;
   clicks: number;
@@ -82,7 +82,7 @@ const campaignRows: CampaignRow[] = [
     name: 'Awareness Boost',
     platform: 'Meta',
     status: 'Active',
-    parish: 'Kingston',
+    parishes: ['Kingston'],
     spend: 540,
     impressions: 120000,
     clicks: 3400,
@@ -99,7 +99,7 @@ const campaignRows: CampaignRow[] = [
     name: 'Search Capture',
     platform: 'Google Ads',
     status: 'Active',
-    parish: 'St James',
+    parishes: ['St James'],
     spend: 430,
     impressions: 94000,
     clicks: 4200,
@@ -116,7 +116,7 @@ const campaignRows: CampaignRow[] = [
     name: 'GenZ Launch',
     platform: 'TikTok',
     status: 'Learning',
-    parish: 'St Andrew',
+    parishes: ['St Andrew'],
     spend: 220,
     impressions: 68000,
     clicks: 2100,
@@ -177,7 +177,7 @@ export const creativeRows: CreativeRow[] = [
     campaignId: 'cmp_awareness',
     campaignName: 'Awareness Boost',
     platform: 'Meta',
-    parish: 'Kingston',
+    parishes: ['Kingston'],
     spend: 180,
     impressions: 58000,
     clicks: 1500,
@@ -191,7 +191,7 @@ export const creativeRows: CreativeRow[] = [
     campaignId: 'cmp_search',
     campaignName: 'Search Capture',
     platform: 'Google Ads',
-    parish: 'St James',
+    parishes: ['St James'],
     spend: 140,
     impressions: 36000,
     clicks: 1320,
