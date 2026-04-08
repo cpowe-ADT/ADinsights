@@ -44,11 +44,23 @@ Timezone baseline: `America/Jamaica`.
 | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------ | ----------------------------------------------------------------------------------------------------- |
 | Upload API multipart files (`campaign_csv`, optional `parish_csv`, optional `budget_csv`) | Campaign required: `date`, `campaign_id`, `campaign_name`, `platform`, `spend`, `impressions`, `clicks`, `conversions`; Parish required: `parish`, `spend`, `impressions`, `clicks`, `conversions`; Budget required: `month`, `campaign_name`, `planned_budget` | Date/month string normalized to ISO, numeric coercion for spend/metrics, optional revenue/roas/pacing fields | Upload records treated as day/month values; operational schedule/reporting timezone remains `America/Jamaica` | Currency optional per row; fallback/default handled during payload build | Upload snapshot grain by campaign/date and parish/date | Immediate validation at upload; no API lookback | Stored in `TenantMetricsSnapshot` source `upload` (no Airbyte raw table) | Not modeled in dbt for Phase 1 | Directly serves `source=upload` on `/api/metrics/combined/` and can backfill campaign/parish/budget sections | 2026-02-06   | `docs/runbooks/csv-uploads.md`, `backend/analytics/uploads.py`, `frontend/src/lib/uploadedMetrics.ts` |
 
+## Airbyte Production Readiness Changes (2026-04-08)
+
+The `infrastructure/airbyte/README.md` was streamlined as part of the Phase 1 production readiness workflow. The following contract-relevant changes were made:
+
+| Change | Detail |
+|---|---|
+| `provision_meta_google_connectors.py` removed from runbook | Provisioning step eliminated; connector setup now goes directly from `validate_tenant_config.py` to `bootstrap_connections.py`. |
+| `check_data_contracts.py` removed from rollout checklist | Script no longer referenced in Airbyte runbook. Contract validation now relies on CI only. |
+| `ga4_source.yaml` and `search_console_source.yaml` removed from config directory listing | Phase 2 pilot source configs are no longer part of the active Phase 1 Airbyte runbook. These remain Phase 2 pilot contracts (see GA4 and Search Console sections above). |
+| `AIRBYTE_TEMPLATE_DESTINATION_ID` removed from connection templates | Resolved per-tenant via `AIRBYTE_<SLUG>_DESTINATION_ID` instead. |
+| Local dev default ports updated | API: `http://localhost:8001`, UI: `http://localhost:8000` (was 18001/18000). |
+
+Evidence: `infrastructure/airbyte/README.md`
+
 ## Open Validation Actions
 
 1. Meta authenticated portal validation remains a manual external step because Meta developer docs are crawler-restricted.
 2. GA4 and Search Console are now Phase 2 pilot contracts with raw/staging/mart + API exposure; production rollout still requires real OAuth credentials and external connector validation.
-3. Contract drift gate is enforced by:
-   - `python3 infrastructure/airbyte/scripts/check_data_contracts.py`
-   - `pytest -q <path>/test_data_contract_checks.py` (repository test path currently missing; tracked as follow-up to restore executable contract-test target)
+3. Contract drift gate is enforced by CI only (`check_data_contracts.py` removed from `infrastructure/airbyte/scripts/` as of 2026-04-08).
 4. Airbyte operational health checks now interpret cron schedules for a bounded subset of expressions (`* * * * *`, `*/N * * * *`, `M * * * *`, `M */N * * *`, `M H * * *`, `M H * * DOW`). Unsupported cron patterns intentionally fall back to `AIRBYTE_FALLBACK_STALE_MINUTES`.
