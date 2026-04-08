@@ -1,7 +1,6 @@
 # Deployment Runbook — ADinsights
 
 Use this guide to promote ADinsights from development into a production-ready environment. It assumes AWS as the primary cloud provider and containerised workloads for the Django backend, Celery workers, Airbyte, and the React frontend. Adapt the specifics if you select an alternative cloud or orchestration platform.
-External production actions must be tracked in `docs/runbooks/external-actions-aws.md`.
 
 ## 1. Environments & Branch Flow
 
@@ -102,36 +101,7 @@ Run this sequence after secrets are injected and before traffic cutover:
 6. Validate backend endpoints:
    - `GET /api/health/airbyte/`
    - `GET /api/airbyte/telemetry/`
-   - `GET /api/integrations/google_ads/status/`
-   - `GET /api/integrations/ga4/status/`
-   - `GET /api/integrations/search_console/status/`
 7. Confirm retry/backoff policy in logs: base-2 exponential retry, max 5 attempts, jitter enabled.
-
-### 5.1.1 Phase 2 Pilot Readiness (GA4 + Search Console)
-
-Run this sequence when enabling web analytics pilot sources:
-
-1. Configure GA4/Search Console env vars in secret storage (`AIRBYTE_GA4_*`, `AIRBYTE_SEARCH_CONSOLE_*`).
-2. Import source templates:
-   - `infrastructure/airbyte/ga4_source.yaml`
-   - `infrastructure/airbyte/search_console_source.yaml`
-3. Execute dbt pipeline after first successful sync:
-   - `DBT_PROFILES_DIR=dbt dbt run --project-dir dbt --select stg_ga4_reports stg_search_console`
-   - `DBT_PROFILES_DIR=dbt dbt run --project-dir dbt --select agg_ga4_daily agg_search_console_daily`
-4. Validate API exposure:
-   - `GET /api/analytics/web/ga4/`
-   - `GET /api/analytics/web/search-console/`
-5. Attach evidence artifacts before promoting beyond pilot.
-
-### 5.2 External Actions Gate (AWS-only)
-
-Before production cutover, complete and archive:
-
-1. SES readiness (`S7-D`) from `docs/runbooks/external-actions-aws.md`.
-2. KMS provisioning/wiring (`P1-X1`) from `docs/runbooks/external-actions-aws.md`.
-3. Airbyte credential readiness (`P1-X2`) from `docs/runbooks/external-actions-aws.md`.
-4. Observability simulations (`P1-X4`) using `docs/runbooks/observability-alert-simulations.md`.
-5. Staging go/no-go rehearsal (`P1-X9`) from `docs/runbooks/external-actions-aws.md`.
 
 ## 6. Rollback Strategy
 
@@ -159,13 +129,6 @@ Before production cutover, complete and archive:
 - [ ] Combined metrics API (`/api/dashboards/aggregate-snapshot/`) returns fresh data for pilot tenant.
 - [ ] Frontend pointing to production API with feature flags disabled.
 - [ ] Airbyte connections for Meta & Google running hourly; alerts configured.
-- [ ] Connector lifecycle APIs validated for active providers:
-  - `GET /api/integrations/{provider}/status/`
-  - `GET /api/integrations/{provider}/jobs/`
-  - `POST /api/integrations/{provider}/sync/`
-  - `POST /api/integrations/{provider}/reconnect/`
-  - `POST /api/integrations/{provider}/disconnect/`
-- [ ] External actions register complete for release scope (`docs/runbooks/external-actions-aws.md`).
 - [ ] dbt incremental builds scheduled (05:00 local) with success notifications.
 - [ ] Credential rotation reminders active via Celery beat + notifications.
 - [ ] CORS allowlist (`CORS_ALLOWED_ORIGINS`) confirmed for production web origins only.
