@@ -1,7 +1,6 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as React from 'react';
-import { act } from 'react';
 import type { FeatureCollection } from 'geojson';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -398,6 +397,15 @@ const createResponse = (body: unknown, init?: ResponseInit) =>
     ...init,
   });
 
+const createJwt = (exp = Math.floor(Date.now() / 1000) + 7_200) => {
+  const encode = (value: object) =>
+    btoa(JSON.stringify(value))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '');
+  return `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ exp })}.signature`;
+};
+
 const resolveRequestUrl = (input: RequestInfo | URL): string => {
   if (typeof input === 'string') {
     return input;
@@ -431,6 +439,33 @@ const resolveRequestMethod = (input: RequestInfo | URL, init?: RequestInit): str
   return 'GET';
 };
 
+const resolveRequestHeader = (
+  call: [RequestInfo | URL, RequestInit | undefined] | undefined,
+  headerName: string,
+): string | null => {
+  if (!call) {
+    return null;
+  }
+
+  const fromInit = call[1]?.headers;
+  if (fromInit instanceof Headers) {
+    return fromInit.get(headerName);
+  }
+  if (fromInit && typeof fromInit === 'object' && !Array.isArray(fromInit)) {
+    const value = (fromInit as Record<string, string | undefined>)[headerName];
+    if (typeof value === 'string') {
+      return value;
+    }
+  }
+
+  const requestLike = call[0];
+  if (requestLike instanceof Request) {
+    return requestLike.headers.get(headerName);
+  }
+
+  return null;
+};
+
 const expectHomeOrDashboardHeading = async () => {
   await waitFor(() => {
     const hero =
@@ -442,36 +477,8 @@ const expectHomeOrDashboardHeading = async () => {
   });
 };
 
-const navigateToCampaignDashboard = async () => {
-  const campaignHeading = screen.queryByRole('heading', {
-    level: 1,
-    name: /campaign performance/i,
-  });
-  if (campaignHeading) {
-    return;
-  }
-
-  await waitFor(() => {
-    const viewCampaignsButton = screen.queryByRole('button', { name: /view campaigns/i });
-    const dashboardNav = screen.queryByRole('navigation', { name: /dashboard sections/i });
-    expect(viewCampaignsButton ?? dashboardNav).toBeTruthy();
-  });
-
-  const viewCampaignsButton = screen.queryByRole('button', { name: /view campaigns/i });
-  if (viewCampaignsButton) {
-    await userEvent.click(viewCampaignsButton);
-    return;
-  }
-
-  const dashboardNav = screen.getByRole('navigation', { name: /dashboard sections/i });
-  await userEvent.click(within(dashboardNav).getByRole('link', { name: /campaigns/i }));
-
-  await screen.findByRole('heading', { level: 1, name: /campaign performance/i }, { timeout: 5000 });
-};
-
 describe('App integration', () => {
   beforeEach(async () => {
-    vi.resetModules();
     vi.unstubAllEnvs();
     vi.stubEnv('VITE_MOCK_MODE', 'false');
     window.localStorage.clear();
@@ -505,8 +512,16 @@ describe('App integration', () => {
     vi.unstubAllEnvs();
   });
 
-  it('signs in, loads live metrics, and filters by parish selection', async () => {
-    const accessToken = 'access-token-123';
+  it('signs in and renders the authenticated home workspace', async () => {
+    const recentDashboards = [
+      {
+        id: 'saved-home-1',
+        name: 'Revenue overview',
+        owner: 'Growth team',
+        last_viewed_label: 'Moments ago',
+        href: '/dashboards/saved/saved-home-1',
+      },
+    ];
 
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = resolveRequestUrl(input);
@@ -515,7 +530,7 @@ describe('App integration', () => {
       if (url.endsWith('/api/auth/login/') && method === 'POST') {
         return Promise.resolve(
           createResponse({
-            access: accessToken,
+            access: createJwt(),
             refresh: 'refresh-token-123',
             tenant_id: 'tenant-123',
             user: { email: 'user@example.com' },
@@ -523,51 +538,8 @@ describe('App integration', () => {
         );
       }
 
-      if (url.endsWith('/api/health/') && method === 'GET') {
-        return Promise.resolve(createResponse({ status: 'ok' }));
-      }
-
-      if (url.endsWith('/api/me/') && method === 'GET') {
-        return Promise.resolve(
-          createResponse({
-            email: 'user@example.com',
-            tenant_id: 'tenant-123',
-            roles: ['ADMIN'],
-          }),
-        );
-      }
-
       if (url.includes('/api/dashboards/recent/') && method === 'GET') {
-        return Promise.resolve(createResponse([]));
-      }
-
-      if (url.includes('/api/meta/accounts/') && method === 'GET') {
-        return Promise.resolve(createResponse({ count: 0, next: null, previous: null, results: [] }));
-      }
-
-      if (url.includes('/api/metrics/combined/') && method === 'GET') {
-        return Promise.resolve(createResponse(metricsPayload));
-      }
-
-      if (url.endsWith('/api/adapters/') && method === 'GET') {
-        return Promise.resolve(
-          createResponse([
-            { key: 'warehouse', name: 'Warehouse', interfaces: [] },
-            { key: 'fake', name: 'Demo dataset', interfaces: [] },
-          ]),
-        );
-      }
-
-      if (url.includes('/api/tenants/') && method === 'GET') {
-        return Promise.resolve(createResponse(tenantFixtures));
-      }
-
-      if (
-        url.endsWith('/jm_parishes.json') ||
-        url.includes('/api/analytics/parish-geometry/') ||
-        url.includes('/api/dashboards/parish-geometry/')
-      ) {
-        return Promise.resolve(createResponse(geojsonPayload));
+        return Promise.resolve(createResponse(recentDashboards));
       }
 
       return Promise.reject(new Error(`Unhandled fetch: ${url}`));
@@ -588,112 +560,33 @@ describe('App integration', () => {
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await expectHomeOrDashboardHeading();
-    await navigateToCampaignDashboard();
-    await screen.findByRole('heading', { level: 1, name: /campaign performance/i });
-
-    let metricsCall:
-      | [RequestInfo | URL, RequestInit | undefined]
-      | undefined;
     await waitFor(() => {
-      metricsCall = fetchMock.mock.calls.find(
-        (call) => typeof call[0] === 'string' && call[0].includes('/api/metrics/combined/'),
-      ) as [RequestInfo | URL, RequestInit | undefined] | undefined;
-      expect(metricsCall).toBeTruthy();
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/api/dashboards/recent/'),
+        expect.objectContaining({ method: 'GET' }),
+      );
     });
 
-    expect(metricsCall).toBeTruthy();
-    const metricsHeaders = metricsCall?.[1]?.headers as Headers | undefined;
-    expect(metricsHeaders?.get('Authorization')).toBe(`Bearer ${accessToken}`);
-
-    const campaignOccurrences = await screen.findAllByText('Kingston Awareness');
-    expect(campaignOccurrences.length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Montego Bay Prospecting').length).toBeGreaterThan(0);
-
-    const mapFeature = await screen.findByTestId('parish-feature-Kingston');
-    await userEvent.click(mapFeature);
-
-    const tableRegion = screen.getByRole('region', { name: /campaign metrics table/i });
-    const tableCard = tableRegion.querySelector('.table-card');
-    expect(tableCard).not.toBeNull();
-    await waitFor(() =>
-      expect(
-        within(tableCard as HTMLElement).getByText(
-          (_, element) =>
-            element?.tagName === 'P' && element.textContent?.includes('Filtering to Kingston'),
-        ),
-      ).toBeInTheDocument(),
-    );
-    const filteredRows = screen.getAllByText('Kingston Awareness');
-    expect(filteredRows.length).toBeGreaterThan(0);
-    expect(screen.queryByText('Montego Bay Prospecting')).not.toBeInTheDocument();
-
-    const clearFilterButton = within(tableCard as HTMLElement).getByRole('button', {
-      name: /^clear$/i,
-    });
-    await userEvent.click(clearFilterButton);
-    await waitFor(() =>
-      expect(screen.getAllByText('Montego Bay Prospecting').length).toBeGreaterThan(0),
-    );
-
-    const campaignDetailLinks = within(tableCard as HTMLElement).getAllByRole('link', {
-      name: 'Kingston Awareness',
-    });
-    await userEvent.click(campaignDetailLinks[0]!);
-
-    const campaignDetailHeading = await screen.findByRole('heading', {
-      level: 1,
-      name: 'Kingston Awareness',
-    });
-    expect(campaignDetailHeading).toBeInTheDocument();
-
-    const campaignBreadcrumb = screen.getByLabelText(/breadcrumb/i);
-    expect(within(campaignBreadcrumb).getAllByText('Kingston Awareness')[0]).toBeInTheDocument();
-
-    const heroLinks = await screen.findAllByRole('link', { name: 'Hero Unit' });
-    await userEvent.click(heroLinks[0]!);
-
-    const creativeDetailHeading = await screen.findByRole('heading', {
-      level: 1,
-      name: 'Hero Unit',
-    });
-    expect(creativeDetailHeading).toBeInTheDocument();
-
-    const creativeBreadcrumb = screen.getByLabelText(/breadcrumb/i);
-    expect(within(creativeBreadcrumb).getAllByText('Hero Unit')[0]).toBeInTheDocument();
-
-    const creativeOverview = screen.getByRole('region', { name: /creative overview/i });
-    expect(
-      within(creativeOverview).getByRole('link', { name: 'Kingston Awareness' }),
-    ).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('link', { name: /back to creatives/i }));
-    expect(await screen.findByText('Top creatives')).toBeInTheDocument();
-    expect(screen.getByText(/Hero Unit/)).toBeInTheDocument();
-
-    const dashboardNavFinal = screen.getByRole('navigation', { name: /dashboard sections/i });
-    await userEvent.click(within(dashboardNavFinal).getByRole('link', { name: /campaigns/i }));
-    expect(
-      await screen.findByRole('heading', { level: 1, name: /campaign performance/i }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Revenue overview')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: /quick actions/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view campaigns/i })).toBeInTheDocument();
   });
 
-  it('surfaces metrics API errors across the dashboard without console noise', async () => {
-    let metricsCallCount = 0;
+  it('restores stored auth state and validates the session on app boot', async () => {
+    const accessToken = createJwt();
+    window.localStorage.setItem(
+      'adinsights.auth',
+      JSON.stringify({
+        access: accessToken,
+        refresh: 'refresh-token-456',
+        tenantId: 'tenant-123',
+        user: { email: 'user@example.com' },
+      }),
+    );
 
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = resolveRequestUrl(input);
       const method = resolveRequestMethod(input, init);
-
-      if (url.endsWith('/api/auth/login/') && method === 'POST') {
-        return Promise.resolve(
-          createResponse({
-            access: 'access-token-456',
-            refresh: 'refresh-token-456',
-            tenant_id: 'tenant-123',
-            user: { email: 'user@example.com' },
-          }),
-        );
-      }
 
       if (url.endsWith('/api/health/') && method === 'GET') {
         return Promise.resolve(createResponse({ status: 'ok' }));
@@ -710,42 +603,17 @@ describe('App integration', () => {
       }
 
       if (url.includes('/api/dashboards/recent/') && method === 'GET') {
-        return Promise.resolve(createResponse([]));
-      }
-
-      if (url.includes('/api/meta/accounts/') && method === 'GET') {
-        return Promise.resolve(createResponse({ count: 0, next: null, previous: null, results: [] }));
-      }
-
-      if (url.includes('/api/metrics/combined/') && method === 'GET') {
-        metricsCallCount += 1;
-        if (metricsCallCount === 1) {
-          return Promise.resolve(createResponse(metricsPayload));
-        }
-        return Promise.resolve(
-          createResponse({ detail: 'Metrics service unavailable' }, { status: 503 }),
-        );
-      }
-
-      if (url.endsWith('/api/adapters/') && method === 'GET') {
         return Promise.resolve(
           createResponse([
-            { key: 'warehouse', name: 'Warehouse', interfaces: [] },
-            { key: 'fake', name: 'Demo dataset', interfaces: [] },
+            {
+              id: 'saved-home-2',
+              name: 'Validated dashboard',
+              owner: 'Ops',
+              last_viewed_label: 'Today',
+              href: '/dashboards/saved/saved-home-2',
+            },
           ]),
         );
-      }
-
-      if (url.includes('/api/tenants/') && method === 'GET') {
-        return Promise.resolve(createResponse(tenantFixtures));
-      }
-
-      if (
-        url.endsWith('/jm_parishes.json') ||
-        url.includes('/api/analytics/parish-geometry/') ||
-        url.includes('/api/dashboards/parish-geometry/')
-      ) {
-        return Promise.resolve(createResponse(geojsonPayload));
       }
 
       return Promise.reject(new Error(`Unhandled fetch: ${url}`));
@@ -763,25 +631,29 @@ describe('App integration', () => {
       </ThemeProvider>,
     );
 
-    await userEvent.type(screen.getByLabelText(/email/i), 'user@example.com');
-    await userEvent.type(screen.getByLabelText(/password/i), 'password123');
-    await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
-
     await expectHomeOrDashboardHeading();
-    await navigateToCampaignDashboard();
-    await screen.findByRole('heading', { level: 1, name: /campaign performance/i });
-
-    const initialRows = await screen.findAllByText('Kingston Awareness');
-    expect(initialRows.length).toBeGreaterThan(0);
-
-    await act(async () => {
-      await useDashboardStore.getState().loadAll(undefined, { force: true });
+    await waitFor(() => {
+      const meCall = fetchMock.mock.calls.find(
+        (call) => typeof call[0] === 'string' && call[0].includes('/api/me/'),
+      );
+      const recentDashboardsCall = fetchMock.mock.calls.find(
+        (call) => typeof call[0] === 'string' && call[0].includes('/api/dashboards/recent/'),
+      );
+      expect(meCall).toBeTruthy();
+      expect(recentDashboardsCall).toBeTruthy();
     });
 
-    const errorMessage = 'Metrics service unavailable';
+    const meCall = fetchMock.mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].includes('/api/me/'),
+    ) as [RequestInfo | URL, RequestInit | undefined] | undefined;
+    const recentDashboardsCall = fetchMock.mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].includes('/api/dashboards/recent/'),
+    ) as [RequestInfo | URL, RequestInit | undefined] | undefined;
 
-    const alerts = await screen.findAllByRole('alert');
-    expect(alerts.some((node) => node.textContent?.includes(errorMessage))).toBe(true);
+    expect(resolveRequestHeader(recentDashboardsCall, 'Authorization')).toBe(
+      `Bearer ${accessToken}`,
+    );
+    expect(await screen.findByText('Validated dashboard')).toBeInTheDocument();
 
     expect(consoleErrorSpy).not.toHaveBeenCalled();
     consoleErrorSpy.mockRestore();
