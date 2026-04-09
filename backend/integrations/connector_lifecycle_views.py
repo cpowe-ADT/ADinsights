@@ -587,10 +587,53 @@ def _credential_needs_reauth(
     return False
 
 
+def _logged_error_response(
+    *,
+    detail: str,
+    status_code: int,
+    log_message: str,
+    provider_slug: str | None = None,
+) -> Response:
+    extra: dict[str, Any] = {}
+    if provider_slug is not None:
+        extra["provider"] = provider_slug
+    logger.warning(log_message, extra=extra, exc_info=True)
+    return Response({"detail": detail}, status=status_code)
+
+
 def _airbyte_error_response(exc: Exception) -> Response:
     if isinstance(exc, AirbyteClientConfigurationError):
-        return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-    return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        return _logged_error_response(
+            detail="Airbyte is not configured for this environment.",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            log_message="Airbyte connector lifecycle request failed due to missing configuration.",
+        )
+    return _logged_error_response(
+        detail="Airbyte request failed while processing the connector lifecycle operation.",
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        log_message="Airbyte connector lifecycle request failed.",
+    )
+
+
+def _provision_validation_detail(exc: ValueError) -> str:
+    message = str(exc)
+    if "source_configuration must be an object" in message:
+        return "source_configuration must be an object when provided."
+    if "source definition" in message:
+        return "Source definition is not configured for this provider."
+    if "refresh token" in message or "access token" in message:
+        return "Reconnect this provider before provisioning."
+    if "developer token" in message:
+        return "Google Ads provisioning is missing the required developer token."
+    if "Multiple Airbyte sources match" in message:
+        return "Multiple Airbyte sources already match this provider/account. Clean them up or choose a unique connection_name."
+    if "different source/destination" in message:
+        return "connection_name is already used by a different Airbyte source/destination."
+    if "missing sourceId" in message:
+        return "Airbyte source response is missing sourceId."
+    if "did not return a catalog" in message or "catalog has no streams" in message:
+        return "Airbyte schema discovery did not return a valid catalog."
+    return "Connector provisioning request is invalid."
 
 
 class IntegrationOAuthStartView(APIView):
@@ -612,8 +655,13 @@ class IntegrationOAuthStartView(APIView):
                 state=signed_state,
                 scopes=_resolve_google_scopes(provider_config.slug),
             )
-        except GoogleOAuthConfigurationError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except GoogleOAuthConfigurationError:
+            return _logged_error_response(
+                detail="Google OAuth is not configured for this provider.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                log_message="Integration OAuth start failed due to missing Google OAuth configuration.",
+                provider_slug=provider_config.slug,
+            )
 
         return Response(
             {
@@ -651,10 +699,20 @@ class IntegrationOAuthCallbackView(APIView):
                 payload=serializer.validated_data,
             )
             token = oauth_client.exchange_code(code=serializer.validated_data["code"])
-        except GoogleOAuthConfigurationError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        except GoogleOAuthClientError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        except GoogleOAuthConfigurationError:
+            return _logged_error_response(
+                detail="Google OAuth is not configured for this provider.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                log_message="Integration OAuth callback failed due to missing Google OAuth configuration.",
+                provider_slug=provider_config.slug,
+            )
+        except GoogleOAuthClientError:
+            return _logged_error_response(
+                detail="Google OAuth exchange failed for this provider.",
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                log_message="Integration OAuth callback failed during code exchange.",
+                provider_slug=provider_config.slug,
+            )
 
         account_id = _normalize_google_account_id(
             provider_config.slug,
@@ -757,8 +815,20 @@ class IntegrationProvisionView(APIView):
             )
             if not isinstance(source_configuration, dict):
                 raise ValueError("source_configuration must be an object when provided.")
-        except (GoogleOAuthConfigurationError, ValueError) as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except GoogleOAuthConfigurationError:
+            return _logged_error_response(
+                detail="Google OAuth is not configured for this provider.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                log_message="Integration provisioning failed due to missing Google OAuth configuration.",
+                provider_slug=provider_config.slug,
+            )
+        except ValueError as exc:
+            return _logged_error_response(
+                detail=_provision_validation_detail(exc),
+                status_code=status.HTTP_400_BAD_REQUEST,
+                log_message="Integration provisioning request was invalid.",
+                provider_slug=provider_config.slug,
+            )
 
         source_reused = False
         connection_reused = False
@@ -850,7 +920,12 @@ class IntegrationProvisionView(APIView):
         except (AirbyteClientConfigurationError, AirbyteClientError) as exc:
             return _airbyte_error_response(exc)
         except ValueError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            return _logged_error_response(
+                detail=_provision_validation_detail(exc),
+                status_code=status.HTTP_400_BAD_REQUEST,
+                log_message="Integration provisioning request failed validation during Airbyte setup.",
+                provider_slug=provider_config.slug,
+            )
 
         connection_id_raw = airbyte_connection.get("connectionId")
         if not connection_id_raw:
