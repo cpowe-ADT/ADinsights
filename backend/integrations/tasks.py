@@ -81,7 +81,8 @@ from core.tasks import BaseAdInsightsTask
 
 logger = logging.getLogger(__name__)
 DEFAULT_META_INSIGHTS_LOOKBACK_DAYS = 3
-META_DIRECT_SYNC_LOOKBACK_DAYS = 7
+META_DIRECT_SYNC_LOOKBACK_DAYS = 30
+META_DIRECT_SYNC_EXTENDED_LOOKBACK_DAYS = 90
 DEFAULT_META_INSIGHTS_LEVEL = "ad"
 RETRY_REASON_GOOGLE_OAUTH_CONFIGURATION = "google_oauth_configuration_error"
 RETRY_REASON_AIRBYTE_CLIENT_CONFIGURATION = "airbyte_client_configuration_error"
@@ -190,6 +191,45 @@ def _current_task_id(task) -> str | None:
         if isinstance(value, str) and value.strip():
             return value.strip()
     return None
+
+
+def _is_task_dispatch_error(exc: Exception) -> bool:
+    module_name = type(exc).__module__.lower()
+    if module_name.startswith("kombu") or module_name.startswith("amqp"):
+        return True
+
+    message = str(exc).lower()
+    return any(
+        fragment in message
+        for fragment in (
+            "redis",
+            "broker",
+            "transport",
+            "connection refused",
+            "connection reset",
+            "connection closed",
+        )
+    )
+
+
+def _trigger_warehouse_snapshot_refresh(*, tenant_id: str) -> str:
+    if not getattr(settings, "ENABLE_WAREHOUSE_ADAPTER", False):
+        return "disabled"
+
+    from analytics.tasks import sync_metrics_snapshots
+
+    try:
+        sync_metrics_snapshots.apply_async(kwargs={"tenant_ids": [tenant_id]})
+        return "queued"
+    except Exception as exc:
+        if _is_task_dispatch_error(exc):
+            logger.warning(
+                "analytics.snapshot_refresh.inline_fallback",
+                extra={"tenant_id": tenant_id, "error": str(exc)},
+            )
+            sync_metrics_snapshots.run(tenant_ids=[tenant_id])
+            return "inline"
+        raise
 
 
 def _resolve_google_sync_state(
@@ -1061,7 +1101,11 @@ def sync_meta_reporting_slice(
     """Run the direct Meta reporting slice end to end for one tenant/account."""
 
     normalized_account_id = _normalize_meta_account_id(account_id)
-    since_date, until_date = _resolve_meta_window(since=since, until=until, lookback_days=META_DIRECT_SYNC_LOOKBACK_DAYS)
+    since_date, until_date = _resolve_meta_window(
+        since=since,
+        until=until,
+        lookback_days=META_DIRECT_SYNC_LOOKBACK_DAYS,
+    )
     credential = (
         PlatformCredential.all_objects.select_related("tenant")
         .filter(
@@ -1154,15 +1198,33 @@ def sync_meta_reporting_slice(
             raise self.retry_with_backoff(exc=exc, reason=reason)
         raise
 
+    rows_synced = int(insights_result.get("insights_synced", 0))
+    final_since_date = since_date
+    if (
+        rows_synced <= 0
+        and _window_span_days(since_date=since_date, until_date=until_date)
+        < META_DIRECT_SYNC_EXTENDED_LOOKBACK_DAYS
+    ):
+        final_since_date = until_date - timedelta(days=META_DIRECT_SYNC_EXTENDED_LOOKBACK_DAYS - 1)
+        insights_result = _sync_meta_insights_core(
+            task=self,
+            tenant_id=tenant_id,
+            account_id=normalized_account_id,
+            level=level,
+            since=final_since_date.isoformat(),
+            until=until_date.isoformat(),
+            raise_on_error=True,
+        )
+        rows_synced = int(insights_result.get("insights_synced", 0))
+
     records_queryset = RawPerformanceRecord.all_objects.filter(
         tenant_id=tenant_id,
         source="meta",
         ad_account__external_id=normalized_account_id,
-        date__gte=since_date,
+        date__gte=final_since_date,
         date__lte=until_date,
     )
     last_data_date = records_queryset.order_by("-date").values_list("date", flat=True).first()
-    rows_synced = int(insights_result.get("insights_synced", 0))
     _touch_meta_sync_state(
         tenant=credential.tenant,
         account_id=normalized_account_id,
@@ -1171,13 +1233,14 @@ def sync_meta_reporting_slice(
         job_status="succeeded",
         job_error="",
         sync_completed_at=timezone.now(),
-        window_start=since_date,
+        window_start=final_since_date,
         window_end=until_date,
         sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
         rows_synced=rows_synced,
         data_date=last_data_date,
         error_category="",
     )
+    snapshot_refresh_mode = _trigger_warehouse_snapshot_refresh(tenant_id=tenant_id)
     return {
         "tenant_id": tenant_id,
         "account_id": normalized_account_id,
@@ -1188,7 +1251,12 @@ def sync_meta_reporting_slice(
         "ads_synced": int(hierarchy_result.get("ads_synced", 0)),
         "insights_synced": rows_synced,
         "last_data_date": last_data_date.isoformat() if last_data_date else None,
+        "snapshot_refresh_mode": snapshot_refresh_mode,
     }
+
+
+def _window_span_days(*, since_date: date, until_date: date) -> int:
+    return (until_date - since_date).days + 1
 
 
 def _sync_meta_accounts_core(
@@ -1271,21 +1339,24 @@ def _sync_meta_accounts_core(
 
                 batch_count = 0
                 for row in rows:
-                    if not isinstance(row, dict):
+                    payload = row.as_public_dict() if hasattr(row, "as_public_dict") else row
+                    if not isinstance(payload, dict):
                         continue
-                    external_id = _normalize_meta_account_id(str(row.get("id") or row.get("account_id") or "").strip())
+                    external_id = _normalize_meta_account_id(
+                        str(payload.get("id") or payload.get("account_id") or "").strip()
+                    )
                     if not external_id:
                         continue
-                    account_id = str(row.get("account_id") or "").strip()
-                    status_value = row.get("account_status")
+                    account_id = str(payload.get("account_id") or "").strip() or external_id.replace("act_", "")
+                    status_value = payload.get("account_status")
                     status_text = str(status_value) if status_value is not None else ""
                     defaults = {
                         "account_id": account_id,
-                        "name": str(row.get("name") or "").strip(),
-                        "currency": str(row.get("currency") or "").strip(),
+                        "name": str(payload.get("name") or "").strip(),
+                        "currency": str(payload.get("currency") or "").strip(),
                         "status": status_text,
-                        "business_name": str(row.get("business_name") or "").strip(),
-                        "metadata": row,
+                        "business_name": str(payload.get("business_name") or "").strip(),
+                        "metadata": payload,
                         "updated_time": timezone.now(),
                     }
                     AdAccount.all_objects.update_or_create(

@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import {
   DEFAULT_CHANNELS,
+  areFiltersEqual,
   createDefaultFilterState,
   type DateRangePreset,
   type FilterBarState,
@@ -9,12 +10,22 @@ import {
 
 export type { DateRangePreset, FilterBarState } from '../lib/dashboardFilters';
 
+export interface FilterBarAccountOption {
+  value: string;
+  label: string;
+}
+
 interface FilterBarProps {
   availableChannels?: string[];
+  availableAccounts?: FilterBarAccountOption[];
   defaultState?: FilterBarState;
   state?: FilterBarState;
   onChange?: (nextState: FilterBarState) => void;
 }
+
+type FilterStateUpdater =
+  | FilterBarState
+  | ((previous: FilterBarState) => FilterBarState);
 
 const datePresets: { label: string; value: DateRangePreset }[] = [
   { label: 'Today', value: 'today' },
@@ -24,12 +35,36 @@ const datePresets: { label: string; value: DateRangePreset }[] = [
   { label: 'Custom', value: 'custom' },
 ];
 
-const FilterBar = ({ availableChannels, defaultState, state, onChange }: FilterBarProps) => {
+const extendedDatePresets: { label: string; value: DateRangePreset }[] = [
+  { label: 'Last 60 days', value: '60d' },
+  { label: 'Last 90 days', value: '90d' },
+  { label: 'Last 180 days', value: '180d' },
+  { label: 'Last 365 days', value: '365d' },
+];
+
+function cloneFilterState(filters: FilterBarState): FilterBarState {
+  return {
+    ...filters,
+    channels: [...filters.channels],
+    customRange: { ...filters.customRange },
+  };
+}
+
+const FilterBar = ({
+  availableChannels,
+  availableAccounts,
+  defaultState,
+  state,
+  onChange,
+}: FilterBarProps) => {
   const resolvedDefaultState = useMemo(
     () => defaultState ?? createDefaultFilterState(),
     [defaultState],
   );
-  const [filters, setFilters] = useState<FilterBarState>(resolvedDefaultState);
+  const [internalFilters, setInternalFilters] = useState<FilterBarState>(() =>
+    cloneFilterState(resolvedDefaultState),
+  );
+  const filters = state ?? internalFilters;
   const [isCustomOpen, setIsCustomOpen] = useState(false);
   const [isChannelOpen, setIsChannelOpen] = useState(false);
 
@@ -42,20 +77,14 @@ const FilterBar = ({ availableChannels, defaultState, state, onChange }: FilterB
   const channelPopoverId = useId();
 
   useEffect(() => {
-    onChange?.(filters);
-  }, [filters, onChange]);
-
-  useEffect(() => {
-    if (!state) {
-      setFilters({
-        ...resolvedDefaultState,
-        customRange: { ...resolvedDefaultState.customRange },
-      });
+    if (state) {
       return;
     }
-    setFilters({
-      ...state,
-      customRange: { ...state.customRange },
+    setInternalFilters((previous) => {
+      if (areFiltersEqual(previous, resolvedDefaultState)) {
+        return previous;
+      }
+      return cloneFilterState(resolvedDefaultState);
     });
   }, [resolvedDefaultState, state]);
 
@@ -130,9 +159,23 @@ const FilterBar = ({ availableChannels, defaultState, state, onChange }: FilterB
   }, [isChannelOpen]);
 
   const channels = availableChannels ?? DEFAULT_CHANNELS;
+  const selectedExtendedRange = extendedDatePresets.some((preset) => preset.value === filters.dateRange)
+    ? filters.dateRange
+    : '';
+
+  const commitFilters = (updater: FilterStateUpdater) => {
+    const next =
+      typeof updater === 'function'
+        ? (updater as (previous: FilterBarState) => FilterBarState)(filters)
+        : updater;
+    if (!state) {
+      setInternalFilters(cloneFilterState(next));
+    }
+    onChange?.(next);
+  };
 
   const handleSelectPreset = (value: DateRangePreset) => {
-    setFilters((prev) => ({
+    commitFilters((prev) => ({
       ...prev,
       dateRange: value,
     }));
@@ -144,7 +187,7 @@ const FilterBar = ({ availableChannels, defaultState, state, onChange }: FilterB
   };
 
   const toggleChannel = (channel: string) => {
-    setFilters((prev) => {
+    commitFilters((prev) => {
       const exists = prev.channels.includes(channel);
       const nextChannels = exists
         ? prev.channels.filter((item) => item !== channel)
@@ -157,7 +200,7 @@ const FilterBar = ({ availableChannels, defaultState, state, onChange }: FilterB
   };
 
   const updateCustomRange = (field: 'start' | 'end', value: string) => {
-    setFilters((prev) => ({
+    commitFilters((prev) => ({
       ...prev,
       dateRange: 'custom',
       customRange: {
@@ -168,7 +211,7 @@ const FilterBar = ({ availableChannels, defaultState, state, onChange }: FilterB
   };
 
   const resetFilters = () => {
-    setFilters({
+    commitFilters({
       ...resolvedDefaultState,
       customRange: { ...resolvedDefaultState.customRange },
     });
@@ -180,6 +223,7 @@ const FilterBar = ({ availableChannels, defaultState, state, onChange }: FilterB
     const baseline = resolvedDefaultState;
     return (
       filters.dateRange === baseline.dateRange &&
+      filters.accountId.trim() === baseline.accountId.trim() &&
       filters.campaignQuery.trim() === baseline.campaignQuery.trim() &&
       filters.channels.length === baseline.channels.length &&
       filters.channels.every((channel) => baseline.channels.includes(channel)) &&
@@ -246,13 +290,61 @@ const FilterBar = ({ availableChannels, defaultState, state, onChange }: FilterB
                         />
                       </label>
                     </div>
-                    <p className="filter-popover__hint">Calendar sync coming soon.</p>
                   </div>
                 ) : null}
               </div>
             );
           })}
         </div>
+
+        <div className="filter-field filter-search">
+          <label htmlFor="extended-reporting-window">Longer window</label>
+          <select
+            id="extended-reporting-window"
+            value={selectedExtendedRange}
+            onChange={(event) => {
+              const nextValue = event.target.value as DateRangePreset | '';
+              if (!nextValue) {
+                return;
+              }
+              commitFilters((prev) => ({
+                ...prev,
+                dateRange: nextValue,
+              }));
+              setIsCustomOpen(false);
+            }}
+          >
+            <option value="">More ranges</option>
+            {extendedDatePresets.map((preset) => (
+              <option key={preset.value} value={preset.value}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {availableAccounts && availableAccounts.length > 0 ? (
+          <div className="filter-field filter-search">
+            <label htmlFor="client-account">Client</label>
+            <select
+              id="client-account"
+              value={filters.accountId}
+              onChange={(event) =>
+                commitFilters((prev) => ({
+                  ...prev,
+                  accountId: event.target.value,
+                }))
+              }
+            >
+              <option value="">All clients</option>
+              {availableAccounts.map((account) => (
+                <option key={account.value} value={account.value}>
+                  {account.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         <div className="filter-field filter-multiselect" ref={channelPopoverRef}>
           <button
@@ -301,7 +393,7 @@ const FilterBar = ({ availableChannels, defaultState, state, onChange }: FilterB
             placeholder="Search campaigns"
             value={filters.campaignQuery}
             onChange={(event) =>
-              setFilters((prev) => ({
+              commitFilters((prev) => ({
                 ...prev,
                 campaignQuery: event.target.value,
               }))

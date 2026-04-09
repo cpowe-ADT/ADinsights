@@ -192,7 +192,7 @@
     --metric-delta-negative-surface: rgba(220, 38, 38, 0.12);
     --metric-delta-neutral-surface: rgba(148, 163, 184, 0.14);
     --metric-badge-surface: rgba(37, 99, 235, 0.12);
-    --metric-badge-text: var(--color-blue-600);
+    --metric-badge-text: var(--color-blue-700);
     --metric-badge-paused-surface: rgba(234, 179, 8, 0.15);
     --metric-badge-paused-text: #b45309;
     --metric-badge-limited-surface: rgba(248, 113, 113, 0.16);

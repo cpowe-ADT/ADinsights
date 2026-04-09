@@ -1,4 +1,13 @@
-export type DateRangePreset = 'today' | '7d' | '30d' | 'mtd' | 'custom';
+export type DateRangePreset =
+  | 'today'
+  | '7d'
+  | '30d'
+  | '60d'
+  | '90d'
+  | '180d'
+  | '365d'
+  | 'mtd'
+  | 'custom';
 
 export type FilterBarState = {
   dateRange: DateRangePreset;
@@ -6,6 +15,7 @@ export type FilterBarState = {
     start: string;
     end: string;
   };
+  accountId: string;
   channels: string[];
   campaignQuery: string;
 };
@@ -28,12 +38,23 @@ const CHANNEL_LABELS: Record<string, string> = {
   tiktok: 'TikTok',
 };
 
-const DATE_RANGE_PRESETS = new Set<DateRangePreset>(['today', '7d', '30d', 'mtd', 'custom']);
+const DATE_RANGE_PRESETS = new Set<DateRangePreset>([
+  'today',
+  '7d',
+  '30d',
+  '60d',
+  '90d',
+  '180d',
+  '365d',
+  'mtd',
+  'custom',
+]);
 
 const FILTER_QUERY_KEYS = {
   dateRange: 'date_range',
   startDate: 'start_date',
   endDate: 'end_date',
+  accountId: 'account_id',
   channels: 'channels',
   campaignSearch: 'campaign_search',
 };
@@ -55,6 +76,7 @@ export const createDefaultCustomRange = (): FilterBarState['customRange'] => {
 export const createDefaultFilterState = (): FilterBarState => ({
   dateRange: '7d',
   customRange: createDefaultCustomRange(),
+  accountId: '',
   channels: [],
   campaignQuery: '',
 });
@@ -93,6 +115,11 @@ export const resolveFilterRange = (filters: FilterBarState): { start: string; en
   const today = new Date();
   const end = toInputDate(today);
   let start = end;
+  const resolveTrailingDays = (days: number): string => {
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - (days - 1));
+    return toInputDate(startDate);
+  };
 
   switch (filters.dateRange) {
     case 'today': {
@@ -106,9 +133,23 @@ export const resolveFilterRange = (filters: FilterBarState): { start: string; en
       break;
     }
     case '30d': {
-      const startDate = new Date(today);
-      startDate.setDate(startDate.getDate() - 29);
-      start = toInputDate(startDate);
+      start = resolveTrailingDays(30);
+      break;
+    }
+    case '60d': {
+      start = resolveTrailingDays(60);
+      break;
+    }
+    case '90d': {
+      start = resolveTrailingDays(90);
+      break;
+    }
+    case '180d': {
+      start = resolveTrailingDays(180);
+      break;
+    }
+    case '365d': {
+      start = resolveTrailingDays(365);
       break;
     }
     case 'mtd': {
@@ -136,6 +177,11 @@ export const buildFilterQueryParams = (filters: FilterBarState): Record<string, 
     [FILTER_QUERY_KEYS.startDate]: start,
     [FILTER_QUERY_KEYS.endDate]: end,
   };
+
+  const accountId = filters.accountId.trim();
+  if (accountId) {
+    params[FILTER_QUERY_KEYS.accountId] = accountId;
+  }
 
   const channelValues = filters.channels.map(normalizeChannelValue).filter(Boolean);
   if (channelValues.length > 0) {
@@ -176,6 +222,7 @@ export const parseFilterQueryParams = (
     normalizeDateValue(endParam, fallback.customRange.end),
   );
 
+  const accountId = searchParams.get(FILTER_QUERY_KEYS.accountId)?.trim() ?? fallback.accountId;
   const channelParam = searchParams.get(FILTER_QUERY_KEYS.channels);
   const channels = channelParam
     ? channelParam
@@ -201,6 +248,7 @@ export const parseFilterQueryParams = (
       start: resolvedStart,
       end: resolvedEnd,
     },
+    accountId,
     channels,
     campaignQuery,
   };
@@ -214,6 +262,10 @@ export const areFiltersEqual = (left: FilterBarState, right: FilterBarState): bo
   const leftQuery = left.campaignQuery.trim();
   const rightQuery = right.campaignQuery.trim();
   if (leftQuery !== rightQuery) {
+    return false;
+  }
+
+  if (left.accountId.trim() !== right.accountId.trim()) {
     return false;
   }
 

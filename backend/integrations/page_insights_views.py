@@ -19,6 +19,7 @@ from analytics.phase2_serializers import ReportExportJobSerializer
 from core.db_error_responses import schema_out_of_date_response
 from integrations.meta_page_insights.metric_pack_loader import is_blocked_metric
 from integrations.meta_page_views import MetaOAuthCallbackView
+from integrations.meta_page_views import _dispatch_meta_page_task
 from integrations.models import (
     MetaConnection,
     MetaInsightPoint,
@@ -46,7 +47,7 @@ from integrations.tasks import (
 from integrations.views import MetaOAuthStartView
 
 logger = logging.getLogger(__name__)
-REQUIRED_INSIGHTS_SCOPES = {"pages_read_engagement", "read_insights"}
+REQUIRED_INSIGHTS_SCOPES = {"pages_read_engagement"}
 
 
 def _schema_response(request, exc: Exception, endpoint: str) -> Response | None:
@@ -83,6 +84,16 @@ class MetaPagesInsightsListView(APIView):
         pages = list(
             MetaPage.objects.filter(tenant=request.user.tenant).order_by("-is_default", "name")
         )
+        connection = (
+            MetaConnection.objects.filter(tenant=request.user.tenant, is_active=True)
+            .order_by("-updated_at")
+            .first()
+        )
+        missing_required_permissions = (
+            sorted(REQUIRED_INSIGHTS_SCOPES)
+            if connection is None
+            else _missing_required_scopes_for_page_connection(connection)
+        )
         payload = [
             {
                 "id": str(page.pk),
@@ -96,7 +107,13 @@ class MetaPagesInsightsListView(APIView):
             }
             for page in pages
         ]
-        return Response({"results": payload, "count": len(payload)})
+        return Response(
+            {
+                "results": payload,
+                "count": len(payload),
+                "missing_required_permissions": missing_required_permissions,
+            }
+        )
 
 
 class MetaPageInsightsSyncView(APIView):
@@ -139,19 +156,66 @@ class MetaPageInsightsSyncView(APIView):
             )
 
         mode = serializer.validated_data["mode"]
-        posts_task = sync_page_posts.delay(page_id=page.page_id, mode=mode)
-        discovery_task = discover_supported_metrics.delay(page_id=page.page_id)
-        page_task = sync_page_insights.delay(page_id=page.page_id, mode=mode)
-        post_task = sync_post_insights.delay(page_id=page.page_id, mode=mode)
+        try:
+            posts_task_id, posts_dispatch = _dispatch_meta_page_task(
+                task=sync_page_posts,
+                task_name="sync_page_posts",
+                kwargs={"page_id": page.page_id, "mode": mode},
+                tenant_id=str(request.user.tenant_id),
+                page_id=page.page_id,
+            )
+            discovery_task_id, discovery_dispatch = _dispatch_meta_page_task(
+                task=discover_supported_metrics,
+                task_name="discover_supported_metrics",
+                kwargs={"page_id": page.page_id},
+                tenant_id=str(request.user.tenant_id),
+                page_id=page.page_id,
+            )
+            page_task_id, page_dispatch = _dispatch_meta_page_task(
+                task=sync_page_insights,
+                task_name="sync_page_insights",
+                kwargs={"page_id": page.page_id, "mode": mode},
+                tenant_id=str(request.user.tenant_id),
+                page_id=page.page_id,
+            )
+            post_task_id, post_dispatch = _dispatch_meta_page_task(
+                task=sync_post_insights,
+                task_name="sync_post_insights",
+                kwargs={"page_id": page.page_id, "mode": mode},
+                tenant_id=str(request.user.tenant_id),
+                page_id=page.page_id,
+            )
+        except Exception as exc:
+            logger.warning(
+                "meta.pages.sync.dispatch_failed",
+                extra={
+                    "tenant_id": str(request.user.tenant_id),
+                    "page_id": page.page_id,
+                    "error": str(exc),
+                },
+            )
+            return Response(
+                {
+                    "detail": "Unable to start Meta Page sync.",
+                    "code": "meta_page_sync_unavailable",
+                    "reason": "task_dispatch_unavailable",
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         return Response(
             {
                 "page_id": page.page_id,
                 "tasks": {
-                    "sync_page_posts": posts_task.id,
-                    "discover_supported_metrics": discovery_task.id,
-                    "sync_page_insights": page_task.id,
-                    "sync_post_insights": post_task.id,
+                    "sync_page_posts": posts_task_id,
+                    "discover_supported_metrics": discovery_task_id,
+                    "sync_page_insights": page_task_id,
+                    "sync_post_insights": post_task_id,
                 },
+                "task_dispatch_mode": (
+                    "inline"
+                    if "inline" in {posts_dispatch, discovery_dispatch, page_dispatch, post_dispatch}
+                    else "queued"
+                ),
             },
             status=status.HTTP_202_ACCEPTED,
         )
@@ -798,7 +862,15 @@ def _missing_required_scopes_for_page(page: MetaPage) -> list[str]:
         )
         if latest_connection is not None and isinstance(latest_connection.scopes, list):
             scopes = [str(scope).strip() for scope in latest_connection.scopes if isinstance(scope, str)]
-    granted = {scope for scope in scopes if scope}
+    return _missing_required_scopes_for_scopes(scopes)
+
+
+def _missing_required_scopes_for_page_connection(connection: MetaConnection) -> list[str]:
+    return _missing_required_scopes_for_scopes(connection.scopes if isinstance(connection.scopes, list) else [])
+
+
+def _missing_required_scopes_for_scopes(scopes: list[str]) -> list[str]:
+    granted = {scope for scope in scopes if isinstance(scope, str) and scope.strip()}
     return sorted(REQUIRED_INSIGHTS_SCOPES - granted)
 
 

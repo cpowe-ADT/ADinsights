@@ -2,12 +2,19 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import apiClient from '../lib/apiClient';
+import {
+  loadDatasetStatus,
+  messageForLiveDatasetReason,
+  type DatasetLiveReason,
+  type DatasetStatusResponse,
+} from '../lib/datasetStatus';
 
 export type DatasetMode = 'live' | 'dummy';
 
 const STORAGE_KEY = 'dataset-mode';
 const FAKE_KEY = 'fake';
 const DEMO_KEY = 'demo';
+const META_DIRECT_KEY = 'meta_direct';
 const WAREHOUSE_KEY = 'warehouse';
 
 interface AdapterMetadata {
@@ -28,6 +35,11 @@ interface DatasetState {
   status: LoadStatus;
   error?: string;
   source?: string;
+  liveReason?: DatasetLiveReason;
+  liveDetail?: string;
+  liveSnapshotGeneratedAt?: string;
+  warehouseAdapterEnabled: boolean;
+  datasetStatusPayload?: DatasetStatusResponse;
   demoTenants: Array<{ id: string; label: string }>;
   demoTenantId?: string;
   setMode: (mode: DatasetMode) => void;
@@ -36,7 +48,12 @@ interface DatasetState {
   setDemoTenantId: (tenantId: string) => void;
 }
 
-function computeSource(mode: DatasetMode, adapters: string[]): string | undefined {
+function computeSource(
+  mode: DatasetMode,
+  adapters: string[],
+  warehouseAdapterEnabled = adapters.includes(WAREHOUSE_KEY),
+  liveReason?: DatasetLiveReason,
+): string | undefined {
   if (mode === 'dummy') {
     if (adapters.includes(DEMO_KEY)) {
       return DEMO_KEY;
@@ -47,9 +64,26 @@ function computeSource(mode: DatasetMode, adapters: string[]): string | undefine
     return undefined;
   }
   if (mode === 'live') {
-    return adapters.includes(WAREHOUSE_KEY) ? WAREHOUSE_KEY : undefined;
+    if (warehouseAdapterEnabled && liveReason === 'ready') {
+      return WAREHOUSE_KEY;
+    }
+    if (adapters.includes(META_DIRECT_KEY)) {
+      return META_DIRECT_KEY;
+    }
+    if (warehouseAdapterEnabled) {
+      return WAREHOUSE_KEY;
+    }
+    return undefined;
   }
   return undefined;
+}
+
+function hasLiveSource(
+  adapters: string[],
+  warehouseAdapterEnabled: boolean,
+  liveReason?: DatasetLiveReason,
+): boolean {
+  return Boolean(computeSource('live', adapters, warehouseAdapterEnabled, liveReason));
 }
 
 export const useDatasetStore = create<DatasetState>()(
@@ -60,31 +94,40 @@ export const useDatasetStore = create<DatasetState>()(
       status: 'idle',
       error: undefined,
       source: undefined,
+      liveReason: undefined,
+      liveDetail: undefined,
+      liveSnapshotGeneratedAt: undefined,
+      warehouseAdapterEnabled: false,
+      datasetStatusPayload: undefined,
       demoTenants: [],
       demoTenantId: undefined,
       setMode: (mode) => {
-        const { adapters } = get();
+        const { adapters, warehouseAdapterEnabled, liveReason } = get();
+        const nextSource = computeSource(mode, adapters, warehouseAdapterEnabled, liveReason);
         set((s) => ({
           ...s,
           mode,
-          error: undefined,
-          source: computeSource(mode, adapters),
+          error:
+            mode === 'live' && nextSource === WAREHOUSE_KEY && liveReason && liveReason !== 'ready'
+              ? messageForLiveDatasetReason(liveReason)
+              : undefined,
+          source: nextSource,
         }));
       },
       setDemoTenantId: (tenantId) => {
         set((s) => ({ ...s, demoTenantId: tenantId }));
       },
       toggleMode: () => {
-        const { mode, adapters } = get();
+        const { mode, adapters, warehouseAdapterEnabled, liveReason } = get();
         const next = mode === 'live' ? 'dummy' : 'live';
         const demoAvailable = adapters.includes(DEMO_KEY) || adapters.includes(FAKE_KEY);
-        const liveAvailable = adapters.includes(WAREHOUSE_KEY);
+        const liveAvailable = hasLiveSource(adapters, warehouseAdapterEnabled, liveReason);
 
         if (next === 'dummy' && !demoAvailable) {
           set((s) => ({
             ...s,
             error: 'Demo dataset is unavailable.',
-            source: computeSource(mode, adapters),
+            source: computeSource(mode, adapters, warehouseAdapterEnabled, liveReason),
           }));
           return mode;
         }
@@ -92,13 +135,22 @@ export const useDatasetStore = create<DatasetState>()(
         if (next === 'live' && !liveAvailable) {
           set((s) => ({
             ...s,
-            error: 'Live warehouse metrics are unavailable.',
-            source: computeSource(mode, adapters),
+            error: messageForLiveDatasetReason(liveReason ?? 'adapter_disabled'),
+            source: computeSource(mode, adapters, warehouseAdapterEnabled, liveReason),
           }));
           return mode;
         }
 
-        set((s) => ({ ...s, mode: next, error: undefined, source: computeSource(next, adapters) }));
+        const nextSource = computeSource(next, adapters, warehouseAdapterEnabled, liveReason);
+        set((s) => ({
+          ...s,
+          mode: next,
+          error:
+            next === 'live' && nextSource === WAREHOUSE_KEY && liveReason && liveReason !== 'ready'
+              ? messageForLiveDatasetReason(liveReason)
+              : undefined,
+          source: nextSource,
+        }));
         return next;
       },
       loadAdapters: async () => {
@@ -108,13 +160,20 @@ export const useDatasetStore = create<DatasetState>()(
 
         set((s) => ({ ...s, status: 'loading', error: undefined }));
         try {
-          const response = await apiClient.get<AdapterMetadata[]>('/adapters/');
+          const [response, datasetStatus] = await Promise.all([
+            apiClient.get<AdapterMetadata[]>('/adapters/'),
+            loadDatasetStatus(),
+          ]);
           const keys = response.map((adapter) => adapter.key);
           const demoMetadata = response.find((adapter) => adapter.key === DEMO_KEY);
           const demoTenants = demoMetadata?.options?.demo_tenants ?? [];
 
           const currentMode = get().mode;
-          const liveAvailable = keys.includes(WAREHOUSE_KEY);
+          const liveAvailable = hasLiveSource(
+            keys,
+            datasetStatus.warehouse_adapter_enabled,
+            datasetStatus.live.reason,
+          );
           const demoAvailable = keys.includes(DEMO_KEY) || keys.includes(FAKE_KEY);
 
           let resolvedMode: DatasetMode = currentMode;
@@ -126,7 +185,12 @@ export const useDatasetStore = create<DatasetState>()(
             resolvedMode = 'live';
           }
 
-          const resolvedSource = computeSource(resolvedMode, keys);
+          const resolvedSource = computeSource(
+            resolvedMode,
+            keys,
+            datasetStatus.warehouse_adapter_enabled,
+            datasetStatus.live.reason,
+          );
           const existingDemoTenantId = get().demoTenantId;
           const resolvedDemoTenantId =
             demoTenants.length === 0
@@ -137,7 +201,11 @@ export const useDatasetStore = create<DatasetState>()(
 
           const resolvedError =
             resolvedMode === 'live' && !liveAvailable
-              ? 'Live warehouse metrics are unavailable.'
+              ? messageForLiveDatasetReason(datasetStatus.live.reason)
+              : resolvedMode === 'live' &&
+                  resolvedSource === WAREHOUSE_KEY &&
+                  datasetStatus.live.reason !== 'ready'
+                ? messageForLiveDatasetReason(datasetStatus.live.reason)
               : resolvedMode === 'dummy' && !demoAvailable
                 ? 'Demo dataset is unavailable.'
                 : undefined;
@@ -149,6 +217,11 @@ export const useDatasetStore = create<DatasetState>()(
             error: resolvedError,
             mode: resolvedMode,
             source: resolvedSource,
+            liveReason: datasetStatus.live.reason,
+            liveDetail: datasetStatus.live.detail ?? undefined,
+            liveSnapshotGeneratedAt: datasetStatus.live.snapshot_generated_at ?? undefined,
+            warehouseAdapterEnabled: datasetStatus.warehouse_adapter_enabled,
+            datasetStatusPayload: datasetStatus,
             demoTenants,
             demoTenantId: resolvedDemoTenantId,
           }));
@@ -158,7 +231,12 @@ export const useDatasetStore = create<DatasetState>()(
             ...s,
             status: 'error',
             error: message,
-            source: computeSource(get().mode, get().adapters),
+            source: computeSource(
+              get().mode,
+              get().adapters,
+              get().warehouseAdapterEnabled,
+              get().liveReason,
+            ),
           }));
         }
       },
@@ -176,6 +254,14 @@ export function getDatasetMode(): DatasetMode {
 
 export function getDatasetSource(): string | undefined {
   return useDatasetStore.getState().source;
+}
+
+export function getLiveDatasetReason(): DatasetLiveReason | undefined {
+  return useDatasetStore.getState().liveReason;
+}
+
+export function getLiveDatasetDetail(): string | undefined {
+  return useDatasetStore.getState().liveDetail;
 }
 
 export function getDemoTenantId(): string | undefined {

@@ -8,8 +8,8 @@
         'source_platform',
         'ad_account_id',
         'campaign_id',
-        "coalesce(adset_id, 'NO_ADSET')",
-        "coalesce(ad_id, 'NO_AD')"
+        'adset_key',
+        'ad_key'
     ],
     incremental_strategy=fact_incremental_strategy,
     on_schema_change='sync_all_columns'
@@ -17,12 +17,14 @@
 
 with base as (
     select
-        {{ tenant_id_expr() }} as tenant_id,
+        tenant_id,
         date_day,
         source_platform,
         ad_account_id,
         campaign_id,
         campaign_name,
+        status,
+        objective,
         adset_id,
         ad_id,
         ad_name,
@@ -31,6 +33,7 @@ with base as (
         coalesce(region_name, 'Unknown') as region_name,
         spend,
         impressions,
+        reach,
         clicks,
         conversions,
         effective_from
@@ -55,14 +58,19 @@ select
     n.ad_account_id,
     n.campaign_id,
     n.campaign_name,
+    n.status,
+    n.objective,
     n.adset_id,
     n.ad_id,
+    coalesce(n.adset_id, 'NO_ADSET') as adset_key,
+    coalesce(n.ad_id, 'NO_AD') as ad_key,
     n.ad_name,
     n.parish_code,
     n.parish_name,
     n.region_name,
     n.spend,
     n.impressions,
+    n.reach,
     n.clicks,
     n.conversions as reported_conversions,
     n.conversions_aligned as conversions,

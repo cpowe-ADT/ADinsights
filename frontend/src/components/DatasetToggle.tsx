@@ -68,7 +68,7 @@ const DatasetToggle = (): JSX.Element | null => {
   }
 
   const hasDemoData = adapters.includes('demo') || adapters.includes('fake');
-  const hasLiveData = adapters.includes('warehouse');
+  const hasLiveData = source === 'warehouse' || source === 'meta_direct' || adapters.includes('warehouse');
 
   const nextLabel = mode === 'live' ? 'Use demo data' : 'Use live data';
   const badge = DATASET_LABELS[mode];
@@ -77,7 +77,9 @@ const DatasetToggle = (): JSX.Element | null => {
     isLoading || (mode === 'dummy' && !hasLiveData) || (mode === 'live' && !hasDemoData);
   const statusMessage =
     mode === 'live'
-      ? 'Live warehouse metrics (default).'
+      ? source === 'meta_direct'
+        ? 'Direct Meta sync data is active. Warehouse reporting is unavailable or not ready in this environment.'
+        : 'Live warehouse metrics (default).'
       : 'Demo dataset loaded for QA and training.';
 
   const handleClick = () => {
@@ -172,7 +174,7 @@ const DatasetToggle = (): JSX.Element | null => {
       {error ? <span className="dataset-toggle__error">{error}</span> : null}
       {!hasLiveData && mode === 'dummy' ? (
         <span className="dataset-toggle__error" role="status">
-          Live warehouse data unavailable.
+          Live data unavailable.
         </span>
       ) : null}
       {!hasDemoData && mode === 'live' ? (
@@ -180,7 +182,7 @@ const DatasetToggle = (): JSX.Element | null => {
           Demo dataset unavailable.
         </span>
       ) : null}
-      {!source ? (
+      {!source && !error ? (
         <span className="dataset-toggle__error" role="status">
           Dataset unavailable. Results may be empty.
         </span>

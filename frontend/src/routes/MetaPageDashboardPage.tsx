@@ -106,8 +106,11 @@ const MetaPageDashboardPage = () => {
         <p className="dashboardEyebrow">Dashboards</p>
         <h1 className="dashboardHeading">Facebook Page Insights</h1>
         <div className="dashboard-header__actions-row">
-          <Link className="button tertiary" to="/integrations/meta">
-            Back to Meta integration
+          <Link className="button tertiary" to="/dashboards/data-sources?sources=social">
+            Connect socials
+          </Link>
+          <Link className="button tertiary" to="/dashboards/meta/pages">
+            Facebook pages
           </Link>
           {pageId ? (
             <Link className="button tertiary" to={`/dashboards/meta/pages/${pageId}/posts`}>

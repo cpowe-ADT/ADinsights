@@ -244,6 +244,12 @@ def _as_int(value: Any) -> int:
 def _as_decimal(value: Any) -> Decimal:
     if value is None:
         return Decimal("0")
+    if isinstance(value, Decimal):
+        return value
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal("0")
 
 
 def _as_bool(value: Any) -> bool:
@@ -254,12 +260,6 @@ def _as_bool(value: Any) -> bool:
     if value is None:
         return False
     return bool(value)
-    if isinstance(value, Decimal):
-        return value
-    try:
-        return Decimal(str(value))
-    except (InvalidOperation, ValueError, TypeError):
-        return Decimal("0")
 
 
 def _classify_google_ads_exception(exc: Exception, google_ads_exception_cls: type[Exception]) -> GoogleAdsSdkError:

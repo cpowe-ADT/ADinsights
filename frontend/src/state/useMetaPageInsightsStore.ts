@@ -74,7 +74,7 @@ type MetaPageInsightsState = {
   setSelectedPostId: (postId: string) => void;
   loadPages: () => Promise<void>;
   loadMetricRegistry: () => Promise<void>;
-  connectOAuthStart: () => Promise<void>;
+  connectOAuthStart: (options?: { authType?: 'rerequest' }) => Promise<void>;
   connectOAuthCallback: (code: string, state: string) => Promise<void>;
   selectDefaultPage: (pageId: string) => Promise<void>;
   loadOverviewAndTimeseries: (pageId: string) => Promise<void>;
@@ -159,10 +159,15 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
       set((state) => ({
         pagesStatus: 'loaded',
         pages: payload.results,
+        missingRequiredPermissions: payload.missing_required_permissions ?? [],
         selectedPageId: state.selectedPageId || defaultPage?.page_id || '',
       }));
     } catch (error) {
-      set({ pagesStatus: 'error', error: classifyError(error, 'Unable to load Facebook Pages.') });
+      set({
+        pagesStatus: 'error',
+        error: classifyError(error, 'Unable to load Facebook Pages.'),
+        missingRequiredPermissions: [],
+      });
     }
   },
   loadMetricRegistry: async () => {
@@ -176,11 +181,11 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
       set({ metrics: { page: [], post: [] } });
     }
   },
-  connectOAuthStart: async () => {
+  connectOAuthStart: async (options) => {
     set({ oauthStatus: 'loading', error: undefined });
     try {
       setOAuthFlowMarker(META_OAUTH_FLOW_PAGE_INSIGHTS);
-      const payload = await startMetaOAuth();
+      const payload = await startMetaOAuth(options?.authType);
       window.location.assign(payload.authorize_url);
     } catch (error) {
       clearOAuthFlowMarker();

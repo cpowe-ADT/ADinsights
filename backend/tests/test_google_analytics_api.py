@@ -39,6 +39,31 @@ def test_google_analytics_setup_endpoint(api_client: APIClient, user, settings):
     assert payload["runtime_context"]["redirect_source"] == "explicit_redirect_uri"
 
 
+def test_google_analytics_setup_blocks_ready_for_oauth_when_runtime_origin_mismatches_redirect(
+    api_client: APIClient,
+    user,
+    settings,
+):
+    api_client.force_authenticate(user=user)
+    settings.GOOGLE_ANALYTICS_CLIENT_ID = "ga4-client-id"
+    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = "ga4-client-secret"  # pragma: allowlist secret
+    settings.GOOGLE_ANALYTICS_OAUTH_REDIRECT_URI = (
+        "http://localhost:5173/dashboards/data-sources"
+    )
+
+    response = api_client.get(
+        "/api/integrations/google_analytics/setup/",
+        HTTP_ORIGIN="http://localhost:5175",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ready_for_oauth"] is False
+    runtime_check = next(check for check in payload["checks"] if check["key"] == "ga4_runtime_redirect_origin")
+    assert runtime_check["ok"] is False
+    assert "does not match the configured OAuth redirect origin" in runtime_check["details"]
+
+
 def test_google_analytics_oauth_start_endpoint(api_client: APIClient, user, settings):
     api_client.force_authenticate(user=user)
     settings.GOOGLE_ANALYTICS_CLIENT_ID = "ga4-client-id"
@@ -60,6 +85,30 @@ def test_google_analytics_oauth_start_endpoint(api_client: APIClient, user, sett
     query = parse_qs(urlparse(payload["authorize_url"]).query)
     assert "https://www.googleapis.com/auth/analytics.readonly" in query["scope"][0]
     assert payload["state"]
+
+
+def test_google_analytics_oauth_start_rejects_runtime_origin_mismatch_when_redirect_is_explicit(
+    api_client: APIClient,
+    user,
+    settings,
+):
+    api_client.force_authenticate(user=user)
+    settings.GOOGLE_ANALYTICS_CLIENT_ID = "ga4-client-id"
+    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = "ga4-client-secret"  # pragma: allowlist secret
+    settings.GOOGLE_ANALYTICS_OAUTH_REDIRECT_URI = (
+        "http://localhost:5173/dashboards/data-sources"
+    )
+
+    response = api_client.post(
+        "/api/integrations/google_analytics/oauth/start/",
+        {"runtime_context": {"client_origin": "http://localhost:5175", "client_port": 5175}},
+        format="json",
+    )
+
+    assert response.status_code == 409
+    payload = response.json()
+    assert payload["detail"].startswith("Open the app on http://localhost:5173")
+    assert payload["runtime_context"]["redirect_origin_matches_runtime"] is False
 
 
 def test_google_analytics_oauth_exchange_persists_credential(

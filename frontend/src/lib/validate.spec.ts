@@ -33,7 +33,7 @@ const metricsSample = {
       name: 'Awareness Boost',
       platform: 'Meta',
       status: 'Active',
-      parish: 'Kingston',
+      parishes: ['Kingston'],
       spend: 540,
       impressions: 120000,
       clicks: 3400,

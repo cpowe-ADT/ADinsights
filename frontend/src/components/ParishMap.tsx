@@ -198,6 +198,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     selectedParish,
     setSelectedParish,
     activeTenantId,
+    mapAvailability,
   } = useDashboardStore((state) => ({
     parishData: state.parish.data ?? [],
     parishStatus: state.parish.status,
@@ -206,6 +207,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     selectedParish: state.selectedParish,
     setSelectedParish: state.setSelectedParish,
     activeTenantId: state.activeTenantId,
+    mapAvailability: state.availability?.parish_map,
   }));
   const [geojson, setGeojson] = useState<FeatureCollection | null>(null);
   const [geometryStatus, setGeometryStatus] = useState<LoadStatus>('idle');
@@ -938,13 +940,40 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     );
   }
 
-  if (parishData.length === 0) {
+  if (mapAvailability?.reason === 'geo_unavailable') {
     return (
       <DashboardState
         variant="empty"
         icon={<MapPlaceholderIcon />}
-        title="No map insights yet"
-        message="Map insights will appear once this tenant has campaign data."
+        title="Map unavailable for this Meta dataset"
+        message="The selected Meta Ads data does not include trustworthy parish coverage yet, so the map is intentionally disabled instead of showing misleading geography."
+        actionLabel={selectedParish ? 'Clear parish filter' : 'Refresh data'}
+        onAction={selectedParish ? clearParishFilter : handleRetry}
+        actionVariant="secondary"
+        layout="compact"
+      />
+    );
+  }
+
+  if (parishData.length === 0) {
+    return (
+      <DashboardState
+        variant={mapAvailability?.reason === 'no_matching_filters' ? 'no-results' : 'empty'}
+        icon={<MapPlaceholderIcon />}
+        title={
+          mapAvailability?.reason === 'geo_unavailable'
+            ? 'Map unavailable for this Meta dataset'
+            : mapAvailability?.reason === 'no_matching_filters'
+              ? 'No map rows match this view'
+              : 'No map insights yet'
+        }
+        message={
+          mapAvailability?.reason === 'geo_unavailable'
+            ? 'The selected Meta Ads data does not include trustworthy parish coverage yet, so the map is intentionally disabled instead of showing misleading geography.'
+            : mapAvailability?.reason === 'no_matching_filters'
+              ? 'No parish rows matched the selected client, range, or search filters.'
+              : 'Map insights will appear once this tenant has campaign data.'
+        }
         actionLabel="Refresh data"
         onAction={handleRetry}
         actionVariant="secondary"

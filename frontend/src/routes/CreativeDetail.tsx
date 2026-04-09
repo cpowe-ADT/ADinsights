@@ -104,7 +104,13 @@ const CreativeDetail = (): JSX.Element => {
           ),
         },
         { label: 'Platform', value: activeCreative.platform ?? '—' },
-        { label: 'Primary parish', value: activeCreative.parish ?? '—' },
+        {
+          label: 'Parishes',
+          value:
+            activeCreative.parishes && activeCreative.parishes.length > 0
+              ? activeCreative.parishes.join(', ')
+              : '—',
+        },
         {
           label: 'CTR',
           value:

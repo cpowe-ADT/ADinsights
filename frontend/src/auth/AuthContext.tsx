@@ -135,6 +135,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     refreshTokenRef.current = undefined;
     tokensRef.current = null;
     setAccessToken(undefined);
+    setApiAccessToken(undefined);
     setUser(undefined);
     syncActiveTenant(undefined);
     setStatus('idle');
@@ -147,6 +148,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
   const applyTokens = useCallback(
     (next: StoredTokens) => {
       setAccessToken(next.access);
+      setApiAccessToken(next.access);
       setUser(next.user);
       refreshTokenRef.current = next.refresh;
       tokensRef.current = next;

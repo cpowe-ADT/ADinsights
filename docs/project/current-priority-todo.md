@@ -35,6 +35,7 @@ See also:
 - [ ] Run real alert simulations and attach observability evidence. Status: `blocked-external`.
 - [ ] Complete SES sender identity, DKIM/SPF/DMARC, and final outbound sender verification. Status: `blocked-external`.
 - [ ] Execute the final staging go/no-go rehearsal and archive evidence. Status: `blocked-external`.
+- [ ] Finish Meta Ads MVP live verification for SLB, JDIC, and Bedi Walker, plus stale-snapshot UX evidence in a real runtime. Status: `blocked-external`.
 
 ## Next Unblocked Repo Work
 
@@ -44,6 +45,7 @@ See also:
 - [x] Frontend: conditional UI rendering based on `tenantContext` role (e.g. hide "Create" for Viewer). Scope: `frontend/`. Status: `repo-ready`.
 - [x] Frontend lint stabilization: resolve pre-existing ESLint failures in `src/lib/apiClient.ts` and `src/routes/google-ads/__tests__/GoogleAdsWorkspacePage.test.tsx`. Scope: `frontend/`. Status: `repo-ready`.
 - [x] Ops: Enhance `backend-setup` in `docker-compose.yml` with health-checks to block backend start until DB is ready. Scope: `deploy/`. Status: `repo-ready`.
+- [ ] dbt demo mart cleanup: fix the DuckDB interval-conversion failure in `dbt/models/marts/demo/vw_demo_dashboard_snapshot.sql` so full `dbt test` is green outside the Meta dashboard path. Scope: `dbt/`. Status: `repo-ready`.
 
 ## Defer Until After Release Hardening
 

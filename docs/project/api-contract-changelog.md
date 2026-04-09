@@ -4,6 +4,7 @@ Purpose: track API payload changes that affect frontend, BI, or integrations.
 Keep this brief and link to PRs or commits when available.
 
 ## Format
+
 - **Date**
 - **Endpoint**
 - **Change**
@@ -23,6 +24,46 @@ Keep this brief and link to PRs or commits when available.
   - Change: Response is now paginated (`{count, next, previous, results}`). Previously returned a bare array. Supports `?page=N&page_size=N` (default 50, max 200). Filtering by `?action=` and `?resource_type=` unchanged.
   - Impact: Consumers iterating the raw array must unwrap `results`; paginated clients can use `count` and `next`/`previous` for traversal.
   - Owner: Sofia (Backend Metrics)
+
+- **2026-04-07**
+  - Endpoints: `GET /api/adapters/`, `GET /api/datasets/status/`, `GET /api/dashboards/recent/`, `GET /api/dashboards/saved/<id>/`, `POST /api/dashboards/`, `PUT /api/dashboards/<id>/`, `DELETE /api/dashboards/<id>/`, Meta Pages and Google Ads integration endpoints
+  - Change: Added `meta_direct` adapter to the adapter registry (enabled via `ENABLE_META_DIRECT_ADAPTER`). `GET /api/adapters/` now includes `meta_direct` when enabled, ordered before `demo`/`fake`. Added `GET /api/dashboards/recent/` returning user-scoped saved dashboards with `id`, `name`, `owner`, `last_viewed_at`, `last_viewed_label`, `route` fields (route: `/dashboards/saved/<id>`). Added full saved-dashboard CRUD via `DashboardDefinition` model. dbt models `vw_campaign_daily`, `all_ad_performance`, `dim_campaign`, `fact_performance` updated with additive fields. Added `GET /api/datasets/status/` dataset freshness endpoint. Meta Pages, Google Ads, Google Analytics integration views hardened with explicit error shapes.
+  - Impact: Frontend `liveAccountSelection` and Meta Pages dashboard consume `meta_direct` adapter; saved dashboard flows use the new CRUD endpoints; downstream consumers of `vw_campaign_daily` and `dim_campaign` should expect additive columns.
+  - Owner: Integration / Dashboard team
+
+- **2026-04-05**
+  - Endpoint: `GET /api/metrics/combined/`
+  - Change: Combined-metrics responses now preserve an explicit `snapshot_generated_at: null` from non-warehouse adapters instead of rewriting it to request time. Cached snapshot hits also preserve the payload's explicit `null` freshness marker rather than substituting the cache row timestamp.
+  - Impact: Frontend can distinguish `no_recent_data` from a genuinely fresh live snapshot and avoids showing empty Meta-direct accounts as "updated just now" after refresh.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend)
+
+- **2026-04-04**
+  - Endpoint: `GET /api/datasets/status/`, `GET /api/integrations/social/status/`, `GET /api/integrations/meta/setup/`, `POST /api/integrations/meta/oauth/start/`, `GET /api/integrations/google_ads/setup/`, `POST /api/integrations/google_ads/oauth/start/`, `GET /api/integrations/google_analytics/setup/`, `POST /api/integrations/google_analytics/oauth/start/`
+  - Change: Added additive live-reporting readiness contract on `GET /api/datasets/status/` with `live.enabled`, `live.reason` (`adapter_disabled`, `missing_snapshot`, `stale_snapshot`, `default_snapshot`, `ready`), `live.snapshot_generated_at`, `demo.enabled`, and `warehouse_adapter_enabled`. `GET /api/integrations/social/status/` now includes additive Meta `reporting_readiness` fields (`stage`, `message`, `direct_sync_status`, `warehouse_status`, `dataset_live_reason`) and the Instagram row now truthfully reports that Instagram business linking is managed through Meta setup rather than a standalone OAuth flow. OAuth setup/start contracts continue to preserve explicit redirect URIs deterministically, expose runtime redirect mismatch diagnostics, and reject OAuth start when the active frontend origin does not match the configured redirect origin. Launcher-backed dev runtime now forwards `META_OAUTH_REDIRECT_URI` with the selected frontend origin so alternate local profiles can work when the Meta app is configured for that exact redirect.
+  - Impact: Frontend can separate “Meta connected” from “direct sync complete” and “live reporting ready,” render truthful environment/snapshot-state blockers across dashboard routes, and stop offering an Instagram CTA that appears to be a broken standalone login path.
+  - Owner: Sofia (Backend Metrics) + Maya (Integrations) + Lina (Frontend)
+
+- **2026-04-01**
+  - Endpoint: `GET /api/metrics/combined/`, dashboard aggregate snapshots, `GET /api/dashboards/library/`
+  - Change: Campaign and creative row contracts now use `parishes: string[]` instead of `parish: string`. Warehouse-backed campaign rows now return truthful `status` and additive `objective` fields when present, campaign/parish currency values resolve from tenant ad-account metadata instead of a hardcoded `USD`, and `availability.parish_map` includes additive `coverage_percent`. Warehouse `503` responses now include machine-readable `code` and `reason` fields so stale snapshots can be distinguished from default or missing snapshots. Dashboard library reads now bootstrap three system presets for tenants with no active saved dashboards.
+  - Impact: Frontend and any downstream consumers must migrate row-level parish access to arrays, handle dynamic currencies and additive campaign metadata, branch stale-snapshot UX from generic failures using `reason/code`, and expect first-load preset creation as a side effect of the library endpoint.
+  - Owner: Sofia (Backend Metrics) + Priya (dbt) + Lina (Frontend)
+
+- **2026-03-30**
+  - Endpoint: Warehouse contract (`dbt` backend raw bridge + Meta/Google staging/reference marts)
+  - Change: Preserved real backend `tenant_id` values through bridge-backed Postgres warehouse builds instead of restamping rows as `tenant_demo`. Bridge-backed fixture views now refresh on dbt runs when their SQL changes so live warehouse marts stay aligned with the latest bridge contract.
+  - Impact: Tenant-scoped warehouse snapshots and `/api/metrics/combined/?source=warehouse` can resolve live Meta client data for the correct tenant instead of producing empty/stale results behind a successful dbt run.
+  - Owner: Priya (dbt) + Sofia (Backend Metrics)
+- **2026-03-30**
+  - Endpoint: `GET /api/metrics/combined/`
+  - Change: Added warehouse-only filtered query support for `start_date`, `end_date`, `account_id`, `channels`, `campaign_search`, and `parish` through direct warehouse daily aggregates. Warehouse responses now include additive `coverage` and `availability` metadata for truthful section states, while non-warehouse sources remain shape-compatible with the prior combined payload contract.
+  - Impact: Meta dashboard filters can drive real account/range/search queries without mutating cached fake/demo payloads or silently falling back when warehouse data is unavailable.
+  - Owner: Sofia (Backend Metrics) + Priya (dbt) + Lina (Frontend)
+- **2026-03-30**
+  - Endpoint: `GET /api/dashboards/library/`, `GET|POST /api/dashboards/definitions/`, `GET|PATCH|DELETE /api/dashboards/definitions/{id}/`, `POST /api/dashboards/definitions/{id}/duplicate/`
+  - Change: Added tenant-scoped saved-dashboard definition CRUD plus duplicate workflow, and changed dashboard library responses from a flat mixed list into `{ generatedAt, systemTemplates, savedDashboards }`. Saved dashboards are now backed by dedicated `DashboardDefinition` records and route to `/dashboards/saved/{id}` instead of reusing report definitions.
+  - Impact: The dashboard builder/library can create, open, rename, duplicate, archive/delete, and list tenant-scoped Meta dashboard presets separately from `/reports/*` export definitions.
+  - Owner: Sofia (Backend Metrics) + Lina (Frontend)
 
 - **2026-03-21**
   - Endpoint: `GET /api/integrations/google_analytics/setup/`, `POST /api/integrations/google_analytics/oauth/start/`, `POST /api/integrations/google_analytics/oauth/exchange/`, `GET /api/integrations/google_analytics/properties/`, `POST /api/integrations/google_analytics/provision/`, `GET /api/integrations/google_analytics/status/`
@@ -181,5 +222,6 @@ Keep this brief and link to PRs or commits when available.
   - Owner: Priya (dbt)
 
 ## Update Rules
+
 - Update this file whenever an endpoint schema or payload changes.
 - Coordinate with frontend + BI when fields are added/removed.

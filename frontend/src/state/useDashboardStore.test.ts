@@ -16,7 +16,7 @@ const campaignData = {
       name: 'Test',
       platform: 'Meta',
       status: 'Active',
-      parish: 'Kingston',
+      parishes: ['Kingston'],
       spend: 100,
       impressions: 200,
       clicks: 30,
@@ -33,7 +33,7 @@ const creativeData = [
     campaignId: 'cmp_test',
     campaignName: 'Test',
     platform: 'Meta',
-    parish: 'Kingston',
+    parishes: ['Kingston'],
     spend: 40,
     impressions: 120,
     clicks: 12,
@@ -97,53 +97,24 @@ describe('useDashboardStore', () => {
     });
   });
 
-  it('loads dashboard data from the mock endpoints', async () => {
+  it('loads dashboard data from the unified mock snapshot', async () => {
     const fetchMock = vi.fn((url: RequestInfo | URL) => {
-      if (
-        typeof url === 'string' &&
-        (url.endsWith('/sample_campaign_performance.json') ||
-          url.includes('/analytics/campaign-performance/'))
-      ) {
+      if (typeof url === 'string' && url.includes('/sample_metrics.json')) {
         return Promise.resolve(
-          new Response(JSON.stringify(campaignData), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-        );
-      }
-      if (
-        typeof url === 'string' &&
-        (url.endsWith('/sample_creative_performance.json') ||
-          url.includes('/analytics/creative-performance/'))
-      ) {
-        return Promise.resolve(
-          new Response(JSON.stringify(creativeData), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-        );
-      }
-      if (
-        typeof url === 'string' &&
-        (url.endsWith('/sample_budget_pacing.json') || url.includes('/analytics/budget-pacing/'))
-      ) {
-        return Promise.resolve(
-          new Response(JSON.stringify(budgetData), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-        );
-      }
-      if (
-        typeof url === 'string' &&
-        (url.endsWith('/sample_parish_aggregates.json') ||
-          url.includes('/analytics/parish-performance/'))
-      ) {
-        return Promise.resolve(
-          new Response(JSON.stringify(parishData), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }),
+          new Response(
+            JSON.stringify({
+              campaign: campaignData,
+              creative: creativeData,
+              budget: budgetData,
+              parish: parishData,
+              tenant_id: 'tenant-123',
+              snapshot_generated_at: '2024-09-05T00:00:00Z',
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
         );
       }
       return Promise.reject(new Error(`Unhandled fetch: ${String(url)}`));
@@ -151,6 +122,16 @@ describe('useDashboardStore', () => {
     globalThis.fetch = fetchMock as typeof globalThis.fetch;
 
     const { default: useDashboardStore } = await import('./useDashboardStore');
+    const { useDatasetStore } = await import('./useDatasetStore');
+    useDatasetStore.setState({
+      mode: 'dummy',
+      adapters: ['demo'],
+      status: 'loaded',
+      error: undefined,
+      source: 'demo',
+      demoTenants: [{ id: 'tenant-123', label: 'Tenant 123' }],
+      demoTenantId: 'tenant-123',
+    });
 
     await useDashboardStore.getState().loadAll('tenant-123');
 
@@ -168,14 +149,12 @@ describe('useDashboardStore', () => {
     vi.stubEnv('VITE_MOCK_MODE', 'false');
 
     const snapshotResponse = {
-      metrics: {
-        campaign_metrics: campaignData,
-        creative_metrics: creativeData,
-        budget_metrics: budgetData,
-        parish_metrics: parishData,
-      },
+      campaign: campaignData,
+      creative: creativeData,
+      budget: budgetData,
+      parish: parishData,
       tenant_id: 'tenant-xyz',
-      generated_at: '2024-09-05T00:00:00Z',
+      snapshot_generated_at: '2024-09-05T00:00:00Z',
     } satisfies Record<string, unknown>;
 
     const fetchMock = vi
@@ -244,19 +223,17 @@ describe('useDashboardStore', () => {
     vi.stubEnv('VITE_MOCK_MODE', 'false');
 
     const snapshotResponse = {
-      metrics: {
-        campaign_metrics: campaignData,
-        creative_metrics: [
-          {
-            ...creativeData[0],
-            thumbnailUrl: '/mock/assets/creative-thumb.jpg',
-          },
-        ],
-        budget_metrics: budgetData,
-        parish_metrics: parishData,
-      },
+      campaign: campaignData,
+      creative: [
+        {
+          ...creativeData[0],
+          thumbnailUrl: '/mock/assets/creative-thumb.jpg',
+        },
+      ],
+      budget: budgetData,
+      parish: parishData,
       tenant_id: 'tenant-xyz',
-      generated_at: '2024-09-05T00:00:00Z',
+      snapshot_generated_at: '2024-09-05T00:00:00Z',
     } satisfies Record<string, unknown>;
 
     const fetchMock = vi.fn<(url: RequestInfo | URL) => Promise<Response>>().mockResolvedValueOnce(
@@ -299,7 +276,7 @@ describe('useDashboardStore', () => {
           name: 'Awareness Boost',
           platform: 'Meta',
           status: 'Active',
-          parish: 'Kingston',
+          parishes: ['Kingston'],
           spend: 80,
           impressions: 120,
           clicks: 20,
@@ -311,7 +288,7 @@ describe('useDashboardStore', () => {
           name: 'Search Capture',
           platform: 'Google Ads',
           status: 'Active',
-          parish: 'St James',
+          parishes: ['St James'],
           spend: 140,
           impressions: 320,
           clicks: 45,
@@ -328,7 +305,7 @@ describe('useDashboardStore', () => {
         campaignId: 'cmp_meta',
         campaignName: 'Awareness Boost',
         platform: 'Meta',
-        parish: 'Kingston',
+        parishes: ['Kingston'],
         spend: 35,
         impressions: 90,
         clicks: 8,
@@ -341,7 +318,7 @@ describe('useDashboardStore', () => {
         campaignId: 'cmp_search',
         campaignName: 'Search Capture',
         platform: 'Google Ads',
-        parish: 'St James',
+        parishes: ['St James'],
         spend: 60,
         impressions: 140,
         clicks: 18,
@@ -383,6 +360,7 @@ describe('useDashboardStore', () => {
     useDashboardStore.getState().setFilters({
       dateRange: '7d',
       customRange: { start: '2024-08-01', end: '2024-08-07' },
+      accountId: '',
       channels: ['Google Ads'],
       campaignQuery: 'Search',
     });
@@ -404,14 +382,12 @@ describe('useDashboardStore', () => {
     vi.stubEnv('VITE_MOCK_MODE', 'false');
 
     const snapshotResponse = {
-      metrics: {
-        campaign_metrics: campaignData,
-        creative_metrics: creativeData,
-        budget_metrics: budgetData,
-        parish_metrics: parishData,
-      },
+      campaign: campaignData,
+      creative: creativeData,
+      budget: budgetData,
+      parish: parishData,
       tenant_id: 'tenant-xyz',
-      generated_at: '2024-09-05T00:00:00Z',
+      snapshot_generated_at: '2024-09-05T00:00:00Z',
     } satisfies Record<string, unknown>;
 
     const fetchMock = vi.fn<(url: RequestInfo | URL) => Promise<Response>>().mockResolvedValueOnce(
@@ -438,6 +414,7 @@ describe('useDashboardStore', () => {
     useDashboardStore.getState().setFilters({
       dateRange: 'custom',
       customRange: { start: '2024-08-01', end: '2024-08-31' },
+      accountId: 'act_791712443035541',
       channels: ['Meta Ads', 'Google Ads'],
       campaignQuery: 'Kingston',
     });
@@ -452,6 +429,7 @@ describe('useDashboardStore', () => {
 
     expect(params.get('start_date')).toBe('2024-08-01');
     expect(params.get('end_date')).toBe('2024-08-31');
+    expect(params.get('account_id')).toBe('act_791712443035541');
     expect(params.get('channels')).toBe('meta,google_ads');
     expect(params.get('campaign_search')).toBe('Kingston');
   });
@@ -469,8 +447,8 @@ describe('useDashboardStore', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     const state = useDashboardStore.getState();
     expect(state.campaign.status).toBe('error');
-    expect(state.campaign.error).toBe('Live warehouse metrics are unavailable.');
-    expect(state.creative.error).toBe('Live warehouse metrics are unavailable.');
+    expect(state.campaign.error).toBe('Live reporting is not enabled in this environment.');
+    expect(state.creative.error).toBe('Live reporting is not enabled in this environment.');
   });
 
   it('flags API errors without discarding previous data', async () => {
@@ -532,6 +510,121 @@ describe('useDashboardStore', () => {
 
     expect(useDashboardStore.getState().campaign.status).toBe('error');
     expect(useDashboardStore.getState().creative.status).toBe('loaded');
+  });
+
+  it('classifies stale warehouse snapshot errors and preserves prior data', async () => {
+    vi.stubEnv('VITE_MOCK_MODE', 'false');
+
+    const snapshotResponse = {
+      campaign: campaignData,
+      creative: creativeData,
+      budget: budgetData,
+      parish: parishData,
+      tenant_id: 'tenant-xyz',
+      snapshot_generated_at: '2024-09-05T00:00:00Z',
+    } satisfies Record<string, unknown>;
+
+    const fetchMock = vi
+      .fn<(url: RequestInfo | URL) => Promise<Response>>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(snapshotResponse), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            detail:
+              'Warehouse metrics are temporarily unavailable because the live warehouse snapshot is stale and is being refreshed.',
+            code: 'warehouse_snapshot_unavailable',
+            reason: 'stale_snapshot',
+          }),
+          {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+
+    globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+    const { default: useDashboardStore } = await import('./useDashboardStore');
+    const { useDatasetStore } = await import('./useDatasetStore');
+    useDatasetStore.setState({
+      mode: 'live',
+      adapters: ['warehouse'],
+      status: 'loaded',
+      error: undefined,
+      source: 'warehouse',
+      demoTenants: [],
+      demoTenantId: undefined,
+    });
+
+    await useDashboardStore.getState().loadAll('tenant-xyz', { force: true });
+    await useDashboardStore.getState().loadAll('tenant-xyz', { force: true });
+
+    const state = useDashboardStore.getState();
+    expect(state.campaign.status).toBe('error');
+    expect(state.campaign.errorKind).toBe('stale_snapshot');
+    expect(state.campaign.data?.rows).toHaveLength(1);
+    expect(state.campaign.error).toContain('being refreshed');
+  });
+
+  it('uses the live dataset reason instead of a generic message when live reporting is disabled before fetch', async () => {
+    vi.stubEnv('VITE_MOCK_MODE', 'false');
+
+    const { default: useDashboardStore } = await import('./useDashboardStore');
+    const { useDatasetStore } = await import('./useDatasetStore');
+    useDatasetStore.setState({
+      mode: 'live',
+      adapters: [],
+      status: 'loaded',
+      error: undefined,
+      source: undefined,
+      liveReason: 'adapter_disabled',
+      warehouseAdapterEnabled: false,
+      demoTenants: [],
+      demoTenantId: undefined,
+    });
+
+    await useDashboardStore.getState().loadAll('tenant-disabled', { force: true });
+
+    const state = useDashboardStore.getState();
+    expect(state.campaign.status).toBe('error');
+    expect(state.campaign.error).toBe('Live reporting is not enabled in this environment.');
+  });
+
+  it('maps warehouse adapter mismatch responses back to the live dataset reason', async () => {
+    vi.stubEnv('VITE_MOCK_MODE', 'false');
+
+    const fetchMock = vi.fn<(url: RequestInfo | URL) => Promise<Response>>().mockResolvedValueOnce(
+      new Response(JSON.stringify({ detail: "Unknown adapter 'warehouse'." }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+    const { default: useDashboardStore } = await import('./useDashboardStore');
+    const { useDatasetStore } = await import('./useDatasetStore');
+    useDatasetStore.setState({
+      mode: 'live',
+      adapters: [],
+      status: 'loaded',
+      error: undefined,
+      source: 'warehouse',
+      liveReason: 'adapter_disabled',
+      warehouseAdapterEnabled: false,
+      demoTenants: [],
+      demoTenantId: undefined,
+    });
+
+    await useDashboardStore.getState().loadAll('tenant-disabled', { force: true });
+
+    const state = useDashboardStore.getState();
+    expect(state.campaign.status).toBe('error');
+    expect(state.campaign.error).toBe('Live reporting is not enabled in this environment.');
   });
 
   it('appends the demo tenant option when requesting curated datasets', async () => {
@@ -633,7 +726,7 @@ describe('useDashboardStore', () => {
               name: 'St Catherine Campaign',
               platform: 'Meta',
               status: 'Active',
-              parish: 'Saint Catherine',
+              parishes: ['Saint Catherine'],
               spend: 50,
               impressions: 100,
               clicks: 12,
@@ -645,7 +738,7 @@ describe('useDashboardStore', () => {
               name: 'Kingston Campaign',
               platform: 'Meta',
               status: 'Active',
-              parish: 'Kingston',
+              parishes: ['Kingston'],
               spend: 70,
               impressions: 200,
               clicks: 22,
@@ -665,7 +758,7 @@ describe('useDashboardStore', () => {
             campaignId: 'cmp_sc',
             campaignName: 'St Catherine Campaign',
             platform: 'Meta',
-            parish: 'Saint Catherine',
+            parishes: ['Saint Catherine'],
             spend: 10,
             impressions: 50,
             clicks: 6,

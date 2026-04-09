@@ -23,6 +23,8 @@ const WorkspaceHeader = ({
   onExport,
   busy,
 }: Props) => {
+  const viewOptions = Array.isArray(savedViews) ? savedViews : [];
+
   return (
     <div className="panel gads-workspace__header" role="region" aria-label="Google Ads workspace filters">
       <div className="gads-workspace__filters-grid">
@@ -94,7 +96,7 @@ const WorkspaceHeader = ({
             onChange={(event) => onSelectSavedView(event.target.value)}
           >
             <option value="">Current filters</option>
-            {savedViews.map((view) => (
+            {viewOptions.map((view) => (
               <option key={view.id} value={view.id}>
                 {view.name}
               </option>

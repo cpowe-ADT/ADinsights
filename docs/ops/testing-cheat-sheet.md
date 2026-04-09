@@ -19,6 +19,36 @@ Purpose: quick test commands per workstream.
 - `scripts/dev-healthcheck.sh`
 - `cat .dev-launch.active.env`
 
+Supported local live-Meta recipe:
+
+```bash
+ENABLE_WAREHOUSE_ADAPTER=1 \
+ENABLE_DEMO_ADAPTER=1 \
+ENABLE_FAKE_ADAPTER=0 \
+FRONTEND_BASE_URL=http://localhost:5173 \
+scripts/dev-launch.sh --profile 1 --strict-profile --non-interactive --no-update --no-pull --no-open
+```
+
+Notes:
+
+- Use `http://localhost:5173` as the canonical local OAuth host unless you have updated the Meta app
+  domains and valid redirect URIs for a different host/port.
+- `GET /api/datasets/status/` is the source of truth for live dashboard readiness.
+- `GET /api/integrations/social/status/` is the source of truth for connection/auth state.
+- Meta triage order:
+  - `GET /api/integrations/social/status/`
+  - `GET /api/datasets/status/`
+  - `GET /api/meta/accounts/`
+  - `GET /api/meta/pages/`
+  - `GET /api/metrics/combined/`
+- Use exactly one primary diagnosis:
+  - `auth/setup failure`
+  - `permission failure`
+  - `asset discovery failure`
+  - `direct sync failure`
+  - `warehouse adapter disabled`
+  - `missing/stale/default snapshot`
+
 ## Frontend
 
 - `cd frontend && npm run lint`
@@ -31,7 +61,12 @@ Purpose: quick test commands per workstream.
 - `make dbt-deps`
 - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select staging`
 - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' snapshot`
+- `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select all_ad_performance dim_campaign fact_performance`
 - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select marts`
+- `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' test --select all_ad_performance dim_campaign fact_performance vw_campaign_daily`
+
+When a dbt change adds or propagates mart-facing columns through the reference layer, rebuild the
+reference models before `run --select marts` so incremental marts do not read stale upstream schemas.
 
 ## Airbyte
 

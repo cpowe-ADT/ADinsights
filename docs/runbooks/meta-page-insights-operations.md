@@ -12,12 +12,101 @@ Operate Facebook Page Insights + Page Post Insights ingestion, troubleshooting, 
 
 ## Required permissions
 
-OAuth token must include:
+For the current Facebook Login flow, the Meta page connection should request:
 
-- `read_insights`
+- `pages_show_list`
 - `pages_read_engagement`
+- `pages_manage_metadata`
 
-Page must be selectable with ANALYZE eligibility (`MetaPage.can_analyze=true`).
+Runtime access for Page Insights depends on Page-scoped permissions, not `read_insights`. Do not add
+`read_insights` to the Facebook Login scope list; Meta rejects it as an invalid scope for this flow.
+
+Optional Instagram scopes (`instagram_basic`, `instagram_manage_insights`) are not part of the
+current Page Insights Facebook Login authorize request. In ADinsights, Instagram linkage is optional
+and derived from linked Page fields during asset selection.
+
+Page must also be selectable with ANALYZE eligibility (`MetaPage.can_analyze=true`).
+
+## Connection states
+
+ADinsights now distinguishes these operational states:
+
+- `page insights connected`: a `MetaConnection` and one or more `MetaPage` rows exist, and Page-scoped
+  permissions are present.
+- `orphaned marketing access`: Page Insights is still connected, but the tenant has lost the Meta
+  marketing credential used for ad account provisioning/reporting. In this state, Page dashboards may
+  still exist while Meta ad account reporting is broken.
+- `marketing permissions missing`: the stored Meta token exists but is missing the ad-account scopes
+  required to restore marketing reporting.
+
+Use `GET /api/integrations/social/status/` as the source of truth. If `reason.code` is
+`orphaned_marketing_access`, send the operator to `Connect socials` at
+`/dashboards/data-sources?sources=social` and use the restore flow backed by
+`POST /api/integrations/meta/recovery/preview/`.
+
+The Meta row on `GET /api/integrations/social/status/` now also carries additive
+`reporting_readiness` fields so operators can separate:
+
+- Meta auth/setup state
+- direct sync state
+- warehouse snapshot readiness
+- live reporting environment state
+
+Use `GET /api/datasets/status/` as the source of truth for live dashboard readiness. Meta can be
+connected while live reporting is still blocked by environment config or warehouse snapshot state.
+
+## Required Diagnostic Sequence
+
+Inspect these endpoints in order when triaging Page Insights or Meta dashboard issues:
+
+1. `GET /api/integrations/social/status/`
+2. `GET /api/datasets/status/`
+3. `GET /api/meta/accounts/`
+4. `GET /api/meta/pages/`
+5. `GET /api/metrics/combined/`
+
+Use exactly one primary diagnosis:
+
+- `auth/setup failure`
+- `permission failure`
+- `asset discovery failure`
+- `direct sync failure`
+- `warehouse adapter disabled`
+- `missing/stale/default snapshot`
+
+Interpretation reminders:
+
+- `GET /api/meta/accounts/` is ad-account state.
+- `GET /api/meta/pages/` is Facebook Page state.
+- Missing Instagram linkage is non-fatal unless the requested feature explicitly depends on Instagram data.
+- Do not report a generic “Meta broken” diagnosis.
+
+## Supported local OAuth recipe
+
+Canonical local OAuth host: `http://localhost:5173`
+
+Launcher-backed local Meta OAuth now sets `META_OAUTH_REDIRECT_URI` to the selected frontend URL
+plus `/dashboards/data-sources`. `localhost` on launcher profile 1 still matches the default local
+Meta app configuration. Other launcher profiles can work too, but only when the Facebook App Domain
+and valid redirect URIs include that exact host/port/path. ADinsights keeps explicit redirect URIs
+deterministic and rejects OAuth starts when the runtime origin does not match the configured
+redirect origin.
+
+Supported local launcher recipe for live Meta + warehouse reporting:
+
+```bash
+ENABLE_WAREHOUSE_ADAPTER=1 \
+ENABLE_DEMO_ADAPTER=1 \
+ENABLE_FAKE_ADAPTER=0 \
+scripts/dev-launch.sh --profile 1 --strict-profile --non-interactive --no-update --no-pull --no-open
+```
+
+If you intentionally use another launcher profile/port, update the Meta app configuration first so
+it includes the exact launcher frontend origin and `/dashboards/data-sources` redirect path. For
+manual non-launcher runs, export `META_OAUTH_REDIRECT_URI` yourself before starting Django.
+
+Instagram business linking remains optional and is completed inside the Meta asset-selection flow.
+Do not expect a separate Instagram OAuth flow in local/dev.
 
 ## Schedules
 
@@ -35,11 +124,18 @@ Tune via:
 
 ## Manual refresh
 
-Run async refresh per page:
+For the current Page Insights dashboard, trigger a sync per page with:
+
+- `POST /api/meta/pages/{page_id}/sync/`
+
+Response includes `task_dispatch_mode`:
+
+- `queued` when Celery successfully dispatches background work
+- `inline` when local/dev runtime falls back because the broker is unavailable
+
+Legacy dashboard refresh remains available at:
 
 - `POST /api/metrics/meta/pages/{page_id}/refresh/`
-
-Returns queued task IDs (`page_task_id`, `post_task_id`).
 
 ## Exports (CSV/PDF/PNG)
 
@@ -65,6 +161,45 @@ Regenerate catalog documentation from source:
 - `python3 scripts/render_meta_metric_catalog.py`
 
 ## Failure triage
+
+### Orphaned marketing access
+
+Signal:
+
+- `GET /api/integrations/social/status/` returns Meta `reason.code=orphaned_marketing_access`
+- `GET /api/meta/accounts/` is empty even though the stored Meta token can still discover ad accounts
+
+Actions:
+
+1. Open `Connect socials` at `/dashboards/data-sources?sources=social`.
+2. Run the recovery preview using the existing stored `MetaConnection` token.
+3. Re-save the selected page, ad account, and optional Instagram account.
+4. Let the UI run the default restore chain:
+   - save selected assets
+   - best-effort Meta provision
+   - direct Meta sync
+   - warehouse snapshot refresh
+   - refresh Meta status, pages, and accounts
+5. Confirm `GET /api/integrations/social/status/` no longer reports `orphaned_marketing_access`.
+6. Confirm `GET /api/meta/accounts/` now returns persisted ad accounts.
+7. Confirm `GET /api/datasets/status/` progresses through one of:
+   - `ready`
+   - `missing_snapshot`
+   - `stale_snapshot`
+   - `default_snapshot`
+   - `adapter_disabled`
+
+## Dashboard readiness stages
+
+After a successful Meta restore or reconnect, dashboard availability progresses in this order:
+
+1. `Meta connected`
+2. `Direct sync complete`
+3. `Waiting for warehouse snapshot` or `Live data refreshing`
+4. `Live reporting ready`
+
+If `/api/datasets/status/` returns `adapter_disabled`, the Meta connection is healthy but the
+environment is not configured to serve live warehouse dashboards yet.
 
 ### Error `#100` invalid metric
 
@@ -130,8 +265,10 @@ Alert conditions:
 
 ## Operational checklist
 
-1. Confirm OAuth callback succeeds and page is selectable.
-2. Confirm selected page has `can_analyze=true`.
-3. Trigger refresh endpoint and capture task IDs.
-4. Confirm new rows in `MetaInsightPoint` and `MetaPostInsightPoint`.
-5. Verify dashboard endpoints return non-empty responses when data is available.
+1. Confirm Page OAuth callback succeeds and the selected page has `can_analyze=true`.
+2. Confirm `GET /api/meta/pages/` returns `missing_required_permissions: []`.
+3. If Meta ad reporting is also expected, confirm `GET /api/integrations/social/status/` does not report `orphaned_marketing_access`.
+4. Confirm `GET /api/datasets/status/` is truthful for the current environment and snapshot state.
+5. Trigger `POST /api/meta/pages/{page_id}/sync/` and capture `task_dispatch_mode`.
+6. Confirm new rows in `MetaInsightPoint` and `MetaPostInsightPoint`.
+7. Verify page overview/posts endpoints return data when the selected date range includes synced rows.

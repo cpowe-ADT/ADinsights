@@ -39,6 +39,9 @@ const renderTruncatedText = (value: string | null | undefined) => {
   );
 };
 
+const formatParishList = (parishes: string[] | undefined) =>
+  parishes && parishes.length > 0 ? parishes.join(', ') : '—';
+
 interface CreativeTableProps {
   rows: CreativePerformanceRow[];
   currency: string;
@@ -129,9 +132,10 @@ const CreativeTable = ({ rows, currency, virtualizeRows = true }: CreativeTableP
         cell: ({ getValue }) => renderTruncatedText(getValue() as string | undefined),
       },
       {
-        accessorKey: 'parish',
-        header: 'Parish',
-        cell: ({ getValue }) => renderTruncatedText(getValue() as string | undefined),
+        id: 'parishes',
+        accessorFn: (row) => formatParishList(row.parishes),
+        header: 'Parishes',
+        cell: ({ row }) => renderTruncatedText(formatParishList(row.original.parishes)),
       },
       {
         accessorKey: 'spend',

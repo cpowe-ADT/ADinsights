@@ -6,6 +6,24 @@ Timezone baseline: `America/Jamaica`.
 
 Operational runbook for Google Ads direct SDK ingestion with Airbyte fallback.
 
+## Data Sources UX Clarification
+
+In the Data Sources page, Google Ads and Google Analytics 4 are separate integrations on purpose.
+
+- Google Ads:
+  Connect this when the tenant needs paid media reporting such as spend, clicks, impressions, conversions, campaign delivery, and Google Ads account sync status.
+- Google Analytics 4:
+  Connect this when the tenant needs website or app behavior reporting such as sessions, engagement, on-site conversions, and property-level revenue metrics.
+
+They both use Google OAuth, but they should not be presented or operated as the same connection.
+
+Operator guidance:
+
+1. Use the Google Ads flow when the user has a Google Ads customer/account ID and wants ad platform performance data.
+2. Use the GA4 flow when the user has a GA4 property and wants site/app analytics data.
+3. If the tenant needs both paid media performance and website analytics, connect both integrations separately.
+4. Do not treat a GA4 setup error as a Google Ads onboarding error, or vice versa.
+
 ## Secret Rotation Procedure
 
 1. Rotate OAuth client secret in Google Cloud Console.

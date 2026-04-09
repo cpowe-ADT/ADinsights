@@ -2,6 +2,10 @@
 
 One-line, timestamped notes of agent-driven changes to help preserve context between sessions. Newest entries at the top.
 
+## 2026-04-04
+
+- 2026-04-04T11:25:00-0500 docs(closeout): verify Meta Ads MVP repo-side release gates and lock the corrected dbt sequence — Confirmed contract/observability gates, backend release preflight, frontend suite/build, and the reference-aware dbt run/test path for the Meta dashboard rollout; updated canonical docs to rebuild `all_ad_performance`, `dim_campaign`, and `fact_performance` before marts, and logged the unrelated `vw_demo_dashboard_snapshot` DuckDB failure as a separate repo-ready follow-up plus live-tenant verification as the remaining external blocker. Pending commit.
+
 ## 2026-03-20
 
 - 2026-03-20T10:00:00-0500 fix(infra): implement cron parsing for Airbyte health check and verify backend throttling/metrics endpoints — Implemented a heuristic cron parser in `infrastructure/airbyte/scripts/airbyte_health_check.py` to resolve TODO, verified DRF throttling configuration with existing tests, and added `test_combined_metrics_returns_payload` to `backend/tests/test_analytics_endpoints.py` to verify `/api/metrics/combined/`. Pending commit.

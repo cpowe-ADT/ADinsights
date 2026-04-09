@@ -11,9 +11,21 @@ with source as (
     from {{ source('raw', 'google_ads_insights') }}
 ),
 
+{% if execute %}
+    {% set google_ads_columns = adapter.get_columns_in_relation(source('raw', 'google_ads_insights')) %}
+    {% set google_ads_column_names = google_ads_columns | map(attribute='name') | map('lower') | list %}
+{% else %}
+    {% set google_ads_column_names = [] %}
+{% endif %}
+{% set has_tenant_id = 'tenant_id' in google_ads_column_names %}
+
 cleaned as (
     select
+        {% if has_tenant_id %}
+        {{ tenant_id_expr('cast(s.tenant_id as text)') }} as tenant_id,
+        {% else %}
         {{ tenant_id_expr() }} as tenant_id,
+        {% endif %}
         cast(s.customer_id as text) as ad_account_id,
         cast(s.campaign_id as text) as campaign_id,
         coalesce(nullif(trim(s.campaign_name), ''), cast(s.campaign_id as text)) as campaign_name,

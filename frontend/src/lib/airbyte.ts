@@ -145,6 +145,11 @@ export interface MetaOAuthExchangeResponse {
   missing_required_permissions: string[];
   token_debug_valid: boolean;
   oauth_connected_but_missing_permissions: boolean;
+  default_page_id?: string | null;
+  default_ad_account_id?: string | null;
+  default_instagram_account_id?: string | null;
+  source?: string | null;
+  recovered_from_existing_token?: boolean;
 }
 
 export interface MetaPageConnectResponse {
@@ -181,6 +186,11 @@ export interface MetaProvisionResponse {
   connection_reused: boolean;
 }
 
+export interface MetaRecoveryPreviewResponse extends MetaOAuthExchangeResponse {
+  source: 'existing_meta_connection';
+  recovered_from_existing_token: true;
+}
+
 export interface MetaSetupCheck {
   key: string;
   label: string;
@@ -190,6 +200,7 @@ export interface MetaSetupCheck {
   missing_scopes?: string[];
   env_vars?: string[];
   missing_env_vars?: string[];
+  details?: string | null;
 }
 
 export interface MetaSetupStatusResponse {
@@ -215,6 +226,10 @@ export interface MetaSetupStatusResponse {
     request_port?: number | null;
     resolved_frontend_origin?: string | null;
     frontend_base_url_origin?: string | null;
+    configured_redirect_origin?: string | null;
+    observed_runtime_origin?: string | null;
+    redirect_origin_matches_runtime?: boolean | null;
+    redirect_origin_mismatch_message?: string | null;
     dev_active_profile?: string | null;
     dev_backend_url?: string | null;
     dev_frontend_url?: string | null;
@@ -227,11 +242,109 @@ export interface GoogleAnalyticsSetupStatusResponse {
   ready_for_oauth: boolean;
   oauth_scopes: string[];
   redirect_uri?: string | null;
+  checks?: MetaSetupCheck[];
   runtime_context?: {
     redirect_uri?: string | null;
     redirect_source?: string | null;
+    request_origin?: string | null;
+    request_referer_origin?: string | null;
+    request_host?: string | null;
+    request_port?: number | null;
+    resolved_frontend_origin?: string | null;
+    frontend_base_url_origin?: string | null;
+    configured_redirect_origin?: string | null;
+    observed_runtime_origin?: string | null;
+    redirect_origin_matches_runtime?: boolean | null;
+    redirect_origin_mismatch_message?: string | null;
     dataset_source?: string | null;
   };
+}
+
+export interface GoogleAdsSetupStatusResponse {
+  provider: 'google_ads';
+  ready_for_oauth: boolean;
+  ready_for_provisioning_defaults: boolean;
+  checks: MetaSetupCheck[];
+  oauth_scopes: string[];
+  redirect_uri?: string | null;
+  source_definition_id: string;
+  runtime_context?: {
+    redirect_uri?: string | null;
+    redirect_source?: string | null;
+    request_origin?: string | null;
+    request_referer_origin?: string | null;
+    request_host?: string | null;
+    request_port?: number | null;
+    resolved_frontend_origin?: string | null;
+    frontend_base_url_origin?: string | null;
+    configured_redirect_origin?: string | null;
+    observed_runtime_origin?: string | null;
+    redirect_origin_matches_runtime?: boolean | null;
+    redirect_origin_mismatch_message?: string | null;
+    dataset_source?: string | null;
+  };
+}
+
+export interface GoogleAdsOAuthStartPayload {
+  customer_id?: string;
+  login_customer_id?: string;
+  runtime_context?: RuntimeContextPayload;
+}
+
+export interface GoogleAdsOAuthStartResponse {
+  authorize_url: string;
+  state: string;
+  redirect_uri: string;
+  oauth_scopes: string[];
+}
+
+export interface GoogleAdsOAuthExchangeResponse {
+  credential: PlatformCredentialRecord;
+  refresh_token_received: boolean;
+  customer_id: string;
+  login_customer_id: string;
+}
+
+export interface GoogleAdsProvisionPayload {
+  external_account_id?: string;
+  login_customer_id?: string;
+  workspace_id?: string | null;
+  destination_id?: string | null;
+  source_definition_id?: string | null;
+  connection_name?: string;
+  is_active?: boolean;
+  schedule_type?: 'manual' | 'interval' | 'cron';
+  interval_minutes?: number | null;
+  cron_expression?: string;
+  sync_engine?: 'sdk' | 'airbyte';
+}
+
+export interface GoogleAdsProvisionResponse {
+  provider: 'google_ads';
+  credential: PlatformCredentialRecord;
+  connection: AirbyteConnectionRecord;
+  sync_engine: 'sdk' | 'airbyte';
+  fallback_active: boolean;
+  source_reused: boolean;
+  connection_reused: boolean;
+}
+
+export interface GoogleAdsStatusResponse {
+  provider: 'google_ads';
+  status: 'not_connected' | 'started_not_complete' | 'complete' | 'active';
+  reason: {
+    code?: string;
+    message: string;
+    [key: string]: unknown;
+  };
+  actions: string[];
+  last_checked_at?: string | null;
+  last_synced_at?: string | null;
+  sync_engine?: 'sdk' | 'airbyte';
+  fallback_active?: boolean;
+  parity_state?: 'unknown' | 'pass' | 'fail';
+  last_parity_passed_at?: string | null;
+  metadata: Record<string, unknown>;
 }
 
 export interface GoogleAnalyticsOAuthStartPayload {
@@ -294,6 +407,17 @@ export type SocialConnectionStatus =
   | 'complete'
   | 'active';
 
+export interface SocialReportingReadiness {
+  stage: string;
+  message: string;
+  auth_status: SocialConnectionStatus;
+  direct_sync_status: string;
+  warehouse_status: string;
+  dataset_live_reason: 'adapter_disabled' | 'missing_snapshot' | 'stale_snapshot' | 'default_snapshot' | 'ready';
+  warehouse_adapter_enabled: boolean;
+  snapshot_generated_at?: string | null;
+}
+
 export interface SocialPlatformStatusRecord {
   platform: SocialConnectionPlatform;
   display_name: string;
@@ -306,6 +430,7 @@ export interface SocialPlatformStatusRecord {
   last_checked_at?: string | null;
   last_synced_at?: string | null;
   actions: string[];
+  reporting_readiness?: SocialReportingReadiness;
   metadata: Record<string, unknown>;
 }
 
@@ -389,6 +514,10 @@ export async function connectMetaPage(payload: {
   return apiClient.post<MetaPageConnectResponse>('/integrations/meta/pages/connect/', payload);
 }
 
+export async function previewMetaRecovery(): Promise<MetaRecoveryPreviewResponse> {
+  return apiClient.post<MetaRecoveryPreviewResponse>('/integrations/meta/recovery/preview/', {});
+}
+
 export async function provisionMetaIntegration(
   payload: MetaProvisionPayload,
 ): Promise<MetaProvisionResponse> {
@@ -401,6 +530,7 @@ export async function syncMetaIntegration(): Promise<{
   job_id?: string | null;
   reused_existing_job?: boolean;
   sync_status?: 'queued' | 'already_running';
+  task_dispatch_mode?: 'queued' | 'inline';
 }> {
   return apiClient.post<{
     provider: 'meta_ads';
@@ -408,6 +538,7 @@ export async function syncMetaIntegration(): Promise<{
     job_id?: string | null;
     reused_existing_job?: boolean;
     sync_status?: 'queued' | 'already_running';
+    task_dispatch_mode?: 'queued' | 'inline';
   }>(
     '/integrations/meta/sync/',
   );
@@ -417,11 +548,19 @@ export async function logoutMetaOAuth(): Promise<{
   provider: 'meta_ads';
   disconnected: boolean;
   deleted_credentials: number;
+  deleted_page_connections: number;
+  deleted_pages: number;
+  deleted_sync_states: number;
+  disabled_airbyte_connections: number;
 }> {
   return apiClient.post<{
     provider: 'meta_ads';
     disconnected: boolean;
     deleted_credentials: number;
+    deleted_page_connections: number;
+    deleted_pages: number;
+    deleted_sync_states: number;
+    disabled_airbyte_connections: number;
   }>('/integrations/meta/logout/');
 }
 
@@ -463,6 +602,24 @@ export async function loadGoogleAnalyticsSetupStatus(
   return apiClient.get<GoogleAnalyticsSetupStatusResponse>(path);
 }
 
+export async function loadGoogleAdsSetupStatus(
+  runtimeContext?: RuntimeContextPayload,
+): Promise<GoogleAdsSetupStatusResponse> {
+  const params = new URLSearchParams();
+  if (runtimeContext?.dataset_source?.trim()) {
+    params.set('dataset_source', runtimeContext.dataset_source.trim());
+  }
+  if (runtimeContext?.client_origin?.trim()) {
+    params.set('client_origin', runtimeContext.client_origin.trim());
+  }
+  if (typeof runtimeContext?.client_port === 'number' && Number.isFinite(runtimeContext.client_port)) {
+    params.set('client_port', String(runtimeContext.client_port));
+  }
+  const suffix = params.toString();
+  const path = suffix ? `/integrations/google_ads/setup/?${suffix}` : '/integrations/google_ads/setup/';
+  return apiClient.get<GoogleAdsSetupStatusResponse>(path);
+}
+
 export async function startGoogleAnalyticsOAuth(
   payload?: GoogleAnalyticsOAuthStartPayload,
 ): Promise<GoogleAnalyticsOAuthStartResponse> {
@@ -481,6 +638,35 @@ export async function exchangeGoogleAnalyticsOAuthCode(payload: {
     '/integrations/google_analytics/oauth/exchange/',
     payload,
   );
+}
+
+export async function startGoogleAdsOAuth(
+  payload?: GoogleAdsOAuthStartPayload,
+): Promise<GoogleAdsOAuthStartResponse> {
+  return apiClient.post<GoogleAdsOAuthStartResponse>('/integrations/google_ads/oauth/start/', payload ?? {});
+}
+
+export async function exchangeGoogleAdsOAuthCode(payload: {
+  code: string;
+  state: string;
+  customer_id?: string;
+  login_customer_id?: string;
+  runtime_context?: RuntimeContextPayload;
+}): Promise<GoogleAdsOAuthExchangeResponse> {
+  return apiClient.post<GoogleAdsOAuthExchangeResponse>(
+    '/integrations/google_ads/oauth/exchange/',
+    payload,
+  );
+}
+
+export async function provisionGoogleAds(
+  payload: GoogleAdsProvisionPayload,
+): Promise<GoogleAdsProvisionResponse> {
+  return apiClient.post<GoogleAdsProvisionResponse>('/integrations/google_ads/provision/', payload);
+}
+
+export async function loadGoogleAdsStatus(): Promise<GoogleAdsStatusResponse> {
+  return apiClient.get<GoogleAdsStatusResponse>('/integrations/google_ads/status/');
 }
 
 export async function loadGoogleAnalyticsProperties(query?: {

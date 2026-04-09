@@ -12,6 +12,7 @@ from django.utils.dateparse import parse_datetime
 from accounts.models import Tenant
 from adapters.warehouse import (
     WAREHOUSE_SNAPSHOT_STATUS_DEFAULT,
+    WAREHOUSE_SNAPSHOT_STATUS_DETAIL_KEY,
     WAREHOUSE_SNAPSHOT_STATUS_FETCHED,
     WAREHOUSE_SNAPSHOT_STATUS_KEY,
 )
@@ -176,6 +177,7 @@ def test_generate_snapshots_marks_default_payload_when_view_missing(tenant):
     assert outcomes[0].status == "default"
     snapshot = TenantMetricsSnapshot.objects.get(tenant=tenant, source="warehouse")
     assert snapshot.payload[WAREHOUSE_SNAPSHOT_STATUS_KEY] == WAREHOUSE_SNAPSHOT_STATUS_DEFAULT
+    assert "vw_dashboard_aggregate_snapshot" in snapshot.payload[WAREHOUSE_SNAPSHOT_STATUS_DETAIL_KEY]
 
 
 def test_sync_metrics_snapshots_has_retry_policy():

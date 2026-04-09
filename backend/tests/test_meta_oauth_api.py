@@ -9,6 +9,8 @@ from django.core.cache import cache
 from django.utils import timezone
 from django.urls import reverse
 
+from accounts.models import AuditLog
+from analytics.models import AdAccount
 from integrations.models import (
     AirbyteConnection,
     MetaAccountSyncState,
@@ -16,6 +18,7 @@ from integrations.models import (
     MetaPage,
     PlatformCredential,
 )
+from integrations.tasks import META_DIRECT_SYNC_LOOKBACK_DAYS
 from integrations.views import META_OAUTH_SELECTION_CACHE_PREFIX
 
 
@@ -61,6 +64,31 @@ def test_meta_setup_reports_configuration_flags(api_client, user, settings):
 
 
 @pytest.mark.django_db
+def test_meta_setup_blocks_ready_for_oauth_when_runtime_origin_mismatches_redirect(
+    api_client, user, settings
+):
+    _authenticate(api_client, user)
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_APP_SECRET = "meta-app-secret"
+    settings.META_LOGIN_CONFIG_ID = "2323589144820085"
+    settings.META_LOGIN_CONFIG_REQUIRED = True
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+
+    response = api_client.get(
+        reverse("meta-setup"),
+        HTTP_ORIGIN="http://localhost:5175",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ready_for_oauth"] is False
+    assert payload["runtime_context"]["redirect_origin_matches_runtime"] is False
+    runtime_check = next(check for check in payload["checks"] if check["key"] == "meta_runtime_redirect_origin")
+    assert runtime_check["ok"] is False
+    assert "does not match the configured OAuth redirect origin" in runtime_check["details"]
+
+
+@pytest.mark.django_db
 def test_meta_setup_reports_ignored_non_login_scopes(api_client, user, settings):
     _authenticate(api_client, user)
     settings.META_APP_ID = "meta-app-id"
@@ -81,10 +109,11 @@ def test_meta_setup_reports_ignored_non_login_scopes(api_client, user, settings)
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["oauth_scopes"] == ["ads_read", "business_management", "pages_show_list", "read_insights"]
+    assert payload["oauth_scopes"] == ["ads_read", "business_management", "pages_show_list"]
     assert sorted(payload["oauth_ignored_scopes"]) == [
         "instagram_basic",
         "instagram_manage_insights",
+        "read_insights",
     ]
 
 
@@ -203,10 +232,8 @@ def test_meta_connect_start_uses_runtime_context_origin_when_request_origin_miss
 
 
 @pytest.mark.django_db
-def test_meta_connect_start_overrides_explicit_localhost_redirect_with_runtime_origin(
-    api_client,
-    user,
-    settings,
+def test_meta_connect_start_rejects_runtime_origin_mismatch_when_redirect_is_explicit(
+    api_client, user, settings
 ):
     _authenticate(api_client, user)
     settings.META_APP_ID = "meta-app-id"
@@ -220,11 +247,10 @@ def test_meta_connect_start_overrides_explicit_localhost_redirect_with_runtime_o
         format="json",
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 409
     payload = response.json()
-    assert payload["redirect_uri"] == "http://localhost:5175/dashboards/data-sources"
-    query = parse_qs(urlparse(payload["authorize_url"]).query)
-    assert query["redirect_uri"] == ["http://localhost:5175/dashboards/data-sources"]
+    assert payload["detail"].startswith("Open the app on http://localhost:5173")
+    assert payload["runtime_context"]["redirect_origin_matches_runtime"] is False
 
 
 @pytest.mark.django_db
@@ -249,13 +275,14 @@ def test_meta_oauth_start_ignores_non_login_scopes_in_authorize_query(api_client
     assert sorted(payload["ignored_scopes"]) == [
         "instagram_basic",
         "instagram_manage_insights",
+        "read_insights",
     ]
     query = parse_qs(urlparse(payload["authorize_url"]).query)
     requested_scopes = set(query["scope"][0].split(","))
     assert "ads_read" in requested_scopes
     assert "business_management" in requested_scopes
     assert "pages_show_list" in requested_scopes
-    assert "read_insights" in requested_scopes
+    assert "read_insights" not in requested_scopes
     assert "instagram_basic" not in requested_scopes
     assert "instagram_manage_insights" not in requested_scopes
 
@@ -294,13 +321,39 @@ def test_meta_connect_start_uses_page_insights_scopes_only(api_client, user, set
     assert response.status_code == 200
     payload = response.json()
     assert payload["oauth_flow"] == "page_insights"
-    assert sorted(payload["ignored_scopes"]) == ["instagram_basic"]
+    assert sorted(payload["ignored_scopes"]) == ["instagram_basic", "read_insights"]
     query = parse_qs(urlparse(payload["authorize_url"]).query)
     requested_scopes = set(query["scope"][0].split(","))
-    assert requested_scopes == {"pages_show_list", "pages_read_engagement", "read_insights"}
+    assert requested_scopes == {"pages_show_list", "pages_read_engagement"}
     assert "ads_read" not in requested_scopes
     assert "ads_management" not in requested_scopes
     assert "business_management" not in requested_scopes
+
+
+@pytest.mark.django_db
+def test_meta_connect_start_adds_required_page_insights_scopes_when_env_is_stale(
+    api_client, user, settings
+):
+    _authenticate(api_client, user)
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_LOGIN_CONFIG_REQUIRED = False
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+    settings.META_PAGE_INSIGHTS_OAUTH_SCOPES = [
+        "pages_show_list",
+        "pages_manage_metadata",
+    ]
+
+    response = api_client.post(reverse("meta-connect-start"), {}, format="json")
+
+    assert response.status_code == 200
+    payload = response.json()
+    query = parse_qs(urlparse(payload["authorize_url"]).query)
+    requested_scopes = set(query["scope"][0].split(","))
+    assert requested_scopes == {
+        "pages_show_list",
+        "pages_manage_metadata",
+        "pages_read_engagement",
+    }
 
 
 @pytest.mark.django_db
@@ -488,7 +541,7 @@ def test_meta_oauth_exchange_uses_runtime_context_origin_for_redirect_uri(
     settings.META_APP_ID = "meta-app-id"
     settings.META_APP_SECRET = "meta-app-secret"
     settings.META_LOGIN_CONFIG_REQUIRED = False
-    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+    settings.META_OAUTH_REDIRECT_URI = ""
     settings.FRONTEND_BASE_URL = "http://localhost:5173"
 
     start_payload = api_client.post(
@@ -688,7 +741,10 @@ def test_meta_oauth_exchange_rejects_invalid_debug_token(api_client, user, monke
     )
 
     assert response.status_code == 400
-    assert "debug_token" in response.json()["detail"]
+    assert response.json()["detail"] == (
+        "Unable to complete Meta OAuth with the returned account data. "
+        "Reconnect Meta with Facebook and try again."
+    )
 
 
 @pytest.mark.django_db
@@ -744,6 +800,187 @@ def test_meta_page_connect_creates_meta_credential(api_client, user):
     assert page.is_default is True
     assert page.can_analyze is True
     assert page.decrypt_page_token() == "long-user-token"
+    account = AdAccount.objects.get(tenant=user.tenant, external_id="act_123")
+    assert account.account_id == "123"
+    assert account.name == "Primary Account"
+
+
+@pytest.mark.django_db
+def test_meta_recovery_preview_uses_existing_meta_connection_token(api_client, user, monkeypatch):
+    _authenticate(api_client, user)
+    page_connection = MetaConnection(
+        tenant=user.tenant,
+        user=user,
+        app_scoped_user_id="app-user-123",
+        scopes=["ads_read", "business_management", "pages_show_list", "pages_read_engagement"],
+        is_active=True,
+    )
+    page_connection.set_raw_token("recovery-token")
+    page_connection.save()
+    page = MetaPage(
+        tenant=user.tenant,
+        connection=page_connection,
+        page_id="page-1",
+        name="Existing Page",
+        can_analyze=True,
+        is_default=True,
+        tasks=["ANALYZE"],
+    )
+    page.set_raw_page_token("page-token")
+    page.save()
+    AuditLog.objects.create(
+        tenant=user.tenant,
+        user=user,
+        action="meta_oauth_connected",
+        resource_type="platform_credential",
+        resource_id=str(uuid.uuid4()),
+        metadata={"ad_account_id": "act_123", "instagram_account_id": "ig-1"},
+    )
+
+    class DummyPage:
+        id = "page-1"
+        name = "Existing Page"
+        category = "Business"
+        tasks = ["ANALYZE"]
+        perms = []
+        access_token = "page-token"
+
+        def as_public_dict(self):
+            return {
+                "id": self.id,
+                "name": self.name,
+                "category": self.category,
+                "tasks": self.tasks,
+                "perms": self.perms,
+            }
+
+    class DummyAccount:
+        def __init__(self, account_id: str, name: str):
+            self.id = account_id
+            self.account_id = account_id.replace("act_", "")
+            self.name = name
+
+        def as_public_dict(self):
+            return {
+                "id": self.id,
+                "account_id": self.account_id,
+                "name": self.name,
+                "currency": "JMD",
+                "business_name": "Adtelligent",
+                "account_status": 1,
+            }
+
+    class DummyInstagram:
+        id = "ig-1"
+        username = "brandhandle"
+
+        def as_public_dict(self):
+            return {"id": self.id, "username": self.username}
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def debug_token(self, *, input_token: str):
+            assert input_token == "recovery-token"
+            return {"is_valid": True, "app_id": "", "user_id": "app-user-123"}
+
+        def list_permissions(self, *, user_access_token: str):
+            assert user_access_token == "recovery-token"
+            return [
+                {"permission": "ads_read", "status": "granted"},
+                {"permission": "business_management", "status": "granted"},
+                {"permission": "pages_show_list", "status": "granted"},
+                {"permission": "pages_read_engagement", "status": "granted"},
+            ]
+
+        def list_pages(self, *, user_access_token: str):
+            assert user_access_token == "recovery-token"
+            return [DummyPage()]
+
+        def list_ad_accounts(self, *, user_access_token: str):
+            assert user_access_token == "recovery-token"
+            return [DummyAccount("act_123", "Students' Loan Bureau (SLB)")]
+
+        def list_instagram_accounts(self, *, pages):
+            assert pages
+            return [DummyInstagram()]
+
+    monkeypatch.setattr("integrations.views.MetaGraphClient.from_settings", lambda: DummyClient())
+
+    response = api_client.post(reverse("meta-recovery-preview"), {}, format="json")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["recovered_from_existing_token"] is True
+    assert payload["source"] == "existing_meta_connection"
+    assert payload["default_page_id"] == "page-1"
+    assert payload["default_ad_account_id"] == "act_123"
+    assert payload["default_instagram_account_id"] == "ig-1"
+    assert payload["ad_accounts"][0]["id"] == "act_123"
+    assert payload["selection_token"]
+
+
+@pytest.mark.django_db
+def test_meta_recovery_preview_rejects_missing_marketing_permissions(api_client, user, monkeypatch):
+    _authenticate(api_client, user)
+    page_connection = MetaConnection(
+        tenant=user.tenant,
+        user=user,
+        app_scoped_user_id="app-user-123",
+        scopes=["pages_show_list", "pages_read_engagement"],
+        is_active=True,
+    )
+    page_connection.set_raw_token("recovery-token")
+    page_connection.save()
+
+    class DummyPage:
+        id = "page-1"
+        name = "Existing Page"
+        category = "Business"
+        tasks = ["ANALYZE"]
+        perms = []
+        access_token = "page-token"
+
+        def as_public_dict(self):
+            return {"id": self.id, "name": self.name, "tasks": self.tasks, "perms": self.perms}
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def debug_token(self, *, input_token: str):
+            return {"is_valid": True, "app_id": "", "user_id": "app-user-123"}
+
+        def list_permissions(self, *, user_access_token: str):
+            return [
+                {"permission": "pages_show_list", "status": "granted"},
+                {"permission": "pages_read_engagement", "status": "granted"},
+            ]
+
+        def list_pages(self, *, user_access_token: str):
+            return [DummyPage()]
+
+        def list_ad_accounts(self, *, user_access_token: str):
+            return []
+
+        def list_instagram_accounts(self, *, pages):
+            return []
+
+    monkeypatch.setattr("integrations.views.MetaGraphClient.from_settings", lambda: DummyClient())
+
+    response = api_client.post(reverse("meta-recovery-preview"), {}, format="json")
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["code"] == "marketing_permissions_missing"
+    assert "business_management" in payload["missing_required_permissions"]
 
 
 @pytest.mark.django_db
@@ -910,6 +1147,82 @@ def test_meta_provision_creates_airbyte_connection(api_client, user, monkeypatch
         tenant=user.tenant,
         provider=PlatformCredential.META,
     ).exists()
+
+
+@pytest.mark.django_db
+def test_meta_provision_accepts_omitted_schedule_fields(api_client, user, monkeypatch, settings):
+    _authenticate(api_client, user)
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_APP_SECRET = "meta-app-secret"
+    settings.AIRBYTE_DEFAULT_WORKSPACE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    settings.AIRBYTE_DEFAULT_DESTINATION_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+
+    credential = PlatformCredential.objects.create(
+        tenant=user.tenant,
+        provider=PlatformCredential.META,
+        account_id="act_123",
+        expires_at=None,
+        access_token_enc=b"",
+        access_token_nonce=b"",
+        access_token_tag=b"",
+    )
+    credential.set_raw_tokens("token-current", None)
+    credential.save()
+
+    observed: dict[str, object] = {}
+
+    class DummyAirbyteClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def list_sources(self, workspace_id: str):
+            return []
+
+        def create_source(self, payload):
+            return {"sourceId": "source-new"}
+
+        def check_source(self, source_id: str):
+            return {"jobInfo": {"status": "succeeded"}}
+
+        def discover_source_schema(self, source_id: str):
+            return {
+                "catalog": {
+                    "streams": [
+                        {
+                            "name": "ads_insights",
+                            "supportedSyncModes": ["incremental"],
+                            "supportedDestinationSyncModes": ["append_dedup"],
+                            "defaultCursorField": ["date_start"],
+                            "sourceDefinedPrimaryKey": [["ad_id"], ["date_start"]],
+                        }
+                    ]
+                }
+            }
+
+        def list_connections(self, workspace_id: str):
+            return []
+
+        def create_connection(self, payload):
+            observed["connection_payload"] = payload
+            return {"connectionId": str(uuid.uuid4())}
+
+    monkeypatch.setattr("integrations.views.AirbyteClient.from_settings", lambda: DummyAirbyteClient())
+
+    response = api_client.post(
+        reverse("meta-provision"),
+        {
+            "connection_name": "Meta Insights Connection",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    connection_payload = observed["connection_payload"]
+    assert connection_payload["scheduleType"] == "cron"
+    assert connection_payload["scheduleData"]["cron"]["cronExpression"] == "0 0 6-22 * * ?"
 
 
 @pytest.mark.django_db
@@ -1177,6 +1490,10 @@ def test_meta_sync_queues_direct_reporting_task(api_client, user, monkeypatch):
     assert observed["kwargs"]["account_id"] == "act_123"
     assert observed["kwargs"]["job_id"] == payload["job_id"]
     assert observed["kwargs"]["connection_pk"] == str(connection.id)
+    window_end = timezone.localdate() - timedelta(days=1)
+    window_start = window_end - timedelta(days=META_DIRECT_SYNC_LOOKBACK_DAYS - 1)
+    assert observed["kwargs"]["since"] == window_start.isoformat()
+    assert observed["kwargs"]["until"] == window_end.isoformat()
     state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
     assert state.last_job_id == payload["job_id"]
     assert state.last_job_status == "pending"
@@ -1230,7 +1547,52 @@ def test_meta_sync_reuses_existing_direct_job(api_client, user, monkeypatch):
     assert payload["sync_status"] == "already_running"
     state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
     assert state.last_job_id == "job-existing"
-    assert state.last_job_status == "running"
+
+
+@pytest.mark.django_db
+def test_meta_sync_falls_back_to_inline_when_broker_unavailable(api_client, user, monkeypatch):
+    _authenticate(api_client, user)
+    credential = PlatformCredential.objects.create(
+        tenant=user.tenant,
+        provider=PlatformCredential.META,
+        account_id="act_123",
+        expires_at=None,
+        access_token_enc=b"",
+        access_token_nonce=b"",
+        access_token_tag=b"",
+    )
+    credential.set_raw_tokens("meta-token", None)
+    credential.save()
+    connection = AirbyteConnection.objects.create(
+        tenant=user.tenant,
+        name="Meta Connection",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_CRON,
+        cron_expression="0 6-22 * * *",
+    )
+    observed: dict[str, object] = {}
+
+    def fake_apply_async(*args, **kwargs):  # noqa: ANN001, ARG001
+        raise RuntimeError("Redis connection refused")
+
+    def fake_run(**kwargs):  # noqa: ANN001
+        observed["kwargs"] = kwargs
+        return {"insights_synced": 0}
+
+    monkeypatch.setattr("integrations.tasks.sync_meta_reporting_slice.apply_async", fake_apply_async)
+    monkeypatch.setattr("integrations.tasks.sync_meta_reporting_slice.run", fake_run)
+
+    response = api_client.post(reverse("meta-sync"), {}, format="json")
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["task_dispatch_mode"] == "inline"
+    assert observed["kwargs"]["tenant_id"] == str(user.tenant.id)
+    assert observed["kwargs"]["account_id"] == "act_123"
+    assert observed["kwargs"]["connection_pk"] == str(connection.id)
+    state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
+    assert state.last_job_status == "pending"
 
 
 @pytest.mark.django_db
@@ -1450,6 +1812,40 @@ def test_meta_logout_deletes_meta_credentials(api_client, user):
     )
     second.set_raw_tokens("meta-token-2", None)
     second.save()
+    page_connection = MetaConnection(
+        tenant=user.tenant,
+        user=user,
+        app_scoped_user_id="meta-page-user",
+        scopes=["ads_read", "business_management", "pages_show_list", "pages_read_engagement"],
+        is_active=True,
+    )
+    page_connection.set_raw_token("page-token")
+    page_connection.save()
+    page = MetaPage(
+        tenant=user.tenant,
+        connection=page_connection,
+        page_id="page-1",
+        name="Business Page",
+        can_analyze=True,
+        is_default=True,
+        tasks=["ANALYZE"],
+    )
+    page.set_raw_page_token("page-token")
+    page.save()
+    MetaAccountSyncState.objects.create(
+        tenant=user.tenant,
+        account_id="act_123",
+        last_job_status="failed",
+    )
+    connection = AirbyteConnection.objects.create(
+        tenant=user.tenant,
+        name="Meta Connection",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_CRON,
+        cron_expression="0 6-22 * * *",
+        is_active=True,
+    )
 
     response = api_client.post(reverse("meta-logout"), {}, format="json")
 
@@ -1458,6 +1854,10 @@ def test_meta_logout_deletes_meta_credentials(api_client, user):
     assert payload["provider"] == "meta_ads"
     assert payload["disconnected"] is True
     assert payload["deleted_credentials"] == 2
+    assert payload["deleted_page_connections"] == 1
+    assert payload["deleted_pages"] == 1
+    assert payload["deleted_sync_states"] == 1
+    assert payload["disabled_airbyte_connections"] == 1
     assert (
         PlatformCredential.objects.filter(
             tenant=user.tenant,
@@ -1465,3 +1865,8 @@ def test_meta_logout_deletes_meta_credentials(api_client, user):
         ).count()
         == 0
     )
+    assert MetaConnection.objects.filter(tenant=user.tenant).count() == 0
+    assert MetaPage.objects.filter(tenant=user.tenant).count() == 0
+    assert MetaAccountSyncState.objects.filter(tenant=user.tenant).count() == 0
+    connection.refresh_from_db()
+    assert connection.is_active is False
