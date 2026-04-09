@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import timedelta
+from urllib.parse import urlparse
 
 import pytest
 from django.core import signing
@@ -44,7 +45,9 @@ def test_google_ads_reconnect_returns_authorize_url(api_client, user, settings):
     assert response.status_code == 200
     payload = response.json()
     assert payload["provider"] == "google_ads"
-    assert "accounts.google.com" in payload["authorize_url"]
+    authorize_url = urlparse(payload["authorize_url"])
+    assert authorize_url.scheme == "https"
+    assert authorize_url.netloc == "accounts.google.com"
     state_payload = signing.loads(payload["state"], salt=INTEGRATION_OAUTH_STATE_SALT)
     assert state_payload["tenant_id"] == str(user.tenant_id)
     assert state_payload["provider"] == "google_ads"
