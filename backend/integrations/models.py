@@ -20,12 +20,14 @@ class PlatformCredential(models.Model):
     META = "META"
     GOOGLE = "GOOGLE"
     GOOGLE_ANALYTICS = "GOOGLE_ANALYTICS"
+    SEARCH_CONSOLE = "SEARCH_CONSOLE"
     LINKEDIN = "LINKEDIN"
     TIKTOK = "TIKTOK"
     PROVIDER_CHOICES = [
         (META, "Meta"),
         (GOOGLE, "Google Ads"),
         (GOOGLE_ANALYTICS, "Google Analytics"),
+        (SEARCH_CONSOLE, "Google Search Console"),
         (LINKEDIN, "LinkedIn"),
         (TIKTOK, "TikTok"),
     ]
