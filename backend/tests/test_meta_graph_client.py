@@ -71,7 +71,7 @@ def test_meta_graph_client_uses_smaller_page_size_for_ads(monkeypatch):
 @pytest.mark.django_db
 @override_settings(
     META_APP_ID="app-id",
-    META_APP_SECRET="app-secret",
+    META_APP_SECRET="meta-app-placeholder",  # pragma: allowlist secret
     META_GRAPH_API_VERSION="v99.0",
     META_GRAPH_TIMEOUT_SECONDS=42.0,
     META_GRAPH_MAX_ATTEMPTS=7,
