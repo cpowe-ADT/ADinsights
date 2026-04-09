@@ -104,6 +104,16 @@ from integrations.google_analytics.views import (
     GoogleAnalyticsSetupView,
     GoogleAnalyticsStatusView,
 )
+from integrations.connector_lifecycle_views import (
+    IntegrationDisconnectView,
+    IntegrationJobsView,
+    IntegrationOAuthCallbackView,
+    IntegrationOAuthStartView,
+    IntegrationProvisionView,
+    IntegrationReconnectView,
+    IntegrationStatusView,
+    IntegrationSyncView,
+)
 from . import views as core_views
 from .viewsets import AirbyteTelemetryViewSet
 
@@ -437,6 +447,46 @@ urlpatterns = [
         "api/integrations/social/status/",
         SocialConnectionStatusView.as_view(),
         name="social-connection-status",
+    ),
+    path(
+        "api/integrations/<str:provider>/oauth/start/",
+        IntegrationOAuthStartView.as_view(),
+        name="integration-oauth-start",
+    ),
+    path(
+        "api/integrations/<str:provider>/oauth/callback/",
+        IntegrationOAuthCallbackView.as_view(),
+        name="integration-oauth-callback",
+    ),
+    path(
+        "api/integrations/<str:provider>/reconnect/",
+        IntegrationReconnectView.as_view(),
+        name="integration-reconnect",
+    ),
+    path(
+        "api/integrations/<str:provider>/disconnect/",
+        IntegrationDisconnectView.as_view(),
+        name="integration-disconnect",
+    ),
+    path(
+        "api/integrations/<str:provider>/provision/",
+        IntegrationProvisionView.as_view(),
+        name="integration-provision",
+    ),
+    path(
+        "api/integrations/<str:provider>/sync/",
+        IntegrationSyncView.as_view(),
+        name="integration-sync",
+    ),
+    path(
+        "api/integrations/<str:provider>/status/",
+        IntegrationStatusView.as_view(),
+        name="integration-status",
+    ),
+    path(
+        "api/integrations/<str:provider>/jobs/",
+        IntegrationJobsView.as_view(),
+        name="integration-jobs",
     ),
     path("metrics/app/", core_views.prometheus_metrics, name="metrics-app"),
     path("api/", include(router.urls)),

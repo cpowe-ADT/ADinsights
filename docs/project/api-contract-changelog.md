@@ -12,6 +12,12 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-04-09**
+  - Endpoint: `POST /api/integrations/{provider}/reconnect/`, `GET /api/integrations/{provider}/jobs/`, `GET /api/integrations/{provider}/status/`, `POST /api/integrations/{provider}/sync/`, `POST /api/integrations/{provider}/disconnect/`, `POST /api/integrations/{provider}/oauth/callback/`, `POST /api/integrations/{provider}/provision/`
+  - Change: Recovered the provider-generic connector lifecycle contract for Airbyte-managed Google providers on top of current `main`. The generic lifecycle now supports `ga4` and `search_console` end-to-end and adds the missing reconnect/job surfaces used by shared connector operations. `google_ads` keeps its existing provider-specific setup/status/sync/disconnect payloads on the same concrete paths, while the generic lifecycle adds shared reconnect/job behavior and OAuth callback/provisioning support.
+  - Impact: Operators and frontend lifecycle flows can use stable generic connector paths for GA4/Search Console and shared reconnect/jobs workflows without regressing the current Google Ads-specific API contract. Clients should treat `ga4` as the generic Airbyte lifecycle slug and `google_analytics` as the existing dedicated GA4 onboarding/status surface.
+  - Owner: Maya (Integrations) + Sofia (Backend Metrics)
+
 - **2026-04-08**
   - Endpoint: `GET /api/audit-logs/`
   - Change: Response is now paginated (`{count, next, previous, results}`). Previously returned a bare array. Supports `?page=N&page_size=N` (default 50, max 200). Filtering by `?action=` and `?resource_type=` unchanged.

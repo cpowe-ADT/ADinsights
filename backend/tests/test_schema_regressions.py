@@ -268,6 +268,18 @@ def test_openapi_schema_includes_google_analytics_paths(openapi_paths):
     assert "/api/integrations/google_analytics/status/" in paths
 
 
+def test_openapi_schema_includes_generic_connector_lifecycle_paths(openapi_paths):
+    paths = openapi_paths
+    assert "/api/integrations/{provider}/oauth/start/" in paths
+    assert "/api/integrations/{provider}/oauth/callback/" in paths
+    assert "/api/integrations/{provider}/reconnect/" in paths
+    assert "/api/integrations/{provider}/disconnect/" in paths
+    assert "/api/integrations/{provider}/provision/" in paths
+    assert "/api/integrations/{provider}/sync/" in paths
+    assert "/api/integrations/{provider}/status/" in paths
+    assert "/api/integrations/{provider}/jobs/" in paths
+
+
 def test_openapi_schema_includes_meta_page_insights_paths(openapi_paths):
     paths = openapi_paths
     assert "/api/integrations/meta/oauth/callback/" in paths
