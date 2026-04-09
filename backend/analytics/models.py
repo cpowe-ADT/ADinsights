@@ -383,6 +383,97 @@ class ReportDefinition(models.Model):
         return f"ReportDefinition<{self.tenant_id}:{self.name}>"
 
 
+class DashboardDefinition(models.Model):
+    """Tenant-scoped saved dashboard definition for Meta Ads dashboard presets."""
+
+    TEMPLATE_META_EXECUTIVE_OVERVIEW = "meta_executive_overview"
+    TEMPLATE_META_CAMPAIGN_PERFORMANCE = "meta_campaign_performance"
+    TEMPLATE_META_CREATIVE_INSIGHTS = "meta_creative_insights"
+    TEMPLATE_META_BUDGET_PACING = "meta_budget_pacing"
+    TEMPLATE_META_PARISH_MAP = "meta_parish_map"
+    TEMPLATE_CHOICES = [
+        (TEMPLATE_META_EXECUTIVE_OVERVIEW, "Meta executive overview"),
+        (TEMPLATE_META_CAMPAIGN_PERFORMANCE, "Meta campaign performance"),
+        (TEMPLATE_META_CREATIVE_INSIGHTS, "Meta creative insights"),
+        (TEMPLATE_META_BUDGET_PACING, "Meta budget pacing"),
+        (TEMPLATE_META_PARISH_MAP, "Meta parish map"),
+    ]
+
+    METRIC_SPEND = "spend"
+    METRIC_IMPRESSIONS = "impressions"
+    METRIC_REACH = "reach"
+    METRIC_CLICKS = "clicks"
+    METRIC_CONVERSIONS = "conversions"
+    METRIC_ROAS = "roas"
+    METRIC_CTR = "ctr"
+    METRIC_CPC = "cpc"
+    METRIC_CPM = "cpm"
+    METRIC_CPA = "cpa"
+    METRIC_FREQUENCY = "frequency"
+    DEFAULT_METRIC_CHOICES = [
+        (METRIC_SPEND, "Spend"),
+        (METRIC_IMPRESSIONS, "Impressions"),
+        (METRIC_REACH, "Reach"),
+        (METRIC_CLICKS, "Clicks"),
+        (METRIC_CONVERSIONS, "Conversions"),
+        (METRIC_ROAS, "ROAS"),
+        (METRIC_CTR, "CTR"),
+        (METRIC_CPC, "CPC"),
+        (METRIC_CPM, "CPM"),
+        (METRIC_CPA, "CPA"),
+        (METRIC_FREQUENCY, "Frequency"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="dashboard_definitions"
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    template_key = models.CharField(
+        max_length=64,
+        choices=TEMPLATE_CHOICES,
+        default=TEMPLATE_META_CAMPAIGN_PERFORMANCE,
+    )
+    filters = models.JSONField(default=dict, blank=True)
+    layout = models.JSONField(default=dict, blank=True)
+    default_metric = models.CharField(
+        max_length=32,
+        choices=DEFAULT_METRIC_CHOICES,
+        default=METRIC_SPEND,
+    )
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_dashboard_definitions",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_dashboard_definitions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("-updated_at", "name")
+        indexes = [
+            models.Index(fields=["tenant", "template_key"], name="analytics_dash_tenant_tpl"),
+            models.Index(fields=["tenant", "is_active"], name="analytics_dash_tenant_active"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"DashboardDefinition<{self.tenant_id}:{self.name}>"
+
+
 class ReportExportJob(models.Model):
     """Track report export requests and async completion metadata."""
 

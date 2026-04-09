@@ -5,11 +5,13 @@ import CampaignTable from '../components/CampaignTable';
 import CampaignTrendChart from '../components/CampaignTrendChart';
 import DashboardState from '../components/DashboardState';
 import ParishMap from '../components/ParishMap';
+import RegionBreakdownTable from '../components/RegionBreakdownTable';
 import Skeleton from '../components/Skeleton';
 import StatusBanner from '../components/StatusBanner';
 import Card from '../components/ui/Card';
 import StatCard from '../components/ui/StatCard';
 import { useAuth } from '../auth/AuthContext';
+import { messageForLiveDatasetReason, titleForLiveDatasetReason } from '../lib/datasetStatus';
 import useDashboardStore from '../state/useDashboardStore';
 import { useDatasetStore } from '../state/useDatasetStore';
 import {
@@ -63,15 +65,20 @@ const TrendPlaceholderIcon = () => (
 
 const CampaignDashboard = () => {
   const { tenantId } = useAuth();
-  const { campaign, campaignRows, loadAll, lastSnapshotGeneratedAt } = useDashboardStore(
-    (state) => ({
+  const { campaign, campaignRows, parish, loadAll, lastSnapshotGeneratedAt, availability, coverage } =
+    useDashboardStore((state) => ({
       campaign: state.campaign,
       campaignRows: state.getCampaignRowsForSelectedParish(),
+      parish: state.parish,
       loadAll: state.loadAll,
       lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
-    }),
-  );
+      availability: state.availability,
+      coverage: state.coverage,
+    }));
   const datasetMode = useDatasetStore((state) => state.mode);
+  const datasetSource = useDatasetStore((state) => state.source);
+  const liveReason = useDatasetStore((state) => state.liveReason);
+  const liveDetail = useDatasetStore((state) => state.liveDetail);
   const snapshotRelative = lastSnapshotGeneratedAt
     ? formatRelativeTime(lastSnapshotGeneratedAt)
     : null;
@@ -80,9 +87,22 @@ const CampaignDashboard = () => {
     : null;
   const snapshotIsStale = isTimestampStale(lastSnapshotGeneratedAt, 60);
   const headingId = useId();
+  const campaignAvailability = availability?.campaign;
+  const parishCoverage = availability?.parish_map.coveragePercent ?? 0;
+  const coverageLabel =
+    coverage?.startDate && coverage?.endDate
+      ? `${coverage.startDate} to ${coverage.endDate}`
+      : null;
 
   const isInitialLoading = campaign.status === 'loading' && !campaign.data;
   const hasCampaignData = Boolean(campaign.data);
+  const liveDatasetBlocked =
+    datasetMode === 'live' && datasetSource === 'warehouse' && liveReason && liveReason !== 'ready';
+  const liveDatasetMessage = liveReason
+    ? messageForLiveDatasetReason(liveReason, liveDetail)
+    : null;
+  const shouldShowRegionBreakdown = (parish.data?.length ?? 0) > 0 || parish.status === 'loading';
+  const shouldShowMap = parishCoverage > 0.6;
 
   const handleRetry = useCallback(() => {
     void loadAll(tenantId, { force: true });
@@ -96,10 +116,20 @@ const CampaignDashboard = () => {
           Campaign performance
         </h1>
         <StatusBanner
-          tone={snapshotIsStale ? 'warning' : 'info'}
+          tone={
+            datasetMode === 'live' && liveReason === 'default_snapshot'
+              ? 'warning'
+              : datasetMode === 'live' && liveReason && liveReason !== 'ready'
+                ? 'warning'
+                : snapshotIsStale
+                  ? 'warning'
+                  : 'info'
+          }
           message={
             datasetMode === 'live'
-              ? (snapshotRelative ?? 'Waiting for live snapshot...')
+              ? liveDatasetBlocked
+                ? liveDatasetMessage ?? 'Waiting for live snapshot...'
+                : (snapshotRelative ?? 'Waiting for live snapshot...')
               : snapshotRelative
                 ? `Demo data - ${snapshotRelative}`
                 : 'Demo dataset active'
@@ -183,6 +213,11 @@ const CampaignDashboard = () => {
         sparkline: impressionsSeries,
       },
       {
+        label: 'Reach',
+        value: summary ? formatNumber(summary.totalReach ?? 0) : '—',
+        sparkline: impressionsSeries,
+      },
+      {
         label: 'Clicks',
         value: summary ? formatNumber(summary.totalClicks) : '—',
         sparkline: clicksSeries,
@@ -193,9 +228,35 @@ const CampaignDashboard = () => {
         sparkline: conversionsSeries,
       },
       {
-        label: 'Avg. ROAS',
+        label: 'CTR',
+        value: summary ? formatRatio(summary.ctr ?? 0, 2) : '—',
+        sparkline: clicksSeries,
+      },
+      {
+        label: 'CPC',
+        value: summary ? formatCurrency(summary.cpc ?? 0, currency) : '—',
+        sparkline: spendSeries,
+      },
+      {
+        label: 'CPM',
+        value: summary ? formatCurrency(summary.cpm ?? 0, currency) : '—',
+        sparkline: impressionsSeries,
+      },
+      {
+        label: 'CPA',
+        value: summary ? formatCurrency(summary.cpa ?? 0, currency) : '—',
+        sparkline: conversionsSeries,
+      },
+      {
+        label: 'Frequency',
+        value: summary ? formatRatio(summary.frequency ?? 0, 2) : '—',
+        sparkline: impressionsSeries,
+      },
+      {
+        label: 'Conv. / $',
         value: summary ? formatRatio(summary.averageRoas, 2) : '—',
         sparkline: roasSeries,
+        tooltip: 'Conversion count divided by spend. Not revenue-based ROAS.',
       },
     ],
     [
@@ -235,9 +296,31 @@ const CampaignDashboard = () => {
   }, [currency, hasTrendData, peakSpend, trendEnd, trendStart]);
 
   if (campaign.status === 'error' && !hasCampaignData) {
+    if (liveDatasetBlocked) {
+      return pageShell(
+        <div className="dashboardGrid">
+          <Card title={titleForLiveDatasetReason(liveReason)} className="chartCard">
+            <DashboardState
+              variant="empty"
+              icon={<CampaignEmptyIcon />}
+              message={liveDatasetMessage ?? 'Live warehouse metrics are unavailable.'}
+              actionLabel="Refresh data"
+              onAction={handleRetry}
+              layout="compact"
+            />
+          </Card>
+        </div>,
+      );
+    }
+    const errorTitle =
+      campaign.errorKind === 'stale_snapshot'
+        ? 'Dashboard data is refreshing'
+        : campaign.errorKind === 'network'
+          ? 'Unable to connect'
+          : 'Campaign insights';
     return pageShell(
       <div className="dashboardGrid">
-        <Card title="Campaign insights" className="chartCard">
+        <Card title={errorTitle} className="chartCard">
           <DashboardState
             variant="error"
             message={campaign.error ?? 'Unable to load campaign performance.'}
@@ -251,14 +334,62 @@ const CampaignDashboard = () => {
   }
 
   if (!hasCampaignData && !isInitialLoading) {
+    const emptyVariant = campaignAvailability?.reason === 'no_matching_filters' ? 'no-results' : 'empty';
+    const emptyTitle =
+      campaignAvailability?.reason === 'no_matching_filters'
+        ? 'No campaign rows match this view'
+        : campaignAvailability?.reason === 'no_recent_data'
+          ? 'No recent reportable data'
+          : 'No campaign insights yet';
+    const emptyMessage =
+      campaignAvailability?.reason === 'no_matching_filters'
+        ? 'No campaign rows matched the selected client, range, or search filters.'
+        : campaignAvailability?.reason === 'no_recent_data'
+          ? 'The selected Meta account is connected, but Meta returned no recent reportable campaign results for this window.'
+          : 'Campaign performance will appear once metrics are ingested for the selected Meta account.';
     return pageShell(
       <div className="dashboardGrid">
         <Card title="Campaign insights" className="chartCard">
           <DashboardState
-            variant="empty"
+            variant={emptyVariant}
             icon={<CampaignEmptyIcon />}
-            title="No campaign insights yet"
-            message="Campaign performance will appear once metrics are ingested."
+            title={emptyTitle}
+            message={emptyMessage}
+            actionLabel="Refresh data"
+            onAction={handleRetry}
+            layout="compact"
+          />
+        </Card>
+      </div>,
+    );
+  }
+
+  if (
+    !isInitialLoading &&
+    campaignAvailability?.status === 'empty' &&
+    (campaign.data?.rows.length ?? 0) === 0
+  ) {
+    const emptyVariant = campaignAvailability.reason === 'no_matching_filters' ? 'no-results' : 'empty';
+    const emptyTitle =
+      campaignAvailability.reason === 'no_matching_filters'
+        ? 'No campaign rows match this view'
+        : campaignAvailability.reason === 'no_recent_data'
+          ? 'No recent reportable data'
+          : 'No campaign insights yet';
+    const emptyMessage =
+      campaignAvailability.reason === 'no_matching_filters'
+        ? 'No campaign rows matched the selected client, range, or search filters.'
+        : campaignAvailability.reason === 'no_recent_data'
+          ? 'The selected Meta account is connected, but Meta returned no recent reportable campaign results for this window.'
+          : 'Campaign performance will appear once metrics are ingested for the selected Meta account.';
+    return pageShell(
+      <div className="dashboardGrid">
+        <Card title="Campaign insights" className="chartCard">
+          <DashboardState
+            variant={emptyVariant}
+            icon={<CampaignEmptyIcon />}
+            title={emptyTitle}
+            message={emptyMessage}
             actionLabel="Refresh data"
             onAction={handleRetry}
             layout="compact"
@@ -272,11 +403,18 @@ const CampaignDashboard = () => {
     <div className="dashboardGrid">
       <div className="kpiColumn" role="group" aria-label="Campaign KPIs">
         {kpis.map((kpi) => (
-          <StatCard key={kpi.label} label={kpi.label} value={kpi.value} sparkline={kpi.sparkline} />
+          <StatCard
+            key={kpi.label}
+            label={kpi.label}
+            value={kpi.value}
+            sparkline={kpi.sparkline}
+            tooltip={kpi.tooltip}
+          />
         ))}
       </div>
 
       <Card className="chartCard" title="Daily spend trend">
+        {coverageLabel ? <p className="muted">Coverage: {coverageLabel}</p> : null}
         {isInitialLoading ? (
           <div className="widget-skeleton" aria-busy="true">
             <Skeleton height={220} borderRadius="1rem" />
@@ -301,12 +439,27 @@ const CampaignDashboard = () => {
         {chartFooter}
       </Card>
 
-      <Card className="mapCard" title="Parish heatmap">
-        <p className="muted">Click a parish to filter the performance tables below.</p>
-        <div className="mapViewport">
-          <ParishMap onRetry={handleRetry} />
-        </div>
-      </Card>
+      {shouldShowMap ? (
+        <Card className="mapCard" title="Parish heatmap">
+          <p className="muted">Click a parish to filter the performance tables below.</p>
+          <div className="mapViewport">
+            <ParishMap onRetry={handleRetry} />
+          </div>
+        </Card>
+      ) : null}
+
+      {shouldShowRegionBreakdown ? (
+        <Card
+          title="Region breakdown"
+          className={shouldShowMap ? undefined : 'tableCardWide'}
+        >
+          <p className="muted">
+            Parish coverage: {(parishCoverage * 100).toFixed(0)}%. Click a row to filter the
+            performance tables below.
+          </p>
+          <RegionBreakdownTable onReload={handleRetry} />
+        </Card>
+      ) : null}
 
       <Card title="Campaign metrics table" className="tableCardWide">
         <CampaignTable

@@ -7,6 +7,7 @@ from pathlib import Path
 from datetime import timedelta
 from typing import Any
 
+from django.db import transaction
 from django.http import HttpResponseBase
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
@@ -20,12 +21,19 @@ from rest_framework.views import APIView
 
 from accounts.audit import log_audit_event
 from accounts.permissions import HasPrivilege
-from analytics.models import AISummary, ReportDefinition, ReportExportJob, TenantMetricsSnapshot
+from analytics.models import (
+    AISummary,
+    DashboardDefinition,
+    ReportDefinition,
+    ReportExportJob,
+    TenantMetricsSnapshot,
+)
 from integrations.models import AirbyteConnection
 from integrations.views import AlertRuleDefinitionViewSet
 
 from .phase2_serializers import (
     AISummarySerializer,
+    DashboardDefinitionSerializer,
     ReportDefinitionSerializer,
     ReportExportCreateSerializer,
     ReportExportJobSerializer,
@@ -34,6 +42,134 @@ from .phase2_serializers import (
 logger = logging.getLogger(__name__)
 
 SYNC_HEALTH_STALE_THRESHOLD = timedelta(hours=2)
+
+DASHBOARD_TEMPLATE_LIBRARY = (
+    {
+        "id": DashboardDefinition.TEMPLATE_META_EXECUTIVE_OVERVIEW,
+        "template_key": DashboardDefinition.TEMPLATE_META_EXECUTIVE_OVERVIEW,
+        "name": "Meta executive overview",
+        "type": "Executive overview",
+        "tags": ["Meta Ads", "Executive", "KPI summary"],
+        "description": "High-level Meta Ads performance with trend, pacing, and coverage context.",
+        "route": f"/dashboards/create?template={DashboardDefinition.TEMPLATE_META_EXECUTIVE_OVERVIEW}",
+    },
+    {
+        "id": DashboardDefinition.TEMPLATE_META_CAMPAIGN_PERFORMANCE,
+        "template_key": DashboardDefinition.TEMPLATE_META_CAMPAIGN_PERFORMANCE,
+        "name": "Meta campaign performance",
+        "type": "Campaigns",
+        "tags": ["Meta Ads", "Campaigns", "ROAS"],
+        "description": "Campaign KPI strip, trend, table, and map state for Meta Ads.",
+        "route": f"/dashboards/create?template={DashboardDefinition.TEMPLATE_META_CAMPAIGN_PERFORMANCE}",
+    },
+    {
+        "id": DashboardDefinition.TEMPLATE_META_CREATIVE_INSIGHTS,
+        "template_key": DashboardDefinition.TEMPLATE_META_CREATIVE_INSIGHTS,
+        "name": "Meta creative insights",
+        "type": "Creatives",
+        "tags": ["Meta Ads", "Creatives", "CTR"],
+        "description": "Creative leaderboard and thumbnail-based performance review.",
+        "route": f"/dashboards/create?template={DashboardDefinition.TEMPLATE_META_CREATIVE_INSIGHTS}",
+    },
+    {
+        "id": DashboardDefinition.TEMPLATE_META_BUDGET_PACING,
+        "template_key": DashboardDefinition.TEMPLATE_META_BUDGET_PACING,
+        "name": "Meta budget pacing",
+        "type": "Budget pacing",
+        "tags": ["Meta Ads", "Budget", "Pacing"],
+        "description": "Budget pacing view with projected spend and pacing risk indicators.",
+        "route": f"/dashboards/create?template={DashboardDefinition.TEMPLATE_META_BUDGET_PACING}",
+    },
+    {
+        "id": DashboardDefinition.TEMPLATE_META_PARISH_MAP,
+        "template_key": DashboardDefinition.TEMPLATE_META_PARISH_MAP,
+        "name": "Meta parish map",
+        "type": "Parish map",
+        "tags": ["Meta Ads", "Geo", "Map"],
+        "description": "Geographic Meta Ads view that gracefully degrades when parish coverage is unavailable.",
+        "route": f"/dashboards/create?template={DashboardDefinition.TEMPLATE_META_PARISH_MAP}",
+    },
+)
+
+DEFAULT_DASHBOARD_PRESETS = (
+    {
+        "name": "Executive overview (30 days)",
+        "description": "System-created executive summary dashboard for the last 30 days.",
+        "template_key": DashboardDefinition.TEMPLATE_META_EXECUTIVE_OVERVIEW,
+        "default_metric": DashboardDefinition.METRIC_SPEND,
+        "filters": {
+            "dateRange": "30d",
+            "accountId": "",
+            "channels": [],
+            "campaignQuery": "",
+            "customRange": {"start": "", "end": ""},
+        },
+        "layout": {
+            "routeKind": "campaigns",
+            "widgets": ["kpis", "trend", "campaign_table", "budget_summary", "map"],
+        },
+    },
+    {
+        "name": "Campaign review (7 days)",
+        "description": "System-created campaign review dashboard for the last 7 days.",
+        "template_key": DashboardDefinition.TEMPLATE_META_CAMPAIGN_PERFORMANCE,
+        "default_metric": DashboardDefinition.METRIC_SPEND,
+        "filters": {
+            "dateRange": "7d",
+            "accountId": "",
+            "channels": [],
+            "campaignQuery": "",
+            "customRange": {"start": "", "end": ""},
+        },
+        "layout": {
+            "routeKind": "campaigns",
+            "widgets": ["kpis", "trend", "campaign_table", "map"],
+        },
+    },
+    {
+        "name": "Budget pacing (MTD)",
+        "description": "System-created budget pacing dashboard for month-to-date monitoring.",
+        "template_key": DashboardDefinition.TEMPLATE_META_BUDGET_PACING,
+        "default_metric": DashboardDefinition.METRIC_CPA,
+        "filters": {
+            "dateRange": "mtd",
+            "accountId": "",
+            "channels": [],
+            "campaignQuery": "",
+            "customRange": {"start": "", "end": ""},
+        },
+        "layout": {
+            "routeKind": "budget",
+            "widgets": ["budget_summary", "budget_table", "coverage"],
+        },
+    },
+)
+
+
+def ensure_default_dashboard_presets(*, tenant) -> None:
+    with transaction.atomic():
+        active_dashboards = DashboardDefinition.objects.select_for_update().filter(
+            tenant=tenant,
+            is_active=True,
+        )
+        if active_dashboards.exists():
+            return
+
+        for preset in DEFAULT_DASHBOARD_PRESETS:
+            DashboardDefinition.objects.get_or_create(
+                tenant=tenant,
+                name=preset["name"],
+                template_key=preset["template_key"],
+                defaults={
+                    "description": preset["description"],
+                    "filters": preset["filters"],
+                    "layout": preset["layout"],
+                    "default_metric": preset["default_metric"],
+                    "is_active": True,
+                    "created_by": None,
+                    "updated_by": None,
+                },
+            )
 
 
 class ReportDefinitionSchema(AutoSchema):
@@ -147,6 +283,102 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
             export_job.save(update_fields=["status", "error_message", "completed_at", "updated_at"])
 
         return Response(ReportExportJobSerializer(export_job).data, status=status.HTTP_201_CREATED)
+
+
+class DashboardDefinitionSchema(AutoSchema):
+    """Ensure unique operationIds for duplicate dashboard actions."""
+
+    def get_operation_id(self, path, method):  # noqa: D401
+        operation_id = super().get_operation_id(path, method)
+        if getattr(self.view, "action", None) == "duplicate":
+            return f"{operation_id}{method.title()}"
+        return operation_id
+
+
+class DashboardDefinitionViewSet(viewsets.ModelViewSet):
+    serializer_class = DashboardDefinitionSerializer
+    permission_classes = [permissions.IsAuthenticated, HasPrivilege]
+    required_privilege = "dashboard_edit"
+    schema = DashboardDefinitionSchema()
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return DashboardDefinition.objects.none()
+        return DashboardDefinition.objects.filter(tenant_id=user.tenant_id).order_by(
+            "-updated_at", "name"
+        )
+
+    def perform_create(self, serializer):
+        actor = self.request.user if self.request.user.is_authenticated else None
+        dashboard = serializer.save(
+            tenant=self.request.user.tenant,
+            created_by=actor,
+            updated_by=actor,
+        )
+        log_audit_event(
+            tenant=dashboard.tenant,
+            user=actor,
+            action="dashboard_definition_created",
+            resource_type="dashboard_definition",
+            resource_id=dashboard.id,
+            metadata={"fields": sorted(serializer.validated_data.keys()), "redacted": True},
+        )
+
+    def perform_update(self, serializer):
+        actor = self.request.user if self.request.user.is_authenticated else None
+        dashboard = serializer.save(updated_by=actor)
+        log_audit_event(
+            tenant=dashboard.tenant,
+            user=actor,
+            action="dashboard_definition_updated",
+            resource_type="dashboard_definition",
+            resource_id=dashboard.id,
+            metadata={"fields": sorted(serializer.validated_data.keys()), "redacted": True},
+        )
+
+    def perform_destroy(self, instance):
+        actor = self.request.user if self.request.user.is_authenticated else None
+        tenant = instance.tenant
+        dashboard_id = instance.id
+        super().perform_destroy(instance)
+        log_audit_event(
+            tenant=tenant,
+            user=actor,
+            action="dashboard_definition_deleted",
+            resource_type="dashboard_definition",
+            resource_id=dashboard_id,
+            metadata={"fields": [], "redacted": True},
+        )
+
+    @action(detail=True, methods=["post"], url_path="duplicate")
+    def duplicate(self, request, pk=None):
+        dashboard = self.get_object()
+        actor = request.user if request.user.is_authenticated else None
+        clone = DashboardDefinition.objects.create(
+            tenant=dashboard.tenant,
+            name=f"{dashboard.name} Copy",
+            description=dashboard.description,
+            template_key=dashboard.template_key,
+            filters=dashboard.filters,
+            layout=dashboard.layout,
+            default_metric=dashboard.default_metric,
+            is_active=dashboard.is_active,
+            created_by=actor,
+            updated_by=actor,
+        )
+        log_audit_event(
+            tenant=clone.tenant,
+            user=actor,
+            action="dashboard_definition_duplicated",
+            resource_type="dashboard_definition",
+            resource_id=clone.id,
+            metadata={"redacted": True, "source_id": str(dashboard.id)},
+        )
+        return Response(
+            DashboardDefinitionSerializer(clone, context=self.get_serializer_context()).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class AlertsViewSet(AlertRuleDefinitionViewSet):
@@ -352,7 +584,9 @@ class DashboardLibraryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request) -> Response:  # noqa: D401
-        tenant_id = request.user.tenant_id
+        tenant = request.user.tenant
+        tenant_id = tenant.id
+        ensure_default_dashboard_presets(tenant=tenant)
         generated_at = (
             TenantMetricsSnapshot.objects.filter(tenant_id=tenant_id, source="warehouse")
             .order_by("-generated_at")
@@ -361,71 +595,53 @@ class DashboardLibraryView(APIView):
         )
         updated_at = (generated_at or timezone.now()).date().isoformat()
 
-        reports = ReportDefinition.objects.filter(tenant_id=tenant_id, is_active=True).order_by("-updated_at")
+        saved_dashboards = DashboardDefinition.objects.filter(
+            tenant_id=tenant_id, is_active=True
+        ).order_by("-updated_at")
 
-        items = [
+        system_templates = [
             {
-                "id": "dash-campaigns-core",
-                "name": "Campaign performance overview",
-                "type": "Campaigns",
+                **template,
+                "kind": "system_template",
                 "owner": "System",
                 "updatedAt": updated_at,
-                "tags": ["ROAS", "Spend", "Conversions"],
-                "description": "Daily campaign KPIs with trend and map context.",
-                "route": "/dashboards/campaigns",
-            },
-            {
-                "id": "dash-creatives-top",
-                "name": "Creative leaderboard",
-                "type": "Creatives",
-                "owner": "System",
-                "updatedAt": updated_at,
-                "tags": ["CTR", "Clicks", "Thumbnails"],
-                "description": "Top creative performance with preview thumbnails.",
-                "route": "/dashboards/creatives",
-            },
-            {
-                "id": "dash-budget-pace",
-                "name": "Budget pacing check-in",
-                "type": "Budget pacing",
-                "owner": "System",
-                "updatedAt": updated_at,
-                "tags": ["Pacing", "Forecast", "Risk"],
-                "description": "Monitor monthly pacing and spend risk flags.",
-                "route": "/dashboards/budget",
-            },
-            {
-                "id": "dash-parish-map",
-                "name": "Parish map snapshot",
-                "type": "Parish map",
-                "owner": "System",
-                "updatedAt": updated_at,
-                "tags": ["Geo", "Map", "Reach"],
-                "description": "Geo performance map with metric toggles.",
-                "route": "/dashboards/map",
-            },
+            }
+            for template in DASHBOARD_TEMPLATE_LIBRARY
         ]
 
-        for report in reports[:20]:
+        items = []
+        for dashboard in saved_dashboards[:50]:
             owner = "Team"
-            if report.updated_by and report.updated_by.email:
-                owner = report.updated_by.email
-            elif report.created_by and report.created_by.email:
-                owner = report.created_by.email
+            if dashboard.updated_by and dashboard.updated_by.email:
+                owner = dashboard.updated_by.email
+            elif dashboard.created_by and dashboard.created_by.email:
+                owner = dashboard.created_by.email
             items.append(
                 {
-                    "id": f"report-{report.id}",
-                    "name": report.name,
-                    "type": "Campaigns",
+                    "id": str(dashboard.id),
+                    "kind": "saved_dashboard",
+                    "template_key": dashboard.template_key,
+                    "name": dashboard.name,
+                    "type": dict(DashboardDefinition.TEMPLATE_CHOICES).get(
+                        dashboard.template_key, "Saved dashboard"
+                    ),
                     "owner": owner,
-                    "updatedAt": report.updated_at.date().isoformat(),
-                    "tags": ["Report"],
-                    "description": report.description or "Saved report configuration.",
-                    "route": f"/reports/{report.id}",
+                    "updatedAt": dashboard.updated_at.date().isoformat(),
+                    "tags": [dashboard.default_metric.upper()],
+                    "description": dashboard.description or "Saved dashboard configuration.",
+                    "route": f"/dashboards/saved/{dashboard.id}",
+                    "defaultMetric": dashboard.default_metric,
+                    "isActive": dashboard.is_active,
                 }
             )
 
-        return Response(items)
+        return Response(
+            {
+                "generatedAt": timezone.now().isoformat(),
+                "systemTemplates": system_templates,
+                "savedDashboards": items,
+            }
+        )
 
 
 class RecentDashboardsView(APIView):
@@ -438,25 +654,26 @@ class RecentDashboardsView(APIView):
         except (ValueError, TypeError):
             limit = 3
 
-        # 1. Fetch recently updated reports for this tenant
-        reports = ReportDefinition.objects.filter(tenant_id=tenant_id, is_active=True).order_by("-updated_at")[:limit]
+        dashboards = DashboardDefinition.objects.filter(
+            tenant_id=tenant_id, is_active=True
+        ).order_by("-updated_at")[:limit]
 
         items = []
-        for report in reports:
+        for dashboard in dashboards:
             owner = "Team"
-            if report.updated_by and report.updated_by.email:
-                owner = report.updated_by.email
-            elif report.created_by and report.created_by.email:
-                owner = report.created_by.email
+            if dashboard.updated_by and dashboard.updated_by.email:
+                owner = dashboard.updated_by.email
+            elif dashboard.created_by and dashboard.created_by.email:
+                owner = dashboard.created_by.email
 
             items.append(
                 {
-                    "id": f"report-{report.id}",
-                    "name": report.name,
+                    "id": str(dashboard.id),
+                    "name": dashboard.name,
                     "owner": owner,
-                    "last_viewed_at": report.updated_at.isoformat(),
-                    "last_viewed_label": f"Updated {report.updated_at.strftime('%b %d, %H:%M')}",
-                    "route": f"/reports/{report.id}",
+                    "last_viewed_at": dashboard.updated_at.isoformat(),
+                    "last_viewed_label": f"Updated {dashboard.updated_at.strftime('%b %d, %H:%M')}",
+                    "route": f"/dashboards/saved/{dashboard.id}",
                 }
             )
 

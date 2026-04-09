@@ -25,7 +25,7 @@ export interface DemoTenantSnapshot {
         name: string;
         platform: string;
         status: string;
-        parish: string;
+        parishes: string[];
         spend: number;
         impressions: number;
         clicks: number;
@@ -45,7 +45,7 @@ export interface DemoTenantSnapshot {
       campaignId: string;
       campaignName: string;
       platform: string;
-      parish: string;
+      parishes: string[];
       spend: number;
       impressions: number;
       clicks: number;
@@ -120,7 +120,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
             name: 'FX Market Awareness',
             platform: 'Meta',
             status: 'Active',
-            parish: 'Kingston',
+            parishes: ['Kingston'],
             spend: 1_200_000,
             impressions: 540_000,
             clicks: 24_500,
@@ -138,7 +138,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
             name: 'Policy Update Series',
             platform: 'Google Ads',
             status: 'Active',
-            parish: 'St Andrew',
+            parishes: ['St Andrew'],
             spend: 980_000,
             impressions: 460_000,
             clicks: 22_100,
@@ -156,7 +156,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
             name: 'Digital Payments Launch',
             platform: 'TikTok',
             status: 'Learning',
-            parish: 'St James',
+            parishes: ['St James'],
             spend: 880_000,
             impressions: 410_000,
             clicks: 18_900,
@@ -178,7 +178,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
           campaignId: 'boj_fx_awareness',
           campaignName: 'FX Market Awareness',
           platform: 'Meta',
-          parish: 'Kingston',
+          parishes: ['Kingston'],
           spend: 420_000,
           impressions: 210_000,
           clicks: 10_200,
@@ -192,7 +192,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
           campaignId: 'boj_policy_updates',
           campaignName: 'Policy Update Series',
           platform: 'Google Ads',
-          parish: 'St Andrew',
+          parishes: ['St Andrew'],
           spend: 360_000,
           impressions: 176_000,
           clicks: 8_600,
@@ -301,7 +301,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
             name: 'Grace Foods Autumn Push',
             platform: 'Meta',
             status: 'Active',
-            parish: 'St Catherine',
+            parishes: ['St Catherine'],
             spend: 150_000,
             impressions: 620_000,
             clicks: 41_000,
@@ -319,7 +319,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
             name: 'GK Money Services',
             platform: 'Google Ads',
             status: 'Active',
-            parish: 'Kingston',
+            parishes: ['Kingston'],
             spend: 90_000,
             impressions: 420_000,
             clicks: 29_500,
@@ -337,7 +337,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
             name: 'Western Union Remittances',
             platform: 'TikTok',
             status: 'Active',
-            parish: 'St James',
+            parishes: ['St James'],
             spend: 70_000,
             impressions: 410_000,
             clicks: 21_500,
@@ -359,7 +359,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
           campaignId: 'gk_foods_autumn',
           campaignName: 'Grace Foods Autumn Push',
           platform: 'Meta',
-          parish: 'St Catherine',
+          parishes: ['St Catherine'],
           spend: 64_000,
           impressions: 280_000,
           clicks: 18_600,
@@ -373,7 +373,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
           campaignId: 'gk_financial_services',
           campaignName: 'GK Money Services',
           platform: 'Google Ads',
-          parish: 'Kingston',
+          parishes: ['Kingston'],
           spend: 42_000,
           impressions: 190_000,
           clicks: 14_100,
@@ -482,7 +482,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
             name: 'Depositor Protection',
             platform: 'Meta',
             status: 'Active',
-            parish: 'Kingston',
+            parishes: ['Kingston'],
             spend: 620_000,
             impressions: 320_000,
             clicks: 17_800,
@@ -500,7 +500,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
             name: 'FDIC Comparison',
             platform: 'Google Ads',
             status: 'Active',
-            parish: 'St Andrew',
+            parishes: ['St Andrew'],
             spend: 560_000,
             impressions: 280_000,
             clicks: 17_200,
@@ -518,7 +518,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
             name: 'Youth Financial Literacy',
             platform: 'TikTok',
             status: 'Active',
-            parish: 'Manchester',
+            parishes: ['Manchester'],
             spend: 420_000,
             impressions: 320_000,
             clicks: 16_000,
@@ -540,7 +540,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
           campaignId: 'jdic_depositor_protection',
           campaignName: 'Depositor Protection',
           platform: 'Meta',
-          parish: 'Kingston',
+          parishes: ['Kingston'],
           spend: 240_000,
           impressions: 140_000,
           clicks: 7_800,
@@ -554,7 +554,7 @@ export const demoSnapshots: Record<DemoTenantKey, DemoTenantSnapshot> = {
           campaignId: 'jdic_youth_finance',
           campaignName: 'Youth Financial Literacy',
           platform: 'TikTok',
-          parish: 'Manchester',
+          parishes: ['Manchester'],
           spend: 180_000,
           impressions: 135_000,
           clicks: 6_500,

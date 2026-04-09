@@ -1,12 +1,14 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import EmptyState from '../components/EmptyState';
+import { loadSocialConnectionStatus, type SocialPlatformStatusRecord } from '../lib/airbyte';
 import useMetaPageInsightsStore from '../state/useMetaPageInsightsStore';
 
 const MetaIntegrationPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [metaStatus, setMetaStatus] = useState<SocialPlatformStatusRecord | null>(null);
   const {
     pagesStatus,
     oauthStatus,
@@ -39,6 +41,29 @@ const MetaIntegrationPage = () => {
   }, [loadPages]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadStatus = async () => {
+      try {
+        const payload = await loadSocialConnectionStatus();
+        if (!cancelled) {
+          setMetaStatus(payload.platforms.find((row) => row.platform === 'meta') ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setMetaStatus(null);
+        }
+      }
+    };
+
+    void loadStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!oauthCode || !oauthState) {
       return;
     }
@@ -49,6 +74,8 @@ const MetaIntegrationPage = () => {
     () => pages.find((page) => page.page_id === selectedPageId) ?? pages.find((page) => page.is_default),
     [pages, selectedPageId],
   );
+  const requiresPermissionReconnect = missingRequiredPermissions.length > 0;
+  const orphanedMarketingAccess = metaStatus?.reason.code === 'orphaned_marketing_access';
 
   return (
     <section className="dashboardPage">
@@ -56,9 +83,26 @@ const MetaIntegrationPage = () => {
         <p className="dashboardEyebrow">Integrations</p>
         <h1 className="dashboardHeading">Meta</h1>
         <div className="dashboard-header__actions-row">
-          <button type="button" className="button secondary" onClick={() => void connectOAuthStart()}>
-            Connect for Page Insights
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() =>
+              void connectOAuthStart(
+                requiresPermissionReconnect ? { authType: 'rerequest' } : undefined,
+              )
+            }
+          >
+            {requiresPermissionReconnect ? 'Reconnect Meta' : 'Connect for Page Insights'}
           </button>
+          {orphanedMarketingAccess ? (
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => navigate('/dashboards/data-sources?sources=social')}
+            >
+              Restore Meta marketing access
+            </button>
+          ) : null}
           {selectedPage ? (
             <Link className="button tertiary" to={`/dashboards/meta/pages/${selectedPage.page_id}/overview`}>
               Open dashboard
@@ -75,10 +119,38 @@ const MetaIntegrationPage = () => {
         </div>
       ) : null}
 
+      {orphanedMarketingAccess ? (
+        <div className="panel meta-warning-panel" role="status">
+          <h3>Restore Meta marketing access</h3>
+          <p>{metaStatus?.reason.message}</p>
+          <div className="dashboard-header__actions-row">
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => navigate('/dashboards/data-sources?sources=social')}
+            >
+              Restore Meta marketing access
+            </button>
+            <Link className="button tertiary" to="/">
+              Home
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       {missingRequiredPermissions.length > 0 ? (
         <div className="panel meta-warning-panel" role="status">
           <h3>Missing insights permissions</h3>
           <p>Re-run OAuth and grant required scopes: {missingRequiredPermissions.join(', ')}.</p>
+          <div className="dashboard-header__actions-row">
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => void connectOAuthStart({ authType: 'rerequest' })}
+            >
+              Re-request Meta permissions
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -86,7 +158,16 @@ const MetaIntegrationPage = () => {
         <EmptyState
           icon={<span aria-hidden>0</span>}
           title="No pages found"
-          message="Connect Meta and select a page with ANALYZE permission."
+          message={
+            orphanedMarketingAccess
+              ? metaStatus?.reason.message ??
+                'Restore Meta marketing access to recover ad accounts and reporting.'
+              : 'Connect Meta and select a page with ANALYZE permission.'
+          }
+          actionLabel={orphanedMarketingAccess ? 'Restore Meta marketing access' : 'Connect socials'}
+          onAction={() => navigate('/dashboards/data-sources?sources=social')}
+          secondaryActionLabel="Home"
+          onSecondaryAction={() => navigate('/')}
           className="panel"
         />
       ) : null}

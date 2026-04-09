@@ -348,6 +348,16 @@ label,
   color: var(--status-error-text);
 }
 
+.status-message.warning {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.status-message.success {
+  background: #ecfdf3;
+  color: #166534;
+}
+
 .status-message.muted {
   background: rgba(15, 23, 42, 0.03);
   color: var(--text-secondary);
@@ -1693,6 +1703,11 @@ label,
   background: var(--table-row-hover);
 }
 
+.dashboard-table__row--selected .dashboard-table__cell,
+.dashboard-table__row--selected .dashboard-table__cell.pinned {
+  background: color-mix(in srgb, var(--table-row-hover) 70%, var(--color-blue-500, #2563eb) 12%);
+}
+
 .dashboard-table__cell--numeric {
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -2133,6 +2148,42 @@ th.pinned {
   text-decoration: underline;
 }
 
+.button-reset {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.metric-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 5.5rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.metric-status-badge--active {
+  background: var(--metric-badge-surface);
+  color: var(--metric-badge-text);
+}
+
+.metric-status-badge--paused {
+  background: var(--metric-badge-paused-surface);
+  color: var(--metric-badge-paused-text);
+}
+
+.metric-status-badge--unknown {
+  background: var(--metric-delta-neutral-surface);
+  color: var(--color-text-secondary);
+}
+
 .campaign-name,
 .creative-name {
   display: flex;
@@ -2373,6 +2424,11 @@ th.pinned {
 .snapshot-indicator--demo .snapshot-indicator__dot {
   background: var(--snapshot-indicator-demo);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.snapshot-indicator--warning .snapshot-indicator__dot {
+  background: var(--snapshot-indicator-stale);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
 }
 
 .snapshot-banner {
@@ -2745,7 +2801,8 @@ th.pinned {
   color: var(--color-text-primary);
 }
 
-.filter-search input {
+.filter-search input,
+.filter-search select {
   padding: 0.45rem 0.75rem;
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-border-field);
@@ -2754,7 +2811,8 @@ th.pinned {
   color: var(--color-text-primary);
 }
 
-.filter-search input:focus-visible {
+.filter-search input:focus-visible,
+.filter-search select:focus-visible {
   outline: none;
   border-color: var(--color-accent);
   box-shadow: var(--focus-ring);

@@ -119,6 +119,17 @@ export const test = base.extend<Fixtures>({
           body: JSON.stringify(mockAdapters),
         }),
       );
+      await page.route('**/api/datasets/status/**', (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            live: { enabled: false, reason: 'adapter_disabled', snapshot_generated_at: null },
+            demo: { enabled: true, source: 'demo', tenant_count: 1 },
+            warehouse_adapter_enabled: false,
+          }),
+        }),
+      );
       // Catch-all stub to prevent proxy errors when backend is not running.
       await page.route('**/api/**', (route) =>
         route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
@@ -135,6 +146,7 @@ export const test = base.extend<Fixtures>({
       await page.unroute('**/api/timezone/**');
       await page.unroute('**/api/me/**');
       await page.unroute('**/api/adapters/**');
+      await page.unroute('**/api/datasets/status/**');
       await page.unroute('**/api/**');
     }
   },

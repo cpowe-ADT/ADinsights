@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal
 import logging
 from typing import Any
+import uuid
 
 from django.conf import settings
 from django.db import transaction
@@ -55,7 +56,7 @@ from integrations.views import (
 
 logger = logging.getLogger(__name__)
 
-REQUIRED_INSIGHTS_SCOPES = {"pages_read_engagement", "read_insights"}
+REQUIRED_INSIGHTS_SCOPES = {"pages_read_engagement"}
 PAGE_INSIGHTS_TASK_FALLBACK = {"ANALYZE", "MANAGE", "ADVERTISE"}
 PAGE_INSIGHTS_PERMISSION_FALLBACK = {"ADMINISTER", "BASIC_ADMIN", "CREATE_ADS"}
 
@@ -75,6 +76,53 @@ def _has_page_insights_capability(*, tasks: list[str] | None, perms: list[str] |
         return True
 
     return not task_set and not perm_set
+
+
+def _is_meta_task_dispatch_error(exc: Exception) -> bool:
+    module_name = type(exc).__module__.lower()
+    if module_name.startswith("kombu") or module_name.startswith("amqp"):
+        return True
+
+    message = str(exc).lower()
+    return any(
+        fragment in message
+        for fragment in (
+            "redis",
+            "broker",
+            "transport",
+            "connection refused",
+            "connection reset",
+            "connection closed",
+        )
+    )
+
+
+def _dispatch_meta_page_task(
+    *,
+    task,  # noqa: ANN001 - Celery task instance
+    task_name: str,
+    kwargs: dict[str, Any],
+    tenant_id: str,
+    page_id: str,
+) -> tuple[str, str]:
+    try:
+        task_result = task.delay(**kwargs)
+        task_id = str(getattr(task_result, "id", "") or uuid.uuid4())
+        return task_id, "queued"
+    except Exception as exc:
+        if not _is_meta_task_dispatch_error(exc):
+            raise
+        logger.warning(
+            "meta.page_task.inline_fallback",
+            extra={
+                "tenant_id": tenant_id,
+                "page_id": page_id,
+                "task_name": task_name,
+                "error": str(exc),
+            },
+        )
+        task.run(**kwargs)
+        return str(uuid.uuid4()), "inline"
 
 
 def _as_aware_datetime(value: Any) -> datetime | None:
@@ -173,9 +221,29 @@ class MetaOAuthCallbackView(APIView):
                 permissions_payload = client.list_permissions(user_access_token=long_lived.access_token)
                 pages = client.list_pages(user_access_token=long_lived.access_token)
         except MetaGraphConfigurationError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            logger.warning(
+                "meta.page.oauth_callback.misconfigured",
+                extra={
+                    "tenant_id": str(request.user.tenant_id),
+                    "error": str(exc),
+                },
+            )
+            return Response(
+                {"detail": "Meta Page Insights is not configured for this environment."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         except MetaGraphClientError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            logger.info(
+                "meta.page.oauth_callback.graph_error",
+                extra={
+                    "tenant_id": str(request.user.tenant_id),
+                    "error": str(exc),
+                },
+            )
+            return Response(
+                {"detail": "Meta Page OAuth exchange failed. Retry the connect flow."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         granted_permissions = sorted(
             {
@@ -260,18 +328,50 @@ class MetaOAuthCallbackView(APIView):
 
         default_page = next((page for page in saved_pages if page.is_default), saved_pages[0] if saved_pages else None)
         task_ids: dict[str, str] = {}
+        task_dispatch_mode = "queued"
         if default_page is not None and default_page.can_analyze:
             try:
-                page_posts_task = sync_page_posts.delay(page_id=default_page.page_id, mode="incremental")
-                discover_task = discover_supported_metrics.delay(page_id=default_page.page_id)
-                page_insights_task = sync_page_insights.delay(page_id=default_page.page_id, mode="incremental")
-                post_insights_task = sync_post_insights.delay(page_id=default_page.page_id, mode="incremental")
+                page_posts_task_id, page_posts_dispatch = _dispatch_meta_page_task(
+                    task=sync_page_posts,
+                    task_name="sync_page_posts",
+                    kwargs={"page_id": default_page.page_id, "mode": "incremental"},
+                    tenant_id=str(request.user.tenant_id),
+                    page_id=default_page.page_id,
+                )
+                discover_task_id, discover_dispatch = _dispatch_meta_page_task(
+                    task=discover_supported_metrics,
+                    task_name="discover_supported_metrics",
+                    kwargs={"page_id": default_page.page_id},
+                    tenant_id=str(request.user.tenant_id),
+                    page_id=default_page.page_id,
+                )
+                page_insights_task_id, page_insights_dispatch = _dispatch_meta_page_task(
+                    task=sync_page_insights,
+                    task_name="sync_page_insights",
+                    kwargs={"page_id": default_page.page_id, "mode": "incremental"},
+                    tenant_id=str(request.user.tenant_id),
+                    page_id=default_page.page_id,
+                )
+                post_insights_task_id, post_insights_dispatch = _dispatch_meta_page_task(
+                    task=sync_post_insights,
+                    task_name="sync_post_insights",
+                    kwargs={"page_id": default_page.page_id, "mode": "incremental"},
+                    tenant_id=str(request.user.tenant_id),
+                    page_id=default_page.page_id,
+                )
                 task_ids = {
-                    "sync_page_posts": page_posts_task.id,
-                    "discover_supported_metrics": discover_task.id,
-                    "sync_page_insights": page_insights_task.id,
-                    "sync_post_insights": post_insights_task.id,
+                    "sync_page_posts": page_posts_task_id,
+                    "discover_supported_metrics": discover_task_id,
+                    "sync_page_insights": page_insights_task_id,
+                    "sync_post_insights": post_insights_task_id,
                 }
+                if "inline" in {
+                    page_posts_dispatch,
+                    discover_dispatch,
+                    page_insights_dispatch,
+                    post_insights_dispatch,
+                }:
+                    task_dispatch_mode = "inline"
             except Exception as exc:  # pragma: no cover - async infra dependent
                 logger.warning(
                     "meta.page_connect.bootstrap_tasks_failed",
@@ -293,6 +393,7 @@ class MetaOAuthCallbackView(APIView):
                 "pages": MetaPageResponseSerializer(saved_pages, many=True).data,
                 "default_page_id": default_page.page_id if default_page is not None else None,
                 "tasks": task_ids,
+                "task_dispatch_mode": task_dispatch_mode if task_ids else "unavailable",
             },
             status=status.HTTP_200_OK,
         )
@@ -409,13 +510,44 @@ class MetaPageRefreshView(APIView):
         mode = serializer.validated_data.get("mode", "incremental")
         metrics = serializer.validated_data.get("metrics")
 
-        page_task = sync_meta_page_insights.delay(page_pk=str(page.pk), mode=mode, metrics=metrics)
-        post_task = sync_meta_post_insights.delay(page_pk=str(page.pk), mode=mode, metrics=metrics)
+        try:
+            page_task_id, page_dispatch = _dispatch_meta_page_task(
+                task=sync_meta_page_insights,
+                task_name="sync_meta_page_insights",
+                kwargs={"page_pk": str(page.pk), "mode": mode, "metrics": metrics},
+                tenant_id=str(request.user.tenant_id),
+                page_id=page.page_id,
+            )
+            post_task_id, post_dispatch = _dispatch_meta_page_task(
+                task=sync_meta_post_insights,
+                task_name="sync_meta_post_insights",
+                kwargs={"page_pk": str(page.pk), "mode": mode, "metrics": metrics},
+                tenant_id=str(request.user.tenant_id),
+                page_id=page.page_id,
+            )
+        except Exception as exc:
+            logger.warning(
+                "meta.page_sync.dispatch_failed",
+                extra={
+                    "tenant_id": str(request.user.tenant_id),
+                    "page_id": page.page_id,
+                    "error": str(exc),
+                },
+            )
+            return Response(
+                {
+                    "detail": "Unable to start Meta Page sync.",
+                    "code": "meta_page_sync_unavailable",
+                    "reason": "task_dispatch_unavailable",
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         return Response(
             {
-                "page_task_id": page_task.id,
-                "post_task_id": post_task.id,
+                "page_task_id": page_task_id,
+                "post_task_id": post_task_id,
+                "task_dispatch_mode": "inline" if "inline" in {page_dispatch, post_dispatch} else "queued",
             },
             status=status.HTTP_202_ACCEPTED,
         )

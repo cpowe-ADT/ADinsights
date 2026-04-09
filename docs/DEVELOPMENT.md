@@ -88,12 +88,27 @@ This file includes:
 - `DEV_ACTIVE_PROFILE`
 - `POSTGRES_PORT`, `REDIS_PORT`, `BACKEND_PORT`, `FRONTEND_PORT`
 - `DEV_BACKEND_URL`, `DEV_FRONTEND_URL`
+- `META_LOCAL_OAUTH_CANONICAL_FRONTEND_URL`
+- `META_OAUTH_REDIRECT_URI`
+- `META_LOCAL_OAUTH_SUPPORTED`, `META_LOCAL_OAUTH_REASON`
 - generation timestamp
 
 When started via `scripts/dev-launch.sh`, these runtime URLs are also injected into
-the backend/celery compose environment (`FRONTEND_BASE_URL`, `DEV_BACKEND_URL`,
-`DEV_FRONTEND_URL`, `DEV_ACTIVE_PROFILE`) so OAuth redirects and generated app links
-follow the active launcher profile ports.
+the backend/celery compose environment (`FRONTEND_BASE_URL`, `META_OAUTH_REDIRECT_URI`,
+`DEV_BACKEND_URL`, `DEV_FRONTEND_URL`, `DEV_ACTIVE_PROFILE`) so OAuth redirects and generated
+app links follow the active launcher profile ports.
+
+Launcher-backed local Meta OAuth now uses the selected frontend URL plus
+`/dashboards/data-sources` as the redirect URI. `profile-1` (`http://localhost:5173`) still
+matches the checked-in default Meta app configuration. Alternate launcher profiles such as `5174`
+or `5175` can work too, but only if the Meta App Domain and valid redirect URI list include that
+exact frontend origin and redirect path first.
+
+For manual non-launcher runs, `backend/.env` still explicitly pins
+`META_OAUTH_REDIRECT_URI=http://localhost:5173/dashboards/data-sources` unless you export a
+different value in the process environment before starting Django.
+
+ADinsights surfaces redirect-origin mismatches instead of silently rewriting the redirect host.
 
 `dev-healthcheck.sh` now auto-loads this file when explicit `DEV_BACKEND_URL` / `DEV_FRONTEND_URL` are not provided.
 
@@ -103,6 +118,24 @@ Launcher path:
 
 ```bash
 scripts/dev-launch.sh
+```
+
+Supported live-Meta launcher recipe:
+
+```bash
+ENABLE_WAREHOUSE_ADAPTER=1 \
+ENABLE_DEMO_ADAPTER=1 \
+ENABLE_FAKE_ADAPTER=0 \
+scripts/dev-launch.sh --profile 1 --strict-profile --non-interactive --no-update --no-pull --no-open
+```
+
+Alternate launcher profile recipe when the Meta app is also configured for that host:
+
+```bash
+ENABLE_WAREHOUSE_ADAPTER=1 \
+ENABLE_DEMO_ADAPTER=1 \
+ENABLE_FAKE_ADAPTER=0 \
+scripts/dev-launch.sh --profile 2 --strict-profile --non-interactive --no-update --no-pull --no-open
 ```
 
 By default, launcher now does two post-start safety checks:
@@ -153,6 +186,16 @@ cd frontend
 npm run dev -- --host 0.0.0.0 --port <frontend_port>
 ```
 
+Keep `frontend/.env` on `VITE_API_BASE_URL=/api` for the launcher-backed local flow. If you point
+`VITE_API_BASE_URL` at a different backend port, the browser may bypass the launcher-selected runtime
+and you can end up debugging the wrong environment.
+
+For real live warehouse dashboards, the backend also needs a database that actually contains the
+warehouse aggregate view `vw_dashboard_aggregate_snapshot` (launcher-backed Postgres + dbt models, or
+an equivalent prepared database). A plain `manage.py runserver` against the default local SQLite
+database can still authenticate Meta and list live ad accounts, but warehouse-backed dashboard routes
+will truthfully report a fallback snapshot blocker because that aggregate view does not exist there.
+
 ## Login
 
 Use these dev credentials (auto-created on startup):
@@ -201,3 +244,5 @@ VITE_MOCK_ASSETS=true
   make dev-logs
   ```
 - If ports are busy, the launcher prints the selected fallback profile/ports and writes `.dev-launch.active.env`.
+- If Meta OAuth says `Can't load URL`, confirm you opened `http://localhost:5173`, then compare
+  `.dev-launch.active.env`, `backend/.env`, and the Meta app redirect settings before retrying.

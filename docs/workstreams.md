@@ -62,7 +62,7 @@ This execution plan aligns Facebook Graph + Meta Marketing API onboarding with r
 - **Dependencies**
   - Blocks frontend/backend updates that depend on new aggregates (streams #3 & #4).
 - **Coding standards / Testing / Contracts**
-  - Commands: `make dbt-deps`, `dbt run --select staging`, `dbt snapshot`, `dbt run --select marts`, `dbt test`.
+  - Commands: `make dbt-deps`, `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select staging`, `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' snapshot`, `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select all_ad_performance dim_campaign fact_performance`, `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select marts`, `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' test --select all_ad_performance dim_campaign fact_performance vw_campaign_daily`.
   - Follow dbt style guide (macros documented, `yml` schema tests).
   - Keep columns consumed by `/api/metrics/combined/` stable; note breaking changes in PR.
   - References: `docs/task_breakdown.md` §3, `docs/project/vertical_slice_plan.md` Phase 2.

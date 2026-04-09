@@ -190,8 +190,28 @@ class CombinedMetricsQueryParamsSerializer(serializers.Serializer):
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
     parish = serializers.CharField(required=False, allow_blank=True)
+    account_id = serializers.CharField(required=False, allow_blank=True)
+    channels = serializers.CharField(required=False, allow_blank=True)
+    campaign_search = serializers.CharField(required=False, allow_blank=True)
 
     def validate_parish(self, value: object) -> list[str] | None:
+        if value is None:
+            return None
+
+        parts: list[str] = []
+        if isinstance(value, (list, tuple)):
+            for item in value:
+                if isinstance(item, str):
+                    parts.extend(item.split(","))
+        elif isinstance(value, str):
+            parts.extend(value.split(","))
+        else:
+            return None
+
+        normalized = [item.strip() for item in parts if item.strip()]
+        return normalized or None
+
+    def validate_channels(self, value: object) -> list[str] | None:
         if value is None:
             return None
 
@@ -215,6 +235,12 @@ class CombinedMetricsQueryParamsSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"non_field_errors": ["start_date must be before or equal to end_date."]}
             )
+        account_id = attrs.get("account_id")
+        if isinstance(account_id, str):
+            attrs["account_id"] = account_id.strip() or None
+        campaign_search = attrs.get("campaign_search")
+        if isinstance(campaign_search, str):
+            attrs["campaign_search"] = campaign_search.strip() or None
         return attrs
 
 

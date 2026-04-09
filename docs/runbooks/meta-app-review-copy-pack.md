@@ -42,14 +42,16 @@ Use this as the opening context in App Review:
 ## 3) Optional Near-Term Copy Blocks
 
 Use only when the related feature is active in product.
+These permissions are optional. They are not part of the baseline ADinsights Facebook Login
+authorize request today, and Instagram linkage does not use a standalone Instagram OAuth flow.
 
 ### `instagram_basic` Use Case
 
-`ADinsights requests instagram_basic to retrieve basic Instagram Business account metadata (for example account ID and username) on behalf of onboarded business customers for account selection and identity mapping in analytics setup.`
+`ADinsights requests instagram_basic only when an active Instagram-linked product flow needs basic Instagram Business account metadata (for example account ID and username) on behalf of onboarded business customers for account selection and identity mapping during Meta asset setup.`
 
 ### `instagram_manage_insights` Use Case
 
-`ADinsights requests instagram_manage_insights to retrieve Instagram Business performance insights on behalf of onboarded business customers and display those insights in tenant-scoped reporting workflows.`
+`ADinsights requests instagram_manage_insights only when an active Instagram reporting feature needs Instagram Business performance insights on behalf of onboarded business customers and displays those insights in tenant-scoped reporting workflows.`
 
 ### `catalog_management` Use Case
 
@@ -86,8 +88,8 @@ Use this storyboard as default review recording sequence.
 Attach only when relevant permission is requested.
 
 - Instagram add-on:
-  - Show Instagram account selection and profile metadata retrieval.
-  - Show Instagram insights displayed in ADinsights.
+  - Show Instagram account selection through the Meta asset-selection flow, not a standalone Instagram OAuth screen.
+  - Show Instagram profile metadata retrieval or Instagram insights displayed in ADinsights only when that feature is active.
 - Catalog add-on:
   - Show catalog create/update/delete flow.
 - Page ads add-on:
@@ -104,3 +106,4 @@ Attach only when relevant permission is requested.
 - References concrete ADinsights product surface where data/action is shown.
 - Matches active permission set in `docs/project/meta-permissions-catalog.yaml`.
 - Optional permissions are included only when feature is active.
+- Does not mention `read_insights` for the current Facebook Login Page Insights flow.

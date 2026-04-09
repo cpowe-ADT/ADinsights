@@ -1,32 +1,33 @@
 {% macro backend_raw_fixture_sql(fixture) %}
     {% set backend_raw_schema = env_var('BACKEND_RAW_SCHEMA', 'public') %}
+    {% set backend_database = target.get('dbname') or target.get('database') %}
     {% set raw_performance_relation = adapter.get_relation(
-        database=target.database,
+        database=backend_database,
         schema=backend_raw_schema,
         identifier='analytics_rawperformancerecord'
     ) %}
     {% set adset_relation = adapter.get_relation(
-        database=target.database,
+        database=backend_database,
         schema=backend_raw_schema,
         identifier='analytics_adset'
     ) %}
     {% set ad_relation = adapter.get_relation(
-        database=target.database,
+        database=backend_database,
         schema=backend_raw_schema,
         identifier='analytics_ad'
     ) %}
     {% set campaign_relation = adapter.get_relation(
-        database=target.database,
+        database=backend_database,
         schema=backend_raw_schema,
         identifier='analytics_campaign'
     ) %}
     {% set account_relation = adapter.get_relation(
-        database=target.database,
+        database=backend_database,
         schema=backend_raw_schema,
         identifier='analytics_adaccount'
     ) %}
 
-    {% if not raw_performance_relation %}
+    {% if raw_performance_relation is none %}
         {{ return(none) }}
     {% endif %}
 
@@ -39,6 +40,7 @@
     {% if fixture.schema == var('raw_schema', 'raw') and fixture.identifier == 'meta_ads_insights' %}
         {% set sql %}
             select
+                r.tenant_id::text as tenant_id,
                 coalesce(
                     nullif(raw_payload->>'ad_account_id', ''),
                     ac.account_id,
@@ -71,6 +73,7 @@
                 ) as region,
                 r.spend,
                 r.impressions,
+                r.reach,
                 r.clicks,
                 r.conversions,
                 coalesce(r.updated_at, r.ingested_at, current_timestamp) as updated_time,
@@ -93,6 +96,7 @@
     {% if fixture.schema == var('raw_schema', 'raw') and fixture.identifier == 'google_ads_insights' %}
         {% set sql %}
             select
+                r.tenant_id::text as tenant_id,
                 coalesce(
                     nullif(raw_payload->>'customer_id', ''),
                     ac.account_id,
@@ -147,9 +151,10 @@
         {{ return(sql) }}
     {% endif %}
 
-    {% if fixture.schema == var('raw_meta_schema', 'raw_meta') and fixture.identifier == 'adsets' and adset_relation %}
+    {% if fixture.schema == var('raw_meta_schema', 'raw_meta') and fixture.identifier == 'adsets' and adset_relation is not none %}
         {% set sql %}
             select
+                a.tenant_id::text as tenant_id,
                 a.id::text as id,
                 a.campaign_id::text as campaign_id,
                 coalesce(ac.account_id, ac.external_id, c.account_external_id, 'unknown-meta') as account_id,

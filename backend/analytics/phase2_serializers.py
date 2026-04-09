@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from .models import AISummary, ReportDefinition, ReportExportJob
+from .models import AISummary, DashboardDefinition, ReportDefinition, ReportExportJob
 
 
 class ReportDefinitionSerializer(serializers.ModelSerializer):
@@ -19,6 +19,34 @@ class ReportDefinitionSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class DashboardDefinitionSerializer(serializers.ModelSerializer):
+    owner_email = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DashboardDefinition
+        fields = [
+            "id",
+            "name",
+            "description",
+            "template_key",
+            "filters",
+            "layout",
+            "default_metric",
+            "is_active",
+            "owner_email",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "owner_email", "created_at", "updated_at"]
+
+    def get_owner_email(self, obj: DashboardDefinition) -> str | None:
+        if obj.updated_by and obj.updated_by.email:
+            return obj.updated_by.email
+        if obj.created_by and obj.created_by.email:
+            return obj.created_by.email
+        return None
 
 
 class ReportExportJobSerializer(serializers.ModelSerializer):

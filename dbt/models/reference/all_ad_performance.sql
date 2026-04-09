@@ -11,39 +11,56 @@
 {% set google_has_campaign_name = 'campaign_name' in google_column_names %}
 {% set google_has_ad_name = 'ad_name' in google_column_names %}
 
-with meta as (
+with meta_campaigns as (
     select
-        {{ tenant_id_expr() }} as tenant_id,
-        'meta_ads' as source_platform,
-        ad_account_id,
+        tenant_id,
         campaign_id,
+        account_id,
+        coalesce(nullif(trim(effective_status), ''), nullif(trim(status), ''), 'Unknown') as status,
+        coalesce(nullif(trim(objective), ''), 'Unknown') as objective
+    from {{ ref('stg_meta_campaigns') }}
+),
+
+meta as (
+    select
+        m.tenant_id,
+        'meta_ads' as source_platform,
+        m.ad_account_id,
+        m.campaign_id,
         {% if meta_has_campaign_name %}
-        coalesce(nullif(campaign_name, ''), campaign_id) as campaign_name,
+        coalesce(nullif(m.campaign_name, ''), m.campaign_id) as campaign_name,
         {% else %}
-        campaign_id as campaign_name,
+        m.campaign_id as campaign_name,
         {% endif %}
-        adset_id,
-        ad_id,
+        m.adset_id,
+        m.ad_id,
         {% if meta_has_ad_name %}
-        coalesce(nullif(ad_name, ''), ad_id) as ad_name,
+        coalesce(nullif(m.ad_name, ''), m.ad_id) as ad_name,
         {% else %}
-        ad_id as ad_name,
+        m.ad_id as ad_name,
         {% endif %}
-        date_day,
-        region_name,
-        parish_name,
-        parish_code,
-        spend,
-        impressions,
-        clicks,
-        conversions,
-        effective_from
-    from {{ ref('stg_meta_ads') }}
+        m.date_day,
+        m.region_name,
+        m.parish_name,
+        m.parish_code,
+        m.spend,
+        m.impressions,
+        m.reach,
+        m.clicks,
+        m.conversions,
+        coalesce(mc.status, 'Unknown') as status,
+        coalesce(mc.objective, 'Unknown') as objective,
+        m.effective_from
+    from {{ ref('stg_meta_ads') }} m
+    left join meta_campaigns mc
+        on m.tenant_id = mc.tenant_id
+        and m.campaign_id = mc.campaign_id
+        and m.ad_account_id = mc.account_id
 ),
 
 google as (
     select
-        {{ tenant_id_expr() }} as tenant_id,
+        tenant_id,
         'google_ads' as source_platform,
         ad_account_id,
         campaign_id,
@@ -65,8 +82,11 @@ google as (
         parish_code,
         spend,
         impressions,
+        cast(0 as numeric) as reach,
         clicks,
         conversions,
+        'Unknown' as status,
+        'Unknown' as objective,
         effective_from
     from {{ ref('stg_google_ads') }}
 )
@@ -77,7 +97,7 @@ google as (
 ,
 linkedin as (
     select
-        {{ tenant_id_expr() }} as tenant_id,
+        tenant_id,
         'linkedin' as source_platform,
         ad_account_id,
         campaign_id,
@@ -95,8 +115,11 @@ linkedin as (
         parish_code,
         spend,
         impressions,
+        cast(0 as numeric) as reach,
         clicks,
         null as conversions,
+        'Unknown' as status,
+        'Unknown' as objective,
         effective_from
     from {{ ref('stg_linkedin_transparency') }}
 )
@@ -108,7 +131,7 @@ linkedin as (
 ,
 tiktok as (
     select
-        {{ tenant_id_expr() }} as tenant_id,
+        tenant_id,
         'tiktok' as source_platform,
         ad_account_id,
         campaign_id,
@@ -126,8 +149,11 @@ tiktok as (
         parish_code,
         spend,
         impressions,
+        cast(0 as numeric) as reach,
         clicks,
         null as conversions,
+        'Unknown' as status,
+        'Unknown' as objective,
         effective_from
     from {{ ref('stg_tiktok_transparency') }}
 )

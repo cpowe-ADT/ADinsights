@@ -68,6 +68,7 @@ describe('uploadedMetrics', () => {
     const filters: FilterBarState = {
       dateRange: 'custom',
       customRange: { start: '2024-10-01', end: '2024-10-31' },
+      accountId: '',
       channels: [],
       campaignQuery: '',
     };
@@ -77,6 +78,7 @@ describe('uploadedMetrics', () => {
     expect(resolved.campaign.summary.totalSpend).toBe(300);
     expect(resolved.campaign.summary.totalClicks).toBe(120);
     expect(resolved.campaign.trend).toHaveLength(2);
+    expect(resolved.campaign.rows[0]?.parishes).toEqual(['Kingston']);
     expect(resolved.parish[0]?.parish).toBe('Kingston');
   });
 });

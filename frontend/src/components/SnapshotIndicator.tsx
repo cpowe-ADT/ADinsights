@@ -1,6 +1,6 @@
 interface SnapshotIndicatorProps {
   label: string;
-  tone?: 'fresh' | 'stale' | 'pending' | 'demo';
+  tone?: 'fresh' | 'stale' | 'pending' | 'demo' | 'warning';
   timestamp?: string | null;
 }
 

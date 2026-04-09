@@ -47,7 +47,7 @@
         "platform": "Meta",
         "status": "ACTIVE",
         "objective": "CONVERSIONS",
-        "parish": "Kingston",
+        "parishes": ["Kingston"],
         "spend": 63000,
         "impressions": 150000,
         "clicks": 4100,
@@ -65,7 +65,7 @@
         "platform": "Google Ads",
         "status": "ACTIVE",
         "objective": "RETARGETING",
-        "parish": "St James",
+        "parishes": ["St James"],
         "spend": 52000,
         "impressions": 90000,
         "clicks": 2800,
@@ -83,7 +83,7 @@
         "platform": "Meta",
         "status": "PAUSED",
         "objective": "AWARENESS",
-        "parish": "St Catherine",
+        "parishes": ["St Catherine"],
         "spend": 36000,
         "impressions": 78000,
         "clicks": 1900,
@@ -101,7 +101,7 @@
         "platform": "Google Ads",
         "status": "ACTIVE",
         "objective": "LEADS",
-        "parish": "St Ann",
+        "parishes": ["St Ann"],
         "spend": 44000.75,
         "impressions": 67000,
         "clicks": 1450,
@@ -122,7 +122,7 @@
       "campaignId": "cmp_kingston_launch",
       "campaignName": "Kingston Launch",
       "platform": "Meta",
-      "parish": "Kingston",
+      "parishes": ["Kingston"],
       "spend": 25000,
       "impressions": 62000,
       "clicks": 1800,
@@ -137,7 +137,7 @@
       "campaignId": "cmp_montego_ret",
       "campaignName": "Montego Remarketing",
       "platform": "Google Ads",
-      "parish": "St James",
+      "parishes": ["St James"],
       "spend": 27000,
       "impressions": 41000,
       "clicks": 1250,
@@ -151,7 +151,7 @@
       "campaignId": "cmp_mobile_discovery",
       "campaignName": "Mobile Discovery",
       "platform": "Meta",
-      "parish": "St Catherine",
+      "parishes": ["St Catherine"],
       "spend": 18000,
       "impressions": 43000,
       "clicks": 900,
@@ -195,6 +195,29 @@
       "endDate": "2024-09-10"
     }
   ],
+  "coverage": {
+    "startDate": "2024-08-29",
+    "endDate": "2024-09-01"
+  },
+  "availability": {
+    "campaign": {
+      "status": "available",
+      "reason": null
+    },
+    "creative": {
+      "status": "available",
+      "reason": null
+    },
+    "budget": {
+      "status": "available",
+      "reason": null
+    },
+    "parish_map": {
+      "status": "available",
+      "reason": null,
+      "coverage_percent": 0.75
+    }
+  },
   "parish": [
     {
       "parish": "Kingston",

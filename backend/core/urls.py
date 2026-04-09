@@ -8,6 +8,7 @@ from alerts.views import AlertRunViewSet
 from analytics.phase2_views import (
     AISummaryViewSet,
     AlertsViewSet,
+    DashboardDefinitionViewSet,
     DashboardLibraryView,
     ExportDownloadView,
     HealthOverviewView,
@@ -20,6 +21,7 @@ from analytics.views import (
     UploadMetricsView,
     AggregateSnapshotView,
     CombinedMetricsView,
+    DatasetStatusView,
     DemoSeedView,
     MetricsExportView,
     MetricsView,
@@ -52,6 +54,7 @@ from integrations.views import (
     AlertRuleDefinitionViewSet,
     CampaignBudgetViewSet,
     MetaOAuthExchangeView,
+    MetaRecoveryPreviewView,
     MetaOAuthStartView,
     MetaSetupView,
     MetaPageConnectView,
@@ -140,6 +143,11 @@ router.register(r"audit-logs", AuditLogViewSet, basename="auditlog")
 router.register(r"alerts/runs", AlertRunViewSet, basename="alert-run")
 router.register(r"alerts", AlertsViewSet, basename="alerts")
 router.register(r"reports", ReportDefinitionViewSet, basename="report-definition")
+router.register(
+    r"dashboards/definitions",
+    DashboardDefinitionViewSet,
+    basename="dashboard-definition",
+)
 router.register(r"summaries", AISummaryViewSet, basename="ai-summary")
 router.register(r"service-accounts", ServiceAccountKeyViewSet, basename="service-account")
 
@@ -196,6 +204,7 @@ urlpatterns = [
         name="api-schema",
     ),
     path("api/adapters/", AdapterListView.as_view(), name="adapter-list"),
+    path("api/datasets/status/", DatasetStatusView.as_view(), name="dataset-status"),
     path(
         "api/dashboards/library/",
         DashboardLibraryView.as_view(),
@@ -252,6 +261,11 @@ urlpatterns = [
         "api/integrations/meta/oauth/exchange/",
         MetaOAuthExchangeView.as_view(),
         name="meta-oauth-exchange",
+    ),
+    path(
+        "api/integrations/meta/recovery/preview/",
+        MetaRecoveryPreviewView.as_view(),
+        name="meta-recovery-preview",
     ),
     path(
         "api/meta/connect/callback/",

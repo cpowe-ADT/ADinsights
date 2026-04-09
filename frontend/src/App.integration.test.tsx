@@ -232,7 +232,7 @@ const campaignPayload = {
       name: 'Kingston Awareness',
       platform: 'Meta',
       status: 'Active',
-      parish: 'Kingston',
+      parishes: ['Kingston'],
       spend: 500,
       impressions: 1000,
       clicks: 150,
@@ -247,7 +247,7 @@ const campaignPayload = {
       name: 'Montego Bay Prospecting',
       platform: 'Google Ads',
       status: 'Active',
-      parish: 'St James',
+      parishes: ['St James'],
       spend: 350,
       impressions: 800,
       clicks: 120,
@@ -267,7 +267,7 @@ const creativePayload = [
     campaignId: 'cmp_kingston',
     campaignName: 'Kingston Awareness',
     platform: 'Meta',
-    parish: 'Kingston',
+    parishes: ['Kingston'],
     spend: 120,
     impressions: 450,
     clicks: 40,
@@ -281,7 +281,7 @@ const creativePayload = [
     campaignId: 'cmp_montego_bay',
     campaignName: 'Montego Bay Prospecting',
     platform: 'Google Ads',
-    parish: 'St James',
+    parishes: ['St James'],
     spend: 95,
     impressions: 320,
     clicks: 30,
@@ -335,6 +335,16 @@ const metricsPayload = {
   },
   tenant_id: 'tenant-123',
   generated_at: '2024-09-05T00:00:00Z',
+  coverage: {
+    startDate: '2024-09-01',
+    endDate: '2024-09-05',
+  },
+  availability: {
+    campaign: { status: 'available', reason: null },
+    creative: { status: 'available', reason: null },
+    budget: { status: 'available', reason: null },
+    parish_map: { status: 'available', reason: null, coverage_percent: 0.75 },
+  },
 };
 
 const tenantFixtures = [
@@ -432,6 +442,33 @@ const expectHomeOrDashboardHeading = async () => {
   });
 };
 
+const navigateToCampaignDashboard = async () => {
+  const campaignHeading = screen.queryByRole('heading', {
+    level: 1,
+    name: /campaign performance/i,
+  });
+  if (campaignHeading) {
+    return;
+  }
+
+  await waitFor(() => {
+    const viewCampaignsButton = screen.queryByRole('button', { name: /view campaigns/i });
+    const dashboardNav = screen.queryByRole('navigation', { name: /dashboard sections/i });
+    expect(viewCampaignsButton ?? dashboardNav).toBeTruthy();
+  });
+
+  const viewCampaignsButton = screen.queryByRole('button', { name: /view campaigns/i });
+  if (viewCampaignsButton) {
+    await userEvent.click(viewCampaignsButton);
+    return;
+  }
+
+  const dashboardNav = screen.getByRole('navigation', { name: /dashboard sections/i });
+  await userEvent.click(within(dashboardNav).getByRole('link', { name: /campaigns/i }));
+
+  await screen.findByRole('heading', { level: 1, name: /campaign performance/i }, { timeout: 5000 });
+};
+
 describe('App integration', () => {
   beforeEach(async () => {
     vi.resetModules();
@@ -486,6 +523,28 @@ describe('App integration', () => {
         );
       }
 
+      if (url.endsWith('/api/health/') && method === 'GET') {
+        return Promise.resolve(createResponse({ status: 'ok' }));
+      }
+
+      if (url.endsWith('/api/me/') && method === 'GET') {
+        return Promise.resolve(
+          createResponse({
+            email: 'user@example.com',
+            tenant_id: 'tenant-123',
+            roles: ['ADMIN'],
+          }),
+        );
+      }
+
+      if (url.includes('/api/dashboards/recent/') && method === 'GET') {
+        return Promise.resolve(createResponse([]));
+      }
+
+      if (url.includes('/api/meta/accounts/') && method === 'GET') {
+        return Promise.resolve(createResponse({ count: 0, next: null, previous: null, results: [] }));
+      }
+
       if (url.includes('/api/metrics/combined/') && method === 'GET') {
         return Promise.resolve(createResponse(metricsPayload));
       }
@@ -529,30 +588,19 @@ describe('App integration', () => {
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await expectHomeOrDashboardHeading();
+    await navigateToCampaignDashboard();
+    await screen.findByRole('heading', { level: 1, name: /campaign performance/i });
 
-    const campaignCard =
-      screen.queryByRole('button', { name: /view campaigns/i }) ??
-      screen.queryByRole('button', { name: /campaign performance/i });
-    if (campaignCard) {
-      await userEvent.click(campaignCard);
-    } else {
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { level: 1, name: /campaign performance/i }),
-        ).toBeInTheDocument(),
-      );
-    }
+    let metricsCall:
+      | [RequestInfo | URL, RequestInit | undefined]
+      | undefined;
+    await waitFor(() => {
+      metricsCall = fetchMock.mock.calls.find(
+        (call) => typeof call[0] === 'string' && call[0].includes('/api/metrics/combined/'),
+      ) as [RequestInfo | URL, RequestInit | undefined] | undefined;
+      expect(metricsCall).toBeTruthy();
+    });
 
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('/api/metrics/combined/'),
-        expect.objectContaining({ method: 'GET' }),
-      ),
-    );
-
-    const metricsCall = fetchMock.mock.calls.find(
-      (call) => typeof call[0] === 'string' && call[0].includes('/api/metrics/combined/'),
-    );
     expect(metricsCall).toBeTruthy();
     const metricsHeaders = metricsCall?.[1]?.headers as Headers | undefined;
     expect(metricsHeaders?.get('Authorization')).toBe(`Bearer ${accessToken}`);
@@ -622,8 +670,8 @@ describe('App integration', () => {
     expect(await screen.findByText('Top creatives')).toBeInTheDocument();
     expect(screen.getByText(/Hero Unit/)).toBeInTheDocument();
 
-    const dashboardNav = screen.getByRole('navigation', { name: /dashboard sections/i });
-    await userEvent.click(within(dashboardNav).getByRole('link', { name: /campaigns/i }));
+    const dashboardNavFinal = screen.getByRole('navigation', { name: /dashboard sections/i });
+    await userEvent.click(within(dashboardNavFinal).getByRole('link', { name: /campaigns/i }));
     expect(
       await screen.findByRole('heading', { level: 1, name: /campaign performance/i }),
     ).toBeInTheDocument();
@@ -645,6 +693,28 @@ describe('App integration', () => {
             user: { email: 'user@example.com' },
           }),
         );
+      }
+
+      if (url.endsWith('/api/health/') && method === 'GET') {
+        return Promise.resolve(createResponse({ status: 'ok' }));
+      }
+
+      if (url.endsWith('/api/me/') && method === 'GET') {
+        return Promise.resolve(
+          createResponse({
+            email: 'user@example.com',
+            tenant_id: 'tenant-123',
+            roles: ['ADMIN'],
+          }),
+        );
+      }
+
+      if (url.includes('/api/dashboards/recent/') && method === 'GET') {
+        return Promise.resolve(createResponse([]));
+      }
+
+      if (url.includes('/api/meta/accounts/') && method === 'GET') {
+        return Promise.resolve(createResponse({ count: 0, next: null, previous: null, results: [] }));
       }
 
       if (url.includes('/api/metrics/combined/') && method === 'GET') {
@@ -698,19 +768,8 @@ describe('App integration', () => {
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await expectHomeOrDashboardHeading();
-
-    const campaignCard =
-      screen.queryByRole('button', { name: /view campaigns/i }) ??
-      screen.queryByRole('button', { name: /campaign performance/i });
-    if (campaignCard) {
-      await userEvent.click(campaignCard);
-    } else {
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { level: 1, name: /campaign performance/i }),
-        ).toBeInTheDocument(),
-      );
-    }
+    await navigateToCampaignDashboard();
+    await screen.findByRole('heading', { level: 1, name: /campaign performance/i });
 
     const initialRows = await screen.findAllByText('Kingston Awareness');
     expect(initialRows.length).toBeGreaterThan(0);

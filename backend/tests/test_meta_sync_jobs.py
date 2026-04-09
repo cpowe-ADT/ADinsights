@@ -6,7 +6,7 @@ import uuid
 import pytest
 
 from analytics.models import Ad, AdAccount, AdSet, Campaign, RawPerformanceRecord
-from integrations.meta_graph import MetaGraphClientError, MetaGraphConfigurationError
+from integrations.meta_graph import MetaAdAccount, MetaGraphClientError, MetaGraphConfigurationError
 from integrations.models import APIErrorLog, AirbyteConnection, MetaAccountSyncState, PlatformCredential
 from integrations.tasks import (
     RETRY_REASON_META_GRAPH_CONFIGURATION,
@@ -63,6 +63,42 @@ def test_sync_meta_accounts_persists_ad_accounts(monkeypatch, user):
     assert AdAccount.objects.filter(tenant=user.tenant, external_id="act_123").exists()
     sync_state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
     assert sync_state.last_job_status == "succeeded"
+
+
+@pytest.mark.django_db
+def test_sync_meta_accounts_persists_dataclass_ad_accounts(monkeypatch, user):
+    _seed_meta_credential(user)
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def list_ad_accounts(self, *, user_access_token: str):
+            assert user_access_token == "meta-token"
+            return [
+                MetaAdAccount(
+                    id="act_456",
+                    account_id="456",
+                    name="JDIC Ad Account",
+                    currency="USD",
+                    account_status=1,
+                    business_name="JDIC",
+                )
+            ]
+
+    monkeypatch.setattr("integrations.tasks.MetaGraphClient.from_settings", lambda: DummyClient())
+
+    result = sync_meta_accounts.run()
+
+    assert result["accounts_synced"] == 1
+    account = AdAccount.objects.get(tenant=user.tenant, external_id="act_456")
+    assert account.account_id == "456"
+    assert account.name == "JDIC Ad Account"
+    assert account.business_name == "JDIC"
+    assert account.status == "1"
 
 
 @pytest.mark.django_db
@@ -372,7 +408,17 @@ def test_sync_meta_reporting_slice_updates_direct_sync_state(monkeypatch, user):
                 }
             ]
 
+    observed: dict[str, str] = {}
+
     monkeypatch.setattr("integrations.tasks.MetaGraphClient.from_settings", lambda: DummyClient())
+    def fake_trigger_snapshot_refresh(*, tenant_id: str) -> str:
+        observed["tenant_id"] = tenant_id
+        return "queued"
+
+    monkeypatch.setattr(
+        "integrations.tasks._trigger_warehouse_snapshot_refresh",
+        fake_trigger_snapshot_refresh,
+    )
     task_id = "task-direct-1"
     result = sync_meta_reporting_slice.apply(
         kwargs={
@@ -387,6 +433,8 @@ def test_sync_meta_reporting_slice_updates_direct_sync_state(monkeypatch, user):
     ).get()
 
     assert result["job_id"] == task_id
+    assert result["snapshot_refresh_mode"] == "queued"
+    assert observed["tenant_id"] == str(user.tenant.id)
     state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
     assert state.last_job_id == task_id
     assert state.last_job_status == "succeeded"

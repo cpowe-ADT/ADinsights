@@ -32,7 +32,7 @@ def _create_page(user) -> MetaPage:
         tenant=user.tenant,
         user=user,
         app_scoped_user_id="app-scoped-user",
-        scopes=["read_insights", "pages_read_engagement"],
+        scopes=["pages_show_list", "pages_read_engagement"],
         is_active=True,
     )
     connection.set_raw_token("user-token")
@@ -225,7 +225,7 @@ def test_sync_meta_page_insights_marks_support_error_for_permission_failure(monk
 
         def fetch_page_insights(self, **kwargs):  # noqa: ANN003
             raise MetaInsightsGraphClientError(
-                "Missing permission: read_insights",
+                "Missing permission: pages_read_engagement",
                 error_code=10,
                 retryable=False,
             )

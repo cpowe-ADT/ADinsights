@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Iterable, Mapping, Sequence
 
+from django.conf import settings
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from analytics.models import TenantMetricsSnapshot
@@ -12,20 +14,50 @@ from analytics.models import TenantMetricsSnapshot
 from .base import AdapterInterface, MetricsAdapter, get_default_interfaces
 
 WAREHOUSE_SNAPSHOT_STATUS_KEY = "_warehouse_snapshot_status"
+WAREHOUSE_SNAPSHOT_STATUS_DETAIL_KEY = "_warehouse_snapshot_status_detail"
 WAREHOUSE_SNAPSHOT_STATUS_FETCHED = "fetched"
 WAREHOUSE_SNAPSHOT_STATUS_DEFAULT = "default"
+WAREHOUSE_UNAVAILABLE_CODE = "warehouse_snapshot_unavailable"
+WAREHOUSE_UNAVAILABLE_REASON_MISSING = "missing_snapshot"
+WAREHOUSE_UNAVAILABLE_REASON_STALE = "stale_snapshot"
+WAREHOUSE_UNAVAILABLE_REASON_DEFAULT = "default_snapshot"
 WAREHOUSE_UNAVAILABLE_DETAIL = (
-    "Warehouse metrics are unavailable because the warehouse snapshot is missing "
-    "or was generated from a default fallback payload."
+    "Warehouse metrics are unavailable because the warehouse snapshot is missing, "
+    "stale, or was generated from a default fallback payload."
+)
+WAREHOUSE_MISSING_DETAIL = (
+    "Warehouse metrics are unavailable because the live warehouse snapshot has not been generated yet."
+)
+WAREHOUSE_STALE_DETAIL = (
+    "Warehouse metrics are temporarily unavailable because the live warehouse snapshot is stale and is being refreshed."
+)
+WAREHOUSE_DEFAULT_DETAIL = (
+    "Warehouse metrics are unavailable because the latest snapshot was generated from a default fallback payload."
 )
 
 
 class WarehouseSnapshotUnavailable(RuntimeError):
     """Raised when live warehouse metrics cannot be served truthfully."""
 
-    def __init__(self, detail: str = WAREHOUSE_UNAVAILABLE_DETAIL) -> None:
+    def __init__(
+        self,
+        detail: str = WAREHOUSE_UNAVAILABLE_DETAIL,
+        *,
+        reason: str = WAREHOUSE_UNAVAILABLE_REASON_MISSING,
+        code: str = WAREHOUSE_UNAVAILABLE_CODE,
+    ) -> None:
         super().__init__(detail)
         self.detail = detail
+        self.reason = reason
+        self.code = code
+
+    @property
+    def payload(self) -> dict[str, str]:
+        return {
+            "detail": self.detail,
+            "code": self.code,
+            "reason": self.reason,
+        }
 
 
 class WarehouseAdapter(MetricsAdapter):
@@ -46,12 +78,29 @@ class WarehouseAdapter(MetricsAdapter):
         ).order_by("-generated_at", "-created_at").first()
 
         if not snapshot or not snapshot.payload:
-            raise WarehouseSnapshotUnavailable()
+            raise WarehouseSnapshotUnavailable(
+                WAREHOUSE_MISSING_DETAIL,
+                reason=WAREHOUSE_UNAVAILABLE_REASON_MISSING,
+            )
+
+        stale_ttl_seconds = max(
+            int(getattr(settings, "METRICS_SNAPSHOT_STALE_TTL_SECONDS", 3600) or 3600),
+            1,
+        )
+        if (timezone.now() - snapshot.generated_at).total_seconds() > stale_ttl_seconds:
+            raise WarehouseSnapshotUnavailable(
+                WAREHOUSE_STALE_DETAIL,
+                reason=WAREHOUSE_UNAVAILABLE_REASON_STALE,
+            )
 
         payload = dict(snapshot.payload)
         snapshot_status = payload.pop(WAREHOUSE_SNAPSHOT_STATUS_KEY, None)
+        snapshot_status_detail = payload.pop(WAREHOUSE_SNAPSHOT_STATUS_DETAIL_KEY, None)
         if snapshot_status and snapshot_status != WAREHOUSE_SNAPSHOT_STATUS_FETCHED:
-            raise WarehouseSnapshotUnavailable()
+            raise WarehouseSnapshotUnavailable(
+                snapshot_status_detail or WAREHOUSE_DEFAULT_DETAIL,
+                reason=WAREHOUSE_UNAVAILABLE_REASON_DEFAULT,
+            )
 
         payload.setdefault("snapshot_generated_at", snapshot.generated_at.isoformat())
         return self._apply_filters(payload, options)
@@ -83,6 +132,38 @@ class WarehouseAdapter(MetricsAdapter):
         return normalized
 
     @staticmethod
+    def _normalize_account_ids(account_id: Any) -> list[str]:
+        if account_id is None:
+            return []
+        values: Sequence[Any]
+        if isinstance(account_id, str):
+            values = account_id.split(",")
+        elif isinstance(account_id, Iterable) and not isinstance(account_id, (str, bytes)):
+            values = list(account_id)
+        else:
+            return []
+        normalized = [
+            value.strip()
+            for value in values
+            if isinstance(value, str) and value.strip()
+        ]
+        return normalized
+
+    @staticmethod
+    def _account_aliases(value: str) -> set[str]:
+        normalized = value.strip()
+        if not normalized:
+            return set()
+        aliases = {normalized}
+        if normalized.startswith("act_"):
+            numeric = normalized[4:]
+            if numeric:
+                aliases.add(numeric)
+        elif normalized.isdigit():
+            aliases.add(f"act_{normalized}")
+        return aliases
+
+    @staticmethod
     def _matches_parishes(value: Any, parishes: Sequence[str]) -> bool:
         if not parishes:
             return True
@@ -94,6 +175,26 @@ class WarehouseAdapter(MetricsAdapter):
         if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
             return any(
                 isinstance(item, str) and item.strip().lower() in normalized
+                for item in value
+            )
+        return False
+
+    @classmethod
+    def _matches_account_ids(cls, value: Any, account_ids: Sequence[str]) -> bool:
+        if not account_ids:
+            return True
+        normalized = {
+            alias
+            for account_id in account_ids
+            for alias in cls._account_aliases(account_id)
+        }
+        if not normalized:
+            return True
+        if isinstance(value, str):
+            return bool(cls._account_aliases(value) & normalized)
+        if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
+            return any(
+                isinstance(item, str) and bool(cls._account_aliases(item) & normalized)
                 for item in value
             )
         return False
@@ -136,8 +237,9 @@ class WarehouseAdapter(MetricsAdapter):
         start_date = self._parse_date(options.get("start_date"))
         end_date = self._parse_date(options.get("end_date"))
         parishes = self._normalize_parishes(options.get("parish"))
+        account_ids = self._normalize_account_ids(options.get("account_id"))
 
-        if not start_date and not end_date and not parishes:
+        if not start_date and not end_date and not parishes and not account_ids:
             return payload
 
         filtered: dict[str, Any] = dict(payload)
@@ -152,6 +254,14 @@ class WarehouseAdapter(MetricsAdapter):
                     self._parse_date(point.get("date")), start_date, end_date
                 )
             ]
+        trend = [
+            point
+            for point in trend
+            if self._matches_account_ids(
+                point.get("adAccountId") or point.get("ad_account_id"),
+                account_ids,
+            )
+        ]
         if parishes:
             trend = [
                 point
@@ -161,6 +271,14 @@ class WarehouseAdapter(MetricsAdapter):
                 )
             ]
         rows = list(campaign.get("rows") or [])
+        rows = [
+            row
+            for row in rows
+            if self._matches_account_ids(
+                row.get("adAccountId") or row.get("ad_account_id"),
+                account_ids,
+            )
+        ]
         if start_date or end_date:
             rows = [
                 row
@@ -172,7 +290,11 @@ class WarehouseAdapter(MetricsAdapter):
                     end_date,
                 )
             ]
-        rows = [row for row in rows if self._matches_parishes(row.get("parish"), parishes)]
+        rows = [
+            row
+            for row in rows
+            if self._matches_parishes(row.get("parishes") or row.get("parish"), parishes)
+        ]
         campaign["summary"] = self._recalculate_campaign_summary(
             campaign.get("summary"), rows
         )
@@ -182,11 +304,29 @@ class WarehouseAdapter(MetricsAdapter):
 
         creative = list(filtered.get("creative") or [])
         creative = [
-            row for row in creative if self._matches_parishes(row.get("parish"), parishes)
+            row
+            for row in creative
+            if self._matches_account_ids(
+                row.get("adAccountId") or row.get("ad_account_id"),
+                account_ids,
+            )
+        ]
+        creative = [
+            row
+            for row in creative
+            if self._matches_parishes(row.get("parishes") or row.get("parish"), parishes)
         ]
         filtered["creative"] = creative
 
         budget = list(filtered.get("budget") or [])
+        budget = [
+            row
+            for row in budget
+            if self._matches_account_ids(
+                row.get("adAccountId") or row.get("ad_account_id"),
+                account_ids,
+            )
+        ]
         if start_date or end_date:
             budget = [
                 row
@@ -206,6 +346,14 @@ class WarehouseAdapter(MetricsAdapter):
         filtered["budget"] = budget
 
         parish_metrics = list(filtered.get("parish") or [])
+        parish_metrics = [
+            row
+            for row in parish_metrics
+            if self._matches_account_ids(
+                row.get("adAccountId") or row.get("ad_account_id"),
+                account_ids,
+            )
+        ]
         parish_metrics = [
             row
             for row in parish_metrics

@@ -37,6 +37,7 @@ summary as (
 trend_points as (
     select
         tenant_id,
+        ad_account_id,
         date_day,
         cast(date_day as text) as date,
         coalesce(sum(spend), 0) as spend,
@@ -44,7 +45,7 @@ trend_points as (
         coalesce(sum(clicks), 0) as clicks,
         coalesce(sum(conversions), 0) as conversions
     from scoped
-    group by 1, 2, 3
+    group by 1, 2, 3, 4
 ),
 
 trend_json as (
@@ -54,6 +55,7 @@ trend_json as (
             {{ json_array_agg_ordered(
                 json_build_object({
                     "date": "date",
+                    "adAccountId": "ad_account_id",
                     "spend": "spend",
                     "conversions": "conversions",
                     "clicks": "clicks",
@@ -71,6 +73,7 @@ campaign_rollup as (
     select
         tenant_id,
         campaign_id as id,
+        ad_account_id,
         max(campaign_name) as name,
         case max(source_platform)
             when 'meta_ads' then 'Meta'
@@ -90,12 +93,12 @@ campaign_rollup as (
         coalesce({{ metric_cost_per_click('sum(spend)', 'sum(clicks)') }}, 0) as cpc,
         {{ metric_cpm('sum(spend)', 'sum(impressions)') }} as cpm,
         row_number() over (
-            partition by tenant_id
+            partition by tenant_id, ad_account_id
             order by coalesce(sum(spend), 0) desc
         ) as spend_rank
     from scoped
     where campaign_id is not null
-    group by 1, 2
+    group by 1, 2, 3
 ),
 
 top_campaigns as (
@@ -111,6 +114,7 @@ campaign_rows_json as (
             {{ json_array_agg_ordered(
                 json_build_object({
                     "id": "id",
+                    "adAccountId": "ad_account_id",
                     "name": "name",
                     "platform": "platform",
                     "status": "status",
@@ -136,6 +140,7 @@ creative_rollup as (
     select
         tenant_id,
         ad_id as id,
+        ad_account_id,
         max(ad_name) as name,
         campaign_id as campaignId,
         max(campaign_name) as campaignName,
@@ -154,13 +159,13 @@ creative_rollup as (
         {{ metric_return_on_ad_spend('sum(conversions)', 'sum(spend)') }} as roas,
         {{ metric_ctr('sum(clicks)', 'sum(impressions)') }} as ctr,
         row_number() over (
-            partition by tenant_id
+            partition by tenant_id, ad_account_id
             order by coalesce(sum(spend), 0) desc
         ) as spend_rank
     from scoped
     where ad_id is not null
       and campaign_id is not null
-    group by 1, 2, 4
+    group by 1, 2, 3, 5
 ),
 
 top_creatives as (
@@ -176,6 +181,7 @@ creative_rows_json as (
             {{ json_array_agg_ordered(
                 json_build_object({
                     "id": "id",
+                    "adAccountId": "ad_account_id",
                     "name": "name",
                     "campaignId": "campaignId",
                     "campaignName": "campaignName",
@@ -199,6 +205,7 @@ creative_rows_json as (
 parish_rollup as (
     select
         tenant_id,
+        ad_account_id,
         coalesce(parish_name, 'Unknown') as parish,
         coalesce(sum(spend), 0) as spend,
         coalesce(sum(impressions), 0) as impressions,
@@ -207,11 +214,11 @@ parish_rollup as (
         {{ metric_return_on_ad_spend('sum(conversions)', 'sum(spend)') }} as roas,
         coalesce(count(distinct campaign_id), 0) as campaignCount,
         row_number() over (
-            partition by tenant_id
+            partition by tenant_id, ad_account_id
             order by coalesce(sum(spend), 0) desc
         ) as spend_rank
     from scoped
-    group by 1, 2
+    group by 1, 2, 3
 ),
 
 top_parishes as (
@@ -226,6 +233,7 @@ parish_rows_json as (
         coalesce(
             {{ json_array_agg_ordered(
                 json_build_object({
+                    "adAccountId": "ad_account_id",
                     "parish": "parish",
                     "spend": "spend",
                     "impressions": "impressions",
@@ -246,6 +254,7 @@ parish_rows_json as (
 budget_campaign_daily as (
     select
         tenant_id,
+        ad_account_id,
         campaign_id,
         date_day,
         max(campaign_name) as campaign_name,
@@ -253,26 +262,28 @@ budget_campaign_daily as (
     from scoped
     where campaign_id is not null
       and source_platform = 'meta_ads'
-    group by 1, 2, 3
+    group by 1, 2, 3, 4
 ),
 
 budget_campaign_window as (
     select
         tenant_id,
+        ad_account_id,
         campaign_id,
         max(campaign_name) as campaign_name,
         coalesce(sum(spend), 0) as spend_to_date
     from budget_campaign_daily
-    group by 1, 2
+    group by 1, 2, 3
 ),
 
 budget_campaign_trailing as (
     select
         tenant_id,
+        ad_account_id,
         campaign_id,
         date_day,
         avg(spend) over (
-            partition by tenant_id, campaign_id
+            partition by tenant_id, ad_account_id, campaign_id
             order by date_day
             rows between 6 preceding and current row
         ) as trailing_7d_avg_spend
@@ -282,13 +293,14 @@ budget_campaign_trailing as (
 budget_campaign_latest as (
     select
         tenant_id,
+        ad_account_id,
         campaign_id,
         trailing_7d_avg_spend
     from (
         select
             t.*,
             row_number() over (
-                partition by tenant_id, campaign_id
+                partition by tenant_id, ad_account_id, campaign_id
                 order by date_day desc
             ) as row_num
         from budget_campaign_trailing t
@@ -299,6 +311,7 @@ budget_campaign_latest as (
 budget_campaign_parishes as (
     select
         tenant_id,
+        ad_account_id,
         campaign_id,
         coalesce(
             {{ json_array_agg_ordered('parish', 'parish', true) }},
@@ -307,28 +320,31 @@ budget_campaign_parishes as (
     from (
         select
             tenant_id,
+            ad_account_id,
             campaign_id,
             coalesce(parish_name, 'Unknown') as parish
         from scoped
         where campaign_id is not null
           and source_platform = 'meta_ads'
     ) parishes
-    group by 1, 2
+    group by 1, 2, 3
 ),
 
 budget_campaign_budgets as (
     select
         tenant_id,
+        ad_account_id,
         campaign_id,
         sum(daily_budget) as daily_budget
     from {{ ref('stg_meta_adsets') }}
     where campaign_id is not null
-    group by 1, 2
+    group by 1, 2, 3
 ),
 
 budget_rollup as (
     select
         w.tenant_id,
+        w.ad_account_id,
         w.campaign_id,
         coalesce(w.campaign_name, w.campaign_id) as campaign_name,
         coalesce(p.parishes, {{ json_empty_array() }}) as parishes,
@@ -342,12 +358,15 @@ budget_rollup as (
     from budget_campaign_window w
     inner join budget_campaign_budgets b
         on w.tenant_id = b.tenant_id
+        and w.ad_account_id = b.ad_account_id
         and w.campaign_id = b.campaign_id
     left join budget_campaign_latest l
         on w.tenant_id = l.tenant_id
+        and w.ad_account_id = l.ad_account_id
         and w.campaign_id = l.campaign_id
     left join budget_campaign_parishes p
         on w.tenant_id = p.tenant_id
+        and w.ad_account_id = p.ad_account_id
         and w.campaign_id = p.campaign_id
     left join window_bounds wb
         on w.tenant_id = wb.tenant_id
@@ -369,6 +388,7 @@ budget_rows_json as (
             {{ json_array_agg_ordered(
                 json_build_object({
                     "id": "campaign_id",
+                    "adAccountId": "ad_account_id",
                     "campaignName": "campaign_name",
                     "parishes": "parishes",
                     "monthlyBudget": "monthly_budget",

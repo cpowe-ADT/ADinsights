@@ -7,13 +7,15 @@ from integrations.models import AirbyteConnection
 
 class GoogleAdsOAuthStartSerializer(serializers.Serializer):
     prompt = serializers.CharField(required=False, allow_blank=True)
+    customer_id = serializers.CharField(required=False, allow_blank=True)
+    login_customer_id = serializers.CharField(required=False, allow_blank=True)
     runtime_context = serializers.DictField(required=False)
 
 
 class GoogleAdsOAuthExchangeSerializer(serializers.Serializer):
     code = serializers.CharField(required=True, allow_blank=False)
     state = serializers.CharField(required=True, allow_blank=False)
-    customer_id = serializers.CharField(required=True, allow_blank=False)
+    customer_id = serializers.CharField(required=False, allow_blank=True)
     login_customer_id = serializers.CharField(required=False, allow_blank=True)
     runtime_context = serializers.DictField(required=False)
 
@@ -39,9 +41,13 @@ class GoogleAdsProvisionSerializer(serializers.Serializer):
 
     def validate(self, attrs):  # type: ignore[override]
         attrs = super().validate(attrs)
-        schedule_type = attrs.get("schedule_type", AirbyteConnection.SCHEDULE_CRON)
+        schedule_type = attrs.get("schedule_type")
         interval_minutes = attrs.get("interval_minutes")
         cron_expression = (attrs.get("cron_expression") or "").strip()
+        if schedule_type is None:
+            attrs["interval_minutes"] = None
+            attrs["cron_expression"] = cron_expression
+            return attrs
 
         if schedule_type == AirbyteConnection.SCHEDULE_INTERVAL:
             if interval_minutes is None or int(interval_minutes) <= 0:

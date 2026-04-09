@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '../../lib/apiClient';
@@ -11,8 +12,11 @@ const airbyteMocks = vi.hoisted(() => ({
   loadAirbyteConnections: vi.fn(),
   loadAirbyteSummary: vi.fn(),
   triggerAirbyteSync: vi.fn(),
-  createPlatformCredential: vi.fn(),
-  createAirbyteConnection: vi.fn(),
+  loadGoogleAdsSetupStatus: vi.fn(),
+  loadGoogleAdsStatus: vi.fn(),
+  startGoogleAdsOAuth: vi.fn(),
+  exchangeGoogleAdsOAuthCode: vi.fn(),
+  provisionGoogleAds: vi.fn(),
   loadGoogleAnalyticsSetupStatus: vi.fn(),
   loadGoogleAnalyticsStatus: vi.fn(),
   startGoogleAnalyticsOAuth: vi.fn(),
@@ -27,9 +31,13 @@ const airbyteMocks = vi.hoisted(() => ({
   logoutMetaOAuth: vi.fn(),
   loadMetaSetupStatus: vi.fn(),
   loadSocialConnectionStatus: vi.fn(),
+  previewMetaRecovery: vi.fn(),
 }));
 const metaPageInsightsMocks = vi.hoisted(() => ({
   callbackMetaOAuth: vi.fn(),
+}));
+const datasetStatusMocks = vi.hoisted(() => ({
+  loadDatasetStatus: vi.fn(),
 }));
 
 vi.mock('../../components/ToastProvider', () => ({
@@ -40,8 +48,11 @@ vi.mock('../../lib/airbyte', () => ({
   loadAirbyteConnections: airbyteMocks.loadAirbyteConnections,
   loadAirbyteSummary: airbyteMocks.loadAirbyteSummary,
   triggerAirbyteSync: airbyteMocks.triggerAirbyteSync,
-  createPlatformCredential: airbyteMocks.createPlatformCredential,
-  createAirbyteConnection: airbyteMocks.createAirbyteConnection,
+  loadGoogleAdsSetupStatus: airbyteMocks.loadGoogleAdsSetupStatus,
+  loadGoogleAdsStatus: airbyteMocks.loadGoogleAdsStatus,
+  startGoogleAdsOAuth: airbyteMocks.startGoogleAdsOAuth,
+  exchangeGoogleAdsOAuthCode: airbyteMocks.exchangeGoogleAdsOAuthCode,
+  provisionGoogleAds: airbyteMocks.provisionGoogleAds,
   loadGoogleAnalyticsSetupStatus: airbyteMocks.loadGoogleAnalyticsSetupStatus,
   loadGoogleAnalyticsStatus: airbyteMocks.loadGoogleAnalyticsStatus,
   startGoogleAnalyticsOAuth: airbyteMocks.startGoogleAnalyticsOAuth,
@@ -56,12 +67,33 @@ vi.mock('../../lib/airbyte', () => ({
   logoutMetaOAuth: airbyteMocks.logoutMetaOAuth,
   loadMetaSetupStatus: airbyteMocks.loadMetaSetupStatus,
   loadSocialConnectionStatus: airbyteMocks.loadSocialConnectionStatus,
+  previewMetaRecovery: airbyteMocks.previewMetaRecovery,
 }));
 vi.mock('../../lib/metaPageInsights', () => ({
   META_OAUTH_FLOW_PAGE_INSIGHTS: 'page_insights',
   META_OAUTH_FLOW_SESSION_KEY: 'adinsights.meta.oauth.flow',
   callbackMetaOAuth: metaPageInsightsMocks.callbackMetaOAuth,
 }));
+vi.mock('../../lib/datasetStatus', () => ({
+  loadDatasetStatus: datasetStatusMocks.loadDatasetStatus,
+  messageForLiveDatasetReason: vi.fn((reason: string) => {
+    const messages: Record<string, string> = {
+      adapter_disabled: 'Live reporting is not enabled in this environment.',
+      missing_snapshot: 'Meta is connected, but the first live warehouse snapshot has not been generated yet.',
+      stale_snapshot: 'Live data is refreshing.',
+      default_snapshot: 'Latest live snapshot is fallback data.',
+      ready: 'Live reporting is ready.',
+    };
+    return messages[reason] ?? 'Live reporting status is unavailable.';
+  }),
+}));
+
+const renderDataSources = () =>
+  render(
+    <MemoryRouter>
+      <DataSources />
+    </MemoryRouter>,
+  );
 
 describe('DataSources connect flow', () => {
   const findMetaConnectButton = async () => {
@@ -84,16 +116,61 @@ describe('DataSources connect flow', () => {
       by_provider: {},
       latest_sync: null,
     });
-    airbyteMocks.createPlatformCredential.mockResolvedValue({
-      id: 'cred-1',
-      provider: 'META',
-      account_id: 'act_123',
+    airbyteMocks.loadGoogleAdsSetupStatus.mockResolvedValue({
+      provider: 'google_ads',
+      ready_for_oauth: true,
+      ready_for_provisioning_defaults: true,
+      checks: [],
+      oauth_scopes: ['https://www.googleapis.com/auth/adwords'],
+      redirect_uri: 'http://localhost:5173/dashboards/data-sources',
+      source_definition_id: '0b29e8f7-f64c-4a24-9e97-07c4603f8c04',
     });
-    airbyteMocks.createAirbyteConnection.mockResolvedValue({
-      id: 'conn-local-1',
-      name: 'Meta Metrics Connection',
-      connection_id: '11111111-1111-1111-1111-111111111111',
-      provider: 'META',
+    airbyteMocks.loadGoogleAdsStatus.mockResolvedValue({
+      provider: 'google_ads',
+      status: 'not_connected',
+      reason: { message: 'Google Ads OAuth has not been connected.' },
+      actions: ['connect_oauth'],
+      last_checked_at: '2026-02-17T20:00:00Z',
+      last_synced_at: null,
+      sync_engine: 'airbyte',
+      fallback_active: false,
+      parity_state: 'unknown',
+      last_parity_passed_at: null,
+      metadata: { has_credential: false, has_connection: false },
+    });
+    airbyteMocks.startGoogleAdsOAuth.mockResolvedValue({
+      authorize_url: 'https://accounts.google.com/o/oauth2/v2/auth?state=google-ads',
+      state: 'google-ads-state-1',
+      redirect_uri: 'http://localhost:5173/dashboards/data-sources',
+      oauth_scopes: ['https://www.googleapis.com/auth/adwords'],
+    });
+    airbyteMocks.exchangeGoogleAdsOAuthCode.mockResolvedValue({
+      credential: {
+        id: 'google-ads-cred-1',
+        provider: 'GOOGLE',
+        account_id: '1234567890',
+      },
+      refresh_token_received: true,
+      customer_id: '1234567890',
+      login_customer_id: '0987654321',
+    });
+    airbyteMocks.provisionGoogleAds.mockResolvedValue({
+      provider: 'google_ads',
+      credential: {
+        id: 'google-ads-cred-1',
+        provider: 'GOOGLE',
+        account_id: '1234567890',
+      },
+      connection: {
+        id: 'gads-conn-1',
+        name: 'Google Ads Metrics Connection',
+        connection_id: '11111111-1111-4111-8111-111111111111',
+        provider: 'GOOGLE',
+      },
+      sync_engine: 'sdk',
+      fallback_active: false,
+      source_reused: false,
+      connection_reused: false,
     });
     airbyteMocks.loadGoogleAnalyticsSetupStatus.mockResolvedValue({
       provider: 'google_analytics',
@@ -188,7 +265,15 @@ describe('DataSources connect flow', () => {
       provider: 'meta_ads',
       ready_for_oauth: true,
       ready_for_provisioning_defaults: true,
-      checks: [],
+      checks: [
+        {
+          key: 'meta_runtime_redirect_origin',
+          label: 'Open the app on the same host as the configured OAuth redirect',
+          ok: false,
+          details:
+            'Open the app on http://localhost:5173 because the current frontend origin http://localhost:5175 does not match the configured OAuth redirect origin.',
+        },
+      ],
       oauth_scopes: ['ads_read'],
       graph_api_version: 'v24.0',
       redirect_uri: 'http://localhost:5173/dashboards/data-sources',
@@ -239,6 +324,16 @@ describe('DataSources connect flow', () => {
           last_checked_at: '2026-02-17T20:00:00Z',
           last_synced_at: null,
           actions: ['provision'],
+          reporting_readiness: {
+            stage: 'waiting_for_direct_sync',
+            message: 'Meta setup incomplete.',
+            auth_status: 'started_not_complete',
+            direct_sync_status: 'blocked',
+            warehouse_status: 'disabled',
+            dataset_live_reason: 'adapter_disabled',
+            warehouse_adapter_enabled: false,
+            snapshot_generated_at: null,
+          },
           metadata: {},
         },
         {
@@ -247,14 +342,39 @@ describe('DataSources connect flow', () => {
           status: 'not_connected',
           reason: {
             code: 'instagram_not_linked',
-            message: 'Instagram is not linked yet.',
+            message: 'Instagram business linking is optional and is completed inside the Meta asset-selection flow.',
           },
           last_checked_at: '2026-02-17T20:00:00Z',
           last_synced_at: null,
-          actions: ['select_assets'],
-          metadata: {},
+          actions: ['open_meta_setup'],
+          metadata: {
+            standalone_oauth_supported: false,
+            connection_contract: 'linked_via_meta_setup',
+          },
         },
       ],
+    });
+    airbyteMocks.previewMetaRecovery.mockResolvedValue({
+      selection_token: 'recovery-token',
+      expires_in_seconds: 600,
+      pages: [{ id: 'page-1', name: 'Business Page', category: 'Business', tasks: [], perms: [] }],
+      ad_accounts: [{ id: 'act_123', account_id: '123', name: 'Primary Account' }],
+      instagram_accounts: [],
+      granted_permissions: [
+        'ads_read',
+        'business_management',
+        'pages_show_list',
+        'pages_read_engagement',
+      ],
+      declined_permissions: [],
+      missing_required_permissions: [],
+      token_debug_valid: true,
+      oauth_connected_but_missing_permissions: false,
+      source: 'existing_meta_connection',
+      recovered_from_existing_token: true,
+      default_page_id: 'page-1',
+      default_ad_account_id: 'act_123',
+      default_instagram_account_id: null,
     });
     metaPageInsightsMocks.callbackMetaOAuth.mockResolvedValue({
       connection_id: 'meta-conn-1',
@@ -272,12 +392,25 @@ describe('DataSources connect flow', () => {
       oauth_connected_but_missing_permissions: false,
       tasks: {},
     });
+    datasetStatusMocks.loadDatasetStatus.mockResolvedValue({
+      live: {
+        enabled: true,
+        reason: 'ready',
+        snapshot_generated_at: '2026-04-04T10:00:00Z',
+      },
+      demo: {
+        enabled: true,
+        source: 'fake',
+        tenant_count: 0,
+      },
+      warehouse_adapter_enabled: true,
+    });
     window.history.replaceState({}, '', '/');
     window.sessionStorage.clear();
   });
 
   it('shows connect buttons', async () => {
-    render(<DataSources />);
+    renderDataSources();
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Connect Meta' })).toBeInTheDocument();
@@ -299,7 +432,7 @@ describe('DataSources connect flow', () => {
       ],
     });
 
-    render(<DataSources />);
+    renderDataSources();
 
     expect(await screen.findByText('Google Ads Metrics Connection')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Connect Meta' })).toBeInTheDocument();
@@ -307,12 +440,46 @@ describe('DataSources connect flow', () => {
 
   it('renders social connection statuses and social-focused mode', async () => {
     window.history.replaceState({}, '', '/dashboards/data-sources?sources=social');
-    render(<DataSources />);
+    renderDataSources();
 
     expect(await screen.findByRole('heading', { name: /social connections/i })).toBeInTheDocument();
     expect(screen.getByText('Started, not complete')).toBeInTheDocument();
     expect(screen.getAllByText('Not connected').length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: /continue setup/i }).length).toBeGreaterThan(0);
+  });
+
+  it('frames data sources as the canonical social setup hub', async () => {
+    window.history.replaceState({}, '', '/dashboards/data-sources?sources=social');
+    renderDataSources();
+
+    expect(
+      await screen.findByText(
+        'Canonical setup and management hub for social, paid media, and web analytics connections.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Connect and manage Meta here, then link Instagram inside the Meta asset-selection flow. There is no separate Instagram OAuth path in ADinsights.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Facebook pages' })).toHaveAttribute(
+      'href',
+      '/dashboards/meta/pages',
+    );
+  });
+
+  it('shows setup check details when runtime redirect diagnostics fail', async () => {
+    const user = userEvent.setup();
+    renderDataSources();
+
+    await user.click(await screen.findByRole('button', { name: 'Connect Meta' }));
+
+    expect(
+      await screen.findByText(
+        'Open the app on http://localhost:5173 because the current frontend origin http://localhost:5175 does not match the configured OAuth redirect origin.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('starts Meta OAuth directly from social connect action', async () => {
@@ -340,13 +507,15 @@ describe('DataSources connect flow', () => {
           reason: { code: 'missing_meta_credential', message: 'Connect Meta first.' },
           last_checked_at: '2026-02-17T20:00:00Z',
           last_synced_at: null,
-          actions: ['connect_oauth'],
-          metadata: {},
+          actions: ['open_meta_setup'],
+          metadata: {
+            standalone_oauth_supported: false,
+          },
         },
       ],
     });
 
-    render(<DataSources />);
+    renderDataSources();
 
     await user.click(await findMetaConnectButton());
     await waitFor(() => {
@@ -354,6 +523,31 @@ describe('DataSources connect flow', () => {
       expect(window.sessionStorage.getItem('adinsights.connect.oauth.provider')).toBe('META');
     });
     expect(screen.queryByRole('heading', { name: /connect meta/i })).not.toBeInTheDocument();
+  });
+
+  it('routes the Instagram CTA back into Meta setup instead of starting standalone OAuth', async () => {
+    const user = userEvent.setup();
+    renderDataSources();
+
+    const instagramHeading = await screen.findByRole('heading', { name: 'Instagram (Business)' });
+    const instagramCard = instagramHeading.closest('article');
+    expect(instagramCard).not.toBeNull();
+
+    await user.click(
+      within(instagramCard as HTMLElement).getByRole('button', { name: 'Open Meta setup' }),
+    );
+
+    expect(airbyteMocks.startMetaOAuth).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('heading', { name: 'Connect Meta (Facebook & Instagram)' }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the reporting stage separately from the Meta auth reason', async () => {
+    renderDataSources();
+
+    expect(await screen.findByText('Blocked')).toBeInTheDocument();
+    expect(screen.getByText('Disabled')).toBeInTheDocument();
   });
 
   it('opens setup panel when direct social oauth start fails', async () => {
@@ -384,13 +578,15 @@ describe('DataSources connect flow', () => {
           reason: { code: 'missing_meta_credential', message: 'Connect Meta first.' },
           last_checked_at: '2026-02-17T20:00:00Z',
           last_synced_at: null,
-          actions: ['connect_oauth'],
-          metadata: {},
+          actions: ['open_meta_setup'],
+          metadata: {
+            standalone_oauth_supported: false,
+          },
         },
       ],
     });
 
-    render(<DataSources />);
+    renderDataSources();
 
     await user.click(await findMetaConnectButton());
 
@@ -443,7 +639,7 @@ describe('DataSources connect flow', () => {
     );
     window.sessionStorage.removeItem('adinsights.meta.oauth.provider');
 
-    render(<DataSources />);
+    renderDataSources();
 
     expect(
       await screen.findByText(/Missing required permissions: business_management/i),
@@ -471,7 +667,7 @@ describe('DataSources connect flow', () => {
     );
     window.sessionStorage.removeItem('adinsights.meta.oauth.flow');
 
-    render(<DataSources />);
+    renderDataSources();
 
     await waitFor(() => {
       expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith('oauth-code', 'oauth-state');
@@ -486,7 +682,7 @@ describe('DataSources connect flow', () => {
       '',
       '/dashboards/data-sources?code=oauth-code&state=oauth-state',
     );
-    render(<DataSources />);
+    renderDataSources();
 
     await waitFor(() => {
       expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith('oauth-code', 'oauth-state');
@@ -500,50 +696,151 @@ describe('DataSources connect flow', () => {
 
   it('requires Meta OAuth before saving connection', async () => {
     const user = userEvent.setup();
-    render(<DataSources />);
+    renderDataSources();
 
     await user.click(await screen.findByRole('button', { name: 'Connect Meta' }));
     await user.click(screen.getByRole('button', { name: 'Save connection' }));
 
-    expect(airbyteMocks.createPlatformCredential).not.toHaveBeenCalled();
+    expect(airbyteMocks.provisionMetaIntegration).not.toHaveBeenCalled();
     expect(pushToast).toHaveBeenCalledWith('Complete Meta OAuth and save a business page first.', {
       tone: 'error',
     });
   });
 
-  it('creates Google credential and links Airbyte connection when enabled', async () => {
+  it('treats restore as successful when sync succeeds even if provisioning fails', async () => {
     const user = userEvent.setup();
-    render(<DataSources />);
+    airbyteMocks.loadSocialConnectionStatus.mockResolvedValue({
+      generated_at: '2026-02-17T20:00:00Z',
+      platforms: [
+        {
+          platform: 'meta',
+          display_name: 'Meta (Facebook)',
+          status: 'started_not_complete',
+          reason: {
+            code: 'orphaned_marketing_access',
+            message: 'Restore Meta marketing access to resume reporting.',
+          },
+          last_checked_at: '2026-02-17T20:00:00Z',
+          last_synced_at: null,
+          actions: ['recover_marketing_access', 'view'],
+          metadata: {
+            has_recoverable_marketing_access: true,
+            marketing_recovery_source: 'existing_meta_connection',
+          },
+        },
+      ],
+    });
+    airbyteMocks.provisionMetaIntegration.mockRejectedValueOnce(
+      new Error('Airbyte API /api/v1/sources/list request failed: connection refused'),
+    );
+    airbyteMocks.syncMetaIntegration.mockResolvedValueOnce({
+      provider: 'meta_ads',
+      connection_id: 'conn-meta-1',
+      job_id: 'restore-101',
+      task_dispatch_mode: 'inline',
+    });
+
+    renderDataSources();
+
+    await user.click(await screen.findByRole('button', { name: 'Connect Meta' }));
+    const saveButton = await screen.findByRole('button', { name: 'Save connection' });
+    const connectForm = saveButton.closest('form');
+    expect(connectForm).not.toBeNull();
+    await user.click(
+      within(connectForm as HTMLFormElement).getByRole('button', { name: 'Restore marketing access' }),
+    );
+    await waitFor(() => {
+      expect(airbyteMocks.previewMetaRecovery).toHaveBeenCalledTimes(1);
+    });
+    await user.click(
+      within(connectForm as HTMLFormElement).getByRole('button', { name: 'Confirm selection' }),
+    );
+
+    await waitFor(() => {
+      expect(airbyteMocks.connectMetaPage).toHaveBeenCalledWith(
+        expect.objectContaining({
+        selection_token: 'recovery-token',
+        page_id: 'page-1',
+        ad_account_id: 'act_123',
+        }),
+      );
+    });
+    await waitFor(() => {
+      expect(airbyteMocks.syncMetaIntegration).toHaveBeenCalledTimes(1);
+    });
+    expect(pushToast).toHaveBeenCalledWith(
+      'Meta restore completed and sync ran inline (job restore-101).',
+      { tone: 'success' },
+    );
+    expect(pushToast).toHaveBeenCalledWith(
+      'Meta connected. Direct sync complete. Live reporting is ready.',
+      { tone: 'success' },
+    );
+    expect(pushToast).toHaveBeenCalledWith(
+      expect.stringContaining('Meta marketing access restored; Airbyte connection was not provisioned.'),
+      { tone: 'info' },
+    );
+  });
+
+  it('completes Google Ads OAuth and provisions the connection', async () => {
+    const user = userEvent.setup();
+    const view = renderDataSources();
 
     await user.click(await screen.findByRole('button', { name: 'Connect Google Ads' }));
     await user.type(screen.getByLabelText('Google Ads customer/account ID'), '1234567890');
-    await user.type(screen.getByLabelText('Access token'), 'google-access-token');
-    await user.click(screen.getByRole('checkbox', { name: /Also link Airbyte connection/i }));
+    await user.type(screen.getByLabelText('Login customer ID (optional)'), '0987654321');
+    const setupHeading = screen.getByRole('heading', { name: 'Connect Google Ads' });
+    const setupForm = setupHeading.closest('form');
+    expect(setupForm).not.toBeNull();
+    await user.click(
+      within(setupForm as HTMLFormElement).getByRole('button', { name: 'Connect Google Ads' }),
+    );
+
+    await waitFor(() => {
+      expect(airbyteMocks.startGoogleAdsOAuth).toHaveBeenCalledWith({
+        customer_id: '1234567890',
+        login_customer_id: '0987654321',
+        runtime_context: expect.any(Object),
+      });
+    });
+    expect(window.sessionStorage.getItem('adinsights.connect.oauth.provider')).toBe('GOOGLE');
+
+    window.history.replaceState(
+      {},
+      '',
+      '/dashboards/data-sources?code=oauth-code&state=oauth-state',
+    );
+    view.unmount();
+    renderDataSources();
+
+    await waitFor(() => {
+      expect(airbyteMocks.exchangeGoogleAdsOAuthCode).toHaveBeenCalledWith({
+        code: 'oauth-code',
+        state: 'oauth-state',
+        runtime_context: expect.any(Object),
+      });
+    });
+
     await user.clear(screen.getByLabelText('Connection name'));
     await user.type(screen.getByLabelText('Connection name'), 'Google Ads Metrics');
     await user.type(
-      screen.getByLabelText('Airbyte connection UUID'),
-      '11111111-1111-4111-8111-111111111111',
-    );
-    await user.type(
       screen.getByLabelText('Airbyte workspace UUID (optional)'),
       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    );
+    await user.type(
+      screen.getByLabelText('Airbyte destination UUID (optional)'),
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
     );
 
     await user.click(screen.getByRole('button', { name: 'Save connection' }));
 
     await waitFor(() => {
-      expect(airbyteMocks.createPlatformCredential).toHaveBeenCalledWith({
-        provider: 'GOOGLE',
-        account_id: '1234567890',
-        access_token: 'google-access-token',
-        refresh_token: null,
-      });
-      expect(airbyteMocks.createAirbyteConnection).toHaveBeenCalledWith({
-        name: 'Google Ads Metrics',
-        connection_id: '11111111-1111-4111-8111-111111111111',
+      expect(airbyteMocks.provisionGoogleAds).toHaveBeenCalledWith({
+        external_account_id: '1234567890',
+        login_customer_id: '0987654321',
         workspace_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-        provider: 'GOOGLE',
+        destination_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        connection_name: 'Google Ads Metrics',
         schedule_type: 'cron',
         is_active: true,
         interval_minutes: null,
@@ -554,19 +851,59 @@ describe('DataSources connect flow', () => {
 
   it('starts Google Analytics OAuth from the setup panel', async () => {
     const user = userEvent.setup();
-    render(<DataSources />);
+    renderDataSources();
 
     await user.click(await screen.findByRole('button', { name: 'Connect Google Analytics' }));
     const setupHeading = screen.getByRole('heading', { name: 'Connect Google Analytics 4' });
     const setupForm = setupHeading.closest('form');
     expect(setupForm).not.toBeNull();
     await user.click(
-      within(setupForm as HTMLFormElement).getByRole('button', { name: 'Connect with Google' }),
+      within(setupForm as HTMLFormElement).getByRole('button', {
+        name: 'Connect Google Analytics',
+      }),
     );
 
     await waitFor(() => {
       expect(airbyteMocks.startGoogleAnalyticsOAuth).toHaveBeenCalled();
     });
+  });
+
+  it('shows separate Google Analytics and Google Ads cards with explicit setup labels', async () => {
+    renderDataSources();
+
+    expect(await screen.findByRole('heading', { name: 'Google Analytics 4' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Google Ads' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open GA4 setup' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Google Ads setup' })).toBeInTheDocument();
+    expect(screen.getByText(/website and app behavior/i)).toBeInTheDocument();
+    expect(screen.getByText(/paid campaign performance/i)).toBeInTheDocument();
+  });
+
+  it('disables GA4 OAuth start when GA4 setup is not ready', async () => {
+    const user = userEvent.setup();
+    airbyteMocks.loadGoogleAnalyticsSetupStatus.mockResolvedValue({
+      provider: 'google_analytics',
+      ready_for_oauth: false,
+      oauth_scopes: ['https://www.googleapis.com/auth/analytics.readonly'],
+      redirect_uri: '',
+      runtime_context: null,
+    });
+
+    renderDataSources();
+
+    await user.click(await screen.findByRole('button', { name: 'Connect Google Analytics' }));
+    const setupHeading = screen.getByRole('heading', { name: 'Connect Google Analytics 4' });
+    const setupForm = setupHeading.closest('form');
+    expect(setupForm).not.toBeNull();
+
+    const oauthButton = within(setupForm as HTMLFormElement).getByRole('button', {
+      name: 'Connect Google Analytics',
+    });
+    expect(oauthButton).toBeDisabled();
+    expect(
+      within(setupForm as HTMLFormElement).getByText(/GA4 OAuth is not ready/i),
+    ).toBeInTheDocument();
+    expect(airbyteMocks.startGoogleAnalyticsOAuth).not.toHaveBeenCalled();
   });
 
   it('loads GA4 properties for the exchanged credential after oauth callback', async () => {
@@ -577,7 +914,7 @@ describe('DataSources connect flow', () => {
       '/dashboards/data-sources?code=oauth-code&state=oauth-state',
     );
 
-    render(<DataSources />);
+    renderDataSources();
 
     await waitFor(() => {
       expect(airbyteMocks.exchangeGoogleAnalyticsOAuthCode).toHaveBeenCalledWith({

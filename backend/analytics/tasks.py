@@ -19,11 +19,15 @@ from django.utils import timezone
 
 from accounts.models import Tenant
 from accounts.tenant_context import tenant_context
-from adapters.warehouse import WAREHOUSE_SNAPSHOT_STATUS_KEY
+from adapters.warehouse import (
+    WAREHOUSE_SNAPSHOT_STATUS_DETAIL_KEY,
+    WAREHOUSE_SNAPSHOT_STATUS_KEY,
+)
 from analytics.models import AISummary, ReportExportJob, TenantMetricsSnapshot
 from analytics.snapshots import (
     default_snapshot_metrics,
     fetch_snapshot_metrics,
+    fetch_snapshot_metrics_result,
     snapshot_metrics_to_combined_payload,
 )
 from analytics.summaries import build_daily_summary_payload, summarize_daily_metrics
@@ -73,7 +77,8 @@ def _ensure_aware(dt: datetime | None) -> datetime:
 
 
 def _snapshot_payload_for_tenant(tenant_id: str) -> tuple[dict, datetime, str]:
-    metrics = fetch_snapshot_metrics(tenant_id=tenant_id)
+    fetch_result = fetch_snapshot_metrics_result(tenant_id=tenant_id)
+    metrics = fetch_result.metrics
     if metrics is None:
         metrics = default_snapshot_metrics(tenant_id=tenant_id)
         status = "default"
@@ -83,6 +88,8 @@ def _snapshot_payload_for_tenant(tenant_id: str) -> tuple[dict, datetime, str]:
     payload = snapshot_metrics_to_combined_payload(metrics)
     payload["snapshot_generated_at"] = generated_at.isoformat()
     payload[WAREHOUSE_SNAPSHOT_STATUS_KEY] = status
+    if status == "default" and fetch_result.fallback_detail:
+        payload[WAREHOUSE_SNAPSHOT_STATUS_DETAIL_KEY] = fetch_result.fallback_detail
     return payload, generated_at, status
 
 

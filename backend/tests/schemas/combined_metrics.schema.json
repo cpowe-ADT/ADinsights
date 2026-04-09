@@ -55,7 +55,7 @@
               "name",
               "platform",
               "status",
-              "parish",
+              "parishes",
               "spend",
               "impressions",
               "clicks",
@@ -68,7 +68,7 @@
               "platform": { "type": "string" },
               "status": { "type": "string" },
               "objective": { "type": "string" },
-              "parish": { "type": "string" },
+              "parishes": { "type": "array", "items": { "type": "string" } },
               "spend": { "type": "number" },
               "impressions": { "type": "number" },
               "clicks": { "type": "number" },
@@ -108,7 +108,7 @@
           "campaignId": { "type": "string" },
           "campaignName": { "type": "string" },
           "platform": { "type": "string" },
-          "parish": { "type": "string" },
+          "parishes": { "type": "array", "items": { "type": "string" } },
           "spend": { "type": "number" },
           "impressions": { "type": "number" },
           "clicks": { "type": "number" },
@@ -166,6 +166,58 @@
         },
         "additionalProperties": false
       }
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "startDate": { "type": ["string", "null"] },
+        "endDate": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "availability": {
+      "type": "object",
+      "properties": {
+        "campaign": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string" },
+            "reason": { "type": ["string", "null"] }
+          },
+          "required": ["status"],
+          "additionalProperties": false
+        },
+        "creative": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string" },
+            "reason": { "type": ["string", "null"] }
+          },
+          "required": ["status"],
+          "additionalProperties": false
+        },
+        "budget": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string" },
+            "reason": { "type": ["string", "null"] }
+          },
+          "required": ["status"],
+          "additionalProperties": false
+        },
+        "parish_map": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string" },
+            "reason": { "type": ["string", "null"] },
+            "coverage_percent": { "type": "number" }
+          },
+          "required": ["status"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["campaign", "creative", "budget", "parish_map"],
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

@@ -129,17 +129,39 @@ def _google_oauth_scopes() -> list[str]:
     return resolved or list(DEFAULT_GOOGLE_ADS_OAUTH_SCOPES)
 
 
-def _google_state_payload(*, request) -> dict[str, str]:
-    return {
+def _google_state_payload(
+    *,
+    request,
+    customer_id: str | None = None,
+    login_customer_id: str | None = None,
+) -> dict[str, str]:
+    payload = {
         "tenant_id": str(request.user.tenant_id),
         "user_id": str(request.user.id),
         "nonce": secrets.token_urlsafe(24),
         "flow": "google_ads",
     }
+    if customer_id:
+        payload["customer_id"] = customer_id
+    if login_customer_id:
+        payload["login_customer_id"] = login_customer_id
+    return payload
 
 
-def _sign_google_state(*, request) -> str:
-    return signing.dumps(_google_state_payload(request=request), salt=GOOGLE_OAUTH_STATE_SALT)
+def _sign_google_state(
+    *,
+    request,
+    customer_id: str | None = None,
+    login_customer_id: str | None = None,
+) -> str:
+    return signing.dumps(
+        _google_state_payload(
+            request=request,
+            customer_id=customer_id,
+            login_customer_id=login_customer_id,
+        ),
+        salt=GOOGLE_OAUTH_STATE_SALT,
+    )
 
 
 def _validate_google_state(*, request, state: str) -> tuple[dict[str, Any], Response | None]:
@@ -482,6 +504,11 @@ class GoogleAdsSetupView(APIView):
             redirect_uri_configured = True
         except ValueError:
             redirect_uri_configured = False
+        runtime_redirect_ready = (
+            runtime_context.get("redirect_origin_matches_runtime") is not False
+            if runtime_context is not None
+            else True
+        )
         workspace_id_raw = (getattr(settings, "AIRBYTE_DEFAULT_WORKSPACE_ID", "") or "").strip()
         destination_id_raw = (getattr(settings, "AIRBYTE_DEFAULT_DESTINATION_ID", "") or "").strip()
         workspace_id = "" if _is_unset_or_placeholder(workspace_id_raw) else workspace_id_raw
@@ -491,7 +518,9 @@ class GoogleAdsSetupView(APIView):
             (getattr(settings, "AIRBYTE_SOURCE_DEFINITION_GOOGLE", "") or "").strip()
         )
 
-        ready_for_oauth = bool(client_id and client_secret and redirect_uri_configured)
+        ready_for_oauth = bool(
+            client_id and client_secret and redirect_uri_configured and runtime_redirect_ready
+        )
         ready_for_provisioning_defaults = bool(workspace_id and destination_id)
         checks = [
             {
@@ -505,6 +534,16 @@ class GoogleAdsSetupView(APIView):
                 "label": "Google OAuth redirect configured",
                 "ok": redirect_uri_configured,
                 "env_vars": ["GOOGLE_ADS_OAUTH_REDIRECT_URI", "FRONTEND_BASE_URL"],
+            },
+            {
+                "key": "google_runtime_redirect_origin",
+                "label": "Open the app on the same host as the configured OAuth redirect",
+                "ok": runtime_redirect_ready,
+                "details": (
+                    runtime_context.get("redirect_origin_mismatch_message")
+                    if runtime_context is not None
+                    else None
+                ),
             },
             {
                 "key": "google_ads_developer_token",
@@ -563,11 +602,33 @@ class GoogleAdsOAuthStartView(APIView):
             )
 
         try:
-            redirect_uri = _google_redirect_uri(request=request, payload=serializer.validated_data)
+            redirect_uri, runtime_context = _resolve_google_redirect_uri(
+                request=request,
+                payload=serializer.validated_data,
+            )
+            if runtime_context.get("redirect_origin_matches_runtime") is False:
+                return Response(
+                    {
+                        "detail": runtime_context.get("redirect_origin_mismatch_message")
+                        or "Open the app on the configured OAuth redirect host and try again.",
+                        "runtime_context": runtime_context,
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        signed_state = _sign_google_state(request=request)
+        customer_id = _normalize_google_customer_id(
+            str(serializer.validated_data.get("customer_id") or "")
+        )
+        login_customer_id = _normalize_google_customer_id(
+            str(serializer.validated_data.get("login_customer_id") or "")
+        )
+        signed_state = _sign_google_state(
+            request=request,
+            customer_id=customer_id or None,
+            login_customer_id=login_customer_id or None,
+        )
         prompt = serializer.validated_data.get("prompt") or "consent"
         query_payload = {
             "client_id": client_id,
@@ -597,7 +658,10 @@ class GoogleAdsOAuthExchangeView(APIView):
         serializer = GoogleAdsOAuthExchangeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        _, state_error = _validate_google_state(request=request, state=str(serializer.validated_data["state"]))
+        state_payload, state_error = _validate_google_state(
+            request=request,
+            state=str(serializer.validated_data["state"]),
+        )
         if state_error is not None:
             return state_error
 
@@ -609,12 +673,25 @@ class GoogleAdsOAuthExchangeView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        customer_id = _normalize_google_customer_id(str(serializer.validated_data["customer_id"]))
+        customer_id = _normalize_google_customer_id(
+            str(
+                serializer.validated_data.get("customer_id")
+                or state_payload.get("customer_id")
+                or ""
+            )
+        )
         if not customer_id:
             return Response(
                 {"detail": "customer_id must contain digits."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        login_customer_id = _normalize_google_customer_id(
+            str(
+                serializer.validated_data.get("login_customer_id")
+                or state_payload.get("login_customer_id")
+                or ""
+            )
+        )
 
         try:
             redirect_uri = _google_redirect_uri(request=request, payload=serializer.validated_data)
@@ -688,7 +765,7 @@ class GoogleAdsOAuthExchangeView(APIView):
                 "provider": PlatformCredential.GOOGLE,
                 "customer_id": customer_id,
                 "refresh_token_received": bool(refresh_token),
-                "login_customer_id": serializer.validated_data.get("login_customer_id") or "",
+                "login_customer_id": login_customer_id,
             },
         )
         emit_observability_event(
@@ -702,6 +779,8 @@ class GoogleAdsOAuthExchangeView(APIView):
             {
                 "credential": PlatformCredentialSerializer(credential).data,
                 "refresh_token_received": bool(refresh_token),
+                "customer_id": customer_id,
+                "login_customer_id": login_customer_id or "",
             },
             status=status.HTTP_201_CREATED,
         )
