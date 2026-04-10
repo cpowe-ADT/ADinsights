@@ -131,6 +131,7 @@ class MetaPostsItemSerializer(serializers.Serializer):
     created_time = serializers.DateTimeField(allow_null=True)
     permalink_url = serializers.CharField(allow_blank=True)
     message = serializers.CharField(allow_blank=True)
+    thumbnail_url = serializers.CharField(allow_blank=True, required=False, default="")
     metrics = serializers.DictField(required=False)
 
 

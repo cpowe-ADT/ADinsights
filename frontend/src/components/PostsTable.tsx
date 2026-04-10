@@ -39,7 +39,23 @@ const PostsTable = ({ rows, metricKey, availability, onOpenPost }: PostsTablePro
       {
         accessorKey: 'media_type',
         header: 'Media',
-        cell: (context) => context.getValue<string>() || '—',
+        cell: (context) => {
+          const mediaType = context.getValue<string>() || '—';
+          const thumbnailUrl = context.row.original.thumbnail_url;
+          if (thumbnailUrl) {
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <img
+                  src={thumbnailUrl}
+                  alt=""
+                  style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4 }}
+                />
+                <span>{mediaType}</span>
+              </div>
+            );
+          }
+          return mediaType;
+        },
       },
       {
         accessorKey: 'message_snippet',

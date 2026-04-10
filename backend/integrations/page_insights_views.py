@@ -450,6 +450,7 @@ class MetaPagePostsInsightsView(APIView):
                     "permalink": post.permalink_url,
                     "media_type": post.media_type,
                     "message_snippet": (post.message or "")[:180],
+                    "thumbnail_url": post.thumbnail_url,
                     "metrics": metrics_payload,
                     "last_synced_at": _to_iso(post.last_synced_at),
                 }
@@ -535,6 +536,7 @@ class MetaPostDetailInsightsView(APIView):
                 "permalink": post.permalink_url,
                 "media_type": post.media_type,
                 "message": post.message,
+                "thumbnail_url": post.thumbnail_url,
                 "last_synced_at": _to_iso(post.last_synced_at),
                 "metric_availability": availability,
                 "metrics": metrics,

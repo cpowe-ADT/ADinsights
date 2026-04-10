@@ -3002,6 +3002,7 @@ def _upsert_meta_posts(*, page: MetaPage, rows: list[dict[str, Any]]) -> list[Me
             "permalink_url": str(row.get("permalink_url") or ""),
             "created_time": _coerce_graph_datetime(row.get("created_time")),
             "updated_time": _coerce_graph_datetime(row.get("updated_time")),
+            "thumbnail_url": _extract_thumbnail_url(row),
             "last_synced_at": timezone.now(),
             "metadata": row,
         }
@@ -3054,4 +3055,34 @@ def _extract_media_type(row: dict[str, Any]) -> str:
                 media_type = first.get("media_type") or first.get("type")
                 if isinstance(media_type, str) and media_type.strip():
                     return media_type.strip().upper()
+    return ""
+
+
+def _extract_thumbnail_url(row: dict[str, Any]) -> str:
+    """Extract a thumbnail URL from Graph API post attachments.
+
+    Priority: attachments.data[0].picture (pre-rendered thumbnail),
+    then attachments.data[0].media.image.src as fallback.
+    """
+    attachments = row.get("attachments")
+    if not isinstance(attachments, dict):
+        return ""
+    data = attachments.get("data")
+    if not isinstance(data, list) or not data:
+        return ""
+    first = data[0]
+    if not isinstance(first, dict):
+        return ""
+    # Prefer .picture (pre-rendered thumbnail)
+    picture = first.get("picture")
+    if isinstance(picture, str) and picture.strip():
+        return picture.strip()[:500]
+    # Fallback to .media.image.src
+    media = first.get("media")
+    if isinstance(media, dict):
+        image = media.get("image")
+        if isinstance(image, dict):
+            src = image.get("src")
+            if isinstance(src, str) and src.strip():
+                return src.strip()[:500]
     return ""

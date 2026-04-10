@@ -768,6 +768,7 @@ class MetaPost(models.Model):
     created_time = models.DateTimeField(null=True, blank=True)
     updated_time = models.DateTimeField(null=True, blank=True)
     last_synced_at = models.DateTimeField(null=True, blank=True)
+    thumbnail_url = models.URLField(max_length=500, blank=True, default="")
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
