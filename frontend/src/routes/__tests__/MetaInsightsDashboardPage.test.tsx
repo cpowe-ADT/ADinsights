@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import MetaInsightsDashboardPage from '../MetaInsightsDashboardPage';
 
-const pushToast = vi.fn();
+const addToast = vi.fn();
 const syncMetaIntegration = vi.fn();
 
 const loadAccounts = vi.fn();
@@ -41,8 +41,9 @@ const storeState = {
   loadInsights,
 };
 
-vi.mock('../../components/ToastProvider', () => ({
-  useToast: () => ({ pushToast }),
+vi.mock('../../state/useToastStore', () => ({
+  default: (selector: (state: { addToast: typeof addToast }) => unknown) =>
+    selector({ addToast }),
 }));
 
 vi.mock('../../lib/airbyte', () => ({
@@ -87,7 +88,7 @@ describe('MetaInsightsDashboardPage', () => {
       expect(loadAccounts).toHaveBeenCalledTimes(1);
       expect(loadInsights).toHaveBeenCalledTimes(1);
     });
-    expect(pushToast).toHaveBeenCalledWith('Meta sync queued (job job-1).', { tone: 'success' });
+    expect(addToast).toHaveBeenCalledWith('Meta sync queued (job job-1).', { tone: 'success' });
   });
 
   it('shows running sync message when Airbyte returns conflict reuse', async () => {
@@ -119,7 +120,7 @@ describe('MetaInsightsDashboardPage', () => {
       expect(loadAccounts).toHaveBeenCalledTimes(1);
       expect(loadInsights).toHaveBeenCalledTimes(1);
     });
-    expect(pushToast).toHaveBeenCalledWith('Meta sync is already running (job job-99).', {
+    expect(addToast).toHaveBeenCalledWith('Meta sync is already running (job job-99).', {
       tone: 'success',
     });
   });

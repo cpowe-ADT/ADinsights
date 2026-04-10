@@ -104,10 +104,9 @@ vi.mock('../../components/ThemeProvider', () => ({
   }),
 }));
 
-vi.mock('../../components/ToastProvider', () => ({
-  useToast: () => ({
-    pushToast: vi.fn(),
-  }),
+vi.mock('../../state/useToastStore', () => ({
+  default: (selector: (state: { addToast: ReturnType<typeof vi.fn> }) => unknown) =>
+    selector({ addToast: vi.fn() }),
 }));
 
 vi.mock('../../components/Breadcrumbs', () => ({
