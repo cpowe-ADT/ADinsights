@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework.permissions import AllowAny
-from rest_framework.routers import DefaultRouter
 from rest_framework.schemas import get_schema_view
 
 from alerts.views import AlertRunViewSet
@@ -119,9 +118,10 @@ from integrations.connector_lifecycle_views import (
     IntegrationSyncView,
 )
 from . import views as core_views
+from .routers import ADinsightsDefaultRouter
 from .viewsets import AirbyteTelemetryViewSet
 
-router = DefaultRouter()
+router = ADinsightsDefaultRouter()
 router.register(
     r"platform-credentials",
     PlatformCredentialViewSet,
@@ -153,7 +153,7 @@ router.register(r"summaries", AISummaryViewSet, basename="ai-summary")
 router.register(r"service-accounts", ServiceAccountKeyViewSet, basename="service-account")
 router.register(r"notification-channels", NotificationChannelViewSet, basename="notification-channel")
 
-admin_router = DefaultRouter()
+admin_router = ADinsightsDefaultRouter()
 admin_router.register(r"budgets", CampaignBudgetViewSet, basename="campaignbudget")
 admin_router.register(r"alerts", AlertRuleDefinitionViewSet, basename="alertruledefinition")
 

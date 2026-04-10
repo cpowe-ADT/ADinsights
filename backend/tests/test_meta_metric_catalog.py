@@ -10,6 +10,7 @@ from integrations.services.meta_metric_catalog import (
     metric_catalog_doc_path,
     render_metric_catalog_markdown,
 )
+from integrations.services.metric_registry import get_default_metric_keys
 
 
 def test_meta_metric_catalog_contains_expected_metrics():
@@ -58,3 +59,16 @@ def test_sync_meta_metric_catalog_command_upserts_registry():
     assert MetaMetricRegistry.objects.filter(level=MetaMetricRegistry.LEVEL_POST).exists()
     assert MetaMetricRegistry.objects.filter(metric_key="page_post_engagements", level=MetaMetricRegistry.LEVEL_PAGE).exists()
     assert MetaMetricRegistry.objects.filter(metric_key="post_video_views", level=MetaMetricRegistry.LEVEL_POST).exists()
+
+
+@pytest.mark.django_db
+def test_get_default_metric_keys_seeds_registry_when_empty():
+    MetaMetricRegistry.objects.all().delete()
+
+    metric_keys = get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE)
+
+    assert "page_post_engagements" in metric_keys
+    assert MetaMetricRegistry.objects.filter(
+        metric_key="page_post_engagements",
+        level=MetaMetricRegistry.LEVEL_PAGE,
+    ).exists()

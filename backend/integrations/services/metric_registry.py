@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
+from django.db.utils import OperationalError, ProgrammingError
+
 from integrations.meta_page_insights.metric_pack_loader import (
     is_blocked_metric,
     load_metric_pack_v1,
@@ -131,6 +133,15 @@ REPLACEMENT_CANDIDATES: dict[tuple[str, str], str] = {
 }
 
 
+def ensure_default_metrics_seeded() -> None:
+    try:
+        if MetaMetricRegistry.objects.exists():
+            return
+    except (OperationalError, ProgrammingError):
+        return
+    seed_default_metrics()
+
+
 def seed_default_metrics() -> None:
     loaded = load_metric_pack_v1()
     if loaded <= 0:
@@ -159,6 +170,7 @@ def seed_default_metrics() -> None:
 
 
 def get_default_metric_keys(level: str) -> list[str]:
+    ensure_default_metrics_seeded()
     rows = (
         MetaMetricRegistry.objects.filter(
             level=level,
@@ -171,6 +183,7 @@ def get_default_metric_keys(level: str) -> list[str]:
 
 
 def get_active_metric_keys(level: str, *, include_all: bool = False) -> list[str]:
+    ensure_default_metrics_seeded()
     queryset = MetaMetricRegistry.objects.filter(level=level)
     if not include_all:
         queryset = queryset.exclude(
@@ -183,6 +196,7 @@ def resolve_metric_key(level: str, metric_key: str) -> str:
     if is_blocked_metric(metric_key):
         replacement = REPLACEMENT_CANDIDATES.get((level, metric_key))
         return replacement or metric_key
+    ensure_default_metrics_seeded()
     metric = MetaMetricRegistry.objects.filter(level=level, metric_key=metric_key).first()
     if metric is None:
         return metric_key
@@ -284,4 +298,3 @@ def update_metric_metadata(
         changed.append("status")
     if changed:
         metric.save(update_fields=sorted(set(changed + ["updated_at"])))
-

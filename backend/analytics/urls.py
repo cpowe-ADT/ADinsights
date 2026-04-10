@@ -1,8 +1,8 @@
 """Router configuration for analytics metadata APIs."""
 
 from django.urls import include, path
-from rest_framework.routers import DefaultRouter
 
+from core.routers import ADinsightsDefaultRouter
 from .views import (
     AdSetViewSet,
     AdViewSet,
@@ -36,7 +36,7 @@ from .google_ads_views import (
 )
 from .web_views import GA4WebInsightsView, SearchConsoleInsightsView
 
-router = DefaultRouter()
+router = ADinsightsDefaultRouter()
 router.register(r"campaigns", CampaignViewSet, basename="analytics-campaign")
 router.register(r"adsets", AdSetViewSet, basename="analytics-adset")
 router.register(r"ads", AdViewSet, basename="analytics-ad")
