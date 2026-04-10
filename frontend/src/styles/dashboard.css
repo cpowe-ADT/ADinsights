@@ -465,6 +465,29 @@
   color: var(--color-text-muted);
 }
 
+.meta-kpi-prior {
+  font-size: 0.8rem;
+}
+
+.meta-kpi-delta {
+  display: block;
+  margin: 0.15rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.meta-kpi-delta--positive {
+  color: #16a34a;
+}
+
+.meta-kpi-delta--negative {
+  color: #dc2626;
+}
+
+.meta-kpi-delta--neutral {
+  color: var(--color-text-muted);
+}
+
 .meta-trend-panel {
   min-height: 360px;
 }
