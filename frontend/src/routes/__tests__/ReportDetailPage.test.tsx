@@ -25,6 +25,10 @@ const sampleReport: ReportDefinition = {
   filters: {},
   layout: {},
   is_active: true,
+  schedule_enabled: false,
+  schedule_cron: '',
+  delivery_emails: [],
+  last_scheduled_at: null,
   created_at: '2026-04-01T10:00:00Z',
   updated_at: '2026-04-05T14:30:00Z',
 };

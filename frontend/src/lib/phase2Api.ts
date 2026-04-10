@@ -98,13 +98,6 @@ export type AlertRule = {
   updated_at: string;
 };
 
-export type NotificationChannel = {
-  id: string;
-  name: string;
-  channel_type: string;
-  is_active: boolean;
-};
-
 export type AISummary = {
   id: string;
   title: string;

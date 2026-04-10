@@ -11,14 +11,14 @@ import {
   type NotificationChannel,
 } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
-// Toast wiring: import { useToastStore } from '../stores/useToastStore';
-// Wire addToast into channel-assignment CRUD when that feature is built.
+import { useToastStore } from '../stores/useToastStore';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 
 const AlertDetailPage = () => {
   const { alertId } = useParams<{ alertId: string }>();
   const navigate = useNavigate();
+  const addToast = useToastStore((s) => s.addToast);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [alert, setAlert] = useState<AlertRule | null>(null);
   const [error, setError] = useState('Unable to load alert.');
@@ -61,9 +61,10 @@ const AlertDetailPage = () => {
     setSelectedChannelIds(updated);
     try {
       await updateAlert(alertId, { notification_channels: updated });
+      addToast('Notification channels updated');
     } catch {
-      // Revert on failure
       setSelectedChannelIds(selectedChannelIds);
+      addToast('Failed to update channels', 'error');
     }
   };
 

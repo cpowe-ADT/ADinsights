@@ -8,10 +8,20 @@ import type { AlertRule } from '../../lib/phase2Api';
 
 const phase2ApiMock = vi.hoisted(() => ({
   getAlert: vi.fn(),
+  deleteAlert: vi.fn(),
+  updateAlert: vi.fn(),
+  listNotificationChannels: vi.fn(),
 }));
 
 vi.mock('../../lib/phase2Api', () => ({
   getAlert: phase2ApiMock.getAlert,
+  deleteAlert: phase2ApiMock.deleteAlert,
+  updateAlert: phase2ApiMock.updateAlert,
+  listNotificationChannels: phase2ApiMock.listNotificationChannels,
+}));
+
+vi.mock('../../stores/useToastStore', () => ({
+  useToastStore: () => vi.fn(),
 }));
 
 const sampleAlert: AlertRule = {
@@ -23,6 +33,7 @@ const sampleAlert: AlertRule = {
   lookback_hours: 24,
   severity: 'warning',
   is_active: true,
+  notification_channels: [],
   created_at: '2026-04-01T10:00:00Z',
   updated_at: '2026-04-05T14:30:00Z',
 };
@@ -41,6 +52,9 @@ describe('AlertDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     phase2ApiMock.getAlert.mockResolvedValue(sampleAlert);
+    phase2ApiMock.listNotificationChannels.mockResolvedValue([]);
+    phase2ApiMock.updateAlert.mockResolvedValue(sampleAlert);
+    phase2ApiMock.deleteAlert.mockResolvedValue(undefined);
   });
 
   it('renders alert rule details after loading', async () => {

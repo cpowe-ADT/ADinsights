@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -75,11 +76,15 @@ describe('SummaryDetailPage', () => {
   });
 
   it('has raw payload section with JSON content', async () => {
+    const user = userEvent.setup();
     renderPage();
 
     await screen.findByRole('heading', { name: 'Weekly Digest: April 1-7' });
 
-    expect(screen.getByText('Payload snapshot')).toBeInTheDocument();
+    expect(screen.getByText(/Raw payload/)).toBeInTheDocument();
+
+    // Payload is collapsed by default — click to expand
+    await user.click(screen.getByRole('button', { name: /Raw payload/ }));
 
     const preElement = document.querySelector('.phase2-json');
     expect(preElement).not.toBeNull();
