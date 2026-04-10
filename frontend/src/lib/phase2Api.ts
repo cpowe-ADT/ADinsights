@@ -305,6 +305,13 @@ export async function listReportExports(
   return Array.isArray(data) ? data : data.results;
 }
 
+export async function updateReport(
+  reportId: string,
+  payload: Partial<Pick<ReportDefinition, 'name' | 'description' | 'is_active' | 'filters' | 'layout'>>,
+): Promise<ReportDefinition> {
+  return apiClient.patch<ReportDefinition>(`/reports/${reportId}/`, payload);
+}
+
 export async function createReportExport(
   reportId: string,
   exportFormat: 'csv' | 'pdf' | 'png',
