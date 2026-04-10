@@ -3165,6 +3165,15 @@ class AirbyteConnectionViewSet(viewsets.ModelViewSet):
 
         return Response({"connections": connections})
 
+    @action(detail=True, methods=["post"], url_path="trigger-sync")
+    def trigger_sync(self, request, pk=None):
+        connection = self.get_object()
+        # Stub: real Airbyte API integration would go here
+        return Response(
+            {"status": "triggered", "connection_id": str(connection.connection_id)},
+            status=status.HTTP_501_NOT_IMPLEMENTED,
+        )
+
     @action(detail=True, methods=["post"], url_path="sync")
     def sync(self, request, pk=None):  # noqa: ANN001 - signature enforced by DRF
         connection = self.get_object()
