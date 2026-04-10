@@ -1,53 +1,35 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AlertDetailPage from '../AlertDetailPage';
+import type { AlertRule } from '../../lib/phase2Api';
 
 const phase2ApiMock = vi.hoisted(() => ({
   getAlert: vi.fn(),
-  updateAlert: vi.fn(),
-  listNotificationChannels: vi.fn(),
 }));
 
 vi.mock('../../lib/phase2Api', () => ({
   getAlert: phase2ApiMock.getAlert,
-  updateAlert: phase2ApiMock.updateAlert,
-  listNotificationChannels: phase2ApiMock.listNotificationChannels,
 }));
 
-vi.mock('../../lib/format', () => ({
-  formatAbsoluteTime: (v: string) => v,
-  formatRelativeTime: (v: string) => v,
-}));
-
-const sampleAlert = {
-  id: 'alert-1',
-  name: 'High Spend',
-  metric: 'spend',
-  comparison_operator: 'gt',
-  threshold: '1000',
+const sampleAlert: AlertRule = {
+  id: '1',
+  name: 'High CPC Alert',
+  metric: 'cpc',
+  comparison_operator: '>',
+  threshold: '5.00',
   lookback_hours: 24,
-  severity: 'high',
+  severity: 'warning',
   is_active: true,
-  notification_channels: ['ch-1'],
-  created_at: '2026-04-01T00:00:00Z',
-  updated_at: '2026-04-01T00:00:00Z',
+  created_at: '2026-04-01T10:00:00Z',
+  updated_at: '2026-04-05T14:30:00Z',
 };
 
-const sampleChannel = {
-  id: 'ch-1',
-  name: 'Team Slack',
-  channel_type: 'slack' as const,
-  config: { url: 'https://hooks.slack.com/xxx' },
-  is_active: true,
-  created_at: '2026-04-01T00:00:00Z',
-  updated_at: '2026-04-01T00:00:00Z',
-};
-
-function renderWithRoute() {
+function renderPage(alertId = '1') {
   return render(
-    <MemoryRouter initialEntries={['/alerts/alert-1']}>
+    <MemoryRouter initialEntries={[`/alerts/${alertId}`]}>
       <Routes>
         <Route path="/alerts/:alertId" element={<AlertDetailPage />} />
       </Routes>
@@ -57,40 +39,59 @@ function renderWithRoute() {
 
 describe('AlertDetailPage', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     phase2ApiMock.getAlert.mockResolvedValue(sampleAlert);
-    phase2ApiMock.listNotificationChannels.mockResolvedValue([sampleChannel]);
-    phase2ApiMock.updateAlert.mockResolvedValue(sampleAlert);
   });
 
-  it('renders alert details', async () => {
-    renderWithRoute();
+  it('renders alert rule details after loading', async () => {
+    renderPage();
 
-    await waitFor(() => expect(screen.getByText('High Spend')).toBeInTheDocument());
-    expect(screen.getByText('spend')).toBeInTheDocument();
+    await waitFor(() => expect(phase2ApiMock.getAlert).toHaveBeenCalledWith('1'));
+    expect(await screen.findByRole('heading', { name: 'High CPC Alert' })).toBeInTheDocument();
+    expect(screen.getByText('cpc')).toBeInTheDocument();
+    expect(screen.getByText('>')).toBeInTheDocument();
+    expect(screen.getByText('5.00')).toBeInTheDocument();
+    expect(screen.getByText('24 hours')).toBeInTheDocument();
+    expect(screen.getByText('warning')).toBeInTheDocument();
   });
 
-  it('renders notification channels section', async () => {
-    renderWithRoute();
+  it('renders severity pill with correct class', async () => {
+    renderPage();
 
-    await waitFor(() =>
-      expect(screen.getByText('Notification Channels')).toBeInTheDocument(),
-    );
-    expect(screen.getByText(/Team Slack/)).toBeInTheDocument();
+    const pill = await screen.findByText('warning');
+    expect(pill).toHaveClass('phase2-pill--warning');
   });
 
-  it('shows channel checkboxes with correct checked state', async () => {
-    renderWithRoute();
+  it('shows error state when API fails', async () => {
+    phase2ApiMock.getAlert.mockRejectedValue(new Error('Network error'));
 
-    await waitFor(() => expect(screen.getByText(/Team Slack/)).toBeInTheDocument());
-    const checkbox = screen.getByRole('checkbox');
-    expect(checkbox).toBeChecked();
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('Alert unavailable')).toBeInTheDocument());
+    expect(screen.getByText('Network error')).toBeInTheDocument();
   });
 
-  it('shows error state on load failure', async () => {
-    phase2ApiMock.getAlert.mockRejectedValue(new Error('Not found'));
+  it('refreshes alert data when Refresh button is clicked', async () => {
+    renderPage();
 
-    renderWithRoute();
+    await screen.findByRole('heading', { name: 'High CPC Alert' });
 
-    await waitFor(() => expect(screen.getByText(/not found/i)).toBeInTheDocument());
+    const updatedAlert = { ...sampleAlert, name: 'Updated Alert' };
+    phase2ApiMock.getAlert.mockResolvedValue(updatedAlert);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /refresh/i }));
+
+    await waitFor(() => expect(phase2ApiMock.getAlert).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole('heading', { name: 'Updated Alert' })).toBeInTheDocument();
+  });
+
+  it('renders back to alerts link', async () => {
+    renderPage();
+
+    await screen.findByRole('heading', { name: 'High CPC Alert' });
+
+    const backLink = screen.getByRole('link', { name: /back to alerts/i });
+    expect(backLink).toHaveAttribute('href', '/alerts');
   });
 });

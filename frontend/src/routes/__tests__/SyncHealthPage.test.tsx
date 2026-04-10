@@ -1,135 +1,161 @@
-import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import SyncHealthPage from '../SyncHealthPage';
 import type { SyncHealthResponse } from '../../lib/phase2Api';
 
-const MOCK_RESPONSE: SyncHealthResponse = {
-  generated_at: new Date().toISOString(),
+const phase2ApiMock = vi.hoisted(() => ({
+  fetchSyncHealth: vi.fn(),
+}));
+
+vi.mock('../../lib/phase2Api', () => ({
+  fetchSyncHealth: phase2ApiMock.fetchSyncHealth,
+}));
+
+const sampleResponse: SyncHealthResponse = {
+  generated_at: '2026-04-08T12:00:00Z',
   stale_after_minutes: 60,
-  counts: { total: 3, fresh: 1, stale: 1, failed: 1, missing: 0, inactive: 0 },
+  counts: {
+    total: 5,
+    fresh: 2,
+    stale: 2,
+    failed: 1,
+    missing: 0,
+    inactive: 0,
+  },
   rows: [
     {
       id: 'conn-1',
-      name: 'Meta Ads',
-      provider: 'meta',
+      name: 'Meta Ads Sync',
+      provider: 'Meta',
       schedule_type: 'cron',
       is_active: true,
       state: 'fresh',
-      last_synced_at: new Date().toISOString(),
+      last_synced_at: '2026-04-08T11:50:00Z',
       last_job_status: 'succeeded',
       last_job_error: null,
     },
     {
       id: 'conn-2',
-      name: 'Google Ads',
-      provider: 'google',
+      name: 'Google Ads Sync',
+      provider: 'Google',
       schedule_type: 'cron',
       is_active: true,
       state: 'stale',
-      last_synced_at: new Date(Date.now() - 7200000).toISOString(),
+      last_synced_at: '2026-04-07T08:00:00Z',
       last_job_status: 'succeeded',
       last_job_error: null,
     },
     {
       id: 'conn-3',
-      name: 'LinkedIn Ads',
-      provider: 'linkedin',
+      name: 'LinkedIn Ads Sync',
+      provider: 'LinkedIn',
       schedule_type: 'manual',
       is_active: true,
       state: 'failed',
-      last_synced_at: null,
+      last_synced_at: '2026-04-06T10:00:00Z',
       last_job_status: 'failed',
-      last_job_error: 'Timeout',
+      last_job_error: 'Connection timeout',
     },
   ],
 };
 
-const mockFetchSyncHealth = vi.fn<() => Promise<SyncHealthResponse>>();
-const mockTriggerSync = vi.fn<() => Promise<{ status: string; connection_id: string }>>();
-
-vi.mock('../../lib/phase2Api', () => ({
-  fetchSyncHealth: (...args: unknown[]) => mockFetchSyncHealth(...(args as [])),
-  triggerSync: (...args: unknown[]) => mockTriggerSync(...(args as [])),
-}));
-
-// Lazy import so the mock is in place before the module loads
-const loadComponent = async () => {
-  const mod = await import('../SyncHealthPage');
-  return mod.default;
-};
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <SyncHealthPage />
+    </MemoryRouter>,
+  );
+}
 
 describe('SyncHealthPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetchSyncHealth.mockResolvedValue(structuredClone(MOCK_RESPONSE));
-    mockTriggerSync.mockResolvedValue({ status: 'triggered', connection_id: 'conn-1' });
+    phase2ApiMock.fetchSyncHealth.mockResolvedValue(sampleResponse);
   });
 
-  it('renders state filter buttons', async () => {
-    const SyncHealthPage = await loadComponent();
-    render(<SyncHealthPage />);
+  it('renders state filter bar with counts', async () => {
+    renderPage();
 
-    // Wait for data to load
-    const filterGroup = await screen.findByRole('group', { name: /State filter/ });
-    expect(filterGroup).toBeInTheDocument();
+    await waitFor(() => expect(phase2ApiMock.fetchSyncHealth).toHaveBeenCalled());
 
-    const buttons = within(filterGroup).getAllByRole('button');
-    const labels = buttons.map((b) => b.textContent);
-    expect(labels).toContain('All');
-    expect(labels.some((l) => l?.startsWith('Fresh'))).toBe(true);
-    expect(labels.some((l) => l?.startsWith('Stale'))).toBe(true);
-    expect(labels.some((l) => l?.startsWith('Failed'))).toBe(true);
-    expect(labels.some((l) => l?.startsWith('Missing'))).toBe(true);
-    expect(labels.some((l) => l?.startsWith('Inactive'))).toBe(true);
+    expect(await screen.findByText('5')).toBeInTheDocument();
+
+    const statValues = document.querySelectorAll('.phase2-stat__value');
+    const values = Array.from(statValues).map((el) => el.textContent);
+    expect(values).toEqual(['5', '2', '2', '1']);
+
+    expect(screen.getByText('Total connections')).toBeInTheDocument();
+    expect(screen.getByText('Fresh')).toBeInTheDocument();
+    expect(screen.getByText('Stale')).toBeInTheDocument();
+    expect(screen.getByText('Failed')).toBeInTheDocument();
   });
 
-  it('filtering by state shows correct rows', async () => {
-    const user = userEvent.setup();
-    const SyncHealthPage = await loadComponent();
-    render(<SyncHealthPage />);
+  it('renders rows in table with correct data', async () => {
+    renderPage();
 
-    // Wait for initial load
-    expect(await screen.findByText('Meta Ads')).toBeInTheDocument();
-    expect(screen.getByText('Google Ads')).toBeInTheDocument();
-    expect(screen.getByText('LinkedIn Ads')).toBeInTheDocument();
+    await waitFor(() => expect(phase2ApiMock.fetchSyncHealth).toHaveBeenCalled());
 
-    // Click Stale filter within the filter toolbar
-    const filterGroup = screen.getByRole('group', { name: /State filter/ });
-    const staleButton = within(filterGroup).getByRole('button', { name: /Stale/ });
-    await user.click(staleButton);
-
-    // Only stale row should be visible
-    expect(screen.getByText('Google Ads')).toBeInTheDocument();
-    expect(screen.queryByText('Meta Ads')).not.toBeInTheDocument();
-    expect(screen.queryByText('LinkedIn Ads')).not.toBeInTheDocument();
+    expect(await screen.findByText('Meta Ads Sync')).toBeInTheDocument();
+    expect(screen.getByText('Google Ads Sync')).toBeInTheDocument();
+    expect(screen.getByText('LinkedIn Ads Sync')).toBeInTheDocument();
+    expect(screen.getByText('Meta')).toBeInTheDocument();
+    expect(screen.getByText('Google')).toBeInTheDocument();
+    expect(screen.getByText('LinkedIn')).toBeInTheDocument();
   });
 
-  it('trigger re-sync button appears per row', async () => {
-    const SyncHealthPage = await loadComponent();
-    render(<SyncHealthPage />);
+  it('renders state pills with correct classes', async () => {
+    renderPage();
 
-    // Wait for data to load
-    expect(await screen.findByText('Meta Ads')).toBeInTheDocument();
+    const freshPill = await screen.findByText('fresh');
+    expect(freshPill).toHaveClass('phase2-pill--fresh');
 
-    const resyncButtons = screen.getAllByRole('button', { name: 'Re-sync' });
-    expect(resyncButtons).toHaveLength(3);
+    const stalePill = screen.getByText('stale');
+    expect(stalePill).toHaveClass('phase2-pill--stale');
+
+    const pills = document.querySelectorAll('.phase2-pill--failed');
+    expect(pills.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('refresh button reloads data', async () => {
-    const user = userEvent.setup();
-    const SyncHealthPage = await loadComponent();
-    render(<SyncHealthPage />);
+  it('shows last refreshed timestamp', async () => {
+    renderPage();
 
-    // Wait for initial load
-    expect(await screen.findByText('Meta Ads')).toBeInTheDocument();
-    expect(mockFetchSyncHealth).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(phase2ApiMock.fetchSyncHealth).toHaveBeenCalled());
 
-    // Click the Refresh button
-    const refreshButton = screen.getByRole('button', { name: 'Refresh' });
-    await user.click(refreshButton);
+    await waitFor(() => {
+      const noteElement = document.querySelector('.phase2-note');
+      expect(noteElement).not.toBeNull();
+      expect(noteElement!.textContent).toContain('Updated');
+    });
+  });
 
-    // fetchSyncHealth should have been called again
-    expect(mockFetchSyncHealth).toHaveBeenCalledTimes(2);
+  it('shows empty state when no sync connections exist', async () => {
+    phase2ApiMock.fetchSyncHealth.mockResolvedValue({
+      ...sampleResponse,
+      counts: { total: 0, fresh: 0, stale: 0, failed: 0, missing: 0, inactive: 0 },
+      rows: [],
+    });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('No sync connections')).toBeInTheDocument());
+  });
+
+  it('shows error state when API fails', async () => {
+    phase2ApiMock.fetchSyncHealth.mockRejectedValue(new Error('Server error'));
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('Sync health unavailable')).toBeInTheDocument());
+    expect(screen.getByText('Server error')).toBeInTheDocument();
+  });
+
+  it('displays job error messages when present', async () => {
+    renderPage();
+
+    await waitFor(() => expect(phase2ApiMock.fetchSyncHealth).toHaveBeenCalled());
+
+    expect(await screen.findByText('Connection timeout')).toBeInTheDocument();
   });
 });
