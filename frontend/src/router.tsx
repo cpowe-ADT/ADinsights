@@ -6,6 +6,7 @@ import ErrorPage from './pages/ErrorPage';
 import Home from './pages/Home';
 import InviteAcceptPage from './routes/InviteAcceptPage';
 import LoginPage from './routes/LoginPage';
+import NotFoundPage from './routes/NotFoundPage';
 import PasswordResetPage from './routes/PasswordResetPage';
 import ProtectedRoute from './routes/ProtectedRoute';
 import {
@@ -385,7 +386,7 @@ export const router = createBrowserRouter(
     },
     {
       path: '*',
-      element: <Navigate to="/" replace />,
+      element: <NotFoundPage />,
     },
   ],
   {
