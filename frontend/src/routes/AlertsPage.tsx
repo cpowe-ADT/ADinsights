@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import DashboardState from '../components/DashboardState';
 import { listAlerts, type AlertRule } from '../lib/phase2Api';
+import { canAccessCreatorUi } from '../lib/rbac';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import { canAccessCreatorUi } from '../lib/rbac';
 import '../styles/phase2.css';
@@ -86,6 +87,7 @@ const AlertsPage = () => {
               <th>Metric</th>
               <th>Rule</th>
               <th>Severity</th>
+              <th>Active</th>
               <th>Updated</th>
               <th></th>
             </tr>
@@ -101,6 +103,13 @@ const AlertsPage = () => {
                 <td>
                   <span className={`phase2-pill phase2-pill--${alert.severity}`}>
                     {alert.severity}
+                  </span>
+                </td>
+                <td>
+                  <span
+                    className={`phase2-pill phase2-pill--${alert.is_active ? 'fresh' : 'inactive'}`}
+                  >
+                    {alert.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </td>
                 <td>

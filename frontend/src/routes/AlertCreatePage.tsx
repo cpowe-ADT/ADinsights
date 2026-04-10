@@ -1,36 +1,54 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { createAlert } from '../lib/phase2Api';
+import { useAuth } from '../auth/AuthContext';
+import DashboardState from '../components/DashboardState';
+import {
+  createAlert,
+  listNotificationChannels,
+  type NotificationChannel,
+} from '../lib/phase2Api';
+import { canAccessCreatorUi } from '../lib/rbac';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 
-const METRIC_OPTIONS = [
-  'spend',
-  'impressions',
-  'clicks',
-  'conversions',
-  'roas',
-  'ctr',
-  'cpc',
-  'cpm',
-  'cpa',
-] as const;
-
-const OPERATOR_OPTIONS = ['>', '<', '>=', '<=', '=='] as const;
-
-const SEVERITY_OPTIONS = ['info', 'warning', 'critical'] as const;
-
 const AlertCreatePage = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const canCreate = canAccessCreatorUi(user);
+
   const [name, setName] = useState('');
-  const [metric, setMetric] = useState<string>(METRIC_OPTIONS[0]);
-  const [comparisonOperator, setComparisonOperator] = useState<string>(OPERATOR_OPTIONS[0]);
+  const [metric, setMetric] = useState('');
+  const [operator, setOperator] = useState('gt');
   const [threshold, setThreshold] = useState('');
   const [lookbackHours, setLookbackHours] = useState('24');
-  const [severity, setSeverity] = useState<string>(SEVERITY_OPTIONS[0]);
+  const [severity, setSeverity] = useState('warning');
+  const [channels, setChannels] = useState<NotificationChannel[]>([]);
+  const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listNotificationChannels()
+      .then((data) => {
+        if (!cancelled) {
+          setChannels(data);
+        }
+      })
+      .catch(() => {
+        /* channels are optional — swallow errors */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggleChannel = (channelId: string) => {
+    setSelectedChannelIds((prev) =>
+      prev.includes(channelId) ? prev.filter((id) => id !== channelId) : [...prev, channelId],
+    );
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -38,29 +56,28 @@ const AlertCreatePage = () => {
       setError('Alert name is required.');
       return;
     }
-    const thresholdNum = Number(threshold);
-    if (!Number.isFinite(thresholdNum) || thresholdNum < 0) {
-      setError('Threshold must be a positive number.');
+    if (!metric.trim()) {
+      setError('Metric is required.');
       return;
     }
-    const lookbackNum = Number(lookbackHours);
-    if (!Number.isInteger(lookbackNum) || lookbackNum <= 0) {
-      setError('Lookback hours must be a positive integer.');
+    if (!threshold.trim() || Number.isNaN(Number(threshold))) {
+      setError('A valid numeric threshold is required.');
       return;
     }
 
     setSaving(true);
     setError(null);
     try {
-      await createAlert({
+      const created = await createAlert({
         name: name.trim(),
-        metric,
-        comparison_operator: comparisonOperator,
-        threshold: String(thresholdNum),
-        lookback_hours: lookbackNum,
+        metric: metric.trim(),
+        comparison_operator: operator,
+        threshold: threshold.trim(),
+        lookback_hours: Number(lookbackHours),
         severity,
+        notification_channels: selectedChannelIds.length > 0 ? selectedChannelIds : undefined,
       });
-      navigate('/alerts');
+      navigate(`/alerts/${created.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create alert.');
     } finally {
@@ -68,16 +85,27 @@ const AlertCreatePage = () => {
     }
   };
 
+  if (!canCreate) {
+    return (
+      <DashboardState
+        variant="empty"
+        layout="page"
+        title="Read-only alert access"
+        message="Viewer access can review alerts, but cannot create new alert rules."
+        actionLabel="Back to alerts"
+        onAction={() => navigate('/alerts')}
+      />
+    );
+  }
+
   return (
     <section className="phase2-page">
-      <header className="phase2-page__header">
-        <div>
-          <p className="dashboardEyebrow">Alerts</p>
-          <h1 className="dashboardHeading">Create Alert Rule</h1>
-          <p className="phase2-page__subhead">
-            Define a threshold-based alert rule for automated monitoring.
-          </p>
-        </div>
+      <header>
+        <p className="dashboardEyebrow">Alerts</p>
+        <h1 className="dashboardHeading">Create Alert Rule</h1>
+        <p className="phase2-page__subhead">
+          Define a threshold rule to trigger alert notifications.
+        </p>
       </header>
 
       <form className="phase2-form" onSubmit={submit}>
@@ -87,40 +115,35 @@ const AlertCreatePage = () => {
             id="alert-name"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="High spend alert"
+            placeholder="High CPC alert"
             disabled={saving}
           />
         </label>
 
         <label className="phase2-form__field" htmlFor="alert-metric">
           <span>Metric</span>
-          <select
+          <input
             id="alert-metric"
             value={metric}
             onChange={(event) => setMetric(event.target.value)}
+            placeholder="cpc"
             disabled={saving}
-          >
-            {METRIC_OPTIONS.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
+          />
         </label>
 
         <label className="phase2-form__field" htmlFor="alert-operator">
-          <span>Comparison operator</span>
+          <span>Operator</span>
           <select
             id="alert-operator"
-            value={comparisonOperator}
-            onChange={(event) => setComparisonOperator(event.target.value)}
+            value={operator}
+            onChange={(event) => setOperator(event.target.value)}
             disabled={saving}
           >
-            {OPERATOR_OPTIONS.map((op) => (
-              <option key={op} value={op}>
-                {op}
-              </option>
-            ))}
+            <option value="gt">Greater than</option>
+            <option value="gte">Greater than or equal</option>
+            <option value="lt">Less than</option>
+            <option value="lte">Less than or equal</option>
+            <option value="eq">Equal to</option>
           </select>
         </label>
 
@@ -129,25 +152,22 @@ const AlertCreatePage = () => {
           <input
             id="alert-threshold"
             type="number"
+            step="any"
             value={threshold}
             onChange={(event) => setThreshold(event.target.value)}
-            placeholder="100"
-            min="0"
-            step="any"
+            placeholder="5.00"
             disabled={saving}
           />
         </label>
 
         <label className="phase2-form__field" htmlFor="alert-lookback">
-          <span>Lookback hours</span>
+          <span>Lookback (hours)</span>
           <input
             id="alert-lookback"
             type="number"
+            min="1"
             value={lookbackHours}
             onChange={(event) => setLookbackHours(event.target.value)}
-            placeholder="24"
-            min="1"
-            step="1"
             disabled={saving}
           />
         </label>
@@ -160,20 +180,42 @@ const AlertCreatePage = () => {
             onChange={(event) => setSeverity(event.target.value)}
             disabled={saving}
           >
-            {SEVERITY_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
+            <option value="info">Info</option>
+            <option value="warning">Warning</option>
+            <option value="critical">Critical</option>
           </select>
         </label>
+
+        <fieldset className="phase2-form__field">
+          <legend>Notification Channels</legend>
+          {channels.length === 0 ? (
+            <p className="phase2-note">
+              No notification channels configured.{' '}
+              <Link to="/settings/notifications">Create one</Link> to receive alert notifications.
+            </p>
+          ) : (
+            channels.map((channel) => (
+              <label key={channel.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <input
+                  type="checkbox"
+                  checked={selectedChannelIds.includes(channel.id)}
+                  onChange={() => toggleChannel(channel.id)}
+                  disabled={saving}
+                />
+                <span>
+                  {channel.name} ({channel.channel_type})
+                </span>
+              </label>
+            ))
+          )}
+        </fieldset>
 
         {error ? <p className="status-message error">{error}</p> : null}
 
         <div className="phase2-row-actions">
-          <Link to="/alerts" className="button tertiary">
+          <button type="button" className="button tertiary" onClick={() => navigate('/alerts')}>
             Cancel
-          </Link>
+          </button>
           <button type="submit" className="button primary" disabled={saving}>
             {saving ? 'Creating...' : 'Create alert'}
           </button>

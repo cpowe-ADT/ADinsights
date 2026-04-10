@@ -98,6 +98,13 @@ export type AlertRule = {
   updated_at: string;
 };
 
+export type NotificationChannel = {
+  id: string;
+  name: string;
+  channel_type: string;
+  is_active: boolean;
+};
+
 export type AISummary = {
   id: string;
   title: string;
@@ -373,6 +380,10 @@ export async function listAlertRuns(
 ): Promise<PaginatedResponse<AlertRun>> {
   const path = appendQueryParams('/alerts/runs/', params);
   return apiClient.get<PaginatedResponse<AlertRun>>(path, { signal });
+}
+
+export async function deleteAlert(alertId: string): Promise<void> {
+  await apiClient.delete(`/alerts/${alertId}/`);
 }
 
 export async function listSummaries(signal?: AbortSignal): Promise<AISummary[]> {

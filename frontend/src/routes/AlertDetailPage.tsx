@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
 import {
+  deleteAlert,
   getAlert,
   updateAlert,
   listNotificationChannels,
@@ -15,11 +16,13 @@ import '../styles/dashboard.css';
 
 const AlertDetailPage = () => {
   const { alertId } = useParams<{ alertId: string }>();
+  const navigate = useNavigate();
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [alert, setAlert] = useState<AlertRule | null>(null);
   const [error, setError] = useState('Unable to load alert.');
   const [channels, setChannels] = useState<NotificationChannel[]>([]);
   const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     if (!alertId) {
@@ -93,6 +96,26 @@ const AlertDetailPage = () => {
           </Link>
           <button type="button" className="button secondary" onClick={() => void load()}>
             Refresh
+          </button>
+          <button
+            type="button"
+            className="button tertiary"
+            style={{ color: 'var(--color-danger, #dc2626)' }}
+            disabled={deleting}
+            onClick={() => {
+              if (!alertId) return;
+              if (!window.confirm('Delete this alert rule?')) return;
+              setDeleting(true);
+              deleteAlert(alertId)
+                .then(() => navigate('/alerts'))
+                .catch((err) => {
+                  setDeleting(false);
+                  setError(err instanceof Error ? err.message : 'Unable to delete alert.');
+                  setState('error');
+                });
+            }}
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
           </button>
         </div>
       </header>
