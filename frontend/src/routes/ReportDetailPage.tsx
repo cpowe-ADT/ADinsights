@@ -6,6 +6,8 @@ import {
   createReportExport,
   getReport,
   listReportExports,
+  toggleReportSchedule,
+  updateReportSchedule,
   type ReportDefinition,
   type ReportExportJob,
 } from '../lib/phase2Api';
@@ -22,6 +24,9 @@ const ReportDetailPage = () => {
   const [exports, setExports] = useState<ReportExportJob[]>([]);
   const [error, setError] = useState<string>('Unable to load report.');
   const [creatingFormat, setCreatingFormat] = useState<string | null>(null);
+  const [scheduleCron, setScheduleCron] = useState('');
+  const [scheduleEmails, setScheduleEmails] = useState('');
+  const [savingSchedule, setSavingSchedule] = useState(false);
 
   const load = useCallback(async () => {
     if (!reportId) {
@@ -64,6 +69,39 @@ const ReportDetailPage = () => {
     },
     [load, reportId],
   );
+
+  useEffect(() => {
+    if (report) {
+      setScheduleCron(report.schedule_cron);
+      setScheduleEmails(report.delivery_emails.join(', '));
+    }
+  }, [report]);
+
+  const handleToggleSchedule = useCallback(
+    async (enabled: boolean) => {
+      if (!reportId) return;
+      await toggleReportSchedule(reportId, enabled);
+      await load();
+    },
+    [load, reportId],
+  );
+
+  const handleSaveSchedule = useCallback(async () => {
+    if (!reportId) return;
+    setSavingSchedule(true);
+    try {
+      await updateReportSchedule(reportId, {
+        schedule_cron: scheduleCron,
+        delivery_emails: scheduleEmails
+          .split(',')
+          .map((e) => e.trim())
+          .filter(Boolean),
+      });
+      await load();
+    } finally {
+      setSavingSchedule(false);
+    }
+  }, [load, reportId, scheduleCron, scheduleEmails]);
 
   if (state === 'loading') {
     return <DashboardState variant="loading" layout="page" message="Loading report…" />;
@@ -118,6 +156,57 @@ const ReportDetailPage = () => {
             </button>
           ))}
         </div>
+      </article>
+
+      <article className="phase2-card">
+        <h3>Scheduled delivery</h3>
+        <p className="phase2-note">Configure automated report delivery via email.</p>
+        <div className="phase2-row-actions" style={{ alignItems: 'center' }}>
+          <label>
+            <input
+              type="checkbox"
+              checked={report.schedule_enabled}
+              onChange={(e) => void handleToggleSchedule(e.target.checked)}
+            />{' '}
+            Enable schedule
+          </label>
+        </div>
+        {report.schedule_enabled && (
+          <div className="phase2-form">
+            <label className="phase2-form__field">
+              <span>Cron expression</span>
+              <input
+                type="text"
+                value={scheduleCron}
+                onChange={(e) => setScheduleCron(e.target.value)}
+                placeholder="0 8 * * 1"
+              />
+              <span className="phase2-note">e.g. &quot;0 8 * * 1&quot; = 8 AM every Monday</span>
+            </label>
+            <label className="phase2-form__field">
+              <span>Delivery emails (comma-separated)</span>
+              <input
+                type="text"
+                value={scheduleEmails}
+                onChange={(e) => setScheduleEmails(e.target.value)}
+                placeholder="team@example.com, boss@example.com"
+              />
+            </label>
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => void handleSaveSchedule()}
+              disabled={savingSchedule}
+            >
+              {savingSchedule ? 'Saving\u2026' : 'Save schedule'}
+            </button>
+          </div>
+        )}
+        {report.last_scheduled_at && (
+          <p className="phase2-note">
+            Last scheduled: {formatRelativeTime(report.last_scheduled_at)} ({formatAbsoluteTime(report.last_scheduled_at)})
+          </p>
+        )}
       </article>
 
       {exports.length === 0 ? (
