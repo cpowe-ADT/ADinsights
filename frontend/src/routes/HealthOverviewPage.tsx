@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import DashboardState from '../components/DashboardState';
 import { fetchHealthOverview, type HealthOverviewResponse } from '../lib/phase2Api';
@@ -6,25 +6,49 @@ import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 
+const AUTO_REFRESH_MS = 30_000;
+
 const HealthOverviewPage = () => {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [payload, setPayload] = useState<HealthOverviewResponse | null>(null);
   const [error, setError] = useState<string>('Unable to load health overview.');
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [autoRefreshing, setAutoRefreshing] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const load = useCallback(async () => {
-    setState('loading');
+  const load = useCallback(async (isAutoRefresh = false) => {
+    if (!isAutoRefresh) {
+      setState('loading');
+    }
+    if (isAutoRefresh) {
+      setAutoRefreshing(true);
+    }
     try {
       const data = await fetchHealthOverview();
       setPayload(data);
       setState('ready');
+      setLastRefresh(new Date());
     } catch (err) {
-      setState('error');
+      if (!isAutoRefresh) {
+        setState('error');
+      }
       setError(err instanceof Error ? err.message : 'Unable to load health overview.');
+    } finally {
+      setAutoRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    void load();
+    void load(false);
+  }, [load]);
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      void load(true);
+    }, AUTO_REFRESH_MS);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [load]);
 
   if (state === 'loading') {
@@ -60,7 +84,12 @@ const HealthOverviewPage = () => {
         </div>
         <div className="phase2-row-actions">
           <span className={`phase2-pill phase2-pill--${overallStatus}`}>{overallStatus}</span>
-          <button type="button" className="button secondary" onClick={() => void load()}>
+          {autoRefreshing && (
+            <span className="phase2-note" style={{ fontSize: '0.8rem', opacity: 0.7 }}>
+              Refreshing...
+            </span>
+          )}
+          <button type="button" className="button secondary" onClick={() => void load(false)}>
             Refresh
           </button>
         </div>
@@ -69,6 +98,12 @@ const HealthOverviewPage = () => {
       {generatedAt ? (
         <p className="phase2-note">
           Updated {formatRelativeTime(generatedAt)} ({formatAbsoluteTime(generatedAt)})
+        </p>
+      ) : null}
+
+      {lastRefresh ? (
+        <p className="phase2-note" data-testid="last-refresh">
+          Last refreshed at {lastRefresh.toLocaleTimeString()} (auto-refresh every 30s)
         </p>
       ) : null}
 

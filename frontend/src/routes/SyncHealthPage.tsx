@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
 import { fetchSyncHealth, type SyncHealthResponse } from '../lib/phase2Api';
@@ -117,7 +118,9 @@ const SyncHealthPage = () => {
           <tbody>
             {rows.map((row) => (
               <tr key={row.id}>
-                <td>{row.name}</td>
+                <td>
+                  <Link to={`/ops/sync-health/${row.id}`}>{row.name}</Link>
+                </td>
                 <td>{row.provider ?? 'Unknown'}</td>
                 <td>
                   <span className={stateClass(row.state)}>{row.state}</span>
