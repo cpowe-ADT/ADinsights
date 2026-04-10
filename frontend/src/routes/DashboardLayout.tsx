@@ -466,6 +466,7 @@ const DashboardLayout = () => {
       links: [
         { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
         { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
+        { label: 'Meta campaigns', to: '/dashboards/meta/campaigns', end: false },
         { label: 'Facebook pages', to: '/dashboards/meta/pages', end: false },
         { label: 'GA4', to: '/dashboards/web/ga4', end: false },
         { label: 'Search Console', to: '/dashboards/web/search-console', end: false },
@@ -494,6 +495,7 @@ const DashboardLayout = () => {
         { label: 'Sync Health', to: '/ops/sync-health', end: false },
         { label: 'Health Overview', to: '/ops/health', end: false },
         { label: 'Audit Log', to: '/ops/audit', end: false },
+        { label: 'Meta status', to: '/dashboards/meta/status', end: false },
         { label: 'Notifications', to: '/settings/notifications', end: false },
         { label: 'My Profile', to: '/me', end: false },
       ],
