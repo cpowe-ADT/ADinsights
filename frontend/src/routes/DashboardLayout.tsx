@@ -493,6 +493,7 @@ const DashboardLayout = () => {
         { label: 'Sync Health', to: '/ops/sync-health', end: false },
         { label: 'Health Overview', to: '/ops/health', end: false },
         { label: 'Audit Log', to: '/ops/audit', end: false },
+        { label: 'Notifications', to: '/settings/notifications', end: false },
       ],
     },
   ], [canCreate]);

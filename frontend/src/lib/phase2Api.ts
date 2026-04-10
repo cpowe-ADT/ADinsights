@@ -93,6 +93,7 @@ export type AlertRule = {
   lookback_hours: number;
   severity: string;
   is_active: boolean;
+  notification_channels?: string[];
   created_at: string;
   updated_at: string;
 };
@@ -398,6 +399,47 @@ export async function getSummary(summaryId: string, signal?: AbortSignal): Promi
 
 export async function refreshSummary(): Promise<AISummary> {
   return apiClient.post<AISummary>('/summaries/refresh/', {});
+}
+
+export type NotificationChannel = {
+  id: string;
+  name: string;
+  channel_type: 'email' | 'webhook' | 'slack';
+  config: Record<string, unknown>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function listNotificationChannels(signal?: AbortSignal): Promise<NotificationChannel[]> {
+  const data = await apiClient.get<NotificationChannel[] | { results: NotificationChannel[] }>('/notification-channels/', { signal });
+  return Array.isArray(data) ? data : data.results;
+}
+
+export async function createNotificationChannel(
+  payload: Pick<NotificationChannel, 'name' | 'channel_type' | 'config'> & { is_active?: boolean },
+): Promise<NotificationChannel> {
+  return apiClient.post<NotificationChannel>('/notification-channels/', payload);
+}
+
+export async function deleteNotificationChannel(channelId: string): Promise<void> {
+  await apiClient.delete(`/notification-channels/${channelId}/`);
+}
+
+export async function createAlert(
+  payload: Pick<AlertRule, 'name' | 'metric' | 'comparison_operator' | 'threshold' | 'lookback_hours' | 'severity'> & {
+    is_active?: boolean;
+    notification_channels?: string[];
+  },
+): Promise<AlertRule> {
+  return apiClient.post<AlertRule>('/alerts/', payload);
+}
+
+export async function updateAlert(
+  alertId: string,
+  payload: Partial<Pick<AlertRule, 'name' | 'metric' | 'comparison_operator' | 'threshold' | 'lookback_hours' | 'severity' | 'is_active' | 'notification_channels'>>,
+): Promise<AlertRule> {
+  return apiClient.patch<AlertRule>(`/alerts/${alertId}/`, payload);
 }
 
 export async function listAuditLogs(

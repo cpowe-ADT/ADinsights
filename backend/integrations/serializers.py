@@ -10,6 +10,7 @@ from .models import (
     AlertRuleDefinition,
     CampaignBudget,
     MetaAccountSyncState,
+    NotificationChannel,
     PlatformCredential,
 )
 
@@ -371,6 +372,10 @@ class CampaignBudgetSerializer(serializers.ModelSerializer):
 
 
 class AlertRuleDefinitionSerializer(serializers.ModelSerializer):
+    notification_channels = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=NotificationChannel.objects.all(), required=False
+    )
+
     class Meta:
         model = AlertRuleDefinition
         fields = [
@@ -382,6 +387,7 @@ class AlertRuleDefinitionSerializer(serializers.ModelSerializer):
             "lookback_hours",
             "severity",
             "is_active",
+            "notification_channels",
             "created_at",
             "updated_at",
         ]
@@ -402,15 +408,29 @@ class AlertRuleDefinitionSerializer(serializers.ModelSerializer):
         if request is None or not hasattr(request, "user"):
             raise serializers.ValidationError("Request context is required.")
         tenant = request.user.tenant
-        return AlertRuleDefinition.objects.create(
+        channels = validated_data.pop("notification_channels", None)
+        instance = AlertRuleDefinition.objects.create(
             tenant=tenant, **validated_data
         )
+        if channels is not None:
+            instance.notification_channels.set(channels)
+        return instance
 
     def update(self, instance, validated_data):
+        channels = validated_data.pop("notification_channels", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
+        if channels is not None:
+            instance.notification_channels.set(channels)
         return instance
+
+
+class NotificationChannelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NotificationChannel
+        fields = ['id', 'name', 'channel_type', 'config', 'is_active', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 class SocialPlatformStatusSerializer(serializers.Serializer):

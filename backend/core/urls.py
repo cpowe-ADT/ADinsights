@@ -62,6 +62,7 @@ from integrations.views import (
     MetaSystemTokenView,
     MetaLogoutView,
     MetaSyncStateView,
+    NotificationChannelViewSet,
     SocialConnectionStatusView,
     MetaSyncView,
     PlatformCredentialViewSet,
@@ -150,6 +151,7 @@ router.register(
 )
 router.register(r"summaries", AISummaryViewSet, basename="ai-summary")
 router.register(r"service-accounts", ServiceAccountKeyViewSet, basename="service-account")
+router.register(r"notification-channels", NotificationChannelViewSet, basename="notification-channel")
 
 admin_router = DefaultRouter()
 admin_router.register(r"budgets", CampaignBudgetViewSet, basename="campaignbudget")

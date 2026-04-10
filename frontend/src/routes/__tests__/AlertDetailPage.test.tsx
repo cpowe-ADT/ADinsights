@@ -1,62 +1,96 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AlertDetailPage from '../AlertDetailPage';
 
 const phase2ApiMock = vi.hoisted(() => ({
   getAlert: vi.fn(),
-  listAlertRuns: vi.fn(),
+  updateAlert: vi.fn(),
+  listNotificationChannels: vi.fn(),
 }));
 
 vi.mock('../../lib/phase2Api', () => ({
   getAlert: phase2ApiMock.getAlert,
-  listAlertRuns: phase2ApiMock.listAlertRuns,
+  updateAlert: phase2ApiMock.updateAlert,
+  listNotificationChannels: phase2ApiMock.listNotificationChannels,
 }));
 
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return { ...actual, useParams: () => ({ alertId: 'alert-1' }) };
-});
+vi.mock('../../lib/format', () => ({
+  formatAbsoluteTime: (v: string) => v,
+  formatRelativeTime: (v: string) => v,
+}));
+
+const sampleAlert = {
+  id: 'alert-1',
+  name: 'High Spend',
+  metric: 'spend',
+  comparison_operator: 'gt',
+  threshold: '1000',
+  lookback_hours: 24,
+  severity: 'high',
+  is_active: true,
+  notification_channels: ['ch-1'],
+  created_at: '2026-04-01T00:00:00Z',
+  updated_at: '2026-04-01T00:00:00Z',
+};
+
+const sampleChannel = {
+  id: 'ch-1',
+  name: 'Team Slack',
+  channel_type: 'slack' as const,
+  config: { url: 'https://hooks.slack.com/xxx' },
+  is_active: true,
+  created_at: '2026-04-01T00:00:00Z',
+  updated_at: '2026-04-01T00:00:00Z',
+};
+
+function renderWithRoute() {
+  return render(
+    <MemoryRouter initialEntries={['/alerts/alert-1']}>
+      <Routes>
+        <Route path="/alerts/:alertId" element={<AlertDetailPage />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
 
 describe('AlertDetailPage', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    phase2ApiMock.listAlertRuns.mockResolvedValue({ count: 0, next: null, previous: null, results: [] });
+    phase2ApiMock.getAlert.mockResolvedValue(sampleAlert);
+    phase2ApiMock.listNotificationChannels.mockResolvedValue([sampleChannel]);
+    phase2ApiMock.updateAlert.mockResolvedValue(sampleAlert);
   });
 
-  it('renders alert detail', async () => {
-    phase2ApiMock.getAlert.mockResolvedValue({
-      id: 'alert-1',
-      name: 'High CPA Alert',
-      metric: 'cpa',
-      comparison_operator: '>',
-      threshold: 50,
-      lookback_hours: 24,
-      severity: 'warning',
-      updated_at: '2026-04-01T10:00:00Z',
-    });
+  it('renders alert details', async () => {
+    renderWithRoute();
 
-    render(
-      <MemoryRouter>
-        <AlertDetailPage />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => expect(phase2ApiMock.getAlert).toHaveBeenCalled());
-    expect(screen.getByRole('heading', { name: 'High CPA Alert' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('High Spend')).toBeInTheDocument());
+    expect(screen.getByText('spend')).toBeInTheDocument();
   });
 
-  it('shows error state', async () => {
-    phase2ApiMock.getAlert.mockRejectedValue(new Error('Network error'));
+  it('renders notification channels section', async () => {
+    renderWithRoute();
 
-    render(
-      <MemoryRouter>
-        <AlertDetailPage />
-      </MemoryRouter>,
+    await waitFor(() =>
+      expect(screen.getByText('Notification Channels')).toBeInTheDocument(),
     );
+    expect(screen.getByText(/Team Slack/)).toBeInTheDocument();
+  });
 
-    await waitFor(() => expect(phase2ApiMock.getAlert).toHaveBeenCalled());
-    expect(screen.getByText('Alert unavailable')).toBeInTheDocument();
+  it('shows channel checkboxes with correct checked state', async () => {
+    renderWithRoute();
+
+    await waitFor(() => expect(screen.getByText(/Team Slack/)).toBeInTheDocument());
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox).toBeChecked();
+  });
+
+  it('shows error state on load failure', async () => {
+    phase2ApiMock.getAlert.mockRejectedValue(new Error('Not found'));
+
+    renderWithRoute();
+
+    await waitFor(() => expect(screen.getByText(/not found/i)).toBeInTheDocument());
   });
 });
