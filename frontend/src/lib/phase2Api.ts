@@ -98,21 +98,6 @@ export type AlertRule = {
   updated_at: string;
 };
 
-export type AlertRun = {
-  id: string;
-  rule_slug: string;
-  rule_name: string | null;
-  rule_description: string | null;
-  severity: string | null;
-  status: 'started' | 'success' | 'no_results' | 'partial' | 'failed';
-  row_count: number;
-  llm_summary: string;
-  error_message: string;
-  duration_ms: number;
-  created_at: string;
-  completed_at: string | null;
-};
-
 export type AISummary = {
   id: string;
   title: string;

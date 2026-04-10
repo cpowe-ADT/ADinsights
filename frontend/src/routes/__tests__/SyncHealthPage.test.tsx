@@ -100,9 +100,9 @@ describe('SyncHealthPage', () => {
     expect(await screen.findByText('Meta Ads Sync')).toBeInTheDocument();
     expect(screen.getByText('Google Ads Sync')).toBeInTheDocument();
     expect(screen.getByText('LinkedIn Ads Sync')).toBeInTheDocument();
-    expect(screen.getByText('Meta')).toBeInTheDocument();
-    expect(screen.getByText('Google')).toBeInTheDocument();
-    expect(screen.getByText('LinkedIn')).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'Meta' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'Google' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'LinkedIn' })).toBeInTheDocument();
   });
 
   it('renders state pills with correct classes', async () => {
