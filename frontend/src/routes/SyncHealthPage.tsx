@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import DashboardState from '../components/DashboardState';
-import { fetchSyncHealth, triggerSync, type SyncHealthResponse } from '../lib/phase2Api';
+import { fetchSyncHealth, triggerResync, type SyncHealthResponse } from '../lib/phase2Api';
+import { ApiError } from '../lib/apiClient';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
@@ -10,8 +11,7 @@ const SyncHealthPage = () => {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [payload, setPayload] = useState<SyncHealthResponse | null>(null);
   const [error, setError] = useState<string>('Unable to load sync health.');
-  const [stateFilter, setStateFilter] = useState<string>('all');
-  const [triggeringId, setTriggeringId] = useState<string | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setState('loading');
@@ -26,17 +26,34 @@ const SyncHealthPage = () => {
     }
   }, []);
 
+  const handleResync = useCallback(
+    async (connectionId: string) => {
+      if (!window.confirm('Trigger a re-sync for this connection?')) {
+        return;
+      }
+      setSyncingId(connectionId);
+      try {
+        await triggerResync(connectionId);
+        await load();
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 501) {
+          window.alert('Re-sync is not yet implemented for this connection type.');
+        } else {
+          window.alert(err instanceof Error ? err.message : 'Failed to trigger re-sync.');
+        }
+      } finally {
+        setSyncingId(null);
+      }
+    },
+    [load],
+  );
+
   useEffect(() => {
     void load();
   }, [load]);
 
   const rows = payload?.rows ?? [];
   const generatedAt = payload?.generated_at ?? null;
-
-  const filteredRows = useMemo(
-    () => stateFilter === 'all' ? rows : rows.filter((r) => r.state === stateFilter),
-    [rows, stateFilter],
-  );
 
   const stateClass = useMemo(
     () => (value: string) => {
@@ -45,19 +62,6 @@ const SyncHealthPage = () => {
     },
     [],
   );
-
-  const handleTriggerSync = useCallback(async (connectionId: string) => {
-    setTriggeringId(connectionId);
-    try {
-      await triggerSync(connectionId);
-      // Show inline success — reload data
-      await load();
-    } catch {
-      // 501 is expected (stub) — still show the attempt
-    } finally {
-      setTriggeringId(null);
-    }
-  }, [load]);
 
   if (state === 'loading') {
     return <DashboardState variant="loading" layout="page" message="Loading sync health…" />;
@@ -86,6 +90,9 @@ const SyncHealthPage = () => {
             Real-time tenant sync posture for connected Airbyte jobs.
           </p>
         </div>
+        <button type="button" className="button secondary" onClick={() => void load()}>
+          Refresh
+        </button>
       </header>
 
       <div className="phase2-grid">
@@ -107,30 +114,13 @@ const SyncHealthPage = () => {
         </article>
       </div>
 
-      <div className="phase2-toolbar" role="group" aria-label="State filter">
-        {['all', 'fresh', 'stale', 'failed', 'missing', 'inactive'].map((filter) => (
-          <button
-            key={filter}
-            type="button"
-            className={`button ${stateFilter === filter ? 'primary' : 'secondary'}`}
-            onClick={() => setStateFilter(filter)}
-          >
-            {filter === 'all' ? 'All' : `${filter.charAt(0).toUpperCase()}${filter.slice(1)}`}
-            {filter !== 'all' && payload?.counts ? ` (${payload.counts[filter as keyof typeof payload.counts] ?? 0})` : ''}
-          </button>
-        ))}
-      </div>
-
-      <div className="phase2-row-actions" style={{ marginBottom: '1rem' }}>
+      {generatedAt ? (
         <p className="phase2-note">
-          Last refreshed: {generatedAt ? formatRelativeTime(generatedAt) : 'Never'}
+          Updated {formatRelativeTime(generatedAt)} ({formatAbsoluteTime(generatedAt)})
         </p>
-        <button type="button" className="button secondary" onClick={() => void load()}>
-          Refresh
-        </button>
-      </div>
+      ) : null}
 
-      {filteredRows.length === 0 ? (
+      {rows.length === 0 ? (
         <DashboardState
           variant="empty"
           layout="page"
@@ -146,11 +136,11 @@ const SyncHealthPage = () => {
               <th>Status</th>
               <th>Last sync</th>
               <th>Last job</th>
-              <th>Actions</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((row) => (
+            {rows.map((row) => (
               <tr key={row.id}>
                 <td>{row.name}</td>
                 <td>{row.provider ?? 'Unknown'}</td>
@@ -172,10 +162,10 @@ const SyncHealthPage = () => {
                   <button
                     type="button"
                     className="button tertiary"
-                    onClick={() => void handleTriggerSync(row.id)}
-                    disabled={triggeringId === row.id}
+                    disabled={syncingId !== null}
+                    onClick={() => void handleResync(row.id)}
                   >
-                    {triggeringId === row.id ? 'Triggering\u2026' : 'Re-sync'}
+                    {syncingId === row.id ? 'Syncing…' : 'Re-sync'}
                   </button>
                 </td>
               </tr>

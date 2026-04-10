@@ -440,6 +440,10 @@ export async function updateAlert(
   return apiClient.patch<AlertRule>(`/alerts/${alertId}/`, payload);
 }
 
+export async function triggerResync(connectionId: string): Promise<void> {
+  await apiClient.post(`/ops/sync-health/${connectionId}/resync/`, {});
+}
+
 export async function listAuditLogs(
   params: { action?: string; resource_type?: string; page?: number; start_date?: string; end_date?: string } = {},
   signal?: AbortSignal,

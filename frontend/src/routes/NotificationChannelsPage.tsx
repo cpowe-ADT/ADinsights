@@ -63,12 +63,18 @@ const NotificationChannelsPage = () => {
     }
   };
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const handleDelete = async (channelId: string) => {
+    if (!window.confirm('Delete this notification channel?')) return;
+    setDeletingId(channelId);
     try {
       await deleteNotificationChannel(channelId);
       setChannels((prev) => prev.filter((ch) => ch.id !== channelId));
     } catch {
       // Silently ignore; user can retry
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -173,9 +179,10 @@ const NotificationChannelsPage = () => {
                   <button
                     type="button"
                     className="button tertiary"
+                    disabled={deletingId === ch.id}
                     onClick={() => void handleDelete(ch.id)}
                   >
-                    Delete
+                    {deletingId === ch.id ? 'Deleting...' : 'Delete'}
                   </button>
                 </td>
               </tr>

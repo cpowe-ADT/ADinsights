@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import DashboardState from '../components/DashboardState';
 import { listAlerts, type AlertRule } from '../lib/phase2Api';
-import { canAccessCreatorUi } from '../lib/rbac';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import { canAccessCreatorUi } from '../lib/rbac';
 import '../styles/phase2.css';
@@ -12,6 +11,7 @@ import '../styles/dashboard.css';
 
 const AlertsPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const canCreate = canAccessCreatorUi(user);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [alerts, setAlerts] = useState<AlertRule[]>([]);
@@ -77,7 +77,9 @@ const AlertsPage = () => {
           variant="empty"
           layout="page"
           title="No alert rules"
-          message="Create alert rules in admin to drive this view."
+          message="Set up your first alert rule to monitor metric thresholds."
+          actionLabel={canCreate ? 'Create alert rule' : undefined}
+          onAction={canCreate ? () => navigate('/alerts/new') : undefined}
         />
       ) : (
         <table className="phase2-table">

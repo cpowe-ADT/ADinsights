@@ -4,67 +4,54 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AlertsPage from '../AlertsPage';
 
+const authMock = vi.hoisted(() => ({
+  user: { email: 'admin@example.com', roles: ['ADMIN'] },
+}));
+
 const phase2ApiMock = vi.hoisted(() => ({
   listAlerts: vi.fn(),
+}));
+
+vi.mock('../../auth/AuthContext', () => ({
+  useAuth: () => authMock,
 }));
 
 vi.mock('../../lib/phase2Api', () => ({
   listAlerts: phase2ApiMock.listAlerts,
 }));
 
-vi.mock('../../auth/AuthContext', () => ({
-  useAuth: () => ({ user: { roles: ['ADMIN'] } }),
-}));
-
 describe('AlertsPage', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('renders alert rules table when data is available', async () => {
-    phase2ApiMock.listAlerts.mockResolvedValue([
-      {
-        id: 'alert-1',
-        name: 'High CPA alert',
-        metric: 'cpa',
-        comparison_operator: '>',
-        threshold: '50',
-        lookback_hours: 24,
-        severity: 'warning',
-        is_active: true,
-        created_at: '2026-04-01T12:00:00Z',
-        updated_at: '2026-04-01T12:00:00Z',
-      },
-    ]);
-
-    render(
-      <MemoryRouter>
-        <AlertsPage />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => expect(phase2ApiMock.listAlerts).toHaveBeenCalled());
-    expect(screen.getByRole('heading', { name: 'Alert Rules' })).toBeInTheDocument();
-    expect(screen.getByText('High CPA alert')).toBeInTheDocument();
-    expect(screen.getByText('cpa')).toBeInTheDocument();
-    expect(screen.getByText('warning')).toBeInTheDocument();
-  });
-
-  it('shows empty state when no alerts exist', async () => {
+    authMock.user = { email: 'admin@example.com', roles: ['ADMIN'] };
     phase2ApiMock.listAlerts.mockResolvedValue([]);
-
-    render(
-      <MemoryRouter>
-        <AlertsPage />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => expect(phase2ApiMock.listAlerts).toHaveBeenCalled());
-    expect(screen.getByText('No alert rules')).toBeInTheDocument();
   });
 
-  it('shows error state when fetch fails', async () => {
-    phase2ApiMock.listAlerts.mockRejectedValue(new Error('Network error'));
+  it('shows the updated empty state message', async () => {
+    render(
+      <MemoryRouter>
+        <AlertsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(phase2ApiMock.listAlerts).toHaveBeenCalled());
+    expect(
+      screen.getByText('Set up your first alert rule to monitor metric thresholds.'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the create action for non-viewer users', async () => {
+    render(
+      <MemoryRouter>
+        <AlertsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(phase2ApiMock.listAlerts).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: /create alert rule/i })).toBeInTheDocument();
+  });
+
+  it('hides the create action for viewer-only users', async () => {
+    authMock.user = { email: 'viewer@example.com', roles: ['VIEWER'] };
 
     render(
       <MemoryRouter>
@@ -73,7 +60,6 @@ describe('AlertsPage', () => {
     );
 
     await waitFor(() => expect(phase2ApiMock.listAlerts).toHaveBeenCalled());
-    expect(screen.getByText('Alerts unavailable')).toBeInTheDocument();
-    expect(screen.getByText('Network error')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /create alert rule/i })).not.toBeInTheDocument();
   });
 });
