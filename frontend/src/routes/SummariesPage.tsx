@@ -79,6 +79,10 @@ const SummariesPage = () => {
         </div>
       </header>
 
+      <div className="phase2-card" style={{ background: 'var(--color-surface-info, #f0f4ff)', marginBottom: '1rem' }}>
+        <p><strong>Automatic generation:</strong> Summaries are generated every day at 6:10 AM (Jamaica time). You can also trigger a manual refresh below.</p>
+      </div>
+
       {summaries.length === 0 ? (
         <DashboardState
           variant="empty"
@@ -106,7 +110,11 @@ const SummariesPage = () => {
                     {summary.status}
                   </span>
                 </td>
-                <td>{summary.source}</td>
+                <td>
+                  <span className={`phase2-pill phase2-pill--${summary.source === 'daily_summary' ? 'generated' : 'info'}`}>
+                    {summary.source === 'daily_summary' ? 'Daily' : 'Manual'}
+                  </span>
+                </td>
                 <td>
                   {formatRelativeTime(summary.generated_at)} (
                   {formatAbsoluteTime(summary.generated_at)})
