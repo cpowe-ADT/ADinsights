@@ -444,22 +444,58 @@ const DashboardLayout = () => {
     );
   }, [budget, campaign, creative, datasetMode, datasetSource, liveReason, parish]);
 
-  const navLinks = useMemo(
-    () =>
-      [
-        { label: 'Home', to: '/', end: true },
+  type NavGroup = {
+    label: string;
+    links: Array<{ label: string; to: string; end: boolean }>;
+  };
+
+  const navGroups: NavGroup[] = useMemo(() => [
+    {
+      label: 'Dashboards',
+      links: [
         { label: 'Library', to: '/dashboards', end: true },
-        canCreate ? { label: 'Create', to: '/dashboards/create', end: false } : null,
+        ...(canCreate ? [{ label: 'Create', to: '/dashboards/create', end: false }] : []),
         { label: 'Campaigns', to: '/dashboards/campaigns', end: false },
         { label: 'Creatives', to: '/dashboards/creatives', end: false },
         { label: 'Budget pacing', to: '/dashboards/budget', end: false },
+        { label: 'Parish map', to: '/dashboards/map', end: false },
+      ],
+    },
+    {
+      label: 'Integrations',
+      links: [
         { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
         { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
         { label: 'Facebook pages', to: '/dashboards/meta/pages', end: false },
+        { label: 'GA4', to: '/dashboards/web/ga4', end: false },
+        { label: 'Search Console', to: '/dashboards/web/search-console', end: false },
         { label: 'Google Ads', to: '/dashboards/google-ads', end: false },
-      ].filter((link): link is { label: string; to: string; end: boolean } => Boolean(link)),
-    [canCreate],
-  );
+        { label: 'Data sources', to: '/dashboards/data-sources', end: false },
+        { label: 'CSV uploads', to: '/dashboards/uploads', end: false },
+      ],
+    },
+    {
+      label: 'Reporting',
+      links: [
+        { label: 'Reports', to: '/reports', end: false },
+      ],
+    },
+    {
+      label: 'Alerts & AI',
+      links: [
+        { label: 'Alerts', to: '/alerts', end: false },
+        { label: 'Summaries', to: '/summaries', end: false },
+      ],
+    },
+    {
+      label: 'Operations',
+      links: [
+        { label: 'Sync Health', to: '/ops/sync-health', end: false },
+        { label: 'Health Overview', to: '/ops/health', end: false },
+        { label: 'Audit Log', to: '/ops/audit', end: false },
+      ],
+    },
+  ], [canCreate]);
 
   const campaignLookup = useMemo(() => {
     const rows = campaign.data?.rows ?? [];
@@ -776,15 +812,27 @@ const DashboardLayout = () => {
         </header>
         <nav className="dashboard-nav" aria-label="Dashboard sections">
           <div className="dashboard-boundary dashboard-nav__inner">
-            {navLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                end={link.end}
-                className={({ isActive }: NavLinkRenderProps) => (isActive ? 'active' : undefined)}
-              >
-                {link.label}
-              </NavLink>
+            <NavLink
+              to="/"
+              end
+              className={({ isActive }: NavLinkRenderProps) => (isActive ? 'active' : undefined)}
+            >
+              Home
+            </NavLink>
+            {navGroups.map((group) => (
+              <div key={group.label} className="dashboard-nav__group">
+                <span className="dashboard-nav__group-label">{group.label}</span>
+                {group.links.map((link) => (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    end={link.end}
+                    className={({ isActive }: NavLinkRenderProps) => (isActive ? 'active' : undefined)}
+                  >
+                    {link.label}
+                  </NavLink>
+                ))}
+              </div>
             ))}
           </div>
         </nav>
