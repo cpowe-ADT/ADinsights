@@ -7,6 +7,8 @@ import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 
+const PAGE_SIZE = 20;
+
 const AuditLogPage = () => {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [rows, setRows] = useState<AuditLogEntry[]>([]);
@@ -14,6 +16,13 @@ const AuditLogPage = () => {
   const [error, setError] = useState('Unable to load audit logs.');
   const [actionFilter, setActionFilter] = useState('');
   const [resourceFilter, setResourceFilter] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrevious, setHasPrevious] = useState(false);
+
+  const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
   const load = useCallback(async () => {
     setState('loading');
@@ -21,19 +30,33 @@ const AuditLogPage = () => {
       const response = await listAuditLogs({
         action: actionFilter.trim() || undefined,
         resource_type: resourceFilter.trim() || undefined,
-      });
+        page,
+        ...(startDate ? { start_date: startDate } : {}),
+        ...(endDate ? { end_date: endDate } : {}),
+      } as Parameters<typeof listAuditLogs>[0]);
       setRows(response.results);
       setCount(response.count);
+      setHasNext(response.next !== null);
+      setHasPrevious(response.previous !== null);
       setState('ready');
     } catch (err) {
       setState('error');
       setError(err instanceof Error ? err.message : 'Unable to load audit logs.');
     }
-  }, [actionFilter, resourceFilter]);
+  }, [actionFilter, resourceFilter, startDate, endDate, page]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Reset to page 1 when filters change
+  const handleFilterChange = useCallback(
+    (setter: (val: string) => void) => (event: React.ChangeEvent<HTMLInputElement>) => {
+      setter(event.target.value);
+      setPage(1);
+    },
+    [],
+  );
 
   const exportJson = useCallback(() => {
     const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
@@ -109,7 +132,7 @@ const AuditLogPage = () => {
           <input
             id="audit-action"
             value={actionFilter}
-            onChange={(event) => setActionFilter(event.target.value)}
+            onChange={handleFilterChange(setActionFilter)}
             placeholder="e.g. report_created"
           />
         </label>
@@ -118,8 +141,28 @@ const AuditLogPage = () => {
           <input
             id="audit-resource"
             value={resourceFilter}
-            onChange={(event) => setResourceFilter(event.target.value)}
+            onChange={handleFilterChange(setResourceFilter)}
             placeholder="e.g. report_definition"
+          />
+        </label>
+        <label className="phase2-form__field" htmlFor="audit-start-date">
+          <span>Start date</span>
+          <input
+            id="audit-start-date"
+            type="date"
+            className="phase2-input"
+            value={startDate}
+            onChange={handleFilterChange(setStartDate)}
+          />
+        </label>
+        <label className="phase2-form__field" htmlFor="audit-end-date">
+          <span>End date</span>
+          <input
+            id="audit-end-date"
+            type="date"
+            className="phase2-input"
+            value={endDate}
+            onChange={handleFilterChange(setEndDate)}
           />
         </label>
       </div>
@@ -165,6 +208,30 @@ const AuditLogPage = () => {
             ))}
           </tbody>
         </table>
+      )}
+
+      {count > 0 && (
+        <div className="phase2-row-actions" style={{ justifyContent: 'center', marginTop: '1rem' }}>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={!hasPrevious}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </button>
+          <span>
+            Page {page} of {totalPages}
+          </span>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={!hasNext}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </button>
+        </div>
       )}
     </section>
   );

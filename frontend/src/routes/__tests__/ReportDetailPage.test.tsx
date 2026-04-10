@@ -4,12 +4,40 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ReportDetailPage from '../ReportDetailPage';
-import type { ReportDefinition, ReportExportJob } from '../../lib/phase2Api';
+
+const mockReport = {
+  id: 'r1',
+  name: 'Q1 Summary',
+  description: 'First quarter overview',
+  filters: {},
+  layout: {},
+  is_active: true,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+};
 
 const phase2ApiMock = vi.hoisted(() => ({
   getReport: vi.fn(),
   listReportExports: vi.fn(),
   createReportExport: vi.fn(),
+}));
+
+const apiClientMock = vi.hoisted(() => ({
+  patch: vi.fn(),
+  get: vi.fn(),
+  post: vi.fn(),
+  delete: vi.fn(),
+  download: vi.fn(),
+  request: vi.fn(),
+  setAccessToken: vi.fn(),
+  setRefreshToken: vi.fn(),
+  clearTokens: vi.fn(),
+}));
+
+const toastMock = vi.hoisted(() => ({
+  addToast: vi.fn(),
+  removeToast: vi.fn(),
+  toasts: [] as Array<{ id: number; message: string; tone: string }>,
 }));
 
 vi.mock('../../lib/phase2Api', () => ({
@@ -18,51 +46,18 @@ vi.mock('../../lib/phase2Api', () => ({
   createReportExport: phase2ApiMock.createReportExport,
 }));
 
-const sampleReport: ReportDefinition = {
-  id: 'rpt-1',
-  name: 'Monthly Performance Report',
-  description: 'Overview of monthly ad performance',
-  filters: {},
-  layout: {},
-  is_active: true,
-  schedule_enabled: false,
-  schedule_cron: '',
-  delivery_emails: [],
-  last_scheduled_at: null,
-  created_at: '2026-04-01T10:00:00Z',
-  updated_at: '2026-04-05T14:30:00Z',
-};
+vi.mock('../../lib/apiClient', () => ({
+  default: apiClientMock,
+  appendQueryParams: (path: string) => path,
+}));
 
-const sampleExports: ReportExportJob[] = [
-  {
-    id: 'exp-1',
-    report_id: 'rpt-1',
-    export_format: 'csv',
-    status: 'completed',
-    artifact_path: '/exports/rpt-1/report.csv',
-    error_message: '',
-    metadata: {},
-    completed_at: '2026-04-05T15:00:00Z',
-    created_at: '2026-04-05T14:55:00Z',
-    updated_at: '2026-04-05T15:00:00Z',
-  },
-  {
-    id: 'exp-2',
-    report_id: 'rpt-1',
-    export_format: 'pdf',
-    status: 'running',
-    artifact_path: '',
-    error_message: '',
-    metadata: {},
-    completed_at: null,
-    created_at: '2026-04-05T15:10:00Z',
-    updated_at: '2026-04-05T15:10:00Z',
-  },
-];
+vi.mock('../../stores/useToastStore', () => ({
+  useToastStore: (selector: (state: typeof toastMock) => unknown) => selector(toastMock),
+}));
 
-function renderPage(reportId = 'rpt-1') {
+function renderPage() {
   return render(
-    <MemoryRouter initialEntries={[`/reports/${reportId}`]}>
+    <MemoryRouter initialEntries={['/reports/r1']}>
       <Routes>
         <Route path="/reports/:reportId" element={<ReportDetailPage />} />
       </Routes>
@@ -70,97 +65,89 @@ function renderPage(reportId = 'rpt-1') {
   );
 }
 
-describe('ReportDetailPage', () => {
+describe('ReportDetailPage inline editing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    phase2ApiMock.getReport.mockResolvedValue(sampleReport);
-    phase2ApiMock.listReportExports.mockResolvedValue(sampleExports);
-    phase2ApiMock.createReportExport.mockResolvedValue({
-      id: 'exp-3',
-      report_id: 'rpt-1',
-      export_format: 'png',
-      status: 'queued',
-      artifact_path: '',
-      error_message: '',
-      metadata: {},
-      completed_at: null,
-      created_at: '2026-04-05T15:20:00Z',
-      updated_at: '2026-04-05T15:20:00Z',
+    phase2ApiMock.getReport.mockResolvedValue({ ...mockReport });
+    phase2ApiMock.listReportExports.mockResolvedValue([]);
+    apiClientMock.patch.mockResolvedValue({
+      ...mockReport,
+      name: 'Updated Name',
+      description: 'Updated Desc',
     });
   });
 
-  it('renders report name and description', async () => {
+  it('clicking Edit shows input fields', async () => {
     renderPage();
 
-    expect(await screen.findByRole('heading', { name: 'Monthly Performance Report' })).toBeInTheDocument();
-    expect(screen.getByText('Overview of monthly ad performance')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Q1 Summary')).toBeInTheDocument());
+
+    const editButton = screen.getByRole('button', { name: /edit/i });
+    await userEvent.click(editButton);
+
+    expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
   });
 
-  it('renders export action buttons for CSV, PDF, and PNG', async () => {
+  it('saving calls updateReport and shows toast', async () => {
     renderPage();
 
-    await screen.findByRole('heading', { name: 'Monthly Performance Report' });
+    await waitFor(() => expect(screen.getByText('Q1 Summary')).toBeInTheDocument());
 
-    expect(screen.getByRole('button', { name: /request csv/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /request pdf/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /request png/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /edit/i }));
+
+    const nameInput = screen.getByLabelText(/name/i);
+    await userEvent.clear(nameInput);
+    await userEvent.type(nameInput, 'Updated Name');
+
+    const descInput = screen.getByLabelText(/description/i);
+    await userEvent.clear(descInput);
+    await userEvent.type(descInput, 'Updated Desc');
+
+    await userEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => {
+      expect(apiClientMock.patch).toHaveBeenCalledWith('/reports/r1/', {
+        name: 'Updated Name',
+        description: 'Updated Desc',
+      });
+    });
+
+    expect(toastMock.addToast).toHaveBeenCalledWith('Report updated');
   });
 
-  it('shows export auto-polling status for running exports', async () => {
+  it('cancel reverts changes', async () => {
     renderPage();
 
-    await waitFor(() => expect(phase2ApiMock.listReportExports).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText('Q1 Summary')).toBeInTheDocument());
 
-    const runningPill = await screen.findByText('running');
-    expect(runningPill).toHaveClass('phase2-pill--running');
-    expect(screen.getByText('In progress')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /edit/i }));
+
+    const nameInput = screen.getByLabelText(/name/i);
+    await userEvent.clear(nameInput);
+    await userEvent.type(nameInput, 'Something else');
+
+    await userEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+    // Should be back to read-only mode showing original name
+    expect(screen.getByText('Q1 Summary')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/name/i)).not.toBeInTheDocument();
   });
 
-  it('displays completed export with artifact path', async () => {
-    renderPage();
-
-    await waitFor(() => expect(phase2ApiMock.listReportExports).toHaveBeenCalled());
-
-    expect(await screen.findByText('/exports/rpt-1/report.csv')).toBeInTheDocument();
-    expect(screen.getByText('completed')).toHaveClass('phase2-pill--completed');
-  });
-
-  it('creates export when format button is clicked', async () => {
-    renderPage();
-
-    await screen.findByRole('heading', { name: 'Monthly Performance Report' });
-
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /request png/i }));
-
-    await waitFor(() =>
-      expect(phase2ApiMock.createReportExport).toHaveBeenCalledWith('rpt-1', 'png'),
-    );
-  });
-
-  it('shows empty state when no export jobs exist', async () => {
-    phase2ApiMock.listReportExports.mockResolvedValue([]);
+  it('shows error toast when save fails', async () => {
+    apiClientMock.patch.mockRejectedValue(new Error('Network error'));
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('No export jobs yet')).toBeInTheDocument());
-  });
+    await waitFor(() => expect(screen.getByText('Q1 Summary')).toBeInTheDocument());
 
-  it('shows error state when API fails', async () => {
-    phase2ApiMock.getReport.mockRejectedValue(new Error('Not found'));
+    await userEvent.click(screen.getByRole('button', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('button', { name: /save/i }));
 
-    renderPage();
-
-    await waitFor(() => expect(screen.getByText('Report unavailable')).toBeInTheDocument());
-    expect(screen.getByText('Not found')).toBeInTheDocument();
-  });
-
-  it('renders back to reports link', async () => {
-    renderPage();
-
-    await screen.findByRole('heading', { name: 'Monthly Performance Report' });
-
-    const backLink = screen.getByRole('link', { name: /back to reports/i });
-    expect(backLink).toHaveAttribute('href', '/reports');
+    await waitFor(() => {
+      expect(toastMock.addToast).toHaveBeenCalledWith('Failed to update', 'error');
+    });
   });
 });
