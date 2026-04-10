@@ -58,6 +58,25 @@ describe('ProfilePage', () => {
     expect(screen.getByText('tenant-123')).toBeInTheDocument();
   });
 
+  it('renders roles as pills', async () => {
+    phase2ApiMock.fetchProfile.mockResolvedValue(mockProfile);
+
+    render(
+      <MemoryRouter>
+        <ProfilePage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('My Profile')).toBeInTheDocument();
+    });
+
+    const adminPill = screen.getByText('admin');
+    expect(adminPill).toHaveClass('phase2-pill');
+    const viewerPill = screen.getByText('viewer');
+    expect(viewerPill).toHaveClass('phase2-pill');
+  });
+
   it('shows error state when API fails', async () => {
     phase2ApiMock.fetchProfile.mockRejectedValue(new Error('Network error'));
 

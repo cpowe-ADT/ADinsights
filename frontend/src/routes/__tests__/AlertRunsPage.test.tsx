@@ -115,6 +115,40 @@ describe('AlertRunsPage', () => {
     expect(screen.getByText('No alert runs')).toBeInTheDocument();
   });
 
+  it('renders row_count, duration_ms, and llm_summary in the table', async () => {
+    render(
+      <MemoryRouter>
+        <AlertRunsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(phase2ApiMock.listAlertRuns).toHaveBeenCalled());
+    // row_count
+    expect(screen.getByText('12')).toBeInTheDocument();
+    // duration_ms formatted
+    expect(screen.getByText('1.3s')).toBeInTheDocument();
+    expect(screen.getByText('340ms')).toBeInTheDocument();
+    // llm_summary
+    expect(
+      screen.getByText(/Spend exceeded threshold across 3 campaigns/),
+    ).toBeInTheDocument();
+  });
+
+  it('shows error state when API fails', async () => {
+    phase2ApiMock.listAlertRuns.mockRejectedValue(new Error('Server error'));
+
+    render(
+      <MemoryRouter>
+        <AlertRunsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Alert history unavailable')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Server error')).toBeInTheDocument();
+  });
+
   it('displays run status pills with correct classes', async () => {
     render(
       <MemoryRouter>
