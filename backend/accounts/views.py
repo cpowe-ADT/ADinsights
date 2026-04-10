@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date, datetime
+
 from django.conf import settings
 from django.db import connection
 from rest_framework import mixins, permissions, status, viewsets
@@ -455,6 +457,13 @@ class AuditLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsTenantUser]
     pagination_class = _AuditLogPagination
 
+    def _parse_date_param(self, value: str) -> date | None:
+        """Parse an ISO date string (YYYY-MM-DD) or ISO datetime, returning a date."""
+        try:
+            return datetime.fromisoformat(value).date()
+        except (ValueError, TypeError):
+            return None
+
     def get_queryset(self):
         user = self.request.user
         if not user or not user.is_authenticated:
@@ -468,4 +477,16 @@ class AuditLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         resource_type = self.request.query_params.get("resource_type")
         if resource_type:
             queryset = queryset.filter(resource_type=resource_type)
+        start_date = self.request.query_params.get("start_date")
+        if start_date:
+            parsed = self._parse_date_param(start_date)
+            if parsed is None:
+                return AuditLog.objects.none()
+            queryset = queryset.filter(created_at__date__gte=parsed)
+        end_date = self.request.query_params.get("end_date")
+        if end_date:
+            parsed = self._parse_date_param(end_date)
+            if parsed is None:
+                return AuditLog.objects.none()
+            queryset = queryset.filter(created_at__date__lte=parsed)
         return queryset

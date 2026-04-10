@@ -3165,6 +3165,47 @@ class AirbyteConnectionViewSet(viewsets.ModelViewSet):
 
         return Response({"connections": connections})
 
+    @action(detail=True, methods=["post"], url_path="trigger-sync")
+    def trigger_sync(self, request, pk=None):
+        connection = self.get_object()
+        client = self._create_client()
+        if isinstance(client, Response):
+            # Airbyte not configured — return 501 with descriptive message
+            return Response(
+                {
+                    "detail": "Airbyte integration is not configured. "
+                    "Set AIRBYTE_API_URL and credentials to enable sync triggers.",
+                },
+                status=status.HTTP_501_NOT_IMPLEMENTED,
+            )
+
+        try:
+            with client as airbyte:
+                payload = airbyte.trigger_sync(str(connection.connection_id))
+        except AirbyteClientError as exc:
+            return self._error_response(exc)
+
+        job_id = self._extract_job_id(payload)
+
+        actor = request.user if request.user.is_authenticated else None
+        log_audit_event(
+            tenant=connection.tenant,
+            user=actor,
+            action="airbyte_connection_sync_triggered",
+            resource_type="airbyte_connection",
+            resource_id=connection.id,
+            metadata={
+                "connection_id": str(connection.connection_id),
+                "job_id": job_id,
+                "trigger_source": "trigger-sync",
+            },
+        )
+
+        return Response(
+            {"status": "triggered", "connection_id": str(connection.connection_id), "job_id": job_id},
+            status=status.HTTP_200_OK,
+        )
+
     @action(detail=True, methods=["post"], url_path="sync")
     def sync(self, request, pk=None):  # noqa: ANN001 - signature enforced by DRF
         connection = self.get_object()
