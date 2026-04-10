@@ -10,6 +10,7 @@ from accounts.models import Tenant, User
 from integrations.models import (
     MetaConnection,
     MetaInsightPoint,
+    MetaMetricRegistry,
     MetaPage,
     MetaPost,
     MetaPostInsightPoint,
@@ -549,3 +550,98 @@ def test_meta_page_endpoints_are_tenant_scoped(api_client):
     _authenticate(api_client, username="a@example.com")
     ok = api_client.get(reverse("meta-page-overview", kwargs={"page_id": "page-1"}))
     assert ok.status_code == 200
+
+
+@pytest.mark.django_db
+def test_meta_page_overview_compare_to_prior_period(api_client, user):
+    """compare_to=prior_period returns prior_value and change_pct for each card."""
+    _authenticate(api_client, username="user@example.com")
+    page = _create_page_for_user(user)
+
+    MetaMetricRegistry.objects.update_or_create(
+        metric_key="page_post_engagements",
+        level=MetaMetricRegistry.LEVEL_PAGE,
+        defaults={"is_default": True, "status": MetaMetricRegistry.STATUS_ACTIVE},
+    )
+
+    # Primary period: since=2026-04-01, until=2026-04-07 (7 days)
+    # Prior period: 2026-03-25 to 2026-03-31 (7 days)
+    primary_dates = [datetime(2026, 4, d, 8, 0, tzinfo=dt_timezone.utc) for d in range(1, 8)]
+    prior_dates = [datetime(2026, 3, d, 8, 0, tzinfo=dt_timezone.utc) for d in range(25, 32)]
+
+    for dt in primary_dates:
+        MetaInsightPoint.all_objects.create(
+            tenant=user.tenant,
+            page=page,
+            metric_key="page_post_engagements",
+            period="day",
+            end_time=dt,
+            value_num=10,
+            breakdown_key_normalized="__none__",
+        )
+    for dt in prior_dates:
+        MetaInsightPoint.all_objects.create(
+            tenant=user.tenant,
+            page=page,
+            metric_key="page_post_engagements",
+            period="day",
+            end_time=dt,
+            value_num=5,
+            breakdown_key_normalized="__none__",
+        )
+
+    # Without compare_to — prior_value and change_pct should be null
+    response = api_client.get(
+        reverse("meta-page-overview", kwargs={"page_id": "page-1"}),
+        {"since": "2026-04-01", "until": "2026-04-07"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    card = next(c for c in data["cards"] if c["metric_key"] == "page_post_engagements")
+    assert card["value_range"] == 70
+    assert card["prior_value"] is None
+    assert card["change_pct"] is None
+
+    # With compare_to=prior_period
+    response = api_client.get(
+        reverse("meta-page-overview", kwargs={"page_id": "page-1"}),
+        {"since": "2026-04-01", "until": "2026-04-07", "compare_to": "prior_period"},
+    )
+    assert response.status_code == 200
+    card = next(c for c in response.json()["cards"] if c["metric_key"] == "page_post_engagements")
+    assert card["value_range"] == 70
+    assert card["prior_value"] == 35.0  # 7 days * 5
+    assert card["change_pct"] == 100.0  # (70-35)/35 * 100
+
+
+@pytest.mark.django_db
+def test_meta_page_overview_compare_to_prior_period_no_prior_data(api_client, user):
+    """When no prior data exists, prior_value should be null."""
+    _authenticate(api_client, username="user@example.com")
+    page = _create_page_for_user(user)
+
+    MetaMetricRegistry.objects.update_or_create(
+        metric_key="page_post_engagements",
+        level=MetaMetricRegistry.LEVEL_PAGE,
+        defaults={"is_default": True, "status": MetaMetricRegistry.STATUS_ACTIVE},
+    )
+
+    MetaInsightPoint.all_objects.create(
+        tenant=user.tenant,
+        page=page,
+        metric_key="page_post_engagements",
+        period="day",
+        end_time=datetime(2026, 4, 5, 8, 0, tzinfo=dt_timezone.utc),
+        value_num=50,
+        breakdown_key_normalized="__none__",
+    )
+
+    response = api_client.get(
+        reverse("meta-page-overview", kwargs={"page_id": "page-1"}),
+        {"since": "2026-04-01", "until": "2026-04-07", "compare_to": "prior_period"},
+    )
+    assert response.status_code == 200
+    card = next(c for c in response.json()["cards"] if c["metric_key"] == "page_post_engagements")
+    assert card["value_range"] == 50
+    assert card["prior_value"] is None
+    assert card["change_pct"] is None

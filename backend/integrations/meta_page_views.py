@@ -572,6 +572,15 @@ class MetaPageOverviewView(APIView):
             until=query.validated_data.get("until"),
         )
 
+        compare_to = query.validated_data.get("compare_to", "")
+        if compare_to == "prior_period":
+            range_days = (until - since).days
+            prior_until = since - timedelta(days=1)
+            prior_since = prior_until - timedelta(days=range_days)
+        else:
+            prior_since = None
+            prior_until = None
+
         default_keys = get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE)
         cards: list[dict[str, Any]] = []
         for metric_key in default_keys:
@@ -594,6 +603,26 @@ class MetaPageOverviewView(APIView):
             )
             range_value = queryset.aggregate(total=Sum("value_num")).get("total")
             today_value = queryset.filter(end_time__date=until).aggregate(total=Sum("value_num")).get("total")
+
+            prior_value = None
+            change_pct = None
+            if prior_since is not None and prior_until is not None:
+                prior_qs = MetaInsightPoint.objects.filter(
+                    tenant=request.user.tenant,
+                    page=page,
+                    metric_key=resolved_key,
+                    period="day",
+                    end_time__date__gte=prior_since,
+                    end_time__date__lte=prior_until,
+                )
+                prior_raw = prior_qs.aggregate(total=Sum("value_num")).get("total")
+                if prior_raw is not None:
+                    prior_value = float(prior_raw)
+                    if prior_value != 0 and range_value is not None:
+                        change_pct = round(
+                            (float(range_value) - prior_value) / prior_value * 100, 2
+                        )
+
             cards.append(
                 {
                     "metric_key": metric_key,
@@ -602,6 +631,8 @@ class MetaPageOverviewView(APIView):
                     "replacement_metric_key": replacement,
                     "value_today": today_value,
                     "value_range": range_value,
+                    "prior_value": prior_value,
+                    "change_pct": change_pct,
                 }
             )
 
