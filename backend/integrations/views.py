@@ -59,6 +59,7 @@ from .models import (
     MetaAccountSyncState,
     MetaConnection,
     MetaPage,
+    NotificationChannel,
     PlatformCredential,
     TenantAirbyteSyncStatus,
 )
@@ -69,6 +70,7 @@ from .serializers import (
     MetaOAuthExchangeSerializer,
     MetaOAuthStartSerializer,
     MetaPageConnectSerializer,
+    NotificationChannelSerializer,
     MetaProvisionSerializer,
     MetaSystemTokenSerializer,
     MetaAccountSyncStateSerializer,
@@ -3639,3 +3641,21 @@ class AlertRuleDefinitionViewSet(viewsets.ModelViewSet):
             resource_id=alert_rule.id,
             metadata=self._audit_metadata(serializer),
         )
+
+
+class NotificationChannelViewSet(viewsets.ModelViewSet):
+    serializer_class = NotificationChannelSerializer
+    permission_classes = [permissions.IsAuthenticated, HasPrivilege]
+    required_privilege = "dashboard_edit"
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return NotificationChannel.objects.none()
+        return NotificationChannel.objects.filter(tenant_id=user.tenant_id).order_by('name')
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.user.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save()

@@ -1431,6 +1431,9 @@ class AlertRuleDefinition(models.Model):
         max_length=6, choices=SEVERITY_CHOICES, default=SEVERITY_MEDIUM
     )
     is_active = models.BooleanField(default=True)
+    notification_channels = models.ManyToManyField(
+        'NotificationChannel', blank=True, related_name='alert_rules'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1443,3 +1446,34 @@ class AlertRuleDefinition(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - repr helper
         return f"AlertRuleDefinition<{self.name}>"
+
+
+class NotificationChannel(models.Model):
+    CHANNEL_EMAIL = 'email'
+    CHANNEL_WEBHOOK = 'webhook'
+    CHANNEL_SLACK = 'slack'
+    CHANNEL_TYPE_CHOICES = [
+        (CHANNEL_EMAIL, 'Email'),
+        (CHANNEL_WEBHOOK, 'Webhook'),
+        (CHANNEL_SLACK, 'Slack'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name='notification_channels'
+    )
+    name = models.CharField(max_length=200)
+    channel_type = models.CharField(max_length=16, choices=CHANNEL_TYPE_CHOICES)
+    config = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ('name',)
+
+    def __str__(self):
+        return f"NotificationChannel<{self.name}:{self.channel_type}>"
