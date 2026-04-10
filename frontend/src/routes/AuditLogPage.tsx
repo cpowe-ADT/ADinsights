@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import DashboardState from '../components/DashboardState';
+import { API_BASE_URL } from '../lib/apiClient';
 import { listAuditLogs, type AuditLogEntry } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
@@ -44,6 +45,15 @@ const AuditLogPage = () => {
     URL.revokeObjectURL(url);
   }, [rows]);
 
+  const exportCsv = useCallback(() => {
+    const params = new URLSearchParams();
+    if (actionFilter.trim()) params.set('action', actionFilter.trim());
+    if (resourceFilter.trim()) params.set('resource_type', resourceFilter.trim());
+    const base = API_BASE_URL.replace(/\/$/, '');
+    const url = `${base}/audit-logs/export_csv/?${params.toString()}`;
+    window.open(url, '_blank');
+  }, [actionFilter, resourceFilter]);
+
   if (state === 'loading') {
     return <DashboardState variant="loading" layout="page" message="Loading audit logs…" />;
   }
@@ -74,6 +84,13 @@ const AuditLogPage = () => {
         <div className="phase2-row-actions">
           <button type="button" className="button secondary" onClick={() => void load()}>
             Refresh
+          </button>
+          <button
+            type="button"
+            className="button tertiary"
+            onClick={exportCsv}
+          >
+            Export CSV
           </button>
           <button
             type="button"

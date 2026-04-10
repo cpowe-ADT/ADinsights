@@ -92,6 +92,14 @@ describe('DashboardLibrary', () => {
     vi.restoreAllMocks();
   });
 
+  it('calls fetchDashboardLibrary API on mount', async () => {
+    renderLibrary();
+
+    await waitFor(() => {
+      expect(apiMocks.fetchDashboardLibrary).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('renders split system-template and saved-dashboard sections', async () => {
     renderLibrary();
 
