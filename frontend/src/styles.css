@@ -847,6 +847,23 @@ label,
   color: var(--nav-active-text);
 }
 
+.dashboard-nav__group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.dashboard-nav__group-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.5;
+  padding: 0.25rem 0.5rem;
+  width: 100%;
+}
+
 .dashboard-status {
   padding-block: var(--space-3);
 }

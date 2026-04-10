@@ -317,8 +317,36 @@ const Home = () => {
           icon: <SocialIcon />,
           action: handleConnectSocials,
         },
+        {
+          id: 'view-reports',
+          label: 'Reports',
+          description: 'Build and export reports from your analytics.',
+          icon: <LayoutIcon />,
+          action: () => navigate('/reports'),
+        },
+        {
+          id: 'view-alerts',
+          label: 'Alerts',
+          description: 'Monitor metric thresholds and get notified.',
+          icon: <CampaignIcon />,
+          action: () => navigate('/alerts'),
+        },
+        {
+          id: 'view-summaries',
+          label: 'AI Summaries',
+          description: 'Review AI-generated performance recaps.',
+          icon: <SocialIcon />,
+          action: () => navigate('/summaries'),
+        },
+        {
+          id: 'sync-health',
+          label: 'Sync Health',
+          description: 'Check connector sync status and freshness.',
+          icon: <MapIcon />,
+          action: () => navigate('/ops/sync-health'),
+        },
       ].filter((action): action is QuickAction => Boolean(action)),
-    [canCreate, handleConnectSocials, handleCreateDashboard, handleViewCampaigns, handleOpenMap],
+    [canCreate, handleConnectSocials, handleCreateDashboard, handleViewCampaigns, handleOpenMap, navigate],
   );
 
   const resourceLinks: ResourceLink[] = useMemo(
