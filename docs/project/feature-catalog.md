@@ -33,14 +33,17 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Dashboard library shell (mock-backed).
 - Frontend design system tokens + docs.
 - Reports list, create, and detail pages with inline editing + export auto-polling.
+- Report scheduled delivery UI (enable toggle, cron expression, delivery emails, backend fields + toggle action).
 - Alert list, detail (with run history), and creation pages (RBAC-gated).
-- AI Summaries list and detail pages with manual refresh.
-- Sync Health page with state classification and aggregate counts.
+- Alert notification channels (NotificationChannel model with email/webhook/slack, CRUD API, M2M on alerts, frontend management page and assignment UI).
+- AI Summaries list and detail pages with manual refresh, automatic generation info banner, source badges, collapsible payload.
+- Sync Health page with state classification, aggregate counts, state filter bar, re-sync buttons, refresh timestamp.
 - Health Overview page aggregating four health endpoints.
-- Audit Log page with date range filtering, pagination, and CSV/JSON export.
+- Audit Log page with date range filtering, pagination, server-side CSV export, and JSON export.
 - Grouped navigation IA (Dashboards, Integrations, Reporting, Alerts & AI, Operations).
 - Home page quick action cards (Reports, Alerts, AI Summaries, Sync Health).
 - Search Console dashboard page (KPI cards + sortable table).
+- Dashboard library with live API integration (system templates + saved dashboards).
 
 ### Integrations
 - Airbyte infrastructure and declarative source templates.
@@ -57,9 +60,6 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Release checklist + demo smoke checklists.
 
 ## In Progress
-### Frontend
-- Dashboard library API integration (replace mock data).
-
 ### Data/Analytics
 - Attribution window documentation expansion.
 
@@ -74,9 +74,7 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Postgres grants + `seed_roles` command/fixtures for new installs.
 
 ### Frontend/UX
-- Scheduled report delivery UI.
-- Alert notification channels (email, Slack, webhook).
-- Automatic/scheduled AI summary generation UI.
+- (All planned items completed in second build-out 2026-04-10)
 
 ### Security/UAC
 - UAC rollout phases U0–U4 (agency admin, approvals, MFA, impersonation).

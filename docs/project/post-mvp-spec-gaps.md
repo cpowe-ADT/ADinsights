@@ -1,6 +1,6 @@
 # Post-MVP Feature Audit and Spec Gaps
 
-Audit date: 2026-04-10 (updated with pagination fixes and post-MVP build-out)
+Audit date: 2026-04-10 (updated with second build-out closing remaining spec gaps)
 
 ## Summary Table
 
@@ -23,8 +23,11 @@ Full CRUD implementation with list, create, and detail pages. Backend `ReportDef
 - ~~No inline report editing on the detail page~~ — Edit/Save/Cancel inline editing added to ReportDetailPage.
 - ~~Export job polling is manual~~ — Auto-polling (5s interval, 60s max) added to ReportDetailPage for pending exports.
 
+**Closed gaps (2026-04-10, second build-out):**
+- ~~No scheduled delivery UI~~ — Schedule section added to ReportDetailPage with enable toggle, cron expression input, delivery emails, and save action. Backend fields (`schedule_enabled`, `schedule_cron`, `delivery_emails`, `last_scheduled_at`) and `toggle_schedule` action added.
+
 **Remaining gaps:**
-- No scheduled delivery UI (report definitions store `filters`/`layout` but no schedule configuration is surfaced in the frontend).
+- None for Reports.
 
 ### 2. Alerts (WORKING)
 
@@ -34,26 +37,33 @@ Frontend list and detail pages consume the `AlertsViewSet`, which extends `Alert
 - ~~No alert creation UI~~ — AlertCreatePage added at `/alerts/new` with full form (name, metric, operator, threshold, lookback, severity). Gated by `canAccessCreatorUi`.
 - ~~Alert run history not displayed~~ — AlertDetailPage now shows AlertRunHistory table via `listAlertRuns`.
 
+**Closed gaps (2026-04-10, second build-out):**
+- ~~No notification channel configuration~~ — `NotificationChannel` model added (email/webhook/slack) with full CRUD at `/api/notification-channels/`. M2M on `AlertRuleDefinition`. Frontend page at `/settings/notifications` with create form and channel list. Alert detail page shows channel assignment with checkboxes.
+
 **Remaining gaps:**
-- No notification channel configuration (email, Slack, webhook).
+- None for Alerts.
 
 ### 3. AI Summaries (WORKING)
 
 Read-only list with detail view and manual refresh action. Backend `AISummaryViewSet` is read-only with a `refresh` action that calls `generate_ai_summary_for_tenant`. Summaries display title, status (generated/fallback/failed), source, and raw payload.
 
+**Closed gaps (2026-04-10, second build-out):**
+- ~~No automatic/scheduled summary generation UI~~ — Info banner added to SummariesPage showing the 6:10 AM daily schedule. Source badges ("Daily" / "Manual") displayed in list and detail views.
+- ~~No summary editing or annotation capability~~ — Summary detail page enhanced with source badge, model name display, and collapsible raw payload section.
+
 **Remaining gaps:**
-- No automatic/scheduled summary generation UI.
-- No summary editing or annotation capability.
 - Refresh action is synchronous and may time out for large tenants.
 
 ### 4. Sync Health (WORKING)
 
 Displays Airbyte connection health with state classification (fresh/stale/failed/missing/inactive) and aggregate counts. Backend reads directly from `AirbyteConnection` model. Stale threshold is hardcoded at 2 hours.
 
+**Closed gaps (2026-04-10, second build-out):**
+- ~~No direct action to trigger a re-sync from this page~~ — Per-row "Re-sync" button added (wired to stub backend action returning 501). State filter bar (All/Fresh/Stale/Failed/Missing/Inactive) and "Last refreshed" timestamp with manual refresh added.
+
 **Remaining gaps:**
 - No configurable stale threshold per tenant.
 - No historical trend view (current snapshot only).
-- No direct action to trigger a re-sync from this page.
 
 ### 5. Health Overview (WORKING)
 
@@ -72,5 +82,8 @@ Paginated, filterable audit event list with JSON export. Backend `AuditLogViewSe
 - ~~No pagination controls~~ — Previous/Next buttons with "Page X of Y" display added.
 - ~~Client-side JSON only~~ — CSV export button added alongside JSON export.
 
+**Closed gaps (2026-04-10, second build-out):**
+- ~~No server-side CSV export~~ — `export_csv` action added to `AuditLogViewSet` returning `StreamingHttpResponse` with full CSV. Frontend CSV export button now opens the server-side endpoint directly.
+
 **Remaining gaps:**
-- No server-side CSV export (current CSV export is client-side conversion).
+- None for Audit Log.
