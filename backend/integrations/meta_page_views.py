@@ -738,6 +738,7 @@ class MetaPagePostsView(APIView):
                 "created_time": post.created_time,
                 "permalink_url": post.permalink_url,
                 "message": post.message,
+                "thumbnail_url": post.thumbnail_url,
                 "metrics": metric_map.get(str(post.pk), {}),
             }
             for post in posts

@@ -91,6 +91,7 @@ export interface MetaPostListItem {
   media_type: string;
   message_snippet: string;
   message?: string;
+  thumbnail_url?: string;
   metrics: Record<string, number | null>;
   last_synced_at: string | null;
 }
@@ -117,6 +118,7 @@ export interface MetaPostDetailResponse {
   permalink: string;
   media_type: string;
   message: string;
+  thumbnail_url?: string;
   last_synced_at: string | null;
   metric_availability: Record<string, MetricAvailabilityEntry>;
   metrics: Record<string, number | null>;
