@@ -107,8 +107,6 @@ const DashboardLayout = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [accountOptions, setAccountOptions] = useState<FilterBarAccountOption[]>([]);
   const [metaStatus, setMetaStatus] = useState<SocialPlatformStatusRecord | null>(null);
-  const [accountOptionsResolved, setAccountOptionsResolved] = useState(false);
-  const [metaStatusResolved, setMetaStatusResolved] = useState(false);
   const canCreate = canAccessCreatorUi(user);
   const datasetMode = useDatasetStore((state) => state.mode);
   const datasetLoadStatus = useDatasetStore((state) => state.status);
@@ -118,6 +116,8 @@ const DashboardLayout = () => {
   const liveSnapshotGeneratedAt = useDatasetStore((state) => state.liveSnapshotGeneratedAt);
   const loadAdapters = useDatasetStore((state) => state.loadAdapters);
   const hasLiveData = datasetSource === 'warehouse' || datasetSource === 'meta_direct';
+  const [accountOptionsResolved, setAccountOptionsResolved] = useState(() => !hasLiveData);
+  const [metaStatusResolved, setMetaStatusResolved] = useState(() => !hasLiveData);
 
   const {
     loadAll,
@@ -243,6 +243,14 @@ const DashboardLayout = () => {
   useEffect(() => {
     let cancelled = false;
 
+    if (!hasLiveData) {
+      setMetaStatus(null);
+      setMetaStatusResolved(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     setMetaStatusResolved(false);
     void loadSocialConnectionStatus()
       .then((payload) => {
@@ -262,7 +270,7 @@ const DashboardLayout = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [hasLiveData]);
 
   useEffect(() => {
     if (!tenantId || !hasLiveData || !accountOptionsResolved || !metaStatusResolved) {
