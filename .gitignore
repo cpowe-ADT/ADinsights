@@ -61,3 +61,6 @@ backend/integrations/exporter/out/
 
 # Playwright / test output artifacts
 output/
+
+# Claude Code local config
+.claude/launch.json
