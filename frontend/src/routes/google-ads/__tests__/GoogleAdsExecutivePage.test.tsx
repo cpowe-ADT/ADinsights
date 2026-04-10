@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GoogleAdsExecutivePage from '../GoogleAdsExecutivePage';
 
 const fetchGoogleAdsExecutiveMock = vi.hoisted(() => vi.fn());
+const pendingAsync = () => new Promise<never>(() => {});
 
 vi.mock('../../../lib/googleAdsDashboard', () => ({
   fetchGoogleAdsExecutive: (...args: unknown[]) => fetchGoogleAdsExecutiveMock(...args),
@@ -21,7 +22,7 @@ const fixture = {
 describe('GoogleAdsExecutivePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchGoogleAdsExecutiveMock.mockResolvedValue(fixture);
+    fetchGoogleAdsExecutiveMock.mockImplementation(() => pendingAsync());
   });
 
   it('renders the page heading', () => {
@@ -34,6 +35,7 @@ describe('GoogleAdsExecutivePage', () => {
   });
 
   it('renders KPI metrics after loading', async () => {
+    fetchGoogleAdsExecutiveMock.mockResolvedValueOnce(fixture);
     render(
       <MemoryRouter>
         <GoogleAdsExecutivePage />
@@ -44,6 +46,7 @@ describe('GoogleAdsExecutivePage', () => {
   });
 
   it('renders top movers table', async () => {
+    fetchGoogleAdsExecutiveMock.mockResolvedValueOnce(fixture);
     render(
       <MemoryRouter>
         <GoogleAdsExecutivePage />
@@ -53,7 +56,7 @@ describe('GoogleAdsExecutivePage', () => {
   });
 
   it('shows error state when fetch fails', async () => {
-    fetchGoogleAdsExecutiveMock.mockRejectedValue(new Error('Service unavailable'));
+    fetchGoogleAdsExecutiveMock.mockRejectedValueOnce(new Error('Service unavailable'));
     render(
       <MemoryRouter>
         <GoogleAdsExecutivePage />

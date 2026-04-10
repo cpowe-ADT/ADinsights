@@ -9,6 +9,7 @@ const fetchGoogleAdsSavedViewsMock = vi.hoisted(() => vi.fn());
 const createGoogleAdsSavedViewMock = vi.hoisted(() => vi.fn());
 const createGoogleAdsExportMock = vi.hoisted(() => vi.fn());
 const fetchGoogleAdsExportStatusMock = vi.hoisted(() => vi.fn());
+const pendingAsync = () => new Promise<never>(() => {});
 
 vi.mock('../../../lib/googleAdsDashboard', () => ({
   fetchGoogleAdsSavedViews: (...args: unknown[]) => fetchGoogleAdsSavedViewsMock(...args),
@@ -20,7 +21,7 @@ vi.mock('../../../lib/googleAdsDashboard', () => ({
 describe('GoogleAdsReportsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchGoogleAdsSavedViewsMock.mockResolvedValue([]);
+    fetchGoogleAdsSavedViewsMock.mockImplementation(() => pendingAsync());
     createGoogleAdsSavedViewMock.mockResolvedValue({ id: 'v1' });
     createGoogleAdsExportMock.mockResolvedValue({ id: 'j1', status: 'queued', download_url: null });
     fetchGoogleAdsExportStatusMock.mockResolvedValue({ id: 'j1', status: 'complete', download_url: '/download/j1' });
@@ -36,6 +37,7 @@ describe('GoogleAdsReportsPage', () => {
   });
 
   it('shows empty saved views message', async () => {
+    fetchGoogleAdsSavedViewsMock.mockResolvedValueOnce([]);
     render(
       <MemoryRouter>
         <GoogleAdsReportsPage />
@@ -45,7 +47,7 @@ describe('GoogleAdsReportsPage', () => {
   });
 
   it('renders saved views after loading', async () => {
-    fetchGoogleAdsSavedViewsMock.mockResolvedValue([
+    fetchGoogleAdsSavedViewsMock.mockResolvedValueOnce([
       { id: 'v1', name: 'Weekly View', description: 'Exec report', is_shared: true, updated_at: '2026-04-01' },
     ]);
     render(
@@ -58,6 +60,7 @@ describe('GoogleAdsReportsPage', () => {
 
   it('creates an export on button click', async () => {
     const user = userEvent.setup();
+    fetchGoogleAdsSavedViewsMock.mockResolvedValueOnce([]);
     render(
       <MemoryRouter>
         <GoogleAdsReportsPage />

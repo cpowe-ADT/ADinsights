@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GoogleAdsAssetsPage from '../GoogleAdsAssetsPage';
 
 const fetchGoogleAdsListMock = vi.hoisted(() => vi.fn());
+const pendingAsync = () => new Promise<never>(() => {});
 
 vi.mock('../../../lib/googleAdsDashboard', () => ({
   fetchGoogleAdsList: (...args: unknown[]) => fetchGoogleAdsListMock(...args),
@@ -17,7 +18,7 @@ vi.mock('../../../lib/apiClient', () => ({
 describe('GoogleAdsAssetsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchGoogleAdsListMock.mockResolvedValue({ count: 1, results: [{ ad_id: 'a1', headline: 'Buy Now', status: 'approved' }] });
+    fetchGoogleAdsListMock.mockImplementation(() => pendingAsync());
   });
 
   it('renders the page heading', () => {
@@ -30,6 +31,10 @@ describe('GoogleAdsAssetsPage', () => {
   });
 
   it('renders data rows after loading', async () => {
+    fetchGoogleAdsListMock.mockResolvedValueOnce({
+      count: 1,
+      results: [{ ad_id: 'a1', headline: 'Buy Now', status: 'approved' }],
+    });
     render(
       <MemoryRouter>
         <GoogleAdsAssetsPage />
@@ -39,7 +44,7 @@ describe('GoogleAdsAssetsPage', () => {
   });
 
   it('shows error state when fetch fails', async () => {
-    fetchGoogleAdsListMock.mockRejectedValue(new Error('Server error'));
+    fetchGoogleAdsListMock.mockRejectedValueOnce(new Error('Server error'));
     render(
       <MemoryRouter>
         <GoogleAdsAssetsPage />

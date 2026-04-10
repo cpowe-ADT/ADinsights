@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthContext, type AuthContextValue } from '../../auth/AuthContext';
 
@@ -11,6 +11,8 @@ vi.mock('../../lib/phase2Api', () => ({
 
 import { listNotificationChannels } from '../../lib/phase2Api';
 import AlertCreatePage from '../AlertCreatePage';
+
+const pendingAsync = () => new Promise<never>(() => {});
 
 const mockListNotificationChannels = vi.mocked(listNotificationChannels);
 
@@ -34,9 +36,12 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 describe('AlertCreatePage', () => {
-  it('renders the create form with required fields', async () => {
-    mockListNotificationChannels.mockResolvedValue([]);
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockListNotificationChannels.mockImplementation(() => pendingAsync());
+  });
 
+  it('renders the create form with required fields', async () => {
     renderWithProviders(<AlertCreatePage />);
 
     expect(screen.getByLabelText('Name')).toBeInTheDocument();
@@ -49,7 +54,7 @@ describe('AlertCreatePage', () => {
   });
 
   it('loads and displays notification channels', async () => {
-    mockListNotificationChannels.mockResolvedValue([
+    mockListNotificationChannels.mockResolvedValueOnce([
       { id: 'ch-1', name: 'Slack Alerts', channel_type: 'slack', is_active: true },
       { id: 'ch-2', name: 'Email Team', channel_type: 'email', is_active: true },
     ]);
@@ -66,7 +71,7 @@ describe('AlertCreatePage', () => {
   });
 
   it('shows a link to create channels when none exist', async () => {
-    mockListNotificationChannels.mockResolvedValue([]);
+    mockListNotificationChannels.mockResolvedValueOnce([]);
 
     renderWithProviders(<AlertCreatePage />);
 

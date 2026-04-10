@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GoogleAdsBudgetPage from '../GoogleAdsBudgetPage';
 
 const getMock = vi.hoisted(() => vi.fn());
+const pendingAsync = () => new Promise<never>(() => {});
 
 vi.mock('../../../lib/apiClient', () => ({
   get: (...args: unknown[]) => getMock(...args),
@@ -23,7 +24,7 @@ const fixture = {
 describe('GoogleAdsBudgetPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getMock.mockResolvedValue(fixture);
+    getMock.mockImplementation(() => pendingAsync());
   });
 
   it('renders the page heading', () => {
@@ -36,6 +37,7 @@ describe('GoogleAdsBudgetPage', () => {
   });
 
   it('renders pacing data after loading', async () => {
+    getMock.mockResolvedValueOnce(fixture);
     render(
       <MemoryRouter>
         <GoogleAdsBudgetPage />
@@ -46,7 +48,7 @@ describe('GoogleAdsBudgetPage', () => {
   });
 
   it('shows error state when fetch fails', async () => {
-    getMock.mockRejectedValue(new Error('Budget fetch failed'));
+    getMock.mockRejectedValueOnce(new Error('Budget fetch failed'));
     render(
       <MemoryRouter>
         <GoogleAdsBudgetPage />

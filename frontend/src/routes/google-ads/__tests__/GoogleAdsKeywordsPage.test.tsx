@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GoogleAdsKeywordsPage from '../GoogleAdsKeywordsPage';
 
 const fetchGoogleAdsListMock = vi.hoisted(() => vi.fn());
+const pendingAsync = () => new Promise<never>(() => {});
 
 vi.mock('../../../lib/googleAdsDashboard', () => ({
   fetchGoogleAdsList: (...args: unknown[]) => fetchGoogleAdsListMock(...args),
@@ -18,7 +19,7 @@ vi.mock('../../../lib/apiClient', () => ({
 describe('GoogleAdsKeywordsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchGoogleAdsListMock.mockResolvedValue({ count: 1, results: [{ keyword: 'marketing agency', clicks: 500 }] });
+    fetchGoogleAdsListMock.mockImplementation(() => pendingAsync());
   });
 
   it('renders the page heading', () => {

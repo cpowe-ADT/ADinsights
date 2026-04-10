@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GoogleAdsPmaxPage from '../GoogleAdsPmaxPage';
 
 const fetchGoogleAdsListMock = vi.hoisted(() => vi.fn());
+const pendingAsync = () => new Promise<never>(() => {});
 
 vi.mock('../../../lib/googleAdsDashboard', () => ({
   fetchGoogleAdsList: (...args: unknown[]) => fetchGoogleAdsListMock(...args),
@@ -17,7 +18,7 @@ vi.mock('../../../lib/apiClient', () => ({
 describe('GoogleAdsPmaxPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchGoogleAdsListMock.mockResolvedValue({ count: 1, results: [{ asset_group: 'AG1', conversions: 15 }] });
+    fetchGoogleAdsListMock.mockImplementation(() => pendingAsync());
   });
 
   it('renders the page heading', () => {
@@ -30,6 +31,10 @@ describe('GoogleAdsPmaxPage', () => {
   });
 
   it('renders data rows after loading', async () => {
+    fetchGoogleAdsListMock.mockResolvedValueOnce({
+      count: 1,
+      results: [{ asset_group: 'AG1', conversions: 15 }],
+    });
     render(
       <MemoryRouter>
         <GoogleAdsPmaxPage />

@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DashboardLayout from '../DashboardLayout';
 import { loadMetaAccounts } from '../../lib/meta';
 
+const pendingAsync = () => new Promise<never>(() => {});
+
 const storeMock = vi.hoisted(() => ({
   state: {
     loadAll: vi.fn().mockResolvedValue(undefined),
@@ -167,6 +169,13 @@ describe('DashboardLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authMock.user = { email: 'admin@example.com', roles: ['ADMIN'] };
+    storeMock.state.filters = {
+      dateRange: '7d',
+      customRange: { start: '2026-02-13', end: '2026-02-19' },
+      accountId: '',
+      channels: [],
+      campaignQuery: '',
+    };
     datasetStoreMock.state = {
       mode: 'live',
       adapters: ['warehouse'],
@@ -177,6 +186,8 @@ describe('DashboardLayout', () => {
       liveSnapshotGeneratedAt: undefined,
       warehouseAdapterEnabled: true,
     };
+    airbyteMock.loadSocialConnectionStatus.mockImplementation(() => pendingAsync());
+    vi.mocked(loadMetaAccounts).mockImplementation(() => pendingAsync());
   });
 
   it('deduplicates repeated dashboard error messages', () => {
@@ -269,6 +280,27 @@ describe('DashboardLayout', () => {
       liveSnapshotGeneratedAt: '2026-04-04T10:00:00Z',
       warehouseAdapterEnabled: true,
     };
+    airbyteMock.loadSocialConnectionStatus.mockResolvedValueOnce({
+      generated_at: '2026-04-05T00:00:00Z',
+      platforms: [
+        {
+          platform: 'meta',
+          display_name: 'Meta (Facebook)',
+          status: 'active',
+          reason: {
+            code: 'active_direct_sync',
+            message: 'Meta direct sync completed successfully with fresh reporting rows.',
+          },
+          metadata: { credential_account_id: 'act_697812007883214' },
+        },
+      ],
+    });
+    vi.mocked(loadMetaAccounts).mockResolvedValueOnce({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    });
 
     render(
       <MemoryRouter initialEntries={['/dashboards/campaigns']}>
@@ -370,6 +402,27 @@ describe('DashboardLayout', () => {
       liveSnapshotGeneratedAt: '2026-04-04T10:00:00Z',
       warehouseAdapterEnabled: false,
     };
+    airbyteMock.loadSocialConnectionStatus.mockResolvedValueOnce({
+      generated_at: '2026-04-05T00:00:00Z',
+      platforms: [
+        {
+          platform: 'meta',
+          display_name: 'Meta (Facebook)',
+          status: 'active',
+          reason: {
+            code: 'active_direct_sync',
+            message: 'Meta direct sync completed successfully with fresh reporting rows.',
+          },
+          metadata: { credential_account_id: 'act_697812007883214' },
+        },
+      ],
+    });
+    vi.mocked(loadMetaAccounts).mockResolvedValueOnce({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    });
 
     render(
       <MemoryRouter initialEntries={['/dashboards/campaigns']}>

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GoogleAdsCampaignDetailPage from '../GoogleAdsCampaignDetailPage';
 
 const fetchGoogleAdsCampaignDetailMock = vi.hoisted(() => vi.fn());
+const pendingAsync = () => new Promise<never>(() => {});
 
 vi.mock('../../../lib/googleAdsDashboard', () => ({
   fetchGoogleAdsCampaignDetail: (...args: unknown[]) => fetchGoogleAdsCampaignDetailMock(...args),
@@ -22,7 +23,7 @@ const renderPage = (campaignId = 'c123') =>
 describe('GoogleAdsCampaignDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchGoogleAdsCampaignDetailMock.mockResolvedValue({ id: 'c123', name: 'Brand Campaign', spend: 1000 });
+    fetchGoogleAdsCampaignDetailMock.mockImplementation(() => pendingAsync());
   });
 
   it('renders the page heading', () => {
@@ -43,12 +44,17 @@ describe('GoogleAdsCampaignDetailPage', () => {
   });
 
   it('renders campaign payload after loading', async () => {
+    fetchGoogleAdsCampaignDetailMock.mockResolvedValueOnce({
+      id: 'c123',
+      name: 'Brand Campaign',
+      spend: 1000,
+    });
     renderPage();
     await waitFor(() => expect(screen.getByText(/Brand Campaign/)).toBeInTheDocument());
   });
 
   it('shows error state when fetch fails', async () => {
-    fetchGoogleAdsCampaignDetailMock.mockRejectedValue(new Error('Not found'));
+    fetchGoogleAdsCampaignDetailMock.mockRejectedValueOnce(new Error('Not found'));
     renderPage();
     await waitFor(() => expect(screen.getByText('Not found')).toBeInTheDocument());
   });

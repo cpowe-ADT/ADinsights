@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GoogleAdsConversionsPage from '../GoogleAdsConversionsPage';
 
 const fetchGoogleAdsListMock = vi.hoisted(() => vi.fn());
+const pendingAsync = () => new Promise<never>(() => {});
 
 vi.mock('../../../lib/googleAdsDashboard', () => ({
   fetchGoogleAdsList: (...args: unknown[]) => fetchGoogleAdsListMock(...args),
@@ -17,7 +18,7 @@ vi.mock('../../../lib/apiClient', () => ({
 describe('GoogleAdsConversionsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchGoogleAdsListMock.mockResolvedValue({ count: 1, results: [{ action: 'Purchase', conversions: 42, value: 3200 }] });
+    fetchGoogleAdsListMock.mockImplementation(() => pendingAsync());
   });
 
   it('renders the page heading', () => {
@@ -30,6 +31,10 @@ describe('GoogleAdsConversionsPage', () => {
   });
 
   it('renders data rows after loading', async () => {
+    fetchGoogleAdsListMock.mockResolvedValueOnce({
+      count: 1,
+      results: [{ action: 'Purchase', conversions: 42, value: 3200 }],
+    });
     render(
       <MemoryRouter>
         <GoogleAdsConversionsPage />
