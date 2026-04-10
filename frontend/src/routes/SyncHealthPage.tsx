@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
 import SkeletonLoader from '../components/SkeletonLoader';
-import { fetchSyncHealth, triggerResync, type SyncHealthResponse } from '../lib/phase2Api';
+import { fetchSyncHealth, triggerResync, type SyncHealthResponse, type SyncHealthRow } from '../lib/phase2Api';
 import { ApiError } from '../lib/apiClient';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import { useToastStore } from '../stores/useToastStore';
@@ -59,24 +59,24 @@ const SyncHealthPage = () => {
     void load();
   }, [load]);
 
-  const rows = payload?.rows ?? [];
+  const rows = useMemo<SyncHealthRow[]>(() => payload?.rows ?? [], [payload]);
   const generatedAt = payload?.generated_at ?? null;
   const [activeStatusFilter, setActiveStatusFilter] = useState<string>('all');
   const [activeProvider, setActiveProvider] = useState<string>('');
 
-  const providers = useMemo(() => [...new Set(rows.map((r: any) => r.provider).filter(Boolean))], [rows]);
+  const providers = useMemo(() => [...new Set(rows.map((r: SyncHealthRow) => r.provider).filter(Boolean))], [rows]);
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { all: rows.length, fresh: 0, stale: 0, failed: 0 };
     for (const r of rows) {
-      const s = (r as any).state?.toLowerCase?.() ?? '';
+      const s = r.state?.toLowerCase?.() ?? '';
       if (s in counts) counts[s]++;
     }
     return counts;
   }, [rows]);
 
   const filteredRows = useMemo(() => {
-    return rows.filter((r: any) => {
+    return rows.filter((r: SyncHealthRow) => {
       if (activeStatusFilter !== 'all' && r.state?.toLowerCase() !== activeStatusFilter) return false;
       if (activeProvider && r.provider !== activeProvider) return false;
       return true;

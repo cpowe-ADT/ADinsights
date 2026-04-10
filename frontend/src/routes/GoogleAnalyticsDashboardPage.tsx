@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import EmptyState from '../components/EmptyState';
@@ -27,7 +27,7 @@ const GoogleAnalyticsDashboardPage = () => {
   const [payload, setPayload] = useState<GoogleAnalyticsWebResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const loadRows = async () => {
+  const loadRows = useCallback(async () => {
     setStatus('loading');
     setError(null);
     try {
@@ -42,13 +42,13 @@ const GoogleAnalyticsDashboardPage = () => {
       setError(err instanceof Error ? err.message : 'Unable to load GA4 dashboard data.');
       setStatus('error');
     }
-  };
+  }, [startDate, endDate]);
 
   useEffect(() => {
     void loadRows();
-  }, []);
+  }, [loadRows]);
 
-  const rows = payload?.rows ?? [];
+  const rows = useMemo(() => payload?.rows ?? [], [payload]);
   const totals = useMemo(() => {
     return rows.reduce(
       (accumulator, row) => {

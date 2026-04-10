@@ -1,6 +1,5 @@
 import {
   fetchDashboardLibrary as fetchDashboardLibraryFromApi,
-  type DashboardLibraryItem,
   type DashboardLibraryResponse,
 } from './phase2Api';
 

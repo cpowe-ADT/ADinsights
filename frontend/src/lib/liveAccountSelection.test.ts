@@ -178,6 +178,7 @@ describe('liveAccountSelection', () => {
 
     it('skips write when value is identical', () => {
       setLastLiveAccountId('tenant-a', 'act_100', 'user');
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const afterFirst = window.localStorage.getItem(STORAGE_KEY);
       // Spy on setItem to confirm no redundant write
       const spy = vi.spyOn(Storage.prototype, 'setItem');

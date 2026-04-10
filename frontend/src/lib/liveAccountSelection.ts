@@ -25,10 +25,6 @@ function primaryOptionLabel(label: string): string {
   return label.split(' · ')[0]?.trim() ?? '';
 }
 
-function isPlaceholderOption(option: LiveAccountOption): boolean {
-  return isNumericLabel(primaryOptionLabel(option.label));
-}
-
 function normalizeText(value: string | null | undefined): string {
   return typeof value === 'string' ? value.trim() : '';
 }

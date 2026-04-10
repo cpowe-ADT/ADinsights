@@ -325,6 +325,7 @@ const parishPayload = [
   },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const metricsPayload = {
   metrics: {
     campaign_metrics: campaignPayload,
@@ -346,12 +347,14 @@ const metricsPayload = {
   },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const tenantFixtures = [
   { id: 'demo', name: 'Demo Retail Co.', status: 'active' },
   { id: 'tenant-123', name: 'Tenant 123 Holdings', status: 'active' },
   { id: 'sandbox', name: 'Sandbox Marketing Group', status: 'inactive' },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const geojsonPayload: FeatureCollection = {
   type: 'FeatureCollection',
   features: [
@@ -643,6 +646,7 @@ describe('App integration', () => {
       expect(recentDashboardsCall).toBeTruthy();
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const meCall = fetchMock.mock.calls.find(
       (call) => typeof call[0] === 'string' && call[0].includes('/api/me/'),
     ) as [RequestInfo | URL, RequestInit | undefined] | undefined;

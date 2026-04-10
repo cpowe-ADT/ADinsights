@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import EmptyState from '../components/EmptyState';
@@ -27,7 +27,7 @@ const SearchConsoleDashboardPage = () => {
   const [payload, setPayload] = useState<SearchConsoleWebResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const loadRows = async () => {
+  const loadRows = useCallback(async () => {
     setStatus('loading');
     setError(null);
     try {
@@ -42,11 +42,11 @@ const SearchConsoleDashboardPage = () => {
       setError(err instanceof Error ? err.message : 'Unable to load Search Console data.');
       setStatus('error');
     }
-  };
+  }, [startDate, endDate]);
 
   useEffect(() => {
     void loadRows();
-  }, []);
+  }, [loadRows]);
 
   const rows = useMemo(() => {
     const raw = payload?.rows ?? [];

@@ -246,7 +246,7 @@ describe('DashboardLayout', () => {
       warehouseAdapterEnabled: false,
     };
 
-    const view = render(
+    render(
       <MemoryRouter initialEntries={['/dashboards/campaigns']}>
         <Routes>
           <Route path="/dashboards" element={<DashboardLayout />}>
