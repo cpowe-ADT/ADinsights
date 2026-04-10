@@ -30,20 +30,15 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Dataset toggle (default live), snapshot freshness banner, tenant switcher, global filters.
 - Campaign/creative detail routes with saved layout + share links.
 - Data sources management UI and CSV upload wizard.
-- Dashboard library shell (mock-backed).
-- Frontend design system tokens + docs.
-- Reports list, create, and detail pages with inline editing + export auto-polling.
-- Report scheduled delivery UI (enable toggle, cron expression, delivery emails, backend fields + toggle action).
-- Alert list, detail (with run history), and creation pages (RBAC-gated).
-- Alert notification channels (NotificationChannel model with email/webhook/slack, CRUD API, M2M on alerts, frontend management page and assignment UI).
-- AI Summaries list and detail pages with manual refresh, automatic generation info banner, source badges, collapsible payload.
-- Sync Health page with state classification, aggregate counts, state filter bar, re-sync buttons, refresh timestamp.
-- Health Overview page aggregating four health endpoints.
-- Audit Log page with date range filtering, pagination, server-side CSV export, and JSON export.
-- Grouped navigation IA (Dashboards, Integrations, Reporting, Alerts & AI, Operations).
-- Home page quick action cards (Reports, Alerts, AI Summaries, Sync Health).
-- Search Console dashboard page (KPI cards + sortable table).
 - Dashboard library with live API integration (system templates + saved dashboards).
+- Toast notification system for CRUD feedback (ToastProvider).
+- Alerts management UI: rules list, alert detail with rule metadata.
+- AI summaries list and detail pages with status pills and payload snapshot.
+- Reports library, report builder (create with templates), report detail with export jobs (CSV/PDF/PNG).
+- Sync health page with connection status, freshness timestamps, and job error surfacing.
+- Health checks overview page.
+- Audit log page with action/resource filters and JSON export.
+- Frontend design system tokens + docs.
 
 ### Integrations
 - Airbyte infrastructure and declarative source templates.
@@ -60,6 +55,15 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Release checklist + demo smoke checklists.
 
 ## In Progress
+### Frontend
+- Alert notification channel assignment on create and detail pages.
+- Confirm dialogs for destructive actions (delete channel, delete alert).
+- Alert list active/inactive status column.
+- Alert detail delete functionality.
+- Sync health re-sync controls and provider/status filters.
+- AI summary source badges and schedule info on detail page.
+- Server-side audit log CSV export.
+
 ### Data/Analytics
 - Attribution window documentation expansion.
 
@@ -74,7 +78,9 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Postgres grants + `seed_roles` command/fixtures for new installs.
 
 ### Frontend/UX
-- (All planned items completed in second build-out 2026-04-10)
+- Enhanced export workflows and reporting UX.
+- Entitlement-gated exports (PDF/PNG/CSV role restrictions).
+- Budget planner UI (plan vs actual, parish/channel breakdown).
 
 ### Security/UAC
 - UAC rollout phases U0–U4 (agency admin, approvals, MFA, impersonation).

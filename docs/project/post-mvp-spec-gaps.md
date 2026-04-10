@@ -1,89 +1,106 @@
-# Post-MVP Feature Audit and Spec Gaps
+# Post-MVP Spec Gaps
 
-Audit date: 2026-04-10 (updated with second build-out closing remaining spec gaps)
+Tracks remaining gaps between the frontend-finished-product-spec and what is actually built.
+Updated: 2026-04-10.
 
-## Summary Table
+## 1. Dashboard Library (DONE)
 
-| # | Feature | Route(s) | Rating | Frontend Tests | Backend Endpoint |
-|---|---------|----------|--------|---------------|-----------------|
-| 1 | Reports | `/reports`, `/reports/new`, `/reports/:reportId` | WORKING | Yes (ReportsPage) | `/api/reports/` CRUD + `/api/reports/{id}/exports/` |
-| 2 | Alerts | `/alerts`, `/alerts/:alertId` | WORKING | Yes (AlertsPage) | `/api/alerts/` CRUD (AlertRuleDefinition) |
-| 3 | AI Summaries | `/summaries`, `/summaries/:summaryId` | WORKING | Yes (SummariesPage) | `/api/summaries/` read-only + `/api/summaries/refresh/` |
-| 4 | Sync Health | `/ops/sync-health` | WORKING | Yes (SyncHealthPage) | `/api/ops/sync-health/` |
-| 5 | Health Overview | `/ops/health` | WORKING | Yes (HealthOverviewPage) | `/api/ops/health-overview/` |
-| 6 | Audit Log | `/ops/audit` | WORKING | Yes (AuditLogPage) | `/api/audit-logs/` paginated list |
+Dashboard library is live with API integration (system templates + saved dashboards).
+Supports rename, duplicate, archive, delete actions.
 
-## Detailed Findings
+### Remaining gaps
+- None for core library functionality.
 
-### 1. Reports (WORKING)
+## 2. Alerts (WORKING)
 
-Full CRUD implementation with list, create, and detail pages. Backend `ReportDefinitionViewSet` supports all REST operations plus nested `/exports/` action for requesting CSV/PDF/PNG exports via Celery. Export download available at `/api/exports/<uuid>/download/`. Report creation is gated by RBAC (`canAccessCreatorUi`). Internal reports can be toggled visible via checkbox filter.
+Alert rules list page and alert detail page are built. Both consume live API data.
 
-**Closed gaps (2026-04-10):**
-- ~~No inline report editing on the detail page~~ — Edit/Save/Cancel inline editing added to ReportDetailPage.
-- ~~Export job polling is manual~~ — Auto-polling (5s interval, 60s max) added to ReportDetailPage for pending exports.
+### What is built
+- Alerts list with name, metric, rule, severity, and updated timestamp columns.
+- Alert detail page showing rule metadata (metric, comparison, threshold, lookback, severity).
+- Loading, error, and empty states on both pages.
 
-**Closed gaps (2026-04-10, second build-out):**
-- ~~No scheduled delivery UI~~ — Schedule section added to ReportDetailPage with enable toggle, cron expression input, delivery emails, and save action. Backend fields (`schedule_enabled`, `schedule_cron`, `delivery_emails`, `last_scheduled_at`) and `toggle_schedule` action added.
+### Remaining gaps
+- Alert creation page does not yet include notification channel assignment during creation.
+- Alert detail page does not include delete functionality.
+- Alerts list does not show active/inactive status column.
+- No notification channels CRUD UI (create/edit/delete channels).
+- No confirm dialogs for destructive actions (delete alert).
+- No alert history/triggered events timeline.
+- No alert pause/resume controls.
 
-**Remaining gaps:**
-- None for Reports.
+## 3. AI Summaries (WORKING)
 
-### 2. Alerts (WORKING)
+Summaries list and summary detail pages are built.
 
-Frontend list and detail pages consume the `AlertsViewSet`, which extends `AlertRuleDefinitionViewSet` from the integrations app. Backend serializer fields (`name`, `metric`, `comparison_operator`, `threshold`, `lookback_hours`, `severity`) align with the frontend `AlertRule` type. Note: there is a separate `AlertRun` model/viewset at `/api/alerts/runs/` for execution history which is not surfaced in the frontend.
+### What is built
+- Summaries list page with title, status pill, and generated-at timestamps.
+- Summary detail page with summary text and raw payload snapshot.
+- Loading, error, and empty states.
 
-**Closed gaps (2026-04-10):**
-- ~~No alert creation UI~~ — AlertCreatePage added at `/alerts/new` with full form (name, metric, operator, threshold, lookback, severity). Gated by `canAccessCreatorUi`.
-- ~~Alert run history not displayed~~ — AlertDetailPage now shows AlertRunHistory table via `listAlertRuns`.
+### Remaining gaps
+- No source badges showing which dashboard/data source generated the summary.
+- No schedule info on summary detail page.
+- No summary regeneration controls.
 
-**Closed gaps (2026-04-10, second build-out):**
-- ~~No notification channel configuration~~ — `NotificationChannel` model added (email/webhook/slack) with full CRUD at `/api/notification-channels/`. M2M on `AlertRuleDefinition`. Frontend page at `/settings/notifications` with create form and channel list. Alert detail page shows channel assignment with checkboxes.
+## 4. Reports (WORKING)
 
-**Remaining gaps:**
-- None for Alerts.
+Report builder (create), reports library (list), and report detail with export jobs are built.
 
-### 3. AI Summaries (WORKING)
+### What is built
+- Report create page with name, description, filters (JSON), layout (JSON), and quick templates.
+- Reports library with name, description, and timestamps.
+- Report detail page with CSV/PDF/PNG export job creation and job status table.
+- Role-based access: viewers get read-only messaging on create page.
 
-Read-only list with detail view and manual refresh action. Backend `AISummaryViewSet` is read-only with a `refresh` action that calls `generate_ai_summary_for_tenant`. Summaries display title, status (generated/fallback/failed), source, and raw payload.
+### Remaining gaps
+- Scheduled delivery UI is referenced in copy but not yet a configurable form field.
+- No report editing (only create and view).
+- No delivery status tracking for scheduled reports.
 
-**Closed gaps (2026-04-10, second build-out):**
-- ~~No automatic/scheduled summary generation UI~~ — Info banner added to SummariesPage showing the 6:10 AM daily schedule. Source badges ("Daily" / "Manual") displayed in list and detail views.
-- ~~No summary editing or annotation capability~~ — Summary detail page enhanced with source badge, model name display, and collapsible raw payload section.
+## 5. Sync Health (WORKING)
 
-**Remaining gaps:**
-- Refresh action is synchronous and may time out for large tenants.
+Sync health page is built with connection status table.
 
-### 4. Sync Health (WORKING)
+### What is built
+- Connection table with name, provider, status pill, last sync timestamps, and job errors.
+- Summary stat cards (total, fresh, stale, failed connections).
+- Loading, error, and empty states.
 
-Displays Airbyte connection health with state classification (fresh/stale/failed/missing/inactive) and aggregate counts. Backend reads directly from `AirbyteConnection` model. Stale threshold is hardcoded at 2 hours.
+### Remaining gaps
+- No re-sync / "run now" controls per connection.
+- No provider or status filters on the table.
+- No drill-through to connection detail page.
 
-**Closed gaps (2026-04-10, second build-out):**
-- ~~No direct action to trigger a re-sync from this page~~ — Per-row "Re-sync" button added (wired to stub backend action returning 501). State filter bar (All/Fresh/Stale/Failed/Missing/Inactive) and "Last refreshed" timestamp with manual refresh added.
+## 6. Audit Log (WORKING)
 
-**Remaining gaps:**
-- No configurable stale threshold per tenant.
-- No historical trend view (current snapshot only).
+Audit log page is built with action/resource filters and JSON export.
 
-### 5. Health Overview (WORKING)
+### What is built
+- Audit log table with action, resource type, detail, user, and timestamp columns.
+- Action and resource type text filters.
+- Client-side JSON export of current view.
 
-Aggregates responses from the four health endpoints (`/api/health/`, `/api/health/airbyte/`, `/api/health/dbt/`, `/api/timezone/`) into cards with overall status derivation (ok/degraded/error). Frontend displays card key, HTTP status, and detail.
+### Remaining gaps
+- Server-side CSV export (current export is client-side JSON only).
+- No date range filter.
+- No pagination controls visible (backend pagination exists but UI does not expose it).
 
-**Remaining gaps:**
-- No historical uptime tracking.
-- No alerting integration when status degrades.
+## 7. Health Overview (DONE)
 
-### 6. Audit Log (WORKING)
+Health checks overview page is built, showing status for all required health endpoints.
 
-Paginated, filterable audit event list with JSON export. Backend `AuditLogViewSet` supports `action` and `resource_type` query filters. Frontend includes client-side JSON blob download.
+### Remaining gaps
+- None for core health overview.
 
-**Closed gaps (2026-04-10):**
-- ~~No date range filtering~~ — Start/end date inputs added with 30-day default, passed to backend.
-- ~~No pagination controls~~ — Previous/Next buttons with "Page X of Y" display added.
-- ~~Client-side JSON only~~ — CSV export button added alongside JSON export.
+## 8. Toast Notification System (DONE)
 
-**Closed gaps (2026-04-10, second build-out):**
-- ~~No server-side CSV export~~ — `export_csv` action added to `AuditLogViewSet` returning `StreamingHttpResponse` with full CSV. Frontend CSV export button now opens the server-side endpoint directly.
+ToastProvider is implemented and wired into the app shell.
 
-**Remaining gaps:**
-- None for Audit Log.
+### Remaining gaps
+- Not yet used consistently across all CRUD operations (dashboard library uses it; alerts/reports do not).
+
+## 9. Cross-Cutting Gaps
+
+- No confirm dialogs for destructive actions across the app (delete channel, delete alert, delete report).
+- Notification channels CRUD is not yet built as a standalone management page.
