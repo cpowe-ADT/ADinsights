@@ -334,13 +334,6 @@ export async function listReportExports(
   return Array.isArray(data) ? data : data.results;
 }
 
-export async function updateReport(
-  reportId: string,
-  payload: Partial<Pick<ReportDefinition, 'name' | 'description' | 'is_active' | 'filters' | 'layout'>>,
-): Promise<ReportDefinition> {
-  return apiClient.patch<ReportDefinition>(`/reports/${reportId}/`, payload);
-}
-
 export async function createReportExport(
   reportId: string,
   exportFormat: 'csv' | 'pdf' | 'png',
@@ -373,12 +366,6 @@ export type AlertRun = {
   created_at: string;
   completed_at: string | null;
 };
-
-export async function createAlert(
-  payload: Pick<AlertRule, 'name' | 'metric' | 'comparison_operator' | 'threshold' | 'lookback_hours' | 'severity'> & { is_active?: boolean },
-): Promise<AlertRule> {
-  return apiClient.post<AlertRule>('/alerts/', payload);
-}
 
 export async function listAlertRuns(
   params: { rule?: string; status?: string } = {},

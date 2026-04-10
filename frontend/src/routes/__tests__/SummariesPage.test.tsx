@@ -55,8 +55,7 @@ describe('SummariesPage', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => expect(phase2ApiMock.listSummaries).toHaveBeenCalled());
-    expect(screen.getByText(/6:10 AM/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/6:10 AM/)).toBeInTheDocument());
     expect(screen.getByText(/Automatic generation/)).toBeInTheDocument();
   });
 
