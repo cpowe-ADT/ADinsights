@@ -494,6 +494,7 @@ const DashboardLayout = () => {
         { label: 'Health Overview', to: '/ops/health', end: false },
         { label: 'Audit Log', to: '/ops/audit', end: false },
         { label: 'Notifications', to: '/settings/notifications', end: false },
+        { label: 'My Profile', to: '/me', end: false },
       ],
     },
   ], [canCreate]);
