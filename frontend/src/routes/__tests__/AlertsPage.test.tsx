@@ -12,6 +12,10 @@ vi.mock('../../lib/phase2Api', () => ({
   listAlerts: phase2ApiMock.listAlerts,
 }));
 
+vi.mock('../../auth/AuthContext', () => ({
+  useAuth: () => ({ user: { roles: ['ADMIN'] } }),
+}));
+
 describe('AlertsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
