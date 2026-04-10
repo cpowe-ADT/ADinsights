@@ -9,11 +9,20 @@ import {
   type ReportDefinition,
   type ReportExportJob,
 } from '../lib/phase2Api';
+import apiClient from '../lib/apiClient';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
+import { useToastStore } from '../stores/useToastStore';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 
 const exportFormats: Array<'csv' | 'pdf' | 'png'> = ['csv', 'pdf', 'png'];
+
+async function updateReport(
+  reportId: string,
+  payload: { name?: string; description?: string },
+): Promise<ReportDefinition> {
+  return apiClient.patch<ReportDefinition>(`/reports/${reportId}/`, payload);
+}
 
 const ReportDetailPage = () => {
   const { reportId } = useParams<{ reportId: string }>();
@@ -22,6 +31,14 @@ const ReportDetailPage = () => {
   const [exports, setExports] = useState<ReportExportJob[]>([]);
   const [error, setError] = useState<string>('Unable to load report.');
   const [creatingFormat, setCreatingFormat] = useState<string | null>(null);
+
+  // Inline editing state
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const addToast = useToastStore((s) => s.addToast);
 
   const load = useCallback(async () => {
     if (!reportId) {
@@ -48,6 +65,38 @@ const ReportDetailPage = () => {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const startEditing = useCallback(() => {
+    if (!report) return;
+    setEditName(report.name);
+    setEditDescription(report.description);
+    setEditing(true);
+  }, [report]);
+
+  const cancelEditing = useCallback(() => {
+    if (!report) return;
+    setEditName(report.name);
+    setEditDescription(report.description);
+    setEditing(false);
+  }, [report]);
+
+  const saveEditing = useCallback(async () => {
+    if (!reportId || !report) return;
+    setSaving(true);
+    try {
+      const updated = await updateReport(reportId, {
+        name: editName,
+        description: editDescription,
+      });
+      setReport(updated);
+      setEditing(false);
+      addToast('Report updated');
+    } catch {
+      addToast('Failed to update', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }, [reportId, report, editName, editDescription, addToast]);
 
   const requestExport = useCallback(
     async (format: 'csv' | 'pdf' | 'png') => {
@@ -87,16 +136,69 @@ const ReportDetailPage = () => {
       <header className="phase2-page__header">
         <div>
           <p className="dashboardEyebrow">Reporting</p>
-          <h1 className="dashboardHeading">{report.name}</h1>
-          <p className="phase2-page__subhead">{report.description || 'No description provided.'}</p>
+          {editing ? (
+            <>
+              <label className="phase2-form__field" htmlFor="edit-report-name">
+                <span>Name</span>
+                <input
+                  id="edit-report-name"
+                  className="phase2-input"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
+              </label>
+              <label className="phase2-form__field" htmlFor="edit-report-description">
+                <span>Description</span>
+                <input
+                  id="edit-report-description"
+                  className="phase2-input"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <h1 className="dashboardHeading">{report.name}</h1>
+              <p className="phase2-page__subhead">
+                {report.description || 'No description provided.'}
+              </p>
+            </>
+          )}
         </div>
         <div className="phase2-row-actions">
           <Link to="/reports" className="button tertiary">
             Back to reports
           </Link>
-          <button type="button" className="button secondary" onClick={() => void load()}>
-            Refresh
-          </button>
+          {editing ? (
+            <>
+              <button
+                type="button"
+                className="button secondary"
+                onClick={cancelEditing}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="button primary"
+                onClick={() => void saveEditing()}
+                disabled={saving}
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="button secondary" onClick={startEditing}>
+                Edit
+              </button>
+              <button type="button" className="button secondary" onClick={() => void load()}>
+                Refresh
+              </button>
+            </>
+          )}
         </div>
       </header>
 
