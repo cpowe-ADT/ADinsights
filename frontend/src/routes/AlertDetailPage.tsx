@@ -25,6 +25,7 @@ const AlertDetailPage = () => {
   const [channels, setChannels] = useState<NotificationChannel[]>([]);
   const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
+  const [toggling, setToggling] = useState(false);
 
   const load = useCallback(async () => {
     if (!alertId) {
@@ -67,6 +68,20 @@ const AlertDetailPage = () => {
       addToast('Failed to update channels', 'error');
     }
   };
+
+  const handleToggle = useCallback(async () => {
+    if (!alertId || !alert) return;
+    setToggling(true);
+    try {
+      const updated = await updateAlert(alertId, { is_active: !alert.is_active });
+      setAlert(updated);
+      addToast(updated.is_active ? 'Alert resumed' : 'Alert paused');
+    } catch {
+      addToast('Failed to update alert', 'error');
+    } finally {
+      setToggling(false);
+    }
+  }, [alertId, alert, addToast]);
 
   if (state === 'loading') {
     return <DashboardState variant="loading" layout="page" message="Loading alert detail…" />;
@@ -137,6 +152,21 @@ const AlertDetailPage = () => {
         <p>
           Severity:{' '}
           <span className={`phase2-pill phase2-pill--${alert.severity}`}>{alert.severity}</span>
+        </p>
+        <p>
+          Status:{' '}
+          <span className={`phase2-pill phase2-pill--${alert.is_active ? 'fresh' : 'stale'}`}>
+            {alert.is_active ? 'Active' : 'Paused'}
+          </span>
+          <button
+            type="button"
+            className="button tertiary"
+            style={{ marginLeft: '0.5rem' }}
+            disabled={toggling}
+            onClick={() => void handleToggle()}
+          >
+            {alert.is_active ? 'Pause' : 'Resume'}
+          </button>
         </p>
         <p>
           Updated {formatRelativeTime(alert.updated_at)} ({formatAbsoluteTime(alert.updated_at)})

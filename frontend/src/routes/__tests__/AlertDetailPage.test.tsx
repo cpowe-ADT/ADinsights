@@ -108,4 +108,18 @@ describe('AlertDetailPage', () => {
     const backLink = screen.getByRole('link', { name: /back to alerts/i });
     expect(backLink).toHaveAttribute('href', '/alerts');
   });
+
+  it('shows active state with pause button', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'High CPC Alert' });
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+  });
+
+  it('shows paused state with resume button when inactive', async () => {
+    phase2ApiMock.getAlert.mockResolvedValue({ ...sampleAlert, is_active: false });
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Paused')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Resume' })).toBeInTheDocument();
+  });
 });

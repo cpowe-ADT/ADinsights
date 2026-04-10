@@ -58,6 +58,27 @@ const SyncHealthPage = () => {
 
   const rows = payload?.rows ?? [];
   const generatedAt = payload?.generated_at ?? null;
+  const [activeStatusFilter, setActiveStatusFilter] = useState<string>('all');
+  const [activeProvider, setActiveProvider] = useState<string>('');
+
+  const providers = useMemo(() => [...new Set(rows.map((r: any) => r.provider).filter(Boolean))], [rows]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: rows.length, fresh: 0, stale: 0, failed: 0 };
+    for (const r of rows) {
+      const s = (r as any).state?.toLowerCase?.() ?? '';
+      if (s in counts) counts[s]++;
+    }
+    return counts;
+  }, [rows]);
+
+  const filteredRows = useMemo(() => {
+    return rows.filter((r: any) => {
+      if (activeStatusFilter !== 'all' && r.state?.toLowerCase() !== activeStatusFilter) return false;
+      if (activeProvider && r.provider !== activeProvider) return false;
+      return true;
+    });
+  }, [rows, activeStatusFilter, activeProvider]);
 
   const stateClass = useMemo(
     () => (value: string) => {
@@ -124,6 +145,32 @@ const SyncHealthPage = () => {
         </p>
       ) : null}
 
+      <div className="phase2-row-actions" style={{ marginBottom: '1rem', flexWrap: 'wrap' }}>
+        {(['all', 'fresh', 'stale', 'failed'] as const).map((status) => (
+          <button
+            key={status}
+            type="button"
+            className={`button ${activeStatusFilter === status ? 'primary' : 'tertiary'}`}
+            onClick={() => setActiveStatusFilter(status)}
+          >
+            {status.charAt(0).toUpperCase() + status.slice(1)} ({statusCounts[status] ?? 0})
+          </button>
+        ))}
+        {providers.length > 1 ? (
+          <select
+            value={activeProvider}
+            onChange={(e) => setActiveProvider(e.target.value)}
+            className="phase2-input"
+            style={{ maxWidth: 200 }}
+          >
+            <option value="">All providers</option>
+            {providers.map((p: string) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        ) : null}
+      </div>
+
       {rows.length === 0 ? (
         <DashboardState
           variant="empty"
@@ -144,7 +191,7 @@ const SyncHealthPage = () => {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {filteredRows.map((row) => (
               <tr key={row.id}>
                 <td>{row.name}</td>
                 <td>{row.provider ?? 'Unknown'}</td>
