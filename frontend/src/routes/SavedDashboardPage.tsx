@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
 import {
@@ -160,6 +160,9 @@ const SavedDashboardPage = () => {
               <p className="dashboardEyebrow">Saved dashboard</p>
               <h2>{dashboard.name}</h2>
             </div>
+            <Link to="/dashboards" className="button tertiary">
+              Back to library
+            </Link>
           </div>
           <p className="muted">
             {dashboard.description || template.subtitle}

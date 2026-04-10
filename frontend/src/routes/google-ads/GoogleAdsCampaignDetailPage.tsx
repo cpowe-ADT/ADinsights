@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import { fetchGoogleAdsCampaignDetail } from '../../lib/googleAdsDashboard';
 
@@ -48,6 +48,9 @@ const GoogleAdsCampaignDetailPage = () => {
         <p className="dashboardEyebrow">Google Ads</p>
         <h1 className="dashboardHeading">Campaign Drilldown</h1>
         <p className="dashboardSubtitle">Campaign ID: {campaignId}</p>
+        <Link className="button tertiary" to="/dashboards/google-ads/campaigns">
+          Back to Google Ads campaigns
+        </Link>
       </header>
 
       {status === 'loading' ? <div className="dashboard-state dashboard-state--page">Loading campaign...</div> : null}

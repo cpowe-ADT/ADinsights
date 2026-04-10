@@ -244,6 +244,9 @@ const MetaPageOverviewPage = () => {
       <header className="dashboardPageHeader">
         <h1 className="dashboardHeading">{pageName} Overview</h1>
         <div className="dashboard-header__actions-row">
+          <Link className="button tertiary" to="/dashboards/meta/pages">
+            Back to Facebook pages
+          </Link>
           {pageId ? (
             <Link className="button tertiary" to={`/dashboards/meta/pages/${pageId}/posts`}>
               Posts
