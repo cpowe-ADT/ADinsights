@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import csv
+import json
+
 from django.conf import settings
 from django.db import connection
+from django.http import StreamingHttpResponse
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import action
@@ -468,4 +472,46 @@ class AuditLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         resource_type = self.request.query_params.get("resource_type")
         if resource_type:
             queryset = queryset.filter(resource_type=resource_type)
+        start_date = self.request.query_params.get("start_date")
+        if start_date:
+            queryset = queryset.filter(created_at__date__gte=start_date)
+        end_date = self.request.query_params.get("end_date")
+        if end_date:
+            queryset = queryset.filter(created_at__date__lte=end_date)
         return queryset
+
+    @action(detail=False, methods=["get"], url_path="export_csv")
+    def export_csv(self, request):
+        queryset = self.get_queryset()
+
+        def csv_rows():
+            yield [
+                "id",
+                "action",
+                "resource_type",
+                "resource_id",
+                "user_email",
+                "metadata",
+                "created_at",
+            ]
+            for entry in queryset.iterator():
+                yield [
+                    str(entry.id),
+                    entry.action,
+                    entry.resource_type,
+                    entry.resource_id,
+                    entry.user.email if entry.user else "",
+                    json.dumps(entry.metadata) if entry.metadata else "{}",
+                    entry.created_at.isoformat() if entry.created_at else "",
+                ]
+
+        pseudo_buffer = type("", (), {"write": lambda self, val: val})()
+        writer = csv.writer(pseudo_buffer)
+        response = StreamingHttpResponse(
+            (writer.writerow(row) for row in csv_rows()),
+            content_type="text/csv",
+        )
+        response["Content-Disposition"] = (
+            'attachment; filename="audit_log_export.csv"'
+        )
+        return response
