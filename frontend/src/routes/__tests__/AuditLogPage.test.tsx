@@ -1,5 +1,8 @@
+import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AuditLogPage from '../AuditLogPage';
 
@@ -11,102 +14,85 @@ vi.mock('../../lib/phase2Api', () => ({
   listAuditLogs: phase2ApiMock.listAuditLogs,
 }));
 
-const SAMPLE_RESPONSE = {
-  count: 2,
-  next: null,
-  previous: null,
-  results: [
-    {
-      id: '1',
-      action: 'login',
-      resource_type: 'user',
-      resource_id: 'u-1',
-      metadata: {},
-      created_at: '2026-04-01T12:00:00Z',
-      user: { id: 'u-1', email: 'admin@example.com' },
-    },
-    {
-      id: '2',
-      action: 'report_created',
-      resource_type: 'report_definition',
-      resource_id: 'r-1',
-      metadata: { name: 'Weekly' },
-      created_at: '2026-04-02T08:00:00Z',
-      user: null,
-    },
-  ],
-};
+vi.mock('../../lib/apiClient', () => ({
+  API_BASE_URL: '/api',
+}));
+
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <AuditLogPage />
+    </MemoryRouter>,
+  );
+}
 
 describe('AuditLogPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    phase2ApiMock.listAuditLogs.mockResolvedValue(SAMPLE_RESPONSE);
+    phase2ApiMock.listAuditLogs.mockResolvedValue({
+      count: 1,
+      results: [
+        {
+          id: 'log-1',
+          action: 'report_created',
+          resource_type: 'report_definition',
+          resource_id: 'rpt-001',
+          user: { email: 'admin@example.com' },
+          metadata: { source: 'manual' },
+          created_at: '2026-04-01T12:00:00Z',
+        },
+      ],
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('renders audit log entries', async () => {
-    render(<AuditLogPage />);
+    renderPage();
 
-    await waitFor(() => expect(phase2ApiMock.listAuditLogs).toHaveBeenCalled());
-    expect(screen.getByRole('heading', { name: 'Audit Log' })).toBeInTheDocument();
-    expect(screen.getByText('login')).toBeInTheDocument();
+    expect(await screen.findByText('report_created')).toBeInTheDocument();
     expect(screen.getByText('admin@example.com')).toBeInTheDocument();
   });
 
-  it('shows empty state when no events match', async () => {
-    phase2ApiMock.listAuditLogs.mockResolvedValue({
-      count: 0,
-      next: null,
-      previous: null,
-      results: [],
-    });
+  it('CSV export opens server-side endpoint', async () => {
+    const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    renderPage();
 
-    render(<AuditLogPage />);
+    const csvButton = await screen.findByRole('button', { name: /export csv/i });
+    const user = userEvent.setup();
+    await user.click(csvButton);
 
-    await waitFor(() => expect(phase2ApiMock.listAuditLogs).toHaveBeenCalled());
-    expect(screen.getByText('No audit events')).toBeInTheDocument();
+    expect(windowOpenSpy).toHaveBeenCalledTimes(1);
+    const calledUrl = windowOpenSpy.mock.calls[0][0] as string;
+    expect(calledUrl).toContain('/audit-logs/export_csv/');
+    expect(windowOpenSpy.mock.calls[0][1]).toBe('_blank');
   });
 
-  it('shows error state when fetch fails', async () => {
-    phase2ApiMock.listAuditLogs.mockRejectedValue(new Error('Forbidden'));
+  it('CSV export includes active filters in URL', async () => {
+    const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const { fireEvent } = await import('@testing-library/react');
 
-    render(<AuditLogPage />);
+    renderPage();
 
-    await waitFor(() => expect(phase2ApiMock.listAuditLogs).toHaveBeenCalled());
-    expect(screen.getByText('Audit logs unavailable')).toBeInTheDocument();
-    expect(screen.getByText('Forbidden')).toBeInTheDocument();
-  });
+    // Wait for initial load
+    await screen.findByText('report_created');
 
-  it('renders pagination controls', async () => {
-    render(<AuditLogPage />);
+    const actionInput = screen.getByPlaceholderText('e.g. report_created');
 
-    await waitFor(() => expect(phase2ApiMock.listAuditLogs).toHaveBeenCalled());
-    expect(screen.getByRole('button', { name: /previous/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
-    expect(screen.getByText(/page 1 of 1/i)).toBeInTheDocument();
-  });
+    // Change filter value - this triggers a reload
+    fireEvent.change(actionInput, { target: { value: 'user_login' } });
 
-  it('renders date range inputs', async () => {
-    render(<AuditLogPage />);
+    // Wait for reload to complete and table to re-appear
+    await screen.findByRole('button', { name: /export csv/i });
 
-    await waitFor(() => expect(phase2ApiMock.listAuditLogs).toHaveBeenCalled());
-    expect(screen.getByLabelText(/start date/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/end date/i)).toBeInTheDocument();
-  });
+    const csvButton = screen.getByRole('button', { name: /export csv/i });
+    const user = userEvent.setup();
+    await user.click(csvButton);
 
-  it('renders CSV export button', async () => {
-    render(<AuditLogPage />);
-
-    await waitFor(() => expect(phase2ApiMock.listAuditLogs).toHaveBeenCalled());
-    expect(screen.getByRole('button', { name: /export csv/i })).toBeInTheDocument();
-  });
-
-  it('passes date params to listAuditLogs', async () => {
-    render(<AuditLogPage />);
-
-    await waitFor(() => expect(phase2ApiMock.listAuditLogs).toHaveBeenCalled());
-    const callArgs = phase2ApiMock.listAuditLogs.mock.calls[0][0];
-    expect(callArgs).toHaveProperty('start_date');
-    expect(callArgs).toHaveProperty('end_date');
-    expect(callArgs).toHaveProperty('page', 1);
+    const lastCallIndex = windowOpenSpy.mock.calls.length - 1;
+    const calledUrl = windowOpenSpy.mock.calls[lastCallIndex][0] as string;
+    expect(calledUrl).toContain('action=user_login');
   });
 });

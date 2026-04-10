@@ -1,36 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import DashboardState from '../components/DashboardState';
+import { API_BASE_URL } from '../lib/apiClient';
 import { listAuditLogs, type AuditLogEntry } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 
-const PAGE_SIZE = 100;
-
-function defaultDateRange(): { startDate: string; endDate: string } {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - 30);
-  return {
-    startDate: start.toISOString().slice(0, 10),
-    endDate: end.toISOString().slice(0, 10),
-  };
-}
-
 const AuditLogPage = () => {
-  const defaults = useMemo(() => defaultDateRange(), []);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [rows, setRows] = useState<AuditLogEntry[]>([]);
   const [count, setCount] = useState(0);
   const [error, setError] = useState('Unable to load audit logs.');
   const [actionFilter, setActionFilter] = useState('');
   const [resourceFilter, setResourceFilter] = useState('');
-  const [startDate, setStartDate] = useState(defaults.startDate);
-  const [endDate, setEndDate] = useState(defaults.endDate);
-  const [page, setPage] = useState(1);
-
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(count / PAGE_SIZE)), [count]);
 
   const load = useCallback(async () => {
     setState('loading');
@@ -38,9 +21,6 @@ const AuditLogPage = () => {
       const response = await listAuditLogs({
         action: actionFilter.trim() || undefined,
         resource_type: resourceFilter.trim() || undefined,
-        start_date: startDate || undefined,
-        end_date: endDate || undefined,
-        page,
       });
       setRows(response.results);
       setCount(response.count);
@@ -49,7 +29,7 @@ const AuditLogPage = () => {
       setState('error');
       setError(err instanceof Error ? err.message : 'Unable to load audit logs.');
     }
-  }, [actionFilter, resourceFilter, startDate, endDate, page]);
+  }, [actionFilter, resourceFilter]);
 
   useEffect(() => {
     void load();
@@ -66,30 +46,13 @@ const AuditLogPage = () => {
   }, [rows]);
 
   const exportCsv = useCallback(() => {
-    const escapeField = (value: string): string => {
-      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-        return `"${value.replace(/"/g, '""')}"`;
-      }
-      return value;
-    };
-    const header = ['Action', 'Resource Type', 'Resource ID', 'Actor Email', 'Timestamp', 'Metadata JSON'];
-    const csvRows = rows.map((row) => [
-      escapeField(row.action),
-      escapeField(row.resource_type),
-      escapeField(row.resource_id),
-      escapeField(row.user?.email ?? 'System'),
-      escapeField(row.created_at),
-      escapeField(JSON.stringify(row.metadata)),
-    ]);
-    const csvContent = [header.join(','), ...csvRows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'audit-log-export.csv';
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [rows]);
+    const params = new URLSearchParams();
+    if (actionFilter.trim()) params.set('action', actionFilter.trim());
+    if (resourceFilter.trim()) params.set('resource_type', resourceFilter.trim());
+    const base = API_BASE_URL.replace(/\/$/, '');
+    const url = `${base}/audit-logs/export_csv/?${params.toString()}`;
+    window.open(url, '_blank');
+  }, [actionFilter, resourceFilter]);
 
   if (state === 'loading') {
     return <DashboardState variant="loading" layout="page" message="Loading audit logs…" />;
@@ -125,18 +88,17 @@ const AuditLogPage = () => {
           <button
             type="button"
             className="button tertiary"
-            onClick={exportJson}
-            disabled={rows.length === 0}
+            onClick={exportCsv}
           >
-            Export JSON
+            Export CSV
           </button>
           <button
             type="button"
             className="button tertiary"
-            onClick={exportCsv}
+            onClick={exportJson}
             disabled={rows.length === 0}
           >
-            Export CSV
+            Export JSON
           </button>
         </div>
       </header>
@@ -147,7 +109,7 @@ const AuditLogPage = () => {
           <input
             id="audit-action"
             value={actionFilter}
-            onChange={(event) => { setActionFilter(event.target.value); setPage(1); }}
+            onChange={(event) => setActionFilter(event.target.value)}
             placeholder="e.g. report_created"
           />
         </label>
@@ -156,26 +118,8 @@ const AuditLogPage = () => {
           <input
             id="audit-resource"
             value={resourceFilter}
-            onChange={(event) => { setResourceFilter(event.target.value); setPage(1); }}
+            onChange={(event) => setResourceFilter(event.target.value)}
             placeholder="e.g. report_definition"
-          />
-        </label>
-        <label className="phase2-form__field" htmlFor="audit-start-date">
-          <span>Start date</span>
-          <input
-            id="audit-start-date"
-            type="date"
-            value={startDate}
-            onChange={(event) => { setStartDate(event.target.value); setPage(1); }}
-          />
-        </label>
-        <label className="phase2-form__field" htmlFor="audit-end-date">
-          <span>End date</span>
-          <input
-            id="audit-end-date"
-            type="date"
-            value={endDate}
-            onChange={(event) => { setEndDate(event.target.value); setPage(1); }}
           />
         </label>
       </div>
@@ -222,28 +166,6 @@ const AuditLogPage = () => {
           </tbody>
         </table>
       )}
-
-      <nav className="phase2-pagination" aria-label="Audit log pagination">
-        <button
-          type="button"
-          className="button secondary"
-          disabled={page <= 1}
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-        >
-          Previous
-        </button>
-        <span className="phase2-pagination__indicator">
-          Page {page} of {totalPages}
-        </span>
-        <button
-          type="button"
-          className="button secondary"
-          disabled={page >= totalPages}
-          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-        >
-          Next
-        </button>
-      </nav>
     </section>
   );
 };
