@@ -103,6 +103,9 @@ const SyncConnectionDetailPage = () => {
           <p className="phase2-page__subhead">Sync connection detail view.</p>
         </div>
         <div className="phase2-row-actions">
+          <Link to="/ops/sync-health" className="button tertiary">
+            Back to Sync Health
+          </Link>
           <button
             type="button"
             className="button secondary"
@@ -113,10 +116,6 @@ const SyncConnectionDetailPage = () => {
           </button>
         </div>
       </header>
-
-      <Link to="/ops/sync-health" className="phase2-back-link">
-        Back to Sync Health
-      </Link>
 
       <article className="phase2-card" style={{ marginTop: '1rem' }}>
         <table className="phase2-table">

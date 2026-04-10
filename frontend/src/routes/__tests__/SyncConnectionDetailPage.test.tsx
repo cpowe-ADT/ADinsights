@@ -7,27 +7,21 @@ import SyncConnectionDetailPage from '../SyncConnectionDetailPage';
 
 const phase2ApiMock = vi.hoisted(() => ({
   fetchSyncHealth: vi.fn(),
-}));
-
-const airbyteMock = vi.hoisted(() => ({
-  triggerAirbyteSync: vi.fn(),
+  triggerResync: vi.fn(),
 }));
 
 const toastMock = vi.hoisted(() => ({
-  pushToast: vi.fn(),
+  addToast: vi.fn(),
 }));
 
 vi.mock('../../lib/phase2Api', () => ({
   fetchSyncHealth: phase2ApiMock.fetchSyncHealth,
-}));
-
-vi.mock('../../lib/airbyte', () => ({
-  triggerAirbyteSync: airbyteMock.triggerAirbyteSync,
+  triggerResync: phase2ApiMock.triggerResync,
 }));
 
 vi.mock('../../stores/useToastStore', () => ({
-  default: (selector: (s: { pushToast: typeof toastMock.pushToast }) => unknown) =>
-    selector({ pushToast: toastMock.pushToast }),
+  useToastStore: (selector: (s: { addToast: typeof toastMock.addToast }) => unknown) =>
+    selector({ addToast: toastMock.addToast }),
 }));
 
 const sampleRow = {
@@ -63,7 +57,7 @@ describe('SyncConnectionDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     phase2ApiMock.fetchSyncHealth.mockResolvedValue(sampleResponse);
-    airbyteMock.triggerAirbyteSync.mockResolvedValue({ job_id: 'job-1' });
+    phase2ApiMock.triggerResync.mockResolvedValue({ ok: true });
   });
 
   it('renders connection details after loading', async () => {
@@ -110,9 +104,9 @@ describe('SyncConnectionDetailPage', () => {
       'Are you sure you want to trigger a re-sync for this connection?',
     );
     await waitFor(() => {
-      expect(airbyteMock.triggerAirbyteSync).toHaveBeenCalledWith('conn-123');
+      expect(phase2ApiMock.triggerResync).toHaveBeenCalledWith('conn-123');
     });
-    expect(toastMock.pushToast).toHaveBeenCalledWith('Re-sync triggered successfully.', {
+    expect(toastMock.addToast).toHaveBeenCalledWith('Re-sync triggered successfully.', {
       tone: 'success',
     });
 
