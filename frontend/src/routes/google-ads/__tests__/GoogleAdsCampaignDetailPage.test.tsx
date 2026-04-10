@@ -35,6 +35,13 @@ describe('GoogleAdsCampaignDetailPage', () => {
     expect(screen.getByText(/c123/)).toBeInTheDocument();
   });
 
+  it('renders a back link to the campaigns page', () => {
+    renderPage();
+    expect(
+      screen.getByRole('link', { name: /back to google ads campaigns/i }),
+    ).toHaveAttribute('href', '/dashboards/google-ads/campaigns');
+  });
+
   it('renders campaign payload after loading', async () => {
     renderPage();
     await waitFor(() => expect(screen.getByText(/Brand Campaign/)).toBeInTheDocument());

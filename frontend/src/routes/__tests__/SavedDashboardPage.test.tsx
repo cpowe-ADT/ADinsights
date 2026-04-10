@@ -102,6 +102,10 @@ describe('SavedDashboardPage', () => {
 
     expect(await screen.findByText('Creative dashboard body')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'JDIC creative review' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /back to library/i })).toHaveAttribute(
+      'href',
+      '/dashboards',
+    );
 
     await waitFor(() =>
       expect(storeMock.state.setFilters).toHaveBeenCalledWith(expectedFilters),

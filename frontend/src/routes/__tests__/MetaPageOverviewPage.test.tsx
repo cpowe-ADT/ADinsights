@@ -163,6 +163,22 @@ describe('MetaPageOverviewPage', () => {
     expect(screen.getByText(/pages_read_engagement/)).toBeInTheDocument();
   });
 
+  it('renders a back link to the pages list', async () => {
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
+          <Routes>
+            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+
+    expect(
+      screen.getByRole('link', { name: /back to facebook pages/i }),
+    ).toHaveAttribute('href', '/dashboards/meta/pages');
+  });
+
   it('shows restore guidance when marketing access is orphaned', async () => {
     airbyteMocks.loadSocialConnectionStatus.mockResolvedValue({
       generated_at: '2026-04-04T16:00:00Z',
