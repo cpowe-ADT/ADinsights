@@ -89,8 +89,16 @@ export type AlertRule = {
   lookback_hours: number;
   severity: string;
   is_active: boolean;
+  notification_channels?: string[];
   created_at: string;
   updated_at: string;
+};
+
+export type NotificationChannel = {
+  id: string;
+  name: string;
+  channel_type: string;
+  is_active: boolean;
 };
 
 export type AISummary = {
@@ -318,6 +326,24 @@ export async function listAlerts(signal?: AbortSignal): Promise<AlertRule[]> {
 
 export async function getAlert(alertId: string, signal?: AbortSignal): Promise<AlertRule> {
   return apiClient.get<AlertRule>(`/alerts/${alertId}/`, { signal });
+}
+
+export async function createAlert(
+  payload: Pick<AlertRule, 'name' | 'metric' | 'comparison_operator' | 'threshold' | 'lookback_hours' | 'severity'> & {
+    notification_channels?: string[];
+  },
+): Promise<AlertRule> {
+  return apiClient.post<AlertRule>('/alerts/', payload);
+}
+
+export async function deleteAlert(alertId: string): Promise<void> {
+  await apiClient.delete(`/alerts/${alertId}/`);
+}
+
+export async function listNotificationChannels(
+  signal?: AbortSignal,
+): Promise<NotificationChannel[]> {
+  return apiClient.get<NotificationChannel[]>('/notification-channels/', { signal });
 }
 
 export async function listSummaries(signal?: AbortSignal): Promise<AISummary[]> {
