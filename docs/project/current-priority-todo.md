@@ -45,6 +45,9 @@ See also:
 - [x] Frontend: conditional UI rendering based on `tenantContext` role (e.g. hide "Create" for Viewer). Scope: `frontend/`. Status: `repo-ready`.
 - [x] Frontend lint stabilization: resolve pre-existing ESLint failures in `src/lib/apiClient.ts` and `src/routes/google-ads/__tests__/GoogleAdsWorkspacePage.test.tsx`. Scope: `frontend/`. Status: `repo-ready`.
 - [x] Ops: Enhance `backend-setup` in `docker-compose.yml` with health-checks to block backend start until DB is ready. Scope: `deploy/`. Status: `repo-ready`.
+- [x] **Phase 2 Polish (2026-04-10):** Report inline editing, audit log date-range filtering, sync connection detail page, health overview auto-refresh, global error boundary, 404 catch-all, skeleton loaders, unified toast system (Zustand `useToastStore`), Google Ads error states. Scope: `frontend/`, `backend/`. Status: `repo-ready`.
+- [x] **Trigger-sync endpoint upgrade (2026-04-10):** `POST /api/airbyte/connections/:id/trigger-sync/` upgraded from 501 stub to full Airbyte integration with audit logging. Scope: `backend/`. Status: `repo-ready`.
+- [x] **Audit log date-range filtering (2026-04-10):** `GET /api/audit-logs/` now accepts `start_date`/`end_date` query params. Scope: `backend/`. Status: `repo-ready`.
 - [ ] dbt demo mart cleanup: fix the DuckDB interval-conversion failure in `dbt/models/marts/demo/vw_demo_dashboard_snapshot.sql` so full `dbt test` is green outside the Meta dashboard path. Scope: `dbt/`. Status: `repo-ready`.
 
 ## Defer Until After Release Hardening
