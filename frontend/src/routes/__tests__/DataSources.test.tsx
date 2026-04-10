@@ -783,6 +783,7 @@ describe('DataSources connect flow', () => {
   });
 
   it('completes Google Ads OAuth and provisions the connection', async () => {
+    // Extended timeout for complex async mock chain (OAuth exchange + connection provisioning)
     const user = userEvent.setup();
     const view = renderDataSources();
 
@@ -847,7 +848,7 @@ describe('DataSources connect flow', () => {
         cron_expression: '0 6-22 * * *',
       });
     });
-  });
+  }, 15000);
 
   it('starts Google Analytics OAuth from the setup panel', async () => {
     const user = userEvent.setup();

@@ -221,15 +221,6 @@ export async function fetchDashboardLibrary(
   return normalizeDashboardLibraryResponse(payload);
 }
 
-export async function listDashboardDefinitions(
-  signal?: AbortSignal,
-): Promise<DashboardDefinition[]> {
-  const payload = await apiClient.get<
-    DashboardDefinition[] | PaginatedResponse<DashboardDefinition>
-  >('/dashboards/definitions/', { signal });
-  return Array.isArray(payload) ? payload : payload.results;
-}
-
 export async function createDashboardDefinition(
   payload: Pick<
     DashboardDefinition,
