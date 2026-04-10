@@ -4,6 +4,8 @@ Purpose: quick test commands per workstream.
 
 ## Backend
 
+- `make backend-lint`
+- `make backend-test`
 - `cd backend && ruff check .`
 - `cd backend && ./.venv/bin/pytest -q`
 - `cd backend && ./.venv/bin/pytest -q tests/test_social_status_api.py`
@@ -13,6 +15,7 @@ Purpose: quick test commands per workstream.
 Notes:
 
 - The checked-in backend virtualenv is the reliable local test runner in this workspace. `python -m pytest -q` can fail when `python` or `pytest` is not available on `PATH`.
+- `make backend-test` sets the required `PYTHONPATH` for the backend package layout, so it is the safest repo-native command when running from a fresh shell.
 
 ## Launcher / Local Stack
 
@@ -55,10 +58,18 @@ Notes:
 
 ## Frontend
 
+- `make frontend-guardrails`
+- `make frontend-lint`
+- `make frontend-test`
+- `make frontend-build`
 - `cd frontend && npx eslint src/ --max-warnings=0`
 - `cd frontend && npx vitest run`
 - `cd frontend && npm run build`
 - `cd frontend && npx vitest run src/pages/Home.test.tsx src/routes/__tests__/DataSources.test.tsx`
+
+## Full Local Matrix
+
+- `make validate-local`
 
 ## dbt
 

@@ -31,15 +31,21 @@ below for local development or containerized workflows.
    python manage.py migrate
    python manage.py createsuperuser
    ```
-5. (Optional) Auto-provision a local admin
+5. (Optional) Create a local admin
 
-   Add this to your `.env` to auto-create a default admin on startup:
+   Add this to your `.env` to define the default admin credentials:
 
    ```env
    ALLOW_DEFAULT_ADMIN=1
    DJANGO_DEFAULT_ADMIN_USERNAME=admin
    DJANGO_DEFAULT_ADMIN_EMAIL=admin@example.com
    DJANGO_DEFAULT_ADMIN_PASSWORD=admin1
+   ```
+
+   Then run:
+
+   ```bash
+   python manage.py create_admin
    ```
 
 6. Run the development server:
