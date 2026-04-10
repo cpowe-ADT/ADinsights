@@ -274,6 +274,10 @@ export async function fetchSyncHealth(signal?: AbortSignal): Promise<SyncHealthR
   return apiClient.get<SyncHealthResponse>('/ops/sync-health/', { signal });
 }
 
+export async function triggerSync(connectionId: string): Promise<{ status: string; connection_id: string }> {
+  return apiClient.post<{ status: string; connection_id: string }>(`/airbyte/connections/${connectionId}/trigger-sync/`, {});
+}
+
 export async function fetchHealthOverview(signal?: AbortSignal): Promise<HealthOverviewResponse> {
   return apiClient.get<HealthOverviewResponse>('/ops/health-overview/', { signal });
 }
