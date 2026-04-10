@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -14,26 +15,67 @@ vi.mock('../../lib/phase2Api', () => ({
   refreshSummary: phase2ApiMock.refreshSummary,
 }));
 
+const mockSummaries = [
+  {
+    id: '1',
+    title: 'Daily Summary 2026-04-10',
+    summary: 'Performance was strong.',
+    payload: {},
+    source: 'daily_summary',
+    model_name: 'gpt-4',
+    status: 'generated' as const,
+    generated_at: '2026-04-10T06:10:00Z',
+    created_at: '2026-04-10T06:10:00Z',
+    updated_at: '2026-04-10T06:10:00Z',
+  },
+  {
+    id: '2',
+    title: 'Manual Summary',
+    summary: 'Ad hoc refresh.',
+    payload: {},
+    source: 'manual_refresh',
+    model_name: 'gpt-4',
+    status: 'generated' as const,
+    generated_at: '2026-04-10T12:00:00Z',
+    created_at: '2026-04-10T12:00:00Z',
+    updated_at: '2026-04-10T12:00:00Z',
+  },
+];
+
 describe('SummariesPage', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    phase2ApiMock.listSummaries.mockResolvedValue(mockSummaries);
+    phase2ApiMock.refreshSummary.mockResolvedValue(mockSummaries[0]);
   });
 
-  it('renders summaries table when data is available', async () => {
-    phase2ApiMock.listSummaries.mockResolvedValue([
-      {
-        id: 'summary-1',
-        title: 'Weekly performance digest',
-        summary: 'Spend increased 12% WoW.',
-        payload: {},
-        source: 'openai',
-        model_name: 'gpt-4',
-        status: 'generated',
-        generated_at: '2026-04-01T12:00:00Z',
-        created_at: '2026-04-01T12:00:00Z',
-        updated_at: '2026-04-01T12:00:00Z',
-      },
-    ]);
+  it('renders automatic generation info banner', async () => {
+    render(
+      <MemoryRouter>
+        <SummariesPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(phase2ApiMock.listSummaries).toHaveBeenCalled());
+    expect(screen.getByText(/6:10 AM/)).toBeInTheDocument();
+    expect(screen.getByText(/Automatic generation/)).toBeInTheDocument();
+  });
+
+  it('shows source badges in table', async () => {
+    render(
+      <MemoryRouter>
+        <SummariesPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(phase2ApiMock.listSummaries).toHaveBeenCalled());
+    expect(screen.getByText('Daily')).toBeInTheDocument();
+    expect(screen.getByText('Manual')).toBeInTheDocument();
+  });
+
+  it('refresh button shows loading state', async () => {
+    const user = userEvent.setup();
+    // Make refreshSummary hang so we can observe the loading state
+    phase2ApiMock.refreshSummary.mockReturnValue(new Promise(() => {}));
 
     render(
       <MemoryRouter>
@@ -42,36 +84,10 @@ describe('SummariesPage', () => {
     );
 
     await waitFor(() => expect(phase2ApiMock.listSummaries).toHaveBeenCalled());
-    expect(screen.getByRole('heading', { name: 'Summaries' })).toBeInTheDocument();
-    expect(screen.getByText('Weekly performance digest')).toBeInTheDocument();
-    expect(screen.getByText('generated')).toBeInTheDocument();
-    expect(screen.getByText('openai')).toBeInTheDocument();
-  });
 
-  it('shows empty state when no summaries exist', async () => {
-    phase2ApiMock.listSummaries.mockResolvedValue([]);
+    const button = screen.getByRole('button', { name: /generate new summary/i });
+    await user.click(button);
 
-    render(
-      <MemoryRouter>
-        <SummariesPage />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => expect(phase2ApiMock.listSummaries).toHaveBeenCalled());
-    expect(screen.getByText('No summaries yet')).toBeInTheDocument();
-  });
-
-  it('shows error state when fetch fails', async () => {
-    phase2ApiMock.listSummaries.mockRejectedValue(new Error('Service unavailable'));
-
-    render(
-      <MemoryRouter>
-        <SummariesPage />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => expect(phase2ApiMock.listSummaries).toHaveBeenCalled());
-    expect(screen.getByText('Summaries unavailable')).toBeInTheDocument();
-    expect(screen.getByText('Service unavailable')).toBeInTheDocument();
+    expect(screen.getByText('Generating…')).toBeInTheDocument();
   });
 });

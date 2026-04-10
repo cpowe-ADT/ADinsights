@@ -12,6 +12,7 @@ const SummaryDetailPage = () => {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [summary, setSummary] = useState<AISummary | null>(null);
   const [error, setError] = useState('Unable to load summary.');
+  const [payloadExpanded, setPayloadExpanded] = useState(false);
 
   const load = useCallback(async () => {
     if (!summaryId) {
@@ -58,12 +59,16 @@ const SummaryDetailPage = () => {
           <p className="dashboardEyebrow">AI Summaries</p>
           <h1 className="dashboardHeading">{summary.title}</h1>
           <p className="phase2-page__subhead">
-            Generated {formatRelativeTime(summary.generated_at)} (
-            {formatAbsoluteTime(summary.generated_at)})
+            Generated {formatRelativeTime(summary.generated_at)} ({formatAbsoluteTime(summary.generated_at)})
+            {' · '}Source: {summary.source}
+            {summary.model_name && ` · Model: ${summary.model_name}`}
           </p>
         </div>
         <div className="phase2-row-actions">
           <span className={`phase2-pill phase2-pill--${summary.status}`}>{summary.status}</span>
+          <span className={`phase2-pill phase2-pill--${summary.source === 'daily_summary' ? 'generated' : 'info'}`}>
+            {summary.source === 'daily_summary' ? 'Daily summary' : 'Manual refresh'}
+          </span>
           <Link to="/summaries" className="button tertiary">
             Back to summaries
           </Link>
@@ -76,8 +81,18 @@ const SummaryDetailPage = () => {
       </article>
 
       <article className="phase2-card">
-        <h3>Payload snapshot</h3>
-        <pre className="phase2-json">{JSON.stringify(summary.payload, null, 2)}</pre>
+        <h3>
+          <button
+            type="button"
+            onClick={() => setPayloadExpanded(!payloadExpanded)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', fontWeight: 'inherit', padding: 0 }}
+          >
+            {payloadExpanded ? '▾' : '▸'} Raw payload
+          </button>
+        </h3>
+        {payloadExpanded && (
+          <pre className="phase2-json">{JSON.stringify(summary.payload, null, 2)}</pre>
+        )}
       </article>
     </section>
   );

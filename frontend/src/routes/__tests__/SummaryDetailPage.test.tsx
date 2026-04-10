@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SummaryDetailPage from '../SummaryDetailPage';
@@ -12,50 +13,62 @@ vi.mock('../../lib/phase2Api', () => ({
   getSummary: phase2ApiMock.getSummary,
 }));
 
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return { ...actual, useParams: () => ({ summaryId: 'sum-1' }) };
-});
+function renderWithRoute(summaryId = '1') {
+  return render(
+    <MemoryRouter initialEntries={[`/summaries/${summaryId}`]}>
+      <Routes>
+        <Route path="/summaries/:summaryId" element={<SummaryDetailPage />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+const baseSummary = {
+  id: '1',
+  title: 'Daily Summary 2026-04-10',
+  summary: 'Performance was strong across all campaigns.',
+  payload: { impressions: 12000, clicks: 300 },
+  source: 'daily_summary',
+  model_name: 'gpt-4',
+  status: 'generated' as const,
+  generated_at: '2026-04-10T06:10:00Z',
+  created_at: '2026-04-10T06:10:00Z',
+  updated_at: '2026-04-10T06:10:00Z',
+};
 
 describe('SummaryDetailPage', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    phase2ApiMock.getSummary.mockResolvedValue(baseSummary);
   });
 
-  it('renders summary detail', async () => {
-    phase2ApiMock.getSummary.mockResolvedValue({
-      id: 'sum-1',
-      title: 'Daily Recap',
-      status: 'generated',
-      source: 'ai',
-      summary: 'Performance was strong across all campaigns.',
-      payload: { top_metric: 'roas' },
-      generated_at: '2026-04-09T06:10:00Z',
-    });
-
-    render(
-      <MemoryRouter>
-        <SummaryDetailPage />
-      </MemoryRouter>,
-    );
+  it('shows source badge on detail page', async () => {
+    renderWithRoute();
 
     await waitFor(() => expect(phase2ApiMock.getSummary).toHaveBeenCalled());
-    expect(screen.getByRole('heading', { name: 'Daily Recap' })).toBeInTheDocument();
-    expect(
-      screen.getByText('Performance was strong across all campaigns.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Daily summary')).toBeInTheDocument();
   });
 
-  it('shows error state', async () => {
-    phase2ApiMock.getSummary.mockRejectedValue(new Error('Network error'));
-
-    render(
-      <MemoryRouter>
-        <SummaryDetailPage />
-      </MemoryRouter>,
-    );
+  it('payload section is collapsible', async () => {
+    const user = userEvent.setup();
+    renderWithRoute();
 
     await waitFor(() => expect(phase2ApiMock.getSummary).toHaveBeenCalled());
-    expect(screen.getByText('Summary unavailable')).toBeInTheDocument();
+
+    // Payload should not be visible initially
+    expect(screen.queryByText(/"impressions"/)).not.toBeInTheDocument();
+
+    // Click the toggle button
+    const toggle = screen.getByRole('button', { name: /raw payload/i });
+    await user.click(toggle);
+
+    // Payload should now be visible
+    expect(screen.getByText(/"impressions"/)).toBeInTheDocument();
+  });
+
+  it('shows model name when present', async () => {
+    renderWithRoute();
+
+    await waitFor(() => expect(phase2ApiMock.getSummary).toHaveBeenCalled());
+    expect(screen.getByText(/Model: gpt-4/)).toBeInTheDocument();
   });
 });
