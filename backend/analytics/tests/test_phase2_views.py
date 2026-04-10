@@ -97,3 +97,103 @@ class TestRecentDashboardsView:
         data = response.json()
         assert len(data) == 1
         assert data[0]["name"] == "T2 Report"
+
+
+@pytest.mark.django_db
+class TestPageInsightsDashboardDefinitionCRUD:
+    """Verify DashboardDefinition CRUD with template_key=meta_page_insights."""
+
+    list_url = reverse("dashboard-definition-list")
+
+    PAGE_INSIGHTS_FILTERS = {
+        "page_id": "123456789",
+        "date_preset": "last_28d",
+        "metric": "page_post_engagements",
+        "period": "day",
+    }
+
+    def _detail_url(self, pk):
+        return reverse("dashboard-definition-detail", args=[pk])
+
+    def test_create_page_insights_definition(self, api_client, user, tenant):
+        api_client.force_authenticate(user=user)
+        payload = {
+            "name": "My Page View",
+            "description": "Saved page overview filters",
+            "template_key": "meta_page_insights",
+            "filters": self.PAGE_INSIGHTS_FILTERS,
+            "layout": {},
+            "default_metric": "spend",
+            "is_active": True,
+        }
+        response = api_client.post(self.list_url, payload, format="json")
+        assert response.status_code == status.HTTP_201_CREATED
+        data = response.json()
+        assert data["template_key"] == "meta_page_insights"
+        assert data["filters"]["page_id"] == "123456789"
+        assert data["name"] == "My Page View"
+
+    def test_list_filters_by_template_key(self, api_client, user, tenant):
+        api_client.force_authenticate(user=user)
+        DashboardDefinition.objects.create(
+            tenant=tenant,
+            name="Campaign Dashboard",
+            template_key=DashboardDefinition.TEMPLATE_META_CAMPAIGN_PERFORMANCE,
+            created_by=user,
+        )
+        DashboardDefinition.objects.create(
+            tenant=tenant,
+            name="Page View 1",
+            template_key=DashboardDefinition.TEMPLATE_META_PAGE_INSIGHTS,
+            filters=self.PAGE_INSIGHTS_FILTERS,
+            created_by=user,
+        )
+        response = api_client.get(self.list_url)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        results = data if isinstance(data, list) else data.get("results", data)
+        assert len(results) == 2
+
+    def test_read_page_insights_definition(self, api_client, user, tenant):
+        api_client.force_authenticate(user=user)
+        dashboard = DashboardDefinition.objects.create(
+            tenant=tenant,
+            name="Page View Read",
+            template_key=DashboardDefinition.TEMPLATE_META_PAGE_INSIGHTS,
+            filters=self.PAGE_INSIGHTS_FILTERS,
+            created_by=user,
+        )
+        response = api_client.get(self._detail_url(dashboard.pk))
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["template_key"] == "meta_page_insights"
+
+    def test_update_page_insights_definition(self, api_client, user, tenant):
+        api_client.force_authenticate(user=user)
+        dashboard = DashboardDefinition.objects.create(
+            tenant=tenant,
+            name="Page View Update",
+            template_key=DashboardDefinition.TEMPLATE_META_PAGE_INSIGHTS,
+            filters=self.PAGE_INSIGHTS_FILTERS,
+            created_by=user,
+        )
+        response = api_client.patch(
+            self._detail_url(dashboard.pk),
+            {"name": "Updated Name", "filters": {**self.PAGE_INSIGHTS_FILTERS, "period": "week"}},
+            format="json",
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["name"] == "Updated Name"
+        assert response.json()["filters"]["period"] == "week"
+
+    def test_delete_page_insights_definition(self, api_client, user, tenant):
+        api_client.force_authenticate(user=user)
+        dashboard = DashboardDefinition.objects.create(
+            tenant=tenant,
+            name="Page View Delete",
+            template_key=DashboardDefinition.TEMPLATE_META_PAGE_INSIGHTS,
+            filters=self.PAGE_INSIGHTS_FILTERS,
+            created_by=user,
+        )
+        response = api_client.delete(self._detail_url(dashboard.pk))
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert not DashboardDefinition.objects.filter(pk=dashboard.pk).exists()

@@ -89,6 +89,15 @@ DASHBOARD_TEMPLATE_LIBRARY = (
         "description": "Geographic Meta Ads view that gracefully degrades when parish coverage is unavailable.",
         "route": f"/dashboards/create?template={DashboardDefinition.TEMPLATE_META_PARISH_MAP}",
     },
+    {
+        "id": DashboardDefinition.TEMPLATE_META_PAGE_INSIGHTS,
+        "template_key": DashboardDefinition.TEMPLATE_META_PAGE_INSIGHTS,
+        "name": "Meta page insights",
+        "type": "Page insights",
+        "tags": ["Meta", "Pages", "Insights"],
+        "description": "Saved view for Facebook Page overview filters and trend configuration.",
+        "route": "/dashboards/meta/pages",
+    },
 )
 
 DEFAULT_DASHBOARD_PRESETS = (

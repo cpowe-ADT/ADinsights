@@ -11,6 +11,7 @@ import MetaPageExportHistory from '../components/meta/MetaPageExportHistory';
 import MetaPagesFilterBar from '../components/meta/MetaPagesFilterBar';
 import MetricPicker from '../components/meta/MetricPicker';
 import useMetaPageExports from '../hooks/useMetaPageExports';
+import usePageInsightsSavedViews from '../hooks/usePageInsightsSavedViews';
 import { loadSocialConnectionStatus, type SocialPlatformStatusRecord } from '../lib/airbyte';
 import { toMetaPageDateParams } from '../lib/metaPageDateRange';
 import useMetaPageInsightsStore from '../state/useMetaPageInsightsStore';
@@ -32,6 +33,8 @@ const MetaPageOverviewPage = () => {
   const [metaStatus, setMetaStatus] = useState<SocialPlatformStatusRecord | null>(null);
   const { jobs: exportJobs, error: exportError, status: exportStatus, refresh: refreshExports, createExport, download } =
     useMetaPageExports(pageId);
+  const { views: savedViews, save: saveSavedView, remove: removeSavedView } =
+    usePageInsightsSavedViews(pageId);
 
   const {
     pages,
@@ -178,6 +181,35 @@ const MetaPageOverviewPage = () => {
     }
   };
 
+  const handleSaveView = async () => {
+    const name = window.prompt('Name this saved view:');
+    if (!name) return;
+    await saveSavedView(name, {
+      page_id: pageId,
+      date_preset: filters.datePreset,
+      since: filters.since,
+      until: filters.until,
+      metric: selectedMetric,
+      period: filters.period,
+    });
+  };
+
+  const handleLoadView = (viewId: string) => {
+    const view = savedViews.find((v) => v.id === viewId);
+    if (!view) return;
+    setFilters({
+      datePreset: view.filters.date_preset ?? filters.datePreset,
+      since: view.filters.since ?? '',
+      until: view.filters.until ?? '',
+      metric: view.filters.metric ?? filters.metric,
+      period: view.filters.period ?? filters.period,
+    });
+  };
+
+  const handleDeleteView = async (viewId: string) => {
+    await removeSavedView(viewId);
+  };
+
   const runExport = async (format: 'csv' | 'pdf' | 'png') => {
     if (!pageId) {
       return;
@@ -229,6 +261,43 @@ const MetaPageOverviewPage = () => {
           <button className="button tertiary" type="button" onClick={() => void runExport('png')} disabled={exportStatus === 'loading'}>
             Export PNG
           </button>
+          <button className="button secondary" type="button" onClick={() => void handleSaveView()}>
+            Save view
+          </button>
+          {savedViews.length > 0 ? (
+            <select
+              className="button tertiary"
+              aria-label="Load saved view"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) handleLoadView(e.target.value);
+              }}
+            >
+              <option value="">Load view...</option>
+              {savedViews.map((view) => (
+                <option key={view.id} value={view.id}>
+                  {view.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {savedViews.length > 0 ? (
+            <select
+              className="button tertiary"
+              aria-label="Delete saved view"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) void handleDeleteView(e.target.value);
+              }}
+            >
+              <option value="">Delete view...</option>
+              {savedViews.map((view) => (
+                <option key={view.id} value={view.id}>
+                  {view.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
         </div>
       </header>
 
