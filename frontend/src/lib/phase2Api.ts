@@ -333,7 +333,7 @@ export async function refreshSummary(): Promise<AISummary> {
 }
 
 export async function listAuditLogs(
-  params: { action?: string; resource_type?: string; page?: number } = {},
+  params: { action?: string; resource_type?: string; page?: number; start_date?: string; end_date?: string } = {},
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<AuditLogEntry>> {
   const path = appendQueryParams('/audit-logs/', params);

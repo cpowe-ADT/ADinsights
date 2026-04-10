@@ -468,4 +468,10 @@ class AuditLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         resource_type = self.request.query_params.get("resource_type")
         if resource_type:
             queryset = queryset.filter(resource_type=resource_type)
+        start_date = self.request.query_params.get("start_date")
+        if start_date:
+            queryset = queryset.filter(created_at__date__gte=start_date)
+        end_date = self.request.query_params.get("end_date")
+        if end_date:
+            queryset = queryset.filter(created_at__date__lte=end_date)
         return queryset
