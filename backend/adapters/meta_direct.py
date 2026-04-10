@@ -233,7 +233,6 @@ class MetaDirectAdapter(MetricsAdapter):
                 Q(ad_account__external_id__in=aliases)
                 | Q(ad_account__account_id__in=numeric_aliases)
                 | Q(campaign__account_external_id__in=aliases)
-                | Q(campaign__account_external_id__in=numeric_aliases)
             )
         if filters.campaign_search:
             queryset = queryset.filter(
