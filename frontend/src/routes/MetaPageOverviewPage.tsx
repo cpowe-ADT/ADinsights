@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import EmptyState from '../components/EmptyState';
+import EngagementBreakdownPanel from '../components/EngagementBreakdownPanel';
 import KPIGrid from '../components/KPIGrid';
 import MetricAvailabilityBadge from '../components/MetricAvailabilityBadge';
 import TrendChart from '../components/TrendChart';
@@ -318,6 +319,7 @@ const MetaPageOverviewPage = () => {
       {dashboardStatus === 'loaded' && overview ? (
         <>
           <KPIGrid kpis={overview.kpis} metricAvailability={overview.metric_availability} />
+          <EngagementBreakdownPanel breakdown={overview.engagement_breakdown} />
           {timeseriesPoints.length > 0 ? (
             <TrendChart title={`${formatMetricLabel(selectedMetric)} trend`} points={timeseriesPoints} />
           ) : null}

@@ -67,6 +67,11 @@ export interface MetaOverviewCard {
   value_range: string | null;
 }
 
+export interface BreakdownEntry {
+  type: string;
+  value: number | null;
+}
+
 export interface MetaOverviewResponse {
   page_id: string;
   name: string;
@@ -80,6 +85,7 @@ export interface MetaOverviewResponse {
   primary_metric: string | null;
   cards: MetaOverviewCard[];
   metrics: MetaMetricOption[];
+  engagement_breakdown?: Record<string, BreakdownEntry[]>;
 }
 
 export interface MetaPostListItem {

@@ -85,6 +85,22 @@ vi.mock('../../components/TrendChart', () => ({
   default: () => <div>Trend chart</div>,
 }));
 
+vi.mock('../../components/EngagementBreakdownPanel', () => ({
+  default: ({ breakdown }: { breakdown?: Record<string, Array<{ type: string; value: number | null }>> }) => {
+    if (!breakdown) return null;
+    const metrics = Object.keys(breakdown).filter((k) => breakdown[k].length > 0);
+    if (metrics.length === 0) return null;
+    return (
+      <section aria-label="Engagement Breakdown">
+        <h3>Engagement Breakdown</h3>
+        {metrics.map((m) =>
+          breakdown[m].map((e) => <span key={`${m}-${e.type}`}>{e.type}: {e.value}</span>),
+        )}
+      </section>
+    );
+  },
+}));
+
 vi.mock('../../lib/airbyte', () => ({
   loadSocialConnectionStatus: airbyteMocks.loadSocialConnectionStatus,
 }));
@@ -177,5 +193,50 @@ describe('MetaPageOverviewPage', () => {
     });
 
     expect((await screen.findAllByText('Restore Meta marketing access')).length).toBeGreaterThan(0);
+  });
+
+  it('renders engagement breakdown section when breakdown data is present', async () => {
+    storeMock.state.overview = {
+      ...storeMock.state.overview!,
+      engagement_breakdown: {
+        page_post_engagements: [
+          { type: 'LIKE', value: 60 },
+          { type: 'COMMENT', value: 40 },
+        ],
+      },
+    };
+
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
+          <Routes>
+            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+
+    expect(screen.getByText('Engagement Breakdown')).toBeInTheDocument();
+    expect(screen.getByText(/LIKE/)).toBeInTheDocument();
+    expect(screen.getByText(/COMMENT/)).toBeInTheDocument();
+  });
+
+  it('does not render engagement breakdown when breakdown data is absent', async () => {
+    storeMock.state.overview = {
+      ...storeMock.state.overview!,
+      engagement_breakdown: undefined,
+    };
+
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
+          <Routes>
+            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+
+    expect(screen.queryByText('Engagement Breakdown')).not.toBeInTheDocument();
   });
 });
