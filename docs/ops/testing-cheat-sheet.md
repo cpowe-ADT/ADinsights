@@ -4,11 +4,15 @@ Purpose: quick test commands per workstream.
 
 ## Backend
 
-- `ruff check backend`
-- `pytest -q backend`
-- `pytest -q backend/tests/test_social_status_api.py`
-- `pytest -q backend/tests/test_meta_oauth_api.py`
-- `pytest -q backend/tests/test_schema_regressions.py::test_openapi_schema_operation_ids_are_unique`
+- `cd backend && ruff check .`
+- `cd backend && ./.venv/bin/pytest -q`
+- `cd backend && ./.venv/bin/pytest -q tests/test_social_status_api.py`
+- `cd backend && ./.venv/bin/pytest -q tests/test_meta_oauth_api.py`
+- `cd backend && ./.venv/bin/pytest -q tests/test_schema_regressions.py::test_openapi_schema_operation_ids_are_unique`
+
+Notes:
+
+- The checked-in backend virtualenv is the reliable local test runner in this workspace. `python -m pytest -q` can fail when `python` or `pytest` is not available on `PATH`.
 
 ## Launcher / Local Stack
 
@@ -51,10 +55,10 @@ Notes:
 
 ## Frontend
 
-- `cd frontend && npm run lint`
-- `cd frontend && npm test -- --run`
+- `cd frontend && npx eslint src/ --max-warnings=0`
+- `cd frontend && npx vitest run`
 - `cd frontend && npm run build`
-- `cd frontend && npm test -- --run src/pages/Home.test.tsx src/routes/__tests__/DataSources.test.tsx`
+- `cd frontend && npx vitest run src/pages/Home.test.tsx src/routes/__tests__/DataSources.test.tsx`
 
 ## dbt
 

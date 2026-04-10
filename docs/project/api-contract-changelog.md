@@ -27,8 +27,8 @@ Keep this brief and link to PRs or commits when available.
 
 - **2026-04-10**
   - Endpoint: Frontend Phase 2 polish (no backend contract changes)
-  - Change: Report inline editing (name/description). Audit log pagination (`page` param) and date range UI. Sync connection detail page at `/ops/sync-health/:connectionId`. Health overview auto-refresh (30s interval). Global error boundary wrapping app. 404 catch-all page. Skeleton loader components for loading states. Toast system unified to Zustand `useToastStore`. Google Ads pages error states via shared component.
-  - Impact: Frontend routes and UX improved across ops, reports, and error handling; no backend payload changes.
+  - Change: Added `/me` profile page, alert history/runs view, CSV upload detail page, alert pause/resume controls, report inline editing (name/description), audit log pagination/date-range UI, sync connection detail page at `/ops/sync-health/:connectionId`, health overview auto-refresh (30s interval), global error boundary wrapping app, 404 catch-all page, skeleton loader components for loading states, unified Zustand `useToastStore` notifications, and shared error-state handling across Google Ads pages.
+  - Impact: Frontend routes and UX improved across account/profile, alerts, uploads, reporting, operations, and error handling without changing backend payload contracts.
   - Owner: Lina (Frontend)
 
 - **2026-04-09**

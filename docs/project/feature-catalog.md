@@ -32,6 +32,7 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Data sources management UI and CSV upload wizard.
 - Dashboard library (API-backed with saved dashboards CRUD).
 - Frontend design system tokens + docs.
+- Profile page (`/me`) with user, tenant, theme, and session controls.
 - Report inline editing (name/description) and report scheduling.
 - Audit log view with pagination, date-range filtering, and CSV export.
 - Sync health/telemetry view with connection detail page (`/ops/sync-health/:connectionId`).
@@ -41,7 +42,9 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Unified toast notification system (Zustand `useToastStore`).
 - Google Ads workspace pages with error states via shared component.
 - Alerts CRUD and notification channel management UI.
+- Alert history/runs view and alert pause/resume controls.
 - AI summary badges on dashboard cards.
+- CSV upload detail page with summary and preview tables.
 
 ### Integrations
 - Airbyte infrastructure and declarative source templates.
@@ -65,12 +68,8 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 
 ## In Progress
 ### Frontend
-- /me profile page.
-- Alert history/runs view.
-- CSV upload detail page.
 - Sync health filters (advanced filtering).
-- Alert pause/resume controls.
-- Report editing (full edit flow).
+- Report editing beyond inline metadata fields.
 
 ### Data/Analytics
 - Attribution window documentation expansion.
