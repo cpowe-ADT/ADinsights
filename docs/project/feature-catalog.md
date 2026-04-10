@@ -30,7 +30,15 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Dataset toggle (default live), snapshot freshness banner, tenant switcher, global filters.
 - Campaign/creative detail routes with saved layout + share links.
 - Data sources management UI and CSV upload wizard.
-- Dashboard library shell (mock-backed).
+- Dashboard library with live API integration (system templates + saved dashboards).
+- Toast notification system for CRUD feedback (useToastStore + ToastContainer), used across all CRUD operations.
+- Alerts management UI: rules list with active/inactive status column, alert detail with rule metadata and delete button with confirm dialog, alert creation with notification channel assignment.
+- Notification channels CRUD management page at /settings/notifications (NotificationChannelsPage.tsx) with confirm dialogs for destructive actions.
+- AI summaries list and detail pages with status pills, payload snapshot, source badges ("Daily"/"Manual"), and schedule info banner.
+- Reports library, report builder (create with templates), report detail with export jobs (CSV/PDF/PNG) and scheduled delivery UI (toggle, cron, emails).
+- Sync health page with connection status, freshness timestamps, job error surfacing, and re-sync controls per connection.
+- Health checks overview page.
+- Audit log page with action/resource filters and server-side CSV export (/api/audit-logs/export_csv/).
 - Frontend design system tokens + docs.
 
 ### Integrations
@@ -49,9 +57,12 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 
 ## In Progress
 ### Frontend
-- Dashboard library API integration (replace mock data).
-- Sync health/telemetry view.
-- Health checks overview.
+- /me profile page (backend GET /api/me/ exists, no frontend yet).
+- Alert history/runs page (backend API exists at /api/alerts/runs/, no frontend yet).
+- CSV upload detail page at /dashboards/uploads/:id.
+- Sync health provider/status filter dropdowns.
+- Alert pause/resume UI controls.
+- Report editing (only create + view exist, no edit form).
 
 ### Data/Analytics
 - Attribution window documentation expansion.
@@ -68,9 +79,11 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 
 ### Frontend/UX
 - Enhanced export workflows and reporting UX.
-- Report builder + exports (PDF/PNG/CSV) with entitlements.
-- Alerts and AI summaries management UI.
-- Admin/sync health console for telemetry and health checks.
+- Entitlement-gated exports (PDF/PNG/CSV role restrictions).
+- Budget planner UI (plan vs actual, parish/channel breakdown).
+- Configurable stale threshold per tenant.
+- Historical trend views (sync health, health overview).
+- Health overview alerting on degradation.
 
 ### Security/UAC
 - UAC rollout phases U0–U4 (agency admin, approvals, MFA, impersonation).
