@@ -30,7 +30,14 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Dataset toggle (default live), snapshot freshness banner, tenant switcher, global filters.
 - Campaign/creative detail routes with saved layout + share links.
 - Data sources management UI and CSV upload wizard.
-- Dashboard library shell (mock-backed).
+- Dashboard library with live API integration (system templates + saved dashboards).
+- Toast notification system for CRUD feedback (ToastProvider).
+- Alerts management UI: rules list, alert detail with rule metadata.
+- AI summaries list and detail pages with status pills and payload snapshot.
+- Reports library, report builder (create with templates), report detail with export jobs (CSV/PDF/PNG).
+- Sync health page with connection status, freshness timestamps, and job error surfacing.
+- Health checks overview page.
+- Audit log page with action/resource filters and JSON export.
 - Frontend design system tokens + docs.
 
 ### Integrations
@@ -49,9 +56,13 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 
 ## In Progress
 ### Frontend
-- Dashboard library API integration (replace mock data).
-- Sync health/telemetry view.
-- Health checks overview.
+- Alert notification channel assignment on create and detail pages.
+- Confirm dialogs for destructive actions (delete channel, delete alert).
+- Alert list active/inactive status column.
+- Alert detail delete functionality.
+- Sync health re-sync controls and provider/status filters.
+- AI summary source badges and schedule info on detail page.
+- Server-side audit log CSV export.
 
 ### Data/Analytics
 - Attribution window documentation expansion.
@@ -68,9 +79,8 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 
 ### Frontend/UX
 - Enhanced export workflows and reporting UX.
-- Report builder + exports (PDF/PNG/CSV) with entitlements.
-- Alerts and AI summaries management UI.
-- Admin/sync health console for telemetry and health checks.
+- Entitlement-gated exports (PDF/PNG/CSV role restrictions).
+- Budget planner UI (plan vs actual, parish/channel breakdown).
 
 ### Security/UAC
 - UAC rollout phases U0–U4 (agency admin, approvals, MFA, impersonation).
