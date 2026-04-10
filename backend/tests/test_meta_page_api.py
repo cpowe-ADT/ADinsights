@@ -581,3 +581,111 @@ def test_meta_page_overview_returns_schema_out_of_date_when_db_is_behind(
     payload = response.json()
     assert payload["code"] == "schema_out_of_date"
     assert "Run backend migrations" in payload["detail"]
+
+
+@pytest.mark.django_db
+def test_overview_engagement_breakdown_included_when_breakdown_rows_exist(api_client, user):
+    _authenticate(api_client, username="user@example.com", password="password123")
+    page = _create_page(user)
+    target_time = _recent_utc_datetime()
+
+    MetaMetricRegistry.objects.update_or_create(
+        metric_key="page_post_engagements",
+        level=MetaMetricRegistry.LEVEL_PAGE,
+        defaults={
+            "is_default": True,
+            "status": MetaMetricRegistry.STATUS_ACTIVE,
+            "supported_periods": ["day"],
+            "supports_breakdowns": ["action_type"],
+        },
+    )
+    MetaMetricSupportStatus.objects.update_or_create(
+        tenant=user.tenant,
+        page=page,
+        level=MetaMetricRegistry.LEVEL_PAGE,
+        metric_key="page_post_engagements",
+        defaults={"supported": True, "last_checked_at": target_time, "last_error": {}},
+    )
+    # Non-breakdown aggregate row
+    MetaInsightPoint.all_objects.create(
+        tenant=user.tenant,
+        page=page,
+        metric_key="page_post_engagements",
+        period="day",
+        end_time=target_time,
+        value_num=100,
+        breakdown_key_normalized="__none__",
+    )
+    # Breakdown rows
+    MetaInsightPoint.all_objects.create(
+        tenant=user.tenant,
+        page=page,
+        metric_key="page_post_engagements",
+        period="day",
+        end_time=target_time,
+        value_num=60,
+        breakdown_key="LIKE",
+        breakdown_key_normalized="like",
+    )
+    MetaInsightPoint.all_objects.create(
+        tenant=user.tenant,
+        page=page,
+        metric_key="page_post_engagements",
+        period="day",
+        end_time=target_time,
+        value_num=40,
+        breakdown_key="COMMENT",
+        breakdown_key_normalized="comment",
+    )
+
+    response = api_client.get(
+        reverse("meta-page-insights-overview", kwargs={"page_id": page.page_id}),
+        {"date_preset": "last_28d"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "engagement_breakdown" in data
+    breakdown = data["engagement_breakdown"]
+    assert "page_post_engagements" in breakdown
+    entries = breakdown["page_post_engagements"]
+    assert len(entries) == 2
+    types = {e["type"] for e in entries}
+    assert types == {"LIKE", "COMMENT"}
+    total = sum(e["value"] for e in entries)
+    assert total == 100
+
+
+@pytest.mark.django_db
+def test_overview_engagement_breakdown_empty_when_no_breakdown_rows(api_client, user):
+    _authenticate(api_client, username="user@example.com", password="password123")
+    page = _create_page(user)
+    target_time = _recent_utc_datetime()
+
+    MetaMetricRegistry.objects.update_or_create(
+        metric_key="page_post_engagements",
+        level=MetaMetricRegistry.LEVEL_PAGE,
+        defaults={
+            "is_default": True,
+            "status": MetaMetricRegistry.STATUS_ACTIVE,
+            "supported_periods": ["day"],
+            "supports_breakdowns": [],
+        },
+    )
+    MetaInsightPoint.all_objects.create(
+        tenant=user.tenant,
+        page=page,
+        metric_key="page_post_engagements",
+        period="day",
+        end_time=target_time,
+        value_num=50,
+        breakdown_key_normalized="__none__",
+    )
+
+    response = api_client.get(
+        reverse("meta-page-insights-overview", kwargs={"page_id": page.page_id}),
+        {"date_preset": "last_28d"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "engagement_breakdown" in data
+    assert data["engagement_breakdown"] == {}

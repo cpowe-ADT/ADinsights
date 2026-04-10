@@ -289,6 +289,41 @@ class MetaPageOverviewInsightsView(APIView):
                 for row in series_rows
             ]
 
+        # Build engagement breakdown for metrics that support breakdowns
+        breakdown_metric_keys = list(
+            MetaMetricRegistry.objects.filter(
+                level=MetaMetricRegistry.LEVEL_PAGE,
+                metric_key__in=metric_keys,
+            )
+            .exclude(supports_breakdowns=[])
+            .values_list("metric_key", flat=True)
+        )
+        engagement_breakdown: dict[str, list[dict[str, Any]]] = {}
+        if breakdown_metric_keys:
+            breakdown_rows = (
+                MetaInsightPoint.objects.filter(
+                    tenant=request.user.tenant,
+                    page=page,
+                    metric_key__in=[
+                        resolve_metric_key(MetaMetricRegistry.LEVEL_PAGE, mk)
+                        for mk in breakdown_metric_keys
+                    ],
+                    period="day",
+                    end_time__date__gte=since,
+                    end_time__date__lte=until,
+                )
+                .exclude(breakdown_key__isnull=True)
+                .exclude(breakdown_key="")
+                .values("metric_key", "breakdown_key")
+                .annotate(total=Sum("value_num"))
+                .order_by("metric_key", "-total")
+            )
+            for row in breakdown_rows:
+                metric = row["metric_key"]
+                engagement_breakdown.setdefault(metric, []).append(
+                    {"type": row["breakdown_key"], "value": _decimal_to_number(row["total"])}
+                )
+
         last_synced_at = page.last_synced_at or MetaInsightPoint.objects.filter(
             tenant=request.user.tenant,
             page=page,
@@ -305,6 +340,7 @@ class MetaPageOverviewInsightsView(APIView):
                 "kpis": kpis,
                 "daily_series": trends,
                 "primary_metric": supported_metrics[0] if supported_metrics else None,
+                "engagement_breakdown": engagement_breakdown,
             }
         )
 
