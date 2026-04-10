@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import Breadcrumbs from '../components/Breadcrumbs';
 import EmptyState from '../components/EmptyState';
 import KPIGrid from '../components/KPIGrid';
 import MetricAvailabilityBadge from '../components/MetricAvailabilityBadge';
@@ -194,15 +195,21 @@ const MetaPageOverviewPage = () => {
     });
   };
 
+  const pageName = selectedPage?.name ?? 'Page';
+
   return (
     <section className="dashboardPage">
+      <Breadcrumbs
+        items={[
+          { label: 'Dashboards', to: '/dashboards' },
+          { label: 'Facebook Pages', to: '/dashboards/meta/pages' },
+          { label: pageName, to: `/dashboards/meta/pages/${pageId}/overview` },
+          { label: 'Overview' },
+        ]}
+      />
       <header className="dashboardPageHeader">
-        <p className="dashboardEyebrow">Facebook Analytics</p>
-        <h1 className="dashboardHeading">{selectedPage?.name ?? 'Facebook Page Overview'}</h1>
+        <h1 className="dashboardHeading">{pageName} Overview</h1>
         <div className="dashboard-header__actions-row">
-          <Link className="button tertiary" to="/dashboards/meta/pages">
-            All pages
-          </Link>
           {pageId ? (
             <Link className="button tertiary" to={`/dashboards/meta/pages/${pageId}/posts`}>
               Posts

@@ -56,7 +56,7 @@ const PostsTable = ({ rows, metricKey, availability, onOpenPost }: PostsTablePro
             return '—';
           }
           return (
-            <a href={href} target="_blank" rel="noreferrer">
+            <a href={href} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
               Open
             </a>
           );
@@ -81,7 +81,7 @@ const PostsTable = ({ rows, metricKey, availability, onOpenPost }: PostsTablePro
         header: '',
         enableSorting: false,
         cell: (context) => (
-          <button className="button tertiary" type="button" onClick={() => onOpenPost(context.row.original.post_id)}>
+          <button className="button tertiary" type="button" onClick={(e) => { e.stopPropagation(); onOpenPost(context.row.original.post_id); }}>
             Open
           </button>
         ),
@@ -121,7 +121,12 @@ const PostsTable = ({ rows, metricKey, availability, onOpenPost }: PostsTablePro
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="dashboard-table__row dashboard-table__row--zebra">
+              <tr
+                key={row.id}
+                className="dashboard-table__row dashboard-table__row--zebra"
+                style={{ cursor: 'pointer' }}
+                onClick={() => onOpenPost(row.original.post_id)}
+              >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className="dashboard-table__cell">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
