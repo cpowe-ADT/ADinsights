@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { fetchSyncHealth, triggerResync, type SyncHealthResponse } from '../lib/phase2Api';
 import { ApiError } from '../lib/apiClient';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import { useToastStore } from '../stores/useToastStore';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
+import '../styles/skeleton.css';
 
 const SyncHealthPage = () => {
   const addToast = useToastStore((s) => s.addToast);
@@ -90,7 +92,20 @@ const SyncHealthPage = () => {
   );
 
   if (state === 'loading') {
-    return <DashboardState variant="loading" layout="page" message="Loading sync health…" />;
+    return (
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">Operations</p>
+            <h1 className="dashboardHeading">Sync Health</h1>
+          </div>
+        </header>
+        <div className="phase2-grid">
+          <SkeletonLoader variant="stat" count={4} />
+        </div>
+        <SkeletonLoader variant="table" />
+      </section>
+    );
   }
 
   if (state === 'error') {

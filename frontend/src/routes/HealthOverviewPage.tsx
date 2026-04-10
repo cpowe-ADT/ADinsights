@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { fetchHealthOverview, type HealthOverviewResponse } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
+import '../styles/skeleton.css';
 
 const AUTO_REFRESH_MS = 30_000;
 
@@ -52,7 +54,17 @@ const HealthOverviewPage = () => {
   }, [load]);
 
   if (state === 'loading') {
-    return <DashboardState variant="loading" layout="page" message="Loading health overview…" />;
+    return (
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">Operations</p>
+            <h1 className="dashboardHeading">Health Overview</h1>
+          </div>
+        </header>
+        <SkeletonLoader variant="card" count={4} />
+      </section>
+    );
   }
 
   if (state === 'error') {

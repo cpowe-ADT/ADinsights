@@ -3,11 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { listReports, type ReportDefinition } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import { canAccessCreatorUi } from '../lib/rbac';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
+import '../styles/skeleton.css';
 
 const ReportsPage = () => {
   const { user } = useAuth();
@@ -51,7 +53,17 @@ const ReportsPage = () => {
   }, [reports, showInternal]);
 
   if (state === 'loading') {
-    return <DashboardState variant="loading" layout="page" message="Loading reports…" />;
+    return (
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">Reporting</p>
+            <h1 className="dashboardHeading">Reports</h1>
+          </div>
+        </header>
+        <SkeletonLoader variant="table" />
+      </section>
+    );
   }
 
   if (state === 'error') {
