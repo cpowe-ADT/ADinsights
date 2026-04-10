@@ -63,6 +63,7 @@ export type ReportDefinition = {
   filters: Record<string, unknown>;
   layout: Record<string, unknown>;
   is_active: boolean;
+  schedule_enabled?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -330,6 +331,30 @@ export async function getSummary(summaryId: string, signal?: AbortSignal): Promi
 
 export async function refreshSummary(): Promise<AISummary> {
   return apiClient.post<AISummary>('/summaries/refresh/', {});
+}
+
+export type NotificationChannel = {
+  id: string;
+  name: string;
+  channel_type: string;
+  config: Record<string, unknown>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function listNotificationChannels(
+  signal?: AbortSignal,
+): Promise<NotificationChannel[]> {
+  return apiClient.get<NotificationChannel[]>('/notification-channels/', { signal });
+}
+
+export async function deleteNotificationChannel(channelId: string): Promise<void> {
+  await apiClient.delete(`/notification-channels/${channelId}/`);
+}
+
+export async function triggerResync(connectionId: string): Promise<void> {
+  await apiClient.post(`/ops/sync-health/${connectionId}/resync/`, {});
 }
 
 export async function listAuditLogs(

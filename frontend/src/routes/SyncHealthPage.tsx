@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import DashboardState from '../components/DashboardState';
-import { fetchSyncHealth, type SyncHealthResponse } from '../lib/phase2Api';
+import { fetchSyncHealth, triggerResync, type SyncHealthResponse } from '../lib/phase2Api';
+import { ApiError } from '../lib/apiClient';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
@@ -10,6 +11,7 @@ const SyncHealthPage = () => {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [payload, setPayload] = useState<SyncHealthResponse | null>(null);
   const [error, setError] = useState<string>('Unable to load sync health.');
+  const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setState('loading');
@@ -23,6 +25,28 @@ const SyncHealthPage = () => {
       setError(err instanceof Error ? err.message : 'Unable to load sync health.');
     }
   }, []);
+
+  const handleResync = useCallback(
+    async (connectionId: string) => {
+      if (!window.confirm('Trigger a re-sync for this connection?')) {
+        return;
+      }
+      setSyncingId(connectionId);
+      try {
+        await triggerResync(connectionId);
+        await load();
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 501) {
+          window.alert('Re-sync is not yet implemented for this connection type.');
+        } else {
+          window.alert(err instanceof Error ? err.message : 'Failed to trigger re-sync.');
+        }
+      } finally {
+        setSyncingId(null);
+      }
+    },
+    [load],
+  );
 
   useEffect(() => {
     void load();
@@ -112,6 +136,7 @@ const SyncHealthPage = () => {
               <th>Status</th>
               <th>Last sync</th>
               <th>Last job</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -132,6 +157,16 @@ const SyncHealthPage = () => {
                 <td>
                   {row.last_job_status ?? 'N/A'}
                   {row.last_job_error ? <div>{row.last_job_error}</div> : null}
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className="button tertiary"
+                    disabled={syncingId !== null}
+                    onClick={() => void handleResync(row.id)}
+                  >
+                    {syncingId === row.id ? 'Syncing…' : 'Re-sync'}
+                  </button>
                 </td>
               </tr>
             ))}

@@ -120,6 +120,9 @@ const ReportsPage = () => {
                 >
                   {report.is_active ? 'active' : 'inactive'}
                 </span>
+                {report.schedule_enabled ? (
+                  <span className="phase2-pill phase2-pill--fresh">Scheduled</span>
+                ) : null}
                 <Link to={`/reports/${report.id}`} className="button tertiary">
                   Open
                 </Link>
