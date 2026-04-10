@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
-import { getAlert, type AlertRule } from '../lib/phase2Api';
+import { useToast } from '../components/ToastProvider';
+import { getAlert, updateAlert, type AlertRule } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
@@ -12,6 +13,8 @@ const AlertDetailPage = () => {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [alert, setAlert] = useState<AlertRule | null>(null);
   const [error, setError] = useState('Unable to load alert.');
+  const [toggling, setToggling] = useState(false);
+  const { pushToast } = useToast();
 
   const load = useCallback(async () => {
     if (!alertId) {
@@ -34,6 +37,20 @@ const AlertDetailPage = () => {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const handleToggle = useCallback(async () => {
+    if (!alertId || !alert) return;
+    setToggling(true);
+    try {
+      const updated = await updateAlert(alertId, { is_active: !alert.is_active });
+      setAlert(updated);
+      pushToast(updated.is_active ? 'Alert resumed' : 'Alert paused', { tone: 'success' });
+    } catch {
+      pushToast('Failed to update alert', { tone: 'error' });
+    } finally {
+      setToggling(false);
+    }
+  }, [alertId, alert, pushToast]);
 
   if (state === 'loading') {
     return <DashboardState variant="loading" layout="page" message="Loading alert detail…" />;
@@ -84,6 +101,21 @@ const AlertDetailPage = () => {
         <p>
           Severity:{' '}
           <span className={`phase2-pill phase2-pill--${alert.severity}`}>{alert.severity}</span>
+        </p>
+        <p>
+          Status:{' '}
+          <span className={`phase2-pill phase2-pill--${alert.is_active ? 'fresh' : 'stale'}`}>
+            {alert.is_active ? 'Active' : 'Paused'}
+          </span>
+          <button
+            type="button"
+            className="button tertiary"
+            style={{ marginLeft: '0.5rem' }}
+            disabled={toggling}
+            onClick={() => void handleToggle()}
+          >
+            {alert.is_active ? 'Pause' : 'Resume'}
+          </button>
         </p>
         <p>
           Updated {formatRelativeTime(alert.updated_at)} ({formatAbsoluteTime(alert.updated_at)})

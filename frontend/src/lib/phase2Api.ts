@@ -320,6 +320,13 @@ export async function getAlert(alertId: string, signal?: AbortSignal): Promise<A
   return apiClient.get<AlertRule>(`/alerts/${alertId}/`, { signal });
 }
 
+export async function updateAlert(
+  alertId: string,
+  payload: Partial<Pick<AlertRule, 'is_active'>>,
+): Promise<AlertRule> {
+  return apiClient.patch<AlertRule>(`/alerts/${alertId}/`, payload);
+}
+
 export async function listSummaries(signal?: AbortSignal): Promise<AISummary[]> {
   return apiClient.get<AISummary[]>('/summaries/', { signal });
 }
