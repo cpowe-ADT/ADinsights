@@ -59,6 +59,7 @@ const MetaPageOverviewPage = lazy(() => import('./routes/MetaPageOverviewPage'))
 const MetaPagePostsPage = lazy(() => import('./routes/MetaPagePostsPage'));
 const MetaPostDetailPage = lazy(() => import('./routes/MetaPostDetailPage'));
 const ParishMapDetail = lazy(() => import('./routes/ParishMapDetail'));
+const ProfilePage = lazy(() => import('./routes/ProfilePage'));
 const ReportCreatePage = lazy(() => import('./routes/ReportCreatePage'));
 const ReportDetailPage = lazy(() => import('./routes/ReportDetailPage'));
 const ReportsPage = lazy(() => import('./routes/ReportsPage'));
@@ -185,6 +186,10 @@ export const router = createBrowserRouter(
         {
           path: '/summaries/:summaryId',
           element: withRouteLoader(<SummaryDetailPage />, 'Loading summary detail…'),
+        },
+        {
+          path: '/me',
+          element: withRouteLoader(<ProfilePage />, 'Loading profile…'),
         },
         {
           path: '/dashboards',

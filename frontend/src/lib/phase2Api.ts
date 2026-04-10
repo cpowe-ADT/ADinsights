@@ -339,3 +339,20 @@ export async function listAuditLogs(
   const path = appendQueryParams('/audit-logs/', params);
   return apiClient.get<PaginatedResponse<AuditLogEntry>>(path, { signal });
 }
+
+export type UserProfile = {
+  user: {
+    id: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    tenant: string;
+    timezone: string;
+    roles: string[];
+  };
+  tenant_id: string;
+};
+
+export async function fetchProfile(signal?: AbortSignal): Promise<UserProfile> {
+  return apiClient.get<UserProfile>('/me/', { signal });
+}
