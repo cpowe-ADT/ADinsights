@@ -1,6 +1,6 @@
 # Post-MVP Feature Audit and Spec Gaps
 
-Audit date: 2026-04-10 (updated with pagination fixes)
+Audit date: 2026-04-10 (updated with pagination fixes and post-MVP build-out)
 
 ## Summary Table
 
@@ -19,18 +19,22 @@ Audit date: 2026-04-10 (updated with pagination fixes)
 
 Full CRUD implementation with list, create, and detail pages. Backend `ReportDefinitionViewSet` supports all REST operations plus nested `/exports/` action for requesting CSV/PDF/PNG exports via Celery. Export download available at `/api/exports/<uuid>/download/`. Report creation is gated by RBAC (`canAccessCreatorUi`). Internal reports can be toggled visible via checkbox filter.
 
+**Closed gaps (2026-04-10):**
+- ~~No inline report editing on the detail page~~ — Edit/Save/Cancel inline editing added to ReportDetailPage.
+- ~~Export job polling is manual~~ — Auto-polling (5s interval, 60s max) added to ReportDetailPage for pending exports.
+
 **Remaining gaps:**
-- No inline report editing on the detail page (must use API directly to PATCH).
 - No scheduled delivery UI (report definitions store `filters`/`layout` but no schedule configuration is surfaced in the frontend).
-- Export job polling is manual (user must click Refresh to see updated statuses).
 
 ### 2. Alerts (WORKING)
 
 Frontend list and detail pages consume the `AlertsViewSet`, which extends `AlertRuleDefinitionViewSet` from the integrations app. Backend serializer fields (`name`, `metric`, `comparison_operator`, `threshold`, `lookback_hours`, `severity`) align with the frontend `AlertRule` type. Note: there is a separate `AlertRun` model/viewset at `/api/alerts/runs/` for execution history which is not surfaced in the frontend.
 
+**Closed gaps (2026-04-10):**
+- ~~No alert creation UI~~ — AlertCreatePage added at `/alerts/new` with full form (name, metric, operator, threshold, lookback, severity). Gated by `canAccessCreatorUi`.
+- ~~Alert run history not displayed~~ — AlertDetailPage now shows AlertRunHistory table via `listAlertRuns`.
+
 **Remaining gaps:**
-- No alert creation UI in the frontend (currently admin-only via DRF or `/api/admin/alerts/`).
-- Alert run history (`/api/alerts/runs/`) is not displayed on the detail page.
 - No notification channel configuration (email, Slack, webhook).
 
 ### 3. AI Summaries (WORKING)
@@ -63,7 +67,10 @@ Aggregates responses from the four health endpoints (`/api/health/`, `/api/healt
 
 Paginated, filterable audit event list with JSON export. Backend `AuditLogViewSet` supports `action` and `resource_type` query filters. Frontend includes client-side JSON blob download.
 
+**Closed gaps (2026-04-10):**
+- ~~No date range filtering~~ — Start/end date inputs added with 30-day default, passed to backend.
+- ~~No pagination controls~~ — Previous/Next buttons with "Page X of Y" display added.
+- ~~Client-side JSON only~~ — CSV export button added alongside JSON export.
+
 **Remaining gaps:**
-- No date range filtering.
-- No pagination controls in the frontend (only first page displayed).
-- Export is client-side JSON only; no server-side CSV export.
+- No server-side CSV export (current CSV export is client-side conversion).

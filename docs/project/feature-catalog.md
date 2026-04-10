@@ -32,6 +32,15 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Data sources management UI and CSV upload wizard.
 - Dashboard library shell (mock-backed).
 - Frontend design system tokens + docs.
+- Reports list, create, and detail pages with inline editing + export auto-polling.
+- Alert list, detail (with run history), and creation pages (RBAC-gated).
+- AI Summaries list and detail pages with manual refresh.
+- Sync Health page with state classification and aggregate counts.
+- Health Overview page aggregating four health endpoints.
+- Audit Log page with date range filtering, pagination, and CSV/JSON export.
+- Grouped navigation IA (Dashboards, Integrations, Reporting, Alerts & AI, Operations).
+- Home page quick action cards (Reports, Alerts, AI Summaries, Sync Health).
+- Search Console dashboard page (KPI cards + sortable table).
 
 ### Integrations
 - Airbyte infrastructure and declarative source templates.
@@ -50,8 +59,6 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 ## In Progress
 ### Frontend
 - Dashboard library API integration (replace mock data).
-- Sync health/telemetry view.
-- Health checks overview.
 
 ### Data/Analytics
 - Attribution window documentation expansion.
@@ -67,10 +74,9 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Postgres grants + `seed_roles` command/fixtures for new installs.
 
 ### Frontend/UX
-- Enhanced export workflows and reporting UX.
-- Report builder + exports (PDF/PNG/CSV) with entitlements.
-- Alerts and AI summaries management UI.
-- Admin/sync health console for telemetry and health checks.
+- Scheduled report delivery UI.
+- Alert notification channels (email, Slack, webhook).
+- Automatic/scheduled AI summary generation UI.
 
 ### Security/UAC
 - UAC rollout phases U0–U4 (agency admin, approvals, MFA, impersonation).
