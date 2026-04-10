@@ -55,9 +55,14 @@ const AlertsPage = () => {
             Monitor thresholds, severities, and lookback windows.
           </p>
         </div>
-        <button type="button" className="button secondary" onClick={() => void load()}>
-          Refresh
-        </button>
+        <div className="phase2-page__actions">
+          <Link to="/alerts/history" className="button tertiary">
+            View history
+          </Link>
+          <button type="button" className="button secondary" onClick={() => void load()}>
+            Refresh
+          </button>
+        </div>
       </header>
 
       {alerts.length === 0 ? (
