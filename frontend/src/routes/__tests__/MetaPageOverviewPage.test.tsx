@@ -11,7 +11,7 @@ const airbyteMocks = vi.hoisted(() => ({
 const storeMock = vi.hoisted(() => ({
   state: {
     pages: [{ id: '1', page_id: 'page-1', name: 'Page 1', can_analyze: true, is_default: true }],
-    missingRequiredPermissions: [],
+    missingRequiredPermissions: [] as string[],
     metrics: {
       page: [
         {
@@ -48,6 +48,9 @@ const storeMock = vi.hoisted(() => ({
         page_post_engagements: [{ date: '2026-01-20', value: 10 }],
       },
       primary_metric: 'page_post_engagements',
+      cards: [],
+      metrics: [],
+      engagement_breakdown: undefined as Record<string, Array<{ type: string; value: number | null }>> | undefined,
     },
     timeseries: {
       page_id: 'page-1',
