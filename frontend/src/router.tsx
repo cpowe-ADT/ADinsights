@@ -28,6 +28,7 @@ const DashboardLayout = lazy(() => import('./routes/DashboardLayout'));
 const SavedDashboardPage = lazy(() => import('./routes/SavedDashboardPage'));
 const DataSources = lazy(() => import('./routes/DataSources'));
 const GoogleAnalyticsDashboardPage = lazy(() => import('./routes/GoogleAnalyticsDashboardPage'));
+const SearchConsoleDashboardPage = lazy(() => import('./routes/SearchConsoleDashboardPage'));
 const GoogleAdsAssetsPage = lazy(() => import('./routes/google-ads/GoogleAdsAssetsPage'));
 const GoogleAdsBreakdownsPage = lazy(() => import('./routes/google-ads/GoogleAdsBreakdownsPage'));
 const GoogleAdsBudgetPage = lazy(() => import('./routes/google-ads/GoogleAdsBudgetPage'));
@@ -229,6 +230,10 @@ export const router = createBrowserRouter(
             {
               path: 'web/ga4',
               element: withRouteLoader(<GoogleAnalyticsDashboardPage />, 'Loading GA4 dashboard…'),
+            },
+            {
+              path: 'web/search-console',
+              element: withRouteLoader(<SearchConsoleDashboardPage />, 'Loading Search Console…'),
             },
             {
               path: 'meta/accounts',
