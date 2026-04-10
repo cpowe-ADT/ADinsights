@@ -108,6 +108,7 @@ const MetaPageOverviewPage = () => {
     filters.datePreset,
     filters.since,
     filters.until,
+    filters.compareTo,
     loadOverviewAndTimeseries,
   ]);
 
@@ -242,6 +243,15 @@ const MetaPageOverviewPage = () => {
         onChangeSince={(value) => setFilters({ since: value })}
         onChangeUntil={(value) => setFilters({ until: value })}
       />
+
+      <label className="dashboard-field" style={{ marginTop: '0.5rem' }}>
+        <input
+          type="checkbox"
+          checked={filters.compareTo === 'prior_period'}
+          onChange={(e) => setFilters({ compareTo: e.target.checked ? 'prior_period' : '' })}
+        />
+        <span style={{ marginLeft: '0.5rem' }}>Compare to prior period</span>
+      </label>
 
       {orphanedMarketingAccess ? (
         <div className="panel meta-warning-panel" role="status">

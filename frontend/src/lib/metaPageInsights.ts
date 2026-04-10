@@ -45,6 +45,8 @@ export interface MetaKpi {
   resolved_metric: string;
   value: number | null;
   today_value: number | null;
+  prior_value?: number | null;
+  change_pct?: number | null;
 }
 
 export interface MetaMetricOption {
@@ -200,7 +202,7 @@ export async function loadMetaPages(): Promise<MetaPagesResponse> {
 
 export async function loadMetaPageOverview(
   pageId: string,
-  params?: { date_preset?: string; since?: string; until?: string },
+  params?: { date_preset?: string; since?: string; until?: string; compare_to?: string },
 ): Promise<MetaOverviewResponse> {
   const payload = await apiClient.get<MetaOverviewResponse>(withQuery(`/meta/pages/${pageId}/overview/`, params));
   return {

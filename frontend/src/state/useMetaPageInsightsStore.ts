@@ -33,6 +33,7 @@ type Filters = {
   metric: string;
   period: string;
   showAllMetrics: boolean;
+  compareTo: string;
 };
 
 type PostsQuery = {
@@ -129,6 +130,7 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
     metric: 'page_post_engagements',
     period: 'day',
     showAllMetrics: false,
+    compareTo: '',
   },
   postsQuery: {
     q: '',
@@ -231,11 +233,14 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
     const { filters } = get();
     set({ dashboardStatus: 'loading', error: undefined });
     try {
-      const overviewParams = toMetaPageDateParams({
-        datePreset: filters.datePreset,
-        since: filters.since,
-        until: filters.until,
-      });
+      const overviewParams: Record<string, string> = {
+        ...toMetaPageDateParams({
+          datePreset: filters.datePreset,
+          since: filters.since,
+          until: filters.until,
+        }),
+        ...(filters.compareTo ? { compare_to: filters.compareTo } : {}),
+      };
       const overview = await loadMetaPageOverview(pageId, overviewParams);
       const selectedMetric =
         filters.metric || overview.primary_metric || Object.keys(overview.daily_series)[0] || '';

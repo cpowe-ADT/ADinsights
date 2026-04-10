@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal
 import logging
 from typing import Any
@@ -249,6 +249,16 @@ class MetaPageOverviewInsightsView(APIView):
             until=query.validated_data.get("until"),
         )
 
+        compare_to = query.validated_data.get("compare_to", "")
+        # Calculate prior-period range if requested
+        if compare_to == "prior_period":
+            range_days = (until - since).days
+            prior_until = since - timedelta(days=1)
+            prior_since = prior_until - timedelta(days=range_days)
+        else:
+            prior_since = None
+            prior_until = None
+
         metric_keys = [metric for metric in get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE) if not is_blocked_metric(metric)]
         availability = _metric_availability(page=page, level=MetaMetricRegistry.LEVEL_PAGE, metric_keys=metric_keys)
         supported_metrics = [metric for metric in metric_keys if availability.get(metric, {}).get("supported")]
@@ -267,12 +277,35 @@ class MetaPageOverviewInsightsView(APIView):
             )
             range_total = base_qs.aggregate(total=Sum("value_num")).get("total")
             today_total = base_qs.filter(end_time__date=until).aggregate(total=Sum("value_num")).get("total")
+
+            prior_value = None
+            change_pct = None
+            if prior_since is not None and prior_until is not None:
+                prior_qs = MetaInsightPoint.objects.filter(
+                    tenant=request.user.tenant,
+                    page=page,
+                    metric_key=resolved_key,
+                    period="day",
+                    end_time__date__gte=prior_since,
+                    end_time__date__lte=prior_until,
+                )
+                prior_raw = prior_qs.aggregate(total=Sum("value_num")).get("total")
+                prior_value = _decimal_to_number(prior_raw)
+                if prior_value is not None and prior_value != 0 and range_total is not None:
+                    change_pct = round(
+                        (float(range_total) - prior_value) / prior_value * 100, 2
+                    )
+                elif prior_value == 0 and range_total is not None and float(range_total) != 0:
+                    change_pct = None  # Undefined when prior is 0
+
             kpis.append(
                 {
                     "metric": metric_key,
                     "resolved_metric": resolved_key,
                     "value": _decimal_to_number(range_total),
                     "today_value": _decimal_to_number(today_total),
+                    "prior_value": prior_value,
+                    "change_pct": change_pct,
                 }
             )
 
