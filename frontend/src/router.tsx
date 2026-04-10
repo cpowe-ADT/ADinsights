@@ -24,6 +24,7 @@ const CampaignDetail = lazy(() => import('./routes/CampaignDetail'));
 const CreativeDashboard = lazy(() => import('./routes/CreativeDashboard'));
 const CreativeDetail = lazy(() => import('./routes/CreativeDetail'));
 const CsvUpload = lazy(() => import('./routes/CsvUpload'));
+const CsvUploadDetail = lazy(() => import('./routes/CsvUploadDetail'));
 const DashboardCreate = lazy(() => import('./routes/DashboardCreate'));
 const DashboardLibrary = lazy(() => import('./routes/DashboardLibrary'));
 const DashboardLayout = lazy(() => import('./routes/DashboardLayout'));
@@ -403,6 +404,10 @@ export const router = createBrowserRouter(
             {
               path: 'uploads',
               element: withRouteLoader(<CsvUpload />, 'Loading CSV uploads…'),
+            },
+            {
+              path: 'uploads/:uploadId',
+              element: withRouteLoader(<CsvUploadDetail />, 'Loading upload detail…'),
             },
           ],
         },
