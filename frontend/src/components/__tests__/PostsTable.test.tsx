@@ -30,9 +30,8 @@ describe('PostsTable', () => {
       />,
     );
 
-    const img = screen.getByRole('img');
+    const img = document.querySelector('img[src="https://scontent.xx.fbcdn.net/v/thumb.jpg"]');
     expect(img).toBeInTheDocument();
-    expect(img).toHaveAttribute('src', 'https://scontent.xx.fbcdn.net/v/thumb.jpg');
     expect(img).toHaveStyle({ width: '48px', height: '48px' });
     // Media type label should still appear
     expect(screen.getByText('PHOTO')).toBeInTheDocument();
@@ -47,7 +46,7 @@ describe('PostsTable', () => {
       />,
     );
 
-    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(document.querySelector('img')).not.toBeInTheDocument();
     expect(screen.getByText('PHOTO')).toBeInTheDocument();
   });
 });
