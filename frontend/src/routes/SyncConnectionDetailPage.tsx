@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { fetchSyncHealth, triggerResync, type SyncHealthRow } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import { useToastStore } from '../stores/useToastStore';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
+import '../styles/skeleton.css';
 
 const SyncConnectionDetailPage = () => {
   const { connectionId } = useParams<{ connectionId: string }>();
@@ -59,7 +61,7 @@ const SyncConnectionDetailPage = () => {
     } catch (err) {
       addToast(
         err instanceof Error ? err.message : 'Failed to trigger re-sync.',
-        { tone: 'error' },
+        'error',
       );
     } finally {
       setResyncing(false);
@@ -67,7 +69,17 @@ const SyncConnectionDetailPage = () => {
   }, [connectionId, addToast, load]);
 
   if (state === 'loading') {
-    return <DashboardState variant="loading" layout="page" message="Loading connection details..." />;
+    return (
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">Operations</p>
+            <h1 className="dashboardHeading">Connection Detail</h1>
+          </div>
+        </header>
+        <SkeletonLoader variant="card" />
+      </section>
+    );
   }
 
   if (state === 'error') {

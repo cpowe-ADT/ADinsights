@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { API_BASE_URL } from '../lib/apiClient';
 import { listAuditLogs, type AuditLogEntry } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
+import '../styles/skeleton.css';
 
 const PAGE_SIZE = 20;
 
@@ -78,7 +80,17 @@ const AuditLogPage = () => {
   }, [actionFilter, resourceFilter]);
 
   if (state === 'loading') {
-    return <DashboardState variant="loading" layout="page" message="Loading audit logs…" />;
+    return (
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">Operations</p>
+            <h1 className="dashboardHeading">Audit Log</h1>
+          </div>
+        </header>
+        <SkeletonLoader variant="table" />
+      </section>
+    );
   }
 
   if (state === 'error') {

@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { fetchUploadStatus, type UploadMetricsStatus } from '../lib/dataService';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import type { UploadedDataset } from '../lib/uploadedMetrics';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
+import '../styles/skeleton.css';
 
 /**
  * Upload detail page at /dashboards/uploads/:uploadId
@@ -141,7 +143,15 @@ const CsvUploadDetail = () => {
 
   if (pageState === 'loading') {
     return (
-      <DashboardState variant="loading" layout="page" message="Loading upload detail\u2026" />
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">CSV Uploads</p>
+            <h1 className="dashboardHeading">Upload Detail</h1>
+          </div>
+        </header>
+        <SkeletonLoader variant="card" />
+      </section>
     );
   }
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 
 import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import {
   listNotificationChannels,
   createNotificationChannel,
@@ -9,6 +10,7 @@ import {
 } from '../lib/phase2Api';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
+import '../styles/skeleton.css';
 
 const CHANNEL_TYPES: { value: NotificationChannel['channel_type']; label: string }[] = [
   { value: 'email', label: 'Email' },
@@ -79,7 +81,18 @@ const NotificationChannelsPage = () => {
   };
 
   if (state === 'loading') {
-    return <DashboardState variant="loading" layout="page" message="Loading notification channels..." />;
+    return (
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">Settings</p>
+            <h1 className="dashboardHeading">Notification Channels</h1>
+          </div>
+        </header>
+        <SkeletonLoader variant="card" />
+        <SkeletonLoader variant="table" />
+      </section>
+    );
   }
 
   if (state === 'error') {

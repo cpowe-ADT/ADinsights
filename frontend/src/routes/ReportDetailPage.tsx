@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import {
   createReportExport,
   getReport,
@@ -16,6 +17,7 @@ import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import { useToastStore } from '../stores/useToastStore';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
+import '../styles/skeleton.css';
 
 const exportFormats: Array<'csv' | 'pdf' | 'png'> = ['csv', 'pdf', 'png'];
 
@@ -148,7 +150,18 @@ const ReportDetailPage = () => {
   }, [load, reportId, scheduleCron, scheduleEmails]);
 
   if (state === 'loading') {
-    return <DashboardState variant="loading" layout="page" message="Loading report…" />;
+    return (
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">Reporting</p>
+            <h1 className="dashboardHeading">Report Detail</h1>
+          </div>
+        </header>
+        <SkeletonLoader variant="card" count={2} />
+        <SkeletonLoader variant="table" />
+      </section>
+    );
   }
 
   if (state === 'error' || !report) {

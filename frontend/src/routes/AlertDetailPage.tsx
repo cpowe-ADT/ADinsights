@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import {
   deleteAlert,
   getAlert,
@@ -14,6 +15,7 @@ import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import { useToastStore } from '../stores/useToastStore';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
+import '../styles/skeleton.css';
 
 const AlertDetailPage = () => {
   const { alertId } = useParams<{ alertId: string }>();
@@ -84,7 +86,17 @@ const AlertDetailPage = () => {
   }, [alertId, alert, addToast]);
 
   if (state === 'loading') {
-    return <DashboardState variant="loading" layout="page" message="Loading alert detail…" />;
+    return (
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">Alerts</p>
+            <h1 className="dashboardHeading">Alert Detail</h1>
+          </div>
+        </header>
+        <SkeletonLoader variant="card" count={2} />
+      </section>
+    );
   }
 
   if (state === 'error' || !alert) {

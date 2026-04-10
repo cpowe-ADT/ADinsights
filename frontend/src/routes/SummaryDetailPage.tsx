@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { getSummary, type AISummary } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
+import '../styles/skeleton.css';
 
 const SummaryDetailPage = () => {
   const { summaryId } = useParams<{ summaryId: string }>();
@@ -36,7 +38,17 @@ const SummaryDetailPage = () => {
   }, [load]);
 
   if (state === 'loading') {
-    return <DashboardState variant="loading" layout="page" message="Loading summary detail…" />;
+    return (
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">AI Summaries</p>
+            <h1 className="dashboardHeading">Summary Detail</h1>
+          </div>
+        </header>
+        <SkeletonLoader variant="card" count={2} />
+      </section>
+    );
   }
 
   if (state === 'error' || !summary) {

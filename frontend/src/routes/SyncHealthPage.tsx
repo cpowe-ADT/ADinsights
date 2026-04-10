@@ -64,7 +64,7 @@ const SyncHealthPage = () => {
   const [activeStatusFilter, setActiveStatusFilter] = useState<string>('all');
   const [activeProvider, setActiveProvider] = useState<string>('');
 
-  const providers = useMemo(() => [...new Set(rows.map((r: SyncHealthRow) => r.provider).filter(Boolean))], [rows]);
+  const providers = useMemo(() => [...new Set(rows.map((r: SyncHealthRow) => r.provider).filter((v): v is string => Boolean(v)))], [rows]);
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { all: rows.length, fresh: 0, stale: 0, failed: 0 };

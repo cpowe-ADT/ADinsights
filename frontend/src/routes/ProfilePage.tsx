@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useAuth } from '../auth/AuthContext';
 import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { useTheme } from '../components/ThemeProvider';
 import { fetchProfile, type UserProfile } from '../lib/phase2Api';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
+import '../styles/skeleton.css';
 
 const ProfilePage = () => {
   const { logout } = useAuth();
@@ -31,7 +33,17 @@ const ProfilePage = () => {
   }, [load]);
 
   if (state === 'loading') {
-    return <DashboardState variant="loading" layout="page" message="Loading profile..." />;
+    return (
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">Account</p>
+            <h1 className="dashboardHeading">My Profile</h1>
+          </div>
+        </header>
+        <SkeletonLoader variant="card" count={3} />
+      </section>
+    );
   }
 
   if (state === 'error' || !profile) {

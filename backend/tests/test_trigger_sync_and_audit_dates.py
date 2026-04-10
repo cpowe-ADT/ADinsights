@@ -9,7 +9,7 @@ import pytest
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import AuditLog, Tenant, User
+from accounts.models import AuditLog
 from integrations.airbyte.client import (
     AirbyteClient,
     AirbyteClientConfigurationError,

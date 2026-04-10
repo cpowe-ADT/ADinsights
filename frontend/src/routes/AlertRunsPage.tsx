@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { listAlertRuns, type AlertRun } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
+import '../styles/skeleton.css';
 
 type StatusFilter = '' | 'success' | 'no_results' | 'partial' | 'failed' | 'started';
 
@@ -67,7 +69,17 @@ const AlertRunsPage = () => {
   }, [load]);
 
   if (state === 'loading') {
-    return <DashboardState variant="loading" layout="page" message="Loading alert history..." />;
+    return (
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">Alerts</p>
+            <h1 className="dashboardHeading">Alert History</h1>
+          </div>
+        </header>
+        <SkeletonLoader variant="table" />
+      </section>
+    );
   }
 
   if (state === 'error') {
@@ -95,7 +107,7 @@ const AlertRunsPage = () => {
         </div>
         <div className="phase2-page__actions">
           <Link to="/alerts" className="button tertiary">
-            Alert rules
+            Back to alerts
           </Link>
           <button type="button" className="button secondary" onClick={() => void load()}>
             Refresh
