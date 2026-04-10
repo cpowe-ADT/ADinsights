@@ -457,6 +457,7 @@ const DashboardLayout = () => {
         { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
         { label: 'Facebook pages', to: '/dashboards/meta/pages', end: false },
         { label: 'Google Ads', to: '/dashboards/google-ads', end: false },
+        { label: 'Notifications', to: '/settings/notifications', end: false },
       ].filter((link): link is { label: string; to: string; end: boolean } => Boolean(link)),
     [canCreate],
   );

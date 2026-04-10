@@ -2,7 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
-import { getAlert, type AlertRule } from '../lib/phase2Api';
+import {
+  getAlert,
+  updateAlert,
+  listNotificationChannels,
+  type AlertRule,
+  type NotificationChannel,
+} from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
@@ -12,6 +18,8 @@ const AlertDetailPage = () => {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [alert, setAlert] = useState<AlertRule | null>(null);
   const [error, setError] = useState('Unable to load alert.');
+  const [channels, setChannels] = useState<NotificationChannel[]>([]);
+  const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     if (!alertId) {
@@ -22,8 +30,13 @@ const AlertDetailPage = () => {
 
     setState('loading');
     try {
-      const data = await getAlert(alertId);
+      const [data, channelData] = await Promise.all([
+        getAlert(alertId),
+        listNotificationChannels(),
+      ]);
       setAlert(data);
+      setChannels(channelData);
+      setSelectedChannelIds(data.notification_channels ?? []);
       setState('ready');
     } catch (err) {
       setState('error');
@@ -34,6 +47,20 @@ const AlertDetailPage = () => {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const handleChannelToggle = async (channelId: string, checked: boolean) => {
+    if (!alertId) return;
+    const updated = checked
+      ? [...selectedChannelIds, channelId]
+      : selectedChannelIds.filter((id) => id !== channelId);
+    setSelectedChannelIds(updated);
+    try {
+      await updateAlert(alertId, { notification_channels: updated });
+    } catch {
+      // Revert on failure
+      setSelectedChannelIds(selectedChannelIds);
+    }
+  };
 
   if (state === 'loading') {
     return <DashboardState variant="loading" layout="page" message="Loading alert detail…" />;
@@ -88,6 +115,26 @@ const AlertDetailPage = () => {
         <p>
           Updated {formatRelativeTime(alert.updated_at)} ({formatAbsoluteTime(alert.updated_at)})
         </p>
+      </article>
+
+      <article className="phase2-card">
+        <h3>Notification Channels</h3>
+        {channels.length === 0 ? (
+          <p>No notification channels configured. <Link to="/settings/notifications">Create one</Link>.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {channels.map((ch) => (
+              <label key={ch.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  type="checkbox"
+                  checked={selectedChannelIds.includes(ch.id)}
+                  onChange={(e) => void handleChannelToggle(ch.id, e.target.checked)}
+                />
+                {ch.name} ({ch.channel_type})
+              </label>
+            ))}
+          </div>
+        )}
       </article>
     </section>
   );
