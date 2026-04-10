@@ -29,7 +29,6 @@ import {
   getDashboardDefinition,
   getReport,
   listAlerts,
-  listDashboardDefinitions,
   listReports,
   listSummaries,
 } from './phase2Api';
@@ -52,20 +51,6 @@ describe('phase2Api', () => {
       const result = await fetchDashboardLibrary();
       expect(result.systemTemplates).toHaveLength(1);
       expect(result.systemTemplates[0].name).toBe('Template');
-    });
-  });
-
-  describe('listDashboardDefinitions', () => {
-    it('handles array response', async () => {
-      apiClientMock.get.mockResolvedValue([{ id: 'd1', name: 'Dash' }]);
-      const result = await listDashboardDefinitions();
-      expect(result).toHaveLength(1);
-    });
-
-    it('handles paginated response', async () => {
-      apiClientMock.get.mockResolvedValue({ results: [{ id: 'd1', name: 'Dash' }] });
-      const result = await listDashboardDefinitions();
-      expect(result).toHaveLength(1);
     });
   });
 
