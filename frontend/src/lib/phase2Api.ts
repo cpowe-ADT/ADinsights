@@ -63,6 +63,10 @@ export type ReportDefinition = {
   filters: Record<string, unknown>;
   layout: Record<string, unknown>;
   is_active: boolean;
+  schedule_enabled: boolean;
+  schedule_cron: string;
+  delivery_emails: string[];
+  last_scheduled_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -299,6 +303,26 @@ export async function createReport(
 
 export async function getReport(reportId: string, signal?: AbortSignal): Promise<ReportDefinition> {
   return apiClient.get<ReportDefinition>(`/reports/${reportId}/`, { signal });
+}
+
+export async function updateReport(
+  reportId: string,
+  payload: Partial<
+    Pick<
+      ReportDefinition,
+      'name' | 'description' | 'filters' | 'layout' | 'is_active' | 'schedule_cron' | 'delivery_emails'
+    >
+  >,
+): Promise<ReportDefinition> {
+  return apiClient.patch<ReportDefinition>(`/reports/${reportId}/`, payload);
+}
+
+export async function toggleReportSchedule(reportId: string, enabled: boolean): Promise<ReportDefinition> {
+  return apiClient.post<ReportDefinition>(`/reports/${reportId}/toggle_schedule/`, { enabled });
+}
+
+export async function updateReportSchedule(reportId: string, payload: { schedule_cron?: string; delivery_emails?: string[] }): Promise<ReportDefinition> {
+  return apiClient.patch<ReportDefinition>(`/reports/${reportId}/`, payload);
 }
 
 export async function listReportExports(

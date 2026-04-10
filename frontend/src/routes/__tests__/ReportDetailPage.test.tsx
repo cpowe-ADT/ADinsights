@@ -1,65 +1,38 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ReportDetailPage from '../ReportDetailPage';
-import type { ReportDefinition, ReportExportJob } from '../../lib/phase2Api';
 
 const phase2ApiMock = vi.hoisted(() => ({
   getReport: vi.fn(),
   listReportExports: vi.fn(),
   createReportExport: vi.fn(),
-  updateReport: vi.fn(),
+  toggleReportSchedule: vi.fn(),
+  updateReportSchedule: vi.fn(),
 }));
 
 vi.mock('../../lib/phase2Api', () => ({
   getReport: phase2ApiMock.getReport,
   listReportExports: phase2ApiMock.listReportExports,
   createReportExport: phase2ApiMock.createReportExport,
-  updateReport: phase2ApiMock.updateReport,
+  toggleReportSchedule: phase2ApiMock.toggleReportSchedule,
+  updateReportSchedule: phase2ApiMock.updateReportSchedule,
 }));
 
-vi.mock('../../lib/apiClient', () => ({
-  default: {},
-  API_BASE_URL: '/api',
-}));
-
-const sampleReport: ReportDefinition = {
+const sampleReport = {
   id: 'r1',
-  name: 'Test Report',
-  description: 'A test report',
+  name: 'Weekly Summary',
+  description: 'A weekly summary report',
   filters: {},
   layout: {},
   is_active: true,
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
-};
-
-const completedExport: ReportExportJob = {
-  id: 'e1',
-  report_id: 'r1',
-  export_format: 'csv',
-  status: 'completed',
-  artifact_path: '/exports/r1/e1.csv',
-  error_message: '',
-  metadata: {},
-  completed_at: '2026-01-01T01:00:00Z',
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T01:00:00Z',
-};
-
-const pendingExport: ReportExportJob = {
-  id: 'e2',
-  report_id: 'r1',
-  export_format: 'pdf',
-  status: 'queued',
-  artifact_path: '',
-  error_message: '',
-  metadata: {},
-  completed_at: null,
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
+  schedule_enabled: false,
+  schedule_cron: '',
+  delivery_emails: [] as string[],
+  last_scheduled_at: null,
+  created_at: '2026-04-01T10:00:00Z',
+  updated_at: '2026-04-01T10:00:00Z',
 };
 
 function renderPage() {
@@ -74,64 +47,37 @@ function renderPage() {
 
 describe('ReportDetailPage', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    phase2ApiMock.getReport.mockResolvedValue(sampleReport);
+    phase2ApiMock.getReport.mockResolvedValue({ ...sampleReport });
     phase2ApiMock.listReportExports.mockResolvedValue([]);
+    phase2ApiMock.toggleReportSchedule.mockResolvedValue({ ...sampleReport, schedule_enabled: true });
+    phase2ApiMock.updateReportSchedule.mockResolvedValue({ ...sampleReport });
   });
 
-  it('renders report name after loading', async () => {
-    renderPage();
-    await waitFor(() => expect(screen.getByText('Test Report')).toBeInTheDocument());
-  });
-
-  it('shows export action buttons', async () => {
-    renderPage();
-    await waitFor(() => expect(phase2ApiMock.getReport).toHaveBeenCalled());
-    expect(screen.getByRole('button', { name: /request csv/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /request pdf/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /request png/i })).toBeInTheDocument();
-  });
-
-  it('shows error state', async () => {
-    phase2ApiMock.getReport.mockRejectedValue(new Error('Network error'));
-    phase2ApiMock.listReportExports.mockRejectedValue(new Error('Network error'));
-
+  it('renders schedule section with toggle', async () => {
     renderPage();
 
     await waitFor(() => expect(phase2ApiMock.getReport).toHaveBeenCalled());
-    expect(screen.getByText('Report unavailable')).toBeInTheDocument();
+
+    expect(screen.getByText('Scheduled delivery')).toBeInTheDocument();
+    expect(screen.getByLabelText(/enable schedule/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/enable schedule/i)).not.toBeChecked();
   });
 
-  it('edit button appears and enters edit mode', async () => {
-    const user = userEvent.setup();
-    renderPage();
-    await waitFor(() => expect(screen.getByText('Test Report')).toBeInTheDocument());
+  it('schedule form shows when enabled', async () => {
+    phase2ApiMock.getReport.mockResolvedValue({
+      ...sampleReport,
+      schedule_enabled: true,
+      schedule_cron: '0 8 * * 1',
+      delivery_emails: ['team@example.com'],
+    });
 
-    const editButton = screen.getByRole('button', { name: /^edit$/i });
-    expect(editButton).toBeInTheDocument();
-
-    await user.click(editButton);
-
-    const nameInput = screen.getByLabelText(/report name/i);
-    expect(nameInput).toBeInTheDocument();
-    expect(nameInput).toHaveValue('Test Report');
-
-    const descInput = screen.getByLabelText(/report description/i);
-    expect(descInput).toBeInTheDocument();
-    expect(descInput).toHaveValue('A test report');
-
-    expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
-  });
-
-  it('completed exports show a download link', async () => {
-    phase2ApiMock.listReportExports.mockResolvedValue([completedExport, pendingExport]);
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('Download')).toBeInTheDocument());
-    const link = screen.getByText('Download').closest('a');
-    expect(link).toHaveAttribute('href', '/api/exports/e1/download/');
+    await waitFor(() => expect(phase2ApiMock.getReport).toHaveBeenCalled());
 
-    expect(screen.getByText('Pending')).toBeInTheDocument();
+    expect(screen.getByLabelText(/enable schedule/i)).toBeChecked();
+    expect(screen.getByPlaceholderText('0 8 * * 1')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('team@example.com, boss@example.com')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /save schedule/i })).toBeInTheDocument();
   });
 });

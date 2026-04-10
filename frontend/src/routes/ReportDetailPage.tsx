@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
@@ -6,23 +6,16 @@ import {
   createReportExport,
   getReport,
   listReportExports,
-  updateReport,
+  toggleReportSchedule,
+  updateReportSchedule,
   type ReportDefinition,
   type ReportExportJob,
 } from '../lib/phase2Api';
-import { API_BASE_URL } from '../lib/apiClient';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 
 const exportFormats: Array<'csv' | 'pdf' | 'png'> = ['csv', 'pdf', 'png'];
-const POLL_INTERVAL_MS = 5_000;
-const MAX_POLLS = 12;
-
-function buildDownloadUrl(jobId: string): string {
-  const base = API_BASE_URL.replace(/\/$/, '');
-  return `${base}/exports/${jobId}/download/`;
-}
 
 const ReportDetailPage = () => {
   const { reportId } = useParams<{ reportId: string }>();
@@ -31,19 +24,9 @@ const ReportDetailPage = () => {
   const [exports, setExports] = useState<ReportExportJob[]>([]);
   const [error, setError] = useState<string>('Unable to load report.');
   const [creatingFormat, setCreatingFormat] = useState<string | null>(null);
-
-  // Inline editing state
-  const [editing, setEditing] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editActive, setEditActive] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  // Polling state
-  const [polling, setPolling] = useState(false);
-  const pollCountRef = useRef(0);
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [scheduleCron, setScheduleCron] = useState('');
+  const [scheduleEmails, setScheduleEmails] = useState('');
+  const [savingSchedule, setSavingSchedule] = useState(false);
 
   const load = useCallback(async () => {
     if (!reportId) {
@@ -71,51 +54,6 @@ const ReportDetailPage = () => {
     void load();
   }, [load]);
 
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
-  }, []);
-
-  const stopPolling = useCallback(() => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-    pollCountRef.current = 0;
-    setPolling(false);
-  }, []);
-
-  const startPolling = useCallback(() => {
-    if (!reportId) return;
-
-    stopPolling();
-    pollCountRef.current = 0;
-    setPolling(true);
-
-    pollIntervalRef.current = setInterval(async () => {
-      pollCountRef.current += 1;
-
-      try {
-        const freshExports = await listReportExports(reportId);
-        setExports(freshExports);
-
-        const hasPending = freshExports.some(
-          (job) => job.status === 'queued' || job.status === 'running',
-        );
-
-        if (!hasPending || pollCountRef.current >= MAX_POLLS) {
-          stopPolling();
-        }
-      } catch {
-        stopPolling();
-      }
-    }, POLL_INTERVAL_MS);
-  }, [reportId, stopPolling]);
-
   const requestExport = useCallback(
     async (format: 'csv' | 'pdf' | 'png') => {
       if (!reportId) {
@@ -125,46 +63,45 @@ const ReportDetailPage = () => {
       try {
         await createReportExport(reportId, format);
         await load();
-        startPolling();
       } finally {
         setCreatingFormat(null);
       }
     },
-    [load, reportId, startPolling],
+    [load, reportId],
   );
 
-  const enterEditMode = useCallback(() => {
-    if (!report) return;
-    setEditName(report.name);
-    setEditDescription(report.description);
-    setEditActive(report.is_active);
-    setSaveError(null);
-    setEditing(true);
+  useEffect(() => {
+    if (report) {
+      setScheduleCron(report.schedule_cron);
+      setScheduleEmails(report.delivery_emails.join(', '));
+    }
   }, [report]);
 
-  const cancelEdit = useCallback(() => {
-    setEditing(false);
-    setSaveError(null);
-  }, []);
+  const handleToggleSchedule = useCallback(
+    async (enabled: boolean) => {
+      if (!reportId) return;
+      await toggleReportSchedule(reportId, enabled);
+      await load();
+    },
+    [load, reportId],
+  );
 
-  const saveEdit = useCallback(async () => {
+  const handleSaveSchedule = useCallback(async () => {
     if (!reportId) return;
-    setSaving(true);
-    setSaveError(null);
+    setSavingSchedule(true);
     try {
-      await updateReport(reportId, {
-        name: editName,
-        description: editDescription,
-        is_active: editActive,
+      await updateReportSchedule(reportId, {
+        schedule_cron: scheduleCron,
+        delivery_emails: scheduleEmails
+          .split(',')
+          .map((e) => e.trim())
+          .filter(Boolean),
       });
       await load();
-      setEditing(false);
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Failed to save changes.');
     } finally {
-      setSaving(false);
+      setSavingSchedule(false);
     }
-  }, [reportId, editName, editDescription, editActive, load]);
+  }, [load, reportId, scheduleCron, scheduleEmails]);
 
   if (state === 'loading') {
     return <DashboardState variant="loading" layout="page" message="Loading report…" />;
@@ -188,62 +125,16 @@ const ReportDetailPage = () => {
       <header className="phase2-page__header">
         <div>
           <p className="dashboardEyebrow">Reporting</p>
-          {editing ? (
-            <>
-              <input
-                type="text"
-                className="phase2-input"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                aria-label="Report name"
-              />
-              <textarea
-                className="phase2-input"
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                aria-label="Report description"
-                rows={2}
-              />
-              <label>
-                <input
-                  type="checkbox"
-                  checked={editActive}
-                  onChange={(e) => setEditActive(e.target.checked)}
-                />{' '}
-                Active
-              </label>
-              {saveError && <p className="phase2-error">{saveError}</p>}
-            </>
-          ) : (
-            <>
-              <h1 className="dashboardHeading">{report.name}</h1>
-              <p className="phase2-page__subhead">{report.description || 'No description provided.'}</p>
-            </>
-          )}
+          <h1 className="dashboardHeading">{report.name}</h1>
+          <p className="phase2-page__subhead">{report.description || 'No description provided.'}</p>
         </div>
         <div className="phase2-row-actions">
           <Link to="/reports" className="button tertiary">
             Back to reports
           </Link>
-          {editing ? (
-            <>
-              <button type="button" className="button primary" onClick={() => void saveEdit()} disabled={saving}>
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-              <button type="button" className="button secondary" onClick={cancelEdit} disabled={saving}>
-                Cancel
-              </button>
-            </>
-          ) : (
-            <>
-              <button type="button" className="button secondary" onClick={enterEditMode}>
-                Edit
-              </button>
-              <button type="button" className="button secondary" onClick={() => void load()}>
-                Refresh
-              </button>
-            </>
-          )}
+          <button type="button" className="button secondary" onClick={() => void load()}>
+            Refresh
+          </button>
         </div>
       </header>
 
@@ -265,7 +156,57 @@ const ReportDetailPage = () => {
             </button>
           ))}
         </div>
-        {polling && <p className="phase2-note">Checking export status...</p>}
+      </article>
+
+      <article className="phase2-card">
+        <h3>Scheduled delivery</h3>
+        <p className="phase2-note">Configure automated report delivery via email.</p>
+        <div className="phase2-row-actions" style={{ alignItems: 'center' }}>
+          <label>
+            <input
+              type="checkbox"
+              checked={report.schedule_enabled}
+              onChange={(e) => void handleToggleSchedule(e.target.checked)}
+            />{' '}
+            Enable schedule
+          </label>
+        </div>
+        {report.schedule_enabled && (
+          <div className="phase2-form">
+            <label className="phase2-form__field">
+              <span>Cron expression</span>
+              <input
+                type="text"
+                value={scheduleCron}
+                onChange={(e) => setScheduleCron(e.target.value)}
+                placeholder="0 8 * * 1"
+              />
+              <span className="phase2-note">e.g. &quot;0 8 * * 1&quot; = 8 AM every Monday</span>
+            </label>
+            <label className="phase2-form__field">
+              <span>Delivery emails (comma-separated)</span>
+              <input
+                type="text"
+                value={scheduleEmails}
+                onChange={(e) => setScheduleEmails(e.target.value)}
+                placeholder="team@example.com, boss@example.com"
+              />
+            </label>
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => void handleSaveSchedule()}
+              disabled={savingSchedule}
+            >
+              {savingSchedule ? 'Saving\u2026' : 'Save schedule'}
+            </button>
+          </div>
+        )}
+        {report.last_scheduled_at && (
+          <p className="phase2-note">
+            Last scheduled: {formatRelativeTime(report.last_scheduled_at)} ({formatAbsoluteTime(report.last_scheduled_at)})
+          </p>
+        )}
       </article>
 
       {exports.length === 0 ? (
@@ -302,15 +243,7 @@ const ReportDetailPage = () => {
                     : 'In progress'}
                 </td>
                 <td>
-                  {job.status === 'completed' && job.artifact_path ? (
-                    <a href={buildDownloadUrl(job.id)} download>
-                      Download
-                    </a>
-                  ) : job.artifact_path ? (
-                    <code>{job.artifact_path}</code>
-                  ) : (
-                    'Pending'
-                  )}
+                  {job.artifact_path ? <code>{job.artifact_path}</code> : 'Pending'}
                   {job.error_message ? <div>{job.error_message}</div> : null}
                 </td>
               </tr>

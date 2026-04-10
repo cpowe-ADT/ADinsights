@@ -1,7 +1,7 @@
 import pytest
 from django.urls import reverse
 from rest_framework import status
-from analytics.models import DashboardDefinition
+from analytics.models import DashboardDefinition, ReportDefinition
 
 @pytest.fixture
 def other_tenant(db):
@@ -197,3 +197,71 @@ class TestPageInsightsDashboardDefinitionCRUD:
         response = api_client.delete(self._detail_url(dashboard.pk))
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not DashboardDefinition.objects.filter(pk=dashboard.pk).exists()
+
+
+@pytest.mark.django_db
+class TestReportScheduleFields:
+    list_url = reverse("report-definition-list")
+
+    def _detail_url(self, pk):
+        return reverse("report-definition-detail", args=[pk])
+
+    def _toggle_url(self, pk):
+        return reverse("report-definition-toggle-schedule", args=[pk])
+
+    def test_create_report_with_schedule_fields(self, api_client, user, tenant):
+        api_client.force_authenticate(user=user)
+        payload = {
+            "name": "Scheduled Report",
+            "description": "A report with schedule",
+            "schedule_enabled": True,
+            "schedule_cron": "0 8 * * 1",
+            "delivery_emails": ["team@example.com", "boss@example.com"],
+        }
+        response = api_client.post(self.list_url, payload, format="json")
+        assert response.status_code == status.HTTP_201_CREATED
+        data = response.json()
+        assert data["schedule_enabled"] is True
+        assert data["schedule_cron"] == "0 8 * * 1"
+        assert data["delivery_emails"] == ["team@example.com", "boss@example.com"]
+        assert data["last_scheduled_at"] is None
+
+    def test_toggle_schedule_action(self, api_client, user, tenant):
+        api_client.force_authenticate(user=user)
+        report = ReportDefinition.objects.create(
+            tenant=tenant,
+            name="Toggle Test",
+            created_by=user,
+            schedule_enabled=False,
+        )
+        # Enable
+        response = api_client.post(
+            self._toggle_url(report.pk), {"enabled": True}, format="json"
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["schedule_enabled"] is True
+
+        # Disable
+        response = api_client.post(
+            self._toggle_url(report.pk), {"enabled": False}, format="json"
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["schedule_enabled"] is False
+
+    def test_schedule_fields_in_get_response(self, api_client, user, tenant):
+        api_client.force_authenticate(user=user)
+        report = ReportDefinition.objects.create(
+            tenant=tenant,
+            name="Get Test",
+            created_by=user,
+            schedule_enabled=True,
+            schedule_cron="30 9 * * *",
+            delivery_emails=["a@b.com"],
+        )
+        response = api_client.get(self._detail_url(report.pk))
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["schedule_enabled"] is True
+        assert data["schedule_cron"] == "30 9 * * *"
+        assert data["delivery_emails"] == ["a@b.com"]
+        assert "last_scheduled_at" in data
