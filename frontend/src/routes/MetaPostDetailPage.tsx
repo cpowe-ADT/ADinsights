@@ -51,7 +51,7 @@ const MetaPostDetailPage = () => {
 
   const parentPageId = postDetail?.page_id ?? '';
   const parentPage = useMemo(() => pages.find((p) => p.page_id === parentPageId), [pages, parentPageId]);
-  const pageName = parentPage?.name ?? 'Page';
+  const pageName = parentPage?.name ?? 'Facebook Page';
   const metricKeys = useMemo(() => Object.keys(postDetail?.metric_availability ?? {}), [postDetail]);
   useEffect(() => {
     if (metricKeys.length > 0 && !metricKeys.includes(metric)) {

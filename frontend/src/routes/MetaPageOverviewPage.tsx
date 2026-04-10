@@ -195,7 +195,7 @@ const MetaPageOverviewPage = () => {
     });
   };
 
-  const pageName = selectedPage?.name ?? 'Page';
+  const pageName = selectedPage?.name ?? 'Facebook Page';
 
   return (
     <section className="dashboardPage">

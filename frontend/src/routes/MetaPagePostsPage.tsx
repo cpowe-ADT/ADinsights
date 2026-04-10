@@ -123,7 +123,7 @@ const MetaPagePostsPage = () => {
   };
 
   const selectedPage = useMemo(() => pages.find((page) => page.page_id === pageId), [pages, pageId]);
-  const pageName = selectedPage?.name ?? 'Page';
+  const pageName = selectedPage?.name ?? 'Facebook Page';
   const metricKeys = useMemo(() => {
     return posts ? Object.keys(posts.metric_availability) : [];
   }, [posts]);
