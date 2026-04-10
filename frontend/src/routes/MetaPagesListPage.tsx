@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import Breadcrumbs from '../components/Breadcrumbs';
 import EmptyState from '../components/EmptyState';
 import { loadSocialConnectionStatus, type SocialPlatformStatusRecord } from '../lib/airbyte';
 import useMetaPageInsightsStore from '../state/useMetaPageInsightsStore';
@@ -62,8 +63,13 @@ const MetaPagesListPage = () => {
 
   return (
     <section className="dashboardPage">
+      <Breadcrumbs
+        items={[
+          { label: 'Dashboards', to: '/dashboards' },
+          { label: 'Facebook Pages' },
+        ]}
+      />
       <header className="dashboardPageHeader">
-        <p className="dashboardEyebrow">Dashboards</p>
         <h1 className="dashboardHeading">Facebook Pages</h1>
         <div className="dashboard-header__actions-row">
           <Link className="button tertiary" to="/dashboards/data-sources?sources=social">

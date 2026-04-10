@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import Breadcrumbs from '../components/Breadcrumbs';
 import EmptyState from '../components/EmptyState';
 import MetricAvailabilityBadge from '../components/MetricAvailabilityBadge';
 import PostsTable from '../components/PostsTable';
@@ -121,6 +122,8 @@ const MetaPagePostsPage = () => {
     });
   };
 
+  const selectedPage = useMemo(() => pages.find((page) => page.page_id === pageId), [pages, pageId]);
+  const pageName = selectedPage?.name ?? 'Facebook Page';
   const metricKeys = useMemo(() => {
     return posts ? Object.keys(posts.metric_availability) : [];
   }, [posts]);
@@ -137,15 +140,19 @@ const MetaPagePostsPage = () => {
 
   return (
     <section className="dashboardPage">
+      <Breadcrumbs
+        items={[
+          { label: 'Dashboards', to: '/dashboards' },
+          { label: 'Facebook Pages', to: '/dashboards/meta/pages' },
+          { label: pageName, to: `/dashboards/meta/pages/${pageId}/overview` },
+          { label: 'Posts' },
+        ]}
+      />
       <header className="dashboardPageHeader">
-        <p className="dashboardEyebrow">Facebook Analytics</p>
-        <h1 className="dashboardHeading">Page Posts</h1>
+        <h1 className="dashboardHeading">{pageName} Posts</h1>
         <div className="dashboard-header__actions-row">
           <Link className="button tertiary" to={`/dashboards/meta/pages/${pageId}/overview`}>
             Overview
-          </Link>
-          <Link className="button tertiary" to="/dashboards/meta/pages">
-            All pages
           </Link>
           <button type="button" className="button tertiary" onClick={() => void runExportCsv()} disabled={exportStatus === 'loading'}>
             Export CSV

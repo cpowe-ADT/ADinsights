@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
+import Breadcrumbs from '../components/Breadcrumbs';
 import EmptyState from '../components/EmptyState';
 import MetricAvailabilityBadge from '../components/MetricAvailabilityBadge';
 import TrendChart from '../components/TrendChart';
@@ -14,24 +15,32 @@ const MetaPostDetailPage = () => {
   const [showFullMessage, setShowFullMessage] = useState(false);
 
   const {
+    pages,
     postStatus,
     postSeriesStatus,
     postDetail,
     postTimeseries,
     error,
+    loadPages,
     loadPostDetail,
     loadPostTimeseries,
     setFilters,
   } = useMetaPageInsightsStore((state) => ({
+    pages: state.pages,
     postStatus: state.postStatus,
     postSeriesStatus: state.postSeriesStatus,
     postDetail: state.postDetail,
     postTimeseries: state.postTimeseries,
     error: state.error,
+    loadPages: state.loadPages,
     loadPostDetail: state.loadPostDetail,
     loadPostTimeseries: state.loadPostTimeseries,
     setFilters: state.setFilters,
   }));
+
+  useEffect(() => {
+    void loadPages();
+  }, [loadPages]);
 
   useEffect(() => {
     if (!postId) {
@@ -40,6 +49,9 @@ const MetaPostDetailPage = () => {
     void loadPostDetail(postId);
   }, [postId, loadPostDetail]);
 
+  const parentPageId = postDetail?.page_id ?? '';
+  const parentPage = useMemo(() => pages.find((p) => p.page_id === parentPageId), [pages, parentPageId]);
+  const pageName = parentPage?.name ?? 'Facebook Page';
   const metricKeys = useMemo(() => Object.keys(postDetail?.metric_availability ?? {}), [postDetail]);
   useEffect(() => {
     if (metricKeys.length > 0 && !metricKeys.includes(metric)) {
@@ -62,8 +74,20 @@ const MetaPostDetailPage = () => {
 
   return (
     <section className="dashboardPage">
+      <Breadcrumbs
+        items={[
+          { label: 'Dashboards', to: '/dashboards' },
+          { label: 'Facebook Pages', to: '/dashboards/meta/pages' },
+          ...(parentPageId
+            ? [
+                { label: pageName, to: `/dashboards/meta/pages/${parentPageId}/overview` },
+                { label: 'Posts', to: `/dashboards/meta/pages/${parentPageId}/posts` },
+              ]
+            : []),
+          { label: 'Post Detail' },
+        ]}
+      />
       <header className="dashboardPageHeader">
-        <p className="dashboardEyebrow">Facebook Analytics</p>
         <h1 className="dashboardHeading">Post Detail</h1>
         <div className="dashboard-header__actions-row">
           {postDetail ? (
@@ -71,9 +95,6 @@ const MetaPostDetailPage = () => {
               Back to posts
             </Link>
           ) : null}
-          <Link className="button tertiary" to="/dashboards/meta/pages">
-            All pages
-          </Link>
         </div>
       </header>
 
