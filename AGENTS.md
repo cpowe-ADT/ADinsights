@@ -15,9 +15,11 @@ This file serves as the operational prompt for any agent working on ADinsights. 
 - API contract changelog: `docs/project/api-contract-changelog.md`
 - Integration data contract matrix: `docs/project/integration-data-contract-matrix.md`
 - Release checklist: `docs/runbooks/release-checklist.md`
+- Development launcher + local stack guide: `docs/DEVELOPMENT.md`
 - Google Ads SDK migration runbook: `docs/runbooks/google-ads-sdk-migration.md`
 - Meta App Review + validation runbook: `docs/runbooks/meta-app-review-validation.md`
 - Meta Page Insights operations runbook: `docs/runbooks/meta-page-insights-operations.md`
+- Operations runbook: `docs/runbooks/operations.md`
 - Meta Page Insights data dictionary: `docs/project/meta-page-insights-data-dictionary.md`
 - Meta Page Insights metric catalog: `docs/project/meta-page-insights-metric-catalog.md`
 - CSV upload runbook: `docs/runbooks/csv-uploads.md`
@@ -37,6 +39,7 @@ This file serves as the operational prompt for any agent working on ADinsights. 
 - AI session resume template: `docs/ops/ai-session-resume-template.md`
 - Decision checklist: `docs/ops/decision-checklist.md`
 - Test failure triage: `docs/ops/test-failure-triage.md`
+- CI operations runbook: `docs/ops/ci-runbook.md`
 - New engineer onboarding: `docs/ops/new-engineer-onboarding.md`
 - Human onboarding guide: `docs/ops/human-onboarding-guide.md`
 - Confused engineer walkthrough: `docs/ops/confused-engineer-walkthrough.md`
@@ -105,6 +108,7 @@ If context is unclear, follow this order:
 - Keep each change isolated to a single top-level folder to allow independent PRs per sprint track.
 - Use short-lived feature branches and prefer squash merges.
 - Follow conventional commit messages such as `feat(backend): …` or `docs(airbyte): …`.
+- For local stack work, prefer `scripts/dev-launch.sh` over ad hoc service startup so the active ports, frontend/backend URLs, and local OAuth redirect settings stay aligned in `.dev-launch.active.env`. Use `scripts/dev-healthcheck.sh` after startup.
 - When a change must touch multiple folders, loop in the Cross-Stream Integration Lead (Raj) so each stream owner co-reviews, and involve the Architecture/Refactor engineer (Mira) whenever the work is a codebase-wide refactor. Both roles keep cross-stream PRs aligned with the guardrails in `docs/workstreams.md`.
 
 ## Testing Matrix
@@ -115,6 +119,9 @@ Run the canonical checks for the folder you touch:
 - **Frontend:** `cd frontend && npm ci && npm test -- --run && npm run build`
 - **dbt:** `make dbt-deps && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select staging && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' snapshot && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select marts`
 - **Airbyte:** `cd infrastructure/airbyte && docker compose config`
+- **Launcher / Local Stack:** `bash -n scripts/dev-launch.sh scripts/dev-healthcheck.sh && scripts/dev-launch.sh --list-profiles && scripts/dev-healthcheck.sh`
+
+When a change spans contracts, release gating, or cross-stream readiness, run `make adinsights-preflight PROMPT="..."` before handing off.
 
 ## Secrets & Data Handling
 

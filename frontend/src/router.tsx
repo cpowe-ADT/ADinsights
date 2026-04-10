@@ -71,6 +71,7 @@ const ReportsPage = lazy(() => import('./routes/ReportsPage'));
 const SummariesPage = lazy(() => import('./routes/SummariesPage'));
 const SummaryDetailPage = lazy(() => import('./routes/SummaryDetailPage'));
 const NotificationChannelsPage = lazy(() => import('./routes/NotificationChannelsPage'));
+const SyncConnectionDetailPage = lazy(() => import('./routes/SyncConnectionDetailPage'));
 const SyncHealthPage = lazy(() => import('./routes/SyncHealthPage'));
 
 const MetaPageOverviewAliasRedirect = () => {
@@ -136,6 +137,10 @@ export const router = createBrowserRouter(
         {
           path: '/ops/sync-health',
           element: withRouteLoader(<SyncHealthPage />, 'Loading sync health…'),
+        },
+        {
+          path: '/ops/sync-health/:connectionId',
+          element: withRouteLoader(<SyncConnectionDetailPage />, 'Loading connection detail…'),
         },
         {
           path: '/ops/health',
