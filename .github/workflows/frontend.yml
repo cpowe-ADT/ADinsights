@@ -36,6 +36,9 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Run frontend guardrails
+        run: node scripts/ci/check_frontend_guardrails.mjs
+
       - name: Run unit tests with coverage
         id: test
         working-directory: frontend
