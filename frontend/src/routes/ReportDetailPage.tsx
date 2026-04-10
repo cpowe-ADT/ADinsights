@@ -7,24 +7,17 @@ import {
   getReport,
   listReportExports,
   toggleReportSchedule,
+  updateReport,
   updateReportSchedule,
   type ReportDefinition,
   type ReportExportJob,
 } from '../lib/phase2Api';
-import apiClient from '../lib/apiClient';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import { useToastStore } from '../stores/useToastStore';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 
 const exportFormats: Array<'csv' | 'pdf' | 'png'> = ['csv', 'pdf', 'png'];
-
-async function updateReport(
-  reportId: string,
-  payload: { name?: string; description?: string },
-): Promise<ReportDefinition> {
-  return apiClient.patch<ReportDefinition>(`/reports/${reportId}/`, payload);
-}
 
 const ReportDetailPage = () => {
   const { reportId } = useParams<{ reportId: string }>();
@@ -43,8 +36,6 @@ const ReportDetailPage = () => {
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [saving, setSaving] = useState(false);
-
-  const addToast = useToastStore((s) => s.addToast);
 
   const load = useCallback(async () => {
     if (!reportId) {

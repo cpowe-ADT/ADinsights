@@ -12,6 +12,10 @@ const mockReport = {
   filters: {},
   layout: {},
   is_active: true,
+  schedule_enabled: false,
+  schedule_cron: '0 9 * * 1',
+  delivery_emails: ['team@example.com'],
+  last_scheduled_at: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 };
@@ -20,18 +24,9 @@ const phase2ApiMock = vi.hoisted(() => ({
   getReport: vi.fn(),
   listReportExports: vi.fn(),
   createReportExport: vi.fn(),
-}));
-
-const apiClientMock = vi.hoisted(() => ({
-  patch: vi.fn(),
-  get: vi.fn(),
-  post: vi.fn(),
-  delete: vi.fn(),
-  download: vi.fn(),
-  request: vi.fn(),
-  setAccessToken: vi.fn(),
-  setRefreshToken: vi.fn(),
-  clearTokens: vi.fn(),
+  updateReport: vi.fn(),
+  toggleReportSchedule: vi.fn(),
+  updateReportSchedule: vi.fn(),
 }));
 
 const toastMock = vi.hoisted(() => ({
@@ -44,11 +39,9 @@ vi.mock('../../lib/phase2Api', () => ({
   getReport: phase2ApiMock.getReport,
   listReportExports: phase2ApiMock.listReportExports,
   createReportExport: phase2ApiMock.createReportExport,
-}));
-
-vi.mock('../../lib/apiClient', () => ({
-  default: apiClientMock,
-  appendQueryParams: (path: string) => path,
+  updateReport: phase2ApiMock.updateReport,
+  toggleReportSchedule: phase2ApiMock.toggleReportSchedule,
+  updateReportSchedule: phase2ApiMock.updateReportSchedule,
 }));
 
 vi.mock('../../stores/useToastStore', () => ({
@@ -70,7 +63,7 @@ describe('ReportDetailPage inline editing', () => {
     vi.clearAllMocks();
     phase2ApiMock.getReport.mockResolvedValue({ ...mockReport });
     phase2ApiMock.listReportExports.mockResolvedValue([]);
-    apiClientMock.patch.mockResolvedValue({
+    phase2ApiMock.updateReport.mockResolvedValue({
       ...mockReport,
       name: 'Updated Name',
       description: 'Updated Desc',
@@ -109,7 +102,7 @@ describe('ReportDetailPage inline editing', () => {
     await userEvent.click(screen.getByRole('button', { name: /save/i }));
 
     await waitFor(() => {
-      expect(apiClientMock.patch).toHaveBeenCalledWith('/reports/r1/', {
+      expect(phase2ApiMock.updateReport).toHaveBeenCalledWith('r1', {
         name: 'Updated Name',
         description: 'Updated Desc',
       });
@@ -137,7 +130,7 @@ describe('ReportDetailPage inline editing', () => {
   });
 
   it('shows error toast when save fails', async () => {
-    apiClientMock.patch.mockRejectedValue(new Error('Network error'));
+    phase2ApiMock.updateReport.mockRejectedValue(new Error('Network error'));
 
     renderPage();
 

@@ -2,16 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
-import { fetchSyncHealth, type SyncHealthRow } from '../lib/phase2Api';
-import { triggerAirbyteSync } from '../lib/airbyte';
+import { fetchSyncHealth, triggerResync, type SyncHealthRow } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
-import useToastStore from '../stores/useToastStore';
+import { useToastStore } from '../stores/useToastStore';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 
 const SyncConnectionDetailPage = () => {
   const { connectionId } = useParams<{ connectionId: string }>();
-  const pushToast = useToastStore((s) => s.pushToast);
+  const addToast = useToastStore((s) => s.addToast);
 
   const [state, setState] = useState<'loading' | 'ready' | 'error' | 'not-found'>('loading');
   const [connection, setConnection] = useState<SyncHealthRow | null>(null);
@@ -54,18 +53,18 @@ const SyncConnectionDetailPage = () => {
 
     setResyncing(true);
     try {
-      await triggerAirbyteSync(connectionId);
-      pushToast('Re-sync triggered successfully.', { tone: 'success' });
+      await triggerResync(connectionId);
+      addToast('Re-sync triggered successfully.', { tone: 'success' });
       void load();
     } catch (err) {
-      pushToast(
+      addToast(
         err instanceof Error ? err.message : 'Failed to trigger re-sync.',
         { tone: 'error' },
       );
     } finally {
       setResyncing(false);
     }
-  }, [connectionId, pushToast, load]);
+  }, [connectionId, addToast, load]);
 
   if (state === 'loading') {
     return <DashboardState variant="loading" layout="page" message="Loading connection details..." />;
