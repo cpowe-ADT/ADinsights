@@ -13,21 +13,21 @@ Supports rename, duplicate, archive, delete actions.
 
 ## 2. Alerts (WORKING)
 
-Alert rules list page and alert detail page are built. Both consume live API data.
+Alert rules list page, alert detail page, and alert creation page are built. All consume live API data.
 
 ### What is built
-- Alerts list with name, metric, rule, severity, and updated timestamp columns.
+- Alerts list with name, metric, rule, severity, active/inactive status column, and updated timestamp columns.
 - Alert detail page showing rule metadata (metric, comparison, threshold, lookback, severity).
+- Alert creation page with notification channel assignment (AlertCreatePage.tsx).
+- Alert detail page with notification channel assignment and delete button with confirm dialog.
+- Notification channels CRUD management page at /settings/notifications (NotificationChannelsPage.tsx).
+- Confirm dialogs for destructive actions (delete alert, delete channel).
+- Toast notifications for CRUD feedback.
 - Loading, error, and empty states on both pages.
 
 ### Remaining gaps
-- Alert creation page does not yet include notification channel assignment during creation.
-- Alert detail page does not include delete functionality.
-- Alerts list does not show active/inactive status column.
-- No notification channels CRUD UI (create/edit/delete channels).
-- No confirm dialogs for destructive actions (delete alert).
-- No alert history/triggered events timeline.
-- No alert pause/resume controls.
+- No alert history/runs page (backend API exists at /api/alerts/runs/).
+- No alert pause/resume UI controls.
 
 ## 3. AI Summaries (WORKING)
 
@@ -36,11 +36,11 @@ Summaries list and summary detail pages are built.
 ### What is built
 - Summaries list page with title, status pill, and generated-at timestamps.
 - Summary detail page with summary text and raw payload snapshot.
+- AI summary source badges ("Daily"/"Manual") on SummariesPage and SummaryDetailPage.
+- AI summary schedule info banner on SummariesPage.
 - Loading, error, and empty states.
 
 ### Remaining gaps
-- No source badges showing which dashboard/data source generated the summary.
-- No schedule info on summary detail page.
 - No summary regeneration controls.
 
 ## 4. Reports (WORKING)
@@ -52,10 +52,10 @@ Report builder (create), reports library (list), and report detail with export j
 - Reports library with name, description, and timestamps.
 - Report detail page with CSV/PDF/PNG export job creation and job status table.
 - Role-based access: viewers get read-only messaging on create page.
+- Report scheduled delivery UI with toggle, cron expression, and email recipients (ReportDetailPage.tsx).
 
 ### Remaining gaps
-- Scheduled delivery UI is referenced in copy but not yet a configurable form field.
-- No report editing (only create and view).
+- No report editing (only create and view, no edit form).
 - No delivery status tracking for scheduled reports.
 
 ## 5. Sync Health (WORKING)
@@ -65,24 +65,23 @@ Sync health page is built with connection status table.
 ### What is built
 - Connection table with name, provider, status pill, last sync timestamps, and job errors.
 - Summary stat cards (total, fresh, stale, failed connections).
+- Re-sync / "run now" controls per connection (SyncHealthPage.tsx).
 - Loading, error, and empty states.
 
 ### Remaining gaps
-- No re-sync / "run now" controls per connection.
-- No provider or status filters on the table.
+- No provider or status filter dropdowns on the table.
 - No drill-through to connection detail page.
 
 ## 6. Audit Log (WORKING)
 
-Audit log page is built with action/resource filters and JSON export.
+Audit log page is built with action/resource filters and server-side CSV export.
 
 ### What is built
 - Audit log table with action, resource type, detail, user, and timestamp columns.
 - Action and resource type text filters.
-- Client-side JSON export of current view.
+- Server-side audit CSV export at /api/audit-logs/export_csv/ (AuditLogPage uses window.open).
 
 ### Remaining gaps
-- Server-side CSV export (current export is client-side JSON only).
 - No date range filter.
 - No pagination controls visible (backend pagination exists but UI does not expose it).
 
@@ -95,12 +94,20 @@ Health checks overview page is built, showing status for all required health end
 
 ## 8. Toast Notification System (DONE)
 
-ToastProvider is implemented and wired into the app shell.
+ToastProvider (useToastStore + ToastContainer) is implemented and wired into the app shell.
+Toast notifications are used consistently across CRUD operations including dashboard library, alerts, reports, and notification channels.
 
 ### Remaining gaps
-- Not yet used consistently across all CRUD operations (dashboard library uses it; alerts/reports do not).
+- None.
 
 ## 9. Cross-Cutting Gaps
 
-- No confirm dialogs for destructive actions across the app (delete channel, delete alert, delete report).
-- Notification channels CRUD is not yet built as a standalone management page.
+- Confirm dialogs for destructive actions are now built (delete channel, delete alert).
+- Notification channels CRUD is built as a standalone management page at /settings/notifications.
+
+### Remaining cross-cutting gaps
+- /me profile page (no frontend yet, backend GET /api/me/ exists).
+- CSV upload detail page at /dashboards/uploads/:id.
+- Configurable stale threshold per tenant.
+- Historical trend views (sync health, health overview).
+- Health overview alerting on degradation.

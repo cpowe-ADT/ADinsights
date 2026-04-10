@@ -113,8 +113,8 @@ scripts/dev-launch.sh --profile 1 --non-interactive --no-update --no-pull --no-o
 
 ## Current State (April 2026)
 
-- Phase 1 execution backlog: nearly all items Done
-- Active work area: stabilizing live Meta/direct-sync dashboard behavior
+- Phase 1 execution backlog: complete
+- Phase 2 features substantially built; polish sprint completed (alerts CRUD, notification channels, AI summary badges, report scheduling, sync re-sync controls, audit CSV export, toast system wired across all CRUD)
+- Active work area: remaining polish items (/me profile page, alert history/runs, CSV upload detail, sync health filters, alert pause/resume, report editing)
 - Google Ads SDK migration in progress (SDK with Airbyte fallback)
 - GA4 and Search Console are Phase 2 pilot contracts
-- Frontend spec punch list has remaining MVP/Post-MVP gaps

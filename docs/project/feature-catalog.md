@@ -31,13 +31,14 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Campaign/creative detail routes with saved layout + share links.
 - Data sources management UI and CSV upload wizard.
 - Dashboard library with live API integration (system templates + saved dashboards).
-- Toast notification system for CRUD feedback (ToastProvider).
-- Alerts management UI: rules list, alert detail with rule metadata.
-- AI summaries list and detail pages with status pills and payload snapshot.
-- Reports library, report builder (create with templates), report detail with export jobs (CSV/PDF/PNG).
-- Sync health page with connection status, freshness timestamps, and job error surfacing.
+- Toast notification system for CRUD feedback (useToastStore + ToastContainer), used across all CRUD operations.
+- Alerts management UI: rules list with active/inactive status column, alert detail with rule metadata and delete button with confirm dialog, alert creation with notification channel assignment.
+- Notification channels CRUD management page at /settings/notifications (NotificationChannelsPage.tsx) with confirm dialogs for destructive actions.
+- AI summaries list and detail pages with status pills, payload snapshot, source badges ("Daily"/"Manual"), and schedule info banner.
+- Reports library, report builder (create with templates), report detail with export jobs (CSV/PDF/PNG) and scheduled delivery UI (toggle, cron, emails).
+- Sync health page with connection status, freshness timestamps, job error surfacing, and re-sync controls per connection.
 - Health checks overview page.
-- Audit log page with action/resource filters and JSON export.
+- Audit log page with action/resource filters and server-side CSV export (/api/audit-logs/export_csv/).
 - Frontend design system tokens + docs.
 
 ### Integrations
@@ -56,13 +57,12 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 
 ## In Progress
 ### Frontend
-- Alert notification channel assignment on create and detail pages.
-- Confirm dialogs for destructive actions (delete channel, delete alert).
-- Alert list active/inactive status column.
-- Alert detail delete functionality.
-- Sync health re-sync controls and provider/status filters.
-- AI summary source badges and schedule info on detail page.
-- Server-side audit log CSV export.
+- /me profile page (backend GET /api/me/ exists, no frontend yet).
+- Alert history/runs page (backend API exists at /api/alerts/runs/, no frontend yet).
+- CSV upload detail page at /dashboards/uploads/:id.
+- Sync health provider/status filter dropdowns.
+- Alert pause/resume UI controls.
+- Report editing (only create + view exist, no edit form).
 
 ### Data/Analytics
 - Attribution window documentation expansion.
@@ -81,6 +81,9 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Enhanced export workflows and reporting UX.
 - Entitlement-gated exports (PDF/PNG/CSV role restrictions).
 - Budget planner UI (plan vs actual, parish/channel breakdown).
+- Configurable stale threshold per tenant.
+- Historical trend views (sync health, health overview).
+- Health overview alerting on degradation.
 
 ### Security/UAC
 - UAC rollout phases U0–U4 (agency admin, approvals, MFA, impersonation).
