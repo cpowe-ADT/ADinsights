@@ -106,9 +106,7 @@ describe('SyncConnectionDetailPage', () => {
     await waitFor(() => {
       expect(phase2ApiMock.triggerResync).toHaveBeenCalledWith('conn-123');
     });
-    expect(toastMock.addToast).toHaveBeenCalledWith('Re-sync triggered successfully.', {
-      tone: 'success',
-    });
+    expect(toastMock.addToast).toHaveBeenCalledWith('Re-sync triggered successfully.', 'success');
 
     confirmSpy.mockRestore();
   });

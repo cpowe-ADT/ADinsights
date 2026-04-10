@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../lib/apiClient';
 import DataSources from '../DataSources';
 
-const pushToast = vi.fn();
+const addToast = vi.fn();
 
 const airbyteMocks = vi.hoisted(() => ({
   loadAirbyteConnections: vi.fn(),
@@ -40,8 +40,9 @@ const datasetStatusMocks = vi.hoisted(() => ({
   loadDatasetStatus: vi.fn(),
 }));
 
-vi.mock('../../components/ToastProvider', () => ({
-  useToast: () => ({ pushToast }),
+vi.mock('../../stores/useToastStore', () => ({
+  useToastStore: (selector: (state: { addToast: typeof addToast }) => unknown) =>
+    selector({ addToast }),
 }));
 
 vi.mock('../../lib/airbyte', () => ({
@@ -591,9 +592,7 @@ describe('DataSources connect flow', () => {
     await user.click(await findMetaConnectButton());
 
     await waitFor(() => {
-      expect(pushToast).toHaveBeenCalledWith('META_APP_ID must be configured for Meta OAuth.', {
-        tone: 'error',
-      });
+      expect(addToast).toHaveBeenCalledWith('META_APP_ID must be configured for Meta OAuth.', 'error');
       expect(screen.getByRole('heading', { name: /connect meta/i })).toBeInTheDocument();
     });
   });
@@ -688,9 +687,7 @@ describe('DataSources connect flow', () => {
       expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith('oauth-code', 'oauth-state');
     });
     await waitFor(() => {
-      expect(pushToast).toHaveBeenCalledWith('Meta Page Insights connected. Loading page dashboard.', {
-        tone: 'success',
-      });
+      expect(addToast).toHaveBeenCalledWith('Meta Page Insights connected. Loading page dashboard.', 'success');
     });
   });
 
@@ -702,9 +699,7 @@ describe('DataSources connect flow', () => {
     await user.click(screen.getByRole('button', { name: 'Save connection' }));
 
     expect(airbyteMocks.provisionMetaIntegration).not.toHaveBeenCalled();
-    expect(pushToast).toHaveBeenCalledWith('Complete Meta OAuth and save a business page first.', {
-      tone: 'error',
-    });
+    expect(addToast).toHaveBeenCalledWith('Complete Meta OAuth and save a business page first.', 'error');
   });
 
   it('treats restore as successful when sync succeeds even if provisioning fails', async () => {
@@ -768,17 +763,17 @@ describe('DataSources connect flow', () => {
     await waitFor(() => {
       expect(airbyteMocks.syncMetaIntegration).toHaveBeenCalledTimes(1);
     });
-    expect(pushToast).toHaveBeenCalledWith(
+    expect(addToast).toHaveBeenCalledWith(
       'Meta restore completed and sync ran inline (job restore-101).',
-      { tone: 'success' },
+      'success',
     );
-    expect(pushToast).toHaveBeenCalledWith(
+    expect(addToast).toHaveBeenCalledWith(
       'Meta connected. Direct sync complete. Live reporting is ready.',
-      { tone: 'success' },
+      'success',
     );
-    expect(pushToast).toHaveBeenCalledWith(
+    expect(addToast).toHaveBeenCalledWith(
       expect.stringContaining('Meta marketing access restored; Airbyte connection was not provisioned.'),
-      { tone: 'info' },
+      'info',
     );
   });
 

@@ -20,7 +20,7 @@ import {
 import type { ComponentType } from 'react';
 
 import EmptyState from '../components/EmptyState';
-import { useToast } from '../components/ToastProvider';
+import { useToastStore } from '../stores/useToastStore';
 import { syncMetaIntegration } from '../lib/airbyte';
 import { ApiError } from '../lib/apiClient';
 import { formatCurrency, formatNumber } from '../lib/format';
@@ -88,7 +88,7 @@ function resolveInsightsErrorMessage(errorCode?: string, fallback?: string): str
 const MetaInsightsDashboardPage = () => {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }]);
   const [syncing, setSyncing] = useState(false);
-  const { pushToast } = useToast();
+  const addToast = useToastStore((s) => s.addToast);
   const { filters, setFilters, accounts, insights, loadAccounts, loadInsights } = useMetaStore(
     (state) => ({
       filters: state.filters,
@@ -155,16 +155,14 @@ const MetaInsightsDashboardPage = () => {
     try {
       const payload = await syncMetaIntegration();
       if (payload.reused_existing_job) {
-        pushToast(
+        addToast(
           payload.job_id
             ? `Meta sync is already running (job ${payload.job_id}).`
-            : 'Meta sync is already running.',
-          { tone: 'success' },
+            : 'Meta sync is already running.', 'success',
         );
       } else {
-        pushToast(
-          payload.job_id ? `Meta sync queued (job ${payload.job_id}).` : 'Meta sync triggered.',
-          { tone: 'success' },
+        addToast(
+          payload.job_id ? `Meta sync queued (job ${payload.job_id}).` : 'Meta sync triggered.', 'success',
         );
       }
       await Promise.all([loadAccounts(), loadInsights()]);
@@ -173,7 +171,7 @@ const MetaInsightsDashboardPage = () => {
         error instanceof ApiError || error instanceof Error
           ? error.message
           : 'Unable to trigger Meta sync.';
-      pushToast(message, { tone: 'error' });
+      addToast(message, 'error');
     } finally {
       setSyncing(false);
     }

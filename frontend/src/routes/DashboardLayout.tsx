@@ -15,7 +15,7 @@ import FilterBar, {
   type FilterBarState,
 } from '../components/FilterBar';
 import { useTheme } from '../components/ThemeProvider';
-import { useToast } from '../components/ToastProvider';
+import { useToastStore } from '../stores/useToastStore';
 import { loadDashboardLayout, saveDashboardLayout } from '../lib/layoutPreferences';
 import {
   loadSocialConnectionStatus,
@@ -103,7 +103,7 @@ const DashboardLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const { pushToast } = useToast();
+  const addToast = useToastStore((s) => s.addToast);
   const [isScrolled, setIsScrolled] = useState(false);
   const [accountOptions, setAccountOptions] = useState<FilterBarAccountOption[]>([]);
   const [metaStatus, setMetaStatus] = useState<SocialPlatformStatusRecord | null>(null);
@@ -547,15 +547,15 @@ const DashboardLayout = () => {
   const handleSaveLayout = useCallback(() => {
     try {
       saveDashboardLayout({ metric: selectedMetric, parish: selectedParish });
-      pushToast('Saved layout', { tone: 'success' });
+      addToast('Saved layout', 'success');
     } catch {
-      pushToast('Unable to save layout', { tone: 'error' });
+      addToast('Unable to save layout', 'error');
     }
-  }, [pushToast, selectedMetric, selectedParish]);
+  }, [addToast, selectedMetric, selectedParish]);
 
   const handleCopyLink = useCallback(async () => {
     if (typeof window === 'undefined') {
-      pushToast('Unable to copy link', { tone: 'error' });
+      addToast('Unable to copy link', 'error');
       return;
     }
 
@@ -581,11 +581,11 @@ const DashboardLayout = () => {
         }
       }
 
-      pushToast('Copied link', { tone: 'success' });
+      addToast('Copied link', 'success');
     } catch {
-      pushToast('Unable to copy link', { tone: 'error' });
+      addToast('Unable to copy link', 'error');
     }
-  }, [pushToast]);
+  }, [addToast]);
 
   const SaveIcon = (
     <svg

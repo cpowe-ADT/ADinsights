@@ -54,7 +54,7 @@ const SyncConnectionDetailPage = () => {
     setResyncing(true);
     try {
       await triggerResync(connectionId);
-      addToast('Re-sync triggered successfully.', { tone: 'success' });
+      addToast('Re-sync triggered successfully.', 'success');
       void load();
     } catch (err) {
       addToast(

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { Link } from 'react-router-dom';
 
 import EmptyState from '../components/EmptyState';
-import { useToast } from '../components/ToastProvider';
+import { useToastStore } from '../stores/useToastStore';
 import { ApiError } from '../lib/apiClient';
 import {
   connectMetaPage,
@@ -436,7 +436,7 @@ const DataSources = () => {
     import.meta.env.VITE_DOCS_CSV_URL?.trim() ||
     'https://github.com/cpowe-ADT/ADinsights/blob/main/docs/runbooks/csv-uploads.md';
 
-  const { pushToast } = useToast();
+  const addToast = useToastStore((s) => s.addToast);
   const datasetSource = useDatasetStore((state) => state.source);
   const runtimeContext = useMemo(
     () => buildRuntimeContextPayload(datasetSource),
@@ -793,10 +793,9 @@ const DataSources = () => {
       });
       if (response.missing_required_permissions.length) {
         setMetaConnectStep('oauth-pending');
-        pushToast(
+        addToast(
           options?.missingPermissionsMessage ??
-            'Meta OAuth connected, but required permissions are missing. Re-request permissions and reconnect.',
-          { tone: 'error' },
+            'Meta OAuth connected, but required permissions are missing. Re-request permissions and reconnect.', 'error',
         );
         return false;
       }
@@ -821,23 +820,19 @@ const DataSources = () => {
       });
       if (!response.ad_accounts.length) {
         setMetaConnectStep('oauth-pending');
-        pushToast(
-          'Meta OAuth complete, but no ad accounts were returned. Add ad account access in Meta Business Manager and reconnect.',
-          { tone: 'error' },
+        addToast(
+          'Meta OAuth complete, but no ad accounts were returned. Add ad account access in Meta Business Manager and reconnect.', 'error',
         );
         return false;
       }
       setMetaConnectStep('page-selection');
-      pushToast(
+      addToast(
         options?.successMessage ??
-          'Meta OAuth complete. Select your business page and ad account to finish setup.',
-        {
-          tone: 'success',
-        },
+          'Meta OAuth complete. Select your business page and ad account to finish setup.', 'success',
       );
       return true;
     },
-    [pushToast],
+    [addToast],
   );
 
   const applyGa4Properties = useCallback((properties: GoogleAnalyticsPropertyRecord[]) => {
@@ -872,9 +867,7 @@ const DataSources = () => {
         if ((payload.properties ?? []).length > 0) {
           setGa4ConnectStep('property-selection');
         } else if (options?.showToastOnEmpty) {
-          pushToast('Google Analytics connected, but no GA4 properties were returned.', {
-            tone: 'error',
-          });
+          addToast('Google Analytics connected, but no GA4 properties were returned.', 'error',);
         }
       } catch (ga4PropertiesError) {
         applyGa4Properties([]);
@@ -883,13 +876,13 @@ const DataSources = () => {
             ga4PropertiesError instanceof Error
               ? ga4PropertiesError.message
               : 'Unable to load GA4 properties.';
-          pushToast(message, { tone: 'error' });
+          addToast(message, 'error');
         }
       } finally {
         setGa4PropertiesLoading(false);
       }
     },
-    [applyGa4Properties, pushToast],
+    [applyGa4Properties, addToast],
   );
 
   const handleStartGoogleAdsOAuth = useCallback(async () => {
@@ -898,7 +891,7 @@ const DataSources = () => {
     }
     const customerId = connectForm.accountId.trim();
     if (!customerId) {
-      pushToast('Google Ads customer/account ID is required before OAuth.', { tone: 'error' });
+      addToast('Google Ads customer/account ID is required before OAuth.', 'error');
       return;
     }
     setGoogleAdsOAuthStarting(true);
@@ -927,7 +920,7 @@ const DataSources = () => {
         googleAdsStartError instanceof Error
           ? googleAdsStartError.message
           : 'Unable to start Google Ads OAuth.';
-      pushToast(message, { tone: 'error' });
+      addToast(message, 'error');
       setConnectProvider('GOOGLE');
       resetGoogleAdsState();
     } finally {
@@ -937,7 +930,7 @@ const DataSources = () => {
     connectForm,
     googleAdsOAuthExchanging,
     googleAdsOAuthStarting,
-    pushToast,
+    addToast,
     resetGoogleAdsState,
     runtimeContext,
   ]);
@@ -966,14 +959,14 @@ const DataSources = () => {
     } catch (ga4StartError) {
       const message =
         ga4StartError instanceof Error ? ga4StartError.message : 'Unable to start GA4 OAuth.';
-      pushToast(message, { tone: 'error' });
+      addToast(message, 'error');
       setConnectProvider('GA4');
       setConnectForm(buildInitialConnectForm('GA4'));
       resetGa4State();
     } finally {
       setGa4OAuthStarting(false);
     }
-  }, [ga4OAuthExchanging, ga4OAuthStarting, pushToast, resetGa4State, runtimeContext]);
+  }, [ga4OAuthExchanging, ga4OAuthStarting, addToast, resetGa4State, runtimeContext]);
 
   useEffect(() => {
     if (connectProvider !== 'GA4') {
@@ -1048,9 +1041,8 @@ const DataSources = () => {
       const response = await callbackMetaOAuth(code ?? '', state ?? '');
       const missingPermissions = response.missing_required_permissions ?? [];
       if (missingPermissions.length > 0) {
-        pushToast(
-          `Missing required permissions: ${missingPermissions.join(', ')}`,
-          { tone: 'error' },
+        addToast(
+          `Missing required permissions: ${missingPermissions.join(', ')}`, 'error',
         );
         return;
       }
@@ -1058,11 +1050,10 @@ const DataSources = () => {
       const fallbackDefaultPageId =
         response.pages?.find((page) => page.is_default)?.page_id ?? response.pages?.[0]?.page_id;
       const defaultPageId = response.default_page_id ?? fallbackDefaultPageId;
-      pushToast(
+      addToast(
         pageCount > 0
           ? 'Meta Page Insights connected. Loading page dashboard.'
-          : 'Meta connected, but no eligible Pages were returned.',
-        { tone: pageCount > 0 ? 'success' : 'error' },
+          : 'Meta connected, but no eligible Pages were returned.', pageCount > 0 ? 'success' : 'error',
       );
       if (import.meta.env.MODE === 'test') {
         return;
@@ -1089,9 +1080,7 @@ const DataSources = () => {
         credentialId: response.credential.id,
         showToastOnEmpty: true,
       });
-      pushToast('Google Analytics connected. Select a GA4 property to finish setup.', {
-        tone: 'success',
-      });
+      addToast('Google Analytics connected. Select a GA4 property to finish setup.', 'success',);
     };
 
     const handleGoogleAdsCallback = async () => {
@@ -1111,13 +1100,10 @@ const DataSources = () => {
         loginCustomerId: response.login_customer_id || '',
       });
       setConnectForm(nextForm);
-      pushToast(
+      addToast(
         response.refresh_token_received
           ? 'Google Ads connected. Save the connection to finish provisioning.'
-          : 'Google Ads connected, but no refresh token was returned. Reconnect if sync fails.',
-        {
-          tone: response.refresh_token_received ? 'success' : 'error',
-        },
+          : 'Google Ads connected, but no refresh token was returned. Reconnect if sync fails.', response.refresh_token_received ? 'success' : 'error',
       );
     };
 
@@ -1141,11 +1127,10 @@ const DataSources = () => {
           : oauthProvider === 'GOOGLE'
             ? 'Google Ads'
             : 'OAuth';
-      pushToast(
+      addToast(
         oauthErrorDescription?.trim()
           ? `${providerLabel} failed: ${oauthErrorDescription}`
-          : `${providerLabel} failed: ${oauthError}`,
-        { tone: 'error' },
+          : `${providerLabel} failed: ${oauthError}`, 'error',
       );
       if (oauthProvider === 'GA4') {
         clearOAuthParams();
@@ -1165,7 +1150,7 @@ const DataSources = () => {
             googleAdsExchangeError instanceof Error
               ? googleAdsExchangeError.message
               : 'Google Ads OAuth callback failed.';
-          pushToast(message, { tone: 'error' });
+          addToast(message, 'error');
         } finally {
           setGoogleAdsOAuthExchanging(false);
           clearOAuthParams();
@@ -1184,7 +1169,7 @@ const DataSources = () => {
             ga4ExchangeError instanceof Error
               ? ga4ExchangeError.message
               : 'Google Analytics OAuth callback failed.';
-          pushToast(message, { tone: 'error' });
+          addToast(message, 'error');
         } finally {
           setGa4OAuthExchanging(false);
           clearOAuthParams();
@@ -1217,13 +1202,13 @@ const DataSources = () => {
           oauthExchangeError instanceof Error
             ? oauthExchangeError.message
             : 'Meta OAuth callback failed.';
-        pushToast(message, { tone: 'error' });
+        addToast(message, 'error');
       } finally {
         setMetaOAuthExchanging(false);
         clearOAuthMarkers();
       }
     })();
-  }, [applyMetaOAuthSelectionResponse, handleLoadGa4Properties, pushToast, runtimeContext]);
+  }, [applyMetaOAuthSelectionResponse, handleLoadGa4Properties, addToast, runtimeContext]);
 
   const handleStartMetaOAuth = useCallback(
     async (options?: { openPanelOnError?: boolean; authType?: 'rerequest' }) => {
@@ -1259,7 +1244,7 @@ const DataSources = () => {
           oauthStartError instanceof Error
             ? oauthStartError.message
             : 'Unable to start Meta OAuth.';
-        pushToast(message, { tone: 'error' });
+        addToast(message, 'error');
         if (options?.openPanelOnError) {
           setConnectProvider('META');
           setConnectForm(buildInitialConnectForm('META'));
@@ -1269,7 +1254,7 @@ const DataSources = () => {
         setMetaOAuthStarting(false);
       }
     },
-    [metaOAuthExchanging, metaOAuthStarting, pushToast, resetMetaOAuthState, runtimeContext],
+    [metaOAuthExchanging, metaOAuthStarting, addToast, resetMetaOAuthState, runtimeContext],
   );
 
   const handleStartMetaRecovery = useCallback(async () => {
@@ -1294,7 +1279,7 @@ const DataSources = () => {
         recoveryError instanceof Error
           ? recoveryError.message
           : 'Unable to recover Meta marketing access from the stored connection.';
-      pushToast(message, { tone: 'error' });
+      addToast(message, 'error');
     } finally {
       setSocialActionPendingPlatform(null);
     }
@@ -1303,7 +1288,7 @@ const DataSources = () => {
     metaOAuthExchanging,
     metaOAuthSavingPage,
     metaOAuthStarting,
-    pushToast,
+    addToast,
   ]);
 
   const applyMetaReportingStatusNote = useCallback(
@@ -1335,24 +1320,22 @@ const DataSources = () => {
           (typeof datasetStatus.live.detail === 'string' && datasetStatus.live.detail.trim()) ||
           messages[liveReason];
         setMetaReportingStatusNote({ tone, message });
-        pushToast(message, { tone: tone === 'warning' ? 'info' : tone });
+        addToast(message, tone === 'warning' ? 'info' : tone);
       } catch (reportingError) {
         const message =
           reportingError instanceof Error
             ? reportingError.message
             : 'Meta connected, but reporting readiness could not be verified.';
         setMetaReportingStatusNote({ tone: 'warning', message });
-        pushToast(message, { tone: 'info' });
+        addToast(message, 'info');
       }
     },
-    [pushToast],
+    [addToast],
   );
 
   const handleMetaPageConnect = useCallback(async () => {
     if (metaPermissionDiagnostics.missingRequiredPermissions.length) {
-      pushToast('Required Meta permissions are missing. Re-request permissions first.', {
-        tone: 'error',
-      });
+      addToast('Required Meta permissions are missing. Re-request permissions first.', 'error',);
       return;
     }
     if (
@@ -1388,11 +1371,8 @@ const DataSources = () => {
         response.instagram_account?.username?.trim() || response.instagram_account?.id
           ? ` Instagram linked: ${response.instagram_account?.username?.trim() || response.instagram_account?.id}.`
           : '';
-      pushToast(
-        `Connected Meta business asset ${response.credential.account_id}.${instagramSuffix}`,
-        {
-          tone: 'success',
-        },
+      addToast(
+        `Connected Meta business asset ${response.credential.account_id}.${instagramSuffix}`, 'success',
       );
       if (metaOAuthSelection.recoveredFromExistingToken) {
         let provisionError: string | null = null;
@@ -1424,30 +1404,26 @@ const DataSources = () => {
           const syncPayload = await syncMetaIntegration();
           syncCompleted = true;
           if (syncPayload.job_id) {
-            pushToast(
+            addToast(
               syncPayload.task_dispatch_mode === 'inline'
                 ? `Meta restore completed and sync ran inline (job ${syncPayload.job_id}).`
-                : `Meta restore completed and sync started (job ${syncPayload.job_id}).`,
-              { tone: 'success' },
+                : `Meta restore completed and sync started (job ${syncPayload.job_id}).`, 'success',
             );
           }
         } catch (error) {
           const message =
             error instanceof Error ? error.message : 'Unable to start Meta sync after restore.';
-          pushToast(message, { tone: 'error' });
+          addToast(message, 'error');
         }
 
         await applyMetaReportingStatusNote({ syncCompleted });
 
         if (provisionError !== null && syncCompleted) {
-          pushToast(
-            `Meta marketing access restored; Airbyte connection was not provisioned. ${provisionError}`,
-            { tone: 'info' },
+          addToast(
+            `Meta marketing access restored; Airbyte connection was not provisioned. ${provisionError}`, 'info',
           );
         } else if (provisionError === null) {
-          pushToast('Meta marketing access restored.', {
-            tone: 'success',
-          });
+          addToast('Meta marketing access restored.', 'success',);
         }
         void loadData();
       }
@@ -1456,7 +1432,7 @@ const DataSources = () => {
         metaConnectError instanceof Error
           ? metaConnectError.message
           : 'Unable to connect selected Meta page.';
-      pushToast(message, { tone: 'error' });
+      addToast(message, 'error');
     } finally {
       setMetaOAuthSavingPage(false);
     }
@@ -1467,7 +1443,7 @@ const DataSources = () => {
     metaOAuthSavingPage,
     metaOAuthSelection,
     metaPermissionDiagnostics,
-    pushToast,
+    addToast,
   ]);
 
   const handleRerequestMetaPermissions = useCallback(async () => {
@@ -1478,9 +1454,9 @@ const DataSources = () => {
     try {
       const payload = await logoutMetaOAuth();
       if (payload.disconnected) {
-        pushToast('Meta OAuth disconnected for this tenant.', { tone: 'success' });
+        addToast('Meta OAuth disconnected for this tenant.', 'success');
       } else {
-        pushToast('No Meta OAuth credentials were connected.', { tone: 'info' });
+        addToast('No Meta OAuth credentials were connected.', 'info');
       }
       resetMetaOAuthState();
       void loadData();
@@ -1489,9 +1465,9 @@ const DataSources = () => {
         disconnectError instanceof Error
           ? disconnectError.message
           : 'Unable to disconnect Meta OAuth.';
-      pushToast(message, { tone: 'error' });
+      addToast(message, 'error');
     }
-  }, [loadData, pushToast, resetMetaOAuthState]);
+  }, [loadData, addToast, resetMetaOAuthState]);
 
   const openConnectPanel = useCallback(
     (provider: ConnectProvider) => {
@@ -1523,18 +1499,16 @@ const DataSources = () => {
       try {
         const response = await triggerAirbyteSync(connection.id);
         const jobId = response?.job_id;
-        pushToast(jobId ? `Sync triggered (job ${jobId}).` : 'Sync triggered.', {
-          tone: 'success',
-        });
+        addToast(jobId ? `Sync triggered (job ${jobId}).` : 'Sync triggered.', 'success',);
         void loadData();
       } catch (syncError) {
         const message = syncError instanceof Error ? syncError.message : 'Sync failed to start.';
-        pushToast(message, { tone: 'error' });
+        addToast(message, 'error');
       } finally {
         setSyncingId(null);
       }
     },
-    [loadData, pushToast, syncingId],
+    [loadData, addToast, syncingId],
   );
 
   const handleConnectFieldChange = useCallback(
@@ -1607,29 +1581,29 @@ const DataSources = () => {
       if (connectForm.linkConnection) {
         const connectionName = connectForm.connectionName.trim();
         if (!connectionName) {
-          pushToast('Connection name is required.', { tone: 'error' });
+          addToast('Connection name is required.', 'error');
           return;
         }
         if (connectForm.workspaceId.trim() && !UUID_REGEX.test(connectForm.workspaceId.trim())) {
-          pushToast('Workspace UUID format is invalid.', { tone: 'error' });
+          addToast('Workspace UUID format is invalid.', 'error');
           return;
         }
         if (
           connectForm.destinationId.trim() &&
           !UUID_REGEX.test(connectForm.destinationId.trim())
         ) {
-          pushToast('Destination UUID format is invalid.', { tone: 'error' });
+          addToast('Destination UUID format is invalid.', 'error');
           return;
         }
         if (connectForm.scheduleType === 'interval') {
           const minutes = Number(connectForm.intervalMinutes);
           if (!Number.isFinite(minutes) || minutes <= 0) {
-            pushToast('Interval minutes must be a positive number.', { tone: 'error' });
+            addToast('Interval minutes must be a positive number.', 'error');
             return;
           }
         }
         if (connectForm.scheduleType === 'cron' && !connectForm.cronExpression.trim()) {
-          pushToast('Cron expression is required for cron schedule.', { tone: 'error' });
+          addToast('Cron expression is required for cron schedule.', 'error');
           return;
         }
       }
@@ -1638,13 +1612,11 @@ const DataSources = () => {
       try {
         if (connectProvider === 'META') {
           if (metaPermissionDiagnostics.missingRequiredPermissions.length) {
-            pushToast('Re-request required Meta permissions before provisioning or sync.', {
-              tone: 'error',
-            });
+            addToast('Re-request required Meta permissions before provisioning or sync.', 'error',);
             return;
           }
           if (!metaConnectedCredential) {
-            pushToast('Complete Meta OAuth and save a business page first.', { tone: 'error' });
+            addToast('Complete Meta OAuth and save a business page first.', 'error');
             return;
           }
 
@@ -1663,22 +1635,20 @@ const DataSources = () => {
             });
             const syncPayload = await syncMetaIntegration();
             if (syncPayload.job_id) {
-              pushToast(`Meta insights sync started (job ${syncPayload.job_id}).`, {
-                tone: 'success',
-              });
+              addToast(`Meta insights sync started (job ${syncPayload.job_id}).`, 'success',);
             }
             await applyMetaReportingStatusNote({ syncCompleted: true });
           }
         } else if (connectProvider === 'GA4') {
           if (!ga4Credential?.id) {
-            pushToast('Complete Google OAuth first.', { tone: 'error' });
+            addToast('Complete Google OAuth first.', 'error');
             return;
           }
           const selectedProperty = ga4Properties.find(
             (property) => property.property_id === ga4SelectedPropertyId,
           );
           if (!selectedProperty) {
-            pushToast('Select a GA4 property first.', { tone: 'error' });
+            addToast('Select a GA4 property first.', 'error');
             return;
           }
 
@@ -1696,11 +1666,11 @@ const DataSources = () => {
             googleAdsCredential || googleAdsStatus?.metadata?.has_credential,
           );
           if (!accountId) {
-            pushToast('Google Ads customer/account ID is required.', { tone: 'error' });
+            addToast('Google Ads customer/account ID is required.', 'error');
             return;
           }
           if (!hasGoogleAdsCredential) {
-            pushToast('Complete Google Ads OAuth first.', { tone: 'error' });
+            addToast('Complete Google Ads OAuth first.', 'error');
             return;
           }
 
@@ -1722,7 +1692,7 @@ const DataSources = () => {
           }
         }
 
-        pushToast(
+        addToast(
           connectProvider === 'GA4'
             ? 'Google Analytics 4 property connected.'
             : connectProvider === 'GOOGLE'
@@ -1731,15 +1701,14 @@ const DataSources = () => {
                 : 'Google Ads OAuth connected.'
             : connectForm.linkConnection
               ? `${CONNECT_PROVIDER_LABELS[connectProvider]} connected and linked.`
-              : `${CONNECT_PROVIDER_LABELS[connectProvider]} credentials saved.`,
-          { tone: 'success' },
+              : `${CONNECT_PROVIDER_LABELS[connectProvider]} credentials saved.`, 'success',
         );
         closeConnectPanel();
         void loadData();
       } catch (connectError) {
         const message =
           connectError instanceof Error ? connectError.message : 'Connection setup failed.';
-        pushToast(message, { tone: 'error' });
+        addToast(message, 'error');
       } finally {
         setSavingConnect(false);
       }
@@ -1757,7 +1726,7 @@ const DataSources = () => {
       ga4Credential,
       ga4Properties,
       ga4SelectedPropertyId,
-      pushToast,
+      addToast,
       savingConnect,
     ],
   );
