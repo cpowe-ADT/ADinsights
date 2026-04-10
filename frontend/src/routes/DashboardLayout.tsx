@@ -176,14 +176,18 @@ const DashboardLayout = () => {
     );
   }, [location.pathname]);
 
+  // URL → filters sync: only react to URL changes, not programmatic filter updates.
+  // Reading current filters via getState() avoids adding `filters` to the dep array,
+  // which previously caused an infinite render loop with the filters→URL effect below.
   useEffect(() => {
     if (isSavedDashboardRoute) {
       return;
     }
-    if (!areFiltersEqual(filters, urlFilters)) {
+    const currentFilters = useDashboardStore.getState().filters;
+    if (!areFiltersEqual(currentFilters, urlFilters)) {
       setFilters(urlFilters);
     }
-  }, [filters, isSavedDashboardRoute, setFilters, urlFilters]);
+  }, [isSavedDashboardRoute, setFilters, urlFilters]);
 
   // In mock/e2e mode, DatasetToggle is hidden so it won't call loadAdapters.
   // Load adapters here so liveReason is populated for status banners in tests.

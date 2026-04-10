@@ -143,9 +143,11 @@ vi.mock('../../components/SnapshotIndicator', () => ({
   default: () => <div data-testid="snapshot-indicator" />,
 }));
 
-vi.mock('../../state/useDashboardStore', () => ({
-  default: (selector: (state: typeof storeMock.state) => unknown) => selector(storeMock.state),
-}));
+vi.mock('../../state/useDashboardStore', () => {
+  const hook = (selector: (state: typeof storeMock.state) => unknown) => selector(storeMock.state);
+  hook.getState = () => storeMock.state;
+  return { default: hook };
+});
 
 vi.mock('../../state/useDatasetStore', () => ({
   useDatasetStore: (
