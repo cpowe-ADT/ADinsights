@@ -279,7 +279,8 @@ export async function fetchHealthOverview(signal?: AbortSignal): Promise<HealthO
 }
 
 export async function listReports(signal?: AbortSignal): Promise<ReportDefinition[]> {
-  return apiClient.get<ReportDefinition[]>('/reports/', { signal });
+  const data = await apiClient.get<ReportDefinition[] | { results: ReportDefinition[] }>('/reports/', { signal });
+  return Array.isArray(data) ? data : data.results;
 }
 
 export async function createReport(
@@ -300,7 +301,8 @@ export async function listReportExports(
   reportId: string,
   signal?: AbortSignal,
 ): Promise<ReportExportJob[]> {
-  return apiClient.get<ReportExportJob[]>(`/reports/${reportId}/exports/`, { signal });
+  const data = await apiClient.get<ReportExportJob[] | { results: ReportExportJob[] }>(`/reports/${reportId}/exports/`, { signal });
+  return Array.isArray(data) ? data : data.results;
 }
 
 export async function createReportExport(
@@ -313,7 +315,8 @@ export async function createReportExport(
 }
 
 export async function listAlerts(signal?: AbortSignal): Promise<AlertRule[]> {
-  return apiClient.get<AlertRule[]>('/alerts/', { signal });
+  const data = await apiClient.get<AlertRule[] | { results: AlertRule[] }>('/alerts/', { signal });
+  return Array.isArray(data) ? data : data.results;
 }
 
 export async function getAlert(alertId: string, signal?: AbortSignal): Promise<AlertRule> {
@@ -321,7 +324,8 @@ export async function getAlert(alertId: string, signal?: AbortSignal): Promise<A
 }
 
 export async function listSummaries(signal?: AbortSignal): Promise<AISummary[]> {
-  return apiClient.get<AISummary[]>('/summaries/', { signal });
+  const data = await apiClient.get<AISummary[] | { results: AISummary[] }>('/summaries/', { signal });
+  return Array.isArray(data) ? data : data.results;
 }
 
 export async function getSummary(summaryId: string, signal?: AbortSignal): Promise<AISummary> {
