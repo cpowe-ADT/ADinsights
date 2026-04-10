@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from django.utils import timezone
 
 from integrations.meta_page_serializers import MetaPostsItemSerializer
