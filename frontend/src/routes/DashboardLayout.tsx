@@ -484,6 +484,7 @@ const DashboardLayout = () => {
       label: 'Alerts & AI',
       links: [
         { label: 'Alerts', to: '/alerts', end: false },
+        { label: 'Alert History', to: '/alerts/history', end: false },
         { label: 'Summaries', to: '/summaries', end: false },
       ],
     },

@@ -61,6 +61,9 @@ const AlertsPage = () => {
           </p>
         </div>
         <div className="phase2-row-actions">
+          <Link to="/alerts/history" className="button tertiary">
+            View history
+          </Link>
           <button type="button" className="button secondary" onClick={() => void load()}>
             Refresh
           </button>
