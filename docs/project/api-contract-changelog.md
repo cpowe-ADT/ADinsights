@@ -13,6 +13,24 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-04-10**
+  - Endpoint: `POST /api/airbyte/connections/:id/trigger-sync/`
+  - Change: Upgraded from 501 stub to full Airbyte integration. Returns 200 with `{ status, connection_id, job_id }` on success. Returns 501 with descriptive message when Airbyte is not configured, 502 on Airbyte communication failure, and 404 for non-existent connections. Logs audit event with `trigger_source: "trigger-sync"`.
+  - Impact: Operators and frontend sync controls can trigger real Airbyte syncs from the UI; consumers should handle 501/502/404 error shapes.
+  - Owner: Maya (Integrations) + Omar (SRE)
+
+- **2026-04-10**
+  - Endpoint: `GET /api/audit-logs/`
+  - Change: Added `start_date` and `end_date` query params (ISO date or datetime format) for date-range filtering. Uses `created_at__date__gte/lte` for date-level filtering. Invalid dates return an empty result set (no 500).
+  - Impact: Consumers can scope audit log queries to a date window; existing `?action=` and `?resource_type=` filters unchanged.
+  - Owner: Sofia (Backend Metrics)
+
+- **2026-04-10**
+  - Endpoint: Frontend Phase 2 polish (no backend contract changes)
+  - Change: Report inline editing (name/description). Audit log pagination (`page` param) and date range UI. Sync connection detail page at `/ops/sync-health/:connectionId`. Health overview auto-refresh (30s interval). Global error boundary wrapping app. 404 catch-all page. Skeleton loader components for loading states. Toast system unified to Zustand `useToastStore`. Google Ads pages error states via shared component.
+  - Impact: Frontend routes and UX improved across ops, reports, and error handling; no backend payload changes.
+  - Owner: Lina (Frontend)
+
 - **2026-04-09**
   - Endpoint: `POST /api/integrations/{provider}/reconnect/`, `GET /api/integrations/{provider}/jobs/`, `GET /api/integrations/{provider}/status/`, `POST /api/integrations/{provider}/sync/`, `POST /api/integrations/{provider}/disconnect/`, `POST /api/integrations/{provider}/oauth/callback/`, `POST /api/integrations/{provider}/provision/`
   - Change: Recovered the provider-generic connector lifecycle contract for Airbyte-managed Google providers on top of current `main`. The generic lifecycle now supports `ga4` and `search_console` end-to-end and adds the missing reconnect/job surfaces used by shared connector operations. `google_ads` keeps its existing provider-specific setup/status/sync/disconnect payloads on the same concrete paths, while the generic lifecycle adds shared reconnect/job behavior and OAuth callback/provisioning support.

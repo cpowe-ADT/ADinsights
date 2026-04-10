@@ -12,7 +12,7 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 ### Platform/Core
 - Multi-tenant auth scaffolding, tenant context middleware, RLS enforcement.
 - Tenant onboarding: signup, invites, role assignment, password reset, tenant switch.
-- Service account API keys + audit log endpoints for key actions.
+- Service account API keys + audit log endpoints for key actions (with pagination, date-range filtering, CSV export).
 - Core health endpoints: `/api/health/`, `/api/health/airbyte/`, `/api/health/dbt/`, `/api/timezone/`.
 - Celery task wiring with observability hooks and test coverage.
 - AES-GCM secrets encryption with per-tenant DEKs + rotation script.
@@ -30,14 +30,30 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Dataset toggle (default live), snapshot freshness banner, tenant switcher, global filters.
 - Campaign/creative detail routes with saved layout + share links.
 - Data sources management UI and CSV upload wizard.
-- Dashboard library shell (mock-backed).
+- Dashboard library (API-backed with saved dashboards CRUD).
 - Frontend design system tokens + docs.
+- Report inline editing (name/description) and report scheduling.
+- Audit log view with pagination, date-range filtering, and CSV export.
+- Sync health/telemetry view with connection detail page (`/ops/sync-health/:connectionId`).
+- Health overview with auto-refresh (30s interval).
+- Global error boundary and 404 catch-all page.
+- Skeleton loader components for loading states.
+- Unified toast notification system (Zustand `useToastStore`).
+- Google Ads workspace pages with error states via shared component.
+- Alerts CRUD and notification channel management UI.
+- AI summary badges on dashboard cards.
 
 ### Integrations
 - Airbyte infrastructure and declarative source templates.
 - Airbyte telemetry endpoints and health checks.
 - Airbyte connection lifecycle APIs (list/create/update/sync) + summary endpoint.
+- Airbyte trigger-sync endpoint (full integration with audit logging).
 - Production readiness verifier for Meta/Google connection credentials and tenant config sanity.
+- Meta Marketing API + Page Insights OAuth flows with scope validation.
+- Google Ads SDK migration (SDK with Airbyte fallback).
+- GA4 tenant-scoped OAuth setup, property discovery, and KPI fetch.
+- Search Console pilot integration endpoints.
+- Provider-generic connector lifecycle for Airbyte-managed Google providers.
 
 ### Observability/Runbooks
 - Stale snapshot monitoring spec, alert thresholds/escalation runbook.
@@ -49,9 +65,12 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 
 ## In Progress
 ### Frontend
-- Dashboard library API integration (replace mock data).
-- Sync health/telemetry view.
-- Health checks overview.
+- /me profile page.
+- Alert history/runs view.
+- CSV upload detail page.
+- Sync health filters (advanced filtering).
+- Alert pause/resume controls.
+- Report editing (full edit flow).
 
 ### Data/Analytics
 - Attribution window documentation expansion.
@@ -68,9 +87,7 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 
 ### Frontend/UX
 - Enhanced export workflows and reporting UX.
-- Report builder + exports (PDF/PNG/CSV) with entitlements.
-- Alerts and AI summaries management UI.
-- Admin/sync health console for telemetry and health checks.
+- Enterprise UAC UX (agency admin, approvals, MFA, impersonation).
 
 ### Security/UAC
 - UAC rollout phases U0–U4 (agency admin, approvals, MFA, impersonation).
