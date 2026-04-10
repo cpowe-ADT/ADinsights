@@ -285,3 +285,56 @@ export async function createMetaPageExport(
 export async function downloadExportArtifact(exportJobId: string) {
   return apiClient.download(`/exports/${exportJobId}/download/`);
 }
+
+// --- Page Insights saved views ---
+
+export type PageInsightsSavedView = {
+  id: string;
+  name: string;
+  description: string;
+  template_key: 'meta_page_insights';
+  filters: {
+    page_id?: string;
+    date_preset?: string;
+    since?: string;
+    until?: string;
+    metric?: string;
+    period?: string;
+    compare_to?: string;
+  };
+  layout: Record<string, unknown>;
+  default_metric: string;
+  is_active: boolean;
+  owner_email?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function listPageInsightsSavedViews(
+  pageId: string,
+): Promise<PageInsightsSavedView[]> {
+  const all = await apiClient.get<PageInsightsSavedView[]>(
+    appendQueryParams('/dashboards/definitions/', { template_key: 'meta_page_insights' }),
+  );
+  const results = Array.isArray(all) ? all : (all as { results?: PageInsightsSavedView[] }).results ?? [];
+  return results.filter((view) => view.filters?.page_id === pageId);
+}
+
+export async function savePageInsightsView(
+  name: string,
+  filters: PageInsightsSavedView['filters'],
+): Promise<PageInsightsSavedView> {
+  return apiClient.post<PageInsightsSavedView>('/dashboards/definitions/', {
+    name,
+    description: '',
+    template_key: 'meta_page_insights',
+    filters,
+    layout: {},
+    default_metric: filters.metric ?? 'page_post_engagements',
+    is_active: true,
+  });
+}
+
+export async function deletePageInsightsView(id: string): Promise<void> {
+  await apiClient.delete(`/dashboards/definitions/${id}/`);
+}

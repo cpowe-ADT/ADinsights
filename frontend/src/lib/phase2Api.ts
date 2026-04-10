@@ -5,7 +5,8 @@ export type DashboardTemplateKey =
   | 'meta_campaign_performance'
   | 'meta_creative_insights'
   | 'meta_budget_pacing'
-  | 'meta_parish_map';
+  | 'meta_parish_map'
+  | 'meta_page_insights';
 
 export type DashboardMetricKey =
   | 'spend'

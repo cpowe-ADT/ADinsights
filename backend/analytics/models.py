@@ -391,13 +391,26 @@ class DashboardDefinition(models.Model):
     TEMPLATE_META_CREATIVE_INSIGHTS = "meta_creative_insights"
     TEMPLATE_META_BUDGET_PACING = "meta_budget_pacing"
     TEMPLATE_META_PARISH_MAP = "meta_parish_map"
+    TEMPLATE_META_PAGE_INSIGHTS = "meta_page_insights"
     TEMPLATE_CHOICES = [
         (TEMPLATE_META_EXECUTIVE_OVERVIEW, "Meta executive overview"),
         (TEMPLATE_META_CAMPAIGN_PERFORMANCE, "Meta campaign performance"),
         (TEMPLATE_META_CREATIVE_INSIGHTS, "Meta creative insights"),
         (TEMPLATE_META_BUDGET_PACING, "Meta budget pacing"),
         (TEMPLATE_META_PARISH_MAP, "Meta parish map"),
+        (TEMPLATE_META_PAGE_INSIGHTS, "Meta page insights"),
     ]
+
+    # Page Insights saved view filters schema:
+    # {
+    #   "page_id": "string",
+    #   "date_preset": "last_7d" | "last_28d" | "last_90d" | "custom",
+    #   "since": "YYYY-MM-DD" (optional, for custom),
+    #   "until": "YYYY-MM-DD" (optional, for custom),
+    #   "metric": "string" (metric_key for trend chart),
+    #   "period": "day" | "week" | "days_28",
+    #   "compare_to": "" | "prior_period" (optional)
+    # }
 
     METRIC_SPEND = "spend"
     METRIC_IMPRESSIONS = "impressions"
