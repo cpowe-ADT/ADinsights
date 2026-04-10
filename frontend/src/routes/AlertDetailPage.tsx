@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
-import { getAlert, type AlertRule } from '../lib/phase2Api';
+import { getAlert, listAlertRuns, type AlertRule, type AlertRun } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
@@ -89,8 +89,73 @@ const AlertDetailPage = () => {
           Updated {formatRelativeTime(alert.updated_at)} ({formatAbsoluteTime(alert.updated_at)})
         </p>
       </article>
+
+      <AlertRunHistory alert={alert} />
     </section>
   );
 };
+
+/* ---------- Run History sub-component ---------- */
+
+function AlertRunHistory({ alert }: { alert: AlertRule }) {
+  const [runs, setRuns] = useState<AlertRun[]>([]);
+  const [runsState, setRunsState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [runsError, setRunsError] = useState('');
+
+  const loadRuns = useCallback(async () => {
+    setRunsState('loading');
+    try {
+      const data = await listAlertRuns({ rule: alert.name });
+      setRuns(data.results);
+      setRunsState('ready');
+    } catch (err) {
+      setRunsState('error');
+      setRunsError(err instanceof Error ? err.message : 'Unable to load run history.');
+    }
+  }, [alert.name]);
+
+  useEffect(() => {
+    void loadRuns();
+  }, [loadRuns]);
+
+  return (
+    <article className="phase2-card">
+      <h3>Alert Run History</h3>
+
+      {runsState === 'loading' ? (
+        <p>Loading run history...</p>
+      ) : runsState === 'error' ? (
+        <p className="status-message error">{runsError}</p>
+      ) : runs.length === 0 ? (
+        <p>No runs recorded yet.</p>
+      ) : (
+        <table className="phase2-table">
+          <thead>
+            <tr>
+              <th>Created</th>
+              <th>Status</th>
+              <th>Row count</th>
+              <th>Duration</th>
+              <th>Summary / Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            {runs.map((run) => (
+              <tr key={run.id}>
+                <td>{formatAbsoluteTime(run.created_at)}</td>
+                <td>
+                  <span className={`phase2-pill phase2-pill--${run.status}`}>{run.status}</span>
+                </td>
+                <td>{run.row_count}</td>
+                <td>{run.duration_ms != null ? `${run.duration_ms}ms` : '-'}</td>
+                <td>{run.error_message || run.llm_summary || '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </article>
+  );
+}
 
 export default AlertDetailPage;

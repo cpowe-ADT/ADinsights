@@ -6,10 +6,12 @@ import AlertDetailPage from '../AlertDetailPage';
 
 const phase2ApiMock = vi.hoisted(() => ({
   getAlert: vi.fn(),
+  listAlertRuns: vi.fn(),
 }));
 
 vi.mock('../../lib/phase2Api', () => ({
   getAlert: phase2ApiMock.getAlert,
+  listAlertRuns: phase2ApiMock.listAlertRuns,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -20,6 +22,7 @@ vi.mock('react-router-dom', async () => {
 describe('AlertDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    phase2ApiMock.listAlertRuns.mockResolvedValue({ count: 0, next: null, previous: null, results: [] });
   });
 
   it('renders alert detail', async () => {

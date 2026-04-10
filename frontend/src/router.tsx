@@ -13,6 +13,7 @@ import {
   GoogleAdsTabRedirect,
 } from './routes/google-ads/GoogleAdsLegacyRedirects';
 
+const AlertCreatePage = lazy(() => import('./routes/AlertCreatePage'));
 const AlertsPage = lazy(() => import('./routes/AlertsPage'));
 const AlertDetailPage = lazy(() => import('./routes/AlertDetailPage'));
 const AuditLogPage = lazy(() => import('./routes/AuditLogPage'));
@@ -154,6 +155,10 @@ export const router = createBrowserRouter(
         {
           path: '/alerts',
           element: withRouteLoader(<AlertsPage />, 'Loading alerts…'),
+        },
+        {
+          path: '/alerts/new',
+          element: withRouteLoader(<AlertCreatePage />, 'Loading alert builder…'),
         },
         {
           path: '/alerts/:alertId',

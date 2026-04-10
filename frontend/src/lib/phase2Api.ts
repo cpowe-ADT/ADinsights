@@ -323,6 +323,35 @@ export async function getAlert(alertId: string, signal?: AbortSignal): Promise<A
   return apiClient.get<AlertRule>(`/alerts/${alertId}/`, { signal });
 }
 
+export type AlertRun = {
+  id: string;
+  rule_slug: string;
+  rule_name: string | null;
+  rule_description: string | null;
+  severity: string | null;
+  status: 'started' | 'success' | 'no_results' | 'partial' | 'failed';
+  row_count: number;
+  llm_summary: string;
+  error_message: string;
+  duration_ms: number;
+  created_at: string;
+  completed_at: string | null;
+};
+
+export async function createAlert(
+  payload: Pick<AlertRule, 'name' | 'metric' | 'comparison_operator' | 'threshold' | 'lookback_hours' | 'severity'> & { is_active?: boolean },
+): Promise<AlertRule> {
+  return apiClient.post<AlertRule>('/alerts/', payload);
+}
+
+export async function listAlertRuns(
+  params: { rule?: string; status?: string } = {},
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<AlertRun>> {
+  const path = appendQueryParams('/alerts/runs/', params);
+  return apiClient.get<PaginatedResponse<AlertRun>>(path, { signal });
+}
+
 export async function listSummaries(signal?: AbortSignal): Promise<AISummary[]> {
   const data = await apiClient.get<AISummary[] | { results: AISummary[] }>('/summaries/', { signal });
   return Array.isArray(data) ? data : data.results;
