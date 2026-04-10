@@ -10,6 +10,7 @@ import {
   type ReportExportJob,
 } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
+import { useToastStore } from '../stores/useToastStore';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 
@@ -17,6 +18,7 @@ const exportFormats: Array<'csv' | 'pdf' | 'png'> = ['csv', 'pdf', 'png'];
 
 const ReportDetailPage = () => {
   const { reportId } = useParams<{ reportId: string }>();
+  const addToast = useToastStore((s) => s.addToast);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [report, setReport] = useState<ReportDefinition | null>(null);
   const [exports, setExports] = useState<ReportExportJob[]>([]);
@@ -57,12 +59,15 @@ const ReportDetailPage = () => {
       setCreatingFormat(format);
       try {
         await createReportExport(reportId, format);
+        addToast('Export requested');
         await load();
+      } catch {
+        addToast('Export request failed', 'error');
       } finally {
         setCreatingFormat(null);
       }
     },
-    [load, reportId],
+    [addToast, load, reportId],
   );
 
   if (state === 'loading') {
