@@ -245,6 +245,23 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
             metadata={"fields": [], "redacted": True},
         )
 
+    @action(detail=True, methods=["post"])
+    def toggle_schedule(self, request, pk=None):
+        report = self.get_object()
+        enabled = request.data.get("enabled", False)
+        report.schedule_enabled = bool(enabled)
+        report.save(update_fields=["schedule_enabled", "updated_at"])
+        actor = request.user if request.user.is_authenticated else None
+        log_audit_event(
+            tenant=report.tenant,
+            user=actor,
+            action="report_schedule_toggled",
+            resource_type="report_definition",
+            resource_id=report.id,
+            metadata={"schedule_enabled": report.schedule_enabled},
+        )
+        return Response(ReportDefinitionSerializer(report).data)
+
     @action(detail=True, methods=["get"], url_path="exports")
     def exports(self, request, pk=None):
         report = self.get_object()

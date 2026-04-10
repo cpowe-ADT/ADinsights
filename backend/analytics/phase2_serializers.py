@@ -15,10 +15,14 @@ class ReportDefinitionSerializer(serializers.ModelSerializer):
             "filters",
             "layout",
             "is_active",
+            "schedule_enabled",
+            "schedule_cron",
+            "delivery_emails",
+            "last_scheduled_at",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "last_scheduled_at", "created_at", "updated_at"]
 
 
 class DashboardDefinitionSerializer(serializers.ModelSerializer):

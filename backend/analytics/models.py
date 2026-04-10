@@ -370,6 +370,12 @@ class ReportDefinition(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Scheduled delivery fields
+    schedule_enabled = models.BooleanField(default=False)
+    schedule_cron = models.CharField(max_length=100, blank=True, default="")
+    delivery_emails = models.JSONField(default=list, blank=True)
+    last_scheduled_at = models.DateTimeField(null=True, blank=True)
+
     objects = TenantAwareManager()
     all_objects = models.Manager()
 
