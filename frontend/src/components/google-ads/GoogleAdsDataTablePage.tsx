@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { fetchGoogleAdsList, type GoogleAdsListResponse } from '../../lib/googleAdsDashboard';
 import { appendQueryParams } from '../../lib/apiClient';
+import DashboardState from '../DashboardState';
 
 type Row = Record<string, unknown>;
 
@@ -24,36 +25,36 @@ const GoogleAdsDataTablePage = ({
 }: Props) => {
   const [payload, setPayload] = useState<GoogleAdsListResponse<Row>>({ count: 0, results: [] });
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async (signal?: AbortSignal) => {
+    setStatus('loading');
+    setError(null);
+    try {
+      const path = query ? appendQueryParams(endpoint, query) : endpoint;
+      const response = await fetchGoogleAdsList<Row>(path);
+      if (signal?.aborted) {
+        return;
+      }
+      setPayload(response);
+      setStatus('idle');
+    } catch (err) {
+      if (signal?.aborted) {
+        return;
+      }
+      const message = err instanceof Error ? err.message : 'Failed to load Google Ads data.';
+      setError(message);
+      setStatus('error');
+    }
+  }, [endpoint, query]);
 
   useEffect(() => {
-    let active = true;
-    const load = async () => {
-      setStatus('loading');
-      setError('');
-      try {
-        const path = query ? appendQueryParams(endpoint, query) : endpoint;
-        const response = await fetchGoogleAdsList<Row>(path);
-        if (!active) {
-          return;
-        }
-        setPayload(response);
-        setStatus('idle');
-      } catch (err) {
-        if (!active) {
-          return;
-        }
-        const message = err instanceof Error ? err.message : 'Failed to load Google Ads data.';
-        setError(message);
-        setStatus('error');
-      }
-    };
-
-    void load();
+    const controller = new AbortController();
+    void load(controller.signal);
     return () => {
-      active = false;
+      controller.abort();
     };
-  }, [endpoint, query]);
+  }, [load]);
 
   const columns = useMemo(() => {
     const sample = payload.results[0];
@@ -71,11 +72,18 @@ const GoogleAdsDataTablePage = ({
         {description ? <p className="dashboardSubtitle">{description}</p> : null}
       </header>
 
-      {status === 'loading' ? <div className="dashboard-state dashboard-state--page">Loading...</div> : null}
+      {status === 'loading' ? (
+        <DashboardState variant="loading" layout="page" message="Loading Google Ads data..." />
+      ) : null}
       {status === 'error' ? (
-        <div className="dashboard-state dashboard-state--page" role="alert">
-          {error}
-        </div>
+        <DashboardState
+          variant="error"
+          layout="page"
+          title={`${title} unavailable`}
+          message={error ?? 'Failed to load Google Ads data.'}
+          actionLabel="Retry"
+          onAction={() => void load()}
+        />
       ) : null}
 
       {status !== 'loading' && payload.results.length === 0 ? (
