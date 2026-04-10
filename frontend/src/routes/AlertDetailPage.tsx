@@ -11,6 +11,8 @@ import {
   type NotificationChannel,
 } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
+// Toast wiring: import { useToastStore } from '../stores/useToastStore';
+// Wire addToast into channel-assignment CRUD when that feature is built.
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 

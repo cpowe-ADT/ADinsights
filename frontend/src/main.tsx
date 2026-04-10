@@ -4,6 +4,7 @@ import App from './App';
 import './styles/theme.css';
 import './styles.css';
 import './styles/global.css';
+import './styles/toast.css';
 import { AuthProvider } from './auth/AuthContext';
 import { ThemeProvider } from './components/ThemeProvider';
 

@@ -4,27 +4,31 @@ import DashboardState from '../components/DashboardState';
 import { fetchSyncHealth, triggerResync, type SyncHealthResponse } from '../lib/phase2Api';
 import { ApiError } from '../lib/apiClient';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
+import { useToastStore } from '../stores/useToastStore';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 
 const SyncHealthPage = () => {
+  const addToast = useToastStore((s) => s.addToast);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [payload, setPayload] = useState<SyncHealthResponse | null>(null);
   const [error, setError] = useState<string>('Unable to load sync health.');
   const [syncingId, setSyncingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (notify = false) => {
     setState('loading');
     setError('Unable to load sync health.');
     try {
       const data = await fetchSyncHealth();
       setPayload(data);
       setState('ready');
+      if (notify) addToast('Re-sync triggered');
     } catch (err) {
       setState('error');
       setError(err instanceof Error ? err.message : 'Unable to load sync health.');
+      if (notify) addToast('Re-sync failed', 'error');
     }
-  }, []);
+  }, [addToast]);
 
   const handleResync = useCallback(
     async (connectionId: string) => {
@@ -90,7 +94,7 @@ const SyncHealthPage = () => {
             Real-time tenant sync posture for connected Airbyte jobs.
           </p>
         </div>
-        <button type="button" className="button secondary" onClick={() => void load()}>
+        <button type="button" className="button secondary" onClick={() => void load(true)}>
           Refresh
         </button>
       </header>
