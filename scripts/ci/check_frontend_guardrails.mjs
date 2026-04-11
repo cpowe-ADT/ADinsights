@@ -12,9 +12,36 @@ function recordFailure(message) {
   failures.push(message);
 }
 
+function findRg() {
+  try {
+    const rgPath = execFileSync('which', ['rg'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+    if (rgPath) return 'rg';
+  } catch {
+    // not on PATH
+  }
+  // Homebrew default on Apple Silicon / Intel
+  for (const candidate of ['/opt/homebrew/bin/rg', '/usr/local/bin/rg']) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+const rgBin = findRg();
+if (!rgBin) {
+  console.error(
+    'Error: ripgrep (rg) is required but not found.\n' +
+      'Install it with: brew install ripgrep   (macOS)\n' +
+      '                 sudo apt-get install ripgrep   (Ubuntu/Debian)\n',
+  );
+  process.exit(1);
+}
+
 function runRg(pattern, target, extraArgs = []) {
   try {
-    return execFileSync('rg', ['-n', pattern, target, ...extraArgs], {
+    return execFileSync(rgBin, ['-n', pattern, target, ...extraArgs], {
       cwd: repoRoot,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],

@@ -4,11 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import CreativeDetail from '../CreativeDetail';
 
-const routerFuture = {
-  v7_startTransition: true,
-  v7_relativeSplatPath: true,
-} as const;
-
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
@@ -108,7 +103,7 @@ describe('CreativeDetail', () => {
 
   it('renders creative name as heading', () => {
     render(
-      <MemoryRouter future={routerFuture}>
+      <MemoryRouter>
         <CreativeDetail />
       </MemoryRouter>,
     );
@@ -125,7 +120,7 @@ describe('CreativeDetail', () => {
     };
 
     render(
-      <MemoryRouter future={routerFuture}>
+      <MemoryRouter>
         <CreativeDetail />
       </MemoryRouter>,
     );

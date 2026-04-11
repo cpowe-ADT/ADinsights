@@ -133,13 +133,21 @@ REPLACEMENT_CANDIDATES: dict[tuple[str, str], str] = {
 }
 
 
+_metrics_seeded = False
+
+
 def ensure_default_metrics_seeded() -> None:
+    global _metrics_seeded  # noqa: PLW0603
+    if _metrics_seeded:
+        return
     try:
         if MetaMetricRegistry.objects.exists():
+            _metrics_seeded = True
             return
     except (OperationalError, ProgrammingError):
         return
     seed_default_metrics()
+    _metrics_seeded = True
 
 
 def seed_default_metrics() -> None:

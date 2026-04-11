@@ -10,6 +10,7 @@ from integrations.services.meta_metric_catalog import (
     metric_catalog_doc_path,
     render_metric_catalog_markdown,
 )
+import integrations.services.metric_registry as _metric_registry_mod
 from integrations.services.metric_registry import get_default_metric_keys
 
 
@@ -64,6 +65,7 @@ def test_sync_meta_metric_catalog_command_upserts_registry():
 @pytest.mark.django_db
 def test_get_default_metric_keys_seeds_registry_when_empty():
     MetaMetricRegistry.objects.all().delete()
+    _metric_registry_mod._metrics_seeded = False
 
     metric_keys = get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE)
 

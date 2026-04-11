@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'frontend/**'
+      - 'scripts/ci/**'
       - '.github/workflows/frontend.yml'
 
 jobs:
