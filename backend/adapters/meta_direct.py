@@ -612,6 +612,59 @@ class MetaDirectAdapter(MetricsAdapter):
         }
         has_demographics = bool(age_groups)
 
+        # --- Platform aggregation from MetaPlatformDaily ---
+        from integrations.models import MetaPlatformDaily
+
+        plat_qs = MetaPlatformDaily.objects.filter(tenant_id=tenant_id)
+        if filters.start_date:
+            plat_qs = plat_qs.filter(date_day__gte=filters.start_date)
+        if filters.end_date:
+            plat_qs = plat_qs.filter(date_day__lte=filters.end_date)
+        if filters.account_id:
+            aliases = _normalize_account_aliases(filters.account_id)
+            plat_qs = plat_qs.filter(account_id__in=aliases)
+
+        platform_groups: dict[str, dict[str, Any]] = {}
+        device_groups: dict[str, dict[str, Any]] = {}
+        platform_device_groups: dict[str, dict[str, Any]] = {}
+
+        for plat_record in plat_qs.iterator():
+            pp = plat_record.publisher_platform
+            dp = plat_record.device_platform
+            spend_val = _to_float(plat_record.spend)
+
+            # By publisher platform
+            p_grp = platform_groups.setdefault(pp, {"platform": pp, "spend": 0.0, "impressions": 0, "clicks": 0, "conversions": 0, "reach": 0})
+            p_grp["spend"] += spend_val
+            p_grp["impressions"] += plat_record.impressions
+            p_grp["clicks"] += plat_record.clicks
+            p_grp["conversions"] += plat_record.conversions
+            p_grp["reach"] += plat_record.reach
+
+            # By device platform
+            d_grp = device_groups.setdefault(dp, {"device": dp, "spend": 0.0, "impressions": 0, "clicks": 0, "conversions": 0, "reach": 0})
+            d_grp["spend"] += spend_val
+            d_grp["impressions"] += plat_record.impressions
+            d_grp["clicks"] += plat_record.clicks
+            d_grp["conversions"] += plat_record.conversions
+            d_grp["reach"] += plat_record.reach
+
+            # By platform+device
+            pd_key = f"{pp}|{dp}"
+            pd_grp = platform_device_groups.setdefault(pd_key, {"platform": pp, "device": dp, "spend": 0.0, "impressions": 0, "clicks": 0, "conversions": 0, "reach": 0})
+            pd_grp["spend"] += spend_val
+            pd_grp["impressions"] += plat_record.impressions
+            pd_grp["clicks"] += plat_record.clicks
+            pd_grp["conversions"] += plat_record.conversions
+            pd_grp["reach"] += plat_record.reach
+
+        platforms = {
+            "byPlatform": sorted(platform_groups.values(), key=lambda r: r["platform"]),
+            "byDevice": sorted(device_groups.values(), key=lambda r: r["device"]),
+            "byPlatformDevice": sorted(platform_device_groups.values(), key=lambda r: (r["platform"], r["device"])),
+        }
+        has_platforms = bool(platform_groups)
+
         availability = {
             "campaign": {
                 "status": "available" if campaign_rows else "empty",
@@ -634,6 +687,10 @@ class MetaDirectAdapter(MetricsAdapter):
                 "status": "available" if has_demographics else "empty",
                 "reason": None if has_demographics else "no_recent_data",
             },
+            "platforms": {
+                "status": "available" if has_platforms else "empty",
+                "reason": None if has_platforms else "no_recent_data",
+            },
         }
 
         return {
@@ -647,6 +704,7 @@ class MetaDirectAdapter(MetricsAdapter):
             "budget": sorted(budget_rows, key=lambda row: (-row["spendToDate"], row["campaignName"])),
             "parish": parish_rows,
             "demographics": demographics,
+            "platforms": platforms,
             "coverage": coverage,
             "availability": availability,
             "snapshot_generated_at": _snapshot_generated_at(records),

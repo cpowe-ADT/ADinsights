@@ -204,6 +204,40 @@ export interface DemographicsData {
   byAgeGender: AgeGenderBreakdown[];
 }
 
+export interface PlatformBreakdown {
+  platform: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  reach: number;
+}
+
+export interface DeviceBreakdown {
+  device: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  reach: number;
+}
+
+export interface PlatformDeviceBreakdown {
+  platform: string;
+  device: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  reach: number;
+}
+
+export interface PlatformsData {
+  byPlatform: PlatformBreakdown[];
+  byDevice: DeviceBreakdown[];
+  byPlatformDevice: PlatformDeviceBreakdown[];
+}
+
 export interface DashboardCoverage {
   startDate?: string | null;
   endDate?: string | null;
@@ -239,6 +273,7 @@ export interface TenantMetricsSnapshot {
   generated_at?: string;
   snapshot_generated_at?: string;
   demographics?: DemographicsData;
+  platforms?: PlatformsData;
   coverage?: DashboardCoverage;
   availability?: DashboardAvailability;
   [key: string]: unknown;
@@ -250,6 +285,7 @@ export interface TenantMetricsResolved {
   budget: BudgetPacingRow[];
   parish: ParishAggregate[];
   demographics?: DemographicsData;
+  platforms?: PlatformsData;
   tenantId?: string;
   currency: string;
   snapshotGeneratedAt?: string;
@@ -273,6 +309,7 @@ interface DashboardState {
   budget: AsyncSlice<BudgetPacingRow[]>;
   parish: AsyncSlice<ParishAggregate[]>;
   demographics: AsyncSlice<DemographicsData>;
+  platforms: AsyncSlice<PlatformsData>;
   activeTenantId?: string;
   activeTenantLabel?: string;
   lastLoadedTenantId?: string;
@@ -320,6 +357,7 @@ function createInitialState(): Pick<
   | 'budget'
   | 'parish'
   | 'demographics'
+  | 'platforms'
   | 'activeTenantId'
   | 'activeTenantLabel'
   | 'lastLoadedTenantId'
@@ -342,6 +380,7 @@ function createInitialState(): Pick<
     budget: initialSlice(),
     parish: initialSlice(),
     demographics: initialSlice(),
+    platforms: initialSlice(),
     activeTenantId: dashboardSession.activeTenantId,
     activeTenantLabel: dashboardSession.activeTenantLabel,
     lastLoadedTenantId: undefined,
@@ -635,6 +674,7 @@ function normalizeResolvedMetrics(input: {
   budget: BudgetPacingRow[];
   parish: ParishAggregate[];
   demographics?: DemographicsData;
+  platforms?: PlatformsData;
   tenantId?: string;
   snapshotGeneratedAt?: string;
   coverage?: DashboardCoverage;
@@ -650,6 +690,7 @@ function normalizeResolvedMetrics(input: {
     budget: input.budget,
     parish,
     demographics: input.demographics,
+    platforms: input.platforms,
     tenantId: input.tenantId,
     currency,
     snapshotGeneratedAt: input.snapshotGeneratedAt,
@@ -705,6 +746,10 @@ function parseTenantMetrics(snapshot: TenantMetricsSnapshot): TenantMetricsResol
     source.demographics ??
     (record['demographics'] as DemographicsData | undefined);
 
+  const platforms: PlatformsData | undefined =
+    source.platforms ??
+    (record['platforms'] as PlatformsData | undefined);
+
   const normalizedCampaign = assertValidSchema(
     'metrics',
     campaign,
@@ -742,6 +787,7 @@ function parseTenantMetrics(snapshot: TenantMetricsSnapshot): TenantMetricsResol
     coverage: normalizeCoverage(record['coverage'] ?? snapshot['coverage']),
     availability: normalizeAvailability(record['availability'] ?? snapshot['availability']),
     demographics,
+    platforms,
   });
 }
 
@@ -1074,6 +1120,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       budget: { ...state.budget, status: 'loading', error: undefined, errorKind: undefined },
       parish: { ...state.parish, status: 'loading', error: undefined, errorKind: undefined },
       demographics: { ...state.demographics, status: 'loading', error: undefined, errorKind: undefined },
+      platforms: { ...state.platforms, status: 'loading', error: undefined, errorKind: undefined },
     }));
 
     if (uploadedActive && uploadedDataset) {
@@ -1091,6 +1138,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           budget: { status: 'loaded', data: resolved.budget, error: undefined, errorKind: undefined },
           parish: { status: 'loaded', data: resolved.parish, error: undefined, errorKind: undefined },
           demographics: { status: 'loaded', data: resolved.demographics, error: undefined, errorKind: undefined },
+          platforms: { status: 'loaded', data: resolved.platforms, error: undefined, errorKind: undefined },
           metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
         }));
       } catch (error) {
@@ -1101,6 +1149,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           budget: { status: 'error', data: state.budget.data, error: message, errorKind: kind },
           parish: { status: 'error', data: state.parish.data, error: message, errorKind: kind },
           demographics: { status: 'error', data: state.demographics.data, error: message, errorKind: kind },
+          platforms: { status: 'error', data: state.platforms.data, error: message, errorKind: kind },
         }));
       }
       return;
@@ -1125,6 +1174,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         budget: { status: 'error', data: state.budget.data, error: message, errorKind: 'generic' },
         parish: { status: 'error', data: state.parish.data, error: message, errorKind: 'generic' },
         demographics: { status: 'error', data: state.demographics.data, error: message, errorKind: 'generic' },
+        platforms: { status: 'error', data: state.platforms.data, error: message, errorKind: 'generic' },
       }));
       return;
     }
@@ -1157,6 +1207,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           budget: { status: 'loaded', data: resolved.budget, error: undefined, errorKind: undefined },
           parish: { status: 'loaded', data: resolved.parish, error: undefined, errorKind: undefined },
           demographics: { status: 'loaded', data: resolved.demographics, error: undefined, errorKind: undefined },
+          platforms: { status: 'loaded', data: resolved.platforms, error: undefined, errorKind: undefined },
           metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
         }));
       } catch (error) {
@@ -1167,6 +1218,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           budget: { status: 'error', data: state.budget.data, error: message, errorKind: kind },
           parish: { status: 'error', data: state.parish.data, error: message, errorKind: kind },
           demographics: { status: 'error', data: state.demographics.data, error: message, errorKind: kind },
+          platforms: { status: 'error', data: state.platforms.data, error: message, errorKind: kind },
         }));
       }
 
@@ -1194,6 +1246,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
             budget: { status: 'loaded', data: resolved.budget, error: undefined, errorKind: undefined },
             parish: { status: 'loaded', data: resolved.parish, error: undefined, errorKind: undefined },
           demographics: { status: 'loaded', data: resolved.demographics, error: undefined, errorKind: undefined },
+          platforms: { status: 'loaded', data: resolved.platforms, error: undefined, errorKind: undefined },
             metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
           }));
           return;
@@ -1223,6 +1276,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           budget: { status: 'loaded', data: resolved.budget, error: undefined, errorKind: undefined },
           parish: { status: 'loaded', data: resolved.parish, error: undefined, errorKind: undefined },
           demographics: { status: 'loaded', data: resolved.demographics, error: undefined, errorKind: undefined },
+          platforms: { status: 'loaded', data: resolved.platforms, error: undefined, errorKind: undefined },
           metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
         }));
       } catch (error) {
@@ -1233,6 +1287,7 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           budget: { status: 'error', data: state.budget.data, error: message, errorKind: kind },
           parish: { status: 'error', data: state.parish.data, error: message, errorKind: kind },
           demographics: { status: 'error', data: state.demographics.data, error: message, errorKind: kind },
+          platforms: { status: 'error', data: state.platforms.data, error: message, errorKind: kind },
         }));
       }
 

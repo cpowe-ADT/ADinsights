@@ -1814,6 +1814,29 @@ def _sync_meta_insights_core(
                         currency=ad_account.currency or "",
                     )
 
+                # --- Platform breakdown for platform analytics ---
+                try:
+                    platform_rows = client.list_insights_by_platform(
+                        account_id=account_external_id,
+                        user_access_token=access_token,
+                        since=since_date.isoformat(),
+                        until=until_date.isoformat(),
+                    )
+                except MetaGraphClientError as exc:
+                    logger.warning(
+                        "meta.sync.insights_by_platform.failed",
+                        extra={"account_id": account_external_id, "error": str(exc)},
+                    )
+                    platform_rows = []
+
+                if platform_rows:
+                    _upsert_meta_platform_rows(
+                        tenant=credential.tenant,
+                        account_id=account_external_id,
+                        rows=platform_rows,
+                        currency=ad_account.currency or "",
+                    )
+
                 succeeded += 1
                 _touch_meta_sync_state(
                     tenant=credential.tenant,
@@ -1902,6 +1925,46 @@ def _upsert_meta_age_gender_rows(
             date_day=record_date,
             age_range=age_range,
             gender=gender,
+            defaults={
+                "currency": currency,
+                "impressions": _int_value(row.get("impressions")),
+                "reach": _int_value(row.get("reach")),
+                "clicks": _int_value(row.get("clicks")),
+                "spend": _decimal(row.get("spend")),
+                "conversions": _insight_conversions(actions),
+                "actions": actions,
+                "raw_payload": row,
+            },
+        )
+        persisted += 1
+    return persisted
+
+
+def _upsert_meta_platform_rows(
+    *,
+    tenant: object,
+    account_id: str,
+    rows: list[dict[str, Any]],
+    currency: str,
+) -> int:
+    from integrations.models import MetaPlatformDaily
+
+    persisted = 0
+    for row in rows:
+        publisher_platform = (row.get("publisher_platform") or "").strip()
+        device_platform = (row.get("device_platform") or "").strip()
+        if not publisher_platform or not device_platform:
+            continue
+        record_date = _parse_iso_date(str(row.get("date_start") or ""))
+        if not record_date:
+            continue
+        actions = row.get("actions") if isinstance(row.get("actions"), list) else []
+        MetaPlatformDaily.all_objects.update_or_create(
+            tenant=tenant,
+            account_id=account_id,
+            date_day=record_date,
+            publisher_platform=publisher_platform,
+            device_platform=device_platform,
             defaults={
                 "currency": currency,
                 "impressions": _int_value(row.get("impressions")),

@@ -1003,6 +1003,38 @@ class MetaAgeGenderDaily(models.Model):
         ]
 
 
+class MetaPlatformDaily(models.Model):
+    """Daily publisher_platform + device_platform breakdown from Meta Ads."""
+
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="meta_platform_daily"
+    )
+    account_id = models.CharField(max_length=64)
+    date_day = models.DateField()
+    publisher_platform = models.CharField(max_length=32)
+    device_platform = models.CharField(max_length=32)
+    currency = models.CharField(max_length=16, blank=True)
+    impressions = models.BigIntegerField(default=0)
+    reach = models.BigIntegerField(default=0)
+    clicks = models.BigIntegerField(default=0)
+    spend = models.DecimalField(max_digits=20, decimal_places=6, default=Decimal("0"))
+    conversions = models.IntegerField(default=0)
+    actions = models.JSONField(default=list, blank=True)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    ingested_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "account_id", "date_day", "publisher_platform", "device_platform")
+        indexes = [
+            models.Index(fields=["tenant", "date_day"], name="meta_platform_day"),
+            models.Index(fields=["tenant", "account_id"], name="meta_platform_acct"),
+        ]
+
+
 class GoogleAdsSdkKeywordDaily(models.Model):
     tenant = models.ForeignKey(
         Tenant, on_delete=models.CASCADE, related_name="google_ads_sdk_keyword_daily"

@@ -797,5 +797,6 @@ export function buildMetricsFromUpload(
     currency,
     snapshotGeneratedAt: dataset.uploadedAt,
     demographics: undefined,
+    platforms: undefined,
   };
 }

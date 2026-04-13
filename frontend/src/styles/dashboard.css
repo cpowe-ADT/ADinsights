@@ -719,3 +719,18 @@
 .audienceTable tbody tr:hover {
   background: rgba(148, 163, 184, 0.06);
 }
+
+/* ── Platform dashboard ── */
+
+.platformChartsRow {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: var(--space-5);
+}
+
+@media (max-width: 768px) {
+  .platformChartsRow {
+    grid-template-columns: 1fr;
+  }
+}

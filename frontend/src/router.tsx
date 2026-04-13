@@ -16,6 +16,7 @@ import {
 
 const AlertCreatePage = lazy(() => import('./routes/AlertCreatePage'));
 const AudienceDashboard = lazy(() => import('./routes/AudienceDashboard'));
+const PlatformDashboard = lazy(() => import('./routes/PlatformDashboard'));
 const AlertRunsPage = lazy(() => import('./routes/AlertRunsPage'));
 const AlertsPage = lazy(() => import('./routes/AlertsPage'));
 const AlertDetailPage = lazy(() => import('./routes/AlertDetailPage'));
@@ -407,6 +408,10 @@ export const router = createBrowserRouter(
             {
               path: 'audience',
               element: withRouteLoader(<AudienceDashboard />, 'Loading audience dashboard…'),
+            },
+            {
+              path: 'platforms',
+              element: withRouteLoader(<PlatformDashboard />, 'Loading platform dashboard…'),
             },
             {
               path: 'map',
