@@ -938,6 +938,71 @@ class GoogleAdsSdkGeographicDaily(models.Model):
         ]
 
 
+class MetaRegionDaily(models.Model):
+    """Daily region-level metrics from Meta Ads breakdowns=region."""
+
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="meta_region_daily"
+    )
+    account_id = models.CharField(max_length=64)
+    campaign_id = models.CharField(max_length=64, blank=True, default="")
+    date_day = models.DateField()
+    region = models.CharField(max_length=128)
+    country = models.CharField(max_length=128, blank=True)
+    currency = models.CharField(max_length=16, blank=True)
+    impressions = models.BigIntegerField(default=0)
+    reach = models.BigIntegerField(default=0)
+    clicks = models.BigIntegerField(default=0)
+    spend = models.DecimalField(max_digits=20, decimal_places=6, default=Decimal("0"))
+    conversions = models.IntegerField(default=0)
+    actions = models.JSONField(default=list, blank=True)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    ingested_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "account_id", "campaign_id", "date_day", "region")
+        indexes = [
+            models.Index(fields=["tenant", "date_day"], name="meta_region_day"),
+            models.Index(fields=["tenant", "account_id"], name="meta_region_acct"),
+        ]
+
+
+class MetaAgeGenderDaily(models.Model):
+    """Daily age+gender breakdown from Meta Ads breakdowns=age,gender."""
+
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="meta_age_gender_daily"
+    )
+    account_id = models.CharField(max_length=64)
+    date_day = models.DateField()
+    age_range = models.CharField(max_length=16)
+    gender = models.CharField(max_length=16)
+    currency = models.CharField(max_length=16, blank=True)
+    impressions = models.BigIntegerField(default=0)
+    reach = models.BigIntegerField(default=0)
+    clicks = models.BigIntegerField(default=0)
+    spend = models.DecimalField(max_digits=20, decimal_places=6, default=Decimal("0"))
+    conversions = models.IntegerField(default=0)
+    actions = models.JSONField(default=list, blank=True)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    ingested_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "account_id", "date_day", "age_range", "gender")
+        indexes = [
+            models.Index(fields=["tenant", "date_day"], name="meta_agegender_day"),
+            models.Index(fields=["tenant", "account_id"], name="meta_agegender_acct"),
+        ]
+
+
 class GoogleAdsSdkKeywordDaily(models.Model):
     tenant = models.ForeignKey(
         Tenant, on_delete=models.CASCADE, related_name="google_ads_sdk_keyword_daily"

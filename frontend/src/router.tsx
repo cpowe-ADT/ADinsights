@@ -15,6 +15,7 @@ import {
 } from './routes/google-ads/GoogleAdsLegacyRedirects';
 
 const AlertCreatePage = lazy(() => import('./routes/AlertCreatePage'));
+const AudienceDashboard = lazy(() => import('./routes/AudienceDashboard'));
 const AlertRunsPage = lazy(() => import('./routes/AlertRunsPage'));
 const AlertsPage = lazy(() => import('./routes/AlertsPage'));
 const AlertDetailPage = lazy(() => import('./routes/AlertDetailPage'));
@@ -402,6 +403,10 @@ export const router = createBrowserRouter(
               element: GOOGLE_ADS_WORKSPACE_UNIFIED
                 ? <GoogleAdsTabRedirect tab="reports" />
                 : withRouteLoader(<GoogleAdsReportsPage />, 'Loading saved views…'),
+            },
+            {
+              path: 'audience',
+              element: withRouteLoader(<AudienceDashboard />, 'Loading audience dashboard…'),
             },
             {
               path: 'map',

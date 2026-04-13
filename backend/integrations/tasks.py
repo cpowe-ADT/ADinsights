@@ -1768,6 +1768,52 @@ def _sync_meta_insights_core(
                     insights_synced += 1
                     if latest_record_date is None or record_date > latest_record_date:
                         latest_record_date = record_date
+                # --- Geographic (region) breakdown for parish map ---
+                try:
+                    region_rows = client.list_insights_by_region(
+                        account_id=account_external_id,
+                        user_access_token=access_token,
+                        since=since_date.isoformat(),
+                        until=until_date.isoformat(),
+                    )
+                except MetaGraphClientError as exc:
+                    logger.warning(
+                        "meta.sync.insights_by_region.failed",
+                        extra={"account_id": account_external_id, "error": str(exc)},
+                    )
+                    region_rows = []
+
+                if region_rows:
+                    _upsert_meta_region_rows(
+                        tenant=credential.tenant,
+                        account_id=account_external_id,
+                        rows=region_rows,
+                        currency=ad_account.currency or "",
+                    )
+
+                # --- Age + gender breakdown for demographics ---
+                try:
+                    age_gender_rows = client.list_insights_by_age_gender(
+                        account_id=account_external_id,
+                        user_access_token=access_token,
+                        since=since_date.isoformat(),
+                        until=until_date.isoformat(),
+                    )
+                except MetaGraphClientError as exc:
+                    logger.warning(
+                        "meta.sync.insights_by_age_gender.failed",
+                        extra={"account_id": account_external_id, "error": str(exc)},
+                    )
+                    age_gender_rows = []
+
+                if age_gender_rows:
+                    _upsert_meta_age_gender_rows(
+                        tenant=credential.tenant,
+                        account_id=account_external_id,
+                        rows=age_gender_rows,
+                        currency=ad_account.currency or "",
+                    )
+
                 succeeded += 1
                 _touch_meta_sync_state(
                     tenant=credential.tenant,
@@ -1788,6 +1834,87 @@ def _sync_meta_insights_core(
         "failed": failed,
         "insights_synced": insights_synced,
     }
+
+
+def _upsert_meta_region_rows(
+    *,
+    tenant: object,
+    account_id: str,
+    rows: list[dict[str, Any]],
+    currency: str,
+) -> int:
+    from integrations.models import MetaRegionDaily
+
+    persisted = 0
+    for row in rows:
+        region = (row.get("region") or "").strip()
+        if not region:
+            continue
+        record_date = _parse_iso_date(str(row.get("date_start") or ""))
+        if not record_date:
+            continue
+        campaign_id = str(row.get("campaign_id") or "")
+        actions = row.get("actions") if isinstance(row.get("actions"), list) else []
+        MetaRegionDaily.all_objects.update_or_create(
+            tenant=tenant,
+            account_id=account_id,
+            campaign_id=campaign_id,
+            date_day=record_date,
+            region=region,
+            defaults={
+                "country": str(row.get("country") or ""),
+                "currency": currency,
+                "impressions": _int_value(row.get("impressions")),
+                "reach": _int_value(row.get("reach")),
+                "clicks": _int_value(row.get("clicks")),
+                "spend": _decimal(row.get("spend")),
+                "conversions": _insight_conversions(actions),
+                "actions": actions,
+                "raw_payload": row,
+            },
+        )
+        persisted += 1
+    return persisted
+
+
+def _upsert_meta_age_gender_rows(
+    *,
+    tenant: object,
+    account_id: str,
+    rows: list[dict[str, Any]],
+    currency: str,
+) -> int:
+    from integrations.models import MetaAgeGenderDaily
+
+    persisted = 0
+    for row in rows:
+        age_range = (row.get("age") or "").strip()
+        gender = (row.get("gender") or "").strip()
+        if not age_range or not gender:
+            continue
+        record_date = _parse_iso_date(str(row.get("date_start") or ""))
+        if not record_date:
+            continue
+        actions = row.get("actions") if isinstance(row.get("actions"), list) else []
+        MetaAgeGenderDaily.all_objects.update_or_create(
+            tenant=tenant,
+            account_id=account_id,
+            date_day=record_date,
+            age_range=age_range,
+            gender=gender,
+            defaults={
+                "currency": currency,
+                "impressions": _int_value(row.get("impressions")),
+                "reach": _int_value(row.get("reach")),
+                "clicks": _int_value(row.get("clicks")),
+                "spend": _decimal(row.get("spend")),
+                "conversions": _insight_conversions(actions),
+                "actions": actions,
+                "raw_payload": row,
+            },
+        )
+        persisted += 1
+    return persisted
 
 
 def _resolve_meta_window(

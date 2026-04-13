@@ -118,6 +118,8 @@ const DashboardLayout = () => {
   const hasLiveData = datasetSource === 'warehouse' || datasetSource === 'meta_direct';
   const [accountOptionsResolved, setAccountOptionsResolved] = useState(() => !hasLiveData);
   const [metaStatusResolved, setMetaStatusResolved] = useState(() => !hasLiveData);
+  const [openNavGroup, setOpenNavGroup] = useState<string | null>(null);
+  const navRef = useRef<HTMLElement>(null);
 
   const {
     loadAll,
@@ -452,6 +454,63 @@ const DashboardLayout = () => {
     );
   }, [budget, campaign, creative, datasetMode, datasetSource, liveReason, parish]);
 
+  // Close nav dropdown on click-outside
+  useEffect(() => {
+    if (!openNavGroup) return;
+    const handler = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) {
+        setOpenNavGroup(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openNavGroup]);
+
+  // Close nav dropdown on route change
+  useEffect(() => {
+    setOpenNavGroup(null);
+  }, [location.pathname]);
+
+  const handleNavTriggerKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>, groupLabel: string) => {
+      if (e.key === 'Escape') {
+        setOpenNavGroup(null);
+        (e.target as HTMLButtonElement).focus();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setOpenNavGroup(groupLabel);
+        // Focus first link in the dropdown after render
+        requestAnimationFrame(() => {
+          const wrapper = (e.target as HTMLElement).closest('.dashboard-nav__dropdown-wrapper');
+          const firstLink = wrapper?.querySelector<HTMLAnchorElement>('.dashboard-nav__dropdown a');
+          firstLink?.focus();
+        });
+      }
+    },
+    [],
+  );
+
+  const handleNavDropdownKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const items = Array.from(
+        (e.currentTarget as HTMLElement).querySelectorAll<HTMLAnchorElement>('a'),
+      );
+      const idx = items.indexOf(e.target as HTMLAnchorElement);
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        items[(idx + 1) % items.length]?.focus();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        items[(idx - 1 + items.length) % items.length]?.focus();
+      } else if (e.key === 'Escape') {
+        setOpenNavGroup(null);
+        const wrapper = (e.currentTarget as HTMLElement).closest('.dashboard-nav__dropdown-wrapper');
+        wrapper?.querySelector<HTMLButtonElement>('.dashboard-nav__trigger')?.focus();
+      }
+    },
+    [],
+  );
+
   type NavGroup = {
     label: string;
     links: Array<{ label: string; to: string; end: boolean }>;
@@ -466,6 +525,7 @@ const DashboardLayout = () => {
         { label: 'Campaigns', to: '/dashboards/campaigns', end: false },
         { label: 'Creatives', to: '/dashboards/creatives', end: false },
         { label: 'Budget pacing', to: '/dashboards/budget', end: false },
+        { label: 'Audience', to: '/dashboards/audience', end: false },
         { label: 'Parish map', to: '/dashboards/map', end: false },
       ],
     },
@@ -823,7 +883,7 @@ const DashboardLayout = () => {
             </div>
           </div>
         </header>
-        <nav className="dashboard-nav" aria-label="Dashboard sections">
+        <nav className="dashboard-nav" aria-label="Dashboard sections" ref={navRef}>
           <div className="dashboard-boundary dashboard-nav__inner">
             <NavLink
               to="/"
@@ -832,21 +892,62 @@ const DashboardLayout = () => {
             >
               Home
             </NavLink>
-            {navGroups.map((group) => (
-              <div key={group.label} className="dashboard-nav__group">
-                <span className="dashboard-nav__group-label">{group.label}</span>
-                {group.links.map((link) => (
-                  <NavLink
-                    key={link.to}
-                    to={link.to}
-                    end={link.end}
-                    className={({ isActive }: NavLinkRenderProps) => (isActive ? 'active' : undefined)}
+            {navGroups.map((group) => {
+              const isOpen = openNavGroup === group.label;
+              const hasActive = group.links.some((l) =>
+                location.pathname.startsWith(l.to),
+              );
+              return (
+                <div key={group.label} className="dashboard-nav__dropdown-wrapper">
+                  <button
+                    type="button"
+                    className={`dashboard-nav__trigger${hasActive ? ' dashboard-nav__trigger--active' : ''}`}
+                    aria-expanded={isOpen}
+                    aria-haspopup="true"
+                    onClick={() => setOpenNavGroup(isOpen ? null : group.label)}
+                    onKeyDown={(e) => handleNavTriggerKeyDown(e, group.label)}
                   >
-                    {link.label}
-                  </NavLink>
-                ))}
-              </div>
-            ))}
+                    {group.label}
+                    <svg
+                      className="dashboard-nav__chevron"
+                      viewBox="0 0 10 6"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M1 1l4 4 4-4"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  {isOpen && (
+                    <div
+                      className="dashboard-nav__dropdown"
+                      role="menu"
+                      onKeyDown={handleNavDropdownKeyDown}
+                    >
+                      {group.links.map((link) => (
+                        <NavLink
+                          key={link.to}
+                          to={link.to}
+                          end={link.end}
+                          role="menuitem"
+                          onClick={() => setOpenNavGroup(null)}
+                          className={({ isActive }: NavLinkRenderProps) =>
+                            isActive ? 'active' : undefined
+                          }
+                        >
+                          {link.label}
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </nav>
         <div className="dashboard-boundary">

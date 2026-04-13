@@ -493,6 +493,56 @@ class MetaGraphClient:
             request_name="list_insights",
         )
 
+    def list_insights_by_region(
+        self,
+        *,
+        account_id: str,
+        user_access_token: str,
+        since: str,
+        until: str,
+    ) -> list[dict[str, Any]]:
+        return self._paginated_data(
+            f"/{self._account_node_id(account_id)}/insights",
+            params={
+                "level": "campaign",
+                "time_increment": 1,
+                "time_range": json.dumps({"since": since, "until": until}),
+                "breakdowns": "region",
+                "fields": (
+                    "date_start,date_stop,account_id,campaign_id,"
+                    "impressions,reach,spend,clicks,cpc,cpm,actions"
+                ),
+                "limit": 200,
+                "access_token": user_access_token,
+            },
+            request_name="list_insights_by_region",
+        )
+
+    def list_insights_by_age_gender(
+        self,
+        *,
+        account_id: str,
+        user_access_token: str,
+        since: str,
+        until: str,
+    ) -> list[dict[str, Any]]:
+        return self._paginated_data(
+            f"/{self._account_node_id(account_id)}/insights",
+            params={
+                "level": "account",
+                "time_increment": 1,
+                "time_range": json.dumps({"since": since, "until": until}),
+                "breakdowns": "age,gender",
+                "fields": (
+                    "date_start,date_stop,account_id,"
+                    "impressions,reach,spend,clicks,cpc,cpm,actions"
+                ),
+                "limit": 200,
+                "access_token": user_access_token,
+            },
+            request_name="list_insights_by_age_gender",
+        )
+
     def _request_json(
         self,
         method: str,

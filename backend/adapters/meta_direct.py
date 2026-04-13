@@ -19,6 +19,62 @@ from .base import AdapterInterface, MetricsAdapter
 META_CHANNEL_ALIASES = {"meta", "meta_ads"}
 META_PLATFORM_LABEL = "Meta Ads"
 FALLBACK_CURRENCY = "USD"
+JAMAICA_PARISH_COUNT = 14
+
+# Best-effort mapping: Meta region name (lowercased) → canonical parish name from jm_parishes.json.
+META_REGION_TO_PARISH: dict[str, str] = {
+    "kingston parish": "Kingston",
+    "kingston": "Kingston",
+    "saint andrew parish": "Saint Andrew",
+    "saint andrew": "Saint Andrew",
+    "st andrew": "Saint Andrew",
+    "saint thomas parish": "Saint Thomas",
+    "saint thomas": "Saint Thomas",
+    "st thomas": "Saint Thomas",
+    "portland parish": "Portland",
+    "portland": "Portland",
+    "saint mary parish": "Saint Mary",
+    "saint mary": "Saint Mary",
+    "st mary": "Saint Mary",
+    "saint ann parish": "Saint Ann",
+    "saint ann": "Saint Ann",
+    "st ann": "Saint Ann",
+    "trelawny parish": "Trelawny",
+    "trelawny": "Trelawny",
+    "saint james parish": "Saint James",
+    "saint james": "Saint James",
+    "st james": "Saint James",
+    "hanover parish": "Hanover",
+    "hanover": "Hanover",
+    "westmoreland parish": "Westmoreland",
+    "westmoreland": "Westmoreland",
+    "saint elizabeth parish": "Saint Elizabeth",
+    "saint elizabeth": "Saint Elizabeth",
+    "st elizabeth": "Saint Elizabeth",
+    "manchester parish": "Manchester",
+    "manchester": "Manchester",
+    "clarendon parish": "Clarendon",
+    "clarendon": "Clarendon",
+    "saint catherine parish": "Saint Catherine",
+    "saint catherine": "Saint Catherine",
+    "st catherine": "Saint Catherine",
+}
+
+_CANONICAL_PARISHES = set(META_REGION_TO_PARISH.values())
+
+
+def _resolve_parish_name(meta_region: str) -> str | None:
+    """Best-effort map a Meta API region string to a canonical parish name."""
+    normalized = meta_region.strip().lower()
+    if normalized in META_REGION_TO_PARISH:
+        return META_REGION_TO_PARISH[normalized]
+    # Fallback: strip trailing " parish" and title-case
+    if normalized.endswith(" parish"):
+        normalized = normalized[: -len(" parish")]
+    candidate = normalized.title().replace("St ", "Saint ")
+    if candidate in _CANONICAL_PARISHES:
+        return candidate
+    return None
 
 
 @dataclass(frozen=True)
@@ -457,6 +513,105 @@ class MetaDirectAdapter(MetricsAdapter):
             "frequency": _safe_divide(total_impressions, total_reach),
         }
 
+        # --- Parish aggregation from MetaRegionDaily ---
+        from integrations.models import MetaRegionDaily
+
+        region_qs = MetaRegionDaily.objects.filter(tenant_id=tenant_id)
+        if filters.start_date:
+            region_qs = region_qs.filter(date_day__gte=filters.start_date)
+        if filters.end_date:
+            region_qs = region_qs.filter(date_day__lte=filters.end_date)
+        if filters.account_id:
+            aliases = _normalize_account_aliases(filters.account_id)
+            region_qs = region_qs.filter(account_id__in=aliases)
+
+        parish_groups: dict[str, dict[str, Any]] = {}
+        parish_campaigns: dict[str, set[str]] = {}
+
+        for region_record in region_qs.iterator():
+            parish_name = _resolve_parish_name(region_record.region)
+            if parish_name is None:
+                continue
+            group = parish_groups.setdefault(
+                parish_name,
+                {
+                    "parish": parish_name,
+                    "spend": 0.0,
+                    "impressions": 0,
+                    "clicks": 0,
+                    "conversions": 0,
+                    "roas": 0.0,
+                    "campaignCount": 0,
+                    "currency": region_record.currency or currency,
+                },
+            )
+            group["spend"] += _to_float(region_record.spend)
+            group["impressions"] += region_record.impressions
+            group["clicks"] += region_record.clicks
+            group["conversions"] += region_record.conversions
+            if region_record.campaign_id:
+                parish_campaigns.setdefault(parish_name, set()).add(region_record.campaign_id)
+
+        for parish_name, group in parish_groups.items():
+            group["roas"] = _safe_divide(group["conversions"], group["spend"])
+            group["campaignCount"] = len(parish_campaigns.get(parish_name, set()))
+
+        parish_rows = sorted(parish_groups.values(), key=lambda r: (-r["spend"], r["parish"]))
+        has_parish_data = bool(parish_rows)
+
+        # --- Demographics aggregation from MetaAgeGenderDaily ---
+        from integrations.models import MetaAgeGenderDaily
+
+        demo_qs = MetaAgeGenderDaily.objects.filter(tenant_id=tenant_id)
+        if filters.start_date:
+            demo_qs = demo_qs.filter(date_day__gte=filters.start_date)
+        if filters.end_date:
+            demo_qs = demo_qs.filter(date_day__lte=filters.end_date)
+        if filters.account_id:
+            aliases = _normalize_account_aliases(filters.account_id)
+            demo_qs = demo_qs.filter(account_id__in=aliases)
+
+        age_groups: dict[str, dict[str, Any]] = {}
+        gender_groups: dict[str, dict[str, Any]] = {}
+        age_gender_groups: dict[str, dict[str, Any]] = {}
+
+        for demo_record in demo_qs.iterator():
+            ar = demo_record.age_range
+            g = demo_record.gender
+            spend_val = _to_float(demo_record.spend)
+
+            # By age
+            age_grp = age_groups.setdefault(ar, {"ageRange": ar, "spend": 0.0, "impressions": 0, "clicks": 0, "conversions": 0, "reach": 0})
+            age_grp["spend"] += spend_val
+            age_grp["impressions"] += demo_record.impressions
+            age_grp["clicks"] += demo_record.clicks
+            age_grp["conversions"] += demo_record.conversions
+            age_grp["reach"] += demo_record.reach
+
+            # By gender
+            gen_grp = gender_groups.setdefault(g, {"gender": g, "spend": 0.0, "impressions": 0, "clicks": 0, "conversions": 0, "reach": 0})
+            gen_grp["spend"] += spend_val
+            gen_grp["impressions"] += demo_record.impressions
+            gen_grp["clicks"] += demo_record.clicks
+            gen_grp["conversions"] += demo_record.conversions
+            gen_grp["reach"] += demo_record.reach
+
+            # By age+gender
+            ag_key = f"{ar}|{g}"
+            ag_grp = age_gender_groups.setdefault(ag_key, {"ageRange": ar, "gender": g, "spend": 0.0, "impressions": 0, "clicks": 0, "conversions": 0, "reach": 0})
+            ag_grp["spend"] += spend_val
+            ag_grp["impressions"] += demo_record.impressions
+            ag_grp["clicks"] += demo_record.clicks
+            ag_grp["conversions"] += demo_record.conversions
+            ag_grp["reach"] += demo_record.reach
+
+        demographics = {
+            "byAge": sorted(age_groups.values(), key=lambda r: r["ageRange"]),
+            "byGender": sorted(gender_groups.values(), key=lambda r: r["gender"]),
+            "byAgeGender": sorted(age_gender_groups.values(), key=lambda r: (r["ageRange"], r["gender"])),
+        }
+        has_demographics = bool(age_groups)
+
         availability = {
             "campaign": {
                 "status": "available" if campaign_rows else "empty",
@@ -471,9 +626,13 @@ class MetaDirectAdapter(MetricsAdapter):
                 "reason": None if budget_rows else ("budget_unavailable" if campaign_rows else "no_recent_data"),
             },
             "parish_map": {
-                "status": "unavailable" if campaign_rows else "empty",
-                "reason": "geo_unavailable" if campaign_rows else "no_recent_data",
-                "coverage_percent": 0.0,
+                "status": "available" if has_parish_data else ("unavailable" if campaign_rows else "empty"),
+                "reason": None if has_parish_data else ("geo_unavailable" if campaign_rows else "no_recent_data"),
+                "coverage_percent": (len(parish_groups) / JAMAICA_PARISH_COUNT * 100) if has_parish_data else 0.0,
+            },
+            "demographics": {
+                "status": "available" if has_demographics else "empty",
+                "reason": None if has_demographics else "no_recent_data",
             },
         }
 
@@ -486,7 +645,8 @@ class MetaDirectAdapter(MetricsAdapter):
             },
             "creative": sorted(creative_rows, key=lambda row: (-row["spend"], row["name"])),
             "budget": sorted(budget_rows, key=lambda row: (-row["spendToDate"], row["campaignName"])),
-            "parish": [],
+            "parish": parish_rows,
+            "demographics": demographics,
             "coverage": coverage,
             "availability": availability,
             "snapshot_generated_at": _snapshot_generated_at(records),

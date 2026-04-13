@@ -294,6 +294,12 @@ def test_sync_meta_insights_incremental_persists_metrics(monkeypatch, user):
                 }
             ]
 
+        def list_insights_by_region(self, **kwargs):  # noqa: ANN003
+            return []
+
+        def list_insights_by_age_gender(self, **kwargs):  # noqa: ANN003
+            return []
+
     monkeypatch.setattr("integrations.tasks.MetaGraphClient.from_settings", lambda: DummyClient())
     result = sync_meta_insights_incremental.run(level="ad", since="2026-01-01", until="2026-01-31")
     assert result["processed"] == 1
@@ -407,6 +413,12 @@ def test_sync_meta_reporting_slice_updates_direct_sync_state(monkeypatch, user):
                     "actions": [{"action_type": "purchase", "value": "3"}],
                 }
             ]
+
+        def list_insights_by_region(self, **kwargs):  # noqa: ANN003
+            return []
+
+        def list_insights_by_age_gender(self, **kwargs):  # noqa: ANN003
+            return []
 
     observed: dict[str, str] = {}
 

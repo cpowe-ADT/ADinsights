@@ -796,5 +796,6 @@ export function buildMetricsFromUpload(
     tenantId,
     currency,
     snapshotGeneratedAt: dataset.uploadedAt,
+    demographics: undefined,
   };
 }

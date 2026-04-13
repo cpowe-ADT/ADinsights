@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -217,8 +217,10 @@ describe('DashboardLayout', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.queryByRole('link', { name: 'Create' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Campaigns' })).toBeInTheDocument();
+    // Nav links are inside dropdowns — open the Dashboards dropdown first
+    fireEvent.click(screen.getByRole('button', { name: /dashboards/i }));
+    expect(screen.queryByRole('menuitem', { name: 'Create' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Campaigns' })).toBeInTheDocument();
   });
 
   it('does not overwrite saved dashboard filters from an empty route query', () => {
