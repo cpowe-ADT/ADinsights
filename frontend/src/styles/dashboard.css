@@ -637,6 +637,57 @@
   padding-left: var(--space-4);
 }
 
+.parishSubheading {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+/* Campaign list in parish detail */
+.parishCampaignList {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-2);
+}
+
+.parishCampaignItems {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.parishCampaignItem {
+  padding: var(--space-2) var(--space-3);
+  border-radius: 6px;
+  font-size: var(--font-size-small, 0.8125rem);
+  color: var(--color-text-primary);
+  background: rgba(148, 163, 184, 0.04);
+}
+
+.parishCampaignItem:hover {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.parishCampaignName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+/* Demographics mini-view in parish detail */
+.parishDemographicsMini {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-2);
+}
+
 /* Analysis section divider */
 .parishAnalysisSection {
   grid-column: 1 / -1;

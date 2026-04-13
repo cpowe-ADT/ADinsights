@@ -552,9 +552,32 @@ class MetaDirectAdapter(MetricsAdapter):
             if region_record.campaign_id:
                 parish_campaigns.setdefault(parish_name, set()).add(region_record.campaign_id)
 
+        # Cross-reference campaign IDs with Campaign model to get names
+        all_campaign_ids: set[str] = set()
+        for ids in parish_campaigns.values():
+            all_campaign_ids.update(ids)
+
+        campaign_name_map: dict[str, str] = {}
+        if all_campaign_ids:
+            from analytics.models import Campaign
+
+            for c in Campaign.objects.filter(
+                tenant_id=tenant_id,
+                external_id__in=list(all_campaign_ids),
+            ).only("external_id", "name"):
+                campaign_name_map[c.external_id] = c.name
+
         for parish_name, group in parish_groups.items():
             group["roas"] = _safe_divide(group["conversions"], group["spend"])
-            group["campaignCount"] = len(parish_campaigns.get(parish_name, set()))
+            ids = parish_campaigns.get(parish_name, set())
+            group["campaignCount"] = len(ids)
+            group["campaigns"] = sorted(
+                [
+                    {"id": cid, "name": campaign_name_map.get(cid, cid)}
+                    for cid in ids
+                ],
+                key=lambda c: c["name"],
+            )
 
         parish_rows = sorted(parish_groups.values(), key=lambda r: (-r["spend"], r["parish"]))
         has_parish_data = bool(parish_rows)

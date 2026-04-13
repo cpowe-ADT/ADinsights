@@ -152,6 +152,11 @@ export interface BudgetPacingRow {
   endDate?: string;
 }
 
+export interface ParishCampaign {
+  id: string;
+  name: string;
+}
+
 export interface ParishAggregate {
   adAccountId?: string;
   parish: string;
@@ -167,6 +172,7 @@ export interface ParishAggregate {
   cpa?: number;
   frequency?: number;
   campaignCount?: number;
+  campaigns?: ParishCampaign[];
   currency?: string;
 }
 

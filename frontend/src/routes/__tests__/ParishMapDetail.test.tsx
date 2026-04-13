@@ -92,6 +92,7 @@ const mockState = {
   creative: { status: 'loaded', data: [], error: undefined },
   budget: { status: 'loaded', data: [], error: undefined },
   parish: { status: 'loaded', data: parishRows, error: undefined },
+  demographics: { status: 'loaded', data: undefined, error: undefined },
   availability: {
     campaign: { status: 'available' as const, reason: null },
     creative: { status: 'available' as const, reason: null },

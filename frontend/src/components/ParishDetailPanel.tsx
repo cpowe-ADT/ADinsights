@@ -1,14 +1,16 @@
-import type { ParishAggregate } from '../state/useDashboardStore';
+import type { DemographicsData, ParishAggregate } from '../state/useDashboardStore';
 import { formatCurrency, formatNumber, formatPercent, formatRatio } from '../lib/format';
 import DashboardState from './DashboardState';
+import AgeDistributionBar from './AgeDistributionBar';
 
 interface ParishDetailPanelProps {
   parish: ParishAggregate | undefined;
   currency: string;
+  demographics?: DemographicsData;
   onClear: () => void;
 }
 
-const ParishDetailPanel = ({ parish, currency, onClear }: ParishDetailPanelProps) => {
+const ParishDetailPanel = ({ parish, currency, demographics, onClear }: ParishDetailPanelProps) => {
   if (!parish) {
     return (
       <DashboardState
@@ -33,6 +35,9 @@ const ParishDetailPanel = ({ parish, currency, onClear }: ParishDetailPanelProps
     { label: 'Campaigns', value: formatNumber(parish.campaignCount ?? 0) },
   ];
 
+  const campaigns = parish.campaigns ?? [];
+  const hasDemographics = demographics && demographics.byAgeGender.length > 0;
+
   return (
     <div className="parishDetailContent">
       <h3 className="parishDetailHeading">{parish.parish}</h3>
@@ -44,6 +49,31 @@ const ParishDetailPanel = ({ parish, currency, onClear }: ParishDetailPanelProps
           </li>
         ))}
       </ul>
+
+      {campaigns.length > 0 && (
+        <div className="parishCampaignList">
+          <h4 className="parishSubheading">Active campaigns</h4>
+          <ul className="parishCampaignItems">
+            {campaigns.map((c) => (
+              <li key={c.id} className="parishCampaignItem">
+                <span className="parishCampaignName" title={c.name}>{c.name}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {hasDemographics && (
+        <div className="parishDemographicsMini">
+          <h4 className="parishSubheading">Audience snapshot</h4>
+          <AgeDistributionBar
+            data={demographics.byAgeGender}
+            metric="impressions"
+            currency={cur}
+          />
+        </div>
+      )}
+
       <div className="parishDetailActions">
         <button type="button" className="button tertiary" onClick={onClear}>
           Clear selection

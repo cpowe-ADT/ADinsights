@@ -29,6 +29,7 @@ const ParishMapDetail = () => {
     setSelectedParish,
     selectedMetric,
     campaignSummary,
+    demographics,
     loadAll,
   } = useDashboardStore((state) => ({
     parish: state.parish,
@@ -36,6 +37,7 @@ const ParishMapDetail = () => {
     setSelectedParish: state.setSelectedParish,
     selectedMetric: state.selectedMetric,
     campaignSummary: state.campaign.data?.summary,
+    demographics: state.demographics.data,
     loadAll: state.loadAll,
   }));
 
@@ -160,6 +162,7 @@ const ParishMapDetail = () => {
             <ParishDetailPanel
               parish={selectedParishData}
               currency={currency}
+              demographics={demographics}
               onClear={clearSelection}
             />
           </Card>
