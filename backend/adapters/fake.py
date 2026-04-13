@@ -191,6 +191,59 @@ class FakeAdapter(MetricsAdapter):
                 "currency": "USD",
             },
         ],
+        "demographics": {
+            "byAge": [
+                {"ageRange": "18-24", "spend": 180.0, "impressions": 42000, "clicks": 1450, "conversions": 52, "reach": 27500},
+                {"ageRange": "25-34", "spend": 420.0, "impressions": 98000, "clicks": 3400, "conversions": 128, "reach": 64100},
+                {"ageRange": "35-44", "spend": 310.0, "impressions": 72000, "clicks": 2500, "conversions": 94, "reach": 47000},
+                {"ageRange": "45-54", "spend": 160.0, "impressions": 38000, "clicks": 1320, "conversions": 48, "reach": 24800},
+                {"ageRange": "55-64", "spend": 80.0, "impressions": 22000, "clicks": 680, "conversions": 22, "reach": 14400},
+                {"ageRange": "65+", "spend": 40.0, "impressions": 10000, "clicks": 350, "conversions": 11, "reach": 6500},
+            ],
+            "byGender": [
+                {"gender": "female", "spend": 680.0, "impressions": 160000, "clicks": 5540, "conversions": 203, "reach": 104600},
+                {"gender": "male", "spend": 480.0, "impressions": 112000, "clicks": 3880, "conversions": 140, "reach": 73200},
+                {"gender": "unknown", "spend": 30.0, "impressions": 10000, "clicks": 280, "conversions": 12, "reach": 6500},
+            ],
+            "byAgeGender": [
+                {"ageRange": "18-24", "gender": "female", "spend": 105.0, "impressions": 24500, "clicks": 860, "conversions": 32, "reach": 16000},
+                {"ageRange": "18-24", "gender": "male", "spend": 75.0, "impressions": 17500, "clicks": 590, "conversions": 20, "reach": 11500},
+                {"ageRange": "25-34", "gender": "female", "spend": 245.0, "impressions": 57000, "clicks": 2000, "conversions": 76, "reach": 37300},
+                {"ageRange": "25-34", "gender": "male", "spend": 175.0, "impressions": 41000, "clicks": 1400, "conversions": 52, "reach": 26800},
+                {"ageRange": "35-44", "gender": "female", "spend": 180.0, "impressions": 42000, "clicks": 1460, "conversions": 55, "reach": 27400},
+                {"ageRange": "35-44", "gender": "male", "spend": 130.0, "impressions": 30000, "clicks": 1040, "conversions": 39, "reach": 19600},
+                {"ageRange": "45-54", "gender": "female", "spend": 95.0, "impressions": 22000, "clicks": 780, "conversions": 28, "reach": 14400},
+                {"ageRange": "45-54", "gender": "male", "spend": 65.0, "impressions": 16000, "clicks": 540, "conversions": 20, "reach": 10400},
+                {"ageRange": "55-64", "gender": "female", "spend": 45.0, "impressions": 12000, "clicks": 380, "conversions": 10, "reach": 7800},
+                {"ageRange": "55-64", "gender": "male", "spend": 35.0, "impressions": 10000, "clicks": 300, "conversions": 12, "reach": 6600},
+                {"ageRange": "65+", "gender": "female", "spend": 10.0, "impressions": 2500, "clicks": 60, "conversions": 2, "reach": 1700},
+                {"ageRange": "65+", "gender": "male", "spend": 30.0, "impressions": 7500, "clicks": 290, "conversions": 9, "reach": 4800},
+            ],
+        },
+        "platforms": {
+            "byPlatform": [
+                {"platform": "facebook", "spend": 640.0, "impressions": 150000, "clicks": 5200, "conversions": 190, "reach": 98000},
+                {"platform": "instagram", "spend": 430.0, "impressions": 100000, "clicks": 3500, "conversions": 128, "reach": 65400},
+                {"platform": "audience_network", "spend": 80.0, "impressions": 22000, "clicks": 680, "conversions": 25, "reach": 14400},
+                {"platform": "messenger", "spend": 40.0, "impressions": 10000, "clicks": 320, "conversions": 12, "reach": 6500},
+            ],
+            "byDevice": [
+                {"device": "mobile_app", "spend": 750.0, "impressions": 176000, "clicks": 6100, "conversions": 224, "reach": 115000},
+                {"device": "mobile_web", "spend": 300.0, "impressions": 70000, "clicks": 2420, "conversions": 88, "reach": 45700},
+                {"device": "desktop", "spend": 140.0, "impressions": 36000, "clicks": 1180, "conversions": 43, "reach": 23500},
+            ],
+            "byPlatformDevice": [
+                {"platform": "facebook", "device": "mobile_app", "spend": 380.0, "impressions": 89000, "clicks": 3100, "conversions": 114, "reach": 58200},
+                {"platform": "facebook", "device": "mobile_web", "spend": 170.0, "impressions": 40000, "clicks": 1380, "conversions": 50, "reach": 26100},
+                {"platform": "facebook", "device": "desktop", "spend": 90.0, "impressions": 21000, "clicks": 720, "conversions": 26, "reach": 13700},
+                {"platform": "instagram", "device": "mobile_app", "spend": 320.0, "impressions": 75000, "clicks": 2600, "conversions": 95, "reach": 49000},
+                {"platform": "instagram", "device": "mobile_web", "spend": 80.0, "impressions": 18000, "clicks": 640, "conversions": 23, "reach": 11800},
+                {"platform": "instagram", "device": "desktop", "spend": 30.0, "impressions": 7000, "clicks": 260, "conversions": 10, "reach": 4600},
+                {"platform": "audience_network", "device": "mobile_app", "spend": 50.0, "impressions": 12000, "clicks": 400, "conversions": 15, "reach": 7800},
+                {"platform": "audience_network", "device": "mobile_web", "spend": 30.0, "impressions": 10000, "clicks": 280, "conversions": 10, "reach": 6600},
+                {"platform": "messenger", "device": "mobile_app", "spend": 40.0, "impressions": 10000, "clicks": 320, "conversions": 12, "reach": 6500},
+            ],
+        },
     }
 
     def fetch_metrics(
