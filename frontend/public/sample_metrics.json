@@ -288,6 +288,10 @@
       "conversions": 260,
       "roas": 4.6,
       "campaignCount": 2,
+      "campaigns": [
+        {"id": "camp_001", "name": "Kingston Brand Awareness"},
+        {"id": "camp_002", "name": "Kingston Holiday Promo"}
+      ],
       "currency": "JMD"
     },
     {
@@ -298,6 +302,9 @@
       "conversions": 180,
       "roas": 3.9,
       "campaignCount": 1,
+      "campaigns": [
+        {"id": "camp_003", "name": "Montego Bay Tourism Push"}
+      ],
       "currency": "JMD"
     },
     {
@@ -308,6 +315,9 @@
       "conversions": 100,
       "roas": 4.1,
       "campaignCount": 1,
+      "campaigns": [
+        {"id": "camp_004", "name": "Spanish Town Reach Campaign"}
+      ],
       "currency": "JMD"
     },
     {
@@ -318,6 +328,9 @@
       "conversions": 80,
       "roas": 4.4,
       "campaignCount": 1,
+      "campaigns": [
+        {"id": "camp_005", "name": "Ocho Rios Seasonal Drive"}
+      ],
       "currency": "JMD"
     }
   ]

@@ -260,6 +260,8 @@ export interface DashboardAvailability {
   creative: DashboardSectionAvailability;
   budget: DashboardSectionAvailability;
   parish_map: DashboardSectionAvailability;
+  demographics?: DashboardSectionAvailability;
+  platforms?: DashboardSectionAvailability;
 }
 
 export interface TenantMetricsSnapshot {
@@ -1075,6 +1077,18 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
             error: undefined,
             errorKind: undefined,
           },
+          demographics: {
+            status: 'loaded',
+            data: cachedMetrics.demographics,
+            error: undefined,
+            errorKind: undefined,
+          },
+          platforms: {
+            status: 'loaded',
+            data: cachedMetrics.platforms,
+            error: undefined,
+            errorKind: undefined,
+          },
         }));
         return;
       }
@@ -1109,6 +1123,18 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           parish: {
             status: 'loaded',
             data: cachedMetrics.parish,
+            error: undefined,
+            errorKind: undefined,
+          },
+          demographics: {
+            status: 'loaded',
+            data: cachedMetrics.demographics,
+            error: undefined,
+            errorKind: undefined,
+          },
+          platforms: {
+            status: 'loaded',
+            data: cachedMetrics.platforms,
             error: undefined,
             errorKind: undefined,
           },
