@@ -1878,25 +1878,28 @@ def _upsert_meta_region_rows(
             continue
         campaign_id = str(row.get("campaign_id") or "")
         actions = row.get("actions") if isinstance(row.get("actions"), list) else []
-        MetaRegionDaily.all_objects.update_or_create(
-            tenant=tenant,
-            account_id=account_id,
-            campaign_id=campaign_id,
-            date_day=record_date,
-            region=region,
-            defaults={
-                "country": str(row.get("country") or ""),
-                "currency": currency,
-                "impressions": _int_value(row.get("impressions")),
-                "reach": _int_value(row.get("reach")),
-                "clicks": _int_value(row.get("clicks")),
-                "spend": _decimal(row.get("spend")),
-                "conversions": _insight_conversions(actions),
-                "actions": actions,
-                "raw_payload": row,
-            },
-        )
-        persisted += 1
+        try:
+            MetaRegionDaily.all_objects.update_or_create(
+                tenant=tenant,
+                account_id=account_id,
+                campaign_id=campaign_id,
+                date_day=record_date,
+                region=region,
+                defaults={
+                    "country": str(row.get("country") or ""),
+                    "currency": currency,
+                    "impressions": _int_value(row.get("impressions")),
+                    "reach": _int_value(row.get("reach")),
+                    "clicks": _int_value(row.get("clicks")),
+                    "spend": _decimal(row.get("spend")),
+                    "conversions": _insight_conversions(actions),
+                    "actions": actions,
+                    "raw_payload": row,
+                },
+            )
+            persisted += 1
+        except Exception:
+            logger.exception("Failed to upsert MetaRegionDaily row for region=%s date=%s", region, record_date)
     return persisted
 
 
@@ -1919,24 +1922,27 @@ def _upsert_meta_age_gender_rows(
         if not record_date:
             continue
         actions = row.get("actions") if isinstance(row.get("actions"), list) else []
-        MetaAgeGenderDaily.all_objects.update_or_create(
-            tenant=tenant,
-            account_id=account_id,
-            date_day=record_date,
-            age_range=age_range,
-            gender=gender,
-            defaults={
-                "currency": currency,
-                "impressions": _int_value(row.get("impressions")),
-                "reach": _int_value(row.get("reach")),
-                "clicks": _int_value(row.get("clicks")),
-                "spend": _decimal(row.get("spend")),
-                "conversions": _insight_conversions(actions),
-                "actions": actions,
-                "raw_payload": row,
-            },
-        )
-        persisted += 1
+        try:
+            MetaAgeGenderDaily.all_objects.update_or_create(
+                tenant=tenant,
+                account_id=account_id,
+                date_day=record_date,
+                age_range=age_range,
+                gender=gender,
+                defaults={
+                    "currency": currency,
+                    "impressions": _int_value(row.get("impressions")),
+                    "reach": _int_value(row.get("reach")),
+                    "clicks": _int_value(row.get("clicks")),
+                    "spend": _decimal(row.get("spend")),
+                    "conversions": _insight_conversions(actions),
+                    "actions": actions,
+                    "raw_payload": row,
+                },
+            )
+            persisted += 1
+        except Exception:
+            logger.exception("Failed to upsert MetaAgeGenderDaily row for age=%s gender=%s date=%s", age_range, gender, record_date)
     return persisted
 
 
@@ -1959,24 +1965,27 @@ def _upsert_meta_platform_rows(
         if not record_date:
             continue
         actions = row.get("actions") if isinstance(row.get("actions"), list) else []
-        MetaPlatformDaily.all_objects.update_or_create(
-            tenant=tenant,
-            account_id=account_id,
-            date_day=record_date,
-            publisher_platform=publisher_platform,
-            device_platform=device_platform,
-            defaults={
-                "currency": currency,
-                "impressions": _int_value(row.get("impressions")),
-                "reach": _int_value(row.get("reach")),
-                "clicks": _int_value(row.get("clicks")),
-                "spend": _decimal(row.get("spend")),
-                "conversions": _insight_conversions(actions),
-                "actions": actions,
-                "raw_payload": row,
-            },
-        )
-        persisted += 1
+        try:
+            MetaPlatformDaily.all_objects.update_or_create(
+                tenant=tenant,
+                account_id=account_id,
+                date_day=record_date,
+                publisher_platform=publisher_platform,
+                device_platform=device_platform,
+                defaults={
+                    "currency": currency,
+                    "impressions": _int_value(row.get("impressions")),
+                    "reach": _int_value(row.get("reach")),
+                    "clicks": _int_value(row.get("clicks")),
+                    "spend": _decimal(row.get("spend")),
+                    "conversions": _insight_conversions(actions),
+                    "actions": actions,
+                    "raw_payload": row,
+                },
+            )
+            persisted += 1
+        except Exception:
+            logger.exception("Failed to upsert MetaPlatformDaily row for platform=%s device=%s date=%s", publisher_platform, device_platform, record_date)
     return persisted
 
 

@@ -1451,6 +1451,8 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
               data: state.parish.data,
               ...mapError(parishErrorReason),
             },
+        demographics: state.demographics,
+        platforms: state.platforms,
         metricsCache: updatedCache,
       };
     });

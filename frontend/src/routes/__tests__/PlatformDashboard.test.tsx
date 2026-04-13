@@ -159,8 +159,8 @@ describe('PlatformDashboard', () => {
 
   it('shows error state on platforms error', () => {
     dashboardStoreMock.platforms = {
-      status: 'error' as const,
-      data: undefined as never,
+      status: 'error',
+      data: undefined,
       error: 'Failed to fetch platform data',
     };
 

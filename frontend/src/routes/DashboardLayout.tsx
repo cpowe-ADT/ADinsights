@@ -84,6 +84,7 @@ const segmentLabels: Record<string, string> = {
   'change-log': 'Change log & governance',
   recommendations: 'Recommendations',
   reports: 'Reports & exports',
+  audience: 'Audience',
   platforms: 'Platforms',
   map: 'Map',
   saved: 'Saved dashboard',

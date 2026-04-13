@@ -164,8 +164,8 @@ describe('AudienceDashboard', () => {
 
   it('shows error state on demographics error', () => {
     dashboardStoreMock.demographics = {
-      status: 'error' as const,
-      data: undefined as never,
+      status: 'error',
+      data: undefined,
       error: 'Failed to fetch demographics',
     };
 
