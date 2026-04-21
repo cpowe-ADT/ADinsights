@@ -1,11 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import type { ColumnDef } from '@tanstack/react-table';
 
 import Breadcrumbs from '../components/Breadcrumbs';
 import EmptyState from '../components/EmptyState';
+import { AccessibleTableToggle, VizDataTable } from '../components/viz';
 import { loadSocialConnectionStatus, type SocialPlatformStatusRecord } from '../lib/airbyte';
 import useMetaPageInsightsStore from '../state/useMetaPageInsightsStore';
 import '../styles/dashboard.css';
+
+type PageRow = {
+  id: string;
+  page_id: string;
+  name: string;
+  category: string;
+  can_analyze: string;
+  is_default: string;
+  last_synced_at: string;
+};
 
 const MetaPagesListPage = () => {
   const navigate = useNavigate();
@@ -59,6 +71,31 @@ const MetaPagesListPage = () => {
   const orphanedMarketingAccess = useMemo(
     () => metaStatus?.reason.code === 'orphaned_marketing_access',
     [metaStatus?.reason.code],
+  );
+
+  const tableRows: PageRow[] = useMemo(
+    () =>
+      pages.map((page) => ({
+        id: page.id,
+        page_id: page.page_id,
+        name: page.name,
+        category: page.category || '—',
+        can_analyze: page.can_analyze ? 'Yes' : 'No',
+        is_default: page.is_default ? 'Yes' : 'No',
+        last_synced_at: page.last_synced_at ? page.last_synced_at.slice(0, 19) : '—',
+      })),
+    [pages],
+  );
+
+  const vizColumns = useMemo<ColumnDef<PageRow, unknown>[]>(
+    () => [
+      { accessorKey: 'name', header: 'Page' },
+      { accessorKey: 'category', header: 'Category' },
+      { accessorKey: 'can_analyze', header: 'Analyze' },
+      { accessorKey: 'is_default', header: 'Default' },
+      { accessorKey: 'last_synced_at', header: 'Last synced' },
+    ],
+    [],
   );
 
   return (
@@ -117,6 +154,7 @@ const MetaPagesListPage = () => {
           actionLabel="Retry"
           onAction={() => void loadPages()}
           className="panel"
+          reasonCode="error"
         />
       ) : null}
 
@@ -135,6 +173,7 @@ const MetaPagesListPage = () => {
           secondaryActionLabel="Home"
           onSecondaryAction={() => navigate('/')}
           className="panel"
+          reasonCode="no_pages"
         />
       ) : null}
 
@@ -177,52 +216,70 @@ const MetaPagesListPage = () => {
       ) : null}
 
       {pages.length > 0 ? (
-        <article className="panel">
-          <div className="table-responsive">
-            <table className="dashboard-table">
-              <thead>
-                <tr className="dashboard-table__header-row">
-                  <th className="dashboard-table__header-cell">Page</th>
-                  <th className="dashboard-table__header-cell">Category</th>
-                  <th className="dashboard-table__header-cell">Analyze</th>
-                  <th className="dashboard-table__header-cell">Default</th>
-                  <th className="dashboard-table__header-cell">Last synced</th>
-                  <th className="dashboard-table__header-cell">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pages.map((page) => (
-                  <tr key={page.id} className="dashboard-table__row dashboard-table__row--zebra">
-                    <td className="dashboard-table__cell">{page.name}</td>
-                    <td className="dashboard-table__cell">{page.category || '—'}</td>
-                    <td className="dashboard-table__cell">{page.can_analyze ? 'Yes' : 'No'}</td>
-                    <td className="dashboard-table__cell">{page.is_default ? 'Yes' : 'No'}</td>
-                    <td className="dashboard-table__cell">{page.last_synced_at ? page.last_synced_at.slice(0, 19) : '—'}</td>
-                    <td className="dashboard-table__cell">
-                      <button
-                        type="button"
-                        className="button tertiary"
-                        onClick={() => {
-                          void selectDefaultPage(page.page_id).catch(() => undefined);
-                        }}
-                      >
-                        Set default
-                      </button>
-                      <button
-                        type="button"
-                        className="button tertiary"
-                        disabled={!page.can_analyze}
-                        onClick={() => navigate(`/dashboards/meta/pages/${page.page_id}/overview`)}
-                      >
-                        Open
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </article>
+        <AccessibleTableToggle
+          chartAriaLabel="Facebook pages directory"
+          chart={
+            <article className="panel" data-testid="meta-pages-default-view">
+              <div className="table-responsive">
+                <table className="dashboard-table">
+                  <thead>
+                    <tr className="dashboard-table__header-row">
+                      <th className="dashboard-table__header-cell">Page</th>
+                      <th className="dashboard-table__header-cell">Category</th>
+                      <th className="dashboard-table__header-cell">Analyze</th>
+                      <th className="dashboard-table__header-cell">Default</th>
+                      <th className="dashboard-table__header-cell">Last synced</th>
+                      <th className="dashboard-table__header-cell">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pages.map((page) => (
+                      <tr key={page.id} className="dashboard-table__row dashboard-table__row--zebra">
+                        <td className="dashboard-table__cell">{page.name}</td>
+                        <td className="dashboard-table__cell">{page.category || '—'}</td>
+                        <td className="dashboard-table__cell">{page.can_analyze ? 'Yes' : 'No'}</td>
+                        <td className="dashboard-table__cell">{page.is_default ? 'Yes' : 'No'}</td>
+                        <td className="dashboard-table__cell">{page.last_synced_at ? page.last_synced_at.slice(0, 19) : '—'}</td>
+                        <td className="dashboard-table__cell">
+                          <button
+                            type="button"
+                            className="button tertiary"
+                            onClick={() => {
+                              void selectDefaultPage(page.page_id).catch(() => undefined);
+                            }}
+                          >
+                            Set default
+                          </button>
+                          <button
+                            type="button"
+                            className="button tertiary"
+                            disabled={!page.can_analyze}
+                            onClick={() => navigate(`/dashboards/meta/pages/${page.page_id}/overview`)}
+                          >
+                            Open
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          }
+          table={
+            <article className="panel" data-testid="meta-pages-viz-table">
+              <VizDataTable
+                columns={vizColumns}
+                data={tableRows}
+                ariaLabel="Facebook pages directory"
+                caption="Facebook pages directory"
+                captionHidden
+                csvFilename="meta-pages.csv"
+                getRowId={(row) => row.id}
+              />
+            </article>
+          }
+        />
       ) : null}
     </section>
   );

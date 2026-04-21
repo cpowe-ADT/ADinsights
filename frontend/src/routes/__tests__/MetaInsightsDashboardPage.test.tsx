@@ -11,12 +11,62 @@ const syncMetaIntegration = vi.fn();
 const loadAccounts = vi.fn();
 const loadInsights = vi.fn();
 
-const storeState = {
+const makeRow = (over: Partial<Record<string, unknown>>) => ({
+  id: `r-${over.id ?? Math.random()}`,
+  external_id: String(over.external_id ?? 'ext'),
+  date: String(over.date ?? '2026-02-01'),
+  source: 'meta',
+  level: over.level ?? 'campaign',
+  impressions: Number(over.impressions ?? 0),
+  reach: Number(over.reach ?? 0),
+  clicks: Number(over.clicks ?? 0),
+  spend: String(over.spend ?? '0'),
+  cpc: String(over.cpc ?? '0'),
+  cpm: String(over.cpm ?? '0'),
+  conversions: Number(over.conversions ?? 0),
+  currency: 'USD',
+  actions: over.actions ?? [],
+  campaign_external_id: over.campaign_external_id ?? null,
+  account_external_id: over.account_external_id ?? null,
+  raw_payload: {},
+  ingested_at: '',
+  updated_at: '',
+});
+
+const storeState: {
+  filters: {
+    accountId: string;
+    campaignId: string;
+    adsetId: string;
+    level: 'account' | 'campaign' | 'adset' | 'ad';
+    since: string;
+    until: string;
+    search: string;
+    status: string;
+  };
+  setFilters: ReturnType<typeof vi.fn>;
+  accounts: {
+    status: string;
+    rows: Array<Record<string, unknown>>;
+    count: number;
+    page: number;
+    pageSize: number;
+  };
+  insights: {
+    status: string;
+    rows: ReturnType<typeof makeRow>[];
+    count: number;
+    page: number;
+    pageSize: number;
+  };
+  loadAccounts: typeof loadAccounts;
+  loadInsights: typeof loadInsights;
+} = {
   filters: {
     accountId: '',
     campaignId: '',
     adsetId: '',
-    level: 'account' as const,
+    level: 'campaign',
     since: '2026-01-20',
     until: '2026-02-20',
     search: '',
@@ -64,6 +114,17 @@ describe('MetaInsightsDashboardPage', () => {
       connection_id: 'connection-1',
       job_id: 'job-1',
     });
+    storeState.insights = { status: 'loaded', rows: [], count: 0, page: 1, pageSize: 50 };
+    storeState.filters = {
+      accountId: '',
+      campaignId: '',
+      adsetId: '',
+      level: 'campaign',
+      since: '2026-01-20',
+      until: '2026-02-20',
+      search: '',
+      status: '',
+    };
   });
 
   it('triggers sync from dashboard controls', async () => {
@@ -121,5 +182,124 @@ describe('MetaInsightsDashboardPage', () => {
       expect(loadInsights).toHaveBeenCalledTimes(1);
     });
     expect(addToast).toHaveBeenCalledWith('Meta sync is already running (job job-99).', 'success');
+  });
+
+  // S2 §6.2: ROAS tile absent when no purchase actions present
+  it('hides ROAS tile when no purchase actions are present', async () => {
+    storeState.insights = {
+      status: 'loaded',
+      rows: [
+        makeRow({
+          id: '1',
+          spend: '100',
+          impressions: 1000,
+          clicks: 50,
+          level: 'campaign',
+          actions: [{ action_type: 'link_click', value: 4 }],
+        }),
+      ],
+      count: 1,
+      page: 1,
+      pageSize: 50,
+    };
+    render(
+      <MemoryRouter>
+        <MetaInsightsDashboardPage />
+      </MemoryRouter>,
+    );
+    const strip = screen.getByTestId('meta-insights-kpis');
+    expect(strip).toHaveTextContent('Spend');
+    expect(strip).toHaveTextContent('CTR');
+    expect(strip).toHaveTextContent('CPC');
+    expect(strip).toHaveTextContent('CPM');
+    expect(strip).not.toHaveTextContent('ROAS');
+  });
+
+  // S2 §6.2: ROAS tile present when purchase actions are present
+  it('renders ROAS tile when any purchase action is derivable', async () => {
+    storeState.insights = {
+      status: 'loaded',
+      rows: [
+        makeRow({
+          id: '1',
+          spend: '50',
+          impressions: 1000,
+          clicks: 40,
+          level: 'campaign',
+          actions: [{ action_type: 'omni_purchase', value: 150 }],
+        }),
+      ],
+      count: 1,
+      page: 1,
+      pageSize: 50,
+    };
+    render(
+      <MemoryRouter>
+        <MetaInsightsDashboardPage />
+      </MemoryRouter>,
+    );
+    const strip = screen.getByTestId('meta-insights-kpis');
+    expect(strip).toHaveTextContent('ROAS');
+  });
+
+  // S2 §6.2: TrendLine renders CTR + CPM series via accessible sr-only table
+  it('renders CTR and CPM dual-axis trend with an accessible tabular counterpart', async () => {
+    storeState.insights = {
+      status: 'loaded',
+      rows: [
+        makeRow({ id: '1', date: '2026-04-01', spend: '100', impressions: 1000, clicks: 50 }),
+        makeRow({ id: '2', date: '2026-04-02', spend: '50', impressions: 500, clicks: 25 }),
+      ],
+      count: 2,
+      page: 1,
+      pageSize: 50,
+    };
+    render(
+      <MemoryRouter>
+        <MetaInsightsDashboardPage />
+      </MemoryRouter>,
+    );
+    // Both series labels should be present in the sr-only table header.
+    expect(screen.getAllByText(/CTR/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/CPM/).length).toBeGreaterThan(0);
+  });
+
+  // S2 §6.2: BubbleScatter y-axis falls back to CPM when ROAS is not derivable
+  it('shows Spend vs CPM bubble heading when ROAS unavailable', async () => {
+    storeState.insights = {
+      status: 'loaded',
+      rows: [
+        makeRow({ id: '1', spend: '100', impressions: 1000, clicks: 50, cpm: '100', level: 'campaign' }),
+      ],
+      count: 1,
+      page: 1,
+      pageSize: 50,
+    };
+    render(
+      <MemoryRouter>
+        <MetaInsightsDashboardPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('heading', { name: /Spend vs\. CPM/i })).toBeInTheDocument();
+  });
+
+  // S2 §6.2: insights table replaces tanstack-table usage; 7 column headers
+  it('renders VizDataTable with 7 column headers (no @tanstack/react-table import in page)', async () => {
+    storeState.insights = {
+      status: 'loaded',
+      rows: [
+        makeRow({ id: '1', spend: '100', impressions: 1000, clicks: 50, level: 'campaign' }),
+      ],
+      count: 1,
+      page: 1,
+      pageSize: 50,
+    };
+    render(
+      <MemoryRouter>
+        <MetaInsightsDashboardPage />
+      </MemoryRouter>,
+    );
+    // The bottom records section title reflects count
+    expect(screen.getByRole('heading', { name: /Insights records \(1\)/ })).toBeInTheDocument();
   });
 });

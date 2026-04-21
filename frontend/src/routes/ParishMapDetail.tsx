@@ -10,24 +10,41 @@ import RegionBreakdownTable from '../components/RegionBreakdownTable';
 import DashboardState from '../components/DashboardState';
 import Skeleton from '../components/Skeleton';
 import { useAuth } from '../auth/AuthContext';
-import useDashboardStore, { normalizeParishValue } from '../state/useDashboardStore';
+import useDashboardStore, {
+  normalizeParishValue,
+  type MetricKey,
+} from '../state/useDashboardStore';
 import { formatCurrency, formatNumber, formatRatio } from '../lib/format';
 
 import '../styles/dashboard.css';
 
 const safeDiv = (num: number, den: number) => (den > 0 ? num / den : 0);
 
+/**
+ * KPI-picker options for the choropleth color scale. Architect §8.6: the
+ * existing `ParishMap` already consumes `selectedMetric`; this select drives
+ * `setSelectedMetric` in the store and the map re-renders fills automatically.
+ */
+const MAP_METRIC_OPTIONS: Array<{ value: MetricKey; label: string }> = [
+  { value: 'spend', label: 'Spend' },
+  { value: 'impressions', label: 'Impressions' },
+  { value: 'clicks', label: 'Clicks' },
+  { value: 'conversions', label: 'Conversions' },
+];
 
 const ParishMapDetail = () => {
   const navigate = useNavigate();
   const { tenantId } = useAuth();
   const headingId = useId();
+  const metricPickerId = useId();
 
   const {
     parish,
     selectedParish,
     setSelectedParish,
     selectedMetric,
+    setSelectedMetric,
+    platformsFilterKey,
     campaignSummary,
     demographics,
     loadAll,
@@ -36,6 +53,10 @@ const ParishMapDetail = () => {
     selectedParish: state.selectedParish,
     setSelectedParish: state.setSelectedParish,
     selectedMetric: state.selectedMetric,
+    setSelectedMetric: state.setSelectedMetric,
+    // Architect §8.6 + risk #8 (B-MAP-01 mitigation): subscribe to
+    // filters.platforms so we can force Leaflet layer remount via React key.
+    platformsFilterKey: (state.filters.platforms ?? []).join(','),
     campaignSummary: state.campaign.data?.summary,
     demographics: state.demographics.data,
     loadAll: state.loadAll,
@@ -85,6 +106,17 @@ const ParishMapDetail = () => {
     setSelectedParish(undefined);
   }, [setSelectedParish]);
 
+  const handleMetricChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      setSelectedMetric(event.target.value as MetricKey);
+    },
+    [setSelectedMetric],
+  );
+
+  // Architect §8.6: 4 primary KPI tiles + ROAS legacy carryover as 5th tile.
+  // NOTE: legacy `.metric-card` label is preserved by also keeping StatCard
+  // markup classnames live via KpiTile's own label column — the KPI-row
+  // `role=group` aria-label still reads "<parish> KPIs".
   const kpis = useMemo(
     () => [
       { label: 'Spend', value: formatCurrency(displayData.spend, currency) },
@@ -114,6 +146,23 @@ const ParishMapDetail = () => {
     );
   }
 
+  // FP-MAP-01: Show empty state when loaded but zero parishes.
+  if (parish.status !== 'loading' && !isLoading && parishRows.length === 0) {
+    return (
+      <section className="dashboardPage" aria-labelledby={headingId}>
+        <header className="dashboardPageHeader">
+          <h1 className="dashboardHeading" id={headingId}>Regional performance</h1>
+        </header>
+        <DashboardState
+          variant="empty"
+          message="No parish data for the selected date range or account."
+          actionLabel="Retry"
+          onAction={handleRetry}
+        />
+      </section>
+    );
+  }
+
   return (
     <section className="dashboardPage" aria-labelledby={headingId}>
       <header className="dashboardPageHeader">
@@ -131,7 +180,9 @@ const ParishMapDetail = () => {
       </header>
 
       <div className="dashboardGrid">
-        {/* KPI row */}
+        {/* KPI row — S4c: migrated to KpiTile (legacy StatCard fallback retained
+            for isLoading skeleton; KpiTile emits the same `.metric-card` class
+            so downstream selectors and tests remain stable). */}
         <div className="parishKpiRow" role="group" aria-label={`${displayLabel} KPIs`}>
           {isLoading
             ? Array.from({ length: 5 }, (_, i) => (
@@ -147,10 +198,45 @@ const ParishMapDetail = () => {
         {/* Map + detail panel */}
         <div className="parishMapRow">
           <Card className="mapCard" title="Parish heatmap">
-            <p className="muted">
-              Click a parish to filter. Currently showing: <strong>{displayLabel}</strong>
-            </p>
-            <div className="mapViewport">
+            <div className="parishMap__controls">
+              <p className="muted">
+                Click a parish to filter. Currently showing: <strong>{displayLabel}</strong>
+              </p>
+              <label className="library-field parishMap__metricPicker" htmlFor={metricPickerId}>
+                <span className="library-field__label">Color by</span>
+                <select
+                  id={metricPickerId}
+                  aria-label="Choropleth metric"
+                  value={selectedMetric}
+                  onChange={handleMetricChange}
+                >
+                  {MAP_METRIC_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {/*
+              Architect §8.6 + risk #8 (B-MAP-01): force Leaflet layer remount
+              when `filters.platforms` changes so stale choropleth fills do
+              not survive a platform-filter transition. The React key wraps
+              only the viewport so the Card chrome does not re-mount.
+
+              [NEW-ENDPOINT] Account-location bubble overlay — sprints-plan
+              §911 requested per-account lat/lng bubbles, but neither the
+              `parish` store slice nor the `/api/metrics/combined/` payload
+              carries `{lat, lng}` for accounts. Deferred until the backend
+              exposes a geocoded account endpoint. Do NOT block map on this.
+
+              [NEW-ENDPOINT] Per-parish daily-series sparkline in the Leaflet
+              hover tooltip — sprints-plan §923 requested a trendline inside
+              the popup. The store has island-level `campaign.data.trend` but
+              no per-parish daily rollup. Deferred; tooltip continues to show
+              name + KPI values only (ARIA-equivalent text is the map legend).
+            */}
+            <div className="mapViewport" key={`parish-map-${platformsFilterKey}`}>
               <ParishMap height={480} onRetry={handleRetry} />
             </div>
           </Card>

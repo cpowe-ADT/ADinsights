@@ -11,6 +11,8 @@ interface EmptyStateProps {
   onSecondaryAction?: () => void;
   secondaryActionVariant?: 'primary' | 'secondary' | 'tertiary';
   className?: string;
+  /** FP-CC-01: Stable identifier for testing, analytics, and future i18n. */
+  reasonCode?: string;
 }
 
 const EmptyState = ({
@@ -24,6 +26,7 @@ const EmptyState = ({
   onSecondaryAction,
   secondaryActionVariant = 'tertiary',
   className,
+  reasonCode,
 }: EmptyStateProps) => {
   const classes = ['empty-state', className].filter(Boolean).join(' ');
   const buttonClass = ['button', actionVariant].filter(Boolean).join(' ');
@@ -33,7 +36,7 @@ const EmptyState = ({
   const showActions = showPrimaryAction || showSecondaryAction;
 
   return (
-    <div className={classes} role="status" aria-live="polite">
+    <div className={classes} role="status" aria-live="polite" data-reason-code={reasonCode}>
       <div className="empty-state__icon" aria-hidden="true">
         {icon}
       </div>

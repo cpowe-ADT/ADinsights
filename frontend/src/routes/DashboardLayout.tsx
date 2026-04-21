@@ -10,8 +10,11 @@ import {
 
 import { useAuth } from '../auth/AuthContext';
 import Breadcrumbs from '../components/Breadcrumbs';
+import ClientSuggestionBanner from '../components/ClientSuggestionBanner';
 import FilterBar, {
   type FilterBarAccountOption,
+  type FilterBarClientOption,
+  type FilterBarPlatformOption,
   type FilterBarState,
 } from '../components/FilterBar';
 import { useTheme } from '../components/ThemeProvider';
@@ -28,14 +31,17 @@ import {
   sortLiveAccountOptions,
 } from '../lib/liveAccountSelection';
 import { loadMetaAccounts } from '../lib/meta';
+import { listClients, type ClientSummary } from '../lib/clients';
 import { canAccessCreatorUi } from '../lib/rbac';
 import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
 import { MOCK_MODE } from '../lib/apiClient';
 import { messageForLiveDatasetReason } from '../lib/datasetStatus';
 import {
   areFiltersEqual,
+  arePlatformArraysEqual,
   createDefaultFilterState,
   parseFilterQueryParams,
+  resolveRoutePlatformScope,
   serializeFilterQueryParams,
 } from '../lib/dashboardFilters';
 import DatasetToggle from '../components/DatasetToggle';
@@ -44,6 +50,21 @@ import SnapshotIndicator from '../components/SnapshotIndicator';
 import StatusBanner from '../components/StatusBanner';
 import useDashboardStore from '../state/useDashboardStore';
 import { useDatasetStore } from '../state/useDatasetStore';
+import useMetaStore from '../state/useMetaStore';
+// Sprint 8 of Client grouping: combined view's toggleable platform set. Kept
+// in sync with PlatformRegistry.COMBINED_SUPPORTED on the backend.
+const COMBINED_PLATFORM_OPTIONS: FilterBarPlatformOption[] = [
+  { value: 'meta_ads', label: 'Meta Ads' },
+  { value: 'google_ads', label: 'Google Ads' },
+];
+
+// Sprint 10 polish: the Meta workspace should only show Meta data, and the
+// Google Ads workspace should only show Google data. The integrated/combined
+// dashboards (Campaigns, Creatives, Budget, Audience, Platforms, Map) keep
+// both toggles. Returning ``null`` means "combined view — no route scope".
+// resolveRoutePlatformScope and arePlatformArraysEqual are imported from
+// ../lib/dashboardFilters so they can be unit-tested in isolation (R6).
+
 const metricOptions = [
   { value: 'spend', label: 'Spend' },
   { value: 'impressions', label: 'Impressions' },
@@ -85,7 +106,7 @@ const segmentLabels: Record<string, string> = {
   recommendations: 'Recommendations',
   reports: 'Reports & exports',
   audience: 'Audience',
-  platforms: 'Platforms',
+  platforms: 'All platforms (combined)',
   map: 'Map',
   saved: 'Saved dashboard',
   uploads: 'CSV uploads',
@@ -108,6 +129,7 @@ const DashboardLayout = () => {
   const addToast = useToastStore((s) => s.addToast);
   const [isScrolled, setIsScrolled] = useState(false);
   const [accountOptions, setAccountOptions] = useState<FilterBarAccountOption[]>([]);
+  const [clientOptions, setClientOptions] = useState<FilterBarClientOption[]>([]);
   const [metaStatus, setMetaStatus] = useState<SocialPlatformStatusRecord | null>(null);
   const canCreate = canAccessCreatorUi(user);
   const datasetMode = useDatasetStore((state) => state.mode);
@@ -122,6 +144,10 @@ const DashboardLayout = () => {
   const [metaStatusResolved, setMetaStatusResolved] = useState(() => !hasLiveData);
   const [openNavGroup, setOpenNavGroup] = useState<string | null>(null);
   const navRef = useRef<HTMLElement>(null);
+
+  // C1A-NEW-02: Subscribe to Meta accountId so the R7 reconciliation effect
+  // re-fires on intra-route account changes (not just pathname changes).
+  const metaAccountId = useMetaStore((state) => state.filters.accountId);
 
   const {
     loadAll,
@@ -175,10 +201,51 @@ const DashboardLayout = () => {
     return (
       location.pathname.startsWith('/dashboards/meta/pages') ||
       location.pathname.startsWith('/dashboards/meta/posts') ||
-      location.pathname.startsWith('/dashboards/google-ads') ||
       location.pathname.startsWith('/dashboards/create')
     );
   }, [location.pathname]);
+
+  // Sprint 10 polish: compute which platform toggles the filter bar should
+  // expose on the current route. Meta-only / Google-only workspaces hide the
+  // other side; integrated dashboards (campaigns, creatives, budget, audience,
+  // platforms, map) keep both.
+  const routePlatformScope = useMemo(
+    () => resolveRoutePlatformScope(location.pathname),
+    [location.pathname],
+  );
+
+  const routePlatformOptions = useMemo<FilterBarPlatformOption[]>(() => {
+    if (!routePlatformScope) {
+      return COMBINED_PLATFORM_OPTIONS;
+    }
+    return COMBINED_PLATFORM_OPTIONS.filter((option) =>
+      routePlatformScope.includes(option.value),
+    );
+  }, [routePlatformScope]);
+
+  // When the current route is scoped to a single platform, force
+  // ``filters.platforms`` to that platform so the backend never receives a
+  // cross-platform selection carried over from another dashboard.
+  //
+  // When the route is a combined/unscoped dashboard (routePlatformScope is
+  // null) and filters.platforms still holds a stale scoped value from a prior
+  // route, reset it to [] so the combined view fetches with all platforms.
+  // This handles the scoped→unscoped transition (B-PLAT-01).
+  useEffect(() => {
+    if (routePlatformScope) {
+      const currentPlatforms = filters.platforms ?? [];
+      if (!arePlatformArraysEqual(currentPlatforms, routePlatformScope)) {
+        setFilters({ ...filters, platforms: [...routePlatformScope] });
+      }
+    } else {
+      // Combined route — if filters.platforms is narrowed from a prior scoped
+      // route, widen it back to [] (all platforms).
+      const currentPlatforms = filters.platforms ?? [];
+      if (currentPlatforms.length > 0) {
+        setFilters({ ...filters, platforms: [] });
+      }
+    }
+  }, [filters, routePlatformScope, setFilters]);
 
   // URL → filters sync: only react to URL changes, not programmatic filter updates.
   // Reading current filters via getState() avoids adding `filters` to the dep array,
@@ -192,6 +259,35 @@ const DashboardLayout = () => {
       setFilters(urlFilters);
     }
   }, [isSavedDashboardRoute, setFilters, urlFilters]);
+
+  // R7: Reconciliation effect — mirror useMetaStore.accountId ↔ useDashboardStore.filters.accountId.
+  //
+  // Store ownership model:
+  //   - useMetaStore.filters.accountId: Meta workspace's local selection (Meta pages).
+  //   - useDashboardStore.filters.accountId: global FilterBar selection (combined dashboards).
+  //
+  // When entering a /dashboards/meta/* route with a non-empty Meta accountId that differs from
+  // the global dashboard accountId, copy Meta → Dashboard so the user's selection persists
+  // when they navigate to /dashboards/platforms or other combined dashboards.
+  //
+  // The copy is one-directional (Meta → Dashboard) and only fires when:
+  //   1. We are on a /dashboards/meta/* route.
+  //   2. useMetaStore has a non-empty accountId.
+  //   3. The global accountId does not already match.
+  // This avoids overwriting an intentional global selection when the user navigates
+  // from a combined dashboard into the Meta workspace.
+  useEffect(() => {
+    if (!location.pathname.startsWith('/dashboards/meta/')) {
+      return;
+    }
+    if (!metaAccountId) {
+      return;
+    }
+    const globalAccountId = useDashboardStore.getState().filters.accountId;
+    if (metaAccountId !== globalAccountId) {
+      setFilters({ ...useDashboardStore.getState().filters, accountId: metaAccountId });
+    }
+  }, [location.pathname, metaAccountId, setFilters]);
 
   // In mock/e2e mode, DatasetToggle is hidden so it won't call loadAdapters.
   // Load adapters here so liveReason is populated for status banners in tests.
@@ -237,6 +333,46 @@ const DashboardLayout = () => {
         console.warn('Failed to load dashboard client accounts', error);
         setAccountOptions([]);
         setAccountOptionsResolved(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasLiveData, tenantId]);
+
+  // Sprint 8 of Client grouping: load Client options once per tenant for the
+  // FilterBar client selector. Scoped behind hasLiveData because demo/dummy
+  // mode should not hit the Client API.
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!hasLiveData) {
+      setClientOptions([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void listClients({ active: true, page_size: 200 })
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+        const options = (payload.results ?? [])
+          .filter((client: ClientSummary) => client.is_active)
+          .map((client: ClientSummary) => ({
+            value: client.id,
+            label: client.name,
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+        setClientOptions(options);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        console.warn('Failed to load dashboard clients', error);
+        setClientOptions([]);
       });
 
     return () => {
@@ -528,13 +664,17 @@ const DashboardLayout = () => {
         { label: 'Creatives', to: '/dashboards/creatives', end: false },
         { label: 'Budget pacing', to: '/dashboards/budget', end: false },
         { label: 'Audience', to: '/dashboards/audience', end: false },
-        { label: 'Platforms', to: '/dashboards/platforms', end: false },
+        { label: 'All platforms (combined)', to: '/dashboards/platforms', end: false },
         { label: 'Parish map', to: '/dashboards/map', end: false },
       ],
     },
     {
       label: 'Integrations',
       links: [
+        { label: 'Clients', to: '/clients', end: false },
+        ...(canCreate
+          ? [{ label: 'Suggested clients', to: '/clients/suggest', end: false }]
+          : []),
         { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
         { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
         { label: 'Meta campaigns', to: '/dashboards/meta/campaigns', end: false },
@@ -962,6 +1102,8 @@ const DashboardLayout = () => {
           state={filters}
           defaultState={defaultFilters}
           availableAccounts={hasLiveData ? accountOptions : []}
+          availableClients={hasLiveData ? clientOptions : []}
+          availablePlatforms={hasLiveData ? routePlatformOptions : []}
           onChange={handleFilterChange}
         />
       )}
@@ -1005,6 +1147,7 @@ const DashboardLayout = () => {
           </div>
         </div>
       ) : null}
+      <ClientSuggestionBanner enabled={Boolean(hasLiveData && canCreate)} />
       <main className="dashboard-content">
         <div className="dashboard-boundary">
           <Outlet />

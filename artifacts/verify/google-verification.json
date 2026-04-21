@@ -1,0 +1,454 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "A2",
+  "inputs_ref": ["artifacts/plan.md", "artifacts/audit/audit-report.json"],
+  "summary": "The Google Ads cluster has a complete unified workspace path (GOOGLE_ADS_WORKSPACE_UNIFIED=true) with URL-driven filters and an isolated WorkspaceFilters type that never reads useDashboardStore — meaning the backend never receives a platforms param from any workspace tab call. Legacy pages (flag=false) are worse: every API call is fire-and-forget with no customer_id, no platforms, and no date range. The flag is a module-level constant resolved at build time, making both modes untestable in a single Vitest run without import.meta.env mocking.",
+  "flag_modes_tested": [
+    "GOOGLE_ADS_WORKSPACE_UNIFIED=true",
+    "GOOGLE_ADS_WORKSPACE_UNIFIED=false"
+  ],
+  "routes": [
+    {
+      "route": "/dashboards/google-ads",
+      "flag_mode": "GOOGLE_ADS_WORKSPACE_UNIFIED=true",
+      "component": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx",
+      "store": "workspace-local WorkspaceFilters (not useDashboardStore)",
+      "endpoints": [
+        "/analytics/google-ads/workspace/summary/",
+        "/analytics/google-ads/campaigns/",
+        "/analytics/google-ads/keywords/",
+        "/analytics/google-ads/search-terms/",
+        "/analytics/google-ads/search-term-insights/",
+        "/analytics/google-ads/pmax/asset-groups/",
+        "/analytics/google-ads/assets/",
+        "/analytics/google-ads/conversions/actions/",
+        "/analytics/google-ads/budgets/pacing/",
+        "/analytics/google-ads/change-events/",
+        "/analytics/google-ads/recommendations/",
+        "/analytics/google-ads/saved-views/"
+      ],
+      "tabs": [
+        "overview", "campaigns", "search", "pmax", "assets",
+        "conversions", "pacing", "changes", "recommendations", "reports"
+      ],
+      "bugs_found": [
+        {
+          "bug_id": "B1",
+          "risk_refs": ["R1", "R6"],
+          "severity": "high",
+          "title": "Workspace tab fetches omit platforms param — backend may return cross-platform rows",
+          "description": "useGoogleAdsWorkspaceData.buildCommonParams (hooks/useGoogleAdsWorkspaceData.ts:69-77) builds { start_date, end_date, compare, customer_id, campaign_id }. It never includes platforms=['google_ads']. DashboardLayout does set filters.platforms=['google_ads'] via the routePlatformScope effect (DashboardLayout.tsx:247-256), but the workspace hook reads only its own WorkspaceFilters from URL params, never from useDashboardStore. Result: every GET to /analytics/google-ads/* arrives without a platforms filter; if the backend default is 'all platforms' the adapter may return mixed-platform rows.",
+          "evidence": [
+            {
+              "file": "frontend/src/hooks/useGoogleAdsWorkspaceData.ts",
+              "lines": "69-77",
+              "snippet": "function buildCommonParams(filters: WorkspaceFilters): QueryParams { return { start_date: filters.startDate, end_date: filters.endDate, compare: filters.compare, customer_id: filters.customerId, campaign_id: filters.campaignId }; }"
+            },
+            {
+              "file": "frontend/src/routes/DashboardLayout.tsx",
+              "lines": "247-256",
+              "snippet": "setFilters({ ...filters, platforms: [...routePlatformScope] }); — written to useDashboardStore but never read by workspace hook"
+            }
+          ],
+          "fix_patches": [
+            {
+              "file": "frontend/src/hooks/useGoogleAdsWorkspaceData.ts",
+              "action": "add_platforms_to_params",
+              "description": "Add platforms: ['google_ads'] as a fixed entry in buildCommonParams so every tab fetch explicitly scopes the request.",
+              "old_snippet": "function buildCommonParams(filters: WorkspaceFilters): QueryParams {\n  return {\n    start_date: filters.startDate,\n    end_date: filters.endDate,\n    compare: filters.compare,\n    customer_id: filters.customerId,\n    campaign_id: filters.campaignId,\n  };\n}",
+              "new_snippet": "function buildCommonParams(filters: WorkspaceFilters): QueryParams {\n  return {\n    start_date: filters.startDate,\n    end_date: filters.endDate,\n    compare: filters.compare,\n    customer_id: filters.customerId,\n    campaign_id: filters.campaignId,\n    platforms: 'google_ads',\n  };\n}"
+            }
+          ],
+          "test_deltas": [
+            {
+              "type": "vitest_unit",
+              "file": "frontend/src/hooks/__tests__/useGoogleAdsWorkspaceData.test.ts",
+              "description": "Assert that the URL constructed by tabEndpoint + buildCommonParams always contains platforms=google_ads for every WorkspaceTab value. Use vi.spyOn on apiClient.get and capture the URL argument.",
+              "test_stub": "it('includes platforms=google_ads in every tab fetch URL', async () => {\n  const getSpy = vi.spyOn(apiClient, 'get').mockResolvedValue({});\n  // render hook, trigger each tab\n  TAB_IDS.forEach(tab => {\n    const calls = getSpy.mock.calls.filter(([url]) => url.includes(tab));\n    calls.forEach(([url]) => expect(url).toContain('platforms=google_ads'));\n  });\n});"
+            }
+          ]
+        },
+        {
+          "bug_id": "B2",
+          "risk_refs": ["R2"],
+          "severity": "medium",
+          "title": "Workspace WorkspaceFilters.customerId is never reconciled with useDashboardStore.filters.accountId",
+          "description": "The workspace manages customer_id exclusively via its own URL param (searchParams.get('customer_id')). DashboardLayout's global account picker writes to useDashboardStore.filters.accountId but the workspace never reads it. If a user selects a Google Ads account in the global bar and then opens the workspace, customer_id in the workspace URL will be empty and the workspace will fetch with no account scope. Conversely, setting customer_id inside the workspace does not update the global bar. The two selectors are visually decoupled (DashboardLayout hides the global filter bar for /dashboards/google-ads), which means the only entry point for customer_id is the workspace's own WorkspaceHeader — but WorkspaceHeader is not populated from any global state on mount.",
+          "evidence": [
+            {
+              "file": "frontend/src/routes/DashboardLayout.tsx",
+              "lines": "215-222",
+              "snippet": "hideGlobalFilters: location.pathname.startsWith('/dashboards/google-ads') → true, so global account bar is hidden"
+            },
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx",
+              "lines": "61-68",
+              "snippet": "parseFilters: customerId: searchParams.get('customer_id') || '' — no fallback to useDashboardStore"
+            }
+          ],
+          "fix_patches": [
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx",
+              "action": "seed_customer_id_from_global_store_on_mount",
+              "description": "On first mount, if customer_id is absent from the URL and useDashboardStore.filters.accountId is non-empty, call updateSearchParams({ customer_id: useDashboardStore.getState().filters.accountId }) so the workspace inherits the globally selected account.",
+              "old_snippet": "useEffect(() => {\n    void loadSavedViews();\n  }, [loadSavedViews]);",
+              "new_snippet": "useEffect(() => {\n    void loadSavedViews();\n  }, [loadSavedViews]);\n\n  // Seed customer_id from global account selection if not already in URL.\n  useEffect(() => {\n    if (!filters.customerId) {\n      const globalAccountId = useDashboardStore.getState().filters.accountId;\n      if (globalAccountId) {\n        updateSearchParams({ customer_id: globalAccountId });\n      }\n    }\n    // Run only on mount — omit filters from deps to avoid re-running on every filter change.\n    // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [updateSearchParams]);"
+            }
+          ],
+          "test_deltas": [
+            {
+              "type": "vitest_unit",
+              "file": "frontend/src/routes/google-ads/__tests__/GoogleAdsWorkspacePage.test.tsx",
+              "description": "Mock useDashboardStore.getState to return { filters: { accountId: 'acc-999' } }. Render GoogleAdsWorkspacePage without a customer_id URL param. Assert that after mount the URL contains customer_id=acc-999."
+            }
+          ]
+        },
+        {
+          "bug_id": "B3",
+          "risk_refs": ["R6"],
+          "severity": "medium",
+          "title": "Drawer campaign detail shows inline data only — no backend fetch for full detail; Back link points to legacy route under unified flag",
+          "description": "CampaignsTabSection (components/google-ads/workspace/tab-sections/CampaignsTabSection.tsx) selects the campaign row from the already-loaded list (rows.find(...)). No secondary fetch is made to the campaign detail endpoint. This is acceptable for MVP but means pacing, ad-level metrics, and change history are unavailable in the drawer. Separately, the legacy standalone GoogleAdsCampaignDetailPage (routes/google-ads/GoogleAdsCampaignDetailPage.tsx:51) renders a Back link to /dashboards/google-ads/campaigns — when GOOGLE_ADS_WORKSPACE_UNIFIED=true that sub-route redirects back to the workspace campaigns tab, which is functionally acceptable but creates an unnecessary redirect hop.",
+          "evidence": [
+            {
+              "file": "frontend/src/components/google-ads/workspace/tab-sections/CampaignsTabSection.tsx",
+              "lines": "50",
+              "snippet": "const selected = rows.find((row) => String(row.campaign_id ?? '') === drawerCampaignId) ?? null;"
+            },
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsCampaignDetailPage.tsx",
+              "lines": "51",
+              "snippet": "<Link className=\"button tertiary\" to=\"/dashboards/google-ads/campaigns\">Back to Google Ads campaigns</Link>"
+            }
+          ],
+          "fix_patches": [
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsCampaignDetailPage.tsx",
+              "action": "update_back_link_for_unified_mode",
+              "description": "Change the Back link to /dashboards/google-ads?tab=campaigns so it works correctly under both flag modes without an extra redirect hop.",
+              "old_snippet": "<Link className=\"button tertiary\" to=\"/dashboards/google-ads/campaigns\">\n          Back to Google Ads campaigns\n        </Link>",
+              "new_snippet": "<Link className=\"button tertiary\" to=\"/dashboards/google-ads?tab=campaigns\">\n          Back to Google Ads campaigns\n        </Link>"
+            }
+          ],
+          "test_deltas": [
+            {
+              "type": "vitest_unit",
+              "file": "frontend/src/routes/google-ads/__tests__/GoogleAdsCampaignDetailPage.test.tsx",
+              "description": "Assert that the 'Back to Google Ads campaigns' link has href /dashboards/google-ads?tab=campaigns so it is correct under both flag modes."
+            }
+          ]
+        },
+        {
+          "bug_id": "B4",
+          "risk_refs": ["R1"],
+          "severity": "low",
+          "title": "Campaign drawer URL param uses unencoded colon — inconsistent with redirect which uses encoded colon",
+          "description": "GoogleAdsCampaignDrawerRedirect encodes the drawer value: encodeURIComponent('campaign:12345') → 'campaign%3A12345', producing ?drawer=campaign%3A12345 in the URL. The workspace's onOpenDrawer instead calls updateSearchParams({ drawer: 'campaign:${campaignId}' }) which lets URLSearchParams.set() encode the colon to %3A as well — so the raw URL is identical. On read, searchParams.get('drawer') always returns the decoded 'campaign:12345'. The behaviors are consistent. However the drawerRaw.startsWith('campaign:') check and the drawerRaw.replace('campaign:', '') in WorkspacePage would incorrectly fail if a campaignId itself contained a colon — though this is a theoretical risk only. No immediate bug, but the encoding contract should be documented.",
+          "evidence": [
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsLegacyRedirects.tsx",
+              "lines": "16-17",
+              "snippet": "const drawer = encodeURIComponent(`campaign:${campaignId}`); return <Navigate to={`/dashboards/google-ads?tab=campaigns&drawer=${drawer}`} replace />;"
+            },
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx",
+              "lines": "77-78",
+              "snippet": "const drawerRaw = searchParams.get('drawer') || ''; const drawerCampaignId = drawerRaw.startsWith('campaign:') ? drawerRaw.replace('campaign:', '') : '';"
+            }
+          ],
+          "fix_patches": [],
+          "test_deltas": [
+            {
+              "type": "vitest_unit",
+              "file": "frontend/src/routes/google-ads/__tests__/GoogleAdsWorkspacePage.test.tsx",
+              "description": "Add a test that renders the workspace with ?drawer=campaign%3A12345 in the URL (percent-encoded as the redirect would produce) and asserts that drawerCampaignId resolves to '12345', confirming that the redirect-produced URL and the workspace-produced URL are mutually parseable."
+            }
+          ]
+        },
+        {
+          "bug_id": "B5",
+          "risk_refs": ["R6"],
+          "severity": "high",
+          "title": "No Playwright E2E coverage for /dashboards/google-ads workspace or any legacy Google Ads route",
+          "description": "The qa/tests directory contains no spec file touching /dashboards/google-ads. The following scenarios have zero E2E coverage: workspace tab navigation, customer_id filter propagation, campaign drawer open/close, account scope (platforms=google_ads on backend requests), and both flag modes. The audit (R6) identified this gap; it is confirmed by inspecting all qa/tests/*.spec.ts files.",
+          "evidence": [
+            {
+              "file": "qa/tests",
+              "lines": "all",
+              "snippet": "Playwright spec files present: campaigns, dashboard, export, health, map, meta-integration, meta-page-insights, meta-reporting-readiness, tenant-switch. No google-ads spec."
+            }
+          ],
+          "fix_patches": [],
+          "test_deltas": [
+            {
+              "type": "playwright_e2e",
+              "file": "qa/tests/google-ads-workspace.spec.ts",
+              "description": "Create a Playwright spec covering: (1) navigate to /dashboards/google-ads, assert heading 'Unified Workspace' is visible; (2) click each tab, assert URL contains tab=<id>; (3) assert network requests to /analytics/google-ads/* include platforms=google_ads; (4) click a campaign row and assert drawer opens with URL containing drawer=campaign%3A<id>; (5) assert customer_id query param is forwarded from workspace filter to network calls.",
+              "test_stub": "test('workspace tab navigation updates URL', async ({ page }) => {\n  await page.goto('/dashboards/google-ads');\n  await expect(page.getByRole('heading', { name: 'Unified Workspace' })).toBeVisible();\n  await page.getByRole('tab', { name: 'Campaigns' }).click();\n  await expect(page).toHaveURL(/tab=campaigns/);\n});\n\ntest('workspace API calls include platforms=google_ads', async ({ page }) => {\n  const requests: string[] = [];\n  page.on('request', req => { if (req.url().includes('/analytics/google-ads/')) requests.push(req.url()); });\n  await page.goto('/dashboards/google-ads');\n  await page.waitForTimeout(500);\n  requests.forEach(url => expect(url).toContain('platforms=google_ads'));\n});"
+            },
+            {
+              "type": "playwright_e2e",
+              "file": "qa/tests/google-ads-legacy.spec.ts",
+              "description": "Create a spec that runs only when VITE_GOOGLE_ADS_WORKSPACE_UNIFIED=false (skip guard using env var). Covers: (1) /dashboards/google-ads/executive renders 'Executive Overview'; (2) /dashboards/google-ads/campaigns renders table; (3) /dashboards/google-ads/campaigns/c1 renders detail page with Back link pointing to ?tab=campaigns."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/google-ads/executive",
+      "flag_mode": "GOOGLE_ADS_WORKSPACE_UNIFIED=false",
+      "component": "frontend/src/routes/google-ads/GoogleAdsExecutivePage.tsx",
+      "store": "none (component-local state only)",
+      "endpoints": ["/analytics/google-ads/executive/"],
+      "bugs_found": [
+        {
+          "bug_id": "B6",
+          "risk_refs": ["R1", "R6"],
+          "severity": "high",
+          "title": "fetchGoogleAdsExecutive called with no params — no customer_id, no platforms, no date range",
+          "description": "GoogleAdsExecutivePage calls fetchGoogleAdsExecutive() with no arguments on mount. The request reaches the backend without platforms=google_ads, without customer_id, and with the backend's default date range. If the active adapter returns unscoped rows the page will show cross-platform KPIs. Additionally there is no empty-state handling: if data is null and status is 'idle' (initial state before the useEffect fires), nothing renders. The status starts at 'loading' but resets to 'idle' on success rather than a semantically distinct 'success' — making it impossible to distinguish 'not yet loaded' from 'loaded with empty data'.",
+          "evidence": [
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsExecutivePage.tsx",
+              "lines": "29",
+              "snippet": "const response = await fetchGoogleAdsExecutive(); // no params"
+            },
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsExecutivePage.tsx",
+              "lines": "21",
+              "snippet": "const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('loading');"
+            }
+          ],
+          "fix_patches": [
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsExecutivePage.tsx",
+              "action": "pass_platforms_and_date_params",
+              "description": "Read useDashboardStore.getState().filters to extract accountId (as customer_id) and current date range, then pass them to fetchGoogleAdsExecutive. Also add a 'success' status variant and an empty-state guard.",
+              "old_snippet": "const response = await fetchGoogleAdsExecutive();",
+              "new_snippet": "const { filters } = useDashboardStore.getState();\nconst response = await fetchGoogleAdsExecutive({\n  platforms: 'google_ads',\n  customer_id: filters.accountId || undefined,\n  start_date: filters.startDate || undefined,\n  end_date: filters.endDate || undefined,\n});"
+            }
+          ],
+          "test_deltas": [
+            {
+              "type": "vitest_unit",
+              "file": "frontend/src/routes/google-ads/__tests__/GoogleAdsExecutivePage.test.tsx",
+              "description": "Add a test that mocks useDashboardStore.getState to return a specific accountId and date range, then asserts fetchGoogleAdsExecutive was called with { platforms: 'google_ads', customer_id: <id>, start_date, end_date }."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/google-ads/campaigns",
+      "flag_mode": "GOOGLE_ADS_WORKSPACE_UNIFIED=false",
+      "component": "frontend/src/routes/google-ads/GoogleAdsCampaignsPage.tsx",
+      "store": "none (GoogleAdsDataTablePage component-local)",
+      "endpoints": ["/analytics/google-ads/campaigns/"],
+      "bugs_found": [
+        {
+          "bug_id": "B7",
+          "risk_refs": ["R1"],
+          "severity": "high",
+          "title": "GoogleAdsDataTablePage fetches endpoint with no customer_id, no platforms, no date range",
+          "description": "Every legacy page that uses GoogleAdsDataTablePage (campaigns, channels, assets, pmax, conversions, change-log, recommendations) calls fetchGoogleAdsList with only the static endpoint string. No customer_id, no platforms, and no date range are ever included. The component accepts a 'query' prop for extra params (used by GoogleAdsBreakdownsPage for dimension) but callers do not supply customer_id or platforms. GoogleAdsBudgetPage has the same issue — it calls get('/analytics/google-ads/budgets/pacing/') with zero params.",
+          "evidence": [
+            {
+              "file": "frontend/src/components/google-ads/GoogleAdsDataTablePage.tsx",
+              "lines": "33-36",
+              "snippet": "const path = query ? appendQueryParams(endpoint, query) : endpoint; const response = await fetchGoogleAdsList<Row>(path);"
+            },
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsCampaignsPage.tsx",
+              "lines": "1-12",
+              "snippet": "<GoogleAdsDataTablePage endpoint=\"/analytics/google-ads/campaigns/\" /> — no query prop"
+            },
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsBudgetPage.tsx",
+              "lines": "34",
+              "snippet": "const response = await get<BudgetPacingPayload>('/analytics/google-ads/budgets/pacing/'); // no params"
+            }
+          ],
+          "fix_patches": [
+            {
+              "file": "frontend/src/components/google-ads/GoogleAdsDataTablePage.tsx",
+              "action": "read_global_filters_for_scope_params",
+              "description": "Import useDashboardStore (getState() to avoid subscription overhead) and merge { platforms: 'google_ads', customer_id, start_date, end_date } from the global filter state into every fetch call, overridden by any explicit query prop.",
+              "old_snippet": "const load = useCallback(async (signal?: AbortSignal) => {\n    setStatus('loading');\n    setError(null);\n    try {\n      const path = query ? appendQueryParams(endpoint, query) : endpoint;",
+              "new_snippet": "const load = useCallback(async (signal?: AbortSignal) => {\n    setStatus('loading');\n    setError(null);\n    try {\n      const { filters } = useDashboardStore.getState();\n      const scopeParams = {\n        platforms: 'google_ads',\n        customer_id: filters.accountId || undefined,\n        start_date: filters.startDate || undefined,\n        end_date: filters.endDate || undefined,\n      };\n      const merged = { ...scopeParams, ...(query ?? {}) };\n      const path = appendQueryParams(endpoint, merged);"
+            },
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsBudgetPage.tsx",
+              "action": "pass_scope_params",
+              "description": "Read useDashboardStore.getState().filters and pass platforms=google_ads + customer_id to the pacing endpoint.",
+              "old_snippet": "const response = await get<BudgetPacingPayload>('/analytics/google-ads/budgets/pacing/');",
+              "new_snippet": "const { filters } = useDashboardStore.getState();\nconst path = appendQueryParams('/analytics/google-ads/budgets/pacing/', {\n  platforms: 'google_ads',\n  customer_id: filters.accountId || undefined,\n  start_date: filters.startDate || undefined,\n  end_date: filters.endDate || undefined,\n});\nconst response = await get<BudgetPacingPayload>(path);"
+            }
+          ],
+          "test_deltas": [
+            {
+              "type": "vitest_unit",
+              "file": "frontend/src/components/google-ads/__tests__/GoogleAdsDataTablePage.test.tsx",
+              "description": "Add a test that pre-populates useDashboardStore with a known accountId and date range, renders GoogleAdsDataTablePage with a test endpoint, and asserts that fetchGoogleAdsList was called with a URL containing platforms=google_ads&customer_id=<id>&start_date=<date>&end_date=<date>."
+            },
+            {
+              "type": "vitest_unit",
+              "file": "frontend/src/routes/google-ads/__tests__/GoogleAdsBudgetPage.test.tsx",
+              "description": "Add a test asserting the pacing endpoint request URL includes platforms=google_ads when the store has a known accountId."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/google-ads/campaigns/:campaignId",
+      "flag_mode": "GOOGLE_ADS_WORKSPACE_UNIFIED=false",
+      "component": "frontend/src/routes/google-ads/GoogleAdsCampaignDetailPage.tsx",
+      "store": "none",
+      "endpoints": ["/analytics/google-ads/campaigns/:campaignId/"],
+      "bugs_found": [
+        {
+          "bug_id": "B8",
+          "risk_refs": ["R1", "R6"],
+          "severity": "medium",
+          "title": "Campaign detail fetch omits platforms and customer_id; Back link uses legacy sub-route",
+          "description": "fetchGoogleAdsCampaignDetail(campaignId) is called without any scope params. The Back link points to /dashboards/google-ads/campaigns which under GOOGLE_ADS_WORKSPACE_UNIFIED=true redirects (correct outcome, extra hop). See B3 for the Back link fix. The missing scope params are covered by the same pattern as B7.",
+          "evidence": [
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsCampaignDetailPage.tsx",
+              "lines": "24",
+              "snippet": "const response = await fetchGoogleAdsCampaignDetail(campaignId); // no params"
+            }
+          ],
+          "fix_patches": [
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsCampaignDetailPage.tsx",
+              "action": "pass_scope_params_to_detail_fetch",
+              "description": "Read useDashboardStore.getState().filters and pass { platforms: 'google_ads', customer_id } as the second argument to fetchGoogleAdsCampaignDetail.",
+              "old_snippet": "const response = await fetchGoogleAdsCampaignDetail(campaignId);",
+              "new_snippet": "const { filters } = useDashboardStore.getState();\nconst response = await fetchGoogleAdsCampaignDetail(campaignId, {\n  platforms: 'google_ads',\n  customer_id: filters.accountId || undefined,\n});"
+            }
+          ],
+          "test_deltas": [
+            {
+              "type": "vitest_unit",
+              "file": "frontend/src/routes/google-ads/__tests__/GoogleAdsCampaignDetailPage.test.tsx",
+              "description": "Add a test asserting fetchGoogleAdsCampaignDetail is called with the correct campaignId and params { platforms: 'google_ads', customer_id } derived from store state. Also assert the Back link renders with href /dashboards/google-ads?tab=campaigns."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/google-ads/keywords",
+      "flag_mode": "GOOGLE_ADS_WORKSPACE_UNIFIED=false",
+      "component": "frontend/src/routes/google-ads/GoogleAdsKeywordsPage.tsx",
+      "store": "none (component-local mode state)",
+      "endpoints": [
+        "/analytics/google-ads/keywords/",
+        "/analytics/google-ads/search-terms/",
+        "/analytics/google-ads/search-term-insights/"
+      ],
+      "bugs_found": [
+        {
+          "bug_id": "B9",
+          "risk_refs": ["R1"],
+          "severity": "high",
+          "title": "Mode toggle remounts GoogleAdsDataTablePage but passes no scope params; covered by B7",
+          "description": "GoogleAdsKeywordsPage switches the endpoint prop based on local 'mode' state, which causes GoogleAdsDataTablePage to re-render with a new endpoint. The same missing-scope-params bug (B7) applies to all three endpoints. Once B7 is fixed, this page is automatically remediated.",
+          "evidence": [
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsKeywordsPage.tsx",
+              "lines": "8-14",
+              "snippet": "const endpoint = mode === 'keywords' ? '/analytics/google-ads/keywords/' : ... — no scope params passed"
+            }
+          ],
+          "fix_patches": [],
+          "note": "Fix B7 (GoogleAdsDataTablePage global scope injection) to remediate this page.",
+          "test_deltas": [
+            {
+              "type": "vitest_unit",
+              "file": "frontend/src/routes/google-ads/__tests__/GoogleAdsKeywordsPage.test.tsx",
+              "description": "After B7 fix: assert that clicking Search Terms and Insights mode buttons each triggers a fetch with the correct endpoint and platforms=google_ads."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "route": "GoogleAdsTabRedirect (all legacy tab routes → /dashboards/google-ads?tab=<id>)",
+      "flag_mode": "GOOGLE_ADS_WORKSPACE_UNIFIED=true",
+      "component": "frontend/src/routes/google-ads/GoogleAdsLegacyRedirects.tsx",
+      "store": "none",
+      "endpoints": [],
+      "bugs_found": [
+        {
+          "bug_id": "B10",
+          "risk_refs": ["R6"],
+          "severity": "low",
+          "title": "GoogleAdsTabRedirect does not preserve incoming query params (e.g. customer_id) from legacy URLs",
+          "description": "GoogleAdsTabRedirect constructs a target URL from only the 'tab' and 'extra' props. Any query params present on the legacy route (e.g. ?customer_id=x&start_date=y that an external system might bookmark) are silently dropped. The redirect is: new URLSearchParams({ tab, ...extra }) — nothing from the incoming URL's search string is forwarded.",
+          "evidence": [
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsLegacyRedirects.tsx",
+              "lines": "9-12",
+              "snippet": "const params = new URLSearchParams({ tab, ...(extra ?? {}) }); return <Navigate to={`/dashboards/google-ads?${params.toString()}`} replace />;"
+            }
+          ],
+          "fix_patches": [
+            {
+              "file": "frontend/src/routes/google-ads/GoogleAdsLegacyRedirects.tsx",
+              "action": "forward_incoming_query_params",
+              "description": "Use useSearchParams() to read the current search string and merge it with the tab/extra params, so bookmarked legacy URLs with filters continue to work.",
+              "old_snippet": "export const GoogleAdsTabRedirect = ({\n  tab,\n  extra,\n}: {\n  tab: string;\n  extra?: Record<string, string>;\n}) => {\n  const params = new URLSearchParams({ tab, ...(extra ?? {}) });\n  return <Navigate to={`/dashboards/google-ads?${params.toString()}`} replace />;",
+              "new_snippet": "export const GoogleAdsTabRedirect = ({\n  tab,\n  extra,\n}: {\n  tab: string;\n  extra?: Record<string, string>;\n}) => {\n  const [incoming] = useSearchParams();\n  const params = new URLSearchParams(incoming);\n  params.set('tab', tab);\n  Object.entries(extra ?? {}).forEach(([k, v]) => params.set(k, v));\n  return <Navigate to={`/dashboards/google-ads?${params.toString()}`} replace />;"
+            }
+          ],
+          "test_deltas": [
+            {
+              "type": "vitest_unit",
+              "file": "frontend/src/routes/google-ads/__tests__/GoogleAdsLegacyRedirects.test.tsx",
+              "description": "Add a test that renders GoogleAdsTabRedirect with an initial URL of /dashboards/google-ads/keywords?customer_id=cid-123&start_date=2026-01-01 and asserts the final URL contains tab=search&search_mode=keywords&customer_id=cid-123&start_date=2026-01-01."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "cross_cutting": [
+    {
+      "id": "CC1",
+      "title": "GOOGLE_ADS_WORKSPACE_UNIFIED is a module-level constant — flag-mode testing requires import.meta.env mocking",
+      "description": "The flag is resolved once at router.tsx module load time (line 115-118) with a default of true. There is no runtime toggle. Testing the false branch in Vitest requires vi.mock or vi.stubEnv on import.meta.env.VITE_GOOGLE_ADS_WORKSPACE_UNIFIED before the module is imported. No existing test does this. The legacy page tests (GoogleAdsExecutivePage.test.tsx, etc.) test the component in isolation, not via the router, so they do not exercise the routing decision.",
+      "recommendation": "Add a dedicated test file (router.google-ads.test.tsx) that uses vi.stubEnv to set VITE_GOOGLE_ADS_WORKSPACE_UNIFIED='false', dynamically imports router.tsx, mounts the router at each legacy path, and asserts the correct legacy component is rendered — not a redirect.",
+      "handoff": null
+    },
+    {
+      "id": "CC2",
+      "title": "DashboardLayout platform-scope effect fires after child render — one stale-render window applies to Google Ads too",
+      "description": "A0 identified (R1 evidence, DashboardLayout.tsx:247) that the platform-scope useEffect fires after the child page renders. For the Google Ads workspace this means there is a render cycle where filters.platforms may still hold the previous route's value (e.g. meta_ads) before being corrected to google_ads. However, because the workspace hook reads only its own WorkspaceFilters (not useDashboardStore.filters.platforms), the workspace API calls are unaffected by this stale window — the workspace bug (B1) is that platforms is never sent at all, not that a stale value is sent. The cross-cluster stale-render risk is real but its manifestation on google-ads is only in the DashboardLayout filter bar, not in workspace data fetches.",
+      "recommendation": "Once B1 is fixed (platforms param added to buildCommonParams), revisit whether the workspace should read from useDashboardStore.filters.platforms to stay in sync with the DashboardLayout effect, or whether the hardcoded 'google_ads' constant is sufficient (it is, since the route is always google-ads).",
+      "handoff": "A4"
+    },
+    {
+      "id": "CC3",
+      "title": "DashboardLayout hideGlobalFilters suppresses the filter bar for all /dashboards/google-ads paths — account selector UX is workspace-only",
+      "description": "DashboardLayout.tsx:219 hides the global filter bar for every path starting with /dashboards/google-ads. This means the Google Ads workspace is solely responsible for presenting a customer-ID selector to the user. Under legacy mode (flag=false), all legacy pages also hide the global bar, so there is no account selector visible at all on e.g. /dashboards/google-ads/campaigns — users cannot change accounts without navigating away. This is a UX gap for legacy mode.",
+      "recommendation": "Under legacy mode, either (a) do not hide the global filter bar for legacy Google Ads sub-routes, or (b) add a lightweight CustomerIdPicker component to each legacy page. Patch should be coordinated with DashboardLayout changes.",
+      "handoff": "A4"
+    },
+    {
+      "id": "CC4",
+      "title": "resolveRoutePlatformScope in DashboardLayout correctly scopes google-ads — no patch needed there",
+      "description": "resolveRoutePlatformScope (DashboardLayout.tsx:65-76) correctly matches both the exact path /dashboards/google-ads and any sub-path /dashboards/google-ads/* and returns ['google_ads']. The tab query param variant (/dashboards/google-ads?tab=campaigns) is also handled because the function operates on pathname only, not search string. No patch needed in DashboardLayout for the scope resolution itself.",
+      "handoff": null
+    }
+  ],
+  "open_questions": [
+    "OQ1: The workspace summary endpoint is /analytics/google-ads/workspace/summary/ — does this backend view accept and enforce a platforms param, or does it always return google_ads data? If it always returns google_ads data, B1 is lower severity for the summary but still applies to tab-level endpoints that may share infrastructure with combined metrics.",
+    "OQ2: Does the Google Ads backend enforce tenant isolation at the view level independently of the client_scoped_* keys? If so, the absence of customer_id in legacy page calls (B7) means the backend returns all accounts for the tenant rather than zero rows — confirming the severity as 'returns too much' not 'returns wrong platform data'.",
+    "OQ3: Under GOOGLE_ADS_WORKSPACE_UNIFIED=false, is there any route that renders the global filter bar for Google Ads? DashboardLayout hides it for all /dashboards/google-ads paths regardless of flag mode. If legacy pages are expected to surface account selection through the global bar, the hideGlobalFilters logic should be flag-aware.",
+    "OQ4: The workspace 'reports' tab fetches /analytics/google-ads/saved-views/ but GoogleAdsReportsPage (legacy) has its own independent saved-views fetch that also creates exports without a customer_id scope. Are saved views tenant-scoped server-side independently of account selection, or do they inherit account scope from the export job? This affects whether the missing-params bug (B7) leaks saved views across accounts.",
+    "OQ5: A0 open question R6 noted GOOGLE_ADS_WORKSPACE_UNIFIED defaults to true when env var is absent. Confirm that CI and local dev .env.sample do not set VITE_GOOGLE_ADS_WORKSPACE_UNIFIED=false, which would mean legacy mode is never exercised in any environment except intentional opt-out."
+  ]
+}

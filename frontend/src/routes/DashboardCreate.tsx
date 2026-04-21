@@ -14,7 +14,7 @@ import {
   setLastLiveAccountId,
   sortLiveAccountOptions,
 } from '../lib/liveAccountSelection';
-import StatCard from '../components/ui/StatCard';
+import { KpiTile } from '../components/viz';
 import { fetchDashboardMetrics } from '../lib/dataService';
 import { messageForLiveDatasetReason } from '../lib/datasetStatus';
 import {
@@ -24,7 +24,7 @@ import {
   type FilterBarState,
 } from '../lib/dashboardFilters';
 import { getDashboardTemplate, DASHBOARD_TEMPLATES } from '../lib/dashboardTemplates';
-import { formatCurrency, formatNumber, formatRatio } from '../lib/format';
+import { formatNumber } from '../lib/format';
 import { loadMetaAccounts } from '../lib/meta';
 import { createDashboardDefinition, type DashboardMetricKey, type DashboardTemplateKey } from '../lib/phase2Api';
 import { canAccessCreatorUi } from '../lib/rbac';
@@ -145,6 +145,8 @@ const DashboardCreate = () => {
   const [filters, setFilters] = useState<FilterBarState>({
     ...defaultFilters,
     channels: ['Meta Ads'],
+    // FP-CREATE-01: scope preview fetch to meta_ads only to match the Meta-only builder intent.
+    platforms: ['meta_ads'],
   });
   const [defaultMetric, setDefaultMetric] = useState<DashboardMetricKey>(
     getDashboardTemplate(initialTemplateKey).defaultMetric,
@@ -588,12 +590,24 @@ const DashboardCreate = () => {
 
         {preview.status === 'ready' ? (
           <div className="dashboard-builder__preview">
-            <div className="kpiColumn">
-              <StatCard label="Spend" value={formatCurrency(preview.summary.totalSpend, preview.summary.currency)} />
-              <StatCard label="Reach" value={formatNumber(preview.summary.totalReach)} />
-              <StatCard label="Clicks" value={formatNumber(preview.summary.totalClicks)} />
-              <StatCard label="CTR" value={formatRatio(preview.summary.ctr, 2)} />
-              <StatCard label="ROAS" value={formatRatio(preview.summary.averageRoas, 2)} />
+            {/* S4c: migrated builder preview to shared viz-kit `KpiTile`
+                (replaces 5 legacy `StatCard` tiles at the former lines
+                593–598). `KpiTile` renders the same `.metric-card` DOM
+                class so existing Storybook a11y assertions and CSS layouts
+                remain stable; FP-CREATE-01 `platforms: ['meta_ads']` default
+                on the preview fetch (configured above at the filters
+                setState) is unchanged. */}
+            <div className="kpiColumn" role="group" aria-label="Live preview KPIs">
+              <KpiTile
+                label="Spend"
+                value={preview.summary.totalSpend}
+                format="currency"
+                currency={preview.summary.currency}
+              />
+              <KpiTile label="Reach" value={preview.summary.totalReach} format="number" />
+              <KpiTile label="Clicks" value={preview.summary.totalClicks} format="number" />
+              <KpiTile label="CTR" value={preview.summary.ctr} format="rate" />
+              <KpiTile label="ROAS" value={preview.summary.averageRoas} format="rate" />
             </div>
             <div className="dashboard-builder__preview-meta">
               <p><strong>Campaign rows:</strong> {formatNumber(preview.summary.campaignCount)}</p>

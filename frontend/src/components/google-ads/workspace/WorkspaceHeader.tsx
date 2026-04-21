@@ -65,16 +65,6 @@ const WorkspaceHeader = ({
             <option value="yoy">YoY</option>
           </select>
         </label>
-        <label className="dashboard-field" htmlFor="gads-customer-id">
-          <span className="dashboard-field__label">Account ID</span>
-          <input
-            id="gads-customer-id"
-            type="text"
-            placeholder="Optional"
-            value={filters.customerId}
-            onChange={(event) => onFiltersChange({ ...filters, customerId: event.target.value })}
-          />
-        </label>
         <label className="dashboard-field" htmlFor="gads-campaign-id">
           <span className="dashboard-field__label">Campaign ID</span>
           <input

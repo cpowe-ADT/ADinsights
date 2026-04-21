@@ -69,14 +69,35 @@ vi.mock('../../lib/format', () => ({
   isTimestampStale: () => false,
 }));
 
-vi.mock('../../components/PlatformComparisonBars', () => ({
-  __esModule: true,
-  default: () => <div data-testid="platform-comparison-bars" />,
-}));
-
-vi.mock('../../components/DeviceDonut', () => ({
-  __esModule: true,
-  default: () => <div data-testid="device-donut" />,
+// Mock viz kit primitives — render predictable sentinels so we can assert
+// structure without rehearsing the primitives' own tests.
+vi.mock('../../components/viz', () => ({
+  KpiTile: ({ label, value }: { label: string; value: number | null }) => (
+    <div data-testid="kpi-tile">
+      {label}: {value === null || value === undefined ? '—' : String(value)}
+    </div>
+  ),
+  TrendLine: ({ ariaLabel }: { ariaLabel: string }) => (
+    <div data-testid="trend-line" aria-label={ariaLabel} />
+  ),
+  DistributionBar: ({ ariaLabel }: { ariaLabel: string }) => (
+    <div data-testid="distribution-bar" aria-label={ariaLabel} />
+  ),
+  PieComposition: ({ ariaLabel }: { ariaLabel: string }) => (
+    <div data-testid="pie-composition" aria-label={ariaLabel} />
+  ),
+  VizDataTable: ({ data, caption }: { data: unknown[]; caption?: string }) => (
+    <div data-testid="viz-data-table" data-rows={data.length}>
+      {caption ?? 'Platform comparison table'}
+    </div>
+  ),
+  ChartSkeleton: () => <div data-testid="chart-skeleton" />,
+  AccessibleTableToggle: ({ chart }: { chart: React.ReactNode }) => (
+    <div data-testid="accessible-toggle">{chart}</div>
+  ),
+  EmptyState: ({ title }: { title?: string }) => (
+    <div data-testid="empty-state">{title}</div>
+  ),
 }));
 
 vi.mock('../../components/DashboardState', () => ({
@@ -94,22 +115,10 @@ vi.mock('../../components/StatusBanner', () => ({
   default: () => <div data-testid="status-banner" />,
 }));
 
-vi.mock('../../components/Skeleton', () => ({
-  __esModule: true,
-  default: () => <div data-testid="skeleton" />,
-}));
-
 vi.mock('../../components/ui/Card', () => ({
   __esModule: true,
   default: ({ title, children }: { title: string; children: React.ReactNode }) => (
     <div><h2>{title}</h2>{children}</div>
-  ),
-}));
-
-vi.mock('../../components/ui/StatCard', () => ({
-  __esModule: true,
-  default: ({ label, value }: { label: string; value: string }) => (
-    <div data-testid="stat-card">{label}: {value}</div>
   ),
 }));
 
@@ -123,7 +132,7 @@ describe('PlatformDashboard', () => {
     datasetStoreMock.liveDetail = null;
   });
 
-  it('renders heading and KPIs with platforms data', { timeout: 15000 }, () => {
+  it('renders heading, KPI strip x5, and FP-PLAT-03 top-2 labels', { timeout: 15000 }, () => {
     render(
       <MemoryRouter>
         <PlatformDashboard />
@@ -135,17 +144,59 @@ describe('PlatformDashboard', () => {
     const kpiRow = screen.getByRole('group', { name: /platform kpis/i });
     expect(kpiRow).toBeInTheDocument();
 
-    // Facebook spend = 2000
+    // S4a: cross-platform KPI strip renders 5 KpiTile primitives.
+    const tiles = screen.getAllByTestId('kpi-tile');
+    expect(tiles).toHaveLength(5);
+
+    // FP-PLAT-03 preserved: KPI tile labels derive from top-2 platforms by spend.
+    // Facebook has highest spend (2000); Instagram second (1500). Labels are
+    // capitalized via `formatPlatformLabel` (now imported from lib/platformLabels).
     expect(screen.getByText(/Facebook spend: 2000/)).toBeInTheDocument();
-    // Instagram spend = 1500
     expect(screen.getByText(/Instagram spend: 1500/)).toBeInTheDocument();
-    // Mobile % = mobile_app impressions 130000 / total (130000+50000=180000) ~= 72%
-    expect(screen.getByText(/Mobile %: 72%/)).toBeInTheDocument();
-    // Top platform by conversions: facebook has 120 vs instagram has 90
-    expect(screen.getByText(/Top platform: facebook/)).toBeInTheDocument();
+
+    // Cross-platform totals also rendered.
+    expect(screen.getByText(/Total spend: 3500/)).toBeInTheDocument();
+    expect(screen.getByText(/Total impressions: 180000/)).toBeInTheDocument();
+    expect(screen.getByText(/Total clicks: 7500/)).toBeInTheDocument();
   });
 
-  it('shows empty state when no platforms data', () => {
+  it('renders 2x2 DistributionBar small-multiples grid (4 cells: spend/impressions/clicks/conversions)', () => {
+    render(
+      <MemoryRouter>
+        <PlatformDashboard />
+      </MemoryRouter>,
+    );
+
+    const bars = screen.getAllByTestId('distribution-bar');
+    expect(bars).toHaveLength(4);
+    expect(screen.getByRole('group', { name: /platform comparison small multiples/i })).toBeInTheDocument();
+  });
+
+  it('renders VizDataTable drill-down with one row per platform (color-coded chip)', () => {
+    render(
+      <MemoryRouter>
+        <PlatformDashboard />
+      </MemoryRouter>,
+    );
+
+    const table = screen.getByTestId('viz-data-table');
+    expect(table).toBeInTheDocument();
+    // 2 platforms (facebook + instagram) from the fixture.
+    expect(table.getAttribute('data-rows')).toBe('2');
+  });
+
+  it('renders PieComposition for device split and TrendLine scaffold', () => {
+    render(
+      <MemoryRouter>
+        <PlatformDashboard />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId('pie-composition')).toBeInTheDocument();
+    expect(screen.getByTestId('trend-line')).toBeInTheDocument();
+  });
+
+  it('shows empty state when no platforms data (FP-PLAT-02 preserved)', () => {
     dashboardStoreMock.platforms = { status: 'loaded', data: undefined as never, error: undefined };
 
     render(

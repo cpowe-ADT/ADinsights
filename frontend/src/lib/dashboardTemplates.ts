@@ -1,5 +1,43 @@
 import type { DashboardMetricKey, DashboardTemplateKey } from './phase2Api';
 
+/**
+ * S4c grid-snap extension — OPTIONAL slot-based layout metadata.
+ *
+ * Rationale: sprints-plan §980 calls for saved dashboards rendered via a
+ * 12-column grid of composable viz-kit slots. S4 ships the typed hook only;
+ * no existing template populates `layout`, so the `SavedDashboardPage`
+ * `renderTemplate(template_key)` dispatch path remains the single source of
+ * truth for all shipped templates. Sprint 5+ can populate `layout.slots` for
+ * new template keys without touching the renderer path or FP-SAVED-01/02.
+ *
+ * Backward-compat: `layout?` is optional; `getDashboardTemplate(key)` returns
+ * a definition with or without it, and `renderTemplate` falls back to the
+ * full-page component dispatch when `layout` is absent.
+ */
+export type SlotKind =
+  | 'kpi-strip'
+  | 'trend-line'
+  | 'distribution-bar'
+  | 'pie-composition'
+  | 'bubble-scatter'
+  | 'data-table'
+  | 'map'
+  | 'custom';
+
+export type SlotConfig = {
+  /** Stable slot key — used as React `key` and `role="region"` `aria-label` suffix. */
+  id: string;
+  kind: SlotKind;
+  /** Column span on a 12-column CSS grid (1–12). */
+  cols: number;
+  /** Row span (1–4 typical). */
+  rows: number;
+  /** Human-readable slot title shown above the visualization. */
+  title?: string;
+  /** Free-form options bag — each kind interprets its own shape. */
+  options?: Record<string, unknown>;
+};
+
 export type DashboardTemplateDefinition = {
   key: DashboardTemplateKey;
   label: string;
@@ -11,6 +49,13 @@ export type DashboardTemplateDefinition = {
     label: string;
     description: string;
   }>;
+  /**
+   * OPTIONAL — slot-grid layout for Sprint-5+ saved-dashboard templates.
+   * When absent, `SavedDashboardPage` renders the full-page component via
+   * `renderTemplate(routeKind)`. When present, `SavedDashboardSlotGrid`
+   * renders the slots instead. No Sprint 4 template populates this field.
+   */
+  layout?: { slots: SlotConfig[] };
 };
 
 export const DASHBOARD_TEMPLATES: DashboardTemplateDefinition[] = [

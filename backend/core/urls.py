@@ -117,6 +117,17 @@ from integrations.connector_lifecycle_views import (
     IntegrationStatusView,
     IntegrationSyncView,
 )
+from integrations.clients.views import (
+    ClientAccountDetachView,
+    ClientAccountsView,
+    ClientDetailView,
+    ClientListCreateView,
+    ClientSuggestApplyView,
+    ClientSuggestView,
+    ClientSuggestionSnapshotAcknowledgeView,
+    ClientSuggestionSnapshotRefreshView,
+    ClientSuggestionSnapshotView,
+)
 from . import views as core_views
 from .routers import ADinsightsDefaultRouter
 from .viewsets import AirbyteTelemetryViewSet
@@ -505,6 +516,47 @@ urlpatterns = [
         name="integration-jobs",
     ),
     path("metrics/app/", core_views.prometheus_metrics, name="metrics-app"),
+    path("api/clients/", ClientListCreateView.as_view(), name="client-list-create"),
+    path(
+        "api/clients/suggest/",
+        ClientSuggestView.as_view(),
+        name="client-suggest",
+    ),
+    path(
+        "api/clients/suggest/apply/",
+        ClientSuggestApplyView.as_view(),
+        name="client-suggest-apply",
+    ),
+    path(
+        "api/clients/suggestions/latest/",
+        ClientSuggestionSnapshotView.as_view(),
+        name="client-suggestion-snapshot",
+    ),
+    path(
+        "api/clients/suggestions/latest/refresh/",
+        ClientSuggestionSnapshotRefreshView.as_view(),
+        name="client-suggestion-snapshot-refresh",
+    ),
+    path(
+        "api/clients/suggestions/latest/acknowledge/",
+        ClientSuggestionSnapshotAcknowledgeView.as_view(),
+        name="client-suggestion-snapshot-acknowledge",
+    ),
+    path(
+        "api/clients/<uuid:client_id>/",
+        ClientDetailView.as_view(),
+        name="client-detail",
+    ),
+    path(
+        "api/clients/<uuid:client_id>/accounts/",
+        ClientAccountsView.as_view(),
+        name="client-accounts",
+    ),
+    path(
+        "api/clients/<uuid:client_id>/accounts/<uuid:account_id>/",
+        ClientAccountDetachView.as_view(),
+        name="client-account-detach",
+    ),
     path("api/", include(router.urls)),
     path("api/airbyte/webhook/", AirbyteWebhookView.as_view(), name="airbyte-webhook"),
     path("api/admin/", include(admin_router.urls)),

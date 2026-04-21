@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { fetchGoogleAdsList, type GoogleAdsListResponse } from '../../lib/googleAdsDashboard';
 import { appendQueryParams } from '../../lib/apiClient';
+import { resolveFilterRange } from '../../lib/dashboardFilters';
 import DashboardState from '../DashboardState';
+import useDashboardStore from '../../state/useDashboardStore';
 
 type Row = Record<string, unknown>;
 
@@ -31,7 +33,16 @@ const GoogleAdsDataTablePage = ({
     setStatus('loading');
     setError(null);
     try {
-      const path = query ? appendQueryParams(endpoint, query) : endpoint;
+      const { filters } = useDashboardStore.getState();
+      const { start, end } = resolveFilterRange(filters);
+      const scopeParams = {
+        platforms: 'google_ads',
+        customer_id: filters.accountId || undefined,
+        start_date: start || undefined,
+        end_date: end || undefined,
+      };
+      const merged = { ...scopeParams, ...(query ?? {}) };
+      const path = appendQueryParams(endpoint, merged);
       const response = await fetchGoogleAdsList<Row>(path);
       if (signal?.aborted) {
         return;

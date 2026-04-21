@@ -439,6 +439,24 @@ function resolveChannelFilters(filters: FilterBarState): string[] {
   return filters.channels.map(normalizeChannelValue).filter(Boolean);
 }
 
+// FP-CAMP-01/FP-CREA-01/FP-BUDG-02: Map filters.platforms (route-scope axis) to
+// channel-key equivalents for row-level filtering in parish selectors.
+// Returns an empty array when platforms is empty (no scoping), which means "allow all".
+function resolvePlatformFilters(filters: FilterBarState): string[] {
+  if (!filters.platforms || filters.platforms.length === 0) {
+    return [];
+  }
+  const platformToChannelKey: Record<string, string> = {
+    meta_ads: 'meta',
+    google_ads: 'google_ads',
+    tiktok: 'tiktok',
+    linkedin: 'linkedin',
+  };
+  return filters.platforms
+    .map((p) => platformToChannelKey[p] ?? p.toLowerCase())
+    .filter(Boolean);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -1469,11 +1487,19 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     const rows = campaignSlice.data?.rows ?? [];
     const query = normalizeFilterQuery(filters.campaignQuery);
     const channelFilters = resolveChannelFilters(filters);
+    // FP-CAMP-01: also gate on filters.platforms (route-scope axis) so google_ads
+    // rows are excluded when platform scope = meta_ads, even when channels filter is empty.
+    const platformFilters = resolvePlatformFilters(filters);
     if (!selectedParish) {
       return rows.filter((row) => {
+        const platformKey = normalizeChannelValue(row.platform ?? '');
         if (channelFilters.length > 0) {
-          const platformKey = normalizeChannelValue(row.platform ?? '');
           if (!platformKey || !channelFilters.includes(platformKey)) {
+            return false;
+          }
+        }
+        if (platformFilters.length > 0) {
+          if (!platformKey || !platformFilters.includes(platformKey)) {
             return false;
           }
         }
@@ -1485,9 +1511,14 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       if (!row.parishes?.some((parish) => normalizeParishValue(parish) === parishKey)) {
         return false;
       }
+      const platformKey = normalizeChannelValue(row.platform ?? '');
       if (channelFilters.length > 0) {
-        const platformKey = normalizeChannelValue(row.platform ?? '');
         if (!platformKey || !channelFilters.includes(platformKey)) {
+          return false;
+        }
+      }
+      if (platformFilters.length > 0) {
+        if (!platformKey || !platformFilters.includes(platformKey)) {
           return false;
         }
       }
@@ -1499,11 +1530,18 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     const rows = creativeSlice.data ?? [];
     const query = normalizeFilterQuery(filters.campaignQuery);
     const channelFilters = resolveChannelFilters(filters);
+    // FP-CREA-01: gate on filters.platforms (route-scope axis), same as FP-CAMP-01.
+    const platformFilters = resolvePlatformFilters(filters);
     if (!selectedParish) {
       return rows.filter((row) => {
+        const platformKey = normalizeChannelValue(row.platform ?? '');
         if (channelFilters.length > 0) {
-          const platformKey = normalizeChannelValue(row.platform ?? '');
           if (!platformKey || !channelFilters.includes(platformKey)) {
+            return false;
+          }
+        }
+        if (platformFilters.length > 0) {
+          if (!platformKey || !platformFilters.includes(platformKey)) {
             return false;
           }
         }
@@ -1518,9 +1556,14 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       if (!row.parishes?.some((parish) => normalizeParishValue(parish) === parishKey)) {
         return false;
       }
+      const platformKey = normalizeChannelValue(row.platform ?? '');
       if (channelFilters.length > 0) {
-        const platformKey = normalizeChannelValue(row.platform ?? '');
         if (!platformKey || !channelFilters.includes(platformKey)) {
+          return false;
+        }
+      }
+      if (platformFilters.length > 0) {
+        if (!platformKey || !platformFilters.includes(platformKey)) {
           return false;
         }
       }
@@ -1535,11 +1578,18 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     const rows = budgetSlice.data ?? [];
     const query = normalizeFilterQuery(filters.campaignQuery);
     const channelFilters = resolveChannelFilters(filters);
+    // FP-BUDG-02: gate on filters.platforms (route-scope axis), same as FP-CAMP-01.
+    const platformFilters = resolvePlatformFilters(filters);
     if (!selectedParish) {
       return rows.filter((row) => {
+        const platformKey = normalizeChannelValue(row.platform ?? '');
         if (channelFilters.length > 0) {
-          const platformKey = normalizeChannelValue(row.platform ?? '');
           if (!platformKey || !channelFilters.includes(platformKey)) {
+            return false;
+          }
+        }
+        if (platformFilters.length > 0) {
+          if (!platformKey || !platformFilters.includes(platformKey)) {
             return false;
           }
         }
@@ -1551,9 +1601,14 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       if (!row.parishes?.some((parish) => normalizeParishValue(parish) === parishKey)) {
         return false;
       }
+      const platformKey = normalizeChannelValue(row.platform ?? '');
       if (channelFilters.length > 0) {
-        const platformKey = normalizeChannelValue(row.platform ?? '');
         if (!platformKey || !channelFilters.includes(platformKey)) {
+          return false;
+        }
+      }
+      if (platformFilters.length > 0) {
+        if (!platformKey || !platformFilters.includes(platformKey)) {
           return false;
         }
       }

@@ -4,9 +4,27 @@ import { Link, useParams } from 'react-router-dom';
 import Breadcrumbs from '../components/Breadcrumbs';
 import EmptyState from '../components/EmptyState';
 import MetricAvailabilityBadge from '../components/MetricAvailabilityBadge';
-import TrendChart from '../components/TrendChart';
+import { AccessibleTableToggle, KpiTile, TrendLine } from '../components/viz';
 import useMetaPageInsightsStore from '../state/useMetaPageInsightsStore';
 import '../styles/dashboard.css';
+
+type KpiCategory = 'reach' | 'impressions' | 'reactions' | 'shares';
+
+const METRIC_KEYS_BY_CATEGORY: Record<KpiCategory, string[]> = {
+  reach: ['post_impressions_unique', 'page_total_media_view_unique'],
+  impressions: ['post_impressions', 'page_impressions'],
+  reactions: ['post_reactions_by_type_total', 'post_reactions_like_total'],
+  shares: ['post_shares'],
+};
+
+const CATEGORY_LABELS: Record<KpiCategory, string> = {
+  reach: 'Reach',
+  impressions: 'Impressions',
+  reactions: 'Reactions',
+  shares: 'Shares',
+};
+
+const CATEGORY_ORDER: KpiCategory[] = ['reach', 'impressions', 'reactions', 'shares'];
 
 const MetaPostDetailPage = () => {
   const { postId = '' } = useParams();
@@ -63,14 +81,35 @@ const MetaPostDetailPage = () => {
     if (!postId || !metric) {
       return;
     }
+    // M16: pass metric/period as direct params so the fetch uses the current
+    // values even if Zustand's synchronous setFilters hasn't flushed yet.
     setFilters({ metric, period });
-    void loadPostTimeseries(postId);
+    void loadPostTimeseries(postId, { metric, period });
   }, [postId, metric, period, loadPostTimeseries, setFilters]);
 
-  const points = (postTimeseries?.points ?? []).map((point) => ({
-    date: point.end_time.slice(0, 10),
-    value: point.value,
-  }));
+  const points = useMemo(
+    () =>
+      (postTimeseries?.points ?? []).map((point) => ({
+        date: point.end_time.slice(0, 10),
+        value: point.value ?? 0,
+      })),
+    [postTimeseries?.points],
+  );
+
+  const kpiEntries = useMemo(() => {
+    if (!postDetail) return [];
+    const availability = postDetail.metric_availability ?? {};
+    const metrics = postDetail.metrics ?? {};
+    return CATEGORY_ORDER.map((category) => {
+      const picked = METRIC_KEYS_BY_CATEGORY[category].find((key) => key in availability);
+      if (!picked) return null;
+      const raw = metrics[picked];
+      const value = typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
+      return { category, metricKey: picked, value };
+    }).filter((entry): entry is { category: KpiCategory; metricKey: string; value: number | null } => entry !== null);
+  }, [postDetail]);
+
+  const trendSparkValues = useMemo(() => points.slice(-7).map((p) => p.value), [points]);
 
   return (
     <section className="dashboardPage">
@@ -107,6 +146,7 @@ const MetaPostDetailPage = () => {
           actionLabel="Retry"
           onAction={() => postId && void loadPostDetail(postId)}
           className="panel"
+          reasonCode="error"
         />
       ) : null}
 
@@ -145,6 +185,22 @@ const MetaPostDetailPage = () => {
             </a>
           </article>
 
+          {kpiEntries.length > 0 ? (
+            <div className="dashboard-grid" data-testid="meta-post-kpi-strip" style={{ marginBottom: '1rem' }}>
+              {kpiEntries.map((entry) => (
+                <KpiTile
+                  key={entry.category}
+                  label={CATEGORY_LABELS[entry.category]}
+                  value={entry.value}
+                  format="number"
+                  hint={entry.metricKey}
+                  reasonCode={`meta_post_${entry.category}`}
+                  trend={entry.metricKey === metric ? trendSparkValues : undefined}
+                />
+              ))}
+            </div>
+          ) : null}
+
           <article className="panel">
             <div className="meta-posts-metric-select">
               <label htmlFor="meta-post-detail-metric">Timeseries metric</label>
@@ -173,7 +229,42 @@ const MetaPostDetailPage = () => {
           </article>
 
           {postSeriesStatus === 'loading' ? <div className="dashboard-state">Loading timeseries…</div> : null}
-          {points.length > 0 ? <TrendChart title={`${metric} trend`} points={points} /> : null}
+          {points.length > 0 ? (
+            <article className="panel" data-testid="meta-post-trend-panel">
+              <h3>{`${metric} trend`}</h3>
+              <AccessibleTableToggle
+                chartAriaLabel={`${metric} trend`}
+                chart={
+                  <TrendLine
+                    data={points}
+                    series={[{ key: 'value', label: metric }]}
+                    ariaLabel={`${metric} trend`}
+                    height={260}
+                  />
+                }
+                table={
+                  <div className="table-responsive">
+                    <table className="dashboard-table">
+                      <thead>
+                        <tr>
+                          <th className="dashboard-table__header-cell">Date</th>
+                          <th className="dashboard-table__header-cell">{metric}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {points.map((row) => (
+                          <tr key={row.date} className="dashboard-table__row">
+                            <td className="dashboard-table__cell">{row.date}</td>
+                            <td className="dashboard-table__cell">{row.value}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              />
+            </article>
+          ) : null}
         </>
       ) : null}
     </section>

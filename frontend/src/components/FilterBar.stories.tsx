@@ -12,7 +12,9 @@ const defaultState: FilterBarState = {
     end: '2025-01-07',
   },
   accountId: '',
+  clientId: '',
   channels: ['Meta Ads', 'Google Ads'],
+  platforms: [],
   campaignQuery: '',
 };
 

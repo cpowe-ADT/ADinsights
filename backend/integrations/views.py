@@ -2138,6 +2138,23 @@ class MetaPageConnectView(APIView):
                 ad_accounts=ad_accounts,
             )
 
+        # Sprint 9a follow-up: Meta OAuth completion is the *first* moment
+        # AdAccount + MetaPage rows land for a new tenant — the scheduled
+        # ``sync_meta_accounts`` beat won't fire for up to its interval, so
+        # without this dispatch the suggestion banner would stay empty for
+        # hours after a fresh connect. Fire-and-forget; swallow dispatch
+        # errors so OAuth never fails on suggestion bookkeeping.
+        if upserted_accounts or pages:
+            from integrations.clients.tasks import (
+                enqueue_refresh_client_suggestions,
+            )
+            from integrations.models import ClientSuggestionSnapshot
+
+            enqueue_refresh_client_suggestions(
+                str(request.user.tenant_id),
+                trigger_reason=ClientSuggestionSnapshot.REASON_META_SYNC,
+            )
+
         cache.delete(cache_key)
         log_audit_event(
             tenant=request.user.tenant,

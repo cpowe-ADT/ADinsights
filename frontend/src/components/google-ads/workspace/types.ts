@@ -5,6 +5,8 @@ export type WorkspaceFilters = {
   endDate: string;
   compare: 'none' | 'dod' | 'wow' | 'mom' | 'yoy';
   customerId: string;
+  /** client_id for backend resolution (set from global FilterBar clientId). */
+  clientId?: string;
   campaignId: string;
 };
 

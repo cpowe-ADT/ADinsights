@@ -20,7 +20,10 @@ from core.db_error_responses import schema_out_of_date_response
 from integrations.meta_page_insights.metric_pack_loader import is_blocked_metric
 from integrations.meta_page_views import MetaOAuthCallbackView
 from integrations.meta_page_views import _dispatch_meta_page_task
+from integrations.clients.resolver import resolve_client_accounts
 from integrations.models import (
+    Client as IntegrationsClient,
+    ClientPlatformAccount,
     MetaConnection,
     MetaInsightPoint,
     MetaMetricRegistry,
@@ -81,9 +84,34 @@ class MetaPagesInsightsListView(APIView):
             raise
 
     def _get(self, request, *args, **kwargs):  # noqa: ANN001
-        pages = list(
-            MetaPage.objects.filter(tenant=request.user.tenant).order_by("-is_default", "name")
-        )
+        # Sprint 5 of Client grouping: optional ``client_id`` scopes the listing
+        # to the Client's Meta pages.
+        client_id_raw = (request.query_params.get("client_id") or "").strip()
+        resolution_meta: dict[str, Any] | None = None
+        page_qs = MetaPage.objects.filter(tenant=request.user.tenant)
+        if client_id_raw:
+            try:
+                bundle = resolve_client_accounts(
+                    str(request.user.tenant_id),
+                    client_id_raw,
+                    platforms={ClientPlatformAccount.PLATFORM_META_PAGE},
+                )
+                linked_page_ids = list(bundle.meta_page_ids)
+                resolution_meta = {
+                    "client_id": client_id_raw,
+                    "meta_page_ids": linked_page_ids,
+                    "reason": None if linked_page_ids else "no_meta_pages_for_client",
+                }
+                page_qs = page_qs.filter(page_id__in=linked_page_ids)
+            except (IntegrationsClient.DoesNotExist, ValueError):
+                resolution_meta = {
+                    "client_id": client_id_raw,
+                    "meta_page_ids": [],
+                    "reason": "client_not_found",
+                }
+                page_qs = page_qs.none()
+
+        pages = list(page_qs.order_by("-is_default", "name"))
         connection = (
             MetaConnection.objects.filter(tenant=request.user.tenant, is_active=True)
             .order_by("-updated_at")
@@ -107,13 +135,16 @@ class MetaPagesInsightsListView(APIView):
             }
             for page in pages
         ]
-        return Response(
-            {
-                "results": payload,
-                "count": len(payload),
-                "missing_required_permissions": missing_required_permissions,
-            }
-        )
+        body: dict[str, Any] = {
+            "results": payload,
+            "count": len(payload),
+            "missing_required_permissions": missing_required_permissions,
+        }
+        response = Response(body)
+        if resolution_meta is not None:
+            body["client_resolution"] = resolution_meta
+            response["X-Adinsights-Resolved-Via"] = f"client:{resolution_meta['client_id']}"
+        return response
 
 
 class MetaPageInsightsSyncView(APIView):

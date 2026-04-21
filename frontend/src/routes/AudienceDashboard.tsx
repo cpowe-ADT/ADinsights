@@ -1,13 +1,17 @@
 import { useCallback, useId, useMemo, useState } from 'react';
 
-import AgeDistributionBar from '../components/AgeDistributionBar';
 import AgeGenderPyramid from '../components/AgeGenderPyramid';
 import DashboardState from '../components/DashboardState';
-import GenderDonut from '../components/GenderDonut';
 import Skeleton from '../components/Skeleton';
 import StatusBanner from '../components/StatusBanner';
 import Card from '../components/ui/Card';
-import StatCard from '../components/ui/StatCard';
+import {
+  AccessibleTableToggle,
+  DistributionBar,
+  KpiTile,
+  PieComposition,
+} from '../components/viz';
+import { PLATFORM_CHART_TOKENS } from '../styles/chartTheme';
 import { useAuth } from '../auth/AuthContext';
 import { messageForLiveDatasetReason, titleForLiveDatasetReason } from '../lib/datasetStatus';
 import useDashboardStore from '../state/useDashboardStore';
@@ -15,7 +19,6 @@ import { useDatasetStore } from '../state/useDatasetStore';
 import {
   formatAbsoluteTime,
   formatNumber,
-  formatPercent,
   formatRelativeTime,
   isTimestampStale,
 } from '../lib/format';
@@ -47,11 +50,14 @@ const EmptyIcon = () => (
 
 const AudienceDashboard = () => {
   const { tenantId } = useAuth();
-  const { demographics, loadAll, lastSnapshotGeneratedAt } = useDashboardStore((state) => ({
-    demographics: state.demographics,
-    loadAll: state.loadAll,
-    lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
-  }));
+  const { demographics, platforms, loadAll, lastSnapshotGeneratedAt } = useDashboardStore(
+    (state) => ({
+      demographics: state.demographics,
+      platforms: state.platforms,
+      loadAll: state.loadAll,
+      lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+    }),
+  );
   const datasetMode = useDatasetStore((state) => state.mode);
   const liveReason = useDatasetStore((state) => state.liveReason);
   const liveDetail = useDatasetStore((state) => state.liveDetail);
@@ -69,8 +75,9 @@ const AudienceDashboard = () => {
 
   const isLoading = demographics.status === 'loading' && !demographics.data;
   const hasData = Boolean(demographics.data);
+  const datasetSource = useDatasetStore((state) => state.source);
   const liveDatasetBlocked =
-    datasetMode === 'live' && liveReason && liveReason !== 'ready';
+    datasetMode === 'live' && datasetSource === 'warehouse' && liveReason && liveReason !== 'ready';
   const liveDatasetMessage = liveReason
     ? messageForLiveDatasetReason(liveReason, liveDetail)
     : null;
@@ -84,8 +91,6 @@ const AudienceDashboard = () => {
     if (!data) return null;
 
     const totalReach = data.byGender.reduce((sum, g) => sum + g.reach, 0);
-    const femaleRow = data.byGender.find((g) => g.gender.toLowerCase() === 'female');
-    const femalePct = totalReach > 0 && femaleRow ? femaleRow.reach / totalReach : 0;
 
     const topAge = data.byAge.length > 0
       ? data.byAge.reduce(
@@ -95,14 +100,59 @@ const AudienceDashboard = () => {
       : undefined;
 
     const totalImpressions = data.byAge.reduce((sum, a) => sum + a.impressions, 0);
+    const avgFrequency = totalReach > 0 ? totalImpressions / totalReach : 0;
 
-    return [
-      { label: 'Total reach', value: formatNumber(totalReach) },
-      { label: '% Female', value: formatPercent(femalePct) },
-      { label: 'Top age group', value: topAge?.ageRange ?? '—' },
-      { label: 'Impressions', value: formatNumber(totalImpressions) },
-    ];
+    // Top device comes from a different store slice (platforms.byDevice). If
+    // platforms.data is absent we hide the tile entirely rather than show "—".
+    let topDeviceLabel: string | null = null;
+    let topDeviceImpressions: number | null = null;
+    const devices = platforms?.data?.byDevice ?? [];
+    if (devices.length > 0) {
+      const top = devices.reduce(
+        (best, row) => (row.impressions > best.impressions ? row : best),
+        devices[0],
+      );
+      topDeviceLabel = top.device;
+      topDeviceImpressions = top.impressions;
+    }
+
+    return {
+      totalReach,
+      avgFrequency,
+      topAgeLabel: topAge?.ageRange ?? '—',
+      topAgeImpressions: topAge?.impressions ?? 0,
+      topDeviceLabel,
+      topDeviceImpressions,
+    };
+  }, [demographics.data, platforms?.data]);
+
+  const genderPieData = useMemo(() => {
+    const rows = demographics.data?.byGender ?? [];
+    const colors = ['#6366f1', '#ec4899', '#22c55e', '#a3a3a3'];
+    return rows
+      .filter((row) => row.reach > 0 || row.impressions > 0)
+      .map((row, idx) => ({
+        label: row.gender.charAt(0).toUpperCase() + row.gender.slice(1),
+        value: row.reach > 0 ? row.reach : row.impressions,
+        color: colors[idx % colors.length],
+      }));
   }, [demographics.data]);
+
+  const ageDistData = useMemo(() => {
+    const rows = demographics.data?.byAge ?? [];
+    return rows.map((row) => ({
+      label: row.ageRange,
+      value: Number(row[distributionMetric] ?? 0),
+    }));
+  }, [demographics.data, distributionMetric]);
+
+  const deviceDistData = useMemo(() => {
+    const rows = platforms?.data?.byDevice ?? [];
+    return rows.map((row) => ({
+      label: row.device.charAt(0).toUpperCase() + row.device.slice(1),
+      value: row.impressions,
+    }));
+  }, [platforms?.data]);
 
   const pageShell = (content: React.ReactNode) => (
     <section className="dashboardPage" aria-labelledby={headingId}>
@@ -188,38 +238,92 @@ const AudienceDashboard = () => {
 
   const data = demographics.data;
 
+  // FP-AUD-01: If the backend returned a populated demographics object but with
+  // empty age/gender arrays, show an empty state rather than null charts.
+  if (hasData && !isLoading && !data?.byAgeGender?.length && !data?.byGender?.length) {
+    return pageShell(
+      <div className="dashboardGrid">
+        <Card title="Audience insights" className="chartCard">
+          <DashboardState
+            variant="empty"
+            icon={<EmptyIcon />}
+            title="No demographic data for selected range"
+            message="Try a different date range or check that age/gender breakdowns are synced from Meta."
+            actionLabel="Refresh data"
+            onAction={handleRetry}
+            layout="compact"
+          />
+        </Card>
+      </div>,
+    );
+  }
+
+  const showTopDeviceTile = kpis?.topDeviceLabel !== null && kpis?.topDeviceLabel !== undefined;
+  const showDeviceBlock = (platforms?.data?.byDevice?.length ?? 0) > 0;
+
   return pageShell(
     <div className="dashboardGrid">
-      {/* KPI row */}
+      {/* Block 1 — KPI strip */}
       <div className="kpiColumn" role="group" aria-label="Audience KPIs">
-        {isLoading
-          ? Array.from({ length: 4 }, (_, i) => (
-              <Skeleton key={i} height={72} borderRadius="0.75rem" />
-            ))
-          : kpis?.map((kpi) => (
-              <StatCard key={kpi.label} label={kpi.label} value={kpi.value} />
-            ))}
+        {isLoading ? (
+          Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} height={72} borderRadius="0.75rem" />
+          ))
+        ) : kpis ? (
+          <>
+            <KpiTile label="Total reach" value={kpis.totalReach} format="number" />
+            <KpiTile
+              label="Avg frequency"
+              value={kpis.avgFrequency > 0 ? kpis.avgFrequency : null}
+              format="number"
+              hint="Impressions ÷ reach"
+            />
+            <KpiTile
+              label="Top age group"
+              value={kpis.topAgeImpressions}
+              format="number"
+              hint={kpis.topAgeLabel}
+            />
+            {showTopDeviceTile ? (
+              <KpiTile
+                label="Top device"
+                value={kpis.topDeviceImpressions}
+                format="number"
+                hint={kpis.topDeviceLabel ?? undefined}
+              />
+            ) : null}
+          </>
+        ) : null}
       </div>
 
-      {/* Pyramid + Donut side by side */}
+      {/* Block 2 — Population pyramid (existing Age×Gender drill-down) + Gender composition */}
       <div className="audienceChartsRow">
         <Card title="Population pyramid" className="chartCard">
           {isLoading ? (
             <Skeleton height={320} borderRadius="1rem" />
           ) : data?.byAgeGender ? (
-            <AgeGenderPyramid data={data.byAgeGender} metric="impressions" />
+            <AgeGenderPyramid
+              data={data.byAgeGender}
+              metric="impressions"
+              ariaLabel="Population pyramid of impressions by age range and gender"
+            />
           ) : null}
         </Card>
         <Card title="Gender split" className="chartCard">
           {isLoading ? (
             <Skeleton height={260} borderRadius="1rem" />
-          ) : data?.byGender ? (
-            <GenderDonut data={data.byGender} metric="impressions" />
+          ) : genderPieData.length > 0 ? (
+            <PieComposition
+              ariaLabel="Audience reach by gender"
+              data={genderPieData}
+              yFormat="number"
+              emptyReasonCode="no_data_for_range"
+            />
           ) : null}
         </Card>
       </div>
 
-      {/* Age distribution with metric picker */}
+      {/* Block 3 — Age distribution with metric picker */}
       <Card
         title="Age distribution"
         className="chartCard tableCardWide"
@@ -240,12 +344,64 @@ const AudienceDashboard = () => {
       >
         {isLoading ? (
           <Skeleton height={300} borderRadius="1rem" />
-        ) : data?.byAgeGender ? (
-          <AgeDistributionBar data={data.byAgeGender} metric={distributionMetric} />
+        ) : ageDistData.length > 0 ? (
+          <AccessibleTableToggle
+            chartAriaLabel="Age distribution"
+            chart={
+              <DistributionBar
+                ariaLabel={`Audience ${distributionMetric} by age range`}
+                data={ageDistData}
+                yFormat={distributionMetric === 'spend' ? 'currency' : 'number'}
+                emptyReasonCode="no_data_for_range"
+              />
+            }
+            table={
+              <table className="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>Age range</th>
+                    <th>{distributionMetric}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ageDistData.map((row) => (
+                    <tr key={row.label}>
+                      <td>{row.label}</td>
+                      <td>{formatNumber(row.value)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            }
+          />
         ) : null}
       </Card>
 
-      {/* Demographics detail table */}
+      {/* Block 4 — Device distribution (hidden when platforms.data absent) */}
+      {showDeviceBlock ? (
+        <Card title="Device distribution" className="chartCard tableCardWide">
+          {isLoading ? (
+            <Skeleton height={260} borderRadius="1rem" />
+          ) : (
+            <DistributionBar
+              ariaLabel="Impressions by device"
+              data={deviceDistData.map((row, idx) => ({
+                ...row,
+                color:
+                  idx === 0
+                    ? PLATFORM_CHART_TOKENS.meta_ads
+                    : idx === 1
+                      ? PLATFORM_CHART_TOKENS.google_ads
+                      : undefined,
+              }))}
+              yFormat="number"
+              emptyReasonCode="no_data_for_range"
+            />
+          )}
+        </Card>
+      ) : null}
+
+      {/* Block 5 — Demographics detail table */}
       <Card title="Demographics detail" className="tableCardWide">
         {isLoading ? (
           <Skeleton height={200} borderRadius="1rem" />

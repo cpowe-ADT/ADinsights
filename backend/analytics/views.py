@@ -322,7 +322,26 @@ class CombinedMetricsView(APIView):
             snapshot_written = result.snapshot_written
             query_count = result.query_count
             status_label = "success"
-            return Response(result.payload)
+            response = Response(result.payload)
+            # Sprint 6 of Client grouping: advertise the client resolution
+            # alongside the response for browser-side debugging and to let
+            # the frontend short-circuit render when the client is empty.
+            if result.client_resolution is not None:
+                # Sprint 10 polish: distinguish between client-scoped and
+                # platform-only resolution in the header so browser-side
+                # debugging can tell why the backend narrowed the payload.
+                scope = result.client_resolution.get("scope")
+                if scope == "platforms_only":
+                    enabled = (
+                        result.client_resolution.get("platforms", {}).get("enabled", [])
+                    )
+                    response["X-Adinsights-Resolved-Via"] = (
+                        "platforms:" + ",".join(enabled) if enabled else "platforms:"
+                    )
+                else:
+                    client_id_val = result.client_resolution.get("client_id", "")
+                    response["X-Adinsights-Resolved-Via"] = f"client:{client_id_val}"
+            return response
         except WarehouseSnapshotUnavailable as exc:
             cache_outcome = "warehouse_unavailable"
             status_label = "warehouse_unavailable"

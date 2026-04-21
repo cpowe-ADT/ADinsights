@@ -806,6 +806,58 @@ def test_meta_page_connect_creates_meta_credential(api_client, user):
 
 
 @pytest.mark.django_db
+def test_meta_page_connect_triggers_client_suggestion_refresh(
+    api_client, user, monkeypatch
+):
+    """Regression: the Meta OAuth completion view is the *first* moment Meta
+    accounts land for a new tenant. Without a suggestion-refresh dispatch
+    here the banner would stay empty until the scheduled beat ticked."""
+
+    _authenticate(api_client, user)
+    selection_token = "selection-token-suggest"
+    cache.set(
+        f"{META_OAUTH_SELECTION_CACHE_PREFIX}{selection_token}",
+        {
+            "tenant_id": str(user.tenant_id),
+            "user_id": str(user.id),
+            "user_access_token": "long-user-token",
+            "granted_permissions": ["ads_read", "business_management"],
+            "declined_permissions": [],
+            "missing_required_permissions": [],
+            "pages": [{"id": "page-1", "name": "Business Page", "tasks": [], "perms": []}],
+            "ad_accounts": [{"id": "act_123", "account_id": "123", "name": "Primary Account"}],
+            "instagram_accounts": [],
+        },
+        timeout=600,
+    )
+
+    captured: list[dict] = []
+
+    def fake_enqueue(tenant_id, *, trigger_reason):
+        captured.append({"tenant_id": tenant_id, "trigger_reason": trigger_reason})
+
+    monkeypatch.setattr(
+        "integrations.clients.tasks.enqueue_refresh_client_suggestions",
+        fake_enqueue,
+    )
+
+    response = api_client.post(
+        reverse("meta-page-connect"),
+        {
+            "selection_token": selection_token,
+            "page_id": "page-1",
+            "ad_account_id": "act_123",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert len(captured) == 1
+    assert captured[0]["tenant_id"] == str(user.tenant_id)
+    assert captured[0]["trigger_reason"] == "meta_sync"
+
+
+@pytest.mark.django_db
 def test_meta_recovery_preview_uses_existing_meta_connection_token(api_client, user, monkeypatch):
     _authenticate(api_client, user)
     page_connection = MetaConnection(

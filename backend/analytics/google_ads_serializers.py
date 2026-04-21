@@ -13,6 +13,10 @@ class GoogleAdsDateRangeQuerySerializer(serializers.Serializer):
     end_date = serializers.DateField(required=False)
     customer_id = serializers.CharField(required=False, allow_blank=False)
     campaign_id = serializers.CharField(required=False, allow_blank=False)
+    # Sprint 4 of Client grouping: when provided, every Google Ads read endpoint
+    # restricts its query to the Client's Google customer_ids (MCC-expanded).
+    # If both client_id and customer_id are passed, the intersection is used.
+    client_id = serializers.UUIDField(required=False)
     compare = serializers.ChoiceField(
         choices=["none", "dod", "wow", "mom", "yoy"],
         required=False,

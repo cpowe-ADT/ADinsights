@@ -2655,6 +2655,81 @@ th.pinned {
   color: var(--color-text-muted);
 }
 
+.filter-toggle-group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.filter-toggle-group__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.client-suggestion-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.1rem;
+  background: var(--color-surface-subtle, #f5f7ff);
+  border: 1px solid var(--color-border, #d8ddf1);
+  border-radius: 0.75rem;
+}
+
+.client-suggestion-banner__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 20rem;
+}
+
+.client-suggestion-banner__title {
+  font-weight: 600;
+}
+
+.client-suggestion-banner__detail {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.client-suggestion-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.client-suggestion-banner__review {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.5rem;
+  background: var(--color-accent, #3651d4);
+  color: #fff;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.client-suggestion-banner__review:hover {
+  filter: brightness(1.05);
+}
+
+.client-suggestion-banner__dismiss {
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.5rem;
+  background: transparent;
+  border: 1px solid var(--color-border, #d8ddf1);
+  color: var(--color-text, inherit);
+  cursor: pointer;
+}
+
+.client-suggestion-banner__dismiss:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .empty-state {
   display: grid;
   gap: 0.9rem;

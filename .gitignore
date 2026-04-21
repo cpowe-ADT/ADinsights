@@ -64,3 +64,10 @@ output/
 
 # Claude Code local config
 .claude/launch.json
+.claude/worktrees/
+
+# Storybook build output
+frontend/storybook-static/
+
+# Local developer scratch (Instagram diff scripts etc.)
+/tools/

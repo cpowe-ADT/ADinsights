@@ -79,10 +79,10 @@ type MetaPageInsightsState = {
   connectOAuthCallback: (code: string, state: string) => Promise<void>;
   selectDefaultPage: (pageId: string) => Promise<void>;
   loadOverviewAndTimeseries: (pageId: string) => Promise<void>;
-  loadTimeseries: (pageId: string) => Promise<void>;
+  loadTimeseries: (pageId: string, overrides?: { metric?: string; period?: string }) => Promise<void>;
   loadPosts: (pageId: string, overrides?: Partial<PostsQuery>) => Promise<void>;
   loadPostDetail: (postId: string) => Promise<void>;
-  loadPostTimeseries: (postId: string) => Promise<void>;
+  loadPostTimeseries: (postId: string, overrides?: { metric?: string; period?: string }) => Promise<void>;
   refreshPage: (pageId: string) => Promise<Record<string, string>>;
 };
 
@@ -271,7 +271,7 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
       set({ dashboardStatus: 'error', error: classifyError(error, 'Unable to load page overview.') });
     }
   },
-  loadTimeseries: async (pageId) => {
+  loadTimeseries: async (pageId, overrides) => {
     const { filters, overview } = get();
     set({ dashboardStatus: 'loading', error: undefined });
     try {
@@ -281,8 +281,8 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
           since: filters.since,
           until: filters.until,
         }),
-        metric: filters.metric || overview?.primary_metric || 'page_post_engagements',
-        period: filters.period || 'day',
+        metric: overrides?.metric ?? filters.metric ?? overview?.primary_metric ?? 'page_post_engagements',
+        period: overrides?.period ?? filters.period ?? 'day',
       };
       const timeseries = await loadMetaPageTimeseries(pageId, timeseriesParams);
       set({ timeseries, dashboardStatus: 'loaded' });
@@ -325,13 +325,13 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
       set({ postStatus: 'error', error: classifyError(error, 'Unable to load post details.') });
     }
   },
-  loadPostTimeseries: async (postId) => {
+  loadPostTimeseries: async (postId, overrides) => {
     const { filters } = get();
     set({ postSeriesStatus: 'loading', error: undefined });
     try {
       const postTimeseries = await loadMetaPostTimeseries(postId, {
-        metric: filters.metric,
-        period: filters.period || 'lifetime',
+        metric: overrides?.metric ?? filters.metric,
+        period: overrides?.period ?? (filters.period || 'lifetime'),
         since: filters.since,
         until: filters.until,
       });

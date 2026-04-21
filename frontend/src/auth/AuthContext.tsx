@@ -329,6 +329,23 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
 
   useEffect(() => {
     setApiUnauthorizedHandler(() => {
+      // Don't kill the session if the user just returned from an OAuth consent
+      // screen — a 401 on an unrelated background call would strip ?code&state
+      // from the URL when ProtectedRoute / Navigate reacts, silently breaking
+      // the OAuth callback exchange.
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const isOAuthReturn =
+          (params.has('code') && params.has('state')) ||
+          params.has('error') ||
+          params.has('error_reason');
+        if (isOAuthReturn) {
+          console.warn(
+            '[AuthContext] Suppressing 401 logout during OAuth callback',
+          );
+          return;
+        }
+      }
       logout();
     });
     return () => {
@@ -373,6 +390,28 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
           validationError instanceof Error
             ? validationError.message
             : 'Unable to verify your session.';
+
+        // Don't logout if an OAuth callback is in flight — stripping the URL
+        // would kill the exchange. Keep the session "checking" and let the
+        // OAuth handler finish or fail visibly.
+        const inOAuthCallback =
+          typeof window !== 'undefined' &&
+          (() => {
+            const params = new URLSearchParams(window.location.search);
+            return (
+              (params.has('code') && params.has('state')) ||
+              params.has('error') ||
+              params.has('error_reason')
+            );
+          })();
+        if (inOAuthCallback) {
+          console.warn(
+            '[AuthContext] /me/ failed during OAuth callback; deferring logout',
+          );
+          setStatusMessage('Completing OAuth…');
+          return;
+        }
+
         logout();
         setStatus('error');
         setError(message);

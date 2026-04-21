@@ -10,9 +10,20 @@ const phase2ApiMock = vi.hoisted(() => ({
   getSummary: vi.fn(),
 }));
 
-vi.mock('../../lib/phase2Api', () => ({
-  getSummary: phase2ApiMock.getSummary,
-}));
+// Use the `...actual` spread so that when this test file runs alongside
+// others that mock phase2Api (e.g. SavedDashboardPage.test.tsx), the module
+// registry keeps every non-mocked export intact. Without this, cross-file
+// hoist ordering can leave SummaryDetailPage's mock swapped out under load,
+// producing an intermittent "heading not found" flake in full-suite runs.
+vi.mock('../../lib/phase2Api', async () => {
+  const actual = await vi.importActual<typeof import('../../lib/phase2Api')>(
+    '../../lib/phase2Api',
+  );
+  return {
+    ...actual,
+    getSummary: phase2ApiMock.getSummary,
+  };
+});
 
 const sampleSummary: AISummary = {
   id: 'sum-1',

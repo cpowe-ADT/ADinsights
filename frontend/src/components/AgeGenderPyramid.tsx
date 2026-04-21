@@ -13,9 +13,17 @@ const FEMALE_COLOR = chartPalette[1];
 interface AgeGenderPyramidProps {
   data: AgeGenderBreakdown[];
   metric?: 'impressions' | 'reach' | 'clicks' | 'spend';
+  /**
+   * A11y: describes the pyramid to screen readers. Required for WCAG AA —
+   * without it the Recharts SVG is a silent region. Defaults to a generic
+   * label keyed by metric so legacy callers don't regress, but callers are
+   * strongly encouraged to pass a context-specific label.
+   */
+  ariaLabel?: string;
 }
 
-const AgeGenderPyramid = ({ data, metric = 'impressions' }: AgeGenderPyramidProps) => {
+const AgeGenderPyramid = ({ data, metric = 'impressions', ariaLabel }: AgeGenderPyramidProps) => {
+  const resolvedAriaLabel = ariaLabel ?? `Age and gender pyramid by ${metric}`;
   const chartData = useMemo(() => {
     const byAge: Record<string, { male: number; female: number }> = {};
     for (const row of data) {
@@ -46,8 +54,9 @@ const AgeGenderPyramid = ({ data, metric = 'impressions' }: AgeGenderPyramidProp
   const TooltipComponent = Tooltip as unknown as ComponentType<Record<string, unknown>>;
 
   return (
-    <ResponsiveContainer width="100%" height={320}>
-      <BarChart data={chartData} layout="vertical" margin={{ ...chartMargins, left: 48 }}>
+    <div role="img" aria-label={resolvedAriaLabel} style={{ width: '100%' }}>
+      <ResponsiveContainer width="100%" height={320}>
+        <BarChart data={chartData} layout="vertical" margin={{ ...chartMargins, left: 48 }}>
         <GridComponent
           horizontal={false}
           stroke={chartTheme.grid.stroke}
@@ -79,8 +88,9 @@ const AgeGenderPyramid = ({ data, metric = 'impressions' }: AgeGenderPyramidProp
           radius={[0, chartTheme.cornerRadius / 2, chartTheme.cornerRadius / 2, 0]}
           stackId="pyramid"
         />
-      </BarChart>
-    </ResponsiveContainer>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 };
 

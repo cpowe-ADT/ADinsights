@@ -332,88 +332,65 @@ def sync_google_ads_sdk_incremental(
                     credential=credential,
                     login_customer_id=getattr(settings, "GOOGLE_ADS_LOGIN_CUSTOMER_ID", None),
                 )
-                campaign_rows = client.fetch_campaign_daily(
-                    customer_id=account_id,
-                    start_date=window_start,
-                    end_date=window_end,
-                )
-                ad_rows = client.fetch_ad_group_ad_daily(
-                    customer_id=account_id,
-                    start_date=window_start,
-                    end_date=window_end,
-                )
-                geo_rows = client.fetch_geographic_daily(
-                    customer_id=account_id,
-                    start_date=window_start,
-                    end_date=window_end,
-                )
+
+                # Enumerate child customers under the credential. When the
+                # credential's account_id is a manager (MCC) the Google Ads
+                # API rejects metric queries against it (REQUESTED_METRICS_FOR_MANAGER),
+                # so we must fan out to each non-manager child. When the
+                # account is a leaf customer, accessible_rows typically
+                # contains only itself and we sync that one.
                 accessible_rows = client.fetch_accessible_customers(customer_id=account_id)
+                upsert_accessible_customer_rows(tenant=credential.tenant, rows=accessible_rows)
+
+                child_customer_ids = [
+                    _normalize_google_customer_id(row.customer_id)
+                    for row in accessible_rows
+                    if getattr(row, "customer_id", None) and not getattr(row, "is_manager", False)
+                ]
+                child_customer_ids = [cid for cid in child_customer_ids if cid]
+                # If the list is empty (e.g. a leaf account that didn't
+                # surface itself via customer_client), fall back to the
+                # credential's own account_id.
+                target_customer_ids = child_customer_ids or [account_id]
+
+                campaign_rows: list[Any] = []
+                ad_rows: list[Any] = []
+                geo_rows: list[Any] = []
+                per_child_errors: dict[str, str] = {}
+                for target in target_customer_ids:
+                    try:
+                        campaign_rows.extend(
+                            client.fetch_campaign_daily(
+                                customer_id=target,
+                                start_date=window_start,
+                                end_date=window_end,
+                            )
+                        )
+                        ad_rows.extend(
+                            client.fetch_ad_group_ad_daily(
+                                customer_id=target,
+                                start_date=window_start,
+                                end_date=window_end,
+                            )
+                        )
+                        geo_rows.extend(
+                            client.fetch_geographic_daily(
+                                customer_id=target,
+                                start_date=window_start,
+                                end_date=window_end,
+                            )
+                        )
+                    except GoogleAdsSdkError as child_exc:
+                        # Skip unreachable / not-enabled children but don't
+                        # fail the whole sync for one bad child.
+                        per_child_errors[target] = f"{child_exc.classification}: {child_exc}"
+                        continue
 
                 upsert_campaign_daily_rows(tenant=credential.tenant, rows=campaign_rows)
                 upsert_ad_group_ad_daily_rows(tenant=credential.tenant, rows=ad_rows)
                 upsert_geographic_daily_rows(tenant=credential.tenant, rows=geo_rows)
-                upsert_accessible_customer_rows(tenant=credential.tenant, rows=accessible_rows)
 
                 optional_errors: dict[str, dict[str, Any]] = {}
-                try:
-                    keyword_rows = client.fetch_keyword_daily(
-                        customer_id=account_id,
-                        start_date=window_start,
-                        end_date=window_end,
-                    )
-                    upsert_keyword_daily_rows(tenant=credential.tenant, rows=keyword_rows)
-                except GoogleAdsSdkError as exc:
-                    optional_errors["keyword_daily"] = {
-                        "classification": exc.classification,
-                        "request_id": exc.request_id,
-                        "message": str(exc),
-                    }
-
-                try:
-                    search_term_rows = client.fetch_search_term_daily(
-                        customer_id=account_id,
-                        start_date=window_start,
-                        end_date=window_end,
-                    )
-                    upsert_search_term_daily_rows(tenant=credential.tenant, rows=search_term_rows)
-                except GoogleAdsSdkError as exc:
-                    optional_errors["search_term_daily"] = {
-                        "classification": exc.classification,
-                        "request_id": exc.request_id,
-                        "message": str(exc),
-                    }
-
-                try:
-                    asset_group_rows = client.fetch_asset_group_daily(
-                        customer_id=account_id,
-                        start_date=window_start,
-                        end_date=window_end,
-                    )
-                    upsert_asset_group_daily_rows(tenant=credential.tenant, rows=asset_group_rows)
-                except GoogleAdsSdkError as exc:
-                    optional_errors["asset_group_daily"] = {
-                        "classification": exc.classification,
-                        "request_id": exc.request_id,
-                        "message": str(exc),
-                    }
-
-                try:
-                    conversion_action_rows = client.fetch_conversion_action_daily(
-                        customer_id=account_id,
-                        start_date=window_start,
-                        end_date=window_end,
-                    )
-                    upsert_conversion_action_daily_rows(
-                        tenant=credential.tenant,
-                        rows=conversion_action_rows,
-                    )
-                except GoogleAdsSdkError as exc:
-                    optional_errors["conversion_action_daily"] = {
-                        "classification": exc.classification,
-                        "request_id": exc.request_id,
-                        "message": str(exc),
-                    }
-
                 change_window_start = datetime.combine(
                     window_start,
                     datetime.min.time(),
@@ -424,28 +401,100 @@ def sync_google_ads_sdk_incremental(
                     datetime.min.time(),
                     tzinfo=dt_timezone.utc,
                 )
-                try:
-                    change_event_rows = client.fetch_change_events(
-                        customer_id=account_id,
-                        start_datetime=change_window_start,
-                        end_datetime=change_window_end,
-                    )
-                    upsert_change_event_rows(tenant=credential.tenant, rows=change_event_rows)
-                except GoogleAdsSdkError as exc:
-                    optional_errors["change_events"] = {
-                        "classification": exc.classification,
-                        "request_id": exc.request_id,
-                        "message": str(exc),
-                    }
 
-                try:
-                    recommendation_rows = client.fetch_recommendations(customer_id=account_id)
-                    upsert_recommendation_rows(tenant=credential.tenant, rows=recommendation_rows)
-                except GoogleAdsSdkError as exc:
-                    optional_errors["recommendations"] = {
-                        "classification": exc.classification,
-                        "request_id": exc.request_id,
-                        "message": str(exc),
+                keyword_rows_all: list[Any] = []
+                search_term_rows_all: list[Any] = []
+                asset_group_rows_all: list[Any] = []
+                conversion_action_rows_all: list[Any] = []
+                change_event_rows_all: list[Any] = []
+                recommendation_rows_all: list[Any] = []
+
+                for target in target_customer_ids:
+                    for label, fetch in (
+                        (
+                            "keyword_daily",
+                            lambda t=target: keyword_rows_all.extend(
+                                client.fetch_keyword_daily(
+                                    customer_id=t,
+                                    start_date=window_start,
+                                    end_date=window_end,
+                                )
+                            ),
+                        ),
+                        (
+                            "search_term_daily",
+                            lambda t=target: search_term_rows_all.extend(
+                                client.fetch_search_term_daily(
+                                    customer_id=t,
+                                    start_date=window_start,
+                                    end_date=window_end,
+                                )
+                            ),
+                        ),
+                        (
+                            "asset_group_daily",
+                            lambda t=target: asset_group_rows_all.extend(
+                                client.fetch_asset_group_daily(
+                                    customer_id=t,
+                                    start_date=window_start,
+                                    end_date=window_end,
+                                )
+                            ),
+                        ),
+                        (
+                            "conversion_action_daily",
+                            lambda t=target: conversion_action_rows_all.extend(
+                                client.fetch_conversion_action_daily(
+                                    customer_id=t,
+                                    start_date=window_start,
+                                    end_date=window_end,
+                                )
+                            ),
+                        ),
+                        (
+                            "change_events",
+                            lambda t=target: change_event_rows_all.extend(
+                                client.fetch_change_events(
+                                    customer_id=t,
+                                    start_datetime=change_window_start,
+                                    end_datetime=change_window_end,
+                                )
+                            ),
+                        ),
+                        (
+                            "recommendations",
+                            lambda t=target: recommendation_rows_all.extend(
+                                client.fetch_recommendations(customer_id=t)
+                            ),
+                        ),
+                    ):
+                        try:
+                            fetch()
+                        except GoogleAdsSdkError as exc:
+                            # Record the first failure per resource label;
+                            # one bad child must not sink the whole sync.
+                            if label not in optional_errors:
+                                optional_errors[label] = {
+                                    "classification": exc.classification,
+                                    "request_id": exc.request_id,
+                                    "message": str(exc),
+                                    "customer_id": target,
+                                }
+
+                upsert_keyword_daily_rows(tenant=credential.tenant, rows=keyword_rows_all)
+                upsert_search_term_daily_rows(tenant=credential.tenant, rows=search_term_rows_all)
+                upsert_asset_group_daily_rows(tenant=credential.tenant, rows=asset_group_rows_all)
+                upsert_conversion_action_daily_rows(
+                    tenant=credential.tenant,
+                    rows=conversion_action_rows_all,
+                )
+                upsert_change_event_rows(tenant=credential.tenant, rows=change_event_rows_all)
+                upsert_recommendation_rows(tenant=credential.tenant, rows=recommendation_rows_all)
+
+                if per_child_errors:
+                    optional_errors["per_child_metric_errors"] = {
+                        "count": len(per_child_errors),
+                        "details": per_child_errors,
                     }
 
                 if optional_errors:
@@ -491,6 +540,25 @@ def sync_google_ads_sdk_incremental(
                     "last_sync_error",
                     "updated_at",
                 ]
+            )
+
+    # Sprint 9a: after Google Ads accounts land, refresh the Client suggestion
+    # snapshot so the banner can surface cross-platform grouping hints.
+    if synced:
+        from integrations.clients.tasks import (
+            enqueue_refresh_client_suggestions,
+        )
+        from integrations.models import ClientSuggestionSnapshot
+
+        seen_tenants: set[str] = set()
+        for credential in credentials:
+            tenant_key = str(credential.tenant_id)
+            if tenant_key in seen_tenants:
+                continue
+            seen_tenants.add(tenant_key)
+            enqueue_refresh_client_suggestions(
+                tenant_key,
+                trigger_reason=ClientSuggestionSnapshot.REASON_GOOGLE_SYNC,
             )
 
     return {
@@ -780,6 +848,144 @@ def refresh_airbyte_sync_health(self):  # noqa: ANN001
         "workspace_id": workspace_id or None,
         "stale_minutes": stale_minutes,
         "force_stale_failure": force_stale_failure,
+    }
+
+
+FX_DEFAULT_SYMBOLS: tuple[str, ...] = ("USD", "GBP", "CAD", "JPY", "EUR")
+FX_DEFAULT_BASE_CURRENCY = "USD"
+FX_DEFAULT_ENDPOINT = "https://api.frankfurter.app/latest"
+
+
+def _fetch_frankfurter_rates(
+    *,
+    base: str,
+    symbols: tuple[str, ...],
+    endpoint: str,
+    timeout: float,
+) -> tuple[date, dict[str, Decimal]]:
+    """Pull one day of pivoted rates from the Frankfurter public API.
+
+    Frankfurter returns ``{"base": "USD", "date": "2026-04-11", "rates": {...}}``.
+    Non-target currencies in the response are ignored; missing symbols surface
+    as an empty dict entry so callers can log which pairs were unavailable.
+    """
+
+    params = {
+        "base": base,
+        "symbols": ",".join(s for s in symbols if s and s.upper() != base.upper()),
+    }
+    response = httpx.get(endpoint, params=params, timeout=timeout)
+    response.raise_for_status()
+    payload = response.json()
+    rate_date = date.fromisoformat(str(payload.get("date") or ""))
+    raw_rates = payload.get("rates") or {}
+    result: dict[str, Decimal] = {}
+    for quote, value in raw_rates.items():
+        try:
+            result[str(quote).upper()] = Decimal(str(value))
+        except (InvalidOperation, TypeError, ValueError):
+            continue
+    return rate_date, result
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=3, name="integrations.tasks.refresh_fx_rates")
+def refresh_fx_rates(  # noqa: ANN001
+    self,
+    base_currency: str | None = None,
+    symbols: list[str] | None = None,
+    *,
+    manual_rows: list[dict] | None = None,
+):
+    """Upsert :class:`DailyFxRate` rows from the configured FX provider.
+
+    The task is intentionally single-provider (Frankfurter — free, no API key,
+    ECB-backed) for the initial roll-out. Tenants needing JMD pairs continue
+    to rely on manually-inserted rows (``SOURCE_MANUAL``) until a Jamaica
+    provider is wired up.
+
+    ``manual_rows`` is an escape hatch for tests and ops backfills — when
+    provided, bypass the HTTP fetch and upsert the supplied rows directly.
+    Each row must be ``{"rate_date": ISO-str, "base_currency": str,
+    "quote_currency": str, "rate": number, "source": str}``.
+    """
+
+    from analytics.models import DailyFxRate
+
+    base = (base_currency or FX_DEFAULT_BASE_CURRENCY).upper()
+    symbol_tuple = tuple(
+        s.upper() for s in (symbols or FX_DEFAULT_SYMBOLS) if s
+    )
+    upserts = 0
+    skipped = 0
+
+    if manual_rows is not None:
+        for row in manual_rows:
+            try:
+                rate_date = date.fromisoformat(str(row["rate_date"]))
+                rate_value = Decimal(str(row["rate"]))
+            except (KeyError, InvalidOperation, TypeError, ValueError):
+                skipped += 1
+                continue
+            with transaction.atomic():
+                DailyFxRate.objects.update_or_create(
+                    rate_date=rate_date,
+                    base_currency=str(row["base_currency"]).upper(),
+                    quote_currency=str(row["quote_currency"]).upper(),
+                    defaults={
+                        "rate": rate_value,
+                        "source": str(
+                            row.get("source") or DailyFxRate.SOURCE_MANUAL
+                        ),
+                    },
+                )
+            upserts += 1
+        return {"upserted": upserts, "skipped": skipped, "source": "manual"}
+
+    timeout_seconds = float(getattr(settings, "FX_PROVIDER_TIMEOUT_SECONDS", 10.0))
+    endpoint = (
+        getattr(settings, "FX_PROVIDER_ENDPOINT", "") or FX_DEFAULT_ENDPOINT
+    )
+
+    try:
+        rate_date, rates = _fetch_frankfurter_rates(
+            base=base,
+            symbols=symbol_tuple,
+            endpoint=endpoint,
+            timeout=timeout_seconds,
+        )
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning(
+            "fx.refresh.provider_error",
+            extra={"base": base, "endpoint": endpoint, "error": str(exc)},
+        )
+        raise self.retry(exc=exc, countdown=300)
+
+    for quote_currency, rate_value in rates.items():
+        with transaction.atomic():
+            DailyFxRate.objects.update_or_create(
+                rate_date=rate_date,
+                base_currency=base,
+                quote_currency=quote_currency,
+                defaults={
+                    "rate": rate_value,
+                    "source": DailyFxRate.SOURCE_ECB,  # Frankfurter pivots ECB data
+                },
+            )
+        upserts += 1
+
+    logger.info(
+        "fx.refresh.completed",
+        extra={
+            "base": base,
+            "rate_date": rate_date.isoformat(),
+            "upserted": upserts,
+        },
+    )
+    return {
+        "upserted": upserts,
+        "skipped": skipped,
+        "rate_date": rate_date.isoformat(),
+        "source": "frankfurter",
     }
 
 
@@ -1376,6 +1582,26 @@ def _sync_meta_accounts_core(
                     sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
                     error_category="",
                 )
+
+    # Sprint 9a: refresh Client suggestion snapshot after Meta accounts land
+    # so the dashboard banner can surface cross-platform grouping hints.
+    if accounts_synced:
+        from integrations.clients.tasks import (
+            enqueue_refresh_client_suggestions,
+        )
+        from integrations.models import ClientSuggestionSnapshot
+
+        seen_tenants: set[str] = set()
+        for credential in credentials:
+            tenant_key = str(credential.tenant_id)
+            if tenant_key in seen_tenants:
+                continue
+            seen_tenants.add(tenant_key)
+            enqueue_refresh_client_suggestions(
+                tenant_key,
+                trigger_reason=ClientSuggestionSnapshot.REASON_META_SYNC,
+            )
+
     return {
         "processed": processed,
         "succeeded": succeeded,

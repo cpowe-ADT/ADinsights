@@ -539,6 +539,14 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute="*/30"),
         "options": {"queue": CELERY_QUEUE_SNAPSHOT},
     },
+    # Sprint 10: daily ECB FX refresh so currency conversions don't drift.
+    # Runs at 05:15 America/Jamaica (after ECB publishes ~16:00 CET the day
+    # before). Free public API, no key required — see ``refresh_fx_rates``.
+    "fx-rates-daily": {
+        "task": "integrations.tasks.refresh_fx_rates",
+        "schedule": crontab(hour=5, minute=15),
+        "options": {"queue": CELERY_QUEUE_SYNC},
+    },
     "ai-daily-summary": {
         "task": "analytics.ai_daily_summary",
         "schedule": crontab(hour=6, minute=10),

@@ -38,9 +38,10 @@ describe('GoogleAdsCampaignDetailPage', () => {
 
   it('renders a back link to the campaigns page', () => {
     renderPage();
+    // B3 fix: back link points to workspace campaigns tab (works under both flag modes)
     expect(
       screen.getByRole('link', { name: /back to google ads campaigns/i }),
-    ).toHaveAttribute('href', '/dashboards/google-ads/campaigns');
+    ).toHaveAttribute('href', '/dashboards/google-ads?tab=campaigns');
   });
 
   it('renders campaign payload after loading', async () => {

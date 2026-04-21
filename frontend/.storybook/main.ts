@@ -8,7 +8,11 @@ const emptyShim = fileURLToPath(new URL('../src/shims/empty.ts', import.meta.url
 
 const config: StorybookConfig = {
   stories: ['../src/**/*.stories.@(ts|tsx|mdx)'],
-  addons: ['@storybook/addon-essentials', '@storybook/addon-interactions'],
+  addons: [
+    '@storybook/addon-essentials',
+    '@storybook/addon-interactions',
+    '@storybook/addon-a11y',
+  ],
   framework: {
     name: '@storybook/react-vite',
     options: {},

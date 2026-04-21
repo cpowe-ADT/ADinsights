@@ -123,6 +123,29 @@ describe('MetaPagesListPage', () => {
     expect(storeMock.state.connectOAuthStart).toHaveBeenCalledWith({ authType: 'rerequest' });
   });
 
+  it('renders AccessibleTableToggle wrapping the default and viz-kit table views', async () => {
+    storeMock.state.pages = [
+      {
+        id: '1',
+        page_id: 'page-1',
+        name: 'Page 1',
+        can_analyze: true,
+        is_default: true,
+        last_synced_at: '2026-04-04T10:00:00Z',
+      },
+    ];
+
+    render(
+      <MemoryRouter>
+        <MetaPagesListPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId('meta-pages-default-view')).toBeInTheDocument();
+    expect(screen.getByTestId('meta-pages-viz-table')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show data table/i })).toBeInTheDocument();
+  });
+
   it('shows restore CTA when marketing access is orphaned', async () => {
     airbyteMocks.loadSocialConnectionStatus.mockResolvedValue({
       generated_at: '2026-04-04T15:00:00Z',

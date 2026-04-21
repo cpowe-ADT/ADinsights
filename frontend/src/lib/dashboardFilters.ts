@@ -18,6 +18,20 @@ export type FilterBarState = {
   accountId: string;
   channels: string[];
   campaignQuery: string;
+  /**
+   * Sprint 8 of Client grouping: scopes the combined/single-platform dashboards
+   * to the linked platform accounts of one Client. Empty string means
+   * unscoped (legacy behaviour).
+   */
+  clientId: string;
+  /**
+   * Sprint 8 of Client grouping: toggleable platform list for the Combined
+   * view. Empty array means "use backend-configured defaults" (parity with
+   * legacy behaviour). Values are backend platform keys, e.g. 'meta_ads',
+   * 'google_ads', 'meta_page'. Unknown keys are silently dropped by the
+   * backend.
+   */
+  platforms: string[];
 };
 
 export const DEFAULT_CHANNELS = ['Meta Ads', 'Google Ads', 'LinkedIn', 'TikTok'];
@@ -57,6 +71,8 @@ const FILTER_QUERY_KEYS = {
   accountId: 'account_id',
   channels: 'channels',
   campaignSearch: 'campaign_search',
+  clientId: 'client_id',
+  platforms: 'platforms',
 };
 
 const toInputDate = (date: Date): string => {
@@ -79,6 +95,8 @@ export const createDefaultFilterState = (): FilterBarState => ({
   accountId: '',
   channels: [],
   campaignQuery: '',
+  clientId: '',
+  platforms: [],
 });
 
 const normalizeDateValue = (value: string | undefined, fallback: string): string => {
@@ -193,6 +211,18 @@ export const buildFilterQueryParams = (filters: FilterBarState): Record<string, 
     params[FILTER_QUERY_KEYS.campaignSearch] = query;
   }
 
+  const clientId = (filters.clientId ?? '').trim();
+  if (clientId) {
+    params[FILTER_QUERY_KEYS.clientId] = clientId;
+  }
+
+  const platforms = (filters.platforms ?? [])
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (platforms.length > 0) {
+    params[FILTER_QUERY_KEYS.platforms] = Array.from(new Set(platforms)).join(',');
+  }
+
   return params;
 };
 
@@ -235,6 +265,17 @@ export const parseFilterQueryParams = (
   const campaignQuery =
     searchParams.get(FILTER_QUERY_KEYS.campaignSearch)?.trim() ?? fallback.campaignQuery;
 
+  const clientId =
+    searchParams.get(FILTER_QUERY_KEYS.clientId)?.trim() ?? fallback.clientId;
+
+  const platformsParam = searchParams.get(FILTER_QUERY_KEYS.platforms);
+  const platforms = platformsParam
+    ? platformsParam
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean)
+    : fallback.platforms;
+
   const resolvedDateRange =
     dateRangeParam && DATE_RANGE_PRESETS.has(dateRangeParam as DateRangePreset)
       ? (dateRangeParam as DateRangePreset)
@@ -251,6 +292,8 @@ export const parseFilterQueryParams = (
     accountId,
     channels,
     campaignQuery,
+    clientId,
+    platforms,
   };
 };
 
@@ -267,6 +310,21 @@ export const areFiltersEqual = (left: FilterBarState, right: FilterBarState): bo
 
   if (left.accountId.trim() !== right.accountId.trim()) {
     return false;
+  }
+
+  if ((left.clientId ?? '').trim() !== (right.clientId ?? '').trim()) {
+    return false;
+  }
+
+  const leftPlatforms = [...(left.platforms ?? [])].sort();
+  const rightPlatforms = [...(right.platforms ?? [])].sort();
+  if (leftPlatforms.length !== rightPlatforms.length) {
+    return false;
+  }
+  for (let index = 0; index < leftPlatforms.length; index += 1) {
+    if (leftPlatforms[index] !== rightPlatforms[index]) {
+      return false;
+    }
   }
 
   const leftChannels = [...left.channels].sort();
@@ -292,3 +350,39 @@ export const areFiltersEqual = (left: FilterBarState, right: FilterBarState): bo
 
   return true;
 };
+
+// ── Route platform scope helpers ─────────────────────────────────────────────
+// R6: Extracted from DashboardLayout.tsx so they can be unit-tested in isolation.
+
+const META_ROUTE_PREFIX = '/dashboards/meta/';
+const GOOGLE_ADS_ROUTE_PREFIX = '/dashboards/google-ads';
+
+/**
+ * Given a pathname, returns the platform scope that must be applied to
+ * filters.platforms when on that route.  Returns null for combined routes
+ * (no forced scope).
+ */
+export function resolveRoutePlatformScope(pathname: string): string[] | null {
+  if (pathname.startsWith(META_ROUTE_PREFIX)) {
+    return ['meta_ads'];
+  }
+  if (
+    pathname === GOOGLE_ADS_ROUTE_PREFIX ||
+    pathname.startsWith(`${GOOGLE_ADS_ROUTE_PREFIX}/`)
+  ) {
+    return ['google_ads'];
+  }
+  return null;
+}
+
+/**
+ * Order-insensitive equality check for platform arrays.
+ */
+export function arePlatformArraysEqual(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  const sortedLeft = [...left].sort();
+  const sortedRight = [...right].sort();
+  return sortedLeft.every((value, index) => value === sortedRight[index]);
+}

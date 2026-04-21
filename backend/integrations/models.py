@@ -1574,3 +1574,165 @@ class NotificationChannel(models.Model):
 
     def __str__(self):
         return f"NotificationChannel<{self.name}:{self.channel_type}>"
+
+
+class Client(models.Model):
+    """Tenant-scoped logical client used to group platform ad accounts for joint reporting.
+
+    A Client is an orthogonal concept to the per-platform account tables: one client
+    can own many Google Ads customer_ids, Meta ad accounts, Meta pages, and (in the
+    future) GA4 properties / Search Console sites. Platform-specific dashboards keep
+    showing platform-native metrics but can filter by client_id via the resolver.
+    The combined metrics endpoint fans out across all linked platforms for a client.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="clients"
+    )
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255)
+    industry = models.CharField(max_length=128, blank=True)
+    parish = models.CharField(max_length=64, blank=True)
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "slug")
+        ordering = ("name",)
+        indexes = [
+            models.Index(fields=["tenant", "is_active"], name="client_tenant_active"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - repr helper
+        return f"Client<{self.name}:{self.slug}>"
+
+
+class ClientPlatformAccount(models.Model):
+    """Links one Client to one platform-specific external account.
+
+    Enforced as one-account-one-client per tenant via unique_together(tenant, platform,
+    external_id). If a tenant later genuinely needs an account to serve two clients,
+    relax the constraint then — don't default to it today.
+
+    ``external_id`` is the platform-native identifier (e.g. ``"5211685017"`` for a
+    Google customer_id, ``"act_123..."`` for a Meta ad account, a Facebook page id,
+    or a GA4 property id). No cross-platform FK because the referenced tables differ
+    by platform; resolver joins by id.
+    """
+
+    PLATFORM_GOOGLE_ADS = "google_ads"
+    PLATFORM_META_ADS = "meta_ads"
+    PLATFORM_META_PAGE = "meta_page"
+    PLATFORM_GA4 = "ga4"
+    PLATFORM_SEARCH_CONSOLE = "search_console"
+    PLATFORM_LINKEDIN = "linkedin"
+    PLATFORM_TIKTOK = "tiktok"
+    PLATFORM_CHOICES = [
+        (PLATFORM_GOOGLE_ADS, "Google Ads"),
+        (PLATFORM_META_ADS, "Meta Ads"),
+        (PLATFORM_META_PAGE, "Meta Page"),
+        (PLATFORM_GA4, "Google Analytics 4"),
+        (PLATFORM_SEARCH_CONSOLE, "Google Search Console"),
+        (PLATFORM_LINKEDIN, "LinkedIn"),
+        (PLATFORM_TIKTOK, "TikTok"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="client_platform_accounts"
+    )
+    client = models.ForeignKey(
+        Client, on_delete=models.CASCADE, related_name="platform_accounts"
+    )
+    platform = models.CharField(max_length=32, choices=PLATFORM_CHOICES)
+    external_id = models.CharField(max_length=128)
+    display_name = models.CharField(max_length=255, blank=True)
+    is_primary = models.BooleanField(default=False)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "platform", "external_id")
+        ordering = ("platform", "external_id")
+        indexes = [
+            models.Index(
+                fields=["tenant", "client", "platform"],
+                name="client_platacc_tenant_cli_plat",
+            ),
+            models.Index(
+                fields=["tenant", "platform", "external_id"],
+                name="client_platacc_tenant_ext",
+            ),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - repr helper
+        return f"ClientPlatformAccount<{self.platform}:{self.external_id}→{self.client_id}>"
+
+
+class ClientSuggestionSnapshot(models.Model):
+    """Persisted snapshot of the latest ``suggest_clients()`` output for a tenant.
+
+    Refreshed by the ``refresh_client_suggestions`` Celery task after platform
+    account syncs land (post Meta OAuth + account sync, post Google Ads SDK
+    incremental sync). The banner UI reads the latest *unacknowledged* snapshot
+    so new suggestions surface proactively; once the user dismisses them the
+    row is marked acknowledged and the banner hides until the next refresh.
+    """
+
+    REASON_META_SYNC = "meta_sync"
+    REASON_GOOGLE_SYNC = "google_sync"
+    REASON_MANUAL = "manual"
+    REASON_CHOICES = [
+        (REASON_META_SYNC, "Meta sync"),
+        (REASON_GOOGLE_SYNC, "Google sync"),
+        (REASON_MANUAL, "Manual refresh"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.OneToOneField(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="client_suggestion_snapshot",
+    )
+    trigger_reason = models.CharField(
+        max_length=32, choices=REASON_CHOICES, default=REASON_MANUAL
+    )
+    threshold = models.FloatField(default=0.7)
+    suggestion_count = models.PositiveIntegerField(default=0)
+    payload = models.JSONField(default=list, blank=True)
+    generated_at = models.DateTimeField(default=timezone.now)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["tenant", "acknowledged_at"],
+                name="client_sugg_tenant_ack",
+            ),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - repr helper
+        return (
+            f"ClientSuggestionSnapshot<tenant={self.tenant_id}"
+            f" count={self.suggestion_count} reason={self.trigger_reason}>"
+        )
+
+    @property
+    def is_unacknowledged(self) -> bool:
+        return self.acknowledged_at is None and self.suggestion_count > 0

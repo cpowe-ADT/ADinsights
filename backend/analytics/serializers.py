@@ -193,6 +193,11 @@ class CombinedMetricsQueryParamsSerializer(serializers.Serializer):
     account_id = serializers.CharField(required=False, allow_blank=True)
     channels = serializers.CharField(required=False, allow_blank=True)
     campaign_search = serializers.CharField(required=False, allow_blank=True)
+    # Sprint 6 of Client grouping: scope the combined payload to a Client's
+    # linked platform accounts. When ``client_id`` is present the Combined
+    # view injects ``client_scoped_google_customer_ids`` and
+    # ``client_scoped_meta_ad_account_ids`` into adapter options.
+    client_id = serializers.UUIDField(required=False)
 
     def validate_parish(self, value: object) -> list[str] | None:
         if value is None:

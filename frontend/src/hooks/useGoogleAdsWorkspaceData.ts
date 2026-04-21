@@ -25,6 +25,7 @@ export type WorkspaceFilters = {
   endDate: string;
   compare: 'none' | 'dod' | 'wow' | 'mom' | 'yoy';
   customerId?: string;
+  clientId?: string;
   campaignId?: string;
 };
 
@@ -72,7 +73,9 @@ function buildCommonParams(filters: WorkspaceFilters): QueryParams {
     end_date: filters.endDate,
     compare: filters.compare,
     customer_id: filters.customerId,
+    client_id: filters.clientId,
     campaign_id: filters.campaignId,
+    platforms: 'google_ads',
   };
 }
 
@@ -94,7 +97,7 @@ const useGoogleAdsWorkspaceData = ({
 }) => {
   const baseParams = useMemo(() => buildCommonParams(filters), [filters]);
   const filterKey = useMemo(
-    () => [filters.startDate, filters.endDate, filters.compare, filters.customerId ?? '', filters.campaignId ?? ''].join('|'),
+    () => [filters.startDate, filters.endDate, filters.compare, filters.customerId ?? '', filters.clientId ?? '', filters.campaignId ?? ''].join('|'),
     [filters],
   );
 

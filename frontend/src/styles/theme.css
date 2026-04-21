@@ -1,4 +1,5 @@
 @import './foundations.css' layer(tokens);
+@import './viz-tokens.css' layer(tokens);
 
 @layer theme {
   :root,

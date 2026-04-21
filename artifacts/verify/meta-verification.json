@@ -1,0 +1,460 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "A1",
+  "inputs_ref": ["artifacts/plan.md", "artifacts/audit/audit-report.json"],
+  "summary": "The Meta cluster's own workspace (accounts, insights, campaigns, pages, posts) is internally consistent and does not hit /api/metrics/combined/ — it talks exclusively to Meta-specific ORM endpoints via useMetaStore and useMetaPageInsightsStore. The critical failure is account-selector drift (R7): useMetaStore.filters.accountId is never bridged to useDashboardStore.filters.accountId, so a user who selects an account on any Meta page will find the selection gone when they navigate to /dashboards/platforms or any combined dashboard. A secondary medium risk is the R2 double-setFilters race in DashboardLayout: when entering a /dashboards/meta/* route with a stale platforms=google_ads URL param, the platform-scope effect and the URL-sync effect both call setFilters in the same React commit cycle with no guaranteed ordering, which can leave filters.platforms in the wrong state for one render cycle before the platform-scope effect wins.",
+  "routes": [
+    {
+      "route": "/dashboards/meta/accounts",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaAccountsPage.tsx",
+      "store": "useMetaStore",
+      "bugs_found": [
+        {
+          "id": "M1",
+          "risk_ref": "R7",
+          "severity": "high",
+          "description": "MetaAccountsPage reads and writes useMetaStore exclusively. When the user is on this page and looks at the account table, there is no mechanism to propagate their implicit 'active account' context to useDashboardStore.filters.accountId. When the user navigates to /dashboards/platforms the global FilterBar's account selector still shows the previous combined-dashboard selection (or empty). Verifier step 5 fails: navigating to a sibling combined dashboard shows a different account than the one the user was viewing on the Meta accounts list.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaAccountsPage.tsx",
+            "line": 27,
+            "snippet": "const { accounts, filters, setFilters, loadAccounts } = useMetaStore((state) => ({..."
+          }
+        },
+        {
+          "id": "M2",
+          "risk_ref": "R6",
+          "severity": "medium",
+          "description": "MetaAccountsPage has no account-row click handler that sets filters.accountId in useMetaStore. The table renders rows as plain <tr> elements with no onClick or Link. The verifier step 3 ('switch account; assert re-fetch') fails because there is no UX affordance to select an account from the table. The user cannot drive accountId from this page; they must navigate to Insights and use the dropdown there.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaAccountsPage.tsx",
+            "line": 290,
+            "snippet": "<tr key={account.id} className=\"dashboard-table__row dashboard-table__row--zebra\">"
+          }
+        },
+        {
+          "id": "M3",
+          "risk_ref": "R5",
+          "severity": "low",
+          "description": "The empty-state branch at line 238 fires when accounts.status !== 'error' AND accounts.rows.length === 0. This fires even when status === 'loading' with 0 rows, meaning the initial load briefly shows the empty-state panel and the loading spinner simultaneously (both conditionals at lines 201 and 238 are true on first render). Verifier step 1 fails: the page flashes an empty-state before the load completes.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaAccountsPage.tsx",
+            "line": 238,
+            "snippet": "{accounts.status !== 'error' && accounts.rows.length === 0 ? (<EmptyState ..."
+          }
+        }
+      ],
+      "fix_patches": [
+        {
+          "bug_ref": "M1",
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaAccountsPage.tsx",
+          "change_type": "edit",
+          "description": "Add a row-click handler that sets useMetaStore.filters.accountId to the clicked account's external_id. The reconciliation from useMetaStore → useDashboardStore is handled by a cross-cutting DashboardLayout effect (see cross_cutting[0]), so this patch only needs to write to useMetaStore.",
+          "pseudo_diff": "In the <tbody> row at line 291, add onClick and cursor-pointer style to the <tr>:\n\nBEFORE:\n  <tr key={account.id} className=\"dashboard-table__row dashboard-table__row--zebra\">\n\nAFTER:\n  <tr\n    key={account.id}\n    className=\"dashboard-table__row dashboard-table__row--zebra\"\n    style={{ cursor: 'pointer' }}\n    onClick={() => setFilters({ accountId: account.external_id })}\n    aria-label={`Select account ${account.name || account.external_id}`}\n  >\n\nNo new imports needed — setFilters is already destructured at line 27.",
+          "risk_notes": "Clicking a recovery-fallback row (showRecoveryFallback=true) sets an accountId that does not exist in the ORM — downstream loadInsights/loadCampaigns calls will return 0 rows. Guard the handler: only call setFilters when !showRecoveryFallback."
+        },
+        {
+          "bug_ref": "M3",
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaAccountsPage.tsx",
+          "change_type": "edit",
+          "description": "Add status === 'loading' guard to the empty-state branch so it only shows after loading is complete.",
+          "pseudo_diff": "BEFORE (line 238):\n  {accounts.status !== 'error' && accounts.rows.length === 0 ? (\n\nAFTER:\n  {accounts.status !== 'error' && accounts.status !== 'loading' && accounts.rows.length === 0 ? (",
+          "risk_notes": "Minimal change. Ensures the loading spinner at line 201 is the only visible state during the initial fetch."
+        }
+      ],
+      "test_deltas": [
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/__tests__/MetaAccountsPage.test.tsx",
+          "kind": "vitest",
+          "cases": [
+            "clicking an account row sets useMetaStore.filters.accountId to the row's external_id",
+            "clicking a recovery-fallback row does NOT call setFilters (guard against orphaned IDs)",
+            "empty-state panel is NOT shown while accounts.status === 'loading'",
+            "empty-state panel IS shown after accounts.status === 'loaded' with 0 rows"
+          ]
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/qa/tests/meta-accounts.spec.ts",
+          "kind": "playwright",
+          "cases": [
+            "navigate to /dashboards/meta/accounts; click first account row; assert useMetaStore.filters.accountId updated (read via window.__ZUSTAND_META_STORE__)",
+            "navigate to /dashboards/meta/accounts; navigate to /dashboards/platforms; assert global FilterBar account selector reflects the same account (R7 round-trip)"
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/meta/insights",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaInsightsDashboardPage.tsx",
+      "store": "useMetaStore",
+      "bugs_found": [
+        {
+          "id": "M4",
+          "risk_ref": "R7",
+          "severity": "high",
+          "description": "MetaInsightsDashboardPage has an account <select> that writes to useMetaStore.filters.accountId (line 200). When the user picks an account here and then navigates to /dashboards/platforms, useDashboardStore.filters.accountId is unchanged — the Platforms page renders with whatever account was previously selected in the global FilterBar, not the one chosen on Insights. Verifier step 5 fails.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaInsightsDashboardPage.tsx",
+            "line": 200,
+            "snippet": "onChange={(event) => setFilters({ accountId: event.target.value })}"
+          }
+        },
+        {
+          "id": "M5",
+          "risk_ref": "R5",
+          "severity": "low",
+          "description": "The empty-state branch at line 287 fires when status !== 'error' AND rows.length === 0. Like M3, this includes the 'loading' status, causing a double-render of loading indicator and empty-state during first fetch.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaInsightsDashboardPage.tsx",
+            "line": 287,
+            "snippet": "{insights.status !== 'error' && insights.rows.length === 0 ? (<EmptyState ..."
+          }
+        }
+      ],
+      "fix_patches": [
+        {
+          "bug_ref": "M4",
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaInsightsDashboardPage.tsx",
+          "change_type": "edit",
+          "description": "The per-page fix is to keep writing to useMetaStore only. The bridge from useMetaStore.accountId → useDashboardStore.filters.accountId is owned by the cross-cutting DashboardLayout reconciliation effect (cross_cutting[0]). No change needed here once the cross-cutting patch lands.",
+          "pseudo_diff": "No change required in this file. The reconciliation effect in DashboardLayout will read useMetaStore.getState().filters.accountId and mirror it to useDashboardStore.filters.accountId whenever the pathname is under /dashboards/meta/.",
+          "risk_notes": "If the reconciliation effect fires on every render, it may interfere with the global FilterBar's own accountId writes. The effect must be gated so it only copies Meta→Dashboard when the user has actively set a non-empty accountId on a Meta page."
+        },
+        {
+          "bug_ref": "M5",
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaInsightsDashboardPage.tsx",
+          "change_type": "edit",
+          "description": "Add loading guard to the empty-state branch.",
+          "pseudo_diff": "BEFORE (line 287):\n  {insights.status !== 'error' && insights.rows.length === 0 ? (\n\nAFTER:\n  {insights.status !== 'error' && insights.status !== 'loading' && insights.rows.length === 0 ? (",
+          "risk_notes": "Same pattern as M3 fix. No other side effects."
+        }
+      ],
+      "test_deltas": [
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/__tests__/MetaInsightsDashboardPage.test.tsx",
+          "kind": "vitest",
+          "cases": [
+            "selecting an account from the dropdown fires setFilters({ accountId }) on useMetaStore",
+            "empty-state is NOT rendered while insights.status === 'loading'",
+            "selecting a different date range triggers loadInsights (verifier step 4)"
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/meta/campaigns",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaCampaignOverviewPage.tsx",
+      "store": "useMetaStore",
+      "bugs_found": [
+        {
+          "id": "M6",
+          "risk_ref": "R7",
+          "severity": "high",
+          "description": "MetaCampaignOverviewPage has an account <select> (line 83) that writes to useMetaStore. The same R7 drift as M4 applies: selecting an account here does not propagate to useDashboardStore. The reconciliation effect in DashboardLayout is the fix owner.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaCampaignOverviewPage.tsx",
+            "line": 83,
+            "snippet": "onChange={(event) => setFilters({ accountId: event.target.value, campaignId: '', adsetId: '' })}"
+          }
+        },
+        {
+          "id": "M7",
+          "risk_ref": "R5",
+          "severity": "low",
+          "description": "The empty-state branch at line 160 fires when status !== 'error' AND rows.length === 0, including during loading. Same flash pattern as M3/M5.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaCampaignOverviewPage.tsx",
+            "line": 160,
+            "snippet": "{campaigns.status !== 'error' && campaigns.rows.length === 0 ? (<EmptyState ..."
+          }
+        }
+      ],
+      "fix_patches": [
+        {
+          "bug_ref": "M6",
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaCampaignOverviewPage.tsx",
+          "change_type": "edit",
+          "description": "No per-file change; handled by cross-cutting DashboardLayout reconciliation effect. See cross_cutting[0].",
+          "pseudo_diff": "No change required in this file.",
+          "risk_notes": "None."
+        },
+        {
+          "bug_ref": "M7",
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaCampaignOverviewPage.tsx",
+          "change_type": "edit",
+          "description": "Add loading guard to empty-state branch.",
+          "pseudo_diff": "BEFORE (line 160):\n  {campaigns.status !== 'error' && campaigns.rows.length === 0 ? (\n\nAFTER:\n  {campaigns.status !== 'error' && campaigns.status !== 'loading' && campaigns.rows.length === 0 ? (",
+          "risk_notes": "No other side effects."
+        }
+      ],
+      "test_deltas": [
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/__tests__/MetaCampaignOverviewPage.test.tsx",
+          "kind": "vitest",
+          "cases": [
+            "empty-state is NOT rendered while campaigns.status === 'loading'",
+            "selecting account from dropdown fires useMetaStore.setFilters with accountId, campaignId='', adsetId=''",
+            "zero-campaign tenant fixture: EmptyState rendered after status=loaded with 0 rows"
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/meta/status",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaConnectionStatusPage.tsx",
+      "store": "local state only (no Zustand store)",
+      "bugs_found": [
+        {
+          "id": "M8",
+          "risk_ref": "R1",
+          "severity": "low",
+          "description": "MetaConnectionStatusPage correctly does NOT call /api/metrics/combined/ — it only hits /api/integrations/social/status/. Verifier step 2 passes (no combined call). No bugs found against R1/R7. The route is clean for its purpose.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaConnectionStatusPage.tsx",
+            "line": 17,
+            "snippet": "const payload = await loadSocialConnectionStatus();"
+          }
+        }
+      ],
+      "fix_patches": [],
+      "test_deltas": [
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/__tests__/MetaConnectionStatusPage.test.tsx",
+          "kind": "vitest",
+          "cases": [
+            "assert no fetch to /api/metrics/combined/ is made on mount (verifier step 2 — no combined call)",
+            "status=loaded with 0 rows renders EmptyState with 'No Meta status yet' title"
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/meta/pages",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPagesListPage.tsx",
+      "store": "useMetaPageInsightsStore",
+      "bugs_found": [
+        {
+          "id": "M9",
+          "risk_ref": "R1",
+          "severity": "low",
+          "description": "MetaPagesListPage uses useMetaPageInsightsStore (a separate store for Page Insights) and only calls loadSocialConnectionStatus + loadPages. It does not call /api/metrics/combined/. No platform leakage risk. Verifier step 2 passes.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPagesListPage.tsx",
+            "line": 31,
+            "snippet": "void loadPages();"
+          }
+        },
+        {
+          "id": "M10",
+          "risk_ref": "R6",
+          "severity": "medium",
+          "description": "resolveRoutePlatformScope uses prefix '/dashboards/meta/' (with trailing slash). The pages routes are '/dashboards/meta/pages', '/dashboards/meta/pages/:pageId/overview', '/dashboards/meta/pages/:pageId/posts', and '/dashboards/meta/posts/:postId'. All of these start with '/dashboards/meta/' so they correctly resolve to ['meta_ads']. However, DashboardLayout sets hideGlobalFilters=true for pathnames starting with '/dashboards/meta/pages' or '/dashboards/meta/posts' — so the FilterBar is hidden on these routes. When hideGlobalFilters is true, filters.platforms is still set to ['meta_ads'] by the scope effect, but the FilterBar is hidden, meaning no visual confirmation to the user. This is acceptable behaviour but is untested: no test asserts that filters.platforms is forced to ['meta_ads'] when navigating to /dashboards/meta/pages.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/DashboardLayout.tsx",
+            "line": 215,
+            "snippet": "location.pathname.startsWith('/dashboards/meta/pages') || location.pathname.startsWith('/dashboards/meta/posts')"
+          }
+        }
+      ],
+      "fix_patches": [],
+      "test_deltas": [
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/__tests__/MetaPagesListPage.test.tsx",
+          "kind": "vitest",
+          "cases": [
+            "assert no fetch to /api/metrics/combined/ on mount",
+            "pagesStatus=loaded with 0 pages and orphaned_marketing_access renders orphaned warning panel",
+            "pagesStatus=loaded with pages renders table with Set default and Open buttons"
+          ]
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/__tests__/DashboardLayout.test.tsx",
+          "kind": "vitest",
+          "cases": [
+            "mounting DashboardLayout at /dashboards/meta/pages calls setFilters with platforms=['meta_ads'] (resolveRoutePlatformScope coverage for pages sub-route)",
+            "mounting DashboardLayout at /dashboards/meta/posts/:postId calls setFilters with platforms=['meta_ads']"
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/meta/pages/:pageId/overview",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPageOverviewPage.tsx",
+      "store": "useMetaPageInsightsStore",
+      "bugs_found": [
+        {
+          "id": "M11",
+          "risk_ref": "R1",
+          "severity": "low",
+          "description": "MetaPageOverviewPage uses useMetaPageInsightsStore exclusively and calls only page-insights-specific endpoints (loadPages, loadMetricRegistry, loadOverviewAndTimeseries, loadTimeseries). It does NOT call /api/metrics/combined/. Verifier step 2 passes. No cross-platform leakage.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPageOverviewPage.tsx",
+            "line": 108,
+            "snippet": "void loadOverviewAndTimeseries(pageId);"
+          }
+        },
+        {
+          "id": "M12",
+          "risk_ref": "R6",
+          "severity": "medium",
+          "description": "MetaPageOverviewPage has multiple co-dependent useEffect hooks that call loadTimeseries directly when metric or period changes (lines 141, 162, 167), AND loadOverviewAndTimeseries in the primary data effect (line 108). If filters.datePreset/since/until change simultaneously with metric, both effects fire and two concurrent timeseries fetches can race. The second fetch may resolve before or after the primary overview, leaving the chart in a stale state. Verifier step 4 (switch date range; assert re-fetch) may observe a spurious double-fetch.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPageOverviewPage.tsx",
+            "line": 140,
+            "snippet": "void loadTimeseries(pageId);"
+          }
+        }
+      ],
+      "fix_patches": [
+        {
+          "bug_ref": "M12",
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPageOverviewPage.tsx",
+          "change_type": "edit",
+          "description": "Consolidate the period-guard effect (lines 133-144) so that it does NOT call loadTimeseries directly when it resets the period — instead, the state update to filters.period via setFilters triggers the primary loadOverviewAndTimeseries effect which already depends on filters since/until/compareTo. This removes the double-fetch race.",
+          "pseudo_diff": "BEFORE (lines 133-144):\n  useEffect(() => {\n    if (supportedPeriods.length === 0) { return; }\n    if (!supportedPeriods.includes(filters.period)) {\n      const nextPeriod = supportedPeriods[0] ?? 'day';\n      setFilters({ period: nextPeriod });\n      if (pageId) { void loadTimeseries(pageId); }  // <-- remove this line\n    }\n  }, [filters.period, loadTimeseries, pageId, setFilters, supportedPeriods]);\n\nAFTER:\n  useEffect(() => {\n    if (supportedPeriods.length === 0) { return; }\n    if (!supportedPeriods.includes(filters.period)) {\n      const nextPeriod = supportedPeriods[0] ?? 'day';\n      setFilters({ period: nextPeriod });\n      // No direct loadTimeseries call — the loadOverviewAndTimeseries effect\n      // re-fires when filters.period changes via the store subscription.\n    }\n  }, [filters.period, pageId, setFilters, supportedPeriods]);\n\nAlso remove loadTimeseries from the dep array since it is no longer used.",
+          "risk_notes": "loadOverviewAndTimeseries must actually depend on filters.period internally (via the store get() call). Confirm that useMetaPageInsightsStore.loadOverviewAndTimeseries reads get().filters.period to build the API request. If not, the primary effect dep array must add filters.period."
+        }
+      ],
+      "test_deltas": [
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/__tests__/MetaPageOverviewPage.test.tsx",
+          "kind": "vitest",
+          "cases": [
+            "changing date preset fires loadOverviewAndTimeseries exactly once (not twice)",
+            "changing metric to one with incompatible period resets period without firing loadTimeseries a second time",
+            "dashboardStatus=error renders EmptyState with retry button that re-calls loadOverviewAndTimeseries"
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/meta/pages/:pageId/posts",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPagePostsPage.tsx",
+      "store": "useMetaPageInsightsStore",
+      "bugs_found": [
+        {
+          "id": "M13",
+          "risk_ref": "R1",
+          "severity": "low",
+          "description": "MetaPagePostsPage uses useMetaPageInsightsStore and calls only posts-specific endpoints. No /api/metrics/combined/ call. Verifier step 2 passes.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPagePostsPage.tsx",
+            "line": 62,
+            "snippet": "void loadPosts(pageId, { offset: 0, q: postsQuery.q, ... });"
+          }
+        },
+        {
+          "id": "M14",
+          "risk_ref": "R5",
+          "severity": "low",
+          "description": "When postsStatus==='loaded' and posts.results.length === 0, the PostsTable is not rendered and neither is an EmptyState — instead a separate 'No posts found' warning panel is shown at line 305. This is visually acceptable but inconsistent with the rest of the cluster's EmptyState pattern, and the warning panel does not offer a 'Sync now' action.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPagePostsPage.tsx",
+            "line": 305,
+            "snippet": "{postsStatus === 'loaded' && posts && posts.results.length === 0 ? (<div className=\"panel meta-warning-panel\""
+          }
+        }
+      ],
+      "fix_patches": [
+        {
+          "bug_ref": "M14",
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPagePostsPage.tsx",
+          "change_type": "edit",
+          "description": "Replace the ad-hoc warning panel for zero posts with the standard EmptyState component to match cluster-wide empty-state pattern and add a reason code.",
+          "pseudo_diff": "Add import for EmptyState at top of file:\n  import EmptyState from '../components/EmptyState';\n\nBEFORE (lines 305-310):\n  {postsStatus === 'loaded' && posts && posts.results.length === 0 ? (\n    <div className=\"panel meta-warning-panel\" role=\"status\">\n      <h3>No posts found</h3>\n      <p>Adjust the date range in overview or run a sync.</p>\n    </div>\n  ) : null}\n\nAFTER:\n  {postsStatus === 'loaded' && posts && posts.results.length === 0 ? (\n    <EmptyState\n      icon={<span aria-hidden>0</span>}\n      title=\"No posts found\"\n      message=\"Adjust the date range in overview or run a sync.\"\n      className=\"panel\"\n    />\n  ) : null}",
+          "risk_notes": "Low risk cosmetic change. Confirm EmptyState is already imported (it is in other Meta routes — check whether MetaPagePostsPage already imports it; if not, add the import)."
+        }
+      ],
+      "test_deltas": [
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/__tests__/MetaPagePostsPage.test.tsx",
+          "kind": "vitest",
+          "cases": [
+            "postsStatus=loaded with zero posts renders EmptyState (not a raw <div> warning panel)",
+            "postsStatus=error renders EmptyState with Retry button",
+            "postsStatus=loading renders loading state (no empty-state shown)"
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/meta/posts/:postId",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPostDetailPage.tsx",
+      "store": "useMetaPageInsightsStore",
+      "bugs_found": [
+        {
+          "id": "M15",
+          "risk_ref": "R1",
+          "severity": "low",
+          "description": "MetaPostDetailPage uses useMetaPageInsightsStore and calls only post-specific endpoints (loadPostDetail, loadPostTimeseries). No /api/metrics/combined/ call. Verifier step 2 passes.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPostDetailPage.tsx",
+            "line": 49,
+            "snippet": "void loadPostDetail(postId);"
+          }
+        },
+        {
+          "id": "M16",
+          "risk_ref": "R6",
+          "severity": "medium",
+          "description": "The useEffect at lines 63-68 calls setFilters({ metric, period }) AND loadPostTimeseries(postId) in the same effect body. setFilters is a Zustand synchronous state update; loadPostTimeseries reads get().filters from the store. However, because setFilters updates state asynchronously in Zustand's batch, there is a potential frame where loadPostTimeseries reads the previous metric/period values before the set completes. This means the timeseries fetch may use stale metric/period params on rapid metric changes.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPostDetailPage.tsx",
+            "line": 63,
+            "snippet": "setFilters({ metric, period }); void loadPostTimeseries(postId);"
+          }
+        }
+      ],
+      "fix_patches": [
+        {
+          "bug_ref": "M16",
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPostDetailPage.tsx",
+          "change_type": "edit",
+          "description": "Pass metric and period directly to loadPostTimeseries as parameters rather than relying on the store state having been updated synchronously before the fetch reads it. This requires useMetaPageInsightsStore.loadPostTimeseries to accept optional override params, OR call the underlying API function directly here with the current metric/period values.",
+          "pseudo_diff": "Option A (preferred — add params to loadPostTimeseries in the store):\n\nIn useMetaPageInsightsStore, change signature:\n  loadPostTimeseries: (postId: string, overrides?: { metric?: string; period?: string }) => Promise<void>\n\nInternally in loadPostTimeseries, use:\n  const metric = overrides?.metric ?? get().filters.metric;\n  const period = overrides?.period ?? get().filters.period;\n\nThen in MetaPostDetailPage lines 63-68:\nBEFORE:\n  setFilters({ metric, period });\n  void loadPostTimeseries(postId);\n\nAFTER:\n  setFilters({ metric, period });\n  void loadPostTimeseries(postId, { metric, period });",
+          "risk_notes": "Requires a coordinated change to useMetaPageInsightsStore.ts — this file is not in A1's per-file scope but the store is. The store change is minimal (2-3 lines). Risk: if other callers of loadPostTimeseries rely on the store's filters, they may not pass overrides and will still read from state — which is the existing safe behaviour."
+        }
+      ],
+      "test_deltas": [
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/__tests__/MetaPostDetailPage.test.tsx",
+          "kind": "vitest",
+          "cases": [
+            "changing metric fires loadPostTimeseries with the new metric value (not the previous store state)",
+            "changing period fires loadPostTimeseries with the new period value",
+            "postStatus=error renders EmptyState with Retry button",
+            "postStatus=loading renders loading state; post detail panels not shown"
+          ]
+        }
+      ]
+    }
+  ],
+  "cross_cutting": [
+    {
+      "description": "R7 reconciliation effect — useMetaStore.accountId ↔ useDashboardStore.filters.accountId. When the user enters any /dashboards/meta/* route and selects an account via useMetaStore (on Insights or Campaigns dropdowns, or via the row-click patch on Accounts), that selection must be mirrored to useDashboardStore.filters.accountId so that navigating to a combined dashboard (/dashboards/platforms, /dashboards/campaigns, etc.) picks up the same account in the global FilterBar. Conversely, when the user arrives on a Meta page from a combined dashboard that already has an account selected in useDashboardStore, that account should be pre-populated into useMetaStore.filters.accountId so the Meta page's own dropdowns are pre-filled. The effect must be in DashboardLayout (the shell that owns filters.platforms and the route scope) and must only fire when the pathname is under /dashboards/meta/.",
+      "proposed_fix": "Add a useEffect to DashboardLayout.tsx (read: A4 implements this) that:\n1. Imports useMetaStore at the top of DashboardLayout.\n2. Inside the effect, reads useMetaStore.getState().filters.accountId.\n3. When location.pathname starts with '/dashboards/meta/' AND useMetaStore.accountId is non-empty AND useDashboardStore.filters.accountId !== useMetaStore.accountId, call setFilters({ ...filters, accountId: useMetaStore.getState().filters.accountId }).\n4. In the cleanup / on exit from a meta route (when routePlatformScope was ['meta_ads'] and now is null or ['google_ads']), mirror in the other direction: if useDashboardStore.filters.accountId is non-empty, call useMetaStore.getState().setFilters({ accountId: useDashboardStore.filters.accountId }).\nDepency array: [location.pathname, routePlatformScope]. Use getState() to avoid reactive subscription loops. Guard with a ref to prevent infinite ping-pong between the two stores. The effect must NOT run on combined routes (routePlatformScope === null) to avoid clobbering the global account picker when the user navigates within combined dashboards.",
+      "handoff": "A4"
+    },
+    {
+      "description": "R2 double-setFilters race on Meta route entry — DashboardLayout has two useEffects that both call setFilters: the platform-scope effect (line 247) and the URL-sync effect (line 261). Both fire on mount when navigating to /dashboards/meta/accounts with a stale URL containing platforms=google_ads. The URL-sync effect reads urlFilters (which parses platforms=['google_ads'] from the URL) and calls setFilters(urlFilters). The platform-scope effect reads routePlatformScope (['meta_ads']) and calls setFilters({...filters, platforms: ['meta_ads']}). The execution order of these two effects within the same React commit is not guaranteed across React versions. If the URL-sync effect runs second, filters.platforms is briefly set to ['google_ads'] before the platform-scope effect corrects it — but by then the child page may have already triggered its first fetch with the wrong platform.",
+      "proposed_fix": "Merge the two effects into one combined effect in DashboardLayout. The merged effect should: (1) start from urlFilters as the base, (2) if routePlatformScope is non-null, override the platforms field: merged = { ...urlFilters, platforms: [...routePlatformScope] }, (3) call setFilters(merged) exactly once if the result differs from currentFilters. This guarantees a single setFilters call per route change with the correct platform scope already embedded. Dep array: [isSavedDashboardRoute, routePlatformScope, setFilters, urlFilters]. Use areFiltersEqual for the equality guard to avoid spurious calls.",
+      "handoff": "A4"
+    },
+    {
+      "description": "R6 resolveRoutePlatformScope test coverage gap — resolveRoutePlatformScope is a module-private function in DashboardLayout.tsx with no dedicated unit tests. Per plan.md §2 R6 mitigation, it should be extracted to a separate importable module so it can be table-tested.",
+      "proposed_fix": "Extract resolveRoutePlatformScope and arePlatformArraysEqual from DashboardLayout.tsx into a new file: frontend/src/lib/routePlatformScope.ts. Export both functions. Update DashboardLayout.tsx to import from the new module. Add a Vitest at frontend/src/lib/__tests__/routePlatformScope.test.ts with table-driven cases covering: /dashboards/meta/accounts → ['meta_ads'], /dashboards/meta/pages → ['meta_ads'], /dashboards/meta/posts/123 → ['meta_ads'], /dashboards/google-ads → ['google_ads'], /dashboards/google-ads/campaigns → ['google_ads'], /dashboards/platforms → null, /dashboards/campaigns → null, /dashboards/ → null, /dashboards/data-sources → null.",
+      "handoff": "A4"
+    },
+    {
+      "description": "R5 EmptyState reason-code gap — The shared EmptyState component (frontend/src/components/EmptyState.tsx) accepts only free-text icon/title/message props. The plan calls for standardised reason codes (no_accounts, no_data_for_range, adapter_error) that can be asserted in tests and used for structured logging. Currently all callers pass ad-hoc strings. Bugs M3, M5, M7, M14 all touch EmptyState but the fix is a shared component change.",
+      "proposed_fix": "Add an optional reasonCode prop to EmptyState: reasonCode?: 'no_accounts' | 'no_data_for_range' | 'adapter_error' | 'error' | string. Render it as a data-reason attribute on the root element for test selection. Update the Meta-cluster callers to pass the appropriate reasonCode. Add a Vitest asserting that the rendered EmptyState has the correct data-reason attribute. This is a purely additive change — existing callers without reasonCode continue to work.",
+      "handoff": "A4"
+    }
+  ],
+  "open_questions": [
+    "R7: Does useDashboardStore.filters have a top-level accountId field at the TypeScript type level? The audit (A0) noted that DashboardLayout accesses filters.accountId at lines 199 and 425 but the store type definition grep returned no matches for accountId in useDashboardStore.ts. Confirmed via dashboardFilters.ts that FilterBarState does include accountId: string (line 18). The reconciliation effect should use the FilterBarState-typed setFilters, not a raw object spread, to preserve type safety.",
+    "R7: When the reconciliation effect mirrors useMetaStore.accountId into useDashboardStore, should it only do so for accounts that appear in the global accountOptions list (loaded by DashboardLayout from loadMetaAccounts)? If useMetaStore.accountId is set to an external_id not in accountOptions, the global FilterBar's <select> will show an empty/unknown selection. The effect may need to validate the account exists before mirroring.",
+    "M12: Does useMetaPageInsightsStore.loadOverviewAndTimeseries internally read filters.period from the store state? If yes, adding filters.period to the primary effect dep array in MetaPageOverviewPage is required. If no, the period must be passed as a parameter to loadOverviewAndTimeseries.",
+    "M16: useMetaPageInsightsStore.loadPostTimeseries signature — does it currently accept any parameters beyond postId? If it reads metric/period exclusively from store state, the fix requires a store-level change that must be coordinated with the store owner.",
+    "R2 race: Is there a known React version on this project (React 18 concurrent mode) where useEffect ordering within the same commit is deterministic? In React 18 strict mode, effects fire twice in development — the race may be masked or exacerbated in test vs production. The merged-effect fix in cross_cutting[1] resolves this regardless of React mode."
+  ]
+}

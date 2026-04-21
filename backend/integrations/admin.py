@@ -6,6 +6,8 @@ from .models import (
     APIErrorLog,
     AlertRuleDefinition,
     CampaignBudget,
+    Client,
+    ClientPlatformAccount,
     MetaConnection,
     MetaInsightPoint,
     MetaMetricRegistry,
@@ -16,6 +18,39 @@ from .models import (
     MetaPostInsightPoint,
     PlatformCredential,
 )
+
+
+class ClientPlatformAccountInline(admin.TabularInline):
+    model = ClientPlatformAccount
+    fk_name = "client"
+    extra = 0
+    fields = ("platform", "external_id", "display_name", "is_primary")
+    ordering = ("platform", "external_id")
+
+
+@admin.register(Client)
+class ClientAdmin(admin.ModelAdmin):
+    list_display = ("name", "slug", "tenant", "industry", "parish", "is_active", "updated_at")
+    list_filter = ("tenant", "is_active", "industry", "parish")
+    search_fields = ("name", "slug", "industry")
+    ordering = ("tenant", "name")
+    inlines = [ClientPlatformAccountInline]
+
+
+@admin.register(ClientPlatformAccount)
+class ClientPlatformAccountAdmin(admin.ModelAdmin):
+    list_display = (
+        "platform",
+        "external_id",
+        "display_name",
+        "client",
+        "tenant",
+        "is_primary",
+        "updated_at",
+    )
+    list_filter = ("platform", "tenant", "is_primary")
+    search_fields = ("external_id", "display_name", "client__name", "client__slug")
+    ordering = ("tenant", "client", "platform", "external_id")
 
 
 @admin.register(PlatformCredential)

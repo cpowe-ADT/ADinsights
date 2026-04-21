@@ -11,6 +11,13 @@ const createGoogleAdsSavedViewMock = vi.hoisted(() => vi.fn());
 const updateGoogleAdsSavedViewMock = vi.hoisted(() => vi.fn());
 const createGoogleAdsExportMock = vi.hoisted(() => vi.fn());
 
+// Mock store accountId so the workspace renders content instead of empty state.
+const mockDashboardStoreFilters = vi.hoisted(() => ({
+  accountId: 'test-customer-123',
+  clientId: '',
+}));
+const mockSetFilters = vi.hoisted(() => vi.fn());
+
 vi.mock('../../../hooks/useGoogleAdsWorkspaceData', () => ({
   default: (...args: unknown[]) => googleAdsWorkspaceDataHookMock(...args),
 }));
@@ -32,6 +39,19 @@ vi.mock('../../../lib/apiClient', async () => {
 
 vi.mock('../../../lib/download', () => ({
   saveBlobAsFile: vi.fn(),
+}));
+
+vi.mock('../../../state/useDashboardStore', () => ({
+  default: Object.assign(
+    (selector: (state: { filters: { accountId: string; clientId: string } }) => unknown) =>
+      selector({ filters: mockDashboardStoreFilters }),
+    {
+      getState: () => ({
+        filters: mockDashboardStoreFilters,
+        setFilters: mockSetFilters,
+      }),
+    },
+  ),
 }));
 
 const LocationProbe = () => {
@@ -79,6 +99,8 @@ const summaryFixture = {
 describe('GoogleAdsWorkspacePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDashboardStoreFilters.accountId = 'test-customer-123';
+    mockDashboardStoreFilters.clientId = '';
     fetchGoogleAdsSavedViewsMock.mockResolvedValue([]);
     createGoogleAdsSavedViewMock.mockResolvedValue({ id: 'view-1' });
     updateGoogleAdsSavedViewMock.mockResolvedValue({});
@@ -95,7 +117,7 @@ describe('GoogleAdsWorkspacePage', () => {
   });
 
   it('syncs workspace tabs and search mode with URL query params', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     render(
       <MemoryRouter initialEntries={['/dashboards/google-ads?tab=overview&start_date=2026-02-01&end_date=2026-02-10']}>
@@ -132,7 +154,7 @@ describe('GoogleAdsWorkspacePage', () => {
   });
 
   it('updates compare filter in the URL query string', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     render(
       <MemoryRouter initialEntries={['/dashboards/google-ads?tab=overview&start_date=2026-02-01&end_date=2026-02-10']}>
@@ -153,6 +175,112 @@ describe('GoogleAdsWorkspacePage', () => {
     await user.selectOptions(screen.getByLabelText('Compare'), 'wow');
     await waitFor(() => {
       expect(screen.getByTestId('location-search').textContent).toContain('compare=wow');
+    });
+  });
+
+  it('reads customer from useDashboardStore (store accountId drives fetch, not URL)', () => {
+    // The mock store has accountId='test-customer-123'
+    googleAdsWorkspaceDataHookMock.mockReturnValue({
+      summary: summaryFixture,
+      summaryStatus: 'success',
+      summaryError: '',
+      tabStates: {},
+      loadSummary: vi.fn(),
+      loadTab: vi.fn(),
+      filterKey: '2026-02-01|2026-02-10|none|test-customer-123||',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/google-ads?tab=overview&start_date=2026-02-01&end_date=2026-02-10']}>
+        <Routes>
+          <Route path="/dashboards/google-ads" element={<GoogleAdsWorkspacePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // The hook should have been called with the store's accountId as customerId
+    expect(googleAdsWorkspaceDataHookMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({ customerId: 'test-customer-123' }),
+      }),
+    );
+  });
+
+  it('shows empty state when store has no accountId and no clientId', () => {
+    // Temporarily override the mock store to return empty IDs
+    mockDashboardStoreFilters.accountId = '';
+    mockDashboardStoreFilters.clientId = '';
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/google-ads']}>
+        <Routes>
+          <Route path="/dashboards/google-ads" element={<GoogleAdsWorkspacePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('status')).toHaveAttribute('data-reason-code', 'no_customer_selected');
+    expect(screen.getByText('No account selected')).toBeInTheDocument();
+
+    // Restore
+    mockDashboardStoreFilters.accountId = 'test-customer-123';
+  });
+
+  it('hook receives customer_id from store when store has accountId', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboards/google-ads?tab=campaigns&start_date=2026-02-01&end_date=2026-02-10']}>
+        <Routes>
+          <Route path="/dashboards/google-ads" element={<GoogleAdsWorkspacePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // The hook is called with customerId from the global store, and activeTab 'campaigns'
+    const calls = googleAdsWorkspaceDataHookMock.mock.calls;
+    const lastCall = calls[calls.length - 1][0] as { filters: { customerId: string }; activeTab: string };
+    expect(lastCall.filters.customerId).toBe('test-customer-123');
+    expect(lastCall.activeTab).toBe('campaigns');
+  });
+
+  // CC2 fix: saved-view restore writes client_id back to the store.
+  it('restores client_id from saved view into the dashboard store on saved-view select', async () => {
+    const user = userEvent.setup({ delay: null });
+
+    const savedViewWithClientId = {
+      id: 'view-with-client',
+      name: 'MCC View',
+      filters: {
+        start_date: '2026-02-01',
+        end_date: '2026-02-28',
+        compare: 'none',
+        customer_id: 'mcc-account',
+        client_id: 'client-456',
+      },
+    };
+    fetchGoogleAdsSavedViewsMock.mockResolvedValue([savedViewWithClientId]);
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/google-ads?tab=overview&start_date=2026-02-01&end_date=2026-02-10']}>
+        <Routes>
+          <Route path="/dashboards/google-ads" element={<GoogleAdsWorkspacePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // Wait for saved views to load
+    await waitFor(() => {
+      expect(fetchGoogleAdsSavedViewsMock).toHaveBeenCalled();
+    });
+
+    // Select the saved view via the WorkspaceHeader select
+    const select = screen.getByLabelText('Saved view');
+    await user.selectOptions(select, 'view-with-client');
+
+    // CC2: setFilters should have been called with the client_id from the saved view
+    await waitFor(() => {
+      expect(mockSetFilters).toHaveBeenCalledWith(
+        expect.objectContaining({ clientId: 'client-456' }),
+      );
     });
   });
 });

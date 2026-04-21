@@ -115,11 +115,12 @@ If context is unclear, follow this order:
 
 Run the canonical checks for the folder you touch:
 
-- **Backend:** `ruff check backend && pytest -q backend`
-- **Frontend:** `cd frontend && npm ci && npm test -- --run && npm run build`
+- **Backend:** `make backend-lint && make backend-test`
+- **Frontend:** `make frontend-guardrails && make frontend-lint && make frontend-test && make frontend-build`
 - **dbt:** `make dbt-deps && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select staging && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' snapshot && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select marts`
 - **Airbyte:** `cd infrastructure/airbyte && docker compose config`
 - **Launcher / Local Stack:** `bash -n scripts/dev-launch.sh scripts/dev-healthcheck.sh && scripts/dev-launch.sh --list-profiles && scripts/dev-healthcheck.sh`
+- **Full Local Matrix:** `make validate-local`
 
 When a change spans contracts, release gating, or cross-stream readiness, run `make adinsights-preflight PROMPT="..."` before handing off.
 

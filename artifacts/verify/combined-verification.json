@@ -1,0 +1,616 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "A3",
+  "inputs_ref": ["artifacts/plan.md", "artifacts/audit/audit-report.json"],
+  "summary": "Combined/cross-platform dashboard routes are largely safe from /api/metrics/combined/ call leakage — GA4 and Search Console pages use dedicated endpoints and never touch useDashboardStore. The critical open bugs are: (1) PlatformDashboard renders stale cross-platform rows for up to one React render cycle because DashboardLayout's platform-scope useEffect fires after child mount, with no in-store row guard keyed on filters.platforms; (2) SavedDashboardPage.normalizeFilters never restores the platforms field, so loading a saved dashboard always injects platforms=[] into the store while DashboardLayout's platform-scope effect simultaneously fires for /dashboards/saved/* (which resolveRoutePlatformScope returns null for), creating a silent platforms-reset race; (3) EmptyState lacks a reasonCode prop, so callers pass free-text strings that cannot be tested or keyed for analytics, and AudienceDashboard/PlatformDashboard show silent blank charts when status=loaded with 0-length arrays in data.byPlatform/byAgeGender.",
+  "routes": [
+    {
+      "route": "/dashboards/platforms",
+      "component": "frontend/src/routes/PlatformDashboard.tsx",
+      "store": "useDashboardStore (platforms slice)",
+      "endpoint": "/api/metrics/combined/",
+      "expected_scope": "both (meta_ads + google_ads)",
+      "bugs_found": [
+        {
+          "id": "B-PLAT-01",
+          "risk_ref": "R1",
+          "severity": "high",
+          "title": "Stale cross-platform row window: one render cycle before DashboardLayout effect fires",
+          "description": "When a user navigates from /dashboards/meta/* to /dashboards/platforms, the platform-scope useEffect in DashboardLayout (line 247) fires after PlatformDashboard mounts and reads state.platforms.data. If the store still holds a meta_ads-scoped platforms snapshot from a prior cache hit, PlatformDashboard renders that stale slice for one React render cycle. The store has no in-slice guard that checks whether platforms.data rows correspond to filters.platforms. Although platforms.data is typed as PlatformsData (byPlatform/byDevice/byPlatformDevice arrays), cross-platform contamination can silently show Facebook-only device rows labeled as the combined view.",
+          "file": "frontend/src/routes/PlatformDashboard.tsx",
+          "lines": [50, 86, 93],
+          "evidence": "platforms.data.byPlatform is consumed at line 86 with no check against filters.platforms; useDashboardStore has no resolveChannelFilters-equivalent guard for the platforms slice."
+        },
+        {
+          "id": "B-PLAT-02",
+          "risk_ref": "R5",
+          "severity": "medium",
+          "title": "Loaded + empty byPlatform array shows blank chart, not EmptyState",
+          "description": "At line 193, PlatformDashboard guards on !hasData && !isLoading. hasData is Boolean(platforms.data), so if the backend returns {byPlatform:[], byDevice:[], byPlatformDevice:[]} the guard is false and the component falls through to the main render. The PlatformComparisonBars and DeviceDonut receive zero-length arrays and render blank SVGs with no empty-state fallback. The pattern at line 161 only catches status=error, not loaded-with-zero-rows.",
+          "file": "frontend/src/routes/PlatformDashboard.tsx",
+          "lines": [193, 248, 255],
+          "evidence": "hasData = Boolean(platforms.data) truthy even for {byPlatform:[], byDevice:[], byPlatformDevice:[]}; no row-count check before rendering charts."
+        },
+        {
+          "id": "B-PLAT-03",
+          "risk_ref": "R5",
+          "severity": "low",
+          "title": "KPI tile hardcodes 'Facebook spend' and 'Instagram spend', not generic cross-platform labels",
+          "description": "The kpis useMemo (lines 82-127) hardcodes lookups for platform==='facebook' and platform==='instagram'. When filters.platforms=[google_ads] is toggled on the combined view, these KPIs show '—' instead of Google Ads equivalents. This is a UX gap rather than a crash, but misleads users on the combined dashboard.",
+          "file": "frontend/src/routes/PlatformDashboard.tsx",
+          "lines": [86, 91, 113, 117],
+          "evidence": "data.byPlatform.find(p => p.platform.toLowerCase() === 'facebook') — hardcoded string match."
+        }
+      ],
+      "verifier_steps": {
+        "step1_reset_navigate": "On fresh load at /dashboards/platforms, filters.platforms defaults to [] (all) — PASS.",
+        "step2_network_params": "loadAll calls /metrics/combined/ with filters serialized by buildFilterQueryParams including platforms=[meta_ads,google_ads] when both toggled — depends on DashboardLayout correctly populating filters.platforms for null-scope routes.",
+        "step3_account_switch": "Switching accountId in FilterBar re-triggers loadAll via the filters dep in DashboardLayout's loadAll effect — PASS.",
+        "step4_date_range": "Date range change updates filters, re-triggers loadAll — PASS.",
+        "step5_scope_flip": "Navigate from /dashboards/meta/insights to /dashboards/platforms: resolveRoutePlatformScope returns null for /dashboards/platforms, so routePlatformScope useEffect skips (has an early return). This means filters.platforms is NOT reset to [] when arriving at platforms — it retains whatever value was set for meta. FAIL: stale meta_ads platform scope persists for one or more render cycles.",
+        "step6_empty_fixture": "Tenant with zero accounts: platforms.data arrives as {byPlatform:[], byDevice:[], byPlatformDevice:[]} — renders blank charts (no EmptyState). FAIL.",
+        "step7_header": "X-Adinsights-Resolved-Via not consumed by frontend — latent contract risk (LOW)."
+      },
+      "fix_patches": [
+        {
+          "id": "FP-PLAT-01",
+          "description": "Add a clear-stale-platforms guard in DashboardLayout: when routePlatformScope transitions from non-null to null (entering a combined route), explicitly reset filters.platforms to [] in a single setFilters call. This ensures the platforms slice refetch happens with the correct (widened) scope before PlatformDashboard renders.",
+          "file_to_edit": "frontend/src/routes/DashboardLayout.tsx",
+          "approach": "Extend the existing useEffect at line 247 to also handle the null→combined transition: if (!routePlatformScope && filters.platforms.length > 0) { setFilters({ ...filters, platforms: [] }); }. Use a ref to track the previous routePlatformScope to detect the transition.",
+          "risk": "low — existing early-return guard prevents infinite loop"
+        },
+        {
+          "id": "FP-PLAT-02",
+          "description": "Add zero-row guard in PlatformDashboard before rendering charts. After the hasData check, also check if data.byPlatform.length === 0 && data.byDevice.length === 0 and render an EmptyState with reasonCode='no_data_for_range'.",
+          "file_to_edit": "frontend/src/routes/PlatformDashboard.tsx",
+          "approach": "After line 209, add: if (hasData && data?.byPlatform?.length === 0 && data?.byDevice?.length === 0) { return pageShell(<EmptyState reasonCode='no_data_for_range' ... />); }",
+          "risk": "none"
+        },
+        {
+          "id": "FP-PLAT-03",
+          "description": "Replace hardcoded 'facebook'/'instagram' KPI labels with dynamic top-2-platform logic that works for any platform set.",
+          "file_to_edit": "frontend/src/routes/PlatformDashboard.tsx",
+          "approach": "In the kpis useMemo, replace fbRow/igRow lookups with sorted top-2 entries from data.byPlatform by spend, labeled by platform name.",
+          "risk": "low — cosmetic/UX change only"
+        }
+      ],
+      "test_deltas": [
+        {
+          "file": "frontend/src/routes/__tests__/PlatformDashboard.test.tsx",
+          "description": "Add test: 'renders EmptyState when platforms.data.byPlatform is empty array'. Set dashboardStoreMock.platforms.data = { byPlatform:[], byDevice:[], byPlatformDevice:[] } and assert EmptyState appears.",
+          "type": "vitest"
+        },
+        {
+          "file": "frontend/src/routes/__tests__/DashboardLayout.test.tsx",
+          "description": "Add test: navigate from /dashboards/meta/insights (platforms=['meta_ads']) to /dashboards/platforms and assert setFilters is called with platforms=[] before first loadAll fires.",
+          "type": "vitest"
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/campaigns",
+      "component": "frontend/src/routes/CampaignDashboard.tsx",
+      "store": "useDashboardStore (campaign slice)",
+      "endpoint": "/api/metrics/combined/",
+      "expected_scope": "both (meta_ads + google_ads)",
+      "bugs_found": [
+        {
+          "id": "B-CAMP-01",
+          "risk_ref": "R1",
+          "severity": "medium",
+          "title": "getCampaignRowsForSelectedParish uses channels filter (free-text label) not filters.platforms",
+          "description": "resolveChannelFilters at line 438 of useDashboardStore.ts maps filters.channels (e.g. ['Meta Ads']) via normalizeChannelValue to backend keys ('meta'). But the store's platform scope is expressed in filters.platforms (['meta_ads', 'google_ads']). These are two separate filter axes. If a user sets channels=[] (no channel filter) but platforms=['meta_ads'] via DashboardLayout, getCampaignRowsForSelectedParish returns ALL campaign rows including google_ads rows because channelFilters.length === 0 bypasses the platform guard. The platform scope expressed in filters.platforms never propagates into the row-level selector.",
+          "file": "frontend/src/state/useDashboardStore.ts",
+          "lines": [438, 1471, 1474],
+          "evidence": "resolveChannelFilters reads filters.channels, not filters.platforms. No selector reads filters.platforms for row-level guard."
+        },
+        {
+          "id": "B-CAMP-02",
+          "risk_ref": "R5",
+          "severity": "medium",
+          "title": "Duplicate empty-state code block (lines 336-365 vs 367-400)",
+          "description": "CampaignDashboard has two nearly identical empty-state branches: the first at line 336 guards on !hasCampaignData && !isInitialLoading, the second at line 367 guards on campaignAvailability?.status === 'empty' && campaign.data?.rows.length === 0. The second block is unreachable if hasCampaignData is true but rows.length===0 AND the first block already returned. However, when data is loaded but rows is empty AND availability.status is not 'empty', neither block fires and the component renders with an empty campaign table — silent blank.",
+          "file": "frontend/src/routes/CampaignDashboard.tsx",
+          "lines": [336, 367],
+          "evidence": "Two separate guards for zero-row states; gap when data exists, rows=[], availability.status='available'."
+        }
+      ],
+      "verifier_steps": {
+        "step1_reset_navigate": "PASS — store reset on tenant change.",
+        "step2_network_params": "PASS — filters including platforms are passed to loadAll which calls /metrics/combined/ via buildFilterQueryParams.",
+        "step3_account_switch": "PASS — accountId change re-triggers loadAll.",
+        "step4_date_range": "PASS.",
+        "step5_scope_flip": "PARTIAL — row-level selector does not guard on filters.platforms. See B-CAMP-01.",
+        "step6_empty_fixture": "PARTIAL — empty state fires for most empty reasons, but gap when data.rows=[] and availability.status='available'.",
+        "step7_header": "Not consumed — LOW."
+      },
+      "fix_patches": [
+        {
+          "id": "FP-CAMP-01",
+          "description": "Extend getCampaignRowsForSelectedParish and getCreativeRowsForSelectedParish to also filter on filters.platforms: if filters.platforms.length > 0, check that normalizeChannelValue(row.platform) is in filters.platforms (mapping meta_ads→meta, google_ads→google_ads).",
+          "file_to_edit": "frontend/src/state/useDashboardStore.ts",
+          "approach": "Add resolvePlatformFilters(filters: FilterBarState): string[] returning filters.platforms mapped to channel keys. Use it in both selectors alongside the existing channelFilters check.",
+          "risk": "medium — must keep channel filter and platform filter logically ANDed, not ORed"
+        },
+        {
+          "id": "FP-CAMP-02",
+          "description": "Consolidate the duplicate empty-state branches in CampaignDashboard and add a guard for loaded+zero-rows when availability.status is not 'empty'.",
+          "file_to_edit": "frontend/src/routes/CampaignDashboard.tsx",
+          "approach": "Merge lines 336-400 into a single guard: if (!isInitialLoading && (campaign.data?.rows.length ?? 0) === 0). Derive emptyVariant/emptyTitle/emptyMessage from campaignAvailability.",
+          "risk": "low"
+        }
+      ],
+      "test_deltas": [
+        {
+          "file": "frontend/src/routes/__tests__/CampaignDashboard.layout.test.tsx",
+          "description": "Add test: when filters.platforms=['meta_ads'] and campaign rows include both meta and google_ads rows, assert getCampaignRowsForSelectedParish returns only meta rows.",
+          "type": "vitest"
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/creatives",
+      "component": "frontend/src/routes/CreativeDashboard.tsx",
+      "store": "useDashboardStore (creative slice)",
+      "endpoint": "/api/metrics/combined/",
+      "expected_scope": "both",
+      "bugs_found": [
+        {
+          "id": "B-CREA-01",
+          "risk_ref": "R1",
+          "severity": "medium",
+          "title": "getCreativeRowsForSelectedParish uses channels, not filters.platforms — same as B-CAMP-01",
+          "description": "getCreativeRowsForSelectedParish at line 1497 of useDashboardStore.ts has the same channel-vs-platform mismatch as getCampaignRowsForSelectedParish. Creative rows from google_ads are not excluded when filters.platforms=['meta_ads'].",
+          "file": "frontend/src/state/useDashboardStore.ts",
+          "lines": [1497, 1501]
+        }
+      ],
+      "verifier_steps": {
+        "step1_reset_navigate": "PASS.",
+        "step2_network_params": "PASS.",
+        "step5_scope_flip": "FAIL — same selector issue as B-CAMP-01.",
+        "step6_empty_fixture": "PASS — shouldShowEmptyState covers both status=empty and data absent."
+      },
+      "fix_patches": [
+        {
+          "id": "FP-CREA-01",
+          "description": "Same fix as FP-CAMP-01 but applied to getCreativeRowsForSelectedParish.",
+          "file_to_edit": "frontend/src/state/useDashboardStore.ts",
+          "approach": "Apply resolvePlatformFilters to creative row selector.",
+          "risk": "low"
+        }
+      ],
+      "test_deltas": [
+        {
+          "file": "frontend/src/routes/__tests__/CreativeDashboard.test.tsx",
+          "description": "Add test: platform-filtered creative rows exclude non-matching platform entries.",
+          "type": "vitest"
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/budget",
+      "component": "frontend/src/routes/BudgetDashboard.tsx",
+      "store": "useDashboardStore (budget slice)",
+      "endpoint": "/api/metrics/combined/",
+      "expected_scope": "both",
+      "bugs_found": [
+        {
+          "id": "B-BUDG-01",
+          "risk_ref": "R5",
+          "severity": "low",
+          "title": "shouldShowEmptyState fires when budgetAvailability?.status !== 'available', but 'available' is the only non-empty status",
+          "description": "At line 49, shouldShowEmptyState = budgetAvailability?.status !== 'available' || (!budget.data && budget.status !== 'loading'). When availability is undefined (e.g. demo adapter returns no availability block), budgetAvailability is undefined, so the condition is true and empty state fires even if budget.data has rows. This can show a false empty state on demo adapter.",
+          "file": "frontend/src/routes/BudgetDashboard.tsx",
+          "lines": [49, 50]
+        },
+        {
+          "id": "B-BUDG-02",
+          "risk_ref": "R1",
+          "severity": "medium",
+          "title": "getBudgetRowsForSelectedParish not checked for platform filter — same pattern as B-CAMP-01",
+          "description": "BudgetPacingRow.platform is optional (line 144 useDashboardStore.ts). getBudgetRowsForSelectedParish does not filter on filters.platforms, so budget rows from google_ads pass through when meta_ads is the only selected platform.",
+          "file": "frontend/src/state/useDashboardStore.ts",
+          "lines": [1536]
+        }
+      ],
+      "verifier_steps": {
+        "step6_empty_fixture": "FAIL on demo mode — undefined availability triggers false empty state."
+      },
+      "fix_patches": [
+        {
+          "id": "FP-BUDG-01",
+          "description": "Change shouldShowEmptyState guard to be explicit about availability being populated and non-available, rather than treating undefined as non-available.",
+          "file_to_edit": "frontend/src/routes/BudgetDashboard.tsx",
+          "approach": "shouldShowEmptyState = (budgetAvailability !== undefined && budgetAvailability.status !== 'available') || (!budget.data && budget.status !== 'loading')",
+          "risk": "low"
+        },
+        {
+          "id": "FP-BUDG-02",
+          "description": "Extend getBudgetRowsForSelectedParish to filter on filters.platforms.",
+          "file_to_edit": "frontend/src/state/useDashboardStore.ts",
+          "approach": "Apply resolvePlatformFilters to budget row selector, guarding on row.platform.",
+          "risk": "low"
+        }
+      ],
+      "test_deltas": [
+        {
+          "file": "frontend/src/routes/__tests__/BudgetDashboard.test.tsx",
+          "description": "Add test: when availability is undefined and budget.data has rows, component renders budget list not empty state.",
+          "type": "vitest"
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/audience",
+      "component": "frontend/src/routes/AudienceDashboard.tsx",
+      "store": "useDashboardStore (demographics slice)",
+      "endpoint": "/api/metrics/combined/",
+      "expected_scope": "both",
+      "bugs_found": [
+        {
+          "id": "B-AUD-01",
+          "risk_ref": "R5",
+          "severity": "medium",
+          "title": "Loaded + empty byAgeGender array renders null charts, no EmptyState",
+          "description": "At line 171 AudienceDashboard guards !hasData && !isLoading. When demographics.data = {byAge:[], byGender:[], byAgeGender:[]} the guard is false and the component renders. Charts at lines 209, 216, 243 each guard data?.byAgeGender but render null — no EmptyState fires. The user sees a shell with KPI row populated (totalReach=0 etc.) but empty chart areas.",
+          "file": "frontend/src/routes/AudienceDashboard.tsx",
+          "lines": [171, 209, 216]
+        },
+        {
+          "id": "B-AUD-02",
+          "risk_ref": "R5",
+          "severity": "low",
+          "title": "liveDatasetBlocked check inconsistent with CampaignDashboard — no datasetSource guard",
+          "description": "AudienceDashboard's liveDatasetBlocked (line 73) is datasetMode==='live' && liveReason && liveReason !== 'ready', WITHOUT the datasetSource==='warehouse' guard that CampaignDashboard and CreativeDashboard include. This means AudienceDashboard shows the live-blocked empty state for meta_direct adapter users even when live data is flowing.",
+          "file": "frontend/src/routes/AudienceDashboard.tsx",
+          "lines": [73]
+        }
+      ],
+      "fix_patches": [
+        {
+          "id": "FP-AUD-01",
+          "description": "Add zero-row guard in AudienceDashboard after hasData check: if data.byAgeGender.length===0 && data.byGender.length===0, render EmptyState with reasonCode='no_data_for_range'.",
+          "file_to_edit": "frontend/src/routes/AudienceDashboard.tsx",
+          "approach": "After line 187, add: if (hasData && !isLoading && !data?.byAgeGender?.length && !data?.byGender?.length) { return pageShell(EmptyState) }",
+          "risk": "none"
+        },
+        {
+          "id": "FP-AUD-02",
+          "description": "Add datasetSource==='warehouse' guard to liveDatasetBlocked consistent with other dashboards.",
+          "file_to_edit": "frontend/src/routes/AudienceDashboard.tsx",
+          "approach": "Change line 73 to: datasetMode==='live' && datasetSource==='warehouse' && liveReason && liveReason !== 'ready'",
+          "risk": "none — parity fix with CampaignDashboard"
+        }
+      ],
+      "test_deltas": [
+        {
+          "file": "frontend/src/routes/__tests__/AudienceDashboard.test.tsx",
+          "description": "Add test: when demographics.data.byAgeGender=[] and byGender=[], EmptyState appears.",
+          "type": "vitest"
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/map",
+      "component": "frontend/src/routes/ParishMapDetail.tsx",
+      "store": "useDashboardStore (parish slice, demographics slice)",
+      "endpoint": "/api/metrics/combined/ (via loadAll), /parish/geometry/ (Leaflet layer)",
+      "expected_scope": "both",
+      "bugs_found": [
+        {
+          "id": "B-MAP-01",
+          "risk_ref": "R1",
+          "severity": "medium",
+          "title": "ParishMap component does not pass platform filter params to geometry/overlay fetches",
+          "description": "ParishMap.tsx fetches GeoJSON from /parish/geometry/ (line 8 withTenant) without any platform or account filter query params. The parish data displayed as the choropleth comes from useDashboardStore.parish which IS correctly loaded via loadAll with filters. However, the Leaflet overlay tooltips and heatmap are colored from parishRows which is not re-filtered by filters.platforms at the ParishMapDetail level. The risk is that the choropleth shows combined-platform data even when filters.platforms=['meta_ads'], which is inconsistent with the KPI strip above the map.",
+          "file": "frontend/src/routes/ParishMapDetail.tsx",
+          "lines": [44, 60]
+        },
+        {
+          "id": "B-MAP-02",
+          "risk_ref": "R5",
+          "severity": "low",
+          "title": "No EmptyState for parish.status=loaded and parishRows.length=0",
+          "description": "ParishMapDetail at line 101 guards only on status=error. If parish is loaded but parishRows is empty, the component renders a KPI row of zeros and an empty map with no empty-state message.",
+          "file": "frontend/src/routes/ParishMapDetail.tsx",
+          "lines": [99, 101, 117]
+        }
+      ],
+      "verifier_steps": {
+        "map_platform_toggle": "Toggle platform from both to meta_ads: KPI strip updates, but Leaflet choropleth colors may lag or show stale combined totals from prior parishRows. PARTIAL.",
+        "step6_empty_fixture": "No EmptyState for zero parish rows — FAIL."
+      },
+      "fix_patches": [
+        {
+          "id": "FP-MAP-01",
+          "description": "Add zero-parishRows EmptyState in ParishMapDetail when parish.status='loaded' and parishRows.length===0.",
+          "file_to_edit": "frontend/src/routes/ParishMapDetail.tsx",
+          "approach": "After line 115 (error guard), add: if (parish.status !== 'loading' && parishRows.length === 0) { render EmptyState with reasonCode='no_data_for_range'. }",
+          "risk": "none"
+        }
+      ],
+      "test_deltas": [
+        {
+          "file": "frontend/src/routes/__tests__/ParishMapDetail.test.tsx",
+          "description": "Add test: parish.status=loaded, parishRows=[] → EmptyState rendered.",
+          "type": "vitest"
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/web/ga4",
+      "component": "frontend/src/routes/GoogleAnalyticsDashboardPage.tsx",
+      "store": "none (own local state)",
+      "endpoint": "/analytics/web/ga4/",
+      "expected_scope": "non-ads (must NOT hit /api/metrics/combined/)",
+      "bugs_found": [],
+      "verified": {
+        "no_combined_call": "CONFIRMED — GoogleAnalyticsDashboardPage imports fetchGoogleAnalyticsWebRows from lib/webAnalytics.ts which calls GET /analytics/web/ga4/. No useDashboardStore import. No /metrics/combined/ call. CLEAN.",
+        "no_filters_platforms_leak": "CONFIRMED — page manages its own startDate/endDate state. Does not read useDashboardStore.filters.platforms.",
+        "empty_states": "ADEQUATE — three EmptyState branches: error, unavailable, ok+empty rows. Reason text is hardcoded strings (no reasonCode prop) but functional.",
+        "loading_state": "PARTIAL — loading uses a plain div, not a shimmer skeleton. UX gap but not a bug."
+      },
+      "fix_patches": [],
+      "test_deltas": [
+        {
+          "file": "frontend/src/routes/__tests__/GoogleAnalyticsDashboardPage.test.tsx",
+          "description": "Existing test file present — verify no /metrics/combined/ intercept is set up. Add network-level assertion (msw handler) confirming /analytics/web/ga4/ is called and /metrics/combined/ is never called.",
+          "type": "vitest"
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/web/search-console",
+      "component": "frontend/src/routes/SearchConsoleDashboardPage.tsx",
+      "store": "none (own local state)",
+      "endpoint": "/analytics/web/search-console/",
+      "expected_scope": "non-ads (must NOT hit /api/metrics/combined/)",
+      "bugs_found": [],
+      "verified": {
+        "no_combined_call": "CONFIRMED — SearchConsoleDashboardPage imports fetchSearchConsoleWebRows from lib/webAnalytics.ts. No useDashboardStore. No /metrics/combined/ call. CLEAN.",
+        "no_filters_platforms_leak": "CONFIRMED.",
+        "empty_states": "ADEQUATE — same three-branch pattern as GA4."
+      },
+      "fix_patches": [],
+      "test_deltas": [
+        {
+          "file": "frontend/src/routes/__tests__/SearchConsoleDashboardPage.test.tsx",
+          "description": "Add assertion that /metrics/combined/ is never called during any render cycle.",
+          "type": "vitest"
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/uploads",
+      "component": "frontend/src/routes/CsvUpload.tsx",
+      "store": "useDashboardStore (uploadedDataset, uploadedActive only)",
+      "endpoint": "/uploads/metrics/ (status), /uploads/metrics/ (POST)",
+      "expected_scope": "N/A — scoped by upload artifact",
+      "bugs_found": [
+        {
+          "id": "B-UPLOD-01",
+          "risk_ref": "R3",
+          "severity": "medium",
+          "title": "Upload adapter ignores filters.platforms — cross-platform rows always returned",
+          "description": "When uploadedActive=true, loadAll at line 1158 calls buildMetricsFromUpload(uploadedDataset, filters, normalizedTenantId). The filters object includes filters.platforms but buildMetricsFromUpload (in lib/uploadedMetrics.ts) does not filter campaign/creative/budget rows by platform. The backend UploadAdapter also ignores client_scoped_* keys (audit R3). Users on the upload adapter always see all uploaded platforms regardless of the platform toggle.",
+          "file": "frontend/src/routes/CsvUpload.tsx and frontend/src/lib/uploadedMetrics.ts",
+          "lines": [1158, 1160]
+        }
+      ],
+      "fix_patches": [
+        {
+          "id": "FP-UPLOD-01",
+          "description": "In buildMetricsFromUpload, after building campaign/creative/budget arrays, apply a platform filter if filters.platforms.length > 0. Map platform CSV values to backend keys (meta→meta_ads, google_ads→google_ads) and exclude rows whose platform does not match.",
+          "file_to_edit": "frontend/src/lib/uploadedMetrics.ts",
+          "approach": "Post-filter arrays: if (filters.platforms?.length > 0) { rows = rows.filter(r => filters.platforms.includes(toPlatformKey(r.platform))) }",
+          "risk": "medium — CSV platform values may use different casing/aliases; need normalizer"
+        }
+      ],
+      "test_deltas": [
+        {
+          "file": "frontend/src/routes/__tests__/CsvUpload.test.tsx",
+          "description": "Add test: upload dataset with mixed platforms, set filters.platforms=['meta_ads'], assert only meta campaign rows appear in the dashboard.",
+          "type": "vitest"
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/uploads/:uploadId",
+      "component": "frontend/src/routes/CsvUploadDetail.tsx",
+      "store": "none (own fetch + route state)",
+      "endpoint": "/uploads/metrics/ (GET status)",
+      "expected_scope": "N/A",
+      "bugs_found": [],
+      "verified": {
+        "no_combined_call": "CONFIRMED — no useDashboardStore, no /metrics/combined/ call.",
+        "empty_states": "ADEQUATE — loading/ready/empty/error states handled."
+      },
+      "fix_patches": [],
+      "test_deltas": []
+    },
+    {
+      "route": "/dashboards (DashboardLibrary)",
+      "component": "frontend/src/routes/DashboardLibrary.tsx",
+      "store": "none (own fetch)",
+      "endpoint": "/dashboard-library/",
+      "expected_scope": "N/A",
+      "bugs_found": [
+        {
+          "id": "B-LIB-01",
+          "risk_ref": "R5",
+          "severity": "low",
+          "title": "Library header reads 'Meta dashboards' even when Google Ads saved dashboards are listed",
+          "description": "At line 330 of DashboardLibrary.tsx the h1 is hardcoded to 'Meta dashboards'. The library lists saved dashboards from all templates including google_ads and combined ones once those are created. The heading becomes misleading.",
+          "file": "frontend/src/routes/DashboardLibrary.tsx",
+          "lines": [330]
+        }
+      ],
+      "fix_patches": [
+        {
+          "id": "FP-LIB-01",
+          "description": "Change h1 to 'Dashboard library' or derive from allItems platforms.",
+          "file_to_edit": "frontend/src/routes/DashboardLibrary.tsx",
+          "approach": "Change line 330 to: <h1 className='dashboardHeading'>Saved dashboards</h1>",
+          "risk": "none"
+        }
+      ],
+      "test_deltas": []
+    },
+    {
+      "route": "/dashboards/saved/:dashboardId",
+      "component": "frontend/src/routes/SavedDashboardPage.tsx",
+      "store": "useDashboardStore (setFilters, setSelectedMetric, setSelectedParish)",
+      "endpoint": "/dashboard-definitions/:id/",
+      "expected_scope": "inherits from saved template",
+      "bugs_found": [
+        {
+          "id": "B-SAVED-01",
+          "risk_ref": "R2",
+          "severity": "high",
+          "title": "normalizeFilters drops platforms field — saved dashboard loads with platforms=[]",
+          "description": "The normalizeFilters function (lines 25-57) builds a FilterBarState from the saved definition's filters object. It maps dateRange, customRange, accountId, channels, and campaignQuery but does NOT map platforms. So setFilters is called with platforms=[] regardless of what was saved. This is a silent regression: if a saved dashboard was intended to scope to meta_ads only, it will request both platforms. Additionally, DashboardLayout's platform-scope useEffect fires on /dashboards/saved/* routes — resolveRoutePlatformScope returns null for this prefix, so it does nothing — meaning platforms=[] persists and DashboardLayout cannot correct it.",
+          "file": "frontend/src/routes/SavedDashboardPage.tsx",
+          "lines": [25, 44, 51]
+        },
+        {
+          "id": "B-SAVED-02",
+          "risk_ref": "R2",
+          "severity": "medium",
+          "title": "setFilters called unconditionally on every dashboard useEffect re-run, including URL navigation changes",
+          "description": "The useEffect at line 113 depends on [dashboard, location.pathname, location.search, navigate, setFilters, setSelectedMetric, setSelectedParish]. When DashboardLayout's filter-to-URL effect fires (line 438) and updates location.search, this useEffect re-runs and calls setFilters(normalizedFilters) again — overwriting any filter change the user made since loading the saved dashboard. This creates a filter lock where user cannot change date range on a saved dashboard because each URL update triggers a re-seed from the saved definition.",
+          "file": "frontend/src/routes/SavedDashboardPage.tsx",
+          "lines": [113, 118, 129, 132]
+        }
+      ],
+      "verifier_steps": {
+        "saved_dashboard_filter_rehydration": "Load saved dashboard with platforms=['meta_ads'] in saved filters → platforms arrives as [] because normalizeFilters does not map it. FAIL (B-SAVED-01).",
+        "saved_dashboard_url_lock": "Change date range on a saved dashboard → DashboardLayout updates URL → SavedDashboardPage useEffect re-fires and resets filters to saved values. FAIL (B-SAVED-02).",
+        "conflict_with_layout_platform_scope": "resolveRoutePlatformScope returns null for /dashboards/saved/* — no conflict on platform axis. DashboardLayout correctly skips URL sync for saved routes (isSavedDashboardRoute guard at line 262). PASS."
+      },
+      "fix_patches": [
+        {
+          "id": "FP-SAVED-01",
+          "description": "Add platforms field to normalizeFilters in SavedDashboardPage.",
+          "file_to_edit": "frontend/src/routes/SavedDashboardPage.tsx",
+          "approach": "In normalizeFilters, add: platforms: Array.isArray(value.platforms) ? value.platforms.map(String) : fallback.platforms",
+          "risk": "none"
+        },
+        {
+          "id": "FP-SAVED-02",
+          "description": "Change the setFilters useEffect dependency array to exclude location.search, and use a seeded-ref to call setFilters only once after the dashboard definition loads, not on every URL change.",
+          "file_to_edit": "frontend/src/routes/SavedDashboardPage.tsx",
+          "approach": "Add a seededRef = useRef(false). In the useEffect, gate on !seededRef.current. After calling setFilters/setSelectedMetric/setSelectedParish, set seededRef.current = true. Reset ref when dashboardId param changes. Remove location.search from dep array.",
+          "risk": "medium — must ensure the initial URL navigation still fires (do the navigate before setting the ref)"
+        }
+      ],
+      "test_deltas": [
+        {
+          "file": "frontend/src/routes/__tests__/SavedDashboardPage.test.tsx",
+          "description": "Add test: saved definition with platforms=['meta_ads'] in filters → assert setFilters called with platforms=['meta_ads']. Currently existing test uses expectedFilters without platforms field and would miss this regression.",
+          "type": "vitest"
+        },
+        {
+          "file": "frontend/src/routes/__tests__/SavedDashboardPage.test.tsx",
+          "description": "Add test: simulate DashboardLayout URL update (change location.search) after initial load → assert setFilters is NOT called a second time.",
+          "type": "vitest"
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/create",
+      "component": "frontend/src/routes/DashboardCreate.tsx",
+      "store": "useDatasetStore (read-only), own local state",
+      "endpoint": "/metrics/combined/ (preview only), /dashboard-definitions/ (POST)",
+      "expected_scope": "Meta-only (hardcodes channels=['Meta Ads'])",
+      "bugs_found": [
+        {
+          "id": "B-CREATE-01",
+          "risk_ref": "R5",
+          "severity": "low",
+          "title": "Preview fetch hardcodes no platforms param — will use backend default (all) even on Meta-only builder",
+          "description": "DashboardCreate.tsx at line 318 builds the preview query from buildFilterQueryParams(filters). The local filters state is initialized with channels: ['Meta Ads'] but platforms is inherited from defaultFilters which sets platforms: []. So the preview endpoint is called without a platforms param, returning combined data, while the saved dashboard's intent is Meta-only. This can make the preview appear richer than the saved dashboard will actually show.",
+          "file": "frontend/src/routes/DashboardCreate.tsx",
+          "lines": [146, 316]
+        }
+      ],
+      "fix_patches": [
+        {
+          "id": "FP-CREATE-01",
+          "description": "Initialize local filters in DashboardCreate with platforms: ['meta_ads'] to match the Meta-only intent.",
+          "file_to_edit": "frontend/src/routes/DashboardCreate.tsx",
+          "approach": "Change line 146: filters: { ...defaultFilters, channels: ['Meta Ads'], platforms: ['meta_ads'] }",
+          "risk": "low"
+        }
+      ],
+      "test_deltas": []
+    }
+  ],
+  "cross_cutting": [
+    {
+      "id": "CC-01",
+      "risk_ref": "R5",
+      "title": "EmptyState component lacks reasonCode prop — all callers use free-text strings",
+      "description": "frontend/src/components/EmptyState.tsx interface has no reasonCode field. Every consumer (GA4, Search Console, DashboardLibrary, CsvUpload) passes title and message as raw strings. The plan calls for standard reason codes (no_accounts, no_data_for_range, adapter_error) to enable testing, analytics, and future i18n. The DashboardState component (used by Meta and combined dashboards) uses variant but also no reasonCode. EmptyState.tsx needs a new optional reasonCode?: string prop that can be used for test selectors and potential analytics events.",
+      "owner_agent": "A3",
+      "fix_patch": {
+        "id": "FP-CC-01",
+        "file_to_edit": "frontend/src/components/EmptyState.tsx",
+        "approach": "Add reasonCode?: string to EmptyStateProps. Pass it as data-reason-code on the root div. Define EMPTY_STATE_REASON_CODES constant object in a separate lib/emptyStateReasons.ts.",
+        "risk": "none — purely additive"
+      }
+    },
+    {
+      "id": "CC-02",
+      "risk_ref": "R1",
+      "title": "filters.platforms (platform scope) and filters.channels (user-visible toggle) are two separate axes with no reconciliation",
+      "description": "DashboardLayout sets filters.platforms via the route-scope useEffect. getCampaignRows/getCreativeRows/getBudgetRows use filters.channels via resolveChannelFilters, not filters.platforms. These two axes can diverge: user can have channels=['Meta Ads'] (sets meta_ads) but platforms=['google_ads'] (set by route scope). The backend receives platforms=google_ads but the frontend row selectors filter on channels=meta, showing 0 rows even when the backend returned google_ads rows. The reconciliation rule should be: when filters.platforms is set by route scope, also reset filters.channels to match the same platform set.",
+      "owner_agent": "A3 (frontend selectors), handoff to A1 for DashboardLayout reconciliation",
+      "fix_patch": {
+        "id": "FP-CC-02",
+        "file_to_edit": "frontend/src/routes/DashboardLayout.tsx",
+        "approach": "In the platform-scope useEffect (line 247), when setting filters.platforms, also update filters.channels to the corresponding platform labels using a PLATFORM_TO_CHANNEL map (meta_ads→'Meta Ads', google_ads→'Google Ads'). For null scope (combined), set channels to [].",
+        "risk": "medium — channel filter is user-visible, needs UX review; combined view must allow independent channel selection"
+      }
+    },
+    {
+      "id": "CC-03",
+      "risk_ref": "R4",
+      "title": "R4 backend auth/tenant: request.user.tenant direct access in views.py — handoff to A4/backend",
+      "description": "backend/analytics/views.py at lines 207 and 312 uses request.user.tenant directly. If impersonation sets a different tenant_id on the session context but not on request.user.tenant, the dataset status endpoint returns the wrong tenant's readiness. This is a backend concern; frontend is not involved. Handoff to A4 synthesizer for backend verification.",
+      "owner_agent": "A4-backend",
+      "fix_patch": null
+    },
+    {
+      "id": "CC-04",
+      "risk_ref": "R8",
+      "title": "X-Adinsights-Resolved-Via header contract — document both formats, no frontend consumer yet",
+      "description": "The backend emits two formats: 'platforms:<list>' (Sprint 10) and 'client:<id>' (Sprint 6). No frontend code reads this header (confirmed by audit). Risk of silent contract regression when a consumer is added. Mitigation: add a shared RESOLVED_VIA_FORMATS constant in the backend and a contract test asserting both formats are stable. Frontend should parse both prefixes when the header is first consumed.",
+      "owner_agent": "A3 (documents), A4 (adds contract test)",
+      "fix_patch": null
+    },
+    {
+      "id": "CC-05",
+      "risk_ref": "R7",
+      "title": "useDashboardStore.filters.accountId is the global bar selection; SavedDashboardPage writes it from saved definition — potential conflict with DashboardLayout auto-select",
+      "description": "SavedDashboardPage calls setFilters({accountId: savedAccountId}) on load. DashboardLayout's account auto-select effect (line 394) runs when accountOptionsResolved changes and may overwrite the saved accountId with the preferred/default account if the saved accountId is not in the current account options list (e.g. account was delinked). The auto-select effect guards (line 404: if (currentAccountId && validAccountIds.includes(currentAccountId)) return) — so if the saved accountId IS valid, it is preserved. If it is invalid (account delinked), DashboardLayout silently overwrites. This is acceptable behavior but should be documented.",
+      "owner_agent": "A3 (document), A1 (R7 reconciliation)",
+      "fix_patch": null
+    },
+    {
+      "id": "CC-06",
+      "risk_ref": "R6",
+      "title": "No Playwright specs for /dashboards/platforms, /dashboards/creatives, /dashboards/budget, /dashboards/audience, /dashboards/map, /dashboards/web/ga4, /dashboards/web/search-console",
+      "description": "The qa/tests directory has Playwright specs for campaigns, dashboard, export, health, map (partial), meta-integration, meta-page-insights, meta-reporting-readiness, tenant-switch. Combined and web pages are untested at the E2E level. The platform-filter scope (R1) and empty-state (R5) bugs in this report would be caught by Playwright specs asserting network request params and visible content.",
+      "owner_agent": "A3 (designs specs), A4 (runs them)",
+      "fix_patch": null
+    }
+  ],
+  "open_questions": [
+    "R1/B-PLAT-01: What is the actual render duration of the stale-platform window? A Playwright trace would quantify whether it is perceptible (<100ms) or causes a visible flash (~300ms frame). This determines urgency of FP-PLAT-01.",
+    "CC-02: Should filters.channels be user-overridable on combined routes, or should platform scope always override channel selection? Plan §3 says 'filters.platforms=[meta_ads,google_ads]' for combined routes, implying both channel filters should be allowed — but today the UI shows Meta Ads / Google Ads checkboxes that write to channels, not platforms. Need UX decision on which axis wins.",
+    "B-SAVED-02: Does the existing SavedDashboardPage test cover the filter-lock scenario (re-render on URL change)? The current test only asserts setFilters called once on initial load. If the test does not simulate a URL navigation post-load, the lock is undetected.",
+    "B-BUDG-01: Does the demo adapter return an availability block in its payload? If not, all budget demo tests pass with incorrect data (false empty state). Needs fixture check against backend/adapters/demo.py DemoAdapter.fetch_metrics output.",
+    "FP-UPLOD-01: What is the canonical mapping from CSV platform column values to backend platform keys? The CSV template allows 'meta', 'facebook', 'google_ads', 'google'. A normalizer is needed before implementing the upload-side platform filter. Coordination required with the Upload page owner."
+  ]
+}

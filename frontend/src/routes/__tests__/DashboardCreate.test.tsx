@@ -463,4 +463,39 @@ describe('DashboardCreate', () => {
       );
     });
   });
+
+  it('renders the KpiTile preview strip instead of legacy StatCard after S4c migration', async () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboards/create']}>
+        <Routes>
+          <Route path="/dashboards/create" element={<DashboardCreate />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // Once the preview lands (any Meta account is auto-selected), the 5-tile
+    // KPI column appears with a `role="group"` aria-label contract.
+    const strip = await screen.findByRole('group', { name: /live preview kpis/i });
+    expect(strip).toBeInTheDocument();
+    // 5 KpiTile instances — each renders a `.metric-card` element.
+    expect(strip.querySelectorAll('.metric-card').length).toBe(5);
+  });
+
+  it('preserves backward-compatibility for templates without a layout field (S4c grid-snap hook)', async () => {
+    // Guard against accidental regressions in the template registry:
+    // `getDashboardTemplate` must continue to return a definition with a
+    // stable shape when `layout` is absent. All four Sprint-4 templates ship
+    // without `layout`, and `SavedDashboardPage.renderTemplate` dispatches
+    // purely on `routeKind`. This test imports the actual template module
+    // (not a mock) and asserts the expected shape for every shipped template.
+    const templatesModule = await vi.importActual<typeof import('../../lib/dashboardTemplates')>(
+      '../../lib/dashboardTemplates',
+    );
+    for (const template of templatesModule.DASHBOARD_TEMPLATES) {
+      expect(template.routeKind).toMatch(/^(campaigns|creatives|budget|map)$/);
+      expect(Array.isArray(template.widgets)).toBe(true);
+      // `layout` MUST remain optional; Sprint 4 ships zero populated layouts.
+      expect(template.layout).toBeUndefined();
+    }
+  });
 });
