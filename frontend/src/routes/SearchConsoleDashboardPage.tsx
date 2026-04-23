@@ -148,6 +148,22 @@ const SearchConsoleDashboardPage = () => {
         </div>
       </header>
 
+      <div
+        className="panel"
+        role="status"
+        data-testid="search-console-deferred-notice"
+        data-reason="search_console_ingestion_deferred"
+        style={{ marginBottom: '1rem' }}
+      >
+        <strong>Search Console data refresh — coming soon.</strong>
+        <p className="muted" style={{ marginTop: '0.25rem' }}>
+          Tenant-facing Search Console connection is being finalized post-launch. The dashboard
+          will populate automatically once ingestion is wired; in the meantime, operator-level
+          Airbyte feeds may surface here. See{' '}
+          <code>docs/runbooks/search-console-operations.md</code> for the operator path.
+        </p>
+      </div>
+
       <div className="data-sources-controls" style={{ marginBottom: '1rem' }}>
         <label className="dashboard-field">
           <span className="dashboard-field__label">Start date</span>
@@ -213,14 +229,17 @@ const SearchConsoleDashboardPage = () => {
       {isUnavailable ? (
         <EmptyState
           icon={<span aria-hidden>!</span>}
-          title="Search Console feed unavailable"
-          message={payload?.detail ?? 'The backend reported this source as unavailable.'}
+          title="Search Console ingestion deferred"
+          message={
+            payload?.detail
+            ?? 'The Search Console mart is not built in this environment yet. Ingestion is deferred post-launch; see docs/runbooks/search-console-operations.md.'
+          }
           actionLabel="Open Data Sources"
           actionVariant="secondary"
           onAction={() => {
             window.location.assign('/dashboards/data-sources');
           }}
-          reasonCode="no_search_console_site_selected"
+          reasonCode="search_console_ingestion_deferred"
           className="panel"
         />
       ) : null}
@@ -228,8 +247,8 @@ const SearchConsoleDashboardPage = () => {
       {isEmpty ? (
         <EmptyState
           icon={<span aria-hidden>0</span>}
-          title="No Search Console rows available"
-          message="Connect a Search Console property from Data Sources or widen the selected date range."
+          title="No Search Console rows for this range"
+          message="The mart is reachable but returned no rows for the selected range. Widen the date window, or wait for the next ingestion cycle once the Search Console feed is live."
           actionLabel="Open Data Sources"
           actionVariant="secondary"
           onAction={() => {

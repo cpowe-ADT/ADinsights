@@ -104,6 +104,12 @@ describe('SearchConsoleDashboardPage', () => {
 
     expect(screen.getByRole('heading', { name: 'Search Console' })).toBeInTheDocument();
 
+    // T1-05: deferred-ingestion notice is always visible above the data.
+    const notice = screen.getByTestId('search-console-deferred-notice');
+    expect(notice).toBeInTheDocument();
+    expect(notice.getAttribute('data-reason')).toBe('search_console_ingestion_deferred');
+    expect(notice.textContent).toMatch(/coming soon/i);
+
     // KPI strip (Total Clicks / Total Impressions / Average CTR / Average Position)
     await waitFor(() => {
       expect(screen.getAllByTestId('kpi-tile')).toHaveLength(4);
@@ -140,7 +146,7 @@ describe('SearchConsoleDashboardPage', () => {
     expect(webAnalyticsMocks.fetchSearchConsoleWebRows).toHaveBeenCalledTimes(1);
   });
 
-  it('renders no_search_console_site_selected empty state when backend reports unavailable', async () => {
+  it('renders search_console_ingestion_deferred empty state when backend reports unavailable', async () => {
     webAnalyticsMocks.fetchSearchConsoleWebRows.mockResolvedValueOnce({
       source: 'search_console',
       status: 'unavailable',
@@ -159,8 +165,9 @@ describe('SearchConsoleDashboardPage', () => {
       expect(screen.getByTestId('empty-state')).toBeInTheDocument();
     });
     expect(screen.getByTestId('empty-state').getAttribute('data-reason')).toBe(
-      'no_search_console_site_selected',
+      'search_console_ingestion_deferred',
     );
+    expect(screen.getByText(/Search Console ingestion deferred/i)).toBeInTheDocument();
   });
 
   it('renders no_data_for_range empty state when zero rows returned', async () => {
