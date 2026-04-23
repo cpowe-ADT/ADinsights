@@ -37,34 +37,37 @@
 
 These block calling Phase 2 production-ready.
 
-### T1-01 — Alert pause/resume — CONFIRMED MISSING (M, 1–2d)
+### T1-01 — Alert pause/resume — **DONE (2026-04-23)**
 
-**Status:** NOT STARTED.
+**Recontextualization:** audit found on/off pause was already shipped via `is_active` (`AlertDetailPage.tsx:178-182` + `AlertsPage.tsx:127`). Real gap was **time-bounded pause** (`paused_until`) + auto-resume. Also found no DB-driven evaluator consumes `AlertRuleDefinition` today — `AlertService.run_cycle` iterates hardcoded `ALERT_RULES` in `backend/app/alerts.py`. Evaluator rewrite is tracked as T2-07 follow-on.
 
-**Evidence:** `backend/integrations/models.py:1495-1545` — `AlertRuleDefinition` has `is_active` (on/off) but no `is_paused` / `paused_until` field.
+**What shipped:**
+- [x] Migration `0024_alert_paused_until.py` — adds `paused_until: DateTimeField(null=True, blank=True)`
+- [x] `AlertRuleDefinition.active_for_eval()` classmethod — lazy auto-resume sweep (bulk-updates expired pauses) + returns `is_active=True` queryset. Canonical "should-this-rule-evaluate-now" filter for any future DB-driven evaluator.
+- [x] `AlertRuleDefinitionSerializer` exposes `paused_until` (read-only); mutations go through dedicated actions
+- [x] `POST /api/alerts/<id>/pause/` — body `{pause_until?: ISO8601} | {duration_hours?: 1..720} | {}`; rejects both provided, naive datetimes, past times, bool-as-int, out-of-range durations. Audit event `alert_rule_paused`.
+- [x] `POST /api/alerts/<id>/resume/` — clears `paused_until`, sets `is_active=True`. Audit event `alert_rule_resumed`.
+- [x] Frontend: pause-duration dropdown on `AlertDetailPage.tsx` (1h/4h/24h/7d/Indefinite) wired to `pauseAlert` helper; `resumeAlert` replaces old `updateAlert({is_active})` path; "Auto-resumes at…" line renders when `paused_until` is set.
+- [x] Tests: 16 pytest cases covering pause/resume validation, tenant isolation, audit logs, `active_for_eval` expiry sweep; 8 vitest cases covering dropdown + resume + toast behavior.
 
-**Work:**
-- [ ] Add `is_paused: BooleanField(default=False)` + `paused_until: DateTimeField(null=True, blank=True)` to `AlertRuleDefinition`. Migration in `backend/integrations/migrations/0024_alert_pause.py`.
-- [ ] Update `AlertRuleDefinitionSerializer` (`backend/integrations/serializers.py:374`) to expose the new fields
-- [ ] Add action endpoints `POST /api/alert-rules/<id>/pause/` and `POST /api/alert-rules/<id>/resume/` to `AlertRuleDefinitionViewSet` (`backend/integrations/views.py:3661`). `pause` accepts optional `pause_until` body param.
-- [ ] Evaluator should skip paused rules: wherever alert evaluation runs (grep `AlertRuleDefinition.*filter.*is_active`), add `is_paused=False` and `(paused_until__isnull=True | paused_until__lt=now())` filter.
-- [ ] Frontend: add pause/resume toggle to `AlertRuleDefinition` list/detail UI. Grep for `AlertRulesPage` / `AlertSettings`.
-- [ ] Tests: backend pytest for paused-rule evaluation skip; vitest for UI toggle.
+**Follow-on (tracked separately):** T2-07 — rewrite `AlertService.run_cycle` to consume `AlertRuleDefinition.active_for_eval()` instead of hardcoded `ALERT_RULES`. Model plumbing (this ticket) is the prerequisite; end-to-end "pause stops evaluations" is realized when T2-05 lands.
 
-**DoD:** toggling pause on an alert rule stops evaluations; resume or `pause_until` expiry re-enables.
+**DoD:** satisfied — user can pause indefinitely or for N hours, auto-resume fires on `paused_until` expiry, pause/resume are audited + tenant-isolated.
 
 ---
 
-### T1-02 — Alert edit + delete endpoints (S, 1d)
+### T1-02 — Alert edit + delete endpoints — **DONE (2026-04-23)**
 
-**Status:** Likely PARTIAL. `AlertRunViewSet` at `backend/alerts/views.py:10` is read-only (`ListModelMixin + RetrieveModelMixin`). `AlertRuleDefinitionViewSet` at `backend/integrations/views.py:3661` is a `ModelViewSet` so should have full CRUD — verify and add frontend plumbing if missing.
+**Recontextualization:** audit confirmed DELETE + PATCH already work end-to-end via `ModelViewSet` + existing `deleteAlert` helper (`phase2Api.ts`) + existing Delete button (`AlertDetailPage.tsx:149`). Missing pieces were: (1) frontend edit form (rule details were display-only), (2) serializer-level validators for blank name/metric, (3) end-to-end PATCH test coverage. Also caught a **latent bug**: `AlertCreatePage` was submitting severity `info/warning/critical` while the backend enum is `low/medium/high` — every create via UI was failing validation. Fixed as part of this work (precondition for the edit form reusing the same enum).
 
-**Work:**
-- [ ] Verify PATCH and DELETE on `/api/alert-rules/<id>/` work end-to-end (may already; check tests)
-- [ ] If frontend has no edit/delete UI for alert rules, add it
-- [ ] Consider soft-delete (`deleted_at` timestamp) if audit trail matters
+**What shipped:**
+- [x] Inline edit form on `AlertDetailPage.tsx` with controlled inputs for name/metric/comparison_operator/threshold/lookback_hours/severity. Save → `updateAlert`, Cancel restores, error keeps form open.
+- [x] Serializer validators: `validate_name` + `validate_metric` reject blank/whitespace.
+- [x] `AlertCreatePage.tsx` severity values aligned to backend enum (`low`/`medium`/`high`).
+- [x] Hard-delete (codebase convention — no `deleted_at` pattern exists in `integrations/models.py`).
+- [x] Tests: 5 pytest cases covering PATCH success+audit, blank-name/metric rejection, `paused_until` read-only enforcement, DELETE tenant isolation; 4 vitest cases covering edit-form open/submit/cancel/error.
 
-**DoD:** user can edit and delete their own alert rules from the UI.
+**DoD:** satisfied — user can edit all rule fields, delete their own rules, both audited, validation rejects obviously-bad inputs.
 
 ---
 
@@ -189,6 +192,22 @@ Skip if current tenants are trusted + low count.
 - [ ] Decide cadence (per-tenant config? fixed daily?)
 - [ ] Add scheduled Celery task to regenerate stale summaries
 - [ ] Cache-invalidate when underlying data window changes
+
+---
+
+### T2-07 — Wire `AlertService` to DB-defined `AlertRuleDefinition` (M, 2–3d)
+
+**Status:** NOT STARTED. Prerequisite shipped with T1-01 (`AlertRuleDefinition.active_for_eval()` classmethod).
+
+**Context:** `AlertService.run_cycle` (`backend/alerts/services.py:85`) iterates the hardcoded `ALERT_RULES` tuple in `backend/app/alerts.py`. User-defined `AlertRuleDefinition` rows are CRUD-only and are not evaluated. Until this ships, "pausing an alert rule stops evaluations" is realized at the API/UI layer but has no downstream effect because nothing downstream reads DB rules.
+
+**Work:**
+- [ ] Replace or complement `ALERT_RULES` iteration with `AlertRuleDefinition.active_for_eval()` in `AlertService.run_cycle`
+- [ ] Map `AlertRuleDefinition` fields (metric, comparison_operator, threshold, lookback_hours) to the SQL-evaluation shape expected by `AlertEvaluator` — may need a generic metric-threshold rule template
+- [ ] Decide fate of the hardcoded `ALERT_RULES` presets: migrate to seeded DB rows OR keep as system rules with a `system: true` flag
+- [ ] Tests: paused rule is skipped end-to-end; auto-resumed rule re-enters evaluation; tenant isolation during Celery execution
+
+**DoD:** toggling pause on an alert rule in the UI stops its SQL evaluation in the next `run_cycle`; auto-resume (via `paused_until` expiry) re-enters it.
 
 ---
 
