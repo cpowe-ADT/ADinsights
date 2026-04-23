@@ -93,6 +93,7 @@ export type AlertRule = {
   lookback_hours: number;
   severity: string;
   is_active: boolean;
+  paused_until?: string | null;
   notification_channels?: string[];
   created_at: string;
   updated_at: string;
@@ -418,6 +419,17 @@ export async function updateAlert(
   payload: Partial<Pick<AlertRule, 'name' | 'metric' | 'comparison_operator' | 'threshold' | 'lookback_hours' | 'severity' | 'is_active' | 'notification_channels'>>,
 ): Promise<AlertRule> {
   return apiClient.patch<AlertRule>(`/alerts/${alertId}/`, payload);
+}
+
+export async function pauseAlert(
+  alertId: string,
+  body: { pause_until?: string; duration_hours?: number } = {},
+): Promise<AlertRule> {
+  return apiClient.post<AlertRule>(`/alerts/${alertId}/pause/`, body);
+}
+
+export async function resumeAlert(alertId: string): Promise<AlertRule> {
+  return apiClient.post<AlertRule>(`/alerts/${alertId}/resume/`, {});
 }
 
 export async function triggerResync(connectionId: string): Promise<void> {

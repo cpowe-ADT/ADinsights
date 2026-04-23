@@ -22,7 +22,7 @@ const AlertCreatePage = () => {
   const [operator, setOperator] = useState('gt');
   const [threshold, setThreshold] = useState('');
   const [lookbackHours, setLookbackHours] = useState('24');
-  const [severity, setSeverity] = useState('warning');
+  const [severity, setSeverity] = useState('medium');
   const [channels, setChannels] = useState<NotificationChannel[]>([]);
   const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -180,9 +180,9 @@ const AlertCreatePage = () => {
             onChange={(event) => setSeverity(event.target.value)}
             disabled={saving}
           >
-            <option value="info">Info</option>
-            <option value="warning">Warning</option>
-            <option value="critical">Critical</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
           </select>
         </label>
 
