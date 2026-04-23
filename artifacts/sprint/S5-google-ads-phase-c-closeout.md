@@ -90,3 +90,18 @@ The v2 prompt explicitly instructs: *"C3 requires test-account credentials — e
 **AMBER — T1-03 Phase C ships two of three tasks green; third is credential-blocked as anticipated.** GA-C1 and GA-C2 both land atomically with passing gates (30 new tests, 10 runbook sections, 0 "migration in progress" hits in CLAUDE.md, frontend lint+build clean, 57/57 workspace vitest pass). GA-C3 is `status=blocked` in state.json with a blocker entry; unblock requires user to surface staging Google Ads OAuth creds. No schema changes. No migrations. Rollback trivial (revert the 2 commits).
 
 Overall T1-03 (Phases A + B + C1/C2) ships approximately **95% of the planned Google Ads finish scope**; the remaining 5% is the external-dependency-gated staging smoke.
+
+---
+
+## Addendum — 2026-04-23 — GA-C3 deliverable prepared
+
+At user direction (after the AMBER close), a full operator-runnable staging-regression checklist shipped as `S5-google-ads-phase-c-staging-smoke-checklist.md`. The checklist does **not** execute the regression (still blocked on credentials) but packages everything needed to execute it as a zero-judgment walkthrough:
+
+- **Pre-flight** table listing every credential / access item required (OAuth refresh token, tenant id, customer_ids, JWT, frontend/backend URLs, DB shell, Redis access). Explicit "stop here if any item missing" instruction.
+- **Phase 1** — 6 health + connection sanity checks with exact curl commands.
+- **Phase 2** — per-tab smoke for all 10 tabs, each covering both UI render + underlying API + tenant isolation, plus Phase-A-specific (pacing cache, dismiss audit, export polling) and Phase-B-specific (`next_cursor` pagination, saved-view verify) verification steps.
+- **Phase 3** — 6 cross-cutting checks (auth required, cross-tenant pk → 404, no 5xx, adapter flag isolation, whitelist drift sanity).
+- **Phase 4** — record-results procedure that includes the exact state.json and punchlist updates to make when the regression passes (or fails).
+- **Triage cheat sheet** mapping 7 common failure symptoms to the first thing to check.
+
+When credentials arrive, an agent re-running `/finish-google-ads.v2` with GA-C3 as the only remaining task can walk the checklist top-to-bottom and close out T1-03 at 100%. State file still reads `GA-C3: blocked` because the *execution* has not happened — the deliverable is the *plan for execution*, not the execution itself.

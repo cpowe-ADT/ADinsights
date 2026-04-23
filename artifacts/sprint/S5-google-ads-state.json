@@ -15,7 +15,7 @@
     "GA-B2": {"status": "done", "started_at": "2026-04-23T14:00:00-05:00", "completed_at": "2026-04-23T14:45:00-05:00", "commit_sha": "cda49031|4e1733ec", "notes": "Saved-view verify action comparing filters+columns against static v23 whitelist; FE dismissible drift banner. 4 pytest + 3 vitest."},
     "GA-C1": {"status": "done", "started_at": "2026-04-23T15:40:00-05:00", "completed_at": "2026-04-23T16:20:00-05:00", "commit_sha": "81df0c18", "notes": "Phase C — 10 *.integration.test.tsx files, one per tab section; 30 new tests, 57/57 workspace vitest pass."},
     "GA-C2": {"status": "done", "started_at": "2026-04-23T15:10:00-05:00", "completed_at": "2026-04-23T15:35:00-05:00", "commit_sha": "37ff1b77", "notes": "Phase C — new docs/runbooks/google-ads-operations.md (10 ## sections) + CLAUDE.md current-state updated."},
-    "GA-C3": {"status": "blocked", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Phase C — staging smoke; BLOCKED on test-account credentials. Per v2 §Phase C, must escalate to user for staging Google Ads OAuth creds + test tenant with linked customer_ids before starting."}
+    "GA-C3": {"status": "blocked", "started_at": "2026-04-23T16:40:00-05:00", "completed_at": null, "commit_sha": null, "notes": "Phase C — staging smoke; BLOCKED on test-account credentials. Deliverable prepared: S5-google-ads-phase-c-staging-smoke-checklist.md (full operator-runnable regression checklist — Phase 1 pre-flight, Phase 2 per-tab, Phase 3 cross-cutting, Phase 4 record results). Execution deferred until user surfaces staging Google Ads OAuth creds + test tenant with linked customer_ids."}
   },
   "blockers": [
     {"task": "GA-C3", "reason": "Requires test-account credentials (staging Google Ads OAuth + tenant with linked customer_ids). Escalation opened 2026-04-23.", "opened_at": "2026-04-23T16:25:00-05:00"}
@@ -64,6 +64,7 @@
   "closeout_docs": [
     "/Users/thristannewman/ADinsights/artifacts/sprint/S5-google-ads-finish-closeout.md",
     "/Users/thristannewman/ADinsights/artifacts/sprint/S5-google-ads-phase-b-closeout.md",
-    "/Users/thristannewman/ADinsights/artifacts/sprint/S5-google-ads-phase-c-closeout.md"
+    "/Users/thristannewman/ADinsights/artifacts/sprint/S5-google-ads-phase-c-closeout.md",
+    "/Users/thristannewman/ADinsights/artifacts/sprint/S5-google-ads-phase-c-staging-smoke-checklist.md"
   ]
 }

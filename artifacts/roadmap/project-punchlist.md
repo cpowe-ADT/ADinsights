@@ -162,7 +162,7 @@ These make Phase 2 feel done, not just work.
 **Phase C — PARTIAL (2026-04-23):**
 - [x] GA-C1 Integration test suite — 10 new `*.integration.test.tsx` files, one per tab section (Assets, Campaigns, Changes, Conversions, Overview, Pacing, Pmax, Recommendations, Reports, Search), each covering loading/empty/populated branches. 30 new tests, 57/57 workspace vitest pass (commit `81df0c18`).
 - [x] GA-C2 Documentation — new `docs/runbooks/google-ads-operations.md` (10 `##` sections: scope, SDK-vs-Airbyte hybrid, endpoint register, day-2 ops, known quirks, related docs) + CLAUDE.md current-state updated to reflect shipped Phase B (commit `37ff1b77`).
-- [ ] GA-C3 Staging regression — **BLOCKED on test-account credentials** (M, 2–3d). Per v2 protocol (`finish-google-ads.v2.md §Phase C`), requires user to surface staging Google Ads OAuth creds + a test tenant with linked customer_ids. Escalation open 2026-04-23.
+- [ ] GA-C3 Staging regression — **BLOCKED on test-account credentials** (M, 2–3d). Per v2 protocol (`finish-google-ads.v2.md §Phase C`), requires user to surface staging Google Ads OAuth creds + a test tenant with linked customer_ids. Escalation open 2026-04-23. **Deliverable prepared:** `artifacts/sprint/S5-google-ads-phase-c-staging-smoke-checklist.md` (full operator-runnable regression checklist: pre-flight creds table, per-tab smoke for all 10 tabs, cross-cutting auth + isolation checks, record-results procedure, failure triage cheat sheet). Execute top-to-bottom when creds land.
 
 ---
 
