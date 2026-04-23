@@ -21,7 +21,7 @@
 | Area | % complete | Tier-1 blockers |
 |---|---|---|
 | Meta integration | ~95% | none |
-| Google Ads | ~82% | Phase A done (2026-04-23); Phase B+C remain (tracked T2-02) |
+| Google Ads | ~90% | Phase A + B done (2026-04-23); Phase C remains (tracked T2-02, C3 needs test-account creds) |
 | GA4 | ~80% | verify sync path populates `agg_ga4_daily` |
 | Search Console | ~50% | no dedicated OAuth/sync module (uses mart) |
 | LinkedIn | ~5% | scaffolded only |
@@ -153,9 +153,16 @@ These make Phase 2 feel done, not just work.
 
 ### T2-02 — Google Ads Phase B + C
 
-**See:** `google-ads-completion-plan.md`.
-- [ ] Phase B polish (change log pagination, saved-view reconciliation) — 3–4d
-- [ ] Phase C hardening (integration tests, docs, staging regression) — 5–7d
+**See:** `google-ads-completion-plan.md`, `artifacts/sprint/S5-google-ads-phase-b-closeout.md`.
+
+**Phase B — DONE (2026-04-23):**
+- [x] GA-B1 Change log pagination — `next_cursor` alias on existing paginated endpoint + Load more UI with accumulated rows (commits `cda49031` backend, `f066e527` FE). 3 pytest + 3 vitest.
+- [x] GA-B2 Saved-view reconciliation — new `verify` action comparing `filters`/`columns` against static v23 whitelist + FE dismissible drift banner (commits `cda49031` backend, `4e1733ec` FE). 4 pytest + 3 vitest.
+
+**Phase C — REMAINS:**
+- [ ] GA-C1 Integration test suite — one integration test per of the 10 Google Ads tab sections (L, 3–4d)
+- [ ] GA-C2 Documentation — `docs/runbooks/google-ads-operations.md` + remove "Google Ads SDK migration in progress" sentence from CLAUDE.md (S, 1d)
+- [ ] GA-C3 Staging regression — **requires test-account credentials; escalate to user before starting** (M, 2–3d)
 
 ---
 

@@ -2,31 +2,30 @@
   "schema_version": 1,
   "started_at": "2026-04-23T00:00:00-05:00",
   "baseline_commit": "c0d132a5495f4144d8791a970150721298f1e111",
-  "current_phase": "A",
+  "current_phase": "B",
   "current_task": null,
   "phase_a_completed_at": "2026-04-23T13:05:00-05:00",
+  "phase_b_completed_at": "2026-04-23T14:50:00-05:00",
   "tasks": {
-    "GA-A1": {"status": "done", "started_at": "2026-04-23T12:10:00-05:00", "completed_at": "2026-04-23T13:03:05-05:00", "commit_sha": "15e33459|01780559", "notes": "Backend pacing extension landed with GA-A2 in backend commit 15e33459; FE UI in 01780559. Per-campaign rows + 15-min tenant-scoped cache. Best-effort name-match for budget (CampaignBudget has no campaign_id FK)."},
-    "GA-A2": {"status": "done", "started_at": "2026-04-23T12:10:00-05:00", "completed_at": "2026-04-23T13:03:23-05:00", "commit_sha": "15e33459|07bd1327", "notes": "Backend dismiss view + migration 0025 in 15e33459; FE UI + optimistic rollback in 07bd1327. LOCAL ONLY (no SDK DismissRecommendation) regression-guarded by subprocess grep test."},
-    "GA-A3": {"status": "done", "started_at": "2026-04-23T12:50:00-05:00", "completed_at": "2026-04-23T13:03:45-05:00", "commit_sha": "7b7920e3", "notes": "Polling loop via setTimeout chain + useRef, 3s steady / 60s ceiling / exp-backoff on 5xx, AbortController + mounted-ref cleanup. Uses existing export_status endpoint."},
-    "GA-B1": {"status": "deferred", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Phase B — after Phase A ships."},
-    "GA-B2": {"status": "deferred", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Phase B — after Phase A ships."},
+    "GA-A1": {"status": "done", "started_at": "2026-04-23T12:10:00-05:00", "completed_at": "2026-04-23T13:03:05-05:00", "commit_sha": "15e33459|01780559", "notes": "Phase A — pacing per-campaign + 15-min tenant-scoped cache."},
+    "GA-A2": {"status": "done", "started_at": "2026-04-23T12:10:00-05:00", "completed_at": "2026-04-23T13:03:23-05:00", "commit_sha": "15e33459|07bd1327", "notes": "Phase A — LOCAL ONLY dismiss with optimistic rollback + audit."},
+    "GA-A3": {"status": "done", "started_at": "2026-04-23T12:50:00-05:00", "completed_at": "2026-04-23T13:03:45-05:00", "commit_sha": "7b7920e3", "notes": "Phase A — export polling 3s→60s exp-backoff."},
+    "GA-B1": {"status": "done", "started_at": "2026-04-23T14:00:00-05:00", "completed_at": "2026-04-23T14:45:00-05:00", "commit_sha": "cda49031|f066e527", "notes": "Change log next_cursor (pure alias atop existing page pagination) + Load more UI with accumulated mergedRows. 3 pytest + 3 vitest."},
+    "GA-B2": {"status": "done", "started_at": "2026-04-23T14:00:00-05:00", "completed_at": "2026-04-23T14:45:00-05:00", "commit_sha": "cda49031|4e1733ec", "notes": "Saved-view verify action comparing filters+columns against static v23 whitelist; FE dismissible drift banner. 4 pytest + 3 vitest."},
     "GA-C1": {"status": "deferred", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Phase C — integration tests."},
-    "GA-C2": {"status": "deferred", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Phase C — runbook."},
-    "GA-C3": {"status": "deferred", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Phase C — staging smoke; requires test-account credentials."}
+    "GA-C2": {"status": "deferred", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Phase C — runbook + CLAUDE.md update."},
+    "GA-C3": {"status": "deferred", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Phase C — staging smoke; REQUIRES TEST-ACCOUNT CREDENTIALS (escalate to user before starting)."}
   },
   "blockers": [],
   "last_gate_matrix": {
     "lint": "pass",
     "build": "pass",
-    "vitest_count": 16,
-    "vitest_owned_isolated": "16/16 pass",
-    "vitest_full_suite": "noise — STACK_TRACE_ERROR timeouts on unrelated viz primitives under concurrent CPU load (98 fails); cold retest dropped to 32 fails with ZERO T1-03 files in failure set. Pattern documented in S4 closeout §4 and S5 closeout §5.",
-    "pytest_count": "all passed",
-    "pytest_owned_new": "11/11 pass (5 pacing + 6 dismiss)",
+    "vitest_count_phase_b": "6/6 pass (isolated, deterministic)",
+    "pytest_count_phase_b": "7/7 pass",
+    "pytest_full_regression": "pass (100% dots)",
     "ruff": "pass"
   },
-  "last_checkpoint_at": "2026-04-23T13:45:00-05:00",
+  "last_checkpoint_at": "2026-04-23T14:50:00-05:00",
   "preflight": {
     "pacing_view_exists": true,
     "pacing_view_line": 1308,
@@ -48,7 +47,19 @@
     "pacing_tab_section_new_endpoint_marker_line": 48,
     "reports_tab_polling_fires_once_lines": "81-96",
     "saved_views_endpoint_is_reports_list_equivalent": true,
-    "note": "All v2 pre-flight expectations match EXCEPT: CampaignBudget has no campaign_id FK — it is keyed by (tenant, name). Per-campaign budget match must be best-effort by name; unmatched campaigns surface budget_amount=null. This is the one design deviation from v2's implicit assumption; documented in architect doc."
+    "phase_b_preflight": {
+      "change_events_view_line": 1431,
+      "change_events_already_paginated": true,
+      "change_events_response_keys": ["count", "page", "page_size", "num_pages", "results"],
+      "saved_view_viewset_line": 1616,
+      "saved_view_model_file_line": "backend/analytics/models.py:252",
+      "saved_view_fields_for_drift_check": ["filters (JSONField)", "columns (JSONField)"],
+      "no_existing_drift_detection": true
+    },
+    "note": "Phase A: CampaignBudget has no campaign_id FK — keyed (tenant, name). Phase B: change-events endpoint already paginated via page/page_size; next_cursor added as alias. No schema changes in Phase B."
   },
-  "closeout_doc": "/Users/thristannewman/ADinsights/artifacts/sprint/S5-google-ads-finish-closeout.md"
+  "closeout_docs": [
+    "/Users/thristannewman/ADinsights/artifacts/sprint/S5-google-ads-finish-closeout.md",
+    "/Users/thristannewman/ADinsights/artifacts/sprint/S5-google-ads-phase-b-closeout.md"
+  ]
 }
