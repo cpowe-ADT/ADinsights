@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { EmptyState, KpiTile } from '../../../viz';
 import {
@@ -9,7 +9,11 @@ import {
   type GoogleAdsExportJob,
   type GoogleAdsSavedView,
 } from '../../../../lib/googleAdsDashboard';
-import { deriveExportJobStatusTone } from '../../../../lib/googleAdsAggregates';
+import {
+  deriveExportJobStatusTone,
+  isTerminalExportStatus,
+} from '../../../../lib/googleAdsAggregates';
+import { ApiError } from '../../../../lib/apiClient';
 
 type Props = {
   /**
@@ -42,13 +46,23 @@ const STATUS_CHIP_CLASS: Record<string, string> = {
   neutral: 'badge',
 };
 
+// GA-A3 polling constants. Kept module-scoped so tests can import if ever
+// needed and so the numbers are visible in one place.
+const POLL_BASE_INTERVAL_MS = 3000;
+const POLL_CEILING_MS = 60000;
+const MAX_CONSECUTIVE_5XX = 3;
+
 /**
  * Sprint 3 — Reports tab. Architect §6.10.
  *
  * Workflow tab: keep the form controls (saved-view create, CSV export) and
  * swap the two tables to viz-kit-styled rendering with status chips.
  *
- * Charts are intentionally absent (§6.10 — tables are already semantic).
+ * GA-A3: after creating a CSV export the component polls
+ * `/exports/<id>/` every 3s (setTimeout chain, not setInterval) until the
+ * status is terminal, a 60s ceiling is hit, 3 consecutive 5xx responses
+ * trigger a hard stop, or the component unmounts. Exponential backoff
+ * (3 → 6 → 12s) is applied on 5xx responses.
  */
 const ReportsTabSection = ({ initialSavedViews }: Props) => {
   const [savedViews, setSavedViews] = useState<GoogleAdsSavedView[]>(initialSavedViews ?? []);
@@ -59,14 +73,48 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
   const [viewName, setViewName] = useState('');
   const [job, setJob] = useState<GoogleAdsExportJob | null>(null);
 
+  // Polling refs — mutable without triggering re-render.
+  const mountedRef = useRef(true);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollStartRef = useRef<number>(0);
+  const consecutive5xxRef = useRef<number>(0);
+  const pollAbortRef = useRef<AbortController | null>(null);
+
+  const clearPollTimer = useCallback(() => {
+    if (pollTimeoutRef.current !== null) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+  }, []);
+
+  const cancelPolling = useCallback(() => {
+    clearPollTimer();
+    if (pollAbortRef.current) {
+      pollAbortRef.current.abort();
+      pollAbortRef.current = null;
+    }
+    consecutive5xxRef.current = 0;
+    pollStartRef.current = 0;
+  }, [clearPollTimer]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      cancelPolling();
+    };
+  }, [cancelPolling]);
+
   const loadSavedViews = useCallback(async () => {
     setStatus('loading');
     setError('');
     try {
       const rows = await fetchGoogleAdsSavedViews();
+      if (!mountedRef.current) return;
       setSavedViews(rows);
       setStatus('idle');
     } catch (err) {
+      if (!mountedRef.current) return;
       setStatus('error');
       setError(err instanceof Error ? err.message : 'Failed to load saved views.');
     }
@@ -78,22 +126,111 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
     }
   }, [initialSavedViews, loadSavedViews]);
 
+  const scheduleNextPoll = useCallback(
+    (jobId: string, delayMs: number) => {
+      if (!mountedRef.current) return;
+      // Respect the 60s ceiling measured from the first poll.
+      const elapsed = Date.now() - pollStartRef.current;
+      if (elapsed >= POLL_CEILING_MS) {
+        clearPollTimer();
+        return;
+      }
+      clearPollTimer();
+      pollTimeoutRef.current = setTimeout(() => {
+        void pollOnce(jobId);
+      }, delayMs);
+    },
+    // pollOnce is declared below; we rely on the closure via the setTimeout.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [clearPollTimer],
+  );
+
+  const pollOnce = useCallback(
+    async (jobId: string) => {
+      if (!mountedRef.current) return;
+      // Ceiling check up-front in case the timer fired right at the edge.
+      if (Date.now() - pollStartRef.current >= POLL_CEILING_MS) {
+        return;
+      }
+      const controller = new AbortController();
+      pollAbortRef.current = controller;
+      try {
+        const refreshed = await fetchGoogleAdsExportStatus(jobId);
+        if (!mountedRef.current) return;
+        consecutive5xxRef.current = 0;
+        setJob(refreshed);
+        if (isTerminalExportStatus(refreshed.status)) {
+          cancelPolling();
+          return;
+        }
+        scheduleNextPoll(jobId, POLL_BASE_INTERVAL_MS);
+      } catch (err) {
+        if (!mountedRef.current) return;
+        const isServerError =
+          err instanceof ApiError ? err.status >= 500 && err.status < 600 : false;
+        if (isServerError) {
+          consecutive5xxRef.current += 1;
+          if (consecutive5xxRef.current >= MAX_CONSECUTIVE_5XX) {
+            setJob((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    status: 'failed',
+                    error_message:
+                      'Polling aborted after 3 consecutive errors.',
+                  }
+                : prev,
+            );
+            cancelPolling();
+            return;
+          }
+          // Exponential backoff: 3s, 6s, 12s — indexed by retry count so the
+          // NEXT attempt respects the spec.
+          const backoffMs =
+            POLL_BASE_INTERVAL_MS * 2 ** consecutive5xxRef.current;
+          scheduleNextPoll(jobId, backoffMs);
+          return;
+        }
+        // Non-5xx error — surface and stop.
+        setError(
+          err instanceof Error ? err.message : 'Failed to fetch export status.',
+        );
+        cancelPolling();
+      } finally {
+        // Release the abort controller reference after the request resolves
+        // so cleanup on unmount doesn't abort a completed fetch.
+        if (pollAbortRef.current === controller) {
+          pollAbortRef.current = null;
+        }
+      }
+    },
+    [cancelPolling, scheduleNextPoll],
+  );
+
   const handleCreateExport = useCallback(async () => {
     setError('');
+    // Cancel any in-flight polling loop before starting a new export.
+    cancelPolling();
     try {
       const created = await createGoogleAdsExport({
         export_format: 'csv',
         name: 'Google Ads Campaign Export',
       });
+      if (!mountedRef.current) return;
       setJob(created);
-      if (created.id) {
-        const refreshed = await fetchGoogleAdsExportStatus(created.id);
-        setJob(refreshed);
+      if (!created.id) return;
+      if (isTerminalExportStatus(created.status)) {
+        // Sync backend already returned terminal — no polling needed.
+        return;
       }
+      pollStartRef.current = Date.now();
+      consecutive5xxRef.current = 0;
+      scheduleNextPoll(created.id, POLL_BASE_INTERVAL_MS);
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Failed to create export.');
     }
-  }, []);
+  }, [cancelPolling, scheduleNextPoll]);
 
   const handleCreateSavedView = useCallback(async () => {
     if (!viewName.trim()) return;
@@ -106,9 +243,11 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
         columns: [],
         is_shared: true,
       });
+      if (!mountedRef.current) return;
       setViewName('');
       await loadSavedViews();
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Failed to create saved view.');
     }
   }, [loadSavedViews, viewName]);
@@ -155,7 +294,10 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
         </div>
         {job ? (
           <p className="dashboard-field__label" style={{ marginTop: '0.75rem' }}>
-            Job {job.id}: <span className={jobChipClass}>{job.status}</span>
+            Job {job.id}:{' '}
+            <span className={jobChipClass} data-testid="google-ads-export-status">
+              {job.status}
+            </span>
           </p>
         ) : null}
       </section>
