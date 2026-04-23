@@ -21,7 +21,7 @@
 | Area | % complete | Tier-1 blockers |
 |---|---|---|
 | Meta integration | ~95% | none |
-| Google Ads | ~72% | see `google-ads-completion-plan.md` Phase A |
+| Google Ads | ~82% | Phase A done (2026-04-23); Phase B+C remain (tracked T2-02) |
 | GA4 | ~80% | verify sync path populates `agg_ga4_daily` |
 | Search Console | ~50% | no dedicated OAuth/sync module (uses mart) |
 | LinkedIn | ~5% | scaffolded only |
@@ -71,13 +71,29 @@ These block calling Phase 2 production-ready.
 
 ---
 
-### T1-03 — Google Ads Phase A (3 incomplete tabs)
+### T1-03 — Google Ads Phase A (3 incomplete tabs) — **DONE (2026-04-23)**
 
-**See:** `artifacts/roadmap/google-ads-completion-plan.md` Phase A.
+**See:** `artifacts/roadmap/google-ads-completion-plan.md` Phase A, `artifacts/sprint/S5-google-ads-finish-design.md`, `artifacts/sprint/S5-google-ads-finish-closeout.md`.
 
-- [ ] GA-A1 Per-campaign budget variance endpoint (L, 3–5d)
-- [ ] GA-A2 Recommendations dismiss wired (M, 2–3d)
-- [ ] GA-A3 Report list + export polling (M, 2–3d)
+**Recontextualization:** v2 prompt pre-flight (state file `S5-google-ads-state.json`) found that all three Phase A endpoints already existed in tree at baseline `c0d132a5` (pacing view at `google_ads_views.py:1308`, recommendations view at `:1413`, export status/download views at `:1673`/`:1690`). Scope was therefore **extensions, actions, and polling** — not new endpoints. Also found one deviation from v2's implicit assumption: `CampaignBudget` has no `campaign_id` FK (keyed `(tenant, name)` — unique_together). Per-campaign budget match is best-effort case-insensitive by name; unmatched campaigns surface `budget_amount=null` and the UI renders `"—"` in pace/variance cells.
+
+**What shipped:**
+- [x] **GA-A1** — `GoogleAdsBudgetPacingView` extended with `campaigns[]` per-campaign rows (`campaign_id`, `campaign_name`, `customer_id`, `budget_amount`, `spend_mtd`, `pace_pct`, `projected_eom`, `variance`) + 15-min tenant-scoped cache keyed `ga_pacing_v1:<tenant>:<sha1(customer_ids)>:<end_date>`; response gains `cache: {served_from_cache, ttl_seconds}`. Frontend: "Over-pacing campaigns" KPI + DistributionBar panel + companion table on `PacingTabSection.tsx`.
+- [x] **GA-A2** — New `POST /analytics/google-ads/recommendations/<int:pk>/dismiss/` — idempotent, tenant-scoped 404, **LOCAL ONLY** (no SDK `DismissRecommendation` call — regression-guarded by subprocess grep of production `.py` excluding vendored SDK). Migration `0025_recommendation_dismissed_audit` adds `dismissed_at` + `dismissed_by`. AuditLog event `google_ads_recommendation_dismissed`. Frontend: Dismiss `<button>` replacing Status chip on `RecommendationsTabSection.tsx` with optimistic update + rollback + toast.
+- [x] **GA-A3** — `ReportsTabSection.tsx` polling loop via `setTimeout` chain + `useRef` for cancellation; 3s steady / 60s ceiling / exp-backoff (3s→6s→12s) on 5xx; AbortController + mounted-ref cleanup on unmount; short-circuits when initial response is already terminal (uses `deriveExportJobStatusTone` for the status pill).
+- [x] Tests: 11 new pytest cases (5 pacing extension, 6 dismiss including SDK-regression guard) + 16 new vitest cases across 3 new FE test files (5 pacing, 6 dismiss, 5 polling). T1-03 owned vitest passes 16/16 deterministically in isolation.
+
+**Gates:** ruff clean, backend pytest clean, frontend lint clean, `npm run build ✓ built`. Full-suite vitest exhibited the same environment-thrash pattern documented in S4 closeout §4 — 98 timeout `STACK_TRACE_ERROR` noise on unrelated viz primitives when run under concurrent CPU contention; T1-03 owned files pass deterministically in isolation (see S5 closeout §5).
+
+**Commits on `main`:**
+- `15e33459` — backend: migration + models + pacing/dismiss view changes + backend tests
+- `01780559` — FE: GA-A1 per-campaign pacing UI + aggregates types + FE test
+- `07bd1327` — FE: GA-A2 dismiss UI + dashboard helper + FE test
+- `7b7920e3` — FE: GA-A3 polling loop + FE test
+
+**DoD:** satisfied — pacing endpoint returns per-campaign rows cached 15 min tenant-scoped; recommendation dismiss is wired end-to-end LOCAL ONLY with optimistic UI and audit trail; report export polls 3s→60s with exp-backoff on 5xx and stops on terminal status or unmount.
+
+**Follow-on (tracked separately):** Phase B (GA-B1 change-log pagination, GA-B2 saved-view reconciliation) and Phase C (integration tests, runbook, staging smoke) remain deferred per state file. A future cleanup could replace the best-effort name-match budget join with a proper `CampaignBudget.campaign_id` FK migration.
 
 ---
 
