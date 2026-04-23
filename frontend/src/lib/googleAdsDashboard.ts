@@ -70,6 +70,32 @@ export type GoogleAdsSavedView = {
   updated_at: string;
 };
 
+/**
+ * GA-B1: typed payload for the change-events endpoint. `next_cursor` is
+ * the Phase B cursor token (string-encoded next page number) and is `null`
+ * on the last page. Field is optional so older mock payloads keep typing.
+ */
+export type GoogleAdsChangeEventsPayload = {
+  count: number;
+  page?: number;
+  page_size?: number;
+  num_pages?: number;
+  next_cursor?: string | null;
+  results: Array<Record<string, unknown>>;
+};
+
+/**
+ * GA-B2: response shape for the saved-view verify endpoint.
+ */
+export type GoogleAdsSavedViewVerifyResult = {
+  id: string;
+  name: string;
+  drift: boolean;
+  unknown_filter_keys: string[];
+  unknown_columns: string[];
+  checked_against_version: string;
+};
+
 function withQuery(path: string, params?: QueryParams): string {
   return params ? appendQueryParams(path, params) : path;
 }
@@ -156,5 +182,41 @@ export function dismissGoogleAdsRecommendation(id: number) {
   return post<Record<string, unknown>>(
     `/analytics/google-ads/recommendations/${encodeURIComponent(String(id))}/dismiss/`,
     {},
+  );
+}
+
+/**
+ * GA-B1: fetch a single page of Google Ads change events. The page param is
+ * used as the cursor token — the backend emits `next_cursor = str(page+1)`
+ * while more pages remain. Returns the typed payload including
+ * `next_cursor`.
+ */
+export function fetchGoogleAdsChangeEventsPage(params: {
+  page: number;
+  page_size?: number;
+  start_date?: string;
+  end_date?: string;
+  customer_id?: string;
+}) {
+  const query: QueryParams = {
+    page: params.page,
+    page_size: params.page_size,
+    start_date: params.start_date,
+    end_date: params.end_date,
+    customer_id: params.customer_id,
+  };
+  return get<GoogleAdsChangeEventsPayload>(
+    withQuery('/analytics/google-ads/change-events/', query),
+  );
+}
+
+/**
+ * GA-B2: verify a saved view against the current backend vocabulary. The
+ * backend returns a drift flag plus lists of any unknown filter keys /
+ * column names, so the UI can surface a dismissible banner.
+ */
+export function verifyGoogleAdsSavedView(id: string) {
+  return get<GoogleAdsSavedViewVerifyResult>(
+    `/analytics/google-ads/saved-views/${encodeURIComponent(id)}/verify/`,
   );
 }

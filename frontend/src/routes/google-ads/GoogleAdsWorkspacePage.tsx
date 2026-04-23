@@ -29,6 +29,7 @@ import { saveBlobAsFile } from '../../lib/download';
 import {
   createGoogleAdsExport,
   createGoogleAdsSavedView,
+  fetchGoogleAdsChangeEventsPage,
   fetchGoogleAdsSavedViews,
   updateGoogleAdsSavedView,
 } from '../../lib/googleAdsDashboard';
@@ -383,6 +384,14 @@ const GoogleAdsWorkspacePage = () => {
           data={activeTabState.data}
           status={activeTabState.status}
           error={activeTabState.error}
+          loadMore={(cursor) =>
+            fetchGoogleAdsChangeEventsPage({
+              page: Number(cursor),
+              start_date: filters.startDate,
+              end_date: filters.endDate,
+              customer_id: filters.customerId || undefined,
+            })
+          }
         />
       );
     }

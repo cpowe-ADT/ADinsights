@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { DistributionBar, EmptyState, KpiTile } from '../../../viz';
 import {
@@ -8,12 +8,14 @@ import {
   type ChangeSeverity,
   type GoogleAdsChangeRow,
 } from '../../../../lib/googleAdsAggregates';
+import { useToastStore } from '../../../../stores/useToastStore';
 
 type Payload = {
   count?: number;
   num_pages?: number;
   page?: number;
   page_size?: number;
+  next_cursor?: string | null;
   results?: GoogleAdsChangeRow[];
 };
 
@@ -21,6 +23,12 @@ type Props = {
   data: unknown;
   status: 'idle' | 'loading' | 'success' | 'error';
   error: string;
+  /**
+   * GA-B1: load-more callback. The component owns accumulated local state
+   * and calls this with the current `next_cursor` token; parent wires it to
+   * `fetchGoogleAdsChangeEventsPage({ page: Number(cursor), ...filters })`.
+   */
+  loadMore?: (cursor: string) => Promise<Payload>;
 };
 
 const EmptyIcon = () => (
@@ -69,24 +77,56 @@ const SEVERITY_CHIP_CLASS: Record<ChangeSeverity, string> = {
  *      Campaign, Changed fields (pretty). Chips use text + color so the
  *      encoding is not color-only (WCAG 1.4.1).
  *
- * NB: aggregation covers the current page only; server-side pagination is
- * preserved by consuming `payload.results` verbatim from the hook cache.
+ * GA-B1: When the backend emits a `next_cursor`, the component accumulates
+ * rows locally and renders a "Load more" button beneath the table. On
+ * error the component surfaces an error toast via `useToastStore` (same
+ * pattern as Phase A `RecommendationsTabSection`).
  */
-const ChangesTabSection = ({ data, status, error }: Props) => {
+const ChangesTabSection = ({ data, status, error, loadMore }: Props) => {
   const payload = (data as Payload) ?? {};
-  const rows = useMemo(
+  const initialRows = useMemo(
     () => (Array.isArray(payload.results) ? payload.results : []),
     [payload.results],
   );
 
-  const totalCount = typeof payload.count === 'number' ? payload.count : rows.length;
-  const last7d = useMemo(() => countChanges7d(rows), [rows]);
-  const typeBars = useMemo(() => groupChangesByResourceType(rows), [rows]);
+  const [mergedRows, setMergedRows] = useState<GoogleAdsChangeRow[]>(initialRows);
+  const [currentCursor, setCurrentCursor] = useState<string | null>(
+    payload.next_cursor ?? null,
+  );
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const addToast = useToastStore((s) => s.addToast);
 
-  if (status === 'loading' && rows.length === 0) {
+  // Reset local accumulated state whenever the parent supplies a fresh
+  // initial fetch (filters changed, tab remounted, etc.).
+  useEffect(() => {
+    setMergedRows(initialRows);
+    setCurrentCursor(payload.next_cursor ?? null);
+  }, [initialRows, payload.next_cursor]);
+
+  const totalCount = typeof payload.count === 'number' ? payload.count : mergedRows.length;
+  const last7d = useMemo(() => countChanges7d(mergedRows), [mergedRows]);
+  const typeBars = useMemo(() => groupChangesByResourceType(mergedRows), [mergedRows]);
+
+  const handleLoadMore = useCallback(async () => {
+    if (!loadMore || !currentCursor) return;
+    setIsLoadingMore(true);
+    try {
+      const nextPayload = await loadMore(currentCursor);
+      const nextRows = Array.isArray(nextPayload?.results) ? nextPayload.results : [];
+      setMergedRows((prev) => [...prev, ...nextRows]);
+      setCurrentCursor(nextPayload?.next_cursor ?? null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load more changes.';
+      addToast(msg, 'error');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [addToast, currentCursor, loadMore]);
+
+  if (status === 'loading' && mergedRows.length === 0) {
     return <div className="panel">Loading change events...</div>;
   }
-  if (status === 'error' && rows.length === 0) {
+  if (status === 'error' && mergedRows.length === 0) {
     return (
       <div className="panel" role="alert">
         {error}
@@ -94,7 +134,7 @@ const ChangesTabSection = ({ data, status, error }: Props) => {
     );
   }
 
-  if (rows.length === 0) {
+  if (mergedRows.length === 0) {
     return (
       <EmptyState
         icon={<EmptyIcon />}
@@ -118,6 +158,8 @@ const ChangesTabSection = ({ data, status, error }: Props) => {
     }
     return String(value);
   };
+
+  const canLoadMore = currentCursor != null && typeof loadMore === 'function';
 
   return (
     <div className="gads-workspace__tab-grid" data-testid="google-ads-changes-section">
@@ -144,7 +186,7 @@ const ChangesTabSection = ({ data, status, error }: Props) => {
       </section>
 
       <section className="panel">
-        <h2>Change log ({totalCount})</h2>
+        <h2>Change log ({mergedRows.length}/{totalCount})</h2>
         <div className="table-responsive">
           <table className="dashboard-table">
             <thead>
@@ -158,7 +200,7 @@ const ChangesTabSection = ({ data, status, error }: Props) => {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, idx) => {
+              {mergedRows.map((row, idx) => {
                 const severity = deriveChangeSeverity(row.resource_change_operation);
                 const chipClass = SEVERITY_CHIP_CLASS[severity];
                 const key = `${String(row.customer_id ?? '')}-${String(row.change_date_time ?? idx)}-${idx}`;
@@ -194,6 +236,22 @@ const ChangesTabSection = ({ data, status, error }: Props) => {
             </tbody>
           </table>
         </div>
+        {canLoadMore ? (
+          <div
+            className="dashboard-header__actions-row"
+            style={{ marginTop: '0.75rem' }}
+          >
+            <button
+              type="button"
+              className="button secondary"
+              onClick={handleLoadMore}
+              disabled={isLoadingMore}
+              data-testid="google-ads-changes-load-more"
+            >
+              {isLoadingMore ? 'Loading…' : 'Load more'}
+            </button>
+          </div>
+        ) : null}
       </section>
     </div>
   );
