@@ -93,16 +93,24 @@ These block calling Phase 2 production-ready.
 
 ---
 
-### T1-05 — Search Console: decide ingestion strategy (S–M, 1–3d)
+### T1-05 — Search Console: decide ingestion strategy (S–M, 1–3d) — **DONE-WITH-DEFERRAL (2026-04-23)**
 
-**Status:** Asymmetric to GA4 — `SearchConsoleInsightsView` exists (`backend/analytics/web_views.py:130`) reading from `agg_search_console_daily` mart, but no dedicated `integrations/search_console/` module. Unlike GA4, it has no OAuth client or sync code.
+**Decision (Option B — explicit defer with user-visible notice):** The backend dashboard path is fully wired (view + dbt staging + mart + Airbyte template all exist). The **tenant-facing OAuth on-ramp is deferred** to a post-launch follow-on; there is no `backend/integrations/search_console/` module today, and no self-serve connect flow in Data Sources. The dashboard surfaces a persistent "data refresh coming soon" notice and a new `search_console_ingestion_deferred` empty-state reason code so the deferred state is visible regardless of mart presence.
 
-**Work:**
-- [ ] Confirm how `agg_search_console_daily` gets populated. If via Airbyte, document; if via a future sync, decide now
-- [ ] If keeping Search Console dashboard-only with no live ingestion: flip the UI to show "data refresh coming soon" and document as post-launch
-- [ ] If building real ingestion: mirror the GA4 pattern — `backend/integrations/search_console/` with client.py + views.py + urls.py. Effort ~M.
+**What shipped (2026-04-23):**
+- [x] Confirmed ingestion path: Airbyte Search Console source (`infrastructure/airbyte/search_console_source.yaml`, operator creds) → `raw.search_console_performance` → dbt `stg_search_console` → `agg_search_console_daily` (gated by `enable_search_console=false`) → `SearchConsoleInsightsView`
+- [x] Deferred-ingestion notice on `SearchConsoleDashboardPage.tsx` (persistent panel with `data-reason="search_console_ingestion_deferred"`). R3 contract preserved — page still only hits `/api/analytics/web/search-console/`
+- [x] Updated `isUnavailable` empty state to reason `search_console_ingestion_deferred` with copy matching the deferral
+- [x] Operations runbook `docs/runbooks/search-console-operations.md` documenting current state, operator path to go live, and the outstanding tenant-OAuth work
+- [x] Frontend test coverage updated in `SearchConsoleDashboardPage.test.tsx` — asserts notice visibility + new reasonCode
 
-**DoD:** clear answer: Search Console is either fully wired end-to-end OR explicitly deferred with a user-visible notice.
+**Follow-on work (NOT part of T1-05):**
+- [ ] Build `backend/integrations/search_console/` mirroring `backend/integrations/google_analytics/` (OAuth client + start/exchange/provision/status views)
+- [ ] Add Data Sources card + provisioning flow
+- [ ] Decide on Airbyte operator bridge vs. per-tenant OAuth tokens for ingestion
+- [ ] Remove the deferred notice once the tenant-facing flow lands
+
+**DoD:** clear answer: Search Console is **explicitly deferred with a user-visible notice**. Dashboard + mart + Airbyte template remain available for operator-wired single-tenant deployments.
 
 ---
 
