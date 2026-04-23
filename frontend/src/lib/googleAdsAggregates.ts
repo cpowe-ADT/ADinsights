@@ -363,6 +363,23 @@ export const deriveCampaignStatusTone = (status: unknown): StatusTone => {
 // Pacing helpers — architect §6.7
 // -----------------------------------------------------------------------------
 
+export interface GoogleAdsPacingCampaignRow {
+  campaign_id?: string | number;
+  campaign_name?: string;
+  customer_id?: string | number;
+  budget_amount?: number | null;
+  spend_mtd?: number;
+  pace_pct?: number | null;
+  projected_eom?: number;
+  variance?: number | null;
+  [key: string]: unknown;
+}
+
+export interface GoogleAdsPacingCacheMeta {
+  served_from_cache?: boolean;
+  ttl_seconds?: number;
+}
+
 export interface GoogleAdsPacingPayload {
   month?: string;
   spend_mtd?: number;
@@ -375,8 +392,28 @@ export interface GoogleAdsPacingPayload {
     overspend_risk?: boolean;
     underdelivery?: boolean;
   };
+  campaigns?: GoogleAdsPacingCampaignRow[];
+  cache?: GoogleAdsPacingCacheMeta;
   [key: string]: unknown;
 }
+
+/**
+ * Count per-campaign rows whose `pace_pct` exceeds 1.0 (over-pacing).
+ * Rows without a matched budget (`pace_pct === null`) are skipped.
+ */
+export const countOverPacingCampaigns = (
+  pacing: GoogleAdsPacingPayload | null | undefined,
+): number => {
+  if (!pacing || !Array.isArray(pacing.campaigns)) return 0;
+  let count = 0;
+  for (const row of pacing.campaigns) {
+    const pct = row.pace_pct;
+    if (pct === null || pct === undefined) continue;
+    const n = Number(pct);
+    if (Number.isFinite(n) && n > 1.0) count += 1;
+  }
+  return count;
+};
 
 export interface GoogleAdsPacingKpis {
   spendMtd: number;
@@ -470,12 +507,15 @@ export const countChanges7d = (
 // -----------------------------------------------------------------------------
 
 export interface GoogleAdsRecommendationRow {
+  id?: number | null;
   customer_id?: string | number;
   recommendation_type?: string;
   resource_name?: string;
   campaign_id?: string | number;
   ad_group_id?: string | number;
   dismissed?: boolean;
+  dismissed_at?: string | null;
+  dismissed_by_user_id?: string | number | null;
   impact_metadata?: unknown;
   last_seen_at?: string;
   [key: string]: unknown;
@@ -600,4 +640,14 @@ export const deriveExportJobStatusTone = (status: unknown): ExportJobStatusTone 
   if (s === 'running' || s === 'queued' || s === 'pending' || s === 'in_progress') return 'warning';
   if (s === 'failed' || s === 'error' || s === 'errored' || s === 'cancelled') return 'danger';
   return 'neutral';
+};
+
+/**
+ * Export status values that terminate polling. Used by ReportsTabSection
+ * to short-circuit the polling loop once the job has reached a final state.
+ */
+export const isTerminalExportStatus = (status: unknown): boolean => {
+  if (typeof status !== 'string') return false;
+  const s = status.toLowerCase();
+  return s === 'completed' || s === 'complete' || s === 'failed' || s === 'error' || s === 'errored' || s === 'cancelled' || s === 'succeeded' || s === 'success';
 };
