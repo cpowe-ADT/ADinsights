@@ -16,6 +16,7 @@ from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -1466,6 +1467,7 @@ class GoogleAdsChangeEventsView(APIView):
             }
             for row in page_obj.object_list
         ]
+        next_cursor = str(page_obj.number + 1) if page_obj.has_next() else None
         return _attach_client_resolution(
             Response(
                 {
@@ -1473,6 +1475,7 @@ class GoogleAdsChangeEventsView(APIView):
                     "page": page_obj.number,
                     "page_size": page_size,
                     "num_pages": paginator.num_pages,
+                    "next_cursor": next_cursor,
                     "results": payload,
                 }
             ),
@@ -1613,6 +1616,59 @@ class GoogleAdsChannelPerformanceView(APIView):
         )
 
 
+# --- Saved-view reconciliation (GA-B2) --------------------------------------
+#
+# Known filter keys and column keys for Google Ads saved views. These are used
+# by the ``verify`` action on ``GoogleAdsSavedViewViewSet`` to detect drift in
+# persisted saved views — i.e. a saved view that references a filter/column
+# key the current backend no longer recognizes (or never recognized).
+#
+# IMPORTANT: these whitelists are maintained MANUALLY. Whenever we ship a new
+# filter key on ``GoogleAdsListQuerySerializer`` (or its parent
+# ``GoogleAdsDateRangeQuerySerializer``) or a new column key returned by any
+# Google Ads endpoint (campaigns, keywords, changes, etc.), the corresponding
+# set below MUST be updated in the same change. Otherwise stale saved views
+# will look "fine" while new ones look "drifted", which defeats the purpose
+# of the reconciliation check.
+KNOWN_FILTER_KEYS: frozenset[str] = frozenset(
+    {
+        # From GoogleAdsDateRangeQuerySerializer
+        "start_date",
+        "end_date",
+        "customer_id",
+        "campaign_id",
+        "client_id",
+        "compare",
+        # Added by GoogleAdsListQuerySerializer
+        "page",
+        "page_size",
+        "sort",
+        "q",
+    }
+)
+KNOWN_COLUMN_KEYS: frozenset[str] = frozenset(
+    {
+        "customer_id",
+        "campaign_id",
+        "campaign_name",
+        "ad_group_id",
+        "ad_group_name",
+        "keyword",
+        "query_text",
+        "resource_change_operation",
+        "change_date_time",
+        "clicks",
+        "impressions",
+        "cost_micros",
+        "conversions",
+        "conversion_value",
+        "ctr",
+        "cpc",
+        "cpm",
+    }
+)
+
+
 class GoogleAdsSavedViewViewSet(viewsets.ModelViewSet):
     serializer_class = GoogleAdsSavedViewSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -1623,6 +1679,29 @@ class GoogleAdsSavedViewViewSet(viewsets.ModelViewSet):
         if _is_admin(user):
             return queryset.order_by("-updated_at")
         return queryset.filter(Q(is_shared=True) | Q(created_by_id=user.id)).order_by("-updated_at")
+
+    @action(detail=True, methods=["get"], url_path="verify")
+    def verify(self, request, pk=None):  # noqa: D401, ARG002
+        """Return a reconciliation report for a saved view (GA-B2).
+
+        Compares ``instance.filters.keys()`` against ``KNOWN_FILTER_KEYS`` and
+        ``instance.columns`` against ``KNOWN_COLUMN_KEYS``. Read-only — no
+        audit log entry. Cross-tenant PK raises 404 via ``get_object()``.
+        """
+        instance = self.get_object()
+        unknown_filter_keys = sorted(set((instance.filters or {}).keys()) - KNOWN_FILTER_KEYS)
+        unknown_columns = sorted(set(instance.columns or []) - KNOWN_COLUMN_KEYS)
+        drift = bool(unknown_filter_keys or unknown_columns)
+        return Response(
+            {
+                "id": str(instance.id),
+                "name": instance.name,
+                "drift": drift,
+                "unknown_filter_keys": unknown_filter_keys,
+                "unknown_columns": unknown_columns,
+                "checked_against_version": "google-ads-v23",
+            }
+        )
 
     def perform_create(self, serializer):
         user = self.request.user
