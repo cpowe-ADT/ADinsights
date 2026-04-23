@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "started_at": "2026-04-23T00:00:00-05:00",
+  "baseline_commit": "c0d132a5495f4144d8791a970150721298f1e111",
+  "current_phase": "A",
+  "current_task": "GA-A1",
+  "tasks": {
+    "GA-A1": {"status": "pending", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Extend GoogleAdsBudgetPacingView with per-campaign rows; cache 15 min; wire PacingTabSection DistributionBar."},
+    "GA-A2": {"status": "pending", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Add POST dismiss action on existing recommendations view; LOCAL ONLY (no SDK DismissRecommendation); migration adds dismissed_at + dismissed_by; wire UI button with optimistic+rollback."},
+    "GA-A3": {"status": "pending", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Frontend polling loop in ReportsTabSection; 3s interval, 60s ceiling, exp backoff on 5xx; status pill via deriveExportJobStatusTone."},
+    "GA-B1": {"status": "deferred", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Phase B — after Phase A ships."},
+    "GA-B2": {"status": "deferred", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Phase B — after Phase A ships."},
+    "GA-C1": {"status": "deferred", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Phase C — integration tests."},
+    "GA-C2": {"status": "deferred", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Phase C — runbook."},
+    "GA-C3": {"status": "deferred", "started_at": null, "completed_at": null, "commit_sha": null, "notes": "Phase C — staging smoke; requires test-account credentials."}
+  },
+  "blockers": [],
+  "last_gate_matrix": {"lint": "unknown", "build": "unknown", "vitest_count": 0, "pytest_count": 0, "ruff": "unknown"},
+  "last_checkpoint_at": "2026-04-23T00:00:00-05:00",
+  "preflight": {
+    "pacing_view_exists": true,
+    "pacing_view_line": 1308,
+    "recommendations_view_exists": true,
+    "recommendations_view_line": 1413,
+    "export_create_view_line": 1599,
+    "export_status_view_line": 1673,
+    "export_download_view_line": 1690,
+    "dismissed_field_exists": true,
+    "dismissed_field_line": 1228,
+    "dismissed_index_line": 1241,
+    "campaign_budget_model_line": 1472,
+    "campaign_budget_has_campaign_id_fk": false,
+    "campaign_budget_keyed_by": "name (unique_together with tenant)",
+    "frontend_client_fetchGoogleAdsExportStatus_exists": true,
+    "frontend_client_fetchGoogleAdsExportStatus_line": 109,
+    "frontend_client_createGoogleAdsExport_exists": true,
+    "frontend_client_createGoogleAdsExport_line": 113,
+    "pacing_tab_section_new_endpoint_marker_line": 48,
+    "reports_tab_polling_fires_once_lines": "81-96",
+    "saved_views_endpoint_is_reports_list_equivalent": true,
+    "note": "All v2 pre-flight expectations match EXCEPT: CampaignBudget has no campaign_id FK — it is keyed by (tenant, name). Per-campaign budget match must be best-effort by name; unmatched campaigns surface budget_amount=null. This is the one design deviation from v2's implicit assumption; documented in architect doc."
+  }
+}

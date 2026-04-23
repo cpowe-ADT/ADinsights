@@ -1226,6 +1226,14 @@ class GoogleAdsSdkRecommendation(models.Model):
     campaign_id = models.CharField(max_length=64, blank=True)
     ad_group_id = models.CharField(max_length=64, blank=True)
     dismissed = models.BooleanField(default=False)
+    dismissed_at = models.DateTimeField(blank=True, null=True)
+    dismissed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="google_ads_recommendation_dismissals",
+    )
     impact_metadata = models.JSONField(default=dict, blank=True)
     source_request_id = models.CharField(max_length=128, blank=True)
     last_seen_at = models.DateTimeField(default=timezone.now)

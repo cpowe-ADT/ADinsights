@@ -1308,6 +1308,8 @@ class GoogleAdsConversionsByActionView(APIView):
 class GoogleAdsBudgetPacingView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    CACHE_TTL_SECONDS = 900
+
     def get(self, request) -> Response:  # noqa: D401
         serializer = GoogleAdsDateRangeQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
@@ -1323,6 +1325,26 @@ class GoogleAdsBudgetPacingView(APIView):
         )
         qs = _apply_customer_scope(qs, request.user)
         qs = _apply_customer_id_filter(qs, scoped_ids, validated)
+
+        # Derive the effective customer_ids visible to this user for this query,
+        # so the cache key reflects the actual scope (tenant isolation preserved).
+        effective_customer_ids = sorted(
+            set(qs.values_list("customer_id", flat=True))
+        )
+        cache_key = (
+            f"ga_pacing_v1:{request.user.tenant_id}:"
+            f"{hashlib.sha1(repr(effective_customer_ids).encode()).hexdigest()[:12]}:"
+            f"{month_end.isoformat()}"
+        )
+        cached_payload = cache.get(cache_key)
+        if cached_payload is not None:
+            payload = dict(cached_payload)
+            payload["cache"] = {
+                "served_from_cache": True,
+                "ttl_seconds": self.CACHE_TTL_SECONDS,
+            }
+            return _attach_client_resolution(Response(payload), resolution_meta)
+
         spend_mtd = _micros_to_currency(qs.aggregate(spend_micros=Sum("cost_micros"))["spend_micros"])
 
         budget_total = _to_decimal(
@@ -1337,25 +1359,73 @@ class GoogleAdsBudgetPacingView(APIView):
         overspend_risk = forecast_month_end > (budget_total * Decimal("1.10")) if budget_total > 0 else False
         underdelivery = forecast_month_end < (budget_total * Decimal("0.80")) if budget_total > 0 else False
 
-        return _attach_client_resolution(
-            Response(
-                {
-                    "month": month_end.strftime("%Y-%m"),
-                    "spend_mtd": float(spend_mtd),
-                    "budget_month": float(budget_total),
-                    "forecast_month_end": float(forecast_month_end),
-                    "over_under": float(forecast_month_end - budget_total),
-                    "runway_days": float(_safe_div((budget_total - spend_mtd), _safe_div(spend_mtd, Decimal(elapsed_days))))
-                    if spend_mtd > 0
-                    else None,
-                    "alerts": {
-                        "overspend_risk": overspend_risk,
-                        "underdelivery": underdelivery,
-                    },
-                }
-            ),
-            resolution_meta,
+        # Per-campaign rows — aggregate daily spend by campaign, best-effort
+        # budget match by name (CampaignBudget has no campaign_id FK).
+        campaign_rows = (
+            qs.values("campaign_id", "campaign_name", "customer_id")
+            .annotate(spend_micros=Sum("cost_micros"))
+            .order_by("-spend_micros")
         )
+
+        # Pre-fetch all active budgets for this tenant once to avoid N+1 lookups.
+        budget_by_name: dict[str, Decimal] = {}
+        for budget in CampaignBudget.objects.filter(
+            tenant_id=request.user.tenant_id, is_active=True
+        ):
+            budget_by_name[budget.name.lower()] = _to_decimal(budget.monthly_target)
+
+        campaigns_payload: list[dict[str, Any]] = []
+        for row in campaign_rows:
+            campaign_name = row["campaign_name"] or ""
+            campaign_spend = _micros_to_currency(row["spend_micros"])
+            projected_eom = campaign_spend / Decimal(elapsed_days) * Decimal(total_days)
+            matched_budget = budget_by_name.get(campaign_name.lower())
+            if matched_budget is not None and matched_budget > 0:
+                pace_pct = float(campaign_spend / matched_budget)
+                variance = float(projected_eom - matched_budget)
+                budget_amount: float | None = float(matched_budget)
+            else:
+                pace_pct = None
+                variance = None
+                budget_amount = None
+            campaigns_payload.append(
+                {
+                    "campaign_id": row["campaign_id"],
+                    "campaign_name": campaign_name,
+                    "customer_id": row["customer_id"],
+                    "budget_amount": budget_amount,
+                    "spend_mtd": float(campaign_spend),
+                    "pace_pct": pace_pct,
+                    "projected_eom": float(projected_eom),
+                    "variance": variance,
+                }
+            )
+
+        payload = {
+            "month": month_end.strftime("%Y-%m"),
+            "spend_mtd": float(spend_mtd),
+            "budget_month": float(budget_total),
+            "forecast_month_end": float(forecast_month_end),
+            "over_under": float(forecast_month_end - budget_total),
+            "runway_days": float(
+                _safe_div((budget_total - spend_mtd), _safe_div(spend_mtd, Decimal(elapsed_days)))
+            )
+            if spend_mtd > 0
+            else None,
+            "alerts": {
+                "overspend_risk": overspend_risk,
+                "underdelivery": underdelivery,
+            },
+            "campaigns": campaigns_payload,
+        }
+        cache.set(cache_key, payload, self.CACHE_TTL_SECONDS)
+
+        response_payload = dict(payload)
+        response_payload["cache"] = {
+            "served_from_cache": False,
+            "ttl_seconds": self.CACHE_TTL_SECONDS,
+        }
+        return _attach_client_resolution(Response(response_payload), resolution_meta)
 
 
 class GoogleAdsChangeEventsView(APIView):
@@ -1426,12 +1496,15 @@ class GoogleAdsRecommendationsView(APIView):
         rows = qs.order_by("dismissed", "-last_seen_at")
         payload = [
             {
+                "id": row.id,
                 "customer_id": row.customer_id,
                 "recommendation_type": row.recommendation_type,
                 "resource_name": row.resource_name,
                 "campaign_id": row.campaign_id,
                 "ad_group_id": row.ad_group_id,
                 "dismissed": row.dismissed,
+                "dismissed_at": row.dismissed_at.isoformat() if row.dismissed_at else None,
+                "dismissed_by_user_id": row.dismissed_by_id,
                 "impact_metadata": row.impact_metadata,
                 "last_seen_at": row.last_seen_at.isoformat(),
             }
@@ -1439,6 +1512,60 @@ class GoogleAdsRecommendationsView(APIView):
         ]
         return _attach_client_resolution(
             Response({"count": len(payload), "results": payload}), resolution_meta
+        )
+
+
+class GoogleAdsRecommendationDismissView(APIView):
+    """POST endpoint to dismiss a Google Ads recommendation LOCALLY.
+
+    No upstream Google Ads SDK call is made — this is a purely local
+    audit/state toggle. Idempotent: re-dismissing an already-dismissed
+    recommendation returns 200, overwrites the timestamp, and writes a fresh
+    audit entry.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk: int) -> Response:  # noqa: D401
+        rec = get_object_or_404(
+            GoogleAdsSdkRecommendation.objects.filter(tenant_id=request.user.tenant_id),
+            pk=pk,
+        )
+        now = timezone.now()
+        rec.dismissed = True
+        rec.dismissed_at = now
+        rec.dismissed_by = request.user if request.user.is_authenticated else None
+        rec.save(update_fields=["dismissed", "dismissed_at", "dismissed_by", "updated_at"])
+
+        actor = request.user if request.user.is_authenticated else None
+        log_audit_event(
+            tenant=rec.tenant,
+            user=actor,
+            action="google_ads_recommendation_dismissed",
+            resource_type="google_ads_recommendation",
+            resource_id=rec.id,
+            metadata={
+                "resource_name": rec.resource_name,
+                "customer_id": rec.customer_id,
+                "recommendation_type": rec.recommendation_type,
+            },
+        )
+
+        return Response(
+            {
+                "id": rec.id,
+                "customer_id": rec.customer_id,
+                "recommendation_type": rec.recommendation_type,
+                "resource_name": rec.resource_name,
+                "campaign_id": rec.campaign_id,
+                "ad_group_id": rec.ad_group_id,
+                "dismissed": rec.dismissed,
+                "dismissed_at": rec.dismissed_at.isoformat() if rec.dismissed_at else None,
+                "dismissed_by_user_id": rec.dismissed_by_id,
+                "impact_metadata": rec.impact_metadata,
+                "last_seen_at": rec.last_seen_at.isoformat(),
+            },
+            status=status.HTTP_200_OK,
         )
 
 
