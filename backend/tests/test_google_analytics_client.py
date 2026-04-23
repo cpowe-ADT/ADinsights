@@ -171,6 +171,75 @@ def test_google_analytics_client_raises_when_refresh_token_missing(tenant, setti
     assert excinfo.value.classification == "credential_missing_refresh_token"
 
 
+def test_google_analytics_client_raises_when_access_token_missing(monkeypatch, tenant, settings):
+    """Defensive-path coverage for the `credential_missing_access_token` branch in
+    `GoogleAnalyticsClient._build_client`. Simulates a credential whose decrypted access
+    token is empty (e.g., DEK rotation in flight, DB-level truncation).
+    """
+    settings.GOOGLE_ANALYTICS_CLIENT_ID = "ga4-client-id"
+    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = "ga4-client-secret"  # pragma: allowlist secret
+    credential = _make_credential(tenant)
+
+    monkeypatch.setattr(
+        PlatformCredential, "decrypt_access_token", lambda self: None
+    )
+
+    with pytest.raises(GoogleAnalyticsClientError) as excinfo:
+        GoogleAnalyticsClient(credential=credential)
+
+    assert excinfo.value.classification == "credential_missing_access_token"
+
+
+def test_google_analytics_client_raises_when_oauth_not_configured(tenant, settings):
+    settings.GOOGLE_ANALYTICS_CLIENT_ID = ""
+    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = ""
+    credential = _make_credential(tenant)
+
+    with pytest.raises(GoogleAnalyticsClientError) as excinfo:
+        GoogleAnalyticsClient(credential=credential)
+
+    assert excinfo.value.classification == "oauth_not_configured"
+
+
+def test_google_analytics_client_passes_refresh_fields_to_sdk(monkeypatch, tenant, settings):
+    """Refresh-readiness contract: SDK must receive refresh_token + client_id + client_secret + token_uri.
+
+    This is the contract that lets google-auth transparently refresh access tokens on 401
+    without Django intervention. If this test breaks, silent refresh is broken.
+    """
+    settings.GOOGLE_ANALYTICS_CLIENT_ID = "ga4-client-id"
+    settings.GOOGLE_ANALYTICS_CLIENT_SECRET = "ga4-client-secret"  # pragma: allowlist secret
+    credential = _make_credential(tenant)
+
+    captured: dict[str, object] = {}
+
+    class CapturingCredentials:
+        def __init__(self, **kwargs):  # noqa: ANN003
+            captured.update(kwargs)
+
+    class StubClient:
+        def __init__(self, *, credentials):  # noqa: ANN003, ARG002
+            pass
+
+    monkeypatch.setattr(
+        "integrations.google_analytics.client._import_ga4_symbols",
+        lambda: (
+            StubClient,
+            CapturingCredentials,
+            (object, object, object, object, object),
+        ),
+    )
+
+    GoogleAnalyticsClient(credential=credential)
+
+    assert captured["token"] == "access-token"
+    assert captured["refresh_token"] == "refresh-token"
+    assert captured["client_id"] == "ga4-client-id"
+    assert captured["client_secret"] == "ga4-client-secret"  # pragma: allowlist secret
+    assert captured["token_uri"] == "https://oauth2.googleapis.com/token"
+    assert captured["scopes"] == ["https://www.googleapis.com/auth/analytics.readonly"]
+
+
 def test_google_analytics_adapter_fetch_metrics_aggregates_rows(monkeypatch, tenant):
     credential = _make_credential(tenant)
     GoogleAnalyticsConnection.objects.create(

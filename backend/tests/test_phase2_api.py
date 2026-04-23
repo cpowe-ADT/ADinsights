@@ -346,3 +346,97 @@ def test_web_analytics_endpoints_available(api_client, user):
     search_console_response = api_client.get("/api/analytics/web/search-console/")
     assert search_console_response.status_code == 200
     assert search_console_response.json()["source"] == "search_console"
+
+
+def test_ga4_web_insights_isolates_rows_by_tenant(api_client, user, tenant):
+    """GA4WebInsightsView must return only the authenticated tenant's rows.
+
+    See docs/runbooks/ga4-operations.md § Architecture — dashboard path tenant isolation.
+    The view reads `agg_ga4_daily` via raw SQL with `WHERE tenant_id = %s`; this test seeds
+    two tenants' rows and asserts only the authed tenant's rows come back.
+    """
+    from django.db import connection
+
+    other_tenant = Tenant.objects.create(name="Other Tenant")
+
+    with connection.cursor() as cursor:
+        # agg_ga4_daily is a dbt mart that exists only when `enable_ga4=true`. Create a
+        # transient table matching the mart schema for this test; the surrounding
+        # django_db transaction rolls it back on teardown.
+        cursor.execute(
+            """
+            CREATE TEMPORARY TABLE agg_ga4_daily (
+                tenant_id UUID NOT NULL,
+                date_day DATE NOT NULL,
+                property_id TEXT NOT NULL,
+                channel_group TEXT NOT NULL,
+                country TEXT NOT NULL,
+                city TEXT NOT NULL,
+                campaign_name TEXT NOT NULL,
+                sessions NUMERIC NOT NULL,
+                engaged_sessions NUMERIC NOT NULL,
+                conversions NUMERIC NOT NULL,
+                purchase_revenue NUMERIC NOT NULL,
+                engagement_rate NUMERIC NOT NULL,
+                conversion_rate NUMERIC NOT NULL
+            )
+            """
+        )
+        cursor.executemany(
+            """
+            INSERT INTO agg_ga4_daily
+              (tenant_id, date_day, property_id, channel_group, country, city,
+               campaign_name, sessions, engaged_sessions, conversions,
+               purchase_revenue, engagement_rate, conversion_rate)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            [
+                (
+                    str(tenant.id),
+                    "2026-04-20",
+                    "11111",
+                    "Organic Search",
+                    "JM",
+                    "Kingston",
+                    "brand",
+                    100,
+                    75,
+                    5,
+                    250,
+                    0.75,
+                    0.05,
+                ),
+                (
+                    str(other_tenant.id),
+                    "2026-04-20",
+                    "22222",
+                    "Paid Search",
+                    "JM",
+                    "Montego Bay",
+                    "leak_canary",
+                    999,
+                    500,
+                    99,
+                    9999,
+                    0.5,
+                    0.1,
+                ),
+            ],
+        )
+
+        authenticate(api_client, user)
+        response = api_client.get("/api/analytics/web/ga4/")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "ga4"
+    assert body["status"] == "ok", body
+    rows = body["rows"]
+
+    assert len(rows) == 1, f"Expected exactly 1 row for authed tenant, got {len(rows)}: {rows}"
+    assert str(rows[0]["tenant_id"]) == str(tenant.id)
+    assert rows[0]["property_id"] == "11111"
+    assert rows[0]["campaign_name"] == "brand"
+    # Leak canary: the other tenant's distinctive campaign must never appear.
+    assert not any(row.get("campaign_name") == "leak_canary" for row in rows)
+    assert not any(str(row.get("tenant_id")) == str(other_tenant.id) for row in rows)
