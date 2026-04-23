@@ -13,6 +13,7 @@ from django.core import signing
 from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -3698,6 +3699,94 @@ class AlertRuleDefinitionViewSet(viewsets.ModelViewSet):
             resource_type="alert_rule_definition",
             resource_id=alert_rule.id,
             metadata=self._audit_metadata(serializer),
+        )
+
+    @action(detail=True, methods=["post"], url_path="pause")
+    def pause(self, request, pk=None):
+        rule = self.get_object()
+        pause_until_raw = request.data.get("pause_until")
+        duration_hours_raw = request.data.get("duration_hours")
+
+        if pause_until_raw is not None and duration_hours_raw is not None:
+            return Response(
+                {"detail": "Provide pause_until OR duration_hours, not both."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        resolved_paused_until = None
+
+        if pause_until_raw is not None:
+            parsed = parse_datetime(pause_until_raw) if isinstance(pause_until_raw, str) else None
+            if parsed is None:
+                return Response(
+                    {"detail": "pause_until must be an ISO 8601 datetime string."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if timezone.is_naive(parsed):
+                return Response(
+                    {"detail": "pause_until must be timezone-aware."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if parsed <= timezone.now():
+                return Response(
+                    {"detail": "pause_until must be in the future."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            resolved_paused_until = parsed
+        elif duration_hours_raw is not None:
+            if isinstance(duration_hours_raw, bool) or not isinstance(duration_hours_raw, int):
+                return Response(
+                    {"detail": "duration_hours must be an integer between 1 and 720."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if duration_hours_raw < 1 or duration_hours_raw > 720:
+                return Response(
+                    {"detail": "duration_hours must be an integer between 1 and 720."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            resolved_paused_until = timezone.now() + timedelta(hours=duration_hours_raw)
+
+        rule.is_active = False
+        rule.paused_until = resolved_paused_until
+        rule.save(update_fields=["is_active", "paused_until", "updated_at"])
+
+        actor = request.user if request.user.is_authenticated else None
+        log_audit_event(
+            tenant=rule.tenant,
+            user=actor,
+            action="alert_rule_paused",
+            resource_type="alert_rule_definition",
+            resource_id=rule.id,
+            metadata={
+                "paused_until": rule.paused_until.isoformat() if rule.paused_until else None,
+            },
+        )
+
+        return Response(
+            AlertRuleDefinitionSerializer(rule).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["post"], url_path="resume")
+    def resume(self, request, pk=None):
+        rule = self.get_object()
+        rule.is_active = True
+        rule.paused_until = None
+        rule.save(update_fields=["is_active", "paused_until", "updated_at"])
+
+        actor = request.user if request.user.is_authenticated else None
+        log_audit_event(
+            tenant=rule.tenant,
+            user=actor,
+            action="alert_rule_resumed",
+            resource_type="alert_rule_definition",
+            resource_id=rule.id,
+            metadata={"resumed_at": timezone.now().isoformat()},
+        )
+
+        return Response(
+            AlertRuleDefinitionSerializer(rule).data,
+            status=status.HTTP_200_OK,
         )
 
 

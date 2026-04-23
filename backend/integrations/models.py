@@ -1528,6 +1528,7 @@ class AlertRuleDefinition(models.Model):
         max_length=6, choices=SEVERITY_CHOICES, default=SEVERITY_MEDIUM
     )
     is_active = models.BooleanField(default=True)
+    paused_until = models.DateTimeField(null=True, blank=True)
     notification_channels = models.ManyToManyField(
         'NotificationChannel', blank=True, related_name='alert_rules'
     )
@@ -1543,6 +1544,17 @@ class AlertRuleDefinition(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - repr helper
         return f"AlertRuleDefinition<{self.name}>"
+
+    @classmethod
+    def active_for_eval(cls):
+        """Canonical "should-this-rule-evaluate-now" filter; future DB-driven evaluators must use it."""
+        now = timezone.now()
+        cls.all_objects.filter(
+            is_active=False,
+            paused_until__isnull=False,
+            paused_until__lte=now,
+        ).update(is_active=True, paused_until=None)
+        return cls.objects.filter(is_active=True)
 
 
 class NotificationChannel(models.Model):

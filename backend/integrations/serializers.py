@@ -387,11 +387,22 @@ class AlertRuleDefinitionSerializer(serializers.ModelSerializer):
             "lookback_hours",
             "severity",
             "is_active",
+            "paused_until",
             "notification_channels",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "paused_until", "created_at", "updated_at"]
+
+    def validate_name(self, value):  # type: ignore[override]
+        if not value or not value.strip():
+            raise serializers.ValidationError("Name must not be blank.")
+        return value
+
+    def validate_metric(self, value):  # type: ignore[override]
+        if not value or not value.strip():
+            raise serializers.ValidationError("Metric must not be blank.")
+        return value
 
     def validate_threshold(self, value):  # type: ignore[override]
         if value <= 0:
