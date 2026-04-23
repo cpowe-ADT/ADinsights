@@ -146,3 +146,15 @@ export function createGoogleAdsSavedView(payload: {
 }) {
   return post<GoogleAdsSavedView>('/analytics/google-ads/saved-views/', payload);
 }
+
+/**
+ * GA-A2: dismiss a Google Ads recommendation. POST body is empty — the
+ * action is a state toggle. Returns the updated recommendation row.
+ * Idempotent on the backend; 404 when the id is outside the tenant scope.
+ */
+export function dismissGoogleAdsRecommendation(id: number) {
+  return post<Record<string, unknown>>(
+    `/analytics/google-ads/recommendations/${encodeURIComponent(String(id))}/dismiss/`,
+    {},
+  );
+}
