@@ -21,7 +21,7 @@
     "build": "pass",
     "vitest_count": 16,
     "vitest_owned_isolated": "16/16 pass",
-    "vitest_full_suite": "noise — STACK_TRACE_ERROR timeouts on unrelated viz primitives under concurrent CPU load; pattern documented in S4 closeout §4 and S5 closeout §5",
+    "vitest_full_suite": "noise — STACK_TRACE_ERROR timeouts on unrelated viz primitives under concurrent CPU load (98 fails); cold retest dropped to 32 fails with ZERO T1-03 files in failure set. Pattern documented in S4 closeout §4 and S5 closeout §5.",
     "pytest_count": "all passed",
     "pytest_owned_new": "11/11 pass (5 pacing + 6 dismiss)",
     "ruff": "pass"

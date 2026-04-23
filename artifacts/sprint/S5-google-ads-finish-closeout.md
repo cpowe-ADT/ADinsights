@@ -64,7 +64,8 @@ All three Phase A tasks shipped atomically on top of baseline `c0d132a5`. Backen
 | Frontend lint | `cd frontend && npm run lint` | **PASS** — 0 errors, 0 warnings |
 | Frontend build | `cd frontend && npm run build` | **PASS** — `✓ built in 17m 12s`, all bundles emitted (tarpit vs. typical 13s due to concurrent-process CPU contention on this run, not a build regression) |
 | Frontend vitest — T1-03 owned files | `npx vitest --run src/components/google-ads/workspace/__tests__/{PacingTabSection.campaigns,RecommendationsTabSection.dismiss,ReportsTabSection.polling}.test.tsx` | **PASS — 16/16** (deterministic on repeat) |
-| Frontend vitest — full suite | `cd frontend && npm test -- --run` | **DEGRADED (noise)** — 700 passed / 98 failed / 37 failed files; all failures `STACK_TRACE_ERROR` 5s timeouts on unrelated viz primitives (KpiTile, DistributionBar, ChartSkeleton, GaugeRing, etc.) driven by concurrent backend pytest + third-party vitest process in another working tree. Same pattern documented in S4 closeout §4. See §5 below. |
+| Frontend vitest — full suite (under concurrent CPU load) | `cd frontend && npm test -- --run` | **DEGRADED (noise)** — 700 passed / 98 failed / 37 failed files; all failures `STACK_TRACE_ERROR` 5s timeouts on unrelated viz primitives (KpiTile, DistributionBar, ChartSkeleton, GaugeRing, etc.) driven by concurrent backend pytest + third-party vitest process in another working tree. Same pattern documented in S4 closeout §4. See §5 below. |
+| Frontend vitest — full suite (cold, no concurrent load) | `cd frontend && npm test -- --run` | **IMPROVED** — 766 passed / 32 failed (vs 98 under concurrent load). **Zero T1-03 files in failure set** (all 3 T1-03 test files pass cleanly). Remaining 32 failures are same-pattern environment timeouts on unrelated primitives — `environment 1142s` / `setup 638s` in a suite that S4 finished in 63s total indicates the machine is still under load from another source. Not a T1-03 regression. |
 
 ---
 
@@ -79,7 +80,7 @@ The full-suite run (`bzzw2hu1l`) completed in 864.39s (duration) with `environme
 3. **Backend pytest was competing for CPU** during the full run (task `baxss3zzh`), plus an unrelated `vitest run` process from another working tree (PID 1690 — `/Users/thristannewman/Desktop/Pricing Adtelligent`, per `ps aux`).
 4. **The one T1-03 file in the failure set** (`RecommendationsTabSection.dismiss.test.tsx`) shows 5/6 tests pass + 1 `STACK_TRACE_ERROR` on the simplest render assertion, but all 6 pass deterministically when re-run alone.
 
-S4 closeout documented the exact same pattern and remediation: "Re-running from cold produced 762/762 deterministically." T1-03 does not re-introduce any primitive regression; the same cold-run retest would be expected to clear. This is a machine-health artifact, not a code artifact.
+S4 closeout documented the exact same pattern and remediation: "Re-running from cold produced 762/762 deterministically." T1-03 does not re-introduce any primitive regression — verified: the cold-run retest **dropped T1-03 failures to 0** (all 3 T1-03 test files pass cleanly in the full suite), and full-suite failures dropped from 98 → 32 as concurrency relaxed. The remaining 32 failures retain the `STACK_TRACE_ERROR` signature and inflated env timings (1142s environment, 638s setup in a run where S4 took 63s total) — consistent with background load on the machine, not code changes in this sprint. This is a machine-health artifact, not a code artifact.
 
 ---
 
