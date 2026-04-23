@@ -22,7 +22,7 @@
 |---|---|---|
 | Meta integration | ~95% | none |
 | Google Ads | ~95% | Phase A+B+C1/C2 done (2026-04-23); C3 staging regression blocked on test-account creds |
-| GA4 | ~80% | verify sync path populates `agg_ga4_daily` |
+| GA4 | ~95% | T1-04 Verdict B done (2026-04-23); live-data DoD bullet blocked on Airbyte creds (4 env vars + dbt flag) |
 | Search Console | ~50% | no dedicated OAuth/sync module (uses mart) |
 | LinkedIn | ~5% | scaffolded only |
 | TikTok | ~5% | scaffolded only |
@@ -97,18 +97,26 @@ These block calling Phase 2 production-ready.
 
 ---
 
-### T1-04 — Verify GA4 ingestion path (S, 1d)
+### T1-04 — Verify GA4 ingestion path — **DONE-WITH-BLOCKER (2026-04-23)**
 
-**Status:** API view exists (`backend/analytics/web_views.py:126` `GA4WebInsightsView`) reading from `agg_ga4_daily` mart. The integration module at `backend/integrations/google_analytics/` has `client.py` + `views.py` + `urls.py`. Need to confirm the sync path that populates `agg_ga4_daily` actually runs.
+**See:** `artifacts/roadmap/ga4-investigation.md` (Verdict B), `artifacts/sprint/S5-ga4-finish-closeout.md`, `artifacts/sprint/S5-ga4-staging-smoke-checklist.md`.
 
-**Work:**
-- [ ] Read `backend/integrations/google_analytics/client.py` and `views.py` — is there a working sync task?
-- [ ] Check `dbt/models/` for `agg_ga4_daily` — are its upstream source tables getting data?
-- [ ] Check Airbyte config at `infrastructure/airbyte/` for any GA4 connector
-- [ ] Smoke-test: in dev stack, trigger a GA4 sync (if controllable) and verify data lands in mart, then visible in `GoogleAnalyticsDashboardPage`
-- [ ] If sync isn't wired: decide whether to wire it now (medium) or defer to post-launch
+**Status:** **Verdict B — wired but untested live in this environment.** Full engineering-side DoD satisfied; the one remaining bullet ("dashboard shows real data") is credential-gated.
 
-**DoD:** either we know GA4 is shipping live data, or we have a clear go/no-go on what's needed.
+**What shipped (2026-04-23):**
+- [x] Investigation doc with Verdict B + file-level evidence (214 LoC, pasted psql + curl + grep output proving mart absent by design with `enable_ga4=false`)
+- [x] 16 new backend pytests: 12 PII allowlist tests for both GA4 dbt models, 3 credential-classification tests for `GoogleAnalyticsClient._build_client`, 1 tenant-isolation test (`test_ga4_web_insights_isolates_rows_by_tenant` — seeds two tenants' rows into transient `agg_ga4_daily`, asserts only tenant A rows returned)
+- [x] 4 dashboard vitest (existing) covering populated render, R3 contract (no `/metrics/combined/` call), `no_ga4_property_selected` empty state, `no_data_for_range` empty state
+- [x] Runbook `docs/runbooks/ga4-operations.md` (155 LoC: architecture, connect-a-property, make-dashboard-live operator path, verify-live one-liner, troubleshooting, OAuth token refresh, rate limits, scopes, test commands)
+- [x] Finish closeout `S5-ga4-finish-closeout.md` — DoD audit + gate matrix + known architectural quirks + blocker detail
+- [x] Operator-runnable smoke checklist `S5-ga4-staging-smoke-checklist.md` — 6 phases (Airbyte+dbt provision, OAuth connect, dashboard E2E, R3+tenant isolation, freshness scheduling, record results) with triage cheat sheet
+
+**Blocker:**
+- [ ] Dashboard shows real data in dev stack — **BLOCKED on external credentials.** Needs `AIRBYTE_GA4_CLIENT_ID`, `AIRBYTE_GA4_CLIENT_SECRET`, `AIRBYTE_GA4_REFRESH_TOKEN`, `AIRBYTE_GA4_PROPERTY_ID` provisioned in staging + dbt `enable_ga4=true` flip + `dbt build --select +agg_ga4_daily` run. Estimated 60-90 min of operator work once creds are surfaced. Execution walkthrough: `S5-ga4-staging-smoke-checklist.md`.
+
+**Known architectural quirk:** in-app OAuth flow writes `GoogleAnalyticsConnection` rows but does NOT feed Airbyte — Airbyte uses its own refresh-token env var. A tenant completing OAuth in the UI still sees empty dashboard until operator separately provisions Airbyte. Out-of-scope for T1-04; tracked as future feature.
+
+**DoD:** clear answer — GA4 is **Verdict B (ship-ready pending creds)**. Dashboard serves EmptyState-by-design until operator provisions Airbyte per the smoke checklist.
 
 ---
 
