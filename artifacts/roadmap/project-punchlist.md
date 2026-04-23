@@ -21,7 +21,7 @@
 | Area | % complete | Tier-1 blockers |
 |---|---|---|
 | Meta integration | ~95% | none |
-| Google Ads | ~90% | Phase A + B done (2026-04-23); Phase C remains (tracked T2-02, C3 needs test-account creds) |
+| Google Ads | ~95% | Phase A+B+C1/C2 done (2026-04-23); C3 staging regression blocked on test-account creds |
 | GA4 | ~80% | verify sync path populates `agg_ga4_daily` |
 | Search Console | ~50% | no dedicated OAuth/sync module (uses mart) |
 | LinkedIn | ~5% | scaffolded only |
@@ -153,16 +153,16 @@ These make Phase 2 feel done, not just work.
 
 ### T2-02 — Google Ads Phase B + C
 
-**See:** `google-ads-completion-plan.md`, `artifacts/sprint/S5-google-ads-phase-b-closeout.md`.
+**See:** `google-ads-completion-plan.md`, `artifacts/sprint/S5-google-ads-phase-b-closeout.md`, `artifacts/sprint/S5-google-ads-phase-c-closeout.md`.
 
 **Phase B — DONE (2026-04-23):**
 - [x] GA-B1 Change log pagination — `next_cursor` alias on existing paginated endpoint + Load more UI with accumulated rows (commits `cda49031` backend, `f066e527` FE). 3 pytest + 3 vitest.
 - [x] GA-B2 Saved-view reconciliation — new `verify` action comparing `filters`/`columns` against static v23 whitelist + FE dismissible drift banner (commits `cda49031` backend, `4e1733ec` FE). 4 pytest + 3 vitest.
 
-**Phase C — REMAINS:**
-- [ ] GA-C1 Integration test suite — one integration test per of the 10 Google Ads tab sections (L, 3–4d)
-- [ ] GA-C2 Documentation — `docs/runbooks/google-ads-operations.md` + remove "Google Ads SDK migration in progress" sentence from CLAUDE.md (S, 1d)
-- [ ] GA-C3 Staging regression — **requires test-account credentials; escalate to user before starting** (M, 2–3d)
+**Phase C — PARTIAL (2026-04-23):**
+- [x] GA-C1 Integration test suite — 10 new `*.integration.test.tsx` files, one per tab section (Assets, Campaigns, Changes, Conversions, Overview, Pacing, Pmax, Recommendations, Reports, Search), each covering loading/empty/populated branches. 30 new tests, 57/57 workspace vitest pass (commit `81df0c18`).
+- [x] GA-C2 Documentation — new `docs/runbooks/google-ads-operations.md` (10 `##` sections: scope, SDK-vs-Airbyte hybrid, endpoint register, day-2 ops, known quirks, related docs) + CLAUDE.md current-state updated to reflect shipped Phase B (commit `37ff1b77`).
+- [ ] GA-C3 Staging regression — **BLOCKED on test-account credentials** (M, 2–3d). Per v2 protocol (`finish-google-ads.v2.md §Phase C`), requires user to surface staging Google Ads OAuth creds + a test tenant with linked customer_ids. Escalation open 2026-04-23.
 
 ---
 
