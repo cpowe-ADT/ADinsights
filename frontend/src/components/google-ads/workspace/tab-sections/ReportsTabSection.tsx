@@ -6,6 +6,7 @@ import {
   createGoogleAdsSavedView,
   fetchGoogleAdsExportStatus,
   fetchGoogleAdsSavedViews,
+  verifyGoogleAdsSavedView,
   type GoogleAdsExportJob,
   type GoogleAdsSavedView,
 } from '../../../../lib/googleAdsDashboard';
@@ -73,6 +74,12 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
   const [viewName, setViewName] = useState('');
   const [job, setJob] = useState<GoogleAdsExportJob | null>(null);
 
+  // GA-B2: drift banner state. Verification runs after the initial saved
+  // views are available; failed verify calls silently drop from the count
+  // so partial outages don't create false alarms.
+  const [driftedViews, setDriftedViews] = useState<Array<{ id: string; name: string }>>([]);
+  const [showBanner, setShowBanner] = useState(true);
+
   // Polling refs — mutable without triggering re-render.
   const mountedRef = useRef(true);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -125,6 +132,33 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
       void loadSavedViews();
     }
   }, [initialSavedViews, loadSavedViews]);
+
+  // GA-B2: verify each saved view against the backend vocabulary and
+  // collect the ids/names that are drifted. `Promise.allSettled` so a
+  // single failed verify doesn't break the banner; rejected entries drop
+  // out of the count silently.
+  useEffect(() => {
+    if (!savedViews || savedViews.length === 0) {
+      setDriftedViews([]);
+      return;
+    }
+    let cancelled = false;
+    void Promise.allSettled(
+      savedViews.map((view) => verifyGoogleAdsSavedView(view.id)),
+    ).then((results) => {
+      if (cancelled || !mountedRef.current) return;
+      const drift: Array<{ id: string; name: string }> = [];
+      results.forEach((r) => {
+        if (r.status === 'fulfilled' && r.value && r.value.drift === true) {
+          drift.push({ id: r.value.id, name: r.value.name });
+        }
+      });
+      setDriftedViews(drift);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [savedViews]);
 
   const scheduleNextPoll = useCallback(
     (jobId: string, delayMs: number) => {
@@ -301,6 +335,26 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
           </p>
         ) : null}
       </section>
+
+      {driftedViews.length > 0 && showBanner ? (
+        <aside
+          role="status"
+          className="panel panel--warning"
+          data-testid="drift-banner"
+        >
+          <p>
+            {driftedViews.length} saved view(s) may be out of date:{' '}
+            {driftedViews.map((v) => v.name).join(', ')}.
+          </p>
+          <button
+            type="button"
+            className="button tertiary"
+            onClick={() => setShowBanner(false)}
+          >
+            Dismiss
+          </button>
+        </aside>
+      ) : null}
 
       <section className="panel">
         <h2>Saved views</h2>
