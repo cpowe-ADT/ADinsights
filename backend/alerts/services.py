@@ -20,6 +20,7 @@ from app.llm import LLMClient, LLMError, get_llm_client
 from integrations.models import AlertRuleDefinition
 
 from .models import AlertRun
+from .notifications import AlertNotificationDispatcher
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +128,7 @@ def _database_rule_to_alert_rule(rule: AlertRuleDefinition) -> AlertRule:
         sql=sql,
         parameters={
             "tenant_id": str(rule.tenant_id),
+            "alert_rule_definition_id": str(rule.id),
             "metric": rule.metric,
             "threshold": rule.threshold,
             "comparison_operator": rule.comparison_operator,
@@ -134,6 +136,12 @@ def _database_rule_to_alert_rule(rule: AlertRuleDefinition) -> AlertRule:
         },
         tenant_id=str(rule.tenant_id),
     )
+
+
+def _alert_rule_definition_id(rule: AlertRule) -> str | None:
+    parameters = rule.parameters or {}
+    value = parameters.get("alert_rule_definition_id")
+    return str(value) if value else None
 
 
 class AlertService:
@@ -145,6 +153,7 @@ class AlertService:
         evaluator: AlertEvaluator | None = None,
         llm_client: LLMClient | None = None,
         include_database_rules: bool = True,
+        notifier: AlertNotificationDispatcher | None = None,
     ) -> None:
         self._rules: Sequence[AlertRule] = tuple(
             alert_rules.iter_rules() if rules is None else rules
@@ -152,6 +161,7 @@ class AlertService:
         self._evaluator = evaluator or AlertEvaluator()
         self._llm = llm_client or get_llm_client()
         self._include_database_rules = include_database_rules
+        self._notifier = notifier or AlertNotificationDispatcher()
 
     def _iter_rules(self) -> Iterator[AlertRule]:
         yield from self._rules
@@ -219,8 +229,36 @@ class AlertService:
                         "completed_at",
                     ]
                 )
+                self._notify_if_needed(rule, run)
                 runs.append(run)
         return runs
+
+    def _notify_if_needed(self, rule: AlertRule, run: AlertRun) -> None:
+        if run.status not in {AlertRun.Status.SUCCESS, AlertRun.Status.PARTIAL}:
+            return
+        if run.row_count <= 0:
+            return
+        definition_id = _alert_rule_definition_id(rule)
+        if not definition_id:
+            return
+        definition = (
+            AlertRuleDefinition.all_objects.prefetch_related("notification_channels")
+            .filter(id=definition_id)
+            .first()
+        )
+        if definition is None:
+            return
+        try:
+            self._notifier.notify(definition, run)
+        except Exception:
+            logger.exception(
+                "Alert notification dispatch failed",
+                extra={
+                    "tenant_id": str(definition.tenant_id),
+                    "alert_rule_definition_id": str(definition.id),
+                    "alert_run_id": str(run.id),
+                },
+            )
 
 
 __all__ = ["AlertService"]

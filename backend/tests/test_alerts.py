@@ -230,6 +230,76 @@ def test_alert_service_sets_tenant_context_for_database_rules(tenant):
 
 
 @pytest.mark.django_db
+def test_alert_service_notifies_channels_for_fired_database_rule(tenant):
+    rule = _make_alert_definition(tenant, name="High Spend", metric="spend")
+    evaluator = StubEvaluator(rows=[{"campaign_id": "cmp_1", "spend": 2500}])
+
+    class StubNotifier:
+        def __init__(self):
+            self.calls = []
+
+        def notify(self, definition, run):  # noqa: D401, ANN001 - service collaborator
+            self.calls.append((definition.id, run.rule_slug, run.row_count))
+            return []
+
+    notifier = StubNotifier()
+    service = AlertService(
+        rules=[],
+        evaluator=evaluator,
+        llm_client=StubLLM(summary="Spend alert fired."),
+        notifier=notifier,
+    )
+
+    runs = service.run_cycle()
+
+    assert runs[0].status == AlertRun.Status.SUCCESS
+    assert notifier.calls == [(rule.id, f"tenant_alert:{rule.id}", 1)]
+
+
+@pytest.mark.django_db
+def test_alert_service_does_not_notify_no_result_database_rule(tenant):
+    _make_alert_definition(tenant, name="Quiet CPA")
+
+    class StubNotifier:
+        def notify(self, definition, run):  # noqa: D401, ANN001 - service collaborator
+            raise AssertionError("no-result alerts should not notify")
+
+    service = AlertService(
+        rules=[],
+        evaluator=StubEvaluator(rows=[]),
+        llm_client=StubLLM(),
+        notifier=StubNotifier(),
+    )
+
+    run = service.run_cycle()[0]
+
+    assert run.status == AlertRun.Status.NO_RESULTS
+
+
+@pytest.mark.django_db
+def test_alert_service_persists_run_when_notifier_fails(tenant):
+    rule = _make_alert_definition(tenant, name="High Spend", metric="spend")
+
+    class FailingNotifier:
+        def notify(self, definition, run):  # noqa: D401, ANN001 - service collaborator
+            raise RuntimeError("notification provider down")
+
+    service = AlertService(
+        rules=[],
+        evaluator=StubEvaluator(rows=[{"campaign_id": "cmp_1", "spend": 2500}]),
+        llm_client=StubLLM(summary="Spend alert fired."),
+        notifier=FailingNotifier(),
+    )
+
+    run = service.run_cycle()[0]
+
+    assert run.rule_slug == f"tenant_alert:{rule.id}"
+    assert run.status == AlertRun.Status.SUCCESS
+    run.refresh_from_db()
+    assert run.row_count == 1
+
+
+@pytest.mark.django_db
 def test_alert_history_api_returns_runs(api_client, user):
     AlertRun.objects.create(
         rule_slug="campaign_ctr_drop",

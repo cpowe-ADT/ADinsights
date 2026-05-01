@@ -176,14 +176,14 @@ These make Phase 2 feel done, not just work.
 
 ### T2-03 — Notification channels: end-to-end delivery verification (S, 1d)
 
-**Status:** Model + ViewSet + M2M to AlertRuleDefinition all present (`backend/integrations/models.py:1548`). Need to confirm delivery actually fires.
+**Status:** DONE (2026-05-01). Model + ViewSet + M2M to `AlertRuleDefinition` were already present; delivery now fires for tenant-defined alert rules with active channel assignments when evaluation returns rows.
 
 **Work:**
-- [ ] Grep for where alert evaluation dispatches notifications
-- [ ] Test email delivery on a fired alert
-- [ ] Test Slack delivery (webhook URL in `NotificationChannel.config`)
-- [ ] Test webhook delivery
-- [ ] Document each channel's `config` shape in `docs/runbooks/`
+- [x] Grep for where alert evaluation dispatches notifications
+- [x] Test email delivery on a fired alert
+- [x] Test Slack delivery (webhook URL in `NotificationChannel.config`)
+- [x] Test webhook delivery
+- [x] Document each channel's `config` shape in `docs/runbooks/alerting.md`
 
 **DoD:** a fired alert produces expected side-effects on all 3 channel types.
 
