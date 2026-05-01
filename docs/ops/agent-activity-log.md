@@ -4,6 +4,7 @@ One-line, timestamped notes of agent-driven changes to help preserve context bet
 
 ## 2026-05-01
 
+- 2026-05-01T14:32:10-0500 feat(backend): evaluate DB-backed alert rules — Wired `AlertService.run_cycle` to evaluate active `AlertRuleDefinition` rows with tenant-scoped SQL/context, skip paused rules, auto-resume expired pauses, and resolve `tenant_alert:<uuid>` alert-history metadata; focused alert tests and backend lint pass. Pending commit.
 - 2026-05-01T14:18:54-0500 fix(gates): stabilize local release gates — Fixed Google Ads frontend test drift, DuckDB demo mart month-end interval portability, observability external-action doc links, and Makefile venv Python selection for preflight/demo commands; verified frontend/backend/dbt/release gate checks. Pending commit.
 
 ## 2026-04-04

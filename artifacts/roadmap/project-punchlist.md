@@ -228,15 +228,15 @@ Skip if current tenants are trusted + low count.
 
 ### T2-07 — Wire `AlertService` to DB-defined `AlertRuleDefinition` (M, 2–3d)
 
-**Status:** NOT STARTED. Prerequisite shipped with T1-01 (`AlertRuleDefinition.active_for_eval()` classmethod).
+**Status:** DONE (2026-05-01). Prerequisite shipped with T1-01 (`AlertRuleDefinition.active_for_eval()` classmethod).
 
-**Context:** `AlertService.run_cycle` (`backend/alerts/services.py:85`) iterates the hardcoded `ALERT_RULES` tuple in `backend/app/alerts.py`. User-defined `AlertRuleDefinition` rows are CRUD-only and are not evaluated. Until this ships, "pausing an alert rule stops evaluations" is realized at the API/UI layer but has no downstream effect because nothing downstream reads DB rules.
+**Context:** `AlertService.run_cycle` now preserves hardcoded `ALERT_RULES` as system presets and also evaluates DB-backed `AlertRuleDefinition.active_for_eval()` rows via generated `tenant_alert:<uuid>` SQL rules. Each DB-backed rule carries tenant-scoped parameters and runs inside `tenant_context(rule.tenant_id)`. Alert history metadata resolves `tenant_alert:<uuid>` slugs for user-defined rule names, descriptions, and severity.
 
 **Work:**
-- [ ] Replace or complement `ALERT_RULES` iteration with `AlertRuleDefinition.active_for_eval()` in `AlertService.run_cycle`
-- [ ] Map `AlertRuleDefinition` fields (metric, comparison_operator, threshold, lookback_hours) to the SQL-evaluation shape expected by `AlertEvaluator` — may need a generic metric-threshold rule template
-- [ ] Decide fate of the hardcoded `ALERT_RULES` presets: migrate to seeded DB rows OR keep as system rules with a `system: true` flag
-- [ ] Tests: paused rule is skipped end-to-end; auto-resumed rule re-enters evaluation; tenant isolation during Celery execution
+- [x] Complement `ALERT_RULES` iteration with `AlertRuleDefinition.active_for_eval()` in `AlertService.run_cycle`
+- [x] Map `AlertRuleDefinition` fields (metric, comparison_operator, threshold, lookback_hours) to a generic tenant-scoped SQL threshold rule
+- [x] Keep hardcoded `ALERT_RULES` as system presets rather than migrating them to seeded DB rows in this pass
+- [x] Tests: paused rule is skipped end-to-end; auto-resumed rule re-enters evaluation; tenant isolation during evaluation
 
 **DoD:** toggling pause on an alert rule in the UI stops its SQL evaluation in the next `run_cycle`; auto-resume (via `paused_until` expiry) re-enters it.
 

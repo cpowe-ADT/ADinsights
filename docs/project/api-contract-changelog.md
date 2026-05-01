@@ -13,6 +13,12 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-05-01**
+  - Endpoint: `GET /api/alerts/runs/`
+  - Change: Alert run metadata now resolves `tenant_alert:<uuid>` slugs generated from DB-backed `AlertRuleDefinition` rows. Responses remain additive/shape-compatible: existing fields are unchanged, while `rule_name`, `rule_description`, and `severity` are populated for DB-defined alert runs instead of returning `null`.
+  - Impact: Frontend alert history can show user-defined alert names/severity for real evaluation runs. Existing hardcoded alert run slugs and clients that tolerate nullable metadata are unaffected.
+  - Owner: Sofia (Backend Metrics) + Raj (Integrations review)
+
 - **2026-04-13** (Sprint 10 of Client grouping — FX refresh task, warehouse scoping, suggestion snapshot surface)
   - Endpoints added:
     - `GET /api/clients/suggestions/latest/` — returns `{snapshot: <ClientSuggestionSnapshot> | null}` where the snapshot has `{id, trigger_reason, threshold, suggestion_count, payload, generated_at, acknowledged_at, is_unacknowledged}`. `trigger_reason` ∈ `"meta_sync" | "google_sync" | "manual"`. `payload` is the serialized suggest-clients output captured at snapshot time; `is_unacknowledged=true` when `acknowledged_at IS NULL AND suggestion_count > 0`.

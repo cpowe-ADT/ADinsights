@@ -39,6 +39,7 @@ See also:
 
 ## Next Unblocked Repo Work
 
+- [x] **Alert evaluation DB rule wiring (2026-05-01):** `AlertService.run_cycle` now evaluates active DB-backed `AlertRuleDefinition` rows alongside built-in system alerts, applies tenant context per DB rule, skips paused rules, auto-resumes expired pauses, and resolves `tenant_alert:<uuid>` metadata in alert history. Scope: `backend/`, `docs/`, `artifacts/roadmap/`. Status: `repo-ready`.
 - [x] **Local release gate stabilization (2026-05-01):** Fixed Google Ads frontend test drift, DuckDB demo mart month-end portability, observability external-action doc links, and Makefile Python selection so local preflight/demo commands use the repo venv when available. Scope: `frontend/`, `dbt/`, `docs/`, `Makefile`. Status: `repo-ready`.
 - [x] **GA4 Integration (Phase 1):** Complete tenant-scoped OAuth setup, exchange, property discovery, and provisioning endpoints for Google Analytics 4. Scope: `backend/integrations/`. Status: `repo-ready`.
 - [x] **Backend test-suite stabilization:** Reconcile canonical backend tests with the current pagination and privilege model (`HasPrivilege`, paginated list responses, upload/report access expectations). Scope: `backend/tests/`. Status: `repo-ready`.
