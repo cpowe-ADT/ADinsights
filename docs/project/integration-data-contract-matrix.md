@@ -61,6 +61,12 @@ The following mart models received additive column changes. Downstream consumers
 | `dim_campaign` | Additive | Campaign dimension enriched with objective and status fields from SDK path | Additive; `objective` and `status` now available where previously NULL |
 | `fact_performance` | Additive | Fact table updated to align with SDK-sourced campaign grain | Additive; no dropped columns |
 
+## dbt Demo Mart Portability Update (2026-05-01)
+
+| Model | Change type | New/changed columns | Impact |
+|---|---|---|---|
+| `vw_demo_dashboard_snapshot` | Compatibility-only | None | Replaced non-portable DuckDB interval syntax in month-end calculation. Output shape, grain, and `/api/metrics/combined/` contract are unchanged. |
+
 ## Saved Dashboards Contract (2026-04-07)
 
 New `DashboardDefinition` model and CRUD surface added.

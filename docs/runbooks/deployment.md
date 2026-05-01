@@ -1,6 +1,7 @@
 # Deployment Runbook — ADinsights
 
 Use this guide to promote ADinsights from development into a production-ready environment. It assumes AWS as the primary cloud provider and containerised workloads for the Django backend, Celery workers, Airbyte, and the React frontend. Adapt the specifics if you select an alternative cloud or orchestration platform.
+External production actions must be tracked in `docs/runbooks/external-actions-aws.md`.
 
 ## 1. Environments & Branch Flow
 

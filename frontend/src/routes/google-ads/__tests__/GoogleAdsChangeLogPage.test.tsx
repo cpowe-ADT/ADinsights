@@ -127,6 +127,6 @@ describe('GoogleAdsChangeLogPage', () => {
         <GoogleAdsChangeLogPage />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(screen.getByText(/Change log \(142\)/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Change log \(1\/142\)/i)).toBeInTheDocument());
   });
 });

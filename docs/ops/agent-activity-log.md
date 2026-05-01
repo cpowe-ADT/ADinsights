@@ -2,6 +2,10 @@
 
 One-line, timestamped notes of agent-driven changes to help preserve context between sessions. Newest entries at the top.
 
+## 2026-05-01
+
+- 2026-05-01T14:18:54-0500 fix(gates): stabilize local release gates — Fixed Google Ads frontend test drift, DuckDB demo mart month-end interval portability, observability external-action doc links, and Makefile venv Python selection for preflight/demo commands; verified frontend/backend/dbt/release gate checks. Pending commit.
+
 ## 2026-04-04
 
 - 2026-04-04T11:25:00-0500 docs(closeout): verify Meta Ads MVP repo-side release gates and lock the corrected dbt sequence — Confirmed contract/observability gates, backend release preflight, frontend suite/build, and the reference-aware dbt run/test path for the Meta dashboard rollout; updated canonical docs to rebuild `all_ad_performance`, `dim_campaign`, and `fact_performance` before marts, and logged the unrelated `vw_demo_dashboard_snapshot` DuckDB failure as a separate repo-ready follow-up plus live-tenant verification as the remaining external blocker. Pending commit.

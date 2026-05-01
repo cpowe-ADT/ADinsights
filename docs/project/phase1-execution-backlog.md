@@ -6,6 +6,8 @@ mirroring the persona’s standards (tests, docs, reviewers). Keep work scoped t
 the folder(s) listed for the stream and involve Raj/Mira only if a task must
 touch multiple top-level folders.
 
+External production actions must be tracked in `docs/runbooks/external-actions-aws.md`.
+
 | ID | Stream | Acting Persona | Task | Priority | Dependencies | Tests / Commands | Status |
 |----|--------|----------------|------|----------|--------------|------------------|--------|
 | S1-A | Airbyte | Codex → Maya | Implement tenant-aware `BaseAdInsightsTask` + metrics emitters in `backend/integrations` + `backend/core/tasks.py`. | P1 | None; inform Priya before schema changes. | `ruff check backend`, `pytest backend/tests/test_airbyte_*.py` | Done (2025-01-05) |
