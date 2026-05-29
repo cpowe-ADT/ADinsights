@@ -203,6 +203,17 @@ def _retry_analytics_task(
         return helper(exc=exc, base_delay=base_delay, max_delay=max_delay)
 
 
+def _record_task_outcome(task, status: str, duration_seconds: float) -> None:  # noqa: ANN001
+    """Record direct-call outcomes without double-counting instrumented workers."""
+
+    request = getattr(task, "request", None)
+    if getattr(request, "_start_time", None) is not None:
+        if status == "skipped":
+            request._metrics_status_override = status
+        return
+    observe_task(task.name, status, duration_seconds)
+
+
 def _normalize_snapshot_tenant_ids(tenant_ids: Sequence[str] | None) -> list[str]:
     if not tenant_ids:
         return []
@@ -332,21 +343,34 @@ def generate_daily_summaries_for_tenants(
         with tenant_context(tenant_id):
             outcome = _daily_summary_for_tenant(tenant_id)
             summary_length = len(outcome.summary or "")
-            send_daily_summary_email(
+            summary_record = AISummary.objects.filter(
+                tenant=tenant,
+                source="daily_summary",
+                generated_at=outcome.generated_at,
+            ).first()
+            summary_values = {
+                "title": f"Daily summary for {outcome.generated_at.date().isoformat()}",
+                "summary": outcome.summary,
+                "payload": outcome.payload,
+                "model_name": outcome.model_name,
+                "status": outcome.summary_status,
+            }
+            if summary_record is None:
+                AISummary.objects.create(
+                    tenant=tenant,
+                    source="daily_summary",
+                    generated_at=outcome.generated_at,
+                    **summary_values,
+                )
+            else:
+                for field, value in summary_values.items():
+                    setattr(summary_record, field, value)
+                summary_record.save(update_fields=[*summary_values, "updated_at"])
+            delivery = send_daily_summary_email(
                 tenant=tenant,
                 summary=outcome.summary,
                 generated_at=outcome.generated_at,
                 status=outcome.status,
-            )
-            AISummary.objects.create(
-                tenant=tenant,
-                title=f"Daily summary for {outcome.generated_at.date().isoformat()}",
-                summary=outcome.summary,
-                payload=outcome.payload,
-                source="daily_summary",
-                model_name=outcome.model_name,
-                status=outcome.summary_status,
-                generated_at=outcome.generated_at,
             )
             logger.info(
                 "metrics.daily_summary.generated",
@@ -355,6 +379,8 @@ def generate_daily_summaries_for_tenants(
                     "status": outcome.status,
                     "generated_at": outcome.generated_at.isoformat(),
                     "summary_length": summary_length,
+                    "delivery": delivery.outcome,
+                    "recipient_count": delivery.recipient_count,
                 },
             )
             outcomes.append(outcome)
@@ -379,7 +405,7 @@ def sync_metrics_snapshots(self, tenant_ids: list[str] | None = None) -> dict:
     )
     if lock_token is None:
         duration = (timezone.now() - started).total_seconds()
-        observe_task(self.name, "skipped", duration)
+        _record_task_outcome(self, "skipped", duration)
         logger.warning(
             "metrics.snapshot.skipped.locked",
             extra={
@@ -413,7 +439,7 @@ def sync_metrics_snapshots(self, tenant_ids: list[str] | None = None) -> dict:
         outcomes = generate_snapshots_for_tenants(normalized_tenant_ids or None)
     except Exception as exc:  # pragma: no cover - surfaced via Celery retry mechanisms
         duration = (timezone.now() - started).total_seconds()
-        observe_task(self.name, "failure", duration)
+        _record_task_outcome(self, "failure", duration)
         failure_reason = SNAPSHOT_FAILURE_REASON_GENERATION
         logger.exception(
             "metrics.snapshot.failed",
@@ -436,7 +462,7 @@ def sync_metrics_snapshots(self, tenant_ids: list[str] | None = None) -> dict:
         _release_snapshot_sync_lock(lock_key=lock_key, token=lock_token)
 
     duration = (timezone.now() - started).total_seconds()
-    observe_task(self.name, "success", duration)
+    _record_task_outcome(self, "success", duration)
     stale_tenant_ids = [outcome.tenant_id for outcome in outcomes if outcome.stale]
     status_counts = {
         "default": sum(outcome.status == "default" for outcome in outcomes),
@@ -497,7 +523,7 @@ def ai_daily_summary(self, tenant_ids: list[str] | None = None) -> dict:
         outcomes = generate_daily_summaries_for_tenants(tenant_ids)
     except Exception as exc:  # pragma: no cover - surfaced via Celery retry mechanisms
         duration = (timezone.now() - started).total_seconds()
-        observe_task(self.name, "failure", duration)
+        _record_task_outcome(self, "failure", duration)
         failure_reason = DAILY_SUMMARY_FAILURE_REASON_GENERATION
         logger.exception(
             "metrics.daily_summary.failed",
@@ -517,7 +543,7 @@ def ai_daily_summary(self, tenant_ids: list[str] | None = None) -> dict:
         )
 
     duration = (timezone.now() - started).total_seconds()
-    observe_task(self.name, "success", duration)
+    _record_task_outcome(self, "success", duration)
     summary_lengths = [len(outcome.summary or "") for outcome in outcomes]
     logger.info(
         "metrics.daily_summary.completed",
@@ -589,52 +615,36 @@ def run_report_export_job(self, report_export_job_id: str) -> dict[str, object]:
 
         timestamp = timezone.now()
         source = str((job.report.filters or {}).get("source") or "").strip().lower()
-        if source == "meta_pages":
-            try:
+        try:
+            if source == "meta_pages":
                 outcome = _export_meta_pages_report(job=job, timestamp=timestamp)
-            except Exception as exc:  # pragma: no cover - defensive fallback
-                logger.exception(
-                    "Meta pages export failed",
-                    exc_info=exc,
-                    extra={"tenant_id": str(job.tenant_id), "report_export_job_id": str(job.id)},
-                )
-                job.status = ReportExportJob.STATUS_FAILED
-                job.error_message = str(exc)
-                job.completed_at = timezone.now()
-                job.save(update_fields=["status", "error_message", "completed_at", "updated_at"])
-                return {"status": job.status, "report_export_job_id": str(job.id)}
-
-            job.status = ReportExportJob.STATUS_COMPLETED
-            job.artifact_path = str(outcome["artifact_path"])
-            job.completed_at = timestamp
-            job.metadata = outcome["metadata"]
-            job.save(
-                update_fields=[
-                    "status",
-                    "artifact_path",
-                    "completed_at",
-                    "metadata",
-                    "updated_at",
-                ]
+            else:
+                outcome = _export_generic_report(job=job, timestamp=timestamp)
+            _verify_export_artifact(str(outcome["artifact_path"]))
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            duration = (timezone.now() - timestamp).total_seconds()
+            logger.exception(
+                "analytics.report_export.failed",
+                exc_info=exc,
+                extra={
+                    "tenant_id": str(job.tenant_id),
+                    "report_export_job_id": str(job.id),
+                    "export_format": job.export_format,
+                    "source": source or "generic",
+                    "duration_seconds": duration,
+                    "error_type": type(exc).__name__,
+                },
             )
-            return {
-                "status": job.status,
-                "report_export_job_id": str(job.id),
-                "artifact_path": job.artifact_path,
-            }
-
-        extension = job.export_format.lower()
-        artifact_path = f"/exports/{job.tenant_id}/{job.report_id}/{job.id}.{extension}"
+            job.status = ReportExportJob.STATUS_FAILED
+            job.error_message = f"Export generation failed ({type(exc).__name__})."
+            job.completed_at = timezone.now()
+            job.save(update_fields=["status", "error_message", "completed_at", "updated_at"])
+            return {"status": job.status, "report_export_job_id": str(job.id)}
 
         job.status = ReportExportJob.STATUS_COMPLETED
-        job.artifact_path = artifact_path
+        job.artifact_path = str(outcome["artifact_path"])
         job.completed_at = timestamp
-        job.metadata = {
-            "report_name": job.report.name,
-            "filters": job.report.filters,
-            "layout": job.report.layout,
-            "generated_at": timestamp.isoformat(),
-        }
+        job.metadata = outcome["metadata"]
         job.save(
             update_fields=[
                 "status",
@@ -644,15 +654,29 @@ def run_report_export_job(self, report_export_job_id: str) -> dict[str, object]:
                 "updated_at",
             ]
         )
+        logger.info(
+            "analytics.report_export.completed",
+            extra={
+                "tenant_id": str(job.tenant_id),
+                "report_export_job_id": str(job.id),
+                "export_format": job.export_format,
+                "source": source or "generic",
+                "duration_seconds": (timezone.now() - timestamp).total_seconds(),
+            },
+        )
         return {
             "status": job.status,
             "report_export_job_id": str(job.id),
-            "artifact_path": artifact_path,
+            "artifact_path": job.artifact_path,
         }
 
 
 def _exports_base_dir() -> Path:
-    return Path(__file__).resolve().parents[2] / "integrations" / "exporter" / "out"
+    return Path(settings.REPORT_EXPORT_ARTIFACT_ROOT)
+
+
+def _exporter_dir() -> Path:
+    return Path(settings.REPORT_EXPORTER_DIR)
 
 
 def _artifact_file_path(*, job: ReportExportJob, extension: str) -> tuple[str, Path]:
@@ -660,6 +684,187 @@ def _artifact_file_path(*, job: ReportExportJob, extension: str) -> tuple[str, P
     file_path = (_exports_base_dir() / artifact_path.lstrip("/")).resolve()
     file_path.parent.mkdir(parents=True, exist_ok=True)
     return artifact_path, file_path
+
+
+def _verify_export_artifact(artifact_path: str) -> None:
+    if not artifact_path.startswith("/exports/"):
+        raise ValueError("Export artifact path is invalid.")
+    file_path = (_exports_base_dir() / artifact_path.lstrip("/")).resolve()
+    if not file_path.is_relative_to(_exports_base_dir().resolve()):
+        raise ValueError("Export artifact path is unsafe.")
+    if not file_path.exists() or file_path.stat().st_size == 0:
+        raise FileNotFoundError("Export artifact was not generated.")
+
+
+def _metric_value(row: dict[str, Any], *keys: str, default: Any = "") -> Any:
+    for key in keys:
+        if key in row and row[key] is not None:
+            return row[key]
+    return default
+
+
+def _safe_csv_value(value: Any) -> Any:
+    if isinstance(value, str) and value[:1] in {"=", "+", "-", "@"}:
+        return f"'{value}"
+    return value
+
+
+def _export_generic_report(*, job: ReportExportJob, timestamp: datetime) -> dict[str, Any]:
+    payload, generated_at, snapshot_status = _snapshot_payload_for_tenant(str(job.tenant_id))
+    campaign = payload.get("campaign") or {}
+    summary = campaign.get("summary") or {}
+    campaign_rows = campaign.get("rows") or []
+    filters = job.report.filters or {}
+    platform_values = filters.get("platforms")
+    if not isinstance(platform_values, (list, tuple, set)):
+        platform_values = []
+    selected_platforms = {
+        str(platform).strip().lower()
+        for platform in platform_values
+        if str(platform).strip()
+    }
+
+    def selected(channel: Any) -> bool:
+        if not selected_platforms:
+            return True
+        normalized = str(channel).strip().lower()
+        if "meta" in normalized:
+            return "meta" in selected_platforms
+        if "google" in normalized:
+            return "google" in selected_platforms or "google_ads" in selected_platforms
+        return normalized in selected_platforms
+
+    normalized_rows = []
+    for row in campaign_rows:
+        if not isinstance(row, dict):
+            continue
+        normalized_row = {
+            "channel": _metric_value(row, "channel", "platform", "source"),
+            "campaign": _metric_value(row, "campaign", "campaignName", "campaign_name", "name"),
+            "impressions": _metric_value(row, "impressions", default=0),
+            "clicks": _metric_value(row, "clicks", default=0),
+            "ctr": _metric_value(row, "ctr", default=0),
+            "spend": _metric_value(row, "spend", "cost", default=0),
+            "conversions": _metric_value(row, "conversions", default=0),
+            "cpa": _metric_value(row, "cpa", default=0),
+        }
+        if selected(normalized_row["channel"]):
+            normalized_rows.append(normalized_row)
+
+    render_summary = dict(summary)
+    if selected_platforms:
+        def total(key: str) -> float:
+            values: list[float] = []
+            for row in normalized_rows:
+                try:
+                    values.append(float(row[key]))
+                except (KeyError, TypeError, ValueError):
+                    continue
+            return sum(values)
+
+        render_summary.update(
+            {
+                "totalSpend": total("spend"),
+                "totalImpressions": total("impressions"),
+                "totalClicks": total("clicks"),
+                "totalConversions": total("conversions"),
+            }
+        )
+    extension = job.export_format.lower()
+    artifact_path, file_path = _artifact_file_path(job=job, extension=extension)
+
+    if extension == "csv":
+        headers = [
+            "channel",
+            "campaign",
+            "impressions",
+            "clicks",
+            "ctr",
+            "spend",
+            "conversions",
+            "cpa",
+        ]
+        with file_path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=headers)
+            writer.writeheader()
+            writer.writerows(
+                {
+                    field: _safe_csv_value(row.get(field))
+                    for field in headers
+                }
+                for row in normalized_rows
+            )
+    else:
+        exporter_dir = _exporter_dir()
+        pdf_path, pdf_file = _artifact_file_path(job=job, extension="pdf")
+        png_path, png_file = _artifact_file_path(job=job, extension="png")
+        currency = str(render_summary.get("currency") or "").strip()
+
+        def money(value: Any) -> str:
+            formatted = _format_number(value)
+            return f"{currency} {formatted}".strip()
+
+        date_range = (
+            str(filters.get("range") or "").strip()
+            or (
+                f"Last {filters['lookback_days']} days"
+                if filters.get("lookback_days")
+                else ""
+            )
+            or "Aggregate dashboard snapshot"
+        )
+        render_payload = {
+            "title": job.report.name,
+            "dateRange": date_range,
+            "generatedAt": timestamp.isoformat(),
+            "kpis": [
+                {"label": "Total Spend", "value": money(render_summary.get("totalSpend"))},
+                {
+                    "label": "Impressions",
+                    "value": _format_number(render_summary.get("totalImpressions")),
+                },
+                {"label": "Clicks", "value": _format_number(render_summary.get("totalClicks"))},
+                {
+                    "label": "Conversions",
+                    "value": _format_number(render_summary.get("totalConversions")),
+                },
+            ],
+            "rows": normalized_rows,
+        }
+        data_file = pdf_file.with_suffix(".json")
+        data_file.write_text(json.dumps(render_payload), encoding="utf-8")
+        subprocess.run(
+            [
+                "node",
+                "bin/export-report",
+                "--data",
+                str(data_file),
+                "--out",
+                str(pdf_file),
+                "--png",
+                str(png_file),
+            ],
+            cwd=str(exporter_dir),
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        artifact_path = png_path if extension == "png" else pdf_path
+
+    return {
+        "artifact_path": artifact_path,
+        "metadata": {
+            "redacted": True,
+            "source": "aggregate_snapshot",
+            "report_name": job.report.name,
+            "generated_at": timestamp.isoformat(),
+            "snapshot_generated_at": generated_at.isoformat(),
+            "snapshot_status": snapshot_status,
+            "row_count": len(normalized_rows),
+            "export_format": extension,
+            "selected_platforms": sorted(selected_platforms),
+        },
+    }
 
 
 def _parse_iso_date(value: Any) -> date | None:
@@ -938,7 +1143,7 @@ def _export_meta_pages_report(*, job: ReportExportJob, timestamp: datetime) -> d
         pdf_path, pdf_file = _artifact_file_path(job=job, extension="pdf")
         png_path, png_file = _artifact_file_path(job=job, extension="png")
 
-        exporter_dir = Path(__file__).resolve().parents[2] / "integrations" / "exporter"
+        exporter_dir = _exporter_dir()
         data_payload = {
             "template": "meta_pages_v1",
             "title": "Facebook Page Insights",

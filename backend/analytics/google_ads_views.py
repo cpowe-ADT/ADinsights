@@ -1802,6 +1802,12 @@ class GoogleAdsAccountAssignmentViewSet(viewsets.ModelViewSet):
         )
 
 
+def _safe_export_csv_value(value: Any) -> Any:
+    if isinstance(value, str) and value[:1] in {"=", "+", "-", "@"}:
+        return f"'{value}"
+    return value
+
+
 class GoogleAdsExportCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1825,7 +1831,7 @@ class GoogleAdsExportCreateView(APIView):
             normalized_filters.is_valid(raise_exception=True)
             rows = _campaign_rows_for_export(request.user, normalized_filters.validated_data)
 
-            output_dir = Path(settings.BASE_DIR) / "integrations" / "exporter" / "out" / "google_ads"
+            output_dir = Path(settings.REPORT_EXPORT_ARTIFACT_ROOT) / "google_ads"
             output_dir.mkdir(parents=True, exist_ok=True)
             file_name = f"google_ads_export_{job.id}.csv"
             artifact_path = output_dir / file_name
@@ -1851,7 +1857,13 @@ class GoogleAdsExportCreateView(APIView):
                     ],
                 )
                 writer.writeheader()
-                writer.writerows(rows)
+                writer.writerows(
+                    {
+                        field: _safe_export_csv_value(value)
+                        for field, value in row.items()
+                    }
+                    for row in rows
+                )
 
             metadata = {
                 "row_count": len(rows),
@@ -1869,7 +1881,7 @@ class GoogleAdsExportCreateView(APIView):
             job.save(update_fields=["status", "artifact_path", "completed_at", "metadata", "error_message", "updated_at"])
         except Exception as exc:  # pragma: no cover - defensive
             job.status = GoogleAdsExportJob.STATUS_FAILED
-            job.error_message = str(exc)
+            job.error_message = f"Export generation failed ({type(exc).__name__})."
             job.completed_at = timezone.now()
             job.save(update_fields=["status", "error_message", "completed_at", "updated_at"])
 
@@ -1907,10 +1919,12 @@ class GoogleAdsExportDownloadView(APIView):
         if not job.artifact_path.startswith("/google_ads/"):
             return Response({"detail": "Export artifact path is invalid."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        base_dir = Path(settings.BASE_DIR) / "integrations" / "exporter" / "out"
+        base_dir = Path(settings.REPORT_EXPORT_ARTIFACT_ROOT)
         artifact_path = (base_dir / job.artifact_path.lstrip("/")).resolve()
-        if not str(artifact_path).startswith(str(base_dir.resolve())) or not artifact_path.exists():
-            return Response({"detail": "Export artifact file was not found."}, status=status.HTTP_404_NOT_FOUND)
+        if not artifact_path.is_relative_to(base_dir.resolve()):
+            return Response({"detail": "Export artifact path is unsafe."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if not artifact_path.exists() or artifact_path.stat().st_size == 0:
+            return Response({"detail": "Export artifact file was not found or is empty."}, status=status.HTTP_404_NOT_FOUND)
 
         response = FileResponse(artifact_path.open("rb"), content_type="text/csv")
         response["Content-Disposition"] = f'attachment; filename="{artifact_path.name}"'

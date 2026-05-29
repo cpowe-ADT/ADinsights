@@ -2,6 +2,19 @@
 
 One-line, timestamped notes of agent-driven changes to help preserve context between sessions. Newest entries at the top.
 
+## 2026-05-28
+
+- 2026-05-28 feat(backend): add repeatable throttle evidence path — Wired `DRF_THROTTLE_PUBLIC` to public schema/version endpoints and extended `backend_release_smoke --check-rate-limits` to prove configured auth/public `429` behavior; backend/frontend/exporter/compose/Airbyte contract checks plus deterministic release and handoff preflights ran; remaining pilot work is blocked-external staging evidence/review. Pending commit.
+
+## 2026-05-27
+
+- 2026-05-27 fix(pilot-audit): harden usable-pilot implementation after executable review - Added CSV formula neutralization and path containment checks for generic/Google Ads exports, model-boundary notification secret encryption and legacy response redaction, summary retry deduplication, container-packaged native-Chromium export rendering with shared artifact storage, and cross-process Prometheus/queue-wait observability with single-count task outcomes; canonical suites and local launcher health pass, live UI/API CSV/PDF/PNG downloads and task metric deltas were proven, and strict-runtime queue samples now surface correctly. Cross-stream review and credentialed staging evidence remain pending. Pending commit.
+
+## 2026-05-26
+
+- 2026-05-26 feat(pilot): complete repository-side usable-pilot delivery — Implemented aggregate report artifacts and authenticated downloads, encrypted/redacted Slack and webhook channels, real scheduled summary email delivery, cross-platform exporter rendering, and aligned operational/contracts documentation; canonical backend/frontend checks, renderer verification, contracts, and deterministic release preflight passed, while Raj/Mira review and credentialed staging activation remain pending. Pending commit.
+- 2026-05-26 docs(project): start usable-pilot delivery — Published `docs/project/usable-pilot-delivery-spec.md` as the controlling implementation/activation checklist, reconciled stale feature/backlog status, and recorded required Raj/Mira cross-stream review. Implementation in progress.
+
 ## 2026-05-01
 
 - 2026-05-01T16:11:16-0500 feat(backend): deliver fired alert notifications — Added email/Slack/webhook delivery for assigned active `NotificationChannel` rows on fired tenant-defined alerts, isolated per-channel failures, documented config shapes, and verified focused notification tests plus backend lint. Pending commit.

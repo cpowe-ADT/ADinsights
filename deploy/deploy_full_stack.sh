@@ -15,10 +15,10 @@ echo "Building frontend image"
 docker build -t ghcr.io/adinsights/frontend:latest "$FRONTEND_DIR"
 
 echo "Building backend image"
-docker build -t ghcr.io/adinsights/backend:latest "$BACKEND_DIR"
+docker build -f "$BACKEND_DIR/Dockerfile" -t ghcr.io/adinsights/backend:latest "$ROOT_DIR"
 
 echo "Building scheduler image"
-docker build -f "$BACKEND_DIR/Dockerfile.scheduler" -t ghcr.io/adinsights/scheduler:latest "$BACKEND_DIR"
+docker build -f "$BACKEND_DIR/Dockerfile.scheduler" -t ghcr.io/adinsights/scheduler:latest "$ROOT_DIR"
 
 echo "Packaging Superset artifacts"
 tar -czf "$ROOT_DIR/dist-superset.tar.gz" -C "$BI_DIR" .

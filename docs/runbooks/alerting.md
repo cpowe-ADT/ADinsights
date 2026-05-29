@@ -25,13 +25,24 @@ This triggers the `run_alert_cycle` task and posts results to the configured cha
 
 Tenant-defined alert rules use `AlertRuleDefinition.notification_channels`. The delivery path skips inactive channels and isolates failures per channel so one broken destination does not prevent the alert run from completing.
 
-Supported `NotificationChannel.config` shapes:
+Supported channel inputs:
 
 - Email (`channel_type="email"`): `{"emails": ["ops@example.com", "analyst@example.com"]}` or `{"emails": "ops@example.com,analyst@example.com"}`. Optional: `from_email`.
-- Slack (`channel_type="slack"`): `{"url": "https://hooks.slack.com/services/..."}`. `webhook_url` is also accepted as an alias.
-- Webhook (`channel_type="webhook"`): `{"url": "https://example.com/alerts", "headers": {"X-Alert-Token": "redacted"}}`. `webhook_url` is also accepted as an alias.
+- Slack (`channel_type="slack"`): write-only `secret_config: {"url": "<Slack webhook URL>"}`.
+- Webhook (`channel_type="webhook"`): write-only
+  `secret_config: {"url": "<destination>", "headers": {"Authorization": "<token>"}}`.
+  `webhook_url` remains accepted as a URL alias.
 
-Webhook payloads include the alert run id, rule id/name, severity, metric threshold, status, row count, LLM summary, and sanitized result rows. Do not store secrets directly in runbooks or screenshots; use secret-management references for webhook URLs and tokens.
+For compatibility, a write request using the previous `config.url`, `config.webhook_url`, or
+`config.headers` shape is immediately extracted into encrypted storage. `GET` responses never
+return those values; they expose only `credentials_configured` and `masked_destination`. Clearing
+a Slack/webhook destination requires disabling its channel in the same update.
+The model save boundary applies the same extraction for backend/admin callers, and API
+serialization strips residual legacy destination/header/token keys defensively.
+
+Webhook payloads include the alert run id, rule id/name, severity, metric threshold, status, row
+count, LLM summary, and sanitized result rows. Destination secrets are decrypted only during
+dispatch via the tenant DEK/KMS path and must not appear in logs, runbooks, or screenshots.
 
 ## LLM Summaries
 
@@ -42,7 +53,8 @@ Webhook payloads include the alert run id, rule id/name, severity, metric thresh
 
 ## Integration Points
 
-- Slack webhook(s) managed in 1Password or the environment's secret manager.
+- Slack/webhook destination values are encrypted in `NotificationChannel` storage with tenant DEKs;
+  production KMS configuration remains operator-managed.
 - Email distribution lists maintained in Google Workspace.
 - DB credentials rotate via Vault every 90 days.
 

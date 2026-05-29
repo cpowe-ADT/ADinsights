@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Iterable, Optional
+from typing import Any, Iterable, Mapping, Optional
 
 from croniter import croniter
 from django.db import models
@@ -1566,6 +1567,21 @@ class AlertRuleDefinition(models.Model):
 
 
 class NotificationChannel(models.Model):
+    SECRET_CONFIG_KEYS = {
+        "url",
+        "webhook_url",
+        "headers",
+        "auth_headers",
+        "authorization",
+        "authorization_header",
+        "token",
+        "auth_token",
+        "bearer_token",
+        "api_key",
+        "secret",
+    }
+    SECRET_CHANNEL_TYPES = {"slack", "webhook"}
+
     CHANNEL_EMAIL = 'email'
     CHANNEL_WEBHOOK = 'webhook'
     CHANNEL_SLACK = 'slack'
@@ -1582,6 +1598,10 @@ class NotificationChannel(models.Model):
     name = models.CharField(max_length=200)
     channel_type = models.CharField(max_length=16, choices=CHANNEL_TYPE_CHOICES)
     config = models.JSONField(default=dict, blank=True)
+    secret_config_enc = models.BinaryField(null=True, blank=True)
+    secret_config_nonce = models.BinaryField(null=True, blank=True)
+    secret_config_tag = models.BinaryField(null=True, blank=True)
+    secret_dek_key_version = models.CharField(max_length=128, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1589,8 +1609,97 @@ class NotificationChannel(models.Model):
     objects = TenantAwareManager()
     all_objects = models.Manager()
 
+    _raw_secret_config: Optional[dict[str, Any]] = None
+    _secret_config_cleared: bool = False
+
     class Meta:
         ordering = ('name',)
+
+    def set_secret_config(self, value: Mapping[str, Any]) -> None:
+        secret_config = dict(value)
+        if not secret_config:
+            self.mark_secret_config_for_clear()
+            return
+        self._raw_secret_config = secret_config
+        self._secret_config_cleared = False
+
+    def mark_secret_config_for_clear(self) -> None:
+        self._raw_secret_config = None
+        self._secret_config_cleared = True
+
+    @property
+    def has_secret_config(self) -> bool:
+        return bool(self.secret_config_enc)
+
+    def decrypt_secret_config(self) -> dict[str, Any]:
+        if not self.secret_config_enc:
+            return {}
+        key, _ = get_dek_for_tenant(self.tenant)
+        value = decrypt_value(
+            self.secret_config_enc,
+            self.secret_config_nonce,
+            self.secret_config_tag,
+            key,
+        )
+        if not value:
+            return {}
+        decoded = json.loads(value)
+        return dict(decoded) if isinstance(decoded, dict) else {}
+
+    def save(self, *args, **kwargs):
+        if self.tenant_id is None:
+            raise ValueError("Tenant must be set before saving NotificationChannel")
+        secret_fields_changed = False
+        if self.channel_type in self.SECRET_CHANNEL_TYPES:
+            config = dict(self.config or {})
+            plaintext_secret = {
+                key: config.pop(key)
+                for key in self.SECRET_CONFIG_KEYS
+                if key in config
+            }
+            if plaintext_secret:
+                self.config = config
+                if not self._secret_config_cleared:
+                    merged_secret = (
+                        self.decrypt_secret_config()
+                        if self._raw_secret_config is None and self.has_secret_config
+                        else dict(self._raw_secret_config or {})
+                    )
+                    merged_secret.update(plaintext_secret)
+                    self.set_secret_config(merged_secret)
+                    secret_fields_changed = True
+        if self._raw_secret_config is not None:
+            key, version = get_dek_for_tenant(self.tenant)
+            encrypted = encrypt_value(
+                json.dumps(self._raw_secret_config, sort_keys=True),
+                key,
+            )
+            if encrypted:
+                self.secret_config_enc = encrypted.ciphertext
+                self.secret_config_nonce = encrypted.nonce
+                self.secret_config_tag = encrypted.tag
+            self.secret_dek_key_version = version
+            secret_fields_changed = True
+        elif self._secret_config_cleared:
+            self.secret_config_enc = None
+            self.secret_config_nonce = None
+            self.secret_config_tag = None
+            self.secret_dek_key_version = ""
+            secret_fields_changed = True
+        if secret_fields_changed and kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = list(
+                set(kwargs["update_fields"])
+                | {
+                    "config",
+                    "secret_config_enc",
+                    "secret_config_nonce",
+                    "secret_config_tag",
+                    "secret_dek_key_version",
+                }
+            )
+        super().save(*args, **kwargs)
+        self._raw_secret_config = None
+        self._secret_config_cleared = False
 
     def __str__(self):
         return f"NotificationChannel<{self.name}:{self.channel_type}>"

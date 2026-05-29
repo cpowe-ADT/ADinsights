@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import mimetypes
-from pathlib import Path
 from datetime import timedelta
 from typing import Any
 
@@ -302,9 +301,17 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
 
             run_report_export_job.delay(str(export_job.id))
         except Exception as exc:  # pragma: no cover - defensive fallback
-            logger.exception("Failed to enqueue report export", exc_info=exc)
+            logger.warning(
+                "analytics.report_export.enqueue_failed",
+                extra={
+                    "tenant_id": str(report.tenant_id),
+                    "report_export_job_id": str(export_job.id),
+                    "export_format": export_job.export_format,
+                    "error_type": type(exc).__name__,
+                },
+            )
             export_job.status = ReportExportJob.STATUS_FAILED
-            export_job.error_message = str(exc)
+            export_job.error_message = f"Export scheduling failed ({type(exc).__name__})."
             export_job.completed_at = timezone.now()
             export_job.save(update_fields=["status", "error_message", "completed_at", "updated_at"])
 
@@ -584,17 +591,19 @@ class ExportDownloadView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        base_dir = Path(__file__).resolve().parents[2] / "integrations" / "exporter" / "out"
+        from analytics.tasks import _exports_base_dir
+
+        base_dir = _exports_base_dir()
         artifact_rel = job.artifact_path.lstrip("/")
         artifact_path = (base_dir / artifact_rel).resolve()
-        if not str(artifact_path).startswith(str(base_dir.resolve())):
+        if not artifact_path.is_relative_to(base_dir.resolve()):
             return Response(
                 {"detail": "Export artifact path is unsafe."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        if not artifact_path.exists():
+        if not artifact_path.exists() or artifact_path.stat().st_size == 0:
             return Response(
-                {"detail": "Export artifact file was not found."},
+                {"detail": "Export artifact file was not found or is empty."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 

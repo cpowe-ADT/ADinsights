@@ -88,9 +88,16 @@ When local lockfiles diverge from what CI expects, npm or pip will fail with has
 ### Backend release smoke failures
 
 1. Download `backend-release-smoke.json` and inspect `missing_metrics`, `missing_metric_labels`, and `unknown_retry_share`.
-2. Reproduce locally with `python3 backend/manage.py backend_release_smoke --strict-observability`.
-3. If label checks fail, verify `celery_task_queue_starts_total` emits `queue_name=sync|snapshot|summary` samples in `/metrics/app/`.
-4. If unknown retry share fails, update retry reason taxonomy coverage for touched task paths and rerun backend tests.
+2. Reproduce deterministic local/pre-merge readiness with
+   `backend/.venv/bin/python backend/manage.py backend_release_preflight`; this command seeds the
+   expected observability samples before strict validation.
+3. Use `python3 backend/manage.py backend_release_smoke --strict-observability` only against a
+   live runtime after queue activity plus combined-metrics, Airbyte, dbt, and retry paths have
+   emitted real samples.
+4. If live label checks fail, verify `celery_task_queue_starts_total` emits
+   `queue_name=sync|snapshot|summary` samples in `/metrics/app/` and that the backend/task
+   containers share `PROMETHEUS_MULTIPROC_DIR`.
+5. If unknown retry share fails, update retry reason taxonomy coverage for touched task paths and rerun backend tests.
 
 ### dbt failures in staging builds
 

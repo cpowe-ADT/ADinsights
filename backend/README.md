@@ -104,23 +104,36 @@ Rate limiting is enforced for unauthenticated/auth flows:
 - `POST /api/tenants/`
 - `POST /api/users/accept-invite/`
 
-When thresholds are exceeded these endpoints return HTTP `429`.
+Public throttling is enforced for:
+
+- `GET /api/health/version/`
+- `GET /api/schema/`
+
+When thresholds are exceeded these endpoints return HTTP `429`. To smoke-test configured local or
+staging budgets, run:
+
+```bash
+backend/.venv/bin/python backend/manage.py backend_release_smoke --expect-metric python_info --check-rate-limits
+```
 
 ## Containers
 
 Dockerfiles are provided for parity with the deploy stack.
 
 ```bash
+# Run container builds from the repository root so the report exporter is packaged.
 # API
-docker build -t adinsights-backend .
+docker build -f backend/Dockerfile -t adinsights-backend .
 docker run --rm -p 8000:8000 --env-file .env adinsights-backend
 
 # Celery beat scheduler
-docker build -t adinsights-backend-scheduler -f Dockerfile.scheduler .
+docker build -t adinsights-backend-scheduler -f backend/Dockerfile.scheduler .
 docker run --rm --env-file .env adinsights-backend-scheduler
 ```
 
 Ensure Redis and PostgreSQL are reachable from the container environment before launching workers.
+The API and summary-worker containers must share `REPORT_EXPORT_ARTIFACT_ROOT` so completed
+report-export downloads resolve the same generated files.
 
 ## Celery
 

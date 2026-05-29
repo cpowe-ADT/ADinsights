@@ -87,21 +87,21 @@ class AlertNotificationDispatcher:
                 self._deliver(channel, definition, run)
             except Exception as exc:  # pragma: no cover - defensive, per-channel isolation
                 logger.warning(
-                    "Alert notification delivery failed",
+                    "alert.notification.delivery_failed",
                     extra={
                         "tenant_id": str(definition.tenant_id),
                         "alert_rule_definition_id": str(definition.id),
                         "notification_channel_id": str(channel.id),
                         "notification_channel_type": channel.channel_type,
+                        "error_type": type(exc).__name__,
                     },
-                    exc_info=True,
                 )
                 results.append(
                     DeliveryResult(
                         channel_id=str(channel.id),
                         channel_type=channel.channel_type,
                         delivered=False,
-                        error=str(exc),
+                        error=f"Delivery failed ({type(exc).__name__}).",
                     )
                 )
             else:
@@ -120,7 +120,12 @@ class AlertNotificationDispatcher:
         definition: AlertRuleDefinition,
         run: AlertRun,
     ) -> None:
-        config = channel.config or {}
+        config = dict(channel.config or {})
+        if channel.channel_type in {
+            NotificationChannel.CHANNEL_SLACK,
+            NotificationChannel.CHANNEL_WEBHOOK,
+        }:
+            config.update(channel.decrypt_secret_config())
         if channel.channel_type == NotificationChannel.CHANNEL_EMAIL:
             self._deliver_email(config, definition, run)
             return
@@ -161,7 +166,7 @@ class AlertNotificationDispatcher:
     ) -> None:
         url = _channel_url(config)
         if not url:
-            raise ValueError("Slack notification channel requires config.url")
+            raise ValueError("Slack notification channel requires a configured destination")
         response = self._http.post(url, json={"text": _alert_text(definition, run)}, timeout=10.0)
         response.raise_for_status()
 
@@ -173,7 +178,7 @@ class AlertNotificationDispatcher:
     ) -> None:
         url = _channel_url(config)
         if not url:
-            raise ValueError("Webhook notification channel requires config.url")
+            raise ValueError("Webhook notification channel requires a configured destination")
         headers = config.get("headers") if isinstance(config.get("headers"), Mapping) else None
         response = self._http.post(
             url,

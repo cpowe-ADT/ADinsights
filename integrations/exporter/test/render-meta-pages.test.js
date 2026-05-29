@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const { renderReport } = require('../lib/renderReport');
+const { getLaunchOptions } = require('../lib/browser');
 
 test('renderReport(meta_pages_v1) renders KPI cards and top posts', async () => {
   const html = await renderReport({
@@ -41,3 +42,20 @@ test('renderReport(meta_pages_v1) renders KPI cards and top posts', async () => 
   assert.ok(html.includes('Hello &lt;world&gt;'));
 });
 
+test('getLaunchOptions uses configured native Chromium for container rendering', async (t) => {
+  const originalPath = process.env.CHROMIUM_EXECUTABLE_PATH;
+  process.env.CHROMIUM_EXECUTABLE_PATH = '/usr/bin/chromium';
+  t.after(() => {
+    if (originalPath === undefined) {
+      delete process.env.CHROMIUM_EXECUTABLE_PATH;
+    } else {
+      process.env.CHROMIUM_EXECUTABLE_PATH = originalPath;
+    }
+  });
+
+  assert.deepEqual(await getLaunchOptions(), {
+    args: ['--no-sandbox', '--disable-dev-shm-usage'],
+    executablePath: '/usr/bin/chromium',
+    headless: true,
+  });
+});

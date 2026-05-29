@@ -13,6 +13,45 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-05-28**
+  - Endpoint: `GET /api/health/version/`, `GET /api/schema/`
+  - Change: Wired the configured public DRF throttle to lightweight version and public schema endpoints, and added `backend_release_smoke --check-rate-limits` to prove configured auth/public `429` behavior.
+  - Impact: Public callers may receive `429` on these endpoints when `DRF_THROTTLE_PUBLIC` is exceeded; release evidence now has a repeatable local/staging command.
+  - Owner: Sofia (Backend Metrics) + Nina (Security)
+
+- **2026-05-27**
+  - Endpoints: `GET /api/exports/{job_id}/download/`,
+    `GET /api/analytics/google-ads/exports/{job_id}/download/`,
+    `POST/GET/PATCH /api/notification-channels/`
+  - Change: Post-implementation audit hardening now rejects report artifact paths that resolve
+    outside the configured export tree, rejects empty generic artifacts, neutralizes
+    formula-leading text values in generated generic and Google Ads CSV downloads, and sanitizes
+    export scheduling failures. Notification-channel model saves now extract Slack/webhook
+    secret keys into encrypted storage even when serializer validation is bypassed; serialization
+    strips any residual secret keys from legacy ordinary configuration.
+  - Impact: Existing valid download and notification-channel requests remain compatible. Unsafe
+    stored paths return an error rather than serving files, and spreadsheet consumers see
+    formula-leading data as safe literal text. Scheduled daily-summary delivery also suppresses
+    duplicate sends for a previously delivered snapshot without adding a public API contract.
+  - Owner: Sofia (Backend Metrics) + Nina (Security) + Lina (Frontend) + Raj/Mira review
+
+- **2026-05-26**
+  - Endpoints: `POST/GET/PATCH /api/notification-channels/`, `POST /api/reports/{id}/exports/`,
+    `GET /api/exports/{job_id}/download/`
+  - Change: Slack/webhook notification destinations are accepted through write-only
+    `secret_config` input, encrypted with the tenant DEK/KMS pattern, and no longer returned
+    inside `config`; responses add safe `credentials_configured` and `masked_destination`
+    fields. Legacy request bodies containing `config.url`, `config.webhook_url`, or
+    `config.headers` remain accepted but those keys are removed from response/storage plaintext.
+    Generic report export jobs now write and verify tenant-scoped aggregate CSV/PDF/PNG artifacts
+    before returning `completed`, with sanitized failures otherwise. Completed export artifacts
+    are downloadable from the existing endpoint.
+  - Impact: Frontend/clients should submit Slack/webhook secrets through `secret_config` and use
+    safe status fields when rendering a channel. Clients may rely on completed generic export
+    jobs being backed by a non-empty downloadable artifact. Existing email-channel `config.emails`
+    behavior remains compatible.
+  - Owner: Sofia (Backend Metrics) + Nina (Security) + Lina (Frontend) + Raj/Mira review
+
 - **2026-05-01**
   - Endpoint: `GET /api/alerts/runs/`
   - Change: Alert run metadata now resolves `tenant_alert:<uuid>` slugs generated from DB-backed `AlertRuleDefinition` rows. Responses remain additive/shape-compatible: existing fields are unchanged, while `rule_name`, `rule_description`, and `severity` are populated for DB-defined alert runs instead of returning `null`.

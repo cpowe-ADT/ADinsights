@@ -7,6 +7,7 @@ import NotificationChannelsPage from '../NotificationChannelsPage';
 
 const phase2ApiMock = vi.hoisted(() => ({
   listNotificationChannels: vi.fn(),
+  createNotificationChannel: vi.fn(),
   deleteNotificationChannel: vi.fn(),
 }));
 
@@ -14,9 +15,10 @@ vi.mock('../../lib/phase2Api', () => phase2ApiMock);
 
 describe('NotificationChannelsPage', () => {
   beforeEach(() => {
-    phase2ApiMock.listNotificationChannels.mockResolvedValue([]);
-    phase2ApiMock.deleteNotificationChannel.mockResolvedValue(undefined);
     vi.restoreAllMocks();
+    phase2ApiMock.listNotificationChannels.mockResolvedValue([]);
+    phase2ApiMock.createNotificationChannel.mockResolvedValue(undefined);
+    phase2ApiMock.deleteNotificationChannel.mockResolvedValue(undefined);
   });
 
   it('renders channel list with name and type', async () => {
@@ -26,6 +28,8 @@ describe('NotificationChannelsPage', () => {
         name: 'Slack #alerts',
         channel_type: 'slack',
         config: {},
+        credentials_configured: true,
+        masked_destination: 'Webhook configured',
         is_active: true,
         created_at: '2026-04-01T00:00:00Z',
         updated_at: '2026-04-01T00:00:00Z',
@@ -35,6 +39,8 @@ describe('NotificationChannelsPage', () => {
         name: 'Team Email',
         channel_type: 'email',
         config: {},
+        credentials_configured: false,
+        masked_destination: 'Not configured',
         is_active: false,
         created_at: '2026-04-01T00:00:00Z',
         updated_at: '2026-04-01T00:00:00Z',
@@ -51,6 +57,7 @@ describe('NotificationChannelsPage', () => {
     expect(screen.getByText('Team Email')).toBeInTheDocument();
     expect(screen.getByText('slack')).toBeInTheDocument();
     expect(screen.getByText('email')).toBeInTheDocument();
+    expect(screen.getByText('Webhook configured')).toBeInTheDocument();
   });
 
   it('shows the create form', async () => {
@@ -105,6 +112,8 @@ describe('NotificationChannelsPage', () => {
         name: 'Slack #alerts',
         channel_type: 'slack',
         config: {},
+        credentials_configured: true,
+        masked_destination: 'Webhook configured',
         is_active: true,
         created_at: '2026-04-01T00:00:00Z',
         updated_at: '2026-04-01T00:00:00Z',
@@ -135,6 +144,8 @@ describe('NotificationChannelsPage', () => {
         name: 'Slack #alerts',
         channel_type: 'slack',
         config: {},
+        credentials_configured: true,
+        masked_destination: 'Webhook configured',
         is_active: true,
         created_at: '2026-04-01T00:00:00Z',
         updated_at: '2026-04-01T00:00:00Z',
@@ -153,6 +164,32 @@ describe('NotificationChannelsPage', () => {
 
     await waitFor(() =>
       expect(phase2ApiMock.deleteNotificationChannel).toHaveBeenCalledWith('ch-1'),
+    );
+  });
+
+  it('submits webhook destinations as write-only secret config', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter>
+        <NotificationChannelsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /create channel/i })).toBeInTheDocument(),
+    );
+    await user.type(screen.getByLabelText('Name'), 'Ops Webhook');
+    await user.selectOptions(screen.getByLabelText('Type'), 'webhook');
+    await user.type(screen.getByLabelText('URL'), 'https://alerts.example.test/hook');
+    await user.click(screen.getByRole('button', { name: /create channel/i }));
+
+    await waitFor(() =>
+      expect(phase2ApiMock.createNotificationChannel).toHaveBeenCalledWith({
+        name: 'Ops Webhook',
+        channel_type: 'webhook',
+        secret_config: { url: 'https://alerts.example.test/hook' },
+      }),
     );
   });
 });

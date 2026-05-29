@@ -32,6 +32,19 @@ def _make_run(rule):
     )
 
 
+def _make_secret_channel(tenant, *, name, channel_type, secret_config, is_active=True):
+    channel = NotificationChannel(
+        tenant=tenant,
+        name=name,
+        channel_type=channel_type,
+        config={},
+        is_active=is_active,
+    )
+    channel.set_secret_config(secret_config)
+    channel.save()
+    return channel
+
+
 class FakeResponse:
     def __init__(self, status_code=200):
         self.status_code = status_code
@@ -88,17 +101,17 @@ def test_alert_notification_dispatcher_sends_email(tenant):
 def test_alert_notification_dispatcher_posts_slack_and_webhook(tenant):
     rule = _make_rule(tenant)
     run = _make_run(rule)
-    slack_channel = NotificationChannel.objects.create(
-        tenant=tenant,
+    slack_channel = _make_secret_channel(
+        tenant,
         name="Slack",
         channel_type=NotificationChannel.CHANNEL_SLACK,
-        config={"url": "https://hooks.slack.test/services/abc"},
+        secret_config={"url": "https://hooks.slack.test/services/abc"},
     )
-    webhook_channel = NotificationChannel.objects.create(
-        tenant=tenant,
+    webhook_channel = _make_secret_channel(
+        tenant,
         name="Webhook",
         channel_type=NotificationChannel.CHANNEL_WEBHOOK,
-        config={
+        secret_config={
             "url": "https://alerts.example.com/hook",
             "headers": {"X-Alert-Token": "redacted"},
         },
@@ -124,11 +137,11 @@ def test_alert_notification_dispatcher_posts_slack_and_webhook(tenant):
 def test_alert_notification_dispatcher_skips_inactive_channels(tenant):
     rule = _make_rule(tenant)
     run = _make_run(rule)
-    channel = NotificationChannel.objects.create(
-        tenant=tenant,
+    channel = _make_secret_channel(
+        tenant,
         name="Inactive Slack",
         channel_type=NotificationChannel.CHANNEL_SLACK,
-        config={"url": "https://hooks.slack.test/services/abc"},
+        secret_config={"url": "https://hooks.slack.test/services/abc"},
         is_active=False,
     )
     rule.notification_channels.add(channel)
@@ -158,4 +171,25 @@ def test_alert_notification_dispatcher_records_channel_failure(tenant):
 
     assert len(results) == 1
     assert results[0].delivered is False
-    assert "requires config.url" in results[0].error
+    assert results[0].error == "Delivery failed (ValueError)."
+
+
+@pytest.mark.django_db
+def test_alert_notification_failure_does_not_return_secret_destination(tenant):
+    rule = _make_rule(tenant)
+    run = _make_run(rule)
+    secret_url = "https://alerts.example.com/hook/secret-token"
+    channel = _make_secret_channel(
+        tenant,
+        name="Rejected Webhook",
+        channel_type=NotificationChannel.CHANNEL_WEBHOOK,
+        secret_config={"url": secret_url},
+    )
+    rule.notification_channels.add(channel)
+    dispatcher = AlertNotificationDispatcher(http_client=FakeHttpClient(status_code=500))
+
+    results = dispatcher.notify(rule, run)
+
+    assert results[0].delivered is False
+    assert secret_url not in results[0].error
+    assert results[0].error == "Delivery failed (HTTPStatusError)."

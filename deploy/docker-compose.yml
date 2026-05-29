@@ -14,8 +14,8 @@ services:
 
   backend:
     build:
-      context: ../backend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: backend/Dockerfile
     image: ghcr.io/adinsights/backend:latest
     environment:
       DJANGO_SECRET_KEY: changeme
@@ -27,8 +27,12 @@ services:
       KMS_KEY_ID: local-dev-kms
       TIME_ZONE: America/Jamaica
       DEBUG: '1'
+      PROMETHEUS_MULTIPROC_DIR: /var/lib/adinsights/prometheus-multiprocess
     ports:
       - '8000:8000'
+    volumes:
+      - report-export-artifacts:/var/lib/adinsights/report-exports
+      - prometheus-multiprocess:/var/lib/adinsights/prometheus-multiprocess
     depends_on:
       db:
         condition: service_healthy
@@ -39,8 +43,8 @@ services:
 
   scheduler:
     build:
-      context: ../backend
-      dockerfile: Dockerfile.scheduler
+      context: ..
+      dockerfile: backend/Dockerfile.scheduler
     image: ghcr.io/adinsights/scheduler:latest
     environment:
       DJANGO_SECRET_KEY: changeme
@@ -52,6 +56,9 @@ services:
       KMS_KEY_ID: local-dev-kms
       TIME_ZONE: America/Jamaica
       DEBUG: '1'
+      PROMETHEUS_MULTIPROC_DIR: /var/lib/adinsights/prometheus-multiprocess
+    volumes:
+      - prometheus-multiprocess:/var/lib/adinsights/prometheus-multiprocess
     depends_on:
       db:
         condition: service_healthy
@@ -129,3 +136,5 @@ services:
 
 volumes:
   postgres-data:
+  report-export-artifacts:
+  prometheus-multiprocess:

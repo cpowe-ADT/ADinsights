@@ -44,6 +44,8 @@ env = environ.Env(
     EMAIL_FROM_ADDRESS=(str, "no-reply@adinsights.local"),
     SES_CONFIGURATION_SET=(str, ""),
     SES_EXPECTED_FROM_DOMAIN=(str, ""),
+    REPORT_EXPORTER_DIR=(str, str(BASE_DIR.parent / "integrations" / "exporter")),
+    REPORT_EXPORT_ARTIFACT_ROOT=(str, ""),
     FRONTEND_BASE_URL=(str, "http://localhost:5173"),
     META_APP_ID=(str, ""),
     META_APP_SECRET=(str, ""),
@@ -201,6 +203,18 @@ ENABLE_UPLOAD_ADAPTER = env.bool("ENABLE_UPLOAD_ADAPTER", default=True)
 ENABLE_DEMO_GENERATION = env.bool("ENABLE_DEMO_GENERATION", default=True)
 DEMO_SEED_DIR = _optional(env("DEMO_SEED_DIR", default=""))
 CREDENTIAL_ROTATION_REMINDER_DAYS = env.int("CREDENTIAL_ROTATION_REMINDER_DAYS")
+_report_exporter_dir = env("REPORT_EXPORTER_DIR").strip()
+REPORT_EXPORTER_DIR = (
+    Path(_report_exporter_dir)
+    if _report_exporter_dir
+    else BASE_DIR.parent / "integrations" / "exporter"
+)
+_report_export_artifact_root = env("REPORT_EXPORT_ARTIFACT_ROOT").strip()
+REPORT_EXPORT_ARTIFACT_ROOT = (
+    Path(_report_export_artifact_root)
+    if _report_export_artifact_root
+    else REPORT_EXPORTER_DIR / "out"
+)
 
 INSTALLED_APPS = [
     "django.contrib.admin",

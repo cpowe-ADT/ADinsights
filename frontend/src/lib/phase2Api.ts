@@ -331,6 +331,10 @@ export async function createReportExport(
   });
 }
 
+export async function downloadReportExport(exportJobId: string) {
+  return apiClient.download(`/exports/${exportJobId}/download/`);
+}
+
 export async function listAlerts(signal?: AbortSignal): Promise<AlertRule[]> {
   const data = await apiClient.get<AlertRule[] | { results: AlertRule[] }>('/alerts/', { signal });
   return Array.isArray(data) ? data : data.results;
@@ -385,6 +389,8 @@ export type NotificationChannel = {
   name: string;
   channel_type: 'email' | 'webhook' | 'slack';
   config: Record<string, unknown>;
+  credentials_configured: boolean;
+  masked_destination: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -396,7 +402,11 @@ export async function listNotificationChannels(signal?: AbortSignal): Promise<No
 }
 
 export async function createNotificationChannel(
-  payload: Pick<NotificationChannel, 'name' | 'channel_type' | 'config'> & { is_active?: boolean },
+  payload: Pick<NotificationChannel, 'name' | 'channel_type'> & {
+    config?: Record<string, unknown>;
+    secret_config?: Record<string, unknown>;
+    is_active?: boolean;
+  },
 ): Promise<NotificationChannel> {
   return apiClient.post<NotificationChannel>('/notification-channels/', payload);
 }

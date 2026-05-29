@@ -438,10 +438,141 @@ class AlertRuleDefinitionSerializer(serializers.ModelSerializer):
 
 
 class NotificationChannelSerializer(serializers.ModelSerializer):
+    secret_config = serializers.DictField(write_only=True, required=False)
+    clear_secret_config = serializers.BooleanField(write_only=True, required=False, default=False)
+    credentials_configured = serializers.SerializerMethodField()
+    masked_destination = serializers.SerializerMethodField()
+
+    SECRET_KEYS = {
+        "url",
+        "webhook_url",
+        "headers",
+        "auth_headers",
+        "authorization",
+        "authorization_header",
+        "token",
+        "auth_token",
+        "bearer_token",
+        "api_key",
+        "secret",
+    }
+    SECRET_CHANNELS = {
+        NotificationChannel.CHANNEL_SLACK,
+        NotificationChannel.CHANNEL_WEBHOOK,
+    }
+
     class Meta:
         model = NotificationChannel
-        fields = ['id', 'name', 'channel_type', 'config', 'is_active', 'created_at', 'updated_at']
+        fields = [
+            'id',
+            'name',
+            'channel_type',
+            'config',
+            'secret_config',
+            'clear_secret_config',
+            'credentials_configured',
+            'masked_destination',
+            'is_active',
+            'created_at',
+            'updated_at',
+        ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        channel_type = attrs.get(
+            'channel_type',
+            getattr(self.instance, 'channel_type', None),
+        )
+        secret_config = dict(attrs.get('secret_config') or {})
+        config = attrs.get('config')
+        if config is not None:
+            safe_config = dict(config)
+            for key in self.SECRET_KEYS:
+                if key in safe_config:
+                    secret_config[key] = safe_config.pop(key)
+            attrs['config'] = safe_config
+        if secret_config:
+            attrs['secret_config'] = secret_config
+
+        if channel_type in self.SECRET_CHANNELS:
+            clear_requested = bool(attrs.get('clear_secret_config'))
+            resulting_active = attrs.get(
+                'is_active',
+                getattr(self.instance, 'is_active', True),
+            )
+            if secret_config and not str(
+                secret_config.get('url') or secret_config.get('webhook_url') or ''
+            ).strip():
+                raise serializers.ValidationError(
+                    {'secret_config': 'Slack/webhook configuration requires a URL.'}
+                )
+            existing_secret = bool(self.instance and self.instance.has_secret_config)
+            if self.instance is None and not secret_config:
+                raise serializers.ValidationError(
+                    {'secret_config': 'Slack/webhook configuration requires a URL.'}
+                )
+            if clear_requested and resulting_active:
+                raise serializers.ValidationError(
+                    {'clear_secret_config': 'Disable the channel when clearing its destination.'}
+                )
+            if not secret_config and not existing_secret and not clear_requested:
+                raise serializers.ValidationError(
+                    {'secret_config': 'Slack/webhook configuration requires a URL.'}
+                )
+        elif secret_config:
+            raise serializers.ValidationError(
+                {'secret_config': 'Secret destination configuration is only valid for Slack or webhook channels.'}
+            )
+        return attrs
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if instance.channel_type in self.SECRET_CHANNELS:
+            config = dict(representation.get('config') or {})
+            for key in self.SECRET_KEYS:
+                config.pop(key, None)
+            representation['config'] = config
+        return representation
+
+    def create(self, validated_data):
+        secret_config = validated_data.pop('secret_config', None)
+        validated_data.pop('clear_secret_config', None)
+        instance = NotificationChannel(**validated_data)
+        if secret_config:
+            instance.set_secret_config(secret_config)
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        secret_config = validated_data.pop('secret_config', serializers.empty)
+        clear_secret_config = validated_data.pop('clear_secret_config', False)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if clear_secret_config or instance.channel_type == NotificationChannel.CHANNEL_EMAIL:
+            instance.mark_secret_config_for_clear()
+        elif secret_config is not serializers.empty:
+            instance.set_secret_config(secret_config)
+        instance.save()
+        return instance
+
+    def get_credentials_configured(self, instance):
+        if instance.channel_type == NotificationChannel.CHANNEL_EMAIL:
+            config = instance.config or {}
+            return bool(config.get('emails') or config.get('to'))
+        return instance.has_secret_config
+
+    def get_masked_destination(self, instance):
+        if instance.channel_type == NotificationChannel.CHANNEL_EMAIL:
+            config = instance.config or {}
+            value = config.get('emails') or config.get('to')
+            if isinstance(value, str):
+                count = len([entry for entry in value.split(',') if entry.strip()])
+            elif isinstance(value, list):
+                count = len([entry for entry in value if str(entry).strip()])
+            else:
+                count = 0
+            return f'{count} email recipient(s)' if count else 'Not configured'
+        return 'Webhook configured' if instance.has_secret_config else 'Not configured'
 
 
 class SocialPlatformStatusSerializer(serializers.Serializer):

@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework.permissions import AllowAny
-from rest_framework.schemas import get_schema_view
+from rest_framework.schemas.openapi import SchemaGenerator
+from rest_framework.schemas.views import SchemaView
 
 from alerts.views import AlertRunViewSet
 from analytics.phase2_views import (
@@ -130,7 +131,13 @@ from integrations.clients.views import (
 )
 from . import views as core_views
 from .routers import ADinsightsDefaultRouter
+from .throttling import PublicEndpointRateThrottle
 from .viewsets import AirbyteTelemetryViewSet
+
+
+class PublicSchemaView(SchemaView):
+    permission_classes = [AllowAny]
+    throttle_classes = [PublicEndpointRateThrottle]
 
 router = ADinsightsDefaultRouter()
 router.register(
@@ -207,12 +214,13 @@ urlpatterns = [
     path("api/timezone/", core_views.timezone_view, name="timezone"),
     path(
         "api/schema/",
-        get_schema_view(
-            title="ADinsights API",
-            description="OpenAPI schema for the ADinsights backend",
-            version="1.0.0",
+        PublicSchemaView.as_view(
+            schema_generator=SchemaGenerator(
+                title="ADinsights API",
+                description="OpenAPI schema for the ADinsights backend",
+                version="1.0.0",
+            ),
             public=True,
-            permission_classes=[AllowAny],
         ),
         name="api-schema",
     ),

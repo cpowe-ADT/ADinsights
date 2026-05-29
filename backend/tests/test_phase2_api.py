@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import csv
 from datetime import timedelta
+from pathlib import Path
 from uuid import uuid4
 
+import pytest
 from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import AuditLog, Role, Tenant, User, assign_role, seed_default_roles
-from analytics.models import AISummary, DashboardDefinition, ReportDefinition
+from analytics.models import AISummary, DashboardDefinition, ReportDefinition, ReportExportJob
+from analytics.tasks import run_report_export_job
 from integrations.models import AirbyteConnection, AlertRuleDefinition
 
 
@@ -80,6 +84,226 @@ def test_reports_crud_and_export_request(api_client, user, tenant):
         action="report_export_requested",
         resource_type="report_export_job",
     ).exists()
+
+
+def test_generic_report_csv_export_creates_downloadable_artifact(tenant, tmp_path, monkeypatch):
+    report = ReportDefinition.objects.create(
+        tenant=tenant,
+        name="Pilot report",
+        filters={"range": "last_7_days", "platforms": ["meta"]},
+    )
+    job = ReportExportJob.objects.create(
+        tenant=tenant,
+        report=report,
+        export_format=ReportExportJob.FORMAT_CSV,
+    )
+    generated_at = timezone.now()
+    monkeypatch.setattr("analytics.tasks._exports_base_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        "analytics.tasks._snapshot_payload_for_tenant",
+        lambda tenant_id: (
+            {
+                "campaign": {
+                    "summary": {"currency": "JMD", "totalSpend": 120},
+                    "rows": [
+                        {
+                            "platform": "Meta",
+                            "name": "=Pilot campaign",
+                            "impressions": 500,
+                            "clicks": 20,
+                            "ctr": 4,
+                            "spend": 120,
+                            "conversions": 2,
+                            "cpa": 60,
+                        },
+                        {
+                            "platform": "Google Ads",
+                            "name": "Filtered campaign",
+                            "impressions": 500,
+                            "clicks": 20,
+                            "spend": 120,
+                        },
+                    ],
+                }
+            },
+            generated_at,
+            "fetched",
+        ),
+    )
+
+    result = run_report_export_job.run(str(job.id))
+
+    job.refresh_from_db()
+    artifact = tmp_path / job.artifact_path.lstrip("/")
+    assert result["status"] == ReportExportJob.STATUS_COMPLETED
+    assert job.status == ReportExportJob.STATUS_COMPLETED
+    assert artifact.exists()
+    rows = list(csv.DictReader(artifact.read_text(encoding="utf-8").splitlines()))
+    assert rows[0]["campaign"] == "'=Pilot campaign"
+    assert all(row["campaign"] != "Filtered campaign" for row in rows)
+    assert job.metadata["row_count"] == 1
+    assert job.metadata["source"] == "aggregate_snapshot"
+    assert job.metadata["selected_platforms"] == ["meta"]
+
+
+@pytest.mark.parametrize("export_format", [ReportExportJob.FORMAT_PDF, ReportExportJob.FORMAT_PNG])
+def test_generic_visual_report_exports_verify_renderer_artifacts(
+    tenant, tmp_path, monkeypatch, export_format
+):
+    report = ReportDefinition.objects.create(tenant=tenant, name="Visual report")
+    job = ReportExportJob.objects.create(
+        tenant=tenant,
+        report=report,
+        export_format=export_format,
+    )
+    monkeypatch.setattr("analytics.tasks._exports_base_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        "analytics.tasks._snapshot_payload_for_tenant",
+        lambda tenant_id: (
+            {"campaign": {"summary": {"currency": "USD"}, "rows": []}},
+            timezone.now(),
+            "default",
+        ),
+    )
+
+    def fake_render(command, **_kwargs):
+        pdf_path = command[command.index("--out") + 1]
+        png_path = command[command.index("--png") + 1]
+        Path(pdf_path).write_bytes(b"pdf artifact")
+        Path(png_path).write_bytes(b"png artifact")
+
+    monkeypatch.setattr("analytics.tasks.subprocess.run", fake_render)
+
+    result = run_report_export_job.run(str(job.id))
+
+    job.refresh_from_db()
+    assert result["status"] == ReportExportJob.STATUS_COMPLETED
+    assert (tmp_path / job.artifact_path.lstrip("/")).stat().st_size > 0
+
+
+def test_generic_report_export_fails_without_renderer_artifact(tenant, tmp_path, monkeypatch):
+    report = ReportDefinition.objects.create(tenant=tenant, name="Missing artifact report")
+    job = ReportExportJob.objects.create(
+        tenant=tenant,
+        report=report,
+        export_format=ReportExportJob.FORMAT_PDF,
+    )
+    monkeypatch.setattr("analytics.tasks._exports_base_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        "analytics.tasks._snapshot_payload_for_tenant",
+        lambda tenant_id: (
+            {"campaign": {"summary": {}, "rows": []}},
+            timezone.now(),
+            "default",
+        ),
+    )
+    monkeypatch.setattr("analytics.tasks.subprocess.run", lambda *args, **kwargs: None)
+
+    result = run_report_export_job.run(str(job.id))
+
+    job.refresh_from_db()
+    assert result["status"] == ReportExportJob.STATUS_FAILED
+    assert job.status == ReportExportJob.STATUS_FAILED
+    assert job.artifact_path == ""
+    assert job.error_message == "Export generation failed (FileNotFoundError)."
+
+
+def test_generic_report_export_enqueue_failure_is_sanitized(api_client, user, tenant, monkeypatch):
+    authenticate(api_client, user)
+    report = ReportDefinition.objects.create(tenant=tenant, name="Queue failure report")
+
+    def fail_enqueue(_job_id):
+        raise RuntimeError("redis://user:secret-value@queue.invalid")
+
+    monkeypatch.setattr("analytics.tasks.run_report_export_job.delay", fail_enqueue)
+
+    response = api_client.post(
+        reverse("report-definition-exports", args=[report.id]),
+        {"export_format": "csv"},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["status"] == ReportExportJob.STATUS_FAILED
+    assert response.json()["error_message"] == "Export scheduling failed (RuntimeError)."
+    assert "secret-value" not in str(response.json())
+
+
+def test_generic_report_download_returns_non_empty_artifact(
+    api_client, user, tenant, tmp_path, monkeypatch
+):
+    authenticate(api_client, user)
+    report = ReportDefinition.objects.create(tenant=tenant, name="Download report")
+    job = ReportExportJob.objects.create(
+        tenant=tenant,
+        report=report,
+        export_format=ReportExportJob.FORMAT_CSV,
+        status=ReportExportJob.STATUS_COMPLETED,
+        artifact_path=f"/exports/{tenant.id}/{report.id}/download.csv",
+    )
+    artifact = tmp_path / job.artifact_path.lstrip("/")
+    artifact.parent.mkdir(parents=True)
+    artifact.write_bytes(b"campaign,spend\r\nPilot,12\r\n")
+    monkeypatch.setattr("analytics.tasks._exports_base_dir", lambda: tmp_path)
+
+    response = api_client.get(reverse("report-export-download", args=[job.id]))
+
+    assert response.status_code == 200
+    assert b"".join(response.streaming_content) == b"campaign,spend\r\nPilot,12\r\n"
+    assert "download.csv" in response["Content-Disposition"]
+
+
+def test_generic_report_download_rejects_empty_or_cross_tenant_artifact(
+    api_client, user, tenant, tmp_path, monkeypatch
+):
+    authenticate(api_client, user)
+    report = ReportDefinition.objects.create(tenant=tenant, name="Empty report")
+    empty_job = ReportExportJob.objects.create(
+        tenant=tenant,
+        report=report,
+        export_format=ReportExportJob.FORMAT_CSV,
+        status=ReportExportJob.STATUS_COMPLETED,
+        artifact_path=f"/exports/{tenant.id}/{report.id}/empty.csv",
+    )
+    artifact = tmp_path / empty_job.artifact_path.lstrip("/")
+    artifact.parent.mkdir(parents=True)
+    artifact.write_bytes(b"")
+    monkeypatch.setattr("analytics.tasks._exports_base_dir", lambda: tmp_path)
+
+    empty_response = api_client.get(reverse("report-export-download", args=[empty_job.id]))
+    assert empty_response.status_code == 404
+
+    other_tenant = Tenant.objects.create(name="Other Export Tenant")
+    other_report = ReportDefinition.objects.create(tenant=other_tenant, name="Other report")
+    other_job = ReportExportJob.objects.create(
+        tenant=other_tenant,
+        report=other_report,
+        export_format=ReportExportJob.FORMAT_CSV,
+        status=ReportExportJob.STATUS_COMPLETED,
+        artifact_path=f"/exports/{other_tenant.id}/{other_report.id}/other.csv",
+    )
+    tenant_response = api_client.get(reverse("report-export-download", args=[other_job.id]))
+    assert tenant_response.status_code == 404
+
+
+def test_generic_report_download_rejects_prefix_sibling_path_traversal(
+    api_client, user, tenant, tmp_path, monkeypatch
+):
+    authenticate(api_client, user)
+    report = ReportDefinition.objects.create(tenant=tenant, name="Unsafe report")
+    job = ReportExportJob.objects.create(
+        tenant=tenant,
+        report=report,
+        export_format=ReportExportJob.FORMAT_CSV,
+        status=ReportExportJob.STATUS_COMPLETED,
+        artifact_path=f"/exports/../../{tmp_path.name}-escaped.csv",
+    )
+    monkeypatch.setattr("analytics.tasks._exports_base_dir", lambda: tmp_path)
+
+    response = api_client.get(reverse("report-export-download", args=[job.id]))
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Export artifact path is unsafe."
 
 
 def test_alerts_endpoint_is_tenant_scoped(api_client, user, tenant):

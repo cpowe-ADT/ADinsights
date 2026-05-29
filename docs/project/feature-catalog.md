@@ -16,6 +16,7 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Core health endpoints: `/api/health/`, `/api/health/airbyte/`, `/api/health/dbt/`, `/api/timezone/`.
 - Celery task wiring with observability hooks and test coverage.
 - AES-GCM secrets encryption with per-tenant DEKs + rotation script.
+- Encrypted Slack/webhook notification destinations with masked API/UI channel status.
 - Production-ready API edge controls: explicit CORS allowlist middleware + auth/public endpoint throttling.
 
 ### Data/Analytics
@@ -23,6 +24,8 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - SCD2 snapshots for mutable dimensions.
 - Metrics aggregation views, metrics macros + glossary, and contract tests.
 - Warehouse snapshot persistence (`TenantMetricsSnapshot`) + aggregate snapshot API.
+- Tenant-scoped generic CSV/PDF/PNG report export artifacts with verified downloads.
+- Scheduled aggregate daily-summary email delivery through active tenant email channels.
 
 ### Frontend
 - Dashboard shell (campaigns/creatives/budget pacing).
@@ -74,6 +77,10 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 ### Data/Analytics
 - Attribution window documentation expansion.
 
+### Pilot Activation
+- Meta and Google Ads live credential/sync evidence, secure alert evidence, SES delivery evidence,
+  and staging go/no-go validation as defined in `docs/project/usable-pilot-delivery-spec.md`.
+
 ## Planned (short list)
 ### Airbyte
 - LinkedIn and TikTok connector implementations (replace placeholders).
@@ -85,8 +92,12 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Postgres grants + `seed_roles` command/fixtures for new installs.
 
 ### Frontend/UX
-- Enhanced export workflows and reporting UX.
+- Reporting enhancements beyond the pilot artifact reliability fix.
 - Enterprise UAC UX (agency admin, approvals, MFA, impersonation).
+
+### Deferred Integrations
+- GA4 live tenant onboarding completion and Search Console tenant onboarding are explicitly
+  deferred from the usable-pilot gate.
 
 ### Security/UAC
 - UAC rollout phases U0–U4 (agency admin, approvals, MFA, impersonation).
@@ -100,6 +111,7 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Live backlog: `docs/project/phase1-execution-backlog.md`
 - UAC epics: `docs/project/uac-epics.md`
 - Vertical slice: `docs/project/vertical_slice_plan.md`
+- Usable pilot delivery: `docs/project/usable-pilot-delivery-spec.md`
 
 ## Update rules
 - Update this catalog when a feature moves between Built/In Progress/Planned.

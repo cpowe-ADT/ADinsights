@@ -6,14 +6,14 @@ from django.test import override_settings
 import pytest
 
 
-def _throttle_settings(auth_burst: str) -> dict[str, object]:
+def _throttle_settings(auth_burst: str, public: str = "100/min") -> dict[str, object]:
     rest_framework = dict(settings.REST_FRAMEWORK)
     rates = dict(rest_framework.get("DEFAULT_THROTTLE_RATES", {}))
     rates.update(
         {
             "auth_burst": auth_burst,
             "auth_sustained": "100/day",
-            "public": "100/min",
+            "public": public,
         }
     )
     rest_framework["DEFAULT_THROTTLE_RATES"] = rates
@@ -74,4 +74,26 @@ def test_password_reset_request_enforces_auth_throttle(api_client, user):
         )
 
     assert first.status_code == 202
+    assert second.status_code == 429
+
+
+@pytest.mark.django_db
+def test_public_schema_endpoint_enforces_public_throttle(api_client):
+    cache.clear()
+    with override_settings(REST_FRAMEWORK=_throttle_settings("100/min", public="1/min")):
+        first = api_client.get("/api/schema/")
+        second = api_client.get("/api/schema/")
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+
+
+@pytest.mark.django_db
+def test_health_version_endpoint_enforces_public_throttle(api_client):
+    cache.clear()
+    with override_settings(REST_FRAMEWORK=_throttle_settings("100/min", public="1/min")):
+        first = api_client.get("/api/health/version/")
+        second = api_client.get("/api/health/version/")
+
+    assert first.status_code == 200
     assert second.status_code == 429
