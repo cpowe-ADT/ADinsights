@@ -5,7 +5,25 @@ import pytest
 from integrations.airbyte.client import (
     AirbyteClient,
     AirbyteClientConfigurationError,
+    client_safe_detail,
 )
+
+
+def test_client_safe_detail_passes_short_messages_through():
+    # Short, actionable upstream messages reach the client unchanged.
+    assert client_safe_detail("Boom") == "Boom"
+    assert "AIRBYTE_API_URL" in client_safe_detail(
+        "Airbyte API /x failed with HTTP 500: AIRBYTE_API_URL missing"
+    )
+
+
+def test_client_safe_detail_truncates_oversized_bodies():
+    # An arbitrarily large internal response body is bounded before reaching the client.
+    big = "x" * 5000
+    out = client_safe_detail(big)
+    assert len(out) < len(big)
+    assert out.endswith("… (truncated)")
+    assert len(out) <= 1000 + len("… (truncated)")
 
 
 def test_airbyte_client_requires_auth(settings):

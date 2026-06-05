@@ -13,6 +13,25 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
+_CLIENT_SAFE_DETAIL_MAX_CHARS = 1000
+
+
+def client_safe_detail(message: str, *, limit: int = _CLIENT_SAFE_DETAIL_MAX_CHARS) -> str:
+    """Bound an upstream error message before returning it to API clients.
+
+    Airbyte error messages embed the raw response body of the internal Airbyte
+    service (``exc.response.text``). That body is actionable for operators
+    (e.g. connector config-validation errors), so we still surface it — but cap
+    its length so an arbitrarily large or unexpected internal payload is never
+    forwarded verbatim to the client. Callers log the full, untruncated
+    exception server-side.
+    """
+    text = message or ""
+    if len(text) > limit:
+        return text[:limit].rstrip() + "… (truncated)"
+    return text
+
+
 class AirbyteClientError(RuntimeError):
     """Raised when the Airbyte API responds with an error."""
 
