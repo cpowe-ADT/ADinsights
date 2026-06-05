@@ -448,7 +448,7 @@ class AISummaryViewSet(viewsets.ReadOnlyModelViewSet):
                 refreshed = AISummary.objects.filter(id=summary_id, tenant_id=tenant.id).first()
         except Exception as exc:
             logger.exception("Failed to refresh AI summary", exc_info=exc)
-            return Response({"detail": f"Failed to refresh summary: {exc}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"detail": "Failed to refresh summary."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         log_audit_event(
             tenant=tenant,

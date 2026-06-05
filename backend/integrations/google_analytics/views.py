@@ -312,7 +312,8 @@ class GoogleAnalyticsOAuthExchangeView(APIView):
             token_response = httpx.post("https://oauth2.googleapis.com/token", data=token_payload, timeout=30.0)
             token_response.raise_for_status()
         except httpx.HTTPError as exc:
-            return Response({"detail": f"Token exchange failed: {exc}"}, status=status.HTTP_502_BAD_GATEWAY)
+            logger.warning("ga4.oauth.token_exchange_failed", exc_info=exc)
+            return Response({"detail": "Token exchange failed."}, status=status.HTTP_502_BAD_GATEWAY)
 
         payload = token_response.json()
         access_token = payload.get("access_token")
@@ -328,8 +329,9 @@ class GoogleAnalyticsOAuthExchangeView(APIView):
             )
             userinfo_response.raise_for_status()
         except httpx.HTTPError as exc:
+            logger.warning("ga4.oauth.userinfo_failed", exc_info=exc)
             return Response(
-                {"detail": f"User profile lookup failed: {exc}"},
+                {"detail": "User profile lookup failed."},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
@@ -409,7 +411,8 @@ class GoogleAnalyticsPropertiesView(APIView):
         try:
             properties = _discover_ga4_properties(access_token=access_token)
         except RuntimeError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+            logger.warning("ga4.property_discovery_failed", exc_info=exc)
+            return Response({"detail": "Property discovery failed."}, status=status.HTTP_502_BAD_GATEWAY)
 
         return Response(
             {
