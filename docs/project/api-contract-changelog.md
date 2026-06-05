@@ -13,6 +13,12 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-06-05**
+  - Endpoints: integration endpoints that surface Airbyte errors (e.g. `POST /api/integrations/{provider}/provision/`, `.../sync/`, and Google Ads provision/sync paths) via `_airbyte_exception_response`.
+  - Change: the `detail` returned on Airbyte upstream errors is now length-bounded to 1000 chars (`client_safe_detail`); the full, untruncated error is logged server-side. Short, actionable config/validation messages are unchanged.
+  - Impact: clients no longer receive arbitrarily large raw upstream Airbyte response bodies; oversized details are truncated with a `… (truncated)` suffix. No change to status codes or to short error messages.
+  - Owner: Backend Integrations (defense-in-depth for CodeQL stack-trace-exposure)
+
 - **2026-05-28**
   - Endpoint: `GET /api/health/version/`, `GET /api/schema/`
   - Change: Wired the configured public DRF throttle to lightweight version and public schema endpoints, and added `backend_release_smoke --check-rate-limits` to prove configured auth/public `429` behavior.
