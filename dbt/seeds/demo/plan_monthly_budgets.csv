@@ -1,8 +1,3 @@
-<<<<<<< Updated upstream
-month,tenant_id,channel,campaign_id,planned_budget
-2024-09-01,bank-of-jamaica,Meta,BOJ-001,5000
-2024-09-01,grace-kennedy,Google Ads,GK-001,1200
-=======
 month,tenant_id,channel,campaign_id,planned_budget
 2025-12-01,bank-of-jamaica,TikTok,BAN-001,585214.54
 2026-01-01,bank-of-jamaica,TikTok,BAN-001,683457.93
@@ -116,4 +111,3 @@ month,tenant_id,channel,campaign_id,planned_budget
 2026-01-01,jdic,Meta,JDI-009,872489.72
 2026-02-01,jdic,Meta,JDI-009,649244.6
 2026-03-01,jdic,Meta,JDI-009,856604.48
->>>>>>> Stashed changes
