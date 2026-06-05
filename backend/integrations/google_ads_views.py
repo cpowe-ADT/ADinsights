@@ -29,6 +29,7 @@ from integrations.airbyte.client import (
     AirbyteClient,
     AirbyteClientConfigurationError,
     AirbyteClientError,
+    client_safe_detail,
 )
 from integrations.google_ads.gaql_templates import get_gaql_template
 from integrations.google_ads.catalog import load_reference_catalog
@@ -347,12 +348,16 @@ def _configured_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
 
 
 def _airbyte_exception_response(exc: AirbyteClientError) -> Response:
+    # Full error (incl. any upstream Airbyte body) logged server-side; only a
+    # length-bounded detail is returned to the client.
+    logger.warning("airbyte.api_error", exc_info=exc)
+    detail = client_safe_detail(str(exc))
     status_code = (
         status.HTTP_504_GATEWAY_TIMEOUT
         if isinstance(exc.__cause__, httpx.TimeoutException)
         else status.HTTP_502_BAD_GATEWAY
     )
-    return Response({"detail": str(exc)}, status=status_code)
+    return Response({"detail": detail}, status=status_code)
 
 
 def _is_connection_active(connection: AirbyteConnection | None, now) -> bool:
