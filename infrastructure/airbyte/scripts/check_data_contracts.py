@@ -222,6 +222,68 @@ def _check_meta_template_contract(errors: list[str]) -> None:
             errors.append(f"{script_file}: missing Meta token '{token}'.")
 
 
+def _check_microsoft_ads_template_contract(errors: list[str]) -> None:
+    files = (
+        "infrastructure/airbyte/microsoft_ads_source.yaml",
+        "infrastructure/airbyte/sources/microsoft_ads.json.example",
+        "infrastructure/airbyte/sources/microsoft_ads/spec.json",
+        "infrastructure/airbyte/sources/microsoft_ads/source.py",
+    )
+    required_tokens = (
+        "account_id",
+        "developer_token",
+        "access_token",
+        "start_date",
+        "lookback_window_days",
+        "America/Jamaica",
+    )
+    normalized_fields = (
+        "platform",
+        "date",
+        "account_id",
+        "campaign_id",
+        "ad_group_id",
+        "ad_id",
+        "region",
+        "device",
+        "spend",
+        "impressions",
+        "clicks",
+        "conversions",
+        "conversion_value",
+        "currency",
+    )
+
+    for rel_path in files:
+        path = ROOT / rel_path
+        if not path.exists():
+            errors.append(f"{rel_path}: missing Microsoft Ads connector contract file.")
+            continue
+        content = _read_text(rel_path)
+        for token in required_tokens:
+            if token not in content:
+                errors.append(f"{rel_path}: missing Microsoft Ads token '{token}'.")
+
+    stream_contract_files = (
+        "infrastructure/airbyte/microsoft_ads_source.yaml",
+        "infrastructure/airbyte/sources/microsoft_ads/source.py",
+    )
+    for rel_path in stream_contract_files:
+        content = _read_text(rel_path)
+        if "microsoft_ads_performance" not in content:
+            errors.append(
+                f"{rel_path}: missing Microsoft Ads stream 'microsoft_ads_performance'."
+            )
+
+    source_content = _read_text("infrastructure/airbyte/sources/microsoft_ads/source.py")
+    for field in normalized_fields:
+        if f'"{field}"' not in source_content:
+            errors.append(
+                "infrastructure/airbyte/sources/microsoft_ads/source.py: "
+                f"missing normalized output field '{field}'."
+            )
+
+
 def main() -> int:
     errors: list[str] = []
     _check_google_query_aliases(errors)
@@ -230,6 +292,7 @@ def main() -> int:
     _check_csv_alias_parity(errors)
     _check_csv_runbook_link(errors)
     _check_meta_template_contract(errors)
+    _check_microsoft_ads_template_contract(errors)
 
     if errors:
         print("Data-contract validation failed:")

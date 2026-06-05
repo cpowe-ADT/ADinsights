@@ -2,6 +2,10 @@
 
 One-line, timestamped notes of agent-driven changes to help preserve context between sessions. Newest entries at the top.
 
+## 2026-06-05
+
+- 2026-06-05 feat(airbyte): add Microsoft Ads connector foundation — Added custom `microsoft_ads_performance` source scaffold, Airbyte template/env/docs, contract guard checks, and integration matrix coverage; focused Microsoft connector tests and Airbyte contract/compose checks pass, while older LinkedIn/TikTok source tests remain blocked by Airbyte CDK logger drift. Pending commit.
+
 ## 2026-05-28
 
 - 2026-05-28 feat(backend): add repeatable throttle evidence path — Wired `DRF_THROTTLE_PUBLIC` to public schema/version endpoints and extended `backend_release_smoke --check-rate-limits` to prove configured auth/public `429` behavior; backend/frontend/exporter/compose/Airbyte contract checks plus deterministic release and handoff preflights ran; remaining pilot work is blocked-external staging evidence/review. Pending commit.

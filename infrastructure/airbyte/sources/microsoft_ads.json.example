@@ -1,0 +1,16 @@
+{
+  "name": "Microsoft Ads",
+  "sourceType": "custom-python",
+  "workspaceId": "REDACTED",
+  "configuration": {
+    "account_id": "REDACTED",
+    "developer_token": "REDACTED",
+    "access_token": "REDACTED",
+    "start_date": "2024-01-01",
+    "end_date": null,
+    "lookback_window_days": 3,
+    "slice_span_days": 7,
+    "page_size": 500,
+    "timezone": "America/Jamaica"
+  }
+}
