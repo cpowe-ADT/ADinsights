@@ -3272,14 +3272,9 @@ class AirbyteConnectionViewSet(viewsets.ModelViewSet):
             )
 
     def _error_response(self, exc: AirbyteClientError) -> Response:
-        if getattr(exc, "status_code", None) is not None:
-            return Response({"detail": str(exc)}, status=int(exc.status_code))
-        status_code = (
-            status.HTTP_504_GATEWAY_TIMEOUT
-            if isinstance(exc.__cause__, httpx.TimeoutException)
-            else status.HTTP_502_BAD_GATEWAY
-        )
-        return Response({"detail": str(exc)}, status=status_code)
+        # Delegate to the hardened module-level handler (logs full detail
+        # server-side, returns only a length-bounded client detail).
+        return _airbyte_exception_response(exc)
 
     def _serialize_connection(
         self, connection: AirbyteConnection, client: AirbyteClient

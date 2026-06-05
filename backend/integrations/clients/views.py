@@ -81,11 +81,9 @@ class ClientListCreateView(APIView):
                 **serializer.validated_data,
             )
         except IntegrityError as exc:
+            logger.warning("clients.create.integrity_error", exc_info=exc)
             return Response(
-                {
-                    "detail": "A client with this slug already exists for your tenant.",
-                    "error": str(exc),
-                },
+                {"detail": "A client with this slug already exists for your tenant."},
                 status=status.HTTP_409_CONFLICT,
             )
         return Response(
@@ -159,8 +157,9 @@ class ClientAccountsView(APIView):
                 is_primary=data.get("is_primary", False),
             )
         except IntegrityError as exc:
+            logger.warning("clients.attach_account.integrity_error", exc_info=exc)
             return Response(
-                {"detail": "Failed to attach account.", "error": str(exc)},
+                {"detail": "Failed to attach account."},
                 status=status.HTTP_409_CONFLICT,
             )
         return Response(
