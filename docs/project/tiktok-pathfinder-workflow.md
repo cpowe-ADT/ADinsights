@@ -48,22 +48,30 @@
     Data: tiktok in `fact_performance` = 4 rows, spend 431.50, conversions 19, 4 parishes.
     Regression: with `enable_tiktok` default false, fact has only meta+google; stg model not materialized.
 
-### Stage B — combined-metrics registry (scope: `backend/`)
-- [ ] **B1** Add `PLATFORM_TIKTOK` to `COMBINED_SUPPORTED` in `backend/analytics/platform_registry.py`
-  (label/order already present).
-  - **Verify:** extend `backend/tests/test_combined_platforms_only.py` — `?platforms=tiktok` includes
-    tiktok; omitting excludes it. `cd backend && .venv/bin/python -m pytest tests/test_combined_platforms_only.py -q`.
+### Stage B — combined-metrics registry (scope: `backend/`)  ← DONE & verified (2026-06-05)
+- [x] **B1** Added `PLATFORM_TIKTOK` to `COMBINED_SUPPORTED` in
+  `backend/analytics/platform_registry.py` (label/order already present); updated the comment.
+  - **Verified:** `test_platform_only_scoping.py::test_tiktok_is_combined_supported` +
+    `::test_tiktok_dark_until_accounts_configured`. 27 platform/scoping tests pass, no regression.
+    NB: the registry only *enables* tiktok once a tenant has configured tiktok accounts — that
+    wiring is Stage C/D below, so B1 is a safe no-op on its own (dark by default).
 
-### Stage C — warehouse snapshot includes TikTok (scope: `backend/`)
-- [ ] **C1** Ensure the warehouse snapshot builder (the job that fills
-  `TenantMetricsSnapshot.payload`) surfaces `tiktok` slices from `fact_performance`. Confirm whether
-  it already generalizes over `source_platform` or hard-codes meta/google; extend if needed.
-  - **Verify:** snapshot fixture/unit test shows `tiktok` keys; `test_warehouse_client_scoping` green.
-
-### Stage D — client scoping + isolation (scope: `backend/`)  ← **mandatory L4 eval**
-- [ ] **D1** Resolve `client_scoped_tiktok_ids` in `combined_metrics_service.resolve_client_scoping`
-  and honor it in `WarehouseAdapter._apply_filters`.
-  - **Verify:** extend `test_combined_client_id_scoping.py` — tenant A cannot see tenant B tiktok rows.
+### Stage C/D — TikTok account collection + client scoping + isolation (scope: `backend/`)  ← **mandatory L4 eval**
+> Precise anchors (on `codex/bring-up-gates`), discovered 2026-06-05:
+> - `combined_metrics_service.py` `_collect_tenant_platform_accounts(tenant_id)` returns only
+>   `(meta_variants, google_customer_ids)` — extend to also return tiktok account ids.
+> - Platforms-only path (~L187-229) and client-scoped path (~L334+) both build
+>   `configured_platforms` (add `PLATFORM_TIKTOK` when tiktok ids present) and a scoping dict —
+>   add `client_scoped_tiktok_ids` + `tiktok_effective = ... if registry.is_enabled(PLATFORM_TIKTOK)`.
+> - `adapters/warehouse.py` `_apply_filters` must read `client_scoped_tiktok_ids` and filter
+>   `source_platform='tiktok'` rows by it (mirror the meta/google client-scope handling).
+> - Snapshot builder that fills `TenantMetricsSnapshot.payload` must surface `tiktok` slices from
+>   `fact_performance` (confirm whether it generalizes over `source_platform` or hard-codes).
+- [ ] **C/D-1** Collect tenant TikTok accounts → `configured_platforms` + `client_scoped_tiktok_ids`.
+- [ ] **C/D-2** Warehouse adapter honors `client_scoped_tiktok_ids`.
+- [ ] **C/D-3** Snapshot builder includes tiktok slices.
+  - **Verify:** extend `test_combined_client_id_scoping.py` — tenant A cannot see tenant B tiktok
+    rows (L4 isolation, non-waivable); registry enables tiktok once accounts exist.
 
 ### Stage E — frontend surface (scope: `frontend/`)
 - [ ] **E1** Add a `tiktok` color token in `styles/chartTheme.ts` + `platformColor` case; confirm the
@@ -79,3 +87,9 @@
 ## Status log
 - _(append dated one-liners as steps land, newest last)_
 - 2026-06-05 — workflow created; decisions DD-1=A, DD-2=Airbyte adopted; starting Stage A.
+- 2026-06-05 — Stage A (dbt) done & verified, PR #386 (off main, green). Discovered the
+  platform-filtering layer (`platform_registry`/`COMBINED_SUPPORTED`) lives only on
+  `codex/bring-up-gates`, not main → backend stages continue on branch `feat/tiktok-pathfinder`
+  (off bring-up-gates), with Stage A cherry-picked in.
+- 2026-06-05 — Stage B (registry) done & verified on `feat/tiktok-pathfinder`. Stage C/D anchors
+  captured above; next.

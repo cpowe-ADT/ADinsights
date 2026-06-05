@@ -182,3 +182,28 @@ def test_platforms_ignores_manager_google_accounts(tenant):
     )
     assert scoping is not None
     assert scoping["client_scoped_google_customer_ids"] == ["1234567890"]
+
+
+def test_tiktok_is_combined_supported():
+    """Pathfinder Stage B: TikTok is wired into combined metrics via the dbt
+    performance lineage and must be an accepted combined platform."""
+    from analytics.platform_registry import COMBINED_SUPPORTED, PLATFORM_TIKTOK
+
+    assert PLATFORM_TIKTOK in COMBINED_SUPPORTED
+
+
+@pytest.mark.django_db
+def test_tiktok_dark_until_accounts_configured(tenant):
+    """Stage B is a safe dark change: TikTok is combined-supported, but until a
+    tenant has configured TikTok accounts (Stage C/D scoping wiring in
+    ``_collect_tenant_platform_accounts`` / ``resolve_client_scoping``), the
+    registry does not enable it. So adding TikTok to ``COMBINED_SUPPORTED`` is a
+    no-op for existing tenants."""
+    _, registry, meta = resolve_client_scoping(
+        tenant_id=str(tenant.id),
+        query_params=_Params(platforms="tiktok"),
+    )
+    assert registry is not None
+    # No configured TikTok accounts yet -> not enabled (dark by default).
+    assert not registry.is_enabled("tiktok")
+    assert meta["scope"] == "platforms_only"
