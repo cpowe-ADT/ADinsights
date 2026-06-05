@@ -210,6 +210,7 @@ adding new picks.
 ## 6.3 Sprint Checklist: Dashboard Live Data + Filters (Completed)
 
 Delivered:
+
 - API contract alignment for `/api/metrics/combined/` and typed dashboard data flow.
 - Live data default with demo opt-in only.
 - FilterBar wiring + URL state + drill-down routes.
@@ -218,9 +219,11 @@ Delivered:
 ## 6.4 Frontend Spec Punch List (MVP/Post-MVP)
 
 ### MVP delivered
+
 - [x] Home page: replace static recent dashboards with API-driven data + true empty state logic.
 
 ### Post-MVP delivered UI
+
 - [x] Dashboard library: API listing + error/empty states.
 - [x] Sync health/telemetry view (`/ops/sync-health`).
 - [x] Health checks overview (`/ops/health`).
@@ -229,6 +232,7 @@ Delivered:
 - [x] Admin audit log view + export.
 
 ### Usable-pilot behavior gaps
+
 - [x] Real generic report artifact generation (`csv`, `pdf`, `png`).
 - [x] Encrypted Slack/webhook notification destinations and safe API/UI status.
 - [x] Scheduled daily-summary email delivery through active email channels.

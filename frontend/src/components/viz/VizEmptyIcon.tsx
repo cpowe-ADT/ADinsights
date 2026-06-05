@@ -5,14 +5,7 @@
  * for a reason-code-specific icon.
  */
 const VizEmptyIcon = () => (
-  <svg
-    width="32"
-    height="32"
-    viewBox="0 0 24 24"
-    fill="none"
-    aria-hidden="true"
-    focusable="false"
-  >
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
     <path
       d="M3 3v18h18"
       stroke="currentColor"

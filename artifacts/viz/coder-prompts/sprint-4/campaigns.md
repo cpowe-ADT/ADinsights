@@ -2,7 +2,7 @@
 
 **Sprint:** 4
 **Estimated size:** M (combined)
-**Depends on:** sprint-1/* (all kit components), sprint-4/platforms.md (for platformLabels.ts)
+**Depends on:** sprint-1/\* (all kit components), sprint-4/platforms.md (for platformLabels.ts)
 **Blocks:** none
 **Role needed:** frontend-engineer
 
@@ -33,6 +33,7 @@ Three combined-platform dashboard pages with similar 5-block structure. All use 
 ### CampaignDashboard (`/dashboards/campaigns`)
 
 **Data binding**:
+
 - KPI strip (4 tiles): `payload.metrics.spend`, `payload.metrics.clicks`, `payload.metrics.conversions`, ROAS = derived.
 - TrendLine: `payload.campaign.trend` — spend by day. If `platform` field present in trend rows, use `getPlatformColor(row.platform)` for series colors. Otherwise single series.
 - DistributionBar: `payload.campaign.rows` top 10 by spend. Labels from `row.campaign_name`.
@@ -45,10 +46,11 @@ Three combined-platform dashboard pages with similar 5-block structure. All use 
 ### CreativeDashboard (`/dashboards/creatives`)
 
 **Data binding**:
+
 - KPI strip (4 tiles): aggregate from `payload.creative[]` — Total Spend, Total Impressions, Total Clicks, Top Creative Spend.
 - BubbleScatter: `payload.creative[]` mapped to `{ id: row.name, label: row.name, x: row.spend, y: row.clicks/row.impressions (ctr), z: row.impressions, shape: row.platform === 'google_ads' ? 'triangle' : 'circle', color: getPlatformColor(row.platform) }`.
 - PieComposition: `payload.creative[]` grouped by `platform` (use `getPlatformLabel`). Impressions per platform.
-- DataTable: Creative Name, Platform chip, Spend, Impressions, Clicks, CTR (clicks/impressions — derived), CPM (spend*1000/impressions — derived), Reach. CSV filename `creatives`.
+- DataTable: Creative Name, Platform chip, Spend, Impressions, Clicks, CTR (clicks/impressions — derived), CPM (spend\*1000/impressions — derived), Reach. CSV filename `creatives`.
 
 **Derived fields**: `payload.creative[]` rows have `name, platform, spend, impressions, clicks, conversions, reach`. Compute `ctr = clicks/impressions`, `cpm = (spend * 1000) / impressions` client-side.
 
@@ -59,6 +61,7 @@ Three combined-platform dashboard pages with similar 5-block structure. All use 
 Budget rows shape: `{ campaignName, spendToDate, budgetAmount, pacing_pct }`. Note: `budgetAmount` may be null for Meta campaigns.
 
 **Data binding**:
+
 - KPI strip (3 tiles): Total Spend to Date = sum(spendToDate); Total Budget = sum(budgetAmount || 0); Overall Pacing = sum(spendToDate) / sum(budgetAmount) where budgetAmount > 0.
 - Paired DistributionBar: `payload.budget[]` where `budgetAmount > 0` mapped to paired bars — `{ label: campaignName, spend: spendToDate, budget: budgetAmount }`. Series = `[{key:'spend',label:'Spent',color:chartPalette[1]},{key:'budget',label:'Budget',color:'#e5e7eb'}]`.
 - TrendLine: `payload.campaign.trend` cumulative sum vs budget ceiling. Compute cumulative spend per day client-side. Budget ceiling = horizontal `ReferenceLine` at `sum(budgetAmount)` value. Add `<ReferenceLine y={budgetTotal} stroke={chartPalette[5]} strokeDasharray="6 3" />` inside TrendLine.
@@ -81,6 +84,7 @@ Budget rows shape: `{ campaignName, spendToDate, budgetAmount, pacing_pct }`. No
 ## Test deltas (per page)
 
 CampaignDashboard:
+
 ```typescript
 it('renders 4 KpiTiles', () => { ... })
 it('renders TrendLine for campaign spend', () => { ... })
@@ -89,6 +93,7 @@ it('DataTable platform chip uses getPlatformLabel', () => { ... })
 ```
 
 CreativeDashboard:
+
 ```typescript
 it('renders 4 KpiTiles from creative rows', () => { ... })
 it('renders BubbleScatter with creative data', () => { ... })
@@ -96,6 +101,7 @@ it('CTR and CPM are derived client-side', () => { ... })
 ```
 
 BudgetDashboard:
+
 ```typescript
 it('renders 3 KpiTiles', () => { ... })
 it('renders paired DistributionBar for spend vs budget', () => { ... })

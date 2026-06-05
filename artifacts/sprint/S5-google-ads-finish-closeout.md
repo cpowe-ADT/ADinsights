@@ -7,6 +7,7 @@
 All three Phase A tasks shipped atomically on top of baseline `c0d132a5`. Backend: 11 new pytest cases (pacing extension + dismiss) — `ruff` clean, `pytest -q` clean. Frontend: 16 new vitest cases across 3 new test files; lint clean, `npm run build` clean (`✓ built in 17m 12s`). The full-suite vitest run exhibited the same concurrent-environment thrash documented in S4 closeout §4 ("STACK_TRACE_ERROR" 5s timeouts on unrelated primitives — KpiTile / DistributionBar / ChartSkeleton / etc.) when run concurrently with backend pytest + an unrelated vitest process in another working tree on the same machine. **The 3 T1-03 test files pass deterministically in isolation (16/16) — the full-suite noise is not caused by Phase A code.** Sprint 4 called this exact pattern ("non-deterministic timing failures caused by concurrent test runs / environment load, not real regressions").
 
 **Deviations from v2 prompt (all documented upfront in architect design §2):**
+
 1. `CampaignBudget` has no `campaign_id` FK — keyed `(tenant, name)`. Per-campaign budget match is case-insensitive best-effort by name; `budget_amount=null` when unmatched. This is the single design deviation from v2's implicit assumption.
 2. Dismiss URL is `<int:pk>/dismiss/` rather than `<resource_name>/dismiss/` (integer PK simpler + tenant-scoped via `TenantAwareManager`; resource_name is not unique across tenants).
 3. Permission is `IsAuthenticated` + tenant-scoped queryset (v2 suggested admin-only; the rest of the Google Ads surface is `IsAuthenticated` so this matches the contextual norm).
@@ -16,11 +17,11 @@ All three Phase A tasks shipped atomically on top of baseline `c0d132a5`. Backen
 
 ## 2. Shipped work by task
 
-| Task | Backend | Frontend | Tests | Commit |
-|---|---|---|---|---|
-| **GA-A1** per-campaign pacing | `GoogleAdsBudgetPacingView` extended: `campaigns[]` aggregation + 15-min tenant-scoped cache (`ga_pacing_v1:<tenant>:<hash>:<end_date>`); best-effort budget match by lower(name) | `PacingTabSection.tsx` — "Over-pacing campaigns" KPI + DistributionBar + companion table; null-budget rows render "—" | 5 pytest + 5 vitest (16 total across 3 FE files) | `15e33459` (backend) + `01780559` (FE) |
-| **GA-A2** recommendation dismiss | `GoogleAdsRecommendationDismissView` — new `POST /recommendations/<int:pk>/dismiss/`, idempotent, tenant-scoped 404, LOCAL ONLY (no SDK call), AuditLog `google_ads_recommendation_dismissed` | `RecommendationsTabSection.tsx` — Dismiss button replaces Status chip for non-dismissed rows, optimistic update + rollback + toast | 6 pytest (includes regression grep for `DismissRecommendation`) + 6 vitest | `15e33459` (backend) + `07bd1327` (FE) |
-| **GA-A3** export status polling | (reuses existing `saved_views` list + `export_status` endpoints) | `ReportsTabSection.tsx` — setTimeout-chain polling loop, 3s steady / 60s ceiling / exp-backoff (3s→6s→12s) on 5xx, AbortController + mounted-ref cleanup | — + 5 vitest | `7b7920e3` (FE) |
+| Task                             | Backend                                                                                                                                                                                       | Frontend                                                                                                                                                 | Tests                                                                      | Commit                                 |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------- |
+| **GA-A1** per-campaign pacing    | `GoogleAdsBudgetPacingView` extended: `campaigns[]` aggregation + 15-min tenant-scoped cache (`ga_pacing_v1:<tenant>:<hash>:<end_date>`); best-effort budget match by lower(name)             | `PacingTabSection.tsx` — "Over-pacing campaigns" KPI + DistributionBar + companion table; null-budget rows render "—"                                    | 5 pytest + 5 vitest (16 total across 3 FE files)                           | `15e33459` (backend) + `01780559` (FE) |
+| **GA-A2** recommendation dismiss | `GoogleAdsRecommendationDismissView` — new `POST /recommendations/<int:pk>/dismiss/`, idempotent, tenant-scoped 404, LOCAL ONLY (no SDK call), AuditLog `google_ads_recommendation_dismissed` | `RecommendationsTabSection.tsx` — Dismiss button replaces Status chip for non-dismissed rows, optimistic update + rollback + toast                       | 6 pytest (includes regression grep for `DismissRecommendation`) + 6 vitest | `15e33459` (backend) + `07bd1327` (FE) |
+| **GA-A3** export status polling  | (reuses existing `saved_views` list + `export_status` endpoints)                                                                                                                              | `ReportsTabSection.tsx` — setTimeout-chain polling loop, 3s steady / 60s ceiling / exp-backoff (3s→6s→12s) on 5xx, AbortController + mounted-ref cleanup | — + 5 vitest                                                               | `7b7920e3` (FE)                        |
 
 ---
 
@@ -28,27 +29,27 @@ All three Phase A tasks shipped atomically on top of baseline `c0d132a5`. Backen
 
 ### Backend
 
-| File | Change | LoC | Status |
-|---|---|---|---|
-| `backend/integrations/models.py` | +`dismissed_at`, +`dismissed_by` FK on `GoogleAdsSdkRecommendation` | +7 | GREEN |
-| `backend/integrations/migrations/0025_recommendation_dismissed_audit.py` | NEW — AddField migration | 31 | GREEN |
-| `backend/analytics/google_ads_views.py` | `GoogleAdsBudgetPacingView` extended (+132/-14); `GoogleAdsRecommendationsView` list payload adds `id`, `dismissed_at`, `dismissed_by_user_id`; NEW `GoogleAdsRecommendationDismissView` APIView | +161/-38 | GREEN |
-| `backend/analytics/urls.py` | Import + `path("google-ads/recommendations/<int:pk>/dismiss/", …)` | +6 | GREEN |
-| `backend/tests/test_google_ads_budgets_pacing_extension.py` | NEW — 5 tests: campaigns-array shape, tenant isolation, cache hit, cache tenant-scoped, empty campaigns | 237 | GREEN |
-| `backend/tests/test_google_ads_recommendations_dismiss.py` | NEW — 6 tests: dismiss sets fields, tenant isolation, idempotent, writes audit, list returns new fields, **no SDK call regression guard** (subprocess grep of production `.py` excluding vendored SDK + data dirs) | 223 | GREEN |
+| File                                                                     | Change                                                                                                                                                                                                             | LoC      | Status |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------ |
+| `backend/integrations/models.py`                                         | +`dismissed_at`, +`dismissed_by` FK on `GoogleAdsSdkRecommendation`                                                                                                                                                | +7       | GREEN  |
+| `backend/integrations/migrations/0025_recommendation_dismissed_audit.py` | NEW — AddField migration                                                                                                                                                                                           | 31       | GREEN  |
+| `backend/analytics/google_ads_views.py`                                  | `GoogleAdsBudgetPacingView` extended (+132/-14); `GoogleAdsRecommendationsView` list payload adds `id`, `dismissed_at`, `dismissed_by_user_id`; NEW `GoogleAdsRecommendationDismissView` APIView                   | +161/-38 | GREEN  |
+| `backend/analytics/urls.py`                                              | Import + `path("google-ads/recommendations/<int:pk>/dismiss/", …)`                                                                                                                                                 | +6       | GREEN  |
+| `backend/tests/test_google_ads_budgets_pacing_extension.py`              | NEW — 5 tests: campaigns-array shape, tenant isolation, cache hit, cache tenant-scoped, empty campaigns                                                                                                            | 237      | GREEN  |
+| `backend/tests/test_google_ads_recommendations_dismiss.py`               | NEW — 6 tests: dismiss sets fields, tenant isolation, idempotent, writes audit, list returns new fields, **no SDK call regression guard** (subprocess grep of production `.py` excluding vendored SDK + data dirs) | 223      | GREEN  |
 
 ### Frontend
 
-| File | Change | LoC | Status |
-|---|---|---|---|
-| `frontend/src/lib/googleAdsAggregates.ts` | +`GoogleAdsPacingCampaignRow`, `GoogleAdsPacingCacheMeta`; extend `GoogleAdsPacingPayload` (optional `campaigns`+`cache`); +`id`, `dismissed_at`, `dismissed_by_user_id` on `GoogleAdsRecommendationRow`; helpers `countOverPacingCampaigns()` (skips null), `isTerminalExportStatus()` | +50 | GREEN |
-| `frontend/src/lib/googleAdsDashboard.ts` | +`dismissGoogleAdsRecommendation(id)` helper | +12 | GREEN |
-| `frontend/src/components/google-ads/workspace/tab-sections/PacingTabSection.tsx` | +Over-pacing KPI; +per-campaign DistributionBar panel + companion table; null-budget row rendering; removed `[NEW-ENDPOINT]` marker | +109 | GREEN |
-| `frontend/src/components/google-ads/workspace/tab-sections/RecommendationsTabSection.tsx` | Dismiss `<button>` replacing Status chip; optimistic update + rollback via `useToastStore` | +87 | GREEN |
-| `frontend/src/components/google-ads/workspace/tab-sections/ReportsTabSection.tsx` | setTimeout-chain polling via `useRef` for cancellation; 3s steady / 60s ceiling / exp-backoff; AbortController + mounted-ref cleanup; short-circuits on initial terminal status | +158 | GREEN |
-| `frontend/src/components/google-ads/workspace/__tests__/PacingTabSection.campaigns.test.tsx` | NEW — 5 tests | 131 | GREEN |
-| `frontend/src/components/google-ads/workspace/__tests__/RecommendationsTabSection.dismiss.test.tsx` | NEW — 6 tests | 160 | GREEN |
-| `frontend/src/components/google-ads/workspace/__tests__/ReportsTabSection.polling.test.tsx` | NEW — 5 tests | 196 | GREEN |
+| File                                                                                                | Change                                                                                                                                                                                                                                                                                  | LoC  | Status |
+| --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | ------ |
+| `frontend/src/lib/googleAdsAggregates.ts`                                                           | +`GoogleAdsPacingCampaignRow`, `GoogleAdsPacingCacheMeta`; extend `GoogleAdsPacingPayload` (optional `campaigns`+`cache`); +`id`, `dismissed_at`, `dismissed_by_user_id` on `GoogleAdsRecommendationRow`; helpers `countOverPacingCampaigns()` (skips null), `isTerminalExportStatus()` | +50  | GREEN  |
+| `frontend/src/lib/googleAdsDashboard.ts`                                                            | +`dismissGoogleAdsRecommendation(id)` helper                                                                                                                                                                                                                                            | +12  | GREEN  |
+| `frontend/src/components/google-ads/workspace/tab-sections/PacingTabSection.tsx`                    | +Over-pacing KPI; +per-campaign DistributionBar panel + companion table; null-budget row rendering; removed `[NEW-ENDPOINT]` marker                                                                                                                                                     | +109 | GREEN  |
+| `frontend/src/components/google-ads/workspace/tab-sections/RecommendationsTabSection.tsx`           | Dismiss `<button>` replacing Status chip; optimistic update + rollback via `useToastStore`                                                                                                                                                                                              | +87  | GREEN  |
+| `frontend/src/components/google-ads/workspace/tab-sections/ReportsTabSection.tsx`                   | setTimeout-chain polling via `useRef` for cancellation; 3s steady / 60s ceiling / exp-backoff; AbortController + mounted-ref cleanup; short-circuits on initial terminal status                                                                                                         | +158 | GREEN  |
+| `frontend/src/components/google-ads/workspace/__tests__/PacingTabSection.campaigns.test.tsx`        | NEW — 5 tests                                                                                                                                                                                                                                                                           | 131  | GREEN  |
+| `frontend/src/components/google-ads/workspace/__tests__/RecommendationsTabSection.dismiss.test.tsx` | NEW — 6 tests                                                                                                                                                                                                                                                                           | 160  | GREEN  |
+| `frontend/src/components/google-ads/workspace/__tests__/ReportsTabSection.polling.test.tsx`         | NEW — 5 tests                                                                                                                                                                                                                                                                           | 196  | GREEN  |
 
 **Totals:** 14 files touched · +1,531 / −38 across four commits.
 
@@ -56,16 +57,16 @@ All three Phase A tasks shipped atomically on top of baseline `c0d132a5`. Backen
 
 ## 4. Final test matrix
 
-| Gate | Command | Result |
-|---|---|---|
-| Backend ruff | `cd backend && ruff check .` | **PASS** — `All checks passed!` |
-| Backend pytest | `cd backend && pytest -q` | **PASS** — all dots, `[100%]`, exit 0 (output file `bgintc4ha.output`) |
-| Backend pytest — T1-03 new cases in isolation | `pytest -q tests/test_google_ads_budgets_pacing_extension.py tests/test_google_ads_recommendations_dismiss.py` | **PASS** — 11/11 (confirmed by sub-agent Devi during Phase 2) |
-| Frontend lint | `cd frontend && npm run lint` | **PASS** — 0 errors, 0 warnings |
-| Frontend build | `cd frontend && npm run build` | **PASS** — `✓ built in 17m 12s`, all bundles emitted (tarpit vs. typical 13s due to concurrent-process CPU contention on this run, not a build regression) |
-| Frontend vitest — T1-03 owned files | `npx vitest --run src/components/google-ads/workspace/__tests__/{PacingTabSection.campaigns,RecommendationsTabSection.dismiss,ReportsTabSection.polling}.test.tsx` | **PASS — 16/16** (deterministic on repeat) |
-| Frontend vitest — full suite (under concurrent CPU load) | `cd frontend && npm test -- --run` | **DEGRADED (noise)** — 700 passed / 98 failed / 37 failed files; all failures `STACK_TRACE_ERROR` 5s timeouts on unrelated viz primitives (KpiTile, DistributionBar, ChartSkeleton, GaugeRing, etc.) driven by concurrent backend pytest + third-party vitest process in another working tree. Same pattern documented in S4 closeout §4. See §5 below. |
-| Frontend vitest — full suite (cold, no concurrent load) | `cd frontend && npm test -- --run` | **IMPROVED** — 766 passed / 32 failed (vs 98 under concurrent load). **Zero T1-03 files in failure set** (all 3 T1-03 test files pass cleanly). Remaining 32 failures are same-pattern environment timeouts on unrelated primitives — `environment 1142s` / `setup 638s` in a suite that S4 finished in 63s total indicates the machine is still under load from another source. Not a T1-03 regression. |
+| Gate                                                     | Command                                                                                                                                                            | Result                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend ruff                                             | `cd backend && ruff check .`                                                                                                                                       | **PASS** — `All checks passed!`                                                                                                                                                                                                                                                                                                                                                                          |
+| Backend pytest                                           | `cd backend && pytest -q`                                                                                                                                          | **PASS** — all dots, `[100%]`, exit 0 (output file `bgintc4ha.output`)                                                                                                                                                                                                                                                                                                                                   |
+| Backend pytest — T1-03 new cases in isolation            | `pytest -q tests/test_google_ads_budgets_pacing_extension.py tests/test_google_ads_recommendations_dismiss.py`                                                     | **PASS** — 11/11 (confirmed by sub-agent Devi during Phase 2)                                                                                                                                                                                                                                                                                                                                            |
+| Frontend lint                                            | `cd frontend && npm run lint`                                                                                                                                      | **PASS** — 0 errors, 0 warnings                                                                                                                                                                                                                                                                                                                                                                          |
+| Frontend build                                           | `cd frontend && npm run build`                                                                                                                                     | **PASS** — `✓ built in 17m 12s`, all bundles emitted (tarpit vs. typical 13s due to concurrent-process CPU contention on this run, not a build regression)                                                                                                                                                                                                                                               |
+| Frontend vitest — T1-03 owned files                      | `npx vitest --run src/components/google-ads/workspace/__tests__/{PacingTabSection.campaigns,RecommendationsTabSection.dismiss,ReportsTabSection.polling}.test.tsx` | **PASS — 16/16** (deterministic on repeat)                                                                                                                                                                                                                                                                                                                                                               |
+| Frontend vitest — full suite (under concurrent CPU load) | `cd frontend && npm test -- --run`                                                                                                                                 | **DEGRADED (noise)** — 700 passed / 98 failed / 37 failed files; all failures `STACK_TRACE_ERROR` 5s timeouts on unrelated viz primitives (KpiTile, DistributionBar, ChartSkeleton, GaugeRing, etc.) driven by concurrent backend pytest + third-party vitest process in another working tree. Same pattern documented in S4 closeout §4. See §5 below.                                                  |
+| Frontend vitest — full suite (cold, no concurrent load)  | `cd frontend && npm test -- --run`                                                                                                                                 | **IMPROVED** — 766 passed / 32 failed (vs 98 under concurrent load). **Zero T1-03 files in failure set** (all 3 T1-03 test files pass cleanly). Remaining 32 failures are same-pattern environment timeouts on unrelated primitives — `environment 1142s` / `setup 638s` in a suite that S4 finished in 63s total indicates the machine is still under load from another source. Not a T1-03 regression. |
 
 ---
 
@@ -86,18 +87,18 @@ S4 closeout documented the exact same pattern and remediation: "Re-running from 
 
 ## 6. Contract regression checks
 
-| Contract | Location | Verified |
-|---|---|---|
-| LOCAL ONLY dismiss (no SDK DismissRecommendation) | `backend/tests/test_google_ads_recommendations_dismiss.py::test_dismiss_has_no_sdk_call` | ✓ subprocess grep of production `.py` files excludes vendored `.venv/lib/.../google/ads/googleads/v23/...` and data dirs; asserts 0 matches in production code |
-| Tenant isolation (pacing cache) | `test_pacing_cache_tenant_scoped` | ✓ cache key includes `tenant_id` prefix; cross-tenant fetches produce independent payloads |
-| Tenant isolation (dismiss) | `test_dismiss_tenant_isolation` | ✓ cross-tenant PK returns 404 (via `TenantAwareManager.objects`) |
-| Dismiss idempotency | `test_dismiss_is_idempotent` | ✓ re-POSTing preserves original `dismissed_at` + `dismissed_by` |
-| AuditLog event emitted | `test_dismiss_writes_audit` | ✓ `action="google_ads_recommendation_dismissed"` with `resource_type`, `resource_id`, metadata |
-| Per-campaign null-budget handling | `PacingTabSection.campaigns.test.tsx` — "renders campaigns with null budget without pace % or variance" | ✓ UI renders `"—"` in pace and variance cells for null rows |
-| Over-pacing KPI skips null pace_pct | `PacingTabSection.campaigns.test.tsx` — "KPI 'Over-pacing campaigns' counts only campaigns with pace_pct > 1.0" | ✓ `countOverPacingCampaigns` filter |
-| Polling terminal-status short-circuit | `ReportsTabSection.polling.test.tsx` — "polls until terminal status (completed)" + "60s ceiling" | ✓ `setTimeout` chain halts on terminal; ceiling enforced |
-| Polling cancellation on unmount | component `useRef` + AbortController wiring | ✓ covered by test + component structure |
-| 15-min cache TTL | `test_pacing_cache_hit` | ✓ second identical request returns `cache.served_from_cache=true` without DB hit |
+| Contract                                          | Location                                                                                                        | Verified                                                                                                                                                       |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LOCAL ONLY dismiss (no SDK DismissRecommendation) | `backend/tests/test_google_ads_recommendations_dismiss.py::test_dismiss_has_no_sdk_call`                        | ✓ subprocess grep of production `.py` files excludes vendored `.venv/lib/.../google/ads/googleads/v23/...` and data dirs; asserts 0 matches in production code |
+| Tenant isolation (pacing cache)                   | `test_pacing_cache_tenant_scoped`                                                                               | ✓ cache key includes `tenant_id` prefix; cross-tenant fetches produce independent payloads                                                                     |
+| Tenant isolation (dismiss)                        | `test_dismiss_tenant_isolation`                                                                                 | ✓ cross-tenant PK returns 404 (via `TenantAwareManager.objects`)                                                                                               |
+| Dismiss idempotency                               | `test_dismiss_is_idempotent`                                                                                    | ✓ re-POSTing preserves original `dismissed_at` + `dismissed_by`                                                                                                |
+| AuditLog event emitted                            | `test_dismiss_writes_audit`                                                                                     | ✓ `action="google_ads_recommendation_dismissed"` with `resource_type`, `resource_id`, metadata                                                                 |
+| Per-campaign null-budget handling                 | `PacingTabSection.campaigns.test.tsx` — "renders campaigns with null budget without pace % or variance"         | ✓ UI renders `"—"` in pace and variance cells for null rows                                                                                                    |
+| Over-pacing KPI skips null pace_pct               | `PacingTabSection.campaigns.test.tsx` — "KPI 'Over-pacing campaigns' counts only campaigns with pace_pct > 1.0" | ✓ `countOverPacingCampaigns` filter                                                                                                                            |
+| Polling terminal-status short-circuit             | `ReportsTabSection.polling.test.tsx` — "polls until terminal status (completed)" + "60s ceiling"                | ✓ `setTimeout` chain halts on terminal; ceiling enforced                                                                                                       |
+| Polling cancellation on unmount                   | component `useRef` + AbortController wiring                                                                     | ✓ covered by test + component structure                                                                                                                        |
+| 15-min cache TTL                                  | `test_pacing_cache_hit`                                                                                         | ✓ second identical request returns `cache.served_from_cache=true` without DB hit                                                                               |
 
 All 10 contracts: **GREEN**.
 
@@ -106,16 +107,19 @@ All 10 contracts: **GREEN**.
 ## 7. Artifact trail
 
 **Sprint 5 (Google Ads finish / T1-03 Phase A):**
+
 - Prompt: `/Users/thristannewman/ADinsights/artifacts/roadmap/prompts/finish-google-ads.v2.md`
 - State file: `/Users/thristannewman/ADinsights/artifacts/sprint/S5-google-ads-state.json`
 - Architect: `/Users/thristannewman/ADinsights/artifacts/sprint/S5-google-ads-finish-design.md`
 - Closeout: `/Users/thristannewman/ADinsights/artifacts/sprint/S5-google-ads-finish-closeout.md` (this file)
 
 **Program-level (carried forward unchanged from S4):**
+
 - `/Users/thristannewman/ADinsights/artifacts/roadmap/project-punchlist.md`
 - `/Users/thristannewman/ADinsights/artifacts/roadmap/google-ads-completion-plan.md`
 
 **Commits on `main`:**
+
 - `15e33459` — `feat(google-ads): GA-A1 pacing campaigns + GA-A2 recommendation dismiss` (backend: migration + models + views + urls + backend tests)
 - `01780559` — `feat(google-ads): GA-A1 per-campaign pacing UI` (PacingTabSection + aggregates types + FE test)
 - `07bd1327` — `feat(google-ads): GA-A2 recommendation dismiss UI` (RecommendationsTabSection + dashboard helper + FE test)
@@ -125,15 +129,15 @@ All 10 contracts: **GREEN**.
 
 ## 8. Follow-ups / deferrals (Phase B + C carried forward)
 
-| Item | Reason | Carrier |
-|---|---|---|
-| GA-B1 change-log pagination | Phase B — after Phase A ships | State file `tasks.GA-B1.status="deferred"` |
-| GA-B2 saved-view reconciliation | Phase B | State file `tasks.GA-B2.status="deferred"` |
-| GA-C1 integration tests | Phase C | State file `tasks.GA-C1.status="deferred"` |
-| GA-C2 runbook | Phase C | State file `tasks.GA-C2.status="deferred"` |
-| GA-C3 staging smoke (needs test-account creds) | Phase C | State file `tasks.GA-C3.status="deferred"` |
-| CampaignBudget per-campaign FK (replace name-match) | Would let pacing endpoint match 100% accurately instead of best-effort | Not scoped this sprint — documented in architect design §2 + preflight.note in state file |
-| Real Google Ads SDK `DismissRecommendation` call | v2 pinned as LOCAL ONLY; promotion to SDK dismiss is a separate decision | Explicitly guarded by regression test |
+| Item                                                | Reason                                                                   | Carrier                                                                                   |
+| --------------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| GA-B1 change-log pagination                         | Phase B — after Phase A ships                                            | State file `tasks.GA-B1.status="deferred"`                                                |
+| GA-B2 saved-view reconciliation                     | Phase B                                                                  | State file `tasks.GA-B2.status="deferred"`                                                |
+| GA-C1 integration tests                             | Phase C                                                                  | State file `tasks.GA-C1.status="deferred"`                                                |
+| GA-C2 runbook                                       | Phase C                                                                  | State file `tasks.GA-C2.status="deferred"`                                                |
+| GA-C3 staging smoke (needs test-account creds)      | Phase C                                                                  | State file `tasks.GA-C3.status="deferred"`                                                |
+| CampaignBudget per-campaign FK (replace name-match) | Would let pacing endpoint match 100% accurately instead of best-effort   | Not scoped this sprint — documented in architect design §2 + preflight.note in state file |
+| Real Google Ads SDK `DismissRecommendation` call    | v2 pinned as LOCAL ONLY; promotion to SDK dismiss is a separate decision | Explicitly guarded by regression test                                                     |
 
 ---
 

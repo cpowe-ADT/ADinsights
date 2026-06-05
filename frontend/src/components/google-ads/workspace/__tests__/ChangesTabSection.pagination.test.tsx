@@ -62,20 +62,9 @@ describe('ChangesTabSection — GA-B1 load-more pagination', () => {
       results: [row(1), row(2)],
       next_cursor: '2',
     };
-    render(
-      <ChangesTabSection
-        data={payload}
-        status="success"
-        error=""
-        loadMore={vi.fn()}
-      />,
-    );
-    expect(
-      screen.getByTestId('google-ads-changes-load-more'),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Load more' }),
-    ).toBeInTheDocument();
+    render(<ChangesTabSection data={payload} status="success" error="" loadMore={vi.fn()} />);
+    expect(screen.getByTestId('google-ads-changes-load-more')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Load more' })).toBeInTheDocument();
   });
 
   it('appends results from second page after Load more click', async () => {
@@ -90,14 +79,7 @@ describe('ChangesTabSection — GA-B1 load-more pagination', () => {
       next_cursor: null,
     });
     const user = userEvent.setup();
-    render(
-      <ChangesTabSection
-        data={payload}
-        status="success"
-        error=""
-        loadMore={loadMore}
-      />,
-    );
+    render(<ChangesTabSection data={payload} status="success" error="" loadMore={loadMore} />);
 
     expect(countTableRows()).toBe(2);
 
@@ -124,24 +106,13 @@ describe('ChangesTabSection — GA-B1 load-more pagination', () => {
       next_cursor: null,
     });
     const user = userEvent.setup();
-    render(
-      <ChangesTabSection
-        data={payload}
-        status="success"
-        error=""
-        loadMore={loadMore}
-      />,
-    );
+    render(<ChangesTabSection data={payload} status="success" error="" loadMore={loadMore} />);
 
-    expect(
-      screen.getByRole('button', { name: 'Load more' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Load more' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Load more' }));
 
     await waitFor(() => {
-      expect(
-        screen.queryByTestId('google-ads-changes-load-more'),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId('google-ads-changes-load-more')).not.toBeInTheDocument();
     });
     expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
   });

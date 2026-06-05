@@ -111,13 +111,14 @@ const PieComposition = ({
         <ResponsiveContainer width="100%" height={height}>
           <PieChart>
             <defs>
-              <pattern
-                id="viz-pie-pattern-dots"
-                patternUnits="userSpaceOnUse"
-                width="6"
-                height="6"
-              >
-                <circle cx="3" cy="3" r="1.2" fill="currentColor" opacity="var(--viz-pattern-opacity)" />
+              <pattern id="viz-pie-pattern-dots" patternUnits="userSpaceOnUse" width="6" height="6">
+                <circle
+                  cx="3"
+                  cy="3"
+                  r="1.2"
+                  fill="currentColor"
+                  opacity="var(--viz-pattern-opacity)"
+                />
               </pattern>
             </defs>
             <PieComponent

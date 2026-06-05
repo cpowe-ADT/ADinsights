@@ -21,12 +21,12 @@ const baseData: BubbleScatterDatum[] = [
   { id: 'c1', label: 'Awareness', x: 12000, y: 0.018, z: 240 },
   { id: 'c2', label: 'Conversion', x: 8400, y: 0.042, z: 180 },
   { id: 'c3', label: 'Remarketing', x: 5200, y: 0.065, z: 140 },
-  { id: 'c4', label: 'Search', x: 3400, y: 0.090, z: 90 },
+  { id: 'c4', label: 'Search', x: 3400, y: 0.09, z: 90 },
 ];
 
 const shapedData: BubbleScatterDatum[] = [
   { id: 'm1', label: 'Meta Awareness', x: 12000, y: 0.018, z: 240, shape: 'circle' },
-  { id: 'g1', label: 'Google Search', x: 3400, y: 0.090, z: 90, shape: 'triangle' },
+  { id: 'g1', label: 'Google Search', x: 3400, y: 0.09, z: 90, shape: 'triangle' },
   { id: 'm2', label: 'Meta Convert', x: 8400, y: 0.042, z: 180, shape: 'circle' },
   { id: 'g2', label: 'Google Shopping', x: 5200, y: 0.065, z: 140, shape: 'triangle' },
 ];
@@ -109,10 +109,7 @@ export const DarkTheme: Story = {
   },
   decorators: [
     (StoryComponent) => (
-      <div
-        data-theme="dark"
-        style={{ background: 'var(--color-surface-card)', padding: 16 }}
-      >
+      <div data-theme="dark" style={{ background: 'var(--color-surface-card)', padding: 16 }}>
         <StoryComponent />
       </div>
     ),

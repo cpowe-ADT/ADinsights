@@ -60,7 +60,12 @@ vi.mock('../../state/useDatasetStore', () => ({
   useDatasetStore: (
     selector: (state: {
       source?: string;
-      liveReason?: 'adapter_disabled' | 'missing_snapshot' | 'stale_snapshot' | 'default_snapshot' | 'ready';
+      liveReason?:
+        | 'adapter_disabled'
+        | 'missing_snapshot'
+        | 'stale_snapshot'
+        | 'default_snapshot'
+        | 'ready';
       liveDetail?: string;
     }) => unknown,
   ) => selector(datasetStoreMock.state),

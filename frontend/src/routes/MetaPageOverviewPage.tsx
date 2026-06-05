@@ -4,12 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import Breadcrumbs from '../components/Breadcrumbs';
 import EmptyState from '../components/EmptyState';
 import MetricAvailabilityBadge from '../components/MetricAvailabilityBadge';
-import {
-  AccessibleTableToggle,
-  KpiTile,
-  PieComposition,
-  TrendLine,
-} from '../components/viz';
+import { AccessibleTableToggle, KpiTile, PieComposition, TrendLine } from '../components/viz';
 import MetaPageExportHistory from '../components/meta/MetaPageExportHistory';
 import MetaPagesFilterBar from '../components/meta/MetaPagesFilterBar';
 import MetricPicker from '../components/meta/MetricPicker';
@@ -34,10 +29,19 @@ const MetaPageOverviewPage = () => {
   const navigate = useNavigate();
   const [isSyncing, setIsSyncing] = useState(false);
   const [metaStatus, setMetaStatus] = useState<SocialPlatformStatusRecord | null>(null);
-  const { jobs: exportJobs, error: exportError, status: exportStatus, refresh: refreshExports, createExport, download } =
-    useMetaPageExports(pageId);
-  const { views: savedViews, save: saveSavedView, remove: removeSavedView } =
-    usePageInsightsSavedViews(pageId);
+  const {
+    jobs: exportJobs,
+    error: exportError,
+    status: exportStatus,
+    refresh: refreshExports,
+    createExport,
+    download,
+  } = useMetaPageExports(pageId);
+  const {
+    views: savedViews,
+    save: saveSavedView,
+    remove: removeSavedView,
+  } = usePageInsightsSavedViews(pageId);
 
   const {
     pages,
@@ -118,7 +122,10 @@ const MetaPageOverviewPage = () => {
     loadOverviewAndTimeseries,
   ]);
 
-  const selectedPage = useMemo(() => pages.find((page) => page.page_id === pageId), [pages, pageId]);
+  const selectedPage = useMemo(
+    () => pages.find((page) => page.page_id === pageId),
+    [pages, pageId],
+  );
   const selectedMetric = filters.metric || overview?.primary_metric || 'page_post_engagements';
   const getSupportedPeriods = useCallback(
     (metricKey: string) => {
@@ -156,7 +163,9 @@ const MetaPageOverviewPage = () => {
 
   const handleMetricChange = (metric: string) => {
     const metricPeriods = getSupportedPeriods(metric);
-    const nextPeriod = metricPeriods.includes(filters.period) ? filters.period : (metricPeriods[0] ?? 'day');
+    const nextPeriod = metricPeriods.includes(filters.period)
+      ? filters.period
+      : (metricPeriods[0] ?? 'day');
     setFilters({ metric, period: nextPeriod });
     if (pageId) {
       // C1A-NEW-03: Pass metric/period as overrides so loadTimeseries uses the
@@ -258,16 +267,36 @@ const MetaPageOverviewPage = () => {
               Posts
             </Link>
           ) : null}
-          <button className="button secondary" type="button" onClick={() => void syncNow()} disabled={isSyncing}>
+          <button
+            className="button secondary"
+            type="button"
+            onClick={() => void syncNow()}
+            disabled={isSyncing}
+          >
             {isSyncing ? 'Syncing…' : 'Sync now'}
           </button>
-          <button className="button tertiary" type="button" onClick={() => void runExport('csv')} disabled={exportStatus === 'loading'}>
+          <button
+            className="button tertiary"
+            type="button"
+            onClick={() => void runExport('csv')}
+            disabled={exportStatus === 'loading'}
+          >
             Export CSV
           </button>
-          <button className="button tertiary" type="button" onClick={() => void runExport('pdf')} disabled={exportStatus === 'loading'}>
+          <button
+            className="button tertiary"
+            type="button"
+            onClick={() => void runExport('pdf')}
+            disabled={exportStatus === 'loading'}
+          >
             Export PDF
           </button>
-          <button className="button tertiary" type="button" onClick={() => void runExport('png')} disabled={exportStatus === 'loading'}>
+          <button
+            className="button tertiary"
+            type="button"
+            onClick={() => void runExport('png')}
+            disabled={exportStatus === 'loading'}
+          >
             Export PNG
           </button>
           <button className="button secondary" type="button" onClick={() => void handleSaveView()}>
@@ -350,8 +379,8 @@ const MetaPageOverviewPage = () => {
         <div className="panel meta-warning-panel" role="status">
           <h3>Reconnect Meta to restore insights access</h3>
           <p>
-            The current Meta connection is missing: {missingRequiredPermissions.join(', ')}. Reconnect
-            Meta from Data Sources before refreshing or relying on these page metrics.
+            The current Meta connection is missing: {missingRequiredPermissions.join(', ')}.
+            Reconnect Meta from Data Sources before refreshing or relying on these page metrics.
           </p>
           <div className="dashboard-header__actions-row">
             <button
@@ -399,7 +428,9 @@ const MetaPageOverviewPage = () => {
         </div>
       ) : null}
 
-      {dashboardStatus === 'loading' ? <div className="dashboard-state">Loading overview…</div> : null}
+      {dashboardStatus === 'loading' ? (
+        <div className="dashboard-state">Loading overview…</div>
+      ) : null}
       {dashboardStatus === 'error' ? (
         <EmptyState
           icon={<span aria-hidden>!</span>}
@@ -428,7 +459,11 @@ const MetaPageOverviewPage = () => {
               );
             }
             return (
-              <div className="dashboard-grid" data-testid="meta-page-kpi-strip" style={{ marginBottom: '1rem' }}>
+              <div
+                className="dashboard-grid"
+                data-testid="meta-page-kpi-strip"
+                style={{ marginBottom: '1rem' }}
+              >
                 {kpis.map((kpi) => {
                   const availability = overview.metric_availability[kpi.resolved_metric];
                   const unsupported = availability && availability.supported === false;
@@ -468,7 +503,9 @@ const MetaPageOverviewPage = () => {
                       <thead>
                         <tr>
                           <th className="dashboard-table__header-cell">Date</th>
-                          <th className="dashboard-table__header-cell">{formatMetricLabel(selectedMetric)}</th>
+                          <th className="dashboard-table__header-cell">
+                            {formatMetricLabel(selectedMetric)}
+                          </th>
                         </tr>
                       </thead>
                       <tbody>

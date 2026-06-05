@@ -14,16 +14,16 @@
 
 Operator must provide (or confirm pre-provisioned):
 
-| Item | What | Where it goes |
-|---|---|---|
-| **Staging Google Ads OAuth refresh token** | Issued by Google Ads UI for a user with access to ≥1 ad account | Stored as encrypted blob on `Tenant.google_ads_refresh_token` (or wherever tenant-secret rotation lives) |
-| **Staging tenant id** | Real tenant row in staging DB | `request.user.tenant_id` value |
-| **At least one linked Google Ads customer_id** | A 10-digit customer-id with non-trivial ad traffic in last 30 days | `GoogleAdsSdkAccount.customer_id` for that tenant |
-| **Staging JWT for a user in the tenant** | Bearer token for hitting `/api/analytics/google-ads/…` endpoints | `Authorization: Bearer <JWT>` header |
-| **Staging frontend URL** | Where the workspace is mounted | `https://staging.adinsights.example/dashboards/google-ads` (replace) |
-| **Staging backend URL** | API host | `https://staging.adinsights.example/api` (replace) |
-| **DB shell access (read-only sufficient)** | psql or equivalent | Used for tenant-isolation spot checks + `AuditLog` verification |
-| **Redis access (or `cache.delete_pattern` permission)** | For pacing-cache invalidation step | Manage console / shell |
+| Item                                                    | What                                                               | Where it goes                                                                                            |
+| ------------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| **Staging Google Ads OAuth refresh token**              | Issued by Google Ads UI for a user with access to ≥1 ad account    | Stored as encrypted blob on `Tenant.google_ads_refresh_token` (or wherever tenant-secret rotation lives) |
+| **Staging tenant id**                                   | Real tenant row in staging DB                                      | `request.user.tenant_id` value                                                                           |
+| **At least one linked Google Ads customer_id**          | A 10-digit customer-id with non-trivial ad traffic in last 30 days | `GoogleAdsSdkAccount.customer_id` for that tenant                                                        |
+| **Staging JWT for a user in the tenant**                | Bearer token for hitting `/api/analytics/google-ads/…` endpoints   | `Authorization: Bearer <JWT>` header                                                                     |
+| **Staging frontend URL**                                | Where the workspace is mounted                                     | `https://staging.adinsights.example/dashboards/google-ads` (replace)                                     |
+| **Staging backend URL**                                 | API host                                                           | `https://staging.adinsights.example/api` (replace)                                                       |
+| **DB shell access (read-only sufficient)**              | psql or equivalent                                                 | Used for tenant-isolation spot checks + `AuditLog` verification                                          |
+| **Redis access (or `cache.delete_pattern` permission)** | For pacing-cache invalidation step                                 | Manage console / shell                                                                                   |
 
 **Stop here if any item above is missing.** Do not partially execute — partial smoke tests obscure real failures.
 
@@ -31,14 +31,14 @@ Operator must provide (or confirm pre-provisioned):
 
 ## Phase 1 — health + connection sanity (≈10 min)
 
-| # | Check | Command / action | Expected | Pass? |
-|---|---|---|---|---|
-| 1.1 | API health | `curl -fsS $BACKEND/health/` | HTTP 200, body `{"ok": true}` (or equivalent) | ☐ |
-| 1.2 | Timezone is Jamaica | `curl -fsS $BACKEND/timezone/` | `"timezone": "America/Jamaica"` | ☐ |
-| 1.3 | Tenant social status | `curl -H "$AUTH" $BACKEND/integrations/social/status/` | Google Ads section shows `state: "complete"` (not `not_connected`/`started_not_complete`) | ☐ |
-| 1.4 | Tenant dataset status | `curl -H "$AUTH" $BACKEND/datasets/status/` | `live_ready: true`, no `live_reason` blocker for Google Ads | ☐ |
-| 1.5 | Linked customer_ids | `curl -H "$AUTH" $BACKEND/integrations/google-ads/accounts/` | Non-empty array; record customer_id values for later steps | ☐ |
-| 1.6 | Workspace shell loads | Browser → `$FRONTEND/dashboards/google-ads` with logged-in user | Page renders, all 10 tab buttons visible, no console errors | ☐ |
+| #   | Check                 | Command / action                                                | Expected                                                                                  | Pass? |
+| --- | --------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----- |
+| 1.1 | API health            | `curl -fsS $BACKEND/health/`                                    | HTTP 200, body `{"ok": true}` (or equivalent)                                             | ☐     |
+| 1.2 | Timezone is Jamaica   | `curl -fsS $BACKEND/timezone/`                                  | `"timezone": "America/Jamaica"`                                                           | ☐     |
+| 1.3 | Tenant social status  | `curl -H "$AUTH" $BACKEND/integrations/social/status/`          | Google Ads section shows `state: "complete"` (not `not_connected`/`started_not_complete`) | ☐     |
+| 1.4 | Tenant dataset status | `curl -H "$AUTH" $BACKEND/datasets/status/`                     | `live_ready: true`, no `live_reason` blocker for Google Ads                               | ☐     |
+| 1.5 | Linked customer_ids   | `curl -H "$AUTH" $BACKEND/integrations/google-ads/accounts/`    | Non-empty array; record customer_id values for later steps                                | ☐     |
+| 1.6 | Workspace shell loads | Browser → `$FRONTEND/dashboards/google-ads` with logged-in user | Page renders, all 10 tab buttons visible, no console errors                               | ☐     |
 
 If 1.3 / 1.4 / 1.5 fail, follow the **Tenant onboarding triage order** in `docs/runbooks/google-ads-operations.md` §Day-2 operations and resolve before continuing.
 
@@ -123,14 +123,14 @@ For each tab below, click into the tab in the workspace and verify the expected 
 
 ## Phase 3 — cross-cutting checks (≈15 min)
 
-| # | Check | Command / action | Expected | Pass? |
-|---|---|---|---|---|
-| 3.1 | All endpoints require auth | `curl -i $BACKEND/analytics/google-ads/summary/` (no Authorization header) | HTTP 401 | ☐ |
-| 3.2 | All endpoints reject foreign-tenant pk on detail-view actions | `POST /analytics/google-ads/recommendations/<other-tenant-pk>/dismiss/` | HTTP 404 (not 200, not 403 with leak) | ☐ |
-| 3.3 | Frontend bundle has no console errors during a full tab walk | Open DevTools console, click through all 10 tabs | No red errors; warnings okay if pre-existing | ☐ |
-| 3.4 | Frontend network tab — no 5xx during tab walk | DevTools Network filter `status >= 500` | Empty | ☐ |
-| 3.5 | Adapter env-flag isolation | Confirm `ENABLE_WAREHOUSE_ADAPTER`, `ENABLE_META_DIRECT_ADAPTER` settings on staging do not affect Google Ads workspace data (workspace always reads SDK tables — verify by toggling the flag for a moment if safe, or grep code to confirm) | Workspace data unchanged | ☐ |
-| 3.6 | Pacing whitelist drift sanity | `git diff main…HEAD -- backend/analytics/google_ads_views.py` since last whitelist update — if new `KNOWN_FILTER_KEYS` / `KNOWN_COLUMN_KEYS` were added, confirm corresponding saved-view verify behavior | No saved view falsely flagged | ☐ |
+| #   | Check                                                         | Command / action                                                                                                                                                                                                                             | Expected                                     | Pass? |
+| --- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | ----- |
+| 3.1 | All endpoints require auth                                    | `curl -i $BACKEND/analytics/google-ads/summary/` (no Authorization header)                                                                                                                                                                   | HTTP 401                                     | ☐     |
+| 3.2 | All endpoints reject foreign-tenant pk on detail-view actions | `POST /analytics/google-ads/recommendations/<other-tenant-pk>/dismiss/`                                                                                                                                                                      | HTTP 404 (not 200, not 403 with leak)        | ☐     |
+| 3.3 | Frontend bundle has no console errors during a full tab walk  | Open DevTools console, click through all 10 tabs                                                                                                                                                                                             | No red errors; warnings okay if pre-existing | ☐     |
+| 3.4 | Frontend network tab — no 5xx during tab walk                 | DevTools Network filter `status >= 500`                                                                                                                                                                                                      | Empty                                        | ☐     |
+| 3.5 | Adapter env-flag isolation                                    | Confirm `ENABLE_WAREHOUSE_ADAPTER`, `ENABLE_META_DIRECT_ADAPTER` settings on staging do not affect Google Ads workspace data (workspace always reads SDK tables — verify by toggling the flag for a moment if safe, or grep code to confirm) | Workspace data unchanged                     | ☐     |
+| 3.6 | Pacing whitelist drift sanity                                 | `git diff main…HEAD -- backend/analytics/google_ads_views.py` since last whitelist update — if new `KNOWN_FILTER_KEYS` / `KNOWN_COLUMN_KEYS` were added, confirm corresponding saved-view verify behavior                                    | No saved view falsely flagged                | ☐     |
 
 ---
 
@@ -148,15 +148,15 @@ For each tab below, click into the tab in the workspace and verify the expected 
 
 ## Failure triage cheat sheet
 
-| Symptom | First thing to check |
-|---|---|
-| Empty workspace, all tabs blank | `…/integrations/social/status/` and `…/datasets/status/` (steps 1.3 / 1.4) |
-| Per-tab 500 | Django logs for `TenantAwareManager` filter — usually missing `tenant_id` on `request.user` |
-| Per-tab 200 but empty data | Direct-SDK sync worker (`backend.integrations.google_ads.tasks`) — last sync recent? errors? |
-| Pacing cache stale | `cache.delete_pattern("ga_pacing_v1:*")` — see step 2.7 |
-| Drift banner false positive | `KNOWN_FILTER_KEYS` / `KNOWN_COLUMN_KEYS` in `backend/analytics/google_ads_views.py` — needs whitelist update PR |
-| `next_cursor` always null | `has_next()` on `Paginator.get_page()` — may be `page_size >= total` for the test data |
-| `DismissRecommendation` regression test fails | Someone added a real upstream call; revert that change — dismiss is LOCAL ONLY by product decision (April 2026) |
+| Symptom                                       | First thing to check                                                                                             |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Empty workspace, all tabs blank               | `…/integrations/social/status/` and `…/datasets/status/` (steps 1.3 / 1.4)                                       |
+| Per-tab 500                                   | Django logs for `TenantAwareManager` filter — usually missing `tenant_id` on `request.user`                      |
+| Per-tab 200 but empty data                    | Direct-SDK sync worker (`backend.integrations.google_ads.tasks`) — last sync recent? errors?                     |
+| Pacing cache stale                            | `cache.delete_pattern("ga_pacing_v1:*")` — see step 2.7                                                          |
+| Drift banner false positive                   | `KNOWN_FILTER_KEYS` / `KNOWN_COLUMN_KEYS` in `backend/analytics/google_ads_views.py` — needs whitelist update PR |
+| `next_cursor` always null                     | `has_next()` on `Paginator.get_page()` — may be `page_size >= total` for the test data                           |
+| `DismissRecommendation` regression test fails | Someone added a real upstream call; revert that change — dismiss is LOCAL ONLY by product decision (April 2026)  |
 
 ---
 

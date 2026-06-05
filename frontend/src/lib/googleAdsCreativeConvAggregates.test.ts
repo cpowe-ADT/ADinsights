@@ -37,20 +37,14 @@ describe('googleAdsCreativeConvAggregates', () => {
 
   describe('buildAssetTypePie', () => {
     it('aggregates counts by asset_type and sorts desc', () => {
-      const rows = [
-        { asset_type: 'IMAGE' },
-        { asset_type: 'IMAGE' },
-        { asset_type: 'TEXT' },
-      ];
+      const rows = [{ asset_type: 'IMAGE' }, { asset_type: 'IMAGE' }, { asset_type: 'TEXT' }];
       expect(buildAssetTypePie(rows)).toEqual([
         { label: 'IMAGE', value: 2 },
         { label: 'TEXT', value: 1 },
       ]);
     });
     it('defaults missing asset_type to UNKNOWN', () => {
-      expect(buildAssetTypePie([{ asset_id: 'a' }])).toEqual([
-        { label: 'UNKNOWN', value: 1 },
-      ]);
+      expect(buildAssetTypePie([{ asset_id: 'a' }])).toEqual([{ label: 'UNKNOWN', value: 1 }]);
     });
   });
 
@@ -166,9 +160,7 @@ describe('googleAdsCreativeConvAggregates', () => {
       ]);
     });
     it('reads metrics from summary', () => {
-      expect(
-        buildFunnelStages({ impressions: 1000, clicks: 40, conversions: 5 }),
-      ).toEqual([
+      expect(buildFunnelStages({ impressions: 1000, clicks: 40, conversions: 5 })).toEqual([
         { label: 'Impressions', value: 1000 },
         { label: 'Clicks', value: 40 },
         { label: 'Conversions', value: 5 },

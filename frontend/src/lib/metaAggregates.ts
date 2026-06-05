@@ -91,9 +91,7 @@ export const groupSpendByDateAccount = (
  * Compute the median spend-per-day across all accounts. Used as the
  * peer-avg series when a single account filter is active.
  */
-export const computePeerMedian = (
-  rows: MetaInsightRecord[],
-): { date: string; value: number }[] => {
+export const computePeerMedian = (rows: MetaInsightRecord[]): { date: string; value: number }[] => {
   const byDate = new Map<string, Map<string, number>>();
   for (const row of rows) {
     const accountId = row.account_external_id ?? '';
@@ -106,9 +104,7 @@ export const computePeerMedian = (
     if (values.length === 0) return 0;
     const sorted = [...values].sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 === 1
-      ? sorted[mid]
-      : (sorted[mid - 1] + sorted[mid]) / 2;
+    return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
   };
   return [...byDate.entries()]
     .map(([date, accountMap]) => ({ date, value: median([...accountMap.values()]) }))
@@ -118,10 +114,7 @@ export const computePeerMedian = (
 /**
  * Return top-N account_external_ids by total spend across the window.
  */
-export const topAccountsBySpend = (
-  rows: MetaInsightRecord[],
-  n: number,
-): string[] => {
+export const topAccountsBySpend = (rows: MetaInsightRecord[], n: number): string[] => {
   const totals = new Map<string, number>();
   for (const row of rows) {
     const id = row.account_external_id ?? '';
@@ -211,10 +204,7 @@ export interface DualAxisTrendPoint {
  * Insights page trend chart.
  */
 export const groupCtrCpmByDate = (rows: MetaInsightRecord[]): DualAxisTrendPoint[] => {
-  const byDate = new Map<
-    string,
-    { spend: number; impressions: number; clicks: number }
-  >();
+  const byDate = new Map<string, { spend: number; impressions: number; clicks: number }>();
   for (const row of rows) {
     const existing = byDate.get(row.date) ?? { spend: 0, impressions: 0, clicks: 0 };
     existing.spend += numeric(row.spend);

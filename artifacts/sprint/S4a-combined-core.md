@@ -8,16 +8,16 @@ Upgraded the three combined-dashboard route pages (Platform, Campaign, Creative)
 
 ## Files Modified
 
-| File | Action | LoC |
-| --- | --- | --- |
-| `frontend/src/lib/platformLabels.ts` | **NEW** — shared `formatPlatformLabel` + `platformColor` | ~67 |
-| `frontend/src/lib/combinedAggregates.ts` | **NEW** — pure reducers for cross-platform KPIs | ~70 |
-| `frontend/src/routes/PlatformDashboard.tsx` | Rewritten around viz kit (KpiTile×5, TrendLine, DistributionBar 2×2, PieComposition, VizDataTable) | 550 |
-| `frontend/src/routes/CampaignDashboard.tsx` | Added cross-platform KpiTile strip, platform legend, top-10 DistributionBar — legacy CampaignTable preserved | 568 |
-| `frontend/src/routes/CreativeDashboard.tsx` | Rewritten around viz kit (KpiTile×4, BubbleScatter, PieComposition, VizDataTable) — legacy CreativeTable retained | 386 |
-| `frontend/src/routes/__tests__/PlatformDashboard.test.tsx` | Rewritten with viz-kit mocks — 6 tests | — |
-| `frontend/src/routes/__tests__/CampaignDashboard.layout.test.tsx` | Extended with cross-platform strip + legend + top-10 bar assertions | — |
-| `frontend/src/routes/__tests__/CreativeDashboard.test.tsx` | Extended with viz-kit mocks + 6 new tests | — |
+| File                                                              | Action                                                                                                            | LoC |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | --- |
+| `frontend/src/lib/platformLabels.ts`                              | **NEW** — shared `formatPlatformLabel` + `platformColor`                                                          | ~67 |
+| `frontend/src/lib/combinedAggregates.ts`                          | **NEW** — pure reducers for cross-platform KPIs                                                                   | ~70 |
+| `frontend/src/routes/PlatformDashboard.tsx`                       | Rewritten around viz kit (KpiTile×5, TrendLine, DistributionBar 2×2, PieComposition, VizDataTable)                | 550 |
+| `frontend/src/routes/CampaignDashboard.tsx`                       | Added cross-platform KpiTile strip, platform legend, top-10 DistributionBar — legacy CampaignTable preserved      | 568 |
+| `frontend/src/routes/CreativeDashboard.tsx`                       | Rewritten around viz kit (KpiTile×4, BubbleScatter, PieComposition, VizDataTable) — legacy CreativeTable retained | 386 |
+| `frontend/src/routes/__tests__/PlatformDashboard.test.tsx`        | Rewritten with viz-kit mocks — 6 tests                                                                            | —   |
+| `frontend/src/routes/__tests__/CampaignDashboard.layout.test.tsx` | Extended with cross-platform strip + legend + top-10 bar assertions                                               | —   |
+| `frontend/src/routes/__tests__/CreativeDashboard.test.tsx`        | Extended with viz-kit mocks + 6 new tests                                                                         | —   |
 
 ## Phase 2 contracts — preservation citations
 
@@ -38,6 +38,7 @@ Implemented: single-series `TrendLine` with an inline `[NEW-ENDPOINT]` comment b
 ## Platform color parity
 
 All three dashboards consume `platformColor()` from `frontend/src/lib/platformLabels.ts:51-66`, which reads `PLATFORM_CHART_TOKENS` from `frontend/src/styles/chartTheme.ts`:
+
 - Meta family (`meta`, `facebook`, `instagram`) → `PLATFORM_CHART_TOKENS.meta_ads` (blue)
 - Google family (`google`, `google_ads`) → `PLATFORM_CHART_TOKENS.google_ads` (orange)
 - Fallback → `PLATFORM_CHART_TOKENS.peer_avg` (gray)
@@ -55,6 +56,7 @@ Color is backed by text labels on every chip/legend (non-color encoding) per WCA
 ## Tests Added
 
 **PlatformDashboard.test.tsx (6 tests, replaces prior scaffold)**
+
 1. Renders heading, KPI strip ×5, and FP-PLAT-03 top-2 labels
 2. Renders 2×2 DistributionBar small-multiples grid (4 cells)
 3. Renders VizDataTable drill-down with one row per platform
@@ -63,23 +65,26 @@ Color is backed by text labels on every chip/legend (non-color encoding) per WCA
 6. Error state on platforms error
 
 **CampaignDashboard.layout.test.tsx (2 tests, +1 new)**
+
 1. Renders dashboard hierarchy and passes axe checks (preserved)
-2. *NEW*: Renders cross-platform KpiTile strip alongside legacy CampaignTable + platform legend + top-10 DistributionBar
+2. _NEW_: Renders cross-platform KpiTile strip alongside legacy CampaignTable + platform legend + top-10 DistributionBar
 
 **CreativeDashboard.test.tsx (9 tests, +6 new on top of 3 existing)**
+
 1. Renders creative leaderboard heading when data is available (preserved)
 2. Shows empty state when no creative data (preserved)
 3. Shows loading state (preserved)
-4. *NEW*: Renders KpiTile ×4 strip when rows populated
-5. *NEW*: Renders BubbleScatter with one datum per creative row
-6. *NEW*: Renders PieComposition with one slice per unique platform
-7. *NEW*: Renders VizDataTable drill-down with one row per creative
-8. *NEW*: Preserves 3-branch empty-state — `no_matching_filters` variant
-9. *NEW*: Preserves 3-branch empty-state — `no_recent_data` variant
+4. _NEW_: Renders KpiTile ×4 strip when rows populated
+5. _NEW_: Renders BubbleScatter with one datum per creative row
+6. _NEW_: Renders PieComposition with one slice per unique platform
+7. _NEW_: Renders VizDataTable drill-down with one row per creative
+8. _NEW_: Preserves 3-branch empty-state — `no_matching_filters` variant
+9. _NEW_: Preserves 3-branch empty-state — `no_recent_data` variant
 
 ## Verification tails
 
 ### vitest
+
 ```
  ✓ src/routes/__tests__/CreativeDashboard.test.tsx (9 tests) 211ms
  ✓ src/routes/__tests__/PlatformDashboard.test.tsx (6 tests) 217ms
@@ -92,6 +97,7 @@ Color is backed by text labels on every chip/legend (non-color encoding) per WCA
 ```
 
 ### eslint
+
 ```
 /Users/thristannewman/ADinsights/frontend/src/routes/GoogleAnalyticsDashboardPage.tsx
   98:6  warning  React Hook useMemo has a missing dependency: 'piePalette'
@@ -100,15 +106,18 @@ Color is backed by text labels on every chip/legend (non-color encoding) per WCA
 
 ✖ 2 problems (0 errors, 2 warnings)
 ```
+
 Warnings are in **S4b scope** (GA4 / Search Console), **not S4a**. Zero errors.
 
 ### tsc (S4a scope only)
+
 ```
 $ npx tsc -p tsconfig.build.json --noEmit 2>&1 | grep -E "PlatformDashboard|CampaignDashboard|CreativeDashboard|platformLabels|combinedAggregates"
 (no output — zero errors in S4a files)
 ```
 
 ### vite build
+
 Full-repo `npm run build` currently fails inside `GoogleAnalyticsDashboardPage.tsx` (piePalette identifier renamed mid-edit). Those errors are **entirely in S4b CombinedOther+Web implementer's scope** — that agent is still running (per the session-runner status line) and will rebase over my clean S4a tree when they land.
 
 Confirmed S4a-owned files compile cleanly against `tsconfig.build.json`.
@@ -116,6 +125,7 @@ Confirmed S4a-owned files compile cleanly against `tsconfig.build.json`.
 ## Status
 
 **GREEN** — all S4a deliverables complete:
+
 - 3 route pages upgraded to viz kit with contract-preserving structure.
 - 2 new shared helper modules in `frontend/src/lib/`.
 - 31/31 targeted tests pass (`PlatformDashboard`, `CampaignDashboard`, `CreativeDashboard`, `useDashboardStore`).

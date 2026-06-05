@@ -12,48 +12,51 @@
 ### 1. Request / response shape
 
 **Request** (unchanged):
+
 ```
 GET /api/analytics/google-ads/budgets/pacing/?start_date=2026-04-01&end_date=2026-04-23[&customer_ids=...]
 Authorization: Bearer <jwt>
 ```
 
 **Response** (extended — new `campaigns` key):
+
 ```json
 {
   "month": "2026-04",
   "spend_mtd": 12345.67,
-  "budget_month": 20000.00,
-  "forecast_month_end": 18518.50,
-  "over_under": -1481.50,
+  "budget_month": 20000.0,
+  "forecast_month_end": 18518.5,
+  "over_under": -1481.5,
   "runway_days": 14.2,
-  "alerts": {"overspend_risk": false, "underdelivery": false},
+  "alerts": { "overspend_risk": false, "underdelivery": false },
   "campaigns": [
     {
       "campaign_id": "987654321",
       "campaign_name": "Q2 Brand Always-On",
       "customer_id": "1234567890",
-      "budget_amount": 5000.00,
-      "spend_mtd": 2800.00,
-      "pace_pct": 0.560,
-      "projected_eom": 4200.00,
-      "variance": -800.00
+      "budget_amount": 5000.0,
+      "spend_mtd": 2800.0,
+      "pace_pct": 0.56,
+      "projected_eom": 4200.0,
+      "variance": -800.0
     },
     {
       "campaign_id": "987654322",
       "campaign_name": "Promo Push — No Budget Match",
       "customer_id": "1234567890",
       "budget_amount": null,
-      "spend_mtd": 350.00,
+      "spend_mtd": 350.0,
       "pace_pct": null,
-      "projected_eom": 525.00,
+      "projected_eom": 525.0,
       "variance": null
     }
   ],
-  "cache": {"served_from_cache": false, "ttl_seconds": 900}
+  "cache": { "served_from_cache": false, "ttl_seconds": 900 }
 }
 ```
 
 **Error shapes** (existing — date validation via `GoogleAdsDateRangeQuerySerializer`):
+
 - 400: invalid date range / unparseable query params
 - 401: missing/invalid JWT (baseline DRF)
 - 403: not assigned to any customer_id when filter specified
@@ -75,6 +78,7 @@ Authorization: Bearer <jwt>
 ### 4. Test shape
 
 **Backend (`backend/tests/test_google_ads_budgets_pacing_extension.py`):**
+
 - `test_pacing_returns_campaigns_array` — seed 2 `GoogleAdsSdkCampaignDaily` rows for 2 campaigns + 1 `CampaignBudget` that matches one name; assert `campaigns` has 2 entries, first with budget, second with `budget_amount=null`.
 - `test_pacing_tenant_isolation` — seed data for tenant A and tenant B; request as A; assert B's campaigns are absent.
 - `test_pacing_cache_hit` — call twice, assert second response has `served_from_cache: true`.
@@ -100,6 +104,7 @@ Authorization: Bearer <jwt>
 ### 1. Request / response shape
 
 **New endpoint:**
+
 ```
 POST /api/analytics/google-ads/recommendations/<int:pk>/dismiss/
 Authorization: Bearer <jwt>
@@ -107,6 +112,7 @@ Body: {} (empty — dismiss is a state toggle, no parameters)
 ```
 
 **Response** (200):
+
 ```json
 {
   "id": 42,
@@ -126,6 +132,7 @@ Body: {} (empty — dismiss is a state toggle, no parameters)
 **List endpoint extension** (existing `GoogleAdsRecommendationsView`): add `id`, `dismissed_at`, `dismissed_by_user_id` to the row payload so the frontend can key on `id` for the dismiss button.
 
 **Error shapes:**
+
 - 404: recommendation not found for this tenant (prevents cross-tenant leak via ID enumeration — 404 not 403)
 - 409: if re-dismissing an already-dismissed rec, return 200 with current state (idempotent) — no 409
 
@@ -146,6 +153,7 @@ Body: {} (empty — dismiss is a state toggle, no parameters)
 ### 4. Test shape
 
 **Backend (`backend/tests/test_google_ads_recommendations_dismiss.py`):**
+
 - `test_dismiss_sets_fields` — create rec, POST dismiss, assert `dismissed=True, dismissed_at` is non-null, `dismissed_by=user`.
 - `test_dismiss_tenant_isolation` — tenant A creates rec; tenant B POSTs dismiss by same pk → 404; tenant A re-reads rec and sees it still undismissed (from B's perspective's failed attempt).
 - `test_dismiss_is_idempotent` — dismiss twice; second call returns 200; assert two audit log entries.
@@ -175,6 +183,7 @@ Body: {} (empty — dismiss is a state toggle, no parameters)
 **No backend changes.** Existing `GoogleAdsExportStatusView` at line 1673 returns `GoogleAdsExportJob` shape (already typed in `googleAdsDashboard.ts:48`).
 
 **Frontend flow:**
+
 1. User clicks "Create CSV Export" → `createGoogleAdsExport({export_format: 'csv', ...})` returns a job with `status='completed'` today (sync backend) but may be `'queued'|'running'` in a future async world.
 2. If status is terminal (`completed`|`failed`), render the pill + download link immediately — skip polling.
 3. Else start polling: every 3s call `fetchGoogleAdsExportStatus(jobId)`. Stop when:
@@ -197,6 +206,7 @@ Body: {} (empty — dismiss is a state toggle, no parameters)
 ### 4. Test shape
 
 **Frontend (`frontend/src/components/google-ads/workspace/__tests__/ReportsTabSection.polling.test.tsx`):**
+
 - `polls_until_terminal` — mock `createGoogleAdsExport` to return `status=running`; mock `fetchGoogleAdsExportStatus` to return `running` then `completed`; `vi.useFakeTimers()`; advance by 3s twice; assert final pill is "completed" + download link present.
 - `stops_at_60s_ceiling` — mock status stays `running`; advance timers past 60s; assert polling stopped, status remains running, no further fetches.
 - `exp_backoff_on_5xx` — mock 3 consecutive 500 responses; assert 3 fetches with increasing gaps (3s, 6s, 12s); final status `failed`.
@@ -244,8 +254,10 @@ Per v2 §Sub-agent orchestration (strict), sequential:
 ---
 
 ### Architect pass complete
+
 Design doc: `artifacts/sprint/S5-google-ads-finish-design.md`
 Phase A tasks:
+
 - GA-A1 — extend pacing view with per-campaign rows + cache; wire `DistributionBar` in `PacingTabSection`.
 - GA-A2 — dismiss action (local) + migration + UI button with optimistic rollback.
 - GA-A3 — frontend polling loop in `ReportsTabSection`.

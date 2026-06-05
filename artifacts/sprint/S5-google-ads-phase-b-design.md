@@ -15,11 +15,13 @@
 The endpoint **already paginates** via `?page=N&page_size=K` (Django `Paginator`). The v2 Phase B gate requires `next_cursor` in the response. Approach: add a string `next_cursor` field that encodes `str(page+1)` when more pages exist, `null` otherwise. Page-based pagination stays under the hood — no behavior change for existing consumers; new field is purely additive.
 
 **Existing response** (`backend/analytics/google_ads_views.py:1473-1480`):
+
 ```json
 { "count": <int>, "page": <int>, "page_size": <int>, "num_pages": <int>, "results": [...] }
 ```
 
 **New response** — add one key:
+
 ```json
 { "count": ..., "page": ..., "page_size": ..., "num_pages": ..., "next_cursor": "<str|null>", "results": [...] }
 ```
@@ -64,6 +66,7 @@ The endpoint **already paginates** via `?page=N&page_size=K` (Django `Paginator`
 New endpoint: `GET /api/analytics/google-ads/saved-views/<uuid:pk>/verify/` (mounted as `@action(detail=True, methods=["get"])` on the existing `GoogleAdsSavedViewViewSet` at `google_ads_views.py:1616`).
 
 **Response:**
+
 ```json
 {
   "id": "<uuid>",
@@ -112,11 +115,13 @@ New endpoint: `GET /api/analytics/google-ads/saved-views/<uuid:pk>/verify/` (mou
 ## Phase B file allowlist (sub-agent guardrails)
 
 **Backend agent allowlist:**
+
 - `backend/analytics/google_ads_views.py` — extend `GoogleAdsChangeEventsView` (1 line) + add `verify` action on `GoogleAdsSavedViewViewSet`
 - `backend/tests/test_google_ads_changes_pagination.py` — NEW
 - `backend/tests/test_google_ads_saved_view_verify.py` — NEW
 
 **Frontend agent allowlist:**
+
 - `frontend/src/lib/googleAdsDashboard.ts` — add 2 helpers
 - `frontend/src/components/google-ads/workspace/tab-sections/ChangesTabSection.tsx` — add Load more button + accumulated state
 - `frontend/src/components/google-ads/workspace/tab-sections/ReportsTabSection.tsx` — add drift banner
@@ -125,6 +130,7 @@ New endpoint: `GET /api/analytics/google-ads/saved-views/<uuid:pk>/verify/` (mou
 - `frontend/src/components/google-ads/workspace/__tests__/ReportsTabSection.driftBanner.test.tsx` — NEW
 
 **Out of scope (do not touch):**
+
 - Model changes / migrations (Phase B is non-schema)
 - Other tab sections
 - Phase A files (already shipped)
@@ -133,14 +139,14 @@ New endpoint: `GET /api/analytics/google-ads/saved-views/<uuid:pk>/verify/` (mou
 
 ## Phase B gate (per v2 §Phase B gate)
 
-| Check | Expected |
-|---|---|
-| `curl .../change-events/?page=1 \| jq '.next_cursor'` | non-null when more pages exist |
-| `curl .../saved-views/<id>/verify/ \| jq '.drift'` | boolean response |
-| Backend ruff | clean |
-| Backend pytest | clean (no regression from `3edac555`) |
-| Frontend lint | clean |
-| Frontend build | clean |
-| New backend tests pass | 7/7 (3 pagination + 4 verify) |
-| New frontend tests pass | 6/6 (3 pagination + 3 drift banner) |
-| Tenant isolation tests | both new test files cover isolation |
+| Check                                                 | Expected                              |
+| ----------------------------------------------------- | ------------------------------------- |
+| `curl .../change-events/?page=1 \| jq '.next_cursor'` | non-null when more pages exist        |
+| `curl .../saved-views/<id>/verify/ \| jq '.drift'`    | boolean response                      |
+| Backend ruff                                          | clean                                 |
+| Backend pytest                                        | clean (no regression from `3edac555`) |
+| Frontend lint                                         | clean                                 |
+| Frontend build                                        | clean                                 |
+| New backend tests pass                                | 7/7 (3 pagination + 4 verify)         |
+| New frontend tests pass                               | 6/6 (3 pagination + 3 drift banner)   |
+| Tenant isolation tests                                | both new test files cover isolation   |

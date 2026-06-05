@@ -21,7 +21,13 @@ vi.mock('../../../lib/apiClient', () => ({
   appendQueryParams: (endpoint: string) => endpoint,
 }));
 
-const mockFilters = { accountId: 'cust-001', clientId: '', startDate: '', endDate: '', dateRange: '30d' };
+const mockFilters = {
+  accountId: 'cust-001',
+  clientId: '',
+  startDate: '',
+  endDate: '',
+  dateRange: '30d',
+};
 vi.mock('../../../state/useDashboardStore', () => ({
   default: Object.assign(
     (selector: (state: { filters: typeof mockFilters }) => unknown) =>
@@ -104,7 +110,9 @@ describe('GoogleAdsCampaignsPage', () => {
     await waitFor(() =>
       expect(screen.getByRole('img', { name: /cost vs conversion rate/i })).toBeInTheDocument(),
     );
-    expect(screen.getByRole('img', { name: /top 10 google ads campaigns by cost/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: /top 10 google ads campaigns by cost/i }),
+    ).toBeInTheDocument();
   });
 
   it('renders campaign rows with severity chips', async () => {

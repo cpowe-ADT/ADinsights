@@ -2,7 +2,7 @@
 
 **Sprint:** 3
 **Estimated size:** M
-**Depends on:** sprint-1/* (all kit components)
+**Depends on:** sprint-1/\* (all kit components)
 **Blocks:** none
 **Role needed:** frontend-engineer
 
@@ -25,11 +25,12 @@ The Pacing tab in the Google Ads workspace. Endpoint: `GET /api/google-ads/budge
   - Gauge ring: `RadialBarChart` single bar with `pacing.pacing_pct` value. Domain [0, 1.2] (to show 120% scale). Reference lines at 0.8 (yellow underdelivery zone) and 1.1 (red overspend zone). Fill color: `pacing_pct < 0.8 ? chartPalette[5] : pacing_pct > 1.1 ? chartPalette[5] : chartPalette[3]`.
   - KPI strip (3 tiles): Spend MTD = `pacing.spend_mtd` (currency); Budget Month = `pacing.budget_month` (currency); Forecast Month-End = `pacing.forecast_month_end` (currency).
   - DistributionBar (paired): campaign_rows mapped to paired bars — `series=[{key:'spend',label:'Spent',color:chartPalette[1]},{key:'budget_amount',label:'Budget',color:'#e5e7eb'}]`. Filter out rows where `budget_amount === 0 || budget_amount === null`.
-  - DataTable: Campaign, Status chip, Spend, Budget, Forecast (spend * (days_in_month / days_elapsed)), Over/Under, Risk chip. CSV export filename `google-ads-pacing`.
+  - DataTable: Campaign, Status chip, Spend, Budget, Forecast (spend \* (days_in_month / days_elapsed)), Over/Under, Risk chip. CSV export filename `google-ads-pacing`.
 
 - **Risk chip**: `pacing_pct > 1.1` → `<span class="bg-red-100 text-red-800">At Risk</span>`; `pacing_pct < 0.8` → `<span class="bg-yellow-100 text-yellow-800">Under</span>`; else → `<span class="bg-green-100 text-green-800">On Track</span>`.
 
 - **Gauge ring implementation**:
+
 ```tsx
 import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from 'recharts'
 

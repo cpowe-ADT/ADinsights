@@ -58,7 +58,9 @@ const GoogleAdsCampaignDetailPage = () => {
         </Link>
       </header>
 
-      {status === 'loading' ? <div className="dashboard-state dashboard-state--page">Loading campaign...</div> : null}
+      {status === 'loading' ? (
+        <div className="dashboard-state dashboard-state--page">Loading campaign...</div>
+      ) : null}
       {status === 'error' ? (
         <div className="dashboard-state dashboard-state--page" role="alert">
           {error}

@@ -64,13 +64,8 @@ describe('rowsToCsv — RFC 4180 + CSV-injection hardening', () => {
   });
 
   it('handles a mixed torture row', () => {
-    const out = rowsToCsv(
-      ['name', 'note'],
-      [['=SUM(A1)', 'He said "hi", then\nleft']],
-    );
-    expect(out).toBe(
-      'name,note\r\n\'=SUM(A1),"He said ""hi"", then\nleft"',
-    );
+    const out = rowsToCsv(['name', 'note'], [['=SUM(A1)', 'He said "hi", then\nleft']]);
+    expect(out).toBe('name,note\r\n\'=SUM(A1),"He said ""hi"", then\nleft"');
   });
 });
 

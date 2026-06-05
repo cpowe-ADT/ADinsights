@@ -71,16 +71,14 @@ export function aggregateGa4ByChannel(rows: GoogleAnalyticsWebRow[]): Ga4Channel
   const buckets = new Map<string, Ga4ChannelDatum & { _engagedSessions: number }>();
   for (const row of rows) {
     const channel = row.channel_group?.trim() || 'Unassigned';
-    const existing =
-      buckets.get(channel) ??
-      {
-        channel,
-        sessions: 0,
-        conversions: 0,
-        purchaseRevenue: 0,
-        engagementRate: 0,
-        _engagedSessions: 0,
-      };
+    const existing = buckets.get(channel) ?? {
+      channel,
+      sessions: 0,
+      conversions: 0,
+      purchaseRevenue: 0,
+      engagementRate: 0,
+      _engagedSessions: 0,
+    };
     existing.sessions += Number(row.sessions || 0);
     existing.conversions += Number(row.conversions || 0);
     existing.purchaseRevenue += Number(row.purchase_revenue || 0);
@@ -108,9 +106,7 @@ export interface SearchConsoleTotals {
   avgPosition: number;
 }
 
-export function aggregateSearchConsoleTotals(
-  rows: SearchConsoleWebRow[],
-): SearchConsoleTotals {
+export function aggregateSearchConsoleTotals(rows: SearchConsoleWebRow[]): SearchConsoleTotals {
   let clicks = 0;
   let impressions = 0;
   let weightedPositionNumerator = 0;
@@ -179,23 +175,18 @@ export function aggregateSearchConsoleTopQueries(
   rows: SearchConsoleWebRow[],
   limit = 50,
 ): SearchConsoleQueryRow[] {
-  const buckets = new Map<
-    string,
-    SearchConsoleQueryRow & { _positionWeightedSum: number }
-  >();
+  const buckets = new Map<string, SearchConsoleQueryRow & { _positionWeightedSum: number }>();
   for (const row of rows) {
     const query = row.query?.trim() || '(unspecified)';
-    const existing =
-      buckets.get(query) ??
-      {
-        query,
-        device: '',
-        clicks: 0,
-        impressions: 0,
-        ctr: 0,
-        avgPosition: 0,
-        _positionWeightedSum: 0,
-      };
+    const existing = buckets.get(query) ?? {
+      query,
+      device: '',
+      clicks: 0,
+      impressions: 0,
+      ctr: 0,
+      avgPosition: 0,
+      _positionWeightedSum: 0,
+    };
     const rowClicks = Number(row.clicks || 0);
     const rowImpr = Number(row.impressions || 0);
     existing.clicks += rowClicks;

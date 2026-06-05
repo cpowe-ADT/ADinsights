@@ -176,12 +176,12 @@ describe('ReportDetailPage inline editing', () => {
     });
 
     renderPage();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument(),
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Download' }));
 
-    await waitFor(() =>
-      expect(phase2ApiMock.downloadReportExport).toHaveBeenCalledWith('job-1'),
-    );
+    await waitFor(() => expect(phase2ApiMock.downloadReportExport).toHaveBeenCalledWith('job-1'));
     expect(downloadMock.saveBlobAsFile).toHaveBeenCalledWith(blob, 'pilot-report.csv');
   });
 

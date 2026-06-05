@@ -2,10 +2,7 @@ import { useMemo } from 'react';
 import type { ComponentType, CSSProperties } from 'react';
 import { ResponsiveContainer, Tooltip, Treemap } from 'recharts';
 
-import {
-  createTooltipProps,
-  resolveSeriesColor,
-} from '../../styles/chartTheme';
+import { createTooltipProps, resolveSeriesColor } from '../../styles/chartTheme';
 import { formatCompactNumber, formatCurrency } from '../../lib/formatNumber';
 import EmptyState from '../EmptyState';
 
@@ -171,15 +168,7 @@ const AssetGroupTreemap = ({
             patternTransform="rotate(45)"
           >
             <rect width="8" height="8" fill={rootColor} fillOpacity={0.35} />
-            <line
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="8"
-              stroke="#0f172a"
-              strokeWidth={1.5}
-              opacity={0.55}
-            />
+            <line x1="0" y1="0" x2="0" y2="8" stroke="#0f172a" strokeWidth={1.5} opacity={0.55} />
           </pattern>
         </defs>
       </svg>
@@ -194,10 +183,7 @@ const AssetGroupTreemap = ({
             stroke="var(--color-surface-card, #ffffff)"
             fill={rootColor}
             content={(props: unknown) => (
-              <TreemapCell
-                {...(props as TreemapCellProps)}
-                rootColor={rootColor}
-              />
+              <TreemapCell {...(props as TreemapCellProps)} rootColor={rootColor} />
             )}
           >
             <TooltipComponent {...tooltipProps} />

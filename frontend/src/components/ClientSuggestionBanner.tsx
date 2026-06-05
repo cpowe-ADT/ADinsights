@@ -16,9 +16,7 @@ import {
   type ClientSuggestionSnapshot,
 } from '../lib/clients';
 
-const triggerLabel = (
-  reason: ClientSuggestionSnapshot['trigger_reason'],
-): string => {
+const triggerLabel = (reason: ClientSuggestionSnapshot['trigger_reason']): string => {
   switch (reason) {
     case 'meta_sync':
       return 'after your Meta sync';
@@ -34,12 +32,8 @@ interface ClientSuggestionBannerProps {
   enabled: boolean;
 }
 
-export const ClientSuggestionBanner = ({
-  enabled,
-}: ClientSuggestionBannerProps) => {
-  const [snapshot, setSnapshot] = useState<ClientSuggestionSnapshot | null>(
-    null,
-  );
+export const ClientSuggestionBanner = ({ enabled }: ClientSuggestionBannerProps) => {
+  const [snapshot, setSnapshot] = useState<ClientSuggestionSnapshot | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [working, setWorking] = useState(false);
 
@@ -98,15 +92,11 @@ export const ClientSuggestionBanner = ({
             </strong>
             <span className="client-suggestion-banner__detail">
               We found accounts that look like they belong to the same Client
-              {reasonText ? ` ${reasonText}` : ''}. Review and group them to see
-              combined reporting.
+              {reasonText ? ` ${reasonText}` : ''}. Review and group them to see combined reporting.
             </span>
           </div>
           <div className="client-suggestion-banner__actions">
-            <Link
-              to="/clients/suggest"
-              className="client-suggestion-banner__review"
-            >
+            <Link to="/clients/suggest" className="client-suggestion-banner__review">
               Review suggestions
             </Link>
             <button

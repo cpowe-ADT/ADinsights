@@ -14,8 +14,7 @@ vi.mock('../../../lib/apiClient', () => ({
 }));
 
 vi.mock('../../../lib/googleAdsDashboard', () => ({
-  fetchGoogleAdsWorkspaceSummary: (...args: unknown[]) =>
-    fetchSummaryMock(...args),
+  fetchGoogleAdsWorkspaceSummary: (...args: unknown[]) => fetchSummaryMock(...args),
 }));
 
 describe('GoogleAdsConversionsPage', () => {
@@ -65,9 +64,7 @@ describe('GoogleAdsConversionsPage', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() =>
-      expect(screen.getByText('Total Conversions')).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText('Total Conversions')).toBeInTheDocument());
     expect(screen.getByText('Total Value')).toBeInTheDocument();
     expect(screen.getByText('Avg CPA')).toBeInTheDocument();
 
@@ -95,9 +92,7 @@ describe('GoogleAdsConversionsPage', () => {
       </MemoryRouter>,
     );
     await waitFor(() =>
-      expect(
-        container.querySelector('[data-reason-code="no_conversions"]'),
-      ).toBeInTheDocument(),
+      expect(container.querySelector('[data-reason-code="no_conversions"]')).toBeInTheDocument(),
     );
   });
 
@@ -109,8 +104,6 @@ describe('GoogleAdsConversionsPage', () => {
         <GoogleAdsConversionsPage />
       </MemoryRouter>,
     );
-    await waitFor(() =>
-      expect(screen.getByText('Conv boom')).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText('Conv boom')).toBeInTheDocument());
   });
 });

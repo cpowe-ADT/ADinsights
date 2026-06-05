@@ -27,9 +27,7 @@ export interface KpiTotals {
 }
 
 const safeDiv = (numerator: number, denominator: number): number =>
-  denominator > 0 && Number.isFinite(numerator / denominator)
-    ? numerator / denominator
-    : 0;
+  denominator > 0 && Number.isFinite(numerator / denominator) ? numerator / denominator : 0;
 
 export function totalsFromPlatformRows(rows: PlatformSumRow[]): KpiTotals {
   const totals = rows.reduce(
@@ -66,7 +64,5 @@ export function roasFromRow(row: { conversions: number; spend: number }): number
  * Top-N rows sorted desc by a numeric metric. Stable — returns a new array.
  */
 export function topNBy<T>(rows: T[], metric: (row: T) => number, n: number): T[] {
-  return [...rows]
-    .sort((a, b) => (Number(metric(b)) || 0) - (Number(metric(a)) || 0))
-    .slice(0, n);
+  return [...rows].sort((a, b) => (Number(metric(b)) || 0) - (Number(metric(a)) || 0)).slice(0, n);
 }

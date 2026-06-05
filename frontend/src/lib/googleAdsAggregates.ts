@@ -120,9 +120,12 @@ export const safeDivide = (num: number, denom: number): number => {
  * Architect §4: IS% is NOT available — only 4 tiles ship.
  */
 export const rollupOverviewKpis = (
-  summary: {
-    metrics?: Record<string, unknown>;
-  } | null | undefined,
+  summary:
+    | {
+        metrics?: Record<string, unknown>;
+      }
+    | null
+    | undefined,
 ): GoogleAdsOverviewKpis => {
   const m = summary?.metrics ?? {};
   const spend = toNumber(m.spend);
@@ -561,7 +564,8 @@ export const deriveRecommendationSeverity = (
   } catch {
     // Fall through to heuristic.
   }
-  const t = typeof row.recommendation_type === 'string' ? row.recommendation_type.toUpperCase() : '';
+  const t =
+    typeof row.recommendation_type === 'string' ? row.recommendation_type.toUpperCase() : '';
   if (!t) return 'info';
   if (DANGER_TYPE_PATTERNS.some((p) => t.includes(p))) return 'danger';
   if (WARNING_TYPE_PATTERNS.some((p) => t.includes(p))) return 'warning';
@@ -636,7 +640,8 @@ export type ExportJobStatusTone = 'success' | 'warning' | 'danger' | 'neutral';
 
 export const deriveExportJobStatusTone = (status: unknown): ExportJobStatusTone => {
   const s = typeof status === 'string' ? status.toLowerCase() : '';
-  if (s === 'complete' || s === 'completed' || s === 'success' || s === 'succeeded') return 'success';
+  if (s === 'complete' || s === 'completed' || s === 'success' || s === 'succeeded')
+    return 'success';
   if (s === 'running' || s === 'queued' || s === 'pending' || s === 'in_progress') return 'warning';
   if (s === 'failed' || s === 'error' || s === 'errored' || s === 'cancelled') return 'danger';
   return 'neutral';
@@ -649,5 +654,14 @@ export const deriveExportJobStatusTone = (status: unknown): ExportJobStatusTone 
 export const isTerminalExportStatus = (status: unknown): boolean => {
   if (typeof status !== 'string') return false;
   const s = status.toLowerCase();
-  return s === 'completed' || s === 'complete' || s === 'failed' || s === 'error' || s === 'errored' || s === 'cancelled' || s === 'succeeded' || s === 'success';
+  return (
+    s === 'completed' ||
+    s === 'complete' ||
+    s === 'failed' ||
+    s === 'error' ||
+    s === 'errored' ||
+    s === 'cancelled' ||
+    s === 'succeeded' ||
+    s === 'success'
+  );
 };

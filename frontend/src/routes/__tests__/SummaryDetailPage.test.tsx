@@ -16,9 +16,7 @@ const phase2ApiMock = vi.hoisted(() => ({
 // hoist ordering can leave SummaryDetailPage's mock swapped out under load,
 // producing an intermittent "heading not found" flake in full-suite runs.
 vi.mock('../../lib/phase2Api', async () => {
-  const actual = await vi.importActual<typeof import('../../lib/phase2Api')>(
-    '../../lib/phase2Api',
-  );
+  const actual = await vi.importActual<typeof import('../../lib/phase2Api')>('../../lib/phase2Api');
   return {
     ...actual,
     getSummary: phase2ApiMock.getSummary,
@@ -57,9 +55,13 @@ describe('SummaryDetailPage', () => {
   it('renders summary title and text', async () => {
     renderPage();
 
-    expect(await screen.findByRole('heading', { name: 'Weekly Digest: April 1-7' })).toBeInTheDocument();
     expect(
-      screen.getByText('Ad spend increased 12% week-over-week with stable ROAS across Kingston parishes.'),
+      await screen.findByRole('heading', { name: 'Weekly Digest: April 1-7' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Ad spend increased 12% week-over-week with stable ROAS across Kingston parishes.',
+      ),
     ).toBeInTheDocument();
   });
 

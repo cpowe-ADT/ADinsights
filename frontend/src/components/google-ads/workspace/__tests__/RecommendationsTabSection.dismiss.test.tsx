@@ -56,9 +56,7 @@ describe('RecommendationsTabSection — GA-A2 dismiss', () => {
   });
 
   it('non-dismissed row shows Dismiss button; dismissed row shows chip (no button)', () => {
-    render(
-      <RecommendationsTabSection data={basePayload} status="success" error="" />,
-    );
+    render(<RecommendationsTabSection data={basePayload} status="success" error="" />);
     const buttons = screen.getAllByRole('button', { name: 'Dismiss' });
     expect(buttons).toHaveLength(1);
     expect(buttons[0].getAttribute('data-recommendation-id')).toBe('42');
@@ -76,14 +74,10 @@ describe('RecommendationsTabSection — GA-A2 dismiss', () => {
       dismissed: true,
     });
     const user = userEvent.setup();
-    render(
-      <RecommendationsTabSection data={basePayload} status="success" error="" />,
-    );
+    render(<RecommendationsTabSection data={basePayload} status="success" error="" />);
     await user.click(screen.getByRole('button', { name: 'Dismiss' }));
     await waitFor(() => {
-      expect(
-        googleAdsDashboardMock.dismissGoogleAdsRecommendation,
-      ).toHaveBeenCalledWith(42);
+      expect(googleAdsDashboardMock.dismissGoogleAdsRecommendation).toHaveBeenCalledWith(42);
     });
   });
 
@@ -96,9 +90,7 @@ describe('RecommendationsTabSection — GA-A2 dismiss', () => {
         }),
     );
     const user = userEvent.setup();
-    render(
-      <RecommendationsTabSection data={basePayload} status="success" error="" />,
-    );
+    render(<RecommendationsTabSection data={basePayload} status="success" error="" />);
     await user.click(screen.getByRole('button', { name: 'Dismiss' }));
     // Row 42's Status cell should now show a "Dismissed" chip while the
     // network call is still pending. Anchor on the unique data attribute.
@@ -115,13 +107,9 @@ describe('RecommendationsTabSection — GA-A2 dismiss', () => {
   });
 
   it('rolls back local state and shows error toast on failure', async () => {
-    googleAdsDashboardMock.dismissGoogleAdsRecommendation.mockRejectedValue(
-      new Error('boom'),
-    );
+    googleAdsDashboardMock.dismissGoogleAdsRecommendation.mockRejectedValue(new Error('boom'));
     const user = userEvent.setup();
-    render(
-      <RecommendationsTabSection data={basePayload} status="success" error="" />,
-    );
+    render(<RecommendationsTabSection data={basePayload} status="success" error="" />);
     await user.click(screen.getByRole('button', { name: 'Dismiss' }));
     await waitFor(() => {
       // Button should be re-enabled and visible again (rollback).
@@ -136,9 +124,7 @@ describe('RecommendationsTabSection — GA-A2 dismiss', () => {
       dismissed: true,
     });
     const user = userEvent.setup();
-    render(
-      <RecommendationsTabSection data={basePayload} status="success" error="" />,
-    );
+    render(<RecommendationsTabSection data={basePayload} status="success" error="" />);
     await user.click(screen.getByRole('button', { name: 'Dismiss' }));
     await waitFor(() => {
       expect(toastMock.addToast).toHaveBeenCalledWith('Recommendation dismissed');
@@ -146,9 +132,7 @@ describe('RecommendationsTabSection — GA-A2 dismiss', () => {
   });
 
   it('renders the Dismiss button inside a table cell with the right id', () => {
-    render(
-      <RecommendationsTabSection data={basePayload} status="success" error="" />,
-    );
+    render(<RecommendationsTabSection data={basePayload} status="success" error="" />);
     // Locate the dismiss button by its data attribute, then verify its
     // ancestor is a Status table cell (`td.dashboard-table__cell`).
     const button = screen.getByRole('button', { name: 'Dismiss' });

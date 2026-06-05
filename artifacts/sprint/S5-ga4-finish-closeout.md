@@ -6,19 +6,19 @@
 
 ## 1. Status: **AMBER (ship-ready pending external credentials)**
 
-All engineering-side DoD items from `finish-ga4.md` are satisfied at baseline. The one unchecked DoD item — *"Dashboard at `/dashboards/google-analytics` shows real data on the dev stack"* — is blocked on external credentials that cannot be self-provisioned. Execution plan shipped as `S5-ga4-staging-smoke-checklist.md`.
+All engineering-side DoD items from `finish-ga4.md` are satisfied at baseline. The one unchecked DoD item — _"Dashboard at `/dashboards/google-analytics` shows real data on the dev stack"_ — is blocked on external credentials that cannot be self-provisioned. Execution plan shipped as `S5-ga4-staging-smoke-checklist.md`.
 
 ## 2. DoD audit vs. `finish-ga4.md` §"Definition of Done — GA4 alone"
 
-| DoD item | Status | Evidence |
-|---|---|---|
-| `artifacts/roadmap/ga4-investigation.md` written with verdict + evidence | **✓ DONE** | 214-line doc, Verdict B, pasted command output |
-| Dashboard shows real data (or well-reasoned empty state) on dev stack | **AMBER** | Empty state by design (mart not populated in dev); execution plan in smoke checklist |
-| ≥5 new backend pytest + ≥3 new vitest where applicable | **✓ DONE** | 16 new backend tests per investigation §Step 3: PII allowlist (12), client credential classifications (3), tenant isolation (1). Frontend: 4 existing vitest cover populated + 2 empty-state branches + R3 contract. |
-| All gates remain green | **✓ DONE** | Baseline: 743 backend passed / 1 skipped (was 727 / 1 before GA4 tests); frontend lint + build clean; `GoogleAnalyticsDashboardPage.test.tsx` 4/4 pass (verified 2026-04-23) |
-| Runbook at `docs/runbooks/ga4-operations.md` | **✓ DONE** | 155 LoC runbook |
-| R3 contract holds (no `/metrics/combined/` from GA4 page) | **✓ DONE** | Fetch-spy test `R3: uses the dedicated GA4 endpoint and never calls /metrics/combined/` |
-| Commits with conventional prefix | **✓ DONE** | Prior commits: `docs(ga4):` + `test(ga4):` |
+| DoD item                                                                 | Status     | Evidence                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `artifacts/roadmap/ga4-investigation.md` written with verdict + evidence | **✓ DONE** | 214-line doc, Verdict B, pasted command output                                                                                                                                                                       |
+| Dashboard shows real data (or well-reasoned empty state) on dev stack    | **AMBER**  | Empty state by design (mart not populated in dev); execution plan in smoke checklist                                                                                                                                 |
+| ≥5 new backend pytest + ≥3 new vitest where applicable                   | **✓ DONE** | 16 new backend tests per investigation §Step 3: PII allowlist (12), client credential classifications (3), tenant isolation (1). Frontend: 4 existing vitest cover populated + 2 empty-state branches + R3 contract. |
+| All gates remain green                                                   | **✓ DONE** | Baseline: 743 backend passed / 1 skipped (was 727 / 1 before GA4 tests); frontend lint + build clean; `GoogleAnalyticsDashboardPage.test.tsx` 4/4 pass (verified 2026-04-23)                                         |
+| Runbook at `docs/runbooks/ga4-operations.md`                             | **✓ DONE** | 155 LoC runbook                                                                                                                                                                                                      |
+| R3 contract holds (no `/metrics/combined/` from GA4 page)                | **✓ DONE** | Fetch-spy test `R3: uses the dedicated GA4 endpoint and never calls /metrics/combined/`                                                                                                                              |
+| Commits with conventional prefix                                         | **✓ DONE** | Prior commits: `docs(ga4):` + `test(ga4):`                                                                                                                                                                           |
 
 ## 3. What shipped in this close-out session
 
@@ -26,20 +26,20 @@ Two additive artifacts — no code changes, no dbt changes, no secrets.
 
 ### New documentation
 
-| File | Purpose | LoC |
-|---|---|---|
+| File                                                 | Purpose                                                                                                                                                                                                                                                       | LoC  |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | `artifacts/sprint/S5-ga4-staging-smoke-checklist.md` | Operator-runnable staging regression walkthrough: 6 phases covering Airbyte+dbt provisioning, OAuth connect flow, dashboard end-to-end, R3 + tenant isolation, freshness scheduling, record-results procedure, triage cheat sheet, known architectural quirks | ~140 |
-| `artifacts/sprint/S5-ga4-finish-closeout.md` | This doc | ~80 |
+| `artifacts/sprint/S5-ga4-finish-closeout.md`         | This doc                                                                                                                                                                                                                                                      | ~80  |
 
 ## 4. Gate matrix (post-close)
 
-| Gate | Command | Result |
-|---|---|---|
-| GA4 dashboard vitest | `cd frontend && npx vitest --run src/routes/__tests__/GoogleAnalyticsDashboardPage.test.tsx` | **PASS — 4/4** in 1.65s |
-| Full frontend lint | `cd frontend && npm run lint` | N/A (no frontend touched) |
-| Full frontend build | `cd frontend && npm run build` | N/A (no frontend touched) |
-| Backend ruff | `ruff check backend` | N/A (no backend touched) |
-| Backend pytest | `cd backend && pytest -q` | N/A (no backend touched) |
+| Gate                 | Command                                                                                      | Result                    |
+| -------------------- | -------------------------------------------------------------------------------------------- | ------------------------- |
+| GA4 dashboard vitest | `cd frontend && npx vitest --run src/routes/__tests__/GoogleAnalyticsDashboardPage.test.tsx` | **PASS — 4/4** in 1.65s   |
+| Full frontend lint   | `cd frontend && npm run lint`                                                                | N/A (no frontend touched) |
+| Full frontend build  | `cd frontend && npm run build`                                                               | N/A (no frontend touched) |
+| Backend ruff         | `ruff check backend`                                                                         | N/A (no backend touched)  |
+| Backend pytest       | `cd backend && pytest -q`                                                                    | N/A (no backend touched)  |
 
 This close-out session is documentation-only — no gate regressions possible.
 

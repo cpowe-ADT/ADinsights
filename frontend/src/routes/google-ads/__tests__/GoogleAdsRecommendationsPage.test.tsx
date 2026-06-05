@@ -10,7 +10,8 @@ const pendingAsync = () => new Promise<never>(() => {});
 const mockFilters = { accountId: '', clientId: '', startDate: '', endDate: '', dateRange: '30d' };
 vi.mock('../../../state/useDashboardStore', () => ({
   default: Object.assign(
-    (selector: (state: { filters: typeof mockFilters }) => unknown) => selector({ filters: mockFilters }),
+    (selector: (state: { filters: typeof mockFilters }) => unknown) =>
+      selector({ filters: mockFilters }),
     {
       getState: () => ({ filters: mockFilters }),
     },

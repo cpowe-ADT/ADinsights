@@ -91,43 +91,43 @@
 
 Legend: **OK** = field exists as-is; **DERIVE** = computable client-side from adjacent fields; **JOIN** = needs cross-slice join (document the fetch); **DEGRADE** = if field missing, hide block; **DEFER** = requires backend work, out of Sprint 2 scope.
 
-| Page | Required viz | Required fields | Availability | Strategy |
-|---|---|---|---|---|
-| Accounts | KPI: Total Spend | `sum(insights.rows[l=account].spend)` | **JOIN** | Call `loadInsights({level:'account', accountId:''})` when page mounts |
-| Accounts | KPI: Total Impressions | `sum(insights.impressions)` | **JOIN** | Same call |
-| Accounts | KPI: Total Reach | `sum(insights.reach)` | **JOIN** | Same call (note: sum-of-reach overcounts — document as "aggregate reach", not "unique reach") |
-| Accounts | KPI: Avg CTR | `sum(clicks)/sum(impressions)` | **DERIVE** | Compute from insights |
-| Accounts | KPI: Avg CPM | `sum(spend)/sum(impressions)*1000` | **DERIVE** | Compute from insights |
-| Accounts | KPI: Active Accounts | `accounts.rows.filter(a => a.status === 'ACTIVE').length` | **OK** | Store already has rows |
-| Accounts | TrendLine: spend/day/account | insights grouped by `date, account_external_id` | **JOIN** | From `level=account` insights |
-| Accounts | PieComposition: spend by objective | `insights × campaigns` join on `campaign_external_id`→`objective` | **JOIN** | Requires `loadCampaigns()` + `loadInsights({level:'campaign'})` both |
-| Accounts | Table: per-account metrics | account rows + aggregated insights | **JOIN** | Build once from both slices |
-| Insights | KPI: Spend | `sum(insights.spend)` | **OK** | Already in slice |
-| Insights | KPI: ROAS | from `actions[]` where `action_type` in purchase set | **DERIVE (conditional)** | If any row has purchase value → compute; else degrade — hide tile |
-| Insights | KPI: CTR | `sum(clicks)/sum(impressions)` | **DERIVE** | — |
-| Insights | KPI: Frequency | impressions / unique users | **DEFER** | Not derivable. **Degrade**: replace with CPC tile |
-| Insights | KPI: CPM | `sum(spend)/sum(impressions)*1000` | **DERIVE** | — |
-| Insights | TrendLine dual-axis CTR + CPM | insights grouped by date | **DERIVE** | Group existing `chartData` transform by date, compute per-day |
-| Insights | BubbleScatter x=spend y=ROAS z=impressions | campaign-level insights | **JOIN + DERIVE** | `level=campaign` insights; y-axis swaps to CPM if ROAS not derivable for any row |
-| Insights | Table: top campaigns | existing rows | **OK** | Already rendered |
-| Campaigns | KPI: Spend | NOT on `MetaCampaign` | **JOIN** | Call `loadInsights({level:'campaign'})` |
-| Campaigns | KPI: Impressions | same | **JOIN** | Same |
-| Campaigns | KPI: Clicks | same | **JOIN** | Same |
-| Campaigns | KPI: Conversions | same | **JOIN** | Same |
-| Campaigns | Funnel: Impressions → Clicks → Conversions | summed metrics | **DERIVE** | **No Funnel primitive in viz kit.** Use `DistributionBar orientation="horizontal"` with ordered 3 stages + drop-off % labels — architect decision per prompt line 45 |
-| Campaigns | DistributionBar: spend by campaign (top 10) | campaign-level insights | **JOIN** | Same insights call |
-| Campaigns | Table with inline Sparkline per row | row's daily spend history | **JOIN** | Group `level=campaign` insights by date per campaign; feed per-row array to `Sparkline` |
-| Pages List | Cards + DataTable | `pages[]` from existing store | **OK** | No KPI strip per spec |
-| Pages List | `fan_count` on card | `MetaPageRecord.fan_count` | **VERIFY** (check record type) | If absent → show name + last_synced_at only |
-| Page Overview | KPI: followers, reach, engagement | `overview.kpis[]` | **OK** | Already in store; migrate from legacy `KPIGrid` to `KpiTile × 4` |
-| Page Overview | TrendLine: follower growth | `overview.daily_series[primary_metric]` | **OK** | Already in store; migrate from legacy `TrendChart` |
-| Page Overview | PieComposition: post-type mix / engagement breakdown | `overview.engagement_breakdown[metric]` | **OK** | `BreakdownEntry[]` shape matches PieComposition slice input |
-| Posts list | KPI: Total Posts, Avg Reach, Avg Engagement | computed from `posts.results[]` | **DERIVE** | From `results[].metrics`. Avg reach = mean of `metrics[reach_metric]`; avg engagement = mean of engagement metric. Use first available metric key from `metric_availability` |
-| Posts list | PieComposition post-type mix | `results[].media_type` counts | **DERIVE** | `groupBy(results, 'media_type')` |
-| Posts list | Posts table | existing `PostsTable` | **OK** | Keep as-is; do NOT migrate to `VizDataTable` (thumbnail + message snippet cell is non-standard) |
-| Post Detail | KPI: Reach, Impressions, Reactions, Shares | `postDetail.metrics{}` | **OK (conditional)** | Pick first available of each category from `metric_availability`. If a category missing → hide that tile |
-| Post Detail | Sparkline per KPI tile | would need per-metric timeseries; only 1 metric at a time is fetched | **DEFER / DEGRADE** | Sprints-plan §520 says one `TrendLine` for selected metric, not per-tile sparkline. **Decision:** render one `TrendLine` + single `Sparkline` on each tile showing the *selected* metric's last-7-points. Do NOT fire 4 timeseries calls. Alternative: hide Sparkline until user selects metric |
-| Post Detail | Comments table | no endpoint | **DEFER** | Suppress block entirely (sprints-plan §524) |
+| Page          | Required viz                                         | Required fields                                                      | Availability                   | Strategy                                                                                                                                                                                                                                                                                        |
+| ------------- | ---------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accounts      | KPI: Total Spend                                     | `sum(insights.rows[l=account].spend)`                                | **JOIN**                       | Call `loadInsights({level:'account', accountId:''})` when page mounts                                                                                                                                                                                                                           |
+| Accounts      | KPI: Total Impressions                               | `sum(insights.impressions)`                                          | **JOIN**                       | Same call                                                                                                                                                                                                                                                                                       |
+| Accounts      | KPI: Total Reach                                     | `sum(insights.reach)`                                                | **JOIN**                       | Same call (note: sum-of-reach overcounts — document as "aggregate reach", not "unique reach")                                                                                                                                                                                                   |
+| Accounts      | KPI: Avg CTR                                         | `sum(clicks)/sum(impressions)`                                       | **DERIVE**                     | Compute from insights                                                                                                                                                                                                                                                                           |
+| Accounts      | KPI: Avg CPM                                         | `sum(spend)/sum(impressions)*1000`                                   | **DERIVE**                     | Compute from insights                                                                                                                                                                                                                                                                           |
+| Accounts      | KPI: Active Accounts                                 | `accounts.rows.filter(a => a.status === 'ACTIVE').length`            | **OK**                         | Store already has rows                                                                                                                                                                                                                                                                          |
+| Accounts      | TrendLine: spend/day/account                         | insights grouped by `date, account_external_id`                      | **JOIN**                       | From `level=account` insights                                                                                                                                                                                                                                                                   |
+| Accounts      | PieComposition: spend by objective                   | `insights × campaigns` join on `campaign_external_id`→`objective`    | **JOIN**                       | Requires `loadCampaigns()` + `loadInsights({level:'campaign'})` both                                                                                                                                                                                                                            |
+| Accounts      | Table: per-account metrics                           | account rows + aggregated insights                                   | **JOIN**                       | Build once from both slices                                                                                                                                                                                                                                                                     |
+| Insights      | KPI: Spend                                           | `sum(insights.spend)`                                                | **OK**                         | Already in slice                                                                                                                                                                                                                                                                                |
+| Insights      | KPI: ROAS                                            | from `actions[]` where `action_type` in purchase set                 | **DERIVE (conditional)**       | If any row has purchase value → compute; else degrade — hide tile                                                                                                                                                                                                                               |
+| Insights      | KPI: CTR                                             | `sum(clicks)/sum(impressions)`                                       | **DERIVE**                     | —                                                                                                                                                                                                                                                                                               |
+| Insights      | KPI: Frequency                                       | impressions / unique users                                           | **DEFER**                      | Not derivable. **Degrade**: replace with CPC tile                                                                                                                                                                                                                                               |
+| Insights      | KPI: CPM                                             | `sum(spend)/sum(impressions)*1000`                                   | **DERIVE**                     | —                                                                                                                                                                                                                                                                                               |
+| Insights      | TrendLine dual-axis CTR + CPM                        | insights grouped by date                                             | **DERIVE**                     | Group existing `chartData` transform by date, compute per-day                                                                                                                                                                                                                                   |
+| Insights      | BubbleScatter x=spend y=ROAS z=impressions           | campaign-level insights                                              | **JOIN + DERIVE**              | `level=campaign` insights; y-axis swaps to CPM if ROAS not derivable for any row                                                                                                                                                                                                                |
+| Insights      | Table: top campaigns                                 | existing rows                                                        | **OK**                         | Already rendered                                                                                                                                                                                                                                                                                |
+| Campaigns     | KPI: Spend                                           | NOT on `MetaCampaign`                                                | **JOIN**                       | Call `loadInsights({level:'campaign'})`                                                                                                                                                                                                                                                         |
+| Campaigns     | KPI: Impressions                                     | same                                                                 | **JOIN**                       | Same                                                                                                                                                                                                                                                                                            |
+| Campaigns     | KPI: Clicks                                          | same                                                                 | **JOIN**                       | Same                                                                                                                                                                                                                                                                                            |
+| Campaigns     | KPI: Conversions                                     | same                                                                 | **JOIN**                       | Same                                                                                                                                                                                                                                                                                            |
+| Campaigns     | Funnel: Impressions → Clicks → Conversions           | summed metrics                                                       | **DERIVE**                     | **No Funnel primitive in viz kit.** Use `DistributionBar orientation="horizontal"` with ordered 3 stages + drop-off % labels — architect decision per prompt line 45                                                                                                                            |
+| Campaigns     | DistributionBar: spend by campaign (top 10)          | campaign-level insights                                              | **JOIN**                       | Same insights call                                                                                                                                                                                                                                                                              |
+| Campaigns     | Table with inline Sparkline per row                  | row's daily spend history                                            | **JOIN**                       | Group `level=campaign` insights by date per campaign; feed per-row array to `Sparkline`                                                                                                                                                                                                         |
+| Pages List    | Cards + DataTable                                    | `pages[]` from existing store                                        | **OK**                         | No KPI strip per spec                                                                                                                                                                                                                                                                           |
+| Pages List    | `fan_count` on card                                  | `MetaPageRecord.fan_count`                                           | **VERIFY** (check record type) | If absent → show name + last_synced_at only                                                                                                                                                                                                                                                     |
+| Page Overview | KPI: followers, reach, engagement                    | `overview.kpis[]`                                                    | **OK**                         | Already in store; migrate from legacy `KPIGrid` to `KpiTile × 4`                                                                                                                                                                                                                                |
+| Page Overview | TrendLine: follower growth                           | `overview.daily_series[primary_metric]`                              | **OK**                         | Already in store; migrate from legacy `TrendChart`                                                                                                                                                                                                                                              |
+| Page Overview | PieComposition: post-type mix / engagement breakdown | `overview.engagement_breakdown[metric]`                              | **OK**                         | `BreakdownEntry[]` shape matches PieComposition slice input                                                                                                                                                                                                                                     |
+| Posts list    | KPI: Total Posts, Avg Reach, Avg Engagement          | computed from `posts.results[]`                                      | **DERIVE**                     | From `results[].metrics`. Avg reach = mean of `metrics[reach_metric]`; avg engagement = mean of engagement metric. Use first available metric key from `metric_availability`                                                                                                                    |
+| Posts list    | PieComposition post-type mix                         | `results[].media_type` counts                                        | **DERIVE**                     | `groupBy(results, 'media_type')`                                                                                                                                                                                                                                                                |
+| Posts list    | Posts table                                          | existing `PostsTable`                                                | **OK**                         | Keep as-is; do NOT migrate to `VizDataTable` (thumbnail + message snippet cell is non-standard)                                                                                                                                                                                                 |
+| Post Detail   | KPI: Reach, Impressions, Reactions, Shares           | `postDetail.metrics{}`                                               | **OK (conditional)**           | Pick first available of each category from `metric_availability`. If a category missing → hide that tile                                                                                                                                                                                        |
+| Post Detail   | Sparkline per KPI tile                               | would need per-metric timeseries; only 1 metric at a time is fetched | **DEFER / DEGRADE**            | Sprints-plan §520 says one `TrendLine` for selected metric, not per-tile sparkline. **Decision:** render one `TrendLine` + single `Sparkline` on each tile showing the _selected_ metric's last-7-points. Do NOT fire 4 timeseries calls. Alternative: hide Sparkline until user selects metric |
+| Post Detail   | Comments table                                       | no endpoint                                                          | **DEFER**                      | Suppress block entirely (sprints-plan §524)                                                                                                                                                                                                                                                     |
 
 ### Gap summary for implementers
 
@@ -147,6 +147,7 @@ Each page follows the 5-block layout from sprints-plan §28: KPI strip → Trend
 ### 4.1 MetaAccountsPage
 
 **Target layout (top to bottom):**
+
 1. Keep existing header + intro + filter panel (unchanged).
 2. `KpiTile × 6` in a grid (Spend, Impressions, Reach, CTR, CPM, Active Accounts). On skeleton: `ChartSkeleton variant="kpi-strip" count={6}`.
 3. `TrendLine` full-width: spend/day, multi-series when `filters.accountId === ''`, single-series + `PeerAvgLine` when a filter is set.
@@ -156,33 +157,51 @@ Each page follows the 5-block layout from sprints-plan §28: KPI strip → Trend
 **Primitives used:** `KpiTile × 6`, `TrendLine` (+ `PeerAvgLine` sub-use), `PieComposition`, `VizDataTable`, `ChartSkeleton` (3 variants), `EmptyState` (`reasonCode=no_accounts`|`no_data_for_range`|`error`), `AccessibleTableToggle` on both TrendLine and PieComposition.
 
 **Data transforms (pseudocode):**
+
 ```ts
 // from insights slice loaded with level='account'
-const byAccountDay = groupBy(insights.rows, r => `${r.date}|${r.account_external_id}`);
+const byAccountDay = groupBy(
+  insights.rows,
+  (r) => `${r.date}|${r.account_external_id}`,
+);
 const trendSeries = filters.accountId
   ? [{ name: accountName, data: dailyFor(filters.accountId) }]
-  : topNAccountsByTotalSpend(6).map(acct => ({ name: acct.name, data: dailyFor(acct.external_id) }));
+  : topNAccountsByTotalSpend(6).map((acct) => ({
+      name: acct.name,
+      data: dailyFor(acct.external_id),
+    }));
 const peerAvg = computeMedianPerDate(allAccountsDaily); // only when filtered
 
 // objective slice: left join campaigns
-const campaignIdToObjective = new Map(campaigns.rows.map(c => [c.external_id, c.objective]));
-const spendByObjective = insights.rows.reduce((acc, r) => {
-  const obj = campaignIdToObjective.get(r.campaign_external_id) ?? 'UNKNOWN';
-  acc[obj] = (acc[obj] ?? 0) + Number(r.spend);
-  return acc;
-}, {} as Record<string, number>);
-const pieSlices = Object.entries(spendByObjective).map(([name, value]) => ({ name, value }));
+const campaignIdToObjective = new Map(
+  campaigns.rows.map((c) => [c.external_id, c.objective]),
+);
+const spendByObjective = insights.rows.reduce(
+  (acc, r) => {
+    const obj = campaignIdToObjective.get(r.campaign_external_id) ?? 'UNKNOWN';
+    acc[obj] = (acc[obj] ?? 0) + Number(r.spend);
+    return acc;
+  },
+  {} as Record<string, number>,
+);
+const pieSlices = Object.entries(spendByObjective).map(([name, value]) => ({
+  name,
+  value,
+}));
 
 // KPI aggregates
-const totalSpend = sum(insights.rows, r => Number(r.spend));
-const totalImpressions = sum(insights.rows, r => r.impressions);
-const totalReach = sum(insights.rows, r => r.reach);
+const totalSpend = sum(insights.rows, (r) => Number(r.spend));
+const totalImpressions = sum(insights.rows, (r) => r.impressions);
+const totalReach = sum(insights.rows, (r) => r.reach);
 const ctr = totalImpressions ? sumClicks / totalImpressions : 0;
 const cpm = totalImpressions ? (totalSpend / totalImpressions) * 1000 : 0;
-const activeAccounts = accounts.rows.filter(a => /ACTIVE/.test(a.status)).length;
+const activeAccounts = accounts.rows.filter((a) =>
+  /ACTIVE/.test(a.status),
+).length;
 ```
 
 **Empty-state reasonCodes:**
+
 - `no_accounts` when `accounts.status === 'loaded' && accounts.rows.length === 0` (keep existing block).
 - `no_data_for_range` when accounts exist but `insights.rows.length === 0` — shown in the chart/table blocks only, not page-level.
 - `error` on either slice errors.
@@ -193,6 +212,7 @@ const activeAccounts = accounts.rows.filter(a => /ACTIVE/.test(a.status)).length
 ### 4.2 MetaInsightsDashboardPage
 
 **Target layout:**
+
 1. Keep filter panel + sync-now button.
 2. `KpiTile × 5`: Spend, ROAS (conditional — hide tile if `!hasPurchaseActions`), CTR, CPC (substitute for Frequency — see §3), CPM.
 3. `TrendLine` dual-axis: left y = CTR (percent), right y = CPM (currency). Requires the `rightYFormat` prop landed in S1 (confirm in `TrendLine.tsx` before starting; if missing, this becomes two stacked `TrendLine` charts side-by-side — document in brief).
@@ -202,9 +222,10 @@ const activeAccounts = accounts.rows.filter(a => /ACTIVE/.test(a.status)).length
 **Primitives used:** `KpiTile × 5`, `TrendLine` (dual-axis), `BubbleScatter`, `VizDataTable`, `ChartSkeleton`, `EmptyState`, `AccessibleTableToggle × 2` (TrendLine + BubbleScatter).
 
 **Data transforms:**
+
 ```ts
 // dual-axis trend
-const trendByDay = groupBy(insights.rows, r => r.date);
+const trendByDay = groupBy(insights.rows, (r) => r.date);
 const trendPoints = [...trendByDay.entries()].map(([date, rows]) => ({
   date,
   ctr: totalClicks(rows) / (totalImpressions(rows) || 1),
@@ -212,18 +233,22 @@ const trendPoints = [...trendByDay.entries()].map(([date, rows]) => ({
 }));
 
 // bubble
-const bubbleRows = insights.rows.filter(r => r.level === 'campaign').map(r => ({
-  id: r.external_id,
-  x: Number(r.spend),
-  y: derivedRoas(r) ?? (Number(r.cpm)),
-  z: r.impressions,
-  shapeCategory: filters.accountId ? r.level : objectiveFor(r),
-  label: nameFor(r),
-}));
+const bubbleRows = insights.rows
+  .filter((r) => r.level === 'campaign')
+  .map((r) => ({
+    id: r.external_id,
+    x: Number(r.spend),
+    y: derivedRoas(r) ?? Number(r.cpm),
+    z: r.impressions,
+    shapeCategory: filters.accountId ? r.level : objectiveFor(r),
+    label: nameFor(r),
+  }));
 
 // ROAS helper
 function derivedRoas(r) {
-  const purchase = r.actions?.find(a => a.action_type === 'omni_purchase' || a.action_type === 'purchase');
+  const purchase = r.actions?.find(
+    (a) => a.action_type === 'omni_purchase' || a.action_type === 'purchase',
+  );
   if (!purchase?.value || !Number(r.spend)) return null;
   return Number(purchase.value) / Number(r.spend);
 }
@@ -236,6 +261,7 @@ function derivedRoas(r) {
 ### 4.3 MetaCampaignOverviewPage
 
 **Target layout:**
+
 1. Replace the 2-tile hand-rolled rollup with `KpiTile × 4` (Spend, Impressions, Clicks, Conversions). Keep filter panel.
 2. **Funnel (via `DistributionBar`)**: 3 stages Impressions → Clicks → Conversions with drop-off % in subtext. Architect decision — `DistributionBar` with `orientation="horizontal"` and ordered categories achieves the funnel pattern without adding a new primitive. Use `valueFormatter` to render both absolute and drop-off %.
 3. `DistributionBar`: spend by campaign, top 10.
@@ -244,13 +270,14 @@ function derivedRoas(r) {
 **Primitives used:** `KpiTile × 4`, `DistributionBar × 2` (funnel + spend-by-campaign), `VizDataTable` + inline `Sparkline`, `ChartSkeleton`, `EmptyState`, `AccessibleTableToggle × 2`.
 
 **Data transforms:**
+
 ```ts
 // campaign-level insights must be loaded for this page
-const byCampaign = groupBy(insights.rows, r => r.campaign_external_id);
+const byCampaign = groupBy(insights.rows, (r) => r.campaign_external_id);
 const sparklinesByCampaign = new Map(
   [...byCampaign.entries()].map(([cid, rows]) => [
     cid,
-    rows.sort(byDate).map(r => ({ date: r.date, value: Number(r.spend) })),
+    rows.sort(byDate).map((r) => ({ date: r.date, value: Number(r.spend) })),
   ]),
 );
 
@@ -258,14 +285,26 @@ const sparklinesByCampaign = new Map(
 const totals = sumAll(insights.rows);
 const funnelStages = [
   { name: 'Impressions', value: totals.impressions },
-  { name: 'Clicks',      value: totals.clicks,       sublabel: `${pct(totals.clicks / totals.impressions)} CTR` },
-  { name: 'Conversions', value: totals.conversions,  sublabel: `${pct(totals.conversions / totals.clicks)} CVR` },
+  {
+    name: 'Clicks',
+    value: totals.clicks,
+    sublabel: `${pct(totals.clicks / totals.impressions)} CTR`,
+  },
+  {
+    name: 'Conversions',
+    value: totals.conversions,
+    sublabel: `${pct(totals.conversions / totals.clicks)} CVR`,
+  },
 ];
 
 // top 10 spend
 const topSpend = [...byCampaign.entries()]
-  .map(([cid, rows]) => ({ name: campaignName(cid), value: sum(rows, r => Number(r.spend)) }))
-  .sort((a,b) => b.value - a.value).slice(0, 10);
+  .map(([cid, rows]) => ({
+    name: campaignName(cid),
+    value: sum(rows, (r) => Number(r.spend)),
+  }))
+  .sort((a, b) => b.value - a.value)
+  .slice(0, 10);
 ```
 
 **Empty states:** `no_campaigns` when `campaigns.rows.length === 0`; `no_data_for_range` when campaigns exist but insights empty; `error`.
@@ -275,9 +314,10 @@ const topSpend = [...byCampaign.entries()]
 ### 4.4 MetaPagesListPage
 
 **Target layout:**
+
 1. Keep breadcrumbs + header + filter bar (unchanged).
 2. Cards grid (existing) — per-page cards wrapped in `<Link>` to `/dashboards/meta/pages/:pageId/overview`.
-3. `VizDataTable` toggle — mount `AccessibleTableToggle` *around* the cards section. Toggle view = table with Page Name, Fan Count (if present), Last Synced At columns.
+3. `VizDataTable` toggle — mount `AccessibleTableToggle` _around_ the cards section. Toggle view = table with Page Name, Fan Count (if present), Last Synced At columns.
 
 **Primitives used:** `VizDataTable`, `AccessibleTableToggle`, `EmptyState`, `ChartSkeleton variant="table"`. No `KpiTile`, no charts (per sprints-plan §447).
 
@@ -290,6 +330,7 @@ const topSpend = [...byCampaign.entries()]
 ### 4.5 MetaPageOverviewPage
 
 **Target layout:** preserve breadcrumbs, header, filter bar, compare-to, warning panels, metric picker, period select, badge, sync-meta line. Replace the data blocks:
+
 1. Replace `KPIGrid` → `KpiTile × 4` (from `overview.kpis[]` — typically page_fans/page_impressions/page_engaged_users/page_total_reach).
 2. `TrendLine` full-width (replace `TrendChart`) of `daily_series[selected_metric]`.
 3. `PieComposition` (replace `EngagementBreakdownPanel`) of `overview.engagement_breakdown[selected_metric]`.
@@ -298,21 +339,24 @@ const topSpend = [...byCampaign.entries()]
 **Primitives used:** `KpiTile × 4`, `TrendLine`, `PieComposition`, `ChartSkeleton × 3`, `EmptyState reasonCode="no_page_data"`, `AccessibleTableToggle × 2`.
 
 **Data transforms:**
+
 ```ts
-const kpiTiles = overview.kpis.slice(0, 4).map(k => ({
+const kpiTiles = overview.kpis.slice(0, 4).map((k) => ({
   label: formatMetricLabel(k.resolved_metric),
   value: k.value ?? 0,
   delta: k.change_pct ?? undefined,
   tone: k.change_pct != null && k.change_pct < 0 ? 'negative' : 'positive',
 }));
 
-const trendPoints = overview.daily_series[selectedMetric]?.map(p => ({
-  date: p.date,
-  value: p.value ?? 0,
-})) ?? [];
+const trendPoints =
+  overview.daily_series[selectedMetric]?.map((p) => ({
+    date: p.date,
+    value: p.value ?? 0,
+  })) ?? [];
 
-const breakdownSlices = (overview.engagement_breakdown?.[selectedMetric] ?? [])
-  .map(e => ({ name: e.type, value: e.value ?? 0 }));
+const breakdownSlices = (
+  overview.engagement_breakdown?.[selectedMetric] ?? []
+).map((e) => ({ name: e.type, value: e.value ?? 0 }));
 ```
 
 **Empty states:** `no_page_data` when `kpis.every(k => k.value === null)`. Existing `dashboardStatus` drives loading/error.
@@ -322,6 +366,7 @@ const breakdownSlices = (overview.engagement_breakdown?.[selectedMetric] ?? [])
 ### 4.6 MetaPagePostsPage
 
 **Target layout:**
+
 1. Keep breadcrumbs + header + warning panels + filter bar + controls + metric selector.
 2. **New:** `KpiTile × 3` (Total Posts, Avg Reach, Avg Engagement).
 3. **New:** `PieComposition`: media_type distribution.
@@ -331,14 +376,23 @@ const breakdownSlices = (overview.engagement_breakdown?.[selectedMetric] ?? [])
 **Primitives used:** `KpiTile × 3`, `PieComposition`, `ChartSkeleton`, `EmptyState reasonCode="no_posts"`, `AccessibleTableToggle × 1` on PieComposition.
 
 **Data transforms:**
+
 ```ts
 const posts = data?.results ?? [];
 const selectedEngagementMetric = postsQuery.metric; // already in store
-const avgReach = mean(posts, p => p.metrics['post_impressions_unique'] ?? p.metrics['page_total_media_view_unique']);
-const avgEngagement = mean(posts, p => p.metrics[selectedEngagementMetric] ?? 0);
+const avgReach = mean(
+  posts,
+  (p) =>
+    p.metrics['post_impressions_unique'] ??
+    p.metrics['page_total_media_view_unique'],
+);
+const avgEngagement = mean(
+  posts,
+  (p) => p.metrics[selectedEngagementMetric] ?? 0,
+);
 
 const typeMix = Object.entries(
-  groupByCount(posts, p => p.media_type || 'UNKNOWN')
+  groupByCount(posts, (p) => p.media_type || 'UNKNOWN'),
 ).map(([name, count]) => ({ name, value: count }));
 ```
 
@@ -349,8 +403,9 @@ const typeMix = Object.entries(
 ### 4.7 MetaPostDetailPage
 
 **Target layout:**
+
 1. Keep breadcrumbs + header + post message card.
-2. **New:** `KpiTile × 4` (Reach, Impressions, Reactions, Shares from `postDetail.metrics`). Each tile renders a `Sparkline` only for the *currently selected* timeseries metric (one call already fires); other tiles render sparkline as `null`. Alternatively, show Sparkline only on the tile whose metric matches the selected one — architect recommends the latter to avoid implying data we don't have.
+2. **New:** `KpiTile × 4` (Reach, Impressions, Reactions, Shares from `postDetail.metrics`). Each tile renders a `Sparkline` only for the _currently selected_ timeseries metric (one call already fires); other tiles render sparkline as `null`. Alternatively, show Sparkline only on the tile whose metric matches the selected one — architect recommends the latter to avoid implying data we don't have.
 3. Keep metric/period selectors.
 4. `TrendLine` replacing `TrendChart` for the selected metric.
 5. Comments block SUPPRESSED (sprints-plan §524).
@@ -358,22 +413,29 @@ const typeMix = Object.entries(
 **Primitives used:** `KpiTile × 4` (with conditional embedded `Sparkline`), `TrendLine`, `ChartSkeleton`, `EmptyState`, `AccessibleTableToggle × 1`.
 
 **Data transforms:**
+
 ```ts
 const metricKeysByCategory = {
-  reach:       ['post_impressions_unique', 'page_total_media_view_unique'],
+  reach: ['post_impressions_unique', 'page_total_media_view_unique'],
   impressions: ['post_impressions', 'page_impressions'],
-  reactions:   ['post_reactions_by_type_total', 'post_reactions_like_total'],
-  shares:      ['post_shares'],
+  reactions: ['post_reactions_by_type_total', 'post_reactions_like_total'],
+  shares: ['post_shares'],
 };
 function pickFirstAvailable(category) {
-  return metricKeysByCategory[category].find(k => postDetail.metric_availability[k]);
+  return metricKeysByCategory[category].find(
+    (k) => postDetail.metric_availability[k],
+  );
 }
-const kpiEntries = ['reach','impressions','reactions','shares'].map(cat => {
-  const k = pickFirstAvailable(cat);
-  return k ? { label: cat, value: postDetail.metrics[k] ?? null, metricKey: k } : null;
-}).filter(Boolean);
+const kpiEntries = ['reach', 'impressions', 'reactions', 'shares']
+  .map((cat) => {
+    const k = pickFirstAvailable(cat);
+    return k
+      ? { label: cat, value: postDetail.metrics[k] ?? null, metricKey: k }
+      : null;
+  })
+  .filter(Boolean);
 
-const trendPoints = (postTimeseries?.points ?? []).map(p => ({
+const trendPoints = (postTimeseries?.points ?? []).map((p) => ({
   date: p.end_time.slice(0, 10),
   value: p.value ?? 0,
 }));
@@ -396,12 +458,14 @@ Two implementer agents run in parallel with **zero file overlap**. Both must lan
 **Role:** Frontend implementer for Sprint 2 — Meta Accounts + Meta Insights pages.
 
 **Inputs to cite in first line:**
+
 1. `/Users/thristannewman/ADinsights/artifacts/sprint/S2-architect-design.md` — this document (§4.1, §4.2, §3 audit rows for Accounts + Insights)
 2. `/Users/thristannewman/ADinsights/frontend/src/components/viz/index.ts` — import only from `@/components/viz`
 3. `/Users/thristannewman/ADinsights/frontend/src/lib/meta.ts` — `MetaInsightRecord`, `MetaCampaign`, `MetaAccount` shapes
 4. `/Users/thristannewman/ADinsights/frontend/src/state/useMetaStore.ts` — `accounts`, `campaigns`, `insights` slices + `loadAccounts`/`loadCampaigns`/`loadInsights` actions
 
 **Scope (modify / create):**
+
 - `frontend/src/routes/MetaAccountsPage.tsx` — add KPI strip, TrendLine, PieComposition, migrate table to `VizDataTable`. Dispatch `loadCampaigns()` and `loadInsights({level:'account'})` on mount (and on filter change).
 - `frontend/src/routes/MetaInsightsDashboardPage.tsx` — add KPI strip, dual-axis TrendLine, BubbleScatter, migrate table to `VizDataTable`. Drop `@tanstack/react-table` import.
 - `frontend/src/routes/__tests__/MetaAccountsPage.test.tsx` — add/update tests per §6.1
@@ -409,6 +473,7 @@ Two implementer agents run in parallel with **zero file overlap**. Both must lan
 - Optional: new `frontend/src/lib/metaAggregates.ts` (pure functions: `sumInsights`, `groupByDateAccount`, `derivedRoas`, `computePeerMedian`) with unit tests at `frontend/src/lib/metaAggregates.test.ts`.
 
 **Don't touch:**
+
 - `MetaCampaignOverviewPage.tsx`, `MetaPagesListPage.tsx`, `MetaPageOverviewPage.tsx`, `MetaPagePostsPage.tsx`, `MetaPostDetailPage.tsx`
 - `useMetaStore.ts` — only dispatch existing actions; NO signature/state-shape changes
 - `components/EmptyState.tsx`, viz kit (`components/viz/*`) — consume only
@@ -416,6 +481,7 @@ Two implementer agents run in parallel with **zero file overlap**. Both must lan
 - Backend endpoints (out of sprint scope)
 
 **Process:**
+
 1. Read §4.1 and §4.2 of the architect design + the current page files.
 2. Verify `TrendLine` supports `rightYFormat` / dual axis — if not, fall back to two stacked `TrendLine`s per §4.2.
 3. Implement MetaAccountsPage first (simpler — single-axis trend).
@@ -433,6 +499,7 @@ Two implementer agents run in parallel with **zero file overlap**. Both must lan
 **Role:** Frontend implementer for Sprint 2 — Meta Campaigns + Meta Page Overview + Pages List + Posts List + Post Detail.
 
 **Inputs to cite in first line:**
+
 1. `/Users/thristannewman/ADinsights/artifacts/sprint/S2-architect-design.md` — this document (§4.3–§4.7, §3 audit rows for Campaigns/Pages/Posts)
 2. `/Users/thristannewman/ADinsights/frontend/src/components/viz/index.ts`
 3. `/Users/thristannewman/ADinsights/frontend/src/lib/metaPageInsights.ts` — `MetaOverviewResponse`, `MetaPostsResponse`, `MetaPostDetailResponse`, `MetaTimeseriesResponse`
@@ -440,6 +507,7 @@ Two implementer agents run in parallel with **zero file overlap**. Both must lan
 5. `/Users/thristannewman/ADinsights/frontend/src/state/useMetaStore.ts` — only `campaigns` + `insights` slices for the campaigns page
 
 **Scope (modify / create):**
+
 - `frontend/src/routes/MetaCampaignOverviewPage.tsx` — KPI strip, funnel-as-DistributionBar, top-10 spend DistributionBar, VizDataTable with inline Sparklines. Dispatch `loadInsights({level:'campaign'})` on filter change.
 - `frontend/src/routes/MetaPagesListPage.tsx` — wrap cards grid with `AccessibleTableToggle`; add `VizDataTable` alternate view.
 - `frontend/src/routes/MetaPageOverviewPage.tsx` — replace `KPIGrid` → `KpiTile × 4`; replace `TrendChart` → `TrendLine`; replace `EngagementBreakdownPanel` → `PieComposition`. Keep breadcrumbs, filter bar, exports, warning panels, metric picker, period select untouched.
@@ -448,6 +516,7 @@ Two implementer agents run in parallel with **zero file overlap**. Both must lan
 - Corresponding test files under `frontend/src/routes/__tests__/Meta*.test.tsx` — see §6.3–§6.7.
 
 **Don't touch:**
+
 - `MetaAccountsPage.tsx`, `MetaInsightsDashboardPage.tsx` (S2a owns)
 - `components/TrendChart.tsx`, `components/KPIGrid.tsx`, `components/EngagementBreakdownPanel.tsx` — leave them untouched for now (can be deleted in a follow-up after S2 verification)
 - `components/PostsTable.tsx` — keep in use on `MetaPagePostsPage`
@@ -457,6 +526,7 @@ Two implementer agents run in parallel with **zero file overlap**. Both must lan
 - Viz kit internals
 
 **Process:**
+
 1. Read §4.3–§4.7 and the five current page files.
 2. Order of implementation: Pages List (lowest risk) → Posts List → Post Detail → Page Overview (most visual change) → Campaign Overview (most new fetches). This lets the implementer build confidence before touching the two highest-impact pages.
 3. Preserve Phase 1A contract assertions in all tests.

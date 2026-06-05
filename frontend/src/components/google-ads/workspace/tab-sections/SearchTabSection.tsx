@@ -1,11 +1,6 @@
 import { useMemo } from 'react';
 
-import {
-  BubbleScatter,
-  DistributionBar,
-  EmptyState,
-  KpiTile,
-} from '../../../viz';
+import { BubbleScatter, DistributionBar, EmptyState, KpiTile } from '../../../viz';
 import {
   buildQsCpcBubblePoints,
   rollupKeywordKpis,
@@ -35,7 +30,16 @@ type Props = {
 };
 
 const EmptyIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="40"
+    height="40"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    aria-hidden="true"
+  >
     <circle cx="11" cy="11" r="7" />
     <path d="M21 21l-4.3-4.3" />
   </svg>
@@ -54,19 +58,13 @@ const SearchTabSection = ({ searchMode, data, status, error, searchTermRows }: P
     [payload.results],
   );
 
-  const keywordRows = useMemo<GoogleAdsKeywordRow[]>(
-    () => rows as GoogleAdsKeywordRow[],
-    [rows],
-  );
+  const keywordRows = useMemo<GoogleAdsKeywordRow[]>(() => rows as GoogleAdsKeywordRow[], [rows]);
   const kpis = useMemo(() => rollupKeywordKpis(keywordRows), [keywordRows]);
   const bubbles = useMemo(
     () => (searchMode === 'keywords' ? buildQsCpcBubblePoints(keywordRows) : []),
     [searchMode, keywordRows],
   );
-  const topTerms = useMemo(
-    () => topSearchTermsByConv(searchTermRows),
-    [searchTermRows],
-  );
+  const topTerms = useMemo(() => topSearchTermsByConv(searchTermRows), [searchTermRows]);
 
   if (status === 'loading' && rows.length === 0) {
     return <div className="panel">Loading search data...</div>;
@@ -113,17 +111,10 @@ const SearchTabSection = ({ searchMode, data, status, error, searchTermRows }: P
         : Object.keys(rows[0] ?? {}).map((key) => ({ key, label: key.replace(/_/g, ' ') }));
 
   return (
-    <div
-      className="gads-workspace__tab-grid"
-      data-testid="google-ads-search-section"
-    >
+    <div className="gads-workspace__tab-grid" data-testid="google-ads-search-section">
       <section className="panel">
         <h2>Search KPIs</h2>
-        <div
-          className="gads-workspace__kpi-grid"
-          role="list"
-          aria-label="Google Ads search KPIs"
-        >
+        <div className="gads-workspace__kpi-grid" role="list" aria-label="Google Ads search KPIs">
           <KpiTile
             label={searchMode === 'keywords' ? 'Total Keywords' : 'Total Rows'}
             value={kpis.count}
@@ -191,10 +182,7 @@ const SearchTabSection = ({ searchMode, data, status, error, searchTermRows }: P
             </thead>
             <tbody>
               {rows.map((row, idx) => (
-                <tr
-                  key={idx}
-                  className="dashboard-table__row dashboard-table__row--zebra"
-                >
+                <tr key={idx} className="dashboard-table__row dashboard-table__row--zebra">
                   {columns.map((col) => (
                     <td key={col.key} className="dashboard-table__cell">
                       {row[col.key] === null || row[col.key] === undefined

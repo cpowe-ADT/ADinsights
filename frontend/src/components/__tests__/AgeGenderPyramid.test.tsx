@@ -52,11 +52,7 @@ const sample: AgeGenderBreakdown[] = [
 describe('AgeGenderPyramid — a11y', () => {
   it('renders a role="img" region with the caller-supplied ariaLabel', () => {
     render(
-      <AgeGenderPyramid
-        data={sample}
-        metric="impressions"
-        ariaLabel="Audience pyramid for Q1"
-      />,
+      <AgeGenderPyramid data={sample} metric="impressions" ariaLabel="Audience pyramid for Q1" />,
     );
     const region = screen.getByRole('img', { name: 'Audience pyramid for Q1' });
     expect(region).toBeInTheDocument();
@@ -72,25 +68,17 @@ describe('AgeGenderPyramid — a11y', () => {
 
   it('has no axe violations on a populated default render', async () => {
     const { container } = render(
-      <AgeGenderPyramid
-        data={sample}
-        metric="impressions"
-        ariaLabel="Audience pyramid"
-      />,
+      <AgeGenderPyramid data={sample} metric="impressions" ariaLabel="Audience pyramid" />,
     );
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
 
   it('renders with empty data without throwing (degrades quietly)', () => {
-    render(
-      <AgeGenderPyramid data={[]} metric="impressions" ariaLabel="Empty pyramid" />,
-    );
+    render(<AgeGenderPyramid data={[]} metric="impressions" ariaLabel="Empty pyramid" />);
     // Region still present so screen readers get the label even when the
     // chart has no bars — caller is responsible for swapping in an EmptyState
     // upstream, but the component itself should not crash.
-    expect(
-      screen.getByRole('img', { name: 'Empty pyramid' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Empty pyramid' })).toBeInTheDocument();
   });
 });

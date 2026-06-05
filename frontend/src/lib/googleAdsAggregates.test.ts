@@ -134,8 +134,24 @@ describe('rollupCampaignKpis', () => {
 describe('buildCampaignBubblePoints', () => {
   it('derives conv_rate divide-safe', () => {
     const bubbles = buildCampaignBubblePoints([
-      { campaign_id: 'a', campaign_name: 'A', channel_type: 'SEARCH', spend: 100, clicks: 50, conversions: 5, impressions: 1000 },
-      { campaign_id: 'b', campaign_name: 'B', channel_type: 'DISPLAY', spend: 80, clicks: 0, conversions: 0, impressions: 400 },
+      {
+        campaign_id: 'a',
+        campaign_name: 'A',
+        channel_type: 'SEARCH',
+        spend: 100,
+        clicks: 50,
+        conversions: 5,
+        impressions: 1000,
+      },
+      {
+        campaign_id: 'b',
+        campaign_name: 'B',
+        channel_type: 'DISPLAY',
+        spend: 80,
+        clicks: 0,
+        conversions: 0,
+        impressions: 400,
+      },
     ]);
     expect(bubbles).toHaveLength(2);
     expect(bubbles[0].y).toBe(5 / 50);
@@ -208,8 +224,22 @@ describe('rollupKeywordKpis', () => {
 describe('buildQsCpcBubblePoints', () => {
   it('derives cpc = spend/clicks divide-safe and maps match_type', () => {
     const bubbles = buildQsCpcBubblePoints([
-      { keyword_text: 'brand', match_type: 'EXACT', quality_score: 9, spend: 50, clicks: 25, impressions: 500 },
-      { keyword_text: 'generic', match_type: 'BROAD', quality_score: 4, spend: 20, clicks: 0, impressions: 100 },
+      {
+        keyword_text: 'brand',
+        match_type: 'EXACT',
+        quality_score: 9,
+        spend: 50,
+        clicks: 25,
+        impressions: 500,
+      },
+      {
+        keyword_text: 'generic',
+        match_type: 'BROAD',
+        quality_score: 4,
+        spend: 20,
+        clicks: 0,
+        impressions: 100,
+      },
     ]);
     expect(bubbles[0].y).toBe(2);
     expect(bubbles[0].shape).toBe('circle');
@@ -283,11 +313,22 @@ describe('derivePacingPct', () => {
 
 describe('rollupPacingKpis', () => {
   it('coerces strings and nulls to zero', () => {
-    expect(rollupPacingKpis({ spend_mtd: 100, budget_month: 200, forecast_month_end: 180, over_under: -20 }))
-      .toEqual({ spendMtd: 100, budgetMonth: 200, forecast: 180, overUnder: -20 });
+    expect(
+      rollupPacingKpis({
+        spend_mtd: 100,
+        budget_month: 200,
+        forecast_month_end: 180,
+        over_under: -20,
+      }),
+    ).toEqual({ spendMtd: 100, budgetMonth: 200, forecast: 180, overUnder: -20 });
   });
   it('handles missing payload', () => {
-    expect(rollupPacingKpis(null)).toEqual({ spendMtd: 0, budgetMonth: 0, forecast: 0, overUnder: 0 });
+    expect(rollupPacingKpis(null)).toEqual({
+      spendMtd: 0,
+      budgetMonth: 0,
+      forecast: 0,
+      overUnder: 0,
+    });
   });
 });
 
@@ -333,17 +374,25 @@ describe('countChanges7d', () => {
 // ---------------------------------------------------------------------------
 describe('deriveRecommendationSeverity', () => {
   it('prefers impact_metadata.severity when present', () => {
-    expect(deriveRecommendationSeverity({ impact_metadata: { severity: 'danger' } })).toBe('danger');
-    expect(deriveRecommendationSeverity({ impact_metadata: { severity: 'WARNING' } })).toBe('warning');
+    expect(deriveRecommendationSeverity({ impact_metadata: { severity: 'danger' } })).toBe(
+      'danger',
+    );
+    expect(deriveRecommendationSeverity({ impact_metadata: { severity: 'WARNING' } })).toBe(
+      'warning',
+    );
     expect(deriveRecommendationSeverity({ impact_metadata: { severity: 'info' } })).toBe('info');
     expect(deriveRecommendationSeverity({ impact_metadata: { severity: 'HIGH' } })).toBe('danger');
   });
   it('falls back to type heuristic — budget/bid → warning', () => {
-    expect(deriveRecommendationSeverity({ recommendation_type: 'CAMPAIGN_BUDGET' })).toBe('warning');
+    expect(deriveRecommendationSeverity({ recommendation_type: 'CAMPAIGN_BUDGET' })).toBe(
+      'warning',
+    );
     expect(deriveRecommendationSeverity({ recommendation_type: 'KEYWORD_BID' })).toBe('warning');
   });
   it('falls back to type heuristic — policy → danger', () => {
-    expect(deriveRecommendationSeverity({ recommendation_type: 'POLICY_VIOLATION' })).toBe('danger');
+    expect(deriveRecommendationSeverity({ recommendation_type: 'POLICY_VIOLATION' })).toBe(
+      'danger',
+    );
     expect(deriveRecommendationSeverity({ recommendation_type: 'DISAPPROVED_AD' })).toBe('danger');
   });
   it('defaults to info for unknown types', () => {
@@ -355,11 +404,9 @@ describe('deriveRecommendationSeverity', () => {
 
 describe('rollupRecommendationKpis', () => {
   it('counts active vs dismissed', () => {
-    expect(rollupRecommendationKpis([
-      { dismissed: false },
-      { dismissed: true },
-      { dismissed: false },
-    ])).toEqual({ active: 2, dismissed: 1 });
+    expect(
+      rollupRecommendationKpis([{ dismissed: false }, { dismissed: true }, { dismissed: false }]),
+    ).toEqual({ active: 2, dismissed: 1 });
   });
   it('handles empty', () => {
     expect(rollupRecommendationKpis([])).toEqual({ active: 0, dismissed: 0 });
@@ -368,11 +415,13 @@ describe('rollupRecommendationKpis', () => {
 
 describe('groupRecommendationsByType', () => {
   it('groups by recommendation_type descending', () => {
-    expect(groupRecommendationsByType([
-      { recommendation_type: 'BUDGET' },
-      { recommendation_type: 'BUDGET' },
-      { recommendation_type: 'KEYWORD' },
-    ])).toEqual([
+    expect(
+      groupRecommendationsByType([
+        { recommendation_type: 'BUDGET' },
+        { recommendation_type: 'BUDGET' },
+        { recommendation_type: 'KEYWORD' },
+      ]),
+    ).toEqual([
       { label: 'BUDGET', value: 2 },
       { label: 'KEYWORD', value: 1 },
     ]);
@@ -381,9 +430,15 @@ describe('groupRecommendationsByType', () => {
 
 describe('formatRecommendationImpact', () => {
   it('extracts known keys', () => {
-    expect(formatRecommendationImpact({
-      impact_metadata: { primary_metric: 'conversions', impact_percentage: 0.15, description: 'Add extensions' },
-    })).toBe('conversions · 15.0% · Add extensions');
+    expect(
+      formatRecommendationImpact({
+        impact_metadata: {
+          primary_metric: 'conversions',
+          impact_percentage: 0.15,
+          description: 'Add extensions',
+        },
+      }),
+    ).toBe('conversions · 15.0% · Add extensions');
   });
   it('falls back to JSON preview', () => {
     const s = formatRecommendationImpact({ impact_metadata: { other: 'value' } });

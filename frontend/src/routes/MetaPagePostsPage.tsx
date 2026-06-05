@@ -18,8 +18,14 @@ const MetaPagePostsPage = () => {
   const { pageId = '' } = useParams();
   const navigate = useNavigate();
   const [metaStatus, setMetaStatus] = useState<SocialPlatformStatusRecord | null>(null);
-  const { jobs: exportJobs, error: exportError, status: exportStatus, refresh: refreshExports, createExport, download } =
-    useMetaPageExports(pageId);
+  const {
+    jobs: exportJobs,
+    error: exportError,
+    status: exportStatus,
+    refresh: refreshExports,
+    createExport,
+    download,
+  } = useMetaPageExports(pageId);
 
   const {
     pages,
@@ -123,7 +129,10 @@ const MetaPagePostsPage = () => {
     });
   };
 
-  const selectedPage = useMemo(() => pages.find((page) => page.page_id === pageId), [pages, pageId]);
+  const selectedPage = useMemo(
+    () => pages.find((page) => page.page_id === pageId),
+    [pages, pageId],
+  );
   const pageName = selectedPage?.name ?? 'Facebook Page';
   const metricKeys = useMemo(() => {
     return posts ? Object.keys(posts.metric_availability) : [];
@@ -194,7 +203,12 @@ const MetaPagePostsPage = () => {
           <Link className="button tertiary" to={`/dashboards/meta/pages/${pageId}/overview`}>
             Overview
           </Link>
-          <button type="button" className="button tertiary" onClick={() => void runExportCsv()} disabled={exportStatus === 'loading'}>
+          <button
+            type="button"
+            className="button tertiary"
+            onClick={() => void runExportCsv()}
+            disabled={exportStatus === 'loading'}
+          >
             Export CSV
           </button>
         </div>
@@ -231,8 +245,8 @@ const MetaPagePostsPage = () => {
         <div className="panel meta-warning-panel" role="status">
           <h3>Reconnect Meta to restore post insights</h3>
           <p>
-            The current Meta connection is missing: {missingRequiredPermissions.join(', ')}. Reconnect
-            Meta from Data Sources before refreshing or relying on post metrics.
+            The current Meta connection is missing: {missingRequiredPermissions.join(', ')}.
+            Reconnect Meta from Data Sources before refreshing or relying on post metrics.
           </p>
           <div className="dashboard-header__actions-row">
             <button
@@ -332,7 +346,11 @@ const MetaPagePostsPage = () => {
       ) : null}
 
       {postsStatus === 'loaded' && posts && posts.results.length > 0 ? (
-        <div className="dashboard-grid" data-testid="meta-posts-kpi-strip" style={{ marginBottom: '1rem' }}>
+        <div
+          className="dashboard-grid"
+          data-testid="meta-posts-kpi-strip"
+          style={{ marginBottom: '1rem' }}
+        >
           <KpiTile
             label="Total Posts"
             value={totalPosts}
@@ -357,7 +375,11 @@ const MetaPagePostsPage = () => {
       ) : null}
 
       {postsStatus === 'loaded' && posts && posts.results.length > 0 ? (
-        <article className="panel" data-testid="meta-posts-media-mix" style={{ marginBottom: '1rem' }}>
+        <article
+          className="panel"
+          data-testid="meta-posts-media-mix"
+          style={{ marginBottom: '1rem' }}
+        >
           <h3>Post type mix</h3>
           <PieComposition
             data={mediaTypeMix}
@@ -387,8 +409,13 @@ const MetaPagePostsPage = () => {
         />
       ) : null}
 
-      {postsStatus === 'loaded' && posts && (posts.next_offset != null || posts.prev_offset != null) ? (
-        <div className="panel" style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+      {postsStatus === 'loaded' &&
+      posts &&
+      (posts.next_offset != null || posts.prev_offset != null) ? (
+        <div
+          className="panel"
+          style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}
+        >
           <button
             type="button"
             className="button tertiary"

@@ -68,16 +68,23 @@ const TrendPlaceholderIcon = () => (
 
 const CampaignDashboard = () => {
   const { tenantId } = useAuth();
-  const { campaign, campaignRows, parish, loadAll, lastSnapshotGeneratedAt, availability, coverage } =
-    useDashboardStore((state) => ({
-      campaign: state.campaign,
-      campaignRows: state.getCampaignRowsForSelectedParish(),
-      parish: state.parish,
-      loadAll: state.loadAll,
-      lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
-      availability: state.availability,
-      coverage: state.coverage,
-    }));
+  const {
+    campaign,
+    campaignRows,
+    parish,
+    loadAll,
+    lastSnapshotGeneratedAt,
+    availability,
+    coverage,
+  } = useDashboardStore((state) => ({
+    campaign: state.campaign,
+    campaignRows: state.getCampaignRowsForSelectedParish(),
+    parish: state.parish,
+    loadAll: state.loadAll,
+    lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+    availability: state.availability,
+    coverage: state.coverage,
+  }));
   const datasetMode = useDatasetStore((state) => state.mode);
   const datasetSource = useDatasetStore((state) => state.source);
   const liveReason = useDatasetStore((state) => state.liveReason);
@@ -131,7 +138,7 @@ const CampaignDashboard = () => {
           message={
             datasetMode === 'live'
               ? liveDatasetBlocked
-                ? liveDatasetMessage ?? 'Waiting for live snapshot...'
+                ? (liveDatasetMessage ?? 'Waiting for live snapshot...')
                 : (snapshotRelative ?? 'Waiting for live snapshot...')
               : snapshotRelative
                 ? `Demo data - ${snapshotRelative}`
@@ -281,7 +288,11 @@ const CampaignDashboard = () => {
     () => [
       { label: 'Total spend', value: summary?.totalSpend ?? null, format: 'currency' as const },
       { label: 'Total clicks', value: summary?.totalClicks ?? null, format: 'number' as const },
-      { label: 'Total conversions', value: summary?.totalConversions ?? null, format: 'number' as const },
+      {
+        label: 'Total conversions',
+        value: summary?.totalConversions ?? null,
+        format: 'number' as const,
+      },
       { label: 'Blended ROAS', value: summary?.averageRoas ?? null, format: 'rate' as const },
     ],
     [summary],
@@ -526,10 +537,7 @@ const CampaignDashboard = () => {
       ) : null}
 
       {shouldShowRegionBreakdown ? (
-        <Card
-          title="Region breakdown"
-          className={shouldShowMap ? undefined : 'tableCardWide'}
-        >
+        <Card title="Region breakdown" className={shouldShowMap ? undefined : 'tableCardWide'}>
           <p className="muted">
             Parish coverage: {(parishCoverage * 100).toFixed(0)}%. Click a row to filter the
             performance tables below.

@@ -15,7 +15,10 @@ const renderPage = (campaignId = 'c123') =>
   render(
     <MemoryRouter initialEntries={[`/dashboards/google-ads/campaigns/${campaignId}`]}>
       <Routes>
-        <Route path="/dashboards/google-ads/campaigns/:campaignId" element={<GoogleAdsCampaignDetailPage />} />
+        <Route
+          path="/dashboards/google-ads/campaigns/:campaignId"
+          element={<GoogleAdsCampaignDetailPage />}
+        />
       </Routes>
     </MemoryRouter>,
   );
@@ -39,9 +42,10 @@ describe('GoogleAdsCampaignDetailPage', () => {
   it('renders a back link to the campaigns page', () => {
     renderPage();
     // B3 fix: back link points to workspace campaigns tab (works under both flag modes)
-    expect(
-      screen.getByRole('link', { name: /back to google ads campaigns/i }),
-    ).toHaveAttribute('href', '/dashboards/google-ads?tab=campaigns');
+    expect(screen.getByRole('link', { name: /back to google ads campaigns/i })).toHaveAttribute(
+      'href',
+      '/dashboards/google-ads?tab=campaigns',
+    );
   });
 
   it('renders campaign payload after loading', async () => {

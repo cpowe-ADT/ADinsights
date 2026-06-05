@@ -47,17 +47,25 @@ type CampaignRow = {
 };
 
 const MetaCampaignOverviewPage = () => {
-  const { filters, setFilters, accounts, campaigns, insights, loadAccounts, loadCampaigns, loadInsights } =
-    useMetaStore((state) => ({
-      filters: state.filters,
-      setFilters: state.setFilters,
-      accounts: state.accounts,
-      campaigns: state.campaigns,
-      insights: state.insights,
-      loadAccounts: state.loadAccounts,
-      loadCampaigns: state.loadCampaigns,
-      loadInsights: state.loadInsights,
-    }));
+  const {
+    filters,
+    setFilters,
+    accounts,
+    campaigns,
+    insights,
+    loadAccounts,
+    loadCampaigns,
+    loadInsights,
+  } = useMetaStore((state) => ({
+    filters: state.filters,
+    setFilters: state.setFilters,
+    accounts: state.accounts,
+    campaigns: state.campaigns,
+    insights: state.insights,
+    loadAccounts: state.loadAccounts,
+    loadCampaigns: state.loadCampaigns,
+    loadInsights: state.loadInsights,
+  }));
 
   useEffect(() => {
     void loadAccounts();
@@ -160,9 +168,7 @@ const MetaCampaignOverviewPage = () => {
   const sparklineByCampaign = useMemo(() => {
     const map = new Map<string, Array<{ date: string; value: number }>>();
     insightsByCampaign.forEach((rows, cid) => {
-      const sorted = [...rows]
-        .filter((r) => r.date)
-        .sort((a, b) => a.date.localeCompare(b.date));
+      const sorted = [...rows].filter((r) => r.date).sort((a, b) => a.date.localeCompare(b.date));
       map.set(
         cid,
         sorted.map((r) => ({ date: r.date, value: Number(r.spend) || 0 })),
@@ -253,7 +259,11 @@ const MetaCampaignOverviewPage = () => {
         </div>
       </header>
 
-      <div className="dashboard-grid" data-testid="meta-campaigns-kpi-strip" style={{ marginBottom: '1rem' }}>
+      <div
+        className="dashboard-grid"
+        data-testid="meta-campaigns-kpi-strip"
+        style={{ marginBottom: '1rem' }}
+      >
         <KpiTile
           label="Spend"
           value={totals.spend > 0 ? totals.spend : null}
@@ -341,10 +351,15 @@ const MetaCampaignOverviewPage = () => {
       </div>
 
       {/* Funnel visualised as an ordered DistributionBar — architect §4.3 decision. */}
-      <article className="panel" data-testid="meta-campaigns-funnel-panel" style={{ marginBottom: '1rem' }}>
+      <article
+        className="panel"
+        data-testid="meta-campaigns-funnel-panel"
+        style={{ marginBottom: '1rem' }}
+      >
         <h3>Funnel</h3>
         <p className="muted">
-          Impressions → Clicks ({funnelTooltipLabels.ctr} CTR) → Conversions ({funnelTooltipLabels.cvr} CVR)
+          Impressions → Clicks ({funnelTooltipLabels.ctr} CTR) → Conversions (
+          {funnelTooltipLabels.cvr} CVR)
         </p>
         <AccessibleTableToggle
           chartAriaLabel="Campaign funnel: impressions, clicks, conversions"
@@ -378,7 +393,11 @@ const MetaCampaignOverviewPage = () => {
         />
       </article>
 
-      <article className="panel" data-testid="meta-campaigns-spend-panel" style={{ marginBottom: '1rem' }}>
+      <article
+        className="panel"
+        data-testid="meta-campaigns-spend-panel"
+        style={{ marginBottom: '1rem' }}
+      >
         <h3>Spend by campaign (top 10)</h3>
         <AccessibleTableToggle
           chartAriaLabel="Top 10 campaigns by spend"
@@ -440,7 +459,9 @@ const MetaCampaignOverviewPage = () => {
         />
       ) : null}
 
-      {campaigns.status !== 'error' && campaigns.status !== 'loading' && campaigns.rows.length === 0 ? (
+      {campaigns.status !== 'error' &&
+      campaigns.status !== 'loading' &&
+      campaigns.rows.length === 0 ? (
         <EmptyState
           icon={<span aria-hidden>0</span>}
           title="No campaigns found"

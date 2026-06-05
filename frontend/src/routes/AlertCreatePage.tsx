@@ -3,11 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import DashboardState from '../components/DashboardState';
-import {
-  createAlert,
-  listNotificationChannels,
-  type NotificationChannel,
-} from '../lib/phase2Api';
+import { createAlert, listNotificationChannels, type NotificationChannel } from '../lib/phase2Api';
 import { canAccessCreatorUi } from '../lib/rbac';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
@@ -195,7 +191,10 @@ const AlertCreatePage = () => {
             </p>
           ) : (
             channels.map((channel) => (
-              <label key={channel.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <label
+                key={channel.id}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              >
                 <input
                   type="checkbox"
                   checked={selectedChannelIds.includes(channel.id)}

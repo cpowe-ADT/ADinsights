@@ -7,6 +7,7 @@ Inputs cited: `/Users/thristannewman/ADinsights/artifacts/sprint/S3-architect-de
 ## Part 1 — New viz-kit primitives (LOAD-BEARING for S3c)
 
 ### `AssetGroupTreemap`
+
 - File: `/Users/thristannewman/ADinsights/frontend/src/components/viz/AssetGroupTreemap.tsx`
 - Recharts 3.7 `<Treemap>` wrapper — size = `spend`, shading = `roas` (opacity scale [0.3, 1.0] via `roasToOpacity` — exported for tests + downstream reuse).
 - Props: `data: AssetGroupTreemapDatum[]`, `height?`, `currency?`, `isLoading?`, `emptyReasonCode?`, `ariaLabel` (required).
@@ -16,6 +17,7 @@ Inputs cited: `/Users/thristannewman/ADinsights/artifacts/sprint/S3-architect-de
 - Stories: Default, Loading, Empty, DominantSlice.
 
 ### `GaugeRing`
+
 - File: `/Users/thristannewman/ADinsights/frontend/src/components/viz/GaugeRing.tsx`
 - Recharts 3.7 `<RadialBarChart>` + `<PolarAngleAxis>` half-circle gauge, domain `[0, max]` (default `max=1.2`).
 - Props: `value`, `max?`, `label` (required, visible), `variant?: 'ok'|'warning'|'danger'`, `height?`, `isLoading?`, `emptyReasonCode?`, `ariaLabel` (required), `valueText?`, `unit?`.
@@ -26,27 +28,31 @@ Inputs cited: `/Users/thristannewman/ADinsights/artifacts/sprint/S3-architect-de
 - Stories: Default, Underdelivery, OnTrack, Overspend, Loading, Empty, ExtremeOverspend.
 
 ### Barrel + tests
+
 - `/Users/thristannewman/ADinsights/frontend/src/components/viz/index.ts` — added `AssetGroupTreemap`, `GaugeRing`, `roasToOpacity`, `derivePacingVariant`, and type exports in the new S3b block.
 - `AssetGroupTreemap.test.tsx` — 8 tests (role/aria, sr-only table, skeleton, empty, roasToOpacity clamps, hatch pattern, a11y default, a11y empty). **jest-axe: 2 passes (default + empty).**
-- `GaugeRing.test.tsx` — 11 tests (role=meter + aria-value*, visible label + center percent, sr-only table, clamp, skeleton, empty, tick overlay, derivePacingVariant, data-variant, a11y default, a11y empty). **jest-axe: 2 passes (default + empty).**
+- `GaugeRing.test.tsx` — 11 tests (role=meter + aria-value\*, visible label + center percent, sr-only table, clamp, skeleton, empty, tick overlay, derivePacingVariant, data-variant, a11y default, a11y empty). **jest-axe: 2 passes (default + empty).**
 
 ---
 
 ## Part 2 — Three-page refactor
 
-| Page | Legacy route | Unified tab-section | Key primitives used | Data-gap note |
-|---|---|---|---|---|
-| **Assets** | `frontend/src/routes/google-ads/GoogleAdsAssetsPage.tsx` (rewritten — direct-fetch pattern like `GoogleAdsBudgetPage`) | `frontend/src/components/google-ads/workspace/tab-sections/AssetsTabSection.tsx` (new) | `KpiTile` ×3, `PieComposition`, **inline CSS-grid heat map** (NOT a kit primitive — per architect §5 decision matrix), `VizDataTable`-equivalent inline table with status chips | Per-asset daily series unavailable — heat tint driven by `conversion_rate` only; tone chips (`low`/`medium`/`high`) supply non-color threshold encoding |
-| **PMax** | `frontend/src/routes/google-ads/GoogleAdsPmaxPage.tsx` (rewritten) | `frontend/src/components/google-ads/workspace/tab-sections/PmaxTabSection.tsx` (new) | `KpiTile` ×3, **`AssetGroupTreemap`** (new kit primitive), inline table with status chips | PMax asset-group payload shape matches sprints-plan as-is; no derivation gymnastics needed |
-| **Conversions** | `frontend/src/routes/google-ads/GoogleAdsConversionsPage.tsx` (rewritten — parallel-fetches rows + `fetchGoogleAdsWorkspaceSummary` for funnel metrics) | `frontend/src/components/google-ads/workspace/tab-sections/ConversionsTabSection.tsx` (new) | `KpiTile` ×3, **Funnel-via-`DistributionBar`** (ordered stages preserved), `PieComposition` source-mix, inline table | Funnel reads `summary.metrics.{impressions,clicks,conversions}` — NOT from the conversions rows, per architect §6.6 |
+| Page            | Legacy route                                                                                                                                            | Unified tab-section                                                                         | Key primitives used                                                                                                                                                             | Data-gap note                                                                                                                                           |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Assets**      | `frontend/src/routes/google-ads/GoogleAdsAssetsPage.tsx` (rewritten — direct-fetch pattern like `GoogleAdsBudgetPage`)                                  | `frontend/src/components/google-ads/workspace/tab-sections/AssetsTabSection.tsx` (new)      | `KpiTile` ×3, `PieComposition`, **inline CSS-grid heat map** (NOT a kit primitive — per architect §5 decision matrix), `VizDataTable`-equivalent inline table with status chips | Per-asset daily series unavailable — heat tint driven by `conversion_rate` only; tone chips (`low`/`medium`/`high`) supply non-color threshold encoding |
+| **PMax**        | `frontend/src/routes/google-ads/GoogleAdsPmaxPage.tsx` (rewritten)                                                                                      | `frontend/src/components/google-ads/workspace/tab-sections/PmaxTabSection.tsx` (new)        | `KpiTile` ×3, **`AssetGroupTreemap`** (new kit primitive), inline table with status chips                                                                                       | PMax asset-group payload shape matches sprints-plan as-is; no derivation gymnastics needed                                                              |
+| **Conversions** | `frontend/src/routes/google-ads/GoogleAdsConversionsPage.tsx` (rewritten — parallel-fetches rows + `fetchGoogleAdsWorkspaceSummary` for funnel metrics) | `frontend/src/components/google-ads/workspace/tab-sections/ConversionsTabSection.tsx` (new) | `KpiTile` ×3, **Funnel-via-`DistributionBar`** (ordered stages preserved), `PieComposition` source-mix, inline table                                                            | Funnel reads `summary.metrics.{impressions,clicks,conversions}` — NOT from the conversions rows, per architect §6.6                                     |
 
 ### Unified-mode wiring
+
 - `/Users/thristannewman/ADinsights/frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx` — added imports for the three new tab sections and branch renders (`activeTab === 'assets'`, `'pmax'`, `'conversions'`) so the workspace shell picks them up. No changes to the boundary-locked `useGoogleAdsWorkspaceData` hook, no changes to `WorkspaceKpiStrip`, no changes to `GoogleAdsDataTablePage`.
 
 ### Heat-tinted grid approach (architect §5 / §6.4)
+
 - Confirmed INLINE (no kit primitive) per architect decision: the only viable metric is `conversion_rate` (per-asset daily series not in API contract). An inline CSS-grid with `resolveSeriesColor(0)` base + per-cell white overlay alpha derived from `intensity = convRate / max(convRate)` delivers the visual without primitive overhead. Non-color encoding: `deriveHeatTone(intensity)` emits `low|medium|high` tone chips on every cell.
 
 ### Funnel-via-DistributionBar cite
+
 - Architect §6.6 (`/Users/thristannewman/ADinsights/artifacts/sprint/S3-architect-design.md:303–309`) prescribes `DistributionBar`-as-funnel over `summary.metrics.{impressions,clicks,conversions}`.
 - Implementation: `/Users/thristannewman/ADinsights/frontend/src/lib/googleAdsCreativeConvAggregates.ts:~buildFunnelStages` preserves the three-stage array order; `ConversionsTabSection.tsx` (line ~107) feeds the stages to `DistributionBar` with `orientation="horizontal"`. `DistributionBar` renders rows in input order (no value-sort rewrite), matching the Sprint 2 Meta Campaigns funnel pattern.
 
@@ -54,14 +60,14 @@ Inputs cited: `/Users/thristannewman/ADinsights/artifacts/sprint/S3-architect-de
 
 ## Tests added
 
-| File | Count | Notes |
-|---|---:|---|
-| `frontend/src/components/viz/AssetGroupTreemap.test.tsx` | 8 | role/aria, sr-only table, skeleton, empty, roasToOpacity clamps, hatch pattern for non-color encoding, jest-axe ×2 |
-| `frontend/src/components/viz/GaugeRing.test.tsx` | 11 | role=meter + aria-value*, aria-valuetext, sr-only table, clamp to max, derivePacingVariant thresholds, data-variant, tick overlay, jest-axe ×2 |
-| `frontend/src/lib/googleAdsCreativeConvAggregates.test.ts` | 15 | `rollupAssetKpis`, `buildAssetTypePie`, `deriveHeatTone`, `buildAssetHeatGrid`, `rollupPmaxKpis`, `buildPmaxTreemapData`, `rollupConversionKpis`, `buildFunnelStages` (ordered stages preserved), `buildConvActionPie` |
-| `frontend/src/routes/google-ads/__tests__/GoogleAdsAssetsPage.test.tsx` | 4 | heading, KPI strip + pie + status chips, reasonCode=`no_assets`, error state |
-| `frontend/src/routes/google-ads/__tests__/GoogleAdsPmaxPage.test.tsx` | 4 | heading, KPIs + Treemap + sr-only accessible table + `#viz-treemap-hatch`, reasonCode=`no_pmax_groups`, error state |
-| `frontend/src/routes/google-ads/__tests__/GoogleAdsConversionsPage.test.tsx` | 4 | heading, KPIs + funnel + source-mix, reasonCode=`no_conversions`, error state |
+| File                                                                         | Count | Notes                                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------------- | ----: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend/src/components/viz/AssetGroupTreemap.test.tsx`                     |     8 | role/aria, sr-only table, skeleton, empty, roasToOpacity clamps, hatch pattern for non-color encoding, jest-axe ×2                                                                                                     |
+| `frontend/src/components/viz/GaugeRing.test.tsx`                             |    11 | role=meter + aria-value\*, aria-valuetext, sr-only table, clamp to max, derivePacingVariant thresholds, data-variant, tick overlay, jest-axe ×2                                                                        |
+| `frontend/src/lib/googleAdsCreativeConvAggregates.test.ts`                   |    15 | `rollupAssetKpis`, `buildAssetTypePie`, `deriveHeatTone`, `buildAssetHeatGrid`, `rollupPmaxKpis`, `buildPmaxTreemapData`, `rollupConversionKpis`, `buildFunnelStages` (ordered stages preserved), `buildConvActionPie` |
+| `frontend/src/routes/google-ads/__tests__/GoogleAdsAssetsPage.test.tsx`      |     4 | heading, KPI strip + pie + status chips, reasonCode=`no_assets`, error state                                                                                                                                           |
+| `frontend/src/routes/google-ads/__tests__/GoogleAdsPmaxPage.test.tsx`        |     4 | heading, KPIs + Treemap + sr-only accessible table + `#viz-treemap-hatch`, reasonCode=`no_pmax_groups`, error state                                                                                                    |
+| `frontend/src/routes/google-ads/__tests__/GoogleAdsConversionsPage.test.tsx` |     4 | heading, KPIs + funnel + source-mix, reasonCode=`no_conversions`, error state                                                                                                                                          |
 
 **Total: 46 passing, 0 failing.**
 
@@ -108,6 +114,7 @@ All 4 build errors are in **S3a-owned files** (CampaignsTabSection, OverviewTabS
 ## Files shipped
 
 **New:**
+
 - `frontend/src/components/viz/AssetGroupTreemap.tsx`
 - `frontend/src/components/viz/AssetGroupTreemap.stories.tsx`
 - `frontend/src/components/viz/AssetGroupTreemap.test.tsx`
@@ -121,6 +128,7 @@ All 4 build errors are in **S3a-owned files** (CampaignsTabSection, OverviewTabS
 - `frontend/src/lib/googleAdsCreativeConvAggregates.test.ts`
 
 **Modified:**
+
 - `frontend/src/components/viz/index.ts` (barrel — appended S3b exports, zero edits to existing exports)
 - `frontend/src/routes/google-ads/GoogleAdsAssetsPage.tsx` (rewritten — direct fetch, renders `AssetsTabSection`)
 - `frontend/src/routes/google-ads/GoogleAdsPmaxPage.tsx` (rewritten — renders `PmaxTabSection` with `AssetGroupTreemap`)

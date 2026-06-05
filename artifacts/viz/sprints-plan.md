@@ -1,6 +1,7 @@
 # ADinsights Data-Visualization Sprint Plan
 
 **Inputs cited:**
+
 - `/Users/thristannewman/ADinsights/artifacts/plan.md`
 - `/Users/thristannewman/ADinsights/artifacts/synthesis/synthesis-report.md`
 - `/Users/thristannewman/ADinsights/artifacts/verify/meta-verification.json`
@@ -26,7 +27,9 @@
 These apply to every page and every chart in all four sprints.
 
 ### Layout pattern
+
 Every dashboard page follows the 5-block structure:
+
 1. **KPI strip** — 4–6 tiles across the top
 2. **Primary trend chart** — time-series, full width
 3. **Distribution chart** — composition or comparison
@@ -37,23 +40,23 @@ Pages with insufficient data for a block must show an `EmptyState` with a `reaso
 
 ### Filtered vs unfiltered `account_id` rendering
 
-| Condition | Chart behavior |
-|-----------|---------------|
-| `account_id` not selected (all accounts) | Multi-series lines/bars, each series one account; legend toggle per account |
-| `account_id` selected (single account) | Single-series primary line/bars + faded "peer average" dashed line derived from median of all accounts in the same date range |
-| `account_id` selected, only 1 account in tenant | No peer average line; suppress legend |
+| Condition                                       | Chart behavior                                                                                                                |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `account_id` not selected (all accounts)        | Multi-series lines/bars, each series one account; legend toggle per account                                                   |
+| `account_id` selected (single account)          | Single-series primary line/bars + faded "peer average" dashed line derived from median of all accounts in the same date range |
+| `account_id` selected, only 1 account in tenant | No peer average line; suppress legend                                                                                         |
 
 **Peer average derivation:** computed client-side from the unfiltered payload that is already cached in the store. Compute the median metric value across all accounts per date point. No new endpoint required.
 
 ### Empty / Loading / Error states
 
-| State | Behavior |
-|-------|---------|
-| Loading | `ChartSkeleton` shimmer matching exact footprint of target chart (same height, same column count) — no layout shift |
-| Empty — no accounts | `EmptyState reasonCode="no_accounts"` with illustration + CTA to connect account |
-| Empty — no data for range | `EmptyState reasonCode="no_data_for_range"` |
-| Empty — adapter error | `EmptyState reasonCode="adapter_error"` with retry button |
-| Empty — scoped to zero rows | `EmptyState reasonCode="no_data_for_scope"` |
+| State                       | Behavior                                                                                                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Loading                     | `ChartSkeleton` shimmer matching exact footprint of target chart (same height, same column count) — no layout shift |
+| Empty — no accounts         | `EmptyState reasonCode="no_accounts"` with illustration + CTA to connect account                                    |
+| Empty — no data for range   | `EmptyState reasonCode="no_data_for_range"`                                                                         |
+| Empty — adapter error       | `EmptyState reasonCode="adapter_error"` with retry button                                                           |
+| Empty — scoped to zero rows | `EmptyState reasonCode="no_data_for_scope"`                                                                         |
 
 Empty states use the `reasonCode` prop already added by synthesis (FP-CC-01).
 
@@ -70,7 +73,14 @@ Empty states use the `reasonCode` prop already added by synthesis (FP-CC-01).
 
 ```ts
 // frontend/src/styles/chartTheme.ts
-chartPalette = ['#2563eb', '#f97316', '#0ea5e9', '#10b981', '#9333ea', '#f43f5e']
+chartPalette = [
+  '#2563eb',
+  '#f97316',
+  '#0ea5e9',
+  '#10b981',
+  '#9333ea',
+  '#f43f5e',
+];
 // Index assignments:
 // 0 → meta / facebook / primary
 // 1 → google_ads / secondary
@@ -81,12 +91,13 @@ chartPalette = ['#2563eb', '#f97316', '#0ea5e9', '#10b981', '#9333ea', '#f43f5e'
 ```
 
 Platform tokens to codify in Sprint 1:
+
 ```ts
 PLATFORM_CHART_TOKENS = {
-  meta_ads:    chartPalette[0],   // #2563eb
-  google_ads:  chartPalette[1],   // #f97316
-  peer_avg:    'rgba(148,163,184,0.5)',  // dashed, faded
-}
+  meta_ads: chartPalette[0], // #2563eb
+  google_ads: chartPalette[1], // #f97316
+  peer_avg: 'rgba(148,163,184,0.5)', // dashed, faded
+};
 ```
 
 ### Export behavior
@@ -106,20 +117,20 @@ No new print stylesheet needed. The existing app ships no print CSS. Mark as a d
 
 ### Deliverables
 
-| Component | File path | Size |
-|-----------|-----------|------|
-| `KpiTile` | `frontend/src/components/viz/KpiTile.tsx` | S |
-| `TrendLine` | `frontend/src/components/viz/TrendLine.tsx` | M |
-| `Sparkline` | `frontend/src/components/viz/Sparkline.tsx` | XS |
-| `DistributionBar` | `frontend/src/components/viz/DistributionBar.tsx` | S |
-| `BubbleScatter` | `frontend/src/components/viz/BubbleScatter.tsx` | M |
-| `PieComposition` | `frontend/src/components/viz/PieComposition.tsx` | S |
-| `DataTable` | `frontend/src/components/viz/DataTable.tsx` | M |
-| `EmptyState` (extend existing) | `frontend/src/components/EmptyState.tsx` | XS |
-| `ChartSkeleton` | `frontend/src/components/viz/ChartSkeleton.tsx` | S |
-| `AccessibleTableToggle` | `frontend/src/components/viz/AccessibleTableToggle.tsx` | S |
-| `PeerAvgLine` (sub-component) | `frontend/src/components/viz/PeerAvgLine.tsx` | XS |
-| Storybook stories | `frontend/src/components/viz/*.stories.tsx` | S |
+| Component                      | File path                                               | Size |
+| ------------------------------ | ------------------------------------------------------- | ---- |
+| `KpiTile`                      | `frontend/src/components/viz/KpiTile.tsx`               | S    |
+| `TrendLine`                    | `frontend/src/components/viz/TrendLine.tsx`             | M    |
+| `Sparkline`                    | `frontend/src/components/viz/Sparkline.tsx`             | XS   |
+| `DistributionBar`              | `frontend/src/components/viz/DistributionBar.tsx`       | S    |
+| `BubbleScatter`                | `frontend/src/components/viz/BubbleScatter.tsx`         | M    |
+| `PieComposition`               | `frontend/src/components/viz/PieComposition.tsx`        | S    |
+| `DataTable`                    | `frontend/src/components/viz/DataTable.tsx`             | M    |
+| `EmptyState` (extend existing) | `frontend/src/components/EmptyState.tsx`                | XS   |
+| `ChartSkeleton`                | `frontend/src/components/viz/ChartSkeleton.tsx`         | S    |
+| `AccessibleTableToggle`        | `frontend/src/components/viz/AccessibleTableToggle.tsx` | S    |
+| `PeerAvgLine` (sub-component)  | `frontend/src/components/viz/PeerAvgLine.tsx`           | XS   |
+| Storybook stories              | `frontend/src/components/viz/*.stories.tsx`             | S    |
 
 ### Definition of done
 
@@ -136,16 +147,17 @@ No new print stylesheet needed. The existing app ships no print CSS. Mark as a d
 ### KpiTile
 
 **Props:**
+
 ```ts
 interface KpiTileProps {
-  label: string
-  value: number | null
-  format: 'currency' | 'number' | 'percent' | 'rate'
-  currency?: string          // default 'JMD'
-  change?: number | null     // period-over-period delta as decimal (0.12 = +12%)
-  isLoading?: boolean
-  isFaded?: boolean          // for tiles outside current filter scope
-  reasonCode?: string        // passed through to EmptyState if value is null
+  label: string;
+  value: number | null;
+  format: 'currency' | 'number' | 'percent' | 'rate';
+  currency?: string; // default 'JMD'
+  change?: number | null; // period-over-period delta as decimal (0.12 = +12%)
+  isLoading?: boolean;
+  isFaded?: boolean; // for tiles outside current filter scope
+  reasonCode?: string; // passed through to EmptyState if value is null
 }
 ```
 
@@ -166,16 +178,22 @@ interface KpiTileProps {
 ### TrendLine
 
 **Props:**
+
 ```ts
 interface TrendLineProps {
-  data: Array<{ date: string; [seriesKey: string]: number | string }>
-  series: Array<{ key: string; label: string; color: string; dashed?: boolean }>
-  peerData?: Array<{ date: string; value: number }>  // renders as faded dashed line
-  yFormat?: ChartValueType
-  currency?: string
-  height?: number         // default 260
-  isLoading?: boolean
-  emptyReasonCode?: string
+  data: Array<{ date: string; [seriesKey: string]: number | string }>;
+  series: Array<{
+    key: string;
+    label: string;
+    color: string;
+    dashed?: boolean;
+  }>;
+  peerData?: Array<{ date: string; value: number }>; // renders as faded dashed line
+  yFormat?: ChartValueType;
+  currency?: string;
+  height?: number; // default 260
+  isLoading?: boolean;
+  emptyReasonCode?: string;
 }
 ```
 
@@ -190,12 +208,13 @@ interface TrendLineProps {
 ### Sparkline
 
 **Props:**
+
 ```ts
 interface SparklineProps {
-  data: Array<{ date: string; value: number }>
-  color?: string
-  height?: number  // default 40
-  showTooltip?: boolean
+  data: Array<{ date: string; value: number }>;
+  color?: string;
+  height?: number; // default 40
+  showTooltip?: boolean;
 }
 ```
 
@@ -208,14 +227,15 @@ Used inline in table cells. No axis labels. No legend.
 Horizontal stacked or grouped bar chart. Used for platform mix, age/gender, channel type.
 
 **Props:**
+
 ```ts
 interface DistributionBarProps {
-  data: Array<{ label: string; value: number; color?: string }>
-  showPercent?: boolean      // renders % labels on bars
-  yFormat?: ChartValueType
-  currency?: string
-  isLoading?: boolean
-  emptyReasonCode?: string
+  data: Array<{ label: string; value: number; color?: string }>;
+  showPercent?: boolean; // renders % labels on bars
+  yFormat?: ChartValueType;
+  currency?: string;
+  isLoading?: boolean;
+  emptyReasonCode?: string;
 }
 ```
 
@@ -226,25 +246,26 @@ interface DistributionBarProps {
 ### BubbleScatter
 
 **Props:**
+
 ```ts
 interface BubbleScatterProps {
   data: Array<{
-    id: string
-    label: string
-    x: number
-    y: number
-    z: number    // bubble radius dimension
-    shape?: 'circle' | 'triangle'  // non-color encoding
-    color?: string
-  }>
-  xLabel: string
-  yLabel: string
-  zLabel: string
-  xFormat?: ChartValueType
-  yFormat?: ChartValueType
-  isLoading?: boolean
-  onBubbleClick?: (id: string) => void
-  emptyReasonCode?: string
+    id: string;
+    label: string;
+    x: number;
+    y: number;
+    z: number; // bubble radius dimension
+    shape?: 'circle' | 'triangle'; // non-color encoding
+    color?: string;
+  }>;
+  xLabel: string;
+  yLabel: string;
+  zLabel: string;
+  xFormat?: ChartValueType;
+  yFormat?: ChartValueType;
+  isLoading?: boolean;
+  onBubbleClick?: (id: string) => void;
+  emptyReasonCode?: string;
 }
 ```
 
@@ -255,15 +276,16 @@ interface BubbleScatterProps {
 ### PieComposition
 
 **Props:**
+
 ```ts
 interface PieCompositionProps {
-  data: Array<{ label: string; value: number; color?: string }>
-  innerRadius?: number  // 0 = pie, >0 = donut
-  yFormat?: ChartValueType
-  currency?: string
-  showLegend?: boolean
-  isLoading?: boolean
-  emptyReasonCode?: string
+  data: Array<{ label: string; value: number; color?: string }>;
+  innerRadius?: number; // 0 = pie, >0 = donut
+  yFormat?: ChartValueType;
+  currency?: string;
+  showLegend?: boolean;
+  isLoading?: boolean;
+  emptyReasonCode?: string;
 }
 ```
 
@@ -274,15 +296,16 @@ interface PieCompositionProps {
 ### DataTable
 
 **Props:**
+
 ```ts
 interface DataTableProps<T> {
-  columns: ColumnDef<T>[]   // TanStack Table ColumnDef
-  data: T[]
-  isLoading?: boolean
-  onRowClick?: (row: T) => void
-  csvFilename?: string
-  emptyReasonCode?: string
-  pageSize?: number         // default 25
+  columns: ColumnDef<T>[]; // TanStack Table ColumnDef
+  data: T[];
+  isLoading?: boolean;
+  onRowClick?: (row: T) => void;
+  csvFilename?: string;
+  emptyReasonCode?: string;
+  pageSize?: number; // default 25
 }
 ```
 
@@ -293,11 +316,12 @@ Built on TanStack Table (already in use). CSV export is client-side. Supports so
 ### ChartSkeleton
 
 **Props:**
+
 ```ts
 interface ChartSkeletonProps {
-  height?: number   // matches target chart height
-  rows?: number     // for table skeletons
-  variant?: 'line' | 'bar' | 'pie' | 'table' | 'kpi-strip'
+  height?: number; // matches target chart height
+  rows?: number; // for table skeletons
+  variant?: 'line' | 'bar' | 'pie' | 'table' | 'kpi-strip';
 }
 ```
 
@@ -308,11 +332,12 @@ Renders shimmer animation. Shape mimics final chart layout to prevent layout shi
 ### AccessibleTableToggle
 
 **Props:**
+
 ```ts
 interface AccessibleTableToggleProps {
-  chartNode: ReactNode
-  tableNode: ReactNode
-  defaultView?: 'chart' | 'table'
+  chartNode: ReactNode;
+  tableNode: ReactNode;
+  defaultView?: 'chart' | 'table';
 }
 ```
 
@@ -357,12 +382,12 @@ Renders a toggle button (icon only, `aria-label="Switch to table view"`) that sw
 
 #### Layout
 
-| Block | Chart | Data source |
-|-------|-------|-------------|
-| KPI strip | 6 tiles: Total Spend, Total Impressions, Total Reach, Avg CTR, Avg CPM, Active Accounts | `payload.metrics.*` from `/api/metrics/combined/?platforms=meta_ads` |
-| Trend | `TrendLine` — Spend by day, one series per account | `payload.campaign.trend` (date + spend per account, aggregated client-side) |
-| Distribution | `PieComposition` — Spend by objective | `payload.campaign.rows` grouped by `objective` |
-| Table | `DataTable` — per-account: Account Name, Spend, Impressions, Reach, CTR, CPM, ROAS | `/api/metrics/combined/?platforms=meta_ads` → `campaign.rows` grouped by account_id |
+| Block        | Chart                                                                                   | Data source                                                                         |
+| ------------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| KPI strip    | 6 tiles: Total Spend, Total Impressions, Total Reach, Avg CTR, Avg CPM, Active Accounts | `payload.metrics.*` from `/api/metrics/combined/?platforms=meta_ads`                |
+| Trend        | `TrendLine` — Spend by day, one series per account                                      | `payload.campaign.trend` (date + spend per account, aggregated client-side)         |
+| Distribution | `PieComposition` — Spend by objective                                                   | `payload.campaign.rows` grouped by `objective`                                      |
+| Table        | `DataTable` — per-account: Account Name, Spend, Impressions, Reach, CTR, CPM, ROAS      | `/api/metrics/combined/?platforms=meta_ads` → `campaign.rows` grouped by account_id |
 
 #### Filtered vs unfiltered account_id
 
@@ -391,12 +416,12 @@ KPI strip: `ChartSkeleton variant="kpi-strip"`. Trend: `ChartSkeleton variant="l
 
 #### Layout
 
-| Block | Chart | Data source |
-|-------|-------|-------------|
-| KPI strip | 5 tiles: Spend, ROAS, CTR, Frequency, CPM | `payload.metrics.*` |
-| Trend | `TrendLine` dual-axis — CTR (left) + CPM (right), daily | `payload.campaign.trend` (date, ctr, cpm) |
-| Bubble | `BubbleScatter` — x=Spend, y=ROAS, z=Impressions, shape by objective | `payload.campaign.rows` |
-| Table | `DataTable` — Campaign Name, Spend, Impressions, CTR, CPM, ROAS, Frequency, Objective | `payload.campaign.rows` |
+| Block     | Chart                                                                                 | Data source                               |
+| --------- | ------------------------------------------------------------------------------------- | ----------------------------------------- |
+| KPI strip | 5 tiles: Spend, ROAS, CTR, Frequency, CPM                                             | `payload.metrics.*`                       |
+| Trend     | `TrendLine` dual-axis — CTR (left) + CPM (right), daily                               | `payload.campaign.trend` (date, ctr, cpm) |
+| Bubble    | `BubbleScatter` — x=Spend, y=ROAS, z=Impressions, shape by objective                  | `payload.campaign.rows`                   |
+| Table     | `DataTable` — Campaign Name, Spend, Impressions, CTR, CPM, ROAS, Frequency, Objective | `payload.campaign.rows`                   |
 
 **Note:** dual-axis `TrendLine` requires an optional `rightYFormat` prop on `TrendLine`. Add this in Sprint 1.
 
@@ -419,12 +444,12 @@ Bubble click OR table row click → campaign detail (if route exists; else no-op
 
 #### Layout
 
-| Block | Chart | Data source |
-|-------|-------|-------------|
-| KPI strip | 4 tiles: Spend, Impressions, Clicks, Conversions | `payload.metrics.*` |
-| Funnel | Impressions → Clicks → Conversions (3-step vertical funnel) | Sum from `payload.metrics.*` |
-| Bar | `DistributionBar` — Spend by campaign (top 10) | `payload.campaign.rows` sorted by spend, top 10 |
-| Table | `DataTable` with inline `Sparkline` per campaign | `payload.campaign.rows` + `payload.campaign.trend` joined on campaign_id |
+| Block     | Chart                                                       | Data source                                                              |
+| --------- | ----------------------------------------------------------- | ------------------------------------------------------------------------ |
+| KPI strip | 4 tiles: Spend, Impressions, Clicks, Conversions            | `payload.metrics.*`                                                      |
+| Funnel    | Impressions → Clicks → Conversions (3-step vertical funnel) | Sum from `payload.metrics.*`                                             |
+| Bar       | `DistributionBar` — Spend by campaign (top 10)              | `payload.campaign.rows` sorted by spend, top 10                          |
+| Table     | `DataTable` with inline `Sparkline` per campaign            | `payload.campaign.rows` + `payload.campaign.trend` joined on campaign_id |
 
 **Funnel:** Recharts does not have a native Funnel chart. Use Recharts `FunnelChart` + `Funnel` (added in Recharts 2.x — confirm available in v3.7.0). Fallback: render as three stacked `ProgressBar` rows with absolute values and drop-off percentage between steps.
 
@@ -446,10 +471,10 @@ Bubble click OR table row click → campaign detail (if route exists; else no-op
 
 Single list/grid — no KPI strip (page-level KPIs are on the detail page):
 
-| Block | Chart | Data source |
-|-------|-------|-------------|
-| Cards grid | Per-page card: name, thumbnail (if available), fan_count, last_synced_at | `/api/integrations/pages/` |
-| Table (toggle) | `DataTable` — Page Name, Fan Count, Last Synced | same |
+| Block          | Chart                                                                    | Data source                |
+| -------------- | ------------------------------------------------------------------------ | -------------------------- |
+| Cards grid     | Per-page card: name, thumbnail (if available), fan_count, last_synced_at | `/api/integrations/pages/` |
+| Table (toggle) | `DataTable` — Page Name, Fan Count, Last Synced                          | same                       |
 
 No analytics charts here. No combined call.
 
@@ -468,12 +493,12 @@ Each KPI: `{ metric, value, today_value, prior_value, change_pct }`
 
 #### Layout
 
-| Block | Chart | Data source |
-|-------|-------|-------------|
-| KPI strip | 4 tiles from `kpis[]` — typically: page_fans (followers), page_impressions, page_engaged_users, reach | `kpis[]` |
-| Trend | `TrendLine` — primary_metric daily series | `daily_series[primary_metric]` |
-| Engagement breakdown | `PieComposition` — engagement breakdown by type (post type, reaction type, etc.) | `engagement_breakdown[metric]` |
-| Posts preview | Not charted here — link to posts page |
+| Block                | Chart                                                                                                 | Data source                    |
+| -------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------ |
+| KPI strip            | 4 tiles from `kpis[]` — typically: page_fans (followers), page_impressions, page_engaged_users, reach | `kpis[]`                       |
+| Trend                | `TrendLine` — primary_metric daily series                                                             | `daily_series[primary_metric]` |
+| Engagement breakdown | `PieComposition` — engagement breakdown by type (post type, reaction type, etc.)                      | `engagement_breakdown[metric]` |
+| Posts preview        | Not charted here — link to posts page                                                                 |
 
 No combined call.
 
@@ -495,11 +520,11 @@ Each post: `{ post_id, created_time, media_type, message, thumbnail_url, metrics
 
 #### Layout
 
-| Block | Chart | Data source |
-|-------|-------|-------------|
-| KPI summary strip | 3 tiles: Total Posts, Avg Reach, Avg Engagement | computed from `results[]` |
-| Post type mix | `PieComposition` — media_type distribution | `results[]` grouped by `media_type` |
-| Posts table | `DataTable` — Thumbnail, Message (truncated), Created, Reach, Reactions, Shares, Media Type; click → post detail | `results[]` |
+| Block             | Chart                                                                                                            | Data source                         |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| KPI summary strip | 3 tiles: Total Posts, Avg Reach, Avg Engagement                                                                  | computed from `results[]`           |
+| Post type mix     | `PieComposition` — media_type distribution                                                                       | `results[]` grouped by `media_type` |
+| Posts table       | `DataTable` — Thumbnail, Message (truncated), Created, Reach, Reactions, Shares, Media Type; click → post detail | `results[]`                         |
 
 Paginated — `DataTable` pagination uses API offset/limit.
 
@@ -514,12 +539,12 @@ Paginated — `DataTable` pagination uses API offset/limit.
 
 #### Layout
 
-| Block | Chart | Data source |
-|-------|-------|-------------|
-| KPI strip | 4 tiles: Reach, Impressions, Reactions, Shares (from `metrics{}`) | `metrics` from post detail |
-| Trend | `TrendLine` — metric over time | `timeseries` endpoint results |
-| Comments table | `DataTable` — if comment data is available; otherwise suppress block | N/A — no endpoint currently |
-| Metadata row | Media type, created time, permalink | `media_type`, `created_time`, `permalink` |
+| Block          | Chart                                                                | Data source                               |
+| -------------- | -------------------------------------------------------------------- | ----------------------------------------- |
+| KPI strip      | 4 tiles: Reach, Impressions, Reactions, Shares (from `metrics{}`)    | `metrics` from post detail                |
+| Trend          | `TrendLine` — metric over time                                       | `timeseries` endpoint results             |
+| Comments table | `DataTable` — if comment data is available; otherwise suppress block | N/A — no endpoint currently               |
+| Metadata row   | Media type, created time, permalink                                  | `media_type`, `created_time`, `permalink` |
 
 **Note:** No comments endpoint exists. Suppress the comments block for Sprint 2. Mark as `[NEW-ENDPOINT]` in open questions.
 
@@ -566,13 +591,13 @@ The executive endpoint is the primary data source for this tab.
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 5 tiles: Cost, Conversions, CPA, ROAS, Impression Share | `metrics.{spend, conversions, cpa, roas}` + IS from `metrics.impression_share` if available |
-| Trend | `TrendLine` dual-axis — Cost (left) + Conversions (right) | `trend[]` → date, spend, conversions |
-| Channel pie | `PieComposition` — Cost by channel_type | `by_channel[]` → channel_type, spend |
-| Insights cards | 3 alert insight cards (not a Recharts chart — plain card component) | `top_insights[]` + `alerts_summary` |
-| Governance row | 3 stat chips: Recent Changes (7d), Active Recommendations, Disapproved Ads | `governance_summary.*` |
+| Block          | Chart                                                                      | Fields                                                                                      |
+| -------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| KPI strip      | 5 tiles: Cost, Conversions, CPA, ROAS, Impression Share                    | `metrics.{spend, conversions, cpa, roas}` + IS from `metrics.impression_share` if available |
+| Trend          | `TrendLine` dual-axis — Cost (left) + Conversions (right)                  | `trend[]` → date, spend, conversions                                                        |
+| Channel pie    | `PieComposition` — Cost by channel_type                                    | `by_channel[]` → channel_type, spend                                                        |
+| Insights cards | 3 alert insight cards (not a Recharts chart — plain card component)        | `top_insights[]` + `alerts_summary`                                                         |
+| Governance row | 3 stat chips: Recent Changes (7d), Active Recommendations, Disapproved Ads | `governance_summary.*`                                                                      |
 
 No drill-down table at overview level — link to Campaigns tab.
 
@@ -589,12 +614,12 @@ Each row: `campaign_id, campaign_name, campaign_status, channel_type, spend, imp
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 4 tiles: Total Cost, Total Conversions, Avg CPA, Avg ROAS | aggregated from rows |
-| Bubble | `BubbleScatter` — x=Cost, y=Conv Rate (conv/clicks), z=Impressions, shape=channel_type | `campaign rows` |
-| Trend | `TrendLine` — Cost by day (top 5 campaigns) | Requires date-series — **[NEW-ENDPOINT]** if campaign daily series not available from this endpoint. Fallback: suppress trend, show bar chart of spend by campaign instead |
-| Table | `DataTable` — Campaign Name, Status chip, Channel, Cost, Clicks, Conv, CPA, ROAS; click → campaign detail | `campaign rows` |
+| Block     | Chart                                                                                                     | Fields                                                                                                                                                                     |
+| --------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| KPI strip | 4 tiles: Total Cost, Total Conversions, Avg CPA, Avg ROAS                                                 | aggregated from rows                                                                                                                                                       |
+| Bubble    | `BubbleScatter` — x=Cost, y=Conv Rate (conv/clicks), z=Impressions, shape=channel_type                    | `campaign rows`                                                                                                                                                            |
+| Trend     | `TrendLine` — Cost by day (top 5 campaigns)                                                               | Requires date-series — **[NEW-ENDPOINT]** if campaign daily series not available from this endpoint. Fallback: suppress trend, show bar chart of spend by campaign instead |
+| Table     | `DataTable` — Campaign Name, Status chip, Channel, Cost, Clicks, Conv, CPA, ROAS; click → campaign detail | `campaign rows`                                                                                                                                                            |
 
 **Fallback for trend:** Use `DistributionBar` — Top 10 Campaigns by Spend — if no daily series available.
 
@@ -614,13 +639,13 @@ Search term row fields: `search_term, impressions, clicks, conversions, cpa, ctr
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 3 tiles: Total Keywords, Avg Quality Score, Top Keyword Conv | from keyword rows |
-| Scatter | `BubbleScatter` — x=Quality Score, y=CPC (spend/clicks), z=Impressions, one point per keyword | `keyword rows` |
-| Bar | `DistributionBar` — Top 10 Search Terms by Conversions | `search_term rows` sorted by conversions |
-| Keyword table | `DataTable` — Keyword, Match Type, Status, QS, Impressions, Clicks, Conv, CPA | `keyword rows` |
-| Search terms table | `DataTable` — Search Term, Impressions, Clicks, Conv, CPA | `search_term rows` |
+| Block              | Chart                                                                                         | Fields                                   |
+| ------------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| KPI strip          | 3 tiles: Total Keywords, Avg Quality Score, Top Keyword Conv                                  | from keyword rows                        |
+| Scatter            | `BubbleScatter` — x=Quality Score, y=CPC (spend/clicks), z=Impressions, one point per keyword | `keyword rows`                           |
+| Bar                | `DistributionBar` — Top 10 Search Terms by Conversions                                        | `search_term rows` sorted by conversions |
+| Keyword table      | `DataTable` — Keyword, Match Type, Status, QS, Impressions, Clicks, Conv, CPA                 | `keyword rows`                           |
+| Search terms table | `DataTable` — Search Term, Impressions, Clicks, Conv, CPA                                     | `search_term rows`                       |
 
 ---
 
@@ -633,11 +658,11 @@ Asset row fields: `asset_type, asset_id, impressions, clicks, conversions, cpa, 
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 3 tiles: Total Assets, Disapproved Count, Top Asset Conv | from rows |
-| Asset type distribution | `PieComposition` — Count by asset_type | `rows` grouped by `asset_type` |
-| Performance table | `DataTable` with inline `Sparkline` per asset — Asset Type, Asset ID, Impressions, Clicks, Conv, CPA, Status chip | `rows` |
+| Block                   | Chart                                                                                                             | Fields                         |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| KPI strip               | 3 tiles: Total Assets, Disapproved Count, Top Asset Conv                                                          | from rows                      |
+| Asset type distribution | `PieComposition` — Count by asset_type                                                                            | `rows` grouped by `asset_type` |
+| Performance table       | `DataTable` with inline `Sparkline` per asset — Asset Type, Asset ID, Impressions, Clicks, Conv, CPA, Status chip | `rows`                         |
 
 **Note:** Per-asset sparkline requires date-series per asset — not available from current endpoint. Suppress sparkline column; add `[NEW-ENDPOINT]` note. Render table without sparklines.
 
@@ -652,11 +677,11 @@ Asset group row fields: `asset_group_id, asset_group_name, asset_group_status, s
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 3 tiles: Total Asset Groups, Total Cost, Total Conv | from rows |
-| Treemap | Asset group treemap — size=spend, color intensity=ROAS | `rows` → `asset_group_name, spend, roas` |
-| Table | `DataTable` — Asset Group, Status, Cost, Impressions, Conv, CPA, ROAS | `rows` |
+| Block     | Chart                                                                 | Fields                                   |
+| --------- | --------------------------------------------------------------------- | ---------------------------------------- |
+| KPI strip | 3 tiles: Total Asset Groups, Total Cost, Total Conv                   | from rows                                |
+| Treemap   | Asset group treemap — size=spend, color intensity=ROAS                | `rows` → `asset_group_name, spend, roas` |
+| Table     | `DataTable` — Asset Group, Status, Cost, Impressions, Conv, CPA, ROAS | `rows`                                   |
 
 **Treemap:** Recharts provides `Treemap` component. Use `chartPalette[1]` (orange) with opacity scaled to `roas` value (0–2 range mapped to 0.3–1.0 opacity). This avoids introducing new chart types.
 
@@ -671,12 +696,12 @@ Row fields: `conversion_action_name, conversions, conversion_value, cost_per_con
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 3 tiles: Total Conversions, Total Conv Value, Avg CPA | from rows |
-| Funnel | Impressions → Clicks → Conversions (3-step) | Source: aggregate from campaigns endpoint or combined payload |
-| Source mix pie | `PieComposition` — Conv by action_name | `rows` grouped by `conversion_action_name` |
-| Table | `DataTable` — Action Name, Conversions, Value, CPA | `rows` |
+| Block          | Chart                                                 | Fields                                                        |
+| -------------- | ----------------------------------------------------- | ------------------------------------------------------------- |
+| KPI strip      | 3 tiles: Total Conversions, Total Conv Value, Avg CPA | from rows                                                     |
+| Funnel         | Impressions → Clicks → Conversions (3-step)           | Source: aggregate from campaigns endpoint or combined payload |
+| Source mix pie | `PieComposition` — Conv by action_name                | `rows` grouped by `conversion_action_name`                    |
+| Table          | `DataTable` — Action Name, Conversions, Value, CPA    | `rows`                                                        |
 
 **Funnel source:** Campaign-level totals from `GET /api/google-ads/campaigns/` (sum impressions, clicks, conversions). No new endpoint needed.
 
@@ -692,12 +717,12 @@ Campaign budget rows: `campaign_id, campaign_name, campaign_status, channel_type
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| Gauge ring | Single gauge: MTD pacing % (needle at pacing_pct; red zone > 110%, yellow 80–100%) | `pacing.pacing_pct` |
-| KPI strip | 3 tiles: Spend MTD, Budget Month, Forecast Month-End | `pacing.*` |
-| Variance bar | `DistributionBar` — Per-campaign spend vs budget (paired bars) | `campaign_rows` |
-| Table | `DataTable` — Campaign, Status, Spend, Budget, Forecast, Over/Under, Risk chip | `campaign_rows` |
+| Block        | Chart                                                                              | Fields              |
+| ------------ | ---------------------------------------------------------------------------------- | ------------------- |
+| Gauge ring   | Single gauge: MTD pacing % (needle at pacing_pct; red zone > 110%, yellow 80–100%) | `pacing.pacing_pct` |
+| KPI strip    | 3 tiles: Spend MTD, Budget Month, Forecast Month-End                               | `pacing.*`          |
+| Variance bar | `DistributionBar` — Per-campaign spend vs budget (paired bars)                     | `campaign_rows`     |
+| Table        | `DataTable` — Campaign, Status, Spend, Budget, Forecast, Over/Under, Risk chip     | `campaign_rows`     |
 
 **Gauge ring:** Recharts `RadialBarChart` with a single bar, domain [0, 1.2], reference lines at 0.8 (under) and 1.1 (over). No new chart type.
 
@@ -712,11 +737,11 @@ Row fields: `customer_id, change_date_time, user_email, client_type, change_reso
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 2 tiles: Total Changes, Changes last 7d | count from rows |
-| Changes by type | `DistributionBar` — Count by change_resource_type | `rows` grouped by type |
-| Table | `DataTable` — Date/Time, User, Resource Type, Operation, Campaign, Changed Fields; paginated | `rows` |
+| Block           | Chart                                                                                        | Fields                 |
+| --------------- | -------------------------------------------------------------------------------------------- | ---------------------- |
+| KPI strip       | 2 tiles: Total Changes, Changes last 7d                                                      | count from rows        |
+| Changes by type | `DistributionBar` — Count by change_resource_type                                            | `rows` grouped by type |
+| Table           | `DataTable` — Date/Time, User, Resource Type, Operation, Campaign, Changed Fields; paginated | `rows`                 |
 
 **No trend chart** — change log is event-based, not time-series. Suppressed to avoid padding.
 
@@ -731,11 +756,11 @@ Row fields: `customer_id, recommendation_type, resource_name, campaign_id, ad_gr
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 2 tiles: Active Recommendations, Dismissed | count from `dismissed` field |
-| Type distribution | `PieComposition` — Count by recommendation_type | `rows` grouped by type |
-| Table | `DataTable` — Type, Campaign, Impact, Status chip (Active/Dismissed), Last Seen; "Dismiss" action button if wired | `rows` |
+| Block             | Chart                                                                                                             | Fields                       |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| KPI strip         | 2 tiles: Active Recommendations, Dismissed                                                                        | count from `dismissed` field |
+| Type distribution | `PieComposition` — Count by recommendation_type                                                                   | `rows` grouped by type       |
+| Table             | `DataTable` — Type, Campaign, Impact, Status chip (Active/Dismissed), Last Seen; "Dismiss" action button if wired | `rows`                       |
 
 **Dismiss action:** button calls `PATCH /api/google-ads/recommendations/:id/dismiss/` if that endpoint exists. If not, suppress button and mark `[NEW-ENDPOINT]`.
 
@@ -748,9 +773,9 @@ Row fields: `customer_id, recommendation_type, resource_name, campaign_id, ad_gr
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| Controls strip | Date range picker + "Generate Report" button | — |
+| Block             | Chart                                                         | Fields           |
+| ----------------- | ------------------------------------------------------------- | ---------------- |
+| Controls strip    | Date range picker + "Generate Report" button                  | —                |
 | Export jobs table | `DataTable` — Created, Status chip, Date Range, Download link | export jobs list |
 
 No chart components needed here — this is a workflow page, not analytics. Keep minimal.
@@ -796,12 +821,12 @@ No chart components needed here — this is a workflow page, not analytics. Keep
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 5 tiles: Total Spend, Total Impressions, Total Clicks, Total Conversions, Blended ROAS | `payload.metrics.*` |
-| Stacked area trend | `TrendLine` — Spend by platform over time (stacked area mode) | `payload.campaign.trend` split by `platform` field |
-| Small-multiples bar | 4 mini `DistributionBar` charts in 2×2 grid — Spend / Impressions / Clicks / Conv each showing Meta vs Google split | `payload.platforms.byPlatform[]` |
-| Platform comparison table | `DataTable` — Platform, Spend, Impressions, Clicks, Conversions, CTR, CPM, ROAS | `payload.platforms.byPlatform[]` |
+| Block                     | Chart                                                                                                               | Fields                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| KPI strip                 | 5 tiles: Total Spend, Total Impressions, Total Clicks, Total Conversions, Blended ROAS                              | `payload.metrics.*`                                |
+| Stacked area trend        | `TrendLine` — Spend by platform over time (stacked area mode)                                                       | `payload.campaign.trend` split by `platform` field |
+| Small-multiples bar       | 4 mini `DistributionBar` charts in 2×2 grid — Spend / Impressions / Clicks / Conv each showing Meta vs Google split | `payload.platforms.byPlatform[]`                   |
+| Platform comparison table | `DataTable` — Platform, Spend, Impressions, Clicks, Conversions, CTR, CPM, ROAS                                     | `payload.platforms.byPlatform[]`                   |
 
 **Stacked area:** `TrendLine` prop `variant="stacked-area"` — renders Recharts `AreaChart` with `stackId` per platform. Add `variant` prop to `TrendLine` in Sprint 1 (mark as needed by Sprint 4).
 
@@ -821,12 +846,12 @@ No chart components needed here — this is a workflow page, not analytics. Keep
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 4 tiles: Total Spend, Total Clicks, Total Conv, Blended ROAS | `payload.metrics.*` |
-| Trend | `TrendLine` — Spend by day, colored by platform | `payload.campaign.trend` |
-| Spend by campaign | `DistributionBar` — Top 10 campaigns by spend | `payload.campaign.rows` top 10 by spend |
-| Table | `DataTable` with inline `Sparkline` — Campaign, Platform chip, Spend, Clicks, Conv, ROAS, CTR; click → campaign detail | `payload.campaign.rows` |
+| Block             | Chart                                                                                                                  | Fields                                  |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| KPI strip         | 4 tiles: Total Spend, Total Clicks, Total Conv, Blended ROAS                                                           | `payload.metrics.*`                     |
+| Trend             | `TrendLine` — Spend by day, colored by platform                                                                        | `payload.campaign.trend`                |
+| Spend by campaign | `DistributionBar` — Top 10 campaigns by spend                                                                          | `payload.campaign.rows` top 10 by spend |
+| Table             | `DataTable` with inline `Sparkline` — Campaign, Platform chip, Spend, Clicks, Conv, ROAS, CTR; click → campaign detail | `payload.campaign.rows`                 |
 
 **Platform toggle:** When user toggles Meta-only via the filter bar, `resolvePlatformFilters()` already filters rows by platform (FP-CAMP-01 applied). Chart reacts automatically.
 
@@ -841,12 +866,12 @@ No chart components needed here — this is a workflow page, not analytics. Keep
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 4 tiles: Total Spend, Total Impressions, Total Clicks, Top Creative Spend | `payload.metrics.*` |
-| Scatter | `BubbleScatter` — x=Spend, y=CTR, z=Impressions per creative | `payload.creative[]` (rows with name, spend, impressions, clicks, reach, ctr, cpm) |
-| Format mix | `PieComposition` — Impressions by creative format/platform | `payload.creative[]` grouped by `platform` |
-| Table | `DataTable` — Creative Name, Platform chip, Spend, Impressions, Clicks, CTR, CPM, Reach | `payload.creative[]` |
+| Block      | Chart                                                                                   | Fields                                                                             |
+| ---------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| KPI strip  | 4 tiles: Total Spend, Total Impressions, Total Clicks, Top Creative Spend               | `payload.metrics.*`                                                                |
+| Scatter    | `BubbleScatter` — x=Spend, y=CTR, z=Impressions per creative                            | `payload.creative[]` (rows with name, spend, impressions, clicks, reach, ctr, cpm) |
+| Format mix | `PieComposition` — Impressions by creative format/platform                              | `payload.creative[]` grouped by `platform`                                         |
+| Table      | `DataTable` — Creative Name, Platform chip, Spend, Impressions, Clicks, CTR, CPM, Reach | `payload.creative[]`                                                               |
 
 **Note:** `payload.creative[]` rows have `name`, `platform`, spend/impressions/clicks/conversions/reach fields. Computed fields (ctr, cpm) must be derived client-side: `ctr = clicks/impressions`, `cpm = spend*1000/impressions`.
 
@@ -864,12 +889,12 @@ Note: `budgetAmount` may be absent for Meta campaigns (meta_direct adapter). Ren
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 3 tiles: Total Spend to Date, Total Budget, Overall Pacing % | aggregated from `payload.budget[]` |
-| Pacing bar | `DistributionBar` (horizontal) — Spend vs Budget per campaign, paired bars | `payload.budget[]` |
-| Trend | `TrendLine` — Cumulative spend vs budget ceiling per day | `payload.campaign.trend` cumulative sum vs budget line (static horizontal reference line) |
-| Table | `DataTable` — Campaign, Platform, Spend, Budget, Pacing %, Risk chip | `payload.budget[]` |
+| Block      | Chart                                                                      | Fields                                                                                    |
+| ---------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| KPI strip  | 3 tiles: Total Spend to Date, Total Budget, Overall Pacing %               | aggregated from `payload.budget[]`                                                        |
+| Pacing bar | `DistributionBar` (horizontal) — Spend vs Budget per campaign, paired bars | `payload.budget[]`                                                                        |
+| Trend      | `TrendLine` — Cumulative spend vs budget ceiling per day                   | `payload.campaign.trend` cumulative sum vs budget line (static horizontal reference line) |
+| Table      | `DataTable` — Campaign, Platform, Spend, Budget, Pacing %, Risk chip       | `payload.budget[]`                                                                        |
 
 **B-BUDG-01 (false empty state) fix is already applied.** `budgetAvailability !== undefined` guard is in place.
 
@@ -886,13 +911,13 @@ Audience data lives in `payload.platforms`: `byAge[]`, `byGender[]`, `byAgeGende
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 4 tiles: Total Reach, Avg Frequency, Top Age Range, Top Device | `payload.metrics.reach`, `payload.metrics.frequency`, derived from `byAge[]`, `byDevice[]` |
-| Age distribution | `DistributionBar` — Reach by age range | `payload.platforms.byAge[]` (ageRange, reach) |
-| Gender split | `PieComposition` — Reach by gender | `payload.platforms.byGender[]` (gender, reach) |
-| Device mix | `DistributionBar` — Impressions by device | `payload.platforms.byDevice[]` (device, impressions) |
-| Age × Gender heatmap | **[NEW-ENDPOINT]** — A heatmap of spend by ageRange × gender is desirable but requires a dedicated endpoint returning a 2D matrix. Defer to later sprint. The `byAgeGender[]` data does exist but rendering as a proper heatmap requires a Recharts-compatible approach. For Sprint 4, render `byAgeGender[]` as a grouped `DistributionBar` (age on X, gender as series). | `payload.platforms.byAgeGender[]` |
+| Block                | Chart                                                                                                                                                                                                                                                                                                                                                                      | Fields                                                                                     |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| KPI strip            | 4 tiles: Total Reach, Avg Frequency, Top Age Range, Top Device                                                                                                                                                                                                                                                                                                             | `payload.metrics.reach`, `payload.metrics.frequency`, derived from `byAge[]`, `byDevice[]` |
+| Age distribution     | `DistributionBar` — Reach by age range                                                                                                                                                                                                                                                                                                                                     | `payload.platforms.byAge[]` (ageRange, reach)                                              |
+| Gender split         | `PieComposition` — Reach by gender                                                                                                                                                                                                                                                                                                                                         | `payload.platforms.byGender[]` (gender, reach)                                             |
+| Device mix           | `DistributionBar` — Impressions by device                                                                                                                                                                                                                                                                                                                                  | `payload.platforms.byDevice[]` (device, impressions)                                       |
+| Age × Gender heatmap | **[NEW-ENDPOINT]** — A heatmap of spend by ageRange × gender is desirable but requires a dedicated endpoint returning a 2D matrix. Defer to later sprint. The `byAgeGender[]` data does exist but rendering as a proper heatmap requires a Recharts-compatible approach. For Sprint 4, render `byAgeGender[]` as a grouped `DistributionBar` (age on X, gender as series). | `payload.platforms.byAgeGender[]`                                                          |
 
 **B-AUD-01 zero-row guard is already applied.**
 
@@ -910,13 +935,13 @@ GeoJSON: standard FeatureCollection with parish name properties
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 4 tiles: Total Spend (all parishes), Top Parish, Top Parish Spend, Parish Coverage % | from `payload.parish[]` |
-| KPI picker | Dropdown: Spend / Impressions / Clicks / Conversions — controls choropleth fill metric | user selection, client-side |
-| Choropleth map | Leaflet choropleth — parish polygons filled by selected KPI metric, 5-bucket sequential color scale (monochromatic blue using `chartPalette[0]` alpha steps) | parish rows joined to GeoJSON on parish name |
-| Sparkline tooltip | On parish hover: popup with parish name + all 4 KPI values + `Sparkline` of spend over time | parish rows |
-| Table | `DataTable` — Parish, Spend, Impressions, Clicks, Conv; click row highlights map polygon | `payload.parish[]` |
+| Block             | Chart                                                                                                                                                        | Fields                                       |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| KPI strip         | 4 tiles: Total Spend (all parishes), Top Parish, Top Parish Spend, Parish Coverage %                                                                         | from `payload.parish[]`                      |
+| KPI picker        | Dropdown: Spend / Impressions / Clicks / Conversions — controls choropleth fill metric                                                                       | user selection, client-side                  |
+| Choropleth map    | Leaflet choropleth — parish polygons filled by selected KPI metric, 5-bucket sequential color scale (monochromatic blue using `chartPalette[0]` alpha steps) | parish rows joined to GeoJSON on parish name |
+| Sparkline tooltip | On parish hover: popup with parish name + all 4 KPI values + `Sparkline` of spend over time                                                                  | parish rows                                  |
+| Table             | `DataTable` — Parish, Spend, Impressions, Clicks, Conv; click row highlights map polygon                                                                     | `payload.parish[]`                           |
 
 **Platform toggle:** B-MAP-01 (platform filter lag in Leaflet layer) is deferred — document as known gap. Workaround: when platform filter changes, force re-render of the entire Leaflet choropleth layer by changing its React key.
 
@@ -937,12 +962,12 @@ Response: `{ source: 'ga4', status: 'ok', count: N, rows: [{date_day, property_i
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 4 tiles: Total Sessions, Total Conversions, Total Revenue, Avg Engagement Rate | aggregated from `rows` |
-| Trend | `TrendLine` — Sessions by day | `rows` aggregated by `date_day` |
-| Channel mix | `PieComposition` — Sessions by channel_group | `rows` grouped by `channel_group` |
-| Device/Source table | `DataTable` — Channel Group, Sessions, Conv, Revenue, Engagement Rate | `rows` grouped by `channel_group` |
+| Block               | Chart                                                                          | Fields                            |
+| ------------------- | ------------------------------------------------------------------------------ | --------------------------------- |
+| KPI strip           | 4 tiles: Total Sessions, Total Conversions, Total Revenue, Avg Engagement Rate | aggregated from `rows`            |
+| Trend               | `TrendLine` — Sessions by day                                                  | `rows` aggregated by `date_day`   |
+| Channel mix         | `PieComposition` — Sessions by channel_group                                   | `rows` grouped by `channel_group` |
+| Device/Source table | `DataTable` — Channel Group, Sessions, Conv, Revenue, Engagement Rate          | `rows` grouped by `channel_group` |
 
 **No combined call.** No platform filter. Date range from own date picker.
 
@@ -959,12 +984,12 @@ Response rows: `{ date_day, site_url, country, device, query, page, clicks, impr
 
 #### Layout
 
-| Block | Chart | Fields |
-|-------|-------|--------|
-| KPI strip | 4 tiles: Total Clicks, Total Impressions, Avg CTR, Avg Position | aggregated from `rows` |
-| Trend | `TrendLine` — Clicks + Impressions by day (dual axis) | `rows` aggregated by `date_day` |
-| Device mix | `PieComposition` — Clicks by device | `rows` grouped by `device` |
-| Top queries table | `DataTable` — Query, Clicks, Impressions, CTR, Avg Position; top 50 by clicks | `rows` grouped by `query` |
+| Block             | Chart                                                                         | Fields                          |
+| ----------------- | ----------------------------------------------------------------------------- | ------------------------------- |
+| KPI strip         | 4 tiles: Total Clicks, Total Impressions, Avg CTR, Avg Position               | aggregated from `rows`          |
+| Trend             | `TrendLine` — Clicks + Impressions by day (dual axis)                         | `rows` aggregated by `date_day` |
+| Device mix        | `PieComposition` — Clicks by device                                           | `rows` grouped by `device`      |
+| Top queries table | `DataTable` — Query, Clicks, Impressions, CTR, Avg Position; top 50 by clicks | `rows` grouped by `query`       |
 
 **No combined call.** No platform filter.
 
@@ -1011,34 +1036,34 @@ The builder uses a grid-snapped slot system. Each slot accepts a shared kit comp
 
 ## Per-Page Visualization Specification (Quick-Reference Matrix)
 
-| Route | KPI Count | Primary Trend | Distribution | Specialized | Table | No Combined? |
-|-------|-----------|--------------|--------------|-------------|-------|-------------|
-| `meta/accounts` | 6 | Spend/day/account | Spend by objective (pie) | — | Per-account drill | — |
-| `meta/insights` | 5 | CTR+CPM dual-axis | — | Bubble (spend×ROAS×impr) | Campaign rows | — |
-| `meta/campaigns` | 4 | — | Spend by campaign (bar) | Funnel impr→click→conv | Campaign + sparklines | — |
-| `meta/pages` (list) | — | — | — | Cards grid | Pages table | YES |
-| `meta/pages/:id/overview` | 4 | Primary metric daily | Engagement breakdown (pie) | — | — | YES |
-| `meta/pages/:id/posts` | 3 | — | Post type mix (pie) | — | Posts | YES |
-| `meta/posts/:postId` | 4 | Metric timeseries | — | — | Metadata | YES |
-| `google-ads` overview | 5 | Cost+Conv dual-axis | Channel cost (pie) | Insights cards | — | — |
-| `google-ads` campaigns | 4 | Cost by campaign (bar) | — | Bubble (cost×conv×impr) | Campaign rows | — |
-| `google-ads` search | 3 | — | Top terms by conv (bar) | QS vs CPC scatter | Keywords + terms | — |
-| `google-ads` assets | 3 | — | Asset type (pie) | — | Assets | — |
-| `google-ads` pmax | 3 | — | — | Treemap (spend×ROAS) | Asset groups | — |
-| `google-ads` conversions | 3 | — | Conv by action (pie) | Funnel | Conversion actions | — |
-| `google-ads` pacing | 3 | Cum spend vs budget | Spend vs budget/campaign | Gauge ring | Budget rows | — |
-| `google-ads` changes | 2 | — | Changes by type (bar) | — | Change log | — |
-| `google-ads` recommendations | 2 | — | Type dist (pie) | — | Recommendations | — |
-| `google-ads` reports | — | — | — | — | Export jobs | — |
-| `platforms` | 5 | Stacked area by platform | 4×mini distribution bars | — | Platform comparison | — |
-| `campaigns` | 4 | Spend/day by platform | Spend by campaign (bar) | — | Campaign + sparklines | — |
-| `creatives` | 4 | — | Format mix (pie) | Bubble (spend×CTR×impr) | Creatives | — |
-| `budget` | 3 | Cum spend vs budget | Spend vs budget (bar) | — | Budget rows | — |
-| `audience` | 4 | — | Age dist + device mix | Gender pie + Age×Gender bar | — | — |
-| `map` | 4 | — | — | Choropleth + KPI picker | Parish rows | — |
-| `web/ga4` | 4 | Sessions/day | Channel mix (pie) | — | Channel breakdown | YES |
-| `web/search-console` | 4 | Clicks+Impr dual-axis | Device mix (pie) | — | Top queries | YES |
-| `saved/:id` | Variable | Variable | Variable | Variable | Variable | depends |
+| Route                        | KPI Count | Primary Trend            | Distribution               | Specialized                 | Table                 | No Combined? |
+| ---------------------------- | --------- | ------------------------ | -------------------------- | --------------------------- | --------------------- | ------------ |
+| `meta/accounts`              | 6         | Spend/day/account        | Spend by objective (pie)   | —                           | Per-account drill     | —            |
+| `meta/insights`              | 5         | CTR+CPM dual-axis        | —                          | Bubble (spend×ROAS×impr)    | Campaign rows         | —            |
+| `meta/campaigns`             | 4         | —                        | Spend by campaign (bar)    | Funnel impr→click→conv      | Campaign + sparklines | —            |
+| `meta/pages` (list)          | —         | —                        | —                          | Cards grid                  | Pages table           | YES          |
+| `meta/pages/:id/overview`    | 4         | Primary metric daily     | Engagement breakdown (pie) | —                           | —                     | YES          |
+| `meta/pages/:id/posts`       | 3         | —                        | Post type mix (pie)        | —                           | Posts                 | YES          |
+| `meta/posts/:postId`         | 4         | Metric timeseries        | —                          | —                           | Metadata              | YES          |
+| `google-ads` overview        | 5         | Cost+Conv dual-axis      | Channel cost (pie)         | Insights cards              | —                     | —            |
+| `google-ads` campaigns       | 4         | Cost by campaign (bar)   | —                          | Bubble (cost×conv×impr)     | Campaign rows         | —            |
+| `google-ads` search          | 3         | —                        | Top terms by conv (bar)    | QS vs CPC scatter           | Keywords + terms      | —            |
+| `google-ads` assets          | 3         | —                        | Asset type (pie)           | —                           | Assets                | —            |
+| `google-ads` pmax            | 3         | —                        | —                          | Treemap (spend×ROAS)        | Asset groups          | —            |
+| `google-ads` conversions     | 3         | —                        | Conv by action (pie)       | Funnel                      | Conversion actions    | —            |
+| `google-ads` pacing          | 3         | Cum spend vs budget      | Spend vs budget/campaign   | Gauge ring                  | Budget rows           | —            |
+| `google-ads` changes         | 2         | —                        | Changes by type (bar)      | —                           | Change log            | —            |
+| `google-ads` recommendations | 2         | —                        | Type dist (pie)            | —                           | Recommendations       | —            |
+| `google-ads` reports         | —         | —                        | —                          | —                           | Export jobs           | —            |
+| `platforms`                  | 5         | Stacked area by platform | 4×mini distribution bars   | —                           | Platform comparison   | —            |
+| `campaigns`                  | 4         | Spend/day by platform    | Spend by campaign (bar)    | —                           | Campaign + sparklines | —            |
+| `creatives`                  | 4         | —                        | Format mix (pie)           | Bubble (spend×CTR×impr)     | Creatives             | —            |
+| `budget`                     | 3         | Cum spend vs budget      | Spend vs budget (bar)      | —                           | Budget rows           | —            |
+| `audience`                   | 4         | —                        | Age dist + device mix      | Gender pie + Age×Gender bar | —                     | —            |
+| `map`                        | 4         | —                        | —                          | Choropleth + KPI picker     | Parish rows           | —            |
+| `web/ga4`                    | 4         | Sessions/day             | Channel mix (pie)          | —                           | Channel breakdown     | YES          |
+| `web/search-console`         | 4         | Clicks+Impr dual-axis    | Device mix (pie)           | —                           | Top queries           | YES          |
+| `saved/:id`                  | Variable  | Variable                 | Variable                   | Variable                    | Variable              | depends      |
 
 ---
 
@@ -1046,18 +1071,18 @@ The builder uses a grid-snapped slot system. Each slot accepts a shared kit comp
 
 ### Shared viz kit props API (Sprint 1 summary)
 
-| Component | Key props |
-|-----------|----------|
-| `KpiTile` | label, value, format, currency, change, isLoading, isFaded, reasonCode |
-| `TrendLine` | data, series, peerData, yFormat, currency, height, isLoading, emptyReasonCode, variant |
-| `Sparkline` | data, color, height, showTooltip |
-| `DistributionBar` | data[{label,value,color}], showPercent, yFormat, currency, isLoading, emptyReasonCode |
-| `BubbleScatter` | data[{id,label,x,y,z,shape,color}], xLabel, yLabel, zLabel, xFormat, yFormat, isLoading, onBubbleClick, emptyReasonCode |
-| `PieComposition` | data[{label,value,color}], innerRadius, yFormat, currency, showLegend, isLoading, emptyReasonCode |
-| `DataTable` | columns, data, isLoading, onRowClick, csvFilename, emptyReasonCode, pageSize |
-| `ChartSkeleton` | height, rows, variant |
-| `AccessibleTableToggle` | chartNode, tableNode, defaultView |
-| `PeerAvgLine` | (sub-component, used inside TrendLine; not standalone) |
+| Component               | Key props                                                                                                               |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `KpiTile`               | label, value, format, currency, change, isLoading, isFaded, reasonCode                                                  |
+| `TrendLine`             | data, series, peerData, yFormat, currency, height, isLoading, emptyReasonCode, variant                                  |
+| `Sparkline`             | data, color, height, showTooltip                                                                                        |
+| `DistributionBar`       | data[{label,value,color}], showPercent, yFormat, currency, isLoading, emptyReasonCode                                   |
+| `BubbleScatter`         | data[{id,label,x,y,z,shape,color}], xLabel, yLabel, zLabel, xFormat, yFormat, isLoading, onBubbleClick, emptyReasonCode |
+| `PieComposition`        | data[{label,value,color}], innerRadius, yFormat, currency, showLegend, isLoading, emptyReasonCode                       |
+| `DataTable`             | columns, data, isLoading, onRowClick, csvFilename, emptyReasonCode, pageSize                                            |
+| `ChartSkeleton`         | height, rows, variant                                                                                                   |
+| `AccessibleTableToggle` | chartNode, tableNode, defaultView                                                                                       |
+| `PeerAvgLine`           | (sub-component, used inside TrendLine; not standalone)                                                                  |
 
 ### Theme / Palette tokens
 
@@ -1066,15 +1091,15 @@ No new tokens needed. Extend `chartTheme.ts` with two additions only:
 ```ts
 // Add to chartTheme.ts:
 export const PLATFORM_CHART_TOKENS = {
-  meta_ads: chartPalette[0],      // #2563eb
-  google_ads: chartPalette[1],    // #f97316
+  meta_ads: chartPalette[0], // #2563eb
+  google_ads: chartPalette[1], // #f97316
   peer_avg: 'rgba(148,163,184,0.45)',
 } as const;
 
 export const STATUS_COLORS = {
-  ENABLED: '#10b981',   // chartPalette[3]
-  PAUSED:  '#f97316',   // chartPalette[1]
-  REMOVED: '#f43f5e',   // chartPalette[5]
+  ENABLED: '#10b981', // chartPalette[3]
+  PAUSED: '#f97316', // chartPalette[1]
+  REMOVED: '#f43f5e', // chartPalette[5]
 } as const;
 ```
 
@@ -1091,6 +1116,7 @@ export const STATUS_COLORS = {
 ### Export to CSV
 
 `DataTable` provides client-side CSV export. Implementation:
+
 - Serialize visible (filtered, sorted) rows using `Papa.unparse` OR a minimal manual CSV serializer (avoid adding PapaParse if not already present — check `frontend/package.json`).
 - Trigger download via `URL.createObjectURL(new Blob([csv], {type:'text/csv'}))`.
 - Filename: `{page-slug}-{start_date}-{end_date}.csv`.
@@ -1147,18 +1173,19 @@ Sprints 2 and 3 are fully parallelizable after Sprint 1. Sprint 4 depends on bot
 
 ### Coder agent ownership
 
-| Agent | Sprint | Scope |
-|-------|--------|-------|
-| `frontend-meta` | Sprint 2 | `MetaAccountsPage`, `MetaInsightsDashboardPage`, `MetaCampaignOverviewPage`, `MetaPagesListPage`, `MetaPageOverviewPage`, `MetaPagePostsPage`, `MetaPostDetailPage` |
-| `frontend-google` | Sprint 3 | All `google-ads/*` page components, workspace tabs |
-| `frontend-combined` | Sprint 4 | `PlatformDashboard`, `CampaignDashboard`, `CreativeDashboard`, `BudgetDashboard`, `AudienceDashboard`, `ParishMapDetail`, `GoogleAnalyticsDashboardPage`, `SearchConsoleDashboardPage`, saved dashboard slot wiring |
-| `frontend-kit` | Sprint 1 | All shared viz components, Storybook stories, a11y tests |
-| `backend-endpoints` | On-demand | Only if `[NEW-ENDPOINT]` items are approved by A6 |
-| `qa` | Post-sprint | Vitest unit tests per component, Playwright e2e per route |
+| Agent               | Sprint      | Scope                                                                                                                                                                                                               |
+| ------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend-meta`     | Sprint 2    | `MetaAccountsPage`, `MetaInsightsDashboardPage`, `MetaCampaignOverviewPage`, `MetaPagesListPage`, `MetaPageOverviewPage`, `MetaPagePostsPage`, `MetaPostDetailPage`                                                 |
+| `frontend-google`   | Sprint 3    | All `google-ads/*` page components, workspace tabs                                                                                                                                                                  |
+| `frontend-combined` | Sprint 4    | `PlatformDashboard`, `CampaignDashboard`, `CreativeDashboard`, `BudgetDashboard`, `AudienceDashboard`, `ParishMapDetail`, `GoogleAnalyticsDashboardPage`, `SearchConsoleDashboardPage`, saved dashboard slot wiring |
+| `frontend-kit`      | Sprint 1    | All shared viz components, Storybook stories, a11y tests                                                                                                                                                            |
+| `backend-endpoints` | On-demand   | Only if `[NEW-ENDPOINT]` items are approved by A6                                                                                                                                                                   |
+| `qa`                | Post-sprint | Vitest unit tests per component, Playwright e2e per route                                                                                                                                                           |
 
 ### What A6 coder prompts should include per deliverable
 
 For each component / page:
+
 1. The exact file path
 2. The Props API from this document
 3. The endpoint + field mapping table from this document
@@ -1178,5 +1205,5 @@ For each component / page:
 
 ---
 
-*Absolute path to this file:*
+_Absolute path to this file:_
 `/Users/thristannewman/ADinsights/artifacts/viz/sprints-plan.md`

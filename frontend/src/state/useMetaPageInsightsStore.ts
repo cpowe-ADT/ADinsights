@@ -79,10 +79,16 @@ type MetaPageInsightsState = {
   connectOAuthCallback: (code: string, state: string) => Promise<void>;
   selectDefaultPage: (pageId: string) => Promise<void>;
   loadOverviewAndTimeseries: (pageId: string) => Promise<void>;
-  loadTimeseries: (pageId: string, overrides?: { metric?: string; period?: string }) => Promise<void>;
+  loadTimeseries: (
+    pageId: string,
+    overrides?: { metric?: string; period?: string },
+  ) => Promise<void>;
   loadPosts: (pageId: string, overrides?: Partial<PostsQuery>) => Promise<void>;
   loadPostDetail: (postId: string) => Promise<void>;
-  loadPostTimeseries: (postId: string, overrides?: { metric?: string; period?: string }) => Promise<void>;
+  loadPostTimeseries: (
+    postId: string,
+    overrides?: { metric?: string; period?: string },
+  ) => Promise<void>;
   refreshPage: (pageId: string) => Promise<Record<string, string>>;
 };
 
@@ -157,7 +163,8 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
     set({ pagesStatus: 'loading', error: undefined });
     try {
       const payload = await loadMetaPages();
-      const defaultPage = payload.results.find((page) => page.is_default) ?? payload.results[0] ?? null;
+      const defaultPage =
+        payload.results.find((page) => page.is_default) ?? payload.results[0] ?? null;
       set((state) => ({
         pagesStatus: 'loaded',
         pages: payload.results,
@@ -268,7 +275,10 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
         },
       });
     } catch (error) {
-      set({ dashboardStatus: 'error', error: classifyError(error, 'Unable to load page overview.') });
+      set({
+        dashboardStatus: 'error',
+        error: classifyError(error, 'Unable to load page overview.'),
+      });
     }
   },
   loadTimeseries: async (pageId, overrides) => {
@@ -281,13 +291,20 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
           since: filters.since,
           until: filters.until,
         }),
-        metric: overrides?.metric ?? filters.metric ?? overview?.primary_metric ?? 'page_post_engagements',
+        metric:
+          overrides?.metric ??
+          filters.metric ??
+          overview?.primary_metric ??
+          'page_post_engagements',
         period: overrides?.period ?? filters.period ?? 'day',
       };
       const timeseries = await loadMetaPageTimeseries(pageId, timeseriesParams);
       set({ timeseries, dashboardStatus: 'loaded' });
     } catch (error) {
-      set({ dashboardStatus: 'error', error: classifyError(error, 'Unable to load page timeseries.') });
+      set({
+        dashboardStatus: 'error',
+        error: classifyError(error, 'Unable to load page timeseries.'),
+      });
     }
   },
   loadPosts: async (pageId, overrides) => {
@@ -337,7 +354,10 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
       });
       set({ postTimeseries, postSeriesStatus: 'loaded' });
     } catch (error) {
-      set({ postSeriesStatus: 'error', error: classifyError(error, 'Unable to load post timeseries.') });
+      set({
+        postSeriesStatus: 'error',
+        error: classifyError(error, 'Unable to load post timeseries.'),
+      });
     }
   },
   refreshPage: async (pageId) => {

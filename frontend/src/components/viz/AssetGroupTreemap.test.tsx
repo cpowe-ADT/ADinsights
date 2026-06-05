@@ -14,21 +14,15 @@ const data = [
 describe('AssetGroupTreemap', () => {
   it('renders chart with role="img" and aria-label', () => {
     render(<AssetGroupTreemap data={data} ariaLabel="PMax asset groups" />);
-    expect(
-      screen.getByRole('img', { name: /pmax asset groups/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /pmax asset groups/i })).toBeInTheDocument();
   });
 
   it('renders a hidden accessible table with one row per asset group', () => {
-    const { container } = render(
-      <AssetGroupTreemap data={data} ariaLabel="PMax asset groups" />,
-    );
+    const { container } = render(<AssetGroupTreemap data={data} ariaLabel="PMax asset groups" />);
     const table = container.querySelector('table.sr-only');
     expect(table).toBeInTheDocument();
     expect(table?.querySelectorAll('tbody tr').length).toBe(data.length);
-    const headers = Array.from(table?.querySelectorAll('thead th') ?? []).map(
-      (h) => h.textContent,
-    );
+    const headers = Array.from(table?.querySelectorAll('thead th') ?? []).map((h) => h.textContent);
     expect(headers).toEqual(['Asset Group', 'Spend', 'ROAS']);
   });
 
@@ -47,9 +41,7 @@ describe('AssetGroupTreemap', () => {
         emptyReasonCode="no_pmax_groups"
       />,
     );
-    expect(
-      container.querySelector('[data-reason-code="no_pmax_groups"]'),
-    ).toBeInTheDocument();
+    expect(container.querySelector('[data-reason-code="no_pmax_groups"]')).toBeInTheDocument();
   });
 
   it('maps ROAS to opacity within [0.3, 1.0] and clamps high values', () => {
@@ -61,16 +53,12 @@ describe('AssetGroupTreemap', () => {
   });
 
   it('renders a hatch pattern so encoding is not color-only', () => {
-    const { container } = render(
-      <AssetGroupTreemap data={data} ariaLabel="PMax asset groups" />,
-    );
+    const { container } = render(<AssetGroupTreemap data={data} ariaLabel="PMax asset groups" />);
     expect(container.querySelector('#viz-treemap-hatch')).toBeInTheDocument();
   });
 
   it('has no a11y violations', async () => {
-    const { container } = render(
-      <AssetGroupTreemap data={data} ariaLabel="PMax asset groups" />,
-    );
+    const { container } = render(<AssetGroupTreemap data={data} ariaLabel="PMax asset groups" />);
     expect(await axe(container)).toHaveNoViolations();
   });
 

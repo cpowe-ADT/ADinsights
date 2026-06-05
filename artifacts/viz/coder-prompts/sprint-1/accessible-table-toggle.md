@@ -21,13 +21,14 @@
   - `frontend/src/components/viz/__tests__/AccessibleTableToggle.test.tsx` (create)
 
 - **Props API**:
+
 ```typescript
 interface AccessibleTableToggleProps {
-  chartNode: React.ReactNode
-  tableNode: React.ReactNode
-  defaultView?: 'chart' | 'table'   // default: 'chart'
-  label?: string                     // accessible label for the toggle button, default: 'Switch to table view'
-  className?: string
+  chartNode: React.ReactNode;
+  tableNode: React.ReactNode;
+  defaultView?: 'chart' | 'table'; // default: 'chart'
+  label?: string; // accessible label for the toggle button, default: 'Switch to table view'
+  className?: string;
 }
 ```
 

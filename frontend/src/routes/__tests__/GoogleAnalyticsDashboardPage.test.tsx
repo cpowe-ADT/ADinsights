@@ -30,9 +30,7 @@ vi.mock('../../components/viz', async () => {
     PieComposition: ({ ariaLabel }: { ariaLabel: string }) => (
       <div data-testid="viz-pie-composition" aria-label={ariaLabel} />
     ),
-    VizDataTable: ({ title }: { title: string }) => (
-      <div data-testid="viz-data-table">{title}</div>
-    ),
+    VizDataTable: ({ title }: { title: string }) => <div data-testid="viz-data-table">{title}</div>,
     AccessibleTableToggle: ({ chart }: { chart: React.ReactNode }) => (
       <div data-testid="viz-a11y-toggle">{chart}</div>
     ),
@@ -186,8 +184,6 @@ describe('GoogleAnalyticsDashboardPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('empty-state')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('empty-state').getAttribute('data-reason')).toBe(
-      'no_data_for_range',
-    );
+    expect(screen.getByTestId('empty-state').getAttribute('data-reason')).toBe('no_data_for_range');
   });
 });

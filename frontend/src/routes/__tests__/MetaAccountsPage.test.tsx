@@ -229,7 +229,14 @@ describe('MetaAccountsPage', () => {
     });
     airbyteMocks.previewMetaRecovery.mockResolvedValue({
       ad_accounts: [
-        { id: 'act_recovery_999', name: 'Recovery Account', account_id: '999', currency: 'USD', account_status: 1, business_name: 'Biz' },
+        {
+          id: 'act_recovery_999',
+          name: 'Recovery Account',
+          account_id: '999',
+          currency: 'USD',
+          account_status: 1,
+          business_name: 'Biz',
+        },
       ],
     });
 

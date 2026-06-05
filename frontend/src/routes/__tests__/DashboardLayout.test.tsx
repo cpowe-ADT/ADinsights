@@ -157,7 +157,12 @@ vi.mock('../../state/useDatasetStore', () => ({
       adapters: string[];
       status: 'idle' | 'loading' | 'loaded' | 'error';
       source?: string;
-      liveReason?: 'adapter_disabled' | 'missing_snapshot' | 'stale_snapshot' | 'default_snapshot' | 'ready';
+      liveReason?:
+        | 'adapter_disabled'
+        | 'missing_snapshot'
+        | 'stale_snapshot'
+        | 'default_snapshot'
+        | 'ready';
       liveDetail?: string;
       liveSnapshotGeneratedAt?: string;
       warehouseAdapterEnabled: boolean;

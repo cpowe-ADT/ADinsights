@@ -2,7 +2,7 @@
 
 **Sprint:** 3
 **Estimated size:** M
-**Depends on:** sprint-1/* (all kit components)
+**Depends on:** sprint-1/\* (all kit components)
 **Blocks:** none
 **Role needed:** frontend-engineer
 
@@ -13,25 +13,26 @@ The Campaigns tab of the Google Ads workspace. Endpoint: `GET /api/google-ads/ca
 ## Inputs already in the repo (do not re-invent)
 
 - Campaign list endpoint response (verified from `backend/analytics/google_ads_views.py:610–686`):
+
 ```typescript
 {
-  count: number
+  count: number;
   results: Array<{
-    customer_id: string
-    campaign_id: string
-    campaign_name: string
-    campaign_status: 'ENABLED' | 'PAUSED' | 'REMOVED'
-    channel_type: string   // advertising_channel_type: SEARCH, DISPLAY, VIDEO, SHOPPING, PERFORMANCE_MAX
-    spend: number
-    impressions: number
-    clicks: number
-    ctr: number
-    avg_cpc: number
-    conversions: number
-    cpa: number
-    conversion_value: number
-    roas: number
-  }>
+    customer_id: string;
+    campaign_id: string;
+    campaign_name: string;
+    campaign_status: 'ENABLED' | 'PAUSED' | 'REMOVED';
+    channel_type: string; // advertising_channel_type: SEARCH, DISPLAY, VIDEO, SHOPPING, PERFORMANCE_MAX
+    spend: number;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+    avg_cpc: number;
+    conversions: number;
+    cpa: number;
+    conversion_value: number;
+    roas: number;
+  }>;
 }
 ```
 

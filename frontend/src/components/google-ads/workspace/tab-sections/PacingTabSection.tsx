@@ -1,12 +1,6 @@
 import { useMemo } from 'react';
 
-import {
-  DistributionBar,
-  EmptyState,
-  GaugeRing,
-  KpiTile,
-  derivePacingVariant,
-} from '../../../viz';
+import { DistributionBar, EmptyState, GaugeRing, KpiTile, derivePacingVariant } from '../../../viz';
 import {
   countOverPacingCampaigns,
   derivePacingPct,
@@ -127,23 +121,9 @@ const PacingTabSection = ({ data, status, error }: Props) => {
 
       <section className="panel">
         <h2>Budget KPIs</h2>
-        <div
-          className="gads-workspace__kpi-grid"
-          role="list"
-          aria-label="Google Ads pacing KPIs"
-        >
-          <KpiTile
-            label="Spend MTD"
-            value={kpis.spendMtd}
-            format="currency"
-            currency="JMD"
-          />
-          <KpiTile
-            label="Budget Month"
-            value={kpis.budgetMonth}
-            format="currency"
-            currency="JMD"
-          />
+        <div className="gads-workspace__kpi-grid" role="list" aria-label="Google Ads pacing KPIs">
+          <KpiTile label="Spend MTD" value={kpis.spendMtd} format="currency" currency="JMD" />
+          <KpiTile label="Budget Month" value={kpis.budgetMonth} format="currency" currency="JMD" />
           <KpiTile
             label="Forecast Month End"
             value={kpis.forecast}
@@ -151,11 +131,7 @@ const PacingTabSection = ({ data, status, error }: Props) => {
             currency="JMD"
           />
           {hasCampaignsPayload ? (
-            <KpiTile
-              label="Over-pacing campaigns"
-              value={overPacingCount}
-              format="number"
-            />
+            <KpiTile label="Over-pacing campaigns" value={overPacingCount} format="number" />
           ) : null}
         </div>
       </section>
@@ -184,16 +160,12 @@ const PacingTabSection = ({ data, status, error }: Props) => {
               </thead>
               <tbody>
                 {campaigns.map((row, idx) => {
-                  const hasBudget =
-                    row.budget_amount !== null && row.budget_amount !== undefined;
+                  const hasBudget = row.budget_amount !== null && row.budget_amount !== undefined;
                   const pacePct = row.pace_pct;
                   const variance = row.variance;
                   const key = `${String(row.campaign_id ?? row.campaign_name ?? idx)}-${idx}`;
                   return (
-                    <tr
-                      key={key}
-                      className="dashboard-table__row dashboard-table__row--zebra"
-                    >
+                    <tr key={key} className="dashboard-table__row dashboard-table__row--zebra">
                       <td className="dashboard-table__cell">
                         {String(row.campaign_name ?? row.campaign_id ?? '—')}
                       </td>
@@ -201,9 +173,7 @@ const PacingTabSection = ({ data, status, error }: Props) => {
                         {formatCurrency(Number(row.spend_mtd ?? 0), 'JMD')}
                       </td>
                       <td className="dashboard-table__cell">
-                        {hasBudget
-                          ? formatCurrency(Number(row.budget_amount ?? 0), 'JMD')
-                          : '—'}
+                        {hasBudget ? formatCurrency(Number(row.budget_amount ?? 0), 'JMD') : '—'}
                       </td>
                       <td className="dashboard-table__cell">
                         {pacePct === null || pacePct === undefined

@@ -94,11 +94,15 @@ describe('resolveRoutePlatformScope', () => {
 
 describe('arePlatformArraysEqual', () => {
   it('returns true for identical arrays', () => {
-    expect(arePlatformArraysEqual(['meta_ads', 'google_ads'], ['meta_ads', 'google_ads'])).toBe(true);
+    expect(arePlatformArraysEqual(['meta_ads', 'google_ads'], ['meta_ads', 'google_ads'])).toBe(
+      true,
+    );
   });
 
   it('returns true for same values in different order', () => {
-    expect(arePlatformArraysEqual(['google_ads', 'meta_ads'], ['meta_ads', 'google_ads'])).toBe(true);
+    expect(arePlatformArraysEqual(['google_ads', 'meta_ads'], ['meta_ads', 'google_ads'])).toBe(
+      true,
+    );
   });
 
   it('returns false for different lengths', () => {

@@ -91,9 +91,7 @@ const ClientDetailPage = () => {
             : 'Already attached to another client.',
         );
       } else {
-        setAttachError(
-          err instanceof Error ? err.message : 'Unable to attach account.',
-        );
+        setAttachError(err instanceof Error ? err.message : 'Unable to attach account.');
       }
     } finally {
       setAttaching(false);
@@ -104,9 +102,7 @@ const ClientDetailPage = () => {
     async (account: ClientPlatformAccountRecord) => {
       if (!id) return;
       if (
-        !window.confirm(
-          `Detach ${platformLabel(account.platform)} account ${account.external_id}?`,
-        )
+        !window.confirm(`Detach ${platformLabel(account.platform)} account ${account.external_id}?`)
       ) {
         return;
       }
@@ -114,9 +110,7 @@ const ClientDetailPage = () => {
         await detachClientAccount(id, account.id);
         await load();
       } catch (err) {
-        setAttachError(
-          err instanceof Error ? err.message : 'Unable to detach account.',
-        );
+        setAttachError(err instanceof Error ? err.message : 'Unable to detach account.');
       }
     },
     [id, load],
@@ -181,8 +175,7 @@ const ClientDetailPage = () => {
           </p>
           <h1 className="dashboardHeading">{client.name}</h1>
           <p className="phase2-page__subhead">
-            {client.is_active ? 'Active' : 'Inactive'} · slug{' '}
-            <code>{client.slug}</code> · updated{' '}
+            {client.is_active ? 'Active' : 'Inactive'} · slug <code>{client.slug}</code> · updated{' '}
             <span title={formatAbsoluteTime(client.updated_at) ?? undefined}>
               {formatRelativeTime(client.updated_at)}
             </span>
@@ -201,11 +194,7 @@ const ClientDetailPage = () => {
               >
                 {client.is_active ? 'Deactivate' : 'Activate'}
               </button>
-              <button
-                type="button"
-                className="button danger"
-                onClick={() => void handleDelete()}
-              >
+              <button type="button" className="button danger" onClick={() => void handleDelete()}>
                 Delete
               </button>
             </>
@@ -236,9 +225,7 @@ const ClientDetailPage = () => {
                 {client.platform_accounts.map((account) => (
                   <tr key={account.id}>
                     <td>
-                      <span className="phase2-badge">
-                        {platformLabel(account.platform)}
-                      </span>
+                      <span className="phase2-badge">{platformLabel(account.platform)}</span>
                     </td>
                     <td>
                       <code>{account.external_id}</code>
@@ -277,9 +264,7 @@ const ClientDetailPage = () => {
               <span>Platform</span>
               <select
                 value={attachPlatform}
-                onChange={(event) =>
-                  setAttachPlatform(event.target.value as PlatformKey)
-                }
+                onChange={(event) => setAttachPlatform(event.target.value as PlatformKey)}
               >
                 {ATTACHABLE_PLATFORMS.map((p) => (
                   <option key={p} value={p}>
@@ -337,10 +322,12 @@ const ClientDetailPage = () => {
             </p>
           ) : null}
           <p className="phase2-card__hint">
-            Only {ATTACHABLE_PLATFORMS.map(platformLabel).join(', ')} are wired up
-            today. Other platforms ({PLATFORM_KEYS.filter(
-              (p) => !ATTACHABLE_PLATFORMS.includes(p),
-            ).map(platformLabel).join(', ')}) will be enabled in future sprints.
+            Only {ATTACHABLE_PLATFORMS.map(platformLabel).join(', ')} are wired up today. Other
+            platforms (
+            {PLATFORM_KEYS.filter((p) => !ATTACHABLE_PLATFORMS.includes(p))
+              .map(platformLabel)
+              .join(', ')}
+            ) will be enabled in future sprints.
           </p>
         </div>
       ) : null}

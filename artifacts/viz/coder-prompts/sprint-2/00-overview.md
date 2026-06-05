@@ -11,15 +11,15 @@ Upgrades all Meta dashboard pages to the 5-block viz layout using Sprint 1 compo
 
 These files can be worked in parallel:
 
-| Deliverable | File | Store/Endpoint | Parallelizable? |
-|-------------|------|----------------|-----------------|
-| MetaAccountsPage viz | `meta-accounts.md` | `useMetaStore` + combined(meta) | Yes |
-| MetaInsightsDashboardPage viz | `meta-insights.md` | `useMetaStore` + combined(meta) | Yes |
-| MetaCampaignOverviewPage viz | `meta-campaigns.md` | `useMetaStore` + combined(meta) | Yes |
-| MetaPagesListPage viz | `meta-pages-overview.md` | `useMetaStore` + `/api/integrations/pages/` | Yes |
-| MetaPageOverviewPage + MetaPagePostsPage viz | `meta-posts.md` | pages endpoints | Yes |
-| MetaPostDetailPage viz | `meta-post-detail.md` | post detail + timeseries | Yes |
-| Meta status page check | `meta-status.md` | — | Yes (tiny) |
+| Deliverable                                  | File                     | Store/Endpoint                              | Parallelizable? |
+| -------------------------------------------- | ------------------------ | ------------------------------------------- | --------------- |
+| MetaAccountsPage viz                         | `meta-accounts.md`       | `useMetaStore` + combined(meta)             | Yes             |
+| MetaInsightsDashboardPage viz                | `meta-insights.md`       | `useMetaStore` + combined(meta)             | Yes             |
+| MetaCampaignOverviewPage viz                 | `meta-campaigns.md`      | `useMetaStore` + combined(meta)             | Yes             |
+| MetaPagesListPage viz                        | `meta-pages-overview.md` | `useMetaStore` + `/api/integrations/pages/` | Yes             |
+| MetaPageOverviewPage + MetaPagePostsPage viz | `meta-posts.md`          | pages endpoints                             | Yes             |
+| MetaPostDetailPage viz                       | `meta-post-detail.md`    | post detail + timeseries                    | Yes             |
+| Meta status page check                       | `meta-status.md`         | —                                           | Yes (tiny)      |
 
 ## Key constraints for all Sprint 2 work
 

@@ -40,14 +40,12 @@ const ClientSuggestPage = () => {
   const [threshold, setThreshold] = useState(0.7);
 
   // Per-group UI state. Keyed by SuggestedGroup.group_id to survive refresh.
-  const [selectedAccounts, setSelectedAccounts] = useState<
-    Record<string, Record<string, boolean>>
-  >({});
-  const [overrideName, setOverrideName] = useState<Record<string, string>>({});
-  const [applying, setApplying] = useState<Record<string, boolean>>({});
-  const [applyError, setApplyError] = useState<Record<string, string | null>>(
+  const [selectedAccounts, setSelectedAccounts] = useState<Record<string, Record<string, boolean>>>(
     {},
   );
+  const [overrideName, setOverrideName] = useState<Record<string, string>>({});
+  const [applying, setApplying] = useState<Record<string, boolean>>({});
+  const [applyError, setApplyError] = useState<Record<string, string | null>>({});
 
   const load = useCallback(async () => {
     setState('loading');
@@ -76,18 +74,15 @@ const ClientSuggestPage = () => {
     void load();
   }, [load]);
 
-  const toggleAccount = useCallback(
-    (groupId: string, accountKey: string) => {
-      setSelectedAccounts((prev) => {
-        const group = prev[groupId] ?? {};
-        return {
-          ...prev,
-          [groupId]: { ...group, [accountKey]: !group[accountKey] },
-        };
-      });
-    },
-    [],
-  );
+  const toggleAccount = useCallback((groupId: string, accountKey: string) => {
+    setSelectedAccounts((prev) => {
+      const group = prev[groupId] ?? {};
+      return {
+        ...prev,
+        [groupId]: { ...group, [accountKey]: !group[accountKey] },
+      };
+    });
+  }, []);
 
   const handleApply = useCallback(
     async (group: SuggestedGroup) => {
@@ -114,8 +109,9 @@ const ClientSuggestPage = () => {
       try {
         const result = await applySuggestion({
           client_id: group.existing_client_id ?? undefined,
-          create_name:
-            group.existing_client_id ? undefined : (overrideName[groupId] || group.proposed_name),
+          create_name: group.existing_client_id
+            ? undefined
+            : overrideName[groupId] || group.proposed_name,
           accounts,
         });
         navigate(`/clients/${result.client_id}`);
@@ -187,9 +183,8 @@ const ClientSuggestPage = () => {
           </p>
           <h1 className="dashboardHeading">Suggested client groups</h1>
           <p className="phase2-page__subhead">
-            Name-matched candidates from your connected Meta ad accounts,
-            Google Ads customers, and Meta pages. Apply a group to create (or
-            extend) a Client with one click.
+            Name-matched candidates from your connected Meta ad accounts, Google Ads customers, and
+            Meta pages. Apply a group to create (or extend) a Client with one click.
           </p>
         </div>
         <div className="phase2-row-actions">
@@ -239,10 +234,7 @@ const ClientSuggestPage = () => {
                     {group.existing_client_id ? (
                       <>
                         Extend{' '}
-                        <Link
-                          to={`/clients/${group.existing_client_id}`}
-                          className="phase2-link"
-                        >
+                        <Link to={`/clients/${group.existing_client_id}`} className="phase2-link">
                           {group.existing_client_name ?? group.proposed_name}
                         </Link>
                       </>
@@ -343,10 +335,9 @@ const ClientSuggestPage = () => {
       )}
 
       <p className="phase2-footnote">
-        Similarity threshold: {(response?.threshold ?? threshold).toFixed(2)}.
-        Suggestions are generated from platform account names — review before
-        applying. Scores below {Math.round(SOFT_CONFIDENCE_CUTOFF * 100)}% are
-        unchecked by default.
+        Similarity threshold: {(response?.threshold ?? threshold).toFixed(2)}. Suggestions are
+        generated from platform account names — review before applying. Scores below{' '}
+        {Math.round(SOFT_CONFIDENCE_CUTOFF * 100)}% are unchecked by default.
       </p>
     </section>
   );

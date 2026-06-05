@@ -47,9 +47,7 @@ interface FilterBarProps {
   onChange?: (nextState: FilterBarState) => void;
 }
 
-type FilterStateUpdater =
-  | FilterBarState
-  | ((previous: FilterBarState) => FilterBarState);
+type FilterStateUpdater = FilterBarState | ((previous: FilterBarState) => FilterBarState);
 
 const datePresets: { label: string; value: DateRangePreset }[] = [
   { label: 'Today', value: 'today' },
@@ -186,7 +184,9 @@ const FilterBar = ({
   }, [isChannelOpen]);
 
   const channels = availableChannels ?? DEFAULT_CHANNELS;
-  const selectedExtendedRange = extendedDatePresets.some((preset) => preset.value === filters.dateRange)
+  const selectedExtendedRange = extendedDatePresets.some(
+    (preset) => preset.value === filters.dateRange,
+  )
     ? filters.dateRange
     : '';
 
@@ -422,18 +422,12 @@ const FilterBar = ({
         ) : null}
 
         {availablePlatforms && availablePlatforms.length > 0 ? (
-          <div
-            className="filter-field filter-toggle-group"
-            role="group"
-            aria-label="Platforms"
-          >
+          <div className="filter-field filter-toggle-group" role="group" aria-label="Platforms">
             <span className="filter-field__label">Platforms</span>
             <div className="filter-toggle-group__items">
               {availablePlatforms.map((option) => {
                 const isActive =
-                  filters.platforms.length === 0
-                    ? true
-                    : filters.platforms.includes(option.value);
+                  filters.platforms.length === 0 ? true : filters.platforms.includes(option.value);
                 return (
                   <button
                     key={option.value}

@@ -1,4 +1,7 @@
-import type { GoogleAdsSavedView, GoogleAdsWorkspaceSummaryResponse } from '../../../lib/googleAdsDashboard';
+import type {
+  GoogleAdsSavedView,
+  GoogleAdsWorkspaceSummaryResponse,
+} from '../../../lib/googleAdsDashboard';
 
 export type WorkspaceFilters = {
   startDate: string;

@@ -23,16 +23,12 @@ describe('Sparkline', () => {
   });
 
   it('renders the skeleton when isLoading', () => {
-    const { container } = render(
-      <Sparkline data={sample} ariaLabel="Spend" isLoading />,
-    );
+    const { container } = render(<Sparkline data={sample} ariaLabel="Spend" isLoading />);
     expect(container.querySelector('.viz-chart-skeleton')).toBeInTheDocument();
   });
 
   it('has no a11y violations', async () => {
-    const { container } = render(
-      <Sparkline data={sample} ariaLabel="Spend trend" />,
-    );
+    const { container } = render(<Sparkline data={sample} ariaLabel="Spend trend" />);
     expect(await axe(container)).toHaveNoViolations();
   });
 

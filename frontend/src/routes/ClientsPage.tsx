@@ -65,9 +65,7 @@ const ClientsPage = () => {
       setCreateName('');
       navigate(`/clients/${created.id}`);
     } catch (err) {
-      setCreateError(
-        err instanceof Error ? err.message : 'Unable to create client.',
-      );
+      setCreateError(err instanceof Error ? err.message : 'Unable to create client.');
     } finally {
       setCreating(false);
     }
@@ -112,8 +110,8 @@ const ClientsPage = () => {
           <p className="dashboardEyebrow">Clients</p>
           <h1 className="dashboardHeading">Client Groups</h1>
           <p className="phase2-page__subhead">
-            Link Meta ad accounts, Google Ads customers, and Meta Pages to a
-            single client for cross-platform dashboards.
+            Link Meta ad accounts, Google Ads customers, and Meta Pages to a single client for
+            cross-platform dashboards.
           </p>
         </div>
         <div className="phase2-row-actions">

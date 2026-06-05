@@ -7,9 +7,7 @@ import type {
   GoogleAdsSearchTermRow,
 } from '../../../../lib/googleAdsAggregates';
 
-const keywordRow = (
-  over: Partial<GoogleAdsKeywordRow> = {},
-): GoogleAdsKeywordRow => ({
+const keywordRow = (over: Partial<GoogleAdsKeywordRow> = {}): GoogleAdsKeywordRow => ({
   keyword_text: 'running shoes',
   match_type: 'BROAD',
   keyword_status: 'ENABLED',
@@ -21,9 +19,7 @@ const keywordRow = (
   ...over,
 });
 
-const searchTermRow = (
-  over: Partial<GoogleAdsSearchTermRow> = {},
-): GoogleAdsSearchTermRow => ({
+const searchTermRow = (over: Partial<GoogleAdsSearchTermRow> = {}): GoogleAdsSearchTermRow => ({
   search_term: 'best running shoes',
   impressions: 200,
   clicks: 10,
@@ -33,14 +29,7 @@ const searchTermRow = (
 
 describe('SearchTabSection — integration', () => {
   it('renders loading state', () => {
-    render(
-      <SearchTabSection
-        searchMode="keywords"
-        data={null}
-        status="loading"
-        error=""
-      />,
-    );
+    render(<SearchTabSection searchMode="keywords" data={null} status="loading" error="" />);
     expect(screen.getByText('Loading search data...')).toBeInTheDocument();
   });
 
@@ -70,9 +59,7 @@ describe('SearchTabSection — integration', () => {
         searchTermRows={[searchTermRow()]}
       />,
     );
-    expect(
-      screen.getByTestId('google-ads-search-section'),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('google-ads-search-section')).toBeInTheDocument();
     expect(screen.getAllByText('running shoes').length).toBeGreaterThan(0);
     expect(screen.getByText('Quality Score vs. CPC')).toBeInTheDocument();
   });

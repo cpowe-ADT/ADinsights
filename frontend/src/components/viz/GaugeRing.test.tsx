@@ -6,15 +6,7 @@ import GaugeRing, { derivePacingVariant } from './GaugeRing';
 
 describe('GaugeRing', () => {
   it('renders with role="meter" and aria-value attributes', () => {
-    render(
-      <GaugeRing
-        value={0.87}
-        max={1.2}
-        label="Pacing"
-        variant="ok"
-        ariaLabel="Pacing 87%"
-      />,
-    );
+    render(<GaugeRing value={0.87} max={1.2} label="Pacing" variant="ok" ariaLabel="Pacing 87%" />);
     const meter = screen.getByRole('meter', { name: /pacing 87%/i });
     expect(meter).toBeInTheDocument();
     expect(meter).toHaveAttribute('aria-valuenow', '0.87');
@@ -24,9 +16,7 @@ describe('GaugeRing', () => {
   });
 
   it('renders visible label and center percent', () => {
-    render(
-      <GaugeRing value={0.5} max={1.2} label="Pacing" ariaLabel="Pacing 50%" />,
-    );
+    render(<GaugeRing value={0.5} max={1.2} label="Pacing" ariaLabel="Pacing 50%" />);
     // "Pacing" appears both as visible label and as sr-only table row header;
     // assert at least one visible occurrence and the center percent.
     expect(screen.getAllByText('Pacing').length).toBeGreaterThanOrEqual(1);
@@ -43,22 +33,14 @@ describe('GaugeRing', () => {
   });
 
   it('clamps out-of-range values to max', () => {
-    render(
-      <GaugeRing value={5} max={1.2} label="Pacing" ariaLabel="Pacing 500%" />,
-    );
+    render(<GaugeRing value={5} max={1.2} label="Pacing" ariaLabel="Pacing 500%" />);
     const meter = screen.getByRole('meter');
     expect(meter).toHaveAttribute('aria-valuenow', '1.2');
   });
 
   it('renders skeleton when isLoading', () => {
     const { container } = render(
-      <GaugeRing
-        value={0.5}
-        max={1.2}
-        label="Pacing"
-        ariaLabel="Pacing"
-        isLoading
-      />,
+      <GaugeRing value={0.5} max={1.2} label="Pacing" ariaLabel="Pacing" isLoading />,
     );
     expect(container.querySelector('.viz-chart-skeleton')).toBeInTheDocument();
   });
@@ -73,9 +55,7 @@ describe('GaugeRing', () => {
         emptyReasonCode="no_pacing_data"
       />,
     );
-    expect(
-      container.querySelector('[data-reason-code="no_pacing_data"]'),
-    ).toBeInTheDocument();
+    expect(container.querySelector('[data-reason-code="no_pacing_data"]')).toBeInTheDocument();
   });
 
   it('renders tick-mark overlay for non-color threshold encoding', () => {
@@ -97,9 +77,7 @@ describe('GaugeRing', () => {
   });
 
   it('exposes variant via data-variant for CSS targeting', () => {
-    render(
-      <GaugeRing value={1.3} max={1.5} label="Pacing" ariaLabel="Pacing 87%" />,
-    );
+    render(<GaugeRing value={1.3} max={1.5} label="Pacing" ariaLabel="Pacing 87%" />);
     const meter = screen.getByRole('meter');
     expect(meter).toHaveAttribute('data-variant', 'danger');
   });

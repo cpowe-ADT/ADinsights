@@ -5,12 +5,7 @@ import DashboardState from '../components/DashboardState';
 import Skeleton from '../components/Skeleton';
 import StatusBanner from '../components/StatusBanner';
 import Card from '../components/ui/Card';
-import {
-  AccessibleTableToggle,
-  DistributionBar,
-  KpiTile,
-  PieComposition,
-} from '../components/viz';
+import { AccessibleTableToggle, DistributionBar, KpiTile, PieComposition } from '../components/viz';
 import { PLATFORM_CHART_TOKENS } from '../styles/chartTheme';
 import { useAuth } from '../auth/AuthContext';
 import { messageForLiveDatasetReason, titleForLiveDatasetReason } from '../lib/datasetStatus';
@@ -92,12 +87,13 @@ const AudienceDashboard = () => {
 
     const totalReach = data.byGender.reduce((sum, g) => sum + g.reach, 0);
 
-    const topAge = data.byAge.length > 0
-      ? data.byAge.reduce(
-          (best, row) => (row.impressions > best.impressions ? row : best),
-          data.byAge[0],
-        )
-      : undefined;
+    const topAge =
+      data.byAge.length > 0
+        ? data.byAge.reduce(
+            (best, row) => (row.impressions > best.impressions ? row : best),
+            data.byAge[0],
+          )
+        : undefined;
 
     const totalImpressions = data.byAge.reduce((sum, a) => sum + a.impressions, 0);
     const avgFrequency = totalReach > 0 ? totalImpressions / totalReach : 0;
@@ -172,7 +168,7 @@ const AudienceDashboard = () => {
           message={
             datasetMode === 'live'
               ? liveDatasetBlocked
-                ? liveDatasetMessage ?? 'Waiting for live snapshot...'
+                ? (liveDatasetMessage ?? 'Waiting for live snapshot...')
                 : (snapshotRelative ?? 'Waiting for live snapshot...')
               : snapshotRelative
                 ? `Demo data - ${snapshotRelative}`

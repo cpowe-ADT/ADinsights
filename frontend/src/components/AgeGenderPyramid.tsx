@@ -40,10 +40,11 @@ const AgeGenderPyramid = ({ data, metric = 'impressions', ariaLabel }: AgeGender
   }, [data, metric]);
 
   const tooltipProps = useMemo(
-    () => createTooltipProps({
-      valueType: 'number',
-      valueFormatter: (v) => formatNumber(Math.abs(Number(v))),
-    }),
+    () =>
+      createTooltipProps({
+        valueType: 'number',
+        valueFormatter: (v) => formatNumber(Math.abs(Number(v))),
+      }),
     [],
   );
 
@@ -57,37 +58,37 @@ const AgeGenderPyramid = ({ data, metric = 'impressions', ariaLabel }: AgeGender
     <div role="img" aria-label={resolvedAriaLabel} style={{ width: '100%' }}>
       <ResponsiveContainer width="100%" height={320}>
         <BarChart data={chartData} layout="vertical" margin={{ ...chartMargins, left: 48 }}>
-        <GridComponent
-          horizontal={false}
-          stroke={chartTheme.grid.stroke}
-          strokeDasharray={chartTheme.grid.strokeDasharray}
-        />
-        <XAxisComponent
-          type="number"
-          tickFormatter={(v: number) => formatNumber(Math.abs(v))}
-          tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }}
-        />
-        <YAxisComponent
-          type="category"
-          dataKey="age"
-          width={44}
-          tick={{ fill: 'var(--color-text-primary)', fontSize: 13 }}
-        />
-        <TooltipComponent {...tooltipProps} />
-        <BarComponent
-          dataKey="male"
-          name="Male"
-          fill={MALE_COLOR}
-          radius={[chartTheme.cornerRadius / 2, 0, 0, chartTheme.cornerRadius / 2]}
-          stackId="pyramid"
-        />
-        <BarComponent
-          dataKey="female"
-          name="Female"
-          fill={FEMALE_COLOR}
-          radius={[0, chartTheme.cornerRadius / 2, chartTheme.cornerRadius / 2, 0]}
-          stackId="pyramid"
-        />
+          <GridComponent
+            horizontal={false}
+            stroke={chartTheme.grid.stroke}
+            strokeDasharray={chartTheme.grid.strokeDasharray}
+          />
+          <XAxisComponent
+            type="number"
+            tickFormatter={(v: number) => formatNumber(Math.abs(v))}
+            tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }}
+          />
+          <YAxisComponent
+            type="category"
+            dataKey="age"
+            width={44}
+            tick={{ fill: 'var(--color-text-primary)', fontSize: 13 }}
+          />
+          <TooltipComponent {...tooltipProps} />
+          <BarComponent
+            dataKey="male"
+            name="Male"
+            fill={MALE_COLOR}
+            radius={[chartTheme.cornerRadius / 2, 0, 0, chartTheme.cornerRadius / 2]}
+            stackId="pyramid"
+          />
+          <BarComponent
+            dataKey="female"
+            name="Female"
+            fill={FEMALE_COLOR}
+            radius={[0, chartTheme.cornerRadius / 2, chartTheme.cornerRadius / 2, 0]}
+            stackId="pyramid"
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>

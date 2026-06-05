@@ -31,9 +31,7 @@ const multiSeriesData: TrendLinePoint[] = days.map((d, i) => ({
   ctr: 0.02 + i * 0.003,
 }));
 
-const singleSeries: TrendLineSeries[] = [
-  { key: 'spend', label: 'Spend' },
-];
+const singleSeries: TrendLineSeries[] = [{ key: 'spend', label: 'Spend' }];
 
 const multiSeries: TrendLineSeries[] = [
   { key: 'spend', label: 'Spend' },
@@ -117,10 +115,7 @@ export const DarkTheme: Story = {
   },
   decorators: [
     (StoryComponent) => (
-      <div
-        data-theme="dark"
-        style={{ background: 'var(--color-surface-card)', padding: 16 }}
-      >
+      <div data-theme="dark" style={{ background: 'var(--color-surface-card)', padding: 16 }}>
         <StoryComponent />
       </div>
     ),

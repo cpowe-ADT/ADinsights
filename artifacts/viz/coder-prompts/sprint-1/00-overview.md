@@ -7,19 +7,19 @@
 
 These deliverables can be worked in parallel by multiple engineers, but must all pass before any Sprint 2 work begins:
 
-| Order | Deliverable | File | Size | Parallelizable? |
-|-------|------------|------|------|-----------------|
-| 1a | `ChartSkeleton` | `chart-skeleton.md` | S | Yes |
-| 1a | `EmptyState` (extend) | covered in `kpi-tile.md` | XS | Yes |
-| 1b | `KpiTile` | `kpi-tile.md` | S | Yes — after EmptyState |
-| 1b | `AccessibleTableToggle` | `accessible-table-toggle.md` | S | Yes |
-| 1b | `Sparkline` | `sparkline.md` | XS | Yes |
-| 1c | `TrendLine` | `trend-line.md` | M | After ChartSkeleton + AccessibleTableToggle |
-| 1c | `DistributionBar` | `distribution-bar.md` | S | After ChartSkeleton + AccessibleTableToggle |
-| 1c | `PieComposition` | `pie-composition.md` | S | After ChartSkeleton + AccessibleTableToggle |
-| 1c | `BubbleScatter` | `bubble-scatter.md` | M | After ChartSkeleton + AccessibleTableToggle |
-| 1d | `DataTable` | `data-table.md` | M | After ChartSkeleton |
-| 1e | Storybook stories | `storybook-stories.md` | S | After all components |
+| Order | Deliverable             | File                         | Size | Parallelizable?                             |
+| ----- | ----------------------- | ---------------------------- | ---- | ------------------------------------------- |
+| 1a    | `ChartSkeleton`         | `chart-skeleton.md`          | S    | Yes                                         |
+| 1a    | `EmptyState` (extend)   | covered in `kpi-tile.md`     | XS   | Yes                                         |
+| 1b    | `KpiTile`               | `kpi-tile.md`                | S    | Yes — after EmptyState                      |
+| 1b    | `AccessibleTableToggle` | `accessible-table-toggle.md` | S    | Yes                                         |
+| 1b    | `Sparkline`             | `sparkline.md`               | XS   | Yes                                         |
+| 1c    | `TrendLine`             | `trend-line.md`              | M    | After ChartSkeleton + AccessibleTableToggle |
+| 1c    | `DistributionBar`       | `distribution-bar.md`        | S    | After ChartSkeleton + AccessibleTableToggle |
+| 1c    | `PieComposition`        | `pie-composition.md`         | S    | After ChartSkeleton + AccessibleTableToggle |
+| 1c    | `BubbleScatter`         | `bubble-scatter.md`          | M    | After ChartSkeleton + AccessibleTableToggle |
+| 1d    | `DataTable`             | `data-table.md`              | M    | After ChartSkeleton                         |
+| 1e    | Storybook stories       | `storybook-stories.md`       | S    | After all components                        |
 
 ## Key constraints (must not be violated)
 

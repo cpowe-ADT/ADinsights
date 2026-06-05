@@ -18,18 +18,18 @@
 
 ## Quick status overview
 
-| Area | % complete | Tier-1 blockers |
-|---|---|---|
-| Meta integration | ~95% | none |
-| Google Ads | ~95% | Phase A+B+C1/C2 done (2026-04-23); C3 staging regression blocked on test-account creds |
-| GA4 | ~95% | T1-04 Verdict B done (2026-04-23); live-data DoD bullet blocked on Airbyte creds (4 env vars + dbt flag) |
-| Search Console | ~50% | no dedicated OAuth/sync module (uses mart) |
-| LinkedIn | ~5% | scaffolded only |
-| TikTok | ~5% | scaffolded only |
-| Alerts CRUD | ~75% | pause/resume, edit, delete |
-| Notification channels | ~90% | SMS optional |
-| Reports | ~80% | PDF/PNG render |
-| Core infra (dbt, Celery, migrations, runbooks) | ~95% | none |
+| Area                                           | % complete | Tier-1 blockers                                                                                          |
+| ---------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------- |
+| Meta integration                               | ~95%       | none                                                                                                     |
+| Google Ads                                     | ~95%       | Phase A+B+C1/C2 done (2026-04-23); C3 staging regression blocked on test-account creds                   |
+| GA4                                            | ~95%       | T1-04 Verdict B done (2026-04-23); live-data DoD bullet blocked on Airbyte creds (4 env vars + dbt flag) |
+| Search Console                                 | ~50%       | no dedicated OAuth/sync module (uses mart)                                                               |
+| LinkedIn                                       | ~5%        | scaffolded only                                                                                          |
+| TikTok                                         | ~5%        | scaffolded only                                                                                          |
+| Alerts CRUD                                    | ~75%       | pause/resume, edit, delete                                                                               |
+| Notification channels                          | ~90%       | SMS optional                                                                                             |
+| Reports                                        | ~80%       | PDF/PNG render                                                                                           |
+| Core infra (dbt, Celery, migrations, runbooks) | ~95%       | none                                                                                                     |
 
 ---
 
@@ -42,6 +42,7 @@ These block calling Phase 2 production-ready.
 **Recontextualization:** audit found on/off pause was already shipped via `is_active` (`AlertDetailPage.tsx:178-182` + `AlertsPage.tsx:127`). Real gap was **time-bounded pause** (`paused_until`) + auto-resume. Also found no DB-driven evaluator consumes `AlertRuleDefinition` today — `AlertService.run_cycle` iterates hardcoded `ALERT_RULES` in `backend/app/alerts.py`. Evaluator rewrite is tracked as T2-07 follow-on.
 
 **What shipped:**
+
 - [x] Migration `0024_alert_paused_until.py` — adds `paused_until: DateTimeField(null=True, blank=True)`
 - [x] `AlertRuleDefinition.active_for_eval()` classmethod — lazy auto-resume sweep (bulk-updates expired pauses) + returns `is_active=True` queryset. Canonical "should-this-rule-evaluate-now" filter for any future DB-driven evaluator.
 - [x] `AlertRuleDefinitionSerializer` exposes `paused_until` (read-only); mutations go through dedicated actions
@@ -61,6 +62,7 @@ These block calling Phase 2 production-ready.
 **Recontextualization:** audit confirmed DELETE + PATCH already work end-to-end via `ModelViewSet` + existing `deleteAlert` helper (`phase2Api.ts`) + existing Delete button (`AlertDetailPage.tsx:149`). Missing pieces were: (1) frontend edit form (rule details were display-only), (2) serializer-level validators for blank name/metric, (3) end-to-end PATCH test coverage. Also caught a **latent bug**: `AlertCreatePage` was submitting severity `info/warning/critical` while the backend enum is `low/medium/high` — every create via UI was failing validation. Fixed as part of this work (precondition for the edit form reusing the same enum).
 
 **What shipped:**
+
 - [x] Inline edit form on `AlertDetailPage.tsx` with controlled inputs for name/metric/comparison_operator/threshold/lookback_hours/severity. Save → `updateAlert`, Cancel restores, error keeps form open.
 - [x] Serializer validators: `validate_name` + `validate_metric` reject blank/whitespace.
 - [x] `AlertCreatePage.tsx` severity values aligned to backend enum (`low`/`medium`/`high`).
@@ -78,6 +80,7 @@ These block calling Phase 2 production-ready.
 **Recontextualization:** v2 prompt pre-flight (state file `S5-google-ads-state.json`) found that all three Phase A endpoints already existed in tree at baseline `c0d132a5` (pacing view at `google_ads_views.py:1308`, recommendations view at `:1413`, export status/download views at `:1673`/`:1690`). Scope was therefore **extensions, actions, and polling** — not new endpoints. Also found one deviation from v2's implicit assumption: `CampaignBudget` has no `campaign_id` FK (keyed `(tenant, name)` — unique_together). Per-campaign budget match is best-effort case-insensitive by name; unmatched campaigns surface `budget_amount=null` and the UI renders `"—"` in pace/variance cells.
 
 **What shipped:**
+
 - [x] **GA-A1** — `GoogleAdsBudgetPacingView` extended with `campaigns[]` per-campaign rows (`campaign_id`, `campaign_name`, `customer_id`, `budget_amount`, `spend_mtd`, `pace_pct`, `projected_eom`, `variance`) + 15-min tenant-scoped cache keyed `ga_pacing_v1:<tenant>:<sha1(customer_ids)>:<end_date>`; response gains `cache: {served_from_cache, ttl_seconds}`. Frontend: "Over-pacing campaigns" KPI + DistributionBar panel + companion table on `PacingTabSection.tsx`.
 - [x] **GA-A2** — New `POST /analytics/google-ads/recommendations/<int:pk>/dismiss/` — idempotent, tenant-scoped 404, **LOCAL ONLY** (no SDK `DismissRecommendation` call — regression-guarded by subprocess grep of production `.py` excluding vendored SDK). Migration `0025_recommendation_dismissed_audit` adds `dismissed_at` + `dismissed_by`. AuditLog event `google_ads_recommendation_dismissed`. Frontend: Dismiss `<button>` replacing Status chip on `RecommendationsTabSection.tsx` with optimistic update + rollback + toast.
 - [x] **GA-A3** — `ReportsTabSection.tsx` polling loop via `setTimeout` chain + `useRef` for cancellation; 3s steady / 60s ceiling / exp-backoff (3s→6s→12s) on 5xx; AbortController + mounted-ref cleanup on unmount; short-circuits when initial response is already terminal (uses `deriveExportJobStatusTone` for the status pill).
@@ -86,6 +89,7 @@ These block calling Phase 2 production-ready.
 **Gates:** ruff clean, backend pytest clean, frontend lint clean, `npm run build ✓ built`. Full-suite vitest exhibited the same environment-thrash pattern documented in S4 closeout §4 — 98 timeout `STACK_TRACE_ERROR` noise on unrelated viz primitives when run under concurrent CPU contention; T1-03 owned files pass deterministically in isolation (see S5 closeout §5).
 
 **Commits on `main`:**
+
 - `15e33459` — backend: migration + models + pacing/dismiss view changes + backend tests
 - `01780559` — FE: GA-A1 per-campaign pacing UI + aggregates types + FE test
 - `07bd1327` — FE: GA-A2 dismiss UI + dashboard helper + FE test
@@ -104,6 +108,7 @@ These block calling Phase 2 production-ready.
 **Status:** **Verdict B — wired but untested live in this environment.** Full engineering-side DoD satisfied; the one remaining bullet ("dashboard shows real data") is credential-gated.
 
 **What shipped (2026-04-23):**
+
 - [x] Investigation doc with Verdict B + file-level evidence (214 LoC, pasted psql + curl + grep output proving mart absent by design with `enable_ga4=false`)
 - [x] 16 new backend pytests: 12 PII allowlist tests for both GA4 dbt models, 3 credential-classification tests for `GoogleAnalyticsClient._build_client`, 1 tenant-isolation test (`test_ga4_web_insights_isolates_rows_by_tenant` — seeds two tenants' rows into transient `agg_ga4_daily`, asserts only tenant A rows returned)
 - [x] 4 dashboard vitest (existing) covering populated render, R3 contract (no `/metrics/combined/` call), `no_ga4_property_selected` empty state, `no_data_for_range` empty state
@@ -112,6 +117,7 @@ These block calling Phase 2 production-ready.
 - [x] Operator-runnable smoke checklist `S5-ga4-staging-smoke-checklist.md` — 6 phases (Airbyte+dbt provision, OAuth connect, dashboard E2E, R3+tenant isolation, freshness scheduling, record results) with triage cheat sheet
 
 **Blocker:**
+
 - [ ] Dashboard shows real data in dev stack — **BLOCKED on external credentials.** Needs `AIRBYTE_GA4_CLIENT_ID`, `AIRBYTE_GA4_CLIENT_SECRET`, `AIRBYTE_GA4_REFRESH_TOKEN`, `AIRBYTE_GA4_PROPERTY_ID` provisioned in staging + dbt `enable_ga4=true` flip + `dbt build --select +agg_ga4_daily` run. Estimated 60-90 min of operator work once creds are surfaced. Execution walkthrough: `S5-ga4-staging-smoke-checklist.md`.
 
 **Known architectural quirk:** in-app OAuth flow writes `GoogleAnalyticsConnection` rows but does NOT feed Airbyte — Airbyte uses its own refresh-token env var. A tenant completing OAuth in the UI still sees empty dashboard until operator separately provisions Airbyte. Out-of-scope for T1-04; tracked as future feature.
@@ -125,6 +131,7 @@ These block calling Phase 2 production-ready.
 **Decision (Option B — explicit defer with user-visible notice):** The backend dashboard path is fully wired (view + dbt staging + mart + Airbyte template all exist). The **tenant-facing OAuth on-ramp is deferred** to a post-launch follow-on; there is no `backend/integrations/search_console/` module today, and no self-serve connect flow in Data Sources. The dashboard surfaces a persistent "data refresh coming soon" notice and a new `search_console_ingestion_deferred` empty-state reason code so the deferred state is visible regardless of mart presence.
 
 **What shipped (2026-04-23):**
+
 - [x] Confirmed ingestion path: Airbyte Search Console source (`infrastructure/airbyte/search_console_source.yaml`, operator creds) → `raw.search_console_performance` → dbt `stg_search_console` → `agg_search_console_daily` (gated by `enable_search_console=false`) → `SearchConsoleInsightsView`
 - [x] Deferred-ingestion notice on `SearchConsoleDashboardPage.tsx` (persistent panel with `data-reason="search_console_ingestion_deferred"`). R3 contract preserved — page still only hits `/api/analytics/web/search-console/`
 - [x] Updated `isUnavailable` empty state to reason `search_console_ingestion_deferred` with copy matching the deferral
@@ -132,6 +139,7 @@ These block calling Phase 2 production-ready.
 - [x] Frontend test coverage updated in `SearchConsoleDashboardPage.test.tsx` — asserts notice visibility + new reasonCode
 
 **Follow-on work (NOT part of T1-05):**
+
 - [ ] Build `backend/integrations/search_console/` mirroring `backend/integrations/google_analytics/` (OAuth client + start/exchange/provision/status views)
 - [ ] Add Data Sources card + provisioning flow
 - [ ] Decide on Airbyte operator bridge vs. per-tenant OAuth tokens for ingestion
@@ -150,6 +158,7 @@ These make Phase 2 feel done, not just work.
 **Status:** `ReportExportJob` model supports format choices (CSV working, PDF/PNG defined but no render task).
 
 **Work:**
+
 - [ ] Pick a rendering approach: Playwright screenshot (works for PNG, PDF via browser print) OR headless chrome via puppeteer OR wkhtmltopdf (older but simpler)
 - [ ] Implement the Celery task that renders a report by ID to the chosen format
 - [ ] Wire into existing `ReportExportJob` dispatcher
@@ -164,10 +173,12 @@ These make Phase 2 feel done, not just work.
 **See:** `google-ads-completion-plan.md`, `artifacts/sprint/S5-google-ads-phase-b-closeout.md`, `artifacts/sprint/S5-google-ads-phase-c-closeout.md`.
 
 **Phase B — DONE (2026-04-23):**
+
 - [x] GA-B1 Change log pagination — `next_cursor` alias on existing paginated endpoint + Load more UI with accumulated rows (commits `cda49031` backend, `f066e527` FE). 3 pytest + 3 vitest.
 - [x] GA-B2 Saved-view reconciliation — new `verify` action comparing `filters`/`columns` against static v23 whitelist + FE dismissible drift banner (commits `cda49031` backend, `4e1733ec` FE). 4 pytest + 3 vitest.
 
 **Phase C — PARTIAL (2026-04-23):**
+
 - [x] GA-C1 Integration test suite — 10 new `*.integration.test.tsx` files, one per tab section (Assets, Campaigns, Changes, Conversions, Overview, Pacing, Pmax, Recommendations, Reports, Search), each covering loading/empty/populated branches. 30 new tests, 57/57 workspace vitest pass (commit `81df0c18`).
 - [x] GA-C2 Documentation — new `docs/runbooks/google-ads-operations.md` (10 `##` sections: scope, SDK-vs-Airbyte hybrid, endpoint register, day-2 ops, known quirks, related docs) + CLAUDE.md current-state updated to reflect shipped Phase B (commit `37ff1b77`).
 - [ ] GA-C3 Staging regression — **BLOCKED on test-account credentials** (M, 2–3d). Per v2 protocol (`finish-google-ads.v2.md §Phase C`), requires user to surface staging Google Ads OAuth creds + a test tenant with linked customer_ids. Escalation open 2026-04-23. **Deliverable prepared:** `artifacts/sprint/S5-google-ads-phase-c-staging-smoke-checklist.md` (full operator-runnable regression checklist: pre-flight creds table, per-tab smoke for all 10 tabs, cross-cutting auth + isolation checks, record-results procedure, failure triage cheat sheet). Execute top-to-bottom when creds land.
@@ -179,6 +190,7 @@ These make Phase 2 feel done, not just work.
 **Status:** DONE (2026-05-01). Model + ViewSet + M2M to `AlertRuleDefinition` were already present; delivery now fires for tenant-defined alert rules with active channel assignments when evaluation returns rows.
 
 **Work:**
+
 - [x] Grep for where alert evaluation dispatches notifications
 - [x] Test email delivery on a fired alert
 - [x] Test Slack delivery (webhook URL in `NotificationChannel.config`)
@@ -194,6 +206,7 @@ These make Phase 2 feel done, not just work.
 **Status:** No audit log table linked to `AlertRuleDefinition`.
 
 **Work:**
+
 - [ ] Add `AlertRuleAudit` model (who, when, what changed) OR use `django-simple-history` if already installed
 - [ ] Hook on `AlertRuleDefinition` save/delete
 - [ ] Optional: serialize changes (old→new) for rich audit
@@ -207,6 +220,7 @@ Skip if out of scope for current compliance needs.
 **Status:** No "max alerts per tenant" check at `AlertRuleDefinition.save()`.
 
 **Work:**
+
 - [ ] Add a `MAX_ALERT_RULES_PER_TENANT` setting (e.g. 50)
 - [ ] Validator in serializer or model.clean(): raise if creating Nth rule would exceed
 - [ ] Same check for reports, notification channels if we want quotas broadly
@@ -220,6 +234,7 @@ Skip if current tenants are trusted + low count.
 **Status:** `AISummary` model exists, UI shows badges, but no refresh-interval config or cache-invalidation logic.
 
 **Work:**
+
 - [ ] Decide cadence (per-tenant config? fixed daily?)
 - [ ] Add scheduled Celery task to regenerate stale summaries
 - [ ] Cache-invalidate when underlying data window changes
@@ -233,6 +248,7 @@ Skip if current tenants are trusted + low count.
 **Context:** `AlertService.run_cycle` now preserves hardcoded `ALERT_RULES` as system presets and also evaluates DB-backed `AlertRuleDefinition.active_for_eval()` rows via generated `tenant_alert:<uuid>` SQL rules. Each DB-backed rule carries tenant-scoped parameters and runs inside `tenant_context(rule.tenant_id)`. Alert history metadata resolves `tenant_alert:<uuid>` slugs for user-defined rule names, descriptions, and severity.
 
 **Work:**
+
 - [x] Complement `ALERT_RULES` iteration with `AlertRuleDefinition.active_for_eval()` in `AlertService.run_cycle`
 - [x] Map `AlertRuleDefinition` fields (metric, comparison_operator, threshold, lookback_hours) to a generic tenant-scoped SQL threshold rule
 - [x] Keep hardcoded `ALERT_RULES` as system presets rather than migrating them to seeded DB rows in this pass
@@ -249,6 +265,7 @@ Skip if current tenants are trusted + low count.
 **Status:** `ProviderType.LINKEDIN` enum exists in `backend/integrations/models.py` but no sync code.
 
 **Work:**
+
 - [ ] OAuth flow (LinkedIn Marketing API)
 - [ ] Airbyte connector OR direct sync
 - [ ] dbt models for staging → mart
@@ -265,6 +282,7 @@ Same pattern as LinkedIn.
 **Status:** `NotificationChannel.CHANNEL_TYPE_CHOICES` has email/webhook/slack only. Add SMS if needed.
 
 **Work:**
+
 - [ ] Add `CHANNEL_SMS = 'sms'` + pick provider (Twilio/AWS SNS)
 - [ ] Implement dispatch
 - [ ] Config shape in `NotificationChannel.config` (provider, phone number, api creds via env)
@@ -284,6 +302,7 @@ Same pattern as LinkedIn.
 **Status:** `ParishMapDetail.tsx:227` + `:233` have `[NEW-ENDPOINT]` markers.
 
 **Work:**
+
 - Backend: add lat/lng to `ParishAggregate` payload + per-parish daily series endpoint
 - Frontend: wire bubble overlay on Leaflet + sparkline in tooltip
 
@@ -300,16 +319,19 @@ Blocked on backend endpoint.
 If you have **1 FTE for ~3 weeks** and want to ship Phase 2 to production:
 
 **Week 1 — Alert pause + Google Ads A1 + GA4 verification**
+
 - Day 1–2: T1-01 (alert pause/resume end-to-end)
 - Day 2: T1-02 (alert edit/delete verification)
 - Day 3–4: T1-04 (GA4 ingestion verification) + T1-05 (Search Console decision)
 - Day 4–5: Start GA-A1 (budget variance endpoint)
 
 **Week 2 — Finish Google Ads Phase A**
+
 - Day 1–3: Finish GA-A1
 - Day 3–5: GA-A2 (dismiss) + GA-A3 (report list + polling)
 
 **Week 3 — Phase 2 polish + release prep**
+
 - Day 1–2: T2-03 (notification channel delivery test)
 - Day 3–5: GA-C1 (Google Ads integration tests) + ship prep
 
@@ -322,6 +344,7 @@ If LinkedIn/TikTok matter for GA: add 3–4 weeks each.
 ## Commit rhythm
 
 After each task in this list:
+
 1. Tests pass isolated (`npx vitest --run <file>` + `pytest <file>`)
 2. Full matrix green (`npm test -- --run`, `pytest`, `ruff check`, `npm run lint`, `npm run build`)
 3. Commit with conventional-commits prefix: `feat(alerts):`, `fix(google-ads):`, `docs(runbooks):`

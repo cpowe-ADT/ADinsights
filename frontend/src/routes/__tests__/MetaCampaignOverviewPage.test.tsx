@@ -29,7 +29,14 @@ type InsightRowMock = {
 };
 
 const metaStoreMock = vi.hoisted(() => ({
-  filters: { accountId: '', search: '', status: '', since: '', until: '', level: 'campaign' as string },
+  filters: {
+    accountId: '',
+    search: '',
+    status: '',
+    since: '',
+    until: '',
+    level: 'campaign' as string,
+  },
   setFilters: vi.fn(),
   accounts: { rows: [] as Array<{ id: string; external_id: string; name: string }> },
   campaigns: {
@@ -59,7 +66,15 @@ vi.mock('../../state/useMetaStore', () => {
 
 vi.mock('../../components/EmptyState', () => ({
   __esModule: true,
-  default: ({ title, message, reasonCode }: { title: string; message: string; reasonCode?: string }) => (
+  default: ({
+    title,
+    message,
+    reasonCode,
+  }: {
+    title: string;
+    message: string;
+    reasonCode?: string;
+  }) => (
     <div role="status" data-reason-code={reasonCode}>
       <h3>{title}</h3>
       <p>{message}</p>
@@ -100,7 +115,10 @@ vi.mock('../../components/viz', async () => {
       columns,
       data,
     }: {
-      columns: Array<{ header?: string; cell?: (ctx: { row: { original: unknown } }) => React.ReactNode }>;
+      columns: Array<{
+        header?: string;
+        cell?: (ctx: { row: { original: unknown } }) => React.ReactNode;
+      }>;
       data: unknown[];
     }) => (
       <table data-testid="viz-data-table">
@@ -268,8 +286,28 @@ describe('MetaCampaignOverviewPage', () => {
       status: 'loaded',
       count: 2,
       rows: [
-        { id: 'i1', external_id: 'ext1', date: '2026-03-01', level: 'campaign', impressions: 100, clicks: 5, conversions: 1, spend: '50', campaign_external_id: 'c1' },
-        { id: 'i2', external_id: 'ext2', date: '2026-03-02', level: 'campaign', impressions: 200, clicks: 12, conversions: 3, spend: '75', campaign_external_id: 'c1' },
+        {
+          id: 'i1',
+          external_id: 'ext1',
+          date: '2026-03-01',
+          level: 'campaign',
+          impressions: 100,
+          clicks: 5,
+          conversions: 1,
+          spend: '50',
+          campaign_external_id: 'c1',
+        },
+        {
+          id: 'i2',
+          external_id: 'ext2',
+          date: '2026-03-02',
+          level: 'campaign',
+          impressions: 200,
+          clicks: 12,
+          conversions: 3,
+          spend: '75',
+          campaign_external_id: 'c1',
+        },
       ],
     };
     metaStoreMock.campaigns = {

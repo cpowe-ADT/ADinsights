@@ -50,9 +50,9 @@ describe('BubbleScatter', () => {
         ariaLabel="Campaign scatter"
       />,
     );
-    const headers = Array.from(
-      container.querySelectorAll('table.sr-only thead th'),
-    ).map((h) => h.textContent);
+    const headers = Array.from(container.querySelectorAll('table.sr-only thead th')).map(
+      (h) => h.textContent,
+    );
     expect(headers).toContain('Shape');
   });
 
@@ -81,9 +81,7 @@ describe('BubbleScatter', () => {
         emptyReasonCode="no_data_for_scope"
       />,
     );
-    expect(
-      container.querySelector('[data-reason-code="no_data_for_scope"]'),
-    ).toBeInTheDocument();
+    expect(container.querySelector('[data-reason-code="no_data_for_scope"]')).toBeInTheDocument();
   });
 
   it('has no a11y violations', async () => {

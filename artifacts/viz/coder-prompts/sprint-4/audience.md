@@ -2,7 +2,7 @@
 
 **Sprint:** 4
 **Estimated size:** M
-**Depends on:** sprint-1/* (all kit components)
+**Depends on:** sprint-1/\* (all kit components)
 **Blocks:** none
 **Role needed:** frontend-engineer
 
@@ -14,6 +14,7 @@
 
 - `frontend/src/routes/AudienceDashboard.tsx`: existing file. B-AUD-01 applied.
 - Audience data shape from `payload.platforms`:
+
 ```typescript
 {
   byAge: Array<{ ageRange: string; reach: number; impressions: number; spend: number }>
@@ -23,6 +24,7 @@
   byPlatform: Array<{ platform: string; ... }>
 }
 ```
+
 - All Sprint 1 viz components.
 - `frontend/src/lib/platformLabels.ts`.
 
@@ -43,17 +45,23 @@
   - Device mix `DistributionBar`: `byDevice[]` mapped to `{ label: row.device, value: row.impressions }`. Horizontal layout.
   - Age × Gender grouped bar: `byAgeGender[]` as grouped `DistributionBar` — age on categories (Y axis), gender as series. Data transformation:
     ```typescript
-    const genders = [...new Set(byAgeGender.map(r => r.gender))]
-    const ageGroups = [...new Set(byAgeGender.map(r => r.ageRange))]
-    const chartData = ageGroups.map(age => {
-      const row: Record<string, string | number> = { label: age }
-      genders.forEach(g => {
-        const match = byAgeGender.find(r => r.ageRange === age && r.gender === g)
-        row[g] = match?.reach ?? 0
-      })
-      return row
-    })
-    const series = genders.map((g, i) => ({ key: g, label: g, color: chartPalette[i % chartPalette.length] }))
+    const genders = [...new Set(byAgeGender.map((r) => r.gender))];
+    const ageGroups = [...new Set(byAgeGender.map((r) => r.ageRange))];
+    const chartData = ageGroups.map((age) => {
+      const row: Record<string, string | number> = { label: age };
+      genders.forEach((g) => {
+        const match = byAgeGender.find(
+          (r) => r.ageRange === age && r.gender === g,
+        );
+        row[g] = match?.reach ?? 0;
+      });
+      return row;
+    });
+    const series = genders.map((g, i) => ({
+      key: g,
+      label: g,
+      color: chartPalette[i % chartPalette.length],
+    }));
     ```
     Render as `DistributionBar` with `series={series}` and `data={chartData}`. If grouped bar has > 8 age groups, wrap in a `div` with `overflow-x: auto` and set a minimum width of `600px` on the chart.
 

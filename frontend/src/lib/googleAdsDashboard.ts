@@ -160,7 +160,10 @@ export function updateGoogleAdsSavedView(
     is_shared: boolean;
   }>,
 ) {
-  return patch<GoogleAdsSavedView>(`/analytics/google-ads/saved-views/${encodeURIComponent(id)}/`, payload);
+  return patch<GoogleAdsSavedView>(
+    `/analytics/google-ads/saved-views/${encodeURIComponent(id)}/`,
+    payload,
+  );
 }
 
 export function createGoogleAdsSavedView(payload: {

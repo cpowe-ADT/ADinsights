@@ -8,17 +8,69 @@
   "phase_b_completed_at": "2026-04-23T14:50:00-05:00",
   "phase_c_partial_completed_at": "2026-04-23T16:30:00-05:00",
   "tasks": {
-    "GA-A1": {"status": "done", "started_at": "2026-04-23T12:10:00-05:00", "completed_at": "2026-04-23T13:03:05-05:00", "commit_sha": "15e33459|01780559", "notes": "Phase A — pacing per-campaign + 15-min tenant-scoped cache."},
-    "GA-A2": {"status": "done", "started_at": "2026-04-23T12:10:00-05:00", "completed_at": "2026-04-23T13:03:23-05:00", "commit_sha": "15e33459|07bd1327", "notes": "Phase A — LOCAL ONLY dismiss with optimistic rollback + audit."},
-    "GA-A3": {"status": "done", "started_at": "2026-04-23T12:50:00-05:00", "completed_at": "2026-04-23T13:03:45-05:00", "commit_sha": "7b7920e3", "notes": "Phase A — export polling 3s→60s exp-backoff."},
-    "GA-B1": {"status": "done", "started_at": "2026-04-23T14:00:00-05:00", "completed_at": "2026-04-23T14:45:00-05:00", "commit_sha": "cda49031|f066e527", "notes": "Change log next_cursor (pure alias atop existing page pagination) + Load more UI with accumulated mergedRows. 3 pytest + 3 vitest."},
-    "GA-B2": {"status": "done", "started_at": "2026-04-23T14:00:00-05:00", "completed_at": "2026-04-23T14:45:00-05:00", "commit_sha": "cda49031|4e1733ec", "notes": "Saved-view verify action comparing filters+columns against static v23 whitelist; FE dismissible drift banner. 4 pytest + 3 vitest."},
-    "GA-C1": {"status": "done", "started_at": "2026-04-23T15:40:00-05:00", "completed_at": "2026-04-23T16:20:00-05:00", "commit_sha": "81df0c18", "notes": "Phase C — 10 *.integration.test.tsx files, one per tab section; 30 new tests, 57/57 workspace vitest pass."},
-    "GA-C2": {"status": "done", "started_at": "2026-04-23T15:10:00-05:00", "completed_at": "2026-04-23T15:35:00-05:00", "commit_sha": "37ff1b77", "notes": "Phase C — new docs/runbooks/google-ads-operations.md (10 ## sections) + CLAUDE.md current-state updated."},
-    "GA-C3": {"status": "blocked", "started_at": "2026-04-23T16:40:00-05:00", "completed_at": null, "commit_sha": null, "notes": "Phase C — staging smoke; BLOCKED on test-account credentials. Deliverable prepared: S5-google-ads-phase-c-staging-smoke-checklist.md (full operator-runnable regression checklist — Phase 1 pre-flight, Phase 2 per-tab, Phase 3 cross-cutting, Phase 4 record results). Execution deferred until user surfaces staging Google Ads OAuth creds + test tenant with linked customer_ids."}
+    "GA-A1": {
+      "status": "done",
+      "started_at": "2026-04-23T12:10:00-05:00",
+      "completed_at": "2026-04-23T13:03:05-05:00",
+      "commit_sha": "15e33459|01780559",
+      "notes": "Phase A — pacing per-campaign + 15-min tenant-scoped cache."
+    },
+    "GA-A2": {
+      "status": "done",
+      "started_at": "2026-04-23T12:10:00-05:00",
+      "completed_at": "2026-04-23T13:03:23-05:00",
+      "commit_sha": "15e33459|07bd1327",
+      "notes": "Phase A — LOCAL ONLY dismiss with optimistic rollback + audit."
+    },
+    "GA-A3": {
+      "status": "done",
+      "started_at": "2026-04-23T12:50:00-05:00",
+      "completed_at": "2026-04-23T13:03:45-05:00",
+      "commit_sha": "7b7920e3",
+      "notes": "Phase A — export polling 3s→60s exp-backoff."
+    },
+    "GA-B1": {
+      "status": "done",
+      "started_at": "2026-04-23T14:00:00-05:00",
+      "completed_at": "2026-04-23T14:45:00-05:00",
+      "commit_sha": "cda49031|f066e527",
+      "notes": "Change log next_cursor (pure alias atop existing page pagination) + Load more UI with accumulated mergedRows. 3 pytest + 3 vitest."
+    },
+    "GA-B2": {
+      "status": "done",
+      "started_at": "2026-04-23T14:00:00-05:00",
+      "completed_at": "2026-04-23T14:45:00-05:00",
+      "commit_sha": "cda49031|4e1733ec",
+      "notes": "Saved-view verify action comparing filters+columns against static v23 whitelist; FE dismissible drift banner. 4 pytest + 3 vitest."
+    },
+    "GA-C1": {
+      "status": "done",
+      "started_at": "2026-04-23T15:40:00-05:00",
+      "completed_at": "2026-04-23T16:20:00-05:00",
+      "commit_sha": "81df0c18",
+      "notes": "Phase C — 10 *.integration.test.tsx files, one per tab section; 30 new tests, 57/57 workspace vitest pass."
+    },
+    "GA-C2": {
+      "status": "done",
+      "started_at": "2026-04-23T15:10:00-05:00",
+      "completed_at": "2026-04-23T15:35:00-05:00",
+      "commit_sha": "37ff1b77",
+      "notes": "Phase C — new docs/runbooks/google-ads-operations.md (10 ## sections) + CLAUDE.md current-state updated."
+    },
+    "GA-C3": {
+      "status": "blocked",
+      "started_at": "2026-04-23T16:40:00-05:00",
+      "completed_at": null,
+      "commit_sha": null,
+      "notes": "Phase C — staging smoke; BLOCKED on test-account credentials. Deliverable prepared: S5-google-ads-phase-c-staging-smoke-checklist.md (full operator-runnable regression checklist — Phase 1 pre-flight, Phase 2 per-tab, Phase 3 cross-cutting, Phase 4 record results). Execution deferred until user surfaces staging Google Ads OAuth creds + test tenant with linked customer_ids."
+    }
   },
   "blockers": [
-    {"task": "GA-C3", "reason": "Requires test-account credentials (staging Google Ads OAuth + tenant with linked customer_ids). Escalation opened 2026-04-23.", "opened_at": "2026-04-23T16:25:00-05:00"}
+    {
+      "task": "GA-C3",
+      "reason": "Requires test-account credentials (staging Google Ads OAuth + tenant with linked customer_ids). Escalation opened 2026-04-23.",
+      "opened_at": "2026-04-23T16:25:00-05:00"
+    }
   ],
   "last_gate_matrix": {
     "lint": "pass",

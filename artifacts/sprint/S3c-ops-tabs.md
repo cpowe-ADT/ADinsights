@@ -4,24 +4,24 @@ Inputs: `/Users/thristannewman/ADinsights/artifacts/sprint/S3-architect-design.m
 
 ## Files Modified / Created
 
-| Tab | File | Kind | Purpose |
-|---|---|---|---|
-| Pacing | `frontend/src/components/google-ads/workspace/tab-sections/PacingTabSection.tsx` | CREATED | Unified-mode Pacing: GaugeRing + 3 KpiTile + summary table |
-| Pacing | `frontend/src/components/google-ads/workspace/tab-sections/__tests__/PacingTabSection.test.tsx` | CREATED | GaugeRing role=meter, derived pct, pacing_pct precedence, variance-bar-deferred assertion, reasonCode |
-| Pacing | `frontend/src/routes/google-ads/GoogleAdsBudgetPage.tsx` | REWRITTEN | Legacy-mode delegates to `PacingTabSection`; NB2 filter-subscribe preserved |
-| Pacing | `frontend/src/routes/google-ads/__tests__/GoogleAdsBudgetPage.test.tsx` | UPDATED | Meter rendering, reasonCode, variance-bar absence, error surface |
-| Changes | `frontend/src/components/google-ads/workspace/tab-sections/ChangesTabSection.tsx` | CREATED | 2 KpiTile + DistributionBar by resource_type + severity-chip table |
-| Changes | `frontend/src/routes/google-ads/GoogleAdsChangeLogPage.tsx` | REWRITTEN | Dropped `GoogleAdsDataTablePage` wrapper; direct fetch → `ChangesTabSection`; paginated contract preserved |
-| Changes | `frontend/src/routes/google-ads/__tests__/GoogleAdsChangeLogPage.test.tsx` | UPDATED | Severity chip branches (CREATE/UPDATE/REMOVE), reasonCode, pagination count |
-| Recommendations | `frontend/src/components/google-ads/workspace/tab-sections/RecommendationsTabSection.tsx` | CREATED | 2 KpiTile + PieComposition + severity-chip table; no Dismiss button |
-| Recommendations | `frontend/src/routes/google-ads/GoogleAdsRecommendationsPage.tsx` | REWRITTEN | Dropped wrapper; direct fetch → `RecommendationsTabSection` |
-| Recommendations | `frontend/src/routes/google-ads/__tests__/GoogleAdsRecommendationsPage.test.tsx` | UPDATED | Both severity derivation branches, dismiss-button-absent assertion, reasonCode |
-| Reports | `frontend/src/components/google-ads/workspace/tab-sections/ReportsTabSection.tsx` | CREATED | 2 KpiTile + form controls + export job card + saved-views table with status chip |
-| Reports | `frontend/src/routes/google-ads/GoogleAdsReportsPage.tsx` | REWRITTEN | Legacy wrapper delegates to `ReportsTabSection` |
-| Reports | `frontend/src/routes/google-ads/__tests__/GoogleAdsReportsPage.test.tsx` | UPDATED | reasonCode=no_saved_views, saved-view rendering with Shared chip, export-create flow |
-| Workspace | `frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx` | EDITED | Wires all 4 new tab sections (pacing/changes/recommendations/reports) in place of `GenericTabSection` |
-| Shared | `frontend/src/lib/googleAdsAggregates.ts` | EXTENDED | Added pacing/changes/recommendations/reports helpers (see below) |
-| Shared | `frontend/src/lib/googleAdsAggregates.test.ts` | EXTENDED | +21 unit tests for new helpers (total 47) |
+| Tab             | File                                                                                            | Kind      | Purpose                                                                                                    |
+| --------------- | ----------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------- |
+| Pacing          | `frontend/src/components/google-ads/workspace/tab-sections/PacingTabSection.tsx`                | CREATED   | Unified-mode Pacing: GaugeRing + 3 KpiTile + summary table                                                 |
+| Pacing          | `frontend/src/components/google-ads/workspace/tab-sections/__tests__/PacingTabSection.test.tsx` | CREATED   | GaugeRing role=meter, derived pct, pacing_pct precedence, variance-bar-deferred assertion, reasonCode      |
+| Pacing          | `frontend/src/routes/google-ads/GoogleAdsBudgetPage.tsx`                                        | REWRITTEN | Legacy-mode delegates to `PacingTabSection`; NB2 filter-subscribe preserved                                |
+| Pacing          | `frontend/src/routes/google-ads/__tests__/GoogleAdsBudgetPage.test.tsx`                         | UPDATED   | Meter rendering, reasonCode, variance-bar absence, error surface                                           |
+| Changes         | `frontend/src/components/google-ads/workspace/tab-sections/ChangesTabSection.tsx`               | CREATED   | 2 KpiTile + DistributionBar by resource_type + severity-chip table                                         |
+| Changes         | `frontend/src/routes/google-ads/GoogleAdsChangeLogPage.tsx`                                     | REWRITTEN | Dropped `GoogleAdsDataTablePage` wrapper; direct fetch → `ChangesTabSection`; paginated contract preserved |
+| Changes         | `frontend/src/routes/google-ads/__tests__/GoogleAdsChangeLogPage.test.tsx`                      | UPDATED   | Severity chip branches (CREATE/UPDATE/REMOVE), reasonCode, pagination count                                |
+| Recommendations | `frontend/src/components/google-ads/workspace/tab-sections/RecommendationsTabSection.tsx`       | CREATED   | 2 KpiTile + PieComposition + severity-chip table; no Dismiss button                                        |
+| Recommendations | `frontend/src/routes/google-ads/GoogleAdsRecommendationsPage.tsx`                               | REWRITTEN | Dropped wrapper; direct fetch → `RecommendationsTabSection`                                                |
+| Recommendations | `frontend/src/routes/google-ads/__tests__/GoogleAdsRecommendationsPage.test.tsx`                | UPDATED   | Both severity derivation branches, dismiss-button-absent assertion, reasonCode                             |
+| Reports         | `frontend/src/components/google-ads/workspace/tab-sections/ReportsTabSection.tsx`               | CREATED   | 2 KpiTile + form controls + export job card + saved-views table with status chip                           |
+| Reports         | `frontend/src/routes/google-ads/GoogleAdsReportsPage.tsx`                                       | REWRITTEN | Legacy wrapper delegates to `ReportsTabSection`                                                            |
+| Reports         | `frontend/src/routes/google-ads/__tests__/GoogleAdsReportsPage.test.tsx`                        | UPDATED   | reasonCode=no_saved_views, saved-view rendering with Shared chip, export-create flow                       |
+| Workspace       | `frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx`                                     | EDITED    | Wires all 4 new tab sections (pacing/changes/recommendations/reports) in place of `GenericTabSection`      |
+| Shared          | `frontend/src/lib/googleAdsAggregates.ts`                                                       | EXTENDED  | Added pacing/changes/recommendations/reports helpers (see below)                                           |
+| Shared          | `frontend/src/lib/googleAdsAggregates.test.ts`                                                  | EXTENDED  | +21 unit tests for new helpers (total 47)                                                                  |
 
 ## New Helpers in `googleAdsAggregates.ts`
 
@@ -35,18 +35,19 @@ Inputs: `/Users/thristannewman/ADinsights/artifacts/sprint/S3-architect-design.m
 
 ### Changes (architect §6.8)
 
-| `resource_change_operation` | severity | chip tone |
-|---|---|---|
-| `CREATE` / `CREATED` | `info` | neutral |
-| `UPDATE` / `UPDATED` / `MODIFY` | `warning` | warning |
-| `REMOVE` / `REMOVED` / `DELETE` | `danger` | danger |
-| anything else / missing | `info` | neutral |
+| `resource_change_operation`     | severity  | chip tone |
+| ------------------------------- | --------- | --------- |
+| `CREATE` / `CREATED`            | `info`    | neutral   |
+| `UPDATE` / `UPDATED` / `MODIFY` | `warning` | warning   |
+| `REMOVE` / `REMOVED` / `DELETE` | `danger`  | danger    |
+| anything else / missing         | `info`    | neutral   |
 
 Non-color encoding: each chip renders the operation verb visibly AND an `aria-label="Severity <text>"` + visually-hidden `" — <text>"` suffix so screen readers get the severity even without color.
 
 ### Recommendations (architect §6.9)
 
 Derivation order:
+
 1. **`impact_metadata.severity` (preferred)** — case-insensitive normalize:
    | payload `severity` value | normalized |
    |---|---|
@@ -64,12 +65,12 @@ The derivation is wrapped in `try/catch` (defensive against SDK-driven JSON drif
 
 ### Reports (job status)
 
-| `status` (case-insensitive) | tone |
-|---|---|
+| `status` (case-insensitive)                        | tone      |
+| -------------------------------------------------- | --------- |
 | `complete` / `completed` / `success` / `succeeded` | `success` |
-| `running` / `queued` / `pending` / `in_progress` | `warning` |
-| `failed` / `error` / `errored` / `cancelled` | `danger` |
-| anything else | `neutral` |
+| `running` / `queued` / `pending` / `in_progress`   | `warning` |
+| `failed` / `error` / `errored` / `cancelled`       | `danger`  |
+| anything else                                      | `neutral` |
 
 ## Pacing GaugeRing Integration Notes
 
@@ -117,6 +118,7 @@ cd frontend && npx vitest run Pacing Changes Recommendations Reports googleAdsAg
 > adinsights-frontend@0.1.0 lint
 > eslint .
 ```
+
 Clean — no errors, no warnings.
 
 ### Build (`npm run build`)
@@ -127,6 +129,7 @@ dist/assets/GoogleAdsWorkspacePage-l-fOYNhu.js            31.54 kB │ gzip:  8.
 dist/assets/index-DLLKIdM-.js                            275.25 kB │ gzip: 88.13 kB
 ✓ built in 4.04s
 ```
+
 tsc + vite build both succeed.
 
 ## Phase 1B Contract Preservation

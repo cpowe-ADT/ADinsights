@@ -8,13 +8,13 @@ All five S2b pages landed with their vitest targets green, `npm run lint` clean,
 
 ## Files modified
 
-| # | Page | File | Tests file | Primitives added |
-|---|---|---|---|---|
-| 1 | MetaPagesListPage | `frontend/src/routes/MetaPagesListPage.tsx` | `frontend/src/routes/__tests__/MetaPagesListPage.test.tsx` | `AccessibleTableToggle`, `VizDataTable` (alternate view) |
-| 2 | MetaPagePostsPage | `frontend/src/routes/MetaPagePostsPage.tsx` | `frontend/src/routes/__tests__/MetaPagePostsPage.test.tsx` | `KpiTile × 3`, `PieComposition` (PostsTable retained) |
-| 3 | MetaPostDetailPage | `frontend/src/routes/MetaPostDetailPage.tsx` | `frontend/src/routes/__tests__/MetaPostDetailPage.test.tsx` | `KpiTile × 4` w/ conditional embedded sparkline, `TrendLine`, `AccessibleTableToggle` |
-| 4 | MetaPageOverviewPage | `frontend/src/routes/MetaPageOverviewPage.tsx` | `frontend/src/routes/__tests__/MetaPageOverviewPage.test.tsx` | `KpiTile × 4`, `TrendLine`, `PieComposition`, `AccessibleTableToggle` (replaces `KPIGrid`, `TrendChart`, `EngagementBreakdownPanel` on this page — legacy components not deleted) |
-| 5 | MetaCampaignOverviewPage | `frontend/src/routes/MetaCampaignOverviewPage.tsx` | `frontend/src/routes/__tests__/MetaCampaignOverviewPage.test.tsx` | `KpiTile × 4`, `DistributionBar × 2` (funnel + top-10 spend), `VizDataTable` + inline `Sparkline`, `AccessibleTableToggle × 2` |
+| #   | Page                     | File                                               | Tests file                                                        | Primitives added                                                                                                                                                                  |
+| --- | ------------------------ | -------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | MetaPagesListPage        | `frontend/src/routes/MetaPagesListPage.tsx`        | `frontend/src/routes/__tests__/MetaPagesListPage.test.tsx`        | `AccessibleTableToggle`, `VizDataTable` (alternate view)                                                                                                                          |
+| 2   | MetaPagePostsPage        | `frontend/src/routes/MetaPagePostsPage.tsx`        | `frontend/src/routes/__tests__/MetaPagePostsPage.test.tsx`        | `KpiTile × 3`, `PieComposition` (PostsTable retained)                                                                                                                             |
+| 3   | MetaPostDetailPage       | `frontend/src/routes/MetaPostDetailPage.tsx`       | `frontend/src/routes/__tests__/MetaPostDetailPage.test.tsx`       | `KpiTile × 4` w/ conditional embedded sparkline, `TrendLine`, `AccessibleTableToggle`                                                                                             |
+| 4   | MetaPageOverviewPage     | `frontend/src/routes/MetaPageOverviewPage.tsx`     | `frontend/src/routes/__tests__/MetaPageOverviewPage.test.tsx`     | `KpiTile × 4`, `TrendLine`, `PieComposition`, `AccessibleTableToggle` (replaces `KPIGrid`, `TrendChart`, `EngagementBreakdownPanel` on this page — legacy components not deleted) |
+| 5   | MetaCampaignOverviewPage | `frontend/src/routes/MetaCampaignOverviewPage.tsx` | `frontend/src/routes/__tests__/MetaCampaignOverviewPage.test.tsx` | `KpiTile × 4`, `DistributionBar × 2` (funnel + top-10 spend), `VizDataTable` + inline `Sparkline`, `AccessibleTableToggle × 2`                                                    |
 
 ## Funnel approach
 
@@ -54,6 +54,7 @@ Phase 1A contract assertions preserved on every page (reasonCode presence on Emp
 ## Gate results (verbatim tails)
 
 ### `npx vitest run src/routes/__tests__/MetaPagesListPage.test.tsx`
+
 ```
  ✓ src/routes/__tests__/MetaPagesListPage.test.tsx (5 tests) 315ms
  Test Files  1 passed (1)
@@ -61,6 +62,7 @@ Phase 1A contract assertions preserved on every page (reasonCode presence on Emp
 ```
 
 ### `npx vitest run src/routes/__tests__/MetaPagePostsPage.test.tsx`
+
 ```
  ✓ src/routes/__tests__/MetaPagePostsPage.test.tsx (7 tests) 429ms
  Test Files  1 passed (1)
@@ -68,6 +70,7 @@ Phase 1A contract assertions preserved on every page (reasonCode presence on Emp
 ```
 
 ### `npx vitest run src/routes/__tests__/MetaPostDetailPage.test.tsx`
+
 ```
  ✓ src/routes/__tests__/MetaPostDetailPage.test.tsx (6 tests) 231ms
  Test Files  1 passed (1)
@@ -75,6 +78,7 @@ Phase 1A contract assertions preserved on every page (reasonCode presence on Emp
 ```
 
 ### `npx vitest run src/routes/__tests__/MetaPageOverviewPage.test.tsx`
+
 ```
  ✓ src/routes/__tests__/MetaPageOverviewPage.test.tsx (9 tests) 336ms
  Test Files  1 passed (1)
@@ -82,6 +86,7 @@ Phase 1A contract assertions preserved on every page (reasonCode presence on Emp
 ```
 
 ### `npx vitest run src/routes/__tests__/MetaCampaignOverviewPage.test.tsx`
+
 ```
  ✓ src/routes/__tests__/MetaCampaignOverviewPage.test.tsx (9 tests) 254ms
  Test Files  1 passed (1)
@@ -89,6 +94,7 @@ Phase 1A contract assertions preserved on every page (reasonCode presence on Emp
 ```
 
 ### `npx vitest run src/routes/__tests__/Meta` (all Meta route tests)
+
 ```
  ✓ src/routes/__tests__/MetaIntegrationPage.test.tsx (3 tests) 151ms
  ✓ src/routes/__tests__/MetaConnectionStatusPage.test.tsx (4 tests) 611ms
@@ -105,13 +111,16 @@ Phase 1A contract assertions preserved on every page (reasonCode presence on Emp
 ```
 
 ### `npm run lint`
+
 ```
 > adinsights-frontend@0.1.0 lint
 > eslint .
 ```
+
 (clean; no output)
 
 ### `npm run build`
+
 ```
 dist/assets/MetaPagePostsPage-Zp6wZ-Dl.js                11.21 kB │ gzip:  3.77 kB
 dist/assets/MetaPageOverviewPage-BCQg72is.js             12.14 kB │ gzip:  4.19 kB
@@ -121,10 +130,12 @@ dist/assets/MetaCampaignOverviewPage-B7_wIP2I.js         13.16 kB │ gzip:  4.3
 ```
 
 ### `npm test -- --run` (full suite)
+
 ```
  Test Files  1 failed | 113 passed (114)
       Tests  1 failed | 628 passed (629)
 ```
+
 The single failure is `SavedDashboardPage.test.tsx > location-search href assertion`. Passes in isolation (`npx vitest run src/routes/__tests__/SavedDashboardPage.test.tsx` → 1/1 passed in 91ms) — pre-existing cross-file mock ordering flake documented in S1 closeout handoff #5. Not caused by S2b.
 
 ## Accessibility contract
@@ -137,7 +148,7 @@ The single failure is `SavedDashboardPage.test.tsx > location-search href assert
 ## Risks the follow-up sprint should know about
 
 1. The `insights` slice on `useMetaStore` is shared across `MetaAccountsPage` (S2a) and `MetaCampaignOverviewPage` (S2b). Setting `filters.level='campaign'` here changes the level globally; navigating between the two pages will refetch with the appropriate level. If S2a already forces `filters.level='account'` on its mount effect, the two effects reconcile via their own mount-side `setFilters` calls. No known race observed locally.
-2. `MetaPostDetailPage` sparkline only renders on the active metric tile — intentional per architect §4.7, but it can surprise users who expect all four tiles to trend. Consider a short "showing trend for *N*" hint in a follow-up polish pass.
+2. `MetaPostDetailPage` sparkline only renders on the active metric tile — intentional per architect §4.7, but it can surprise users who expect all four tiles to trend. Consider a short "showing trend for _N_" hint in a follow-up polish pass.
 3. The pre-existing `SavedDashboardPage` full-suite-only flake remains. Suggest isolating that test's mocks before re-enabling coverage gates.
 
 ## Verdict

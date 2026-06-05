@@ -11,33 +11,108 @@ const authMock = vi.hoisted(() => ({
 
 const mockDemographics = vi.hoisted(() => ({
   byAge: [
-    { ageRange: '25-34', spend: 1000, impressions: 50000, clicks: 2000, conversions: 100, reach: 30000 },
-    { ageRange: '35-44', spend: 800, impressions: 40000, clicks: 1500, conversions: 80, reach: 25000 },
+    {
+      ageRange: '25-34',
+      spend: 1000,
+      impressions: 50000,
+      clicks: 2000,
+      conversions: 100,
+      reach: 30000,
+    },
+    {
+      ageRange: '35-44',
+      spend: 800,
+      impressions: 40000,
+      clicks: 1500,
+      conversions: 80,
+      reach: 25000,
+    },
   ],
   byGender: [
-    { gender: 'female', spend: 1200, impressions: 60000, clicks: 2400, conversions: 120, reach: 36000 },
+    {
+      gender: 'female',
+      spend: 1200,
+      impressions: 60000,
+      clicks: 2400,
+      conversions: 120,
+      reach: 36000,
+    },
     { gender: 'male', spend: 600, impressions: 30000, clicks: 1100, conversions: 60, reach: 19000 },
   ],
   byAgeGender: [
-    { ageRange: '25-34', gender: 'female', spend: 600, impressions: 30000, clicks: 1200, conversions: 60, reach: 18000 },
-    { ageRange: '25-34', gender: 'male', spend: 400, impressions: 20000, clicks: 800, conversions: 40, reach: 12000 },
-    { ageRange: '35-44', gender: 'female', spend: 600, impressions: 30000, clicks: 1200, conversions: 60, reach: 18000 },
-    { ageRange: '35-44', gender: 'male', spend: 200, impressions: 10000, clicks: 300, conversions: 20, reach: 7000 },
+    {
+      ageRange: '25-34',
+      gender: 'female',
+      spend: 600,
+      impressions: 30000,
+      clicks: 1200,
+      conversions: 60,
+      reach: 18000,
+    },
+    {
+      ageRange: '25-34',
+      gender: 'male',
+      spend: 400,
+      impressions: 20000,
+      clicks: 800,
+      conversions: 40,
+      reach: 12000,
+    },
+    {
+      ageRange: '35-44',
+      gender: 'female',
+      spend: 600,
+      impressions: 30000,
+      clicks: 1200,
+      conversions: 60,
+      reach: 18000,
+    },
+    {
+      ageRange: '35-44',
+      gender: 'male',
+      spend: 200,
+      impressions: 10000,
+      clicks: 300,
+      conversions: 20,
+      reach: 7000,
+    },
   ],
 }));
 
 const mockPlatforms = vi.hoisted(() => ({
   byPlatform: [],
   byDevice: [
-    { device: 'mobile', spend: 400, impressions: 80000, clicks: 1800, conversions: 60, reach: 40000 },
-    { device: 'desktop', spend: 250, impressions: 35000, clicks: 700, conversions: 20, reach: 20000 },
+    {
+      device: 'mobile',
+      spend: 400,
+      impressions: 80000,
+      clicks: 1800,
+      conversions: 60,
+      reach: 40000,
+    },
+    {
+      device: 'desktop',
+      spend: 250,
+      impressions: 35000,
+      clicks: 700,
+      conversions: 20,
+      reach: 20000,
+    },
   ],
   byPlatformDevice: [],
 }));
 
 const dashboardStoreMock = vi.hoisted(() => ({
-  demographics: { status: 'loaded' as string, data: mockDemographics as unknown, error: undefined as string | undefined },
-  platforms: { status: 'loaded' as string, data: mockPlatforms as unknown, error: undefined as string | undefined },
+  demographics: {
+    status: 'loaded' as string,
+    data: mockDemographics as unknown,
+    error: undefined as string | undefined,
+  },
+  platforms: {
+    status: 'loaded' as string,
+    data: mockPlatforms as unknown,
+    error: undefined as string | undefined,
+  },
   loadAll: vi.fn(),
   lastSnapshotGeneratedAt: undefined as string | undefined,
 }));
@@ -107,7 +182,10 @@ vi.mock('../../components/Skeleton', () => ({
 vi.mock('../../components/ui/Card', () => ({
   __esModule: true,
   default: ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div><h2>{title}</h2>{children}</div>
+    <div>
+      <h2>{title}</h2>
+      {children}
+    </div>
   ),
 }));
 
@@ -137,7 +215,11 @@ vi.mock('../../components/viz', async () => {
 describe('AudienceDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    dashboardStoreMock.demographics = { status: 'loaded', data: mockDemographics, error: undefined };
+    dashboardStoreMock.demographics = {
+      status: 'loaded',
+      data: mockDemographics,
+      error: undefined,
+    };
     dashboardStoreMock.platforms = { status: 'loaded', data: mockPlatforms, error: undefined };
     dashboardStoreMock.lastSnapshotGeneratedAt = undefined;
     datasetStoreMock.mode = 'dummy';

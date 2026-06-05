@@ -2,30 +2,32 @@
 
 ## Files Modified
 
-| File | Change summary |
-|------|---------------|
-| `frontend/src/routes/DashboardLayout.tsx` | Removed `/dashboards/google-ads` from `hideGlobalFilters` predicate (line 196-203 → now 3-path rule). **+0 / -1 logical line** |
-| `frontend/src/components/google-ads/workspace/WorkspaceHeader.tsx` | Removed the plain-text Account ID `<input>` (lines 68-77 deleted). **-10 lines** |
-| `frontend/src/components/google-ads/workspace/types.ts` | Added optional `clientId?: string` field to `WorkspaceFilters`. **+2 lines** |
-| `frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx` | Added `EmptyState` import; subscribed to `useDashboardStore` for `globalAccountId` / `globalClientId`; unified `filters` object so store values override URL; removed stale B2 seed effect; added early-return empty state when `hasNoCustomer`. **+30 / -10 lines** |
-| `frontend/src/hooks/useGoogleAdsWorkspaceData.ts` | Added `clientId?` to `WorkspaceFilters`; added `client_id` to `buildCommonParams`; included `clientId` in `filterKey`. **+4 lines** |
+| File                                                               | Change summary                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend/src/routes/DashboardLayout.tsx`                          | Removed `/dashboards/google-ads` from `hideGlobalFilters` predicate (line 196-203 → now 3-path rule). **+0 / -1 logical line**                                                                                                                                       |
+| `frontend/src/components/google-ads/workspace/WorkspaceHeader.tsx` | Removed the plain-text Account ID `<input>` (lines 68-77 deleted). **-10 lines**                                                                                                                                                                                     |
+| `frontend/src/components/google-ads/workspace/types.ts`            | Added optional `clientId?: string` field to `WorkspaceFilters`. **+2 lines**                                                                                                                                                                                         |
+| `frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx`        | Added `EmptyState` import; subscribed to `useDashboardStore` for `globalAccountId` / `globalClientId`; unified `filters` object so store values override URL; removed stale B2 seed effect; added early-return empty state when `hasNoCustomer`. **+30 / -10 lines** |
+| `frontend/src/hooks/useGoogleAdsWorkspaceData.ts`                  | Added `clientId?` to `WorkspaceFilters`; added `client_id` to `buildCommonParams`; included `clientId` in `filterKey`. **+4 lines**                                                                                                                                  |
 
 ## Tests Added
 
 ### `frontend/src/routes/google-ads/__tests__/GoogleAdsWorkspacePage.test.tsx`
+
 Added `useDashboardStore` mock + 3 new test cases:
+
 1. **reads customer from useDashboardStore** — verifies hook is called with `customerId: 'test-customer-123'` from store (not URL)
 2. **shows empty state when store has no accountId and no clientId** — verifies `data-reason-code="no_customer_selected"` EmptyState renders
 3. **hook receives customer_id from store when store has accountId** — verifies `filters.customerId` comes from store on the campaigns tab
 
 ### `frontend/src/routes/__tests__/DashboardLayout.test.tsx`
-Added 2 new test cases:
-4. **renders global FilterBar on /dashboards/google-ads route (not hidden)** — asserts `data-testid="filter-bar"` is present
-5. **hides global FilterBar on /dashboards/meta/pages route** — regression guard for legitimate hides
+
+Added 2 new test cases: 4. **renders global FilterBar on /dashboards/google-ads route (not hidden)** — asserts `data-testid="filter-bar"` is present 5. **hides global FilterBar on /dashboards/meta/pages route** — regression guard for legitimate hides
 
 ## Test Results
 
 ### Targeted suite (all relevant files)
+
 ```
 cd frontend && npx vitest run DashboardLayout.test.tsx GoogleAdsWorkspacePage.test.tsx FilterBar.test.tsx dashboardFilters.test.ts
 
@@ -33,6 +35,7 @@ Tests  58 passed (58)
 ```
 
 ### Frontend build
+
 ```
 cd frontend && npm run build
 
@@ -40,6 +43,7 @@ cd frontend && npm run build
 ```
 
 ### Frontend lint
+
 ```
 cd frontend && npm run lint
 
@@ -47,6 +51,7 @@ cd frontend && npm run lint
 ```
 
 ### Backend
+
 ```
 cd backend && pytest
 
@@ -54,6 +59,7 @@ cd backend && pytest
 ```
 
 ### Full frontend suite note
+
 The full `npm test -- --run` run shows pre-existing timeouts (DataSources.test.tsx scrollIntoView errors, and multiple test-file timeouts due to resource exhaustion in a single 364s run). These are identical to the failures present before B1 changes. The DataSources and other timeout failures are the same pre-existing issues documented in Phase A context.
 
 ## Manual Smoke Checklist

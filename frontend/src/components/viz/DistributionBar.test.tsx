@@ -17,9 +17,7 @@ describe('DistributionBar', () => {
   });
 
   it('renders a hidden accessible table with one row per datum', () => {
-    const { container } = render(
-      <DistributionBar data={data} ariaLabel="Spend by parish" />,
-    );
+    const { container } = render(<DistributionBar data={data} ariaLabel="Spend by parish" />);
     const table = container.querySelector('table.sr-only');
     expect(table).toBeInTheDocument();
     expect(table?.querySelectorAll('tbody tr').length).toBe(data.length);
@@ -29,36 +27,26 @@ describe('DistributionBar', () => {
     const { container } = render(
       <DistributionBar data={data} ariaLabel="Spend share" showPercent />,
     );
-    const headers = Array.from(
-      container.querySelectorAll('table.sr-only thead th'),
-    ).map((h) => h.textContent);
+    const headers = Array.from(container.querySelectorAll('table.sr-only thead th')).map(
+      (h) => h.textContent,
+    );
     expect(headers).toContain('Share');
   });
 
   it('renders skeleton when isLoading', () => {
-    const { container } = render(
-      <DistributionBar data={[]} ariaLabel="Spend" isLoading />,
-    );
+    const { container } = render(<DistributionBar data={[]} ariaLabel="Spend" isLoading />);
     expect(container.querySelector('.viz-chart-skeleton')).toBeInTheDocument();
   });
 
   it('renders EmptyState with reason code when data empty', () => {
     const { container } = render(
-      <DistributionBar
-        data={[]}
-        ariaLabel="Spend"
-        emptyReasonCode="no_data_for_range"
-      />,
+      <DistributionBar data={[]} ariaLabel="Spend" emptyReasonCode="no_data_for_range" />,
     );
-    expect(
-      container.querySelector('[data-reason-code="no_data_for_range"]'),
-    ).toBeInTheDocument();
+    expect(container.querySelector('[data-reason-code="no_data_for_range"]')).toBeInTheDocument();
   });
 
   it('has no a11y violations', async () => {
-    const { container } = render(
-      <DistributionBar data={data} ariaLabel="Spend by parish" />,
-    );
+    const { container } = render(<DistributionBar data={data} ariaLabel="Spend by parish" />);
     expect(await axe(container)).toHaveNoViolations();
   });
 

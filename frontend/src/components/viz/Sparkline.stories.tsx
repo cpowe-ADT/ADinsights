@@ -16,8 +16,7 @@ export default meta;
 
 type Story = StoryObj<typeof Sparkline>;
 
-const makeSeries = (values: number[]) =>
-  values.map((value, i) => ({ date: `d${i}`, value }));
+const makeSeries = (values: number[]) => values.map((value, i) => ({ date: `d${i}`, value }));
 
 export const Default: Story = {
   args: {
@@ -54,10 +53,7 @@ export const DarkTheme: Story = {
   },
   decorators: [
     (StoryComponent) => (
-      <div
-        data-theme="dark"
-        style={{ background: 'var(--color-surface-card)', padding: 16 }}
-      >
+      <div data-theme="dark" style={{ background: 'var(--color-surface-card)', padding: 16 }}>
         <StoryComponent />
       </div>
     ),

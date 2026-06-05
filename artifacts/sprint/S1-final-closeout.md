@@ -8,20 +8,20 @@ Sprint 1 delivered a fully-typed, a11y-tested, Storybook-documented shared viz k
 
 ## Component register — shipped state
 
-| Component | File | Built by | Tests | Story |
-|---|---|---|---|---|
-| `KpiTile` | `viz/KpiTile.tsx` | S1b | ✅ | ✅ |
-| `TrendLine` | `viz/TrendLine.tsx` | S1a | ✅ | ✅ |
-| `Sparkline` | `viz/Sparkline.tsx` | S1a | ✅ | ✅ |
-| `DistributionBar` | `viz/DistributionBar.tsx` | S1a | ✅ | ✅ |
-| `BubbleScatter` | `viz/BubbleScatter.tsx` | S1a | ✅ | ✅ |
-| `PieComposition` | `viz/PieComposition.tsx` | S1a | ✅ | ✅ |
-| `VizDataTable` | `viz/DataTable.tsx` | S1b | ✅ | ✅ |
-| `EmptyState` | `components/EmptyState.tsx` (re-export) | pre-existing | ✅ | ✅ |
-| `ChartSkeleton` | `viz/ChartSkeleton.tsx` | S1a | ✅ | ✅ |
-| `AccessibleTableToggle` | `viz/AccessibleTableToggle.tsx` | S1b | ✅ | ✅ |
-| `PeerAvgLine` (sub-component) | `viz/PeerAvgLine.tsx` | S1a | via TrendLine | via TrendLine.WithPeerAvg |
-| `VizEmptyIcon` (internal) | `viz/VizEmptyIcon.tsx` | S1a | — | — |
+| Component                     | File                                    | Built by     | Tests         | Story                     |
+| ----------------------------- | --------------------------------------- | ------------ | ------------- | ------------------------- |
+| `KpiTile`                     | `viz/KpiTile.tsx`                       | S1b          | ✅            | ✅                        |
+| `TrendLine`                   | `viz/TrendLine.tsx`                     | S1a          | ✅            | ✅                        |
+| `Sparkline`                   | `viz/Sparkline.tsx`                     | S1a          | ✅            | ✅                        |
+| `DistributionBar`             | `viz/DistributionBar.tsx`               | S1a          | ✅            | ✅                        |
+| `BubbleScatter`               | `viz/BubbleScatter.tsx`                 | S1a          | ✅            | ✅                        |
+| `PieComposition`              | `viz/PieComposition.tsx`                | S1a          | ✅            | ✅                        |
+| `VizDataTable`                | `viz/DataTable.tsx`                     | S1b          | ✅            | ✅                        |
+| `EmptyState`                  | `components/EmptyState.tsx` (re-export) | pre-existing | ✅            | ✅                        |
+| `ChartSkeleton`               | `viz/ChartSkeleton.tsx`                 | S1a          | ✅            | ✅                        |
+| `AccessibleTableToggle`       | `viz/AccessibleTableToggle.tsx`         | S1b          | ✅            | ✅                        |
+| `PeerAvgLine` (sub-component) | `viz/PeerAvgLine.tsx`                   | S1a          | via TrendLine | via TrendLine.WithPeerAvg |
+| `VizEmptyIcon` (internal)     | `viz/VizEmptyIcon.tsx`                  | S1a          | —             | —                         |
 
 ## Supporting deliverables
 
@@ -33,23 +33,23 @@ Sprint 1 delivered a fully-typed, a11y-tested, Storybook-documented shared viz k
 
 ## Final test matrix (run after all three agents landed)
 
-| Gate | Command | Result |
-|---|---|---|
-| Frontend lint | `cd frontend && npm run lint` | **clean** |
-| Frontend build | `cd frontend && npm run build` | **✓ built in 5.57s** |
+| Gate                   | Command                            | Result                               |
+| ---------------------- | ---------------------------------- | ------------------------------------ |
+| Frontend lint          | `cd frontend && npm run lint`      | **clean**                            |
+| Frontend build         | `cd frontend && npm run build`     | **✓ built in 5.57s**                 |
 | Frontend vitest (full) | `cd frontend && npm test -- --run` | **597 passed / 597** (113/113 files) |
-| Backend pytest (full) | `cd backend && pytest` | **727 passed, 1 skipped** |
-| Backend ruff | `ruff check backend` | **All checks passed!** |
+| Backend pytest (full)  | `cd backend && pytest`             | **727 passed, 1 skipped**            |
+| Backend ruff           | `ruff check backend`               | **All checks passed!**               |
 
 Storybook also builds cleanly (confirmed by S1c: `✓ built in 18.26s`, addon-a11y axe bundle confirmed at 572 kB).
 
 ## Frontend test delta across the whole session
 
-| Snapshot | Pass | Fail | Note |
-|---|---|---|---|
-| Pre-sprint (C4 closeout) | 514 | 14 | DataSources scrollIntoView cascade |
-| After scrollIntoView polyfill | 527 | 1 | SavedDashboardPage assertion drift |
-| After S1 viz kit | **597** | **0** | +70 new tests, remaining drift cleared |
+| Snapshot                      | Pass    | Fail  | Note                                   |
+| ----------------------------- | ------- | ----- | -------------------------------------- |
+| Pre-sprint (C4 closeout)      | 514     | 14    | DataSources scrollIntoView cascade     |
+| After scrollIntoView polyfill | 527     | 1     | SavedDashboardPage assertion drift     |
+| After S1 viz kit              | **597** | **0** | +70 new tests, remaining drift cleared |
 
 ## Accessibility posture
 

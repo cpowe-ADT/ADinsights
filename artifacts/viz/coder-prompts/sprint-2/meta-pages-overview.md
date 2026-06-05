@@ -40,14 +40,21 @@ Two pages are covered here since they share a tight scope:
 ### MetaPageOverviewPage changes
 
 Response shape from `/api/integrations/pages/:pageId/overview/`:
+
 ```typescript
 {
-  kpis: Array<{ metric: string; value: number | null; today_value: number | null; prior_value: number | null; change_pct: number | null }>
-  daily_series: Record<string, Array<{ date: string; value: number }>>
-  engagement_breakdown: Record<string, Array<{ label: string; value: number }>>
-  date_preset: string
-  since: string
-  until: string
+  kpis: Array<{
+    metric: string;
+    value: number | null;
+    today_value: number | null;
+    prior_value: number | null;
+    change_pct: number | null;
+  }>;
+  daily_series: Record<string, Array<{ date: string; value: number }>>;
+  engagement_breakdown: Record<string, Array<{ label: string; value: number }>>;
+  date_preset: string;
+  since: string;
+  until: string;
 }
 ```
 
@@ -60,6 +67,7 @@ Response shape from `/api/integrations/pages/:pageId/overview/`:
 ## Design
 
 ### Pages list
+
 ```
 ┌──────────────────────────────────────────────────────────┐
 │ [Page Card]  [Page Card]  [Page Card]  [+ add more]      │
@@ -69,6 +77,7 @@ Response shape from `/api/integrations/pages/:pageId/overview/`:
 ```
 
 ### Page overview
+
 ```
 ┌────────────────────────────────────────────────────────┐
 │ [Followers] [Impressions] [Engaged] [Reach]             │  ← 4 KpiTiles
@@ -96,6 +105,7 @@ Response shape from `/api/integrations/pages/:pageId/overview/`:
 ## Test deltas
 
 `MetaPagesListPage.test.tsx`:
+
 ```typescript
 it('renders page cards', () => { ... })
 it('card click navigates to page overview', () => { ... })
@@ -107,6 +117,7 @@ it('shows EmptyState reasonCode="no_pages" when empty', () => { ... })
 ```
 
 `MetaPageOverviewPage.test.tsx`:
+
 ```typescript
 it('renders KpiTiles from kpis[]', () => { ... })
 it('renders TrendLine with daily_series data', () => { ... })

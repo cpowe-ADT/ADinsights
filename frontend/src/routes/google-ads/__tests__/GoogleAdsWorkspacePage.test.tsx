@@ -92,7 +92,9 @@ const summaryFixture = {
     active_recommendations: 5,
     disapproved_ads: 1,
   },
-  top_insights: [{ id: 'insight-1', title: 'ROAS up', detail: 'ROAS increased 18% week over week.' }],
+  top_insights: [
+    { id: 'insight-1', title: 'ROAS up', detail: 'ROAS increased 18% week over week.' },
+  ],
   workspace_generated_at: '2026-02-23T10:01:00Z',
 };
 
@@ -104,7 +106,11 @@ describe('GoogleAdsWorkspacePage', () => {
     fetchGoogleAdsSavedViewsMock.mockResolvedValue([]);
     createGoogleAdsSavedViewMock.mockResolvedValue({ id: 'view-1' });
     updateGoogleAdsSavedViewMock.mockResolvedValue({});
-    createGoogleAdsExportMock.mockResolvedValue({ id: 'job-1', status: 'queued', download_url: null });
+    createGoogleAdsExportMock.mockResolvedValue({
+      id: 'job-1',
+      status: 'queued',
+      download_url: null,
+    });
     googleAdsWorkspaceDataHookMock.mockReturnValue({
       summary: summaryFixture,
       summaryStatus: 'success',
@@ -120,7 +126,11 @@ describe('GoogleAdsWorkspacePage', () => {
     const user = userEvent.setup({ delay: null });
 
     render(
-      <MemoryRouter initialEntries={['/dashboards/google-ads?tab=overview&start_date=2026-02-01&end_date=2026-02-10']}>
+      <MemoryRouter
+        initialEntries={[
+          '/dashboards/google-ads?tab=overview&start_date=2026-02-01&end_date=2026-02-10',
+        ]}
+      >
         <Routes>
           <Route
             path="/dashboards/google-ads"
@@ -149,7 +159,9 @@ describe('GoogleAdsWorkspacePage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Search Terms' }));
     await waitFor(() => {
-      expect(screen.getByTestId('location-search').textContent).toContain('search_mode=search_terms');
+      expect(screen.getByTestId('location-search').textContent).toContain(
+        'search_mode=search_terms',
+      );
     });
   });
 
@@ -157,7 +169,11 @@ describe('GoogleAdsWorkspacePage', () => {
     const user = userEvent.setup({ delay: null });
 
     render(
-      <MemoryRouter initialEntries={['/dashboards/google-ads?tab=overview&start_date=2026-02-01&end_date=2026-02-10']}>
+      <MemoryRouter
+        initialEntries={[
+          '/dashboards/google-ads?tab=overview&start_date=2026-02-01&end_date=2026-02-10',
+        ]}
+      >
         <Routes>
           <Route
             path="/dashboards/google-ads"
@@ -191,7 +207,11 @@ describe('GoogleAdsWorkspacePage', () => {
     });
 
     render(
-      <MemoryRouter initialEntries={['/dashboards/google-ads?tab=overview&start_date=2026-02-01&end_date=2026-02-10']}>
+      <MemoryRouter
+        initialEntries={[
+          '/dashboards/google-ads?tab=overview&start_date=2026-02-01&end_date=2026-02-10',
+        ]}
+      >
         <Routes>
           <Route path="/dashboards/google-ads" element={<GoogleAdsWorkspacePage />} />
         </Routes>
@@ -228,7 +248,11 @@ describe('GoogleAdsWorkspacePage', () => {
 
   it('hook receives customer_id from store when store has accountId', () => {
     render(
-      <MemoryRouter initialEntries={['/dashboards/google-ads?tab=campaigns&start_date=2026-02-01&end_date=2026-02-10']}>
+      <MemoryRouter
+        initialEntries={[
+          '/dashboards/google-ads?tab=campaigns&start_date=2026-02-01&end_date=2026-02-10',
+        ]}
+      >
         <Routes>
           <Route path="/dashboards/google-ads" element={<GoogleAdsWorkspacePage />} />
         </Routes>
@@ -237,7 +261,10 @@ describe('GoogleAdsWorkspacePage', () => {
 
     // The hook is called with customerId from the global store, and activeTab 'campaigns'
     const calls = googleAdsWorkspaceDataHookMock.mock.calls;
-    const lastCall = calls[calls.length - 1][0] as { filters: { customerId: string }; activeTab: string };
+    const lastCall = calls[calls.length - 1][0] as {
+      filters: { customerId: string };
+      activeTab: string;
+    };
     expect(lastCall.filters.customerId).toBe('test-customer-123');
     expect(lastCall.activeTab).toBe('campaigns');
   });
@@ -260,7 +287,11 @@ describe('GoogleAdsWorkspacePage', () => {
     fetchGoogleAdsSavedViewsMock.mockResolvedValue([savedViewWithClientId]);
 
     render(
-      <MemoryRouter initialEntries={['/dashboards/google-ads?tab=overview&start_date=2026-02-01&end_date=2026-02-10']}>
+      <MemoryRouter
+        initialEntries={[
+          '/dashboards/google-ads?tab=overview&start_date=2026-02-01&end_date=2026-02-10',
+        ]}
+      >
         <Routes>
           <Route path="/dashboards/google-ads" element={<GoogleAdsWorkspacePage />} />
         </Routes>

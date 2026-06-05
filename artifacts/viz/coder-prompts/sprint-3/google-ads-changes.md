@@ -32,6 +32,7 @@ Two low-complexity tabs combined in one prompt (both are primarily tables with m
   - DataTable: Date/Time (formatted), User Email, Resource Type, Operation, Campaign ID (truncated), Changed Fields (truncated at 100 chars). No row click. CSV export filename `google-ads-changes`. Paginated (25 per page).
 
 - **Design**:
+
 ```
 ┌────────────────────────────────────────────────────────┐
 │ [Total Changes] [Last 7d]                              │  ← 2 KpiTiles
@@ -51,6 +52,7 @@ Two low-complexity tabs combined in one prompt (both are primarily tables with m
   - CSV export filename `google-ads-recommendations`.
 
 - **Design**:
+
 ```
 ┌────────────────────────────────────────────────────────┐
 │ [Active Recs] [Dismissed]                              │  ← 2 KpiTiles
@@ -74,6 +76,7 @@ Two low-complexity tabs combined in one prompt (both are primarily tables with m
 ## Test deltas
 
 Changes tab:
+
 ```typescript
 it('renders 2 KpiTiles for changes', () => { ... })
 it('renders DistributionBar for change types', () => { ... })
@@ -81,6 +84,7 @@ it('DataTable renders change log rows', () => { ... })
 ```
 
 Recommendations tab:
+
 ```typescript
 it('renders 2 KpiTiles for recommendations', () => { ... })
 it('renders PieComposition for rec types', () => { ... })

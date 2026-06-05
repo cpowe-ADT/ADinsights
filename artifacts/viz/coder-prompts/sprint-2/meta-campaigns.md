@@ -35,9 +35,17 @@ Since `FunnelChart` is not in Recharts 3.8.1, implement a custom stepped-bar fun
 // Funnel data: three bars, each sized proportionally to their value
 const funnelData = [
   { label: `Impressions`, value: metrics.impressions, color: chartPalette[0] },
-  { label: `Clicks (${clickRate}%)`, value: metrics.clicks, color: chartPalette[2] },
-  { label: `Conversions (${convRate}%)`, value: metrics.conversions, color: chartPalette[3] },
-]
+  {
+    label: `Clicks (${clickRate}%)`,
+    value: metrics.clicks,
+    color: chartPalette[2],
+  },
+  {
+    label: `Conversions (${convRate}%)`,
+    value: metrics.conversions,
+    color: chartPalette[3],
+  },
+];
 // Render as DistributionBar with layout="horizontal" — bars extend rightward from labels on Y axis.
 // The natural proportion of bar widths mimics funnel shape.
 ```

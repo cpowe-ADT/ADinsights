@@ -96,7 +96,12 @@ const MetaInsightsDashboardPage = () => {
 
   const kpiTiles: KpiTileProps[] = useMemo(() => {
     const tiles: KpiTileProps[] = [
-      { label: 'Spend', value: rows.length ? kpis.spend : null, format: 'currency', currency: 'USD' },
+      {
+        label: 'Spend',
+        value: rows.length ? kpis.spend : null,
+        format: 'currency',
+        currency: 'USD',
+      },
     ];
     if (roasAvailable) {
       tiles.push({ label: 'ROAS', value: roas, format: 'number', hint: 'Revenue / spend' });
@@ -203,11 +208,13 @@ const MetaInsightsDashboardPage = () => {
         addToast(
           payload.job_id
             ? `Meta sync is already running (job ${payload.job_id}).`
-            : 'Meta sync is already running.', 'success',
+            : 'Meta sync is already running.',
+          'success',
         );
       } else {
         addToast(
-          payload.job_id ? `Meta sync queued (job ${payload.job_id}).` : 'Meta sync triggered.', 'success',
+          payload.job_id ? `Meta sync queued (job ${payload.job_id}).` : 'Meta sync triggered.',
+          'success',
         );
       }
       await Promise.all([loadAccounts(), loadInsights()]);
@@ -437,9 +444,7 @@ const MetaInsightsDashboardPage = () => {
                   zFormat="number"
                   currency="USD"
                   ariaLabel={
-                    roasAvailable
-                      ? 'Spend versus ROAS by campaign'
-                      : 'Spend versus CPM by campaign'
+                    roasAvailable ? 'Spend versus ROAS by campaign' : 'Spend versus CPM by campaign'
                   }
                 />
               }
@@ -483,11 +488,7 @@ const MetaInsightsDashboardPage = () => {
           {/* Data table */}
           <article className="panel">
             <h3>Insights records ({insights.count})</h3>
-            <VizDataTable
-              columns={tableColumns}
-              data={tableRows}
-              ariaLabel="Top campaigns table"
-            />
+            <VizDataTable columns={tableColumns} data={tableRows} ariaLabel="Top campaigns table" />
           </article>
         </>
       ) : null}

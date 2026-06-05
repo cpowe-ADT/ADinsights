@@ -2,7 +2,7 @@
 
 **Sprint:** 4
 **Estimated size:** S
-**Depends on:** sprint-1/* (all kit components)
+**Depends on:** sprint-1/\* (all kit components)
 **Blocks:** none
 **Role needed:** frontend-engineer
 
@@ -14,27 +14,29 @@
 
 - `frontend/src/routes/GoogleAnalyticsDashboardPage.tsx`: existing file.
 - GA4 response shape:
+
 ```typescript
 {
-  source: 'ga4'
-  status: 'ok'
-  count: number
+  source: 'ga4';
+  status: 'ok';
+  count: number;
   rows: Array<{
-    date_day: string       // 'YYYY-MM-DD'
-    property_id: string
-    channel_group: string  // 'Organic Search' | 'Direct' | 'Paid Social' | 'Email' | etc.
-    country: string
-    city: string
-    campaign_name: string | null
-    sessions: number
-    engaged_sessions: number
-    conversions: number
-    purchase_revenue: number
-    engagement_rate: number
-    conversion_rate: number
-  }>
+    date_day: string; // 'YYYY-MM-DD'
+    property_id: string;
+    channel_group: string; // 'Organic Search' | 'Direct' | 'Paid Social' | 'Email' | etc.
+    country: string;
+    city: string;
+    campaign_name: string | null;
+    sessions: number;
+    engaged_sessions: number;
+    conversions: number;
+    purchase_revenue: number;
+    engagement_rate: number;
+    conversion_rate: number;
+  }>;
 }
 ```
+
 - All Sprint 1 viz components.
 
 ## Deliverable

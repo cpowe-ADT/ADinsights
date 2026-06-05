@@ -51,9 +51,7 @@ describe('clients API client', () => {
     it('calls GET /clients/ with serialized filters', async () => {
       apiMock.get.mockResolvedValue({ count: 0, results: [] });
       await listClients({ search: 'bank', active: true, page_size: 50 });
-      expect(apiMock.get).toHaveBeenCalledWith(
-        '/clients/?search=bank&active=true&page_size=50',
-      );
+      expect(apiMock.get).toHaveBeenCalledWith('/clients/?search=bank&active=true&page_size=50');
     });
 
     it('omits empty query params', async () => {
@@ -208,28 +206,21 @@ describe('clients API client', () => {
         snapshot: { id: 's1', suggestion_count: 1 },
       });
       await acknowledgeClientSuggestionSnapshot();
-      expect(apiMock.post).toHaveBeenCalledWith(
-        '/clients/suggestions/latest/acknowledge/',
-        {},
-      );
+      expect(apiMock.post).toHaveBeenCalledWith('/clients/suggestions/latest/acknowledge/', {});
     });
 
     it('refreshClientSuggestionSnapshot forwards threshold', async () => {
       apiMock.post.mockResolvedValue({ status: 'enqueued', threshold: 0.6 });
       await refreshClientSuggestionSnapshot(0.6);
-      expect(apiMock.post).toHaveBeenCalledWith(
-        '/clients/suggestions/latest/refresh/',
-        { threshold: 0.6 },
-      );
+      expect(apiMock.post).toHaveBeenCalledWith('/clients/suggestions/latest/refresh/', {
+        threshold: 0.6,
+      });
     });
 
     it('refreshClientSuggestionSnapshot sends empty body when threshold omitted', async () => {
       apiMock.post.mockResolvedValue({ status: 'enqueued', threshold: 0.7 });
       await refreshClientSuggestionSnapshot();
-      expect(apiMock.post).toHaveBeenCalledWith(
-        '/clients/suggestions/latest/refresh/',
-        {},
-      );
+      expect(apiMock.post).toHaveBeenCalledWith('/clients/suggestions/latest/refresh/', {});
     });
   });
 });

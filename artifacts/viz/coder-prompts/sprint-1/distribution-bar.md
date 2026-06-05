@@ -24,30 +24,31 @@
   - `frontend/src/components/viz/__tests__/DistributionBar.test.tsx` (create)
 
 - **Props API**:
+
 ```typescript
-type ChartValueType = 'currency' | 'number' | 'percent' | 'rate'
-type BarLayout = 'horizontal' | 'vertical'   // default: 'horizontal' — bars extend right
+type ChartValueType = 'currency' | 'number' | 'percent' | 'rate';
+type BarLayout = 'horizontal' | 'vertical'; // default: 'horizontal' — bars extend right
 
 interface DistributionBarSeries {
-  key: string
-  label: string
-  color: string
+  key: string;
+  label: string;
+  color: string;
 }
 
 interface DistributionBarProps {
   // Simple mode: one value per category
-  data: Array<{ label: string; value: number; color?: string }>
+  data: Array<{ label: string; value: number; color?: string }>;
   // Paired mode: pass series array + data with multiple keys
-  series?: DistributionBarSeries[]    // if provided, renders grouped bars
-  layout?: BarLayout
-  showPercent?: boolean    // show % label on each bar
-  yFormat?: ChartValueType
-  currency?: string
-  height?: number          // default: 200
-  maxItems?: number        // trim to top N items, default: no limit
-  isLoading?: boolean
-  emptyReasonCode?: string
-  className?: string
+  series?: DistributionBarSeries[]; // if provided, renders grouped bars
+  layout?: BarLayout;
+  showPercent?: boolean; // show % label on each bar
+  yFormat?: ChartValueType;
+  currency?: string;
+  height?: number; // default: 200
+  maxItems?: number; // trim to top N items, default: no limit
+  isLoading?: boolean;
+  emptyReasonCode?: string;
+  className?: string;
 }
 ```
 
@@ -64,6 +65,7 @@ interface DistributionBarProps {
 ## Design
 
 Recharts primitives:
+
 ```tsx
 // Simple mode
 <BarChart data={data} layout={layout === 'horizontal' ? 'vertical' : 'horizontal'}>

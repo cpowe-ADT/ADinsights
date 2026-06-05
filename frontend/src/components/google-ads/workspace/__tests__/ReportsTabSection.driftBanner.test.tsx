@@ -67,11 +67,7 @@ describe('ReportsTabSection — GA-B2 drift banner', () => {
   });
 
   it('no banner when all saved views verify clean', async () => {
-    const views = [
-      savedView('v1', 'Alpha'),
-      savedView('v2', 'Beta'),
-      savedView('v3', 'Gamma'),
-    ];
+    const views = [savedView('v1', 'Alpha'), savedView('v2', 'Beta'), savedView('v3', 'Gamma')];
     googleAdsDashboardMock.verifyGoogleAdsSavedView.mockImplementation((id: string) =>
       Promise.resolve(cleanVerify(id, id.toUpperCase())),
     );
@@ -90,11 +86,7 @@ describe('ReportsTabSection — GA-B2 drift banner', () => {
   });
 
   it('renders banner with drift count when 1+ views drift', async () => {
-    const views = [
-      savedView('v1', 'Alpha'),
-      savedView('v2', 'Beta'),
-      savedView('v3', 'Gamma'),
-    ];
+    const views = [savedView('v1', 'Alpha'), savedView('v2', 'Beta'), savedView('v3', 'Gamma')];
     googleAdsDashboardMock.verifyGoogleAdsSavedView.mockImplementation((id: string) => {
       if (id === 'v2') {
         return Promise.resolve(driftVerify(id, 'Beta'));
@@ -112,9 +104,7 @@ describe('ReportsTabSection — GA-B2 drift banner', () => {
 
   it('banner dismissible', async () => {
     const views = [savedView('v1', 'Alpha')];
-    googleAdsDashboardMock.verifyGoogleAdsSavedView.mockResolvedValue(
-      driftVerify('v1', 'Alpha'),
-    );
+    googleAdsDashboardMock.verifyGoogleAdsSavedView.mockResolvedValue(driftVerify('v1', 'Alpha'));
 
     const user = userEvent.setup();
     render(<ReportsTabSection initialSavedViews={views} />);

@@ -27,14 +27,7 @@ describe('CampaignsTabSection — integration', () => {
   };
 
   it('renders loading state', () => {
-    render(
-      <CampaignsTabSection
-        data={null}
-        status="loading"
-        error=""
-        {...baseProps}
-      />,
-    );
+    render(<CampaignsTabSection data={null} status="loading" error="" {...baseProps} />);
     expect(screen.getByText('Loading campaigns...')).toBeInTheDocument();
   });
 
@@ -55,17 +48,8 @@ describe('CampaignsTabSection — integration', () => {
       count: 1,
       results: [makeRow()],
     };
-    render(
-      <CampaignsTabSection
-        data={payload}
-        status="success"
-        error=""
-        {...baseProps}
-      />,
-    );
-    expect(
-      screen.getByTestId('google-ads-campaigns-section'),
-    ).toBeInTheDocument();
+    render(<CampaignsTabSection data={payload} status="success" error="" {...baseProps} />);
+    expect(screen.getByTestId('google-ads-campaigns-section')).toBeInTheDocument();
     expect(
       screen.getByRole('button', {
         name: /Open campaign details for Brand Always-On/,

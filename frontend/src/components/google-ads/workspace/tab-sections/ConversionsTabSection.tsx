@@ -54,10 +54,7 @@ const ConversionsTabSection = ({ data, status, error, summary }: Props) => {
   );
 
   const kpis = useMemo(() => rollupConversionKpis(rows), [rows]);
-  const funnelStages = useMemo(
-    () => buildFunnelStages(summary?.metrics),
-    [summary?.metrics],
-  );
+  const funnelStages = useMemo(() => buildFunnelStages(summary?.metrics), [summary?.metrics]);
   const sourceMix = useMemo(() => buildConvActionPie(rows), [rows]);
 
   if (status === 'loading' && rows.length === 0) {
@@ -85,10 +82,7 @@ const ConversionsTabSection = ({ data, status, error, summary }: Props) => {
   }
 
   return (
-    <div
-      className="gads-workspace__tab-grid"
-      data-testid="google-ads-conversions-section"
-    >
+    <div className="gads-workspace__tab-grid" data-testid="google-ads-conversions-section">
       <section className="panel">
         <h2>Conversion KPIs</h2>
         <div
@@ -96,31 +90,17 @@ const ConversionsTabSection = ({ data, status, error, summary }: Props) => {
           role="list"
           aria-label="Google Ads conversion KPIs"
         >
-          <KpiTile
-            label="Total Conversions"
-            value={kpis.totalConversions}
-            format="number"
-          />
-          <KpiTile
-            label="Total Value"
-            value={kpis.totalValue}
-            format="currency"
-            currency="JMD"
-          />
-          <KpiTile
-            label="Avg CPA"
-            value={kpis.avgCpa}
-            format="currency"
-            currency="JMD"
-          />
+          <KpiTile label="Total Conversions" value={kpis.totalConversions} format="number" />
+          <KpiTile label="Total Value" value={kpis.totalValue} format="currency" currency="JMD" />
+          <KpiTile label="Avg CPA" value={kpis.avgCpa} format="currency" currency="JMD" />
         </div>
       </section>
 
       <section className="panel">
         <h2>Funnel: Impressions → Clicks → Conversions</h2>
         <p className="dashboardSubtitle">
-          Stage order is preserved. Rendered via the shared DistributionBar
-          primitive (Sprint 2 Meta Campaigns precedent).
+          Stage order is preserved. Rendered via the shared DistributionBar primitive (Sprint 2 Meta
+          Campaigns precedent).
         </p>
         <DistributionBar
           data={funnelStages}
@@ -166,22 +146,15 @@ const ConversionsTabSection = ({ data, status, error, summary }: Props) => {
               {rows.map((row, idx) => {
                 const key = String(row.conversion_action_id ?? `row-${idx}`);
                 return (
-                  <tr
-                    key={key}
-                    className="dashboard-table__row dashboard-table__row--zebra"
-                  >
-                    <td className="dashboard-table__cell">
-                      {row.conversion_action_name ?? '—'}
-                    </td>
+                  <tr key={key} className="dashboard-table__row dashboard-table__row--zebra">
+                    <td className="dashboard-table__cell">{row.conversion_action_name ?? '—'}</td>
                     <td className="dashboard-table__cell">
                       {Number(row.conversions ?? 0).toFixed(2)}
                     </td>
                     <td className="dashboard-table__cell">
                       {Number(row.value ?? row.conversion_value ?? 0).toFixed(2)}
                     </td>
-                    <td className="dashboard-table__cell">
-                      {Number(row.cpa ?? 0).toFixed(2)}
-                    </td>
+                    <td className="dashboard-table__cell">{Number(row.cpa ?? 0).toFixed(2)}</td>
                   </tr>
                 );
               })}

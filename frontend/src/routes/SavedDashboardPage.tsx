@@ -2,10 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
-import {
-  getDashboardDefinition,
-  type DashboardDefinition,
-} from '../lib/phase2Api';
+import { getDashboardDefinition, type DashboardDefinition } from '../lib/phase2Api';
 import {
   createDefaultFilterState,
   serializeFilterQueryParams,
@@ -94,9 +91,7 @@ function renderTemplate(templateKey: DashboardDefinition['template_key']) {
 const SlotBody = ({ slot }: { slot: SlotConfig }) => {
   return (
     <div className="saved-dashboard-slot__body" data-slot-kind={slot.kind}>
-      <p className="muted">
-        Slot &quot;{slot.kind}&quot; — renderer pending.
-      </p>
+      <p className="muted">Slot &quot;{slot.kind}&quot; — renderer pending.</p>
     </div>
   );
 };
@@ -181,7 +176,9 @@ const SavedDashboardPage = () => {
         if (controller.signal.aborted) {
           return;
         }
-        setError(loadError instanceof Error ? loadError.message : 'Unable to load saved dashboard.');
+        setError(
+          loadError instanceof Error ? loadError.message : 'Unable to load saved dashboard.',
+        );
         setStatus('error');
       });
 
@@ -246,9 +243,7 @@ const SavedDashboardPage = () => {
               Back to library
             </Link>
           </div>
-          <p className="muted">
-            {dashboard.description || template.subtitle}
-          </p>
+          <p className="muted">{dashboard.description || template.subtitle}</p>
         </header>
       </section>
       {renderTemplateBody(template, dashboard.template_key)}

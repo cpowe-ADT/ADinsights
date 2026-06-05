@@ -1,6 +1,13 @@
 {
-  "counts": {"common": 0, "enums": 0, "errors": 0, "misc": 0, "resources": 0, "services": 0},
-  "sections": {"common": [], "enums": [], "errors": [], "misc": [], "resources": [], "services": []},
+  "counts": { "common": 0, "enums": 0, "errors": 0, "misc": 0, "resources": 0, "services": 0 },
+  "sections": {
+    "common": [],
+    "enums": [],
+    "errors": [],
+    "misc": [],
+    "resources": [],
+    "services": []
+  },
   "total_entries": 0,
   "version": "v23"
 }

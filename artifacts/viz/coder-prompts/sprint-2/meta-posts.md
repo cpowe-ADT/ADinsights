@@ -25,35 +25,36 @@
 - **Data binding**:
 
 Response from `GET /api/integrations/pages/:pageId/posts/`:
+
 ```typescript
 {
   results: Array<{
-    post_id: string
-    created_time: string    // ISO timestamp
-    media_type: string      // 'PHOTO' | 'VIDEO' | 'LINK' | 'STATUS' | 'REEL'
-    message: string | null
-    thumbnail_url: string | null
+    post_id: string;
+    created_time: string; // ISO timestamp
+    media_type: string; // 'PHOTO' | 'VIDEO' | 'LINK' | 'STATUS' | 'REEL'
+    message: string | null;
+    thumbnail_url: string | null;
     metrics: {
-      post_impressions?: number
-      post_reach?: number
-      post_engaged_users?: number
-      post_reactions_like_total?: number
-      post_clicks?: number
-      shares?: number
-    }
-  }>
-  page_id: string
-  since: string
-  until: string
-  total_count: number
-  page: number
-  page_size: number
+      post_impressions?: number;
+      post_reach?: number;
+      post_engaged_users?: number;
+      post_reactions_like_total?: number;
+      post_clicks?: number;
+      shares?: number;
+    };
+  }>;
+  page_id: string;
+  since: string;
+  until: string;
+  total_count: number;
+  page: number;
+  page_size: number;
 }
 ```
 
-  - KPI strip (3 tiles): Total Posts = `total_count`; Avg Reach = mean of `results[].metrics.post_reach` (filter out null); Avg Engagement = mean of `results[].metrics.post_engaged_users`.
-  - PieComposition: group `results[]` by `media_type`, count per type. Data: `[{ label: 'Photo', value: N }, ...]`.
-  - DataTable: columns — Thumbnail (render as `<img>` cell, 40×40px, fallback to media_type icon), Message (truncated at 80 chars), Created (formatted date), Reach, Reactions, Shares, Media Type. `onRowClick` → navigate to `/dashboards/meta/posts/{post_id}`.
+- KPI strip (3 tiles): Total Posts = `total_count`; Avg Reach = mean of `results[].metrics.post_reach` (filter out null); Avg Engagement = mean of `results[].metrics.post_engaged_users`.
+- PieComposition: group `results[]` by `media_type`, count per type. Data: `[{ label: 'Photo', value: N }, ...]`.
+- DataTable: columns — Thumbnail (render as `<img>` cell, 40×40px, fallback to media_type icon), Message (truncated at 80 chars), Created (formatted date), Reach, Reactions, Shares, Media Type. `onRowClick` → navigate to `/dashboards/meta/posts/{post_id}`.
 
 - **Pagination**: The endpoint is server-paginated (`page`, `page_size`). `DataTable` must trigger a new fetch when page changes. Pass `onPageChange(page: number)` callback to `DataTable` (add this optional prop to `DataTable` if not already there). On page change, call the store's loadPosts action with the new page number.
 
@@ -92,6 +93,7 @@ Response from `GET /api/integrations/pages/:pageId/posts/`:
 ## Test deltas
 
 `MetaPagePostsPage.test.tsx`:
+
 ```typescript
 it('renders 3 KpiTiles', () => { ... })
 it('renders PieComposition for post type mix', () => { ... })

@@ -19,24 +19,18 @@ describe('KpiTile', () => {
   });
 
   it('renders a delta with aria-label describing direction', () => {
-    render(
-      <KpiTile label="Conversions" value={100} format="number" change={0.123} />,
-    );
+    render(<KpiTile label="Conversions" value={100} format="number" change={0.123} />);
     const delta = screen.getByLabelText(/increased by/i);
     expect(delta).toBeInTheDocument();
   });
 
   it('renders decreased aria-label for negative change', () => {
-    render(
-      <KpiTile label="CTR" value={0.04} format="percent" change={-0.05} />,
-    );
+    render(<KpiTile label="CTR" value={0.04} format="percent" change={-0.05} />);
     expect(screen.getByLabelText(/decreased by/i)).toBeInTheDocument();
   });
 
   it('renders the skeleton when isLoading', () => {
-    const { container } = render(
-      <KpiTile label="Spend" value={null} isLoading />,
-    );
+    const { container } = render(<KpiTile label="Spend" value={null} isLoading />);
     const article = container.querySelector('article');
     expect(article).toHaveAttribute('aria-busy', 'true');
     expect(container.querySelector('.kpi-tile__skeleton')).toBeInTheDocument();
@@ -67,9 +61,7 @@ describe('KpiTile', () => {
   });
 
   it('has no a11y violations in loading state', async () => {
-    const { container } = render(
-      <KpiTile label="Spend" value={null} isLoading />,
-    );
+    const { container } = render(<KpiTile label="Spend" value={null} isLoading />);
     expect(await axe(container)).toHaveNoViolations();
   });
 });

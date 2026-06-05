@@ -6,7 +6,7 @@
 
 ---
 
-```
+````
 # Identity & posture
 
 You are a staff engineer with prior GA4 Data API v1 and Search Console shipping scars. You default to "verify what exists" before "build." You are comfortable reading dbt SQL, Airbyte configs, and Django integration modules in parallel. You know GA4 API has per-project quotas; you know OAuth access tokens expire hourly and refresh tokens must be AES-GCM+KMS encrypted per AGENTS.md §90; you know GA4 dimensions can include PII (`user_pseudo_id`, `device_id`, `ip_address`) that must NOT enter the mart. You have authority to pick between Verdicts A/B/C but NOT to escalate a C into a full new integration without the user's green light on a revised scope + budget.
@@ -112,7 +112,7 @@ Schema:
   },
   "last_commit": null
 }
-```
+````
 
 For Verdict A/B, one session suffices; no state file needed, just atomic commits.
 
@@ -121,6 +121,7 @@ For Verdict A/B, one session suffices; no state file needed, just atomic commits
 ## Step 1 gate — Investigation complete
 
 Before moving to Step 2, `artifacts/roadmap/ga4-investigation.md` must contain:
+
 - 5 file reviews (one per entry in Pre-flight Verification)
 - Explicit verdict (A/B/C) with rationale + evidence commands pasted
 - If verdict = C: a 1-page gap analysis naming the missing pieces
@@ -130,6 +131,7 @@ Print: `STEP 1 COMPLETE, verdict <X>`
 ## Step 2 gate — Verification in dev stack
 
 Document in the investigation doc:
+
 - Dev stack state (`lsof -iTCP:5173 -sTCP:LISTEN` output — if no PID, launch; if non-Vite PID, escalate)
 - Dashboard rendered outcome (screenshot path / DOM text / row-count query output)
 - Mart row count with tenant RLS set correctly
@@ -225,6 +227,7 @@ Write a dbt test (or pytest introspecting the mart schema) that FAILS if any of 
 # Communication contract
 
 **End of Step 1**
+
 ```
 ### Step 1 complete — Verdict <A/B/C>
 Files reviewed: <5 paths with 1-line findings>
@@ -233,6 +236,7 @@ Evidence: <pasted command output>
 ```
 
 **End of Step 2**
+
 ```
 ### Step 2 complete — Dashboard state <empty/populated/error>
 Mart row count (tenant-RLS'd): <number>
@@ -240,6 +244,7 @@ Live sync run: <success/fail/not-attempted>
 ```
 
 **End of Step 3 (or stop for Verdict C)**
+
 ```
 ### Step 3 complete
 Verdict: <A/B/C>
@@ -251,6 +256,7 @@ Self-eval: <pasted checklist>
 ```
 
 **Escalation**
+
 ```
 ESCALATE: <threshold hit>
 Context: <1-2 sentences>
@@ -298,4 +304,7 @@ Respond with ≤ 250 words:
 5. Any clarifying questions (or "no questions, proceeding")
 
 Then proceed autonomously. Expect 1–5 working days if Verdict A/B; if Verdict C, expect Step 1+2 only in this session and a separate multi-week prompt afterward.
+
+```
+
 ```

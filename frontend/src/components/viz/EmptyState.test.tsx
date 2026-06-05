@@ -17,21 +17,13 @@ describe('EmptyState (viz-kit presentation)', () => {
       />,
     );
     expect(screen.getByText('No data to display')).toBeInTheDocument();
-    expect(
-      screen.getByText('There is no data for the selected range.'),
-    ).toBeInTheDocument();
-    expect(
-      container.querySelector('[data-reason-code="no_data_for_range"]'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('There is no data for the selected range.')).toBeInTheDocument();
+    expect(container.querySelector('[data-reason-code="no_data_for_range"]')).toBeInTheDocument();
   });
 
   it('omits the data-reason-code attribute when no reasonCode prop is set', () => {
     const { container } = render(
-      <EmptyState
-        icon={<VizEmptyIcon />}
-        title="No data"
-        message="Try something else."
-      />,
+      <EmptyState icon={<VizEmptyIcon />} title="No data" message="Try something else." />,
     );
     const status = container.querySelector('.empty-state') as HTMLElement;
     expect(status).toBeInTheDocument();

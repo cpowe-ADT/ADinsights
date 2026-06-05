@@ -1,10 +1,5 @@
 import { useCallback, useMemo, type ReactNode } from 'react';
-import {
-  flexRender,
-  type ColumnDef,
-  type Row,
-  type SortingState,
-} from '@tanstack/react-table';
+import { flexRender, type ColumnDef, type Row, type SortingState } from '@tanstack/react-table';
 
 import BaseDataTable from '../DataTable';
 import { downloadCsv, rowsToCsv, type CsvCell } from '../../lib/csvExport';
@@ -66,10 +61,7 @@ const resolveColumnHeader = <TData,>(column: ColumnDef<TData, unknown>): string 
 };
 
 /** Resolve a row/column value for CSV rendering (default behaviour). */
-const defaultCellValue = <TData,>(
-  row: TData,
-  column: ColumnDef<TData, unknown>,
-): CsvCell => {
+const defaultCellValue = <TData,>(row: TData, column: ColumnDef<TData, unknown>): CsvCell => {
   const accessorKey = (column as { accessorKey?: string }).accessorKey;
   if (typeof accessorKey === 'string') {
     const value = (row as Record<string, unknown>)[accessorKey];
@@ -124,10 +116,7 @@ const VizDataTable = <TData,>({
   csvFilename,
   csvRowMapper,
 }: VizDataTableProps<TData>) => {
-  const headers = useMemo(
-    () => columns.map((column) => resolveColumnHeader(column)),
-    [columns],
-  );
+  const headers = useMemo(() => columns.map((column) => resolveColumnHeader(column)), [columns]);
 
   const handleCsvDownload = useCallback(() => {
     if (!csvFilename) {
@@ -147,12 +136,7 @@ const VizDataTable = <TData,>({
   }, [columns, csvFilename, csvRowMapper, data, headers]);
 
   const captionNode = caption ? (
-    <div
-      className={classNames(
-        'viz-data-table__caption',
-        captionHidden && 'visually-hidden',
-      )}
-    >
+    <div className={classNames('viz-data-table__caption', captionHidden && 'visually-hidden')}>
       {caption}
     </div>
   ) : null;

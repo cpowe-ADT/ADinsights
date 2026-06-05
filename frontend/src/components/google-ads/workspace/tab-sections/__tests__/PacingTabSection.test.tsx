@@ -34,11 +34,7 @@ describe('PacingTabSection', () => {
 
   it('prefers pacing_pct when directly provided by payload', () => {
     render(
-      <PacingTabSection
-        data={{ ...baseFixture, pacing_pct: 0.87 }}
-        status="success"
-        error=""
-      />,
+      <PacingTabSection data={{ ...baseFixture, pacing_pct: 0.87 }} status="success" error="" />,
     );
     const meter = screen.getByRole('meter');
     expect(Number(meter.getAttribute('aria-valuenow'))).toBeCloseTo(0.87, 4);

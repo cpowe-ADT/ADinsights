@@ -2,7 +2,7 @@
 
 **Sprint:** 4
 **Estimated size:** S
-**Depends on:** sprint-1/* (all kit components)
+**Depends on:** sprint-1/\* (all kit components)
 **Blocks:** none
 **Role needed:** frontend-engineer
 
@@ -14,22 +14,24 @@
 
 - `frontend/src/routes/SearchConsoleDashboardPage.tsx`: existing file.
 - Search Console response shape:
+
 ```typescript
 {
   rows: Array<{
-    date_day: string      // 'YYYY-MM-DD'
-    site_url: string
-    country: string
-    device: string        // 'DESKTOP' | 'MOBILE' | 'TABLET'
-    query: string
-    page: string          // URL path
-    clicks: number
-    impressions: number
-    ctr: number           // 0.0 – 1.0
-    position: number      // avg position (lower = better, e.g., 1.0 = top)
-  }>
+    date_day: string; // 'YYYY-MM-DD'
+    site_url: string;
+    country: string;
+    device: string; // 'DESKTOP' | 'MOBILE' | 'TABLET'
+    query: string;
+    page: string; // URL path
+    clicks: number;
+    impressions: number;
+    ctr: number; // 0.0 – 1.0
+    position: number; // avg position (lower = better, e.g., 1.0 = top)
+  }>;
 }
 ```
+
 - All Sprint 1 viz components.
 
 ## Deliverable

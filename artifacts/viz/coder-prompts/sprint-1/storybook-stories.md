@@ -32,12 +32,14 @@ Storybook 8.6.14 is already installed with `@storybook/react-vite`, `@storybook/
 ## Required story variants per component
 
 Each component must have these variants:
+
 1. **Default** — typical production data
 2. **Loading** — `isLoading=true`
 3. **Empty** — empty data with a `reasonCode`
 4. **WithError** — `emptyReasonCode="adapter_error"` (where applicable)
 
 Additional variants per component:
+
 - `KpiTile`: Positive change, Negative change, Null value, Currency format, Percent format
 - `TrendLine`: SingleSeries, MultiSeries (3 accounts), DualAxis, StackedArea, WithPeerAverage
 - `DistributionBar`: SingleValue, PairedBars, ShowPercent, VerticalLayout
@@ -49,8 +51,8 @@ Additional variants per component:
 
 ```typescript
 // Example: KpiTile.stories.tsx
-import type { Meta, StoryObj } from '@storybook/react'
-import { KpiTile } from './KpiTile'
+import type { Meta, StoryObj } from '@storybook/react';
+import { KpiTile } from './KpiTile';
 
 const meta: Meta<typeof KpiTile> = {
   title: 'Viz/KpiTile',
@@ -59,10 +61,10 @@ const meta: Meta<typeof KpiTile> = {
     layout: 'centered',
   },
   tags: ['autodocs'],
-}
-export default meta
+};
+export default meta;
 
-type Story = StoryObj<typeof KpiTile>
+type Story = StoryObj<typeof KpiTile>;
 
 export const Default: Story = {
   args: {
@@ -72,7 +74,7 @@ export const Default: Story = {
     currency: 'JMD',
     change: 0.12,
   },
-}
+};
 
 export const Loading: Story = {
   args: {
@@ -81,7 +83,7 @@ export const Loading: Story = {
     format: 'currency',
     isLoading: true,
   },
-}
+};
 
 export const Empty: Story = {
   args: {
@@ -90,7 +92,7 @@ export const Empty: Story = {
     format: 'currency',
     reasonCode: 'no_data_for_range',
   },
-}
+};
 
 export const NegativeChange: Story = {
   args: {
@@ -99,7 +101,7 @@ export const NegativeChange: Story = {
     format: 'percent',
     change: -0.08,
   },
-}
+};
 ```
 
 ## Mock data constants
@@ -113,31 +115,52 @@ export const trendData = Array.from({ length: 30 }, (_, i) => ({
   date: new Date(2026, 0, i + 1).toISOString().slice(0, 10),
   spend_meta: Math.round(1000 + Math.random() * 500),
   spend_google: Math.round(800 + Math.random() * 400),
-}))
+}));
 
 export const sparklineData = Array.from({ length: 14 }, (_, i) => ({
   date: new Date(2026, 0, i + 1).toISOString().slice(0, 10),
   value: Math.round(100 + Math.random() * 50),
-}))
+}));
 
 export const distributionData = [
   { label: 'Meta', value: 5000 },
   { label: 'Google Ads', value: 3200 },
   { label: 'Instagram', value: 1800 },
-]
+];
 
 export const pieData = [
   { label: 'Search', value: 4500 },
   { label: 'Display', value: 2100 },
   { label: 'Video', value: 1800 },
   { label: 'Shopping', value: 900 },
-]
+];
 
 export const bubbleData = [
-  { id: 'c1', label: 'Brand Campaign', x: 5000, y: 3.2, z: 120000, shape: 'circle' as const },
-  { id: 'c2', label: 'Retargeting', x: 2000, y: 5.1, z: 60000, shape: 'triangle' as const },
-  { id: 'c3', label: 'Prospecting', x: 8000, y: 1.8, z: 200000, shape: 'circle' as const },
-]
+  {
+    id: 'c1',
+    label: 'Brand Campaign',
+    x: 5000,
+    y: 3.2,
+    z: 120000,
+    shape: 'circle' as const,
+  },
+  {
+    id: 'c2',
+    label: 'Retargeting',
+    x: 2000,
+    y: 5.1,
+    z: 60000,
+    shape: 'triangle' as const,
+  },
+  {
+    id: 'c3',
+    label: 'Prospecting',
+    x: 8000,
+    y: 1.8,
+    z: 200000,
+    shape: 'circle' as const,
+  },
+];
 ```
 
 ## Definition of Done

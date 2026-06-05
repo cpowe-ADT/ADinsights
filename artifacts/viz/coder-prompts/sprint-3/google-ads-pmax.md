@@ -2,7 +2,7 @@
 
 **Sprint:** 3
 **Estimated size:** S
-**Depends on:** sprint-1/* (all kit components)
+**Depends on:** sprint-1/\* (all kit components)
 **Blocks:** none
 **Role needed:** frontend-engineer
 
@@ -26,26 +26,38 @@ The PMax (Performance Max) tab in the Google Ads workspace. Endpoint: `GET /api/
   - DataTable: Asset Group, Status chip, Cost, Impressions, Conv, CPA, ROAS. CSV export filename `google-ads-pmax`.
 
 - **Treemap implementation**:
+
 ```tsx
-import { Treemap, ResponsiveContainer, Tooltip } from 'recharts'
+import { Treemap, ResponsiveContainer, Tooltip } from 'recharts';
 
 const CustomCell = (props) => {
-  const { x, y, width, height, name, roas } = props
-  const opacity = Math.min(1.0, Math.max(0.2, (roas || 0) / 3))
+  const { x, y, width, height, name, roas } = props;
+  const opacity = Math.min(1.0, Math.max(0.2, (roas || 0) / 3));
   return (
     <g>
-      <rect x={x} y={y} width={width} height={height}
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
         fill={`rgba(249,115,22,${opacity})`}
-        stroke="#fff" strokeWidth={2}
+        stroke="#fff"
+        strokeWidth={2}
       />
       {width > 40 && height > 20 && (
-        <text x={x + width/2} y={y + height/2} textAnchor="middle" fill="#fff" fontSize={11}>
+        <text
+          x={x + width / 2}
+          y={y + height / 2}
+          textAnchor="middle"
+          fill="#fff"
+          fontSize={11}
+        >
           {name}
         </text>
       )}
     </g>
-  )
-}
+  );
+};
 
 <ResponsiveContainer width="100%" height={240}>
   <Treemap
@@ -56,7 +68,7 @@ const CustomCell = (props) => {
   >
     <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
   </Treemap>
-</ResponsiveContainer>
+</ResponsiveContainer>;
 ```
 
 - **A11y**: Treemap wrapped in `<AccessibleTableToggle>`. Table columns: Asset Group, Spend, ROAS.

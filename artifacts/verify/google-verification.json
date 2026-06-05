@@ -3,10 +3,7 @@
   "agent_id": "A2",
   "inputs_ref": ["artifacts/plan.md", "artifacts/audit/audit-report.json"],
   "summary": "The Google Ads cluster has a complete unified workspace path (GOOGLE_ADS_WORKSPACE_UNIFIED=true) with URL-driven filters and an isolated WorkspaceFilters type that never reads useDashboardStore — meaning the backend never receives a platforms param from any workspace tab call. Legacy pages (flag=false) are worse: every API call is fire-and-forget with no customer_id, no platforms, and no date range. The flag is a module-level constant resolved at build time, making both modes untestable in a single Vitest run without import.meta.env mocking.",
-  "flag_modes_tested": [
-    "GOOGLE_ADS_WORKSPACE_UNIFIED=true",
-    "GOOGLE_ADS_WORKSPACE_UNIFIED=false"
-  ],
+  "flag_modes_tested": ["GOOGLE_ADS_WORKSPACE_UNIFIED=true", "GOOGLE_ADS_WORKSPACE_UNIFIED=false"],
   "routes": [
     {
       "route": "/dashboards/google-ads",
@@ -28,8 +25,16 @@
         "/analytics/google-ads/saved-views/"
       ],
       "tabs": [
-        "overview", "campaigns", "search", "pmax", "assets",
-        "conversions", "pacing", "changes", "recommendations", "reports"
+        "overview",
+        "campaigns",
+        "search",
+        "pmax",
+        "assets",
+        "conversions",
+        "pacing",
+        "changes",
+        "recommendations",
+        "reports"
       ],
       "bugs_found": [
         {

@@ -56,9 +56,7 @@ describe('GoogleAdsAssetsPage', () => {
         <GoogleAdsAssetsPage />
       </MemoryRouter>,
     );
-    await waitFor(() =>
-      expect(screen.getAllByText('Buy Now').length).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(screen.getAllByText('Buy Now').length).toBeGreaterThan(0));
     expect(screen.getByText('Total Assets')).toBeInTheDocument();
     expect(screen.getByText('Disapproved')).toBeInTheDocument();
     expect(screen.getByText('Top Asset Conv')).toBeInTheDocument();
@@ -76,9 +74,7 @@ describe('GoogleAdsAssetsPage', () => {
       </MemoryRouter>,
     );
     await waitFor(() =>
-      expect(
-        container.querySelector('[data-reason-code="no_assets"]'),
-      ).toBeInTheDocument(),
+      expect(container.querySelector('[data-reason-code="no_assets"]')).toBeInTheDocument(),
     );
   });
 
@@ -89,8 +85,6 @@ describe('GoogleAdsAssetsPage', () => {
         <GoogleAdsAssetsPage />
       </MemoryRouter>,
     );
-    await waitFor(() =>
-      expect(screen.getByText('Server error')).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText('Server error')).toBeInTheDocument());
   });
 });

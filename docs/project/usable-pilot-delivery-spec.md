@@ -29,16 +29,16 @@ evidence and issue a go/no-go decision.
 
 ## Verified Current State
 
-| Capability | State at audit | Delivery requirement |
-| --- | --- | --- |
-| Tenant auth, dashboards, metrics snapshots, alert/rule UI, operations routes | Working in code | Preserve tenant isolation and existing response compatibility. |
-| Meta and Google Ads ingestion/runtime paths | Working in code; live credential evidence pending | Require staging sync and dashboard evidence during activation. |
-| Generic report exports | Broken at audit; repository fix verified | Jobs now create non-empty aggregate CSV/PDF/PNG artifacts or fail honestly. |
-| Meta Page export rendering | Working renderer/CLI available; macOS launch portability corrected | Shared renderer produces PDF/PNG artifacts locally and retains Linux deployment path. |
-| Alert notification delivery | Partially working at audit; repository fix verified | Slack/webhook secrets are encrypted and API/UI surfaces are redacted. |
-| Scheduled daily summaries | Stubbed delivery at audit; repository fix verified | Summaries send through active tenant email notification channels. |
-| Local release evidence | Strict smoke requires runtime metric samples; docs reconciled | Deterministic preflight is the local gate and strict smoke remains live evidence. |
-| GA4/Search Console | Partially implemented, not self-service live-ready | Defer from usable-pilot gate and label accordingly. |
+| Capability                                                                   | State at audit                                                     | Delivery requirement                                                                  |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| Tenant auth, dashboards, metrics snapshots, alert/rule UI, operations routes | Working in code                                                    | Preserve tenant isolation and existing response compatibility.                        |
+| Meta and Google Ads ingestion/runtime paths                                  | Working in code; live credential evidence pending                  | Require staging sync and dashboard evidence during activation.                        |
+| Generic report exports                                                       | Broken at audit; repository fix verified                           | Jobs now create non-empty aggregate CSV/PDF/PNG artifacts or fail honestly.           |
+| Meta Page export rendering                                                   | Working renderer/CLI available; macOS launch portability corrected | Shared renderer produces PDF/PNG artifacts locally and retains Linux deployment path. |
+| Alert notification delivery                                                  | Partially working at audit; repository fix verified                | Slack/webhook secrets are encrypted and API/UI surfaces are redacted.                 |
+| Scheduled daily summaries                                                    | Stubbed delivery at audit; repository fix verified                 | Summaries send through active tenant email notification channels.                     |
+| Local release evidence                                                       | Strict smoke requires runtime metric samples; docs reconciled      | Deterministic preflight is the local gate and strict smoke remains live evidence.     |
+| GA4/Search Console                                                           | Partially implemented, not self-service live-ready                 | Defer from usable-pilot gate and label accordingly.                                   |
 
 ## Pilot Journey
 
@@ -63,42 +63,42 @@ evidence and issue a go/no-go decision.
 ### M1 - Real Report Artifacts
 
 - [x] Generic `ReportExportJob` requests create non-empty artifact files for `csv`, `pdf`, and
-  `png`.
+      `png`.
 - [x] CSV contains only tenant-scoped aggregate report rows; PDF/PNG reuse the exporter template.
 - [x] Failed query/render/storage work produces `failed` jobs with sanitized diagnostics.
 - [x] Download behavior remains compatible and completed jobs never point to absent files.
 - [x] CSV cell output neutralizes spreadsheet formula prefixes and artifact downloads reject
-  escaped/sibling paths for both generic and pilot-relevant Google Ads exports.
+      escaped/sibling paths for both generic and pilot-relevant Google Ads exports.
 
 ### M2 - Encrypted Notification Destinations
 
 - [x] `NotificationChannel` stores encrypted Slack/webhook secrets using tenant DEKs/KMS.
 - [x] Existing plaintext destination values are migrated into encrypted storage and removed from
-  ordinary JSON configuration.
+      ordinary JSON configuration.
 - [x] API inputs accept write-only secret values; API/UI responses expose only safe metadata and a
-  configured/masked indication.
+      configured/masked indication.
 - [x] Dispatch decrypts only at delivery time and does not put secret material in logs/errors.
 - [x] Model-level saves and response serialization prevent plaintext webhook secrets from being
-  persisted or exposed if a caller bypasses normal serializer input.
+      persisted or exposed if a caller bypasses normal serializer input.
 
 ### M3 - Scheduled Summary Delivery
 
 - [x] The existing `ai-daily-summary` 06:10 schedule sends aggregated summaries to active tenant
-  email notification channels.
+      email notification channels.
 - [x] Delivery records `delivered`, `skipped_no_recipients`, or `failed` audit outcomes.
 - [x] The existing account email service remains the SES/log-provider delivery boundary.
 - [x] Reprocessing the same successfully delivered summary snapshot is retry-safe and does not
-  send a duplicate email or persist a duplicate summary record.
+      send a duplicate email or persist a duplicate summary record.
 
 ### M4 - Release And Operations Alignment
 
 - [x] Release documentation uses `backend_release_preflight` for deterministic local/staging
-  preflight and reserves strict smoke for live task/metrics evidence.
+      preflight and reserves strict smoke for live task/metrics evidence.
 - [x] Alerting, orchestration, operations, and contract documentation match shipped behavior.
 - [x] Canonical backend/frontend checks, data-contract checks, deterministic preflight, and local
-  exporter render verification pass.
+      exporter render verification pass.
 - [ ] The cross-stream release gate is cleared after required Raj/Mira and contract/security
-  review; the skillchain currently reports `GATE_BLOCK` for this architecture-sensitive scope.
+      review; the skillchain currently reports `GATE_BLOCK` for this architecture-sensitive scope.
 
 ### M5 - Staging Activation Evidence
 
@@ -107,9 +107,9 @@ evidence and issue a go/no-go decision.
 - [ ] SES configuration proves one alert email and one scheduled daily summary delivery.
 - [ ] One Slack or webhook destination proves encrypted-at-rest dispatch.
 - [x] Local throttle `429` evidence is repeatable through
-  `backend_release_smoke --check-rate-limits`.
+      `backend_release_smoke --check-rate-limits`.
 - [ ] Staging throttle `429`, empty-sync alerting, and final go/no-go evidence are attached to the
-  release record.
+      release record.
 
 ## Interface Decisions
 

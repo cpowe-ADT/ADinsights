@@ -24,32 +24,33 @@
   - `frontend/src/components/viz/__tests__/BubbleScatter.test.tsx` (create)
 
 - **Props API**:
+
 ```typescript
-type ChartValueType = 'currency' | 'number' | 'percent' | 'rate'
+type ChartValueType = 'currency' | 'number' | 'percent' | 'rate';
 
 interface BubblePoint {
-  id: string
-  label: string
-  x: number
-  y: number
-  z: number           // maps to bubble radius (clamped to min 4, max 40 px)
-  shape?: 'circle' | 'triangle'   // default: 'circle'
-  color?: string      // defaults to chartPalette[0]
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  z: number; // maps to bubble radius (clamped to min 4, max 40 px)
+  shape?: 'circle' | 'triangle'; // default: 'circle'
+  color?: string; // defaults to chartPalette[0]
 }
 
 interface BubbleScatterProps {
-  data: BubblePoint[]
-  xLabel: string
-  yLabel: string
-  zLabel: string      // shown in tooltip as size dimension label
-  xFormat?: ChartValueType
-  yFormat?: ChartValueType
-  currency?: string
-  height?: number     // default: 300
-  isLoading?: boolean
-  emptyReasonCode?: string
-  onBubbleClick?: (id: string) => void
-  className?: string
+  data: BubblePoint[];
+  xLabel: string;
+  yLabel: string;
+  zLabel: string; // shown in tooltip as size dimension label
+  xFormat?: ChartValueType;
+  yFormat?: ChartValueType;
+  currency?: string;
+  height?: number; // default: 300
+  isLoading?: boolean;
+  emptyReasonCode?: string;
+  onBubbleClick?: (id: string) => void;
+  className?: string;
 }
 ```
 
@@ -70,22 +71,41 @@ interface BubbleScatterProps {
 
 ```tsx
 const TriangleShape = (props) => {
-  const { cx, cy, r } = props
-  const h = r * Math.sqrt(3)
-  return <polygon points={`${cx},${cy-r*0.8} ${cx-r*0.7},${cy+h*0.5} ${cx+r*0.7},${cy+h*0.5}`} fill={props.fill} />
-}
+  const { cx, cy, r } = props;
+  const h = r * Math.sqrt(3);
+  return (
+    <polygon
+      points={`${cx},${cy - r * 0.8} ${cx - r * 0.7},${cy + h * 0.5} ${cx + r * 0.7},${cy + h * 0.5}`}
+      fill={props.fill}
+    />
+  );
+};
 // Circles use default Recharts rendering
 ```
 
 ## Design
 
 Recharts primitives:
+
 ```tsx
 <ScatterChart height={height}>
   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-  <XAxis dataKey="x" type="number" name={xLabel} tickFormatter={formatTick(xFormat)} label={{ value: xLabel }} />
-  <YAxis dataKey="y" type="number" name={yLabel} tickFormatter={formatTick(yFormat)} label={{ value: yLabel, angle: -90 }} />
-  <ZAxis dataKey="z" range={[16, 1600]} name={zLabel} />  {/* range maps z values to pixel area: sqrt(area)=radius */}
+  <XAxis
+    dataKey="x"
+    type="number"
+    name={xLabel}
+    tickFormatter={formatTick(xFormat)}
+    label={{ value: xLabel }}
+  />
+  <YAxis
+    dataKey="y"
+    type="number"
+    name={yLabel}
+    tickFormatter={formatTick(yFormat)}
+    label={{ value: yLabel, angle: -90 }}
+  />
+  <ZAxis dataKey="z" range={[16, 1600]} name={zLabel} />{' '}
+  {/* range maps z values to pixel area: sqrt(area)=radius */}
   <Tooltip content={<CustomTooltip />} />
   {/* Group by color/shape: render one <Scatter> per group */}
   <Scatter

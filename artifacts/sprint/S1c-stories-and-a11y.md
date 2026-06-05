@@ -8,39 +8,39 @@ All 10 primitives have Storybook stories + jest-axe tests. `@storybook/addon-a11
 
 ## Files Created
 
-| # | File | Kind |
-|---|------|------|
-| 1 | `frontend/src/components/viz/KpiTile.stories.tsx` | Storybook |
-| 2 | `frontend/src/components/viz/KpiTile.test.tsx` | vitest + jest-axe |
-| 3 | `frontend/src/components/viz/TrendLine.stories.tsx` | Storybook |
-| 4 | `frontend/src/components/viz/TrendLine.test.tsx` | vitest + jest-axe |
-| 5 | `frontend/src/components/viz/Sparkline.stories.tsx` | Storybook |
-| 6 | `frontend/src/components/viz/Sparkline.test.tsx` | vitest + jest-axe |
-| 7 | `frontend/src/components/viz/DistributionBar.stories.tsx` | Storybook |
-| 8 | `frontend/src/components/viz/DistributionBar.test.tsx` | vitest + jest-axe |
-| 9 | `frontend/src/components/viz/BubbleScatter.stories.tsx` | Storybook |
-| 10 | `frontend/src/components/viz/BubbleScatter.test.tsx` | vitest + jest-axe |
-| 11 | `frontend/src/components/viz/PieComposition.stories.tsx` | Storybook |
-| 12 | `frontend/src/components/viz/PieComposition.test.tsx` | vitest + jest-axe |
-| 13 | `frontend/src/components/viz/DataTable.stories.tsx` | Storybook |
-| 14 | `frontend/src/components/viz/DataTable.test.tsx` | vitest + jest-axe |
-| 15 | `frontend/src/components/viz/AccessibleTableToggle.stories.tsx` | Storybook |
-| 16 | `frontend/src/components/viz/AccessibleTableToggle.test.tsx` | vitest + jest-axe |
-| 17 | `frontend/src/components/viz/ChartSkeleton.stories.tsx` | Storybook |
-| 18 | `frontend/src/components/viz/ChartSkeleton.test.tsx` | vitest + jest-axe |
-| 19 | `frontend/src/components/viz/EmptyState.stories.tsx` | Storybook (viz-kit) |
-| 20 | `frontend/src/components/viz/EmptyState.test.tsx` | vitest + jest-axe |
-| 21 | `frontend/src/lib/csvExport.test.ts` | vitest (torture cases + download smoke) |
+| #   | File                                                            | Kind                                    |
+| --- | --------------------------------------------------------------- | --------------------------------------- |
+| 1   | `frontend/src/components/viz/KpiTile.stories.tsx`               | Storybook                               |
+| 2   | `frontend/src/components/viz/KpiTile.test.tsx`                  | vitest + jest-axe                       |
+| 3   | `frontend/src/components/viz/TrendLine.stories.tsx`             | Storybook                               |
+| 4   | `frontend/src/components/viz/TrendLine.test.tsx`                | vitest + jest-axe                       |
+| 5   | `frontend/src/components/viz/Sparkline.stories.tsx`             | Storybook                               |
+| 6   | `frontend/src/components/viz/Sparkline.test.tsx`                | vitest + jest-axe                       |
+| 7   | `frontend/src/components/viz/DistributionBar.stories.tsx`       | Storybook                               |
+| 8   | `frontend/src/components/viz/DistributionBar.test.tsx`          | vitest + jest-axe                       |
+| 9   | `frontend/src/components/viz/BubbleScatter.stories.tsx`         | Storybook                               |
+| 10  | `frontend/src/components/viz/BubbleScatter.test.tsx`            | vitest + jest-axe                       |
+| 11  | `frontend/src/components/viz/PieComposition.stories.tsx`        | Storybook                               |
+| 12  | `frontend/src/components/viz/PieComposition.test.tsx`           | vitest + jest-axe                       |
+| 13  | `frontend/src/components/viz/DataTable.stories.tsx`             | Storybook                               |
+| 14  | `frontend/src/components/viz/DataTable.test.tsx`                | vitest + jest-axe                       |
+| 15  | `frontend/src/components/viz/AccessibleTableToggle.stories.tsx` | Storybook                               |
+| 16  | `frontend/src/components/viz/AccessibleTableToggle.test.tsx`    | vitest + jest-axe                       |
+| 17  | `frontend/src/components/viz/ChartSkeleton.stories.tsx`         | Storybook                               |
+| 18  | `frontend/src/components/viz/ChartSkeleton.test.tsx`            | vitest + jest-axe                       |
+| 19  | `frontend/src/components/viz/EmptyState.stories.tsx`            | Storybook (viz-kit)                     |
+| 20  | `frontend/src/components/viz/EmptyState.test.tsx`               | vitest + jest-axe                       |
+| 21  | `frontend/src/lib/csvExport.test.ts`                            | vitest (torture cases + download smoke) |
 
 Note: `PeerAvgLine` is intentionally skipped per brief; it's tested transitively through `TrendLine.WithPeerAvg` + `TrendLine.test.tsx` (which verifies the `Peer avg` column in the sr-only table when `peerData` is supplied). The viz-kit barrel's 11th export is therefore not directly storied, matching the brief's guidance.
 
 ## Files Modified
 
-| File | Edit |
-|------|------|
-| `frontend/package.json` | Added `"@storybook/addon-a11y": "8.6.14"` (pinned, matching the essentials/interactions pin). |
-| `frontend/.storybook/main.ts` | Appended `'@storybook/addon-a11y'` to the `addons` array. |
-| `frontend/package-lock.json` | npm-managed churn from the addon install. |
+| File                          | Edit                                                                                          |
+| ----------------------------- | --------------------------------------------------------------------------------------------- |
+| `frontend/package.json`       | Added `"@storybook/addon-a11y": "8.6.14"` (pinned, matching the essentials/interactions pin). |
+| `frontend/.storybook/main.ts` | Appended `'@storybook/addon-a11y'` to the `addons` array.                                     |
+| `frontend/package-lock.json`  | npm-managed churn from the addon install.                                                     |
 
 ## addon-a11y Install Result
 
@@ -98,15 +98,15 @@ $ npx vitest run src/components/viz src/lib/csvExport.test.ts
 
 All required torture cases from the S1b report pass in `src/lib/csvExport.test.ts`:
 
-| Input | Expected | Status |
-|-------|----------|--------|
-| `"Hello, world"` (string literally contains quote chars) | `"""Hello, world"""` | ✓ |
-| `Line1\nLine2` (multi-line) | `"Line1\nLine2"` | ✓ |
-| `=SUM(A1:A10)` | `'=SUM(A1:A10)` | ✓ |
-| `@attacker` | `'@attacker` | ✓ |
-| `+cmd`, `-whatever` | `'+cmd`, `'-whatever` | ✓ |
-| `null` / `undefined` | empty string | ✓ |
-| Mixed torture row | correct RFC-4180 + hardening | ✓ |
+| Input                                                    | Expected                     | Status |
+| -------------------------------------------------------- | ---------------------------- | ------ |
+| `"Hello, world"` (string literally contains quote chars) | `"""Hello, world"""`         | ✓      |
+| `Line1\nLine2` (multi-line)                              | `"Line1\nLine2"`             | ✓      |
+| `=SUM(A1:A10)`                                           | `'=SUM(A1:A10)`              | ✓      |
+| `@attacker`                                              | `'@attacker`                 | ✓      |
+| `+cmd`, `-whatever`                                      | `'+cmd`, `'-whatever`        | ✓      |
+| `null` / `undefined`                                     | empty string                 | ✓      |
+| Mixed torture row                                        | correct RFC-4180 + hardening | ✓      |
 
 `downloadCsv` smoke test stubs `URL.createObjectURL` / `URL.revokeObjectURL`, spies on `HTMLAnchorElement.prototype.click`, and asserts the Blob MIME type contains `text/csv`. A harmless "Not implemented: navigation" warning appears from jsdom on anchor `.click()` — this is expected in JSDOM and does not fail the test (jsdom's dummy navigation attempt for the synthetic click). Recommend the parent sprint's Definition-of-done accepts this as a known JSDOM limitation.
 

@@ -11,7 +11,11 @@ const authMock = vi.hoisted(() => ({
 
 const dashboardStoreMock = vi.hoisted(() => ({
   creative: { status: 'loaded' as const, data: [], error: undefined },
-  campaign: { status: 'loaded' as const, data: { summary: { currency: 'USD' }, rows: [] }, error: undefined },
+  campaign: {
+    status: 'loaded' as const,
+    data: { summary: { currency: 'USD' }, rows: [] },
+    error: undefined,
+  },
   getCreativeRowsForSelectedParish: () =>
     [] as Array<{
       id: string;
@@ -80,7 +84,12 @@ vi.mock('../../components/viz', () => ({
     <div data-testid="bubble-scatter" role="img" aria-label={ariaLabel} data-count={data.length} />
   ),
   PieComposition: ({ data, ariaLabel }: { data: unknown[]; ariaLabel: string }) => (
-    <div data-testid="pie-composition" role="img" aria-label={ariaLabel} data-slices={data.length} />
+    <div
+      data-testid="pie-composition"
+      role="img"
+      aria-label={ariaLabel}
+      data-slices={data.length}
+    />
   ),
   VizDataTable: ({ data, caption }: { data: unknown[]; caption?: string }) => (
     <div data-testid="viz-data-table" data-rows={data.length}>
@@ -103,14 +112,19 @@ vi.mock('../../components/DashboardState', () => ({
 vi.mock('../../components/ui/Card', () => ({
   __esModule: true,
   default: ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div><h2>{title}</h2>{children}</div>
+    <div>
+      <h2>{title}</h2>
+      {children}
+    </div>
   ),
 }));
 
 vi.mock('../../components/ui/StatCard', () => ({
   __esModule: true,
   default: ({ label, value }: { label: string; value: string }) => (
-    <div data-testid="stat-card">{label}: {value}</div>
+    <div data-testid="stat-card">
+      {label}: {value}
+    </div>
   ),
 }));
 
@@ -153,7 +167,11 @@ describe('CreativeDashboard', () => {
   });
 
   it('shows loading state', () => {
-    dashboardStoreMock.creative = { status: 'loading' as const, data: undefined as never, error: undefined };
+    dashboardStoreMock.creative = {
+      status: 'loading' as const,
+      data: undefined as never,
+      error: undefined,
+    };
 
     render(
       <MemoryRouter>

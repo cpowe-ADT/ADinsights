@@ -14,17 +14,17 @@ Three parallel Explore agents audited non-overlapping lanes (viz primitives + li
 
 ## Triage outcome — findings vs. reality
 
-| Audit claim | Verdict | Evidence |
-|---|---|---|
-| CSV export missing tab/CRLF/embedded-quote coverage | **Phantom** | `csvExport.test.ts` covers all 4 injection chars, multi-line, embedded-quote torture, mixed torture row. `\r` branch is handled by `needsQuoting` at csvExport.ts:28. Tabs aren't formula triggers. Added polish tests anyway (see below). |
-| R7 reconciliation test missing | **Phantom** | Already tested at `DashboardLayout.test.tsx:567-597` (sets Meta store accountId, asserts `setFilters` called with matching id) and `MetaAccountsPage.test.tsx:190-205`. |
-| googleAdsAggregates peer-data rollup NaN risk | **Phantom** | `rollupOverviewKpis` (line 122–133) and `rollupCampaignKpis` (line 179–196) both route divisions through `safeDivide` (line 110–114). No divide-by-zero path exists. No "peer-data rollup" exists in this module at all. |
-| Legacy component retention in CampaignDashboard/CreativeDashboard/AudienceDashboard | **Out-of-scope retention** | Sprint architect §3 explicitly retained `CampaignTable`, `CreativeTable`, `BudgetPacingList`, `Skeleton` as "compact companion" drilldowns. Documented in each page with inline comments. Not a bug. |
-| KpiTile clamp for negative trend values | **Not a bug** | Negative trends are semantically valid (spend went down). Clamping would misreport. |
-| TrendLine onPointClick validation | **Speculative** | No known failure mode; defensive-only. |
-| en-JM locale hardcoded | **Intentional** | Project standard per `CLAUDE.md` (Jamaica-only). |
-| reasonCode end-to-end attribute tests weak | **Already covered at the primitive level** | `EmptyState.test.tsx` asserts the `data-reason-code` attribute. Page tests correctly mock EmptyState and assert props flow; double-asserting the DOM attribute at every page is redundant. |
-| **AgeGenderPyramid missing aria-label** | **REAL BUG** | `components/AgeGenderPyramid.tsx` had no aria-label prop at all; Recharts SVG rendered as a silent region for screen readers. WCAG 2.1 AA fail. |
+| Audit claim                                                                         | Verdict                                    | Evidence                                                                                                                                                                                                                                   |
+| ----------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CSV export missing tab/CRLF/embedded-quote coverage                                 | **Phantom**                                | `csvExport.test.ts` covers all 4 injection chars, multi-line, embedded-quote torture, mixed torture row. `\r` branch is handled by `needsQuoting` at csvExport.ts:28. Tabs aren't formula triggers. Added polish tests anyway (see below). |
+| R7 reconciliation test missing                                                      | **Phantom**                                | Already tested at `DashboardLayout.test.tsx:567-597` (sets Meta store accountId, asserts `setFilters` called with matching id) and `MetaAccountsPage.test.tsx:190-205`.                                                                    |
+| googleAdsAggregates peer-data rollup NaN risk                                       | **Phantom**                                | `rollupOverviewKpis` (line 122–133) and `rollupCampaignKpis` (line 179–196) both route divisions through `safeDivide` (line 110–114). No divide-by-zero path exists. No "peer-data rollup" exists in this module at all.                   |
+| Legacy component retention in CampaignDashboard/CreativeDashboard/AudienceDashboard | **Out-of-scope retention**                 | Sprint architect §3 explicitly retained `CampaignTable`, `CreativeTable`, `BudgetPacingList`, `Skeleton` as "compact companion" drilldowns. Documented in each page with inline comments. Not a bug.                                       |
+| KpiTile clamp for negative trend values                                             | **Not a bug**                              | Negative trends are semantically valid (spend went down). Clamping would misreport.                                                                                                                                                        |
+| TrendLine onPointClick validation                                                   | **Speculative**                            | No known failure mode; defensive-only.                                                                                                                                                                                                     |
+| en-JM locale hardcoded                                                              | **Intentional**                            | Project standard per `CLAUDE.md` (Jamaica-only).                                                                                                                                                                                           |
+| reasonCode end-to-end attribute tests weak                                          | **Already covered at the primitive level** | `EmptyState.test.tsx` asserts the `data-reason-code` attribute. Page tests correctly mock EmptyState and assert props flow; double-asserting the DOM attribute at every page is redundant.                                                 |
+| **AgeGenderPyramid missing aria-label**                                             | **REAL BUG**                               | `components/AgeGenderPyramid.tsx` had no aria-label prop at all; Recharts SVG rendered as a silent region for screen readers. WCAG 2.1 AA fail.                                                                                            |
 
 ## Fix #1 — AgeGenderPyramid a11y (the one real finding)
 
@@ -49,26 +49,26 @@ Recharts is stubbed in the test (`vi.mock('recharts', ...)`) to replace `Respons
 
 While confirming the injection coverage was complete, added 4 new tests to `lib/csvExport.test.ts` to pin behavior on edges not previously asserted:
 
-| New test | Why |
-|---|---|
-| Quotes fields containing bare CR | RFC 4180 §2.6 — `\r` alone must quote. Code path at csvExport.ts:28 was correct but untested. |
-| Quotes fields with literal CRLF inside the cell | Excel-roundtrip safety. |
-| Quotes fields containing a comma | Separator-collision smoke test (obvious but was untested). |
-| Preserves Unicode (Portmoré, é) untouched | Jamaica parish names with diacritics — smoke test to prevent future refactor from breaking byte preservation. |
+| New test                                        | Why                                                                                                           |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Quotes fields containing bare CR                | RFC 4180 §2.6 — `\r` alone must quote. Code path at csvExport.ts:28 was correct but untested.                 |
+| Quotes fields with literal CRLF inside the cell | Excel-roundtrip safety.                                                                                       |
+| Quotes fields containing a comma                | Separator-collision smoke test (obvious but was untested).                                                    |
+| Preserves Unicode (Portmoré, é) untouched       | Jamaica parish names with diacritics — smoke test to prevent future refactor from breaking byte preservation. |
 
 csvExport.test.ts now has 14 tests (was 10), all passing.
 
 ## Verification matrix — post-fix
 
-| Gate | Command | Result |
-|---|---|---|
-| Frontend lint | `cd frontend && npm run lint` | **clean** |
-| Frontend build | `cd frontend && npm run build` | **✓ built in 8.35s** |
-| Frontend vitest (full) | `cd frontend && npm test -- --run` | **769 passed / 1 fail** (SummaryDetailPage — see note) |
-| Frontend vitest (new suites only) | `npx vitest --run src/components/__tests__/AgeGenderPyramid.test.tsx src/lib/csvExport.test.ts` | **18/18** |
-| SummaryDetailPage in isolation | `npx vitest --run src/routes/__tests__/SummaryDetailPage.test.tsx` | **6/6** |
-| Backend ruff | `cd backend && ruff check .` | **All checks passed!** |
-| Backend pytest | `cd backend && pytest` | **727 passed, 1 skipped** |
+| Gate                              | Command                                                                                         | Result                                                 |
+| --------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Frontend lint                     | `cd frontend && npm run lint`                                                                   | **clean**                                              |
+| Frontend build                    | `cd frontend && npm run build`                                                                  | **✓ built in 8.35s**                                   |
+| Frontend vitest (full)            | `cd frontend && npm test -- --run`                                                              | **769 passed / 1 fail** (SummaryDetailPage — see note) |
+| Frontend vitest (new suites only) | `npx vitest --run src/components/__tests__/AgeGenderPyramid.test.tsx src/lib/csvExport.test.ts` | **18/18**                                              |
+| SummaryDetailPage in isolation    | `npx vitest --run src/routes/__tests__/SummaryDetailPage.test.tsx`                              | **6/6**                                                |
+| Backend ruff                      | `cd backend && ruff check .`                                                                    | **All checks passed!**                                 |
+| Backend pytest                    | `cd backend && pytest`                                                                          | **727 passed, 1 skipped**                              |
 
 **Frontend test delta from S4 close:** 762 → **769** passes (+7 new tests: 4 AgeGenderPyramid + 4 CSV polish; one polish test slot absorbed by an existing unicode assertion that didn't actually need a new `it` block).
 
@@ -86,24 +86,24 @@ Recording these so future reviewers don't re-raise them:
 
 ## Contract regression check (re-verified in this review)
 
-| Contract | Location | Status |
-|---|---|---|
-| FP-CC-01 | `components/EmptyState.tsx` reasonCode → data attr | ✅ |
-| FP-PLAT-02 | PlatformDashboard empty state | ✅ |
-| FP-PLAT-03 | `lib/platformLabels.ts` top-2-by-spend | ✅ |
-| FP-CAMP-02 | CampaignDashboard consolidated empty-state | ✅ |
-| FP-CREA-01/03 | CreativeDashboard 3-branch | ✅ |
-| FP-BUDG-01 | `BudgetDashboard.tsx:64–69` | ✅ |
-| FP-AUD-01 | AudienceDashboard availability guard at line ~243 | ✅ (preserved through this review's edit) |
-| FP-SAVED-01 | `SavedDashboardPage.tsx:59–62` normalizeFilters platforms | ✅ |
-| FP-SAVED-02 | `SavedDashboardPage.tsx` seededRef | ✅ |
-| FP-CREATE-01 | `DashboardCreate.tsx:145–150` | ✅ |
-| FP-MAP-01 | `ParishMapDetail.tsx:131–147` | ✅ |
-| FP-LIB-01 | DashboardLibrary | ✅ |
-| R3 | GA4 + Search Console never hit `/metrics/combined/` | ✅ (fetch-spy asserted in both test files) |
-| R7 | Meta↔useDashboardStore reconciliation | ✅ (tested in DashboardLayout.test.tsx:567-597) |
-| C1A-NEW-01/02/03 | Meta page contracts | ✅ |
-| M14 | MetaInsightsDashboardPage formatter precision | ✅ |
+| Contract         | Location                                                  | Status                                          |
+| ---------------- | --------------------------------------------------------- | ----------------------------------------------- |
+| FP-CC-01         | `components/EmptyState.tsx` reasonCode → data attr        | ✅                                              |
+| FP-PLAT-02       | PlatformDashboard empty state                             | ✅                                              |
+| FP-PLAT-03       | `lib/platformLabels.ts` top-2-by-spend                    | ✅                                              |
+| FP-CAMP-02       | CampaignDashboard consolidated empty-state                | ✅                                              |
+| FP-CREA-01/03    | CreativeDashboard 3-branch                                | ✅                                              |
+| FP-BUDG-01       | `BudgetDashboard.tsx:64–69`                               | ✅                                              |
+| FP-AUD-01        | AudienceDashboard availability guard at line ~243         | ✅ (preserved through this review's edit)       |
+| FP-SAVED-01      | `SavedDashboardPage.tsx:59–62` normalizeFilters platforms | ✅                                              |
+| FP-SAVED-02      | `SavedDashboardPage.tsx` seededRef                        | ✅                                              |
+| FP-CREATE-01     | `DashboardCreate.tsx:145–150`                             | ✅                                              |
+| FP-MAP-01        | `ParishMapDetail.tsx:131–147`                             | ✅                                              |
+| FP-LIB-01        | DashboardLibrary                                          | ✅                                              |
+| R3               | GA4 + Search Console never hit `/metrics/combined/`       | ✅ (fetch-spy asserted in both test files)      |
+| R7               | Meta↔useDashboardStore reconciliation                     | ✅ (tested in DashboardLayout.test.tsx:567-597) |
+| C1A-NEW-01/02/03 | Meta page contracts                                       | ✅                                              |
+| M14              | MetaInsightsDashboardPage formatter precision             | ✅                                              |
 
 ## Files touched in this review
 
@@ -117,14 +117,14 @@ Zero production edits to viz-kit primitives, shared libs, or other routes. Scope
 
 ## Trajectory summary
 
-| Phase | Passing tests | New a11y surface | Notes |
-|---|---|---|---|
-| Pre-S1 | 514 / 14 fail | — | scrollIntoView cascade |
-| Post-S1 | 597 / 0 | viz kit shipped | 10 primitives, jest-axe on all |
-| Post-S2 | 628 / 0 | Meta pages | 7 pages |
-| Post-S3 | 738 / 0 | Google Ads + treemap + gauge | +2 primitives |
-| Post-S4 | 762 / 0 | Combined + Map + Web + Saved | 11 pages |
-| **Post-deep-review** | **769 / 0** (1 intermittent) | **AgeGenderPyramid** | Legacy component brought up to kit a11y standard |
+| Phase                | Passing tests                | New a11y surface             | Notes                                            |
+| -------------------- | ---------------------------- | ---------------------------- | ------------------------------------------------ |
+| Pre-S1               | 514 / 14 fail                | —                            | scrollIntoView cascade                           |
+| Post-S1              | 597 / 0                      | viz kit shipped              | 10 primitives, jest-axe on all                   |
+| Post-S2              | 628 / 0                      | Meta pages                   | 7 pages                                          |
+| Post-S3              | 738 / 0                      | Google Ads + treemap + gauge | +2 primitives                                    |
+| Post-S4              | 762 / 0                      | Combined + Map + Web + Saved | 11 pages                                         |
+| **Post-deep-review** | **769 / 0** (1 intermittent) | **AgeGenderPyramid**         | Legacy component brought up to kit a11y standard |
 
 ## Verdict
 

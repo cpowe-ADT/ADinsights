@@ -10,10 +10,7 @@ import {
   VizDataTable,
 } from '../components/viz';
 import { formatNumber, formatPercent } from '../lib/formatNumber';
-import {
-  fetchSearchConsoleWebRows,
-  type SearchConsoleWebResponse,
-} from '../lib/webAnalytics';
+import { fetchSearchConsoleWebRows, type SearchConsoleWebResponse } from '../lib/webAnalytics';
 import {
   aggregateSearchConsoleByDevice,
   aggregateSearchConsoleTopQueries,
@@ -78,10 +75,7 @@ const SearchConsoleDashboardPage = () => {
   const totals = useMemo(() => aggregateSearchConsoleTotals(rawRows), [rawRows]);
   const trendData = useMemo(() => aggregateSearchConsoleTrendByDay(rawRows), [rawRows]);
   const deviceRows = useMemo(() => aggregateSearchConsoleByDevice(rawRows), [rawRows]);
-  const topQueries = useMemo(
-    () => aggregateSearchConsoleTopQueries(rawRows, 50),
-    [rawRows],
-  );
+  const topQueries = useMemo(() => aggregateSearchConsoleTopQueries(rawRows, 50), [rawRows]);
 
   const pieData = useMemo(
     () =>
@@ -157,17 +151,21 @@ const SearchConsoleDashboardPage = () => {
       >
         <strong>Search Console data refresh — coming soon.</strong>
         <p className="muted" style={{ marginTop: '0.25rem' }}>
-          Tenant-facing Search Console connection is being finalized post-launch. The dashboard
-          will populate automatically once ingestion is wired; in the meantime, operator-level
-          Airbyte feeds may surface here. See{' '}
-          <code>docs/runbooks/search-console-operations.md</code> for the operator path.
+          Tenant-facing Search Console connection is being finalized post-launch. The dashboard will
+          populate automatically once ingestion is wired; in the meantime, operator-level Airbyte
+          feeds may surface here. See <code>docs/runbooks/search-console-operations.md</code> for
+          the operator path.
         </p>
       </div>
 
       <div className="data-sources-controls" style={{ marginBottom: '1rem' }}>
         <label className="dashboard-field">
           <span className="dashboard-field__label">Start date</span>
-          <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+          <input
+            type="date"
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
+          />
         </label>
         <label className="dashboard-field">
           <span className="dashboard-field__label">End date</span>
@@ -181,7 +179,12 @@ const SearchConsoleDashboardPage = () => {
       </div>
 
       {/* Block 1 — KPI strip */}
-      <div className="dashboard-grid" role="group" aria-label="Search Console KPIs" style={{ marginBottom: '1rem' }}>
+      <div
+        className="dashboard-grid"
+        role="group"
+        aria-label="Search Console KPIs"
+        style={{ marginBottom: '1rem' }}
+      >
         <KpiTile
           label="Total Clicks"
           value={isReady ? totals.clicks : null}
@@ -231,8 +234,8 @@ const SearchConsoleDashboardPage = () => {
           icon={<span aria-hidden>!</span>}
           title="Search Console ingestion deferred"
           message={
-            payload?.detail
-            ?? 'The Search Console mart is not built in this environment yet. Ingestion is deferred post-launch; see docs/runbooks/search-console-operations.md.'
+            payload?.detail ??
+            'The Search Console mart is not built in this environment yet. Ingestion is deferred post-launch; see docs/runbooks/search-console-operations.md.'
           }
           actionLabel="Open Data Sources"
           actionVariant="secondary"

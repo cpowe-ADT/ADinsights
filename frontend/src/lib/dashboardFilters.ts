@@ -216,9 +216,7 @@ export const buildFilterQueryParams = (filters: FilterBarState): Record<string, 
     params[FILTER_QUERY_KEYS.clientId] = clientId;
   }
 
-  const platforms = (filters.platforms ?? [])
-    .map((value) => value.trim())
-    .filter(Boolean);
+  const platforms = (filters.platforms ?? []).map((value) => value.trim()).filter(Boolean);
   if (platforms.length > 0) {
     params[FILTER_QUERY_KEYS.platforms] = Array.from(new Set(platforms)).join(',');
   }
@@ -265,8 +263,7 @@ export const parseFilterQueryParams = (
   const campaignQuery =
     searchParams.get(FILTER_QUERY_KEYS.campaignSearch)?.trim() ?? fallback.campaignQuery;
 
-  const clientId =
-    searchParams.get(FILTER_QUERY_KEYS.clientId)?.trim() ?? fallback.clientId;
+  const clientId = searchParams.get(FILTER_QUERY_KEYS.clientId)?.trim() ?? fallback.clientId;
 
   const platformsParam = searchParams.get(FILTER_QUERY_KEYS.platforms);
   const platforms = platformsParam
@@ -366,10 +363,7 @@ export function resolveRoutePlatformScope(pathname: string): string[] | null {
   if (pathname.startsWith(META_ROUTE_PREFIX)) {
     return ['meta_ads'];
   }
-  if (
-    pathname === GOOGLE_ADS_ROUTE_PREFIX ||
-    pathname.startsWith(`${GOOGLE_ADS_ROUTE_PREFIX}/`)
-  ) {
+  if (pathname === GOOGLE_ADS_ROUTE_PREFIX || pathname.startsWith(`${GOOGLE_ADS_ROUTE_PREFIX}/`)) {
     return ['google_ads'];
   }
   return null;

@@ -21,15 +21,22 @@
   - `frontend/src/components/viz/__tests__/ChartSkeleton.test.tsx` (create)
 
 - **Props API**:
+
 ```typescript
-type SkeletonVariant = 'line' | 'bar' | 'pie' | 'table' | 'kpi-strip' | 'bubble'
+type SkeletonVariant =
+  | 'line'
+  | 'bar'
+  | 'pie'
+  | 'table'
+  | 'kpi-strip'
+  | 'bubble';
 
 interface ChartSkeletonProps {
-  height?: number        // default varies by variant
-  rows?: number          // for 'table' variant: number of skeleton rows, default 8
-  columns?: number       // for 'table' variant: number of columns, default 5
-  variant?: SkeletonVariant   // default 'line'
-  className?: string
+  height?: number; // default varies by variant
+  rows?: number; // for 'table' variant: number of skeleton rows, default 8
+  columns?: number; // for 'table' variant: number of columns, default 5
+  variant?: SkeletonVariant; // default 'line'
+  className?: string;
 }
 ```
 
@@ -58,10 +65,15 @@ Each variant produces a different shimmer layout:
 **bubble**: full-width rectangle with scattered circle outlines (SVG) inside.
 
 CSS shimmer animation:
+
 ```css
 @keyframes shimmer {
-  0%   { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
 }
 .shimmer {
   background: linear-gradient(90deg, #e5e7eb 25%, #f9fafb 50%, #e5e7eb 75%);

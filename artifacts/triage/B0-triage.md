@@ -23,6 +23,7 @@
 **Owner agent:** B1
 
 **Recommended fix:**
+
 1. Replace the free-text "Account ID" input in `WorkspaceHeader` with a dropdown populated from `GET /api/integrations/google-ads/accounts/` (same source DashboardLayout uses for combined dashboards).
 2. Or: when the user has only one assigned account, auto-seed `customer_id` on mount without requiring the user to type it. The B2 effect skeleton is already there — it just needs a fallback that fetches assigned accounts if `globalAccountId` is also empty.
 

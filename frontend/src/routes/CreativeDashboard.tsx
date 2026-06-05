@@ -193,7 +193,8 @@ const CreativeDashboard = () => {
 
   // Preserve the 3-branch creative availability empty-state at lines 122–152.
   if (shouldShowEmptyState) {
-    const emptyVariant = creativeAvailability?.reason === 'no_matching_filters' ? 'no-results' : 'empty';
+    const emptyVariant =
+      creativeAvailability?.reason === 'no_matching_filters' ? 'no-results' : 'empty';
     const emptyTitle =
       creativeAvailability?.reason === 'no_matching_filters'
         ? 'No creatives match this view'

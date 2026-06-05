@@ -34,11 +34,17 @@ Scope per audit: 1 must-fix (CC2) + 2 optional hygiene fixes (NB1, NB2). All thr
 **Test added**: `GoogleAdsWorkspacePage.test.tsx` — "restores client_id from saved view into the dashboard store on saved-view select". The test mocks a saved view with `client_id: 'client-456'`, selects it via the WorkspaceHeader `<select>`, and asserts `mockSetFilters` was called with `expect.objectContaining({ clientId: 'client-456' })`.
 
 The mock for `useDashboardStore` was updated to expose `getState` with a `setFilters` spy:
+
 ```ts
 vi.mock('../../../state/useDashboardStore', () => ({
   default: Object.assign(
     (selector) => selector({ filters: mockDashboardStoreFilters }),
-    { getState: () => ({ filters: mockDashboardStoreFilters, setFilters: mockSetFilters }) },
+    {
+      getState: () => ({
+        filters: mockDashboardStoreFilters,
+        setFilters: mockSetFilters,
+      }),
+    },
   ),
 }));
 ```
@@ -75,14 +81,14 @@ vi.mock('../../../state/useDashboardStore', () => ({
 
 ## Files Modified
 
-| File | Change |
-|------|--------|
-| `frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx` | CC2: restore `client_id` from saved view into store in `handleSelectSavedView` |
-| `frontend/src/routes/google-ads/GoogleAdsExecutivePage.tsx` | NB1: subscribe to store filters; add to effect dep array |
-| `frontend/src/routes/google-ads/GoogleAdsBudgetPage.tsx` | NB2: subscribe to store filters; add to effect dep array |
-| `frontend/src/routes/google-ads/__tests__/GoogleAdsWorkspacePage.test.tsx` | CC2 test + getState/setFilters mock + beforeEach reset |
-| `frontend/src/routes/google-ads/__tests__/GoogleAdsExecutivePage.test.tsx` | Add useDashboardStore mock (required by NB1 fix) |
-| `frontend/src/routes/google-ads/__tests__/GoogleAdsBudgetPage.test.tsx` | Update useDashboardStore mock to selector-aware form |
+| File                                                                       | Change                                                                         |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx`                | CC2: restore `client_id` from saved view into store in `handleSelectSavedView` |
+| `frontend/src/routes/google-ads/GoogleAdsExecutivePage.tsx`                | NB1: subscribe to store filters; add to effect dep array                       |
+| `frontend/src/routes/google-ads/GoogleAdsBudgetPage.tsx`                   | NB2: subscribe to store filters; add to effect dep array                       |
+| `frontend/src/routes/google-ads/__tests__/GoogleAdsWorkspacePage.test.tsx` | CC2 test + getState/setFilters mock + beforeEach reset                         |
+| `frontend/src/routes/google-ads/__tests__/GoogleAdsExecutivePage.test.tsx` | Add useDashboardStore mock (required by NB1 fix)                               |
+| `frontend/src/routes/google-ads/__tests__/GoogleAdsBudgetPage.test.tsx`    | Update useDashboardStore mock to selector-aware form                           |
 
 ---
 

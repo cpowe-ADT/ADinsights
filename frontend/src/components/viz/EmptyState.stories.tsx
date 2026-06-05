@@ -47,8 +47,7 @@ export const AdapterError: Story = {
   args: {
     icon: <VizEmptyIcon />,
     title: 'Adapter unavailable',
-    message:
-      'The dashboard could not reach its data adapter. Retry or contact support.',
+    message: 'The dashboard could not reach its data adapter. Retry or contact support.',
     reasonCode: 'adapter_error',
     actionLabel: 'Retry',
     onAction: () => {},

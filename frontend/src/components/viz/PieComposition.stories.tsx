@@ -82,10 +82,7 @@ export const DarkTheme: Story = {
   },
   decorators: [
     (StoryComponent) => (
-      <div
-        data-theme="dark"
-        style={{ background: 'var(--color-surface-card)', padding: 16 }}
-      >
+      <div data-theme="dark" style={{ background: 'var(--color-surface-card)', padding: 16 }}>
         <StoryComponent />
       </div>
     ),

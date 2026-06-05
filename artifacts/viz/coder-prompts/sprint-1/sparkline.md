@@ -22,15 +22,16 @@
   - `frontend/src/components/viz/__tests__/Sparkline.test.tsx` (create)
 
 - **Props API**:
+
 ```typescript
 interface SparklineProps {
-  data: Array<{ date: string; value: number }>
-  color?: string          // default: chartPalette[0] (#2563eb)
-  height?: number         // default: 40
-  width?: number          // default: 120
-  showTooltip?: boolean   // default: false — tooltip adds weight, disable by default for table use
-  isLoading?: boolean
-  'aria-label'?: string   // for screen readers
+  data: Array<{ date: string; value: number }>;
+  color?: string; // default: chartPalette[0] (#2563eb)
+  height?: number; // default: 40
+  width?: number; // default: 120
+  showTooltip?: boolean; // default: false — tooltip adds weight, disable by default for table use
+  isLoading?: boolean;
+  'aria-label'?: string; // for screen readers
 }
 ```
 
@@ -47,6 +48,7 @@ interface SparklineProps {
 ## Design
 
 Recharts primitives used:
+
 ```
 <LineChart width={width} height={height} data={data}>
   <Line

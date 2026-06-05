@@ -194,8 +194,7 @@ const DashboardLibrary = () => {
 
   const hasFilters = search.trim().length > 0 || typeFilter !== 'all' || ownerFilter !== 'all';
   const hasAnyItems = allItems.length > 0;
-  const hasMatches =
-    filteredSystemTemplates.length > 0 || filteredSavedDashboards.length > 0;
+  const hasMatches = filteredSystemTemplates.length > 0 || filteredSavedDashboards.length > 0;
 
   // S4c: summary KPI strip — counts are derived from the unfiltered library
   // payload so the tiles remain stable as search/filter controls mutate.
@@ -240,11 +239,7 @@ const DashboardLibrary = () => {
   );
 
   const runSavedDashboardAction = useCallback(
-    async (
-      item: DashboardLibraryItem,
-      action: DashboardAction,
-      callback: () => Promise<void>,
-    ) => {
+    async (item: DashboardLibraryItem, action: DashboardAction, callback: () => Promise<void>) => {
       setActionError(undefined);
       setPendingActionKey(`${action}:${item.id}`);
       try {
@@ -268,9 +263,7 @@ const DashboardLibrary = () => {
       await runSavedDashboardAction(item, 'rename', async () => {
         const updated = await updateDashboardDefinition(item.id, { name: trimmed });
         updateSavedDashboards((current) =>
-          current.map((entry) =>
-            entry.id === item.id ? toSavedDashboardItem(updated) : entry,
-          ),
+          current.map((entry) => (entry.id === item.id ? toSavedDashboardItem(updated) : entry)),
         );
       });
     },

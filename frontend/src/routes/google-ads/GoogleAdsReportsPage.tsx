@@ -12,9 +12,7 @@ const GoogleAdsReportsPage = () => (
     <header className="dashboardPageHeader">
       <p className="dashboardEyebrow">Google Ads</p>
       <h1 className="dashboardHeading">Reports & Exports</h1>
-      <p className="dashboardSubtitle">
-        Create on-demand exports and manage reusable saved views.
-      </p>
+      <p className="dashboardSubtitle">Create on-demand exports and manage reusable saved views.</p>
     </header>
 
     <ReportsTabSection />

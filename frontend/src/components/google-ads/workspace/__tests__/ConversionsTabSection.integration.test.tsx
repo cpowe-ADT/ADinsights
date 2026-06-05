@@ -5,9 +5,7 @@ import ConversionsTabSection from '../tab-sections/ConversionsTabSection';
 import type { GoogleAdsConversionActionRow } from '../../../../lib/googleAdsCreativeConvAggregates';
 import type { SummaryRecord } from '../types';
 
-const summaryWithMetrics = (
-  metrics: Record<string, number> = {},
-): SummaryRecord =>
+const summaryWithMetrics = (metrics: Record<string, number> = {}): SummaryRecord =>
   ({
     window: {
       start_date: '2026-04-01',
@@ -50,14 +48,7 @@ const convRow = (
 
 describe('ConversionsTabSection — integration', () => {
   it('renders loading state', () => {
-    render(
-      <ConversionsTabSection
-        data={null}
-        status="loading"
-        error=""
-        summary={null}
-      />,
-    );
+    render(<ConversionsTabSection data={null} status="loading" error="" summary={null} />);
     expect(screen.getByText('Loading conversions...')).toBeInTheDocument();
   });
 
@@ -87,9 +78,7 @@ describe('ConversionsTabSection — integration', () => {
         summary={summary}
       />,
     );
-    expect(
-      screen.getByTestId('google-ads-conversions-section'),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('google-ads-conversions-section')).toBeInTheDocument();
     expect(screen.getAllByText('Purchase').length).toBeGreaterThan(0);
   });
 });

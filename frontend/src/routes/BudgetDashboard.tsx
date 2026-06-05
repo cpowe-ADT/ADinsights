@@ -121,7 +121,7 @@ const BudgetDashboard = () => {
       {
         accessorKey: 'platform',
         header: 'Platform',
-        cell: ({ row }: { row: { original: typeof distributionRows[number] } }) => {
+        cell: ({ row }: { row: { original: (typeof distributionRows)[number] } }) => {
           const color = platformColor(row.original.platform);
           if (!row.original.platform) return '—';
           return (
@@ -155,7 +155,7 @@ const BudgetDashboard = () => {
       {
         accessorKey: 'spend',
         header: 'Spend to date',
-        cell: ({ row }: { row: { original: typeof distributionRows[number] } }) =>
+        cell: ({ row }: { row: { original: (typeof distributionRows)[number] } }) =>
           row.original.spend.toLocaleString(undefined, {
             style: 'currency',
             currency,
@@ -164,7 +164,7 @@ const BudgetDashboard = () => {
       {
         accessorKey: 'budget',
         header: 'Budget',
-        cell: ({ row }: { row: { original: typeof distributionRows[number] } }) =>
+        cell: ({ row }: { row: { original: (typeof distributionRows)[number] } }) =>
           row.original.hasBudget
             ? row.original.budget.toLocaleString(undefined, {
                 style: 'currency',
@@ -175,7 +175,7 @@ const BudgetDashboard = () => {
       {
         accessorKey: 'pacing',
         header: 'Pacing',
-        cell: ({ row }: { row: { original: typeof distributionRows[number] } }) => {
+        cell: ({ row }: { row: { original: (typeof distributionRows)[number] } }) => {
           if (!row.original.hasBudget) return '—';
           const variant = derivePacingVariant(row.original.pacing);
           const tone =
@@ -251,7 +251,8 @@ const BudgetDashboard = () => {
   }
 
   if (shouldShowEmptyState) {
-    const emptyVariant = budgetAvailability?.reason === 'no_matching_filters' ? 'no-results' : 'empty';
+    const emptyVariant =
+      budgetAvailability?.reason === 'no_matching_filters' ? 'no-results' : 'empty';
     const emptyTitle =
       budgetAvailability?.reason === 'budget_unavailable'
         ? 'Budgets are unavailable for this view'
@@ -319,8 +320,8 @@ const BudgetDashboard = () => {
             <FilterStatus />
           </div>
           <p className="muted">
-            Per-campaign spend against window budget. Rows without a configured budget are tagged
-            as <em>Budget unavailable</em>.
+            Per-campaign spend against window budget. Rows without a configured budget are tagged as{' '}
+            <em>Budget unavailable</em>.
           </p>
         </header>
         <AccessibleTableToggle
@@ -419,7 +420,9 @@ const BudgetDashboard = () => {
           <div className="panel-header__title-row">
             <h2>Budget pacing</h2>
           </div>
-          <p className="muted">Compare projected spend against the selected-window Meta budget plan.</p>
+          <p className="muted">
+            Compare projected spend against the selected-window Meta budget plan.
+          </p>
         </header>
         <BudgetPacingList rows={budgetRows as BudgetPacingRow[]} currency={currency} />
       </section>

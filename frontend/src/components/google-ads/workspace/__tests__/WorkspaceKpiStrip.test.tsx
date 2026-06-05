@@ -55,9 +55,7 @@ describe('WorkspaceKpiStrip', () => {
   });
 
   it('shows loading skeletons when loading with no summary', () => {
-    const { container } = render(
-      <WorkspaceKpiStrip summary={null} status="loading" error="" />,
-    );
+    const { container } = render(<WorkspaceKpiStrip summary={null} status="loading" error="" />);
     const busyTiles = container.querySelectorAll('[aria-busy="true"]');
     expect(busyTiles.length).toBeGreaterThan(0);
   });

@@ -30,10 +30,38 @@ const columns: ColumnDef<CampaignRow>[] = [
 ];
 
 const baseRows: CampaignRow[] = [
-  { id: 'r1', campaign: 'Awareness Boost', platform: 'Meta', status: 'Active', spend: 2400, conversions: 64 },
-  { id: 'r2', campaign: 'Conversion Surge', platform: 'Google', status: 'Paused', spend: 1850, conversions: 52 },
-  { id: 'r3', campaign: 'Remarketing Push', platform: 'Meta', status: 'Active', spend: 1320, conversions: 41 },
-  { id: 'r4', campaign: 'Retention Nurture', platform: 'Google', status: 'Active', spend: 640, conversions: 18 },
+  {
+    id: 'r1',
+    campaign: 'Awareness Boost',
+    platform: 'Meta',
+    status: 'Active',
+    spend: 2400,
+    conversions: 64,
+  },
+  {
+    id: 'r2',
+    campaign: 'Conversion Surge',
+    platform: 'Google',
+    status: 'Paused',
+    spend: 1850,
+    conversions: 52,
+  },
+  {
+    id: 'r3',
+    campaign: 'Remarketing Push',
+    platform: 'Meta',
+    status: 'Active',
+    spend: 1320,
+    conversions: 41,
+  },
+  {
+    id: 'r4',
+    campaign: 'Retention Nurture',
+    platform: 'Google',
+    status: 'Active',
+    spend: 640,
+    conversions: 18,
+  },
 ];
 
 const longRows: CampaignRow[] = Array.from({ length: 24 }).map((_, i) => ({
@@ -119,10 +147,7 @@ export const DarkTheme: Story = {
   },
   decorators: [
     (StoryComponent) => (
-      <div
-        data-theme="dark"
-        style={{ background: 'var(--color-surface-card)', padding: 16 }}
-      >
+      <div data-theme="dark" style={{ background: 'var(--color-surface-card)', padding: 16 }}>
         <StoryComponent />
       </div>
     ),

@@ -39,11 +39,25 @@ const storeMock = vi.hoisted(() => ({
       last_synced_at: '2026-01-28T00:00:00Z',
       metric_availability: {
         page_post_engagements: { supported: true, last_checked_at: null, reason: '' },
-        page_total_actions: { supported: false, last_checked_at: null, reason: 'Not available for this Page' },
+        page_total_actions: {
+          supported: false,
+          last_checked_at: null,
+          reason: 'Not available for this Page',
+        },
       },
       kpis: [
-        { metric: 'page_post_engagements', resolved_metric: 'page_post_engagements', value: 100, today_value: 10 },
-        { metric: 'page_total_actions', resolved_metric: 'page_total_actions', value: 200, today_value: 20 },
+        {
+          metric: 'page_post_engagements',
+          resolved_metric: 'page_post_engagements',
+          value: 100,
+          today_value: 10,
+        },
+        {
+          metric: 'page_total_actions',
+          resolved_metric: 'page_total_actions',
+          value: 200,
+          today_value: 20,
+        },
       ],
       daily_series: {
         page_post_engagements: [{ date: '2026-01-20', value: 10 }],
@@ -51,7 +65,9 @@ const storeMock = vi.hoisted(() => ({
       primary_metric: 'page_post_engagements',
       cards: [],
       metrics: [],
-      engagement_breakdown: undefined as Record<string, Array<{ type: string; value: number | null }>> | undefined,
+      engagement_breakdown: undefined as
+        | Record<string, Array<{ type: string; value: number | null }>>
+        | undefined,
     },
     timeseries: {
       page_id: 'page-1',
@@ -96,7 +112,13 @@ vi.mock('../../components/viz', async () => {
     TrendLine: ({ ariaLabel }: { ariaLabel: string }) => (
       <div data-testid="viz-trend-line" aria-label={ariaLabel} />
     ),
-    PieComposition: ({ data, ariaLabel }: { data: Array<{ label: string; value: number }>; ariaLabel: string }) => (
+    PieComposition: ({
+      data,
+      ariaLabel,
+    }: {
+      data: Array<{ label: string; value: number }>;
+      ariaLabel: string;
+    }) => (
       <div data-testid="viz-pie" aria-label={ariaLabel}>
         {data.map((entry) => (
           <span key={entry.label}>
@@ -133,7 +155,9 @@ vi.mock('../../lib/metaPageInsights', async (importOriginal) => {
     ...original,
     listMetaPageExports: vi.fn().mockResolvedValue([]),
     createMetaPageExport: vi.fn().mockResolvedValue({}),
-    downloadExportArtifact: vi.fn().mockResolvedValue({ blob: new Blob(), filename: 'export.csv', contentType: 'text/csv' }),
+    downloadExportArtifact: vi
+      .fn()
+      .mockResolvedValue({ blob: new Blob(), filename: 'export.csv', contentType: 'text/csv' }),
   };
 });
 
@@ -153,7 +177,10 @@ describe('MetaPageOverviewPage', () => {
       const result = render(
         <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
           <Routes>
-            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+            <Route
+              path="/dashboards/meta/pages/:pageId/overview"
+              element={<MetaPageOverviewPage />}
+            />
           </Routes>
         </MemoryRouter>,
       );
@@ -176,7 +203,10 @@ describe('MetaPageOverviewPage', () => {
       render(
         <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
           <Routes>
-            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+            <Route
+              path="/dashboards/meta/pages/:pageId/overview"
+              element={<MetaPageOverviewPage />}
+            />
           </Routes>
         </MemoryRouter>,
       );
@@ -191,15 +221,19 @@ describe('MetaPageOverviewPage', () => {
       render(
         <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
           <Routes>
-            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+            <Route
+              path="/dashboards/meta/pages/:pageId/overview"
+              element={<MetaPageOverviewPage />}
+            />
           </Routes>
         </MemoryRouter>,
       );
     });
 
-    expect(
-      screen.getByRole('link', { name: /back to facebook pages/i }),
-    ).toHaveAttribute('href', '/dashboards/meta/pages');
+    expect(screen.getByRole('link', { name: /back to facebook pages/i })).toHaveAttribute(
+      'href',
+      '/dashboards/meta/pages',
+    );
   });
 
   it('shows restore guidance when marketing access is orphaned', async () => {
@@ -228,7 +262,10 @@ describe('MetaPageOverviewPage', () => {
       render(
         <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
           <Routes>
-            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+            <Route
+              path="/dashboards/meta/pages/:pageId/overview"
+              element={<MetaPageOverviewPage />}
+            />
           </Routes>
         </MemoryRouter>,
       );
@@ -252,7 +289,10 @@ describe('MetaPageOverviewPage', () => {
       render(
         <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
           <Routes>
-            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+            <Route
+              path="/dashboards/meta/pages/:pageId/overview"
+              element={<MetaPageOverviewPage />}
+            />
           </Routes>
         </MemoryRouter>,
       );
@@ -269,7 +309,10 @@ describe('MetaPageOverviewPage', () => {
       render(
         <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
           <Routes>
-            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+            <Route
+              path="/dashboards/meta/pages/:pageId/overview"
+              element={<MetaPageOverviewPage />}
+            />
           </Routes>
         </MemoryRouter>,
       );
@@ -287,7 +330,10 @@ describe('MetaPageOverviewPage', () => {
       render(
         <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
           <Routes>
-            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+            <Route
+              path="/dashboards/meta/pages/:pageId/overview"
+              element={<MetaPageOverviewPage />}
+            />
           </Routes>
         </MemoryRouter>,
       );
@@ -300,8 +346,18 @@ describe('MetaPageOverviewPage', () => {
     storeMock.state.overview = {
       ...storeMock.state.overview!,
       kpis: [
-        { metric: 'page_post_engagements', resolved_metric: 'page_post_engagements', value: null, today_value: null },
-        { metric: 'page_total_actions', resolved_metric: 'page_total_actions', value: null, today_value: null },
+        {
+          metric: 'page_post_engagements',
+          resolved_metric: 'page_post_engagements',
+          value: null,
+          today_value: null,
+        },
+        {
+          metric: 'page_total_actions',
+          resolved_metric: 'page_total_actions',
+          value: null,
+          today_value: null,
+        },
       ],
     };
 
@@ -309,7 +365,10 @@ describe('MetaPageOverviewPage', () => {
       render(
         <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
           <Routes>
-            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+            <Route
+              path="/dashboards/meta/pages/:pageId/overview"
+              element={<MetaPageOverviewPage />}
+            />
           </Routes>
         </MemoryRouter>,
       );
@@ -330,7 +389,10 @@ describe('MetaPageOverviewPage', () => {
       render(
         <MemoryRouter initialEntries={['/dashboards/meta/pages/page-1/overview']}>
           <Routes>
-            <Route path="/dashboards/meta/pages/:pageId/overview" element={<MetaPageOverviewPage />} />
+            <Route
+              path="/dashboards/meta/pages/:pageId/overview"
+              element={<MetaPageOverviewPage />}
+            />
           </Routes>
         </MemoryRouter>,
       );

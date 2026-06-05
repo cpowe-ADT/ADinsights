@@ -2,7 +2,7 @@
 
 **Sprint:** 4
 **Estimated size:** M
-**Depends on:** sprint-1/* (all kit components)
+**Depends on:** sprint-1/\* (all kit components)
 **Blocks:** none
 **Role needed:** frontend-engineer
 
@@ -40,20 +40,20 @@ export const PLATFORM_DISPLAY_LABELS: Record<string, string> = {
   VIDEO: 'Video',
   SHOPPING: 'Shopping',
   PERFORMANCE_MAX: 'PMax',
-}
+};
 
 export function getPlatformLabel(raw: string): string {
-  return PLATFORM_DISPLAY_LABELS[raw] ?? raw
+  return PLATFORM_DISPLAY_LABELS[raw] ?? raw;
 }
 
 export function getPlatformColor(raw: string): string {
   if (raw === 'facebook' || raw === 'instagram' || raw === 'meta_ads') {
-    return '#2563eb'
+    return '#2563eb';
   }
   if (raw === 'google_ads' || raw === 'SEARCH' || raw === 'DISPLAY') {
-    return '#f97316'
+    return '#f97316';
   }
-  return '#0ea5e9'
+  return '#0ea5e9';
 }
 ```
 
@@ -61,7 +61,7 @@ export function getPlatformColor(raw: string): string {
   - KPI strip (5 tiles): `payload.metrics.spend`, `payload.metrics.impressions`, `payload.metrics.clicks`, `payload.metrics.conversions`, ROAS = `conversion_value / spend` (derived client-side if not in payload).
   - Stacked area TrendLine: `payload.campaign.trend` split by `platform` field. For each unique platform in trend rows, create one series. If `platform` field absent from trend rows, fall back to a single total-spend line. Use `variant="stacked-area"` on TrendLine. Platform colors from `getPlatformColor()`.
   - Small-multiples (2×2 grid): 4 `DistributionBar` components in a CSS grid. Each shows Meta vs Google Ads split for one metric: Spend / Impressions / Clicks / Conversions. Data from `payload.platforms.byPlatform[]` with `getPlatformLabel()` applied to labels.
-  - DataTable: `payload.platforms.byPlatform[]` columns — Platform (label from `getPlatformLabel`), Spend, Impressions, Clicks, Conversions, CTR (clicks/impressions), CPM (spend/impressions*1000), ROAS. CSV export filename `platforms`.
+  - DataTable: `payload.platforms.byPlatform[]` columns — Platform (label from `getPlatformLabel`), Spend, Impressions, Clicks, Conversions, CTR (clicks/impressions), CPM (spend/impressions\*1000), ROAS. CSV export filename `platforms`.
 
 - **B-PLAT-03 fix**: replace all hardcoded `platform === 'facebook'` checks in the `kpis` useMemo with `getPlatformLabel(p.platform)` normalization from `platformLabels.ts`. Also normalize all chart labels.
 

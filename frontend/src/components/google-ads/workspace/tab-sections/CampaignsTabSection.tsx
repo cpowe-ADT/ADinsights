@@ -1,11 +1,6 @@
 import { useMemo } from 'react';
 
-import {
-  BubbleScatter,
-  DistributionBar,
-  EmptyState,
-  KpiTile,
-} from '../../../viz';
+import { BubbleScatter, DistributionBar, EmptyState, KpiTile } from '../../../viz';
 import {
   buildCampaignBubblePoints,
   buildTopSpendBars,
@@ -29,7 +24,16 @@ type Props = {
 };
 
 const EmptyIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="40"
+    height="40"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    aria-hidden="true"
+  >
     <rect x="3" y="4" width="18" height="16" rx="2" />
     <path d="M3 10h18" />
   </svg>
@@ -91,11 +95,7 @@ const CampaignsTabSection = ({
     >
       <section className="panel">
         <h2>Campaign KPIs</h2>
-        <div
-          className="gads-workspace__kpi-grid"
-          role="list"
-          aria-label="Google Ads campaign KPIs"
-        >
+        <div className="gads-workspace__kpi-grid" role="list" aria-label="Google Ads campaign KPIs">
           <KpiTile label="Total Cost" value={kpis.totalSpend} format="currency" currency="JMD" />
           <KpiTile label="Total Conversions" value={kpis.totalConversions} format="number" />
           <KpiTile label="Avg CPA" value={kpis.avgCpa} format="currency" currency="JMD" />
@@ -122,8 +122,8 @@ const CampaignsTabSection = ({
       <section className="panel">
         <h2>Top 10 campaigns by cost</h2>
         <p className="dashboardSubtitle">
-          Per-campaign daily trend is not yet available from the API; this bar
-          chart serves as the top-10 overview fallback.
+          Per-campaign daily trend is not yet available from the API; this bar chart serves as the
+          top-10 overview fallback.
         </p>
         <DistributionBar
           data={topSpend}
@@ -182,8 +182,12 @@ const CampaignsTabSection = ({
                     <td className="dashboard-table__cell">{row.channel_type ?? '—'}</td>
                     <td className="dashboard-table__cell">{Number(row.spend ?? 0).toFixed(2)}</td>
                     <td className="dashboard-table__cell">{Number(row.clicks ?? 0).toFixed(0)}</td>
-                    <td className="dashboard-table__cell">{Number(row.impressions ?? 0).toFixed(0)}</td>
-                    <td className="dashboard-table__cell">{Number(row.conversions ?? 0).toFixed(2)}</td>
+                    <td className="dashboard-table__cell">
+                      {Number(row.impressions ?? 0).toFixed(0)}
+                    </td>
+                    <td className="dashboard-table__cell">
+                      {Number(row.conversions ?? 0).toFixed(2)}
+                    </td>
                     <td className="dashboard-table__cell">{Number(row.cpa ?? 0).toFixed(2)}</td>
                     <td className="dashboard-table__cell">{Number(row.roas ?? 0).toFixed(2)}</td>
                   </tr>

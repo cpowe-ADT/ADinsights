@@ -117,9 +117,7 @@ const GaugeRing = ({
   unit = '%',
 }: GaugeRingProps) => {
   const resolvedVariant = variant ?? derivePacingVariant(value, max);
-  const clamped = Number.isFinite(value)
-    ? Math.min(Math.max(value, 0), max)
-    : 0;
+  const clamped = Number.isFinite(value) ? Math.min(Math.max(value, 0), max) : 0;
   const color = VARIANT_COLOR[resolvedVariant];
 
   const chartData = useMemo(
@@ -167,9 +165,7 @@ const GaugeRing = ({
   const outerRadius = Math.round(height * 0.48);
 
   return (
-    <div
-      style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-    >
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
         {label}
       </div>
@@ -213,12 +209,7 @@ const GaugeRing = ({
                 />
               </pattern>
             </defs>
-            <PolarAngleAxisComponent
-              type="number"
-              domain={[0, max]}
-              angleAxisId={0}
-              tick={false}
-            />
+            <PolarAngleAxisComponent type="number" domain={[0, max]} angleAxisId={0} tick={false} />
             <RadialBarComponent
               background={{ fill: 'var(--viz-grid, rgba(15, 23, 42, 0.12))' }}
               dataKey="value"

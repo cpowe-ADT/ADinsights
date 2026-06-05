@@ -8,12 +8,12 @@ Deferred (not touched): NB-PLAT-01 (demo-mode toggles — per OQ2), B-CAMP-01/B-
 
 ## Files Modified
 
-| File | Change summary | Line delta |
-|---|---|---|
-| `frontend/src/routes/CampaignDashboard.tsx` | FP-CAMP-02: Collapsed two duplicate empty-state branches (prev lines 336-365 and 367-400) into a single consolidated guard. Added missing case: `hasCampaignData && rows.length === 0 && availability.status === 'available'` now renders the "no-results" EmptyState instead of a silently empty `CampaignTable`. Reason detection falls through `availabilityReason || availableButEmpty`. | -22 (net) |
-| `frontend/src/routes/PlatformDashboard.tsx` | FP-PLAT-03: Replaced hardcoded `fbRow` / `igRow` lookups with a top-2-by-spend derivation from `byPlatform`. KPI labels now read `${formatPlatformLabel(row.platform)} spend` so the tiles reflect whichever platforms are returned (Meta-only, Google-only, or both). "Top platform" by conversions also uses the new formatter so it no longer leaks raw `facebook` / `instagram` strings. Added a local `formatPlatformLabel` helper that capitalizes tokens and uppercases short acronyms. | +22 (net) |
-| `frontend/src/state/useDashboardStore.test.ts` | Added regression test asserting that `getCampaignRowsForSelectedParish`, `getCreativeRowsForSelectedParish`, and `getBudgetRowsForSelectedParish` all honor `filters.platforms` (with and without a `selectedParish`, for both single-platform and both-platforms scopes). Guards against silent regression of the FP-CAMP-01 / FP-CREA-01 / FP-BUDG-02 selector patches in `useDashboardStore.ts` lines 1485-1617. | +156 |
-| `frontend/src/routes/__tests__/PlatformDashboard.test.tsx` | Updated existing "renders heading and KPIs" assertion to expect the new capitalized `Top platform: Facebook` label emitted by the FP-PLAT-03 formatter (previously asserted raw `facebook`). Added inline comment pointing to FP-PLAT-03. | +2 / -2 |
+| File                                                       | Change summary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Line delta |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------- | --------- |
+| `frontend/src/routes/CampaignDashboard.tsx`                | FP-CAMP-02: Collapsed two duplicate empty-state branches (prev lines 336-365 and 367-400) into a single consolidated guard. Added missing case: `hasCampaignData && rows.length === 0 && availability.status === 'available'` now renders the "no-results" EmptyState instead of a silently empty `CampaignTable`. Reason detection falls through `availabilityReason                                                                                                                          |            | availableButEmpty`. | -22 (net) |
+| `frontend/src/routes/PlatformDashboard.tsx`                | FP-PLAT-03: Replaced hardcoded `fbRow` / `igRow` lookups with a top-2-by-spend derivation from `byPlatform`. KPI labels now read `${formatPlatformLabel(row.platform)} spend` so the tiles reflect whichever platforms are returned (Meta-only, Google-only, or both). "Top platform" by conversions also uses the new formatter so it no longer leaks raw `facebook` / `instagram` strings. Added a local `formatPlatformLabel` helper that capitalizes tokens and uppercases short acronyms. | +22 (net)  |
+| `frontend/src/state/useDashboardStore.test.ts`             | Added regression test asserting that `getCampaignRowsForSelectedParish`, `getCreativeRowsForSelectedParish`, and `getBudgetRowsForSelectedParish` all honor `filters.platforms` (with and without a `selectedParish`, for both single-platform and both-platforms scopes). Guards against silent regression of the FP-CAMP-01 / FP-CREA-01 / FP-BUDG-02 selector patches in `useDashboardStore.ts` lines 1485-1617.                                                                            | +156       |
+| `frontend/src/routes/__tests__/PlatformDashboard.test.tsx` | Updated existing "renders heading and KPIs" assertion to expect the new capitalized `Top platform: Facebook` label emitted by the FP-PLAT-03 formatter (previously asserted raw `facebook`). Added inline comment pointing to FP-PLAT-03.                                                                                                                                                                                                                                                      | +2 / -2    |
 
 ## Tests Added
 
@@ -34,6 +34,7 @@ Now asserts `Top platform: Facebook` (FP-PLAT-03 capitalized label) instead of `
 ## Test Results
 
 ### Targeted vitest
+
 ```
  ✓ src/routes/__tests__/BudgetDashboard.test.tsx (3 tests) 138ms
  ✓ src/routes/__tests__/PlatformDashboard.test.tsx (3 tests) 168ms
@@ -47,6 +48,7 @@ Now asserts `Top platform: Facebook` (FP-PLAT-03 capitalized label) instead of `
 ```
 
 Additional confirmation on `useDashboardStore.test.ts` (14 tests, including the new regression):
+
 ```
  ✓ src/state/useDashboardStore.test.ts (14 tests) 701ms
 
@@ -55,13 +57,16 @@ Additional confirmation on `useDashboardStore.test.ts` (14 tests, including the 
 ```
 
 ### Lint
+
 ```
 > adinsights-frontend@0.1.0 lint
 > eslint .
 ```
+
 (exit 0, no warnings)
 
 ### Build
+
 ```
 dist/assets/CampaignDashboard-CwFGspOX.js              28.79 kB │ gzip:  10.09 kB
 dist/assets/DashboardLayout-Ccr32snM.js                29.47 kB │ gzip:   9.83 kB

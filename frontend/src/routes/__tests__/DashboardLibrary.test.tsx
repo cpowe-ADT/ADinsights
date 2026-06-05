@@ -204,9 +204,7 @@ describe('DashboardLibrary', () => {
     expect(screen.queryByText('JDIC renamed Copy')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Delete' }));
-    await waitFor(() =>
-      expect(apiMocks.deleteDashboardDefinition).toHaveBeenCalledWith('dash-1'),
-    );
+    await waitFor(() => expect(apiMocks.deleteDashboardDefinition).toHaveBeenCalledWith('dash-1'));
     expect(screen.queryByText('JDIC renamed')).not.toBeInTheDocument();
 
     expect(promptSpy).toHaveBeenCalled();

@@ -17,25 +17,27 @@ Implementers must touch **both** surfaces for every in-scope tab, otherwise one 
 
 ## 2. File-to-tab mapping (both modes)
 
-| Sprint-3 Tab | Unified-mode file (workspace tab-section) | Legacy-mode file (standalone route) | Legacy route path | Notes |
-|---|---|---|---|---|
-| **Overview** | `frontend/src/components/google-ads/workspace/tab-sections/OverviewTabSection.tsx` (**exists**, 86 LOC, table-only) | `frontend/src/routes/google-ads/GoogleAdsExecutivePage.tsx` (**exists**, 170 LOC) | `/dashboards/google-ads/executive` | Both consume summary payload; endpoints differ slightly (`workspace/summary/` adds `alerts_summary`/`governance_summary`/`top_insights`) |
-| **Campaigns** | `frontend/src/components/google-ads/workspace/tab-sections/CampaignsTabSection.tsx` (**exists**, 137 LOC, table + drawer) | `frontend/src/routes/google-ads/GoogleAdsCampaignsPage.tsx` (**exists**, 12 LOC thin wrapper → `GoogleAdsDataTablePage`) | `/dashboards/google-ads/campaigns` | Legacy delegates to shared `GoogleAdsDataTablePage` generic table |
-| **Search** (keywords + search-terms + insights) | **MUST CREATE** `.../tab-sections/SearchTabSection.tsx` (currently falls through to `GenericTabSection`) | `frontend/src/routes/google-ads/GoogleAdsKeywordsPage.tsx` (**exists**, 40 LOC, 3-mode toggle) | `/dashboards/google-ads/keywords` | Unified carries `searchMode` query (`keywords`/`search_terms`/`insights`) |
-| **Assets** | **MUST CREATE** `.../tab-sections/AssetsTabSection.tsx` | `frontend/src/routes/google-ads/GoogleAdsAssetsPage.tsx` (12 LOC wrapper) | `/dashboards/google-ads/assets` | — |
-| **Pmax** | **MUST CREATE** `.../tab-sections/PmaxTabSection.tsx` | `frontend/src/routes/google-ads/GoogleAdsPmaxPage.tsx` (12 LOC wrapper) | `/dashboards/google-ads/pmax` | Needs treemap primitive |
-| **Conversions** | **MUST CREATE** `.../tab-sections/ConversionsTabSection.tsx` | `frontend/src/routes/google-ads/GoogleAdsConversionsPage.tsx` (12 LOC wrapper) | `/dashboards/google-ads/conversions` | — |
-| **Pacing** | **MUST CREATE** `.../tab-sections/PacingTabSection.tsx` (currently falls through to `GenericTabSection`) | `frontend/src/routes/google-ads/GoogleAdsBudgetPage.tsx` (119 LOC) | `/dashboards/google-ads/budget` | Needs gauge primitive |
-| **Changes** | **MUST CREATE** `.../tab-sections/ChangesTabSection.tsx` | `frontend/src/routes/google-ads/GoogleAdsChangeLogPage.tsx` (12 LOC wrapper) | `/dashboards/google-ads/change-log` | — |
-| **Recommendations** | **MUST CREATE** `.../tab-sections/RecommendationsTabSection.tsx` | `frontend/src/routes/google-ads/GoogleAdsRecommendationsPage.tsx` (12 LOC wrapper) | `/dashboards/google-ads/recommendations` | — |
-| **Reports** | **MUST CREATE** `.../tab-sections/ReportsTabSection.tsx` | `frontend/src/routes/google-ads/GoogleAdsReportsPage.tsx` (151 LOC) | `/dashboards/google-ads/reports` | Workflow page, minimal charts |
+| Sprint-3 Tab                                    | Unified-mode file (workspace tab-section)                                                                                 | Legacy-mode file (standalone route)                                                                                      | Legacy route path                        | Notes                                                                                                                                    |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **Overview**                                    | `frontend/src/components/google-ads/workspace/tab-sections/OverviewTabSection.tsx` (**exists**, 86 LOC, table-only)       | `frontend/src/routes/google-ads/GoogleAdsExecutivePage.tsx` (**exists**, 170 LOC)                                        | `/dashboards/google-ads/executive`       | Both consume summary payload; endpoints differ slightly (`workspace/summary/` adds `alerts_summary`/`governance_summary`/`top_insights`) |
+| **Campaigns**                                   | `frontend/src/components/google-ads/workspace/tab-sections/CampaignsTabSection.tsx` (**exists**, 137 LOC, table + drawer) | `frontend/src/routes/google-ads/GoogleAdsCampaignsPage.tsx` (**exists**, 12 LOC thin wrapper → `GoogleAdsDataTablePage`) | `/dashboards/google-ads/campaigns`       | Legacy delegates to shared `GoogleAdsDataTablePage` generic table                                                                        |
+| **Search** (keywords + search-terms + insights) | **MUST CREATE** `.../tab-sections/SearchTabSection.tsx` (currently falls through to `GenericTabSection`)                  | `frontend/src/routes/google-ads/GoogleAdsKeywordsPage.tsx` (**exists**, 40 LOC, 3-mode toggle)                           | `/dashboards/google-ads/keywords`        | Unified carries `searchMode` query (`keywords`/`search_terms`/`insights`)                                                                |
+| **Assets**                                      | **MUST CREATE** `.../tab-sections/AssetsTabSection.tsx`                                                                   | `frontend/src/routes/google-ads/GoogleAdsAssetsPage.tsx` (12 LOC wrapper)                                                | `/dashboards/google-ads/assets`          | —                                                                                                                                        |
+| **Pmax**                                        | **MUST CREATE** `.../tab-sections/PmaxTabSection.tsx`                                                                     | `frontend/src/routes/google-ads/GoogleAdsPmaxPage.tsx` (12 LOC wrapper)                                                  | `/dashboards/google-ads/pmax`            | Needs treemap primitive                                                                                                                  |
+| **Conversions**                                 | **MUST CREATE** `.../tab-sections/ConversionsTabSection.tsx`                                                              | `frontend/src/routes/google-ads/GoogleAdsConversionsPage.tsx` (12 LOC wrapper)                                           | `/dashboards/google-ads/conversions`     | —                                                                                                                                        |
+| **Pacing**                                      | **MUST CREATE** `.../tab-sections/PacingTabSection.tsx` (currently falls through to `GenericTabSection`)                  | `frontend/src/routes/google-ads/GoogleAdsBudgetPage.tsx` (119 LOC)                                                       | `/dashboards/google-ads/budget`          | Needs gauge primitive                                                                                                                    |
+| **Changes**                                     | **MUST CREATE** `.../tab-sections/ChangesTabSection.tsx`                                                                  | `frontend/src/routes/google-ads/GoogleAdsChangeLogPage.tsx` (12 LOC wrapper)                                             | `/dashboards/google-ads/change-log`      | —                                                                                                                                        |
+| **Recommendations**                             | **MUST CREATE** `.../tab-sections/RecommendationsTabSection.tsx`                                                          | `frontend/src/routes/google-ads/GoogleAdsRecommendationsPage.tsx` (12 LOC wrapper)                                       | `/dashboards/google-ads/recommendations` | —                                                                                                                                        |
+| **Reports**                                     | **MUST CREATE** `.../tab-sections/ReportsTabSection.tsx`                                                                  | `frontend/src/routes/google-ads/GoogleAdsReportsPage.tsx` (151 LOC)                                                      | `/dashboards/google-ads/reports`         | Workflow page, minimal charts                                                                                                            |
 
 **Out-of-scope but reachable:**
+
 - `GoogleAdsChannelsPage.tsx` (redirects to `tab=campaigns` under unified): already folded into Campaigns — do not build a Channels tab. Sprint 3 keeps the legacy file but does not modernize it (listed redirect is stable).
 - `GoogleAdsBreakdownsPage.tsx` (redirects to `tab=campaigns`): same — leave it.
 - `GoogleAdsCampaignDetailPage.tsx` (legacy standalone, 78 LOC): reachable via `/google-ads/campaigns/:campaignId` in legacy; in unified mode it is replaced by the drawer in `CampaignsTabSection`. Back-link fix (B3) already landed. Not a Sprint-3 deliverable, but the drawer inside `CampaignsTabSection` **is** part of Sprint 3.
 
 **Shared components (edit zone, not new):**
+
 - `frontend/src/components/google-ads/workspace/WorkspaceKpiStrip.tsx` (79 LOC) — currently renders 7 raw metric cards; Sprint 3 must swap to `KpiTile` per the Meta pattern.
 - `frontend/src/components/google-ads/workspace/WorkspaceInsightsRail.tsx` (53 LOC) — insight cards, no chart replacement needed; leave as-is but confirm `reasonCode` wiring when summary is empty.
 - `frontend/src/components/google-ads/workspace/WorkspaceHeader.tsx` — leave alone (B1 already shrunk it).
@@ -43,6 +45,7 @@ Implementers must touch **both** surfaces for every in-scope tab, otherwise one 
 - `frontend/src/routes/google-ads/GoogleAdsLegacyRedirects.tsx` — leave alone.
 
 **New helper module to create:**
+
 - `frontend/src/lib/googleAdsAggregates.ts` — aggregation + derive helpers (KPI rollups from `results[]`, channel rollups, funnel stages from campaign rows, quality-score buckets, IS% presence detector). Mirrors Sprint 2 `metaAggregates.ts` pattern.
 
 ---
@@ -50,6 +53,7 @@ Implementers must touch **both** surfaces for every in-scope tab, otherwise one 
 ## 3. Tab-by-tab current state survey
 
 ### 3.1 Overview (OverviewTabSection + GoogleAdsExecutivePage)
+
 - **Data hooks:** unified consumes `summary` (`GoogleAdsWorkspaceSummaryResponse`) from `useGoogleAdsWorkspaceData`. Legacy uses `fetchGoogleAdsExecutive` + subscribes to `useDashboardStore.filters`.
 - **Current layout:** both render three raw HTML tables (trend, top movers, pacing). No charts. `WorkspaceKpiStrip` renders 6 raw metric cards + "Pacing status" string.
 - **Empty/loading/error:** unified shows `<div>Loading overview...</div>` stub; legacy uses `DashboardState` component. Neither uses `reasonCode`.
@@ -57,6 +61,7 @@ Implementers must touch **both** surfaces for every in-scope tab, otherwise one 
 - **Keep:** `summary.trend`, `summary.movers`, `summary.pacing`, `summary.alerts_summary`, `summary.governance_summary`, `summary.top_insights`.
 
 ### 3.2 Campaigns (CampaignsTabSection + GoogleAdsCampaignsPage)
+
 - **Data hooks:** unified pulls `tabStates['campaigns|keywords'].data` (payload: `{count, results: CampaignRow[]}`). Legacy uses `GoogleAdsDataTablePage` → `fetchGoogleAdsList`.
 - **Current layout:** unified shows a full table (9 cols) + drawer with raw key/val pairs. Legacy shows a generic auto-column table.
 - **Empty/loading/error:** unified: `<div>Loading campaigns...</div>` + `role="alert"`. Legacy: `DashboardState`.
@@ -64,6 +69,7 @@ Implementers must touch **both** surfaces for every in-scope tab, otherwise one 
 - **Keep:** drawer behavior (`drawerCampaignId`, `onOpenDrawer`, `onCloseDrawer`); table sort/click semantics.
 
 ### 3.3 Search (SearchTabSection + GoogleAdsKeywordsPage)
+
 - **Data hooks:** unified falls through to `GenericTabSection` with a `searchMode` toggle. Legacy page has its own 3-mode toggle and reuses `GoogleAdsDataTablePage` for each mode.
 - **Current layout:** generic auto-column table, no charts.
 - **Empty/loading/error:** generic stubs only; no `reasonCode`.
@@ -71,42 +77,49 @@ Implementers must touch **both** surfaces for every in-scope tab, otherwise one 
 - **Keep:** mode toggle (`keywords` / `search_terms` / `insights`).
 
 ### 3.4 Assets (GoogleAdsAssetsPage)
+
 - **Data hooks:** legacy-only today — goes through `GoogleAdsDataTablePage`. Unified renders via `GenericTabSection`.
 - **Current layout:** auto-column table with `asset_type, asset_id, impressions, clicks, conversions, cpa, ctr, policy_approval_status` columns.
 - **Replace:** 3-tile KPI strip (Total Assets, Disapproved Count, Top Asset Conv) + `PieComposition` count-by-asset_type + `VizDataTable` with status chip column.
 - **Degrade:** per-asset `Sparkline` column (sprints-plan §640) → suppress, mark `[NEW-ENDPOINT]` stub, render table without the sparkline column. Confirmed: current endpoint returns per-asset aggregates only, no per-asset daily series.
 
 ### 3.5 Pmax (GoogleAdsPmaxPage)
+
 - **Data hooks:** legacy-only today via `GoogleAdsDataTablePage`. Unified via `GenericTabSection`.
 - **Current layout:** auto-column table from `asset-groups/` endpoint.
 - **Backend shape confirmed** (`google_ads_views.py:1160–1197`): `{customer_id, campaign_id, asset_group_id, asset_group_name, asset_group_status, spend, impressions, clicks, conversions, conversion_value, roas, cpa}`.
 - **Replace:** 3-tile KPI strip + **treemap** (size=spend, opacity-scaled-to-ROAS) + `VizDataTable` with status chip column.
 
 ### 3.6 Conversions (GoogleAdsConversionsPage)
+
 - **Data hooks:** legacy via `GoogleAdsDataTablePage`; unified via `GenericTabSection`.
 - **Current layout:** auto-column table.
 - **Row shape:** `conversion_action_name, conversions, conversion_value, cost_per_conversion` per sprints-plan; confirmed in backend `conversions/actions/` endpoint.
 - **Replace:** 3-tile KPI strip + `DistributionBar`-as-funnel (Impressions → Clicks → Conversions, sourced from `summary.metrics` or campaigns-tab-cache aggregate — Meta §4.3 pattern) + `PieComposition` (source-mix by action_name) + `VizDataTable`.
 
 ### 3.7 Pacing (PacingTabSection + GoogleAdsBudgetPage)
+
 - **Data hooks:** unified via `GenericTabSection` today; legacy via its own `fetchGoogleAdsList('/budgets/pacing/')` variant which returns a single object (not a list).
 - **Current layout:** legacy renders a 7-row key/value table; unified falls through to `GenericTabSection` which detects single-object payload and renders a `<dl>`.
 - **Payload:** `{month, spend_mtd, budget_month, forecast_month_end, over_under, runway_days, alerts: {overspend_risk, underdelivery}}`. **Important:** `pacing_pct` is NOT at the top of the endpoint (sprints-plan assumed it is). It is present on `summary.pacing.pacing_pct` (workspace summary) per `googleAdsDashboard.ts:21`. Use `spend_mtd / budget_month` as a derive fallback.
 - **Replace:** **gauge ring** (pacing %), 3-tile KPI strip (Spend MTD / Budget Month / Forecast Month-End), `DistributionBar` per-campaign variance, `VizDataTable` of per-campaign budget rows. **[NEW-ENDPOINT] note:** per-campaign budget rows are not returned by `/budgets/pacing/` today — only the top-level pacing object. Either source from `/campaigns/` + a client-side `budget_amount` join (requires budget field — not present) or degrade to top-level only and suppress variance bar. **Decision: degrade** — keep only gauge + KPI strip + single-row pacing table until a `/budgets/per-campaign/` endpoint ships.
 
 ### 3.8 Changes (GoogleAdsChangeLogPage)
+
 - **Data hooks:** legacy via `GoogleAdsDataTablePage`; unified via `GenericTabSection`.
 - **Current layout:** generic auto-column table.
 - **Row shape confirmed** (`google_ads_views.py:1384–1395`): `{customer_id, change_date_time, user_email, client_type, change_resource_type, resource_change_operation, campaign_id, ad_group_id, ad_id, changed_fields}`. Paginated (`page, page_size, num_pages`).
 - **Replace:** 2-tile KPI strip (Total Changes, Changes last 7d) + `DistributionBar` by `change_resource_type` + `VizDataTable` with severity chips. **Severity derivation:** map `resource_change_operation` → severity (`CREATE` → info, `UPDATE` → warning, `REMOVE` → danger). Sprints-plan called for severity chips but no severity field exists; this is the shipped workaround.
 
 ### 3.9 Recommendations (GoogleAdsRecommendationsPage)
+
 - **Data hooks:** legacy via `GoogleAdsDataTablePage`; unified via `GenericTabSection`.
 - **Row shape confirmed** (`google_ads_views.py:1427–1438`): `{customer_id, recommendation_type, resource_name, campaign_id, ad_group_id, dismissed, impact_metadata, last_seen_at}`.
 - **Replace:** 2-tile KPI strip (Active / Dismissed) + `PieComposition` (count by `recommendation_type`) + `VizDataTable` with status chip (Active/Dismissed), impact summary cell (extracted from `impact_metadata` JSON).
 - **Defer:** "Dismiss" PATCH action — no endpoint exists (sprints-plan §740). Suppress button.
 
 ### 3.10 Reports (GoogleAdsReportsPage)
+
 - **Data hooks:** `fetchGoogleAdsSavedViews` + `createGoogleAdsExport`.
 - **Current layout:** form controls + saved-views table.
 - **Replace:** keep controls strip (date range picker + Generate Report), swap the saved-views table to `VizDataTable` with status chip on export job rows. No charts per sprints-plan §756.
@@ -117,41 +130,41 @@ Implementers must touch **both** surfaces for every in-scope tab, otherwise one 
 
 Legend: ✅ available | ⚠ derive client-side | ❌ defer (gap). Source column references backend view file:line or frontend lib type.
 
-| Tab | Required viz | Required fields | Availability | Strategy |
-|---|---|---|---|---|
-| Overview | KPI strip (5: Cost, Conv, CPA, ROAS, **IS%**) | `metrics.{spend, conversions, cpa, roas, impression_share}` | Cost/Conv/CPA/ROAS ✅ (`summary.metrics.*`); **IS% ❌** — not in `GoogleAdsExecutiveResponse.metrics` nor backend view output (raw SDK has `metrics.search_impression_share` but not exposed via API) | **Defer IS% tile to Sprint 5+.** Architect decision: ship a 4-tile strip (drop IS% from sprints-plan), add `[NEW-ENDPOINT]` note in the tab file. Sprints-plan §579 pre-authorized this defer. |
-| Overview | Trend dual-axis (Cost + Conv) | `trend[].{date, spend, conversions}` | ✅ (`summary.trend[]`) | Direct bind; use `TrendLine` right-axis for conversions |
-| Overview | Channel pie | `by_channel[]` | ❌ — field not present on `GoogleAdsWorkspaceSummaryResponse` today | **Derive client-side** from workspace-summary caller — but `by_channel` needs per-channel spend which is not in the summary payload. **Strategy:** fall back to a campaign-level rollup: aggregate `tabStates['campaigns|keywords'].data.results[]` by `channel_type` and feed `PieComposition`. If campaigns tab not yet loaded, prefetch via `loadTab('campaigns')`. |
-| Campaigns | KPI strip (4) | `sum(spend), sum(conversions), avg(cpa), avg(roas)` from rows | ✅ — campaigns endpoint returns `spend, conversions, cpa, roas` per row | Derive in `googleAdsAggregates.ts:rollupCampaignKpis()` |
-| Campaigns | BubbleScatter | x=spend, y=conv/clicks, z=impressions, shape=channel_type | ✅ all fields on row payload (spend, clicks, impressions, conversions, channel_type) | Direct bind, derive conv_rate = conv/clicks with divide-safe helper |
-| Campaigns | Trend | per-campaign daily series | ❌ — `/campaigns/` returns aggregates only (backend l.620–670). Daily trend only available on `/campaigns/:id/` detail (backend l.735–758) | **Fallback: `DistributionBar` of top-10 campaigns by spend.** Sprints-plan §599 pre-authorized this fallback. No `[NEW-ENDPOINT]` needed. |
-| Campaigns | Table inline Sparkline | per-campaign daily series | ❌ (same reason) | **Suppress sparkline column.** Add `[NEW-ENDPOINT]` note. |
-| Search | KPI strip | count rows, avg QS, top conversions | ✅ — `quality_score` is on keyword rows (backend l.952,981) | Derive |
-| Search | BubbleScatter (x=QS, y=CPC, z=impressions) | `quality_score, spend/clicks, impressions` | ✅ — QS confirmed present; `cpc = spend/clicks` divide-safe | Direct bind + derive cpc |
-| Search | Top-10 search-terms bar | search-term + conversions | ✅ — separate `/search-terms/` endpoint | Fetch via existing `searchMode` toggle; need prefetch of both modes, or render only the mode the user selected and suppress the other chart. **Strategy:** when `searchMode === 'keywords'`, also fire a background `loadTab('search', 'search_terms')` once for the bar chart; if it fails, hide the bar with a subtle "search-terms data unavailable" reasonCode. |
-| Assets | KPI strip | Total Assets, Disapproved Count, Top Asset Conv | ✅ — row has `policy_approval_status` | Derive |
-| Assets | `PieComposition` by asset_type | ✅ | Direct |
-| Assets | per-asset Sparkline | per-asset daily series | ❌ | **Suppress column**, `[NEW-ENDPOINT]` note |
-| Pmax | KPI strip | sum(spend), count, sum(conversions) | ✅ | Derive |
-| Pmax | Treemap | asset_group_name, spend, roas | ✅ (backend l.1186–1196) | Direct |
-| Pmax | Table | all asset-group fields | ✅ | Direct |
-| Conversions | KPI strip | sum(conversions), sum(conversion_value), avg(cpa) | ✅ (conv-actions endpoint) | Derive |
-| Conversions | Funnel (Impressions→Clicks→Conversions) | aggregate across campaigns or summary | ✅ — use `summary.metrics.{impressions, clicks, conversions}` from the workspace summary already in the store | Meta §4.3 pattern, reuse |
-| Conversions | Source-mix pie | `conversion_action_name`, `conversions` | ✅ | Direct |
-| Pacing | Gauge ring (pacing %) | `pacing.pacing_pct` | ⚠ — `/budgets/pacing/` returns `spend_mtd, budget_month, forecast_month_end, over_under, runway_days, alerts` — **no `pacing_pct`** at top level; **but** `workspace/summary/` DOES expose `pacing.pacing_pct` (see `GoogleAdsExecutiveResponse.pacing: Record<string, number|null>`) | **Derive:** if `pacing_pct` not in payload, compute `spend_mtd / budget_month` with divide-safe; if denominator zero, render gauge empty state |
-| Pacing | Variance bar (per-campaign spend vs budget) | per-campaign budget | ❌ — `campaign_rows` with `budget_amount` not returned by any endpoint | **Defer**, add `[NEW-ENDPOINT]`. Tab ships without this block. |
-| Pacing | KPI strip | spend_mtd, budget_month, forecast_month_end | ✅ | Direct |
-| Changes | KPI strip (total + 7d) | count rows + date filter client-side | ✅ `change_date_time` on row | Derive using date comparison |
-| Changes | `DistributionBar` by type | `change_resource_type` | ✅ | Group |
-| Changes | Table with severity chip | **severity field** | ❌ — no severity column | **Derive:** map `resource_change_operation` (`CREATE`/`UPDATE`/`REMOVE`) → `info`/`warning`/`danger`. Document mapping in helper. |
-| Recommendations | KPI strip | count where `dismissed=false`, count where `dismissed=true` | ✅ | Derive |
-| Recommendations | `PieComposition` by type | `recommendation_type` | ✅ | Group |
-| Recommendations | Table | all fields + impact summary | ✅ — `impact_metadata` is arbitrary JSON. Render `JSON.stringify` fallback or pluck known keys (`primary_metric`, `impact_percentage`) | Direct |
-| Recommendations | severity chip | `impact_metadata.severity` or derive | ⚠ — `impact_metadata` shape is untyped. **Strategy:** try `impact_metadata?.severity` first; otherwise map `recommendation_type` → severity heuristic (budget/bid recommendations → warning; text-ad → info; policy → danger) |
-| Recommendations | Dismiss action | PATCH endpoint | ❌ | **Suppress button**, `[NEW-ENDPOINT]` |
-| Reports | Controls strip | form state only | ✅ | Direct |
-| Reports | Saved-views table | `GoogleAdsSavedView[]` | ✅ | Direct |
-| Reports | Export-jobs table | job list | ⚠ — only single-job round-trip exists via `fetchGoogleAdsExportStatus(jobId)`. Render latest-created-only (current behavior) and add `[NEW-ENDPOINT]` for a list endpoint. |
+| Tab             | Required viz                                  | Required fields                                               | Availability                                                                                                                                                                                                                                                                  | Strategy                                                                                                                                                                                                                                                                                                                                                            |
+| --------------- | --------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overview        | KPI strip (5: Cost, Conv, CPA, ROAS, **IS%**) | `metrics.{spend, conversions, cpa, roas, impression_share}`   | Cost/Conv/CPA/ROAS ✅ (`summary.metrics.*`); **IS% ❌** — not in `GoogleAdsExecutiveResponse.metrics` nor backend view output (raw SDK has `metrics.search_impression_share` but not exposed via API)                                                                         | **Defer IS% tile to Sprint 5+.** Architect decision: ship a 4-tile strip (drop IS% from sprints-plan), add `[NEW-ENDPOINT]` note in the tab file. Sprints-plan §579 pre-authorized this defer.                                                                                                                                                                      |
+| Overview        | Trend dual-axis (Cost + Conv)                 | `trend[].{date, spend, conversions}`                          | ✅ (`summary.trend[]`)                                                                                                                                                                                                                                                        | Direct bind; use `TrendLine` right-axis for conversions                                                                                                                                                                                                                                                                                                             |
+| Overview        | Channel pie                                   | `by_channel[]`                                                | ❌ — field not present on `GoogleAdsWorkspaceSummaryResponse` today                                                                                                                                                                                                           | **Derive client-side** from workspace-summary caller — but `by_channel` needs per-channel spend which is not in the summary payload. **Strategy:** fall back to a campaign-level rollup: aggregate `tabStates['campaigns                                                                                                                                            | keywords'].data.results[]`by`channel_type`and feed`PieComposition`. If campaigns tab not yet loaded, prefetch via `loadTab('campaigns')`.      |
+| Campaigns       | KPI strip (4)                                 | `sum(spend), sum(conversions), avg(cpa), avg(roas)` from rows | ✅ — campaigns endpoint returns `spend, conversions, cpa, roas` per row                                                                                                                                                                                                       | Derive in `googleAdsAggregates.ts:rollupCampaignKpis()`                                                                                                                                                                                                                                                                                                             |
+| Campaigns       | BubbleScatter                                 | x=spend, y=conv/clicks, z=impressions, shape=channel_type     | ✅ all fields on row payload (spend, clicks, impressions, conversions, channel_type)                                                                                                                                                                                          | Direct bind, derive conv_rate = conv/clicks with divide-safe helper                                                                                                                                                                                                                                                                                                 |
+| Campaigns       | Trend                                         | per-campaign daily series                                     | ❌ — `/campaigns/` returns aggregates only (backend l.620–670). Daily trend only available on `/campaigns/:id/` detail (backend l.735–758)                                                                                                                                    | **Fallback: `DistributionBar` of top-10 campaigns by spend.** Sprints-plan §599 pre-authorized this fallback. No `[NEW-ENDPOINT]` needed.                                                                                                                                                                                                                           |
+| Campaigns       | Table inline Sparkline                        | per-campaign daily series                                     | ❌ (same reason)                                                                                                                                                                                                                                                              | **Suppress sparkline column.** Add `[NEW-ENDPOINT]` note.                                                                                                                                                                                                                                                                                                           |
+| Search          | KPI strip                                     | count rows, avg QS, top conversions                           | ✅ — `quality_score` is on keyword rows (backend l.952,981)                                                                                                                                                                                                                   | Derive                                                                                                                                                                                                                                                                                                                                                              |
+| Search          | BubbleScatter (x=QS, y=CPC, z=impressions)    | `quality_score, spend/clicks, impressions`                    | ✅ — QS confirmed present; `cpc = spend/clicks` divide-safe                                                                                                                                                                                                                   | Direct bind + derive cpc                                                                                                                                                                                                                                                                                                                                            |
+| Search          | Top-10 search-terms bar                       | search-term + conversions                                     | ✅ — separate `/search-terms/` endpoint                                                                                                                                                                                                                                       | Fetch via existing `searchMode` toggle; need prefetch of both modes, or render only the mode the user selected and suppress the other chart. **Strategy:** when `searchMode === 'keywords'`, also fire a background `loadTab('search', 'search_terms')` once for the bar chart; if it fails, hide the bar with a subtle "search-terms data unavailable" reasonCode. |
+| Assets          | KPI strip                                     | Total Assets, Disapproved Count, Top Asset Conv               | ✅ — row has `policy_approval_status`                                                                                                                                                                                                                                         | Derive                                                                                                                                                                                                                                                                                                                                                              |
+| Assets          | `PieComposition` by asset_type                | ✅                                                            | Direct                                                                                                                                                                                                                                                                        |
+| Assets          | per-asset Sparkline                           | per-asset daily series                                        | ❌                                                                                                                                                                                                                                                                            | **Suppress column**, `[NEW-ENDPOINT]` note                                                                                                                                                                                                                                                                                                                          |
+| Pmax            | KPI strip                                     | sum(spend), count, sum(conversions)                           | ✅                                                                                                                                                                                                                                                                            | Derive                                                                                                                                                                                                                                                                                                                                                              |
+| Pmax            | Treemap                                       | asset_group_name, spend, roas                                 | ✅ (backend l.1186–1196)                                                                                                                                                                                                                                                      | Direct                                                                                                                                                                                                                                                                                                                                                              |
+| Pmax            | Table                                         | all asset-group fields                                        | ✅                                                                                                                                                                                                                                                                            | Direct                                                                                                                                                                                                                                                                                                                                                              |
+| Conversions     | KPI strip                                     | sum(conversions), sum(conversion_value), avg(cpa)             | ✅ (conv-actions endpoint)                                                                                                                                                                                                                                                    | Derive                                                                                                                                                                                                                                                                                                                                                              |
+| Conversions     | Funnel (Impressions→Clicks→Conversions)       | aggregate across campaigns or summary                         | ✅ — use `summary.metrics.{impressions, clicks, conversions}` from the workspace summary already in the store                                                                                                                                                                 | Meta §4.3 pattern, reuse                                                                                                                                                                                                                                                                                                                                            |
+| Conversions     | Source-mix pie                                | `conversion_action_name`, `conversions`                       | ✅                                                                                                                                                                                                                                                                            | Direct                                                                                                                                                                                                                                                                                                                                                              |
+| Pacing          | Gauge ring (pacing %)                         | `pacing.pacing_pct`                                           | ⚠ — `/budgets/pacing/` returns `spend_mtd, budget_month, forecast_month_end, over_under, runway_days, alerts` — **no `pacing_pct`** at top level; **but** `workspace/summary/` DOES expose `pacing.pacing_pct` (see `GoogleAdsExecutiveResponse.pacing: Record<string, number | null>`)                                                                                                                                                                                                                                                                                                                                                             | **Derive:** if `pacing_pct` not in payload, compute `spend_mtd / budget_month` with divide-safe; if denominator zero, render gauge empty state |
+| Pacing          | Variance bar (per-campaign spend vs budget)   | per-campaign budget                                           | ❌ — `campaign_rows` with `budget_amount` not returned by any endpoint                                                                                                                                                                                                        | **Defer**, add `[NEW-ENDPOINT]`. Tab ships without this block.                                                                                                                                                                                                                                                                                                      |
+| Pacing          | KPI strip                                     | spend_mtd, budget_month, forecast_month_end                   | ✅                                                                                                                                                                                                                                                                            | Direct                                                                                                                                                                                                                                                                                                                                                              |
+| Changes         | KPI strip (total + 7d)                        | count rows + date filter client-side                          | ✅ `change_date_time` on row                                                                                                                                                                                                                                                  | Derive using date comparison                                                                                                                                                                                                                                                                                                                                        |
+| Changes         | `DistributionBar` by type                     | `change_resource_type`                                        | ✅                                                                                                                                                                                                                                                                            | Group                                                                                                                                                                                                                                                                                                                                                               |
+| Changes         | Table with severity chip                      | **severity field**                                            | ❌ — no severity column                                                                                                                                                                                                                                                       | **Derive:** map `resource_change_operation` (`CREATE`/`UPDATE`/`REMOVE`) → `info`/`warning`/`danger`. Document mapping in helper.                                                                                                                                                                                                                                   |
+| Recommendations | KPI strip                                     | count where `dismissed=false`, count where `dismissed=true`   | ✅                                                                                                                                                                                                                                                                            | Derive                                                                                                                                                                                                                                                                                                                                                              |
+| Recommendations | `PieComposition` by type                      | `recommendation_type`                                         | ✅                                                                                                                                                                                                                                                                            | Group                                                                                                                                                                                                                                                                                                                                                               |
+| Recommendations | Table                                         | all fields + impact summary                                   | ✅ — `impact_metadata` is arbitrary JSON. Render `JSON.stringify` fallback or pluck known keys (`primary_metric`, `impact_percentage`)                                                                                                                                        | Direct                                                                                                                                                                                                                                                                                                                                                              |
+| Recommendations | severity chip                                 | `impact_metadata.severity` or derive                          | ⚠ — `impact_metadata` shape is untyped. **Strategy:** try `impact_metadata?.severity` first; otherwise map `recommendation_type` → severity heuristic (budget/bid recommendations → warning; text-ad → info; policy → danger)                                                 |
+| Recommendations | Dismiss action                                | PATCH endpoint                                                | ❌                                                                                                                                                                                                                                                                            | **Suppress button**, `[NEW-ENDPOINT]`                                                                                                                                                                                                                                                                                                                               |
+| Reports         | Controls strip                                | form state only                                               | ✅                                                                                                                                                                                                                                                                            | Direct                                                                                                                                                                                                                                                                                                                                                              |
+| Reports         | Saved-views table                             | `GoogleAdsSavedView[]`                                        | ✅                                                                                                                                                                                                                                                                            | Direct                                                                                                                                                                                                                                                                                                                                                              |
+| Reports         | Export-jobs table                             | job list                                                      | ⚠ — only single-job round-trip exists via `fetchGoogleAdsExportStatus(jobId)`. Render latest-created-only (current behavior) and add `[NEW-ENDPOINT]` for a list endpoint.                                                                                                    |
 
 **Key gap callouts for implementers (prominent):**
 
@@ -170,11 +183,11 @@ Legend: ✅ available | ⚠ derive client-side | ❌ defer (gap). Source column 
 
 Criteria per architect brief: ≥2 consumers or stable shape → add to kit; 1 consumer + irregular → inline. Other criteria: reuseability for Sprint 4/5, a11y investment (toggle + hidden table requires primitive-level plumbing), and Recharts API cost.
 
-| Primitive | Sprint-3 Consumers | Expected future consumers | Recharts coverage | Shape irregularity | **Decision** | Justification |
-|---|---|---|---|---|---|---|
-| **Treemap** (PMax asset-group: size=spend, color=ROAS opacity) | 1 (PMax tab only) | Sprint 4 CreativeDashboard may reuse for creative-group treemap; Sprint 4 ParishMapDetail may reuse for hexbin | ✅ Recharts 3.7 ships `<Treemap>` (confirmed in `frontend/package.json` + sprints-plan §661) | Low — stable `{name, value, opacity}` shape | **ADD TO KIT** as `AssetGroupTreemap` — `frontend/src/components/viz/AssetGroupTreemap.tsx` | 1 consumer today + 2 likely consumers in S4. Meta-pattern parity: Sprint 2 hesitated on a funnel primitive and we paid for it with a 3-line `DistributionBar` adapter in every consumer. A11y (hidden table equivalent) and color-token wiring are cheaper to build once. |
-| **Gauge ring** (Pacing %, needle-ish radial bar) | 1 (Pacing tab only) | Sprint 4 Pacing/Budget dashboard reuses; Sprint 5 tenant KPI overview may reuse | ⚠ Not a first-class Recharts component — assembled from `<RadialBarChart>` + angle math + reference arcs | Medium — domain `[0, 1.2]`, reference zones at 0.8/1.1, dial needle needs custom polar-coord SVG | **ADD TO KIT** as `GaugeRing` — `frontend/src/components/viz/GaugeRing.tsx` | Radial-bar plumbing + a11y (aria-valuenow/min/max pattern) is nontrivial. Two guaranteed future consumers. A11y is the deciding vote: a primitive can bake in the `role="meter"` + accessible-table equivalent, whereas an inline version tends to skip both. |
-| **Heat-tinted asset grid** (thumbnails + per-asset sparkline) | 1 (Assets tab) | Sprint 4 CreativeDashboard asset grid | ❌ No Recharts support — pure CSS grid | **Moot — blocked:** per-asset daily series not available (see §4) so the "per-asset Sparkline" piece is suppressed anyway. The remaining "heat-tinted thumbnails" piece degenerates to a list + color-scale on a single metric | **INLINE** (no kit primitive) | Without sparklines this is a `<ul>` with CSS grid and `resolveSeriesColor(series=0, intensity=metric/max)`. Adding a primitive for a one-consumer degenerate case has zero leverage. Sprint 4 can revisit if a creative grid is commissioned. |
+| Primitive                                                      | Sprint-3 Consumers  | Expected future consumers                                                                                      | Recharts coverage                                                                                        | Shape irregularity                                                                                                                                                                                                             | **Decision**                                                                                | Justification                                                                                                                                                                                                                                                             |
+| -------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Treemap** (PMax asset-group: size=spend, color=ROAS opacity) | 1 (PMax tab only)   | Sprint 4 CreativeDashboard may reuse for creative-group treemap; Sprint 4 ParishMapDetail may reuse for hexbin | ✅ Recharts 3.7 ships `<Treemap>` (confirmed in `frontend/package.json` + sprints-plan §661)             | Low — stable `{name, value, opacity}` shape                                                                                                                                                                                    | **ADD TO KIT** as `AssetGroupTreemap` — `frontend/src/components/viz/AssetGroupTreemap.tsx` | 1 consumer today + 2 likely consumers in S4. Meta-pattern parity: Sprint 2 hesitated on a funnel primitive and we paid for it with a 3-line `DistributionBar` adapter in every consumer. A11y (hidden table equivalent) and color-token wiring are cheaper to build once. |
+| **Gauge ring** (Pacing %, needle-ish radial bar)               | 1 (Pacing tab only) | Sprint 4 Pacing/Budget dashboard reuses; Sprint 5 tenant KPI overview may reuse                                | ⚠ Not a first-class Recharts component — assembled from `<RadialBarChart>` + angle math + reference arcs | Medium — domain `[0, 1.2]`, reference zones at 0.8/1.1, dial needle needs custom polar-coord SVG                                                                                                                               | **ADD TO KIT** as `GaugeRing` — `frontend/src/components/viz/GaugeRing.tsx`                 | Radial-bar plumbing + a11y (aria-valuenow/min/max pattern) is nontrivial. Two guaranteed future consumers. A11y is the deciding vote: a primitive can bake in the `role="meter"` + accessible-table equivalent, whereas an inline version tends to skip both.             |
+| **Heat-tinted asset grid** (thumbnails + per-asset sparkline)  | 1 (Assets tab)      | Sprint 4 CreativeDashboard asset grid                                                                          | ❌ No Recharts support — pure CSS grid                                                                   | **Moot — blocked:** per-asset daily series not available (see §4) so the "per-asset Sparkline" piece is suppressed anyway. The remaining "heat-tinted thumbnails" piece degenerates to a list + color-scale on a single metric | **INLINE** (no kit primitive)                                                               | Without sparklines this is a `<ul>` with CSS grid and `resolveSeriesColor(series=0, intensity=metric/max)`. Adding a primitive for a one-consumer degenerate case has zero leverage. Sprint 4 can revisit if a creative grid is commissioned.                             |
 
 ### 5a. Viz-kit extension plan (ordered work within Sprint 3)
 
@@ -187,6 +200,7 @@ A mini-step **S3-kit-extension** must land before S3a/S3b/S3c implementers can s
 **Owner:** first task of the S3b-CreativeConv implementer brief (since PMax + Pacing are the consumers that would otherwise block). Estimated 1/2 day. No parallel overlap risk because S3a + S3c don't depend on these primitives.
 
 **Contract for both new primitives:**
+
 - Props mirror Sprint-1 pattern: `isLoading?`, `ariaLabel` required, `height?` with sensible default.
 - Both render a hidden `<table>` equivalent inside `.sr-only` (S1 contract).
 - Both render a `ChartSkeleton` when `isLoading` per S1 pattern.
@@ -201,6 +215,7 @@ A mini-step **S3-kit-extension** must land before S3a/S3b/S3c implementers can s
 ### 6.1 Overview
 
 **Target layout (top → bottom):**
+
 1. `KpiTile` × 4 — Cost, Conversions, CPA, ROAS (IS% deferred)
 2. `TrendLine` dual-axis — left axis Cost (currency), right axis Conversions (number); `AccessibleTableToggle` wrapping it
 3. `PieComposition` — Cost by channel_type (derive-fallback from campaigns cache)
@@ -209,6 +224,7 @@ A mini-step **S3-kit-extension** must land before S3a/S3b/S3c implementers can s
 6. No drill-down table (link CTA → Campaigns tab)
 
 **Data transforms (`googleAdsAggregates.ts`):**
+
 ```
 rollupOverviewKpis(summary) → { spend, conversions, cpa, roas }
 buildChannelPie(campaignRows) → [{ name: channel_type, value: sum(spend) }]
@@ -222,6 +238,7 @@ deriveTrendSeries(summary.trend) → { data: [{date, spend, conversions}], serie
 ### 6.2 Campaigns
 
 **Target layout:**
+
 1. `KpiTile` × 4 — Total Cost, Total Conversions, Avg CPA, Avg ROAS
 2. `BubbleScatter` — x=spend, y=conv_rate, z=impressions, shape={SEARCH: circle, DISPLAY: triangle, VIDEO: square, PERFORMANCE_MAX: diamond, SHOPPING: cross, OTHER: circle}
 3. `DistributionBar` top-10 campaigns by spend (replaces the pre-removed `TrendLine` fallback)
@@ -229,6 +246,7 @@ deriveTrendSeries(summary.trend) → { data: [{date, spend, conversions}], serie
 5. Drawer (keep existing `<aside>` semantics) — populated from row, no secondary fetch per verifier B3
 
 **Data transforms:**
+
 ```
 rollupCampaignKpis(rows) → { totalSpend, totalConv, avgCpa, avgRoas }
 buildBubblePoints(rows) → [{x, y, z, shape, label}]  // divide-safe conv_rate
@@ -244,6 +262,7 @@ buildTopSpendBars(rows) → top 10 by spend
 ### 6.3 Search
 
 **Target layout:**
+
 1. Mode toggle (Keywords / Search Terms / Insights) — existing, keep
 2. `KpiTile` × 3 — Total Keywords (mode=keywords), Avg Quality Score, Top Keyword Conversions
 3. `BubbleScatter` — x=quality_score (0–10), y=cpc (currency), z=impressions, shape=match_type
@@ -252,6 +271,7 @@ buildTopSpendBars(rows) → top 10 by spend
 6. `VizDataTable` search terms — columns: Search Term, Impressions, Clicks, Conv, CPA (only visible when `searchMode !== 'insights'`)
 
 **Data transforms:**
+
 ```
 rollupKeywordKpis(rows) → { count, avgQs, topConv }
 buildQsCpcBubble(rows) → [{x, y, z, shape, label}]
@@ -265,11 +285,13 @@ topSearchTermsByConv(rows) → top 10
 ### 6.4 Assets
 
 **Target layout:**
+
 1. `KpiTile` × 3 — Total Assets, Disapproved Count, Top Asset Conv
 2. `PieComposition` — count by asset_type
 3. `VizDataTable` — columns: Asset Type, Asset ID, Impressions, Clicks, Conv, CPA, Status chip (from `policy_approval_status`)
 
 **Data transforms:**
+
 ```
 rollupAssetKpis(rows) → { total, disapproved, topAssetConv }
 buildAssetTypePie(rows) → counts by asset_type
@@ -282,11 +304,13 @@ buildAssetTypePie(rows) → counts by asset_type
 ### 6.5 PMax
 
 **Target layout:**
+
 1. `KpiTile` × 3 — Total Asset Groups, Total Cost, Total Conv
 2. `AssetGroupTreemap` (new kit primitive) — size=spend, opacity mapped from ROAS (clamp `[0,2]` to `[0.3,1.0]`, orange `chartPalette[1]`)
 3. `VizDataTable` — columns: Asset Group, Status chip, Cost, Impressions, Conv, CPA, ROAS
 
 **Data transforms:**
+
 ```
 rollupPmaxKpis(rows) → { totalGroups, totalCost, totalConv }
 buildTreemapData(rows) → [{ name, value: spend, opacity: clamp01(roas/2) }]
@@ -299,12 +323,14 @@ buildTreemapData(rows) → [{ name, value: spend, opacity: clamp01(roas/2) }]
 ### 6.6 Conversions
 
 **Target layout:**
+
 1. `KpiTile` × 3 — Total Conversions, Total Conv Value, Avg CPA
 2. `DistributionBar`-as-funnel (Impressions → Clicks → Conversions) — sourced from `summary.metrics.{impressions,clicks,conversions}` per §4 audit
 3. `PieComposition` — Source mix by conversion_action_name
 4. `VizDataTable` — columns: Action Name, Conversions, Value, CPA
 
 **Data transforms:**
+
 ```
 buildFunnelStages(summaryMetrics) → [{label:'Impressions',value}, {label:'Clicks',value}, {label:'Conversions',value}]
 buildConvActionPie(rows) → [{name: conversion_action_name, value: conversions}]
@@ -318,12 +344,14 @@ rollupConversionKpis(rows) → { totalConv, totalValue, avgCpa }
 ### 6.7 Pacing
 
 **Target layout:**
+
 1. `GaugeRing` (new kit primitive) — value = `pacing_pct` (derived if missing), zones: `0–0.8 underdelivery`, `0.8–1.1 on track`, `>1.1 overspend`
 2. `KpiTile` × 3 — Spend MTD, Budget Month, Forecast Month-End
 3. (Deferred) Variance bar — suppressed per §4 audit
 4. Single-row pacing summary table (replaces legacy 7-row key/val `<dl>`)
 
 **Data transforms:**
+
 ```
 derivePacingPct(pacing) → pacing.pacing_pct ?? safeDiv(spend_mtd, budget_month)
 rollupPacingKpis(pacing) → { spendMtd, budgetMonth, forecast }
@@ -336,11 +364,13 @@ rollupPacingKpis(pacing) → { spendMtd, budgetMonth, forecast }
 ### 6.8 Changes
 
 **Target layout:**
+
 1. `KpiTile` × 2 — Total Changes, Changes last 7 days
 2. `DistributionBar` — count by `change_resource_type`
 3. `VizDataTable` — columns: Date/Time, User, Resource Type, Operation severity chip, Campaign, Changed Fields (json-pretty); paginated
 
 **Data transforms:**
+
 ```
 countChanges7d(rows) → filter by change_date_time ≥ today-7d
 groupByResourceType(rows) → counts
@@ -354,11 +384,13 @@ deriveChangeSeverity(operation) → 'info' | 'warning' | 'danger'
 ### 6.9 Recommendations
 
 **Target layout:**
+
 1. `KpiTile` × 2 — Active, Dismissed
 2. `PieComposition` — count by `recommendation_type`
 3. `VizDataTable` — columns: Type, Campaign, Impact summary cell, Severity chip (derived), Status chip (Active/Dismissed), Last Seen; no Dismiss button
 
 **Data transforms:**
+
 ```
 rollupRecKpis(rows) → { active: count(!dismissed), dismissed: count(dismissed) }
 groupByType(rows) → PieComposition data
@@ -373,6 +405,7 @@ formatImpact(row) → extract primary_metric/impact_percentage from impact_metad
 ### 6.10 Reports
 
 **Target layout:**
+
 1. Controls strip — date range picker + "Generate Report" button + Saved View name input (keep existing form)
 2. `VizDataTable` export jobs — columns: Created, Status chip (queued/running/completed/failed), Date Range, Download link (only current job today; add `[NEW-ENDPOINT]` note)
 3. `VizDataTable` saved views — columns: Name, Description, Shared, Updated
@@ -554,18 +587,18 @@ All three implementers must run these gates before closing out:
 
 Per-tab test additions (preserving all Phase-1B contract tests):
 
-| Tab | Preserve (must still pass) | Add |
-|---|---|---|
-| Overview | GoogleAdsWorkspacePage B1 tests (B1-fix-report.md §Tests Added); existing GoogleAdsExecutivePage filter-subscribe test | KpiTile×4 rendered; TrendLine dual-axis; PieComposition renders with derived `by_channel`; `reasonCode=no_data_for_range` |
-| Campaigns | Drawer open/close via URL; B4 drawer URL decode (workspace test); row-click semantics | KPI strip; BubbleScatter shape-by-channel; DistributionBar top-10 fallback; status chip color asserts |
-| Search | Mode-toggle preserves URL param; existing GoogleAdsKeywordsPage filter fetch | 3 KPI tiles; QS-vs-CPC bubble; top-10 search-terms bar (with fallback reasonCode when prefetch fails) |
-| Assets | — | KPI strip; PieComposition by asset_type; sparkline column suppressed; status chip |
-| PMax | — | AssetGroupTreemap renders + opacity mapped; hidden-table equivalent present; jest-axe clean |
-| Conversions | — | KPI strip; Funnel-via-DistributionBar ordered stages; source-mix pie |
-| Pacing | GoogleAdsBudgetPage filter-subscribe regression (NB2 fix) | GaugeRing renders with derived pacing_pct; 3 KPI tiles; variance bar absent (asserted) |
-| Changes | Pagination contract | KPI×2; DistributionBar by type; severity chip derivation branches |
-| Recommendations | — | KPI×2; PieComposition by type; severity derivation (both branches); dismiss button absent (asserted) |
-| Reports | Saved-view create + export-job create flows | VizDataTable renders saved views; reasonCode=no_saved_views |
+| Tab             | Preserve (must still pass)                                                                                             | Add                                                                                                                       |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Overview        | GoogleAdsWorkspacePage B1 tests (B1-fix-report.md §Tests Added); existing GoogleAdsExecutivePage filter-subscribe test | KpiTile×4 rendered; TrendLine dual-axis; PieComposition renders with derived `by_channel`; `reasonCode=no_data_for_range` |
+| Campaigns       | Drawer open/close via URL; B4 drawer URL decode (workspace test); row-click semantics                                  | KPI strip; BubbleScatter shape-by-channel; DistributionBar top-10 fallback; status chip color asserts                     |
+| Search          | Mode-toggle preserves URL param; existing GoogleAdsKeywordsPage filter fetch                                           | 3 KPI tiles; QS-vs-CPC bubble; top-10 search-terms bar (with fallback reasonCode when prefetch fails)                     |
+| Assets          | —                                                                                                                      | KPI strip; PieComposition by asset_type; sparkline column suppressed; status chip                                         |
+| PMax            | —                                                                                                                      | AssetGroupTreemap renders + opacity mapped; hidden-table equivalent present; jest-axe clean                               |
+| Conversions     | —                                                                                                                      | KPI strip; Funnel-via-DistributionBar ordered stages; source-mix pie                                                      |
+| Pacing          | GoogleAdsBudgetPage filter-subscribe regression (NB2 fix)                                                              | GaugeRing renders with derived pacing_pct; 3 KPI tiles; variance bar absent (asserted)                                    |
+| Changes         | Pagination contract                                                                                                    | KPI×2; DistributionBar by type; severity chip derivation branches                                                         |
+| Recommendations | —                                                                                                                      | KPI×2; PieComposition by type; severity derivation (both branches); dismiss button absent (asserted)                      |
+| Reports         | Saved-view create + export-job create flows                                                                            | VizDataTable renders saved views; reasonCode=no_saved_views                                                               |
 
 **Both-modes coverage rule:** the unified-mode test lives in `routes/google-ads/__tests__/GoogleAdsWorkspacePage.test.tsx` (one file drives all ten tab-section components via `?tab=…`) plus optional deep-mount tests under `components/google-ads/workspace/tab-sections/__tests__/` for complex tabs (Pacing, PMax). The legacy-mode test lives per-page under `routes/google-ads/__tests__/GoogleAds<X>Page.test.tsx`. Each implementer owns both.
 

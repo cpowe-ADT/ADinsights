@@ -187,9 +187,7 @@ const DistributionBar = ({
             >
               {chartData.map((entry, i) => {
                 const datum = data[i];
-                const patternFill = datum?.patternId
-                  ? `url(#${datum.patternId})`
-                  : entry.color;
+                const patternFill = datum?.patternId ? `url(#${datum.patternId})` : entry.color;
                 return <Cell key={entry.label} fill={patternFill} />;
               })}
               {showPercent ? (

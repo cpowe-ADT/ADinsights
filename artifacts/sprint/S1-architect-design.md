@@ -16,19 +16,19 @@ Sprint 1 delivers ten shared viz primitives under `frontend/src/components/viz/`
 
 All files live under `frontend/src/components/viz/` unless noted. Existing `EmptyState.tsx` stays at `frontend/src/components/EmptyState.tsx` (re-exported from `viz/index.ts`).
 
-| # | Component | Status | Target file path | Existing equivalent | Key props (TS signature sketch) | Notes |
-|---|-----------|--------|------------------|---------------------|----------------------------------|-------|
-| 1 | `KpiTile` | EXTEND | `frontend/src/components/viz/KpiTile.tsx` | `components/Metric.tsx` (`memo`'d, has sparkline + badge) | `{ label, value: number\|null, format: 'currency'\|'number'\|'percent'\|'rate', currency?: string, change?: number\|null, isLoading?: boolean, isFaded?: boolean, reasonCode?: string, hint?: string }` | Must accept raw `number\|null` and format internally using `lib/formatNumber`. `Metric.tsx` takes pre-formatted strings — `KpiTile` is the new canonical tile. Keep `Metric.tsx` until Sprints 2–4 migrate callers. Render internal `ChartSkeleton variant="kpi"` when `isLoading`. Render `--` with `aria-label="{label}: no data"` when `value === null`. |
-| 2 | `TrendLine` | NEW (generic) | `frontend/src/components/viz/TrendLine.tsx` | `components/CampaignTrendChart.tsx` (single-series area chart — stays as domain wrapper) | `{ data: Array<{date:string; [k:string]:number\|string}>, series: Array<{key, label, color, dashed?, yAxis?: 'left'\|'right'}>, peerData?: Array<{date,value}>, yFormat?: ChartValueType, rightYFormat?: ChartValueType, currency?: string, height?: number, isLoading?: boolean, emptyReasonCode?: string, variant?: 'line'\|'stacked-area', onPointClick?: (date:string)=>void }` | Dual-axis via `series[].yAxis` + `rightYFormat`. `variant="stacked-area"` uses `AreaChart` + `stackId` (needed in Sprint 4). `peerData` renders `<PeerAvgLine>`. Wrap in `ResponsiveContainer`. |
-| 3 | `Sparkline` | NEW | `frontend/src/components/viz/Sparkline.tsx` | SVG path inside `Metric.tsx` (not reusable) | `{ data: Array<{date:string;value:number}>, color?: string, height?: number, showTooltip?: boolean, ariaLabel?: string }` | Recharts `LineChart` with no axes, no grid, no legend. Used in table cells. Default height 40. Accept `ariaLabel` so callers can describe the metric. |
-| 4 | `DistributionBar` | NEW | `frontend/src/components/viz/DistributionBar.tsx` | `components/AgeDistributionBar.tsx` (domain-specific stacked by gender), `components/PlatformComparisonBars.tsx` | `{ data: Array<{label:string; value:number; color?:string; patternId?:string}>, orientation?: 'horizontal'\|'vertical', showPercent?: boolean, yFormat?: ChartValueType, currency?: string, isLoading?: boolean, emptyReasonCode?: string }` | Default orientation `horizontal`. Percent labels via `LabelList` when `showPercent`. Use `<pattern>` defs for non-color encoding (WCAG requirement). |
-| 5 | `BubbleScatter` | NEW | `frontend/src/components/viz/BubbleScatter.tsx` | none | `{ data: Array<{id, label, x, y, z, shape?: 'circle'\|'triangle', color?: string}>, xLabel, yLabel, zLabel, xFormat?: ChartValueType, yFormat?: ChartValueType, isLoading?: boolean, onBubbleClick?: (id:string)=>void, emptyReasonCode?: string }` | Recharts `ScatterChart` + `ZAxis` for `z` (radius). Use two `<Scatter>` series split by `shape` (circle vs triangle Symbol). Keyboard: each point focusable via `tabIndex`. |
-| 6 | `PieComposition` | NEW | `frontend/src/components/viz/PieComposition.tsx` | `components/DeviceDonut.tsx`, `components/GenderDonut.tsx` (domain wrappers — remain) | `{ data: Array<{label, value, color?, patternId?}>, innerRadius?: number, yFormat?: ChartValueType, currency?: string, showLegend?: boolean, centerLabel?: string, isLoading?: boolean, emptyReasonCode?: string }` | `innerRadius=0` renders pie; `>0` renders donut. Each segment gets `<pattern>` cross-hatch in addition to color (secondary encoding). Center total text when `centerLabel` provided. |
-| 7 | `DataTable` (viz) | EXTEND | `frontend/src/components/viz/DataTable.tsx` | `components/DataTable.tsx` (rich — has sort, search, density, mobile detail rows) | `{ columns: ColumnDef<T>[], data: T[], isLoading?: boolean, onRowClick?: (row:T)=>void, csvFilename?: string, emptyReasonCode?: string, pageSize?: number, getRowId?, title?, description?, searchPlaceholder?, initialSorting?, initialDensity? }` | Wrap/extend existing `DataTable.tsx`. Add: `csvFilename` + "Download CSV" button, `pageSize` pagination, `onRowClick`, `isLoading` skeleton body, `emptyReasonCode` → delegates to `<EmptyState>` in body. Keep existing sort/search/density. Old `DataTable.tsx` becomes an internal primitive or is moved to `viz/` and the import path updated in callers during Sprints 2–4 (do NOT remove in Sprint 1). |
-| 8 | `EmptyState` | REUSE | `frontend/src/components/EmptyState.tsx` | same | `{ icon, title, message, actionLabel?, onAction?, actionVariant?, secondaryActionLabel?, onSecondaryAction?, secondaryActionVariant?, className?, reasonCode? }` | Already has `reasonCode` (FP-CC-01). Add thin viz-namespace wrapper at `viz/EmptyState.tsx` that exports the canonical reason-code → title/message/icon map (`no_accounts`, `no_data_for_range`, `adapter_error`, `no_data_for_scope`, `no_campaigns`) so every chart can call `<EmptyState reasonCode="no_data_for_range" />` without rebuilding copy each time. |
-| 9 | `ChartSkeleton` | EXTEND | `frontend/src/components/viz/ChartSkeleton.tsx` | `components/Skeleton.tsx` (primitive shimmer rect) | `{ height?: number, rows?: number, variant?: 'line'\|'bar'\|'pie'\|'table'\|'kpi-strip'\|'kpi'\|'sparkline'\|'bubble' }` | Composes `<Skeleton>` primitives into chart-shaped footprints. Must match target chart footprint exactly so there is no layout shift when data arrives. |
-| 10 | `AccessibleTableToggle` | NEW | `frontend/src/components/viz/AccessibleTableToggle.tsx` | none | `{ chartNode: ReactNode, tableNode: ReactNode, defaultView?: 'chart'\|'table', chartAriaLabel?: string, toggleAriaLabel?: string }` | Both nodes mount; inactive one gets `hidden` + `aria-hidden="true"` (do NOT unmount — preserves Recharts animation state and keeps focus targets valid). Toggle button shows icon only with `aria-label="Switch to {other view}"`. |
-| +1 | `PeerAvgLine` | NEW (sub-component) | `frontend/src/components/viz/PeerAvgLine.tsx` | none | `{ data: Array<{date:string; value:number}>, yAxisId?: 'left'\|'right' }` | Renders a Recharts `<Line>` with `stroke="var(--viz-peer-avg)"`, `strokeDasharray="4 4"`, `strokeWidth={1.5}`, `dot={false}`, `isAnimationActive={false}`, `legendType="plainline"`, `name="Peer avg"`. Used only inside `<TrendLine>` via composition — never rendered standalone. |
+| #   | Component               | Status              | Target file path                                        | Existing equivalent                                                                                              | Key props (TS signature sketch)                                                                                                                                                                                                                                                                                                                                                     | Notes                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --- | ----------------------- | ------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `KpiTile`               | EXTEND              | `frontend/src/components/viz/KpiTile.tsx`               | `components/Metric.tsx` (`memo`'d, has sparkline + badge)                                                        | `{ label, value: number\|null, format: 'currency'\|'number'\|'percent'\|'rate', currency?: string, change?: number\|null, isLoading?: boolean, isFaded?: boolean, reasonCode?: string, hint?: string }`                                                                                                                                                                             | Must accept raw `number\|null` and format internally using `lib/formatNumber`. `Metric.tsx` takes pre-formatted strings — `KpiTile` is the new canonical tile. Keep `Metric.tsx` until Sprints 2–4 migrate callers. Render internal `ChartSkeleton variant="kpi"` when `isLoading`. Render `--` with `aria-label="{label}: no data"` when `value === null`.                                                  |
+| 2   | `TrendLine`             | NEW (generic)       | `frontend/src/components/viz/TrendLine.tsx`             | `components/CampaignTrendChart.tsx` (single-series area chart — stays as domain wrapper)                         | `{ data: Array<{date:string; [k:string]:number\|string}>, series: Array<{key, label, color, dashed?, yAxis?: 'left'\|'right'}>, peerData?: Array<{date,value}>, yFormat?: ChartValueType, rightYFormat?: ChartValueType, currency?: string, height?: number, isLoading?: boolean, emptyReasonCode?: string, variant?: 'line'\|'stacked-area', onPointClick?: (date:string)=>void }` | Dual-axis via `series[].yAxis` + `rightYFormat`. `variant="stacked-area"` uses `AreaChart` + `stackId` (needed in Sprint 4). `peerData` renders `<PeerAvgLine>`. Wrap in `ResponsiveContainer`.                                                                                                                                                                                                              |
+| 3   | `Sparkline`             | NEW                 | `frontend/src/components/viz/Sparkline.tsx`             | SVG path inside `Metric.tsx` (not reusable)                                                                      | `{ data: Array<{date:string;value:number}>, color?: string, height?: number, showTooltip?: boolean, ariaLabel?: string }`                                                                                                                                                                                                                                                           | Recharts `LineChart` with no axes, no grid, no legend. Used in table cells. Default height 40. Accept `ariaLabel` so callers can describe the metric.                                                                                                                                                                                                                                                        |
+| 4   | `DistributionBar`       | NEW                 | `frontend/src/components/viz/DistributionBar.tsx`       | `components/AgeDistributionBar.tsx` (domain-specific stacked by gender), `components/PlatformComparisonBars.tsx` | `{ data: Array<{label:string; value:number; color?:string; patternId?:string}>, orientation?: 'horizontal'\|'vertical', showPercent?: boolean, yFormat?: ChartValueType, currency?: string, isLoading?: boolean, emptyReasonCode?: string }`                                                                                                                                        | Default orientation `horizontal`. Percent labels via `LabelList` when `showPercent`. Use `<pattern>` defs for non-color encoding (WCAG requirement).                                                                                                                                                                                                                                                         |
+| 5   | `BubbleScatter`         | NEW                 | `frontend/src/components/viz/BubbleScatter.tsx`         | none                                                                                                             | `{ data: Array<{id, label, x, y, z, shape?: 'circle'\|'triangle', color?: string}>, xLabel, yLabel, zLabel, xFormat?: ChartValueType, yFormat?: ChartValueType, isLoading?: boolean, onBubbleClick?: (id:string)=>void, emptyReasonCode?: string }`                                                                                                                                 | Recharts `ScatterChart` + `ZAxis` for `z` (radius). Use two `<Scatter>` series split by `shape` (circle vs triangle Symbol). Keyboard: each point focusable via `tabIndex`.                                                                                                                                                                                                                                  |
+| 6   | `PieComposition`        | NEW                 | `frontend/src/components/viz/PieComposition.tsx`        | `components/DeviceDonut.tsx`, `components/GenderDonut.tsx` (domain wrappers — remain)                            | `{ data: Array<{label, value, color?, patternId?}>, innerRadius?: number, yFormat?: ChartValueType, currency?: string, showLegend?: boolean, centerLabel?: string, isLoading?: boolean, emptyReasonCode?: string }`                                                                                                                                                                 | `innerRadius=0` renders pie; `>0` renders donut. Each segment gets `<pattern>` cross-hatch in addition to color (secondary encoding). Center total text when `centerLabel` provided.                                                                                                                                                                                                                         |
+| 7   | `DataTable` (viz)       | EXTEND              | `frontend/src/components/viz/DataTable.tsx`             | `components/DataTable.tsx` (rich — has sort, search, density, mobile detail rows)                                | `{ columns: ColumnDef<T>[], data: T[], isLoading?: boolean, onRowClick?: (row:T)=>void, csvFilename?: string, emptyReasonCode?: string, pageSize?: number, getRowId?, title?, description?, searchPlaceholder?, initialSorting?, initialDensity? }`                                                                                                                                 | Wrap/extend existing `DataTable.tsx`. Add: `csvFilename` + "Download CSV" button, `pageSize` pagination, `onRowClick`, `isLoading` skeleton body, `emptyReasonCode` → delegates to `<EmptyState>` in body. Keep existing sort/search/density. Old `DataTable.tsx` becomes an internal primitive or is moved to `viz/` and the import path updated in callers during Sprints 2–4 (do NOT remove in Sprint 1). |
+| 8   | `EmptyState`            | REUSE               | `frontend/src/components/EmptyState.tsx`                | same                                                                                                             | `{ icon, title, message, actionLabel?, onAction?, actionVariant?, secondaryActionLabel?, onSecondaryAction?, secondaryActionVariant?, className?, reasonCode? }`                                                                                                                                                                                                                    | Already has `reasonCode` (FP-CC-01). Add thin viz-namespace wrapper at `viz/EmptyState.tsx` that exports the canonical reason-code → title/message/icon map (`no_accounts`, `no_data_for_range`, `adapter_error`, `no_data_for_scope`, `no_campaigns`) so every chart can call `<EmptyState reasonCode="no_data_for_range" />` without rebuilding copy each time.                                            |
+| 9   | `ChartSkeleton`         | EXTEND              | `frontend/src/components/viz/ChartSkeleton.tsx`         | `components/Skeleton.tsx` (primitive shimmer rect)                                                               | `{ height?: number, rows?: number, variant?: 'line'\|'bar'\|'pie'\|'table'\|'kpi-strip'\|'kpi'\|'sparkline'\|'bubble' }`                                                                                                                                                                                                                                                            | Composes `<Skeleton>` primitives into chart-shaped footprints. Must match target chart footprint exactly so there is no layout shift when data arrives.                                                                                                                                                                                                                                                      |
+| 10  | `AccessibleTableToggle` | NEW                 | `frontend/src/components/viz/AccessibleTableToggle.tsx` | none                                                                                                             | `{ chartNode: ReactNode, tableNode: ReactNode, defaultView?: 'chart'\|'table', chartAriaLabel?: string, toggleAriaLabel?: string }`                                                                                                                                                                                                                                                 | Both nodes mount; inactive one gets `hidden` + `aria-hidden="true"` (do NOT unmount — preserves Recharts animation state and keeps focus targets valid). Toggle button shows icon only with `aria-label="Switch to {other view}"`.                                                                                                                                                                           |
+| +1  | `PeerAvgLine`           | NEW (sub-component) | `frontend/src/components/viz/PeerAvgLine.tsx`           | none                                                                                                             | `{ data: Array<{date:string; value:number}>, yAxisId?: 'left'\|'right' }`                                                                                                                                                                                                                                                                                                           | Renders a Recharts `<Line>` with `stroke="var(--viz-peer-avg)"`, `strokeDasharray="4 4"`, `strokeWidth={1.5}`, `dot={false}`, `isAnimationActive={false}`, `legendType="plainline"`, `name="Peer avg"`. Used only inside `<TrendLine>` via composition — never rendered standalone.                                                                                                                          |
 
 **Index export:** `frontend/src/components/viz/index.ts` re-exports all ten components + token helpers, giving downstream sprints a single import: `import { KpiTile, TrendLine, DataTable, EmptyState } from '@/components/viz'`.
 
@@ -46,28 +46,28 @@ Existing tokens in `theme.css` already cover most surfaces (cards, borders, text
   .theme-light {
     /* Series palette — mirrors chartPalette for CSS consumers (SVG attrs
        still read the TS constant). WCAG AA on --color-surface-card #fff. */
-    --viz-series-0: #2563eb;  /* meta / primary      — contrast 4.85 */
-    --viz-series-1: #c2410c;  /* google / orange-700 — contrast 5.11
+    --viz-series-0: #2563eb; /* meta / primary      — contrast 4.85 */
+    --viz-series-1: #c2410c; /* google / orange-700 — contrast 5.11
                                  (darker than #f97316 to hit AA on white) */
-    --viz-series-2: #0369a1;  /* accent-blue         — contrast 6.74 */
-    --viz-series-3: #047857;  /* conversions / green — contrast 5.46 */
-    --viz-series-4: #7e22ce;  /* audience / purple   — contrast 6.46 */
-    --viz-series-5: #be123c;  /* alert / red         — contrast 5.94 */
+    --viz-series-2: #0369a1; /* accent-blue         — contrast 6.74 */
+    --viz-series-3: #047857; /* conversions / green — contrast 5.46 */
+    --viz-series-4: #7e22ce; /* audience / purple   — contrast 6.46 */
+    --viz-series-5: #be123c; /* alert / red         — contrast 5.94 */
 
     /* Platform semantic bindings */
     --viz-platform-meta: var(--viz-series-0);
     --viz-platform-google: var(--viz-series-1);
-    --viz-platform-peer-avg: rgba(71, 85, 105, 0.55);  /* slate-600 @ 55% */
+    --viz-platform-peer-avg: rgba(71, 85, 105, 0.55); /* slate-600 @ 55% */
 
     /* Status (campaign states) */
     --viz-status-enabled: var(--viz-series-3);
-    --viz-status-paused: #b45309;    /* amber-700, contrast 4.55 */
+    --viz-status-paused: #b45309; /* amber-700, contrast 4.55 */
     --viz-status-removed: var(--viz-series-5);
 
     /* Chart chrome */
     --viz-axis-line: rgba(15, 23, 42, 0.35);
-    --viz-axis-tick: rgba(15, 23, 42, 0.70);
-    --viz-grid: rgba(15, 23, 42, 0.10);
+    --viz-axis-tick: rgba(15, 23, 42, 0.7);
+    --viz-grid: rgba(15, 23, 42, 0.1);
     --viz-grid-strong: rgba(15, 23, 42, 0.22);
     --viz-tooltip-surface: #0f172a;
     --viz-tooltip-text: #f8fafc;
@@ -84,16 +84,16 @@ Existing tokens in `theme.css` already cover most surfaces (cards, borders, text
   :root[data-theme='dark'] {
     /* Brighter hues for dark surfaces. Contrast measured on
        --color-surface-card #111827. All ≥ 4.5:1. */
-    --viz-series-0: #60a5fa;  /* blue-400   — contrast 6.57 */
-    --viz-series-1: #fb923c;  /* orange-400 — contrast 6.19 */
-    --viz-series-2: #38bdf8;  /* sky-400    — contrast 7.11 */
-    --viz-series-3: #4ade80;  /* green-400  — contrast 7.48 */
-    --viz-series-4: #c084fc;  /* purple-400 — contrast 6.13 */
-    --viz-series-5: #fb7185;  /* rose-400   — contrast 5.74 */
+    --viz-series-0: #60a5fa; /* blue-400   — contrast 6.57 */
+    --viz-series-1: #fb923c; /* orange-400 — contrast 6.19 */
+    --viz-series-2: #38bdf8; /* sky-400    — contrast 7.11 */
+    --viz-series-3: #4ade80; /* green-400  — contrast 7.48 */
+    --viz-series-4: #c084fc; /* purple-400 — contrast 6.13 */
+    --viz-series-5: #fb7185; /* rose-400   — contrast 5.74 */
 
     --viz-platform-meta: var(--viz-series-0);
     --viz-platform-google: var(--viz-series-1);
-    --viz-platform-peer-avg: rgba(148, 163, 184, 0.60);
+    --viz-platform-peer-avg: rgba(148, 163, 184, 0.6);
 
     --viz-status-enabled: var(--viz-series-3);
     --viz-status-paused: #fbbf24;
@@ -121,8 +121,14 @@ Import once in `theme.css` bottom: `@import './viz-tokens.css' layer(tokens);`. 
 // Add to frontend/src/styles/chartTheme.ts:
 
 export const VIZ_CSS_VARS = {
-  seriesPalette: ['--viz-series-0', '--viz-series-1', '--viz-series-2',
-                  '--viz-series-3', '--viz-series-4', '--viz-series-5'] as const,
+  seriesPalette: [
+    '--viz-series-0',
+    '--viz-series-1',
+    '--viz-series-2',
+    '--viz-series-3',
+    '--viz-series-4',
+    '--viz-series-5',
+  ] as const,
   axisLine: '--viz-axis-line',
   axisTick: '--viz-axis-tick',
   grid: '--viz-grid',
@@ -133,14 +139,14 @@ export const VIZ_CSS_VARS = {
 // For props that need literal hex (rare — e.g. gradient stops), use chartPalette.
 
 export const PLATFORM_CHART_TOKENS = {
-  meta_ads:    chartPalette[0],
-  google_ads:  chartPalette[1],
-  peer_avg:    'rgba(148, 163, 184, 0.55)',
+  meta_ads: chartPalette[0],
+  google_ads: chartPalette[1],
+  peer_avg: 'rgba(148, 163, 184, 0.55)',
 } as const;
 
 export const STATUS_COLORS = {
   ENABLED: chartPalette[3],
-  PAUSED:  '#b45309',
+  PAUSED: '#b45309',
   REMOVED: chartPalette[5],
 } as const;
 
@@ -167,9 +173,12 @@ Every non-sparkline chart in the viz kit follows this outer pattern:
 ```tsx
 // viz/TrendLine.tsx (sketch)
 const TrendLine = (props: TrendLineProps) => {
-  if (props.isLoading) return <ChartSkeleton variant="line" height={props.height ?? 260} />;
+  if (props.isLoading)
+    return <ChartSkeleton variant="line" height={props.height ?? 260} />;
   if (!props.data?.length) {
-    return <EmptyState reasonCode={props.emptyReasonCode ?? 'no_data_for_range'} />;
+    return (
+      <EmptyState reasonCode={props.emptyReasonCode ?? 'no_data_for_range'} />
+    );
   }
 
   const chart = (
@@ -180,25 +189,44 @@ const TrendLine = (props: TrendLineProps) => {
           strokeDasharray={chartTheme.grid.strokeDasharray}
           vertical={false}
         />
-        <XAxis dataKey="date" axisLine={false} tickLine={false} tickMargin={12}
-               tick={{ fill: 'var(--viz-axis-tick)', fontSize: 12 }}
-               tickFormatter={formatDateLabel} />
-        <YAxis axisLine={false} tickLine={false} width={68}
-               tick={{ fill: 'var(--viz-axis-tick)', fontSize: 12 }}
-               tickFormatter={axisTickFormatter} />
-        {props.series.some(s => s.yAxis === 'right') && (
+        <XAxis
+          dataKey="date"
+          axisLine={false}
+          tickLine={false}
+          tickMargin={12}
+          tick={{ fill: 'var(--viz-axis-tick)', fontSize: 12 }}
+          tickFormatter={formatDateLabel}
+        />
+        <YAxis
+          axisLine={false}
+          tickLine={false}
+          width={68}
+          tick={{ fill: 'var(--viz-axis-tick)', fontSize: 12 }}
+          tickFormatter={axisTickFormatter}
+        />
+        {props.series.some((s) => s.yAxis === 'right') && (
           <YAxis yAxisId="right" orientation="right" /* ... */ />
         )}
-        <Tooltip {...createTooltipProps({ valueType: props.yFormat, currency: props.currency })} />
+        <Tooltip
+          {...createTooltipProps({
+            valueType: props.yFormat,
+            currency: props.currency,
+          })}
+        />
         <Legend wrapperStyle={{ paddingTop: 12 }} />
         {props.series.map((s, i) => (
-          <Line key={s.key} type="monotone" dataKey={s.key} name={s.label}
-                stroke={s.color ?? resolveSeriesColor(i)}
-                strokeDasharray={s.dashed ? '6 4' : undefined}
-                strokeWidth={2}
-                dot={{ r: chartTheme.point.radius }}
-                activeDot={{ r: chartTheme.point.activeRadius }}
-                yAxisId={s.yAxis ?? undefined} />
+          <Line
+            key={s.key}
+            type="monotone"
+            dataKey={s.key}
+            name={s.label}
+            stroke={s.color ?? resolveSeriesColor(i)}
+            strokeDasharray={s.dashed ? '6 4' : undefined}
+            strokeWidth={2}
+            dot={{ r: chartTheme.point.radius }}
+            activeDot={{ r: chartTheme.point.activeRadius }}
+            yAxisId={s.yAxis ?? undefined}
+          />
         ))}
         {props.peerData && <PeerAvgLine data={props.peerData} />}
       </LineChart>
@@ -286,6 +314,7 @@ addons: [
 ```
 
 And `package.json`:
+
 ```json
 "@storybook/addon-a11y": "8.6.14"
 ```
@@ -333,18 +362,18 @@ export const TableViewDefault: Story = {
 
 **Per-primitive requirements:**
 
-| Primitive | Required stories |
-|-----------|------------------|
-| `KpiTile` | Default, Loading, Empty (null value), WithDeltaUp, WithDeltaDown, Faded, DarkTheme |
-| `TrendLine` | Default, Loading, Empty, SingleSeries, MultiSeries, DualAxis, WithPeerAvg, StackedArea, DarkTheme |
-| `Sparkline` | Default, Flat, Rising, Falling, DarkTheme |
-| `DistributionBar` | Default, Loading, Empty, Horizontal, Vertical, WithPercent, DarkTheme |
-| `BubbleScatter` | Default, Loading, Empty, Clustered, WithShapes, DarkTheme |
-| `PieComposition` | Default, Loading, Empty, Donut, Pie, WithCenterLabel, DarkTheme |
-| `DataTable` | Default, Loading, Empty, WithCsvExport, RowClick, LongList, DarkTheme |
-| `EmptyState` | NoAccounts, NoData, AdapterError, NoDataForScope |
-| `ChartSkeleton` | Line, Bar, Pie, Table, KpiStrip, Kpi, Sparkline, Bubble |
-| `AccessibleTableToggle` | Default (chart first), DefaultTable, WithKeyboardFocus |
+| Primitive               | Required stories                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------- |
+| `KpiTile`               | Default, Loading, Empty (null value), WithDeltaUp, WithDeltaDown, Faded, DarkTheme                |
+| `TrendLine`             | Default, Loading, Empty, SingleSeries, MultiSeries, DualAxis, WithPeerAvg, StackedArea, DarkTheme |
+| `Sparkline`             | Default, Flat, Rising, Falling, DarkTheme                                                         |
+| `DistributionBar`       | Default, Loading, Empty, Horizontal, Vertical, WithPercent, DarkTheme                             |
+| `BubbleScatter`         | Default, Loading, Empty, Clustered, WithShapes, DarkTheme                                         |
+| `PieComposition`        | Default, Loading, Empty, Donut, Pie, WithCenterLabel, DarkTheme                                   |
+| `DataTable`             | Default, Loading, Empty, WithCsvExport, RowClick, LongList, DarkTheme                             |
+| `EmptyState`            | NoAccounts, NoData, AdapterError, NoDataForScope                                                  |
+| `ChartSkeleton`         | Line, Bar, Pie, Table, KpiStrip, Kpi, Sparkline, Bubble                                           |
+| `AccessibleTableToggle` | Default (chart first), DefaultTable, WithKeyboardFocus                                            |
 
 ---
 
@@ -363,7 +392,9 @@ import { describe, expect, it } from 'vitest';
 import ComponentName from '../ComponentName';
 
 describe('ComponentName', () => {
-  const baseProps = { /* minimal valid props */ };
+  const baseProps = {
+    /* minimal valid props */
+  };
 
   it('renders default state', () => {
     render(<ComponentName {...baseProps} />);
@@ -372,11 +403,19 @@ describe('ComponentName', () => {
 
   it('renders loading skeleton when isLoading', () => {
     render(<ComponentName {...baseProps} isLoading />);
-    expect(screen.getByRole('presentation', { hidden: true })).toBeInTheDocument();
+    expect(
+      screen.getByRole('presentation', { hidden: true }),
+    ).toBeInTheDocument();
   });
 
   it('renders empty state when data is empty', () => {
-    render(<ComponentName {...baseProps} data={[]} emptyReasonCode="no_data_for_range" />);
+    render(
+      <ComponentName
+        {...baseProps}
+        data={[]}
+        emptyReasonCode="no_data_for_range"
+      />,
+    );
     const empty = screen.getByRole('status');
     expect(empty).toHaveAttribute('data-reason-code', 'no_data_for_range');
   });
@@ -387,7 +426,9 @@ describe('ComponentName', () => {
   });
 
   it('has no a11y violations (table view)', async () => {
-    const { container } = render(<ComponentName {...baseProps} defaultView="table" />);
+    const { container } = render(
+      <ComponentName {...baseProps} defaultView="table" />,
+    );
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -416,7 +457,12 @@ it('produces correct CSV on download', async () => {
 
 ```tsx
 it('toggles via keyboard (enter and space)', async () => {
-  render(<AccessibleTableToggle chartNode={<div>chart</div>} tableNode={<div>table</div>} />);
+  render(
+    <AccessibleTableToggle
+      chartNode={<div>chart</div>}
+      tableNode={<div>table</div>}
+    />,
+  );
   const btn = screen.getByRole('button');
   btn.focus();
   await userEvent.keyboard('{Enter}');
@@ -433,6 +479,7 @@ it('toggles via keyboard (enter and space)', async () => {
 ### S1a-ChartPrimitives (parallel, starts immediately)
 
 **Owned files:**
+
 - `frontend/src/styles/viz-tokens.css` (new)
 - `frontend/src/styles/chartTheme.ts` (append `VIZ_CSS_VARS`, `PLATFORM_CHART_TOKENS`, `STATUS_COLORS`, `resolveSeriesColor`)
 - `frontend/src/styles/theme.css` (add one `@import` line)
@@ -449,6 +496,7 @@ it('toggles via keyboard (enter and space)', async () => {
 ### S1b-TableAndKpi (parallel, starts immediately)
 
 **Owned files:**
+
 - `frontend/src/components/viz/KpiTile.tsx`
 - `frontend/src/components/viz/DataTable.tsx` (extends existing `components/DataTable.tsx`, re-exports with added `csvFilename`, `pageSize`, `onRowClick`, `isLoading`, `emptyReasonCode` props)
 - `frontend/src/components/viz/AccessibleTableToggle.tsx`
@@ -463,6 +511,7 @@ it('toggles via keyboard (enter and space)', async () => {
 ### S1c-StoriesAndA11y (sequential, starts after S1a + S1b merge)
 
 **Owned files:**
+
 - `.storybook/main.ts` (add `@storybook/addon-a11y`)
 - `frontend/package.json` (add `@storybook/addon-a11y` dep)
 - `frontend/src/components/viz/*.stories.tsx` (one per primitive — 10 files)

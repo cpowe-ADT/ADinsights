@@ -14,9 +14,7 @@ const data: TrendLinePoint[] = [
 
 describe('TrendLine', () => {
   it('renders chart with role="img" and aria-label', () => {
-    render(
-      <TrendLine data={data} series={series} ariaLabel="Daily spend trend" />,
-    );
+    render(<TrendLine data={data} series={series} ariaLabel="Daily spend trend" />);
     const img = screen.getByRole('img', { name: /daily spend trend/i });
     expect(img).toBeInTheDocument();
   });
@@ -53,12 +51,7 @@ describe('TrendLine', () => {
   it('renders a Peer avg column in the accessible table when peerData present', () => {
     const peerData = data.map((d) => ({ date: d.date, value: 90 }));
     const { container } = render(
-      <TrendLine
-        data={data}
-        series={series}
-        peerData={peerData}
-        ariaLabel="Peer comparison"
-      />,
+      <TrendLine data={data} series={series} peerData={peerData} ariaLabel="Peer comparison" />,
     );
     const headers = container.querySelectorAll('table.sr-only thead th');
     const texts = Array.from(headers).map((h) => h.textContent);

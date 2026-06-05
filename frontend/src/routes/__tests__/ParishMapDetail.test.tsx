@@ -157,7 +157,9 @@ describe('ParishMapDetail', () => {
     );
 
     expect(screen.getByRole('button', { name: /back to dashboard/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: /regional performance/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: /regional performance/i }),
+    ).toBeInTheDocument();
   });
 
   it('renders the map mock', () => {

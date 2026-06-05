@@ -11,8 +11,7 @@ const toastMock = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../../stores/useToastStore', () => ({
-  useToastStore: (selector: (state: typeof toastMock) => unknown) =>
-    selector(toastMock),
+  useToastStore: (selector: (state: typeof toastMock) => unknown) => selector(toastMock),
 }));
 
 const row = (i: number): GoogleAdsChangeRow => ({
@@ -36,22 +35,14 @@ describe('ChangesTabSection — integration', () => {
   });
 
   it('renders empty state', () => {
-    render(
-      <ChangesTabSection
-        data={{ count: 0, results: [] }}
-        status="success"
-        error=""
-      />,
-    );
+    render(<ChangesTabSection data={{ count: 0, results: [] }} status="success" error="" />);
     expect(screen.getByText('No change events')).toBeInTheDocument();
   });
 
   it('renders populated state', () => {
     const payload = { count: 2, results: [row(1), row(2)] };
     render(<ChangesTabSection data={payload} status="success" error="" />);
-    expect(
-      screen.getByTestId('google-ads-changes-section'),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('google-ads-changes-section')).toBeInTheDocument();
     // Two change rows in the log table (plus header).
     const tables = document.querySelectorAll('table.dashboard-table');
     const logTable = tables[tables.length - 1] as HTMLTableElement;

@@ -16,7 +16,13 @@ vi.mock('../../../lib/apiClient', () => ({
   appendQueryParams: (endpoint: string) => endpoint,
 }));
 
-const mockFilters = { accountId: 'cust-001', clientId: '', startDate: '', endDate: '', dateRange: '30d' };
+const mockFilters = {
+  accountId: 'cust-001',
+  clientId: '',
+  startDate: '',
+  endDate: '',
+  dateRange: '30d',
+};
 vi.mock('../../../state/useDashboardStore', () => ({
   default: Object.assign(
     (selector: (state: { filters: typeof mockFilters }) => unknown) =>

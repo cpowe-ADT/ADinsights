@@ -20,9 +20,7 @@ type AssetsPayload = {
  */
 const GoogleAdsAssetsPage = () => {
   const [data, setData] = useState<AssetsPayload | null>(null);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
-    'loading',
-  );
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState('');
 
   const filters = useDashboardStore((state) => state.filters);

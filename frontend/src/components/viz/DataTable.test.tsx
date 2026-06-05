@@ -34,24 +34,15 @@ describe('VizDataTable', () => {
 
   it('applies visually-hidden class when captionHidden is set', () => {
     const { container } = render(
-      <VizDataTable
-        columns={columns}
-        data={rows}
-        caption="Campaign list"
-        captionHidden
-      />,
+      <VizDataTable columns={columns} data={rows} caption="Campaign list" captionHidden />,
     );
     const captionNode = container.querySelector('.viz-data-table__caption');
     expect(captionNode).toHaveClass('visually-hidden');
   });
 
   it('renders the Download CSV button only when csvFilename is set', () => {
-    const { rerender } = render(
-      <VizDataTable columns={columns} data={rows} caption="Campaigns" />,
-    );
-    expect(
-      screen.queryByRole('button', { name: /download csv/i }),
-    ).not.toBeInTheDocument();
+    const { rerender } = render(<VizDataTable columns={columns} data={rows} caption="Campaigns" />);
+    expect(screen.queryByRole('button', { name: /download csv/i })).not.toBeInTheDocument();
 
     rerender(
       <VizDataTable
@@ -61,9 +52,7 @@ describe('VizDataTable', () => {
         csvFilename="campaigns.csv"
       />,
     );
-    expect(
-      screen.getByRole('button', { name: /download csv/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /download csv/i })).toBeInTheDocument();
   });
 
   it('creates a Blob URL when the CSV button is clicked', async () => {

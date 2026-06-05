@@ -679,10 +679,7 @@ describe('useDashboardStore', () => {
 
   it('mirrors dashboard session tenant updates and reset events', async () => {
     const { default: useDashboardStore } = await import('./useDashboardStore');
-    const {
-      resetDashboardSession,
-      setDashboardSessionTenant,
-    } = await import('./dashboardSession');
+    const { resetDashboardSession, setDashboardSessionTenant } = await import('./dashboardSession');
 
     setDashboardSessionTenant('tenant-sync', 'Tenant Sync');
 

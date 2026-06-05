@@ -332,7 +332,8 @@ const ReportDetailPage = () => {
         )}
         {report.last_scheduled_at && (
           <p className="phase2-note">
-            Last scheduled: {formatRelativeTime(report.last_scheduled_at)} ({formatAbsoluteTime(report.last_scheduled_at)})
+            Last scheduled: {formatRelativeTime(report.last_scheduled_at)} (
+            {formatAbsoluteTime(report.last_scheduled_at)})
           </p>
         )}
       </article>

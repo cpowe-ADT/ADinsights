@@ -2,7 +2,7 @@
 
 **Sprint:** 3
 **Estimated size:** S
-**Depends on:** sprint-1/* (all kit components), sprint-3/google-ads-campaigns.md (for funnel source data)
+**Depends on:** sprint-1/\* (all kit components), sprint-3/google-ads-campaigns.md (for funnel source data)
 **Blocks:** none
 **Role needed:** frontend-engineer
 
@@ -21,14 +21,26 @@ The Conversions tab in the Google Ads workspace. Primary endpoint: `GET /api/goo
 - **File(s) to create/modify**: identify the Conversions tab component and modify it.
 
 - **Data binding**:
-  - KPI strip (3 tiles): Total Conversions = sum(conversions); Total Conv Value = sum(conversion_value); Avg CPA = sum(cost_per_conversion * conversions) / sum(conversions) or simply mean(cost_per_conversion).
+  - KPI strip (3 tiles): Total Conversions = sum(conversions); Total Conv Value = sum(conversion_value); Avg CPA = sum(cost_per_conversion \* conversions) / sum(conversions) or simply mean(cost_per_conversion).
   - Funnel (stepped-bar fallback): aggregate from campaigns endpoint — `{ impressions: sum, clicks: sum, conversions: sum }`. Same implementation as `meta-campaigns.md`:
     ```typescript
     const funnelData = [
-      { label: 'Impressions', value: totals.impressions, color: chartPalette[1] },
-      { label: `Clicks (${clickRate}%)`, value: totals.clicks, color: chartPalette[2] },
-      { label: `Conversions (${convRate}%)`, value: totals.conversions, color: chartPalette[3] },
-    ]
+      {
+        label: 'Impressions',
+        value: totals.impressions,
+        color: chartPalette[1],
+      },
+      {
+        label: `Clicks (${clickRate}%)`,
+        value: totals.clicks,
+        color: chartPalette[2],
+      },
+      {
+        label: `Conversions (${convRate}%)`,
+        value: totals.conversions,
+        color: chartPalette[3],
+      },
+    ];
     ```
     Render as `DistributionBar` with 3 bars. Drop-off annotations between bars.
   - PieComposition (source mix): conversion action rows mapped to `[{ label: row.conversion_action_name, value: row.conversions }]`. Top 8 actions; aggregate rest as "Other".

@@ -1,6 +1,7 @@
 # Sprint Program Design — Meta + Google Ads + Combined Bulletproof Pass
 
 **Input artifacts cited:**
+
 - `/Users/thristannewman/ADinsights/artifacts/plan.md`
 - `/Users/thristannewman/ADinsights/artifacts/audit/audit-report.json`
 - `/Users/thristannewman/ADinsights/artifacts/synthesis/synthesis-report.md`
@@ -17,45 +18,45 @@
 
 ### GREEN (confirmed landed)
 
-| Item | Evidence |
-|------|----------|
-| Backend 727 tests pass, lint clean, build clean | synthesis-report.md §Test Results |
-| Frontend build clean, lint clean | synthesis-report.md + B1-fix-report.md |
-| High-severity Meta adapter scoping (M1, M4, M6 — R7 reconciliation effect) | synthesis-report.md APPLIED |
-| Meta account row click sets useMetaStore.filters.accountId (M2) | APPLIED |
-| Meta empty-state loading guard (M3, M5, M7) | APPLIED |
-| Meta M16 loadPostTimeseries overrides param | APPLIED |
-| resolveRoutePlatformScope extracted + 27 unit tests (R6) | APPLIED |
-| Google Ads B1 platforms=google_ads in buildCommonParams | APPLIED |
-| Google Ads B6/B7/B8 exec + table + budget + campaign detail scope params | APPLIED |
-| Google Ads FilterBar unhidden on /dashboards/google-ads (B1 hot-fix) | B1-fix-report.md GREEN |
-| Google Ads empty-state guard when no customer selected | B1-fix-report.md |
-| Combined B-PLAT-01 scoped→unscoped transition in DashboardLayout | APPLIED |
-| Combined B-PLAT-02 empty byPlatform EmptyState | APPLIED |
-| Combined B-SAVED-01/02 SavedDashboardPage platforms restore + dep array | APPLIED |
-| EmptyState reasonCode prop + data-reason-code attribute | APPLIED |
+| Item                                                                       | Evidence                               |
+| -------------------------------------------------------------------------- | -------------------------------------- |
+| Backend 727 tests pass, lint clean, build clean                            | synthesis-report.md §Test Results      |
+| Frontend build clean, lint clean                                           | synthesis-report.md + B1-fix-report.md |
+| High-severity Meta adapter scoping (M1, M4, M6 — R7 reconciliation effect) | synthesis-report.md APPLIED            |
+| Meta account row click sets useMetaStore.filters.accountId (M2)            | APPLIED                                |
+| Meta empty-state loading guard (M3, M5, M7)                                | APPLIED                                |
+| Meta M16 loadPostTimeseries overrides param                                | APPLIED                                |
+| resolveRoutePlatformScope extracted + 27 unit tests (R6)                   | APPLIED                                |
+| Google Ads B1 platforms=google_ads in buildCommonParams                    | APPLIED                                |
+| Google Ads B6/B7/B8 exec + table + budget + campaign detail scope params   | APPLIED                                |
+| Google Ads FilterBar unhidden on /dashboards/google-ads (B1 hot-fix)       | B1-fix-report.md GREEN                 |
+| Google Ads empty-state guard when no customer selected                     | B1-fix-report.md                       |
+| Combined B-PLAT-01 scoped→unscoped transition in DashboardLayout           | APPLIED                                |
+| Combined B-PLAT-02 empty byPlatform EmptyState                             | APPLIED                                |
+| Combined B-SAVED-01/02 SavedDashboardPage platforms restore + dep array    | APPLIED                                |
+| EmptyState reasonCode prop + data-reason-code attribute                    | APPLIED                                |
 
 ### YELLOW / suspect (landed but unverified IRL on a fresh session)
 
-| Item | Risk | From |
-|------|------|------|
-| R7 reconciliation: does it fire correctly before first combined-dashboard fetch? | Timing race if effect deps stale | synthesis-report.md §DashboardLayout summary |
-| Google Ads workspace global FilterBar: does it actually populate dropdown options in demo mode? | clientOptions=[] in demo; no affordance | B0-triage.md Q2 |
-| B2 seed effect removal: workspace customer_id now sourced exclusively from useDashboardStore — is this correct on a cold load? | Mount order | B1-fix-report.md |
-| /dashboards/platforms stale row flash (B-PLAT-01): one render cycle window remains | Effect fires after child mount | combined-verification.json |
+| Item                                                                                                                           | Risk                                    | From                                         |
+| ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------- | -------------------------------------------- |
+| R7 reconciliation: does it fire correctly before first combined-dashboard fetch?                                               | Timing race if effect deps stale        | synthesis-report.md §DashboardLayout summary |
+| Google Ads workspace global FilterBar: does it actually populate dropdown options in demo mode?                                | clientOptions=[] in demo; no affordance | B0-triage.md Q2                              |
+| B2 seed effect removal: workspace customer_id now sourced exclusively from useDashboardStore — is this correct on a cold load? | Mount order                             | B1-fix-report.md                             |
+| /dashboards/platforms stale row flash (B-PLAT-01): one render cycle window remains                                             | Effect fires after child mount          | combined-verification.json                   |
 
 ### RED / explicitly broken (user-stated or deferred in synthesis)
 
-| Item | Severity | Deferred reason |
-|------|----------|-----------------|
-| B-CAMP-01: CampaignDashboard row-level platform filter in useDashboardStore selectors — campaign rows from wrong platform survive | medium | "store surgery out of time-box" |
-| B-CREA-01: CreativeDashboard same problem for creatives selector | medium | deferred |
-| B-AUD-01: AudienceDashboard EmptyState on loaded+empty (silent blank chart) | medium | time-boxed out |
-| B-CAMP-02: Duplicate CampaignDashboard empty-state branches | low | cosmetic |
-| B-PLAT-03: Hardcoded Facebook/Instagram KPI labels on combined platforms page | low | cosmetic |
-| DataSources.test.tsx: 10 pre-existing failures (scrollIntoView mock missing) | low/pre-existing | unrelated to dashboards |
-| analytics/fx.py:189: pre-existing ruff F841 | low/pre-existing | |
-| Google Ads B4: colon encoding in customer_id (theoretical) | low | "no fix needed" |
+| Item                                                                                                                              | Severity         | Deferred reason                 |
+| --------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------------------------- |
+| B-CAMP-01: CampaignDashboard row-level platform filter in useDashboardStore selectors — campaign rows from wrong platform survive | medium           | "store surgery out of time-box" |
+| B-CREA-01: CreativeDashboard same problem for creatives selector                                                                  | medium           | deferred                        |
+| B-AUD-01: AudienceDashboard EmptyState on loaded+empty (silent blank chart)                                                       | medium           | time-boxed out                  |
+| B-CAMP-02: Duplicate CampaignDashboard empty-state branches                                                                       | low              | cosmetic                        |
+| B-PLAT-03: Hardcoded Facebook/Instagram KPI labels on combined platforms page                                                     | low              | cosmetic                        |
+| DataSources.test.tsx: 10 pre-existing failures (scrollIntoView mock missing)                                                      | low/pre-existing | unrelated to dashboards         |
+| analytics/fx.py:189: pre-existing ruff F841                                                                                       | low/pre-existing |                                 |
+| Google Ads B4: colon encoding in customer_id (theoretical)                                                                        | low              | "no fix needed"                 |
 
 ---
 
@@ -112,6 +113,7 @@ Phase 1A (Meta)         Phase 1B (Google Ads)
 ### Phase 1A — Meta Dashboards Bulletproof
 
 **Agent C1A-audit**
+
 - Role: Deep read-only IRL audit of all `/dashboards/meta/*` routes
 - Inputs:
   - `artifacts/verify/meta-verification.json` (all 16 bugs; focus on M1–M7, M12, M16)
@@ -137,6 +139,7 @@ Phase 1A (Meta)         Phase 1B (Google Ads)
 - Time-box: 20 minutes
 
 **Agent C2A-fix**
+
 - Role: Apply fixes to Meta dashboard cluster
 - Inputs:
   - `artifacts/sprint/phase1a-meta-audit.json` (primary — all red/yellow items)
@@ -152,6 +155,7 @@ Phase 1A (Meta)         Phase 1B (Google Ads)
 - Time-box: 35 minutes
 
 **Agent C3A-test**
+
 - Role: Validate Meta cluster against Phase 1A DoD checklist
 - Inputs:
   - `artifacts/sprint/phase1a-meta-fix.md`
@@ -170,6 +174,7 @@ Phase 1A (Meta)         Phase 1B (Google Ads)
 ### Phase 1B — Google Ads Dashboards Bulletproof
 
 **Agent C1B-audit**
+
 - Role: Deep read-only IRL audit of `/dashboards/google-ads` (workspace unified mode)
 - Inputs:
   - `artifacts/verify/google-verification.json` (B1–B8; focus on B2, B3, B5 deferred E2E, B4)
@@ -196,6 +201,7 @@ Phase 1A (Meta)         Phase 1B (Google Ads)
 - Time-box: 20 minutes
 
 **Agent C2B-fix**
+
 - Role: Apply fixes to Google Ads workspace cluster
 - Inputs:
   - `artifacts/sprint/phase1b-google-audit.json` (primary)
@@ -211,6 +217,7 @@ Phase 1A (Meta)         Phase 1B (Google Ads)
 - Time-box: 35 minutes
 
 **Agent C3B-test**
+
 - Role: Validate Google Ads cluster against Phase 1B DoD checklist
 - Inputs:
   - `artifacts/sprint/phase1b-google-fix.md`
@@ -231,6 +238,7 @@ Phase 1A (Meta)         Phase 1B (Google Ads)
 **Gating condition:** `phase1a-meta-test.md` VERDICT=GREEN AND `phase1b-google-test.md` VERDICT=GREEN. If either is YELLOW, proceed only if no blocking bugs remain; document risk.
 
 **Agent C1C-audit**
+
 - Role: Deep read-only IRL audit of all combined-view routes
 - Inputs:
   - `artifacts/verify/combined-verification.json` (B-PLAT-01 through B-SAVED-02; focus on deferred: B-CAMP-01, B-CREA-01, B-AUD-01, B-PLAT-03)
@@ -258,6 +266,7 @@ Phase 1A (Meta)         Phase 1B (Google Ads)
 - Time-box: 20 minutes
 
 **Agent C2C-fix**
+
 - Role: Apply fixes to combined-view routes, including deferred items that are still open
 - Inputs:
   - `artifacts/sprint/phase1c-combined-audit.json` (primary)
@@ -273,6 +282,7 @@ Phase 1A (Meta)         Phase 1B (Google Ads)
 - Time-box: 40 minutes
 
 **Agent C3C-test**
+
 - Role: Validate combined-view routes against Phase 2 DoD checklist
 - Inputs:
   - `artifacts/sprint/phase1c-combined-fix.md`
@@ -293,6 +303,7 @@ Phase 1A (Meta)         Phase 1B (Google Ads)
 **Gating condition:** `phase1c-combined-test.md` VERDICT=GREEN.
 
 **Agent C4-e2e**
+
 - Role: Full suite validation + manual smoke checklist
 - Inputs:
   - All three phase test reports (`phase1a-meta-test.md`, `phase1b-google-test.md`, `phase1c-combined-test.md`)
@@ -874,7 +885,7 @@ FINAL VERDICT: <GREEN|YELLOW|RED> — <one sentence>
 
 ### Phase 2 — Combined DoD
 
-1. scoped→unscoped transition: navigating from /meta/* to /platforms resets filters.platforms to []
+1. scoped→unscoped transition: navigating from /meta/\* to /platforms resets filters.platforms to []
 2. /dashboards/platforms: EmptyState on loaded + byPlatform.length===0
 3. /dashboards/platforms: KPI labels correct for both platforms (or documented as still-open low)
 4. /dashboards/campaigns: row-level platform filter applied (B-CAMP-01 closed or documented)
@@ -905,33 +916,33 @@ FINAL VERDICT: <GREEN|YELLOW|RED> — <one sentence>
 
 ## 6. Risk Register
 
-| # | Risk | Probability | Impact | Mitigation | Escalation trigger |
-|---|------|-------------|--------|------------|-------------------|
-| RR1 | R7 reconciliation effect fires AFTER first combined-dashboard fetch, so initial load is un-scoped | Medium | High | C1C-audit traces exact effect ordering in DashboardLayout; C2C-fix adds a one-tick flush guard if needed | Audit finds effect is not atomic with route change |
-| RR2 | SDK migration tables empty in dev — Google Ads workspace always shows zeros regardless of fix | Medium | Medium | C1B-audit documents SDK risk; C2B-fix adds graceful zero-state; C4 smoke checklist notes as "requires live Google Ads sync" | C3B confirms blank page with no message despite fix attempt |
-| RR3 | B-CAMP-01 / B-CREA-01 useDashboardStore selector surgery breaks other consumers of the selector | Medium | High | C2C reads all callers of the selector before editing; adds targeted tests for each caller | Tests fail outside the targeted suite after selector change |
-| RR4 | DashboardLayout.tsx has been edited by B1, synthesis, and now sprint — merge conflicts or double-effect | Medium | High | C2A and C2C read current file state; do NOT re-apply effects already present; diff against git before editing | Build or vitest reports duplicate effect error |
-| RR5 | Pre-existing DataSources scrollIntoView failures not fixable via setup mock (e.g. the component calls scrollIntoView in a way that mock doesn't cover) | Low | Low | C4 tries setup mock first; if that fails, documents as pre-existing and records test count delta | Fixing the mock introduces new failures |
-| RR6 | Google Ads GOOGLE_ADS_WORKSPACE_UNIFIED=false path is used in some env — audit only covers true | Low | Medium | C1B explicitly flags flag mode; smoke checklist asks user to confirm env var | User reports workspace not loading at all |
-| RR7 | demo mode suppresses clientOptions=[] — combined dashboards look broken in demo even after fix | Medium | Low | B0-triage documents this as intentional; smoke checklist notes demo limitation | User reports no account picker in demo mode — document, not a bug |
-| RR8 | Phase 2 gating: one of Phase 1A/1B is YELLOW — combined audit may catch cross-contamination from unfixed item | Low | Medium | Proceed with explicit YELLOW documentation; C1C notes dependency on incomplete phases | C1C audit finds that a Phase 1B bug directly breaks combined view |
+| #   | Risk                                                                                                                                                   | Probability | Impact | Mitigation                                                                                                                  | Escalation trigger                                                |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- | ------ | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| RR1 | R7 reconciliation effect fires AFTER first combined-dashboard fetch, so initial load is un-scoped                                                      | Medium      | High   | C1C-audit traces exact effect ordering in DashboardLayout; C2C-fix adds a one-tick flush guard if needed                    | Audit finds effect is not atomic with route change                |
+| RR2 | SDK migration tables empty in dev — Google Ads workspace always shows zeros regardless of fix                                                          | Medium      | Medium | C1B-audit documents SDK risk; C2B-fix adds graceful zero-state; C4 smoke checklist notes as "requires live Google Ads sync" | C3B confirms blank page with no message despite fix attempt       |
+| RR3 | B-CAMP-01 / B-CREA-01 useDashboardStore selector surgery breaks other consumers of the selector                                                        | Medium      | High   | C2C reads all callers of the selector before editing; adds targeted tests for each caller                                   | Tests fail outside the targeted suite after selector change       |
+| RR4 | DashboardLayout.tsx has been edited by B1, synthesis, and now sprint — merge conflicts or double-effect                                                | Medium      | High   | C2A and C2C read current file state; do NOT re-apply effects already present; diff against git before editing               | Build or vitest reports duplicate effect error                    |
+| RR5 | Pre-existing DataSources scrollIntoView failures not fixable via setup mock (e.g. the component calls scrollIntoView in a way that mock doesn't cover) | Low         | Low    | C4 tries setup mock first; if that fails, documents as pre-existing and records test count delta                            | Fixing the mock introduces new failures                           |
+| RR6 | Google Ads GOOGLE_ADS_WORKSPACE_UNIFIED=false path is used in some env — audit only covers true                                                        | Low         | Medium | C1B explicitly flags flag mode; smoke checklist asks user to confirm env var                                                | User reports workspace not loading at all                         |
+| RR7 | demo mode suppresses clientOptions=[] — combined dashboards look broken in demo even after fix                                                         | Medium      | Low    | B0-triage documents this as intentional; smoke checklist notes demo limitation                                              | User reports no account picker in demo mode — document, not a bug |
+| RR8 | Phase 2 gating: one of Phase 1A/1B is YELLOW — combined audit may catch cross-contamination from unfixed item                                          | Low         | Medium | Proceed with explicit YELLOW documentation; C1C notes dependency on incomplete phases                                       | C1C audit finds that a Phase 1B bug directly breaks combined view |
 
 ---
 
 ## 7. Execution Timeline
 
-| Agent | Phase | Depends on | Estimated wall-clock | Can run in parallel with |
-|-------|-------|------------|---------------------|--------------------------|
-| C1A-audit | 1A | nothing | 20 min | C1B-audit |
-| C1B-audit | 1B | nothing | 20 min | C1A-audit |
-| C2A-fix | 1A | C1A done | 35 min | C2B-fix |
-| C2B-fix | 1B | C1B done | 35 min | C2A-fix |
-| C3A-test | 1A | C2A done | 20 min | C3B-test |
-| C3B-test | 1B | C2B done | 20 min | C3A-test |
-| C1C-audit | 2 | C3A + C3B GREEN | 20 min | — |
-| C2C-fix | 2 | C1C done | 40 min | — |
-| C3C-test | 2 | C2C done | 20 min | — |
-| C4-e2e | 3 | C3C GREEN | 30 min | — |
+| Agent     | Phase | Depends on      | Estimated wall-clock | Can run in parallel with |
+| --------- | ----- | --------------- | -------------------- | ------------------------ |
+| C1A-audit | 1A    | nothing         | 20 min               | C1B-audit                |
+| C1B-audit | 1B    | nothing         | 20 min               | C1A-audit                |
+| C2A-fix   | 1A    | C1A done        | 35 min               | C2B-fix                  |
+| C2B-fix   | 1B    | C1B done        | 35 min               | C2A-fix                  |
+| C3A-test  | 1A    | C2A done        | 20 min               | C3B-test                 |
+| C3B-test  | 1B    | C2B done        | 20 min               | C3A-test                 |
+| C1C-audit | 2     | C3A + C3B GREEN | 20 min               | —                        |
+| C2C-fix   | 2     | C1C done        | 40 min               | —                        |
+| C3C-test  | 2     | C2C done        | 20 min               | —                        |
+| C4-e2e    | 3     | C3C GREEN       | 30 min               | —                        |
 
 **Critical path (sequential):** C1A → C2A → C3A → C1C → C2C → C3C → C4 = 185 min (~3h 5min)
 **With parallelism (1A ∥ 1B):** Max(C1A→C2A→C3A, C1B→C2B→C3B) + Phase 2 + Phase 3 = 75 + 80 + 30 = **~3h 5min total wall-clock**

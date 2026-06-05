@@ -181,19 +181,58 @@
     }
   ],
   "synthesis_claim_verification": {
-    "M1": { "claimed": "APPLIED", "actual": "APPLIED — confirmed in DashboardLayout.tsx lines 275-287" },
-    "M2": { "claimed": "APPLIED", "actual": "PARTIALLY APPLIED — row onClick added (line 295) but recovery-fallback guard missing (C1A-NEW-01)" },
-    "M3": { "claimed": "APPLIED", "actual": "APPLIED — accounts.status !== 'loading' guard confirmed at MetaAccountsPage.tsx line 238" },
-    "M4": { "claimed": "APPLIED (via DashboardLayout)", "actual": "APPLIED — R7 effect handles it" },
-    "M5": { "claimed": "APPLIED", "actual": "APPLIED — insights.status !== 'loading' guard confirmed at MetaInsightsDashboardPage.tsx line 287" },
-    "M6": { "claimed": "APPLIED (via DashboardLayout)", "actual": "APPLIED — R7 effect handles it" },
-    "M7": { "claimed": "APPLIED", "actual": "APPLIED — campaigns.status !== 'loading' guard confirmed at MetaCampaignOverviewPage.tsx line 160" },
-    "M12": { "claimed": "APPLIED", "actual": "PARTIALLY APPLIED — period-reset useEffect fixed; but handleMetricChange and handlePeriodChange still call loadTimeseries directly after setFilters (C1A-NEW-03)" },
-    "M14": { "claimed": "APPLIED (no changes needed)", "actual": "NOT APPLIED — raw div panel remains at MetaPagePostsPage.tsx line 305; synthesis incorrectly classified as clean" },
-    "M16": { "claimed": "FIXED-BY-RECOVERY", "actual": "APPLIED — confirmed in useMetaPageInsightsStore.ts line 328 and MetaPostDetailPage.tsx line 69" },
-    "R5": { "claimed": "APPLIED", "actual": "PARTIALLY APPLIED — reasonCode prop added to EmptyState component but zero Meta-cluster callers use it" },
-    "R6": { "claimed": "APPLIED", "actual": "APPLIED — resolveRoutePlatformScope exported from dashboardFilters.ts, imported by DashboardLayout" },
-    "R7": { "claimed": "APPLIED", "actual": "PARTIALLY APPLIED — one-shot per navigation; not reactive within a route (C1A-NEW-02)" }
+    "M1": {
+      "claimed": "APPLIED",
+      "actual": "APPLIED — confirmed in DashboardLayout.tsx lines 275-287"
+    },
+    "M2": {
+      "claimed": "APPLIED",
+      "actual": "PARTIALLY APPLIED — row onClick added (line 295) but recovery-fallback guard missing (C1A-NEW-01)"
+    },
+    "M3": {
+      "claimed": "APPLIED",
+      "actual": "APPLIED — accounts.status !== 'loading' guard confirmed at MetaAccountsPage.tsx line 238"
+    },
+    "M4": {
+      "claimed": "APPLIED (via DashboardLayout)",
+      "actual": "APPLIED — R7 effect handles it"
+    },
+    "M5": {
+      "claimed": "APPLIED",
+      "actual": "APPLIED — insights.status !== 'loading' guard confirmed at MetaInsightsDashboardPage.tsx line 287"
+    },
+    "M6": {
+      "claimed": "APPLIED (via DashboardLayout)",
+      "actual": "APPLIED — R7 effect handles it"
+    },
+    "M7": {
+      "claimed": "APPLIED",
+      "actual": "APPLIED — campaigns.status !== 'loading' guard confirmed at MetaCampaignOverviewPage.tsx line 160"
+    },
+    "M12": {
+      "claimed": "APPLIED",
+      "actual": "PARTIALLY APPLIED — period-reset useEffect fixed; but handleMetricChange and handlePeriodChange still call loadTimeseries directly after setFilters (C1A-NEW-03)"
+    },
+    "M14": {
+      "claimed": "APPLIED (no changes needed)",
+      "actual": "NOT APPLIED — raw div panel remains at MetaPagePostsPage.tsx line 305; synthesis incorrectly classified as clean"
+    },
+    "M16": {
+      "claimed": "FIXED-BY-RECOVERY",
+      "actual": "APPLIED — confirmed in useMetaPageInsightsStore.ts line 328 and MetaPostDetailPage.tsx line 69"
+    },
+    "R5": {
+      "claimed": "APPLIED",
+      "actual": "PARTIALLY APPLIED — reasonCode prop added to EmptyState component but zero Meta-cluster callers use it"
+    },
+    "R6": {
+      "claimed": "APPLIED",
+      "actual": "APPLIED — resolveRoutePlatformScope exported from dashboardFilters.ts, imported by DashboardLayout"
+    },
+    "R7": {
+      "claimed": "APPLIED",
+      "actual": "PARTIALLY APPLIED — one-shot per navigation; not reactive within a route (C1A-NEW-02)"
+    }
   },
   "summary_verdict": "yellow",
   "verdict_rationale": "High-severity bugs M1/R7 are functionally addressed (DashboardLayout reconciliation effect present and correct for the navigation-entry case). All loading guards (M3/M5/M7) are confirmed applied. M16 post timeseries override is clean. Three residual issues prevent a GREEN verdict: (1) C1A-NEW-01 (medium): recovery-fallback row click guard missing from M2 fix; (2) C1A-NEW-02 (medium): R7 reconciliation is not reactive to intra-route account changes — the dep array omits useMetaStore subscription so only the first navigation into a Meta route syncs the account; (3) M14 (low): raw div panel for zero posts in MetaPagePostsPage not converted to EmptyState, despite synthesis claiming it was clean. C1A-NEW-03 (medium) is a partial M12 — the auto-reset path is fixed but user-driven metric/period changes in handleMetricChange/handlePeriodChange still call loadTimeseries directly without observable functional breakage in the synchronous Zustand model, but is an architectural inconsistency."

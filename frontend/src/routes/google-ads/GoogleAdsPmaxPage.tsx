@@ -19,9 +19,7 @@ type PmaxPayload = {
  */
 const GoogleAdsPmaxPage = () => {
   const [data, setData] = useState<PmaxPayload | null>(null);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
-    'loading',
-  );
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState('');
 
   const filters = useDashboardStore((state) => state.filters);
@@ -33,24 +31,19 @@ const GoogleAdsPmaxPage = () => {
       setError('');
       try {
         const { start, end } = resolveFilterRange(filters);
-        const path = appendQueryParams(
-          '/analytics/google-ads/pmax/asset-groups/',
-          {
-            platforms: 'google_ads',
-            customer_id: filters.accountId || undefined,
-            start_date: start || undefined,
-            end_date: end || undefined,
-          },
-        );
+        const path = appendQueryParams('/analytics/google-ads/pmax/asset-groups/', {
+          platforms: 'google_ads',
+          customer_id: filters.accountId || undefined,
+          start_date: start || undefined,
+          end_date: end || undefined,
+        });
         const response = await get<PmaxPayload>(path);
         if (!active) return;
         setData(response);
         setStatus('success');
       } catch (err) {
         if (!active) return;
-        setError(
-          err instanceof Error ? err.message : 'Failed to load PMax asset groups.',
-        );
+        setError(err instanceof Error ? err.message : 'Failed to load PMax asset groups.');
         setStatus('error');
       }
     };

@@ -24,11 +24,8 @@ type ConversionsPayload = {
  */
 const GoogleAdsConversionsPage = () => {
   const [data, setData] = useState<ConversionsPayload | null>(null);
-  const [summary, setSummary] =
-    useState<GoogleAdsWorkspaceSummaryResponse | null>(null);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
-    'loading',
-  );
+  const [summary, setSummary] = useState<GoogleAdsWorkspaceSummaryResponse | null>(null);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState('');
 
   const filters = useDashboardStore((state) => state.filters);
@@ -60,9 +57,7 @@ const GoogleAdsConversionsPage = () => {
         setStatus('success');
       } catch (err) {
         if (!active) return;
-        setError(
-          err instanceof Error ? err.message : 'Failed to load conversions.',
-        );
+        setError(err instanceof Error ? err.message : 'Failed to load conversions.');
         setStatus('error');
       }
     };
@@ -78,16 +73,10 @@ const GoogleAdsConversionsPage = () => {
         <p className="dashboardEyebrow">Google Ads</p>
         <h1 className="dashboardHeading">Conversions &amp; Attribution</h1>
         <p className="dashboardSubtitle">
-          Conversion action reporting with action-level conversion and value
-          trends.
+          Conversion action reporting with action-level conversion and value trends.
         </p>
       </header>
-      <ConversionsTabSection
-        data={data ?? {}}
-        status={status}
-        error={error}
-        summary={summary}
-      />
+      <ConversionsTabSection data={data ?? {}} status={status} error={error} summary={summary} />
     </section>
   );
 };

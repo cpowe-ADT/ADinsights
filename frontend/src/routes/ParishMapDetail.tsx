@@ -78,14 +78,11 @@ const ParishMapDetail = () => {
     return { ...totals, roas: safeDiv(totals.conversions, totals.spend) };
   }, [parishRows]);
 
-  const selectedParishData = useMemo(
-    () => {
-      if (!selectedParish) return undefined;
-      const key = normalizeParishValue(selectedParish);
-      return parishRows.find((r) => normalizeParishValue(r.parish) === key);
-    },
-    [parishRows, selectedParish],
-  );
+  const selectedParishData = useMemo(() => {
+    if (!selectedParish) return undefined;
+    const key = normalizeParishValue(selectedParish);
+    return parishRows.find((r) => normalizeParishValue(r.parish) === key);
+  }, [parishRows, selectedParish]);
 
   const displayData = selectedParishData ?? islandTotals;
   const displayLabel = selectedParish ?? 'All Jamaica';
@@ -134,7 +131,9 @@ const ParishMapDetail = () => {
     return (
       <section className="dashboardPage" aria-labelledby={headingId}>
         <header className="dashboardPageHeader">
-          <h1 className="dashboardHeading" id={headingId}>Regional performance</h1>
+          <h1 className="dashboardHeading" id={headingId}>
+            Regional performance
+          </h1>
         </header>
         <DashboardState
           variant="error"
@@ -151,7 +150,9 @@ const ParishMapDetail = () => {
     return (
       <section className="dashboardPage" aria-labelledby={headingId}>
         <header className="dashboardPageHeader">
-          <h1 className="dashboardHeading" id={headingId}>Regional performance</h1>
+          <h1 className="dashboardHeading" id={headingId}>
+            Regional performance
+          </h1>
         </header>
         <DashboardState
           variant="empty"
@@ -168,9 +169,7 @@ const ParishMapDetail = () => {
       <header className="dashboardPageHeader">
         <h1 className="dashboardHeading" id={headingId}>
           Regional performance
-          {selectedParish && (
-            <span className="dashboardHeading__sub"> — {selectedParish}</span>
-          )}
+          {selectedParish && <span className="dashboardHeading__sub"> — {selectedParish}</span>}
         </h1>
         <div>
           <button type="button" className="button tertiary" onClick={handleBack}>
@@ -190,9 +189,7 @@ const ParishMapDetail = () => {
                   <Skeleton height={100} borderRadius="1rem" />
                 </div>
               ))
-            : kpis.map((kpi) => (
-                <StatCard key={kpi.label} label={kpi.label} value={kpi.value} />
-              ))}
+            : kpis.map((kpi) => <StatCard key={kpi.label} label={kpi.label} value={kpi.value} />)}
         </div>
 
         {/* Map + detail panel */}

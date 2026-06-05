@@ -1,6 +1,6 @@
 {
-  "counts": {"metrics": 0, "segments": 0},
-  "fields": {"metrics": [], "segments": []},
+  "counts": { "metrics": 0, "segments": 0 },
+  "fields": { "metrics": [], "segments": [] },
   "total_fields": 0,
   "version": "v23"
 }

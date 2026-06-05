@@ -72,6 +72,7 @@ The tenant-facing OAuth flow does not, today, provision an Airbyte source. To li
 5. **Wait for the first Airbyte sync.** Subsequent syncs run on the configured schedule.
 
 Notes:
+
 - The per-tenant OAuth tokens captured via the app UI are **not** bridged into Airbyte. Bridging is a future enhancement (T3-ish). Today, Airbyte runs with operator-level credentials, and tenant isolation is enforced in dbt and the Django view layer.
 - PII policy (AGENTS.md §130): the GA4 staging model only pulls `property_id, tenant_id, date_day, channel_group, country, city, campaign_name` and aggregatable metrics. Do NOT add GA4 dimensions like `user_pseudo_id`, `device_id`, `client_id`, `ip_address`, or `stream_id` to the mart schema — the PII allowlist test (`backend/tests/test_ga4_pii_allowlist.py`) will fail the build.
 
@@ -104,15 +105,15 @@ Deeper:
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Dashboard shows `reason: no_ga4_property_selected` empty state | No `GoogleAnalyticsConnection` row OR `status: "unavailable"` from mart missing | Walk tenant through OAuth flow; if OAuth is fine, check mart + Airbyte |
-| `/api/analytics/web/ga4/` returns `status: "unavailable"` | `agg_ga4_daily` table doesn't exist OR dbt hasn't run with `enable_ga4=true` | `cd dbt && dbt build --select stg_ga4_reports+ --vars '{"enable_ga4": true}'` |
-| Mart exists but rows are stale | Airbyte connection disabled OR failing syncs | Check Airbyte connection → last sync → failure reason; verify refresh token is valid |
-| `/api/integrations/google_analytics/oauth/exchange/` returns 502 "Token exchange failed" | OAuth client credentials misconfigured or redirect URI mismatch | Verify `GOOGLE_ANALYTICS_CLIENT_ID`, `GOOGLE_ANALYTICS_CLIENT_SECRET`, `GOOGLE_ANALYTICS_OAUTH_REDIRECT_URI` and the Google Cloud project's authorized redirect URIs match exactly |
-| `GoogleAnalyticsClientError: credential_missing_refresh_token` | Tenant connected without consent screen `prompt=consent` (Google omits the refresh token on re-authorization) | Frontend must send `prompt=consent` on `oauth/start/`. If already stored, re-run the connect flow |
-| `GoogleAnalyticsClientError: oauth_not_configured` | `GOOGLE_ANALYTICS_CLIENT_ID` or `GOOGLE_ANALYTICS_CLIENT_SECRET` env vars not set | Set in `.env`; restart backend |
-| GA4 data shows up in combined metrics but dashboard is empty | Expected — Path 1 (dashboard/mart) and Path 2 (live adapter) are independent | Wire Airbyte + dbt as described above |
+| Symptom                                                                                  | Likely cause                                                                                                  | Fix                                                                                                                                                                                |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dashboard shows `reason: no_ga4_property_selected` empty state                           | No `GoogleAnalyticsConnection` row OR `status: "unavailable"` from mart missing                               | Walk tenant through OAuth flow; if OAuth is fine, check mart + Airbyte                                                                                                             |
+| `/api/analytics/web/ga4/` returns `status: "unavailable"`                                | `agg_ga4_daily` table doesn't exist OR dbt hasn't run with `enable_ga4=true`                                  | `cd dbt && dbt build --select stg_ga4_reports+ --vars '{"enable_ga4": true}'`                                                                                                      |
+| Mart exists but rows are stale                                                           | Airbyte connection disabled OR failing syncs                                                                  | Check Airbyte connection → last sync → failure reason; verify refresh token is valid                                                                                               |
+| `/api/integrations/google_analytics/oauth/exchange/` returns 502 "Token exchange failed" | OAuth client credentials misconfigured or redirect URI mismatch                                               | Verify `GOOGLE_ANALYTICS_CLIENT_ID`, `GOOGLE_ANALYTICS_CLIENT_SECRET`, `GOOGLE_ANALYTICS_OAUTH_REDIRECT_URI` and the Google Cloud project's authorized redirect URIs match exactly |
+| `GoogleAnalyticsClientError: credential_missing_refresh_token`                           | Tenant connected without consent screen `prompt=consent` (Google omits the refresh token on re-authorization) | Frontend must send `prompt=consent` on `oauth/start/`. If already stored, re-run the connect flow                                                                                  |
+| `GoogleAnalyticsClientError: oauth_not_configured`                                       | `GOOGLE_ANALYTICS_CLIENT_ID` or `GOOGLE_ANALYTICS_CLIENT_SECRET` env vars not set                             | Set in `.env`; restart backend                                                                                                                                                     |
+| GA4 data shows up in combined metrics but dashboard is empty                             | Expected — Path 1 (dashboard/mart) and Path 2 (live adapter) are independent                                  | Wire Airbyte + dbt as described above                                                                                                                                              |
 
 ## OAuth token refresh
 

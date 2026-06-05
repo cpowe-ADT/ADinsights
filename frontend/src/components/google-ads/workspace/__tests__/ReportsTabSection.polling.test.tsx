@@ -92,9 +92,7 @@ describe('ReportsTabSection — GA-A3 polling', () => {
     await advance(3000);
     expect(googleAdsDashboardMock.fetchGoogleAdsExportStatus).toHaveBeenCalledTimes(2);
 
-    expect(
-      screen.getByTestId('google-ads-export-status').textContent,
-    ).toBe('completed');
+    expect(screen.getByTestId('google-ads-export-status').textContent).toBe('completed');
 
     // No further polls after terminal.
     await advance(10000);
@@ -114,17 +112,14 @@ describe('ReportsTabSection — GA-A3 polling', () => {
       await advance(3000);
     }
 
-    const callsAtCeiling =
-      googleAdsDashboardMock.fetchGoogleAdsExportStatus.mock.calls.length;
+    const callsAtCeiling = googleAdsDashboardMock.fetchGoogleAdsExportStatus.mock.calls.length;
     // Up to 20 polls before the ceiling guards the next attempt.
     expect(callsAtCeiling).toBeGreaterThan(0);
     expect(callsAtCeiling).toBeLessThanOrEqual(20);
 
     // Further timer advancement should NOT produce new polls.
     await advance(30000);
-    expect(googleAdsDashboardMock.fetchGoogleAdsExportStatus).toHaveBeenCalledTimes(
-      callsAtCeiling,
-    );
+    expect(googleAdsDashboardMock.fetchGoogleAdsExportStatus).toHaveBeenCalledTimes(callsAtCeiling);
   });
 
   it('exp-backoff on 5xx and stops after 3 consecutive failures', async () => {
@@ -155,9 +150,7 @@ describe('ReportsTabSection — GA-A3 polling', () => {
     expect(googleAdsDashboardMock.fetchGoogleAdsExportStatus).toHaveBeenCalledTimes(3);
 
     // After 3 consecutive 5xx, polling halts and status flips to failed.
-    expect(
-      screen.getByTestId('google-ads-export-status').textContent,
-    ).toBe('failed');
+    expect(screen.getByTestId('google-ads-export-status').textContent).toBe('failed');
 
     // Further timer advancement — no new polls.
     await advance(30000);
@@ -189,8 +182,6 @@ describe('ReportsTabSection — GA-A3 polling', () => {
 
     await advance(30000);
     expect(googleAdsDashboardMock.fetchGoogleAdsExportStatus).not.toHaveBeenCalled();
-    expect(screen.getByTestId('google-ads-export-status').textContent).toBe(
-      'completed',
-    );
+    expect(screen.getByTestId('google-ads-export-status').textContent).toBe('completed');
   });
 });

@@ -4,18 +4,19 @@
 
 ## Files Modified / Added
 
-| File | Change summary | Lines (+/−) |
-|---|---|---|
-| `frontend/src/routes/MetaAccountsPage.tsx` | Added KPI strip (6 tiles), multi-series TrendLine with peer-avg, PieComposition spend-by-objective, AccessibleTableToggle on trend + pie, row-click navigate to Insights, new `loadCampaigns` + `loadInsights` dispatches; retained orphan/recovery fallback and existing table. | +334 / −63 |
-| `frontend/src/routes/MetaInsightsDashboardPage.tsx` | Added KPI strip (Spend/ROAS[conditional]/CTR/CPC/CPM — CPC substitutes for Frequency per §3), dual-axis CTR+CPM TrendLine, BubbleScatter (ROAS y-axis or CPM fallback), migrated tanstack-table grid to VizDataTable, AccessibleTableToggle on trend + bubble, preserved sync-now behavior and all filter controls. | +331 / −90 |
-| `frontend/src/routes/__tests__/MetaAccountsPage.test.tsx` | Preserved Phase 1A contract tests (intro copy, row-click setFilters, recovery ghost-ID guard). Added: navigate-assertion on row click, dispatch-check for loadCampaigns/loadInsights, KPI strip label presence (6 labels), pie-objective render assertion. Updated mock store to include `campaigns`/`insights` slices + `loadCampaigns`/`loadInsights` mocks. | +210 / −15 |
-| `frontend/src/routes/__tests__/MetaInsightsDashboardPage.test.tsx` | Preserved sync-now Phase 1A contract tests. Added: ROAS tile absent (no purchase actions), ROAS tile present (omni_purchase present), dual-axis CTR/CPM renders (sr-only table probe), Spend-vs-CPM fallback heading, VizDataTable replacement (records count heading). | +170 / −14 |
-| `frontend/src/lib/metaAggregates.ts` (new) | Pure helpers: `sumInsights`, `groupSpendByDateAccount`, `computePeerMedian`, `topAccountsBySpend`, `spendByObjective`, `derivedRoas`, `hasPurchaseActions`, `aggregatedRoas`, `groupCtrCpmByDate`. | +232 / 0 |
-| `frontend/src/lib/metaAggregates.test.ts` (new) | 10 unit tests covering the helpers above (sum math + divide-by-zero safety, date×account grouping, peer median, top-N, objective join, ROAS derivation and aggregation, CTR/CPM grouping). | +190 / 0 |
+| File                                                               | Change summary                                                                                                                                                                                                                                                                                                                                                 | Lines (+/−) |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `frontend/src/routes/MetaAccountsPage.tsx`                         | Added KPI strip (6 tiles), multi-series TrendLine with peer-avg, PieComposition spend-by-objective, AccessibleTableToggle on trend + pie, row-click navigate to Insights, new `loadCampaigns` + `loadInsights` dispatches; retained orphan/recovery fallback and existing table.                                                                               | +334 / −63  |
+| `frontend/src/routes/MetaInsightsDashboardPage.tsx`                | Added KPI strip (Spend/ROAS[conditional]/CTR/CPC/CPM — CPC substitutes for Frequency per §3), dual-axis CTR+CPM TrendLine, BubbleScatter (ROAS y-axis or CPM fallback), migrated tanstack-table grid to VizDataTable, AccessibleTableToggle on trend + bubble, preserved sync-now behavior and all filter controls.                                            | +331 / −90  |
+| `frontend/src/routes/__tests__/MetaAccountsPage.test.tsx`          | Preserved Phase 1A contract tests (intro copy, row-click setFilters, recovery ghost-ID guard). Added: navigate-assertion on row click, dispatch-check for loadCampaigns/loadInsights, KPI strip label presence (6 labels), pie-objective render assertion. Updated mock store to include `campaigns`/`insights` slices + `loadCampaigns`/`loadInsights` mocks. | +210 / −15  |
+| `frontend/src/routes/__tests__/MetaInsightsDashboardPage.test.tsx` | Preserved sync-now Phase 1A contract tests. Added: ROAS tile absent (no purchase actions), ROAS tile present (omni_purchase present), dual-axis CTR/CPM renders (sr-only table probe), Spend-vs-CPM fallback heading, VizDataTable replacement (records count heading).                                                                                        | +170 / −14  |
+| `frontend/src/lib/metaAggregates.ts` (new)                         | Pure helpers: `sumInsights`, `groupSpendByDateAccount`, `computePeerMedian`, `topAccountsBySpend`, `spendByObjective`, `derivedRoas`, `hasPurchaseActions`, `aggregatedRoas`, `groupCtrCpmByDate`.                                                                                                                                                             | +232 / 0    |
+| `frontend/src/lib/metaAggregates.test.ts` (new)                    | 10 unit tests covering the helpers above (sum math + divide-by-zero safety, date×account grouping, peer median, top-N, objective join, ROAS derivation and aggregation, CTR/CPM grouping).                                                                                                                                                                     | +190 / 0    |
 
 ## TrendLine dual-axis verification outcome
 
 **SUPPORTED.** `frontend/src/components/viz/TrendLine.tsx` exposes:
+
 - `rightYFormat?: ChartValueType` prop (line 62)
 - Per-series `yAxis?: 'left' | 'right'` routing via `TrendLineSeries` (line 39)
 - Conditional right `<YAxis yAxisId="right" orientation="right" …>` rendered when `series.some((s) => s.yAxis === 'right')` (lines 184–194)
@@ -34,7 +35,7 @@ Implemented as a **conditional-derive** path per architect §3. `aggregatedRoas`
 
 ## Data transforms — match to architect spec
 
-- **KPI aggregates** (`sumInsights`): totalSpend, totalImpressions, totalReach, totalClicks, totalConversions, ctr = clicks/impressions, cpm = (spend/impressions)*1000, cpc = spend/clicks. Divide-by-zero safe.
+- **KPI aggregates** (`sumInsights`): totalSpend, totalImpressions, totalReach, totalClicks, totalConversions, ctr = clicks/impressions, cpm = (spend/impressions)\*1000, cpc = spend/clicks. Divide-by-zero safe.
 - **Active accounts** (Accounts page): `accounts.rows.filter(r => /ACTIVE|^1$/i.test(r.status)).length` — broadened from the architect's `/ACTIVE/` regex because Meta returns `account_status: 1` as the active indicator (verified against the recovery payload shape in the page's own DisplayAccountRow mapping).
 - **Trend series (Accounts)**: `groupSpendByDateAccount` groups `(date, account_external_id)` and fills missing account/date cells with 0. Top-6 accounts by total spend for multi-series mode; single-series + `computePeerMedian` peer line when `filters.accountId` set.
 - **Peer-avg suppression**: omitted when < 2 unique accounts in the insights slice (handles the single-tenant degenerate case per architect §7.3).
@@ -131,6 +132,7 @@ dist/assets/MetaInsightsDashboardPage-vFaI_1Uq.js        22.69 kB │ gzip:  7.8
 ## Status
 
 **GREEN.** All acceptance gates met:
+
 - Targeted vitest: 23/23 passed.
 - Full vitest suite: 629/629 passed (no regressions).
 - ESLint: 0 warnings / 0 errors.

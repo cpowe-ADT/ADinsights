@@ -15,13 +15,11 @@ const toastMock = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../../lib/googleAdsDashboard', () => ({
-  dismissGoogleAdsRecommendation:
-    googleAdsDashboardMock.dismissGoogleAdsRecommendation,
+  dismissGoogleAdsRecommendation: googleAdsDashboardMock.dismissGoogleAdsRecommendation,
 }));
 
 vi.mock('../../../../stores/useToastStore', () => ({
-  useToastStore: (selector: (state: typeof toastMock) => unknown) =>
-    selector(toastMock),
+  useToastStore: (selector: (state: typeof toastMock) => unknown) => selector(toastMock),
 }));
 
 const activeRow: GoogleAdsRecommendationRow = {
@@ -41,19 +39,13 @@ describe('RecommendationsTabSection — integration', () => {
   });
 
   it('renders loading state', () => {
-    render(
-      <RecommendationsTabSection data={null} status="loading" error="" />,
-    );
+    render(<RecommendationsTabSection data={null} status="loading" error="" />);
     expect(screen.getByText('Loading recommendations...')).toBeInTheDocument();
   });
 
   it('renders empty state', () => {
     render(
-      <RecommendationsTabSection
-        data={{ count: 0, results: [] }}
-        status="success"
-        error=""
-      />,
+      <RecommendationsTabSection data={{ count: 0, results: [] }} status="success" error="" />,
     );
     expect(screen.getByText('No recommendations')).toBeInTheDocument();
   });
@@ -66,12 +58,8 @@ describe('RecommendationsTabSection — integration', () => {
         error=""
       />,
     );
-    expect(
-      screen.getByTestId('google-ads-recommendations-section'),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Dismiss' }),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('google-ads-recommendations-section')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
     expect(screen.getAllByText('KEYWORD').length).toBeGreaterThan(0);
   });
 });

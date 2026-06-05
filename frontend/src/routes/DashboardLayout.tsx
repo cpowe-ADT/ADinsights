@@ -20,10 +20,7 @@ import FilterBar, {
 import { useTheme } from '../components/ThemeProvider';
 import { useToastStore } from '../stores/useToastStore';
 import { loadDashboardLayout, saveDashboardLayout } from '../lib/layoutPreferences';
-import {
-  loadSocialConnectionStatus,
-  type SocialPlatformStatusRecord,
-} from '../lib/airbyte';
+import { loadSocialConnectionStatus, type SocialPlatformStatusRecord } from '../lib/airbyte';
 import {
   buildLiveAccountOption,
   chooseDefaultLiveAccountOptionId,
@@ -218,9 +215,7 @@ const DashboardLayout = () => {
     if (!routePlatformScope) {
       return COMBINED_PLATFORM_OPTIONS;
     }
-    return COMBINED_PLATFORM_OPTIONS.filter((option) =>
-      routePlatformScope.includes(option.value),
-    );
+    return COMBINED_PLATFORM_OPTIONS.filter((option) => routePlatformScope.includes(option.value));
   }, [routePlatformScope]);
 
   // When the current route is scoped to a single platform, force
@@ -574,7 +569,10 @@ const DashboardLayout = () => {
 
   const errors = useMemo(() => {
     const warehouseLiveBlocked =
-      datasetMode === 'live' && datasetSource === 'warehouse' && liveReason && liveReason !== 'ready';
+      datasetMode === 'live' &&
+      datasetSource === 'warehouse' &&
+      liveReason &&
+      liveReason !== 'ready';
     return Array.from(
       new Set(
         [campaign, creative, budget, parish]
@@ -628,90 +626,88 @@ const DashboardLayout = () => {
     [],
   );
 
-  const handleNavDropdownKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
-      const items = Array.from(
-        (e.currentTarget as HTMLElement).querySelectorAll<HTMLAnchorElement>('a'),
-      );
-      const idx = items.indexOf(e.target as HTMLAnchorElement);
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        items[(idx + 1) % items.length]?.focus();
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        items[(idx - 1 + items.length) % items.length]?.focus();
-      } else if (e.key === 'Escape') {
-        setOpenNavGroup(null);
-        const wrapper = (e.currentTarget as HTMLElement).closest('.dashboard-nav__dropdown-wrapper');
-        wrapper?.querySelector<HTMLButtonElement>('.dashboard-nav__trigger')?.focus();
-      }
-    },
-    [],
-  );
+  const handleNavDropdownKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(
+      (e.currentTarget as HTMLElement).querySelectorAll<HTMLAnchorElement>('a'),
+    );
+    const idx = items.indexOf(e.target as HTMLAnchorElement);
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      items[(idx + 1) % items.length]?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      items[(idx - 1 + items.length) % items.length]?.focus();
+    } else if (e.key === 'Escape') {
+      setOpenNavGroup(null);
+      const wrapper = (e.currentTarget as HTMLElement).closest('.dashboard-nav__dropdown-wrapper');
+      wrapper?.querySelector<HTMLButtonElement>('.dashboard-nav__trigger')?.focus();
+    }
+  }, []);
 
   type NavGroup = {
     label: string;
     links: Array<{ label: string; to: string; end: boolean }>;
   };
 
-  const navGroups: NavGroup[] = useMemo(() => [
-    {
-      label: 'Dashboards',
-      links: [
-        { label: 'Library', to: '/dashboards', end: true },
-        ...(canCreate ? [{ label: 'Create', to: '/dashboards/create', end: false }] : []),
-        { label: 'Campaigns', to: '/dashboards/campaigns', end: false },
-        { label: 'Creatives', to: '/dashboards/creatives', end: false },
-        { label: 'Budget pacing', to: '/dashboards/budget', end: false },
-        { label: 'Audience', to: '/dashboards/audience', end: false },
-        { label: 'All platforms (combined)', to: '/dashboards/platforms', end: false },
-        { label: 'Parish map', to: '/dashboards/map', end: false },
-      ],
-    },
-    {
-      label: 'Integrations',
-      links: [
-        { label: 'Clients', to: '/clients', end: false },
-        ...(canCreate
-          ? [{ label: 'Suggested clients', to: '/clients/suggest', end: false }]
-          : []),
-        { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
-        { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
-        { label: 'Meta campaigns', to: '/dashboards/meta/campaigns', end: false },
-        { label: 'Facebook pages', to: '/dashboards/meta/pages', end: false },
-        { label: 'GA4', to: '/dashboards/web/ga4', end: false },
-        { label: 'Search Console', to: '/dashboards/web/search-console', end: false },
-        { label: 'Google Ads', to: '/dashboards/google-ads', end: false },
-        { label: 'Data sources', to: '/dashboards/data-sources', end: false },
-        { label: 'CSV uploads', to: '/dashboards/uploads', end: false },
-      ],
-    },
-    {
-      label: 'Reporting',
-      links: [
-        { label: 'Reports', to: '/reports', end: false },
-      ],
-    },
-    {
-      label: 'Alerts & AI',
-      links: [
-        { label: 'Alerts', to: '/alerts', end: false },
-        { label: 'Alert History', to: '/alerts/history', end: false },
-        { label: 'Summaries', to: '/summaries', end: false },
-      ],
-    },
-    {
-      label: 'Operations',
-      links: [
-        { label: 'Sync Health', to: '/ops/sync-health', end: false },
-        { label: 'Health Overview', to: '/ops/health', end: false },
-        { label: 'Audit Log', to: '/ops/audit', end: false },
-        { label: 'Meta status', to: '/dashboards/meta/status', end: false },
-        { label: 'Notifications', to: '/settings/notifications', end: false },
-        { label: 'My Profile', to: '/me', end: false },
-      ],
-    },
-  ], [canCreate]);
+  const navGroups: NavGroup[] = useMemo(
+    () => [
+      {
+        label: 'Dashboards',
+        links: [
+          { label: 'Library', to: '/dashboards', end: true },
+          ...(canCreate ? [{ label: 'Create', to: '/dashboards/create', end: false }] : []),
+          { label: 'Campaigns', to: '/dashboards/campaigns', end: false },
+          { label: 'Creatives', to: '/dashboards/creatives', end: false },
+          { label: 'Budget pacing', to: '/dashboards/budget', end: false },
+          { label: 'Audience', to: '/dashboards/audience', end: false },
+          { label: 'All platforms (combined)', to: '/dashboards/platforms', end: false },
+          { label: 'Parish map', to: '/dashboards/map', end: false },
+        ],
+      },
+      {
+        label: 'Integrations',
+        links: [
+          { label: 'Clients', to: '/clients', end: false },
+          ...(canCreate
+            ? [{ label: 'Suggested clients', to: '/clients/suggest', end: false }]
+            : []),
+          { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
+          { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
+          { label: 'Meta campaigns', to: '/dashboards/meta/campaigns', end: false },
+          { label: 'Facebook pages', to: '/dashboards/meta/pages', end: false },
+          { label: 'GA4', to: '/dashboards/web/ga4', end: false },
+          { label: 'Search Console', to: '/dashboards/web/search-console', end: false },
+          { label: 'Google Ads', to: '/dashboards/google-ads', end: false },
+          { label: 'Data sources', to: '/dashboards/data-sources', end: false },
+          { label: 'CSV uploads', to: '/dashboards/uploads', end: false },
+        ],
+      },
+      {
+        label: 'Reporting',
+        links: [{ label: 'Reports', to: '/reports', end: false }],
+      },
+      {
+        label: 'Alerts & AI',
+        links: [
+          { label: 'Alerts', to: '/alerts', end: false },
+          { label: 'Alert History', to: '/alerts/history', end: false },
+          { label: 'Summaries', to: '/summaries', end: false },
+        ],
+      },
+      {
+        label: 'Operations',
+        links: [
+          { label: 'Sync Health', to: '/ops/sync-health', end: false },
+          { label: 'Health Overview', to: '/ops/health', end: false },
+          { label: 'Audit Log', to: '/ops/audit', end: false },
+          { label: 'Meta status', to: '/dashboards/meta/status', end: false },
+          { label: 'Notifications', to: '/settings/notifications', end: false },
+          { label: 'My Profile', to: '/me', end: false },
+        ],
+      },
+    ],
+    [canCreate],
+  );
 
   const campaignLookup = useMemo(() => {
     const rows = campaign.data?.rows ?? [];
@@ -841,44 +837,41 @@ const DashboardLayout = () => {
     [effectiveSnapshotGeneratedAt],
   );
   const snapshotIsStale = isTimestampStale(effectiveSnapshotGeneratedAt, 60);
-  const liveStatusMessage = useMemo(
-    () => {
-      if (datasetMode !== 'live') {
-        return null;
-      }
-      if (!datasetSource) {
-        return liveReason ? messageForLiveDatasetReason(liveReason, liveDetail) : null;
-      }
-      if (datasetSource === 'meta_direct') {
-        if (liveReason === 'adapter_disabled') {
-          return 'Showing direct Meta sync data. Warehouse reporting is not enabled in this environment.';
-        }
-        if (liveReason === 'missing_snapshot') {
-          return 'Showing direct Meta sync data while the first warehouse snapshot is still pending.';
-        }
-        if (liveReason === 'stale_snapshot') {
-          return 'Showing direct Meta sync data while the warehouse snapshot refresh completes.';
-        }
-        if (liveReason === 'default_snapshot') {
-          return `Showing direct Meta sync data. ${messageForLiveDatasetReason(liveReason, liveDetail)}`;
-        }
-        return 'Showing direct Meta sync data.';
-      }
+  const liveStatusMessage = useMemo(() => {
+    if (datasetMode !== 'live') {
+      return null;
+    }
+    if (!datasetSource) {
       return liveReason ? messageForLiveDatasetReason(liveReason, liveDetail) : null;
-    },
-    [datasetMode, datasetSource, liveDetail, liveReason],
-  );
+    }
+    if (datasetSource === 'meta_direct') {
+      if (liveReason === 'adapter_disabled') {
+        return 'Showing direct Meta sync data. Warehouse reporting is not enabled in this environment.';
+      }
+      if (liveReason === 'missing_snapshot') {
+        return 'Showing direct Meta sync data while the first warehouse snapshot is still pending.';
+      }
+      if (liveReason === 'stale_snapshot') {
+        return 'Showing direct Meta sync data while the warehouse snapshot refresh completes.';
+      }
+      if (liveReason === 'default_snapshot') {
+        return `Showing direct Meta sync data. ${messageForLiveDatasetReason(liveReason, liveDetail)}`;
+      }
+      return 'Showing direct Meta sync data.';
+    }
+    return liveReason ? messageForLiveDatasetReason(liveReason, liveDetail) : null;
+  }, [datasetMode, datasetSource, liveDetail, liveReason]);
   const snapshotStatusLabel = useMemo(() => {
     if (datasetMode !== 'live') {
       if (!effectiveSnapshotGeneratedAt) {
         return 'Demo dataset active';
       }
-      return snapshotRelative
-        ? `Demo dataset active - ${snapshotRelative}`
-        : 'Demo dataset active';
+      return snapshotRelative ? `Demo dataset active - ${snapshotRelative}` : 'Demo dataset active';
     }
     if (datasetSource === 'meta_direct') {
-      return snapshotRelative ? `Direct Meta sync updated ${snapshotRelative}` : 'Direct Meta sync active';
+      return snapshotRelative
+        ? `Direct Meta sync updated ${snapshotRelative}`
+        : 'Direct Meta sync active';
     }
     if (liveReason === 'adapter_disabled') {
       return 'Live reporting disabled';
@@ -993,10 +986,7 @@ const DashboardLayout = () => {
                   role="group"
                   aria-label="Layout actions"
                 >
-                  <Link
-                    className="button tertiary"
-                    to="/dashboards/data-sources?sources=social"
-                  >
+                  <Link className="button tertiary" to="/dashboards/data-sources?sources=social">
                     Connect socials
                   </Link>
                   <button type="button" className="button secondary" onClick={handleSaveLayout}>
@@ -1037,9 +1027,7 @@ const DashboardLayout = () => {
             </NavLink>
             {navGroups.map((group) => {
               const isOpen = openNavGroup === group.label;
-              const hasActive = group.links.some((l) =>
-                location.pathname.startsWith(l.to),
-              );
+              const hasActive = group.links.some((l) => location.pathname.startsWith(l.to));
               return (
                 <div key={group.label} className="dashboard-nav__dropdown-wrapper">
                   <button

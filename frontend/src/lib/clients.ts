@@ -156,9 +156,7 @@ export async function deleteClient(id: string): Promise<void> {
   await del<void>(`${BASE}${id}/`);
 }
 
-export async function listClientAccounts(
-  id: string,
-): Promise<ClientPlatformAccountRecord[]> {
+export async function listClientAccounts(id: string): Promise<ClientPlatformAccountRecord[]> {
   // Server returns a bare array for this endpoint.
   const data = await get<
     ClientPlatformAccountRecord[] | { results: ClientPlatformAccountRecord[] }
@@ -173,25 +171,18 @@ export async function attachClientAccount(
   return post<ClientPlatformAccountRecord>(`${BASE}${id}/accounts/`, body);
 }
 
-export async function detachClientAccount(
-  clientId: string,
-  accountId: string,
-): Promise<void> {
+export async function detachClientAccount(clientId: string, accountId: string): Promise<void> {
   await del<void>(`${BASE}${clientId}/accounts/${accountId}/`);
 }
 
-export async function suggestClients(
-  params?: { threshold?: number },
-): Promise<SuggestResponse> {
+export async function suggestClients(params?: { threshold?: number }): Promise<SuggestResponse> {
   const path = appendQueryParams(`${BASE}suggest/`, {
     threshold: params?.threshold,
   });
   return get<SuggestResponse>(path);
 }
 
-export async function applySuggestion(
-  body: SuggestApplyRequest,
-): Promise<SuggestApplyResponse> {
+export async function applySuggestion(body: SuggestApplyRequest): Promise<SuggestApplyResponse> {
   return post<SuggestApplyResponse>(`${BASE}suggest/apply/`, body);
 }
 
@@ -236,10 +227,7 @@ export async function getClientSuggestionSnapshot(): Promise<SnapshotResponse> {
 export async function acknowledgeClientSuggestionSnapshot(): Promise<{
   snapshot: ClientSuggestionSnapshot;
 }> {
-  return post<{ snapshot: ClientSuggestionSnapshot }>(
-    `${BASE}suggestions/latest/acknowledge/`,
-    {},
-  );
+  return post<{ snapshot: ClientSuggestionSnapshot }>(`${BASE}suggestions/latest/acknowledge/`, {});
 }
 
 export async function refreshClientSuggestionSnapshot(
@@ -281,8 +269,5 @@ export function platformLabel(platform: PlatformKey): string {
 
 /** Sum of configured platform counts for a client summary row. */
 export function totalAccountCount(summary: ClientSummary): number {
-  return Object.values(summary.platform_counts ?? {}).reduce(
-    (acc, value) => acc + (value ?? 0),
-    0,
-  );
+  return Object.values(summary.platform_counts ?? {}).reduce((acc, value) => acc + (value ?? 0), 0);
 }

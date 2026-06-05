@@ -9,17 +9,17 @@ Upgrades the combined/cross-platform dashboard pages, the parish map, web analyt
 
 ## Key deliverables
 
-| Deliverable | File | Can parallel? |
-|-------------|------|---------------|
-| PlatformDashboard viz | `platforms.md` | Yes |
-| CampaignDashboard viz | `campaigns.md` | Yes |
-| CreativeDashboard viz | `creatives.md` | Yes |
-| BudgetDashboard viz | `budget.md` | Yes |
-| AudienceDashboard viz | `audience.md` | Yes |
-| ParishMapDetail viz | `map.md` | Yes — Leaflet work separate from Recharts |
-| GA4 Dashboard viz | `web-ga4.md` | Yes |
-| Search Console viz | `web-search-console.md` | Yes |
-| Saved Dashboards builder | `saved-dashboards.md` | After other Sprint 4 components complete |
+| Deliverable              | File                    | Can parallel?                             |
+| ------------------------ | ----------------------- | ----------------------------------------- |
+| PlatformDashboard viz    | `platforms.md`          | Yes                                       |
+| CampaignDashboard viz    | `campaigns.md`          | Yes                                       |
+| CreativeDashboard viz    | `creatives.md`          | Yes                                       |
+| BudgetDashboard viz      | `budget.md`             | Yes                                       |
+| AudienceDashboard viz    | `audience.md`           | Yes                                       |
+| ParishMapDetail viz      | `map.md`                | Yes — Leaflet work separate from Recharts |
+| GA4 Dashboard viz        | `web-ga4.md`            | Yes                                       |
+| Search Console viz       | `web-search-console.md` | Yes                                       |
+| Saved Dashboards builder | `saved-dashboards.md`   | After other Sprint 4 components complete  |
 
 ## Key constraints
 

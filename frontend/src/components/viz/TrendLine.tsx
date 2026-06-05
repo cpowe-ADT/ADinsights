@@ -194,9 +194,7 @@ const TrendLine = ({
             ) : null}
             <TooltipComponent {...tooltipProps} />
             {showLegend ? (
-              <LegendComponent
-                wrapperStyle={{ paddingTop: 12, color: 'var(--viz-legend-text)' }}
-              />
+              <LegendComponent wrapperStyle={{ paddingTop: 12, color: 'var(--viz-legend-text)' }} />
             ) : null}
             {series.map((s, i) => (
               <LineComponent
@@ -212,7 +210,9 @@ const TrendLine = ({
                 yAxisId={s.yAxis ?? 'left'}
               />
             ))}
-            {peerData && peerData.length > 0 ? <PeerAvgLine data={peerData} yAxisId="left" /> : null}
+            {peerData && peerData.length > 0 ? (
+              <PeerAvgLine data={peerData} yAxisId="left" />
+            ) : null}
           </LineChart>
         </ResponsiveContainer>
       </div>

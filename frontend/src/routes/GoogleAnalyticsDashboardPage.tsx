@@ -35,7 +35,15 @@ import {
 
 type LoadState = 'loading' | 'loaded' | 'error';
 
-const PIE_PALETTE = ['#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#14b8a6', '#a855f7', '#94a3b8'] as const;
+const PIE_PALETTE = [
+  '#6366f1',
+  '#22c55e',
+  '#f59e0b',
+  '#ec4899',
+  '#14b8a6',
+  '#a855f7',
+  '#94a3b8',
+] as const;
 
 function defaultDateRange(): { startDate: string; endDate: string } {
   const end = new Date();
@@ -83,11 +91,13 @@ const GoogleAnalyticsDashboardPage = () => {
     const sorted = [...channelRows].sort((a, b) => b.sessions - a.sessions);
     const topSix = sorted.slice(0, 6);
     const other = sorted.slice(6);
-    const slices: Array<{ label: string; value: number; color: string }> = topSix.map((row, idx) => ({
-      label: row.channel,
-      value: row.sessions,
-      color: PIE_PALETTE[idx % PIE_PALETTE.length],
-    }));
+    const slices: Array<{ label: string; value: number; color: string }> = topSix.map(
+      (row, idx) => ({
+        label: row.channel,
+        value: row.sessions,
+        color: PIE_PALETTE[idx % PIE_PALETTE.length],
+      }),
+    );
     if (other.length > 0) {
       slices.push({
         label: 'Other',
@@ -159,7 +169,11 @@ const GoogleAnalyticsDashboardPage = () => {
       <div className="data-sources-controls" style={{ marginBottom: '1rem' }}>
         <label className="dashboard-field">
           <span className="dashboard-field__label">Start date</span>
-          <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+          <input
+            type="date"
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
+          />
         </label>
         <label className="dashboard-field">
           <span className="dashboard-field__label">End date</span>
@@ -175,7 +189,12 @@ const GoogleAnalyticsDashboardPage = () => {
       {/* Block 1 — KPI strip. Substitutes Sessions / Conversions / Revenue / Engagement
           rate because the GA4 feed does not expose Users, Bounce rate, or Avg session duration
           (per architect §3 availability audit). */}
-      <div className="dashboard-grid" role="group" aria-label="GA4 KPIs" style={{ marginBottom: '1rem' }}>
+      <div
+        className="dashboard-grid"
+        role="group"
+        aria-label="GA4 KPIs"
+        style={{ marginBottom: '1rem' }}
+      >
         <KpiTile
           label="Sessions"
           value={isReady ? totals.sessions : null}
@@ -264,9 +283,7 @@ const GoogleAnalyticsDashboardPage = () => {
                 <TrendLine
                   ariaLabel="Sessions per day"
                   data={trendData}
-                  series={[
-                    { key: 'sessions', label: 'Sessions', color: '#6366f1' },
-                  ]}
+                  series={[{ key: 'sessions', label: 'Sessions', color: '#6366f1' }]}
                   yFormat="number"
                   emptyReasonCode="no_data_for_range"
                 />

@@ -11,18 +11,78 @@ const authMock = vi.hoisted(() => ({
 
 const mockPlatforms = vi.hoisted(() => ({
   byPlatform: [
-    { platform: 'facebook', spend: 2000, impressions: 100000, clicks: 4000, conversions: 120, reach: 65000 },
-    { platform: 'instagram', spend: 1500, impressions: 80000, clicks: 3500, conversions: 90, reach: 52000 },
+    {
+      platform: 'facebook',
+      spend: 2000,
+      impressions: 100000,
+      clicks: 4000,
+      conversions: 120,
+      reach: 65000,
+    },
+    {
+      platform: 'instagram',
+      spend: 1500,
+      impressions: 80000,
+      clicks: 3500,
+      conversions: 90,
+      reach: 52000,
+    },
   ],
   byDevice: [
-    { device: 'mobile_app', spend: 2500, impressions: 130000, clicks: 5500, conversions: 160, reach: 85000 },
-    { device: 'desktop', spend: 1000, impressions: 50000, clicks: 2000, conversions: 50, reach: 32000 },
+    {
+      device: 'mobile_app',
+      spend: 2500,
+      impressions: 130000,
+      clicks: 5500,
+      conversions: 160,
+      reach: 85000,
+    },
+    {
+      device: 'desktop',
+      spend: 1000,
+      impressions: 50000,
+      clicks: 2000,
+      conversions: 50,
+      reach: 32000,
+    },
   ],
   byPlatformDevice: [
-    { platform: 'facebook', device: 'mobile_app', spend: 1200, impressions: 60000, clicks: 2500, conversions: 75, reach: 39000 },
-    { platform: 'facebook', device: 'desktop', spend: 800, impressions: 40000, clicks: 1500, conversions: 45, reach: 26000 },
-    { platform: 'instagram', device: 'mobile_app', spend: 1300, impressions: 70000, clicks: 3000, conversions: 85, reach: 46000 },
-    { platform: 'instagram', device: 'desktop', spend: 200, impressions: 10000, clicks: 500, conversions: 5, reach: 6000 },
+    {
+      platform: 'facebook',
+      device: 'mobile_app',
+      spend: 1200,
+      impressions: 60000,
+      clicks: 2500,
+      conversions: 75,
+      reach: 39000,
+    },
+    {
+      platform: 'facebook',
+      device: 'desktop',
+      spend: 800,
+      impressions: 40000,
+      clicks: 1500,
+      conversions: 45,
+      reach: 26000,
+    },
+    {
+      platform: 'instagram',
+      device: 'mobile_app',
+      spend: 1300,
+      impressions: 70000,
+      clicks: 3000,
+      conversions: 85,
+      reach: 46000,
+    },
+    {
+      platform: 'instagram',
+      device: 'desktop',
+      spend: 200,
+      impressions: 10000,
+      clicks: 500,
+      conversions: 5,
+      reach: 6000,
+    },
   ],
 }));
 
@@ -95,9 +155,7 @@ vi.mock('../../components/viz', () => ({
   AccessibleTableToggle: ({ chart }: { chart: React.ReactNode }) => (
     <div data-testid="accessible-toggle">{chart}</div>
   ),
-  EmptyState: ({ title }: { title?: string }) => (
-    <div data-testid="empty-state">{title}</div>
-  ),
+  EmptyState: ({ title }: { title?: string }) => <div data-testid="empty-state">{title}</div>,
 }));
 
 vi.mock('../../components/DashboardState', () => ({
@@ -118,7 +176,10 @@ vi.mock('../../components/StatusBanner', () => ({
 vi.mock('../../components/ui/Card', () => ({
   __esModule: true,
   default: ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div><h2>{title}</h2>{children}</div>
+    <div>
+      <h2>{title}</h2>
+      {children}
+    </div>
   ),
 }));
 
@@ -139,7 +200,9 @@ describe('PlatformDashboard', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('heading', { name: /platform & device performance/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /platform & device performance/i }),
+    ).toBeInTheDocument();
 
     const kpiRow = screen.getByRole('group', { name: /platform kpis/i });
     expect(kpiRow).toBeInTheDocument();
@@ -169,7 +232,9 @@ describe('PlatformDashboard', () => {
 
     const bars = screen.getAllByTestId('distribution-bar');
     expect(bars).toHaveLength(4);
-    expect(screen.getByRole('group', { name: /platform comparison small multiples/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('group', { name: /platform comparison small multiples/i }),
+    ).toBeInTheDocument();
   });
 
   it('renders VizDataTable drill-down with one row per platform (color-coded chip)', () => {

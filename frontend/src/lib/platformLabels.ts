@@ -49,12 +49,7 @@ export function platformColor(platform: string | null | undefined): string {
   }
 
   // Meta family → meta_ads color.
-  if (
-    slug === 'meta' ||
-    slug === 'facebook' ||
-    slug === 'instagram' ||
-    slug.startsWith('meta_')
-  ) {
+  if (slug === 'meta' || slug === 'facebook' || slug === 'instagram' || slug.startsWith('meta_')) {
     return PLATFORM_CHART_TOKENS.meta_ads;
   }
 

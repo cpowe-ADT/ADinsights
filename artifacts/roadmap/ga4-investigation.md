@@ -20,32 +20,32 @@
 
 ### File reviews (CoT scaffolding step 1)
 
-| # | File | 1-line finding |
-|---|---|---|
-| 1 | `dbt/models/staging/stg_ga4_reports.sql` | Reads `source('raw', 'ga4_reports')` (Airbyte raw). Schema: `property_id, channel_group, country, city, campaign_name, sessions, engaged_sessions, conversions, purchase_revenue`. Gated by `enable_ga4=false`. |
-| 2 | `dbt/models/marts/agg_ga4_daily.sql` | Aggregates `stg_ga4_reports` by `(tenant_id, date_day, property_id, channel_group, country, city, campaign_name)`. Incremental merge. Gated by `enable_ga4=false`. |
-| 3 | `backend/integrations/google_analytics/{client.py,views.py,urls.py}` | OAuth start/exchange/properties/provision/status + live GA4 Data API v1beta client. **Schema DIVERGES from mart** (`sessionSource/sessionMedium` vs mart's `channel_group/country/city`). |
-| 4 | `backend/integrations/tasks.py`, `backend/core/celery.py`, `backend/integrations/clients/tasks.py` | **No task invokes `GoogleAnalyticsClient` for sync**. Zero grep hits. |
-| 5 | `infrastructure/airbyte/ga4_source.yaml` + `sources/ga4.json.example` | Airbyte source template exists; dimensions/metrics **do match the mart**. Driven by env vars `AIRBYTE_GA4_CLIENT_ID/SECRET/REFRESH_TOKEN/PROPERTY_ID`. Template only — no evidence of an instantiated/running Airbyte source. |
-| 6 | `backend/adapters/google_analytics.py` + `backend/analytics/web_views.py:126` | Two independent read paths: (a) `GA4WebInsightsView` → raw SQL on `agg_ga4_daily` (dashboard path, R3-protected), (b) `GoogleAnalyticsAdapter.fetch_metrics` → live GA4 API via client (combined-metrics dispatch, not dashboard). |
+| #   | File                                                                                               | 1-line finding                                                                                                                                                                                                                     |
+| --- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `dbt/models/staging/stg_ga4_reports.sql`                                                           | Reads `source('raw', 'ga4_reports')` (Airbyte raw). Schema: `property_id, channel_group, country, city, campaign_name, sessions, engaged_sessions, conversions, purchase_revenue`. Gated by `enable_ga4=false`.                    |
+| 2   | `dbt/models/marts/agg_ga4_daily.sql`                                                               | Aggregates `stg_ga4_reports` by `(tenant_id, date_day, property_id, channel_group, country, city, campaign_name)`. Incremental merge. Gated by `enable_ga4=false`.                                                                 |
+| 3   | `backend/integrations/google_analytics/{client.py,views.py,urls.py}`                               | OAuth start/exchange/properties/provision/status + live GA4 Data API v1beta client. **Schema DIVERGES from mart** (`sessionSource/sessionMedium` vs mart's `channel_group/country/city`).                                          |
+| 4   | `backend/integrations/tasks.py`, `backend/core/celery.py`, `backend/integrations/clients/tasks.py` | **No task invokes `GoogleAnalyticsClient` for sync**. Zero grep hits.                                                                                                                                                              |
+| 5   | `infrastructure/airbyte/ga4_source.yaml` + `sources/ga4.json.example`                              | Airbyte source template exists; dimensions/metrics **do match the mart**. Driven by env vars `AIRBYTE_GA4_CLIENT_ID/SECRET/REFRESH_TOKEN/PROPERTY_ID`. Template only — no evidence of an instantiated/running Airbyte source.      |
+| 6   | `backend/adapters/google_analytics.py` + `backend/analytics/web_views.py:126`                      | Two independent read paths: (a) `GA4WebInsightsView` → raw SQL on `agg_ga4_daily` (dashboard path, R3-protected), (b) `GoogleAnalyticsAdapter.fetch_metrics` → live GA4 API via client (combined-metrics dispatch, not dashboard). |
 
 ### Component mapping (CoT scaffolding step 2)
 
-| Component | Category | State |
-|---|---|---|
-| `integrations.google_analytics.views` (OAuth flow) | auth | **Complete**. State-signing via `django.core.signing`, AES-encrypted tokens via `PlatformCredential.set_raw_tokens`. Scopes = `analytics.readonly + openid + userinfo.*`. |
-| `GoogleAnalyticsClient` (GA4 Data API v1beta live fetch) | read-path (direct) | Implemented. Used by `GoogleAnalyticsAdapter`. Returns `Ga4DailyRow` with divergent schema from mart. |
-| Celery sync task (client → DB → mart) | sync | **MISSING — does not exist, does not need to exist**. Architecture is Airbyte → dbt, not Django → dbt. |
-| Airbyte GA4 connector | sync | Template present; **no deployed connection in this environment**. |
-| `stg_ga4_reports` + `agg_ga4_daily` dbt models | storage | Exist, `enable_ga4=false` by default → tables are NOT materialized in local/dev. |
-| `GA4WebInsightsView` (`/api/web/ga4/`) | read-path (dashboard) | Reads mart via raw SQL. Graceful-degrades to `status: "unavailable"` when mart is absent. Tenant filter in `WHERE`. |
-| Tests | test | 727 backend + 770 frontend green at baseline. `GoogleAnalyticsDashboardPage.test.tsx` asserts R3 (no `/metrics/combined/` call). |
+| Component                                                | Category              | State                                                                                                                                                                     |
+| -------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `integrations.google_analytics.views` (OAuth flow)       | auth                  | **Complete**. State-signing via `django.core.signing`, AES-encrypted tokens via `PlatformCredential.set_raw_tokens`. Scopes = `analytics.readonly + openid + userinfo.*`. |
+| `GoogleAnalyticsClient` (GA4 Data API v1beta live fetch) | read-path (direct)    | Implemented. Used by `GoogleAnalyticsAdapter`. Returns `Ga4DailyRow` with divergent schema from mart.                                                                     |
+| Celery sync task (client → DB → mart)                    | sync                  | **MISSING — does not exist, does not need to exist**. Architecture is Airbyte → dbt, not Django → dbt.                                                                    |
+| Airbyte GA4 connector                                    | sync                  | Template present; **no deployed connection in this environment**.                                                                                                         |
+| `stg_ga4_reports` + `agg_ga4_daily` dbt models           | storage               | Exist, `enable_ga4=false` by default → tables are NOT materialized in local/dev.                                                                                          |
+| `GA4WebInsightsView` (`/api/web/ga4/`)                   | read-path (dashboard) | Reads mart via raw SQL. Graceful-degrades to `status: "unavailable"` when mart is absent. Tenant filter in `WHERE`.                                                       |
+| Tests                                                    | test                  | 727 backend + 770 frontend green at baseline. `GoogleAnalyticsDashboardPage.test.tsx` asserts R3 (no `/metrics/combined/` call).                                          |
 
 ### Primary gap (CoT scaffolding step 3)
 
 **The gap is not "missing sync code" — it's "no documented operator path to flip GA4 live."** Concretely, any tenant onboarding GA4 today would need to:
 
-1. Complete OAuth in the UI (works today — see `GoogleAnalyticsProvisionView`). *This creates a `GoogleAnalyticsConnection` row, but no data flows from it.*
+1. Complete OAuth in the UI (works today — see `GoogleAnalyticsProvisionView`). _This creates a `GoogleAnalyticsConnection` row, but no data flows from it._
 2. **Manually** deploy an Airbyte source using `infrastructure/airbyte/ga4_source.yaml` with env vars set.
 3. **Manually** set `dbt_project.yml` vars `enable_ga4: true`.
 4. **Manually** run dbt build.
@@ -161,6 +161,7 @@ $ curl -s http://localhost:18001/api/v1/sources/list -X POST -H "Content-Type: a
 ```
 
 **Interpretation:**
+
 - Mart `agg_ga4_daily` and staging view `stg_ga4_reports` do not exist — consistent with `enable_ga4=false`.
 - Zero `GoogleAnalyticsConnection` rows, zero `PlatformCredential` rows with `provider='google_analytics'` — no tenant has connected GA4 in this dev stack.
 - Zero sources in Airbyte — GA4 template is not instantiated.
@@ -177,12 +178,12 @@ $ curl -s http://localhost:18001/api/v1/sources/list -X POST -H "Content-Type: a
 
 ### Artifacts
 
-| Kind | Path | Summary |
-|---|---|---|
-| Runbook | `docs/runbooks/ga4-operations.md` | New. Sections: scope, architecture (two paths), connect-a-property, make-dashboard-live operator path, trigger sync, verify live (one-liner + deeper), troubleshoot, OAuth token refresh, rate limits, scopes, test commands. |
-| Test | `backend/tests/test_ga4_pii_allowlist.py` | New. 12 parametrized tests: both GA4 dbt models exist and do not reference any of the PII columns `user_pseudo_id, device_id, client_id, ip_address, stream_id`. |
-| Test | `backend/tests/test_google_analytics_client.py` | +3 tests: `credential_missing_access_token` classification, `oauth_not_configured` classification, refresh-readiness SDK handoff (`refresh_token + client_id + client_secret + token_uri` all passed through). |
-| Test | `backend/tests/test_phase2_api.py` | +1 test: `test_ga4_web_insights_isolates_rows_by_tenant` — seeds two tenants' rows in a transient `agg_ga4_daily` table, auths as tenant A, asserts only tenant A's rows come back (plus explicit leak-canary assertions). |
+| Kind    | Path                                            | Summary                                                                                                                                                                                                                       |
+| ------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runbook | `docs/runbooks/ga4-operations.md`               | New. Sections: scope, architecture (two paths), connect-a-property, make-dashboard-live operator path, trigger sync, verify live (one-liner + deeper), troubleshoot, OAuth token refresh, rate limits, scopes, test commands. |
+| Test    | `backend/tests/test_ga4_pii_allowlist.py`       | New. 12 parametrized tests: both GA4 dbt models exist and do not reference any of the PII columns `user_pseudo_id, device_id, client_id, ip_address, stream_id`.                                                              |
+| Test    | `backend/tests/test_google_analytics_client.py` | +3 tests: `credential_missing_access_token` classification, `oauth_not_configured` classification, refresh-readiness SDK handoff (`refresh_token + client_id + client_secret + token_uri` all passed through).                |
+| Test    | `backend/tests/test_phase2_api.py`              | +1 test: `test_ga4_web_insights_isolates_rows_by_tenant` — seeds two tenants' rows in a transient `agg_ga4_daily` table, auths as tenant A, asserts only tenant A's rows come back (plus explicit leak-canary assertions).    |
 
 ### Pre-code CoT checks
 
@@ -192,18 +193,19 @@ $ curl -s http://localhost:18001/api/v1/sources/list -X POST -H "Content-Type: a
 
 ### Gate matrix
 
-| Gate | Command | Result |
-|---|---|---|
-| Backend ruff | `cd backend && ruff check .` | **All checks passed!** |
-| Backend pytest (full) | `cd backend && pytest` | **743 passed, 1 skipped** (baseline was 727 passed + 1 skipped → +16 new tests, none regressed) |
-| Frontend lint | `cd frontend && npm run lint` | clean |
-| Frontend build | `cd frontend && npm run build` | **✓ built in 17.10s** |
-| Frontend R3 contract | `npx vitest run src/routes/__tests__/GoogleAnalyticsDashboardPage.test.tsx` | **4/4** passed (R3 fetch-spy green) |
-| Frontend vitest (full) | `cd frontend && npm test -- --run` | 2 known full-suite flakes (`App.integration.test.tsx`, `CampaignDashboard.layout.test.tsx`); **both pass 4/4 in isolation** — matches S4 deep review's documented cross-test mock-order flake pattern. No frontend source code was changed in this Step 3, so this is not a regression introduced here. |
+| Gate                   | Command                                                                     | Result                                                                                                                                                                                                                                                                                                  |
+| ---------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend ruff           | `cd backend && ruff check .`                                                | **All checks passed!**                                                                                                                                                                                                                                                                                  |
+| Backend pytest (full)  | `cd backend && pytest`                                                      | **743 passed, 1 skipped** (baseline was 727 passed + 1 skipped → +16 new tests, none regressed)                                                                                                                                                                                                         |
+| Frontend lint          | `cd frontend && npm run lint`                                               | clean                                                                                                                                                                                                                                                                                                   |
+| Frontend build         | `cd frontend && npm run build`                                              | **✓ built in 17.10s**                                                                                                                                                                                                                                                                                   |
+| Frontend R3 contract   | `npx vitest run src/routes/__tests__/GoogleAnalyticsDashboardPage.test.tsx` | **4/4** passed (R3 fetch-spy green)                                                                                                                                                                                                                                                                     |
+| Frontend vitest (full) | `cd frontend && npm test -- --run`                                          | 2 known full-suite flakes (`App.integration.test.tsx`, `CampaignDashboard.layout.test.tsx`); **both pass 4/4 in isolation** — matches S4 deep review's documented cross-test mock-order flake pattern. No frontend source code was changed in this Step 3, so this is not a regression introduced here. |
 
 ### Frontend flake note (pre-existing)
 
 The S4 deep review (`artifacts/sprint/S4-deep-review.md` § SummaryDetailPage note) documented this pattern:
+
 > Passes 6/6 in isolation. Not introduced by this review's changes. Did not exist at S4 close — this is drift from parallel work elsewhere in the tree. Single-test-file run is deterministic; full-suite run fails intermittently.
 
 Today's full-suite failures (`App.integration` + `CampaignDashboard.layout`) exhibit the same signature (isolated-pass, full-suite-flake). Out of scope for this GA4 task per the prompt's anti-pattern #9 ("do not attempt full ingestion" / stay scoped). Spawning a sibling task to track the flake.

@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import {
-  BubbleScatter,
-  DistributionBar,
-  EmptyState,
-  KpiTile,
-} from '../../components/viz';
+import { BubbleScatter, DistributionBar, EmptyState, KpiTile } from '../../components/viz';
 import {
   buildQsCpcBubblePoints,
   rollupKeywordKpis,
@@ -13,10 +8,7 @@ import {
   type GoogleAdsKeywordRow,
   type GoogleAdsSearchTermRow,
 } from '../../lib/googleAdsAggregates';
-import {
-  fetchGoogleAdsList,
-  type GoogleAdsListResponse,
-} from '../../lib/googleAdsDashboard';
+import { fetchGoogleAdsList, type GoogleAdsListResponse } from '../../lib/googleAdsDashboard';
 import { appendQueryParams } from '../../lib/apiClient';
 import { resolveFilterRange } from '../../lib/dashboardFilters';
 import useDashboardStore from '../../state/useDashboardStore';
@@ -24,7 +16,16 @@ import useDashboardStore from '../../state/useDashboardStore';
 type Mode = 'keywords' | 'search_terms' | 'insights';
 
 const EmptyIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="40"
+    height="40"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    aria-hidden="true"
+  >
     <circle cx="11" cy="11" r="7" />
     <path d="M21 21l-4.3-4.3" />
   </svg>
@@ -256,10 +257,7 @@ const GoogleAdsKeywordsPage = () => {
                 </thead>
                 <tbody>
                   {rows.map((row, idx) => (
-                    <tr
-                      key={idx}
-                      className="dashboard-table__row dashboard-table__row--zebra"
-                    >
+                    <tr key={idx} className="dashboard-table__row dashboard-table__row--zebra">
                       {Object.keys(rows[0] ?? {}).map((column) => (
                         <td key={column} className="dashboard-table__cell">
                           {row[column] === null || row[column] === undefined

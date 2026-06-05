@@ -10,7 +10,8 @@ const pendingAsync = () => new Promise<never>(() => {});
 const mockFilters = { accountId: '', clientId: '', startDate: '', endDate: '', dateRange: '30d' };
 vi.mock('../../../state/useDashboardStore', () => ({
   default: Object.assign(
-    (selector: (state: { filters: typeof mockFilters }) => unknown) => selector({ filters: mockFilters }),
+    (selector: (state: { filters: typeof mockFilters }) => unknown) =>
+      selector({ filters: mockFilters }),
     {
       getState: () => ({ filters: mockFilters }),
     },
@@ -81,7 +82,9 @@ describe('GoogleAdsChangeLogPage', () => {
         <GoogleAdsChangeLogPage />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(screen.getByTestId('google-ads-changes-section')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId('google-ads-changes-section')).toBeInTheDocument(),
+    );
     // KPI × 2
     expect(screen.getByText('Total changes')).toBeInTheDocument();
     expect(screen.getByText('Changes last 7 days')).toBeInTheDocument();

@@ -24,31 +24,32 @@
   - `frontend/src/components/viz/__tests__/TrendLine.test.tsx` (create)
 
 - **Props API**:
+
 ```typescript
-type ChartValueType = 'currency' | 'number' | 'percent' | 'rate'
-type TrendVariant = 'line' | 'stacked-area'  // default: 'line'
+type ChartValueType = 'currency' | 'number' | 'percent' | 'rate';
+type TrendVariant = 'line' | 'stacked-area'; // default: 'line'
 
 interface TrendLineSeries {
-  key: string
-  label: string
-  color: string
-  dashed?: boolean       // strokeDasharray="4 2" — non-color secondary encoding for a11y
-  yAxisId?: 'left' | 'right'  // for dual-axis mode
+  key: string;
+  label: string;
+  color: string;
+  dashed?: boolean; // strokeDasharray="4 2" — non-color secondary encoding for a11y
+  yAxisId?: 'left' | 'right'; // for dual-axis mode
 }
 
 interface TrendLineProps {
-  data: Array<{ date: string; [key: string]: number | string }>
-  series: TrendLineSeries[]
-  peerData?: Array<{ date: string; value: number }>  // renders as faded dashed peer avg line
-  variant?: TrendVariant
-  yFormat?: ChartValueType
-  rightYFormat?: ChartValueType   // enables dual-Y-axis when provided
-  currency?: string
-  height?: number          // default: 260
-  isLoading?: boolean
-  emptyReasonCode?: string
-  onPointClick?: (date: string) => void
-  className?: string
+  data: Array<{ date: string; [key: string]: number | string }>;
+  series: TrendLineSeries[];
+  peerData?: Array<{ date: string; value: number }>; // renders as faded dashed peer avg line
+  variant?: TrendVariant;
+  yFormat?: ChartValueType;
+  rightYFormat?: ChartValueType; // enables dual-Y-axis when provided
+  currency?: string;
+  height?: number; // default: 260
+  isLoading?: boolean;
+  emptyReasonCode?: string;
+  onPointClick?: (date: string) => void;
+  className?: string;
 }
 ```
 
@@ -69,6 +70,7 @@ interface TrendLineProps {
 ## Design
 
 Recharts primitives:
+
 ```tsx
 // Line variant
 <LineChart data={data} height={height}>
@@ -106,12 +108,13 @@ Recharts primitives:
 ```
 
 Platform color tokens from `chartTheme.ts` (add these constants to `chartTheme.ts` as part of this ticket):
+
 ```typescript
 export const PLATFORM_CHART_TOKENS = {
-  meta_ads:   '#2563eb',   // chartPalette[0]
-  google_ads: '#f97316',   // chartPalette[1]
-  peer_avg:   'rgba(148,163,184,0.5)',
-}
+  meta_ads: '#2563eb', // chartPalette[0]
+  google_ads: '#f97316', // chartPalette[1]
+  peer_avg: 'rgba(148,163,184,0.5)',
+};
 ```
 
 ## Definition of Done

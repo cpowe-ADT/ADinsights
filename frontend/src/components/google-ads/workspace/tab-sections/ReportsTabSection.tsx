@@ -143,18 +143,18 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
       return;
     }
     let cancelled = false;
-    void Promise.allSettled(
-      savedViews.map((view) => verifyGoogleAdsSavedView(view.id)),
-    ).then((results) => {
-      if (cancelled || !mountedRef.current) return;
-      const drift: Array<{ id: string; name: string }> = [];
-      results.forEach((r) => {
-        if (r.status === 'fulfilled' && r.value && r.value.drift === true) {
-          drift.push({ id: r.value.id, name: r.value.name });
-        }
-      });
-      setDriftedViews(drift);
-    });
+    void Promise.allSettled(savedViews.map((view) => verifyGoogleAdsSavedView(view.id))).then(
+      (results) => {
+        if (cancelled || !mountedRef.current) return;
+        const drift: Array<{ id: string; name: string }> = [];
+        results.forEach((r) => {
+          if (r.status === 'fulfilled' && r.value && r.value.drift === true) {
+            drift.push({ id: r.value.id, name: r.value.name });
+          }
+        });
+        setDriftedViews(drift);
+      },
+    );
     return () => {
       cancelled = true;
     };
@@ -210,8 +210,7 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
                 ? {
                     ...prev,
                     status: 'failed',
-                    error_message:
-                      'Polling aborted after 3 consecutive errors.',
+                    error_message: 'Polling aborted after 3 consecutive errors.',
                   }
                 : prev,
             );
@@ -220,15 +219,12 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
           }
           // Exponential backoff: 3s, 6s, 12s — indexed by retry count so the
           // NEXT attempt respects the spec.
-          const backoffMs =
-            POLL_BASE_INTERVAL_MS * 2 ** consecutive5xxRef.current;
+          const backoffMs = POLL_BASE_INTERVAL_MS * 2 ** consecutive5xxRef.current;
           scheduleNextPoll(jobId, backoffMs);
           return;
         }
         // Non-5xx error — surface and stop.
-        setError(
-          err instanceof Error ? err.message : 'Failed to fetch export status.',
-        );
+        setError(err instanceof Error ? err.message : 'Failed to fetch export status.');
         cancelPolling();
       } finally {
         // Release the abort controller reference after the request resolves
@@ -286,10 +282,7 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
     }
   }, [loadSavedViews, viewName]);
 
-  const sharedCount = useMemo(
-    () => savedViews.filter((v) => v.is_shared).length,
-    [savedViews],
-  );
+  const sharedCount = useMemo(() => savedViews.filter((v) => v.is_shared).length, [savedViews]);
 
   const jobTone = job ? deriveExportJobStatusTone(job.status) : 'neutral';
   const jobChipClass = STATUS_CHIP_CLASS[jobTone] ?? STATUS_CHIP_CLASS.neutral;
@@ -298,11 +291,7 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
     <div className="gads-workspace__tab-grid" data-testid="google-ads-reports-section">
       <section className="panel">
         <h2>Reports KPIs</h2>
-        <div
-          className="gads-workspace__kpi-grid"
-          role="list"
-          aria-label="Google Ads reports KPIs"
-        >
+        <div className="gads-workspace__kpi-grid" role="list" aria-label="Google Ads reports KPIs">
           <KpiTile label="Total saved views" value={savedViews.length} format="number" />
           <KpiTile label="Shared views" value={sharedCount} format="number" />
         </div>
@@ -337,20 +326,12 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
       </section>
 
       {driftedViews.length > 0 && showBanner ? (
-        <aside
-          role="status"
-          className="panel panel--warning"
-          data-testid="drift-banner"
-        >
+        <aside role="status" className="panel panel--warning" data-testid="drift-banner">
           <p>
             {driftedViews.length} saved view(s) may be out of date:{' '}
             {driftedViews.map((v) => v.name).join(', ')}.
           </p>
-          <button
-            type="button"
-            className="button tertiary"
-            onClick={() => setShowBanner(false)}
-          >
+          <button type="button" className="button tertiary" onClick={() => setShowBanner(false)}>
             Dismiss
           </button>
         </aside>
@@ -372,9 +353,7 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
           </button>
         </div>
 
-        {status === 'loading' && savedViews.length === 0 ? (
-          <p>Loading saved views...</p>
-        ) : null}
+        {status === 'loading' && savedViews.length === 0 ? <p>Loading saved views...</p> : null}
 
         {status !== 'loading' && savedViews.length === 0 ? (
           <EmptyState
@@ -398,10 +377,7 @@ const ReportsTabSection = ({ initialSavedViews }: Props) => {
               </thead>
               <tbody>
                 {savedViews.map((view) => (
-                  <tr
-                    key={view.id}
-                    className="dashboard-table__row dashboard-table__row--zebra"
-                  >
+                  <tr key={view.id} className="dashboard-table__row dashboard-table__row--zebra">
                     <td className="dashboard-table__cell">{view.name}</td>
                     <td className="dashboard-table__cell">{view.description || '—'}</td>
                     <td className="dashboard-table__cell">

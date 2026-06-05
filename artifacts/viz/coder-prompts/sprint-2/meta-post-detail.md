@@ -25,6 +25,7 @@
 - **Data binding**:
 
 Post detail from `GET /api/integrations/posts/:postId/`:
+
 ```typescript
 {
   post_id: string
@@ -45,15 +46,20 @@ Post detail from `GET /api/integrations/posts/:postId/`:
 ```
 
 Timeseries from `GET /api/integrations/posts/:postId/timeseries/?metric={metric}&period={period}`:
+
 ```typescript
-{ metric: string; period: string; data: Array<{ date: string; value: number }> }
+{
+  metric: string;
+  period: string;
+  data: Array<{ date: string; value: number }>;
+}
 ```
 
-  - KPI strip (4 tiles): Reach = `metrics.post_reach`, Impressions = `metrics.post_impressions`, Reactions = `metrics.post_reactions_like_total`, Shares = `metrics.shares`. Format all as `number`.
-  - TrendLine: `timeseries.data` — single series for the selected metric. Default metric: `post_reach`.
-  - Metric selector: a `<select>` dropdown above TrendLine for the user to pick which metric to chart. Options: Reach, Impressions, Reactions, Shares. On change, call `loadPostTimeseries({ metric: selectedMetric, period: 'last_28d' })`.
-  - Metadata row: media type, created time (formatted), permalink link — rendered as plain HTML, not a chart component.
-  - Comments table: **suppressed** — no endpoint exists. Add a `{/* Comments: [NEW-ENDPOINT] /api/integrations/posts/:postId/comments/ - not yet implemented */}` comment in JSX where it would go.
+- KPI strip (4 tiles): Reach = `metrics.post_reach`, Impressions = `metrics.post_impressions`, Reactions = `metrics.post_reactions_like_total`, Shares = `metrics.shares`. Format all as `number`.
+- TrendLine: `timeseries.data` — single series for the selected metric. Default metric: `post_reach`.
+- Metric selector: a `<select>` dropdown above TrendLine for the user to pick which metric to chart. Options: Reach, Impressions, Reactions, Shares. On change, call `loadPostTimeseries({ metric: selectedMetric, period: 'last_28d' })`.
+- Metadata row: media type, created time (formatted), permalink link — rendered as plain HTML, not a chart component.
+- Comments table: **suppressed** — no endpoint exists. Add a `{/* Comments: [NEW-ENDPOINT] /api/integrations/posts/:postId/comments/ - not yet implemented */}` comment in JSX where it would go.
 
 - **Interactions**: metric selector dropdown triggers timeseries reload via `loadPostTimeseries`.
 
@@ -95,6 +101,7 @@ Timeseries from `GET /api/integrations/posts/:postId/timeseries/?metric={metric}
 ## Test deltas
 
 `MetaPostDetailPage.test.tsx`:
+
 ```typescript
 it('renders 4 KpiTiles from post metrics', () => { ... })
 it('renders TrendLine with timeseries data', () => { ... })

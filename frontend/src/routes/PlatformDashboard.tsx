@@ -17,11 +17,7 @@ import { useAuth } from '../auth/AuthContext';
 import { messageForLiveDatasetReason, titleForLiveDatasetReason } from '../lib/datasetStatus';
 import useDashboardStore from '../state/useDashboardStore';
 import { useDatasetStore } from '../state/useDatasetStore';
-import {
-  formatAbsoluteTime,
-  formatRelativeTime,
-  isTimestampStale,
-} from '../lib/format';
+import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
 import { formatPlatformLabel, platformColor } from '../lib/platformLabels';
 import {
   ctrFromRow,
@@ -87,8 +83,7 @@ const PlatformDashboard = () => {
 
   const isLoading = platforms.status === 'loading' && !platforms.data;
   const hasData = Boolean(platforms.data);
-  const liveDatasetBlocked =
-    datasetMode === 'live' && liveReason && liveReason !== 'ready';
+  const liveDatasetBlocked = datasetMode === 'live' && liveReason && liveReason !== 'ready';
   const liveDatasetMessage = liveReason
     ? messageForLiveDatasetReason(liveReason, liveDetail)
     : null;
@@ -161,7 +156,7 @@ const PlatformDashboard = () => {
           message={
             datasetMode === 'live'
               ? liveDatasetBlocked
-                ? liveDatasetMessage ?? 'Waiting for live snapshot...'
+                ? (liveDatasetMessage ?? 'Waiting for live snapshot...')
                 : (snapshotRelative ?? 'Waiting for live snapshot...')
               : snapshotRelative
                 ? `Demo data - ${snapshotRelative}`
@@ -251,11 +246,11 @@ const PlatformDashboard = () => {
   // When scope = google_ads only, those rows were always undefined and tiles showed "—".
   // Parameterize labels from the top-2 platforms by spend so the tiles reflect
   // whichever platforms the current scope actually returns (Meta, Google Ads, or both).
-  const sortedPlatforms = data
-    ? [...data.byPlatform].sort((a, b) => b.spend - a.spend)
-    : [];
+  const sortedPlatforms = data ? [...data.byPlatform].sort((a, b) => b.spend - a.spend) : [];
   const [topRow, secondRow] = sortedPlatforms;
-  const firstLabel = topRow ? `${formatPlatformLabel(topRow.platform)} spend` : 'Top platform spend';
+  const firstLabel = topRow
+    ? `${formatPlatformLabel(topRow.platform)} spend`
+    : 'Top platform spend';
   const secondLabel = secondRow
     ? `${formatPlatformLabel(secondRow.platform)} spend`
     : 'Second platform spend';
@@ -368,9 +363,7 @@ const PlatformDashboard = () => {
                 </thead>
                 <tbody>
                   <tr>
-                    <td colSpan={2}>
-                      Per-platform daily series not yet available — deferred.
-                    </td>
+                    <td colSpan={2}>Per-platform daily series not yet available — deferred.</td>
                   </tr>
                 </tbody>
               </table>

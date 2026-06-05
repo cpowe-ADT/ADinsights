@@ -123,8 +123,7 @@ const KpiTile = ({
         ? 'up'
         : 'down';
 
-  const tone =
-    direction === 'down' ? 'negative' : direction === 'up' ? 'positive' : 'neutral';
+  const tone = direction === 'down' ? 'negative' : direction === 'up' ? 'positive' : 'neutral';
 
   const changeLabel =
     change !== null && change !== undefined && isFiniteNumber(change)
@@ -194,21 +193,14 @@ const KpiTile = ({
       </header>
 
       <div className="metric-card__value-row">
-        <span
-          className="metric-card__value"
-          aria-label={valueAriaLabel}
-        >
+        <span className="metric-card__value" aria-label={valueAriaLabel}>
           {displayValue}
         </span>
         {!sparkline && deltaNode}
       </div>
 
       {sparkline ? (
-        <div
-          className="metric-card__sparkline"
-          role="img"
-          aria-label={`${label} trend`}
-        >
+        <div className="metric-card__sparkline" role="img" aria-label={`${label} trend`}>
           <svg viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
             <path className="metric-card__sparkline-area" d={sparkline.areaPath} />
             <path className="metric-card__sparkline-line" d={sparkline.linePath} />

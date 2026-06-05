@@ -54,9 +54,7 @@ describe('PacingTabSection — per-campaign GA-A1', () => {
     ]);
     render(<PacingTabSection data={data} status="success" error="" />);
     const panel = screen.getByTestId('google-ads-pacing-campaigns');
-    const row = within(panel)
-      .getByText('Promo Push — No Budget Match')
-      .closest('tr');
+    const row = within(panel).getByText('Promo Push — No Budget Match').closest('tr');
     expect(row).not.toBeNull();
     const cells = row!.querySelectorAll('td');
     // Columns: Campaign, Spend, Budget, Pace %, Variance

@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import {
-  BubbleScatter,
-  DistributionBar,
-  EmptyState,
-  KpiTile,
-} from '../../components/viz';
+import { BubbleScatter, DistributionBar, EmptyState, KpiTile } from '../../components/viz';
 import {
   buildCampaignBubblePoints,
   buildTopSpendBars,
@@ -13,16 +8,22 @@ import {
   rollupCampaignKpis,
   type GoogleAdsCampaignRow,
 } from '../../lib/googleAdsAggregates';
-import {
-  fetchGoogleAdsList,
-  type GoogleAdsListResponse,
-} from '../../lib/googleAdsDashboard';
+import { fetchGoogleAdsList, type GoogleAdsListResponse } from '../../lib/googleAdsDashboard';
 import { appendQueryParams } from '../../lib/apiClient';
 import { resolveFilterRange } from '../../lib/dashboardFilters';
 import useDashboardStore from '../../state/useDashboardStore';
 
 const EmptyIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="40"
+    height="40"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    aria-hidden="true"
+  >
     <rect x="3" y="4" width="18" height="16" rx="2" />
     <path d="M3 10h18" />
   </svg>
@@ -121,7 +122,12 @@ const GoogleAdsCampaignsPage = () => {
               role="list"
               aria-label="Google Ads campaign KPIs"
             >
-              <KpiTile label="Total Cost" value={kpis.totalSpend} format="currency" currency="JMD" />
+              <KpiTile
+                label="Total Cost"
+                value={kpis.totalSpend}
+                format="currency"
+                currency="JMD"
+              />
               <KpiTile label="Total Conversions" value={kpis.totalConversions} format="number" />
               <KpiTile label="Avg CPA" value={kpis.avgCpa} format="currency" currency="JMD" />
               <KpiTile label="Avg ROAS" value={kpis.avgRoas} format="number" />
@@ -199,12 +205,22 @@ const GoogleAdsCampaignsPage = () => {
                           </span>
                         </td>
                         <td className="dashboard-table__cell">{row.channel_type ?? '—'}</td>
-                        <td className="dashboard-table__cell">{Number(row.spend ?? 0).toFixed(2)}</td>
-                        <td className="dashboard-table__cell">{Number(row.clicks ?? 0).toFixed(0)}</td>
-                        <td className="dashboard-table__cell">{Number(row.impressions ?? 0).toFixed(0)}</td>
-                        <td className="dashboard-table__cell">{Number(row.conversions ?? 0).toFixed(2)}</td>
+                        <td className="dashboard-table__cell">
+                          {Number(row.spend ?? 0).toFixed(2)}
+                        </td>
+                        <td className="dashboard-table__cell">
+                          {Number(row.clicks ?? 0).toFixed(0)}
+                        </td>
+                        <td className="dashboard-table__cell">
+                          {Number(row.impressions ?? 0).toFixed(0)}
+                        </td>
+                        <td className="dashboard-table__cell">
+                          {Number(row.conversions ?? 0).toFixed(2)}
+                        </td>
                         <td className="dashboard-table__cell">{Number(row.cpa ?? 0).toFixed(2)}</td>
-                        <td className="dashboard-table__cell">{Number(row.roas ?? 0).toFixed(2)}</td>
+                        <td className="dashboard-table__cell">
+                          {Number(row.roas ?? 0).toFixed(2)}
+                        </td>
                       </tr>
                     );
                   })}

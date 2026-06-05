@@ -70,21 +70,12 @@ describe('OverviewTabSection — integration', () => {
 
   it('renders empty state (no channel breakdown when campaignRows missing)', () => {
     render(<OverviewTabSection summary={buildSummary()} campaignRows={null} />);
-    expect(
-      screen.getByText('No channel breakdown available'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('No channel breakdown available')).toBeInTheDocument();
   });
 
   it('renders populated state', () => {
-    render(
-      <OverviewTabSection
-        summary={buildSummary()}
-        campaignRows={[campaignRow]}
-      />,
-    );
-    expect(
-      screen.getByTestId('google-ads-overview-section'),
-    ).toBeInTheDocument();
+    render(<OverviewTabSection summary={buildSummary()} campaignRows={[campaignRow]} />);
+    expect(screen.getByTestId('google-ads-overview-section')).toBeInTheDocument();
     expect(screen.getByText('Brand Always-On')).toBeInTheDocument();
     expect(screen.getByText('Top movers')).toBeInTheDocument();
   });

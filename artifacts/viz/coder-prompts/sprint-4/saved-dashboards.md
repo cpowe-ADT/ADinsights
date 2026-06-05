@@ -2,7 +2,7 @@
 
 **Sprint:** 4
 **Estimated size:** M
-**Depends on:** sprint-1/* (all kit components), sprint-4/platforms.md (for platformLabels.ts)
+**Depends on:** sprint-1/\* (all kit components), sprint-4/platforms.md (for platformLabels.ts)
 **Blocks:** nothing (final Sprint 4 deliverable)
 **Role needed:** frontend-engineer
 
@@ -35,41 +35,41 @@ Three related pages: `SavedDashboardPage` (`/dashboards/saved/:id`), `DashboardC
 Create `frontend/src/types/dashboardSlot.ts`:
 
 ```typescript
-export type SlotType = 
+export type SlotType =
   | 'kpi-strip'
   | 'trend-line'
   | 'distribution-bar'
   | 'pie-composition'
   | 'bubble-scatter'
   | 'data-table'
-  | 'map'
+  | 'map';
 
 export interface SlotDataBinding {
-  endpoint: string            // e.g., '/api/metrics/combined/'
-  fields: string[]            // field keys to extract
-  filters?: Record<string, unknown>  // static filter overrides
-  aggregation?: 'sum' | 'mean' | 'count' | 'none'
+  endpoint: string; // e.g., '/api/metrics/combined/'
+  fields: string[]; // field keys to extract
+  filters?: Record<string, unknown>; // static filter overrides
+  aggregation?: 'sum' | 'mean' | 'count' | 'none';
 }
 
 export interface DashboardSlot {
-  id: string
-  type: SlotType
-  title?: string
-  gridColumn?: string         // CSS grid-column value, e.g., '1 / 7'
-  gridRow?: string            // CSS grid-row value
-  dataBinding: SlotDataBinding
-  props?: Record<string, unknown>  // extra props passed to the kit component
+  id: string;
+  type: SlotType;
+  title?: string;
+  gridColumn?: string; // CSS grid-column value, e.g., '1 / 7'
+  gridRow?: string; // CSS grid-row value
+  dataBinding: SlotDataBinding;
+  props?: Record<string, unknown>; // extra props passed to the kit component
 }
 
 export interface SavedDashboardDefinition {
-  id: string
-  name: string
+  id: string;
+  name: string;
   filters: {
-    platforms: string[]
-    dateRange?: { start: string; end: string }
-    accountId?: string
-  }
-  slots: DashboardSlot[]
+    platforms: string[];
+    dateRange?: { start: string; end: string };
+    accountId?: string;
+  };
+  slots: DashboardSlot[];
 }
 ```
 
@@ -123,6 +123,7 @@ export function renderSlot(slot: DashboardSlot, data: unknown, isLoading: boolea
 ### Step 3: Update SavedDashboardPage
 
 In `SavedDashboardPage.tsx`:
+
 1. Parse the saved `slots: DashboardSlot[]` from the saved dashboard definition.
 2. For each slot, use `slot.dataBinding.endpoint` and `slot.dataBinding.filters` to fetch data (or derive from the already-fetched combined payload in the store).
 3. Render each slot in a CSS grid: `display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px`. Each slot uses `gridColumn` and `gridRow` from its definition.

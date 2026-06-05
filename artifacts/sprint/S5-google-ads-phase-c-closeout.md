@@ -17,50 +17,50 @@ Two of three Phase C tasks shipped atomically. GA-C1 (integration test suite) an
 
 ### New documentation
 
-| File | Change | LoC |
-|---|---|---|
-| `docs/runbooks/google-ads-operations.md` | NEW — operations runbook (10 `##` sections: Scope, SDK-vs-Airbyte hybrid architecture, Endpoint register table, Day-2 operations (tenant onboarding triage, pacing cache invalidation, LOCAL-ONLY dismiss posture, saved-view drift banner), Known quirks, Related docs) | 96 |
-| `CLAUDE.md` | "Google Ads SDK migration in progress" → "Google Ads surface complete through Phase B (SDK primary, Airbyte fallback); see docs/runbooks/google-ads-operations.md" | ±1 |
+| File                                     | Change                                                                                                                                                                                                                                                                   | LoC |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- |
+| `docs/runbooks/google-ads-operations.md` | NEW — operations runbook (10 `##` sections: Scope, SDK-vs-Airbyte hybrid architecture, Endpoint register table, Day-2 operations (tenant onboarding triage, pacing cache invalidation, LOCAL-ONLY dismiss posture, saved-view drift banner), Known quirks, Related docs) | 96  |
+| `CLAUDE.md`                              | "Google Ads SDK migration in progress" → "Google Ads surface complete through Phase B (SDK primary, Airbyte fallback); see docs/runbooks/google-ads-operations.md"                                                                                                       | ±1  |
 
 ### New integration tests
 
-| File | LoC | Branches covered |
-|---|---|---|
-| `frontend/src/components/google-ads/workspace/__tests__/AssetsTabSection.integration.test.tsx` | 58 | loading / empty / populated |
-| `…/CampaignsTabSection.integration.test.tsx` | 76 | loading / empty / populated |
-| `…/ChangesTabSection.integration.test.tsx` | 61 | loading / empty / populated |
-| `…/ConversionsTabSection.integration.test.tsx` | 95 | loading / empty / populated |
-| `…/OverviewTabSection.integration.test.tsx` | 91 | loading / empty / populated |
-| `…/PacingTabSection.integration.test.tsx` | 60 | loading / empty / populated |
-| `…/PmaxTabSection.integration.test.tsx` | 61 | loading / empty / populated |
-| `…/RecommendationsTabSection.integration.test.tsx` | 77 | loading / empty / populated |
-| `…/ReportsTabSection.integration.test.tsx` | 86 | loading / empty / populated |
-| `…/SearchTabSection.integration.test.tsx` | 79 | loading / empty / populated |
+| File                                                                                           | LoC | Branches covered            |
+| ---------------------------------------------------------------------------------------------- | --- | --------------------------- |
+| `frontend/src/components/google-ads/workspace/__tests__/AssetsTabSection.integration.test.tsx` | 58  | loading / empty / populated |
+| `…/CampaignsTabSection.integration.test.tsx`                                                   | 76  | loading / empty / populated |
+| `…/ChangesTabSection.integration.test.tsx`                                                     | 61  | loading / empty / populated |
+| `…/ConversionsTabSection.integration.test.tsx`                                                 | 95  | loading / empty / populated |
+| `…/OverviewTabSection.integration.test.tsx`                                                    | 91  | loading / empty / populated |
+| `…/PacingTabSection.integration.test.tsx`                                                      | 60  | loading / empty / populated |
+| `…/PmaxTabSection.integration.test.tsx`                                                        | 61  | loading / empty / populated |
+| `…/RecommendationsTabSection.integration.test.tsx`                                             | 77  | loading / empty / populated |
+| `…/ReportsTabSection.integration.test.tsx`                                                     | 86  | loading / empty / populated |
+| `…/SearchTabSection.integration.test.tsx`                                                      | 79  | loading / empty / populated |
 
 **Totals:** 12 files created/modified, +744 test LoC + 96 doc LoC + 1 CLAUDE.md line.
 
 ## 4. Final gate matrix
 
-| Gate | Command | Result |
-|---|---|---|
-| Phase C gate — runbook section count | `grep -c "^##" docs/runbooks/google-ads-operations.md` | **PASS** — 10 ≥ 4 |
-| Phase C gate — integration test count | `ls frontend/src/components/google-ads/workspace/__tests__/*.integration.test.tsx \| wc -l` | **PASS** — 10 ≥ 10 |
-| Phase C gate — CLAUDE.md status updated | `grep -c "migration in progress" CLAUDE.md` | **PASS** — 0 |
-| Frontend lint | `cd frontend && npm run lint` | **PASS** — 0 errors, 0 warnings |
-| Frontend build | `cd frontend && npm run build` | **PASS** — `✓ built in 4.04s` |
-| Frontend vitest (workspace `__tests__/`) | `cd frontend && npx vitest --run src/components/google-ads/workspace/__tests__/` | **PASS — 57/57** across 16 files |
+| Gate                                     | Command                                                                                     | Result                           |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------- |
+| Phase C gate — runbook section count     | `grep -c "^##" docs/runbooks/google-ads-operations.md`                                      | **PASS** — 10 ≥ 4                |
+| Phase C gate — integration test count    | `ls frontend/src/components/google-ads/workspace/__tests__/*.integration.test.tsx \| wc -l` | **PASS** — 10 ≥ 10               |
+| Phase C gate — CLAUDE.md status updated  | `grep -c "migration in progress" CLAUDE.md`                                                 | **PASS** — 0                     |
+| Frontend lint                            | `cd frontend && npm run lint`                                                               | **PASS** — 0 errors, 0 warnings  |
+| Frontend build                           | `cd frontend && npm run build`                                                              | **PASS** — `✓ built in 4.04s`    |
+| Frontend vitest (workspace `__tests__/`) | `cd frontend && npx vitest --run src/components/google-ads/workspace/__tests__/`            | **PASS — 57/57** across 16 files |
 
 ## 5. Contract checks
 
-| Contract | Location | Verified |
-|---|---|---|
-| Each tab section has an integration test file | 10 files under `workspace/__tests__/*.integration.test.tsx` | ✓ |
-| Each integration test covers loading / empty / populated | `describe('<TabName> — integration', …)` × 3 `it(…)` | ✓ |
-| Runbook documents SDK-vs-Airbyte dual path | §SDK-vs-Airbyte hybrid architecture | ✓ |
-| Runbook documents endpoint register | §Endpoint register (17-row table) | ✓ |
-| Runbook documents LOCAL ONLY dismiss posture | §Recommendation dismiss posture | ✓ |
-| Runbook documents whitelist maintenance cost | §Saved-view drift banner | ✓ |
-| Phase A + B owned tests continue passing | `ChangesTabSection.pagination`, `ReportsTabSection.driftBanner`, `PacingTabSection.campaigns`, `RecommendationsTabSection.dismiss`, `ReportsTabSection.polling`, `WorkspaceKpiStrip` | ✓ — all 6 pass alongside new integration tests |
+| Contract                                                 | Location                                                                                                                                                                             | Verified                                       |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| Each tab section has an integration test file            | 10 files under `workspace/__tests__/*.integration.test.tsx`                                                                                                                          | ✓                                              |
+| Each integration test covers loading / empty / populated | `describe('<TabName> — integration', …)` × 3 `it(…)`                                                                                                                                 | ✓                                              |
+| Runbook documents SDK-vs-Airbyte dual path               | §SDK-vs-Airbyte hybrid architecture                                                                                                                                                  | ✓                                              |
+| Runbook documents endpoint register                      | §Endpoint register (17-row table)                                                                                                                                                    | ✓                                              |
+| Runbook documents LOCAL ONLY dismiss posture             | §Recommendation dismiss posture                                                                                                                                                      | ✓                                              |
+| Runbook documents whitelist maintenance cost             | §Saved-view drift banner                                                                                                                                                             | ✓                                              |
+| Phase A + B owned tests continue passing                 | `ChangesTabSection.pagination`, `ReportsTabSection.driftBanner`, `PacingTabSection.campaigns`, `RecommendationsTabSection.dismiss`, `ReportsTabSection.polling`, `WorkspaceKpiStrip` | ✓ — all 6 pass alongside new integration tests |
 
 ## 6. GA-C3 blocker detail
 
@@ -70,7 +70,7 @@ Per `finish-google-ads.v2.md §Phase C` the staging smoke (GA-C3) requires crede
 - A staging-tenant row in the ADinsights database wired to that OAuth connection
 - Enough real ad traffic on that customer_id to exercise campaigns / keywords / assets / conversions / change events in the last 30 days
 
-The v2 prompt explicitly instructs: *"C3 requires test-account credentials — escalate to user before starting."* Recording as `status: "blocked"` in `S5-google-ads-state.json` with a blocker entry. Work cannot proceed until the user surfaces these credentials.
+The v2 prompt explicitly instructs: _"C3 requires test-account credentials — escalate to user before starting."_ Recording as `status: "blocked"` in `S5-google-ads-state.json` with a blocker entry. Work cannot proceed until the user surfaces these credentials.
 
 **Unblock path:** user provides staging credentials (or confirms they should be pulled from a named secret store), then re-run `/finish-google-ads.v2` with `GA-C3` as the only remaining task — the state-file resume protocol will pick it up from the blocker.
 
@@ -104,4 +104,4 @@ At user direction (after the AMBER close), a full operator-runnable staging-regr
 - **Phase 4** — record-results procedure that includes the exact state.json and punchlist updates to make when the regression passes (or fails).
 - **Triage cheat sheet** mapping 7 common failure symptoms to the first thing to check.
 
-When credentials arrive, an agent re-running `/finish-google-ads.v2` with GA-C3 as the only remaining task can walk the checklist top-to-bottom and close out T1-03 at 100%. State file still reads `GA-C3: blocked` because the *execution* has not happened — the deliverable is the *plan for execution*, not the execution itself.
+When credentials arrive, an agent re-running `/finish-google-ads.v2` with GA-C3 as the only remaining task can walk the checklist top-to-bottom and close out T1-03 at 100%. State file still reads `GA-C3: blocked` because the _execution_ has not happened — the deliverable is the _plan for execution_, not the execution itself.

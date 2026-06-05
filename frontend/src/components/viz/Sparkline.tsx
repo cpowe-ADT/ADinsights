@@ -60,12 +60,7 @@ const Sparkline = ({
   const stroke = color ?? resolveSeriesColor(0);
 
   return (
-    <div
-      role="img"
-      aria-label={ariaLabel}
-      style={{ height, width: '100%' }}
-      className={className}
-    >
+    <div role="img" aria-label={ariaLabel} style={{ height, width: '100%' }} className={className}>
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={data} margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
           <LineComponent

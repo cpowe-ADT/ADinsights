@@ -2,7 +2,7 @@
 
 **Sprint:** 3
 **Estimated size:** M
-**Depends on:** sprint-1/* (all kit components)
+**Depends on:** sprint-1/\* (all kit components)
 **Blocks:** none
 **Role needed:** frontend-engineer
 
@@ -25,6 +25,7 @@ The Overview tab of the Google Ads workspace (`/dashboards/google-ads` → Overv
 - **Data binding**:
 
 Workspace summary response shape (verified from `backend/analytics/google_ads_views.py:503–607`):
+
 ```typescript
 {
   window: { start_date, end_date, compare_start_date, compare_end_date }
@@ -39,11 +40,11 @@ Workspace summary response shape (verified from `backend/analytics/google_ads_vi
 }
 ```
 
-  - KPI strip (4 tiles — NOT 5; IS tile deferred): Cost = `metrics.spend`, Conversions = `metrics.conversions`, CPA = `metrics.spend / metrics.conversions` (computed client-side if not in payload), ROAS = `metrics.roas`.
-  - TrendLine dual-axis: `trend[]` — `{ date, spend, conversions }`. Left axis = spend (currency), right axis = conversions (number). Series: `[{ key: 'spend', label: 'Cost', color: chartPalette[1] }, { key: 'conversions', label: 'Conversions', color: chartPalette[3], yAxisId: 'right' }]`.
-  - Channel pie: `GET /api/google-ads/channels/` (separate call — use existing workspace hook if it already fetches this, else add the fetch). Response rows: `{ channel_type, spend, clicks, impressions, conversions }`. Map to `[{ label: row.channel_type, value: row.spend }]`.
-  - Insights cards: render `top_insights[]` as 3 plain cards (no Recharts) — `<div>` with icon + message text. Alert badges from `alerts_summary` booleans.
-  - Governance row: 3 stat tiles showing `governance_summary.recent_changes_7d`, `governance_summary.active_recommendations`, `governance_summary.disapproved_ads`.
+- KPI strip (4 tiles — NOT 5; IS tile deferred): Cost = `metrics.spend`, Conversions = `metrics.conversions`, CPA = `metrics.spend / metrics.conversions` (computed client-side if not in payload), ROAS = `metrics.roas`.
+- TrendLine dual-axis: `trend[]` — `{ date, spend, conversions }`. Left axis = spend (currency), right axis = conversions (number). Series: `[{ key: 'spend', label: 'Cost', color: chartPalette[1] }, { key: 'conversions', label: 'Conversions', color: chartPalette[3], yAxisId: 'right' }]`.
+- Channel pie: `GET /api/google-ads/channels/` (separate call — use existing workspace hook if it already fetches this, else add the fetch). Response rows: `{ channel_type, spend, clicks, impressions, conversions }`. Map to `[{ label: row.channel_type, value: row.spend }]`.
+- Insights cards: render `top_insights[]` as 3 plain cards (no Recharts) — `<div>` with icon + message text. Alert badges from `alerts_summary` booleans.
+- Governance row: 3 stat tiles showing `governance_summary.recent_changes_7d`, `governance_summary.active_recommendations`, `governance_summary.disapproved_ads`.
 
 - **Interactions**: Movers table (optional) — top 5 campaigns by spend as a mini DataTable below insights. Click row navigates to campaign detail.
 

@@ -124,7 +124,10 @@ const NotificationChannelsPage = () => {
 
       <article className="phase2-card">
         <h3>Create channel</h3>
-        <form onSubmit={(e) => void handleCreate(e)} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 480 }}>
+        <form
+          onSubmit={(e) => void handleCreate(e)}
+          style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 480 }}
+        >
           <label>
             Name
             <input
@@ -140,7 +143,9 @@ const NotificationChannelsPage = () => {
             Type
             <select
               value={channelType}
-              onChange={(e) => setChannelType(e.target.value as NotificationChannel['channel_type'])}
+              onChange={(e) =>
+                setChannelType(e.target.value as NotificationChannel['channel_type'])
+              }
               className="phase2-input"
             >
               {CHANNEL_TYPES.map((ct) => (
@@ -156,7 +161,11 @@ const NotificationChannelsPage = () => {
               type="text"
               value={configValue}
               onChange={(e) => setConfigValue(e.target.value)}
-              placeholder={channelType === 'email' ? 'a@example.com, b@example.com' : 'https://hooks.example.com/...'}
+              placeholder={
+                channelType === 'email'
+                  ? 'a@example.com, b@example.com'
+                  : 'https://hooks.example.com/...'
+              }
               required
               className="phase2-input"
             />

@@ -11,10 +11,17 @@ vi.mock('../../../lib/googleAdsDashboard', () => ({
   fetchGoogleAdsExecutive: (...args: unknown[]) => fetchGoogleAdsExecutiveMock(...args),
 }));
 
-const mockFilters = { accountId: 'cust-001', clientId: '', startDate: '', endDate: '', dateRange: '30d' };
+const mockFilters = {
+  accountId: 'cust-001',
+  clientId: '',
+  startDate: '',
+  endDate: '',
+  dateRange: '30d',
+};
 vi.mock('../../../state/useDashboardStore', () => ({
   default: Object.assign(
-    (selector: (state: { filters: typeof mockFilters }) => unknown) => selector({ filters: mockFilters }),
+    (selector: (state: { filters: typeof mockFilters }) => unknown) =>
+      selector({ filters: mockFilters }),
     {
       getState: () => ({ filters: mockFilters }),
     },
@@ -23,9 +30,18 @@ vi.mock('../../../state/useDashboardStore', () => ({
 
 const fixture = {
   source_engine: 'sdk',
-  metrics: { spend: 1234.56, impressions: 100000, clicks: 9000, conversions: 20, cpa: 61.73, roas: 2.5 },
+  metrics: {
+    spend: 1234.56,
+    impressions: 100000,
+    clicks: 9000,
+    conversions: 20,
+    cpa: 61.73,
+    roas: 2.5,
+  },
   pacing: { daily_budget: 500, spend_rate: 1.05 },
-  movers: [{ campaign_id: 'c1', campaign_name: 'Brand', spend: 600, conversion_value: 1800, roas: 3.0 }],
+  movers: [
+    { campaign_id: 'c1', campaign_name: 'Brand', spend: 600, conversion_value: 1800, roas: 3.0 },
+  ],
   trend: [{ date: '2026-04-01', spend: 400, conversions: 20, roas: 3.2 }],
 };
 

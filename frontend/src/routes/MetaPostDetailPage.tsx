@@ -68,9 +68,15 @@ const MetaPostDetailPage = () => {
   }, [postId, loadPostDetail]);
 
   const parentPageId = postDetail?.page_id ?? '';
-  const parentPage = useMemo(() => pages.find((p) => p.page_id === parentPageId), [pages, parentPageId]);
+  const parentPage = useMemo(
+    () => pages.find((p) => p.page_id === parentPageId),
+    [pages, parentPageId],
+  );
   const pageName = parentPage?.name ?? 'Facebook Page';
-  const metricKeys = useMemo(() => Object.keys(postDetail?.metric_availability ?? {}), [postDetail]);
+  const metricKeys = useMemo(
+    () => Object.keys(postDetail?.metric_availability ?? {}),
+    [postDetail],
+  );
   useEffect(() => {
     if (metricKeys.length > 0 && !metricKeys.includes(metric)) {
       setMetric(metricKeys[0] ?? 'post_media_view');
@@ -106,7 +112,10 @@ const MetaPostDetailPage = () => {
       const raw = metrics[picked];
       const value = typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
       return { category, metricKey: picked, value };
-    }).filter((entry): entry is { category: KpiCategory; metricKey: string; value: number | null } => entry !== null);
+    }).filter(
+      (entry): entry is { category: KpiCategory; metricKey: string; value: number | null } =>
+        entry !== null,
+    );
   }, [postDetail]);
 
   const trendSparkValues = useMemo(() => points.slice(-7).map((p) => p.value), [points]);
@@ -130,14 +139,19 @@ const MetaPostDetailPage = () => {
         <h1 className="dashboardHeading">Post Detail</h1>
         <div className="dashboard-header__actions-row">
           {postDetail ? (
-            <Link className="button tertiary" to={`/dashboards/meta/pages/${postDetail.page_id}/posts`}>
+            <Link
+              className="button tertiary"
+              to={`/dashboards/meta/pages/${postDetail.page_id}/posts`}
+            >
               Back to posts
             </Link>
           ) : null}
         </div>
       </header>
 
-      {postStatus === 'loading' ? <div className="dashboard-state">Loading post details…</div> : null}
+      {postStatus === 'loading' ? (
+        <div className="dashboard-state">Loading post details…</div>
+      ) : null}
       {postStatus === 'error' ? (
         <EmptyState
           icon={<span aria-hidden>!</span>}
@@ -186,7 +200,11 @@ const MetaPostDetailPage = () => {
           </article>
 
           {kpiEntries.length > 0 ? (
-            <div className="dashboard-grid" data-testid="meta-post-kpi-strip" style={{ marginBottom: '1rem' }}>
+            <div
+              className="dashboard-grid"
+              data-testid="meta-post-kpi-strip"
+              style={{ marginBottom: '1rem' }}
+            >
               {kpiEntries.map((entry) => (
                 <KpiTile
                   key={entry.category}
@@ -215,11 +233,18 @@ const MetaPostDetailPage = () => {
                   </option>
                 ))}
               </select>
-              <MetricAvailabilityBadge metric={metric} availability={postDetail.metric_availability[metric]} />
+              <MetricAvailabilityBadge
+                metric={metric}
+                availability={postDetail.metric_availability[metric]}
+              />
             </div>
             <div className="meta-posts-metric-select" style={{ marginTop: '0.75rem' }}>
               <label htmlFor="meta-post-detail-period">Period</label>
-              <select id="meta-post-detail-period" value={period} onChange={(event) => setPeriod(event.target.value)}>
+              <select
+                id="meta-post-detail-period"
+                value={period}
+                onChange={(event) => setPeriod(event.target.value)}
+              >
                 <option value="lifetime">lifetime</option>
                 <option value="day">day</option>
                 <option value="week">week</option>
@@ -228,7 +253,9 @@ const MetaPostDetailPage = () => {
             </div>
           </article>
 
-          {postSeriesStatus === 'loading' ? <div className="dashboard-state">Loading timeseries…</div> : null}
+          {postSeriesStatus === 'loading' ? (
+            <div className="dashboard-state">Loading timeseries…</div>
+          ) : null}
           {points.length > 0 ? (
             <article className="panel" data-testid="meta-post-trend-panel">
               <h3>{`${metric} trend`}</h3>

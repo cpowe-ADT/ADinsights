@@ -29,7 +29,7 @@
   - `frontend/src/routes/__tests__/MetaAccountsPage.test.tsx` (modify — add viz tests)
 
 - **Data binding**:
-  - KPI strip: from `useMetaStore` accounts list aggregate — compute client-side: total spend = sum of `account.spend`, total impressions = sum of `account.impressions`, total reach = sum of `account.reach`; avg CTR = total clicks / total impressions; avg CPM = (total spend / total impressions) * 1000; active accounts = count where `account.status === 'ACTIVE'`.
+  - KPI strip: from `useMetaStore` accounts list aggregate — compute client-side: total spend = sum of `account.spend`, total impressions = sum of `account.impressions`, total reach = sum of `account.reach`; avg CTR = total clicks / total impressions; avg CPM = (total spend / total impressions) \* 1000; active accounts = count where `account.status === 'ACTIVE'`.
   - NOTE: The accounts list endpoint (`/api/integrations/meta/ad-accounts/`) returns per-account metrics. Verify which fields are present in `useMetaStore.accounts.rows[]` before implementing KPI aggregation. If `spend`, `impressions`, `reach` are not present on the accounts list, show 0 / `--` and add a `[NEW-ENDPOINT]` comment.
   - TrendLine: `payload.campaign.trend` from `/api/metrics/combined/?platforms=meta_ads` — aggregated spend by day. For multi-account series: group `payload.campaign.rows` by `account_id` field, sum spend per day per account using `trend` dates as X axis. **If `account_id` field is absent from `campaign.rows`, fall back to a single total-spend line.**
   - PieComposition: `payload.campaign.rows` grouped by `objective` field.

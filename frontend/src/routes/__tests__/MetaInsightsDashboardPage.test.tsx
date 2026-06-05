@@ -269,7 +269,14 @@ describe('MetaInsightsDashboardPage', () => {
     storeState.insights = {
       status: 'loaded',
       rows: [
-        makeRow({ id: '1', spend: '100', impressions: 1000, clicks: 50, cpm: '100', level: 'campaign' }),
+        makeRow({
+          id: '1',
+          spend: '100',
+          impressions: 1000,
+          clicks: 50,
+          cpm: '100',
+          level: 'campaign',
+        }),
       ],
       count: 1,
       page: 1,
@@ -287,9 +294,7 @@ describe('MetaInsightsDashboardPage', () => {
   it('renders VizDataTable with 7 column headers (no @tanstack/react-table import in page)', async () => {
     storeState.insights = {
       status: 'loaded',
-      rows: [
-        makeRow({ id: '1', spend: '100', impressions: 1000, clicks: 50, level: 'campaign' }),
-      ],
+      rows: [makeRow({ id: '1', spend: '100', impressions: 1000, clicks: 50, level: 'campaign' })],
       count: 1,
       page: 1,
       pageSize: 50,

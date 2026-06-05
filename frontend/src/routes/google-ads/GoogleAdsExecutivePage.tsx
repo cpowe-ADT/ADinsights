@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { EmptyState, KpiTile, TrendLine } from '../../components/viz';
-import {
-  deriveTrendSeries,
-  rollupOverviewKpis,
-} from '../../lib/googleAdsAggregates';
+import { deriveTrendSeries, rollupOverviewKpis } from '../../lib/googleAdsAggregates';
 import {
   fetchGoogleAdsExecutive,
   type GoogleAdsExecutiveResponse,
@@ -13,7 +10,16 @@ import { resolveFilterRange } from '../../lib/dashboardFilters';
 import useDashboardStore from '../../state/useDashboardStore';
 
 const EmptyIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="40"
+    height="40"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    aria-hidden="true"
+  >
     <circle cx="12" cy="12" r="10" />
     <path d="M8 12h8" />
   </svg>

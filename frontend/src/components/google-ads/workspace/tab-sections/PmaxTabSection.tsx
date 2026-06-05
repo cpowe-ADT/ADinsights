@@ -1,10 +1,6 @@
 import { useMemo } from 'react';
 
-import {
-  AssetGroupTreemap,
-  EmptyState,
-  KpiTile,
-} from '../../../viz';
+import { AssetGroupTreemap, EmptyState, KpiTile } from '../../../viz';
 import {
   buildPmaxTreemapData,
   rollupPmaxKpis,
@@ -86,42 +82,21 @@ const PmaxTabSection = ({ data, status, error }: Props) => {
   }
 
   return (
-    <div
-      className="gads-workspace__tab-grid"
-      data-testid="google-ads-pmax-section"
-    >
+    <div className="gads-workspace__tab-grid" data-testid="google-ads-pmax-section">
       <section className="panel">
         <h2>Performance Max KPIs</h2>
-        <div
-          className="gads-workspace__kpi-grid"
-          role="list"
-          aria-label="Google Ads PMax KPIs"
-        >
-          <KpiTile
-            label="Total Asset Groups"
-            value={kpis.totalGroups}
-            format="number"
-          />
-          <KpiTile
-            label="Total Cost"
-            value={kpis.totalCost}
-            format="currency"
-            currency="JMD"
-          />
-          <KpiTile
-            label="Total Conv"
-            value={kpis.totalConversions}
-            format="number"
-          />
+        <div className="gads-workspace__kpi-grid" role="list" aria-label="Google Ads PMax KPIs">
+          <KpiTile label="Total Asset Groups" value={kpis.totalGroups} format="number" />
+          <KpiTile label="Total Cost" value={kpis.totalCost} format="currency" currency="JMD" />
+          <KpiTile label="Total Conv" value={kpis.totalConversions} format="number" />
         </div>
       </section>
 
       <section className="panel">
         <h2>Asset-group spend treemap</h2>
         <p className="dashboardSubtitle">
-          Rectangle area = spend. Shading = ROAS (darker = higher, hatched =
-          under-performing). Refer to the accessible table below for the
-          underlying values.
+          Rectangle area = spend. Shading = ROAS (darker = higher, hatched = under-performing).
+          Refer to the accessible table below for the underlying values.
         </p>
         <AssetGroupTreemap
           data={treemapData}
@@ -151,34 +126,22 @@ const PmaxTabSection = ({ data, status, error }: Props) => {
                 const key = String(row.asset_group_id ?? `row-${idx}`);
                 const status = (row.asset_group_status ?? 'UNKNOWN').toString();
                 const chip =
-                  STATUS_CHIP_CLASSES[status.toUpperCase()] ??
-                  STATUS_CHIP_CLASSES.UNKNOWN;
+                  STATUS_CHIP_CLASSES[status.toUpperCase()] ?? STATUS_CHIP_CLASSES.UNKNOWN;
                 return (
-                  <tr
-                    key={key}
-                    className="dashboard-table__row dashboard-table__row--zebra"
-                  >
-                    <td className="dashboard-table__cell">
-                      {row.asset_group_name ?? key}
-                    </td>
+                  <tr key={key} className="dashboard-table__row dashboard-table__row--zebra">
+                    <td className="dashboard-table__cell">{row.asset_group_name ?? key}</td>
                     <td className="dashboard-table__cell">
                       <span className={chip}>{status}</span>
                     </td>
-                    <td className="dashboard-table__cell">
-                      {Number(row.spend ?? 0).toFixed(2)}
-                    </td>
+                    <td className="dashboard-table__cell">{Number(row.spend ?? 0).toFixed(2)}</td>
                     <td className="dashboard-table__cell">
                       {Number(row.impressions ?? 0).toFixed(0)}
                     </td>
                     <td className="dashboard-table__cell">
                       {Number(row.conversions ?? 0).toFixed(2)}
                     </td>
-                    <td className="dashboard-table__cell">
-                      {Number(row.cpa ?? 0).toFixed(2)}
-                    </td>
-                    <td className="dashboard-table__cell">
-                      {Number(row.roas ?? 0).toFixed(2)}
-                    </td>
+                    <td className="dashboard-table__cell">{Number(row.cpa ?? 0).toFixed(2)}</td>
+                    <td className="dashboard-table__cell">{Number(row.roas ?? 0).toFixed(2)}</td>
                   </tr>
                 );
               })}

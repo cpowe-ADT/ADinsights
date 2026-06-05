@@ -22,19 +22,20 @@
   - `frontend/src/components/viz/__tests__/KpiTile.test.tsx` (create)
 
 - **Props API**:
+
 ```typescript
-type ChartValueType = 'currency' | 'number' | 'percent' | 'rate'
+type ChartValueType = 'currency' | 'number' | 'percent' | 'rate';
 
 interface KpiTileProps {
-  label: string
-  value: number | null
-  format: ChartValueType
-  currency?: string          // default 'JMD'
-  change?: number | null     // period-over-period delta as decimal (0.12 = +12%)
-  isLoading?: boolean
-  isFaded?: boolean          // for tiles outside current filter scope
-  reasonCode?: string        // passed through to EmptyState if value is null
-  className?: string
+  label: string;
+  value: number | null;
+  format: ChartValueType;
+  currency?: string; // default 'JMD'
+  change?: number | null; // period-over-period delta as decimal (0.12 = +12%)
+  isLoading?: boolean;
+  isFaded?: boolean; // for tiles outside current filter scope
+  reasonCode?: string; // passed through to EmptyState if value is null
+  className?: string;
 }
 ```
 
@@ -59,19 +60,33 @@ interface KpiTileProps {
 ```
 
 Color tokens from `frontend/src/styles/chartTheme.ts`:
+
 - Positive change: `chartPalette[3]` (#10b981 green)
 - Negative change: `chartPalette[5]` (#f43f5e red)
 - Neutral/null: text-gray-400
 - Loading shimmer background: `#e5e7eb` → `#f9fafb` animated gradient
 
 Format helpers (implement inline):
+
 ```typescript
-function formatValue(value: number, format: ChartValueType, currency = 'JMD'): string {
+function formatValue(
+  value: number,
+  format: ChartValueType,
+  currency = 'JMD',
+): string {
   switch (format) {
-    case 'currency': return new Intl.NumberFormat('en-JM', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)
-    case 'percent': return `${(value * 100).toFixed(1)}%`
-    case 'rate': return value.toFixed(2)
-    case 'number': return new Intl.NumberFormat('en-JM').format(Math.round(value))
+    case 'currency':
+      return new Intl.NumberFormat('en-JM', {
+        style: 'currency',
+        currency,
+        maximumFractionDigits: 0,
+      }).format(value);
+    case 'percent':
+      return `${(value * 100).toFixed(1)}%`;
+    case 'rate':
+      return value.toFixed(2);
+    case 'number':
+      return new Intl.NumberFormat('en-JM').format(Math.round(value));
   }
 }
 ```

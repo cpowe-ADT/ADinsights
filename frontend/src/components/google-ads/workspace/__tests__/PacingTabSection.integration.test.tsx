@@ -21,13 +21,7 @@ describe('PacingTabSection — integration', () => {
   });
 
   it('renders empty state', () => {
-    render(
-      <PacingTabSection
-        data={{ spend_mtd: 0, budget_month: 0 }}
-        status="success"
-        error=""
-      />,
-    );
+    render(<PacingTabSection data={{ spend_mtd: 0, budget_month: 0 }} status="success" error="" />);
     expect(screen.getByText('No pacing data')).toBeInTheDocument();
   });
 
@@ -47,14 +41,8 @@ describe('PacingTabSection — integration', () => {
       ],
     };
     render(<PacingTabSection data={data} status="success" error="" />);
-    expect(
-      screen.getByTestId('google-ads-pacing-section'),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId('google-ads-pacing-campaigns'),
-    ).toBeInTheDocument();
-    expect(
-      screen.getAllByText('Q2 Brand Always-On').length,
-    ).toBeGreaterThan(0);
+    expect(screen.getByTestId('google-ads-pacing-section')).toBeInTheDocument();
+    expect(screen.getByTestId('google-ads-pacing-campaigns')).toBeInTheDocument();
+    expect(screen.getAllByText('Q2 Brand Always-On').length).toBeGreaterThan(0);
   });
 });

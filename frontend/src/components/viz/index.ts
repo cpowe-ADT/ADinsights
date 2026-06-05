@@ -45,10 +45,7 @@ export { default as PieComposition } from './PieComposition';
 // S3b-CreativeConv-owned primitives (Sprint 3 kit extension)
 // -----------------------------------------------------------------------------
 export { default as AssetGroupTreemap, roasToOpacity } from './AssetGroupTreemap';
-export type {
-  AssetGroupTreemapProps,
-  AssetGroupTreemapDatum,
-} from './AssetGroupTreemap';
+export type { AssetGroupTreemapProps, AssetGroupTreemapDatum } from './AssetGroupTreemap';
 
 export { default as GaugeRing, derivePacingVariant } from './GaugeRing';
 export type { GaugeRingProps, GaugeVariant } from './GaugeRing';

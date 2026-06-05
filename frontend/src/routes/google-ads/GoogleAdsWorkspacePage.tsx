@@ -67,7 +67,10 @@ function defaultDateRange(): { startDate: string; endDate: string } {
 function parseFilters(searchParams: URLSearchParams): WorkspaceFilters {
   const defaults = defaultDateRange();
   const compareRaw = searchParams.get('compare');
-  const compare = compareRaw === 'dod' || compareRaw === 'wow' || compareRaw === 'mom' || compareRaw === 'yoy' ? compareRaw : 'none';
+  const compare =
+    compareRaw === 'dod' || compareRaw === 'wow' || compareRaw === 'mom' || compareRaw === 'yoy'
+      ? compareRaw
+      : 'none';
 
   return {
     startDate: searchParams.get('start_date') || defaults.startDate,
@@ -85,12 +88,16 @@ const GoogleAdsWorkspacePage = () => {
   const globalAccountId = useDashboardStore((state) => state.filters.accountId);
   const globalClientId = useDashboardStore((state) => state.filters.clientId);
 
-  const activeTab: WorkspaceTab = isWorkspaceTab(searchParams.get('tab')) ? (searchParams.get('tab') as WorkspaceTab) : 'overview';
+  const activeTab: WorkspaceTab = isWorkspaceTab(searchParams.get('tab'))
+    ? (searchParams.get('tab') as WorkspaceTab)
+    : 'overview';
   const searchMode: SearchMode = isSearchMode(searchParams.get('search_mode'))
     ? (searchParams.get('search_mode') as SearchMode)
     : 'keywords';
   const drawerRaw = searchParams.get('drawer') || '';
-  const drawerCampaignId = drawerRaw.startsWith('campaign:') ? drawerRaw.replace('campaign:', '') : '';
+  const drawerCampaignId = drawerRaw.startsWith('campaign:')
+    ? drawerRaw.replace('campaign:', '')
+    : '';
 
   // Prefer global store's accountId/clientId over URL params so the FilterBar
   // is the authoritative source. URL customer_id serves as a fallback for direct
@@ -107,13 +114,11 @@ const GoogleAdsWorkspacePage = () => {
   // Empty state: no account/client selected anywhere (neither global store nor URL fallback)
   const hasNoCustomer = !filters.customerId && !filters.clientId;
 
-  const {
-    summary,
-    summaryStatus,
-    summaryError,
-    tabStates,
-    loadTab,
-  } = useGoogleAdsWorkspaceData({ filters, activeTab, searchMode });
+  const { summary, summaryStatus, summaryError, tabStates, loadTab } = useGoogleAdsWorkspaceData({
+    filters,
+    activeTab,
+    searchMode,
+  });
 
   // Architect §4/§6.3: when the Search tab is active in `keywords` mode, also
   // prefetch `search_terms` once so the top-10 bar chart has data. Fire-and-
@@ -206,7 +211,8 @@ const GoogleAdsWorkspacePage = () => {
       }
       const viewFilters = (selected.filters ?? {}) as Record<string, unknown>;
       updateSearchParams({
-        start_date: typeof viewFilters.start_date === 'string' ? viewFilters.start_date : filters.startDate,
+        start_date:
+          typeof viewFilters.start_date === 'string' ? viewFilters.start_date : filters.startDate,
         end_date: typeof viewFilters.end_date === 'string' ? viewFilters.end_date : filters.endDate,
         compare: typeof viewFilters.compare === 'string' ? viewFilters.compare : filters.compare,
         customer_id: typeof viewFilters.customer_id === 'string' ? viewFilters.customer_id : null,
@@ -218,7 +224,9 @@ const GoogleAdsWorkspacePage = () => {
       // stale selection from a previous session does not contaminate this view.
       if (typeof viewFilters.client_id === 'string') {
         const storeFilters = useDashboardStore.getState().filters;
-        useDashboardStore.getState().setFilters({ ...storeFilters, clientId: viewFilters.client_id });
+        useDashboardStore
+          .getState()
+          .setFilters({ ...storeFilters, clientId: viewFilters.client_id });
       }
     },
     [savedViews, updateSearchParams, filters],
@@ -300,9 +308,7 @@ const GoogleAdsWorkspacePage = () => {
       // Reads whatever is already in the tab cache; EmptyState shows when
       // campaigns haven't been loaded yet.
       const campaignsCacheKey = `campaigns|${searchMode}`;
-      const cached = tabStates[campaignsCacheKey]?.data as
-        | { results?: unknown[] }
-        | undefined;
+      const cached = tabStates[campaignsCacheKey]?.data as { results?: unknown[] } | undefined;
       const campaignRows = Array.isArray(cached?.results)
         ? (cached?.results as Array<Record<string, unknown>>)
         : null;
@@ -316,7 +322,9 @@ const GoogleAdsWorkspacePage = () => {
           status={activeTabState.status}
           error={activeTabState.error}
           drawerCampaignId={drawerCampaignId}
-          onOpenDrawer={(campaignId) => updateSearchParams({ drawer: campaignId ? `campaign:${campaignId}` : null })}
+          onOpenDrawer={(campaignId) =>
+            updateSearchParams({ drawer: campaignId ? `campaign:${campaignId}` : null })
+          }
           onCloseDrawer={() => updateSearchParams({ drawer: null })}
         />
       );
@@ -333,7 +341,11 @@ const GoogleAdsWorkspacePage = () => {
       return (
         <>
           <section className="panel" style={{ marginBottom: '1rem' }}>
-            <div className="dashboard-header__actions-row" role="group" aria-label="Search data mode">
+            <div
+              className="dashboard-header__actions-row"
+              role="group"
+              aria-label="Search data mode"
+            >
               <button
                 type="button"
                 className={`button secondary${searchMode === 'keywords' ? ' is-active' : ''}`}
@@ -463,7 +475,16 @@ const GoogleAdsWorkspacePage = () => {
         <EmptyState
           reasonCode="no_customer_selected"
           icon={
-            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="40"
+              height="40"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden="true"
+            >
               <circle cx="12" cy="12" r="10" />
               <path d="M12 8v4M12 16h.01" />
             </svg>
@@ -502,7 +523,11 @@ const GoogleAdsWorkspacePage = () => {
       <WorkspaceKpiStrip summary={summary} status={summaryStatus} error={summaryError} />
 
       <div className="panel gads-workspace__tabs-panel">
-        <div className="gads-workspace__tabs" role="tablist" aria-label="Google Ads workspace sections">
+        <div
+          className="gads-workspace__tabs"
+          role="tablist"
+          aria-label="Google Ads workspace sections"
+        >
           {TAB_CONFIG.map((tab) => (
             <button
               key={tab.id}

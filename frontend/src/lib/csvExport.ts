@@ -22,10 +22,7 @@ const CRLF = '\r\n';
 const DANGEROUS_LEADING = new Set(['=', '+', '-', '@']);
 
 const needsQuoting = (value: string): boolean =>
-  value.includes(',') ||
-  value.includes('"') ||
-  value.includes('\n') ||
-  value.includes('\r');
+  value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r');
 
 const escapeCell = (cell: CsvCell): string => {
   if (cell === null || cell === undefined) {

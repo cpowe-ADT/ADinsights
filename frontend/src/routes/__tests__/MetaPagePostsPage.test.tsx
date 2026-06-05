@@ -20,7 +20,11 @@ const makePostsFixture = () => ({
   next_offset: null,
   prev_offset: null,
   metric_availability: {
-    post_media_view: { supported: false, last_checked_at: null, reason: 'Not available for this Page' },
+    post_media_view: {
+      supported: false,
+      last_checked_at: null,
+      reason: 'Not available for this Page',
+    },
   },
   results: [
     {
@@ -63,7 +67,11 @@ const storeMock = vi.hoisted(() => ({
       next_offset: null,
       prev_offset: null,
       metric_availability: {
-        post_media_view: { supported: false, last_checked_at: null, reason: 'Not available for this Page' },
+        post_media_view: {
+          supported: false,
+          last_checked_at: null,
+          reason: 'Not available for this Page',
+        },
       },
       results: [
         {
@@ -127,7 +135,9 @@ vi.mock('../../lib/metaPageInsights', async (importOriginal) => {
     ...original,
     listMetaPageExports: vi.fn().mockResolvedValue([]),
     createMetaPageExport: vi.fn().mockResolvedValue({}),
-    downloadExportArtifact: vi.fn().mockResolvedValue({ blob: new Blob(), filename: 'export.csv', contentType: 'text/csv' }),
+    downloadExportArtifact: vi
+      .fn()
+      .mockResolvedValue({ blob: new Blob(), filename: 'export.csv', contentType: 'text/csv' }),
   };
 });
 
@@ -191,9 +201,10 @@ describe('MetaPagePostsPage', () => {
       );
     });
 
-    expect(
-      screen.getByRole('link', { name: /back to facebook pages/i }),
-    ).toHaveAttribute('href', '/dashboards/meta/pages');
+    expect(screen.getByRole('link', { name: /back to facebook pages/i })).toHaveAttribute(
+      'href',
+      '/dashboards/meta/pages',
+    );
   });
 
   // M14: zero posts renders EmptyState (not raw div) with reasonCode="no_posts"
@@ -216,7 +227,9 @@ describe('MetaPagePostsPage', () => {
 
     // EmptyState renders with role="status" and data-reason-code attribute
     const emptyStates = screen.getAllByRole('status');
-    const noPostsState = emptyStates.find((el) => el.getAttribute('data-reason-code') === 'no_posts');
+    const noPostsState = emptyStates.find(
+      (el) => el.getAttribute('data-reason-code') === 'no_posts',
+    );
     expect(noPostsState).toBeDefined();
     expect(noPostsState).toHaveAttribute('data-reason-code', 'no_posts');
     expect(noPostsState?.querySelector('h3')?.textContent).toBe('No posts found');

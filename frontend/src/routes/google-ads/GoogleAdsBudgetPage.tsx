@@ -55,9 +55,7 @@ const GoogleAdsBudgetPage = () => {
       <header className="dashboardPageHeader">
         <p className="dashboardEyebrow">Google Ads</p>
         <h1 className="dashboardHeading">Budget & Pacing</h1>
-        <p className="dashboardSubtitle">
-          Spend pacing, forecast, and delivery risk guardrails.
-        </p>
+        <p className="dashboardSubtitle">Spend pacing, forecast, and delivery risk guardrails.</p>
       </header>
 
       <PacingTabSection data={data} status={sectionStatus} error={error} />

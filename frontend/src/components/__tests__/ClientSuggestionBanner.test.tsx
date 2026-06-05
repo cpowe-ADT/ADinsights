@@ -8,21 +8,17 @@ const clientsMock = vi.hoisted(() => ({
 }));
 
 vi.mock('../../lib/clients', async () => {
-  const actual = await vi.importActual<typeof import('../../lib/clients')>(
-    '../../lib/clients',
-  );
+  const actual = await vi.importActual<typeof import('../../lib/clients')>('../../lib/clients');
   return {
     ...actual,
     getClientSuggestionSnapshot: clientsMock.getClientSuggestionSnapshot,
-    acknowledgeClientSuggestionSnapshot:
-      clientsMock.acknowledgeClientSuggestionSnapshot,
+    acknowledgeClientSuggestionSnapshot: clientsMock.acknowledgeClientSuggestionSnapshot,
   };
 });
 
 import ClientSuggestionBanner from '../ClientSuggestionBanner';
 
-const renderWithRouter = (ui: React.ReactElement) =>
-  render(<MemoryRouter>{ui}</MemoryRouter>);
+const renderWithRouter = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
 describe('ClientSuggestionBanner', () => {
   beforeEach(() => {
@@ -30,9 +26,7 @@ describe('ClientSuggestionBanner', () => {
   });
 
   it('renders nothing when disabled', async () => {
-    const { container } = renderWithRouter(
-      <ClientSuggestionBanner enabled={false} />,
-    );
+    const { container } = renderWithRouter(<ClientSuggestionBanner enabled={false} />);
     expect(container.firstChild).toBeNull();
     expect(clientsMock.getClientSuggestionSnapshot).not.toHaveBeenCalled();
   });
@@ -41,9 +35,7 @@ describe('ClientSuggestionBanner', () => {
     clientsMock.getClientSuggestionSnapshot.mockResolvedValue({
       snapshot: null,
     });
-    const { container } = renderWithRouter(
-      <ClientSuggestionBanner enabled />,
-    );
+    const { container } = renderWithRouter(<ClientSuggestionBanner enabled />);
     await waitFor(() => {
       expect(clientsMock.getClientSuggestionSnapshot).toHaveBeenCalled();
     });
@@ -65,12 +57,11 @@ describe('ClientSuggestionBanner', () => {
     });
     renderWithRouter(<ClientSuggestionBanner enabled />);
 
-    expect(
-      await screen.findByText(/3 new client suggestions/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('link', { name: /review suggestions/i }),
-    ).toHaveAttribute('href', '/clients/suggest');
+    expect(await screen.findByText(/3 new client suggestions/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /review suggestions/i })).toHaveAttribute(
+      'href',
+      '/clients/suggest',
+    );
     expect(screen.getByText(/after your meta sync/i)).toBeInTheDocument();
   });
 
@@ -88,9 +79,7 @@ describe('ClientSuggestionBanner', () => {
       },
     });
     renderWithRouter(<ClientSuggestionBanner enabled />);
-    expect(
-      await screen.findByText(/1 new client suggestion\b/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/1 new client suggestion\b/i)).toBeInTheDocument();
   });
 
   it('hides itself after dismiss and calls acknowledge', async () => {
@@ -118,14 +107,10 @@ describe('ClientSuggestionBanner', () => {
     fireEvent.click(dismissButton);
 
     await waitFor(() => {
-      expect(
-        clientsMock.acknowledgeClientSuggestionSnapshot,
-      ).toHaveBeenCalled();
+      expect(clientsMock.acknowledgeClientSuggestionSnapshot).toHaveBeenCalled();
     });
     await waitFor(() => {
-      expect(
-        screen.queryByText(/new client suggestion/i),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/new client suggestion/i)).not.toBeInTheDocument();
     });
   });
 
@@ -142,9 +127,7 @@ describe('ClientSuggestionBanner', () => {
         is_unacknowledged: false,
       },
     });
-    const { container } = renderWithRouter(
-      <ClientSuggestionBanner enabled />,
-    );
+    const { container } = renderWithRouter(<ClientSuggestionBanner enabled />);
     await waitFor(() => {
       expect(clientsMock.getClientSuggestionSnapshot).toHaveBeenCalled();
     });

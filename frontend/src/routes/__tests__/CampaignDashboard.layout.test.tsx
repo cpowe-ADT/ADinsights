@@ -297,7 +297,9 @@ describe('CampaignDashboard layout', () => {
       screen.getByRole('heading', { level: 2, name: /daily spend trend/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: /parish heatmap/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: /region breakdown/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 2, name: /region breakdown/i }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { level: 2, name: /campaign metrics table/i }),
     ).toBeInTheDocument();

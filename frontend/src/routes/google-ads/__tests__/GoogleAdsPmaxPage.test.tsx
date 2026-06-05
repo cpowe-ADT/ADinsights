@@ -68,16 +68,12 @@ describe('GoogleAdsPmaxPage', () => {
         <GoogleAdsPmaxPage />
       </MemoryRouter>,
     );
-    await waitFor(() =>
-      expect(screen.getByText('Total Asset Groups')).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText('Total Asset Groups')).toBeInTheDocument());
     expect(screen.getByText('Total Cost')).toBeInTheDocument();
     expect(screen.getByText('Total Conv')).toBeInTheDocument();
 
     // Treemap renders with role="img" + sr-only accessible table.
-    expect(
-      screen.getByRole('img', { name: /performance max asset groups/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /performance max asset groups/i })).toBeInTheDocument();
 
     // Hidden-table equivalent lists every asset group.
     const treemapTable = container.querySelector(
@@ -98,9 +94,7 @@ describe('GoogleAdsPmaxPage', () => {
       </MemoryRouter>,
     );
     await waitFor(() =>
-      expect(
-        container.querySelector('[data-reason-code="no_pmax_groups"]'),
-      ).toBeInTheDocument(),
+      expect(container.querySelector('[data-reason-code="no_pmax_groups"]')).toBeInTheDocument(),
     );
   });
 
@@ -111,8 +105,6 @@ describe('GoogleAdsPmaxPage', () => {
         <GoogleAdsPmaxPage />
       </MemoryRouter>,
     );
-    await waitFor(() =>
-      expect(screen.getByText('PMax boom')).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText('PMax boom')).toBeInTheDocument());
   });
 });

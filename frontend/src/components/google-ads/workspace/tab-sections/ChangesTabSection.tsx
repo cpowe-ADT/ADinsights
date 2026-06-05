@@ -90,9 +90,7 @@ const ChangesTabSection = ({ data, status, error, loadMore }: Props) => {
   );
 
   const [mergedRows, setMergedRows] = useState<GoogleAdsChangeRow[]>(initialRows);
-  const [currentCursor, setCurrentCursor] = useState<string | null>(
-    payload.next_cursor ?? null,
-  );
+  const [currentCursor, setCurrentCursor] = useState<string | null>(payload.next_cursor ?? null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
 
@@ -165,11 +163,7 @@ const ChangesTabSection = ({ data, status, error, loadMore }: Props) => {
     <div className="gads-workspace__tab-grid" data-testid="google-ads-changes-section">
       <section className="panel">
         <h2>Change KPIs</h2>
-        <div
-          className="gads-workspace__kpi-grid"
-          role="list"
-          aria-label="Google Ads change KPIs"
-        >
+        <div className="gads-workspace__kpi-grid" role="list" aria-label="Google Ads change KPIs">
           <KpiTile label="Total changes" value={totalCount} format="number" />
           <KpiTile label="Changes last 7 days" value={last7d} format="number" />
         </div>
@@ -186,7 +180,9 @@ const ChangesTabSection = ({ data, status, error, loadMore }: Props) => {
       </section>
 
       <section className="panel">
-        <h2>Change log ({mergedRows.length}/{totalCount})</h2>
+        <h2>
+          Change log ({mergedRows.length}/{totalCount})
+        </h2>
         <div className="table-responsive">
           <table className="dashboard-table">
             <thead>
@@ -205,15 +201,10 @@ const ChangesTabSection = ({ data, status, error, loadMore }: Props) => {
                 const chipClass = SEVERITY_CHIP_CLASS[severity];
                 const key = `${String(row.customer_id ?? '')}-${String(row.change_date_time ?? idx)}-${idx}`;
                 return (
-                  <tr
-                    key={key}
-                    className="dashboard-table__row dashboard-table__row--zebra"
-                  >
+                  <tr key={key} className="dashboard-table__row dashboard-table__row--zebra">
                     <td className="dashboard-table__cell">{row.change_date_time ?? '—'}</td>
                     <td className="dashboard-table__cell">{row.user_email ?? '—'}</td>
-                    <td className="dashboard-table__cell">
-                      {row.change_resource_type ?? '—'}
-                    </td>
+                    <td className="dashboard-table__cell">{row.change_resource_type ?? '—'}</td>
                     <td className="dashboard-table__cell">
                       <span
                         className={chipClass}
@@ -237,10 +228,7 @@ const ChangesTabSection = ({ data, status, error, loadMore }: Props) => {
           </table>
         </div>
         {canLoadMore ? (
-          <div
-            className="dashboard-header__actions-row"
-            style={{ marginTop: '0.75rem' }}
-          >
+          <div className="dashboard-header__actions-row" style={{ marginTop: '0.75rem' }}>
             <button
               type="button"
               className="button secondary"

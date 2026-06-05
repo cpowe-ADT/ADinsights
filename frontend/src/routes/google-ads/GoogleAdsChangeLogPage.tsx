@@ -3,10 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import ChangesTabSection from '../../components/google-ads/workspace/tab-sections/ChangesTabSection';
 import { appendQueryParams } from '../../lib/apiClient';
 import { resolveFilterRange } from '../../lib/dashboardFilters';
-import {
-  fetchGoogleAdsList,
-  type GoogleAdsListResponse,
-} from '../../lib/googleAdsDashboard';
+import { fetchGoogleAdsList, type GoogleAdsListResponse } from '../../lib/googleAdsDashboard';
 import type { GoogleAdsChangeRow } from '../../lib/googleAdsAggregates';
 import useDashboardStore from '../../state/useDashboardStore';
 
@@ -28,27 +25,30 @@ const GoogleAdsChangeLogPage = () => {
 
   const filters = useDashboardStore((state) => state.filters);
 
-  const load = useCallback(async (signal?: AbortSignal) => {
-    setStatus('loading');
-    setError('');
-    try {
-      const { start, end } = resolveFilterRange(filters);
-      const path = appendQueryParams('/analytics/google-ads/change-events/', {
-        platforms: 'google_ads',
-        customer_id: filters.accountId || undefined,
-        start_date: start || undefined,
-        end_date: end || undefined,
-      });
-      const response = await fetchGoogleAdsList<GoogleAdsChangeRow>(path);
-      if (signal?.aborted) return;
-      setPayload(response);
-      setStatus('success');
-    } catch (err) {
-      if (signal?.aborted) return;
-      setError(err instanceof Error ? err.message : 'Failed to load change events.');
-      setStatus('error');
-    }
-  }, [filters]);
+  const load = useCallback(
+    async (signal?: AbortSignal) => {
+      setStatus('loading');
+      setError('');
+      try {
+        const { start, end } = resolveFilterRange(filters);
+        const path = appendQueryParams('/analytics/google-ads/change-events/', {
+          platforms: 'google_ads',
+          customer_id: filters.accountId || undefined,
+          start_date: start || undefined,
+          end_date: end || undefined,
+        });
+        const response = await fetchGoogleAdsList<GoogleAdsChangeRow>(path);
+        if (signal?.aborted) return;
+        setPayload(response);
+        setStatus('success');
+      } catch (err) {
+        if (signal?.aborted) return;
+        setError(err instanceof Error ? err.message : 'Failed to load change events.');
+        setStatus('error');
+      }
+    },
+    [filters],
+  );
 
   useEffect(() => {
     const controller = new AbortController();

@@ -10,13 +10,13 @@
 
 ## ⚠️ CORRECTION NOTE (added during adversarial audit)
 
-An adversarial audit surfaced material inaccuracies in the GA-A* task definitions below. Verified against source:
+An adversarial audit surfaced material inaccuracies in the GA-A\* task definitions below. Verified against source:
 
 1. **`GoogleAdsBudgetPacingView` EXISTS** at `backend/analytics/google_ads_views.py:1308` and is routed at `backend/analytics/urls.py:95`. It returns a **tenant-level rollup**, not per-campaign rows. GA-A1 is therefore an **extension** of an existing view, not a new endpoint.
 2. **`GoogleAdsRecommendationsView` EXISTS** at `google_ads_views.py:1413` / routed at `urls.py:105`. The `GoogleAdsSdkRecommendation` model at `backend/integrations/models.py:1228` **already has a `dismissed` boolean field** (indexed at line 1241). GA-A2 is adding a **dismiss action endpoint + UI button**, NOT a new dismissals table.
 3. **`GoogleAdsExportCreateView` / `ExportStatusView` / `ExportDownloadView` ALL EXIST** at lines 1599/1673/1690 of `google_ads_views.py` (routed at `urls.py:109-118`). `frontend/src/lib/googleAdsDashboard.ts:109-121` already calls them. The actual gap is that `ReportsTabSection.tsx:89-92` fires `fetchGoogleAdsExportStatus` **once** — there's no polling loop. GA-A3 is a **frontend polling wire-up**, not a backend build.
 
-The GA-A*/B*/C* text below is left as the original aspiration. **Use the verified scope in `prompts/finish-google-ads.v2.md` Pre-Flight section as the authoritative task definition.** Do not build duplicate endpoints. Always `grep` the view names above before writing a single line of backend code.
+The GA-A*/B*/C\* text below is left as the original aspiration. **Use the verified scope in `prompts/finish-google-ads.v2.md` Pre-Flight section as the authoritative task definition.** Do not build duplicate endpoints. Always `grep` the view names above before writing a single line of backend code.
 
 ## How to read this file
 
@@ -27,17 +27,17 @@ The GA-A*/B*/C* text below is left as the original aspiration. **Use the verifie
 
 ## Current gap inventory (verified)
 
-| # | Gap | File cite | Phase |
-|---|---|---|---|
-| 1 | Pacing tab: per-campaign budget variance endpoint | `frontend/src/components/google-ads/workspace/tab-sections/PacingTabSection.tsx` (search `[NEW-ENDPOINT]`) | A |
-| 2 | Recommendations: dismiss action wired in UI but backend integration incomplete | `frontend/src/components/google-ads/workspace/tab-sections/RecommendationsTabSection.tsx` | A |
-| 3 | Reports: list-saved-reports endpoint missing entirely | `frontend/src/components/google-ads/workspace/tab-sections/ReportsTabSection.tsx` | A |
-| 4 | Reports: export-job status polling unwired (jobs queued but no UI updates) | same as #3 | A |
-| 5 | Change log pagination — only recent events visible | `frontend/src/components/google-ads/workspace/tab-sections/ChangesTabSection.tsx` | B |
-| 6 | Saved-view reconciliation check (client-state drift) | `frontend/src/routes/google-ads/GoogleAdsReportsPage.tsx` | B |
-| 7 | Integration tests for tab→endpoint wiring | `frontend/src/components/google-ads/workspace/__tests__/` + `backend/tests/test_google_ads_*.py` | C |
-| 8 | IS% (Impression Share) — permanent deferral, not a gap | `frontend/src/components/google-ads/workspace/WorkspaceKpiStrip.tsx:19-22` | — |
-| 9 | Per-campaign/per-asset daily series — permanent API limitation | `artifacts/sprint/S3-architect-design.md §6.2` | — |
+| #   | Gap                                                                            | File cite                                                                                                  | Phase |
+| --- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ----- |
+| 1   | Pacing tab: per-campaign budget variance endpoint                              | `frontend/src/components/google-ads/workspace/tab-sections/PacingTabSection.tsx` (search `[NEW-ENDPOINT]`) | A     |
+| 2   | Recommendations: dismiss action wired in UI but backend integration incomplete | `frontend/src/components/google-ads/workspace/tab-sections/RecommendationsTabSection.tsx`                  | A     |
+| 3   | Reports: list-saved-reports endpoint missing entirely                          | `frontend/src/components/google-ads/workspace/tab-sections/ReportsTabSection.tsx`                          | A     |
+| 4   | Reports: export-job status polling unwired (jobs queued but no UI updates)     | same as #3                                                                                                 | A     |
+| 5   | Change log pagination — only recent events visible                             | `frontend/src/components/google-ads/workspace/tab-sections/ChangesTabSection.tsx`                          | B     |
+| 6   | Saved-view reconciliation check (client-state drift)                           | `frontend/src/routes/google-ads/GoogleAdsReportsPage.tsx`                                                  | B     |
+| 7   | Integration tests for tab→endpoint wiring                                      | `frontend/src/components/google-ads/workspace/__tests__/` + `backend/tests/test_google_ads_*.py`           | C     |
+| 8   | IS% (Impression Share) — permanent deferral, not a gap                         | `frontend/src/components/google-ads/workspace/WorkspaceKpiStrip.tsx:19-22`                                 | —     |
+| 9   | Per-campaign/per-asset daily series — permanent API limitation                 | `artifacts/sprint/S3-architect-design.md §6.2`                                                             | —     |
 
 ---
 
@@ -98,6 +98,7 @@ Goal: CI green on full Google Ads surface with real data shapes, and the SDK-hyb
 ### GA-C1 — Integration test suite for tab↔endpoint wiring (L, 3–4d)
 
 For each of the 10 tab sections, write one integration test that:
+
 1. Mocks the expected response shape from the backend
 2. Asserts the tab renders KPIs + chart + table without error
 3. Exercises the empty/loading/error branches
@@ -131,10 +132,10 @@ Manual or scripted — point the local dev stack at a real Google Ads test accou
 
 ## Phase summary
 
-| Phase | Effort | Blocker? | When |
-|---|---|---|---|
-| A — 3 incomplete tabs | 8–11d | Yes (blocks "GA ship") | Now |
-| B — Polish | 3–4d | No | After A |
-| C — Hardening + docs | 5–7d | No | After A, ideally before GA |
+| Phase                 | Effort | Blocker?               | When                       |
+| --------------------- | ------ | ---------------------- | -------------------------- |
+| A — 3 incomplete tabs | 8–11d  | Yes (blocks "GA ship") | Now                        |
+| B — Polish            | 3–4d   | No                     | After A                    |
+| C — Hardening + docs  | 5–7d   | No                     | After A, ideally before GA |
 
 **Total Google Ads to done: ~16–22 working days.** Add 2–3 days slack for PR review + staging smoke.

@@ -9,21 +9,22 @@ Upgrades all Google Ads workspace tabs to the viz layout using Sprint 1 componen
 
 ## Verified endpoints (from `backend/analytics/google_ads_views.py` + `urls.py`)
 
-| Tab | Endpoint | URL pattern |
-|-----|----------|-------------|
-| Overview / Workspace Summary | `/api/google-ads/workspace/summary/` | `GoogleAdsWorkspaceSummaryView` |
-| Campaigns | `/api/google-ads/campaigns/` | `GoogleAdsCampaignListView` |
-| Search keywords | `/api/google-ads/keywords/` | — |
-| Search terms | `/api/google-ads/search-terms/` | — |
-| Assets | `/api/google-ads/assets/` | — |
-| PMax asset groups | `/api/google-ads/pmax-asset-groups/` | — |
-| Conversions | `/api/google-ads/conversions-by-action/` | — |
-| Pacing | `/api/google-ads/budget-pacing/` | — |
-| Changes | `/api/google-ads/change-events/` | — |
-| Recommendations | `/api/google-ads/recommendations/` | `GoogleAdsRecommendationsView` |
-| Channel performance | `/api/google-ads/channels/` | `GoogleAdsChannelPerformanceView` |
+| Tab                          | Endpoint                                 | URL pattern                       |
+| ---------------------------- | ---------------------------------------- | --------------------------------- |
+| Overview / Workspace Summary | `/api/google-ads/workspace/summary/`     | `GoogleAdsWorkspaceSummaryView`   |
+| Campaigns                    | `/api/google-ads/campaigns/`             | `GoogleAdsCampaignListView`       |
+| Search keywords              | `/api/google-ads/keywords/`              | —                                 |
+| Search terms                 | `/api/google-ads/search-terms/`          | —                                 |
+| Assets                       | `/api/google-ads/assets/`                | —                                 |
+| PMax asset groups            | `/api/google-ads/pmax-asset-groups/`     | —                                 |
+| Conversions                  | `/api/google-ads/conversions-by-action/` | —                                 |
+| Pacing                       | `/api/google-ads/budget-pacing/`         | —                                 |
+| Changes                      | `/api/google-ads/change-events/`         | —                                 |
+| Recommendations              | `/api/google-ads/recommendations/`       | `GoogleAdsRecommendationsView`    |
+| Channel performance          | `/api/google-ads/channels/`              | `GoogleAdsChannelPerformanceView` |
 
 **Key findings from source inspection:**
+
 - The workspace summary (`/api/google-ads/workspace/summary/`) returns: `metrics` (spend, impressions, clicks, conversions, conversion_value), `comparison`, `pacing` (spend_mtd, budget_month, forecast_month_end, over_under, pacing_pct), `trend[]` (date, spend, conversions, roas), `movers[]` (top 10 by spend), `alerts_summary` (overspend_risk, underdelivery, spend_spike, conversion_drop), `governance_summary` (recent_changes_7d, active_recommendations, disapproved_ads), `top_insights[]`.
 - **Impression share is NOT in the executive payload.** The `metrics` object contains only spend, impressions, clicks, conversions, conversion_value. Defer the IS tile.
 - Campaign daily time series: `GET /api/google-ads/campaigns/` returns AGGREGATED rows (no date dimension). Use `GET /api/google-ads/channels/` for a cost+conversions trend by channel type. For per-campaign daily series: `[NEW-ENDPOINT]`.
@@ -34,17 +35,17 @@ Upgrades all Google Ads workspace tabs to the viz layout using Sprint 1 componen
 
 Can be worked in parallel:
 
-| Deliverable | File | Priority |
-|-------------|------|----------|
-| Overview tab | `google-ads-overview.md` | High |
-| Campaigns tab | `google-ads-campaigns.md` | High |
-| Search tab | `google-ads-search.md` | Medium |
-| Assets tab | `google-ads-assets.md` | Medium |
-| PMax tab | `google-ads-pmax.md` | Medium |
-| Conversions tab | `google-ads-conversions.md` | Medium |
-| Pacing tab | `google-ads-pacing.md` | Medium |
-| Changes tab | `google-ads-changes.md` | Low |
-| Recommendations tab | `google-ads-recommendations.md` | Low |
+| Deliverable         | File                            | Priority |
+| ------------------- | ------------------------------- | -------- |
+| Overview tab        | `google-ads-overview.md`        | High     |
+| Campaigns tab       | `google-ads-campaigns.md`       | High     |
+| Search tab          | `google-ads-search.md`          | Medium   |
+| Assets tab          | `google-ads-assets.md`          | Medium   |
+| PMax tab            | `google-ads-pmax.md`            | Medium   |
+| Conversions tab     | `google-ads-conversions.md`     | Medium   |
+| Pacing tab          | `google-ads-pacing.md`          | Medium   |
+| Changes tab         | `google-ads-changes.md`         | Low      |
+| Recommendations tab | `google-ads-recommendations.md` | Low      |
 
 ## Sprint 3 Definition of Done
 

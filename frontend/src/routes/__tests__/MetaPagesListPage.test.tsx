@@ -58,9 +58,7 @@ describe('MetaPagesListPage', () => {
     );
 
     expect(await screen.findByText('No Pages available')).toBeInTheDocument();
-    expect(
-      screen.getByText(/This screen lists Facebook Pages only\./i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/This screen lists Facebook Pages only\./i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Connect socials' })).toHaveAttribute(
       'href',
       '/dashboards/data-sources?sources=social',

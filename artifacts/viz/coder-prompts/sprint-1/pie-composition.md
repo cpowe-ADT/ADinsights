@@ -24,19 +24,20 @@
   - `frontend/src/components/viz/__tests__/PieComposition.test.tsx` (create)
 
 - **Props API**:
+
 ```typescript
-type ChartValueType = 'currency' | 'number' | 'percent' | 'rate'
+type ChartValueType = 'currency' | 'number' | 'percent' | 'rate';
 
 interface PieCompositionProps {
-  data: Array<{ label: string; value: number; color?: string }>
-  innerRadius?: number    // 0 = pie, 60 = donut (default: 60)
-  yFormat?: ChartValueType
-  currency?: string
-  showLegend?: boolean    // default: true
-  height?: number         // default: 220
-  isLoading?: boolean
-  emptyReasonCode?: string
-  className?: string
+  data: Array<{ label: string; value: number; color?: string }>;
+  innerRadius?: number; // 0 = pie, 60 = donut (default: 60)
+  yFormat?: ChartValueType;
+  currency?: string;
+  showLegend?: boolean; // default: true
+  height?: number; // default: 220
+  isLoading?: boolean;
+  emptyReasonCode?: string;
+  className?: string;
 }
 ```
 
@@ -56,6 +57,7 @@ interface PieCompositionProps {
 ## Design
 
 Recharts primitives:
+
 ```tsx
 <PieChart height={height}>
   <defs>
@@ -88,6 +90,7 @@ Recharts primitives:
 ```
 
 Center label for donut (innerRadius > 0): render an absolutely-positioned `<text>` element inside a `<svg>` overlay or use Recharts `<Label>` inside `<Pie>`:
+
 ```tsx
 <Label
   value={formatValue(total, yFormat, currency)}

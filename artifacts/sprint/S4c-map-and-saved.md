@@ -4,17 +4,17 @@
 
 ## Files Modified
 
-| # | File | Nature of change |
-|---|------|------------------|
-| 1 | `frontend/src/lib/dashboardTemplates.ts` | Added optional `layout?: { slots: SlotConfig[] }` + exported `SlotKind` / `SlotConfig` types. No existing template populates `layout` (backward-compat). |
-| 2 | `frontend/src/routes/ParishMapDetail.tsx` | Added KPI picker select above the map (bound to `setSelectedMetric`); wrapped `<ParishMap>` viewport in a `key={filters.platforms.join(',')}` element to force Leaflet layer remount on platform-filter change (architect risk #8 / B-MAP-01); inline `[NEW-ENDPOINT]` comments for deferred bubble overlay (§3 gap) + sparkline-in-tooltip (§3 gap). |
-| 3 | `frontend/src/routes/SavedDashboardPage.tsx` | Added typed hook for optional slot-grid rendering (`SavedDashboardSlotGrid`) behind `template.layout?.slots?.length`. Legacy `renderTemplate(routeKind)` dispatch preserved verbatim — used when `layout` absent (always true in Sprint 4). FP-SAVED-01/02 untouched. |
-| 4 | `frontend/src/routes/DashboardLibrary.tsx` | Added summary KPI strip (3 `KpiTile`: System templates / Saved dashboards / Updated in last 7 days) via `role="group"` + `aria-label="Dashboard library summary"`. Only mounted when the library has content (preserves existing empty-state branch). |
-| 5 | `frontend/src/routes/DashboardCreate.tsx` | Swapped 5 legacy `StatCard` tiles at preview section for 5 shared `KpiTile` (currency/number/rate formats). Removed now-unused `StatCard` + `formatCurrency`/`formatRatio` imports. Added `role="group"` aria-label on the preview KPI column. FP-CREATE-01 `platforms: ['meta_ads']` preview-fetch default unchanged. |
-| 6 | `frontend/src/routes/__tests__/ParishMapDetail.test.tsx` | +1 test: `renders the KPI picker select and dispatches setSelectedMetric on change`. Extended mock state with `platforms: ['meta_ads']` + wired `setSelectedMetric` spy. |
-| 7 | `frontend/src/routes/__tests__/SavedDashboardPage.test.tsx` | +1 test: `renders the SavedDashboardSlotGrid instead of the full-page template when template.layout.slots is populated`. Wrapped the flaky `location.search` assertion in `waitFor` (flake fix — see §Flake Outcome). |
-| 8 | `frontend/src/routes/__tests__/DashboardLibrary.test.tsx` | +1 test: `renders the S4c library summary KPI strip with template / saved / recent counts`. |
-| 9 | `frontend/src/routes/__tests__/DashboardCreate.test.tsx` | +2 tests: `renders the KpiTile preview strip instead of legacy StatCard after S4c migration`; `preserves backward-compatibility for templates without a layout field (S4c grid-snap hook)`. |
+| #   | File                                                        | Nature of change                                                                                                                                                                                                                                                                                                                                      |
+| --- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `frontend/src/lib/dashboardTemplates.ts`                    | Added optional `layout?: { slots: SlotConfig[] }` + exported `SlotKind` / `SlotConfig` types. No existing template populates `layout` (backward-compat).                                                                                                                                                                                              |
+| 2   | `frontend/src/routes/ParishMapDetail.tsx`                   | Added KPI picker select above the map (bound to `setSelectedMetric`); wrapped `<ParishMap>` viewport in a `key={filters.platforms.join(',')}` element to force Leaflet layer remount on platform-filter change (architect risk #8 / B-MAP-01); inline `[NEW-ENDPOINT]` comments for deferred bubble overlay (§3 gap) + sparkline-in-tooltip (§3 gap). |
+| 3   | `frontend/src/routes/SavedDashboardPage.tsx`                | Added typed hook for optional slot-grid rendering (`SavedDashboardSlotGrid`) behind `template.layout?.slots?.length`. Legacy `renderTemplate(routeKind)` dispatch preserved verbatim — used when `layout` absent (always true in Sprint 4). FP-SAVED-01/02 untouched.                                                                                 |
+| 4   | `frontend/src/routes/DashboardLibrary.tsx`                  | Added summary KPI strip (3 `KpiTile`: System templates / Saved dashboards / Updated in last 7 days) via `role="group"` + `aria-label="Dashboard library summary"`. Only mounted when the library has content (preserves existing empty-state branch).                                                                                                 |
+| 5   | `frontend/src/routes/DashboardCreate.tsx`                   | Swapped 5 legacy `StatCard` tiles at preview section for 5 shared `KpiTile` (currency/number/rate formats). Removed now-unused `StatCard` + `formatCurrency`/`formatRatio` imports. Added `role="group"` aria-label on the preview KPI column. FP-CREATE-01 `platforms: ['meta_ads']` preview-fetch default unchanged.                                |
+| 6   | `frontend/src/routes/__tests__/ParishMapDetail.test.tsx`    | +1 test: `renders the KPI picker select and dispatches setSelectedMetric on change`. Extended mock state with `platforms: ['meta_ads']` + wired `setSelectedMetric` spy.                                                                                                                                                                              |
+| 7   | `frontend/src/routes/__tests__/SavedDashboardPage.test.tsx` | +1 test: `renders the SavedDashboardSlotGrid instead of the full-page template when template.layout.slots is populated`. Wrapped the flaky `location.search` assertion in `waitFor` (flake fix — see §Flake Outcome).                                                                                                                                 |
+| 8   | `frontend/src/routes/__tests__/DashboardLibrary.test.tsx`   | +1 test: `renders the S4c library summary KPI strip with template / saved / recent counts`.                                                                                                                                                                                                                                                           |
+| 9   | `frontend/src/routes/__tests__/DashboardCreate.test.tsx`    | +2 tests: `renders the KpiTile preview strip instead of legacy StatCard after S4c migration`; `preserves backward-compatibility for templates without a layout field (S4c grid-snap hook)`.                                                                                                                                                           |
 
 ## FP-SAVED-01 / FP-SAVED-02 preservation cites
 
@@ -27,7 +27,7 @@
 - **Bubble overlay per account location — DEFERRED.** Inline comment at `frontend/src/routes/ParishMapDetail.tsx:186–193` tagged `[NEW-ENDPOINT]`. Neither the `parish` store slice nor `/api/metrics/combined/` carries account-level `{lat, lng}`; a new geocoded endpoint is required. Architect decision per §3 gap table.
 - **Sparkline-in-tooltip — DEFERRED.** Inline comment at `frontend/src/routes/ParishMapDetail.tsx:195–199` tagged `[NEW-ENDPOINT]`. Store exposes island-level `campaign.data.trend[]` but no per-parish daily rollup. Tooltip continues to show parish name + KPI values only (ARIA-equivalent text from `ParishMap.tsx:1050–1051` legend).
 - **KPI picker — IMPLEMENTED.** `frontend/src/routes/ParishMapDetail.tsx:172–185`, wired to `setSelectedMetric` via a dedicated `handleMetricChange` at `:88–93`. Select carries `aria-label="Choropleth metric"` per the a11y contract.
-- **Platform-filter remount — IMPLEMENTED.** `frontend/src/routes/ParishMapDetail.tsx:201` — `<div className="mapViewport" key={\`parish-map-${platformsFilterKey}\`}>` forces Leaflet layer subtree remount on `filters.platforms` change, mitigating B-MAP-01 stale-layer risk (architect risk #8). `platformsFilterKey` derived from `state.filters.platforms.join(',')` at `:43`.
+- **Platform-filter remount — IMPLEMENTED.** `frontend/src/routes/ParishMapDetail.tsx:201` — `<div className="mapViewport" key={\`parish-map-${platformsFilterKey}\`}>`forces Leaflet layer subtree remount on`filters.platforms`change, mitigating B-MAP-01 stale-layer risk (architect risk #8).`platformsFilterKey`derived from`state.filters.platforms.join(',')`at`:43`.
 
 ## Grid-snap implementation summary
 
@@ -70,12 +70,12 @@
 
 ## Tests Added
 
-| Suite | New tests |
-|-------|-----------|
-| `ParishMapDetail.test.tsx` | `renders the KPI picker select and dispatches setSelectedMetric on change` |
-| `SavedDashboardPage.test.tsx` | `renders the SavedDashboardSlotGrid instead of the full-page template when template.layout.slots is populated` |
-| `DashboardLibrary.test.tsx` | `renders the S4c library summary KPI strip with template / saved / recent counts` |
-| `DashboardCreate.test.tsx` | `renders the KpiTile preview strip instead of legacy StatCard after S4c migration`; `preserves backward-compatibility for templates without a layout field (S4c grid-snap hook)` |
+| Suite                         | New tests                                                                                                                                                                        |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ParishMapDetail.test.tsx`    | `renders the KPI picker select and dispatches setSelectedMetric on change`                                                                                                       |
+| `SavedDashboardPage.test.tsx` | `renders the SavedDashboardSlotGrid instead of the full-page template when template.layout.slots is populated`                                                                   |
+| `DashboardLibrary.test.tsx`   | `renders the S4c library summary KPI strip with template / saved / recent counts`                                                                                                |
+| `DashboardCreate.test.tsx`    | `renders the KpiTile preview strip instead of legacy StatCard after S4c migration`; `preserves backward-compatibility for templates without a layout field (S4c grid-snap hook)` |
 
 Total: +5 tests; all preserving existing tests (+FP-MAP-01, +FP-SAVED-01/02, +FP-LIB-01, +FP-CREATE-01).
 

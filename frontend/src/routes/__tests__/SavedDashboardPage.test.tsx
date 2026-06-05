@@ -113,9 +113,7 @@ describe('SavedDashboardPage', () => {
       '/dashboards',
     );
 
-    await waitFor(() =>
-      expect(storeMock.state.setFilters).toHaveBeenCalledWith(expectedFilters),
-    );
+    await waitFor(() => expect(storeMock.state.setFilters).toHaveBeenCalledWith(expectedFilters));
     expect(storeMock.state.setSelectedMetric).toHaveBeenCalledWith('ctr');
     expect(storeMock.state.setSelectedParish).toHaveBeenCalledWith(undefined);
     // S4c flake fix — wrap the location.search assertion in waitFor. In the
@@ -139,17 +137,15 @@ describe('SavedDashboardPage', () => {
     // (and only when) a template carries `layout.slots`. All shipped Sprint 4
     // templates have `layout` absent, so this path is exercised via a spy.
     const baseTemplate = dashboardTemplatesModule.getDashboardTemplate('meta_creative_insights');
-    const spy = vi
-      .spyOn(dashboardTemplatesModule, 'getDashboardTemplate')
-      .mockReturnValue({
-        ...baseTemplate,
-        layout: {
-          slots: [
-            { id: 'slot-kpi', kind: 'kpi-strip', cols: 12, rows: 1, title: 'KPI strip' },
-            { id: 'slot-table', kind: 'data-table', cols: 12, rows: 3, title: 'Leaderboard' },
-          ],
-        },
-      });
+    const spy = vi.spyOn(dashboardTemplatesModule, 'getDashboardTemplate').mockReturnValue({
+      ...baseTemplate,
+      layout: {
+        slots: [
+          { id: 'slot-kpi', kind: 'kpi-strip', cols: 12, rows: 1, title: 'KPI strip' },
+          { id: 'slot-table', kind: 'data-table', cols: 12, rows: 3, title: 'Leaderboard' },
+        ],
+      },
+    });
 
     render(
       <MemoryRouter initialEntries={['/dashboards/saved/dash-1']}>

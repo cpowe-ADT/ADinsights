@@ -25,7 +25,7 @@
   - `frontend/src/routes/__tests__/ParishMapDetail.test.tsx` (modify or create)
 
 - **Data binding**:
-  - KPI strip (4 tiles): Total Spend (sum), Top Parish (parish with max spend), Top Parish Spend, Parish Coverage % = (parishes with spend > 0 / 14) * 100.
+  - KPI strip (4 tiles): Total Spend (sum), Top Parish (parish with max spend), Top Parish Spend, Parish Coverage % = (parishes with spend > 0 / 14) \* 100.
   - KPI picker `<select>`: Spend / Impressions / Clicks / Conversions — controls which metric fills the choropleth. Client-side state only.
   - Choropleth: Leaflet `GeoJSON` layer with `style` function. For each feature, look up parish row by `feature.properties.name`. Fill color: 5-bucket sequential scale using `chartPalette[0]` (#2563eb) at 5 alpha steps (0.15, 0.30, 0.50, 0.70, 0.95). Compute buckets as quintiles of the metric values across all parishes.
   - Popup on hover: `feature.properties.name`, all 4 KPI values, `[/* Sparkline: [NEW-ENDPOINT] /api/metrics/combined/?group_by=parish&group_id={id} - not yet implemented */]`.
@@ -59,8 +59,9 @@
 ```
 
 Choropleth color scale (5 buckets):
+
 ```typescript
-const alphaSteps = [0.15, 0.30, 0.50, 0.70, 0.95]
+const alphaSteps = [0.15, 0.3, 0.5, 0.7, 0.95];
 // Bucket index 0–4 based on quintile rank of metric value
 // Fill: `rgba(37, 99, 235, ${alphaSteps[bucketIndex]})`
 ```

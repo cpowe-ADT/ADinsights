@@ -23,13 +23,7 @@ describe('AssetsTabSection — integration', () => {
   });
 
   it('renders empty state', () => {
-    render(
-      <AssetsTabSection
-        data={{ count: 0, results: [] }}
-        status="success"
-        error=""
-      />,
-    );
+    render(<AssetsTabSection data={{ count: 0, results: [] }} status="success" error="" />);
     expect(screen.getByText('No assets in range')).toBeInTheDocument();
   });
 
@@ -48,9 +42,7 @@ describe('AssetsTabSection — integration', () => {
       ],
     };
     render(<AssetsTabSection data={payload} status="success" error="" />);
-    expect(
-      screen.getByTestId('google-ads-assets-section'),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('google-ads-assets-section')).toBeInTheDocument();
     expect(screen.getByText(/Asset performance/)).toBeInTheDocument();
     expect(screen.getByText('APPROVED')).toBeInTheDocument();
     expect(screen.getByText('DISAPPROVED')).toBeInTheDocument();

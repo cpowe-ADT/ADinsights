@@ -92,9 +92,7 @@ const RecommendationsTabSection = ({ data, status, error }: Props) => {
         return;
       }
       // Optimistic update.
-      setRows((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, dismissed: true } : r)),
-      );
+      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, dismissed: true } : r)));
       setPendingIds((prev) => {
         const next = new Set(prev);
         next.add(id);
@@ -105,11 +103,8 @@ const RecommendationsTabSection = ({ data, status, error }: Props) => {
         addToast('Recommendation dismissed');
       } catch (err) {
         // Rollback + toast error.
-        setRows((prev) =>
-          prev.map((r) => (r.id === id ? { ...r, dismissed: false } : r)),
-        );
-        const msg =
-          err instanceof Error ? err.message : 'Failed to dismiss recommendation.';
+        setRows((prev) => prev.map((r) => (r.id === id ? { ...r, dismissed: false } : r)));
+        const msg = err instanceof Error ? err.message : 'Failed to dismiss recommendation.';
         addToast(msg, 'error');
       } finally {
         setPendingIds((prev) => {
@@ -189,25 +184,17 @@ const RecommendationsTabSection = ({ data, status, error }: Props) => {
               {rows.map((row, idx) => {
                 const severity = deriveRecommendationSeverity(row);
                 const chipClass = SEVERITY_CHIP_CLASS[severity];
-                const numericId =
-                  typeof row.id === 'number' ? row.id : Number(row.id);
+                const numericId = typeof row.id === 'number' ? row.id : Number(row.id);
                 const hasValidId = Number.isFinite(numericId) && numericId > 0;
                 const isPending = hasValidId ? pendingIds.has(numericId) : false;
                 const key = `${String(row.resource_name ?? row.campaign_id ?? idx)}-${idx}`;
                 return (
-                  <tr
-                    key={key}
-                    className="dashboard-table__row dashboard-table__row--zebra"
-                  >
-                    <td className="dashboard-table__cell">
-                      {row.recommendation_type ?? '—'}
-                    </td>
+                  <tr key={key} className="dashboard-table__row dashboard-table__row--zebra">
+                    <td className="dashboard-table__cell">{row.recommendation_type ?? '—'}</td>
                     <td className="dashboard-table__cell">
                       {row.campaign_id == null ? '—' : String(row.campaign_id)}
                     </td>
-                    <td className="dashboard-table__cell">
-                      {formatRecommendationImpact(row)}
-                    </td>
+                    <td className="dashboard-table__cell">{formatRecommendationImpact(row)}</td>
                     <td className="dashboard-table__cell">
                       <span
                         className={chipClass}
@@ -239,9 +226,7 @@ const RecommendationsTabSection = ({ data, status, error }: Props) => {
                         <span className="badge badge--success">Active</span>
                       )}
                     </td>
-                    <td className="dashboard-table__cell">
-                      {row.last_seen_at ?? '—'}
-                    </td>
+                    <td className="dashboard-table__cell">{row.last_seen_at ?? '—'}</td>
                   </tr>
                 );
               })}

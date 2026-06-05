@@ -25,24 +25,24 @@ The frontend workspace (`GoogleAdsWorkspacePage`) always reads from the SDK tabl
 
 ## Endpoint register
 
-| Tab | Endpoint | View class | Notes |
-|---|---|---|---|
-| Overview | `GET /analytics/google-ads/summary/` | `GoogleAdsSummaryView` | Aggregate KPIs across selected customer_ids |
-| Campaigns | `GET /analytics/google-ads/campaigns/` | `GoogleAdsCampaignsView` | Per-campaign performance rows |
-| Search (keywords mode) | `GET /analytics/google-ads/keywords/` | `GoogleAdsKeywordsView` | Filters via `GoogleAdsListQuerySerializer` |
-| Search (search_terms mode) | `GET /analytics/google-ads/search-terms/` | `GoogleAdsSearchTermsView` | Prefetched alongside keywords for the top-10 chart |
-| Assets | `GET /analytics/google-ads/assets/` | `GoogleAdsAssetsView` | Text/image/video asset inventory |
-| PMax | `GET /analytics/google-ads/asset-groups/` | `GoogleAdsAssetGroupsView` | Performance Max treemap + ROAS palette |
-| Conversions | `GET /analytics/google-ads/conversions/` | `GoogleAdsConversionsView` | Conversion actions + daily series |
-| Pacing | `GET /analytics/google-ads/budgets/pacing/` | `GoogleAdsBudgetPacingView` | Tenant rollup + per-campaign rows (Phase A). Response cached 15 min per `(tenant, customer_ids_hash, end_date)`. |
-| Changes | `GET /analytics/google-ads/change-events/` | `GoogleAdsChangeEventsView` | Paginated via `?page=N&page_size=K`; response includes `next_cursor` (Phase B) |
-| Recommendations (list) | `GET /analytics/google-ads/recommendations/` | `GoogleAdsRecommendationsView` | Includes `id`, `dismissed_at`, `dismissed_by_user_id` |
-| Recommendations (dismiss) | `POST /analytics/google-ads/recommendations/<pk>/dismiss/` | `GoogleAdsRecommendationDismissView` | **LOCAL ONLY** — no upstream SDK `DismissRecommendation` call. Writes AuditLog. |
-| Reports (list) | `GET /analytics/google-ads/saved-views/` | `GoogleAdsSavedViewViewSet` (list) | Tenant-scoped; honors `is_shared` |
-| Reports (verify) | `GET /analytics/google-ads/saved-views/<pk>/verify/` | `GoogleAdsSavedViewViewSet.verify` | Schema-drift check against v23 whitelist (Phase B) |
-| Reports (export create) | `POST /analytics/google-ads/reports/export/` | `GoogleAdsReportExportCreateView` | Creates `ReportExportJob` |
-| Reports (export status) | `GET /analytics/google-ads/reports/export/<job_id>/status/` | `GoogleAdsReportExportStatusView` | Polled by frontend 3s→60s exp-backoff |
-| Reports (export download) | `GET /analytics/google-ads/reports/export/<job_id>/download/` | `GoogleAdsReportExportDownloadView` | Returns pre-signed URL |
+| Tab                        | Endpoint                                                      | View class                           | Notes                                                                                                            |
+| -------------------------- | ------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Overview                   | `GET /analytics/google-ads/summary/`                          | `GoogleAdsSummaryView`               | Aggregate KPIs across selected customer_ids                                                                      |
+| Campaigns                  | `GET /analytics/google-ads/campaigns/`                        | `GoogleAdsCampaignsView`             | Per-campaign performance rows                                                                                    |
+| Search (keywords mode)     | `GET /analytics/google-ads/keywords/`                         | `GoogleAdsKeywordsView`              | Filters via `GoogleAdsListQuerySerializer`                                                                       |
+| Search (search_terms mode) | `GET /analytics/google-ads/search-terms/`                     | `GoogleAdsSearchTermsView`           | Prefetched alongside keywords for the top-10 chart                                                               |
+| Assets                     | `GET /analytics/google-ads/assets/`                           | `GoogleAdsAssetsView`                | Text/image/video asset inventory                                                                                 |
+| PMax                       | `GET /analytics/google-ads/asset-groups/`                     | `GoogleAdsAssetGroupsView`           | Performance Max treemap + ROAS palette                                                                           |
+| Conversions                | `GET /analytics/google-ads/conversions/`                      | `GoogleAdsConversionsView`           | Conversion actions + daily series                                                                                |
+| Pacing                     | `GET /analytics/google-ads/budgets/pacing/`                   | `GoogleAdsBudgetPacingView`          | Tenant rollup + per-campaign rows (Phase A). Response cached 15 min per `(tenant, customer_ids_hash, end_date)`. |
+| Changes                    | `GET /analytics/google-ads/change-events/`                    | `GoogleAdsChangeEventsView`          | Paginated via `?page=N&page_size=K`; response includes `next_cursor` (Phase B)                                   |
+| Recommendations (list)     | `GET /analytics/google-ads/recommendations/`                  | `GoogleAdsRecommendationsView`       | Includes `id`, `dismissed_at`, `dismissed_by_user_id`                                                            |
+| Recommendations (dismiss)  | `POST /analytics/google-ads/recommendations/<pk>/dismiss/`    | `GoogleAdsRecommendationDismissView` | **LOCAL ONLY** — no upstream SDK `DismissRecommendation` call. Writes AuditLog.                                  |
+| Reports (list)             | `GET /analytics/google-ads/saved-views/`                      | `GoogleAdsSavedViewViewSet` (list)   | Tenant-scoped; honors `is_shared`                                                                                |
+| Reports (verify)           | `GET /analytics/google-ads/saved-views/<pk>/verify/`          | `GoogleAdsSavedViewViewSet.verify`   | Schema-drift check against v23 whitelist (Phase B)                                                               |
+| Reports (export create)    | `POST /analytics/google-ads/reports/export/`                  | `GoogleAdsReportExportCreateView`    | Creates `ReportExportJob`                                                                                        |
+| Reports (export status)    | `GET /analytics/google-ads/reports/export/<job_id>/status/`   | `GoogleAdsReportExportStatusView`    | Polled by frontend 3s→60s exp-backoff                                                                            |
+| Reports (export download)  | `GET /analytics/google-ads/reports/export/<job_id>/download/` | `GoogleAdsReportExportDownloadView`  | Returns pre-signed URL                                                                                           |
 
 All endpoints require `Authorization: Bearer <JWT>` and enforce tenant isolation via `TenantAwareManager` + `request.user.tenant_id` filter.
 

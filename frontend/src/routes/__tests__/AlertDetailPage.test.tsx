@@ -79,9 +79,7 @@ describe('AlertDetailPage', () => {
     expect(screen.getByText('5.00')).toBeInTheDocument();
     // The pause-duration dropdown also exposes "24 hours", so anchor on the
     // <strong> element that lives inside the Lookback paragraph.
-    expect(
-      screen.getByText('24 hours', { selector: 'strong' }),
-    ).toBeInTheDocument();
+    expect(screen.getByText('24 hours', { selector: 'strong' })).toBeInTheDocument();
     expect(screen.getByText('medium')).toBeInTheDocument();
   });
 

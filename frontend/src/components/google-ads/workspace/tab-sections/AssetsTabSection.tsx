@@ -68,8 +68,7 @@ const AssetsTabSection = ({ data, status, error }: Props) => {
 
   const kpis = useMemo(() => rollupAssetKpis(rows), [rows]);
   const typePie = useMemo(
-    () =>
-      buildAssetTypePie(rows).map((p) => ({ label: p.label, value: p.value })),
+    () => buildAssetTypePie(rows).map((p) => ({ label: p.label, value: p.value })),
     [rows],
   );
   const heatGrid = useMemo(() => buildAssetHeatGrid(rows), [rows]);
@@ -98,17 +97,10 @@ const AssetsTabSection = ({ data, status, error }: Props) => {
   }
 
   return (
-    <div
-      className="gads-workspace__tab-grid"
-      data-testid="google-ads-assets-section"
-    >
+    <div className="gads-workspace__tab-grid" data-testid="google-ads-assets-section">
       <section className="panel">
         <h2>Asset KPIs</h2>
-        <div
-          className="gads-workspace__kpi-grid"
-          role="list"
-          aria-label="Google Ads asset KPIs"
-        >
+        <div className="gads-workspace__kpi-grid" role="list" aria-label="Google Ads asset KPIs">
           <KpiTile label="Total Assets" value={kpis.total} format="number" />
           <KpiTile
             label="Disapproved"
@@ -116,11 +108,7 @@ const AssetsTabSection = ({ data, status, error }: Props) => {
             format="number"
             reasonCode={kpis.disapproved === 0 ? 'no_assets' : undefined}
           />
-          <KpiTile
-            label="Top Asset Conv"
-            value={kpis.topAssetConv}
-            format="number"
-          />
+          <KpiTile label="Top Asset Conv" value={kpis.topAssetConv} format="number" />
         </div>
       </section>
 
@@ -146,9 +134,8 @@ const AssetsTabSection = ({ data, status, error }: Props) => {
       <section className="panel">
         <h2>Asset heat map</h2>
         <p className="dashboardSubtitle">
-          Shaded by conversion rate (darker = higher). Per-asset daily trend
-          is not available from the Google Ads API today; tone chips ensure
-          the encoding is not color-only.
+          Shaded by conversion rate (darker = higher). Per-asset daily trend is not available from
+          the Google Ads API today; tone chips ensure the encoding is not color-only.
         </p>
         <ul
           className="gads-heat-grid"
@@ -170,9 +157,7 @@ const AssetsTabSection = ({ data, status, error }: Props) => {
                 background: baseColor,
                 backgroundImage: `linear-gradient(180deg, rgba(255,255,255,${
                   1 - Math.min(0.85, cell.intensity)
-                }) 0%, rgba(255,255,255,${
-                  1 - Math.min(0.85, cell.intensity)
-                }) 100%)`,
+                }) 0%, rgba(255,255,255,${1 - Math.min(0.85, cell.intensity)}) 100%)`,
                 padding: 12,
               }}
               data-tone={cell.tone}
@@ -187,11 +172,7 @@ const AssetsTabSection = ({ data, status, error }: Props) => {
               >
                 {cell.title}
               </div>
-              <div
-                style={{ fontSize: 11, color: '#334155', marginBottom: 8 }}
-              >
-                {cell.subtitle}
-              </div>
+              <div style={{ fontSize: 11, color: '#334155', marginBottom: 8 }}>{cell.subtitle}</div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <span
                   className="badge"
@@ -227,33 +208,21 @@ const AssetsTabSection = ({ data, status, error }: Props) => {
             <tbody>
               {rows.map((row, idx) => {
                 const key = String(row.asset_id ?? `row-${idx}`);
-                const status = (
-                  row.policy_approval_status ?? 'UNKNOWN'
-                ).toString();
+                const status = (row.policy_approval_status ?? 'UNKNOWN').toString();
                 const chip =
-                  STATUS_CHIP_CLASSES[status.toUpperCase()] ??
-                  STATUS_CHIP_CLASSES.UNKNOWN;
+                  STATUS_CHIP_CLASSES[status.toUpperCase()] ?? STATUS_CHIP_CLASSES.UNKNOWN;
                 return (
-                  <tr
-                    key={key}
-                    className="dashboard-table__row dashboard-table__row--zebra"
-                  >
-                    <td className="dashboard-table__cell">
-                      {row.asset_type ?? '—'}
-                    </td>
+                  <tr key={key} className="dashboard-table__row dashboard-table__row--zebra">
+                    <td className="dashboard-table__cell">{row.asset_type ?? '—'}</td>
                     <td className="dashboard-table__cell">{key}</td>
                     <td className="dashboard-table__cell">
                       {Number(row.impressions ?? 0).toFixed(0)}
                     </td>
-                    <td className="dashboard-table__cell">
-                      {Number(row.clicks ?? 0).toFixed(0)}
-                    </td>
+                    <td className="dashboard-table__cell">{Number(row.clicks ?? 0).toFixed(0)}</td>
                     <td className="dashboard-table__cell">
                       {Number(row.conversions ?? 0).toFixed(2)}
                     </td>
-                    <td className="dashboard-table__cell">
-                      {Number(row.cpa ?? 0).toFixed(2)}
-                    </td>
+                    <td className="dashboard-table__cell">{Number(row.cpa ?? 0).toFixed(2)}</td>
                     <td className="dashboard-table__cell">
                       <span className={chip}>{status}</span>
                     </td>

@@ -6,15 +6,15 @@ Timezone baseline: `America/Jamaica`.
 
 Search Console is shipping to launch in a **partially wired** state. The downstream components are built and tested; the tenant-facing on-ramp is not. This runbook documents what works, what is deferred, and the operator path to stand the dashboard up manually when needed.
 
-| Component | State |
-|---|---|
-| Frontend route `/dashboards/search-console` (`frontend/src/routes/SearchConsoleDashboardPage.tsx`) | Built. Surfaces a persistent "ingestion deferred" notice (reason `search_console_ingestion_deferred`) |
-| Backend view `SearchConsoleInsightsView` (`backend/analytics/web_views.py:130`) | Built. `GET /api/analytics/web/search-console/` reads `agg_search_console_daily` via raw SQL with `WHERE tenant_id = %s`. Returns `{status: "unavailable"}` if mart is absent |
-| dbt model `stg_search_console` (`dbt/models/staging/stg_search_console.sql`) | Built. Gated by `enable_search_console` var (default `false`) |
-| dbt mart `agg_search_console_daily` (`dbt/models/marts/agg_search_console_daily.sql`) | Built. Gated by `enable_search_console` var |
-| Airbyte source template (`infrastructure/airbyte/search_console_source.yaml`) | Built. Reads operator-level OAuth credentials from env vars |
-| Tenant-facing OAuth flow (e.g. `backend/integrations/search_console/`) | **Not built.** No parallel to `backend/integrations/google_analytics/`. No `POST /api/integrations/search_console/oauth/start/` |
-| Combined-metrics adapter | **Not built.** No `SearchConsoleAdapter`; the dashboard does not depend on the adapter path |
+| Component                                                                                          | State                                                                                                                                                                         |
+| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frontend route `/dashboards/search-console` (`frontend/src/routes/SearchConsoleDashboardPage.tsx`) | Built. Surfaces a persistent "ingestion deferred" notice (reason `search_console_ingestion_deferred`)                                                                         |
+| Backend view `SearchConsoleInsightsView` (`backend/analytics/web_views.py:130`)                    | Built. `GET /api/analytics/web/search-console/` reads `agg_search_console_daily` via raw SQL with `WHERE tenant_id = %s`. Returns `{status: "unavailable"}` if mart is absent |
+| dbt model `stg_search_console` (`dbt/models/staging/stg_search_console.sql`)                       | Built. Gated by `enable_search_console` var (default `false`)                                                                                                                 |
+| dbt mart `agg_search_console_daily` (`dbt/models/marts/agg_search_console_daily.sql`)              | Built. Gated by `enable_search_console` var                                                                                                                                   |
+| Airbyte source template (`infrastructure/airbyte/search_console_source.yaml`)                      | Built. Reads operator-level OAuth credentials from env vars                                                                                                                   |
+| Tenant-facing OAuth flow (e.g. `backend/integrations/search_console/`)                             | **Not built.** No parallel to `backend/integrations/google_analytics/`. No `POST /api/integrations/search_console/oauth/start/`                                               |
+| Combined-metrics adapter                                                                           | **Not built.** No `SearchConsoleAdapter`; the dashboard does not depend on the adapter path                                                                                   |
 
 **What "deferred" means:** a tenant cannot self-serve connect Search Console from the Data Sources UI today. The dashboard will populate only if an operator manually wires Airbyte using operator-level OAuth tokens. Building the tenant-facing on-ramp is the remaining work (tracked in `artifacts/roadmap/project-punchlist.md` §T1-05).
 
@@ -56,6 +56,7 @@ Tenant-facing OAuth is deferred. To light up `agg_search_console_daily` → `Sea
 6. **Wait for the first Airbyte sync.** Subsequent syncs run on the configured schedule.
 
 Notes:
+
 - Airbyte runs with operator-level credentials. Tenant isolation for Search Console rows comes from the `tenant_id` column populated by the `tenant_id_expr()` macro in `stg_search_console`. Confirm that the raw ingestion tags rows with the right tenant before enabling multi-tenant use; single-tenant deployments are the safe default until the tenant-facing on-ramp ships.
 - PII policy (AGENTS.md §130): Search Console `query` and `page` columns are aggregated impression/click counts. Do NOT add per-user dimensions. The allowed schema is fixed in `stg_search_console.sql`; adding new columns requires review.
 
@@ -87,13 +88,13 @@ Deeper:
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Dashboard shows the persistent "coming soon" notice and an "ingestion deferred" empty state | Default state: no Airbyte feed wired in this environment | Either accept the deferral, or walk through the operator path above |
-| `/api/analytics/web/search-console/` returns `status: "unavailable"` | `agg_search_console_daily` table doesn't exist OR dbt hasn't run with `enable_search_console=true` | `cd dbt && dbt build --select stg_search_console+ --vars '{"enable_search_console": true}'` |
-| Mart exists but rows are stale | Airbyte connection disabled OR failing syncs | Check Airbyte connection → last sync → failure reason; verify refresh token is valid |
-| Mart exists but zero rows for known-good site | Site URL format mismatch. Search Console distinguishes `sc-domain:` vs URL-prefix properties | Confirm `AIRBYTE_SEARCH_CONSOLE_SITE_URL` matches the property as Google expects it |
-| Tenant-facing "Connect Search Console" button is missing | Expected — tenant OAuth module is deferred (`backend/integrations/search_console/` does not exist yet) | See roadmap §T1-05 for the build plan |
+| Symptom                                                                                     | Likely cause                                                                                           | Fix                                                                                         |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Dashboard shows the persistent "coming soon" notice and an "ingestion deferred" empty state | Default state: no Airbyte feed wired in this environment                                               | Either accept the deferral, or walk through the operator path above                         |
+| `/api/analytics/web/search-console/` returns `status: "unavailable"`                        | `agg_search_console_daily` table doesn't exist OR dbt hasn't run with `enable_search_console=true`     | `cd dbt && dbt build --select stg_search_console+ --vars '{"enable_search_console": true}'` |
+| Mart exists but rows are stale                                                              | Airbyte connection disabled OR failing syncs                                                           | Check Airbyte connection → last sync → failure reason; verify refresh token is valid        |
+| Mart exists but zero rows for known-good site                                               | Site URL format mismatch. Search Console distinguishes `sc-domain:` vs URL-prefix properties           | Confirm `AIRBYTE_SEARCH_CONSOLE_SITE_URL` matches the property as Google expects it         |
+| Tenant-facing "Connect Search Console" button is missing                                    | Expected — tenant OAuth module is deferred (`backend/integrations/search_console/` does not exist yet) | See roadmap §T1-05 for the build plan                                                       |
 
 ## OAuth token refresh
 

@@ -4,9 +4,7 @@ import { describe, expect, it } from 'vitest';
 import PmaxTabSection from '../tab-sections/PmaxTabSection';
 import type { GoogleAdsAssetGroupRow } from '../../../../lib/googleAdsCreativeConvAggregates';
 
-const makeRow = (
-  over: Partial<GoogleAdsAssetGroupRow> = {},
-): GoogleAdsAssetGroupRow => ({
+const makeRow = (over: Partial<GoogleAdsAssetGroupRow> = {}): GoogleAdsAssetGroupRow => ({
   asset_group_id: 'ag-1',
   asset_group_name: 'Spring Promo',
   asset_group_status: 'ENABLED',
@@ -23,22 +21,12 @@ const makeRow = (
 describe('PmaxTabSection — integration', () => {
   it('renders loading state', () => {
     render(<PmaxTabSection data={null} status="loading" error="" />);
-    expect(
-      screen.getByText('Loading Performance Max asset groups...'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Loading Performance Max asset groups...')).toBeInTheDocument();
   });
 
   it('renders empty state', () => {
-    render(
-      <PmaxTabSection
-        data={{ count: 0, results: [] }}
-        status="success"
-        error=""
-      />,
-    );
-    expect(
-      screen.getByText('No Performance Max asset groups'),
-    ).toBeInTheDocument();
+    render(<PmaxTabSection data={{ count: 0, results: [] }} status="success" error="" />);
+    expect(screen.getByText('No Performance Max asset groups')).toBeInTheDocument();
   });
 
   it('renders populated state', () => {

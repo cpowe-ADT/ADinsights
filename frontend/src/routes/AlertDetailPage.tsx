@@ -113,14 +113,10 @@ const AlertDetailPage = () => {
       if (alert.is_active) {
         const selected = PAUSE_DURATION_OPTIONS.find((opt) => opt.value === pauseDuration);
         const body =
-          selected && typeof selected.hours === 'number'
-            ? { duration_hours: selected.hours }
-            : {};
+          selected && typeof selected.hours === 'number' ? { duration_hours: selected.hours } : {};
         updated = await pauseAlert(alertId, body);
         const pausedUntil = updated.paused_until;
-        addToast(
-          `Alert paused${pausedUntil ? ` until ${formatAbsoluteTime(pausedUntil)}` : ''}`,
-        );
+        addToast(`Alert paused${pausedUntil ? ` until ${formatAbsoluteTime(pausedUntil)}` : ''}`);
       } else {
         updated = await resumeAlert(alertId);
         addToast('Alert resumed');
@@ -299,9 +295,7 @@ const AlertDetailPage = () => {
                 step="any"
                 value={editForm.threshold}
                 onChange={(event) =>
-                  setEditForm((prev) =>
-                    prev ? { ...prev, threshold: event.target.value } : prev,
-                  )
+                  setEditForm((prev) => (prev ? { ...prev, threshold: event.target.value } : prev))
                 }
                 disabled={savingEdit}
               />
@@ -359,7 +353,8 @@ const AlertDetailPage = () => {
               Metric: <strong>{alert.metric}</strong>
             </p>
             <p>
-              Condition: <strong>{alert.comparison_operator}</strong> <strong>{alert.threshold}</strong>
+              Condition: <strong>{alert.comparison_operator}</strong>{' '}
+              <strong>{alert.threshold}</strong>
             </p>
             <p>
               Lookback: <strong>{alert.lookback_hours} hours</strong>
@@ -405,7 +400,8 @@ const AlertDetailPage = () => {
               </p>
             ) : null}
             <p>
-              Updated {formatRelativeTime(alert.updated_at)} ({formatAbsoluteTime(alert.updated_at)})
+              Updated {formatRelativeTime(alert.updated_at)} ({formatAbsoluteTime(alert.updated_at)}
+              )
             </p>
           </>
         )}
@@ -414,7 +410,10 @@ const AlertDetailPage = () => {
       <article className="phase2-card">
         <h3>Notification Channels</h3>
         {channels.length === 0 ? (
-          <p>No notification channels configured. <Link to="/settings/notifications">Create one</Link>.</p>
+          <p>
+            No notification channels configured.{' '}
+            <Link to="/settings/notifications">Create one</Link>.
+          </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {channels.map((ch) => (

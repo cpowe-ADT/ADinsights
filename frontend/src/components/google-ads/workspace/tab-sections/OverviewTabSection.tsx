@@ -21,7 +21,16 @@ type Props = {
 };
 
 const EmptyIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="40"
+    height="40"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    aria-hidden="true"
+  >
     <circle cx="12" cy="12" r="10" />
     <path d="M8 12h8" />
   </svg>
@@ -52,11 +61,7 @@ const OverviewTabSection = ({ summary, campaignRows }: Props) => {
     <div className="gads-workspace__tab-grid" data-testid="google-ads-overview-section">
       <section className="panel">
         <h2>Performance snapshot</h2>
-        <div
-          className="gads-workspace__kpi-grid"
-          role="list"
-          aria-label="Google Ads overview KPIs"
-        >
+        <div className="gads-workspace__kpi-grid" role="list" aria-label="Google Ads overview KPIs">
           <KpiTile label="Cost" value={kpis.spend} format="currency" currency="JMD" />
           <KpiTile label="Conversions" value={kpis.conversions} format="number" />
           <KpiTile label="CPA" value={kpis.cpa} format="currency" currency="JMD" />
@@ -121,15 +126,11 @@ const OverviewTabSection = ({ summary, campaignRows }: Props) => {
                   <td className="dashboard-table__cell">
                     {String(row.campaign_name ?? row.campaign_id)}
                   </td>
-                  <td className="dashboard-table__cell">
-                    {Number(row.spend ?? 0).toFixed(2)}
-                  </td>
+                  <td className="dashboard-table__cell">{Number(row.spend ?? 0).toFixed(2)}</td>
                   <td className="dashboard-table__cell">
                     {Number(row.conversion_value ?? 0).toFixed(2)}
                   </td>
-                  <td className="dashboard-table__cell">
-                    {Number(row.roas ?? 0).toFixed(2)}
-                  </td>
+                  <td className="dashboard-table__cell">{Number(row.roas ?? 0).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>

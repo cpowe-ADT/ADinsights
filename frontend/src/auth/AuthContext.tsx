@@ -16,10 +16,7 @@ import apiClient, {
   setRefreshHandler as setApiRefreshHandler,
   setUnauthorizedHandler as setApiUnauthorizedHandler,
 } from '../lib/apiClient';
-import {
-  resetDashboardSession,
-  setDashboardSessionTenant,
-} from '../state/dashboardSession';
+import { resetDashboardSession, setDashboardSessionTenant } from '../state/dashboardSession';
 
 const STORAGE_KEY = 'adinsights.auth';
 const REFRESH_LEEWAY_MS = 60_000;
@@ -340,9 +337,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
           params.has('error') ||
           params.has('error_reason');
         if (isOAuthReturn) {
-          console.warn(
-            '[AuthContext] Suppressing 401 logout during OAuth callback',
-          );
+          console.warn('[AuthContext] Suppressing 401 logout during OAuth callback');
           return;
         }
       }
@@ -405,9 +400,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
             );
           })();
         if (inOAuthCallback) {
-          console.warn(
-            '[AuthContext] /me/ failed during OAuth callback; deferring logout',
-          );
+          console.warn('[AuthContext] /me/ failed during OAuth callback; deferring logout');
           setStatusMessage('Completing OAuth…');
           return;
         }

@@ -33,7 +33,9 @@ const dashboardStoreMock = vi.hoisted(() => ({
     error: undefined as string | undefined,
   },
   getBudgetRowsForSelectedParish: () => [] as BudgetRowLite[],
-  availability: { budget: { status: 'available' as string, reason: null as string | null } } as unknown,
+  availability: {
+    budget: { status: 'available' as string, reason: null as string | null },
+  } as unknown,
   loadAll: vi.fn(),
 }));
 
@@ -119,7 +121,12 @@ vi.mock('../../components/viz', async () => {
 describe('BudgetDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    dashboardStoreMock.budget = { status: 'loaded', data: [], error: undefined, errorKind: undefined };
+    dashboardStoreMock.budget = {
+      status: 'loaded',
+      data: [],
+      error: undefined,
+      errorKind: undefined,
+    };
     dashboardStoreMock.getBudgetRowsForSelectedParish = () => [];
     dashboardStoreMock.availability = { budget: { status: 'available', reason: null } };
     datasetStoreMock.mode = 'dummy';
@@ -208,7 +215,12 @@ describe('BudgetDashboard', () => {
     dashboardStoreMock.availability = {
       budget: { status: 'empty', reason: 'budget_unavailable' },
     };
-    dashboardStoreMock.budget = { status: 'loaded', data: null, error: undefined, errorKind: undefined };
+    dashboardStoreMock.budget = {
+      status: 'loaded',
+      data: null,
+      error: undefined,
+      errorKind: undefined,
+    };
 
     render(
       <MemoryRouter>
@@ -221,7 +233,12 @@ describe('BudgetDashboard', () => {
 
   it('FP-BUDG-01: does NOT render empty state when availability is undefined (demo adapter)', () => {
     dashboardStoreMock.availability = {};
-    dashboardStoreMock.budget = { status: 'loaded', data: [], error: undefined, errorKind: undefined };
+    dashboardStoreMock.budget = {
+      status: 'loaded',
+      data: [],
+      error: undefined,
+      errorKind: undefined,
+    };
     dashboardStoreMock.getBudgetRowsForSelectedParish = () => [
       {
         id: 'c1',
@@ -247,7 +264,12 @@ describe('BudgetDashboard', () => {
   });
 
   it('shows loading state', () => {
-    dashboardStoreMock.budget = { status: 'loading', data: undefined, error: undefined, errorKind: undefined };
+    dashboardStoreMock.budget = {
+      status: 'loading',
+      data: undefined,
+      error: undefined,
+      errorKind: undefined,
+    };
 
     render(
       <MemoryRouter>

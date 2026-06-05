@@ -8,43 +8,43 @@
 
 ## Files Created
 
-| File | Kind | Purpose |
-|------|------|---------|
-| `frontend/src/styles/viz-tokens.css` | CSS tokens | `--viz-series-0..5`, `--viz-platform-*`, `--viz-axis-*`, `--viz-grid`, `--viz-point-focus`, `--viz-pattern-opacity`, plus `.sr-only` utility. Light + dark themes. |
-| `frontend/src/components/viz/ChartSkeleton.tsx` | Primitive | Composes `<Skeleton>` into chart-shaped footprints (line / bar / pie / table / kpi / kpi-strip / sparkline / bubble). Matches target chart size so there is no CLS when data arrives. |
-| `frontend/src/components/viz/Sparkline.tsx` | Primitive | Tiny inline LineChart, no axes/grid/tooltip, for use in table cells. Required `ariaLabel` prop. |
-| `frontend/src/components/viz/TrendLine.tsx` | Primitive | Multi-series LineChart with optional dual-axis, `peerData` dashed series, monotone stroke, horizontal-only grid. Follows `CampaignTrendChart.tsx` idioms (ComponentType cast, `chartMargins`, `createTooltipProps`). Renders an `.sr-only` `<table>` equivalent alongside the SVG for screen readers. |
-| `frontend/src/components/viz/PeerAvgLine.tsx` | Sub-component | Dashed, faded secondary `<Line>` used inside `<TrendLine>`. Never rendered standalone. |
-| `frontend/src/components/viz/DistributionBar.tsx` | Primitive | Horizontal (default) or vertical bars with optional percent labels. Accepts `patternId` for secondary (non-color) encoding via `<pattern>` defs. |
-| `frontend/src/components/viz/PieComposition.tsx` | Primitive | Donut (default) or pie; accepts optional `centerLabel` + per-segment `patternId`. |
-| `frontend/src/components/viz/BubbleScatter.tsx` | Primitive | Scatter + `<ZAxis>` with shape (circle/triangle/square) as the mandated categorical encoding. One `<Scatter>` series per distinct shape. |
-| `frontend/src/components/viz/VizEmptyIcon.tsx` | Helper | Shared no-data SVG icon used by every primitive's EmptyState. Avoids emojis per project conventions. Kept local so S1b's viz-namespaced `EmptyState` wrapper can replace or augment per reason code without touching the primitives. |
+| File                                              | Kind          | Purpose                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend/src/styles/viz-tokens.css`              | CSS tokens    | `--viz-series-0..5`, `--viz-platform-*`, `--viz-axis-*`, `--viz-grid`, `--viz-point-focus`, `--viz-pattern-opacity`, plus `.sr-only` utility. Light + dark themes.                                                                                                                                    |
+| `frontend/src/components/viz/ChartSkeleton.tsx`   | Primitive     | Composes `<Skeleton>` into chart-shaped footprints (line / bar / pie / table / kpi / kpi-strip / sparkline / bubble). Matches target chart size so there is no CLS when data arrives.                                                                                                                 |
+| `frontend/src/components/viz/Sparkline.tsx`       | Primitive     | Tiny inline LineChart, no axes/grid/tooltip, for use in table cells. Required `ariaLabel` prop.                                                                                                                                                                                                       |
+| `frontend/src/components/viz/TrendLine.tsx`       | Primitive     | Multi-series LineChart with optional dual-axis, `peerData` dashed series, monotone stroke, horizontal-only grid. Follows `CampaignTrendChart.tsx` idioms (ComponentType cast, `chartMargins`, `createTooltipProps`). Renders an `.sr-only` `<table>` equivalent alongside the SVG for screen readers. |
+| `frontend/src/components/viz/PeerAvgLine.tsx`     | Sub-component | Dashed, faded secondary `<Line>` used inside `<TrendLine>`. Never rendered standalone.                                                                                                                                                                                                                |
+| `frontend/src/components/viz/DistributionBar.tsx` | Primitive     | Horizontal (default) or vertical bars with optional percent labels. Accepts `patternId` for secondary (non-color) encoding via `<pattern>` defs.                                                                                                                                                      |
+| `frontend/src/components/viz/PieComposition.tsx`  | Primitive     | Donut (default) or pie; accepts optional `centerLabel` + per-segment `patternId`.                                                                                                                                                                                                                     |
+| `frontend/src/components/viz/BubbleScatter.tsx`   | Primitive     | Scatter + `<ZAxis>` with shape (circle/triangle/square) as the mandated categorical encoding. One `<Scatter>` series per distinct shape.                                                                                                                                                              |
+| `frontend/src/components/viz/VizEmptyIcon.tsx`    | Helper        | Shared no-data SVG icon used by every primitive's EmptyState. Avoids emojis per project conventions. Kept local so S1b's viz-namespaced `EmptyState` wrapper can replace or augment per reason code without touching the primitives.                                                                  |
 
 ## Files Modified
 
-| File | Edit |
-|------|------|
-| `frontend/src/styles/theme.css` | Added single `@import './viz-tokens.css' layer(tokens);` line below the existing `foundations.css` import. No other changes. |
-| `frontend/src/styles/chartTheme.ts` | Appended `VIZ_CSS_VARS`, `PLATFORM_CHART_TOKENS`, `STATUS_COLORS`, `resolveSeriesColor()`. Existing exports untouched. |
+| File                                | Edit                                                                                                                         |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `frontend/src/styles/theme.css`     | Added single `@import './viz-tokens.css' layer(tokens);` line below the existing `foundations.css` import. No other changes. |
+| `frontend/src/styles/chartTheme.ts` | Appended `VIZ_CSS_VARS`, `PLATFORM_CHART_TOKENS`, `STATUS_COLORS`, `resolveSeriesColor()`. Existing exports untouched.       |
 
 ## Token additions summary
 
 All six series colors verified against WCAG AA on card surfaces in both themes using the contrast ratios documented in `S1-architect-design.md` §3.3.
 
-| Token (light / dark) | Hex light | Hex dark | Notes |
-|----------------------|-----------|----------|-------|
-| `--viz-series-0` | `#2563eb` | `#60a5fa` | meta / primary |
-| `--viz-series-1` | `#c2410c` | `#fb923c` | google / orange-700 (darker than `#f97316` to hit AA on white) |
-| `--viz-series-2` | `#0369a1` | `#38bdf8` | accent blue |
-| `--viz-series-3` | `#047857` | `#4ade80` | conversions / green |
-| `--viz-series-4` | `#7e22ce` | `#c084fc` | audience / purple |
-| `--viz-series-5` | `#be123c` | `#fb7185` | alert / red |
-| `--viz-platform-peer-avg` | `rgba(71,85,105,0.55)` | `rgba(148,163,184,0.60)` | Deliberately sub-AA — paired with dashed stroke + legend label. |
-| `--viz-status-enabled` / `-paused` / `-removed` | `#047857` / `#b45309` / `#be123c` | `#4ade80` / `#fbbf24` / `#fb7185` | Amber-700 for paused hits 4.55:1 on white. |
-| `--viz-axis-line` / `--viz-axis-tick` / `--viz-grid` / `--viz-grid-strong` | `rgba(15,23,42,…)` | `rgba(226,232,240,…)` | Chart chrome per architect token spec. |
-| `--viz-tooltip-surface` / `-text` | `#0f172a` / `#f8fafc` | `rgba(15,23,42,0.96)` / `#f8fafc` | Matches existing `chartTheme.tooltip`. |
-| `--viz-pattern-opacity` | `0.55` | `0.45` | Secondary-encoding fill opacity. |
-| `--viz-point-focus` | `0 0 0 3px rgba(37,99,235,0.45)` | `0 0 0 3px rgba(96,165,250,0.55)` | Keyboard focus ring on data points. |
+| Token (light / dark)                                                       | Hex light                         | Hex dark                          | Notes                                                           |
+| -------------------------------------------------------------------------- | --------------------------------- | --------------------------------- | --------------------------------------------------------------- |
+| `--viz-series-0`                                                           | `#2563eb`                         | `#60a5fa`                         | meta / primary                                                  |
+| `--viz-series-1`                                                           | `#c2410c`                         | `#fb923c`                         | google / orange-700 (darker than `#f97316` to hit AA on white)  |
+| `--viz-series-2`                                                           | `#0369a1`                         | `#38bdf8`                         | accent blue                                                     |
+| `--viz-series-3`                                                           | `#047857`                         | `#4ade80`                         | conversions / green                                             |
+| `--viz-series-4`                                                           | `#7e22ce`                         | `#c084fc`                         | audience / purple                                               |
+| `--viz-series-5`                                                           | `#be123c`                         | `#fb7185`                         | alert / red                                                     |
+| `--viz-platform-peer-avg`                                                  | `rgba(71,85,105,0.55)`            | `rgba(148,163,184,0.60)`          | Deliberately sub-AA — paired with dashed stroke + legend label. |
+| `--viz-status-enabled` / `-paused` / `-removed`                            | `#047857` / `#b45309` / `#be123c` | `#4ade80` / `#fbbf24` / `#fb7185` | Amber-700 for paused hits 4.55:1 on white.                      |
+| `--viz-axis-line` / `--viz-axis-tick` / `--viz-grid` / `--viz-grid-strong` | `rgba(15,23,42,…)`                | `rgba(226,232,240,…)`             | Chart chrome per architect token spec.                          |
+| `--viz-tooltip-surface` / `-text`                                          | `#0f172a` / `#f8fafc`             | `rgba(15,23,42,0.96)` / `#f8fafc` | Matches existing `chartTheme.tooltip`.                          |
+| `--viz-pattern-opacity`                                                    | `0.55`                            | `0.45`                            | Secondary-encoding fill opacity.                                |
+| `--viz-point-focus`                                                        | `0 0 0 3px rgba(37,99,235,0.45)`  | `0 0 0 3px rgba(96,165,250,0.55)` | Keyboard focus ring on data points.                             |
 
 The `.sr-only` helper class was added because no existing visually-hidden utility lives in the codebase and every chart primitive needs it for its tabular-equivalent table.
 

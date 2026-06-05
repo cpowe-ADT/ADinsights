@@ -24,18 +24,19 @@
   - `frontend/src/components/viz/__tests__/DataTable.test.tsx` (create)
 
 - **Props API**:
+
 ```typescript
-import { ColumnDef } from '@tanstack/react-table'
+import { ColumnDef } from '@tanstack/react-table';
 
 interface DataTableProps<T> {
-  columns: ColumnDef<T, unknown>[]
-  data: T[]
-  isLoading?: boolean
-  onRowClick?: (row: T) => void
-  csvFilename?: string          // enables Download CSV button when provided. Filename: `{csvFilename}-{ISO-date}.csv`
-  emptyReasonCode?: string
-  pageSize?: number             // default: 25
-  className?: string
+  columns: ColumnDef<T, unknown>[];
+  data: T[];
+  isLoading?: boolean;
+  onRowClick?: (row: T) => void;
+  csvFilename?: string; // enables Download CSV button when provided. Filename: `{csvFilename}-{ISO-date}.csv`
+  emptyReasonCode?: string;
+  pageSize?: number; // default: 25
+  className?: string;
 }
 ```
 
@@ -68,30 +69,35 @@ interface DataTableProps<T> {
 ```
 
 CSV serializer (no PapaParse — hand-rolled):
+
 ```typescript
 function toCSV<T>(columns: ColumnDef<T, unknown>[], data: T[]): string {
   const headers = columns
-    .map(col => String((col as any).header ?? (col as any).id ?? ''))
-    .join(',')
-  const rows = data.map(row =>
-    columns.map(col => {
-      const key = (col as any).accessorKey ?? (col as any).id ?? ''
-      const val = (row as any)[key] ?? ''
-      const str = String(val)
-      return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str
-    }).join(',')
-  )
-  return [headers, ...rows].join('\n')
+    .map((col) => String((col as any).header ?? (col as any).id ?? ''))
+    .join(',');
+  const rows = data.map((row) =>
+    columns
+      .map((col) => {
+        const key = (col as any).accessorKey ?? (col as any).id ?? '';
+        const val = (row as any)[key] ?? '';
+        const str = String(val);
+        return str.includes(',') || str.includes('"')
+          ? `"${str.replace(/"/g, '""')}"`
+          : str;
+      })
+      .join(','),
+  );
+  return [headers, ...rows].join('\n');
 }
 
 function downloadCSV(content: string, filename: string): void {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 ```
 

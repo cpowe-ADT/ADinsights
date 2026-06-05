@@ -172,7 +172,9 @@ const MetaAccountsPage = () => {
         setRecoveryAccounts([]);
         setRecoveryStatus('error');
         setRecoveryError(
-          error instanceof Error ? error.message : 'Unable to preview recoverable Meta ad accounts.',
+          error instanceof Error
+            ? error.message
+            : 'Unable to preview recoverable Meta ad accounts.',
         );
       }
     };
@@ -222,9 +224,8 @@ const MetaAccountsPage = () => {
   const kpis = useMemo(() => sumInsights(insightsRows), [insightsRows]);
   const activeAccounts = useMemo(
     () =>
-      (accounts.rows as AccountRow[]).filter((row) =>
-        /ACTIVE|^1$/i.test(String(row.status ?? '')),
-      ).length,
+      (accounts.rows as AccountRow[]).filter((row) => /ACTIVE|^1$/i.test(String(row.status ?? '')))
+        .length,
     [accounts.rows],
   );
 
@@ -277,11 +278,30 @@ const MetaAccountsPage = () => {
   );
 
   const kpiTiles: KpiTileProps[] = [
-    { label: 'Spend', value: insightsRows.length ? kpis.spend : null, format: 'currency', currency: 'USD' },
-    { label: 'Impressions', value: insightsRows.length ? kpis.impressions : null, format: 'number' },
-    { label: 'Reach', value: insightsRows.length ? kpis.reach : null, format: 'number', hint: 'Aggregate; not deduped' },
+    {
+      label: 'Spend',
+      value: insightsRows.length ? kpis.spend : null,
+      format: 'currency',
+      currency: 'USD',
+    },
+    {
+      label: 'Impressions',
+      value: insightsRows.length ? kpis.impressions : null,
+      format: 'number',
+    },
+    {
+      label: 'Reach',
+      value: insightsRows.length ? kpis.reach : null,
+      format: 'number',
+      hint: 'Aggregate; not deduped',
+    },
     { label: 'CTR', value: insightsRows.length ? kpis.ctr : null, format: 'percent' },
-    { label: 'CPM', value: insightsRows.length ? kpis.cpm : null, format: 'currency', currency: 'USD' },
+    {
+      label: 'CPM',
+      value: insightsRows.length ? kpis.cpm : null,
+      format: 'currency',
+      currency: 'USD',
+    },
     { label: 'Active accounts', value: activeAccounts, format: 'number' },
   ];
 
@@ -399,7 +419,9 @@ const MetaAccountsPage = () => {
         />
       ) : null}
 
-      {accounts.status !== 'error' && accounts.status !== 'loading' && accounts.rows.length === 0 ? (
+      {accounts.status !== 'error' &&
+      accounts.status !== 'loading' &&
+      accounts.rows.length === 0 ? (
         <EmptyState
           icon={<span aria-hidden>0</span>}
           title="No ad accounts yet"
@@ -410,7 +432,9 @@ const MetaAccountsPage = () => {
                 ? 'Meta still has recoverable ad accounts through the stored token. Restore marketing access to persist them and restart sync.'
                 : 'Connect Meta and run sync to populate ad accounts.'
           }
-          actionLabel={orphanedMarketingAccess ? 'Restore Meta marketing access' : 'Connect socials'}
+          actionLabel={
+            orphanedMarketingAccess ? 'Restore Meta marketing access' : 'Connect socials'
+          }
           onAction={() => {
             window.location.assign('/dashboards/data-sources?sources=social');
           }}

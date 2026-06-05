@@ -19,11 +19,13 @@
 ### 1. ✅ Global FilterBar visible on /dashboards/google-ads
 
 **Evidence**: `frontend/src/routes/DashboardLayout.tsx` lines 200–206. `hideGlobalFilters` predicate is:
+
 ```ts
 location.pathname.startsWith('/dashboards/meta/pages') ||
-location.pathname.startsWith('/dashboards/meta/posts') ||
-location.pathname.startsWith('/dashboards/create')
+  location.pathname.startsWith('/dashboards/meta/posts') ||
+  location.pathname.startsWith('/dashboards/create');
 ```
+
 `/dashboards/google-ads` is explicitly absent from this list (removed by B1 hotfix). FilterBar renders on this path. Regression guard test in `DashboardLayout.test.tsx` (added by B1) asserts `data-testid="filter-bar"` is present on `/dashboards/google-ads`.
 
 ---
@@ -31,6 +33,7 @@ location.pathname.startsWith('/dashboards/create')
 ### 2. ✅ account_id from useDashboardStore flows to workspace customer_id on mount
 
 **Evidence**: `frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx` lines 76–96.
+
 - `globalAccountId = useDashboardStore((state) => state.filters.accountId)` — reactive subscription.
 - `globalClientId = useDashboardStore((state) => state.filters.clientId)` — reactive subscription.
 - `useMemo` computes `resolvedCustomerId = globalAccountId.trim() || urlFilters.customerId`.
@@ -44,6 +47,7 @@ Test in `GoogleAdsWorkspacePage.test.tsx` (line 181): `"reads customer from useD
 ### 3. ✅ EmptyState (reasonCode=no_customer_selected) when both accountId and clientId empty
 
 **Evidence**: `GoogleAdsWorkspacePage.tsx` lines 99 and 344–366.
+
 - `hasNoCustomer = !filters.customerId && !filters.clientId`
 - Early return renders `<EmptyState reasonCode="no_customer_selected" title="No account selected" ...>` when `hasNoCustomer` is true.
 
@@ -66,11 +70,13 @@ Test in `GoogleAdsWorkspacePage.test.tsx` (line 209): `"shows empty state when s
 ### 6. ✅ Campaign detail back navigation preserves account scope
 
 **Evidence**: `frontend/src/routes/google-ads/GoogleAdsCampaignDetailPage.tsx` line 56:
+
 ```tsx
 <Link className="button tertiary" to="/dashboards/google-ads?tab=campaigns">
   Back to Google Ads campaigns
 </Link>
 ```
+
 Back link returns to workspace with `tab=campaigns`. On re-mount, `GoogleAdsWorkspacePage` re-subscribes to `useDashboardStore` — account scope is preserved from the store (not URL). B3 fix confirmed by C1B audit.
 
 ---
@@ -88,6 +94,7 @@ Back link returns to workspace with `tab=campaigns`. On re-mount, `GoogleAdsWork
 ### 8. ✅ No infinite redirect loop for unified mode legacy routes
 
 **Evidence**: `frontend/src/router.tsx` lines 115–422.
+
 - `GOOGLE_ADS_WORKSPACE_UNIFIED = resolveBooleanFlag(import.meta.env.VITE_GOOGLE_ADS_WORKSPACE_UNIFIED, true)` — defaults to `true` when env var absent (confirmed absent from all env files per C1B audit).
 - `path: 'google-ads'` renders `GoogleAdsWorkspacePage` directly (no Navigate).
 - All legacy paths (`google-ads/executive`, `google-ads/campaigns`, etc.) render `<GoogleAdsTabRedirect tab="..." />` which uses `<Navigate to="/dashboards/google-ads?tab=..." replace />` — a one-hop redirect to the workspace, not back to itself.
@@ -114,6 +121,7 @@ Test in `GoogleAdsLegacyRedirects.test.tsx`: `"redirects legacy keywords route t
 ### All 10 workspace tab fetches include client_id AND customer_id AND platforms=google_ads
 
 ✅ **Confirmed**. `buildCommonParams` in `useGoogleAdsWorkspaceData.ts` lines 70–79:
+
 ```ts
 {
   start_date, end_date, compare,
@@ -123,6 +131,7 @@ Test in `GoogleAdsLegacyRedirects.test.tsx`: `"redirects legacy keywords route t
   platforms: 'google_ads',
 }
 ```
+
 All 10 tabs (overview via `loadSummary`, campaigns/search/pmax/assets/conversions/pacing/changes/recommendations/reports via `loadTab`) call `buildCommonParams`.
 
 ### EmptyState reasonCode="no_customer_selected" renders when no client/account in store
@@ -214,18 +223,18 @@ The only failing test file is `DataSources.test.tsx` (10 failures), which is the
 
 ## Summary
 
-| DoD Item | Status | Evidence |
-|----------|--------|----------|
-| 1. FilterBar visible on /dashboards/google-ads | ✅ | DashboardLayout.tsx:200-206, regression test passes |
-| 2. accountId → customer_id flow on mount | ✅ | GoogleAdsWorkspacePage.tsx:76-96, useMemo reactive derivation |
-| 3. EmptyState no_customer_selected | ✅ | GoogleAdsWorkspacePage.tsx:99,344-366, test passes |
-| 4. All 10 tabs include platforms=google_ads | ✅ | buildCommonParams:78 hardcodes platforms |
-| 5. All 10 tabs include correct customer_id | ✅ | buildCommonParams:75 from store |
-| 6. Campaign detail back nav preserves scope | ✅ | GoogleAdsCampaignDetailPage.tsx:56, store re-subscribed |
-| 7. SDK zero-state: graceful, not silent blank | ⚠️ | GenericTabSection shows "No results" — graceful but no "syncing" label |
-| 8. No infinite redirect loop | ✅ | router.tsx legacy routes all terminal-redirect to workspace |
-| 9. No TS compile errors in Google Ads files | ✅ | tsc --noEmit: zero errors in google-ads/** |
-| 10. Build exits 0 | ✅ | npm run build: built in 8.49s |
+| DoD Item                                       | Status | Evidence                                                               |
+| ---------------------------------------------- | ------ | ---------------------------------------------------------------------- |
+| 1. FilterBar visible on /dashboards/google-ads | ✅     | DashboardLayout.tsx:200-206, regression test passes                    |
+| 2. accountId → customer_id flow on mount       | ✅     | GoogleAdsWorkspacePage.tsx:76-96, useMemo reactive derivation          |
+| 3. EmptyState no_customer_selected             | ✅     | GoogleAdsWorkspacePage.tsx:99,344-366, test passes                     |
+| 4. All 10 tabs include platforms=google_ads    | ✅     | buildCommonParams:78 hardcodes platforms                               |
+| 5. All 10 tabs include correct customer_id     | ✅     | buildCommonParams:75 from store                                        |
+| 6. Campaign detail back nav preserves scope    | ✅     | GoogleAdsCampaignDetailPage.tsx:56, store re-subscribed                |
+| 7. SDK zero-state: graceful, not silent blank  | ⚠️     | GenericTabSection shows "No results" — graceful but no "syncing" label |
+| 8. No infinite redirect loop                   | ✅     | router.tsx legacy routes all terminal-redirect to workspace            |
+| 9. No TS compile errors in Google Ads files    | ✅     | tsc --noEmit: zero errors in google-ads/\*\*                           |
+| 10. Build exits 0                              | ✅     | npm run build: built in 8.49s                                          |
 
 **Threshold from program-design.md**: GREEN = all 10 pass. YELLOW = criteria 6, 7 fail (low impact only). RED = criteria 1–5, 8, 9, 10 fail.
 

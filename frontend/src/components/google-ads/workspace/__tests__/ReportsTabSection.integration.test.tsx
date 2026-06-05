@@ -13,10 +13,9 @@ const googleAdsDashboardMock = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../../lib/googleAdsDashboard', async () => {
-  const actual =
-    await vi.importActual<typeof import('../../../../lib/googleAdsDashboard')>(
-      '../../../../lib/googleAdsDashboard',
-    );
+  const actual = await vi.importActual<typeof import('../../../../lib/googleAdsDashboard')>(
+    '../../../../lib/googleAdsDashboard',
+  );
   return {
     ...actual,
     createGoogleAdsExport: googleAdsDashboardMock.createGoogleAdsExport,
