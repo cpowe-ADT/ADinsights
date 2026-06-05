@@ -700,3 +700,164 @@ export async function loadSocialConnectionStatus(
 ): Promise<SocialConnectionStatusResponse> {
   return apiClient.get<SocialConnectionStatusResponse>('/integrations/social/status/', { signal });
 }
+
+// ---------------------------------------------------------------------------
+// Generic provider connector lifecycle API (salvaged from PR #339).
+// These wrap the generic `api/integrations/<provider>/*` backend routes so any
+// provider can be connected, provisioned, synced, inspected, disconnected and
+// reconnected through one uniform surface.
+// ---------------------------------------------------------------------------
+
+export type IntegrationProviderSlug =
+  | 'meta_ads'
+  | 'facebook_pages'
+  | 'google_ads'
+  | 'ga4'
+  | 'search_console';
+
+export interface IntegrationOAuthStartResponse {
+  provider: IntegrationProviderSlug;
+  authorize_url: string;
+  state: string;
+  redirect_uri: string;
+}
+
+export interface IntegrationOAuthCallbackResponse {
+  provider: IntegrationProviderSlug;
+  status: string;
+  credential?: PlatformCredentialRecord;
+  selection_token?: string;
+  expires_in_seconds?: number;
+  pages?: MetaOAuthPage[];
+}
+
+export interface IntegrationProvisionPayload {
+  external_account_id?: string;
+  workspace_id?: string | null;
+  destination_id?: string | null;
+  source_definition_id?: string | null;
+  source_configuration?: Record<string, unknown> | null;
+  connection_name?: string;
+  is_active?: boolean;
+  schedule_type?: 'manual' | 'interval' | 'cron';
+  interval_minutes?: number | null;
+  cron_expression?: string;
+}
+
+export interface IntegrationProvisionResponse {
+  provider: IntegrationProviderSlug;
+  credential: PlatformCredentialRecord;
+  connection: AirbyteConnectionRecord;
+  source: {
+    source_id: string;
+    name: string;
+  };
+  source_reused: boolean;
+  connection_reused: boolean;
+}
+
+export interface IntegrationStatusResponse {
+  provider: IntegrationProviderSlug;
+  label: string;
+  state:
+    | 'not_connected'
+    | 'needs_provisioning'
+    | 'needs_reauth'
+    | 'connected'
+    | 'syncing'
+    | 'error'
+    | 'paused';
+  credentials: PlatformCredentialRecord[];
+  connections: AirbyteConnectionRecord[];
+  latest_connection_id?: string | null;
+}
+
+export interface IntegrationJobRecord {
+  job_id: string;
+  status: string;
+  started_at: string;
+  duration_seconds?: number | null;
+  records_synced?: number | null;
+  bytes_synced?: number | null;
+  api_cost?: string | null;
+  connection: {
+    id: string;
+    name: string;
+    connection_id: string;
+  };
+}
+
+export interface IntegrationJobsResponse {
+  provider: IntegrationProviderSlug;
+  count: number;
+  jobs: IntegrationJobRecord[];
+}
+
+export async function startIntegrationOAuth(
+  provider: IntegrationProviderSlug,
+): Promise<IntegrationOAuthStartResponse> {
+  return apiClient.post<IntegrationOAuthStartResponse>(`/integrations/${provider}/oauth/start/`);
+}
+
+export async function callbackIntegrationOAuth(
+  provider: IntegrationProviderSlug,
+  payload: {
+    code: string;
+    state: string;
+    external_account_id?: string;
+    page_id?: string;
+  },
+): Promise<IntegrationOAuthCallbackResponse> {
+  return apiClient.post<IntegrationOAuthCallbackResponse>(
+    `/integrations/${provider}/oauth/callback/`,
+    payload,
+  );
+}
+
+export async function provisionIntegration(
+  provider: IntegrationProviderSlug,
+  payload: IntegrationProvisionPayload,
+): Promise<IntegrationProvisionResponse> {
+  return apiClient.post<IntegrationProvisionResponse>(`/integrations/${provider}/provision/`, payload);
+}
+
+export async function syncIntegration(
+  provider: IntegrationProviderSlug,
+): Promise<{ provider: IntegrationProviderSlug; connection_id: string; job_id?: string | null }> {
+  return apiClient.post<{ provider: IntegrationProviderSlug; connection_id: string; job_id?: string | null }>(
+    `/integrations/${provider}/sync/`,
+  );
+}
+
+export async function loadIntegrationStatus(
+  provider: IntegrationProviderSlug,
+  signal?: AbortSignal,
+): Promise<IntegrationStatusResponse> {
+  return apiClient.get<IntegrationStatusResponse>(`/integrations/${provider}/status/`, { signal });
+}
+
+export async function loadIntegrationJobs(
+  provider: IntegrationProviderSlug,
+  limit = 10,
+  signal?: AbortSignal,
+): Promise<IntegrationJobsResponse> {
+  return apiClient.get<IntegrationJobsResponse>(`/integrations/${provider}/jobs/?limit=${limit}`, {
+    signal,
+  });
+}
+
+export async function disconnectIntegration(
+  provider: IntegrationProviderSlug,
+  payload?: { external_account_id?: string },
+): Promise<{ provider: IntegrationProviderSlug; state: string }> {
+  return apiClient.post<{ provider: IntegrationProviderSlug; state: string }>(
+    `/integrations/${provider}/disconnect/`,
+    payload ?? {},
+  );
+}
+
+export async function reconnectIntegration(
+  provider: IntegrationProviderSlug,
+): Promise<IntegrationOAuthStartResponse> {
+  return apiClient.post<IntegrationOAuthStartResponse>(`/integrations/${provider}/reconnect/`);
+}
