@@ -1,6 +1,7 @@
 DBT_PROJECT_DIR ?= dbt
 DBT_PROFILES_DIR ?= $(DBT_PROJECT_DIR)
 DBT ?= dbt
+PYTHON ?= $(if $(wildcard backend/.venv/bin/python),backend/.venv/bin/python,python3)
 DBT_WRAPPER := ./scripts/dbt-wrapper.sh
 DEMO_SEED_DIR ?= dbt/seeds/demo
 COMPOSE_ENV_FILE := $(if $(wildcard .env.dev.compose),--env-file .env.dev.compose,)
@@ -35,13 +36,13 @@ dbt-build-full:
 	$(call RUN_DBT,build --full-refresh)
 
 demo-data:
-	python3 scripts/generate_demo_data.py --out $(DEMO_SEED_DIR) --days 90 --seed 42 --validate
+	$(PYTHON) scripts/generate_demo_data.py --out $(DEMO_SEED_DIR) --days 90 --seed 42 --validate
 
 dbt-seed-demo:
 	$(call RUN_DBT,seed --select path:seeds/demo)
 
 demo-smoke:
-	python3 scripts/generate_demo_data.py --out $(DEMO_SEED_DIR) --days 30 --seed 42 --validate
+	$(PYTHON) scripts/generate_demo_data.py --out $(DEMO_SEED_DIR) --days 30 --seed 42 --validate
 	$(call RUN_DBT,seed --select path:seeds/demo)
 
 frontend-build:
@@ -105,7 +106,7 @@ adinsights-preflight:
 		echo "Usage: make adinsights-preflight PROMPT='your planning or release question'"; \
 		exit 1; \
 	fi
-	python3 docs/ops/skills/adinsights-release-readiness/scripts/run_preflight_skillchain.py \
+	$(PYTHON) docs/ops/skills/adinsights-release-readiness/scripts/run_preflight_skillchain.py \
 		--prompt "$(PROMPT)" \
 		--changed-files-from-git \
 		--format markdown

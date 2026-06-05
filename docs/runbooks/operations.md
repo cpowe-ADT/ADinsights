@@ -127,6 +127,22 @@ Known failure modes:
 - Empty Airbyte DB schema (`airbyte_metadata` missing): `airbyte-server` crashes with relation-not-found errors. Ensure `airbyte-bootloader` runs successfully before `server`/`worker`, then recreate the Airbyte stack.
 - Connector runtime cannot find `source_config.json`: Airbyte jobs fail with `FileNotFoundError` from the source container. Ensure worker mount wiring is volume-name based (`WORKSPACE_DOCKER_MOUNT=airbyte-workspace`, `LOCAL_DOCKER_MOUNT=airbyte-local`) and recreate `airbyte-worker`.
 
+## Usable Pilot Reporting And Summary Delivery
+
+- Generic report exports are requested through `POST /api/reports/{id}/exports/`; CSV/PDF/PNG
+  jobs are ready only when a non-empty artifact can be downloaded from
+  `GET /api/exports/{job_id}/download/`.
+- Slack/webhook notification channel destinations are supplied as write-only `secret_config` and
+  encrypted with the tenant DEK/KMS path. Operational checks must use
+  `credentials_configured`/`masked_destination`, not attempt to retrieve destination values.
+- The `analytics.ai_daily_summary` task runs at `06:10 America/Jamaica` and delivers aggregate
+  summaries to active tenant email channels. Audit metadata reports `delivered`,
+  `skipped_no_recipients`, or `failed` plus recipient count, without recipient addresses. Retries
+  of the same successfully delivered snapshot do not send an additional email.
+- Before a pilot activation, verify real Meta and Google Ads aggregate data, encrypted alert
+  dispatch, SES summary delivery, and staging evidence from the release checklist. GA4 and Search
+  Console onboarding are deferred from this pilot gate.
+
 ## Deployments
 
 1. Merge changes to `main` with green CI.
@@ -150,10 +166,19 @@ Known failure modes:
   - `DRF_THROTTLE_AUTH_BURST` (short window)
   - `DRF_THROTTLE_AUTH_SUSTAINED` (long window)
   - `DRF_THROTTLE_PUBLIC` (public endpoint budget)
-- Smoke check by issuing repeated requests to:
+- Auth throttles apply to:
   - `POST /api/token/`
+  - `POST /api/token/refresh/`
   - `POST /api/auth/login/`
   - `POST /api/auth/password-reset/`
+  - `POST /api/auth/password-reset/confirm/`
+  - `POST /api/tenants/`
+  - `POST /api/users/accept-invite/`
+- Public throttles apply to:
+  - `GET /api/health/version/`
+  - `GET /api/schema/`
+- Smoke check the configured auth/public budgets with:
+  - `backend/.venv/bin/python backend/manage.py backend_release_smoke --expect-metric python_info --check-rate-limits`
 - Expect HTTP `429` once thresholds are exceeded.
 
 ## Incident Response

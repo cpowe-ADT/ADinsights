@@ -5,6 +5,7 @@ import DashboardState from '../components/DashboardState';
 import SkeletonLoader from '../components/SkeletonLoader';
 import {
   createReportExport,
+  downloadReportExport,
   getReport,
   listReportExports,
   toggleReportSchedule,
@@ -13,6 +14,7 @@ import {
   type ReportDefinition,
   type ReportExportJob,
 } from '../lib/phase2Api';
+import { saveBlobAsFile } from '../lib/download';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import { useToastStore } from '../stores/useToastStore';
 import '../styles/phase2.css';
@@ -29,6 +31,7 @@ const ReportDetailPage = () => {
   const [exports, setExports] = useState<ReportExportJob[]>([]);
   const [error, setError] = useState<string>('Unable to load report.');
   const [creatingFormat, setCreatingFormat] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [scheduleCron, setScheduleCron] = useState('');
   const [scheduleEmails, setScheduleEmails] = useState('');
   const [savingSchedule, setSavingSchedule] = useState(false);
@@ -114,6 +117,21 @@ const ReportDetailPage = () => {
       }
     },
     [addToast, load, reportId],
+  );
+
+  const downloadExport = useCallback(
+    async (job: ReportExportJob) => {
+      setDownloadingId(job.id);
+      try {
+        const { blob, filename } = await downloadReportExport(job.id);
+        saveBlobAsFile(blob, filename);
+      } catch {
+        addToast('Export download failed', 'error');
+      } finally {
+        setDownloadingId(null);
+      }
+    },
+    [addToast],
   );
 
   useEffect(() => {
@@ -314,7 +332,8 @@ const ReportDetailPage = () => {
         )}
         {report.last_scheduled_at && (
           <p className="phase2-note">
-            Last scheduled: {formatRelativeTime(report.last_scheduled_at)} ({formatAbsoluteTime(report.last_scheduled_at)})
+            Last scheduled: {formatRelativeTime(report.last_scheduled_at)} (
+            {formatAbsoluteTime(report.last_scheduled_at)})
           </p>
         )}
       </article>
@@ -353,7 +372,18 @@ const ReportDetailPage = () => {
                     : 'In progress'}
                 </td>
                 <td>
-                  {job.artifact_path ? <code>{job.artifact_path}</code> : 'Pending'}
+                  {job.status === 'completed' && job.artifact_path ? (
+                    <button
+                      type="button"
+                      className="button tertiary"
+                      disabled={downloadingId === job.id}
+                      onClick={() => void downloadExport(job)}
+                    >
+                      {downloadingId === job.id ? 'Downloading...' : 'Download'}
+                    </button>
+                  ) : (
+                    'Pending'
+                  )}
                   {job.error_message ? <div>{job.error_message}</div> : null}
                 </td>
               </tr>

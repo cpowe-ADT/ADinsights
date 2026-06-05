@@ -24,6 +24,14 @@ Development runs dedicated workers per queue class with conservative defaults:
 - `celery_worker_summary` (summary queue): `summary`, concurrency `1`
 
 Each worker uses prefetch `1` and bounded task recycling (`--max-tasks-per-child`) to reduce long-lived worker drift.
+The backend image includes the Node report exporter and native Chromium used by the summary
+worker for PDF/PNG exports. `backend` and `celery_worker_summary` mount the same
+`report_export_artifacts` volume so an export is downloadable only after the worker's non-empty
+artifact is visible to the API process.
+The backend and all task workers also mount `prometheus_multiprocess` and set
+`PROMETHEUS_MULTIPROC_DIR`; this lets `/metrics/app/` aggregate samples emitted inside worker
+processes. Task publishing stamps `published_at` so queue-wait histograms represent real broker
+latency, and the common task lifecycle records one completion outcome per executed task.
 
 Tune via `backend/.env.dev` / `backend/.env.sample`:
 
@@ -37,13 +45,17 @@ Tune via `backend/.env.dev` / `backend/.env.sample`:
 - Hourly sync window: 06:00–22:00 (`airbyte-scheduled-syncs-hourly`, Meta and Google sync tasks).
 - Daily dimension/maintenance window: 02:15+ (hierarchy and credential lifecycle tasks).
 - Snapshot cadence: every 30 minutes (`metrics-snapshot-sync`).
-- Daily summary cadence: 06:10 (`ai-daily-summary`).
+- Daily summary cadence: 06:10 (`ai-daily-summary`); generated aggregate summaries are delivered
+  to each tenant's active email notification channels. A repeated attempt for the same already
+  delivered snapshot records its state without issuing a duplicate email.
 - Weekly DEK rotation: Sundays 01:30 (`rotate-tenant-deks`).
 
 ## Validation and observability checks
 
 - Validate compose rendering:
   - `docker compose -f docker-compose.dev.yml config`
+- After launching the local profile, request generic CSV/PDF/PNG exports in `/reports` and verify
+  each completed job downloads successfully through the API.
 - Validate backend checks after orchestration changes:
   - `ruff check backend && pytest -q backend`
 - Verify health and metrics endpoints:
@@ -52,5 +64,9 @@ Tune via `backend/.env.dev` / `backend/.env.sample`:
   - `curl -fsS http://localhost:8000/api/health/dbt/`
   - `curl -fsS http://localhost:8000/api/timezone/`
   - `curl -fsS http://localhost:8000/metrics/app/ | rg 'celery_task_executions_total|celery_task_duration_seconds|airbyte_sync_latency_seconds|dbt_run_duration_seconds'`
-- Run release-readiness smoke command (strict observability profile):
+- Run deterministic release preflight for local/staging preparation:
+  - `backend/.venv/bin/python backend/manage.py backend_release_preflight`
+- After live workers have emitted queue metrics, capture strict observability evidence:
   - `python3 backend/manage.py backend_release_smoke --strict-observability`
+  - This requires real `sync`, `snapshot`, `summary`, combined-metrics, Airbyte, dbt, and retry
+    samples to have occurred in the observed runtime.

@@ -4,9 +4,23 @@
 
 The report exporter turns aggregated advertising metrics into printable deliverables. It merges JSON payloads with the HTML template in `integrations/exporter/templates/`, renders the report in headless Chromium, and emits an A4 PDF plus a first-page PNG preview. This makes it easy to hand off consistent performance summaries without opening the full BI stack.
 
+The application report export flow (`POST /api/reports/{id}/exports/`) now uses this renderer for
+generic PDF/PNG requests and writes CSV artifacts directly from the tenant-scoped aggregate
+snapshot. A job is marked `completed` only after its requested artifact exists and is non-empty;
+download it through `GET /api/exports/{job_id}/download/`.
+CSV artifacts neutralize formula-leading text cells before download, and both generic and Google
+Ads artifact download handlers reject paths that escape the expected export directory.
+In container profiles, the API and summary worker use `REPORT_EXPORT_ARTIFACT_ROOT` on a shared
+volume so successfully rendered worker artifacts are immediately downloadable by the API.
+
 ## Setup
 
-1. Install prerequisites (Node.js 18+). The CLI bundles a Chromium build via `@sparticuz/chromium`, so no extra system packages are required for headless rendering.
+1. Install prerequisites (Node.js 18+). Linux deployments use the bundled
+   native Chromium executable configured with `CHROMIUM_EXECUTABLE_PATH`; this keeps container
+   rendering compatible with both x86-64 and ARM64 images. Other Linux runtimes may use the
+   bundled `@sparticuz/chromium` build. Local macOS/Windows development uses Playwright's
+   installed platform browser; run `npx playwright-core install chromium` if no cached browser
+   exists.
 2. Install dependencies:
    ```bash
    cd integrations/exporter
@@ -55,3 +69,6 @@ node bin/export-report \
 ```
 
 Ensure the payload matches the shape expected by `examples/data.sample.json`. Keep custom payloads out of the repository—store them in a secure blob or generate them on demand from the data warehouse.
+
+Application-generated payloads and artifacts contain aggregate report metrics only. Export logs
+may contain tenant/job identifiers, format, status, and duration, but never exported row content.

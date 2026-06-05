@@ -2,7 +2,7 @@
 
 ## Overview
 
-Alerting is driven by SQL thresholds defined in `backend/app/alerts.py`. Rules are evaluated every 15 minutes by the Celery beat scheduler and results are summarized by the LLM integration before being dispatched to Slack/email. Each evaluation is persisted to the `alerts_alertrun` table and exposed via `GET /api/alerts/runs/` for historical analysis.
+Alerting is driven by system SQL thresholds defined in `backend/app/alerts.py` plus tenant-defined `AlertRuleDefinition` rows. Rules are evaluated every 15 minutes by the Celery beat scheduler and results are summarized by the LLM integration. Tenant-defined rules with matching `NotificationChannel` assignments dispatch only when an evaluation returns rows. Each evaluation is persisted to the `alerts_alertrun` table and exposed via `GET /api/alerts/runs/` for historical analysis.
 
 Default thresholds and escalation steps live in `docs/ops/alert-thresholds-escalation.md`.
 
@@ -14,12 +14,35 @@ curl -X POST https://api.<env>.adinsights.com/alerts/run
 
 This triggers the `run_alert_cycle` task and posts results to the configured channels.
 
-## Adding a New Rule
+## Adding a System Rule
 
 1. Create a new `AlertRule` entry in `backend/app/alerts.py` with SQL scoped to the relevant dataset.
-2. Include a clear description, threshold, and channels.
+2. Include a clear description and threshold.
 3. Add supporting visualizations in Superset so analysts can investigate quickly.
 4. Deploy and validate by running the manual execution command above.
+
+## Tenant Rule Notification Channels
+
+Tenant-defined alert rules use `AlertRuleDefinition.notification_channels`. The delivery path skips inactive channels and isolates failures per channel so one broken destination does not prevent the alert run from completing.
+
+Supported channel inputs:
+
+- Email (`channel_type="email"`): `{"emails": ["ops@example.com", "analyst@example.com"]}` or `{"emails": "ops@example.com,analyst@example.com"}`. Optional: `from_email`.
+- Slack (`channel_type="slack"`): write-only `secret_config: {"url": "<Slack webhook URL>"}`.
+- Webhook (`channel_type="webhook"`): write-only
+  `secret_config: {"url": "<destination>", "headers": {"Authorization": "<token>"}}`.
+  `webhook_url` remains accepted as a URL alias.
+
+For compatibility, a write request using the previous `config.url`, `config.webhook_url`, or
+`config.headers` shape is immediately extracted into encrypted storage. `GET` responses never
+return those values; they expose only `credentials_configured` and `masked_destination`. Clearing
+a Slack/webhook destination requires disabling its channel in the same update.
+The model save boundary applies the same extraction for backend/admin callers, and API
+serialization strips residual legacy destination/header/token keys defensively.
+
+Webhook payloads include the alert run id, rule id/name, severity, metric threshold, status, row
+count, LLM summary, and sanitized result rows. Destination secrets are decrypted only during
+dispatch via the tenant DEK/KMS path and must not appear in logs, runbooks, or screenshots.
 
 ## LLM Summaries
 
@@ -30,8 +53,9 @@ This triggers the `run_alert_cycle` task and posts results to the configured cha
 
 ## Integration Points
 
-- Slack webhook(s) managed in 1Password.
-- Email distribution lists maintained in Google Workspace (`marketing-ops@example.com`).
+- Slack/webhook destination values are encrypted in `NotificationChannel` storage with tenant DEKs;
+  production KMS configuration remains operator-managed.
+- Email distribution lists maintained in Google Workspace.
 - DB credentials rotate via Vault every 90 days.
 
 ## Dashboards & Escalation

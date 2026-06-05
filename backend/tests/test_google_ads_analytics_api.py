@@ -17,7 +17,7 @@ def _seed_campaign_rows(*, tenant, customer_id: str = "1234567890") -> None:
         tenant=tenant,
         customer_id=customer_id,
         campaign_id="1001",
-        campaign_name="Brand Search",
+        campaign_name="=Brand Search",
         campaign_status="ENABLED",
         advertising_channel_type="SEARCH",
         date_day=date(2026, 2, 20),
@@ -160,7 +160,32 @@ def test_google_ads_exports_create_and_status(api_client: APIClient, user):
     )
     assert create_response.status_code == 201
     payload = create_response.json()
-    assert payload["status"] in {GoogleAdsExportJob.STATUS_COMPLETED, GoogleAdsExportJob.STATUS_FAILED}
+    assert payload["status"] == GoogleAdsExportJob.STATUS_COMPLETED
 
     status_response = api_client.get(f"/api/analytics/google-ads/exports/{payload['id']}/")
     assert status_response.status_code == 200
+    download_response = api_client.get(
+        f"/api/analytics/google-ads/exports/{payload['id']}/download/"
+    )
+    assert download_response.status_code == 200
+    artifact = b"".join(download_response.streaming_content).decode("utf-8")
+    assert "'=Brand Search" in artifact
+
+
+def test_google_ads_export_download_rejects_prefix_sibling_path_traversal(
+    api_client: APIClient, user
+):
+    api_client.force_authenticate(user=user)
+    job = GoogleAdsExportJob.objects.create(
+        tenant=user.tenant,
+        requested_by=user,
+        name="Unsafe",
+        export_format=GoogleAdsExportJob.FORMAT_CSV,
+        status=GoogleAdsExportJob.STATUS_COMPLETED,
+        artifact_path="/google_ads/../../outside.csv",
+    )
+
+    response = api_client.get(f"/api/analytics/google-ads/exports/{job.id}/download/")
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Export artifact path is unsafe."

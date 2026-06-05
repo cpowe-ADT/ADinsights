@@ -157,7 +157,12 @@ vi.mock('../../state/useDatasetStore', () => ({
       adapters: string[];
       status: 'idle' | 'loading' | 'loaded' | 'error';
       source?: string;
-      liveReason?: 'adapter_disabled' | 'missing_snapshot' | 'stale_snapshot' | 'default_snapshot' | 'ready';
+      liveReason?:
+        | 'adapter_disabled'
+        | 'missing_snapshot'
+        | 'stale_snapshot'
+        | 'default_snapshot'
+        | 'ready';
       liveDetail?: string;
       liveSnapshotGeneratedAt?: string;
       warehouseAdapterEnabled: boolean;
@@ -532,5 +537,70 @@ describe('DashboardLayout', () => {
         expect.objectContaining({ accountId: 'act_697812007883214' }),
       );
     });
+  });
+
+  it('renders global FilterBar on /dashboards/google-ads route (not hidden)', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboards/google-ads']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="google-ads" element={<div>Google Ads workspace</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // FilterBar must be present — it was previously hidden on this route
+    expect(screen.getByTestId('filter-bar')).toBeInTheDocument();
+  });
+
+  it('hides global FilterBar on /dashboards/meta/pages route', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboards/meta/pages']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="meta/pages" element={<div>Meta Pages</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // FilterBar must be absent on meta/pages (legitimate hide)
+    expect(screen.queryByTestId('filter-bar')).not.toBeInTheDocument();
+  });
+
+  // C1A-NEW-02: R7 reconciliation effect propagates Meta accountId on /dashboards/meta/* routes
+  it('copies Meta accountId to global filters on /dashboards/meta/accounts route', async () => {
+    // The real useMetaStore is a Zustand store. We can set state directly before render.
+    // Import the real store and set the accountId.
+    const { default: useMetaStore } = await import('../../state/useMetaStore');
+    useMetaStore.setState((s) => ({ filters: { ...s.filters, accountId: 'act_reconcile_test' } }));
+
+    storeMock.state.filters = {
+      dateRange: '7d',
+      customRange: { start: '2026-02-13', end: '2026-02-19' },
+      accountId: '',
+      channels: [],
+      campaignQuery: '',
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/meta/accounts']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="meta/accounts" element={<div>Meta Accounts</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(storeMock.state.setFilters).toHaveBeenCalledWith(
+        expect.objectContaining({ accountId: 'act_reconcile_test' }),
+      );
+    });
+
+    // Cleanup: reset the meta store accountId
+    useMetaStore.setState((s) => ({ filters: { ...s.filters, accountId: '' } }));
   });
 });

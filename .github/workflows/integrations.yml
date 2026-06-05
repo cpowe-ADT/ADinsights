@@ -17,6 +17,9 @@ on:
       - '.github/workflows/integrations.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   exporter:
     name: Validate integrations exporter

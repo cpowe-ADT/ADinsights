@@ -9,6 +9,7 @@ const fetchGoogleAdsSavedViewsMock = vi.hoisted(() => vi.fn());
 const createGoogleAdsSavedViewMock = vi.hoisted(() => vi.fn());
 const createGoogleAdsExportMock = vi.hoisted(() => vi.fn());
 const fetchGoogleAdsExportStatusMock = vi.hoisted(() => vi.fn());
+const verifyGoogleAdsSavedViewMock = vi.hoisted(() => vi.fn());
 const pendingAsync = () => new Promise<never>(() => {});
 
 vi.mock('../../../lib/googleAdsDashboard', () => ({
@@ -16,6 +17,7 @@ vi.mock('../../../lib/googleAdsDashboard', () => ({
   createGoogleAdsSavedView: (...args: unknown[]) => createGoogleAdsSavedViewMock(...args),
   createGoogleAdsExport: (...args: unknown[]) => createGoogleAdsExportMock(...args),
   fetchGoogleAdsExportStatus: (...args: unknown[]) => fetchGoogleAdsExportStatusMock(...args),
+  verifyGoogleAdsSavedView: (...args: unknown[]) => verifyGoogleAdsSavedViewMock(...args),
 }));
 
 describe('GoogleAdsReportsPage', () => {
@@ -24,7 +26,18 @@ describe('GoogleAdsReportsPage', () => {
     fetchGoogleAdsSavedViewsMock.mockImplementation(() => pendingAsync());
     createGoogleAdsSavedViewMock.mockResolvedValue({ id: 'v1' });
     createGoogleAdsExportMock.mockResolvedValue({ id: 'j1', status: 'queued', download_url: null });
-    fetchGoogleAdsExportStatusMock.mockResolvedValue({ id: 'j1', status: 'complete', download_url: '/download/j1' });
+    verifyGoogleAdsSavedViewMock.mockResolvedValue({
+      id: 'v1',
+      name: 'Weekly View',
+      drift: false,
+      missing_filters: [],
+      missing_columns: [],
+    });
+    fetchGoogleAdsExportStatusMock.mockResolvedValue({
+      id: 'j1',
+      status: 'completed',
+      download_url: '/download/j1',
+    });
   });
 
   it('renders the page heading', async () => {
@@ -36,19 +49,31 @@ describe('GoogleAdsReportsPage', () => {
     expect(screen.getByText('Reports & Exports')).toBeInTheDocument();
   });
 
-  it('shows empty saved views message', async () => {
+  it('shows reasonCode=no_saved_views when empty', async () => {
     fetchGoogleAdsSavedViewsMock.mockResolvedValueOnce([]);
     render(
       <MemoryRouter>
         <GoogleAdsReportsPage />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(screen.getByText('No saved views yet.')).toBeInTheDocument());
+    await waitFor(() => {
+      const empty = document.querySelector('[data-reason-code="no_saved_views"]');
+      expect(empty).not.toBeNull();
+    });
   });
 
-  it('renders saved views after loading', async () => {
+  it('renders saved views with status chip after loading', async () => {
     fetchGoogleAdsSavedViewsMock.mockResolvedValueOnce([
-      { id: 'v1', name: 'Weekly View', description: 'Exec report', is_shared: true, updated_at: '2026-04-01' },
+      {
+        id: 'v1',
+        name: 'Weekly View',
+        description: 'Exec report',
+        is_shared: true,
+        updated_at: '2026-04-01',
+        filters: {},
+        columns: [],
+        created_at: '',
+      },
     ]);
     render(
       <MemoryRouter>
@@ -56,9 +81,14 @@ describe('GoogleAdsReportsPage', () => {
       </MemoryRouter>,
     );
     await waitFor(() => expect(screen.getByText('Weekly View')).toBeInTheDocument());
+    // "Shared" appears as chip text AND column header → use getAllByText.
+    expect(screen.getAllByText('Shared').length).toBeGreaterThan(0);
+    // KPIs
+    expect(screen.getByText('Total saved views')).toBeInTheDocument();
+    expect(screen.getByText('Shared views')).toBeInTheDocument();
   });
 
-  it('creates an export on button click', async () => {
+  it('creates an export on button click and renders status chip', async () => {
     const user = userEvent.setup();
     fetchGoogleAdsSavedViewsMock.mockResolvedValueOnce([]);
     render(

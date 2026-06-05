@@ -24,9 +24,14 @@ const phase2ApiMock = vi.hoisted(() => ({
   getReport: vi.fn(),
   listReportExports: vi.fn(),
   createReportExport: vi.fn(),
+  downloadReportExport: vi.fn(),
   updateReport: vi.fn(),
   toggleReportSchedule: vi.fn(),
   updateReportSchedule: vi.fn(),
+}));
+
+const downloadMock = vi.hoisted(() => ({
+  saveBlobAsFile: vi.fn(),
 }));
 
 const toastMock = vi.hoisted(() => ({
@@ -39,9 +44,14 @@ vi.mock('../../lib/phase2Api', () => ({
   getReport: phase2ApiMock.getReport,
   listReportExports: phase2ApiMock.listReportExports,
   createReportExport: phase2ApiMock.createReportExport,
+  downloadReportExport: phase2ApiMock.downloadReportExport,
   updateReport: phase2ApiMock.updateReport,
   toggleReportSchedule: phase2ApiMock.toggleReportSchedule,
   updateReportSchedule: phase2ApiMock.updateReportSchedule,
+}));
+
+vi.mock('../../lib/download', () => ({
+  saveBlobAsFile: downloadMock.saveBlobAsFile,
 }));
 
 vi.mock('../../stores/useToastStore', () => ({
@@ -142,5 +152,60 @@ describe('ReportDetailPage inline editing', () => {
     await waitFor(() => {
       expect(toastMock.addToast).toHaveBeenCalledWith('Failed to update', 'error');
     });
+  });
+
+  it('downloads a completed export artifact', async () => {
+    const blob = new Blob(['campaign,spend']);
+    phase2ApiMock.listReportExports.mockResolvedValue([
+      {
+        id: 'job-1',
+        report_id: 'r1',
+        export_format: 'csv',
+        status: 'completed',
+        artifact_path: '/exports/job-1.csv',
+        error_message: '',
+        metadata: {},
+        completed_at: '2026-01-01T01:00:00Z',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T01:00:00Z',
+      },
+    ]);
+    phase2ApiMock.downloadReportExport.mockResolvedValue({
+      blob,
+      filename: 'pilot-report.csv',
+    });
+
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument(),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Download' }));
+
+    await waitFor(() => expect(phase2ApiMock.downloadReportExport).toHaveBeenCalledWith('job-1'));
+    expect(downloadMock.saveBlobAsFile).toHaveBeenCalledWith(blob, 'pilot-report.csv');
+  });
+
+  it('shows the sanitized failure reason for a failed export job', async () => {
+    phase2ApiMock.listReportExports.mockResolvedValue([
+      {
+        id: 'job-2',
+        report_id: 'r1',
+        export_format: 'pdf',
+        status: 'failed',
+        artifact_path: '',
+        error_message: 'Export generation failed (FileNotFoundError).',
+        metadata: {},
+        completed_at: '2026-01-01T01:00:00Z',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T01:00:00Z',
+      },
+    ]);
+
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByText('Export generation failed (FileNotFoundError).')).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole('button', { name: 'Download' })).not.toBeInTheDocument();
   });
 });

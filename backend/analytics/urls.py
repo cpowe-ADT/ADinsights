@@ -28,6 +28,7 @@ from .google_ads_views import (
     GoogleAdsExportStatusView,
     GoogleAdsKeywordsView,
     GoogleAdsPmaxAssetGroupsView,
+    GoogleAdsRecommendationDismissView,
     GoogleAdsRecommendationsView,
     GoogleAdsSavedViewViewSet,
     GoogleAdsSearchTermInsightsView,
@@ -105,6 +106,11 @@ urlpatterns = [
         "google-ads/recommendations/",
         GoogleAdsRecommendationsView.as_view(),
         name="google-ads-recommendations",
+    ),
+    path(
+        "google-ads/recommendations/<int:pk>/dismiss/",
+        GoogleAdsRecommendationDismissView.as_view(),
+        name="google-ads-recommendation-dismiss",
     ),
     path("google-ads/exports/", GoogleAdsExportCreateView.as_view(), name="google-ads-exports"),
     path(

@@ -1421,6 +1421,32 @@ class DemoAdapter(MetricsAdapter):
         tenant_id: str,
         options: Mapping[str, Any] | None = None,
     ) -> Mapping[str, Any]:
+        _opts = options or {}
+        client_scope_requested = bool(_opts.get("client_scope_requested"))
+        scoped_meta = list(_opts.get("client_scoped_meta_ad_account_ids") or [])
+        scoped_google = list(_opts.get("client_scoped_google_customer_ids") or [])
+
+        # Build allowed channel set for downstream filtering.
+        allowed_channels: set[str] | None = None
+        if client_scope_requested:
+            if not scoped_meta and not scoped_google:
+                return _demo_empty_payload()
+            allowed_channels = set()
+            if scoped_meta:
+                allowed_channels.update(
+                    {
+                        "meta_ads",
+                        "meta",
+                        "meta ads",
+                        "facebook",
+                        "instagram",
+                        "audience_network",
+                        "messenger",
+                    }
+                )
+            if scoped_google:
+                allowed_channels.update({"google_ads", "google ads", "google"})
+
         slug = (
             str(options.get("demo_tenant"))  # type: ignore[call-arg]
             if options and "demo_tenant" in options
@@ -1428,11 +1454,82 @@ class DemoAdapter(MetricsAdapter):
         )
         seeded = _load_seeded_demo_data(_demo_seed_dir())
         if seeded:
-            return _build_seeded_payload(seeded, slug, options)
+            payload = _build_seeded_payload(seeded, slug, options)
+            if allowed_channels is not None:
+                payload = _filter_demo_payload_by_channel(payload, allowed_channels)
+            return payload
 
         dataset = DEMO_DATASETS.get(slug) or DEMO_DATASETS[DEFAULT_DEMO_TENANT]
         payload = deepcopy(dataset["payload"])
+        if allowed_channels is not None:
+            payload = _filter_demo_payload_by_channel(payload, allowed_channels)
         payload.setdefault("tenant_id", slug)
         payload.setdefault("tenant_label", dataset["label"])
         payload.setdefault("snapshot_generated_at", timezone.now().isoformat())
         return payload
+
+
+# ── demo scoping helpers ────────────────────────────────────────────────────
+
+
+def _filter_demo_payload_by_channel(
+    payload: dict[str, Any], allowed: set[str]
+) -> dict[str, Any]:
+    """Filter campaign and creative rows by platform/channel field.
+
+    The seeded path sets row['platform'] = meta.get('channel'); the static
+    DEMO_DATASETS path sets row['platform'] to display strings like 'Meta'.
+    Both are checked case-insensitively against the allowed set.
+    """
+    result = dict(payload)
+    campaign = dict(result.get("campaign") or {})
+    rows = [
+        r
+        for r in (campaign.get("rows") or [])
+        if (r.get("platform") or "").lower() in allowed
+    ]
+    total_spend = sum(float(r.get("spend", 0)) for r in rows)
+    total_impressions = sum(int(r.get("impressions", 0)) for r in rows)
+    total_clicks = sum(int(r.get("clicks", 0)) for r in rows)
+    total_conversions = sum(int(r.get("conversions", 0)) for r in rows)
+    summary = dict(campaign.get("summary") or {})
+    summary.update(
+        {
+            "totalSpend": round(total_spend, 2),
+            "totalImpressions": total_impressions,
+            "totalClicks": total_clicks,
+            "totalConversions": total_conversions,
+        }
+    )
+    campaign["summary"] = summary
+    campaign["rows"] = rows
+    # Zero trend to avoid trend/summary mismatch when filtering by platform.
+    campaign["trend"] = []
+    result["campaign"] = campaign
+    result["creative"] = [
+        r
+        for r in (result.get("creative") or [])
+        if (r.get("platform") or "").lower() in allowed
+    ]
+    return result
+
+
+def _demo_empty_payload() -> dict[str, Any]:
+    return {
+        "campaign": {
+            "summary": {
+                "currency": "JMD",
+                "totalSpend": 0,
+                "totalImpressions": 0,
+                "totalClicks": 0,
+                "totalConversions": 0,
+                "averageRoas": 0.0,
+            },
+            "trend": [],
+            "rows": [],
+        },
+        "creative": [],
+        "budget": [],
+        "parish": [],
+        "snapshot_generated_at": None,
+    }

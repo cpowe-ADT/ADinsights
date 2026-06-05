@@ -15,17 +15,39 @@ export interface FilterBarAccountOption {
   label: string;
 }
 
+export interface FilterBarClientOption {
+  value: string;
+  label: string;
+}
+
+export interface FilterBarPlatformOption {
+  /** Backend platform key (e.g. 'meta_ads', 'google_ads'). */
+  value: string;
+  /** Human label rendered in the toggle. */
+  label: string;
+}
+
 interface FilterBarProps {
   availableChannels?: string[];
   availableAccounts?: FilterBarAccountOption[];
+  /**
+   * Sprint 8 of Client grouping: when provided, renders a "Client" dropdown
+   * that maps to `filters.clientId` and flows to `?client_id=` on the
+   * combined metrics endpoint.
+   */
+  availableClients?: FilterBarClientOption[];
+  /**
+   * Sprint 8 of Client grouping: when provided, renders a toggle group
+   * that maps to `filters.platforms` and flows to `?platforms=` on the
+   * combined metrics endpoint. Empty selection means "use backend defaults".
+   */
+  availablePlatforms?: FilterBarPlatformOption[];
   defaultState?: FilterBarState;
   state?: FilterBarState;
   onChange?: (nextState: FilterBarState) => void;
 }
 
-type FilterStateUpdater =
-  | FilterBarState
-  | ((previous: FilterBarState) => FilterBarState);
+type FilterStateUpdater = FilterBarState | ((previous: FilterBarState) => FilterBarState);
 
 const datePresets: { label: string; value: DateRangePreset }[] = [
   { label: 'Today', value: 'today' },
@@ -46,6 +68,7 @@ function cloneFilterState(filters: FilterBarState): FilterBarState {
   return {
     ...filters,
     channels: [...filters.channels],
+    platforms: [...filters.platforms],
     customRange: { ...filters.customRange },
   };
 }
@@ -53,6 +76,8 @@ function cloneFilterState(filters: FilterBarState): FilterBarState {
 const FilterBar = ({
   availableChannels,
   availableAccounts,
+  availableClients,
+  availablePlatforms,
   defaultState,
   state,
   onChange,
@@ -159,7 +184,9 @@ const FilterBar = ({
   }, [isChannelOpen]);
 
   const channels = availableChannels ?? DEFAULT_CHANNELS;
-  const selectedExtendedRange = extendedDatePresets.some((preset) => preset.value === filters.dateRange)
+  const selectedExtendedRange = extendedDatePresets.some(
+    (preset) => preset.value === filters.dateRange,
+  )
     ? filters.dateRange
     : '';
 
@@ -184,6 +211,28 @@ const FilterBar = ({
     } else {
       setIsCustomOpen((current) => !current);
     }
+  };
+
+  /**
+   * Empty `platforms` means "use backend defaults" (all currently enabled).
+   * When the user first clicks a chip, we materialise the implicit default
+   * set so the toggle becomes an explicit subset; clicking further chips
+   * adds/removes. Clearing to empty again is possible via the "Clear all"
+   * button.
+   */
+  const togglePlatform = (platform: string) => {
+    const defaults = (availablePlatforms ?? []).map((option) => option.value);
+    commitFilters((prev) => {
+      const baseline = prev.platforms.length === 0 ? defaults : prev.platforms;
+      const exists = baseline.includes(platform);
+      const nextPlatforms = exists
+        ? baseline.filter((item) => item !== platform)
+        : [...baseline, platform];
+      return {
+        ...prev,
+        platforms: nextPlatforms,
+      };
+    });
   };
 
   const toggleChannel = (channel: string) => {
@@ -224,9 +273,12 @@ const FilterBar = ({
     return (
       filters.dateRange === baseline.dateRange &&
       filters.accountId.trim() === baseline.accountId.trim() &&
+      filters.clientId.trim() === baseline.clientId.trim() &&
       filters.campaignQuery.trim() === baseline.campaignQuery.trim() &&
       filters.channels.length === baseline.channels.length &&
       filters.channels.every((channel) => baseline.channels.includes(channel)) &&
+      filters.platforms.length === baseline.platforms.length &&
+      filters.platforms.every((value) => baseline.platforms.includes(value)) &&
       filters.customRange.start === baseline.customRange.start &&
       filters.customRange.end === baseline.customRange.end
     );
@@ -323,9 +375,32 @@ const FilterBar = ({
           </select>
         </div>
 
+        {availableClients && availableClients.length > 0 ? (
+          <div className="filter-field filter-search">
+            <label htmlFor="client-selector">Client</label>
+            <select
+              id="client-selector"
+              value={filters.clientId}
+              onChange={(event) =>
+                commitFilters((prev) => ({
+                  ...prev,
+                  clientId: event.target.value,
+                }))
+              }
+            >
+              <option value="">All clients</option>
+              {availableClients.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+
         {availableAccounts && availableAccounts.length > 0 ? (
           <div className="filter-field filter-search">
-            <label htmlFor="client-account">Client</label>
+            <label htmlFor="client-account">Account</label>
             <select
               id="client-account"
               value={filters.accountId}
@@ -336,13 +411,36 @@ const FilterBar = ({
                 }))
               }
             >
-              <option value="">All clients</option>
+              <option value="">All accounts</option>
               {availableAccounts.map((account) => (
                 <option key={account.value} value={account.value}>
                   {account.label}
                 </option>
               ))}
             </select>
+          </div>
+        ) : null}
+
+        {availablePlatforms && availablePlatforms.length > 0 ? (
+          <div className="filter-field filter-toggle-group" role="group" aria-label="Platforms">
+            <span className="filter-field__label">Platforms</span>
+            <div className="filter-toggle-group__items">
+              {availablePlatforms.map((option) => {
+                const isActive =
+                  filters.platforms.length === 0 ? true : filters.platforms.includes(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`filter-chip${isActive ? ' filter-chip--active' : ''}`}
+                    aria-pressed={isActive}
+                    onClick={() => togglePlatform(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         ) : null}
 

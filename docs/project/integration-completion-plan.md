@@ -28,18 +28,19 @@ Every ticket below is written so it can be lifted verbatim into ClickUp/Linear/G
 
 ## 1. Current state (audit, 2026-06-04)
 
-| Source | Airbyte connector | Backend sync + models | Adapter | dbt → fact | Combined reporting |
-|---|---|---|---|---|---|
-| **Meta Ads** | ✅ | ✅ | ✅ `meta_direct` + `warehouse` | ✅ `stg_meta_*` → `all_ad_performance` → `fact_performance` | ✅ live |
-| **Google Ads** | ✅ (SDK primary, Airbyte fallback) | ✅ `GoogleAdsSyncState` + SDK tasks | ✅ `warehouse` | ✅ `stg_google_ads*` → fact | ✅ live |
-| **CSV Upload** | — | ✅ `TenantMetricsSnapshot` | ✅ `upload` | n/a (Phase 1) | ✅ live |
-| **GA4** | ✅ | cred-only (`GoogleAnalyticsConnection`) | ✅ `google_analytics` (direct API) | `raw.ga4_reports`→`stg_ga4_reports`→`agg_ga4_daily` | ⚠️ pilot endpoint `/api/analytics/web/ga4/` only |
-| **Search Console** | ✅ | — (Airbyte→warehouse) | `warehouse` | `raw.search_console_performance`→`stg_search_console`→`agg_search_console_daily` | ⚠️ pilot endpoint only |
-| **TikTok Ads** | ✅ **green (fixed 2026-06-04)** | ❌ none | ❌ none for performance | ⚠️ union block exists but reads **transparency** seed, not connector output | ❌ |
-| **LinkedIn Ads** | ✅ **green (fixed 2026-06-04)** | ❌ none | ❌ none for performance | ⚠️ same — transparency lineage only | ❌ |
-| **Microsoft Ads** | ✅ **green (foundation)** | ❌ none | ❌ none | ❌ no dbt block at all | ❌ |
+| Source             | Airbyte connector                  | Backend sync + models                   | Adapter                            | dbt → fact                                                                       | Combined reporting                               |
+| ------------------ | ---------------------------------- | --------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------ |
+| **Meta Ads**       | ✅                                 | ✅                                      | ✅ `meta_direct` + `warehouse`     | ✅ `stg_meta_*` → `all_ad_performance` → `fact_performance`                      | ✅ live                                          |
+| **Google Ads**     | ✅ (SDK primary, Airbyte fallback) | ✅ `GoogleAdsSyncState` + SDK tasks     | ✅ `warehouse`                     | ✅ `stg_google_ads*` → fact                                                      | ✅ live                                          |
+| **CSV Upload**     | —                                  | ✅ `TenantMetricsSnapshot`              | ✅ `upload`                        | n/a (Phase 1)                                                                    | ✅ live                                          |
+| **GA4**            | ✅                                 | cred-only (`GoogleAnalyticsConnection`) | ✅ `google_analytics` (direct API) | `raw.ga4_reports`→`stg_ga4_reports`→`agg_ga4_daily`                              | ⚠️ pilot endpoint `/api/analytics/web/ga4/` only |
+| **Search Console** | ✅                                 | — (Airbyte→warehouse)                   | `warehouse`                        | `raw.search_console_performance`→`stg_search_console`→`agg_search_console_daily` | ⚠️ pilot endpoint only                           |
+| **TikTok Ads**     | ✅ **green (fixed 2026-06-04)**    | ❌ none                                 | ❌ none for performance            | ⚠️ union block exists but reads **transparency** seed, not connector output      | ❌                                               |
+| **LinkedIn Ads**   | ✅ **green (fixed 2026-06-04)**    | ❌ none                                 | ❌ none for performance            | ⚠️ same — transparency lineage only                                              | ❌                                               |
+| **Microsoft Ads**  | ✅ **green (foundation)**          | ❌ none                                 | ❌ none                            | ❌ no dbt block at all                                                           | ❌                                               |
 
 **Already true (do not rebuild):**
+
 - All three custom connectors instantiate, `spec`/`discover`/`check`, and emit the canonical
   14-field schema under the installed CDK. Guarded by
   `infrastructure/airbyte/sources/tests/test_connector_smoke.py` and per-source tests.
@@ -50,7 +51,8 @@ Every ticket below is written so it can be lifted verbatim into ClickUp/Linear/G
   `enable_tiktok` conditional union blocks (lines 93-172) emitting `source_platform`.
 
 **Net-new gaps (the work this plan covers):**
-- No backend **sync model / Celery task / repository** that lands connector *performance* rows
+
+- No backend **sync model / Celery task / repository** that lands connector _performance_ rows
   in the warehouse for any of the three.
 - `COMBINED_SUPPORTED` (`backend/analytics/platform_registry.py:49`) is still only
   `{meta_ads, google_ads}` — nothing else can pass combined metrics.
@@ -98,17 +100,17 @@ reach, clicks, conversions, effective_from`.
 
 **The nine seams a new source touches** (each maps to a ticket family in §5):
 
-| # | Seam | File anchor | Combined-metrics required? |
-|---|---|---|---|
-| 1 | Credential provider | `backend/integrations/models.py` `PlatformCredential.PROVIDER_CHOICES:27` | yes |
-| 2 | Sync state + daily model | `backend/integrations/models.py` (`GoogleAdsSyncState:1314` pattern) | yes |
-| 3 | Celery sync task + Beat | `backend/integrations/tasks.py` (`sync_google_ads_sdk_incremental:280`), `backend/core/settings.py` Beat | yes |
-| 4 | Raw→staging dbt model | `dbt/models/staging/stg_<platform>_ads_performance.sql` (new) | yes |
-| 5 | Union into fact | `dbt/models/reference/all_ad_performance.sql` + `enable_<platform>` var | yes |
-| 6 | Platform enum + label | `platform_registry.py` `COMBINED_SUPPORTED:49`, `_LABELS`, `COMBINED_ORDER` | yes |
-| 7 | Client scoping | `combined_metrics_service.py::resolve_client_scoping` + warehouse filter | only if client-grouped |
-| 8 | Settings flags | `backend/core/settings.py` `ENABLE_*` + per-source feature flag | yes |
-| 9 | Frontend surface | `frontend/src/lib/platformLabels.ts`, `styles/chartTheme.ts`, `routes/DataSources.tsx`, `state/useDatasetStore.ts` | yes |
+| #   | Seam                     | File anchor                                                                                                        | Combined-metrics required? |
+| --- | ------------------------ | ------------------------------------------------------------------------------------------------------------------ | -------------------------- |
+| 1   | Credential provider      | `backend/integrations/models.py` `PlatformCredential.PROVIDER_CHOICES:27`                                          | yes                        |
+| 2   | Sync state + daily model | `backend/integrations/models.py` (`GoogleAdsSyncState:1314` pattern)                                               | yes                        |
+| 3   | Celery sync task + Beat  | `backend/integrations/tasks.py` (`sync_google_ads_sdk_incremental:280`), `backend/core/settings.py` Beat           | yes                        |
+| 4   | Raw→staging dbt model    | `dbt/models/staging/stg_<platform>_ads_performance.sql` (new)                                                      | yes                        |
+| 5   | Union into fact          | `dbt/models/reference/all_ad_performance.sql` + `enable_<platform>` var                                            | yes                        |
+| 6   | Platform enum + label    | `platform_registry.py` `COMBINED_SUPPORTED:49`, `_LABELS`, `COMBINED_ORDER`                                        | yes                        |
+| 7   | Client scoping           | `combined_metrics_service.py::resolve_client_scoping` + warehouse filter                                           | only if client-grouped     |
+| 8   | Settings flags           | `backend/core/settings.py` `ENABLE_*` + per-source feature flag                                                    | yes                        |
+| 9   | Frontend surface         | `frontend/src/lib/platformLabels.ts`, `styles/chartTheme.ts`, `routes/DataSources.tsx`, `state/useDatasetStore.ts` | yes                        |
 
 ---
 
@@ -117,7 +119,7 @@ reach, clicks, conversions, effective_from`.
 **DD-1: Performance lineage vs. existing transparency lineage.**
 
 The existing `all_ad_performance.sql` tiktok/linkedin blocks read `stg_tiktok_transparency` /
-`stg_linkedin_transparency`, which are fed by *transparency* seed CSVs
+`stg_linkedin_transparency`, which are fed by _transparency_ seed CSVs
 (`dbt/seeds/raw/tiktok_transparency.csv`, `linkedin_transparency.csv`) — ad-library style data,
 **not** the spend/impressions/clicks/conversions performance rows the new connectors emit.
 
@@ -150,17 +152,18 @@ No two sources in flight simultaneously (per user direction and scope-freeze hyg
 
 **Readiness comparison:**
 
-| Factor | TikTok | LinkedIn | Microsoft Ads |
-|---|---|---|---|
-| Connector green | ✅ | ✅ | ✅ |
-| Platform enum exists | ✅ | ✅ | ❌ (add) |
-| Credential provider exists | ✅ | ✅ | ❌ (add) |
-| dbt union block stub | ✅ (transparency) | ✅ (transparency) | ❌ (add) |
-| Frontend `PROVIDER_LABELS` entry | ✅ | ✅ | ❌ (add) |
-| Connector contract-checked in `check_data_contracts.py` | ❌ | ❌ | ✅ |
-| Net new groundwork | least | least | most (enum+cred+dbt) |
+| Factor                                                  | TikTok            | LinkedIn          | Microsoft Ads        |
+| ------------------------------------------------------- | ----------------- | ----------------- | -------------------- |
+| Connector green                                         | ✅                | ✅                | ✅                   |
+| Platform enum exists                                    | ✅                | ✅                | ❌ (add)             |
+| Credential provider exists                              | ✅                | ✅                | ❌ (add)             |
+| dbt union block stub                                    | ✅ (transparency) | ✅ (transparency) | ❌ (add)             |
+| Frontend `PROVIDER_LABELS` entry                        | ✅                | ✅                | ❌ (add)             |
+| Connector contract-checked in `check_data_contracts.py` | ❌                | ❌                | ✅                   |
+| Net new groundwork                                      | least             | least             | most (enum+cred+dbt) |
 
 **Recommended order:**
+
 1. **TikTok = pathfinder.** Most pre-scaffolded; build E0–E6 fully, treat its PRs as the template.
 2. **LinkedIn = replication.** Same shape; should be mostly "copy + source-specific delta" once
    TikTok's template exists. Validates the template generalizes.
@@ -181,6 +184,7 @@ Replace `<P>` with the platform slug (`tiktok` / `linkedin` / `microsoft`). Each
 **Deps**, **Acceptance criteria (AC)**, and **Eval** (the §7 gate it must pass).
 
 ### E0 — Design & contract (Scope: `docs/`)
+
 - **`<P>`-E0-01 — Source design note + DD-1/DD-2 application.**
   Deps: DD-1/DD-2 ratified. AC: a 1-page note in `docs/project/` covering raw table name, staging
   grain, fact mapping (`ad_group_id→adset_id`, parish derivation, currency normalization to a
@@ -189,6 +193,7 @@ Replace `<P>` with the platform slug (`tiktok` / `linkedin` / `microsoft`). Each
   Eval: design-review sign-off (Raj+Mira).
 
 ### E1 — Credentials + sync (Scope: `backend/`)
+
 - **`<P>`-E1-01 — Credential provider** (Microsoft only; TikTok/LinkedIn already present).
   AC: `PlatformCredential.MICROSOFT` added to `PROVIDER_CHOICES`; migration; admin + connector
   setup endpoint accepts it. Eval: `test_integration_connector_api` extended, green.
@@ -205,6 +210,7 @@ Replace `<P>` with the platform slug (`tiktok` / `linkedin` / `microsoft`). Each
   Airbyte/HTTP asserting state transitions + idempotent re-run (§7 L2).
 
 ### E2 — Warehouse / dbt (Scope: `dbt/`)
+
 - **`<P>`-E2-01 — Staging performance model.**
   AC: `stg_<P>_ads_performance.sql` reads raw connector output, normalizes to the fact column
   contract, applies parish mapping (reuse Meta/Google seed). Per DD-1 Option A, distinct from any
@@ -220,6 +226,7 @@ Replace `<P>` with the platform slug (`tiktok` / `linkedin` / `microsoft`). Each
   campaign/geo/parish/metrics slices. Eval: snapshot fixture test shows `<P>` keys present.
 
 ### E3 — Combined metrics (Scope: `backend/`)
+
 - **`<P>`-E3-01 — Registry enablement.**
   AC: add `PLATFORM_<P>` to `COMBINED_SUPPORTED`, `_LABELS`, `COMBINED_ORDER` in
   `platform_registry.py`. Eval: `test_combined_platforms_only` extended — `?platforms=<P>` returns
@@ -234,6 +241,7 @@ Replace `<P>` with the platform slug (`tiktok` / `linkedin` / `microsoft`). Each
   (otherwise documented as warehouse-wide). Eval: `dataset_status` payload test.
 
 ### E4 — Frontend (Scope: `frontend/`)
+
 - **`<P>`-E4-01 — Platform surface.**
   AC: color token in `styles/chartTheme.ts` (`PLATFORM_CHART_TOKENS.<P>`), `platformColor` case,
   `PROVIDER_LABELS` entry (Microsoft only), dataset-store key if a dedicated adapter is exposed,
@@ -244,6 +252,7 @@ Replace `<P>` with the platform slug (`tiktok` / `linkedin` / `microsoft`). Each
   platform filter toggles it. Eval: Playwright e2e (§7 L5) + preview screenshot.
 
 ### E5 — Evals & QA (Scope: `qa/` + `backend/tests` + `infrastructure/airbyte/sources/tests`)
+
 - **`<P>`-E5-01 — Vertical-slice integration test.**
   AC: extend `backend/tests/integration/test_vertical_slice.py` to cover `<P>`: seeded raw →
   snapshot → `/api/metrics/combined/?platforms=<P>` returns expected aggregates. Eval: green in CI.
@@ -258,6 +267,7 @@ Replace `<P>` with the platform slug (`tiktok` / `linkedin` / `microsoft`). Each
   freshness). Eval: doc review.
 
 ### E6 — Rollout (Scope: `backend/` + `docs/`)
+
 - **`<P>`-E6-01 — Flags default-off + runbook.**
   AC: `ENABLE_<P>_*` and `enable_<P>` default False in all envs; `docs/runbooks/<P>-operations.md`
   written (triage order, re-sync, failure categories). Eval: release preflight green with flags off
@@ -271,6 +281,7 @@ Replace `<P>` with the platform slug (`tiktok` / `linkedin` / `microsoft`). Each
 ## 6. Per-source instantiation deltas
 
 ### 6.1 TikTok (pathfinder)
+
 - Enum/credential/`PROVIDER_LABELS`: **already present** — skip E1-01.
 - dbt: repoint existing `enable_tiktok` block from `stg_tiktok_transparency` to new
   `stg_tiktok_ads_performance` per DD-1; decide transparency block's fate.
@@ -279,6 +290,7 @@ Replace `<P>` with the platform slug (`tiktok` / `linkedin` / `microsoft`). Each
 - Deliverable: this source's PRs are the **template** referenced by LinkedIn/Microsoft.
 
 ### 6.2 LinkedIn (replication)
+
 - Enum/credential/labels: already present — skip E1-01.
 - Connector deltas: URN extraction already normalizes ids (`urn:li:sponsoredCampaign:456`→`456`);
   `costInLocalCurrency`→spend, `DEVICE_TYPE` pivot→device.
@@ -286,6 +298,7 @@ Replace `<P>` with the platform slug (`tiktok` / `linkedin` / `microsoft`). Each
   scoping in E3-02.
 
 ### 6.3 Microsoft Ads (generalization test)
+
 - **Adds the groundwork the others had:** E1-01 credential provider `MICROSOFT`; platform enum
   `ClientPlatformAccount.PLATFORM_MICROSOFT` + `platform_registry` constants; **new** dbt
   `enable_microsoft` union block (none exists today).
@@ -295,6 +308,7 @@ Replace `<P>` with the platform slug (`tiktok` / `linkedin` / `microsoft`). Each
 - Treat completion as the signal that the template is platform-agnostic.
 
 ### 6.4 GA4 + Search Console (pilot promotion — separate track)
+
 - Different lineage: `agg_ga4_daily` / `agg_search_console_daily` + existing
   `/api/analytics/web/{ga4,search-console}/` endpoints + `google_analytics` adapter.
 - Work is **promotion + onboarding**, not net-new spine: (a) decide if/how web metrics join
@@ -311,7 +325,7 @@ Evals are **layered**; a ticket merges only when its layer's eval is green. Thre
 contract — encode them as assertions, not vibes.
 
 - **L0 Connector contract** (`infrastructure/airbyte/sources/tests/`): spec/discover/check + the
-  canonical 14 fields + slice/lookback determinism. *Already green for all three.* Extend
+  canonical 14 fields + slice/lookback determinism. _Already green for all three._ Extend
   `check_data_contracts.py` per source (E5-02).
 - **L1 Schema/regression** (`backend/tests/test_schema_regressions.py`): new models add required
   columns; existing facts unchanged when `enable_<P>=false` (byte-identical regression).
@@ -381,15 +395,15 @@ For each ticket, an engineer/agent runs this loop. Keep each PR inside one top-l
 
 ## 10. Risk register
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| Transparency vs performance lineage collision (DD-1 unresolved) | High if skipped | Double-counted spend | Ratify DD-1 Option A before E2; L3 spend-sum eval |
-| Airbyte connector reliability in prod (alpha connectors) | Med | Stale/empty data | DD-2 default Airbyte + freshness eval; SDK fallback only if eval fails |
-| Currency mixing across platforms in one fact | Med | Wrong totals | Decide reporting-currency normalization in E0; assert in L3 |
-| `ad_group_id`↔`adset_id` / parish mapping drift | Med | Misattributed rows | Reuse Meta/Google parish seed; L3 unique-grain test |
-| Scope creep across folders | Med | Breaks scope freeze | One-folder-per-ticket rule (§8); template replication |
-| Enabling a source flips existing dashboards | Low | Regression | `enable_<P>=false` byte-identical regression eval (L1/E2-02) |
-| GA4/SC blended into ad combined metrics by accident | Low | Confused metrics | Keep web surface separate unless product+Mira approve |
+| Risk                                                            | Likelihood      | Impact               | Mitigation                                                             |
+| --------------------------------------------------------------- | --------------- | -------------------- | ---------------------------------------------------------------------- |
+| Transparency vs performance lineage collision (DD-1 unresolved) | High if skipped | Double-counted spend | Ratify DD-1 Option A before E2; L3 spend-sum eval                      |
+| Airbyte connector reliability in prod (alpha connectors)        | Med             | Stale/empty data     | DD-2 default Airbyte + freshness eval; SDK fallback only if eval fails |
+| Currency mixing across platforms in one fact                    | Med             | Wrong totals         | Decide reporting-currency normalization in E0; assert in L3            |
+| `ad_group_id`↔`adset_id` / parish mapping drift                 | Med             | Misattributed rows   | Reuse Meta/Google parish seed; L3 unique-grain test                    |
+| Scope creep across folders                                      | Med             | Breaks scope freeze  | One-folder-per-ticket rule (§8); template replication                  |
+| Enabling a source flips existing dashboards                     | Low             | Regression           | `enable_<P>=false` byte-identical regression eval (L1/E2-02)           |
+| GA4/SC blended into ad combined metrics by accident             | Low             | Confused metrics     | Keep web surface separate unless product+Mira approve                  |
 
 ---
 
@@ -398,30 +412,30 @@ For each ticket, an engineer/agent runs this loop. Keep each PR inside one top-l
 Order: do all TikTok tickets to DoD, then LinkedIn, then Microsoft. GA4/SC is a parallel-eligible
 separate track. `E1-01` applies to Microsoft only.
 
-| Ticket | Title | Scope | Eval gate |
-|---|---|---|---|
-| DD-1 | Ratify performance-vs-transparency lineage | docs | review |
-| DD-2 | Ratify sync transport (Airbyte default) | docs | review |
-| tiktok-E0-01 | TikTok design note + matrix row | docs | review |
-| tiktok-E1-02 | TikTokAdsSyncState + daily model | backend | L1 |
-| tiktok-E1-03 | sync_tiktok_incremental + Beat | backend | L2 |
-| tiktok-E2-01 | stg_tiktok_ads_performance | dbt | L3 |
-| tiktok-E2-02 | union + enable_tiktok repoint | dbt | L1/L3 |
-| tiktok-E2-03 | snapshot includes tiktok | dbt/backend | L3 |
-| tiktok-E3-01 | COMBINED_SUPPORTED += tiktok | backend | L0-combined |
-| tiktok-E3-02 | client scoping + isolation | backend | **L4** |
-| tiktok-E3-03 | dataset status | backend | L1 |
-| tiktok-E4-01 | frontend platform surface | frontend | vitest/build |
-| tiktok-E4-02 | dashboard verification | frontend | L5 |
-| tiktok-E5-01 | vertical-slice test | backend | L5 |
-| tiktok-E5-02 | contract check + CI wiring | infra/ci | L0 |
-| tiktok-E5-03 | staging smoke checklist | docs | review |
-| tiktok-E6-01 | flags off + runbook | backend/docs | L6 |
-| tiktok-E6-02 | staged enablement | ops | go/no-go |
-| linkedin-E0-01 … E6-02 | replicate template (skip E1-01) | per-folder | L0–L6 |
-| microsoft-E0-01 … E6-02 | replicate + **E1-01 credential/enum** + new dbt block | per-folder | L0–L6 |
-| ga4sc-PROMO-01 | decide web→combined join (Raj/Mira) | docs | review |
-| ga4sc-PROMO-02 | GA4/SC tenant onboarding + smoke | backend/infra | credentials-gated |
+| Ticket                  | Title                                                 | Scope         | Eval gate         |
+| ----------------------- | ----------------------------------------------------- | ------------- | ----------------- |
+| DD-1                    | Ratify performance-vs-transparency lineage            | docs          | review            |
+| DD-2                    | Ratify sync transport (Airbyte default)               | docs          | review            |
+| tiktok-E0-01            | TikTok design note + matrix row                       | docs          | review            |
+| tiktok-E1-02            | TikTokAdsSyncState + daily model                      | backend       | L1                |
+| tiktok-E1-03            | sync_tiktok_incremental + Beat                        | backend       | L2                |
+| tiktok-E2-01            | stg_tiktok_ads_performance                            | dbt           | L3                |
+| tiktok-E2-02            | union + enable_tiktok repoint                         | dbt           | L1/L3             |
+| tiktok-E2-03            | snapshot includes tiktok                              | dbt/backend   | L3                |
+| tiktok-E3-01            | COMBINED_SUPPORTED += tiktok                          | backend       | L0-combined       |
+| tiktok-E3-02            | client scoping + isolation                            | backend       | **L4**            |
+| tiktok-E3-03            | dataset status                                        | backend       | L1                |
+| tiktok-E4-01            | frontend platform surface                             | frontend      | vitest/build      |
+| tiktok-E4-02            | dashboard verification                                | frontend      | L5                |
+| tiktok-E5-01            | vertical-slice test                                   | backend       | L5                |
+| tiktok-E5-02            | contract check + CI wiring                            | infra/ci      | L0                |
+| tiktok-E5-03            | staging smoke checklist                               | docs          | review            |
+| tiktok-E6-01            | flags off + runbook                                   | backend/docs  | L6                |
+| tiktok-E6-02            | staged enablement                                     | ops           | go/no-go          |
+| linkedin-E0-01 … E6-02  | replicate template (skip E1-01)                       | per-folder    | L0–L6             |
+| microsoft-E0-01 … E6-02 | replicate + **E1-01 credential/enum** + new dbt block | per-folder    | L0–L6             |
+| ga4sc-PROMO-01          | decide web→combined join (Raj/Mira)                   | docs          | review            |
+| ga4sc-PROMO-02          | GA4/SC tenant onboarding + smoke                      | backend/infra | credentials-gated |
 
 ---
 

@@ -1,6 +1,9 @@
 name: QA
 on: [push, pull_request]
 
+permissions:
+  contents: read
+
 jobs:
   e2e:
     runs-on: ubuntu-latest

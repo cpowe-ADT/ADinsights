@@ -1027,6 +1027,30 @@ const DataSources = () => {
     const oauthFlow = window.sessionStorage.getItem(META_OAUTH_FLOW_SESSION_KEY);
     const oauthProvider = window.sessionStorage.getItem(CONNECT_OAUTH_PROVIDER_KEY);
 
+    // Breadcrumb so we can trace every OAuth callback in the browser console.
+    console.info('[OAuth callback effect]', {
+      hasCode: Boolean(code),
+      hasState: Boolean(state),
+      oauthError,
+      oauthProvider,
+      oauthFlow,
+      url: window.location.href,
+    });
+
+    // If code+state are present but sessionStorage has no provider marker,
+    // surface that loudly instead of silently falling through to Meta.
+    if (!oauthError && code && state && !oauthProvider) {
+      console.error(
+        '[OAuth callback] Missing CONNECT_OAUTH_PROVIDER_KEY in sessionStorage. ' +
+          'OAuth params received but no provider context — defaulting to Meta handler ' +
+          'which will likely fail. Retry from the Data Sources panel.',
+      );
+      addToast(
+        'OAuth return missing context (sessionStorage cleared). Click Connect again to retry.',
+        'error',
+      );
+    }
+
     const isWrongOAuthFlowError = (error: unknown): boolean => {
       if (error instanceof ApiError) {
         const code = (error.payload as { code?: unknown } | undefined)?.code;
@@ -1480,6 +1504,8 @@ const DataSources = () => {
     }
   }, [loadData, addToast, resetMetaOAuthState]);
 
+  const connectFormRef = useRef<HTMLFormElement>(null);
+
   const openConnectPanel = useCallback(
     (provider: ConnectProvider) => {
       setConnectProvider(provider);
@@ -1491,6 +1517,12 @@ const DataSources = () => {
     },
     [resetGa4State, resetGoogleAdsState, resetMetaOAuthState],
   );
+
+  useEffect(() => {
+    if (connectProvider && connectFormRef.current) {
+      connectFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [connectProvider]);
 
   const closeConnectPanel = useCallback(() => {
     setConnectProvider(null);
@@ -2251,7 +2283,11 @@ const DataSources = () => {
         </p>
 
         {connectProvider ? (
-          <form className="data-sources-connect-form" onSubmit={handleConnectSubmit}>
+          <form
+            ref={connectFormRef}
+            className="data-sources-connect-form"
+            onSubmit={handleConnectSubmit}
+          >
             <header className="data-sources-connect-form__header">
               <div>
                 <h3>{`Connect ${CONNECT_PROVIDER_LABELS[connectProvider]}`}</h3>

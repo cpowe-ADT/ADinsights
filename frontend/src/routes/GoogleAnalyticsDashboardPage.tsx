@@ -1,16 +1,49 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import EmptyState from '../components/EmptyState';
-import StatCard from '../components/ui/StatCard';
-import { formatCurrency, formatNumber, formatPercent } from '../lib/formatNumber';
+import {
+  AccessibleTableToggle,
+  EmptyState,
+  KpiTile,
+  PieComposition,
+  TrendLine,
+  VizDataTable,
+} from '../components/viz';
+import { formatNumber } from '../lib/formatNumber';
 import {
   fetchGoogleAnalyticsWebRows,
   type GoogleAnalyticsWebResponse,
   type GoogleAnalyticsWebRow,
 } from '../lib/webAnalytics';
+import {
+  aggregateGa4ByChannel,
+  aggregateGa4Totals,
+  aggregateGa4TrendByDay,
+  type Ga4ChannelDatum,
+} from '../lib/webAnalyticsAggregates';
+
+/**
+ * R3 CRITICAL: This page MUST NOT import `useDashboardStore` and MUST NOT
+ * call `/api/metrics/combined/`. It uses its own dedicated endpoint
+ * (`/analytics/web/ga4/`) via `fetchGoogleAnalyticsWebRows`.
+ *
+ * GA4 payload availability note (S4 architect §3): rows DO NOT carry
+ * `users`, `bounce_rate`, or `avg_session_duration`. We substitute the KPI
+ * strip with: Sessions / Conversions / Revenue / Engagement rate — the
+ * present fields confirmed by the architect audit.
+ */
 
 type LoadState = 'loading' | 'loaded' | 'error';
+
+const PIE_PALETTE = [
+  '#6366f1',
+  '#22c55e',
+  '#f59e0b',
+  '#ec4899',
+  '#14b8a6',
+  '#a855f7',
+  '#94a3b8',
+] as const;
 
 function defaultDateRange(): { startDate: string; endDate: string } {
   const end = new Date();
@@ -49,42 +82,70 @@ const GoogleAnalyticsDashboardPage = () => {
   }, [loadRows]);
 
   const rows = useMemo(() => payload?.rows ?? [], [payload]);
-  const totals = useMemo(() => {
-    return rows.reduce(
-      (accumulator, row) => {
-        accumulator.sessions += Number(row.sessions || 0);
-        accumulator.engagedSessions += Number(row.engaged_sessions || 0);
-        accumulator.conversions += Number(row.conversions || 0);
-        accumulator.purchaseRevenue += Number(row.purchase_revenue || 0);
-        return accumulator;
+  const totals = useMemo(() => aggregateGa4Totals(rows), [rows]);
+  const trendData = useMemo(() => aggregateGa4TrendByDay(rows), [rows]);
+  const channelRows = useMemo(() => aggregateGa4ByChannel(rows), [rows]);
+
+  const pieData = useMemo(() => {
+    if (channelRows.length === 0) return [];
+    const sorted = [...channelRows].sort((a, b) => b.sessions - a.sessions);
+    const topSix = sorted.slice(0, 6);
+    const other = sorted.slice(6);
+    const slices: Array<{ label: string; value: number; color: string }> = topSix.map(
+      (row, idx) => ({
+        label: row.channel,
+        value: row.sessions,
+        color: PIE_PALETTE[idx % PIE_PALETTE.length],
+      }),
+    );
+    if (other.length > 0) {
+      slices.push({
+        label: 'Other',
+        value: other.reduce((sum, row) => sum + row.sessions, 0),
+        color: PIE_PALETTE[6],
+      });
+    }
+    return slices;
+  }, [channelRows]);
+
+  const channelTableColumns = useMemo(
+    () => [
+      { accessorKey: 'channel', header: 'Channel' },
+      {
+        accessorKey: 'sessions',
+        header: 'Sessions',
+        cell: ({ row }: { row: { original: Ga4ChannelDatum } }) =>
+          formatNumber(row.original.sessions),
       },
       {
-        sessions: 0,
-        engagedSessions: 0,
-        conversions: 0,
-        purchaseRevenue: 0,
+        accessorKey: 'conversions',
+        header: 'Conversions',
+        cell: ({ row }: { row: { original: Ga4ChannelDatum } }) =>
+          formatNumber(row.original.conversions),
       },
-    );
-  }, [rows]);
+      {
+        accessorKey: 'purchaseRevenue',
+        header: 'Revenue',
+        cell: ({ row }: { row: { original: Ga4ChannelDatum } }) =>
+          row.original.purchaseRevenue.toLocaleString(undefined, {
+            style: 'currency',
+            currency: 'USD',
+          }),
+      },
+      {
+        accessorKey: 'engagementRate',
+        header: 'Engagement rate',
+        cell: ({ row }: { row: { original: Ga4ChannelDatum } }) =>
+          `${(row.original.engagementRate * 100).toFixed(1)}%`,
+      },
+    ],
+    [],
+  );
 
-  const topChannel = useMemo(() => {
-    const channelTotals = new Map<string, number>();
-    rows.forEach((row) => {
-      const channel = row.channel_group?.trim() || 'Unassigned';
-      channelTotals.set(channel, (channelTotals.get(channel) ?? 0) + Number(row.sessions || 0));
-    });
-    let topLabel = '—';
-    let topValue = 0;
-    channelTotals.forEach((value, key) => {
-      if (value > topValue) {
-        topValue = value;
-        topLabel = key;
-      }
-    });
-    return topLabel;
-  }, [rows]);
-
-  const latestRow = rows[0] ?? null;
+  const isOk = status === 'loaded' && payload?.status === 'ok';
+  const isUnavailable = status === 'loaded' && payload?.status === 'unavailable';
+  const isEmpty = isOk && rows.length === 0;
+  const isReady = isOk && rows.length > 0;
 
   return (
     <section className="dashboardPage">
@@ -108,7 +169,11 @@ const GoogleAnalyticsDashboardPage = () => {
       <div className="data-sources-controls" style={{ marginBottom: '1rem' }}>
         <label className="dashboard-field">
           <span className="dashboard-field__label">Start date</span>
-          <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+          <input
+            type="date"
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
+          />
         </label>
         <label className="dashboard-field">
           <span className="dashboard-field__label">End date</span>
@@ -121,30 +186,41 @@ const GoogleAnalyticsDashboardPage = () => {
         </div>
       </div>
 
-      <div className="dashboard-grid" style={{ marginBottom: '1rem' }}>
-        <StatCard label="Sessions" value={formatNumber(totals.sessions)} />
-        <StatCard label="Conversions" value={formatNumber(totals.conversions)} />
-        <StatCard label="Revenue" value={formatCurrency(totals.purchaseRevenue)} />
-        <StatCard label="Top channel" value={topChannel} />
+      {/* Block 1 — KPI strip. Substitutes Sessions / Conversions / Revenue / Engagement
+          rate because the GA4 feed does not expose Users, Bounce rate, or Avg session duration
+          (per architect §3 availability audit). */}
+      <div
+        className="dashboard-grid"
+        role="group"
+        aria-label="GA4 KPIs"
+        style={{ marginBottom: '1rem' }}
+      >
+        <KpiTile
+          label="Sessions"
+          value={isReady ? totals.sessions : null}
+          format="number"
+          isLoading={status === 'loading'}
+        />
+        <KpiTile
+          label="Conversions"
+          value={isReady ? totals.conversions : null}
+          format="number"
+          isLoading={status === 'loading'}
+        />
+        <KpiTile
+          label="Revenue"
+          value={isReady ? totals.purchaseRevenue : null}
+          format="currency"
+          currency="USD"
+          isLoading={status === 'loading'}
+        />
+        <KpiTile
+          label="Engagement rate"
+          value={isReady ? totals.engagementRate : null}
+          format="percent"
+          isLoading={status === 'loading'}
+        />
       </div>
-
-      {latestRow ? (
-        <div className="dashboard-grid" style={{ marginBottom: '1rem' }}>
-          <article className="panel">
-            <h3>Latest row</h3>
-            <p className="status-message muted">{latestRow.date_day}</p>
-            <p>{latestRow.campaign_name || 'No campaign name'}</p>
-          </article>
-          <article className="panel">
-            <h3>Engagement rate</h3>
-            <p>{formatPercent(latestRow.engagement_rate)}</p>
-          </article>
-          <article className="panel">
-            <h3>Conversion rate</h3>
-            <p>{formatPercent(latestRow.conversion_rate)}</p>
-          </article>
-        </div>
-      ) : null}
 
       {status === 'loading' ? (
         <div className="dashboard-state dashboard-state--page">Loading GA4 metrics…</div>
@@ -158,25 +234,27 @@ const GoogleAnalyticsDashboardPage = () => {
           actionLabel="Retry"
           actionVariant="secondary"
           onAction={() => void loadRows()}
+          reasonCode="error"
           className="panel"
         />
       ) : null}
 
-      {status === 'loaded' && payload?.status === 'unavailable' ? (
+      {isUnavailable ? (
         <EmptyState
           icon={<span aria-hidden>!</span>}
           title="GA4 warehouse feed unavailable"
-          message={payload.detail ?? 'The backend reported this source as unavailable.'}
+          message={payload?.detail ?? 'The backend reported this source as unavailable.'}
           actionLabel="Open Data Sources"
           actionVariant="secondary"
           onAction={() => {
             window.location.assign('/dashboards/data-sources');
           }}
+          reasonCode="no_ga4_property_selected"
           className="panel"
         />
       ) : null}
 
-      {status === 'loaded' && payload?.status === 'ok' && rows.length === 0 ? (
+      {isEmpty ? (
         <EmptyState
           icon={<span aria-hidden>0</span>}
           title="No GA4 rows available"
@@ -186,45 +264,131 @@ const GoogleAnalyticsDashboardPage = () => {
           onAction={() => {
             window.location.assign('/dashboards/data-sources');
           }}
+          reasonCode="no_data_for_range"
           className="panel"
         />
       ) : null}
 
-      {status === 'loaded' && payload?.status === 'ok' && rows.length > 0 ? (
-        <div className="panel">
-          <div className="table-responsive">
-            <table className="dashboard-table">
-              <thead>
-                <tr className="dashboard-table__header-row">
-                  <th className="dashboard-table__header-cell">Date</th>
-                  <th className="dashboard-table__header-cell">Channel</th>
-                  <th className="dashboard-table__header-cell">Campaign</th>
-                  <th className="dashboard-table__header-cell">Sessions</th>
-                  <th className="dashboard-table__header-cell">Engaged</th>
-                  <th className="dashboard-table__header-cell">Conversions</th>
-                  <th className="dashboard-table__header-cell">Revenue</th>
-                  <th className="dashboard-table__header-cell">Location</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row: GoogleAnalyticsWebRow) => (
-                  <tr key={`${row.date_day}-${row.property_id}-${row.channel_group}-${row.campaign_name}`}>
-                    <td className="dashboard-table__cell">{row.date_day}</td>
-                    <td className="dashboard-table__cell">{row.channel_group || '—'}</td>
-                    <td className="dashboard-table__cell">{row.campaign_name || '—'}</td>
-                    <td className="dashboard-table__cell">{formatNumber(row.sessions)}</td>
-                    <td className="dashboard-table__cell">{formatNumber(row.engaged_sessions)}</td>
-                    <td className="dashboard-table__cell">{formatNumber(row.conversions)}</td>
-                    <td className="dashboard-table__cell">{formatCurrency(row.purchase_revenue)}</td>
-                    <td className="dashboard-table__cell">
-                      {[row.city, row.country].filter(Boolean).join(', ') || '—'}
-                    </td>
+      {isReady ? (
+        <>
+          {/* Block 2 — Sessions/day trend */}
+          <section className="panel" style={{ marginBottom: '1rem' }}>
+            <header className="panel-header">
+              <h2>Sessions over time</h2>
+              <p className="muted">Daily session totals aggregated from GA4 rows.</p>
+            </header>
+            <AccessibleTableToggle
+              chartAriaLabel="Sessions per day"
+              chart={
+                <TrendLine
+                  ariaLabel="Sessions per day"
+                  data={trendData}
+                  series={[{ key: 'sessions', label: 'Sessions', color: '#6366f1' }]}
+                  yFormat="number"
+                  emptyReasonCode="no_data_for_range"
+                />
+              }
+              table={
+                <table className="dashboard-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Sessions</th>
+                      <th>Conversions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trendData.map((row) => (
+                      <tr key={row.date}>
+                        <td>{row.date}</td>
+                        <td>{formatNumber(row.sessions)}</td>
+                        <td>{formatNumber(row.conversions)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              }
+            />
+          </section>
+
+          {/* Block 3 — Channel composition */}
+          <section className="panel" style={{ marginBottom: '1rem' }}>
+            <header className="panel-header">
+              <h2>Sessions by channel</h2>
+              <p className="muted">Top 6 channel groups plus &quot;Other&quot;.</p>
+            </header>
+            <AccessibleTableToggle
+              chartAriaLabel="Sessions by channel"
+              chart={
+                <PieComposition
+                  ariaLabel="Sessions by channel group"
+                  data={pieData}
+                  yFormat="number"
+                  emptyReasonCode="no_data_for_range"
+                />
+              }
+              table={
+                <table className="dashboard-table">
+                  <thead>
+                    <tr>
+                      <th>Channel</th>
+                      <th>Sessions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pieData.map((slice) => (
+                      <tr key={slice.label}>
+                        <td>{slice.label}</td>
+                        <td>{formatNumber(slice.value)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              }
+            />
+          </section>
+
+          {/* Block 4 — Drill-down VizDataTable */}
+          <section className="panel">
+            <VizDataTable
+              ariaLabel="GA4 channel breakdown"
+              title="Channel breakdown"
+              csvFilename="ga4-channel-breakdown.csv"
+              columns={channelTableColumns as never}
+              data={channelRows}
+            />
+          </section>
+
+          {/* Legacy raw-row table preserved for historical consumers */}
+          <div className="panel" style={{ marginTop: '1rem' }}>
+            <div className="table-responsive">
+              <table className="dashboard-table">
+                <thead>
+                  <tr className="dashboard-table__header-row">
+                    <th className="dashboard-table__header-cell">Date</th>
+                    <th className="dashboard-table__header-cell">Channel</th>
+                    <th className="dashboard-table__header-cell">Campaign</th>
+                    <th className="dashboard-table__header-cell">Sessions</th>
+                    <th className="dashboard-table__header-cell">Conversions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map((row: GoogleAnalyticsWebRow) => (
+                    <tr
+                      key={`${row.date_day}-${row.property_id}-${row.channel_group}-${row.campaign_name}`}
+                    >
+                      <td className="dashboard-table__cell">{row.date_day}</td>
+                      <td className="dashboard-table__cell">{row.channel_group || '—'}</td>
+                      <td className="dashboard-table__cell">{row.campaign_name || '—'}</td>
+                      <td className="dashboard-table__cell">{formatNumber(row.sessions)}</td>
+                      <td className="dashboard-table__cell">{formatNumber(row.conversions)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </>
       ) : null}
     </section>
   );

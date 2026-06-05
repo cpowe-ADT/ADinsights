@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from core.celery import stamp_task_published_at
 from core.observability import (
     InstrumentedTask,
     extract_task_queue_name,
@@ -45,6 +46,22 @@ def test_extract_task_queue_wait_seconds_reads_properties_timestamp():
     assert wait_seconds == pytest.approx(2.0)
 
 
+def test_publisher_stamps_timestamp_for_queue_wait_measurement():
+    headers: dict[str, str] = {}
+
+    stamp_task_published_at(headers=headers)
+
+    assert extract_task_queue_wait_seconds(SimpleNamespace(headers=headers, properties={})) is not None
+
+
+def test_publisher_preserves_explicit_timestamp_header():
+    headers = {"published_at": "2026-03-06T10:00:00+00:00"}
+
+    stamp_task_published_at(headers=headers)
+
+    assert headers["published_at"] == "2026-03-06T10:00:00+00:00"
+
+
 def test_instrumented_task_before_start_records_queue_context(monkeypatch):
     captured: dict[str, object] = {}
 
@@ -75,3 +92,31 @@ def test_instrumented_task_before_start_records_queue_context(monkeypatch):
     assert captured["task_name"] == "dummy.instrumented.task"
     assert captured["queue_name"] == "sync"
     assert isinstance(captured["queue_wait_seconds"], float)
+
+
+def test_instrumented_task_records_explicit_outcome_override(monkeypatch):
+    recorded: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        "core.observability.observe_task",
+        lambda task_name, status, duration: recorded.update(
+            task_name=task_name,
+            status=status,
+            duration=duration,
+        ),
+    )
+
+    class DummyTask(InstrumentedTask):
+        name = "dummy.instrumented.task"
+        request = SimpleNamespace(
+            _start_time=None,
+            _metrics_status_override="skipped",
+            delivery_info={"routing_key": "snapshot"},
+            headers={},
+            properties={},
+        )
+
+    DummyTask().after_return("SUCCESS", None, "task-123", (), {}, None)
+
+    assert recorded["task_name"] == "dummy.instrumented.task"
+    assert recorded["status"] == "skipped"

@@ -286,7 +286,7 @@ budget_window as (
     select
         tenant_id,
         cast(date_trunc('month', window_end_date) as date) as month_start,
-        cast(date_trunc('month', window_end_date) + interval '1 month - 1 day' as date) as month_end
+        cast(date_trunc('month', window_end_date) + interval '1 month' - interval '1 day' as date) as month_end
     from window_bounds
 ),
 

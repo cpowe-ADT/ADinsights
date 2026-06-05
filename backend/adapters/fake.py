@@ -2,12 +2,23 @@
 
 from __future__ import annotations
 
+import logging
 from copy import deepcopy
 from typing import Any, Mapping
 
 from django.utils import timezone
 
 from .base import AdapterInterface, MetricsAdapter, get_default_interfaces
+
+logger = logging.getLogger(__name__)
+
+# Platform alias sets used to filter rows by allowed scope.
+META_CHANNEL_ALIASES: frozenset[str] = frozenset(
+    {"meta", "meta ads", "meta_ads", "facebook", "instagram", "audience_network", "messenger"}
+)
+GOOGLE_CHANNEL_ALIASES: frozenset[str] = frozenset(
+    {"google ads", "google_ads", "google"}
+)
 
 
 class FakeAdapter(MetricsAdapter):
@@ -251,7 +262,84 @@ class FakeAdapter(MetricsAdapter):
         *,
         tenant_id: str,
         options: Mapping[str, Any] | None = None,
-    ) -> Mapping[str, Any]:  # noqa: ARG002 - options reserved for future use
-        payload = deepcopy(self._PAYLOAD)
+    ) -> Mapping[str, Any]:
+        """Return deterministic demo payload, honouring client_scope_requested."""
+        _opts = options or {}
+        client_scope_requested = bool(_opts.get("client_scope_requested"))
+        scoped_meta = list(_opts.get("client_scoped_meta_ad_account_ids") or [])
+        scoped_google = list(_opts.get("client_scoped_google_customer_ids") or [])
+
+        payload: dict[str, Any] = deepcopy(self._PAYLOAD)
         payload.setdefault("snapshot_generated_at", timezone.now().isoformat())
+
+        if client_scope_requested:
+            if not scoped_meta and not scoped_google:
+                # Scoping requested but no accounts in scope → empty payload.
+                return _fake_empty_payload(payload)
+            # Derive allowed platforms from which scoped lists are non-empty.
+            allowed: set[str] = set()
+            if scoped_meta:
+                allowed.update(META_CHANNEL_ALIASES)
+            if scoped_google:
+                allowed.update(GOOGLE_CHANNEL_ALIASES)
+            payload = _filter_fake_payload_by_platform(payload, allowed)
+
         return payload
+
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+
+def _filter_fake_payload_by_platform(
+    payload: dict[str, Any], allowed: set[str]
+) -> dict[str, Any]:
+    """Return a copy of payload with campaign/creative rows filtered to allowed platforms."""
+    result = dict(payload)
+    campaign = dict(result.get("campaign") or {})
+    rows = [
+        row
+        for row in (campaign.get("rows") or [])
+        if (row.get("platform") or "").lower() in allowed
+    ]
+    total_spend = sum(float(r.get("spend", 0)) for r in rows)
+    total_impressions = sum(int(r.get("impressions", 0)) for r in rows)
+    total_clicks = sum(int(r.get("clicks", 0)) for r in rows)
+    total_conversions = sum(int(r.get("conversions", 0)) for r in rows)
+    summary = dict(campaign.get("summary") or {})
+    summary.update(
+        {
+            "totalSpend": total_spend,
+            "totalImpressions": total_impressions,
+            "totalClicks": total_clicks,
+            "totalConversions": total_conversions,
+        }
+    )
+    # Trend has no platform field; zero it to avoid summary/trend mismatch.
+    campaign["summary"] = summary
+    campaign["rows"] = rows
+    campaign["trend"] = []
+    result["campaign"] = campaign
+    result["creative"] = [
+        row
+        for row in (result.get("creative") or [])
+        if (row.get("platform") or "").lower() in allowed
+    ]
+    # Budget rows have no platform field; keep all.
+    return result
+
+
+def _fake_empty_payload(template: dict[str, Any]) -> dict[str, Any]:
+    """Return a zero-filled payload with the same top-level shape as template."""
+    empty = dict(template)
+    campaign = dict(template.get("campaign") or {})
+    summary = dict(campaign.get("summary") or {})
+    for k in ("totalSpend", "totalImpressions", "totalClicks", "totalConversions", "averageRoas"):
+        summary[k] = 0
+    campaign["summary"] = summary
+    campaign["trend"] = []
+    campaign["rows"] = []
+    empty["campaign"] = campaign
+    empty["creative"] = []
+    empty["budget"] = []
+    empty["parish"] = []
+    return empty

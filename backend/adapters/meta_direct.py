@@ -84,10 +84,23 @@ class MetaDirectFilters:
     account_id: str | None = None
     channels: tuple[str, ...] = ()
     campaign_search: str | None = None
+    # Sprint 6: populated when the Combined view is scoped to a Client. Carries
+    # variant-expanded Meta ad account external_ids (both ``act_`` and bare
+    # forms) so the queryset filter can use ``__in`` permissively.
+    scoped_meta_account_ids: tuple[str, ...] = ()
+    # Sprint 6: ``True`` when the caller passed ``client_id`` — separate from
+    # ``scoped_meta_account_ids`` being non-empty because the client might
+    # resolve to zero Meta accounts (client_not_found, or Meta toggled off).
+    # When True and the id list is empty, the filter should return zero rows.
+    client_scope_requested: bool = False
 
     @property
     def excludes_meta_channel(self) -> bool:
         return bool(self.channels) and not any(channel in META_CHANNEL_ALIASES for channel in self.channels)
+
+    @property
+    def is_client_scoped(self) -> bool:
+        return self.client_scope_requested
 
 
 def _normalize_account_aliases(value: str | None) -> set[str]:
@@ -145,6 +158,17 @@ def _safe_divide(numerator: float, denominator: float) -> float:
 
 def _validated_filters(options: Mapping[str, Any] | None) -> MetaDirectFilters:
     serializer_input = options.dict() if options is not None and hasattr(options, "dict") else dict(options or {})
+
+    # Sprint 6: extract the client-scoping keys BEFORE the serializer pass —
+    # they carry list values that the CombinedMetricsQueryParamsSerializer
+    # doesn't know about. We pop them so the list-flattening loop doesn't
+    # collapse them to a single element or route them through "channels".
+    scoped_meta_raw = serializer_input.pop("client_scoped_meta_ad_account_ids", None)
+    serializer_input.pop("client_scoped_google_customer_ids", None)
+    client_scope_requested = bool(serializer_input.pop("client_scope_requested", False))
+    # ``client_id`` and ``platforms`` are metadata the adapter doesn't need.
+    serializer_input.pop("platforms", None)
+
     for key, value in list(serializer_input.items()):
         if isinstance(value, (list, tuple)):
             cleaned = [item.strip() for item in value if isinstance(item, str) and item.strip()]
@@ -156,12 +180,24 @@ def _validated_filters(options: Mapping[str, Any] | None) -> MetaDirectFilters:
     serializer = CombinedMetricsQueryParamsSerializer(data=serializer_input)
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
+
+    if isinstance(scoped_meta_raw, (list, tuple)):
+        scoped_meta = tuple(
+            str(item).strip()
+            for item in scoped_meta_raw
+            if isinstance(item, str) and item.strip()
+        )
+    else:
+        scoped_meta = ()
+
     return MetaDirectFilters(
         start_date=data.get("start_date"),
         end_date=data.get("end_date"),
         account_id=data.get("account_id"),
         channels=_normalize_channels(data.get("channels")),
         campaign_search=data.get("campaign_search"),
+        scoped_meta_account_ids=scoped_meta,
+        client_scope_requested=client_scope_requested,
     )
 
 
@@ -282,7 +318,21 @@ class MetaDirectAdapter(MetricsAdapter):
             queryset = queryset.filter(date__gte=filters.start_date)
         if filters.end_date:
             queryset = queryset.filter(date__lte=filters.end_date)
-        if filters.account_id:
+        if filters.is_client_scoped:
+            # Sprint 6: Client-scoped filter wins over single-account filter —
+            # the resolver already intersected with ``account_id`` if both were
+            # provided, so we only filter on the full scoped id set here.
+            aliases = set(filters.scoped_meta_account_ids)
+            numeric_aliases = {
+                alias[4:] if alias.startswith("act_") else alias
+                for alias in aliases
+            }
+            queryset = queryset.filter(
+                Q(ad_account__external_id__in=aliases)
+                | Q(ad_account__account_id__in=numeric_aliases)
+                | Q(campaign__account_external_id__in=aliases)
+            )
+        elif filters.account_id:
             aliases = _normalize_account_aliases(filters.account_id)
             numeric_aliases = {alias[4:] if alias.startswith("act_") else alias for alias in aliases}
             queryset = queryset.filter(
@@ -521,7 +571,9 @@ class MetaDirectAdapter(MetricsAdapter):
             region_qs = region_qs.filter(date_day__gte=filters.start_date)
         if filters.end_date:
             region_qs = region_qs.filter(date_day__lte=filters.end_date)
-        if filters.account_id:
+        if filters.is_client_scoped:
+            region_qs = region_qs.filter(account_id__in=set(filters.scoped_meta_account_ids))
+        elif filters.account_id:
             aliases = _normalize_account_aliases(filters.account_id)
             region_qs = region_qs.filter(account_id__in=aliases)
 
@@ -590,7 +642,9 @@ class MetaDirectAdapter(MetricsAdapter):
             demo_qs = demo_qs.filter(date_day__gte=filters.start_date)
         if filters.end_date:
             demo_qs = demo_qs.filter(date_day__lte=filters.end_date)
-        if filters.account_id:
+        if filters.is_client_scoped:
+            demo_qs = demo_qs.filter(account_id__in=set(filters.scoped_meta_account_ids))
+        elif filters.account_id:
             aliases = _normalize_account_aliases(filters.account_id)
             demo_qs = demo_qs.filter(account_id__in=aliases)
 
@@ -643,7 +697,9 @@ class MetaDirectAdapter(MetricsAdapter):
             plat_qs = plat_qs.filter(date_day__gte=filters.start_date)
         if filters.end_date:
             plat_qs = plat_qs.filter(date_day__lte=filters.end_date)
-        if filters.account_id:
+        if filters.is_client_scoped:
+            plat_qs = plat_qs.filter(account_id__in=set(filters.scoped_meta_account_ids))
+        elif filters.account_id:
             aliases = _normalize_account_aliases(filters.account_id)
             plat_qs = plat_qs.filter(account_id__in=aliases)
 

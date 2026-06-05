@@ -162,6 +162,14 @@ Check active compose mappings:
 docker compose -f docker-compose.dev.yml ps
 ```
 
+The backend and `celery_worker_summary` containers use the packaged report exporter with native
+Chromium and a shared `report_export_artifacts` volume. After changes to Docker/export behavior,
+open a report detail page and request one CSV, PDF, and PNG export; each completed row must
+download successfully.
+The launcher profile also shares `prometheus_multiprocess` between backend and task workers so
+`/metrics/app/` can display real Celery queue samples. Raw strict observability smoke is meaningful
+only after the required queue, combined-metrics, Airbyte, dbt, and retry samples have run.
+
 Check common launcher ports in use:
 
 ```bash

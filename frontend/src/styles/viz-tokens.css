@@ -1,0 +1,99 @@
+/**
+ * Viz kit design tokens.
+ *
+ * Authored in Sprint 1 for the shared data-viz component kit under
+ * `frontend/src/components/viz/`. These tokens are intentionally namespaced
+ * with `--viz-*` to avoid colliding with the existing `--color-chart-*`
+ * tokens consumed by legacy domain wrappers (CampaignTrendChart, etc.).
+ *
+ * Contrast: every series color hits WCAG AA (>= 4.5:1) against the card
+ * surface on both themes. See S1-architect-design.md §3.3 for measured
+ * ratios. `--viz-platform-peer-avg` is deliberately sub-AA because it
+ * pairs with a dashed stroke + legend label (color is not the sole
+ * encoding).
+ */
+
+@layer tokens {
+  :root,
+  .theme-light {
+    /* Series palette — mirrors chartPalette for CSS consumers. */
+    --viz-series-0: #2563eb; /* meta / primary      — contrast 4.85 */
+    --viz-series-1: #c2410c; /* google / orange-700 — contrast 5.11 */
+    --viz-series-2: #0369a1; /* accent blue         — contrast 6.74 */
+    --viz-series-3: #047857; /* conversions / green — contrast 5.46 */
+    --viz-series-4: #7e22ce; /* audience / purple   — contrast 6.46 */
+    --viz-series-5: #be123c; /* alert / red         — contrast 5.94 */
+
+    /* Platform semantic bindings */
+    --viz-platform-meta: var(--viz-series-0);
+    --viz-platform-google: var(--viz-series-1);
+    --viz-platform-peer-avg: rgba(71, 85, 105, 0.55); /* slate-600 @ 55% */
+
+    /* Status (campaign states) */
+    --viz-status-enabled: var(--viz-series-3);
+    --viz-status-paused: #b45309; /* amber-700, contrast 4.55 */
+    --viz-status-removed: var(--viz-series-5);
+
+    /* Chart chrome */
+    --viz-axis-line: rgba(15, 23, 42, 0.35);
+    --viz-axis-tick: rgba(15, 23, 42, 0.7);
+    --viz-grid: rgba(15, 23, 42, 0.1);
+    --viz-grid-strong: rgba(15, 23, 42, 0.22);
+    --viz-tooltip-surface: #0f172a;
+    --viz-tooltip-text: #f8fafc;
+    --viz-legend-text: var(--color-text-secondary);
+
+    /* Pattern fill opacity (secondary encoding) */
+    --viz-pattern-opacity: 0.55;
+
+    /* Focus ring on data points (keyboard nav) */
+    --viz-point-focus: 0 0 0 3px rgba(37, 99, 235, 0.45);
+  }
+
+  .theme-dark,
+  :root[data-theme='dark'] {
+    /* Brighter hues for dark surfaces; all >= 4.5:1 on --color-surface-card. */
+    --viz-series-0: #60a5fa; /* blue-400   — contrast 6.57 */
+    --viz-series-1: #fb923c; /* orange-400 — contrast 6.19 */
+    --viz-series-2: #38bdf8; /* sky-400    — contrast 7.11 */
+    --viz-series-3: #4ade80; /* green-400  — contrast 7.48 */
+    --viz-series-4: #c084fc; /* purple-400 — contrast 6.13 */
+    --viz-series-5: #fb7185; /* rose-400   — contrast 5.74 */
+
+    --viz-platform-meta: var(--viz-series-0);
+    --viz-platform-google: var(--viz-series-1);
+    --viz-platform-peer-avg: rgba(148, 163, 184, 0.6);
+
+    --viz-status-enabled: var(--viz-series-3);
+    --viz-status-paused: #fbbf24;
+    --viz-status-removed: var(--viz-series-5);
+
+    --viz-axis-line: rgba(226, 232, 240, 0.45);
+    --viz-axis-tick: rgba(226, 232, 240, 0.85);
+    --viz-grid: rgba(226, 232, 240, 0.12);
+    --viz-grid-strong: rgba(226, 232, 240, 0.24);
+    --viz-tooltip-surface: rgba(15, 23, 42, 0.96);
+    --viz-tooltip-text: #f8fafc;
+    --viz-legend-text: var(--color-text-secondary);
+
+    --viz-pattern-opacity: 0.45;
+    --viz-point-focus: 0 0 0 3px rgba(96, 165, 250, 0.55);
+  }
+}
+
+/**
+ * Visually-hidden utility used by every chart primitive to expose a
+ * tabular equivalent for screen readers while keeping the SVG chart
+ * visually dominant. Follows the WCAG-standard clip/inset pattern.
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

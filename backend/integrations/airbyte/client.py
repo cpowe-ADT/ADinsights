@@ -40,7 +40,10 @@ class AirbyteClient:
     token: Optional[str] = None
     username: Optional[str] = None
     password: Optional[str] = None
-    timeout: float = 30.0
+    # Airbyte's /sources/check_connection actually runs the connector to
+    # validate credentials (pulls the image if cold, hits upstream APIs) and
+    # can take 60–90s for Google Ads on a cold workspace. 30s was too tight.
+    timeout: float = 120.0
 
     def __post_init__(self) -> None:
         if not self.base_url:

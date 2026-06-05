@@ -93,6 +93,7 @@ export type AlertRule = {
   lookback_hours: number;
   severity: string;
   is_active: boolean;
+  paused_until?: string | null;
   notification_channels?: string[];
   created_at: string;
   updated_at: string;
@@ -175,10 +176,10 @@ function normalizeDashboardLibraryItem(
   return {
     id: String(item.id ?? ''),
     kind:
-      item.kind === 'saved_dashboard' || item.kind === 'system_template'
-        ? item.kind
-        : fallbackKind,
-    templateKey: String(item.template_key ?? item.templateKey ?? 'meta_campaign_performance') as DashboardTemplateKey,
+      item.kind === 'saved_dashboard' || item.kind === 'system_template' ? item.kind : fallbackKind,
+    templateKey: String(
+      item.template_key ?? item.templateKey ?? 'meta_campaign_performance',
+    ) as DashboardTemplateKey,
     name: String(item.name ?? ''),
     type: String(item.type ?? 'Saved dashboard'),
     owner: String(item.owner ?? 'Team'),
@@ -200,7 +201,9 @@ function normalizeDashboardLibraryItem(
   };
 }
 
-function normalizeDashboardLibraryResponse(payload: Record<string, unknown>): DashboardLibraryResponse {
+function normalizeDashboardLibraryResponse(
+  payload: Record<string, unknown>,
+): DashboardLibraryResponse {
   const systemTemplates = Array.isArray(payload.systemTemplates)
     ? payload.systemTemplates.map((item) =>
         normalizeDashboardLibraryItem(item as Record<string, unknown>, 'system_template'),
@@ -249,7 +252,13 @@ export async function updateDashboardDefinition(
   payload: Partial<
     Pick<
       DashboardDefinition,
-      'name' | 'description' | 'template_key' | 'filters' | 'layout' | 'default_metric' | 'is_active'
+      | 'name'
+      | 'description'
+      | 'template_key'
+      | 'filters'
+      | 'layout'
+      | 'default_metric'
+      | 'is_active'
     >
   >,
 ): Promise<DashboardDefinition> {
@@ -263,7 +272,10 @@ export async function deleteDashboardDefinition(dashboardId: string): Promise<vo
 export async function duplicateDashboardDefinition(
   dashboardId: string,
 ): Promise<DashboardDefinition> {
-  return apiClient.post<DashboardDefinition>(`/dashboards/definitions/${dashboardId}/duplicate/`, {});
+  return apiClient.post<DashboardDefinition>(
+    `/dashboards/definitions/${dashboardId}/duplicate/`,
+    {},
+  );
 }
 
 export async function fetchSyncHealth(signal?: AbortSignal): Promise<SyncHealthResponse> {
@@ -275,7 +287,10 @@ export async function fetchHealthOverview(signal?: AbortSignal): Promise<HealthO
 }
 
 export async function listReports(signal?: AbortSignal): Promise<ReportDefinition[]> {
-  const data = await apiClient.get<ReportDefinition[] | { results: ReportDefinition[] }>('/reports/', { signal });
+  const data = await apiClient.get<ReportDefinition[] | { results: ReportDefinition[] }>(
+    '/reports/',
+    { signal },
+  );
   return Array.isArray(data) ? data : data.results;
 }
 
@@ -298,18 +313,30 @@ export async function updateReport(
   payload: Partial<
     Pick<
       ReportDefinition,
-      'name' | 'description' | 'filters' | 'layout' | 'is_active' | 'schedule_cron' | 'delivery_emails'
+      | 'name'
+      | 'description'
+      | 'filters'
+      | 'layout'
+      | 'is_active'
+      | 'schedule_cron'
+      | 'delivery_emails'
     >
   >,
 ): Promise<ReportDefinition> {
   return apiClient.patch<ReportDefinition>(`/reports/${reportId}/`, payload);
 }
 
-export async function toggleReportSchedule(reportId: string, enabled: boolean): Promise<ReportDefinition> {
+export async function toggleReportSchedule(
+  reportId: string,
+  enabled: boolean,
+): Promise<ReportDefinition> {
   return apiClient.post<ReportDefinition>(`/reports/${reportId}/toggle_schedule/`, { enabled });
 }
 
-export async function updateReportSchedule(reportId: string, payload: { schedule_cron?: string; delivery_emails?: string[] }): Promise<ReportDefinition> {
+export async function updateReportSchedule(
+  reportId: string,
+  payload: { schedule_cron?: string; delivery_emails?: string[] },
+): Promise<ReportDefinition> {
   return apiClient.patch<ReportDefinition>(`/reports/${reportId}/`, payload);
 }
 
@@ -317,7 +344,10 @@ export async function listReportExports(
   reportId: string,
   signal?: AbortSignal,
 ): Promise<ReportExportJob[]> {
-  const data = await apiClient.get<ReportExportJob[] | { results: ReportExportJob[] }>(`/reports/${reportId}/exports/`, { signal });
+  const data = await apiClient.get<ReportExportJob[] | { results: ReportExportJob[] }>(
+    `/reports/${reportId}/exports/`,
+    { signal },
+  );
   return Array.isArray(data) ? data : data.results;
 }
 
@@ -328,6 +358,10 @@ export async function createReportExport(
   return apiClient.post<ReportExportJob>(`/reports/${reportId}/exports/`, {
     export_format: exportFormat,
   });
+}
+
+export async function downloadReportExport(exportJobId: string) {
+  return apiClient.download(`/exports/${exportJobId}/download/`);
 }
 
 export async function listAlerts(signal?: AbortSignal): Promise<AlertRule[]> {
@@ -367,7 +401,9 @@ export async function deleteAlert(alertId: string): Promise<void> {
 }
 
 export async function listSummaries(signal?: AbortSignal): Promise<AISummary[]> {
-  const data = await apiClient.get<AISummary[] | { results: AISummary[] }>('/summaries/', { signal });
+  const data = await apiClient.get<AISummary[] | { results: AISummary[] }>('/summaries/', {
+    signal,
+  });
   return Array.isArray(data) ? data : data.results;
 }
 
@@ -384,18 +420,29 @@ export type NotificationChannel = {
   name: string;
   channel_type: 'email' | 'webhook' | 'slack';
   config: Record<string, unknown>;
+  credentials_configured: boolean;
+  masked_destination: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
 };
 
-export async function listNotificationChannels(signal?: AbortSignal): Promise<NotificationChannel[]> {
-  const data = await apiClient.get<NotificationChannel[] | { results: NotificationChannel[] }>('/notification-channels/', { signal });
+export async function listNotificationChannels(
+  signal?: AbortSignal,
+): Promise<NotificationChannel[]> {
+  const data = await apiClient.get<NotificationChannel[] | { results: NotificationChannel[] }>(
+    '/notification-channels/',
+    { signal },
+  );
   return Array.isArray(data) ? data : data.results;
 }
 
 export async function createNotificationChannel(
-  payload: Pick<NotificationChannel, 'name' | 'channel_type' | 'config'> & { is_active?: boolean },
+  payload: Pick<NotificationChannel, 'name' | 'channel_type'> & {
+    config?: Record<string, unknown>;
+    secret_config?: Record<string, unknown>;
+    is_active?: boolean;
+  },
 ): Promise<NotificationChannel> {
   return apiClient.post<NotificationChannel>('/notification-channels/', payload);
 }
@@ -405,7 +452,10 @@ export async function deleteNotificationChannel(channelId: string): Promise<void
 }
 
 export async function createAlert(
-  payload: Pick<AlertRule, 'name' | 'metric' | 'comparison_operator' | 'threshold' | 'lookback_hours' | 'severity'> & {
+  payload: Pick<
+    AlertRule,
+    'name' | 'metric' | 'comparison_operator' | 'threshold' | 'lookback_hours' | 'severity'
+  > & {
     is_active?: boolean;
     notification_channels?: string[];
   },
@@ -415,9 +465,32 @@ export async function createAlert(
 
 export async function updateAlert(
   alertId: string,
-  payload: Partial<Pick<AlertRule, 'name' | 'metric' | 'comparison_operator' | 'threshold' | 'lookback_hours' | 'severity' | 'is_active' | 'notification_channels'>>,
+  payload: Partial<
+    Pick<
+      AlertRule,
+      | 'name'
+      | 'metric'
+      | 'comparison_operator'
+      | 'threshold'
+      | 'lookback_hours'
+      | 'severity'
+      | 'is_active'
+      | 'notification_channels'
+    >
+  >,
 ): Promise<AlertRule> {
   return apiClient.patch<AlertRule>(`/alerts/${alertId}/`, payload);
+}
+
+export async function pauseAlert(
+  alertId: string,
+  body: { pause_until?: string; duration_hours?: number } = {},
+): Promise<AlertRule> {
+  return apiClient.post<AlertRule>(`/alerts/${alertId}/pause/`, body);
+}
+
+export async function resumeAlert(alertId: string): Promise<AlertRule> {
+  return apiClient.post<AlertRule>(`/alerts/${alertId}/resume/`, {});
 }
 
 export async function triggerResync(connectionId: string): Promise<void> {
@@ -425,7 +498,13 @@ export async function triggerResync(connectionId: string): Promise<void> {
 }
 
 export async function listAuditLogs(
-  params: { action?: string; resource_type?: string; page?: number; start_date?: string; end_date?: string } = {},
+  params: {
+    action?: string;
+    resource_type?: string;
+    page?: number;
+    start_date?: string;
+    end_date?: string;
+  } = {},
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<AuditLogEntry>> {
   const path = appendQueryParams('/audit-logs/', params);

@@ -4,17 +4,14 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import DashboardState from '../components/DashboardState';
 import FilterBar, { type FilterBarAccountOption } from '../components/FilterBar';
-import {
-  loadSocialConnectionStatus,
-  type SocialPlatformStatusRecord,
-} from '../lib/airbyte';
+import { loadSocialConnectionStatus, type SocialPlatformStatusRecord } from '../lib/airbyte';
 import {
   buildLiveAccountOption,
   chooseDefaultLiveAccountOptionId,
   setLastLiveAccountId,
   sortLiveAccountOptions,
 } from '../lib/liveAccountSelection';
-import StatCard from '../components/ui/StatCard';
+import { KpiTile } from '../components/viz';
 import { fetchDashboardMetrics } from '../lib/dataService';
 import { messageForLiveDatasetReason } from '../lib/datasetStatus';
 import {
@@ -24,9 +21,13 @@ import {
   type FilterBarState,
 } from '../lib/dashboardFilters';
 import { getDashboardTemplate, DASHBOARD_TEMPLATES } from '../lib/dashboardTemplates';
-import { formatCurrency, formatNumber, formatRatio } from '../lib/format';
+import { formatNumber } from '../lib/format';
 import { loadMetaAccounts } from '../lib/meta';
-import { createDashboardDefinition, type DashboardMetricKey, type DashboardTemplateKey } from '../lib/phase2Api';
+import {
+  createDashboardDefinition,
+  type DashboardMetricKey,
+  type DashboardTemplateKey,
+} from '../lib/phase2Api';
 import { canAccessCreatorUi } from '../lib/rbac';
 import { useDatasetStore } from '../state/useDatasetStore';
 import '../styles/dashboard.css';
@@ -115,10 +116,19 @@ function buildPreviewBlockedMessage(metaStatus: SocialPlatformStatusRecord | nul
     return 'Finish Meta setup and choose an ad account to preview this dashboard.';
   }
   if (reasonCode === 'orphaned_marketing_access') {
-    return metaStatus?.reason.message ?? 'Restore Meta marketing access to recover ad accounts for preview.';
+    return (
+      metaStatus?.reason.message ??
+      'Restore Meta marketing access to recover ad accounts for preview.'
+    );
   }
-  if (reasonCode === 'page_insights_permissions_missing' || reasonCode === 'marketing_permissions_missing') {
-    return metaStatus?.reason.message ?? 'Reconnect Meta with the required permissions to restore ad account preview.';
+  if (
+    reasonCode === 'page_insights_permissions_missing' ||
+    reasonCode === 'marketing_permissions_missing'
+  ) {
+    return (
+      metaStatus?.reason.message ??
+      'Reconnect Meta with the required permissions to restore ad account preview.'
+    );
   }
   return 'No Meta ad accounts are available for dashboard preview yet.';
 }
@@ -145,6 +155,8 @@ const DashboardCreate = () => {
   const [filters, setFilters] = useState<FilterBarState>({
     ...defaultFilters,
     channels: ['Meta Ads'],
+    // FP-CREATE-01: scope preview fetch to meta_ads only to match the Meta-only builder intent.
+    platforms: ['meta_ads'],
   });
   const [defaultMetric, setDefaultMetric] = useState<DashboardMetricKey>(
     getDashboardTemplate(initialTemplateKey).defaultMetric,
@@ -404,7 +416,16 @@ const DashboardCreate = () => {
       setSaveState('error');
       setSaveError(error instanceof Error ? error.message : 'Unable to save dashboard.');
     }
-  }, [defaultMetric, description, filters, name, navigate, selectedTemplate.routeKind, selectedWidgets, templateKey]);
+  }, [
+    defaultMetric,
+    description,
+    filters,
+    name,
+    navigate,
+    selectedTemplate.routeKind,
+    selectedWidgets,
+    templateKey,
+  ]);
 
   if (!canCreate) {
     return (
@@ -430,7 +451,8 @@ const DashboardCreate = () => {
             </div>
           </div>
           <p className="muted">
-            Choose the client account, template, and default window. This saves a real dashboard definition, not just a local layout preference.
+            Choose the client account, template, and default window. This saves a real dashboard
+            definition, not just a local layout preference.
           </p>
         </header>
 
@@ -513,7 +535,11 @@ const DashboardCreate = () => {
           availableAccounts={accountOptions}
           availableChannels={['Meta Ads']}
           onChange={(nextState) => {
-            if (tenantId && nextState.accountId.trim() && nextState.accountId !== filters.accountId) {
+            if (
+              tenantId &&
+              nextState.accountId.trim() &&
+              nextState.accountId !== filters.accountId
+            ) {
               setLastLiveAccountId(tenantId, nextState.accountId, 'user');
             }
             setFilters({
@@ -529,18 +555,16 @@ const DashboardCreate = () => {
           <div className="panel-header__title-row">
             <h2>Allowed widgets</h2>
           </div>
-          <p className="muted">Saved dashboards use approved widget sets rather than freeform drag-and-drop.</p>
+          <p className="muted">
+            Saved dashboards use approved widget sets rather than freeform drag-and-drop.
+          </p>
         </header>
         <div className="dashboard-builder__widgets">
           {selectedTemplate.widgets.map((widget) => {
             const checked = selectedWidgets.includes(widget.id);
             return (
               <label key={widget.id} className="dashboard-builder__widget">
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => toggleWidget(widget.id)}
-                />
+                <input type="checkbox" checked={checked} onChange={() => toggleWidget(widget.id)} />
                 <div>
                   <strong>{widget.label}</strong>
                   <p className="muted">{widget.description}</p>
@@ -574,7 +598,11 @@ const DashboardCreate = () => {
         ) : null}
 
         {preview.status === 'loading' ? (
-          <DashboardState variant="loading" layout="compact" message="Loading live Meta preview..." />
+          <DashboardState
+            variant="loading"
+            layout="compact"
+            message="Loading live Meta preview..."
+          />
         ) : null}
 
         {preview.status === 'error' ? (
@@ -588,22 +616,48 @@ const DashboardCreate = () => {
 
         {preview.status === 'ready' ? (
           <div className="dashboard-builder__preview">
-            <div className="kpiColumn">
-              <StatCard label="Spend" value={formatCurrency(preview.summary.totalSpend, preview.summary.currency)} />
-              <StatCard label="Reach" value={formatNumber(preview.summary.totalReach)} />
-              <StatCard label="Clicks" value={formatNumber(preview.summary.totalClicks)} />
-              <StatCard label="CTR" value={formatRatio(preview.summary.ctr, 2)} />
-              <StatCard label="ROAS" value={formatRatio(preview.summary.averageRoas, 2)} />
+            {/* S4c: migrated builder preview to shared viz-kit `KpiTile`
+                (replaces 5 legacy `StatCard` tiles at the former lines
+                593–598). `KpiTile` renders the same `.metric-card` DOM
+                class so existing Storybook a11y assertions and CSS layouts
+                remain stable; FP-CREATE-01 `platforms: ['meta_ads']` default
+                on the preview fetch (configured above at the filters
+                setState) is unchanged. */}
+            <div className="kpiColumn" role="group" aria-label="Live preview KPIs">
+              <KpiTile
+                label="Spend"
+                value={preview.summary.totalSpend}
+                format="currency"
+                currency={preview.summary.currency}
+              />
+              <KpiTile label="Reach" value={preview.summary.totalReach} format="number" />
+              <KpiTile label="Clicks" value={preview.summary.totalClicks} format="number" />
+              <KpiTile label="CTR" value={preview.summary.ctr} format="rate" />
+              <KpiTile label="ROAS" value={preview.summary.averageRoas} format="rate" />
             </div>
             <div className="dashboard-builder__preview-meta">
-              <p><strong>Campaign rows:</strong> {formatNumber(preview.summary.campaignCount)}</p>
-              <p><strong>Creative rows:</strong> {formatNumber(preview.summary.creativeCount)}</p>
-              <p><strong>Budget rows:</strong> {formatNumber(preview.summary.budgetCount)}</p>
-              <p><strong>Coverage:</strong> {preview.summary.coverageLabel ?? 'Unavailable'}</p>
+              <p>
+                <strong>Campaign rows:</strong> {formatNumber(preview.summary.campaignCount)}
+              </p>
+              <p>
+                <strong>Creative rows:</strong> {formatNumber(preview.summary.creativeCount)}
+              </p>
+              <p>
+                <strong>Budget rows:</strong> {formatNumber(preview.summary.budgetCount)}
+              </p>
+              <p>
+                <strong>Coverage:</strong> {preview.summary.coverageLabel ?? 'Unavailable'}
+              </p>
               {preview.summary.availabilityReasons.length > 0 ? (
-                <p><strong>Availability notes:</strong> {preview.summary.availabilityReasons.join(', ')}</p>
+                <p>
+                  <strong>Availability notes:</strong>{' '}
+                  {preview.summary.availabilityReasons.join(', ')}
+                </p>
               ) : (
-                <p><strong>Availability notes:</strong> All core sections are available for this selection.</p>
+                <p>
+                  <strong>Availability notes:</strong> All core sections are available for this
+                  selection.
+                </p>
               )}
             </div>
           </div>
@@ -615,7 +669,12 @@ const DashboardCreate = () => {
           <button type="button" className="button tertiary" onClick={() => navigate('/dashboards')}>
             Back to library
           </button>
-          <button type="button" className="button primary" onClick={() => void handleSave()} disabled={saveState === 'saving'}>
+          <button
+            type="button"
+            className="button primary"
+            onClick={() => void handleSave()}
+            disabled={saveState === 'saving'}
+          >
             {saveState === 'saving' ? 'Saving…' : 'Save dashboard'}
           </button>
         </div>

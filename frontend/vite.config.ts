@@ -35,6 +35,14 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/setupTests.ts',
     reporters: ['default', ['json', { outputFile: 'test-results/vitest-report.json' }]],
+    // `forks` pool is more reliable than the default `threads` when the full
+    // suite runs alongside other dev processes (Vite dev server, Storybook,
+    // parallel builds). Threads pool was intermittently timing out a handful
+    // of heavy test files (App.integration, useDashboardStore, MetaPagePosts,
+    // DashboardLibrary/Create, GoogleAdsWorkspacePage) under load; the same
+    // tests pass deterministically on `forks`. Revisit if vitest improves
+    // threads-pool stability.
+    pool: 'forks',
     coverage: {
       provider: 'v8',
       reportsDirectory: 'coverage',

@@ -3,6 +3,7 @@
 Purpose: keep the next ADinsights work items in one place, with a clear split between release blockers that require operator access and repo-ready tasks that Codex can execute immediately.
 
 See also:
+
 - `AGENTS.md`
 - `docs/workstreams.md`
 - `docs/project/phase1-execution-backlog.md`
@@ -29,7 +30,9 @@ See also:
 - [x] Audit Log metadata enrichment (IP, User Agent). Scope: `backend/`. Status: `repo-ready`.
 - [x] "Why denied" trace logic in `IsTenantUser` to surface reason for 403. Scope: `backend/`. Status: `repo-ready`.
 - [x] Implement `HasPrivilege` across remaining `analytics` and `integrations` viewsets. Scope: `backend/`. Status: `repo-ready`.
-- [ ] Confirm staging/prod throttle behavior for `/api/token/`, `/api/auth/login/`, and `/api/auth/password-reset/` with expected `429` responses. Status: `blocked-external`.
+- [ ] Confirm staging/prod throttle behavior with expected `429` responses. Local command
+      `backend_release_smoke --check-rate-limits` now proves `/api/token/` and public throttle
+      behavior; target-env evidence remains required. Status: `blocked-external`.
 - [ ] Provision production AWS KMS key/alias and wire the real env values in secret management. Status: `blocked-external`.
 - [ ] Load real production Meta/Google credentials and run readiness checks in the target Airbyte environment. Status: `blocked-external`.
 - [ ] Run real alert simulations and attach observability evidence. Status: `blocked-external`.
@@ -39,6 +42,17 @@ See also:
 
 ## Next Unblocked Repo Work
 
+No unchecked `repo-ready` pilot-critical work remains as of 2026-05-28. The next phase is
+operator-gated staging activation unless a new repo defect is discovered by validation.
+
+- [x] **Usable pilot delivery (2026-05-26):** Implement real generic report artifacts, encrypted
+      notification channel secrets with masked API/UI responses, and scheduled daily summary email
+      delivery under `docs/project/usable-pilot-delivery-spec.md`. Scope: `backend/`, `frontend/`,
+      `integrations/exporter/`, `docs/`. Status: `repo-ready` (done; Raj/Mira release review and
+      staging activation evidence remain required).
+- [x] **Notification channel delivery verification (2026-05-01):** Fired tenant-defined alert rules now dispatch to assigned active email, Slack, and webhook `NotificationChannel` targets; channel failures are isolated and config shapes are documented. Scope: `backend/`, `docs/`, `artifacts/roadmap/`. Status: `repo-ready`.
+- [x] **Alert evaluation DB rule wiring (2026-05-01):** `AlertService.run_cycle` now evaluates active DB-backed `AlertRuleDefinition` rows alongside built-in system alerts, applies tenant context per DB rule, skips paused rules, auto-resumes expired pauses, and resolves `tenant_alert:<uuid>` metadata in alert history. Scope: `backend/`, `docs/`, `artifacts/roadmap/`. Status: `repo-ready`.
+- [x] **Local release gate stabilization (2026-05-01):** Fixed Google Ads frontend test drift, DuckDB demo mart month-end portability, observability external-action doc links, and Makefile Python selection so local preflight/demo commands use the repo venv when available. Scope: `frontend/`, `dbt/`, `docs/`, `Makefile`. Status: `repo-ready`.
 - [x] **GA4 Integration (Phase 1):** Complete tenant-scoped OAuth setup, exchange, property discovery, and provisioning endpoints for Google Analytics 4. Scope: `backend/integrations/`. Status: `repo-ready`.
 - [x] **Backend test-suite stabilization:** Reconcile canonical backend tests with the current pagination and privilege model (`HasPrivilege`, paginated list responses, upload/report access expectations). Scope: `backend/tests/`. Status: `repo-ready`.
 - [x] **GA4 Integration (Phase 2):** Implement `GoogleAnalyticsClient` and KPI fetch helpers (Traffic, Engagement). Scope: `backend/integrations/`. Status: `repo-ready`.
@@ -48,10 +62,12 @@ See also:
 - [x] **Phase 2 Polish (2026-04-10):** Report inline editing, audit log date-range filtering, sync connection detail page, health overview auto-refresh, global error boundary, 404 catch-all, skeleton loaders, unified toast system (Zustand `useToastStore`), Google Ads error states. Scope: `frontend/`, `backend/`. Status: `repo-ready`.
 - [x] **Trigger-sync endpoint upgrade (2026-04-10):** `POST /api/airbyte/connections/:id/trigger-sync/` upgraded from 501 stub to full Airbyte integration with audit logging. Scope: `backend/`. Status: `repo-ready`.
 - [x] **Audit log date-range filtering (2026-04-10):** `GET /api/audit-logs/` now accepts `start_date`/`end_date` query params. Scope: `backend/`. Status: `repo-ready`.
-- [ ] dbt demo mart cleanup: fix the DuckDB interval-conversion failure in `dbt/models/marts/demo/vw_demo_dashboard_snapshot.sql` so full `dbt test` is green outside the Meta dashboard path. Scope: `dbt/`. Status: `repo-ready`.
+- [x] dbt demo mart cleanup: fix the DuckDB interval-conversion failure in `dbt/models/marts/demo/vw_demo_dashboard_snapshot.sql` so full `dbt test` is green outside the Meta dashboard path. Scope: `dbt/`. Status: `repo-ready`. Done (2026-05-01).
 
 ## Defer Until After Release Hardening
 
+- [ ] GA4 live onboarding completion and Search Console tenant onboarding for the pilot. Scope:
+      `backend/`, `frontend/`, `infrastructure/airbyte/`. Status: `defer`.
 - [ ] Enterprise UAC UX (`S4-K`). Scope: `frontend/`. Status: `defer`.
 - [ ] LinkedIn/TikTok connector implementation beyond planning. Scope: `backend/` or `infrastructure/airbyte/`. Status: `defer`.
 
@@ -75,15 +91,17 @@ First read:
 - /Users/thristannewman/ADinsights/docs/project/current-priority-todo.md
 
 Then do the following:
-1. Pick the highest-priority unchecked item in current-priority-todo.md that is marked `repo-ready`.
-2. Confirm the work can stay within a single top-level folder. If it cannot, stop and flag Raj/Mira escalation instead of editing.
-3. Before editing, state which item you are taking, the folder scope, the exact acceptance criteria, and the canonical tests you will run.
-4. Implement the change end-to-end. Do not stop at analysis.
-5. Run the canonical tests for the touched folder from AGENTS.md and docs/workstreams.md.
-6. Update any required docs/runbooks affected by the change.
-7. Update /Users/thristannewman/ADinsights/docs/project/current-priority-todo.md to reflect completion or any newly discovered blockers.
-8. Add a one-line entry to /Users/thristannewman/ADinsights/docs/ops/agent-activity-log.md summarizing the work.
-9. In the final summary, report:
+1. Work step by step in this thread; do not use sub-agents.
+2. Pick the highest-priority unchecked item in current-priority-todo.md that is marked `repo-ready`.
+3. If no unchecked `repo-ready` item exists, do not invent scope. Audit the validation state, summarize the blocked-external staging evidence, and stop before editing.
+4. Confirm the work can stay within a single top-level folder. If it cannot, stop and flag Raj/Mira escalation instead of editing.
+5. Before editing, state which item you are taking, the folder scope, the exact acceptance criteria, and the canonical tests you will run.
+6. Implement the change end-to-end. Do not stop at analysis.
+7. Run the canonical tests for the touched folder from AGENTS.md and docs/workstreams.md.
+8. Update any required docs/runbooks affected by the change.
+9. Update /Users/thristannewman/ADinsights/docs/project/current-priority-todo.md to reflect completion or any newly discovered blockers.
+10. Add a one-line entry to /Users/thristannewman/ADinsights/docs/ops/agent-activity-log.md summarizing the work.
+11. In the final summary, report:
    - what changed
    - tests/commands run and results
    - remaining blockers

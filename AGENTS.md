@@ -10,11 +10,17 @@ This file serves as the operational prompt for any agent working on ADinsights. 
 
 ## Quick Context References
 
+- Documentation index / cold-start map: `docs/ops/doc-index.md`
+- Usable pilot delivery specification: `docs/project/usable-pilot-delivery-spec.md`
 - Feature catalog (built/in progress/planned): `docs/project/feature-catalog.md`
 - Feature ownership + tests + runbooks: `docs/project/feature-ownership-map.md`
 - API contract changelog: `docs/project/api-contract-changelog.md`
 - Integration data contract matrix: `docs/project/integration-data-contract-matrix.md`
+- Orchestration plan: `docs/orchestration.md`
 - Release checklist: `docs/runbooks/release-checklist.md`
+- Deployment runbook: `docs/runbooks/deployment.md`
+- Alerting workflow runbook: `docs/runbooks/alerting.md`
+- Nightly sync alerts runbook: `docs/ops/alerts-runbook.md`
 - Development launcher + local stack guide: `docs/DEVELOPMENT.md`
 - Google Ads SDK migration runbook: `docs/runbooks/google-ads-sdk-migration.md`
 - Meta App Review + validation runbook: `docs/runbooks/meta-app-review-validation.md`
@@ -24,6 +30,7 @@ This file serves as the operational prompt for any agent working on ADinsights. 
 - Meta Page Insights metric catalog: `docs/project/meta-page-insights-metric-catalog.md`
 - CSV upload runbook: `docs/runbooks/csv-uploads.md`
 - Data quality checklist: `docs/ops/data-quality-checklist.md`
+- Logging standards: `docs/ops/logging-standards.md`
 - Risk register: `docs/ops/risk-register.md`
 - ADR log: `docs/ops/adr-log.md`
 - User journey map: `docs/project/user-journey-map.md`
@@ -37,9 +44,13 @@ This file serves as the operational prompt for any agent working on ADinsights. 
 - Definition of Done: `docs/project/definition-of-done.md`
 - AI escalation rules: `docs/ops/escalation-rules.md`
 - AI session resume template: `docs/ops/ai-session-resume-template.md`
+- Agent activity log: `docs/ops/agent-activity-log.md`
+- Cold start walkthrough: `docs/ops/cold-start-walkthrough.md`
 - Decision checklist: `docs/ops/decision-checklist.md`
 - Test failure triage: `docs/ops/test-failure-triage.md`
+- Duplicate dbt artifact runbook: `docs/ops/dup-runbook.md`
 - CI operations runbook: `docs/ops/ci-runbook.md`
+- CI gate review: `docs/ops/ci-gate-review.md`
 - New engineer onboarding: `docs/ops/new-engineer-onboarding.md`
 - Human onboarding guide: `docs/ops/human-onboarding-guide.md`
 - Confused engineer walkthrough: `docs/ops/confused-engineer-walkthrough.md`
@@ -69,11 +80,12 @@ If context is unclear, follow this order:
 
 1. `AGENTS.md`
 2. `docs/ops/doc-index.md`
-3. `docs/workstreams.md`
-4. `docs/project/feature-catalog.md`
-5. `docs/project/phase1-execution-backlog.md`
-6. `docs/task_breakdown.md`
-7. `docs/project/vertical_slice_plan.md`
+3. `docs/ops/agent-activity-log.md`
+4. `docs/workstreams.md`
+5. `docs/project/feature-catalog.md`
+6. `docs/project/phase1-execution-backlog.md`
+7. `docs/task_breakdown.md`
+8. `docs/project/vertical_slice_plan.md`
 
 ## Architecture Guardrails
 
@@ -109,17 +121,25 @@ If context is unclear, follow this order:
 - Use short-lived feature branches and prefer squash merges.
 - Follow conventional commit messages such as `feat(backend): …` or `docs(airbyte): …`.
 - For local stack work, prefer `scripts/dev-launch.sh` over ad hoc service startup so the active ports, frontend/backend URLs, and local OAuth redirect settings stay aligned in `.dev-launch.active.env`. Use `scripts/dev-healthcheck.sh` after startup.
+- When adding or updating docs/runbooks, update `docs/ops/doc-index.md` and log a one-line entry in `docs/ops/agent-activity-log.md`. When behavior or observability changes, also update the relevant runbook and `docs/orchestration.md`.
 - When a change must touch multiple folders, loop in the Cross-Stream Integration Lead (Raj) so each stream owner co-reviews, and involve the Architecture/Refactor engineer (Mira) whenever the work is a codebase-wide refactor. Both roles keep cross-stream PRs aligned with the guardrails in `docs/workstreams.md`.
 
 ## Testing Matrix
 
 Run the canonical checks for the folder you touch:
 
-- **Backend:** `ruff check backend && pytest -q backend`
-- **Frontend:** `cd frontend && npm ci && npm test -- --run && npm run build`
+- **Backend:** `make backend-lint && make backend-test`
+- **Backend release preflight:** `backend/.venv/bin/python backend/manage.py backend_release_preflight`
+- **Frontend:** `make frontend-guardrails && make frontend-lint && make frontend-test && make frontend-build`
 - **dbt:** `make dbt-deps && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select staging && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' snapshot && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select marts`
+- **dbt validation / contract-sensitive marts:** `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select all_ad_performance dim_campaign fact_performance && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' test --select all_ad_performance dim_campaign fact_performance vw_campaign_daily`
 - **Airbyte:** `cd infrastructure/airbyte && docker compose config`
+- **Airbyte contracts / observability:** `python3 infrastructure/airbyte/scripts/check_data_contracts.py && python3 infrastructure/airbyte/scripts/verify_observability_prereqs.py`
+- **Airbyte production readiness:** `python3 infrastructure/airbyte/scripts/validate_tenant_config.py && python3 infrastructure/airbyte/scripts/verify_production_readiness.py && python3 infrastructure/airbyte/scripts/airbyte_health_check.py`
 - **Launcher / Local Stack:** `bash -n scripts/dev-launch.sh scripts/dev-healthcheck.sh && scripts/dev-launch.sh --list-profiles && scripts/dev-healthcheck.sh`
+- **dbt duplication guard:** `bash scripts/ci/check-duplications.sh`
+- **Orchestration / observability changes:** `docker compose -f docker-compose.dev.yml config && python3 backend/manage.py backend_release_smoke --strict-observability`
+- **Full Local Matrix:** `make validate-local`
 
 When a change spans contracts, release gating, or cross-stream readiness, run `make adinsights-preflight PROMPT="..."` before handing off.
 

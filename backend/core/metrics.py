@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+import os
 from typing import Iterable, Mapping
 
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    CollectorRegistry,
+    Counter,
+    Histogram,
+    generate_latest,
+    multiprocess,
+)
 
 CELERY_TASK_TOTAL = Counter(
     "celery_task_executions_total",
@@ -360,6 +368,10 @@ def observe_meta_graph_throttle_event(*, header_name: str) -> None:
 def render_metrics() -> tuple[bytes, str]:
     """Return the current registry contents and content type."""
 
+    if os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+        registry = CollectorRegistry()
+        multiprocess.MultiProcessCollector(registry)
+        return generate_latest(registry), CONTENT_TYPE_LATEST
     return generate_latest(), CONTENT_TYPE_LATEST
 
 

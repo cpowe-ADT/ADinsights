@@ -1,3 +1,5 @@
+import { KpiTile } from '../../viz';
+import type { KpiFormat } from '../../viz/KpiTile';
 import type { SummaryRecord } from './types';
 
 type Props = {
@@ -6,72 +8,67 @@ type Props = {
   error: string;
 };
 
-const KPI_LABELS: Record<string, string> = {
-  spend: 'Spend',
-  impressions: 'Impressions',
-  clicks: 'Clicks',
-  conversions: 'Conversions',
-  roas: 'ROAS',
-  cpa: 'CPA',
-  conversion_value: 'Conv Value',
+type TileConfig = {
+  key: string;
+  label: string;
+  format: KpiFormat;
 };
 
-function formatMetric(key: string, value: number): string {
-  if (key === 'spend' || key === 'conversion_value' || key === 'cpa') {
-    return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-  if (key === 'roas') {
-    return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-  if (key === 'impressions' || key === 'clicks' || key === 'conversions') {
-    return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  }
-  return value.toFixed(2);
-}
+/**
+ * Sprint 3 — WorkspaceKpiStrip now renders the shared `KpiTile` primitive.
+ * Architect §4 confirmed Impression Share (IS%) is not available from the
+ * API today; this strip therefore ships 4 tiles per the Overview spec
+ * plus ROAS and Conv Value for the workspace summary (the extra two are
+ * kept only for non-Overview tabs that still read this strip).
+ */
+const TILES: TileConfig[] = [
+  { key: 'spend', label: 'Cost', format: 'currency' },
+  { key: 'conversions', label: 'Conversions', format: 'number' },
+  { key: 'cpa', label: 'CPA', format: 'currency' },
+  { key: 'roas', label: 'ROAS', format: 'number' },
+];
 
 const WorkspaceKpiStrip = ({ summary, status, error }: Props) => {
-  if (status === 'loading' && !summary) {
-    return <div className="panel">Loading workspace summary...</div>;
-  }
+  const isLoading = status === 'loading' && !summary;
+
   if (status === 'error' && !summary) {
     return (
       <div className="panel" role="alert">
-        {error}
+        {error || 'Failed to load workspace summary.'}
       </div>
     );
   }
-  if (!summary) {
-    return null;
-  }
 
-  const metricKeys = ['spend', 'clicks', 'conversions', 'roas', 'cpa', 'conversion_value'];
+  const metrics = summary?.metrics ?? {};
 
   return (
     <div className="panel gads-workspace__kpi-strip" aria-live="polite">
-      <div className="gads-workspace__kpi-grid">
-        {metricKeys.map((key) => {
-          const raw = Number(summary.metrics[key] ?? 0);
+      <div className="gads-workspace__kpi-grid" data-testid="workspace-kpi-grid">
+        {TILES.map((tile) => {
+          const raw = metrics[tile.key];
+          const numeric = raw === null || raw === undefined ? null : Number(raw);
+          const value = numeric === null || !Number.isFinite(numeric) ? null : numeric;
           return (
-            <article key={key} className="metric-card metric-card--compact">
-              <p className="metric-card__label">{KPI_LABELS[key] ?? key}</p>
-              <p className="metric-card__value">{formatMetric(key, raw)}</p>
-            </article>
+            <KpiTile
+              key={tile.key}
+              label={tile.label}
+              value={value}
+              format={tile.format}
+              currency="JMD"
+              isLoading={isLoading}
+              reasonCode={value === null ? 'no_data_for_range' : undefined}
+            />
           );
         })}
-        <article className="metric-card metric-card--compact">
-          <p className="metric-card__label">Pacing status</p>
-          <p className="metric-card__value">
-            {summary.alerts_summary.overspend_risk
-              ? 'Overspend risk'
-              : summary.alerts_summary.underdelivery
-                ? 'Underdelivery risk'
-                : 'On track'}
-          </p>
-        </article>
       </div>
-      <p className="dashboardSubtitle" style={{ marginTop: '0.75rem' }}>
-        Source: {summary.source_engine} {summary.data_freshness_ts ? `• Updated ${new Date(summary.data_freshness_ts).toLocaleString()}` : ''}
-      </p>
+      {summary ? (
+        <p className="dashboardSubtitle" style={{ marginTop: '0.75rem' }}>
+          Source: {summary.source_engine}
+          {summary.data_freshness_ts
+            ? ` • Updated ${new Date(summary.data_freshness_ts).toLocaleString()}`
+            : ''}
+        </p>
+      ) : null}
     </div>
   );
 };

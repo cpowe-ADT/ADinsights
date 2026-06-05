@@ -1,0 +1,2262 @@
+diff --git a/backend/adapters/demo.py b/backend/adapters/demo.py
+index bb9ce3aa..ab61c88f 100644
+--- a/backend/adapters/demo.py
++++ b/backend/adapters/demo.py
+@@ -1421,6 +1421,32 @@ class DemoAdapter(MetricsAdapter):
+         tenant_id: str,
+         options: Mapping[str, Any] | None = None,
+     ) -> Mapping[str, Any]:
++        _opts = options or {}
++        client_scope_requested = bool(_opts.get("client_scope_requested"))
++        scoped_meta = list(_opts.get("client_scoped_meta_ad_account_ids") or [])
++        scoped_google = list(_opts.get("client_scoped_google_customer_ids") or [])
++
++        # Build allowed channel set for downstream filtering.
++        allowed_channels: set[str] | None = None
++        if client_scope_requested:
++            if not scoped_meta and not scoped_google:
++                return _demo_empty_payload()
++            allowed_channels = set()
++            if scoped_meta:
++                allowed_channels.update(
++                    {
++                        "meta_ads",
++                        "meta",
++                        "meta ads",
++                        "facebook",
++                        "instagram",
++                        "audience_network",
++                        "messenger",
++                    }
++                )
++            if scoped_google:
++                allowed_channels.update({"google_ads", "google ads", "google"})
++
+         slug = (
+             str(options.get("demo_tenant"))  # type: ignore[call-arg]
+             if options and "demo_tenant" in options
+@@ -1428,11 +1454,82 @@ class DemoAdapter(MetricsAdapter):
+         )
+         seeded = _load_seeded_demo_data(_demo_seed_dir())
+         if seeded:
+-            return _build_seeded_payload(seeded, slug, options)
++            payload = _build_seeded_payload(seeded, slug, options)
++            if allowed_channels is not None:
++                payload = _filter_demo_payload_by_channel(payload, allowed_channels)
++            return payload
+ 
+         dataset = DEMO_DATASETS.get(slug) or DEMO_DATASETS[DEFAULT_DEMO_TENANT]
+         payload = deepcopy(dataset["payload"])
++        if allowed_channels is not None:
++            payload = _filter_demo_payload_by_channel(payload, allowed_channels)
+         payload.setdefault("tenant_id", slug)
+         payload.setdefault("tenant_label", dataset["label"])
+         payload.setdefault("snapshot_generated_at", timezone.now().isoformat())
+         return payload
++
++
++# ── demo scoping helpers ────────────────────────────────────────────────────
++
++
++def _filter_demo_payload_by_channel(
++    payload: dict[str, Any], allowed: set[str]
++) -> dict[str, Any]:
++    """Filter campaign and creative rows by platform/channel field.
++
++    The seeded path sets row['platform'] = meta.get('channel'); the static
++    DEMO_DATASETS path sets row['platform'] to display strings like 'Meta'.
++    Both are checked case-insensitively against the allowed set.
++    """
++    result = dict(payload)
++    campaign = dict(result.get("campaign") or {})
++    rows = [
++        r
++        for r in (campaign.get("rows") or [])
++        if (r.get("platform") or "").lower() in allowed
++    ]
++    total_spend = sum(float(r.get("spend", 0)) for r in rows)
++    total_impressions = sum(int(r.get("impressions", 0)) for r in rows)
++    total_clicks = sum(int(r.get("clicks", 0)) for r in rows)
++    total_conversions = sum(int(r.get("conversions", 0)) for r in rows)
++    summary = dict(campaign.get("summary") or {})
++    summary.update(
++        {
++            "totalSpend": round(total_spend, 2),
++            "totalImpressions": total_impressions,
++            "totalClicks": total_clicks,
++            "totalConversions": total_conversions,
++        }
++    )
++    campaign["summary"] = summary
++    campaign["rows"] = rows
++    # Zero trend to avoid trend/summary mismatch when filtering by platform.
++    campaign["trend"] = []
++    result["campaign"] = campaign
++    result["creative"] = [
++        r
++        for r in (result.get("creative") or [])
++        if (r.get("platform") or "").lower() in allowed
++    ]
++    return result
++
++
++def _demo_empty_payload() -> dict[str, Any]:
++    return {
++        "campaign": {
++            "summary": {
++                "currency": "JMD",
++                "totalSpend": 0,
++                "totalImpressions": 0,
++                "totalClicks": 0,
++                "totalConversions": 0,
++                "averageRoas": 0.0,
++            },
++            "trend": [],
++            "rows": [],
++        },
++        "creative": [],
++        "budget": [],
++        "parish": [],
++        "snapshot_generated_at": None,
++    }
+diff --git a/backend/adapters/fake.py b/backend/adapters/fake.py
+index aecb1ec6..b5602521 100644
+--- a/backend/adapters/fake.py
++++ b/backend/adapters/fake.py
+@@ -2,6 +2,7 @@
+ 
+ from __future__ import annotations
+ 
++import logging
+ from copy import deepcopy
+ from typing import Any, Mapping
+ 
+@@ -9,6 +10,16 @@ from django.utils import timezone
+ 
+ from .base import AdapterInterface, MetricsAdapter, get_default_interfaces
+ 
++logger = logging.getLogger(__name__)
++
++# Platform alias sets used to filter rows by allowed scope.
++META_CHANNEL_ALIASES: frozenset[str] = frozenset(
++    {"meta", "meta ads", "meta_ads", "facebook", "instagram", "audience_network", "messenger"}
++)
++GOOGLE_CHANNEL_ALIASES: frozenset[str] = frozenset(
++    {"google ads", "google_ads", "google"}
++)
++
+ 
+ class FakeAdapter(MetricsAdapter):
+     """Return deterministic demo payloads that mirror the QA fixtures."""
+@@ -251,7 +262,84 @@ class FakeAdapter(MetricsAdapter):
+         *,
+         tenant_id: str,
+         options: Mapping[str, Any] | None = None,
+-    ) -> Mapping[str, Any]:  # noqa: ARG002 - options reserved for future use
+-        payload = deepcopy(self._PAYLOAD)
++    ) -> Mapping[str, Any]:
++        """Return deterministic demo payload, honouring client_scope_requested."""
++        _opts = options or {}
++        client_scope_requested = bool(_opts.get("client_scope_requested"))
++        scoped_meta = list(_opts.get("client_scoped_meta_ad_account_ids") or [])
++        scoped_google = list(_opts.get("client_scoped_google_customer_ids") or [])
++
++        payload: dict[str, Any] = deepcopy(self._PAYLOAD)
+         payload.setdefault("snapshot_generated_at", timezone.now().isoformat())
++
++        if client_scope_requested:
++            if not scoped_meta and not scoped_google:
++                # Scoping requested but no accounts in scope → empty payload.
++                return _fake_empty_payload(payload)
++            # Derive allowed platforms from which scoped lists are non-empty.
++            allowed: set[str] = set()
++            if scoped_meta:
++                allowed.update(META_CHANNEL_ALIASES)
++            if scoped_google:
++                allowed.update(GOOGLE_CHANNEL_ALIASES)
++            payload = _filter_fake_payload_by_platform(payload, allowed)
++
+         return payload
++
++
++# ── helpers ──────────────────────────────────────────────────────────────────
++
++
++def _filter_fake_payload_by_platform(
++    payload: dict[str, Any], allowed: set[str]
++) -> dict[str, Any]:
++    """Return a copy of payload with campaign/creative rows filtered to allowed platforms."""
++    result = dict(payload)
++    campaign = dict(result.get("campaign") or {})
++    rows = [
++        row
++        for row in (campaign.get("rows") or [])
++        if (row.get("platform") or "").lower() in allowed
++    ]
++    total_spend = sum(float(r.get("spend", 0)) for r in rows)
++    total_impressions = sum(int(r.get("impressions", 0)) for r in rows)
++    total_clicks = sum(int(r.get("clicks", 0)) for r in rows)
++    total_conversions = sum(int(r.get("conversions", 0)) for r in rows)
++    summary = dict(campaign.get("summary") or {})
++    summary.update(
++        {
++            "totalSpend": total_spend,
++            "totalImpressions": total_impressions,
++            "totalClicks": total_clicks,
++            "totalConversions": total_conversions,
++        }
++    )
++    # Trend has no platform field; zero it to avoid summary/trend mismatch.
++    campaign["summary"] = summary
++    campaign["rows"] = rows
++    campaign["trend"] = []
++    result["campaign"] = campaign
++    result["creative"] = [
++        row
++        for row in (result.get("creative") or [])
++        if (row.get("platform") or "").lower() in allowed
++    ]
++    # Budget rows have no platform field; keep all.
++    return result
++
++
++def _fake_empty_payload(template: dict[str, Any]) -> dict[str, Any]:
++    """Return a zero-filled payload with the same top-level shape as template."""
++    empty = dict(template)
++    campaign = dict(template.get("campaign") or {})
++    summary = dict(campaign.get("summary") or {})
++    for k in ("totalSpend", "totalImpressions", "totalClicks", "totalConversions", "averageRoas"):
++        summary[k] = 0
++    campaign["summary"] = summary
++    campaign["trend"] = []
++    campaign["rows"] = []
++    empty["campaign"] = campaign
++    empty["creative"] = []
++    empty["budget"] = []
++    empty["parish"] = []
++    return empty
+diff --git a/backend/adapters/meta_direct.py b/backend/adapters/meta_direct.py
+index 4d1b359f..f0d20076 100644
+--- a/backend/adapters/meta_direct.py
++++ b/backend/adapters/meta_direct.py
+@@ -84,11 +84,24 @@ class MetaDirectFilters:
+     account_id: str | None = None
+     channels: tuple[str, ...] = ()
+     campaign_search: str | None = None
++    # Sprint 6: populated when the Combined view is scoped to a Client. Carries
++    # variant-expanded Meta ad account external_ids (both ``act_`` and bare
++    # forms) so the queryset filter can use ``__in`` permissively.
++    scoped_meta_account_ids: tuple[str, ...] = ()
++    # Sprint 6: ``True`` when the caller passed ``client_id`` — separate from
++    # ``scoped_meta_account_ids`` being non-empty because the client might
++    # resolve to zero Meta accounts (client_not_found, or Meta toggled off).
++    # When True and the id list is empty, the filter should return zero rows.
++    client_scope_requested: bool = False
+ 
+     @property
+     def excludes_meta_channel(self) -> bool:
+         return bool(self.channels) and not any(channel in META_CHANNEL_ALIASES for channel in self.channels)
+ 
++    @property
++    def is_client_scoped(self) -> bool:
++        return self.client_scope_requested
++
+ 
+ def _normalize_account_aliases(value: str | None) -> set[str]:
+     if not value:
+@@ -145,6 +158,17 @@ def _safe_divide(numerator: float, denominator: float) -> float:
+ 
+ def _validated_filters(options: Mapping[str, Any] | None) -> MetaDirectFilters:
+     serializer_input = options.dict() if options is not None and hasattr(options, "dict") else dict(options or {})
++
++    # Sprint 6: extract the client-scoping keys BEFORE the serializer pass —
++    # they carry list values that the CombinedMetricsQueryParamsSerializer
++    # doesn't know about. We pop them so the list-flattening loop doesn't
++    # collapse them to a single element or route them through "channels".
++    scoped_meta_raw = serializer_input.pop("client_scoped_meta_ad_account_ids", None)
++    serializer_input.pop("client_scoped_google_customer_ids", None)
++    client_scope_requested = bool(serializer_input.pop("client_scope_requested", False))
++    # ``client_id`` and ``platforms`` are metadata the adapter doesn't need.
++    serializer_input.pop("platforms", None)
++
+     for key, value in list(serializer_input.items()):
+         if isinstance(value, (list, tuple)):
+             cleaned = [item.strip() for item in value if isinstance(item, str) and item.strip()]
+@@ -156,12 +180,24 @@ def _validated_filters(options: Mapping[str, Any] | None) -> MetaDirectFilters:
+     serializer = CombinedMetricsQueryParamsSerializer(data=serializer_input)
+     serializer.is_valid(raise_exception=True)
+     data = serializer.validated_data
++
++    if isinstance(scoped_meta_raw, (list, tuple)):
++        scoped_meta = tuple(
++            str(item).strip()
++            for item in scoped_meta_raw
++            if isinstance(item, str) and item.strip()
++        )
++    else:
++        scoped_meta = ()
++
+     return MetaDirectFilters(
+         start_date=data.get("start_date"),
+         end_date=data.get("end_date"),
+         account_id=data.get("account_id"),
+         channels=_normalize_channels(data.get("channels")),
+         campaign_search=data.get("campaign_search"),
++        scoped_meta_account_ids=scoped_meta,
++        client_scope_requested=client_scope_requested,
+     )
+ 
+ 
+@@ -282,7 +318,21 @@ class MetaDirectAdapter(MetricsAdapter):
+             queryset = queryset.filter(date__gte=filters.start_date)
+         if filters.end_date:
+             queryset = queryset.filter(date__lte=filters.end_date)
+-        if filters.account_id:
++        if filters.is_client_scoped:
++            # Sprint 6: Client-scoped filter wins over single-account filter —
++            # the resolver already intersected with ``account_id`` if both were
++            # provided, so we only filter on the full scoped id set here.
++            aliases = set(filters.scoped_meta_account_ids)
++            numeric_aliases = {
++                alias[4:] if alias.startswith("act_") else alias
++                for alias in aliases
++            }
++            queryset = queryset.filter(
++                Q(ad_account__external_id__in=aliases)
++                | Q(ad_account__account_id__in=numeric_aliases)
++                | Q(campaign__account_external_id__in=aliases)
++            )
++        elif filters.account_id:
+             aliases = _normalize_account_aliases(filters.account_id)
+             numeric_aliases = {alias[4:] if alias.startswith("act_") else alias for alias in aliases}
+             queryset = queryset.filter(
+@@ -521,7 +571,9 @@ class MetaDirectAdapter(MetricsAdapter):
+             region_qs = region_qs.filter(date_day__gte=filters.start_date)
+         if filters.end_date:
+             region_qs = region_qs.filter(date_day__lte=filters.end_date)
+-        if filters.account_id:
++        if filters.is_client_scoped:
++            region_qs = region_qs.filter(account_id__in=set(filters.scoped_meta_account_ids))
++        elif filters.account_id:
+             aliases = _normalize_account_aliases(filters.account_id)
+             region_qs = region_qs.filter(account_id__in=aliases)
+ 
+@@ -590,7 +642,9 @@ class MetaDirectAdapter(MetricsAdapter):
+             demo_qs = demo_qs.filter(date_day__gte=filters.start_date)
+         if filters.end_date:
+             demo_qs = demo_qs.filter(date_day__lte=filters.end_date)
+-        if filters.account_id:
++        if filters.is_client_scoped:
++            demo_qs = demo_qs.filter(account_id__in=set(filters.scoped_meta_account_ids))
++        elif filters.account_id:
+             aliases = _normalize_account_aliases(filters.account_id)
+             demo_qs = demo_qs.filter(account_id__in=aliases)
+ 
+@@ -643,7 +697,9 @@ class MetaDirectAdapter(MetricsAdapter):
+             plat_qs = plat_qs.filter(date_day__gte=filters.start_date)
+         if filters.end_date:
+             plat_qs = plat_qs.filter(date_day__lte=filters.end_date)
+-        if filters.account_id:
++        if filters.is_client_scoped:
++            plat_qs = plat_qs.filter(account_id__in=set(filters.scoped_meta_account_ids))
++        elif filters.account_id:
+             aliases = _normalize_account_aliases(filters.account_id)
+             plat_qs = plat_qs.filter(account_id__in=aliases)
+ 
+diff --git a/backend/adapters/upload.py b/backend/adapters/upload.py
+index 1fc90daf..e816b1c4 100644
+--- a/backend/adapters/upload.py
++++ b/backend/adapters/upload.py
+@@ -2,6 +2,7 @@
+ 
+ from __future__ import annotations
+ 
++import logging
+ from typing import Any, Mapping
+ 
+ from analytics.models import TenantMetricsSnapshot
+@@ -9,6 +10,8 @@ from rest_framework.exceptions import NotFound
+ 
+ from .base import AdapterInterface, MetricsAdapter, get_default_interfaces
+ 
++logger = logging.getLogger(__name__)
++
+ 
+ class UploadAdapter(MetricsAdapter):
+     """Serve metrics uploaded via CSV."""
+@@ -24,6 +27,11 @@ class UploadAdapter(MetricsAdapter):
+         tenant_id: str,
+         options: Mapping[str, Any] | None = None,
+     ) -> Mapping[str, Any]:
++        _opts = options or {}
++        client_scope_requested = bool(_opts.get("client_scope_requested"))
++        scoped_meta = list(_opts.get("client_scoped_meta_ad_account_ids") or [])
++        scoped_google = list(_opts.get("client_scoped_google_customer_ids") or [])
++
+         snapshot = (
+             TenantMetricsSnapshot.objects
+             .filter(tenant_id=tenant_id, source=self.key)
+@@ -31,5 +39,72 @@ class UploadAdapter(MetricsAdapter):
+             .first()
+         )
+         if snapshot:
+-            return snapshot.payload
++            payload = dict(snapshot.payload)
++            if client_scope_requested:
++                if not scoped_meta and not scoped_google:
++                    return _upload_empty_payload(payload)
++                # Best-effort: filter by adAccountId if present; fall back to platform string.
++                allowed_account_ids: set[str] = set(scoped_meta) | set(scoped_google)
++                payload = _filter_upload_payload(
++                    payload, allowed_account_ids, scoped_meta, scoped_google
++                )
++            return payload
+         raise NotFound("No uploaded metrics found.")
++
++
++def _filter_upload_payload(
++    payload: dict[str, Any],
++    allowed_account_ids: set[str],
++    scoped_meta: list[str],
++    scoped_google: list[str],
++) -> dict[str, Any]:
++    """Best-effort row filter for upload payloads.
++
++    Priority: adAccountId field -> platform string.
++    Rows with no adAccountId AND no platform field are kept (cannot narrow).
++    """
++    result = dict(payload)
++    campaign = dict(result.get("campaign") or {})
++    rows = list(campaign.get("rows") or [])
++    filtered_rows: list[dict[str, Any]] = []
++    for row in rows:
++        account_id = row.get("adAccountId") or row.get("ad_account_id")
++        if account_id:
++            if str(account_id) in allowed_account_ids:
++                filtered_rows.append(row)
++            continue
++        # Fallback: platform string.
++        platform = (row.get("platform") or "").lower()
++        if not platform:
++            filtered_rows.append(row)  # cannot narrow, keep
++            continue
++        meta_aliases = {
++            "meta", "meta_ads", "meta ads", "facebook", "instagram",
++            "audience_network", "messenger",
++        }
++        google_aliases = {"google", "google_ads", "google ads"}
++        if scoped_meta and platform in meta_aliases:
++            filtered_rows.append(row)
++        elif scoped_google and platform in google_aliases:
++            filtered_rows.append(row)
++    campaign["rows"] = filtered_rows
++    result["campaign"] = campaign
++    return result
++
++
++def _upload_empty_payload(template: dict[str, Any]) -> dict[str, Any]:
++    """Return a zero-filled payload shaped like the upload snapshot."""
++    empty = dict(template)
++    campaign = dict(template.get("campaign") or {})
++    summary = dict(campaign.get("summary") or {})
++    for k in ("totalSpend", "totalImpressions", "totalClicks", "totalConversions", "averageRoas"):
++        if k in summary:
++            summary[k] = 0
++    campaign["summary"] = summary
++    campaign["trend"] = []
++    campaign["rows"] = []
++    empty["campaign"] = campaign
++    for key in ("creative", "budget", "parish"):
++        if key in empty:
++            empty[key] = []
++    return empty
+diff --git a/backend/adapters/warehouse.py b/backend/adapters/warehouse.py
+index 411d225d..54e05bba 100644
+--- a/backend/adapters/warehouse.py
++++ b/backend/adapters/warehouse.py
+@@ -113,6 +113,31 @@ class WarehouseAdapter(MetricsAdapter):
+             return parse_date(value)
+         return None
+ 
++    @staticmethod
++    def _empty_payload_like(payload: Mapping[str, Any]) -> Mapping[str, Any]:
++        """Preserve top-level metadata (snapshot_generated_at etc.) but empty
++        the data sections. Used when a Client's scoping resolves to zero
++        linked accounts — the dashboard needs an empty-but-structured payload
++        rather than a null."""
++
++        preserved = {
++            key: value
++            for key, value in payload.items()
++            if key in {"snapshot_generated_at"}
++            or key.startswith("_")
++        }
++        preserved.update(
++            {
++                "campaign": {"trend": [], "rows": [], "metrics": {}},
++                "creative": {"rows": []},
++                "audience": {"rows": []},
++                "geo": {"rows": []},
++                "parish": {"rows": []},
++                "metrics": {},
++            }
++        )
++        return preserved
++
+     @staticmethod
+     def _normalize_parishes(parish: Any) -> list[str]:
+         if parish is None:
+@@ -239,6 +264,31 @@ class WarehouseAdapter(MetricsAdapter):
+         parishes = self._normalize_parishes(options.get("parish"))
+         account_ids = self._normalize_account_ids(options.get("account_id"))
+ 
++        # Sprint 10: honour client_scoping produced by
++        # :func:`analytics.combined_metrics_service.resolve_client_scoping`.
++        # Those keys carry the per-platform account id sets a Client groups.
++        # We fold them into ``account_ids`` so the existing filter logic (by
++        # adAccountId) naturally restricts the warehouse payload to that
++        # Client's accounts. ``client_scope_requested=True`` with empty lists
++        # means "scoping was requested but returned no accounts" — in that
++        # case we surface an empty payload instead of falling back to "no
++        # filter" (which would leak the whole tenant's data).
++        client_scope_requested = bool(options.get("client_scope_requested"))
++        scoped_google = self._normalize_account_ids(
++            options.get("client_scoped_google_customer_ids")
++        )
++        scoped_meta = self._normalize_account_ids(
++            options.get("client_scoped_meta_ad_account_ids")
++        )
++        if client_scope_requested:
++            client_account_ids = scoped_google + scoped_meta
++            if not client_account_ids:
++                # The caller asked for a Client that has no linked accounts
++                # (or no enabled platforms resolve). Return an empty-shaped
++                # payload rather than the unfiltered one.
++                return self._empty_payload_like(payload)
++            account_ids = sorted(set(account_ids + client_account_ids))
++
+         if not start_date and not end_date and not parishes and not account_ids:
+             return payload
+ 
+diff --git a/backend/analytics/combined_metrics_service.py b/backend/analytics/combined_metrics_service.py
+index 0051ddf3..02b41139 100644
+--- a/backend/analytics/combined_metrics_service.py
++++ b/backend/analytics/combined_metrics_service.py
+@@ -2,6 +2,7 @@
+ 
+ from __future__ import annotations
+ 
++import logging
+ from dataclasses import dataclass
+ from datetime import datetime
+ from typing import Any, Mapping
+@@ -20,7 +21,20 @@ from adapters.warehouse import (
+     WarehouseSnapshotUnavailable,
+ )
+ 
++from integrations.clients.resolver import resolve_client_accounts
++from integrations.models import (
++    Client as IntegrationsClient,
++    ClientPlatformAccount,
++)
++
+ from .models import TenantMetricsSnapshot
++from .platform_registry import (
++    COMBINED_SUPPORTED,
++    PLATFORM_GOOGLE_ADS,
++    PLATFORM_META_ADS,
++    PlatformRegistry,
++    parse_enabled_param,
++)
+ from .serializers import CombinedMetricsQueryParamsSerializer
+ from .warehouse_metrics import (
+     enrich_combined_payload_metadata,
+@@ -28,6 +42,13 @@ from .warehouse_metrics import (
+ )
+ 
+ 
++logger = logging.getLogger(__name__)
++
++# Adapters known to ignore client_scoped_* options. Remove an entry from this
++# set when the adapter is patched to honour scoping.
++_SCOPE_UNAWARE_ADAPTER_KEYS: frozenset[str] = frozenset()
++
++
+ @dataclass(frozen=True)
+ class CombinedMetricsResult:
+     payload: dict[str, Any]
+@@ -36,6 +57,9 @@ class CombinedMetricsResult:
+     has_filters: bool
+     snapshot_written: bool
+     query_count: int
++    # Sprint 6: populated when the caller passed ``client_id``. ``None`` for
++    # the legacy path so the view can skip attaching the header/body key.
++    client_resolution: dict[str, Any] | None = None
+ 
+ 
+ def _payloads_equal(existing: Mapping[str, Any], candidate: Mapping[str, Any]) -> bool:
+@@ -58,6 +82,7 @@ def _build_snapshot_result(
+     cache_outcome: str,
+     has_filters: bool,
+     query_count: int,
++    client_resolution: dict[str, Any] | None = None,
+ ) -> CombinedMetricsResult:
+     canonical_payload = _validate_and_clean_combined_payload(
+         payload=snapshot.payload,
+@@ -69,6 +94,8 @@ def _build_snapshot_result(
+     )
+     if "snapshot_generated_at" not in cached_payload:
+         cached_payload["snapshot_generated_at"] = snapshot.generated_at.isoformat()
++    if client_resolution is not None:
++        cached_payload = {**cached_payload, "client_resolution": client_resolution}
+     return CombinedMetricsResult(
+         payload=cached_payload,
+         source=source,
+@@ -76,6 +103,7 @@ def _build_snapshot_result(
+         has_filters=has_filters,
+         snapshot_written=False,
+         query_count=query_count,
++        client_resolution=client_resolution,
+     )
+ 
+ 
+@@ -91,6 +119,265 @@ def parse_cache_flag(value: Any) -> bool:
+     return str(value or "true").lower() != "false"
+ 
+ 
++def _meta_account_variants(raw: str) -> list[str]:
++    """Expand a Meta ad account id into both ``act_`` and bare-digit forms."""
++
++    candidate = (raw or "").strip()
++    if not candidate:
++        return []
++    if candidate.startswith("act_"):
++        return [candidate, candidate[len("act_"):]]
++    if candidate.isdigit():
++        return [candidate, f"act_{candidate}"]
++    return [candidate]
++
++
++def _collect_tenant_platform_accounts(
++    *, tenant_id: str
++) -> tuple[list[str], list[str]]:
++    """Return ``(meta_variants, google_customer_ids)`` for a tenant.
++
++    Used when ``platforms=`` is sent without a ``client_id`` — we need every
++    tenant-owned account id for the enabled platform(s) so the adapter can
++    filter the combined payload down to that platform.
++
++    Imports are scoped to avoid a circular module import at startup
++    (``analytics.models`` and ``integrations.models`` both transitively import
++    this module).
++    """
++
++    from analytics.models import AdAccount
++    from integrations.models import GoogleAdsAccountMapping
++
++    meta_externals = list(
++        AdAccount.all_objects.filter(tenant_id=tenant_id).values_list(
++            "external_id", flat=True
++        )
++    )
++    meta_variants: list[str] = []
++    seen: set[str] = set()
++    for raw in meta_externals:
++        for variant in _meta_account_variants(raw):
++            if variant not in seen:
++                seen.add(variant)
++                meta_variants.append(variant)
++
++    google_customer_ids = list(
++        GoogleAdsAccountMapping.all_objects.filter(
++            tenant_id=tenant_id, is_manager=False
++        ).values_list("customer_id", flat=True)
++    )
++    google_customer_ids = [cid for cid in google_customer_ids if cid]
++    return meta_variants, google_customer_ids
++
++
++def _resolve_platform_only_scoping(
++    *,
++    tenant_id: str,
++    enabled_override: list[str],
++) -> tuple[dict[str, Any], PlatformRegistry, dict[str, Any]]:
++    """Build scoping for a ``platforms=``-only request (no ``client_id``).
++
++    The registry reports which platforms the tenant has configured (non-empty
++    account sets) so the UI can still disable toggles for un-configured
++    platforms, and the scoping dict zeroes out account id lists for disabled
++    platforms to keep the adapter's row-level filter honest.
++    """
++
++    meta_variants, google_customer_ids = _collect_tenant_platform_accounts(
++        tenant_id=tenant_id
++    )
++
++    configured_platforms: set[str] = set()
++    if meta_variants:
++        configured_platforms.add(PLATFORM_META_ADS)
++    if google_customer_ids:
++        configured_platforms.add(PLATFORM_GOOGLE_ADS)
++
++    registry = PlatformRegistry.from_configured(
++        configured=configured_platforms,
++        enabled=enabled_override,
++    )
++
++    google_effective = (
++        google_customer_ids if registry.is_enabled(PLATFORM_GOOGLE_ADS) else []
++    )
++    meta_effective = meta_variants if registry.is_enabled(PLATFORM_META_ADS) else []
++
++    reason: str | None = None
++    if not configured_platforms:
++        reason = "no_platform_accounts_for_tenant"
++    elif registry.enabled_platforms.isdisjoint(COMBINED_SUPPORTED):
++        reason = "no_enabled_platforms"
++    elif not google_effective and not meta_effective:
++        reason = "all_platforms_disabled"
++
++    resolution_meta: dict[str, Any] = {
++        "client_id": None,
++        "reason": reason,
++        "google_customer_ids": google_customer_ids,
++        "meta_ad_account_ids": meta_variants,
++        "mcc_expansions": [],
++        "platforms": registry.to_dict(),
++        "scope": "platforms_only",
++    }
++
++    scoping = {
++        "client_scoped_google_customer_ids": google_effective,
++        "client_scoped_meta_ad_account_ids": meta_effective,
++        "client_scope_requested": True,
++    }
++    return scoping, registry, resolution_meta
++
++
++def resolve_client_scoping(
++    *,
++    tenant_id: str,
++    query_params,
++) -> tuple[dict[str, Any] | None, PlatformRegistry | None, dict[str, Any] | None]:  # noqa: ANN001
++    """Resolve ``client_id`` into per-platform scoped id lists.
++
++    Returns ``(scoping, registry, resolution_meta)`` where:
++
++    * ``scoping`` — dict keyed by ``client_scoped_google_customer_ids`` and
++      ``client_scoped_meta_ad_account_ids`` (with variant expansion) that the
++      caller merges into the adapter options. ``None`` when no ``client_id``
++      was provided (legacy path).
++    * ``registry`` — :class:`PlatformRegistry` describing which platforms are
++      configured / enabled for this request (honours ``platforms=`` toggles).
++    * ``resolution_meta`` — body-key dict attached to the response alongside
++      the ``X-Adinsights-Resolved-Via`` header. Carries a ``reason`` when the
++      client resolves empty so the UI can render a helpful empty state.
++    """
++
++    client_id_raw = query_params.get("client_id") if hasattr(query_params, "get") else None
++    platforms_raw = (
++        query_params.get("platforms") if hasattr(query_params, "get") else None
++    )
++    enabled_override = parse_enabled_param(platforms_raw) if platforms_raw else None
++
++    if not client_id_raw:
++        # Sprint 10 polish: honour ``platforms=`` even when no Client is
++        # selected. The Meta-only / Google-only workspaces send this to keep
++        # the filter bar scoped to the route; without this branch the backend
++        # silently dropped the parameter and returned the full combined
++        # payload (so Meta dashboards leaked Google Ads rows, and vice versa).
++        #
++        # When the caller explicitly narrows to one platform we resolve the
++        # tenant's accounts for that platform and fold them into the existing
++        # ``client_scoped_*`` plumbing, which the warehouse + meta_direct
++        # adapters already honour via ``_apply_filters``.
++        if enabled_override is None:
++            return None, None, None
++        # If the request already carries an ``account_id`` filter we must NOT
++        # inject the whole tenant's platform account set — the warehouse
++        # adapter's client-scope logic is union-with-``account_id``, so adding
++        # every tenant Meta account would widen the filter past the user's
++        # single-account selection. In that case just leave scoping alone
++        # (``account_id`` already restricts to one account, which lives on one
++        # platform by nature).
++        account_id_raw = (
++            query_params.get("account_id") if hasattr(query_params, "get") else None
++        )
++        if account_id_raw and str(account_id_raw).strip():
++            return None, None, None
++        return _resolve_platform_only_scoping(
++            tenant_id=tenant_id,
++            enabled_override=enabled_override,
++        )
++
++    client_id = str(client_id_raw)
++    try:
++        bundle = resolve_client_accounts(
++            tenant_id,
++            client_id,
++            platforms={
++                ClientPlatformAccount.PLATFORM_META_ADS,
++                ClientPlatformAccount.PLATFORM_GOOGLE_ADS,
++            },
++        )
++    except (IntegrationsClient.DoesNotExist, ValueError):
++        registry = PlatformRegistry.from_configured(
++            configured=[],
++            enabled=enabled_override,
++        )
++        return (
++            {
++                "client_scoped_google_customer_ids": [],
++                "client_scoped_meta_ad_account_ids": [],
++                # Sentinel — adapters check this to distinguish "scoping was
++                # requested but returned empty" from "no scoping requested".
++                "client_scope_requested": True,
++            },
++            registry,
++            {
++                "client_id": client_id,
++                "reason": "client_not_found",
++                "google_customer_ids": [],
++                "meta_ad_account_ids": [],
++                "mcc_expansions": [],
++            },
++        )
++
++    meta_ids_raw = list(bundle.meta_ad_account_ids)
++    google_ids = list(bundle.google_customer_ids)
++
++    # Expand Meta ids to variants so both stored forms match ``__in`` filters.
++    meta_variants: list[str] = []
++    seen: set[str] = set()
++    for linked in meta_ids_raw:
++        for variant in _meta_account_variants(linked):
++            if variant not in seen:
++                seen.add(variant)
++                meta_variants.append(variant)
++
++    configured_platforms: set[str] = set()
++    if meta_ids_raw:
++        configured_platforms.add(PLATFORM_META_ADS)
++    if google_ids:
++        configured_platforms.add(PLATFORM_GOOGLE_ADS)
++
++    registry = PlatformRegistry.from_configured(
++        configured=configured_platforms,
++        enabled=enabled_override,
++    )
++
++    # Honour platform toggles: when Meta is disabled the combined view should
++    # not include Meta-only accounts. Same for Google Ads.
++    google_effective = google_ids if registry.is_enabled(PLATFORM_GOOGLE_ADS) else []
++    meta_effective = meta_variants if registry.is_enabled(PLATFORM_META_ADS) else []
++
++    reason: str | None = None
++    if not meta_ids_raw and not google_ids:
++        reason = "no_platform_accounts_for_client"
++    elif registry.enabled_platforms.isdisjoint(COMBINED_SUPPORTED):
++        reason = "no_enabled_platforms"
++    elif not google_effective and not meta_effective:
++        reason = "all_platforms_disabled"
++
++    resolution_meta: dict[str, Any] = {
++        "client_id": client_id,
++        "reason": reason,
++        "google_customer_ids": google_ids,
++        "meta_ad_account_ids": meta_ids_raw,
++        "mcc_expansions": [
++            {
++                "manager_customer_id": exp.manager_customer_id,
++                "child_customer_ids": list(exp.child_customer_ids),
++            }
++            for exp in bundle.mcc_expansions
++        ],
++        "platforms": registry.to_dict(),
++    }
++
++    scoping = {
++        "client_scoped_google_customer_ids": google_effective,
++        "client_scoped_meta_ad_account_ids": meta_effective,
++        "client_scope_requested": True,
++    }
++    return scoping, registry, resolution_meta
++
++
+ def _resolve_filter_options(query_params) -> tuple[dict[str, Any], bool, list[str]]:  # noqa: ANN001
+     filter_keys = (
+         "start_date",
+@@ -99,6 +386,7 @@ def _resolve_filter_options(query_params) -> tuple[dict[str, Any], bool, list[st
+         "account_id",
+         "channels",
+         "campaign_search",
++        "client_id",
+     )
+     if not any(key in query_params for key in filter_keys):
+         return query_params.dict(), False, []
+@@ -124,6 +412,7 @@ def _resolve_filter_options(query_params) -> tuple[dict[str, Any], bool, list[st
+         or filters.get("account_id")
+         or filters.get("channels")
+         or filters.get("campaign_search")
++        or filters.get("client_id")
+     )
+ 
+     options = query_params.dict()
+@@ -132,6 +421,10 @@ def _resolve_filter_options(query_params) -> tuple[dict[str, Any], bool, list[st
+     if channels:
+         options["channels"] = channels
+     options.update(filters)
++    # UUID is not JSON-serialisable as-is; keep a stringified copy so adapters
++    # can key caches on it without importing uuid.
++    if "client_id" in filters and filters.get("client_id") is not None:
++        options["client_id"] = str(filters["client_id"])
+     return options, has_filters, parishes
+ 
+ 
+@@ -272,6 +565,28 @@ def load_combined_metrics_payload(
+     query_counter = _DatabaseQueryCounter()
+     with connection.execute_wrapper(query_counter):
+         options, has_filters, _parishes = _resolve_filter_options(query_params)
++
++        # Sprint 6: resolve client_id BEFORE adapter dispatch so the scoping
++        # reaches the adapter via the same ``options`` dict. Filtered-warehouse
++        # and meta_direct both consume the injected keys.
++        client_scoping, _registry, resolution_meta = resolve_client_scoping(
++            tenant_id=tenant_id,
++            query_params=query_params,
++        )
++        if client_scoping is not None:
++            # Defensive: warn when scoping is injected but the selected adapter
++            # is in the scope-unaware set. Non-breaking — just a log.
++            if source in _SCOPE_UNAWARE_ADAPTER_KEYS:
++                logger.warning(
++                    "Adapter %r does not honour client_scoped_* options; "
++                    "scoped request may return unscoped payload. "
++                    "tenant_id=%r client_scope_requested=%r",
++                    source,
++                    tenant_id,
++                    client_scoping.get("client_scope_requested"),
++                )
++            options = {**options, **client_scoping}
++            has_filters = True
+         if source == "warehouse" and has_filters:
+             try:
+                 payload = load_filtered_warehouse_metrics(
+@@ -280,6 +595,8 @@ def load_combined_metrics_payload(
+                     options=options,
+                     ttl_seconds=ttl_seconds,
+                 )
++                if resolution_meta is not None:
++                    payload = {**payload, "client_resolution": resolution_meta}
+                 return CombinedMetricsResult(
+                     payload=payload,
+                     source=source,
+@@ -287,6 +604,7 @@ def load_combined_metrics_payload(
+                     has_filters=has_filters,
+                     snapshot_written=False,
+                     query_count=query_counter.count,
++                    client_resolution=resolution_meta,
+                 )
+             except DatabaseError:
+                 if connection.vendor != "sqlite":
+@@ -299,6 +617,7 @@ def load_combined_metrics_payload(
+                         cache_outcome="warehouse_filtered_snapshot_fallback",
+                         has_filters=has_filters,
+                         query_count=query_counter.count,
++                        client_resolution=resolution_meta,
+                     )
+                 raise
+ 
+@@ -314,6 +633,7 @@ def load_combined_metrics_payload(
+                 cache_outcome="hit",
+                 has_filters=has_filters,
+                 query_count=query_counter.count,
++                client_resolution=resolution_meta,
+             )
+ 
+         payload = adapter.fetch_metrics(
+@@ -362,6 +682,8 @@ def load_combined_metrics_payload(
+         cache_outcome = "filtered"
+         if not has_filters:
+             cache_outcome = "miss" if cache_enabled else "disabled"
++        if resolution_meta is not None:
++            combined = {**combined, "client_resolution": resolution_meta}
+         return CombinedMetricsResult(
+             payload=combined,
+             source=source,
+@@ -369,4 +691,5 @@ def load_combined_metrics_payload(
+             has_filters=has_filters,
+             snapshot_written=snapshot_written,
+             query_count=query_counter.count,
++            client_resolution=resolution_meta,
+         )
+diff --git a/backend/analytics/views.py b/backend/analytics/views.py
+index cc366a08..472ba57c 100644
+--- a/backend/analytics/views.py
++++ b/backend/analytics/views.py
+@@ -322,7 +322,26 @@ class CombinedMetricsView(APIView):
+             snapshot_written = result.snapshot_written
+             query_count = result.query_count
+             status_label = "success"
+-            return Response(result.payload)
++            response = Response(result.payload)
++            # Sprint 6 of Client grouping: advertise the client resolution
++            # alongside the response for browser-side debugging and to let
++            # the frontend short-circuit render when the client is empty.
++            if result.client_resolution is not None:
++                # Sprint 10 polish: distinguish between client-scoped and
++                # platform-only resolution in the header so browser-side
++                # debugging can tell why the backend narrowed the payload.
++                scope = result.client_resolution.get("scope")
++                if scope == "platforms_only":
++                    enabled = (
++                        result.client_resolution.get("platforms", {}).get("enabled", [])
++                    )
++                    response["X-Adinsights-Resolved-Via"] = (
++                        "platforms:" + ",".join(enabled) if enabled else "platforms:"
++                    )
++                else:
++                    client_id_val = result.client_resolution.get("client_id", "")
++                    response["X-Adinsights-Resolved-Via"] = f"client:{client_id_val}"
++            return response
+         except WarehouseSnapshotUnavailable as exc:
+             cache_outcome = "warehouse_unavailable"
+             status_label = "warehouse_unavailable"
+diff --git a/frontend/src/components/EmptyState.tsx b/frontend/src/components/EmptyState.tsx
+index 8e02300b..aca75a40 100644
+--- a/frontend/src/components/EmptyState.tsx
++++ b/frontend/src/components/EmptyState.tsx
+@@ -11,6 +11,8 @@ interface EmptyStateProps {
+   onSecondaryAction?: () => void;
+   secondaryActionVariant?: 'primary' | 'secondary' | 'tertiary';
+   className?: string;
++  /** FP-CC-01: Stable identifier for testing, analytics, and future i18n. */
++  reasonCode?: string;
+ }
+ 
+ const EmptyState = ({
+@@ -24,6 +26,7 @@ const EmptyState = ({
+   onSecondaryAction,
+   secondaryActionVariant = 'tertiary',
+   className,
++  reasonCode,
+ }: EmptyStateProps) => {
+   const classes = ['empty-state', className].filter(Boolean).join(' ');
+   const buttonClass = ['button', actionVariant].filter(Boolean).join(' ');
+@@ -33,7 +36,7 @@ const EmptyState = ({
+   const showActions = showPrimaryAction || showSecondaryAction;
+ 
+   return (
+-    <div className={classes} role="status" aria-live="polite">
++    <div className={classes} role="status" aria-live="polite" data-reason-code={reasonCode}>
+       <div className="empty-state__icon" aria-hidden="true">
+         {icon}
+       </div>
+diff --git a/frontend/src/components/FilterBar.tsx b/frontend/src/components/FilterBar.tsx
+index 4e25e823..c0cfde0b 100644
+--- a/frontend/src/components/FilterBar.tsx
++++ b/frontend/src/components/FilterBar.tsx
+@@ -15,9 +15,33 @@ export interface FilterBarAccountOption {
+   label: string;
+ }
+ 
++export interface FilterBarClientOption {
++  value: string;
++  label: string;
++}
++
++export interface FilterBarPlatformOption {
++  /** Backend platform key (e.g. 'meta_ads', 'google_ads'). */
++  value: string;
++  /** Human label rendered in the toggle. */
++  label: string;
++}
++
+ interface FilterBarProps {
+   availableChannels?: string[];
+   availableAccounts?: FilterBarAccountOption[];
++  /**
++   * Sprint 8 of Client grouping: when provided, renders a "Client" dropdown
++   * that maps to `filters.clientId` and flows to `?client_id=` on the
++   * combined metrics endpoint.
++   */
++  availableClients?: FilterBarClientOption[];
++  /**
++   * Sprint 8 of Client grouping: when provided, renders a toggle group
++   * that maps to `filters.platforms` and flows to `?platforms=` on the
++   * combined metrics endpoint. Empty selection means "use backend defaults".
++   */
++  availablePlatforms?: FilterBarPlatformOption[];
+   defaultState?: FilterBarState;
+   state?: FilterBarState;
+   onChange?: (nextState: FilterBarState) => void;
+@@ -46,6 +70,7 @@ function cloneFilterState(filters: FilterBarState): FilterBarState {
+   return {
+     ...filters,
+     channels: [...filters.channels],
++    platforms: [...filters.platforms],
+     customRange: { ...filters.customRange },
+   };
+ }
+@@ -53,6 +78,8 @@ function cloneFilterState(filters: FilterBarState): FilterBarState {
+ const FilterBar = ({
+   availableChannels,
+   availableAccounts,
++  availableClients,
++  availablePlatforms,
+   defaultState,
+   state,
+   onChange,
+@@ -186,6 +213,28 @@ const FilterBar = ({
+     }
+   };
+ 
++  /**
++   * Empty `platforms` means "use backend defaults" (all currently enabled).
++   * When the user first clicks a chip, we materialise the implicit default
++   * set so the toggle becomes an explicit subset; clicking further chips
++   * adds/removes. Clearing to empty again is possible via the "Clear all"
++   * button.
++   */
++  const togglePlatform = (platform: string) => {
++    const defaults = (availablePlatforms ?? []).map((option) => option.value);
++    commitFilters((prev) => {
++      const baseline = prev.platforms.length === 0 ? defaults : prev.platforms;
++      const exists = baseline.includes(platform);
++      const nextPlatforms = exists
++        ? baseline.filter((item) => item !== platform)
++        : [...baseline, platform];
++      return {
++        ...prev,
++        platforms: nextPlatforms,
++      };
++    });
++  };
++
+   const toggleChannel = (channel: string) => {
+     commitFilters((prev) => {
+       const exists = prev.channels.includes(channel);
+@@ -224,9 +273,12 @@ const FilterBar = ({
+     return (
+       filters.dateRange === baseline.dateRange &&
+       filters.accountId.trim() === baseline.accountId.trim() &&
++      filters.clientId.trim() === baseline.clientId.trim() &&
+       filters.campaignQuery.trim() === baseline.campaignQuery.trim() &&
+       filters.channels.length === baseline.channels.length &&
+       filters.channels.every((channel) => baseline.channels.includes(channel)) &&
++      filters.platforms.length === baseline.platforms.length &&
++      filters.platforms.every((value) => baseline.platforms.includes(value)) &&
+       filters.customRange.start === baseline.customRange.start &&
+       filters.customRange.end === baseline.customRange.end
+     );
+@@ -323,9 +375,32 @@ const FilterBar = ({
+           </select>
+         </div>
+ 
++        {availableClients && availableClients.length > 0 ? (
++          <div className="filter-field filter-search">
++            <label htmlFor="client-selector">Client</label>
++            <select
++              id="client-selector"
++              value={filters.clientId}
++              onChange={(event) =>
++                commitFilters((prev) => ({
++                  ...prev,
++                  clientId: event.target.value,
++                }))
++              }
++            >
++              <option value="">All clients</option>
++              {availableClients.map((option) => (
++                <option key={option.value} value={option.value}>
++                  {option.label}
++                </option>
++              ))}
++            </select>
++          </div>
++        ) : null}
++
+         {availableAccounts && availableAccounts.length > 0 ? (
+           <div className="filter-field filter-search">
+-            <label htmlFor="client-account">Client</label>
++            <label htmlFor="client-account">Account</label>
+             <select
+               id="client-account"
+               value={filters.accountId}
+@@ -336,7 +411,7 @@ const FilterBar = ({
+                 }))
+               }
+             >
+-              <option value="">All clients</option>
++              <option value="">All accounts</option>
+               {availableAccounts.map((account) => (
+                 <option key={account.value} value={account.value}>
+                   {account.label}
+@@ -346,6 +421,35 @@ const FilterBar = ({
+           </div>
+         ) : null}
+ 
++        {availablePlatforms && availablePlatforms.length > 0 ? (
++          <div
++            className="filter-field filter-toggle-group"
++            role="group"
++            aria-label="Platforms"
++          >
++            <span className="filter-field__label">Platforms</span>
++            <div className="filter-toggle-group__items">
++              {availablePlatforms.map((option) => {
++                const isActive =
++                  filters.platforms.length === 0
++                    ? true
++                    : filters.platforms.includes(option.value);
++                return (
++                  <button
++                    key={option.value}
++                    type="button"
++                    className={`filter-chip${isActive ? ' filter-chip--active' : ''}`}
++                    aria-pressed={isActive}
++                    onClick={() => togglePlatform(option.value)}
++                  >
++                    {option.label}
++                  </button>
++                );
++              })}
++            </div>
++          </div>
++        ) : null}
++
+         <div className="filter-field filter-multiselect" ref={channelPopoverRef}>
+           <button
+             type="button"
+diff --git a/frontend/src/components/__tests__/FilterBar.test.tsx b/frontend/src/components/__tests__/FilterBar.test.tsx
+index 1e04eeb9..cafe24e2 100644
+--- a/frontend/src/components/__tests__/FilterBar.test.tsx
++++ b/frontend/src/components/__tests__/FilterBar.test.tsx
+@@ -61,16 +61,39 @@ describe('FilterBar', () => {
+ 
+   it('renders account select when availableAccounts are provided', () => {
+     const accounts = [
+-      { value: 'acc-1', label: 'Client A' },
+-      { value: 'acc-2', label: 'Client B' },
++      { value: 'acc-1', label: 'Account A' },
++      { value: 'acc-2', label: 'Account B' },
+     ];
+     render(<FilterBar availableAccounts={accounts} />);
+-    expect(screen.getByLabelText('Client')).toBeInTheDocument();
++    expect(screen.getByLabelText('Account')).toBeInTheDocument();
+   });
+ 
+   it('does not render account select when no accounts are provided', () => {
+     render(<FilterBar />);
+-    expect(screen.queryByLabelText('Client')).not.toBeInTheDocument();
++    expect(screen.queryByLabelText('Account')).not.toBeInTheDocument();
++  });
++
++  it('renders the client selector when availableClients are provided', () => {
++    const clients = [
++      { value: 'c1', label: 'JDIC' },
++      { value: 'c2', label: 'BOJ' },
++    ];
++    render(<FilterBar availableClients={clients} />);
++    expect(screen.getByLabelText('Client')).toBeInTheDocument();
++  });
++
++  it('renders platform toggles when availablePlatforms are provided', () => {
++    render(
++      <FilterBar
++        availablePlatforms={[
++          { value: 'meta_ads', label: 'Meta Ads' },
++          { value: 'google_ads', label: 'Google Ads' },
++        ]}
++      />,
++    );
++    expect(screen.getByRole('group', { name: 'Platforms' })).toBeInTheDocument();
++    expect(screen.getByRole('button', { name: 'Meta Ads' })).toBeInTheDocument();
++    expect(screen.getByRole('button', { name: 'Google Ads' })).toBeInTheDocument();
+   });
+ 
+   it('renders clear all button', () => {
+diff --git a/frontend/src/components/google-ads/GoogleAdsDataTablePage.tsx b/frontend/src/components/google-ads/GoogleAdsDataTablePage.tsx
+index 0bc051f6..550f4d30 100644
+--- a/frontend/src/components/google-ads/GoogleAdsDataTablePage.tsx
++++ b/frontend/src/components/google-ads/GoogleAdsDataTablePage.tsx
+@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
+ 
+ import { fetchGoogleAdsList, type GoogleAdsListResponse } from '../../lib/googleAdsDashboard';
+ import { appendQueryParams } from '../../lib/apiClient';
++import { resolveFilterRange } from '../../lib/dashboardFilters';
+ import DashboardState from '../DashboardState';
++import useDashboardStore from '../../state/useDashboardStore';
+ 
+ type Row = Record<string, unknown>;
+ 
+@@ -31,7 +33,16 @@ const GoogleAdsDataTablePage = ({
+     setStatus('loading');
+     setError(null);
+     try {
+-      const path = query ? appendQueryParams(endpoint, query) : endpoint;
++      const { filters } = useDashboardStore.getState();
++      const { start, end } = resolveFilterRange(filters);
++      const scopeParams = {
++        platforms: 'google_ads',
++        customer_id: filters.accountId || undefined,
++        start_date: start || undefined,
++        end_date: end || undefined,
++      };
++      const merged = { ...scopeParams, ...(query ?? {}) };
++      const path = appendQueryParams(endpoint, merged);
+       const response = await fetchGoogleAdsList<Row>(path);
+       if (signal?.aborted) {
+         return;
+diff --git a/frontend/src/hooks/useGoogleAdsWorkspaceData.ts b/frontend/src/hooks/useGoogleAdsWorkspaceData.ts
+index f654f8ea..f61ce8af 100644
+--- a/frontend/src/hooks/useGoogleAdsWorkspaceData.ts
++++ b/frontend/src/hooks/useGoogleAdsWorkspaceData.ts
+@@ -73,6 +73,7 @@ function buildCommonParams(filters: WorkspaceFilters): QueryParams {
+     compare: filters.compare,
+     customer_id: filters.customerId,
+     campaign_id: filters.campaignId,
++    platforms: 'google_ads',
+   };
+ }
+ 
+diff --git a/frontend/src/lib/dashboardFilters.test.ts b/frontend/src/lib/dashboardFilters.test.ts
+index 6af47def..c3071d2f 100644
+--- a/frontend/src/lib/dashboardFilters.test.ts
++++ b/frontend/src/lib/dashboardFilters.test.ts
+@@ -1,10 +1,12 @@
+ import { describe, expect, it, vi } from 'vitest';
+ 
+ import {
++  arePlatformArraysEqual,
+   buildFilterUrlParams,
+   createDefaultFilterState,
+   parseFilterQueryParams,
+   resolveFilterRange,
++  resolveRoutePlatformScope,
+   type FilterBarState,
+ } from './dashboardFilters';
+ 
+@@ -39,4 +41,75 @@ describe('dashboardFilters', () => {
+     expect(parsed.dateRange).toBe('365d');
+     expect(parsed.accountId).toBe('act_2278682008940745');
+   });
++
++  it('round-trips clientId and platforms through URL params', () => {
++    const filters: FilterBarState = {
++      ...createDefaultFilterState(),
++      clientId: '11111111-2222-3333-4444-555555555555',
++      platforms: ['meta_ads', 'google_ads'],
++    };
++
++    const params = new URLSearchParams(buildFilterUrlParams(filters));
++    expect(params.get('client_id')).toBe('11111111-2222-3333-4444-555555555555');
++    expect(params.get('platforms')).toBe('meta_ads,google_ads');
++
++    const parsed = parseFilterQueryParams(params, createDefaultFilterState());
++    expect(parsed.clientId).toBe('11111111-2222-3333-4444-555555555555');
++    expect(parsed.platforms).toEqual(['meta_ads', 'google_ads']);
++  });
++
++  it('omits empty clientId and platforms from URL params', () => {
++    const filters: FilterBarState = createDefaultFilterState();
++    const params = new URLSearchParams(buildFilterUrlParams(filters));
++    expect(params.get('client_id')).toBeNull();
++    expect(params.get('platforms')).toBeNull();
++  });
++});
++
++// R6: resolveRoutePlatformScope extracted for unit testing
++describe('resolveRoutePlatformScope', () => {
++  it.each([
++    ['/dashboards/meta/accounts', ['meta_ads']],
++    ['/dashboards/meta/insights', ['meta_ads']],
++    ['/dashboards/meta/campaigns', ['meta_ads']],
++    ['/dashboards/meta/pages', ['meta_ads']],
++    ['/dashboards/meta/pages/p1/overview', ['meta_ads']],
++    ['/dashboards/meta/posts/post123', ['meta_ads']],
++    ['/dashboards/google-ads', ['google_ads']],
++    ['/dashboards/google-ads/', ['google_ads']],
++    ['/dashboards/google-ads/campaigns', ['google_ads']],
++    ['/dashboards/google-ads/executive', ['google_ads']],
++    ['/dashboards/platforms', null],
++    ['/dashboards/campaigns', null],
++    ['/dashboards/creatives', null],
++    ['/dashboards/budget', null],
++    ['/dashboards/audience', null],
++    ['/dashboards', null],
++    ['/dashboards/data-sources', null],
++    ['/dashboards/saved/abc', null],
++  ])('resolveRoutePlatformScope(%s) = %j', (pathname, expected) => {
++    expect(resolveRoutePlatformScope(pathname)).toEqual(expected);
++  });
++});
++
++describe('arePlatformArraysEqual', () => {
++  it('returns true for identical arrays', () => {
++    expect(arePlatformArraysEqual(['meta_ads', 'google_ads'], ['meta_ads', 'google_ads'])).toBe(true);
++  });
++
++  it('returns true for same values in different order', () => {
++    expect(arePlatformArraysEqual(['google_ads', 'meta_ads'], ['meta_ads', 'google_ads'])).toBe(true);
++  });
++
++  it('returns false for different lengths', () => {
++    expect(arePlatformArraysEqual(['meta_ads'], ['meta_ads', 'google_ads'])).toBe(false);
++  });
++
++  it('returns false for different values', () => {
++    expect(arePlatformArraysEqual(['meta_ads'], ['google_ads'])).toBe(false);
++  });
++
++  it('returns true for empty arrays', () => {
++    expect(arePlatformArraysEqual([], [])).toBe(true);
++  });
+ });
+diff --git a/frontend/src/lib/dashboardFilters.ts b/frontend/src/lib/dashboardFilters.ts
+index 827e2b2f..4e055780 100644
+--- a/frontend/src/lib/dashboardFilters.ts
++++ b/frontend/src/lib/dashboardFilters.ts
+@@ -18,6 +18,20 @@ export type FilterBarState = {
+   accountId: string;
+   channels: string[];
+   campaignQuery: string;
++  /**
++   * Sprint 8 of Client grouping: scopes the combined/single-platform dashboards
++   * to the linked platform accounts of one Client. Empty string means
++   * unscoped (legacy behaviour).
++   */
++  clientId: string;
++  /**
++   * Sprint 8 of Client grouping: toggleable platform list for the Combined
++   * view. Empty array means "use backend-configured defaults" (parity with
++   * legacy behaviour). Values are backend platform keys, e.g. 'meta_ads',
++   * 'google_ads', 'meta_page'. Unknown keys are silently dropped by the
++   * backend.
++   */
++  platforms: string[];
+ };
+ 
+ export const DEFAULT_CHANNELS = ['Meta Ads', 'Google Ads', 'LinkedIn', 'TikTok'];
+@@ -57,6 +71,8 @@ const FILTER_QUERY_KEYS = {
+   accountId: 'account_id',
+   channels: 'channels',
+   campaignSearch: 'campaign_search',
++  clientId: 'client_id',
++  platforms: 'platforms',
+ };
+ 
+ const toInputDate = (date: Date): string => {
+@@ -79,6 +95,8 @@ export const createDefaultFilterState = (): FilterBarState => ({
+   accountId: '',
+   channels: [],
+   campaignQuery: '',
++  clientId: '',
++  platforms: [],
+ });
+ 
+ const normalizeDateValue = (value: string | undefined, fallback: string): string => {
+@@ -193,6 +211,18 @@ export const buildFilterQueryParams = (filters: FilterBarState): Record<string,
+     params[FILTER_QUERY_KEYS.campaignSearch] = query;
+   }
+ 
++  const clientId = (filters.clientId ?? '').trim();
++  if (clientId) {
++    params[FILTER_QUERY_KEYS.clientId] = clientId;
++  }
++
++  const platforms = (filters.platforms ?? [])
++    .map((value) => value.trim())
++    .filter(Boolean);
++  if (platforms.length > 0) {
++    params[FILTER_QUERY_KEYS.platforms] = Array.from(new Set(platforms)).join(',');
++  }
++
+   return params;
+ };
+ 
+@@ -235,6 +265,17 @@ export const parseFilterQueryParams = (
+   const campaignQuery =
+     searchParams.get(FILTER_QUERY_KEYS.campaignSearch)?.trim() ?? fallback.campaignQuery;
+ 
++  const clientId =
++    searchParams.get(FILTER_QUERY_KEYS.clientId)?.trim() ?? fallback.clientId;
++
++  const platformsParam = searchParams.get(FILTER_QUERY_KEYS.platforms);
++  const platforms = platformsParam
++    ? platformsParam
++        .split(',')
++        .map((value) => value.trim())
++        .filter(Boolean)
++    : fallback.platforms;
++
+   const resolvedDateRange =
+     dateRangeParam && DATE_RANGE_PRESETS.has(dateRangeParam as DateRangePreset)
+       ? (dateRangeParam as DateRangePreset)
+@@ -251,6 +292,8 @@ export const parseFilterQueryParams = (
+     accountId,
+     channels,
+     campaignQuery,
++    clientId,
++    platforms,
+   };
+ };
+ 
+@@ -269,6 +312,21 @@ export const areFiltersEqual = (left: FilterBarState, right: FilterBarState): bo
+     return false;
+   }
+ 
++  if ((left.clientId ?? '').trim() !== (right.clientId ?? '').trim()) {
++    return false;
++  }
++
++  const leftPlatforms = [...(left.platforms ?? [])].sort();
++  const rightPlatforms = [...(right.platforms ?? [])].sort();
++  if (leftPlatforms.length !== rightPlatforms.length) {
++    return false;
++  }
++  for (let index = 0; index < leftPlatforms.length; index += 1) {
++    if (leftPlatforms[index] !== rightPlatforms[index]) {
++      return false;
++    }
++  }
++
+   const leftChannels = [...left.channels].sort();
+   const rightChannels = [...right.channels].sort();
+   if (leftChannels.length !== rightChannels.length) {
+@@ -292,3 +350,39 @@ export const areFiltersEqual = (left: FilterBarState, right: FilterBarState): bo
+ 
+   return true;
+ };
++
++// ── Route platform scope helpers ─────────────────────────────────────────────
++// R6: Extracted from DashboardLayout.tsx so they can be unit-tested in isolation.
++
++const META_ROUTE_PREFIX = '/dashboards/meta/';
++const GOOGLE_ADS_ROUTE_PREFIX = '/dashboards/google-ads';
++
++/**
++ * Given a pathname, returns the platform scope that must be applied to
++ * filters.platforms when on that route.  Returns null for combined routes
++ * (no forced scope).
++ */
++export function resolveRoutePlatformScope(pathname: string): string[] | null {
++  if (pathname.startsWith(META_ROUTE_PREFIX)) {
++    return ['meta_ads'];
++  }
++  if (
++    pathname === GOOGLE_ADS_ROUTE_PREFIX ||
++    pathname.startsWith(`${GOOGLE_ADS_ROUTE_PREFIX}/`)
++  ) {
++    return ['google_ads'];
++  }
++  return null;
++}
++
++/**
++ * Order-insensitive equality check for platform arrays.
++ */
++export function arePlatformArraysEqual(left: string[], right: string[]): boolean {
++  if (left.length !== right.length) {
++    return false;
++  }
++  const sortedLeft = [...left].sort();
++  const sortedRight = [...right].sort();
++  return sortedLeft.every((value, index) => value === sortedRight[index]);
++}
+diff --git a/frontend/src/routes/AudienceDashboard.tsx b/frontend/src/routes/AudienceDashboard.tsx
+index b85de764..ce2a3e8c 100644
+--- a/frontend/src/routes/AudienceDashboard.tsx
++++ b/frontend/src/routes/AudienceDashboard.tsx
+@@ -69,8 +69,9 @@ const AudienceDashboard = () => {
+ 
+   const isLoading = demographics.status === 'loading' && !demographics.data;
+   const hasData = Boolean(demographics.data);
++  const datasetSource = useDatasetStore((state) => state.source);
+   const liveDatasetBlocked =
+-    datasetMode === 'live' && liveReason && liveReason !== 'ready';
++    datasetMode === 'live' && datasetSource === 'warehouse' && liveReason && liveReason !== 'ready';
+   const liveDatasetMessage = liveReason
+     ? messageForLiveDatasetReason(liveReason, liveDetail)
+     : null;
+@@ -188,6 +189,26 @@ const AudienceDashboard = () => {
+ 
+   const data = demographics.data;
+ 
++  // FP-AUD-01: If the backend returned a populated demographics object but with
++  // empty age/gender arrays, show an empty state rather than null charts.
++  if (hasData && !isLoading && !data?.byAgeGender?.length && !data?.byGender?.length) {
++    return pageShell(
++      <div className="dashboardGrid">
++        <Card title="Audience insights" className="chartCard">
++          <DashboardState
++            variant="empty"
++            icon={<EmptyIcon />}
++            title="No demographic data for selected range"
++            message="Try a different date range or check that age/gender breakdowns are synced from Meta."
++            actionLabel="Refresh data"
++            onAction={handleRetry}
++            layout="compact"
++          />
++        </Card>
++      </div>,
++    );
++  }
++
+   return pageShell(
+     <div className="dashboardGrid">
+       {/* KPI row */}
+diff --git a/frontend/src/routes/BudgetDashboard.tsx b/frontend/src/routes/BudgetDashboard.tsx
+index d6cc00c6..acfcaa9e 100644
+--- a/frontend/src/routes/BudgetDashboard.tsx
++++ b/frontend/src/routes/BudgetDashboard.tsx
+@@ -46,8 +46,12 @@ const BudgetDashboard = () => {
+   const liveDatasetMessage = liveReason
+     ? messageForLiveDatasetReason(liveReason, liveDetail)
+     : null;
++  // FP-BUDG-01: Guard against undefined availability (e.g. demo adapter) triggering false empty state.
++  // Only show empty state when availability is explicitly populated and non-available,
++  // OR when there is genuinely no budget data yet.
+   const shouldShowEmptyState =
+-    budgetAvailability?.status !== 'available' || (!budget.data && budget.status !== 'loading');
++    (budgetAvailability !== undefined && budgetAvailability.status !== 'available') ||
++    (!budget.data && budget.status !== 'loading');
+   const handleRetry = useCallback(() => {
+     void loadAll(tenantId, { force: true });
+   }, [loadAll, tenantId]);
+diff --git a/frontend/src/routes/DashboardLayout.tsx b/frontend/src/routes/DashboardLayout.tsx
+index 9e18b624..f639eb9f 100644
+--- a/frontend/src/routes/DashboardLayout.tsx
++++ b/frontend/src/routes/DashboardLayout.tsx
+@@ -10,8 +10,11 @@ import {
+ 
+ import { useAuth } from '../auth/AuthContext';
+ import Breadcrumbs from '../components/Breadcrumbs';
++import ClientSuggestionBanner from '../components/ClientSuggestionBanner';
+ import FilterBar, {
+   type FilterBarAccountOption,
++  type FilterBarClientOption,
++  type FilterBarPlatformOption,
+   type FilterBarState,
+ } from '../components/FilterBar';
+ import { useTheme } from '../components/ThemeProvider';
+@@ -28,14 +31,17 @@ import {
+   sortLiveAccountOptions,
+ } from '../lib/liveAccountSelection';
+ import { loadMetaAccounts } from '../lib/meta';
++import { listClients, type ClientSummary } from '../lib/clients';
+ import { canAccessCreatorUi } from '../lib/rbac';
+ import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
+ import { MOCK_MODE } from '../lib/apiClient';
+ import { messageForLiveDatasetReason } from '../lib/datasetStatus';
+ import {
+   areFiltersEqual,
++  arePlatformArraysEqual,
+   createDefaultFilterState,
+   parseFilterQueryParams,
++  resolveRoutePlatformScope,
+   serializeFilterQueryParams,
+ } from '../lib/dashboardFilters';
+ import DatasetToggle from '../components/DatasetToggle';
+@@ -44,6 +50,21 @@ import SnapshotIndicator from '../components/SnapshotIndicator';
+ import StatusBanner from '../components/StatusBanner';
+ import useDashboardStore from '../state/useDashboardStore';
+ import { useDatasetStore } from '../state/useDatasetStore';
++import useMetaStore from '../state/useMetaStore';
++// Sprint 8 of Client grouping: combined view's toggleable platform set. Kept
++// in sync with PlatformRegistry.COMBINED_SUPPORTED on the backend.
++const COMBINED_PLATFORM_OPTIONS: FilterBarPlatformOption[] = [
++  { value: 'meta_ads', label: 'Meta Ads' },
++  { value: 'google_ads', label: 'Google Ads' },
++];
++
++// Sprint 10 polish: the Meta workspace should only show Meta data, and the
++// Google Ads workspace should only show Google data. The integrated/combined
++// dashboards (Campaigns, Creatives, Budget, Audience, Platforms, Map) keep
++// both toggles. Returning ``null`` means "combined view — no route scope".
++// resolveRoutePlatformScope and arePlatformArraysEqual are imported from
++// ../lib/dashboardFilters so they can be unit-tested in isolation (R6).
++
+ const metricOptions = [
+   { value: 'spend', label: 'Spend' },
+   { value: 'impressions', label: 'Impressions' },
+@@ -85,7 +106,7 @@ const segmentLabels: Record<string, string> = {
+   recommendations: 'Recommendations',
+   reports: 'Reports & exports',
+   audience: 'Audience',
+-  platforms: 'Platforms',
++  platforms: 'All platforms (combined)',
+   map: 'Map',
+   saved: 'Saved dashboard',
+   uploads: 'CSV uploads',
+@@ -108,6 +129,7 @@ const DashboardLayout = () => {
+   const addToast = useToastStore((s) => s.addToast);
+   const [isScrolled, setIsScrolled] = useState(false);
+   const [accountOptions, setAccountOptions] = useState<FilterBarAccountOption[]>([]);
++  const [clientOptions, setClientOptions] = useState<FilterBarClientOption[]>([]);
+   const [metaStatus, setMetaStatus] = useState<SocialPlatformStatusRecord | null>(null);
+   const canCreate = canAccessCreatorUi(user);
+   const datasetMode = useDatasetStore((state) => state.mode);
+@@ -180,6 +202,48 @@ const DashboardLayout = () => {
+     );
+   }, [location.pathname]);
+ 
++  // Sprint 10 polish: compute which platform toggles the filter bar should
++  // expose on the current route. Meta-only / Google-only workspaces hide the
++  // other side; integrated dashboards (campaigns, creatives, budget, audience,
++  // platforms, map) keep both.
++  const routePlatformScope = useMemo(
++    () => resolveRoutePlatformScope(location.pathname),
++    [location.pathname],
++  );
++
++  const routePlatformOptions = useMemo<FilterBarPlatformOption[]>(() => {
++    if (!routePlatformScope) {
++      return COMBINED_PLATFORM_OPTIONS;
++    }
++    return COMBINED_PLATFORM_OPTIONS.filter((option) =>
++      routePlatformScope.includes(option.value),
++    );
++  }, [routePlatformScope]);
++
++  // When the current route is scoped to a single platform, force
++  // ``filters.platforms`` to that platform so the backend never receives a
++  // cross-platform selection carried over from another dashboard.
++  //
++  // When the route is a combined/unscoped dashboard (routePlatformScope is
++  // null) and filters.platforms still holds a stale scoped value from a prior
++  // route, reset it to [] so the combined view fetches with all platforms.
++  // This handles the scoped→unscoped transition (B-PLAT-01).
++  useEffect(() => {
++    if (routePlatformScope) {
++      const currentPlatforms = filters.platforms ?? [];
++      if (!arePlatformArraysEqual(currentPlatforms, routePlatformScope)) {
++        setFilters({ ...filters, platforms: [...routePlatformScope] });
++      }
++    } else {
++      // Combined route — if filters.platforms is narrowed from a prior scoped
++      // route, widen it back to [] (all platforms).
++      const currentPlatforms = filters.platforms ?? [];
++      if (currentPlatforms.length > 0) {
++        setFilters({ ...filters, platforms: [] });
++      }
++    }
++  }, [filters, routePlatformScope, setFilters]);
++
+   // URL → filters sync: only react to URL changes, not programmatic filter updates.
+   // Reading current filters via getState() avoids adding `filters` to the dep array,
+   // which previously caused an infinite render loop with the filters→URL effect below.
+@@ -193,6 +257,36 @@ const DashboardLayout = () => {
+     }
+   }, [isSavedDashboardRoute, setFilters, urlFilters]);
+ 
++  // R7: Reconciliation effect — mirror useMetaStore.accountId ↔ useDashboardStore.filters.accountId.
++  //
++  // Store ownership model:
++  //   - useMetaStore.filters.accountId: Meta workspace's local selection (Meta pages).
++  //   - useDashboardStore.filters.accountId: global FilterBar selection (combined dashboards).
++  //
++  // When entering a /dashboards/meta/* route with a non-empty Meta accountId that differs from
++  // the global dashboard accountId, copy Meta → Dashboard so the user's selection persists
++  // when they navigate to /dashboards/platforms or other combined dashboards.
++  //
++  // The copy is one-directional (Meta → Dashboard) and only fires when:
++  //   1. We are on a /dashboards/meta/* route.
++  //   2. useMetaStore has a non-empty accountId.
++  //   3. The global accountId does not already match.
++  // This avoids overwriting an intentional global selection when the user navigates
++  // from a combined dashboard into the Meta workspace.
++  useEffect(() => {
++    if (!location.pathname.startsWith('/dashboards/meta/')) {
++      return;
++    }
++    const metaAccountId = useMetaStore.getState().filters.accountId;
++    if (!metaAccountId) {
++      return;
++    }
++    const globalAccountId = useDashboardStore.getState().filters.accountId;
++    if (metaAccountId !== globalAccountId) {
++      setFilters({ ...useDashboardStore.getState().filters, accountId: metaAccountId });
++    }
++  }, [location.pathname, setFilters]);
++
+   // In mock/e2e mode, DatasetToggle is hidden so it won't call loadAdapters.
+   // Load adapters here so liveReason is populated for status banners in tests.
+   useEffect(() => {
+@@ -244,6 +338,46 @@ const DashboardLayout = () => {
+     };
+   }, [hasLiveData, tenantId]);
+ 
++  // Sprint 8 of Client grouping: load Client options once per tenant for the
++  // FilterBar client selector. Scoped behind hasLiveData because demo/dummy
++  // mode should not hit the Client API.
++  useEffect(() => {
++    let cancelled = false;
++
++    if (!hasLiveData) {
++      setClientOptions([]);
++      return () => {
++        cancelled = true;
++      };
++    }
++
++    void listClients({ active: true, page_size: 200 })
++      .then((payload) => {
++        if (cancelled) {
++          return;
++        }
++        const options = (payload.results ?? [])
++          .filter((client: ClientSummary) => client.is_active)
++          .map((client: ClientSummary) => ({
++            value: client.id,
++            label: client.name,
++          }))
++          .sort((a, b) => a.label.localeCompare(b.label));
++        setClientOptions(options);
++      })
++      .catch((error) => {
++        if (cancelled) {
++          return;
++        }
++        console.warn('Failed to load dashboard clients', error);
++        setClientOptions([]);
++      });
++
++    return () => {
++      cancelled = true;
++    };
++  }, [hasLiveData, tenantId]);
++
+   useEffect(() => {
+     let cancelled = false;
+ 
+@@ -528,13 +662,17 @@ const DashboardLayout = () => {
+         { label: 'Creatives', to: '/dashboards/creatives', end: false },
+         { label: 'Budget pacing', to: '/dashboards/budget', end: false },
+         { label: 'Audience', to: '/dashboards/audience', end: false },
+-        { label: 'Platforms', to: '/dashboards/platforms', end: false },
++        { label: 'All platforms (combined)', to: '/dashboards/platforms', end: false },
+         { label: 'Parish map', to: '/dashboards/map', end: false },
+       ],
+     },
+     {
+       label: 'Integrations',
+       links: [
++        { label: 'Clients', to: '/clients', end: false },
++        ...(canCreate
++          ? [{ label: 'Suggested clients', to: '/clients/suggest', end: false }]
++          : []),
+         { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
+         { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
+         { label: 'Meta campaigns', to: '/dashboards/meta/campaigns', end: false },
+@@ -962,6 +1100,8 @@ const DashboardLayout = () => {
+           state={filters}
+           defaultState={defaultFilters}
+           availableAccounts={hasLiveData ? accountOptions : []}
++          availableClients={hasLiveData ? clientOptions : []}
++          availablePlatforms={hasLiveData ? routePlatformOptions : []}
+           onChange={handleFilterChange}
+         />
+       )}
+@@ -1005,6 +1145,7 @@ const DashboardLayout = () => {
+           </div>
+         </div>
+       ) : null}
++      <ClientSuggestionBanner enabled={Boolean(hasLiveData && canCreate)} />
+       <main className="dashboard-content">
+         <div className="dashboard-boundary">
+           <Outlet />
+diff --git a/frontend/src/routes/MetaAccountsPage.tsx b/frontend/src/routes/MetaAccountsPage.tsx
+index 02f91ddc..7aebe8b3 100644
+--- a/frontend/src/routes/MetaAccountsPage.tsx
++++ b/frontend/src/routes/MetaAccountsPage.tsx
+@@ -235,7 +235,7 @@ const MetaAccountsPage = () => {
+         />
+       ) : null}
+ 
+-      {accounts.status !== 'error' && accounts.rows.length === 0 ? (
++      {accounts.status !== 'error' && accounts.status !== 'loading' && accounts.rows.length === 0 ? (
+         <EmptyState
+           icon={<span aria-hidden>0</span>}
+           title="No ad accounts yet"
+@@ -288,7 +288,13 @@ const MetaAccountsPage = () => {
+               </thead>
+               <tbody>
+                 {visibleRows.map((account) => (
+-                  <tr key={account.id} className="dashboard-table__row dashboard-table__row--zebra">
++                  <tr
++                    key={account.id}
++                    className="dashboard-table__row dashboard-table__row--zebra"
++                    style={{ cursor: 'pointer' }}
++                    onClick={() => setFilters({ accountId: account.external_id })}
++                    aria-label={`Select account ${account.name || account.external_id}`}
++                  >
+                     <td className="dashboard-table__cell">{account.name || '—'}</td>
+                     <td className="dashboard-table__cell">{account.external_id}</td>
+                     <td className="dashboard-table__cell">{account.account_id || '—'}</td>
+diff --git a/frontend/src/routes/MetaCampaignOverviewPage.tsx b/frontend/src/routes/MetaCampaignOverviewPage.tsx
+index 018f5a22..612b5748 100644
+--- a/frontend/src/routes/MetaCampaignOverviewPage.tsx
++++ b/frontend/src/routes/MetaCampaignOverviewPage.tsx
+@@ -157,7 +157,7 @@ const MetaCampaignOverviewPage = () => {
+         />
+       ) : null}
+ 
+-      {campaigns.status !== 'error' && campaigns.rows.length === 0 ? (
++      {campaigns.status !== 'error' && campaigns.status !== 'loading' && campaigns.rows.length === 0 ? (
+         <EmptyState
+           icon={<span aria-hidden>0</span>}
+           title="No campaigns found"
+diff --git a/frontend/src/routes/MetaInsightsDashboardPage.tsx b/frontend/src/routes/MetaInsightsDashboardPage.tsx
+index 1fddb9e0..e65dc43b 100644
+--- a/frontend/src/routes/MetaInsightsDashboardPage.tsx
++++ b/frontend/src/routes/MetaInsightsDashboardPage.tsx
+@@ -284,7 +284,7 @@ const MetaInsightsDashboardPage = () => {
+         />
+       ) : null}
+ 
+-      {insights.status !== 'error' && insights.rows.length === 0 ? (
++      {insights.status !== 'error' && insights.status !== 'loading' && insights.rows.length === 0 ? (
+         <EmptyState
+           icon={<span aria-hidden>0</span>}
+           title="No insights in selected range"
+diff --git a/frontend/src/routes/MetaPageOverviewPage.tsx b/frontend/src/routes/MetaPageOverviewPage.tsx
+index 14a2ca3e..e6496b05 100644
+--- a/frontend/src/routes/MetaPageOverviewPage.tsx
++++ b/frontend/src/routes/MetaPageOverviewPage.tsx
+@@ -137,11 +137,10 @@ const MetaPageOverviewPage = () => {
+     if (!supportedPeriods.includes(filters.period)) {
+       const nextPeriod = supportedPeriods[0] ?? 'day';
+       setFilters({ period: nextPeriod });
+-      if (pageId) {
+-        void loadTimeseries(pageId);
+-      }
++      // No direct loadTimeseries call here — the primary loadOverviewAndTimeseries
++      // effect will re-fire when filters.period changes via the store subscription.
+     }
+-  }, [filters.period, loadTimeseries, pageId, setFilters, supportedPeriods]);
++  }, [filters.period, pageId, setFilters, supportedPeriods]);
+ 
+   const timeseriesPoints = useMemo(
+     () =>
+diff --git a/frontend/src/routes/MetaPostDetailPage.tsx b/frontend/src/routes/MetaPostDetailPage.tsx
+index 18165756..66e3ae26 100644
+--- a/frontend/src/routes/MetaPostDetailPage.tsx
++++ b/frontend/src/routes/MetaPostDetailPage.tsx
+@@ -63,8 +63,10 @@ const MetaPostDetailPage = () => {
+     if (!postId || !metric) {
+       return;
+     }
++    // M16: pass metric/period as direct params so the fetch uses the current
++    // values even if Zustand's synchronous setFilters hasn't flushed yet.
+     setFilters({ metric, period });
+-    void loadPostTimeseries(postId);
++    void loadPostTimeseries(postId, { metric, period });
+   }, [postId, metric, period, loadPostTimeseries, setFilters]);
+ 
+   const points = (postTimeseries?.points ?? []).map((point) => ({
+diff --git a/frontend/src/routes/ParishMapDetail.tsx b/frontend/src/routes/ParishMapDetail.tsx
+index 2dbe5138..b549ac43 100644
+--- a/frontend/src/routes/ParishMapDetail.tsx
++++ b/frontend/src/routes/ParishMapDetail.tsx
+@@ -114,6 +114,23 @@ const ParishMapDetail = () => {
+     );
+   }
+ 
++  // FP-MAP-01: Show empty state when loaded but zero parishes.
++  if (parish.status !== 'loading' && !isLoading && parishRows.length === 0) {
++    return (
++      <section className="dashboardPage" aria-labelledby={headingId}>
++        <header className="dashboardPageHeader">
++          <h1 className="dashboardHeading" id={headingId}>Regional performance</h1>
++        </header>
++        <DashboardState
++          variant="empty"
++          message="No parish data for the selected date range or account."
++          actionLabel="Retry"
++          onAction={handleRetry}
++        />
++      </section>
++    );
++  }
++
+   return (
+     <section className="dashboardPage" aria-labelledby={headingId}>
+       <header className="dashboardPageHeader">
+diff --git a/frontend/src/routes/PlatformDashboard.tsx b/frontend/src/routes/PlatformDashboard.tsx
+index dbc4119b..90f46a64 100644
+--- a/frontend/src/routes/PlatformDashboard.tsx
++++ b/frontend/src/routes/PlatformDashboard.tsx
+@@ -210,6 +210,26 @@ const PlatformDashboard = () => {
+ 
+   const data = platforms.data;
+ 
++  // FP-PLAT-02: If the backend returned a populated platforms object but with
++  // empty arrays, show an empty state rather than blank SVG charts.
++  if (hasData && !isLoading && data?.byPlatform?.length === 0 && data?.byDevice?.length === 0) {
++    return pageShell(
++      <div className="dashboardGrid">
++        <Card title="Platform insights" className="chartCard">
++          <DashboardState
++            variant="empty"
++            icon={<EmptyIcon />}
++            title="No platform data for selected range"
++            message="Try a different date range or check that your Meta account has data synced."
++            actionLabel="Refresh data"
++            onAction={handleRetry}
++            layout="compact"
++          />
++        </Card>
++      </div>,
++    );
++  }
++
+   return pageShell(
+     <div className="dashboardGrid">
+       {/* KPI row */}
+diff --git a/frontend/src/routes/SavedDashboardPage.tsx b/frontend/src/routes/SavedDashboardPage.tsx
+index 33af3062..c79ef89a 100644
+--- a/frontend/src/routes/SavedDashboardPage.tsx
++++ b/frontend/src/routes/SavedDashboardPage.tsx
+@@ -1,4 +1,4 @@
+-import { useEffect, useMemo, useState } from 'react';
++import { useEffect, useMemo, useRef, useState } from 'react';
+ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+ 
+ import DashboardState from '../components/DashboardState';
+@@ -48,9 +48,14 @@ function normalizeFilters(value: unknown): FilterBarState {
+         : fallback.dateRange,
+     customRange,
+     accountId: typeof value.accountId === 'string' ? value.accountId : fallback.accountId,
++    clientId: typeof value.clientId === 'string' ? value.clientId : fallback.clientId,
+     channels: Array.isArray(value.channels)
+       ? value.channels.map((entry) => String(entry))
+       : fallback.channels,
++    // FP-SAVED-01: restore platforms so a saved meta_ads-only dashboard does not silently widen scope.
++    platforms: Array.isArray(value.platforms)
++      ? value.platforms.map((entry) => String(entry))
++      : fallback.platforms,
+     campaignQuery:
+       typeof value.campaignQuery === 'string' ? value.campaignQuery : fallback.campaignQuery,
+   };
+@@ -83,6 +88,17 @@ const SavedDashboardPage = () => {
+   const setSelectedMetric = useDashboardStore((state) => state.setSelectedMetric);
+   const setSelectedParish = useDashboardStore((state) => state.setSelectedParish);
+ 
++  // FP-SAVED-02: track whether we have already seeded the store from the saved definition,
++  // so that subsequent URL changes (driven by DashboardLayout's filter→URL sync) do not
++  // re-trigger setFilters and lock the user's filter edits to the saved values.
++  const seededRef = useRef(false);
++  // Reset the ref whenever the dashboardId param changes (user navigates to a different saved dashboard).
++  const prevDashboardIdRef = useRef(dashboardId);
++  if (prevDashboardIdRef.current !== dashboardId) {
++    prevDashboardIdRef.current = dashboardId;
++    seededRef.current = false;
++  }
++
+   useEffect(() => {
+     if (!dashboardId) {
+       setStatus('error');
+@@ -111,9 +127,11 @@ const SavedDashboardPage = () => {
+   }, [dashboardId]);
+ 
+   useEffect(() => {
+-    if (!dashboard) {
++    if (!dashboard || seededRef.current) {
+       return;
+     }
++    // FP-SAVED-02: seed once; do not re-seed on URL changes driven by DashboardLayout.
++    seededRef.current = true;
+     const normalizedFilters = normalizeFilters(dashboard.filters);
+     const nextSearch = serializeFilterQueryParams(normalizedFilters);
+     const currentSearch = location.search.replace(/^\?/, '');
+@@ -129,7 +147,9 @@ const SavedDashboardPage = () => {
+     setFilters(normalizedFilters);
+     setSelectedMetric(dashboard.default_metric as MetricKey);
+     setSelectedParish(undefined);
+-  }, [dashboard, location.pathname, location.search, navigate, setFilters, setSelectedMetric, setSelectedParish]);
++    // Intentionally omit location.search from deps — subsequent URL changes must NOT re-seed.
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [dashboard, location.pathname, navigate, setFilters, setSelectedMetric, setSelectedParish]);
+ 
+   const template = useMemo(
+     () => getDashboardTemplate(dashboard?.template_key),
+diff --git a/frontend/src/routes/__tests__/SavedDashboardPage.test.tsx b/frontend/src/routes/__tests__/SavedDashboardPage.test.tsx
+index 32e47cea..9a66e189 100644
+--- a/frontend/src/routes/__tests__/SavedDashboardPage.test.tsx
++++ b/frontend/src/routes/__tests__/SavedDashboardPage.test.tsx
+@@ -76,12 +76,17 @@ describe('SavedDashboardPage', () => {
+   });
+ 
+   it('loads a saved definition, seeds filters, and renders the matching dashboard template', async () => {
++    // FP-SAVED-01: normalizeFilters now maps the platforms field; the fixture has no
++    // platforms key, so fallback.platforms ([]) is used.
++    // clientId also comes from fallback defaults (empty string).
+     const expectedFilters = {
+       dateRange: '90d' as const,
+       customRange: { start: '2026-01-01', end: '2026-03-30' },
+       accountId: 'act_697812007883214',
+       channels: ['Meta Ads'],
+       campaignQuery: 'Debt Reset',
++      clientId: '',
++      platforms: [],
+     };
+ 
+     render(
+diff --git a/frontend/src/routes/google-ads/GoogleAdsBudgetPage.tsx b/frontend/src/routes/google-ads/GoogleAdsBudgetPage.tsx
+index 8d24336d..4f3e273f 100644
+--- a/frontend/src/routes/google-ads/GoogleAdsBudgetPage.tsx
++++ b/frontend/src/routes/google-ads/GoogleAdsBudgetPage.tsx
+@@ -1,6 +1,8 @@
+ import { useEffect, useState } from 'react';
+ 
+-import { get } from '../../lib/apiClient';
++import { appendQueryParams, get } from '../../lib/apiClient';
++import { resolveFilterRange } from '../../lib/dashboardFilters';
++import useDashboardStore from '../../state/useDashboardStore';
+ 
+ type BudgetPacingPayload = {
+   month: string;
+@@ -26,7 +28,15 @@ const GoogleAdsBudgetPage = () => {
+       setStatus('loading');
+       setError('');
+       try {
+-        const response = await get<BudgetPacingPayload>('/analytics/google-ads/budgets/pacing/');
++        const { filters } = useDashboardStore.getState();
++        const { start, end } = resolveFilterRange(filters);
++        const path = appendQueryParams('/analytics/google-ads/budgets/pacing/', {
++          platforms: 'google_ads',
++          customer_id: filters.accountId || undefined,
++          start_date: start || undefined,
++          end_date: end || undefined,
++        });
++        const response = await get<BudgetPacingPayload>(path);
+         if (!active) {
+           return;
+         }
+diff --git a/frontend/src/routes/google-ads/GoogleAdsCampaignDetailPage.tsx b/frontend/src/routes/google-ads/GoogleAdsCampaignDetailPage.tsx
+index 88bbd19a..430e7f09 100644
+--- a/frontend/src/routes/google-ads/GoogleAdsCampaignDetailPage.tsx
++++ b/frontend/src/routes/google-ads/GoogleAdsCampaignDetailPage.tsx
+@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
+ import { Link, useParams } from 'react-router-dom';
+ 
+ import { fetchGoogleAdsCampaignDetail } from '../../lib/googleAdsDashboard';
++import useDashboardStore from '../../state/useDashboardStore';
+ 
+ const GoogleAdsCampaignDetailPage = () => {
+   const { campaignId = '' } = useParams();
+@@ -21,7 +22,11 @@ const GoogleAdsCampaignDetailPage = () => {
+       setStatus('loading');
+       setError('');
+       try {
+-        const response = await fetchGoogleAdsCampaignDetail(campaignId);
++        const { filters } = useDashboardStore.getState();
++        const response = await fetchGoogleAdsCampaignDetail(campaignId, {
++          platforms: 'google_ads',
++          customer_id: filters.accountId || undefined,
++        });
+         if (!active) {
+           return;
+         }
+@@ -48,7 +53,7 @@ const GoogleAdsCampaignDetailPage = () => {
+         <p className="dashboardEyebrow">Google Ads</p>
+         <h1 className="dashboardHeading">Campaign Drilldown</h1>
+         <p className="dashboardSubtitle">Campaign ID: {campaignId}</p>
+-        <Link className="button tertiary" to="/dashboards/google-ads/campaigns">
++        <Link className="button tertiary" to="/dashboards/google-ads?tab=campaigns">
+           Back to Google Ads campaigns
+         </Link>
+       </header>
+diff --git a/frontend/src/routes/google-ads/GoogleAdsExecutivePage.tsx b/frontend/src/routes/google-ads/GoogleAdsExecutivePage.tsx
+index 6f403c52..ffbf58d7 100644
+--- a/frontend/src/routes/google-ads/GoogleAdsExecutivePage.tsx
++++ b/frontend/src/routes/google-ads/GoogleAdsExecutivePage.tsx
+@@ -1,6 +1,8 @@
+ import { useEffect, useState } from 'react';
+ 
+ import { fetchGoogleAdsExecutive, type GoogleAdsExecutiveResponse } from '../../lib/googleAdsDashboard';
++import { resolveFilterRange } from '../../lib/dashboardFilters';
++import useDashboardStore from '../../state/useDashboardStore';
+ 
+ const metricLabels: Record<string, string> = {
+   spend: 'Spend',
+@@ -26,7 +28,14 @@ const GoogleAdsExecutivePage = () => {
+       setStatus('loading');
+       setError('');
+       try {
+-        const response = await fetchGoogleAdsExecutive();
++        const { filters } = useDashboardStore.getState();
++        const { start, end } = resolveFilterRange(filters);
++        const response = await fetchGoogleAdsExecutive({
++          platforms: 'google_ads',
++          customer_id: filters.accountId || undefined,
++          start_date: start || undefined,
++          end_date: end || undefined,
++        });
+         if (!active) {
+           return;
+         }
+diff --git a/frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx b/frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx
+index df319839..a4238f5a 100644
+--- a/frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx
++++ b/frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx
+@@ -15,6 +15,7 @@ import type {
+ } from '../../components/google-ads/workspace/types';
+ import useGoogleAdsWorkspaceData from '../../hooks/useGoogleAdsWorkspaceData';
+ import { download } from '../../lib/apiClient';
++import useDashboardStore from '../../state/useDashboardStore';
+ import { saveBlobAsFile } from '../../lib/download';
+ import {
+   createGoogleAdsExport,
+@@ -126,6 +127,20 @@ const GoogleAdsWorkspacePage = () => {
+     [searchParams, setSearchParams],
+   );
+ 
++  // B2: Seed customer_id from the global account selection if not already in URL.
++  // This ensures a user who picked a Google Ads account in the global FilterBar
++  // (on a combined dashboard) will have that account pre-selected when opening the workspace.
++  useEffect(() => {
++    if (!filters.customerId) {
++      const globalAccountId = useDashboardStore.getState().filters.accountId;
++      if (globalAccountId) {
++        updateSearchParams({ customer_id: globalAccountId });
++      }
++    }
++    // Run only on mount — omit filters from deps to avoid re-running on every filter change.
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [updateSearchParams]);
++
+   const handleFilterChange = useCallback(
+     (nextFilters: WorkspaceFilters) => {
+       updateSearchParams({
+diff --git a/frontend/src/state/useMetaPageInsightsStore.ts b/frontend/src/state/useMetaPageInsightsStore.ts
+index 88659e92..a07cb807 100644
+--- a/frontend/src/state/useMetaPageInsightsStore.ts
++++ b/frontend/src/state/useMetaPageInsightsStore.ts
+@@ -82,7 +82,7 @@ type MetaPageInsightsState = {
+   loadTimeseries: (pageId: string) => Promise<void>;
+   loadPosts: (pageId: string, overrides?: Partial<PostsQuery>) => Promise<void>;
+   loadPostDetail: (postId: string) => Promise<void>;
+-  loadPostTimeseries: (postId: string) => Promise<void>;
++  loadPostTimeseries: (postId: string, overrides?: { metric?: string; period?: string }) => Promise<void>;
+   refreshPage: (pageId: string) => Promise<Record<string, string>>;
+ };
+ 
+@@ -325,13 +325,13 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
+       set({ postStatus: 'error', error: classifyError(error, 'Unable to load post details.') });
+     }
+   },
+-  loadPostTimeseries: async (postId) => {
++  loadPostTimeseries: async (postId, overrides) => {
+     const { filters } = get();
+     set({ postSeriesStatus: 'loading', error: undefined });
+     try {
+       const postTimeseries = await loadMetaPostTimeseries(postId, {
+-        metric: filters.metric,
+-        period: filters.period || 'lifetime',
++        metric: overrides?.metric ?? filters.metric,
++        period: overrides?.period ?? (filters.period || 'lifetime'),
+         since: filters.since,
+         until: filters.until,
+       });

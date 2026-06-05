@@ -679,10 +679,7 @@ describe('useDashboardStore', () => {
 
   it('mirrors dashboard session tenant updates and reset events', async () => {
     const { default: useDashboardStore } = await import('./useDashboardStore');
-    const {
-      resetDashboardSession,
-      setDashboardSessionTenant,
-    } = await import('./dashboardSession');
+    const { resetDashboardSession, setDashboardSessionTenant } = await import('./dashboardSession');
 
     setDashboardSessionTenant('tenant-sync', 'Tenant Sync');
 
@@ -799,5 +796,180 @@ describe('useDashboardStore', () => {
     useDashboardStore.getState().setSelectedParish(undefined);
     expect(useDashboardStore.getState().selectedParish).toBeUndefined();
     expect(useDashboardStore.getState().getCampaignRowsForSelectedParish()).toHaveLength(2);
+  });
+
+  // Regression: FP-CAMP-01 / FP-CREA-01 / FP-BUDG-02 parish-drilldown selectors
+  // must respect filters.platforms (route-scope axis), not just filters.channels.
+  // If this test fails, rows from platforms NOT selected are leaking into the
+  // parish-filtered campaign / creative / budget tables.
+  it('parish-drilldown selectors respect filters.platforms (FP-CAMP-01/FP-CREA-01/FP-BUDG-02)', async () => {
+    const { default: useDashboardStore } = await import('./useDashboardStore');
+
+    const mixedCampaignData = {
+      summary: campaignData.summary,
+      trend: [],
+      rows: [
+        {
+          id: 'cmp_meta_kg',
+          name: 'Meta Kingston',
+          platform: 'Meta',
+          status: 'Active',
+          parishes: ['Kingston'],
+          spend: 80,
+          impressions: 120,
+          clicks: 20,
+          conversions: 2,
+          roas: 1.8,
+        },
+        {
+          id: 'cmp_google_kg',
+          name: 'Google Kingston',
+          platform: 'Google Ads',
+          status: 'Active',
+          parishes: ['Kingston'],
+          spend: 140,
+          impressions: 320,
+          clicks: 45,
+          conversions: 5,
+          roas: 2.6,
+        },
+      ],
+    };
+
+    const mixedCreativeData = [
+      {
+        id: 'cr_meta_kg',
+        name: 'Meta Creative',
+        campaignId: 'cmp_meta_kg',
+        campaignName: 'Meta Kingston',
+        platform: 'Meta',
+        parishes: ['Kingston'],
+        spend: 35,
+        impressions: 90,
+        clicks: 8,
+        conversions: 1,
+        roas: 1.4,
+      },
+      {
+        id: 'cr_google_kg',
+        name: 'Google Creative',
+        campaignId: 'cmp_google_kg',
+        campaignName: 'Google Kingston',
+        platform: 'Google Ads',
+        parishes: ['Kingston'],
+        spend: 60,
+        impressions: 140,
+        clicks: 18,
+        conversions: 3,
+        roas: 2.1,
+      },
+    ];
+
+    const mixedBudgetData = [
+      {
+        id: 'bg_meta_kg',
+        campaignName: 'Meta Kingston',
+        platform: 'Meta',
+        parishes: ['Kingston'],
+        monthlyBudget: 200,
+        spendToDate: 80,
+        projectedSpend: 190,
+        pacingPercent: 0.95,
+      },
+      {
+        id: 'bg_google_kg',
+        campaignName: 'Google Kingston',
+        platform: 'Google Ads',
+        parishes: ['Kingston'],
+        monthlyBudget: 320,
+        spendToDate: 140,
+        projectedSpend: 330,
+        pacingPercent: 1.02,
+      },
+    ];
+
+    useDashboardStore.setState((state) => ({
+      ...state,
+      campaign: { status: 'loaded', data: mixedCampaignData, error: undefined },
+      creative: { status: 'loaded', data: mixedCreativeData, error: undefined },
+      budget: { status: 'loaded', data: mixedBudgetData, error: undefined },
+    }));
+
+    // Baseline: no platform scope -> both rows visible.
+    useDashboardStore.getState().setFilters({
+      dateRange: '7d',
+      customRange: { start: '2024-08-01', end: '2024-08-07' },
+      accountId: '',
+      channels: [],
+      campaignQuery: '',
+      platforms: [],
+    });
+    expect(useDashboardStore.getState().getCampaignRowsForSelectedParish()).toHaveLength(2);
+    expect(useDashboardStore.getState().getCreativeRowsForSelectedParish()).toHaveLength(2);
+    expect(useDashboardStore.getState().getBudgetRowsForSelectedParish()).toHaveLength(2);
+
+    // Scope to meta_ads only: Google Ads rows must be filtered out, without a parish selected.
+    useDashboardStore.getState().setFilters({
+      dateRange: '7d',
+      customRange: { start: '2024-08-01', end: '2024-08-07' },
+      accountId: '',
+      channels: [],
+      campaignQuery: '',
+      platforms: ['meta_ads'],
+    });
+    const metaCampaignRows = useDashboardStore.getState().getCampaignRowsForSelectedParish();
+    expect(metaCampaignRows).toHaveLength(1);
+    expect(metaCampaignRows[0]?.id).toBe('cmp_meta_kg');
+    const metaCreativeRows = useDashboardStore.getState().getCreativeRowsForSelectedParish();
+    expect(metaCreativeRows).toHaveLength(1);
+    expect(metaCreativeRows[0]?.id).toBe('cr_meta_kg');
+    const metaBudgetRows = useDashboardStore.getState().getBudgetRowsForSelectedParish();
+    expect(metaBudgetRows).toHaveLength(1);
+    expect(metaBudgetRows[0]?.id).toBe('bg_meta_kg');
+
+    // Same scope, but with a parish selected: drilldown must still honor the platform filter.
+    useDashboardStore.getState().setSelectedParish('Kingston');
+    const metaCampaignRowsPar = useDashboardStore.getState().getCampaignRowsForSelectedParish();
+    expect(metaCampaignRowsPar).toHaveLength(1);
+    expect(metaCampaignRowsPar[0]?.id).toBe('cmp_meta_kg');
+    const metaCreativeRowsPar = useDashboardStore.getState().getCreativeRowsForSelectedParish();
+    expect(metaCreativeRowsPar).toHaveLength(1);
+    expect(metaCreativeRowsPar[0]?.id).toBe('cr_meta_kg');
+    const metaBudgetRowsPar = useDashboardStore.getState().getBudgetRowsForSelectedParish();
+    expect(metaBudgetRowsPar).toHaveLength(1);
+    expect(metaBudgetRowsPar[0]?.id).toBe('bg_meta_kg');
+
+    // Scope to google_ads: Meta rows must be filtered out.
+    useDashboardStore.getState().setSelectedParish(undefined);
+    useDashboardStore.getState().setFilters({
+      dateRange: '7d',
+      customRange: { start: '2024-08-01', end: '2024-08-07' },
+      accountId: '',
+      channels: [],
+      campaignQuery: '',
+      platforms: ['google_ads'],
+    });
+    const googleCampaignRows = useDashboardStore.getState().getCampaignRowsForSelectedParish();
+    expect(googleCampaignRows).toHaveLength(1);
+    expect(googleCampaignRows[0]?.id).toBe('cmp_google_kg');
+    const googleCreativeRows = useDashboardStore.getState().getCreativeRowsForSelectedParish();
+    expect(googleCreativeRows).toHaveLength(1);
+    expect(googleCreativeRows[0]?.id).toBe('cr_google_kg');
+    const googleBudgetRows = useDashboardStore.getState().getBudgetRowsForSelectedParish();
+    expect(googleBudgetRows).toHaveLength(1);
+    expect(googleBudgetRows[0]?.id).toBe('bg_google_kg');
+
+    // Both platforms selected: all rows visible again.
+    useDashboardStore.getState().setFilters({
+      dateRange: '7d',
+      customRange: { start: '2024-08-01', end: '2024-08-07' },
+      accountId: '',
+      channels: [],
+      campaignQuery: '',
+      platforms: ['meta_ads', 'google_ads'],
+    });
+    expect(useDashboardStore.getState().getCampaignRowsForSelectedParish()).toHaveLength(2);
+    expect(useDashboardStore.getState().getCreativeRowsForSelectedParish()).toHaveLength(2);
+    expect(useDashboardStore.getState().getBudgetRowsForSelectedParish()).toHaveLength(2);
   });
 });

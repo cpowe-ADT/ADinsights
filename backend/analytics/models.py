@@ -592,3 +592,58 @@ class AISummary(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - debug helper
         return f"AISummary<{self.tenant_id}:{self.generated_at.isoformat()}>"
+
+
+class DailyFxRate(models.Model):
+    """Daily foreign-exchange rate between two ISO-4217 currencies.
+
+    Sprint 6 of Client grouping:
+        Jamaican agencies manage clients that bill in a mix of USD and JMD
+        (and occasionally GBP/CAD for tourism clients). When the Combined
+        view aggregates spend across accounts with different currencies it
+        normalizes to a single display currency using rows from this table.
+
+        The table is global (not tenant-scoped) — FX rates are public data
+        and tenant isolation doesn't apply. Rows are populated by a daily
+        Celery task (``integrations.tasks.refresh_fx_rates``, added in
+        Sprint 10) pulling from a chosen provider. The ``source`` field
+        records provenance so a tenant can switch providers without data
+        loss.
+    """
+
+    SOURCE_MANUAL = "manual"
+    SOURCE_OPENEXCHANGERATES = "openexchangerates"
+    SOURCE_ECB = "ecb"
+    SOURCE_BOJ = "boj"
+    SOURCE_CHOICES = [
+        (SOURCE_MANUAL, "Manual"),
+        (SOURCE_OPENEXCHANGERATES, "Open Exchange Rates"),
+        (SOURCE_ECB, "European Central Bank"),
+        (SOURCE_BOJ, "Bank of Jamaica"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    rate_date = models.DateField()
+    base_currency = models.CharField(max_length=8)
+    quote_currency = models.CharField(max_length=8)
+    # 1 unit of ``base_currency`` equals ``rate`` units of ``quote_currency``.
+    rate = models.DecimalField(max_digits=18, decimal_places=8)
+    source = models.CharField(max_length=32, choices=SOURCE_CHOICES, default=SOURCE_MANUAL)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-rate_date", "base_currency", "quote_currency")
+        unique_together = ("rate_date", "base_currency", "quote_currency")
+        indexes = [
+            models.Index(
+                fields=["base_currency", "quote_currency", "-rate_date"],
+                name="analytics_fx_pair_date",
+            ),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return (
+            f"DailyFxRate<{self.rate_date.isoformat()} "
+            f"{self.base_currency}→{self.quote_currency}={self.rate}>"
+        )

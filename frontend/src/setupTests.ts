@@ -29,6 +29,14 @@ vi.mock('react-router-dom', async () => {
 
 expect.extend(toHaveNoViolations);
 
+// JSDOM does not implement scrollIntoView; several components (e.g. DataSources)
+// call it imperatively. Polyfill it globally so full-suite runs don't fail with
+// "scrollIntoView is not a function" and cascade collection-time errors into
+// unrelated test files.
+if (!window.HTMLElement.prototype.scrollIntoView) {
+  window.HTMLElement.prototype.scrollIntoView = vi.fn();
+}
+
 const styleTag = document.createElement('style');
 styleTag.innerHTML = `${globalStyles}\n${themeStyles}\n${appStyles}`;
 document.head.appendChild(styleTag);

@@ -1,0 +1,164 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "A3b",
+  "inputs_ref": ["artifacts/plan.md", "artifacts/audit/audit-report.json"],
+  "summary": "Three adapters — fake, demo, and upload — silently ignore client_scope_requested and client_scoped_* keys injected by combined_metrics_service.load_combined_metrics_payload, so any QA test that uses these adapters is asserting against unscoped payloads and cannot detect cross-platform or cross-client data leakage (R3). The warehouse and meta_direct adapters are the established pattern: warehouse.py lines 276-290 read client_scope_requested, union the scoped id lists with any account_id filter, and return an empty-shaped payload if the intersection is empty; meta_direct.py lines 159-201 parse the same keys into a frozen MetaDirectFilters dataclass before querying. Patches for fake, demo, and upload follow the warehouse pattern but are necessarily simpler because those adapters hold no adAccountId on rows — the correct scoping axis for demo/fake is the 'platform' / 'channel' field on campaign and creative rows, filtered via the platform sets implied by client_scoped_meta_ad_account_ids and client_scoped_google_customer_ids being non-empty.",
+  "adapters": [
+    {
+      "adapter": "fake",
+      "file": "/Users/thristannewman/ADinsights/backend/adapters/fake.py",
+      "current_behavior": "fetch_metrics completely ignores the options argument. The function signature carries '# noqa: ARG002 - options reserved for future use' at line 254. It deep-copies _PAYLOAD, stamps snapshot_generated_at, and returns. No date, account, or scope filtering occurs.",
+      "bugs_found": [
+        {
+          "id": "AD1-FAKE",
+          "risk_ref": "R3",
+          "severity": "high",
+          "description": "When combined_metrics_service injects client_scope_requested=True + client_scoped_meta_ad_account_ids=[] (meaning 'scoping was requested but this client has no Meta accounts'), FakeAdapter returns the full unscoped _PAYLOAD instead of an empty-shaped response. This masks cross-client leakage in any QA test that runs against the fake adapter.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/backend/adapters/fake.py",
+            "line": 249,
+            "snippet": "def fetch_metrics(self, *, tenant_id: str, options: Mapping[str, Any] | None = None) -> Mapping[str, Any]:  # noqa: ARG002"
+          }
+        },
+        {
+          "id": "AD2-FAKE",
+          "risk_ref": "R3",
+          "severity": "medium",
+          "description": "Even when scoped_meta_ad_account_ids is non-empty (e.g. client has Meta but not Google), FakeAdapter returns rows for every platform including 'Google Ads' and 'TikTok'. The rows in _PAYLOAD carry no adAccountId field — the only filterable dimension is the 'platform' string on each campaign/creative row.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/backend/adapters/fake.py",
+            "line": 58,
+            "snippet": "\"platform\": \"Meta\", ... \"platform\": \"Google Ads\", ... \"platform\": \"TikTok\","
+          }
+        }
+      ],
+      "fix_patches": [
+        {
+          "bug_ref": "AD1-FAKE",
+          "file": "/Users/thristannewman/ADinsights/backend/adapters/fake.py",
+          "change_type": "edit",
+          "description": "Read client_scope_requested from options. If True and both scoped id lists are empty, return an empty-shaped payload (zeros, empty arrays). If True and at least one list is non-empty, derive an allowed_platforms set from which lists are non-empty (meta_ad_account_ids present → allow META_CHANNEL_ALIASES; google_customer_ids present → allow GOOGLE_CHANNEL_ALIASES) and filter campaign rows, creative rows, and budget rows by row['platform'].lower() membership. Remove the ARG002 noqa comment.",
+          "pseudo_diff": "--- a/backend/adapters/fake.py\n+++ b/backend/adapters/fake.py\n@@ -1,6 +1,7 @@\n from __future__ import annotations\n \n from copy import deepcopy\n+import logging\n from typing import Any, Mapping\n \n from django.utils import timezone\n@@ -249,7 +249,40 @@ class FakeAdapter(MetricsAdapter):\n     def fetch_metrics(\n         self,\n         *,\n         tenant_id: str,\n         options: Mapping[str, Any] | None = None,\n-    ) -> Mapping[str, Any]:  # noqa: ARG002 - options reserved for future use\n+    ) -> Mapping[str, Any]:\n+        \"\"\"Return deterministic demo payload, honoring client_scope_requested.\"\"\"\n+        _opts = options or {}\n+        client_scope_requested = bool(_opts.get('client_scope_requested'))\n+        scoped_meta = list(_opts.get('client_scoped_meta_ad_account_ids') or [])\n+        scoped_google = list(_opts.get('client_scoped_google_customer_ids') or [])\n+\n+        payload = deepcopy(self._PAYLOAD)\n+        payload.setdefault('snapshot_generated_at', timezone.now().isoformat())\n+\n+        if client_scope_requested:\n+            if not scoped_meta and not scoped_google:\n+                # Scoping requested but no accounts in scope → empty payload.\n+                return _empty_shaped_payload(payload)\n+            # Derive allowed platforms from which scoped lists are non-empty.\n+            allowed: set[str] = set()\n+            if scoped_meta:\n+                allowed.update({'meta', 'meta ads', 'meta_ads', 'facebook', 'instagram'})\n+            if scoped_google:\n+                allowed.update({'google ads', 'google_ads', 'google'})\n+            payload = _filter_payload_by_platform(payload, allowed)\n+\n+        return payload\n+\n+\n+# ── helpers ──────────────────────────────────────────────────────────────────\n+\n+META_CHANNEL_ALIASES: frozenset[str] = frozenset(\n+    {'meta', 'meta ads', 'meta_ads', 'facebook', 'instagram', 'audience_network', 'messenger'}\n+)\n+GOOGLE_CHANNEL_ALIASES: frozenset[str] = frozenset(\n+    {'google ads', 'google_ads', 'google'}\n+)\n+\n+\n+def _filter_payload_by_platform(\n+    payload: dict[str, Any], allowed: set[str]\n+) -> dict[str, Any]:\n+    \"\"\"Return a copy of payload with campaign/creative/budget rows filtered\n+    to those whose 'platform' value is in the allowed set (case-insensitive).\"\"\"\n+    result = dict(payload)\n+    campaign = dict(result.get('campaign') or {})\n+    rows = [\n+        row for row in (campaign.get('rows') or [])\n+        if (row.get('platform') or '').lower() in allowed\n+    ]\n+    # Recalculate summary from filtered rows.\n+    total_spend = sum(float(r.get('spend', 0)) for r in rows)\n+    total_impressions = sum(int(r.get('impressions', 0)) for r in rows)\n+    total_clicks = sum(int(r.get('clicks', 0)) for r in rows)\n+    total_conversions = sum(int(r.get('conversions', 0)) for r in rows)\n+    summary = dict(campaign.get('summary') or {})\n+    summary.update({\n+        'totalSpend': total_spend,\n+        'totalImpressions': total_impressions,\n+        'totalClicks': total_clicks,\n+        'totalConversions': total_conversions,\n+    })\n+    # Trend has no adAccountId or platform field → keep as-is (all trend\n+    # points represent aggregated data; platform filter at row level is\n+    # the best we can do without restructuring _PAYLOAD).\n+    campaign['summary'] = summary\n+    campaign['rows'] = rows\n+    result['campaign'] = campaign\n+    result['creative'] = [\n+        row for row in (result.get('creative') or [])\n+        if (row.get('platform') or '').lower() in allowed\n+    ]\n+    # Budget rows have no platform field → keep all (cannot narrow further).\n+    return result\n+\n+\n+def _empty_shaped_payload(template: dict[str, Any]) -> dict[str, Any]:\n+    \"\"\"Return a zero-filled payload with the same top-level shape as template.\"\"\"\n+    empty = dict(template)\n+    campaign = dict(template.get('campaign') or {})\n+    summary = dict(campaign.get('summary') or {})\n+    for k in ('totalSpend', 'totalImpressions', 'totalClicks', 'totalConversions', 'averageRoas'):\n+        summary[k] = 0\n+    campaign['summary'] = summary\n+    campaign['trend'] = []\n+    campaign['rows'] = []\n+    empty['campaign'] = campaign\n+    empty['creative'] = []\n+    empty['budget'] = []\n+    empty['parish'] = []\n+    return empty",
+          "pattern_source": "warehouse.py:276-290",
+          "risk_notes": "The fake adapter has no per-row adAccountId. Platform-string matching is an approximation — the alias set must be kept in sync with whatever platform values _PAYLOAD uses. Trend is not filterable by platform without restructuring _PAYLOAD; leaving trend intact is acceptable since fake adapter is development-only."
+        }
+      ]
+    },
+    {
+      "adapter": "demo",
+      "file": "/Users/thristannewman/ADinsights/backend/adapters/demo.py",
+      "current_behavior": "fetch_metrics reads start_date, end_date, parish, and demo_tenant from options (lines 1424-1438), then delegates to _build_seeded_payload or returns a hardcoded DEMO_DATASETS entry. client_scope_requested, client_scoped_meta_ad_account_ids, and client_scoped_google_customer_ids are never read. _build_seeded_payload does filter by tenant_id and by parish, but never by account or platform scope.",
+      "bugs_found": [
+        {
+          "id": "AD3-DEMO",
+          "risk_ref": "R3",
+          "severity": "high",
+          "description": "When the service sends client_scope_requested=True with an empty meta id list (client has no Meta accounts or Meta disabled), DemoAdapter returns the full unscoped payload. QA tests driven against the demo adapter cannot detect R1 leakage because the adapter never narrows by scope.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/backend/adapters/demo.py",
+            "line": 1418,
+            "snippet": "def fetch_metrics(self, *, tenant_id: str, options: Mapping[str, Any] | None = None) -> Mapping[str, Any]:"
+          }
+        },
+        {
+          "id": "AD4-DEMO",
+          "risk_ref": "R3",
+          "severity": "high",
+          "description": "Seeded demo data rows carry a 'channel' field (e.g. 'meta_ads', 'google_ads') from dim_campaigns.csv; in-memory DEMO_DATASETS rows carry a 'platform' field ('Meta', 'Google Ads'). Neither is used to filter when client_scoped_* keys arrive. Because the demo adapter is the adapter used in QA fixtures, every E2E test that runs with ENABLE_DEMO_ADAPTER=True and passes a client_id will exercise unscoped data — masking R1.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/backend/adapters/demo.py",
+            "line": 429,
+            "snippet": "\"platform\": meta.get(\"channel\") or \"\","
+          }
+        }
+      ],
+      "fix_patches": [
+        {
+          "bug_ref": "AD3-DEMO",
+          "file": "/Users/thristannewman/ADinsights/backend/adapters/demo.py",
+          "change_type": "edit",
+          "description": "In fetch_metrics, read client_scope_requested, client_scoped_meta_ad_account_ids, and client_scoped_google_customer_ids from options before dispatching. When client_scope_requested is True and both lists are empty, return an empty-shaped payload immediately. Otherwise derive an allowed_channels set and pass it into _build_seeded_payload (or apply post-filter to DEMO_DATASETS path). The channel/platform field on campaign rows is the only available filtering axis — 'meta_ads' / 'facebook' / 'instagram' for Meta, 'google_ads' / 'google' for Google.",
+          "pseudo_diff": "--- a/backend/adapters/demo.py\n+++ b/backend/adapters/demo.py\n@@ -1418,6 +1418,22 @@ class DemoAdapter(MetricsAdapter):\n     def fetch_metrics(\n         self,\n         *,\n         tenant_id: str,\n         options: Mapping[str, Any] | None = None,\n     ) -> Mapping[str, Any]:\n+        _opts = options or {}\n+        client_scope_requested = bool(_opts.get('client_scope_requested'))\n+        scoped_meta = list(_opts.get('client_scoped_meta_ad_account_ids') or [])\n+        scoped_google = list(_opts.get('client_scoped_google_customer_ids') or [])\n+\n+        # Build allowed channel set for downstream filtering.\n+        allowed_channels: set[str] | None = None\n+        if client_scope_requested:\n+            if not scoped_meta and not scoped_google:\n+                return _demo_empty_payload()\n+            allowed_channels = set()\n+            if scoped_meta:\n+                allowed_channels.update(\n+                    {'meta_ads', 'meta', 'meta ads', 'facebook', 'instagram',\n+                     'audience_network', 'messenger'}\n+                )\n+            if scoped_google:\n+                allowed_channels.update({'google_ads', 'google ads', 'google'})\n+\n         slug = (\n             str(options.get('demo_tenant'))\n             if options and 'demo_tenant' in options\n             else DEFAULT_DEMO_TENANT\n         )\n         seeded = _load_seeded_demo_data(_demo_seed_dir())\n         if seeded:\n-            return _build_seeded_payload(seeded, slug, options)\n+            payload = _build_seeded_payload(seeded, slug, options)\n+            if allowed_channels is not None:\n+                payload = _filter_demo_payload_by_channel(payload, allowed_channels)\n+            return payload\n \n         dataset = DEMO_DATASETS.get(slug) or DEMO_DATASETS[DEFAULT_DEMO_TENANT]\n         payload = deepcopy(dataset['payload'])\n+        if allowed_channels is not None:\n+            payload = _filter_demo_payload_by_channel(payload, allowed_channels)\n         payload.setdefault('tenant_id', slug)\n         payload.setdefault('tenant_label', dataset['label'])\n         payload.setdefault('snapshot_generated_at', timezone.now().isoformat())\n         return payload\n+\n+\n+# ── demo scoping helpers ────────────────────────────────────────────────────\n+\n+def _filter_demo_payload_by_channel(\n+    payload: dict[str, Any], allowed: set[str]\n+) -> dict[str, Any]:\n+    \"\"\"Filter campaign and creative rows by platform/channel field.\n+    The seeded path sets row['platform'] = meta.get('channel'); the static\n+    DEMO_DATASETS path sets row['platform'] to display strings like 'Meta'.\n+    Both are checked case-insensitively against allowed.\"\"\"\n+    result = dict(payload)\n+    campaign = dict(result.get('campaign') or {})\n+    rows = [\n+        r for r in (campaign.get('rows') or [])\n+        if (r.get('platform') or '').lower() in allowed\n+    ]\n+    total_spend = sum(float(r.get('spend', 0)) for r in rows)\n+    total_impressions = sum(int(r.get('impressions', 0)) for r in rows)\n+    total_clicks = sum(int(r.get('clicks', 0)) for r in rows)\n+    total_conversions = sum(int(r.get('conversions', 0)) for r in rows)\n+    summary = dict(campaign.get('summary') or {})\n+    summary.update({\n+        'totalSpend': round(total_spend, 2),\n+        'totalImpressions': total_impressions,\n+        'totalClicks': total_clicks,\n+        'totalConversions': total_conversions,\n+    })\n+    campaign['summary'] = summary\n+    campaign['rows'] = rows\n+    # trend has no platform field; zero it out when filtering narrows to a\n+    # platform subset to avoid trend/summary mismatch.\n+    campaign['trend'] = []\n+    result['campaign'] = campaign\n+    result['creative'] = [\n+        r for r in (result.get('creative') or [])\n+        if (r.get('platform') or '').lower() in allowed\n+    ]\n+    return result\n+\n+\n+def _demo_empty_payload() -> dict[str, Any]:\n+    return {\n+        'campaign': {\n+            'summary': {\n+                'currency': 'JMD',\n+                'totalSpend': 0,\n+                'totalImpressions': 0,\n+                'totalClicks': 0,\n+                'totalConversions': 0,\n+                'averageRoas': 0.0,\n+            },\n+            'trend': [],\n+            'rows': [],\n+        },\n+        'creative': [],\n+        'budget': [],\n+        'parish': [],\n+        'snapshot_generated_at': None,\n+    }",
+          "pattern_source": "warehouse.py:276-290",
+          "risk_notes": "The 'channel' field on seeded campaign rows is set from dim_campaigns.csv — values depend on seed data. The alias set must cover all values used in QA seeds. The static DEMO_DATASETS rows use display strings ('Meta', 'Google Ads', 'TikTok') so the lowercase alias set must include those. Trend zeroing on filter may surprise callers that expect trend to always be populated; consider returning trend filtered by start/end only if a platform-aware trend structure is later added."
+        }
+      ]
+    },
+    {
+      "adapter": "upload",
+      "file": "/Users/thristannewman/ADinsights/backend/adapters/upload.py",
+      "current_behavior": "fetch_metrics fetches the latest TenantMetricsSnapshot for the tenant (already tenant-isolated by the ORM filter), then returns snapshot.payload verbatim with zero row-level filtering. options is accepted but never read. No date, account, platform, or scope filtering is applied.",
+      "bugs_found": [
+        {
+          "id": "AD5-UPLOAD",
+          "risk_ref": "R3",
+          "severity": "high",
+          "description": "When a client_id scoped to only Meta accounts is passed, UploadAdapter returns all rows from the CSV snapshot regardless of platform, leaking Google Ads (or any other platform) rows to a client that should see only Meta data.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/backend/adapters/upload.py",
+            "line": 21,
+            "snippet": "def fetch_metrics(self, *, tenant_id: str, options: Mapping[str, Any] | None = None) -> Mapping[str, Any]:"
+          }
+        },
+        {
+          "id": "AD6-UPLOAD",
+          "risk_ref": "R3",
+          "severity": "medium",
+          "description": "TenantMetricsSnapshot.payload is an opaque JSON blob produced by CSV upload; its schema is tenant-defined. The upload adapter cannot reliably know which field in the payload carries adAccountId or platform. A best-effort filter on the same 'platform' field used by warehouse and demo adapters is the safest option, but it may silently pass rows that lack a platform field.",
+          "evidence": {
+            "file": "/Users/thristannewman/ADinsights/backend/adapters/upload.py",
+            "line": 33,
+            "snippet": "if snapshot:\n            return snapshot.payload"
+          }
+        }
+      ],
+      "fix_patches": [
+        {
+          "bug_ref": "AD5-UPLOAD",
+          "file": "/Users/thristannewman/ADinsights/backend/adapters/upload.py",
+          "change_type": "edit",
+          "description": "Read client_scope_requested, client_scoped_meta_ad_account_ids, and client_scoped_google_customer_ids from options. If client_scope_requested is True and both lists are empty, return an empty-shaped dict immediately (the same shape as the snapshot payload but with zeroed scalars and empty arrays). Otherwise, if both lists are non-empty the adapter cannot narrow by platform but should still return the full snapshot (the upload adapter is a last-resort for tenants that don't have live adapters; silently returning the full upload payload when scoping is present is better than returning empty). When only meta ids OR only google ids are non-empty, attempt a best-effort platform filter on campaign.rows using adAccountId first, then platform string as fallback, following the warehouse.py _matches_account_ids pattern.",
+          "pseudo_diff": "--- a/backend/adapters/upload.py\n+++ b/backend/adapters/upload.py\n@@ -1,6 +1,8 @@\n from __future__ import annotations\n \n+import logging\n from typing import Any, Mapping\n \n from analytics.models import TenantMetricsSnapshot\n from rest_framework.exceptions import NotFound\n \n from .base import AdapterInterface, MetricsAdapter, get_default_interfaces\n+\n+logger = logging.getLogger(__name__)\n \n \n class UploadAdapter(MetricsAdapter):\n     def fetch_metrics(\n         self,\n         *,\n         tenant_id: str,\n         options: Mapping[str, Any] | None = None,\n     ) -> Mapping[str, Any]:\n+        _opts = options or {}\n+        client_scope_requested = bool(_opts.get('client_scope_requested'))\n+        scoped_meta = list(_opts.get('client_scoped_meta_ad_account_ids') or [])\n+        scoped_google = list(_opts.get('client_scoped_google_customer_ids') or [])\n+\n         snapshot = (\n             TenantMetricsSnapshot.objects\n             .filter(tenant_id=tenant_id, source=self.key)\n             .order_by('-generated_at', '-created_at')\n             .first()\n         )\n         if snapshot:\n-            return snapshot.payload\n+            payload = dict(snapshot.payload)\n+            if client_scope_requested:\n+                if not scoped_meta and not scoped_google:\n+                    return _upload_empty_payload(payload)\n+                # Best-effort: filter by adAccountId if present; fall back to\n+                # platform string. When both meta+google are scoped we cannot\n+                # narrow further without a normalised platform field.\n+                allowed_account_ids: set[str] = set(scoped_meta) | set(scoped_google)\n+                payload = _filter_upload_payload(\n+                    payload, allowed_account_ids, scoped_meta, scoped_google\n+                )\n+            return payload\n         raise NotFound('No uploaded metrics found.')\n+\n+\n+def _filter_upload_payload(\n+    payload: dict[str, Any],\n+    allowed_account_ids: set[str],\n+    scoped_meta: list[str],\n+    scoped_google: list[str],\n+) -> dict[str, Any]:\n+    \"\"\"Best-effort row filter for upload payloads.\n+    Priority: adAccountId field → platform string.\n+    Rows with no adAccountId AND no platform field are kept (cannot narrow).\"\"\"\n+    result = dict(payload)\n+    campaign = dict(result.get('campaign') or {})\n+    rows = list(campaign.get('rows') or [])\n+    filtered_rows = []\n+    for row in rows:\n+        account_id = row.get('adAccountId') or row.get('ad_account_id')\n+        if account_id:\n+            if str(account_id) in allowed_account_ids:\n+                filtered_rows.append(row)\n+            continue\n+        # Fallback: platform string.\n+        platform = (row.get('platform') or '').lower()\n+        if not platform:\n+            filtered_rows.append(row)  # cannot narrow, keep\n+            continue\n+        meta_aliases = {'meta', 'meta_ads', 'meta ads', 'facebook', 'instagram',\n+                        'audience_network', 'messenger'}\n+        google_aliases = {'google', 'google_ads', 'google ads'}\n+        if scoped_meta and platform in meta_aliases:\n+            filtered_rows.append(row)\n+        elif scoped_google and platform in google_aliases:\n+            filtered_rows.append(row)\n+    campaign['rows'] = filtered_rows\n+    result['campaign'] = campaign\n+    return result\n+\n+\n+def _upload_empty_payload(template: dict[str, Any]) -> dict[str, Any]:\n+    \"\"\"Return a zero-filled payload shaped like the upload snapshot.\"\"\"\n+    empty = dict(template)\n+    campaign = dict(template.get('campaign') or {})\n+    summary = dict(campaign.get('summary') or {})\n+    for k in ('totalSpend', 'totalImpressions', 'totalClicks',\n+              'totalConversions', 'averageRoas'):\n+        if k in summary:\n+            summary[k] = 0\n+    campaign['summary'] = summary\n+    campaign['trend'] = []\n+    campaign['rows'] = []\n+    empty['campaign'] = campaign\n+    for key in ('creative', 'budget', 'parish'):\n+        if key in empty:\n+            empty[key] = []\n+    return empty",
+          "pattern_source": "warehouse.py:283-290 and meta_direct.py:87-103",
+          "risk_notes": "Upload payload schema is tenant-defined and may not carry adAccountId or platform fields. The filter silently keeps untagged rows to avoid false negatives. If the tenant's CSV has no platform column, this filter is a no-op and data will still be wider than requested scope — this is documented as a known limitation of the upload adapter. Consider adding a warning log when scoping is requested but no adAccountId fields are found in rows."
+        }
+      ]
+    }
+  ],
+  "test_deltas": [
+    {
+      "file": "/Users/thristannewman/ADinsights/backend/tests/test_adapter_scope_parity.py",
+      "cases": [
+        "test_fake_adapter_scope_requested_no_accounts_returns_empty: call FakeAdapter.fetch_metrics with options={'client_scope_requested': True, 'client_scoped_meta_ad_account_ids': [], 'client_scoped_google_customer_ids': []}; assert campaign.summary.totalSpend == 0 and campaign.rows == []",
+        "test_fake_adapter_scope_meta_only_filters_to_meta_rows: call FakeAdapter.fetch_metrics with options={'client_scope_requested': True, 'client_scoped_meta_ad_account_ids': ['act_111'], 'client_scoped_google_customer_ids': []}; assert every row in campaign.rows has platform in META_CHANNEL_ALIASES; assert 'Google Ads' and 'TikTok' rows absent",
+        "test_fake_adapter_scope_google_only_filters_to_google_rows: options with only scoped_google non-empty; assert only Google Ads rows remain",
+        "test_fake_adapter_no_scope_returns_full_payload: options=None → full _PAYLOAD returned; assert totalSpend == 1190",
+        "test_demo_adapter_scope_requested_no_accounts_returns_empty: call DemoAdapter.fetch_metrics with client_scope_requested=True and both lists empty; assert campaign.summary.totalSpend == 0",
+        "test_demo_adapter_scope_meta_only_filters_campaign_rows: seeded path: call with scoped_meta=['act_111'] scoped_google=[]; assert campaign.rows contain only meta_ads-channel rows; assert google_ads rows absent",
+        "test_demo_adapter_static_dataset_scope_meta_only: call with DEMO_DATASETS tenant, scoped_meta non-empty, scoped_google=[]; assert 'Google Ads' campaign row not in response",
+        "test_demo_adapter_no_scope_returns_full_seeded_payload: options without client_scope_requested; assert all channel rows present",
+        "test_upload_adapter_scope_requested_no_accounts_returns_empty: create TenantMetricsSnapshot with rows containing both meta and google campaigns; call UploadAdapter with client_scope_requested=True both lists empty; assert empty campaign.rows",
+        "test_upload_adapter_scope_meta_filters_by_adAccountId: snapshot rows have adAccountId='act_111' (meta) and adAccountId='google-cid-1'; call with scoped_meta=['act_111'] scoped_google=[]; assert only act_111 row returned",
+        "test_upload_adapter_scope_meta_filters_by_platform_fallback: snapshot rows have no adAccountId but have platform='Meta' and platform='Google Ads'; call with scoped_meta=['act_111'] scoped_google=[]; assert only 'Meta' row returned",
+        "test_upload_adapter_no_scope_returns_full_snapshot: options=None; assert full snapshot.payload returned",
+        "PARAMETRIZED: pytest.mark.parametrize adapter over [fake, demo, upload]: for each, assert that passing client_scope_requested=True + empty lists always yields totalSpend == 0 and campaign.rows == [] (the 'client with zero accounts' contract must be uniform across all adapters)",
+        "PARAMETRIZED: pytest.mark.parametrize adapter over [fake, demo, upload]: for each, assert that passing no client_scope_requested preserves legacy behavior (full payload returned, same as before the patch)",
+        "HTTP round-trip test via api_client: enable each adapter via settings flag, GET /api/metrics/combined/ with client_id that resolves to zero Meta accounts; assert 200 and payload.campaign.summary.totalSpend == 0 and payload.client_resolution.scope is set"
+      ]
+    }
+  ],
+  "defensive_guard": {
+    "file": "backend/analytics/combined_metrics_service.py",
+    "description": "After resolving the adapter key (source) and before calling adapter.fetch_metrics, log a WARNING if client_scoping is not None (scoping was requested) and the adapter is known to not implement scope-awareness. The set of known scope-unaware adapters starts as {'fake', 'demo', 'upload'} and is updated as patches land. The guard is non-breaking: it logs and continues rather than raising. It exists to catch regressions if a new adapter is added without scope support.",
+    "pseudo_diff": "--- a/backend/analytics/combined_metrics_service.py\n+++ b/backend/analytics/combined_metrics_service.py\n@@ -1,5 +1,7 @@\n from __future__ import annotations\n \n+import logging\n from dataclasses import dataclass\n ...\n \n+logger = logging.getLogger(__name__)\n+\n+# Adapters known to ignore client_scoped_* options. Remove from this set\n+# when the adapter is patched to honour scoping.\n+_SCOPE_UNAWARE_ADAPTER_KEYS: frozenset[str] = frozenset({'fake', 'demo', 'upload'})\n+\n def load_combined_metrics_payload(\n     *,\n     ...\n ) -> CombinedMetricsResult:\n     ...\n     client_scoping, _registry, resolution_meta = resolve_client_scoping(\n         tenant_id=tenant_id,\n         query_params=query_params,\n     )\n+    # Defensive: warn when scoping is injected but the selected adapter does\n+    # not yet honour client_scoped_* keys. Non-breaking — just a log.\n+    if client_scoping is not None and source in _SCOPE_UNAWARE_ADAPTER_KEYS:\n+        logger.warning(\n+            'Adapter %r does not honour client_scoped_* options; '\n+            'scoped request may return unscoped payload. '\n+            'tenant_id=%r client_scope_requested=%r',\n+            source,\n+            tenant_id,\n+            client_scoping.get('client_scope_requested'),\n+        )\n     if client_scoping is not None:\n         options = {**options, **client_scoping}\n         has_filters = True"
+  },
+  "recommendation": "fix-adapters",
+  "rationale": "Rejecting at the service level (returning HTTP 400 when client_scope_requested arrives at an unaware adapter) would protect data integrity but would break all existing QA, staging, and demo-mode workflows that depend on fake, demo, and upload adapters responding normally. Those adapters are used precisely in environments where live adapters are unavailable, so a hard 400 would make the demo environment unusable. Fixing the adapters is the right path: it makes every adapter return a semantically correct response for the given scope, which means QA tests run against demo data will actually catch cross-platform leakage (the original R3 concern). The defensive guard in combined_metrics_service.py provides a safety net during the transition: if a new adapter is added without scope support, the warning surfaces in Sentry/CloudWatch immediately. The guard should be removed entry-by-entry from _SCOPE_UNAWARE_ADAPTER_KEYS as each adapter patch is merged. This two-layer approach (fix-adapters + warn-at-service) matches the warehouse.py + meta_direct.py precedent and keeps the blast radius of each change isolated to a single adapter file.",
+  "open_questions": [
+    "Demo adapter: dim_campaigns.csv channel field values are not yet normalised in this analysis — the actual values used in QA seed files should be confirmed before finalising the META_CHANNEL_ALIASES set in _filter_demo_payload_by_channel.",
+    "Demo adapter: trend rows in _build_seeded_payload have no platform/channel field. Zeroing trend on a platform-scoped response may cause chart discontinuity in the QA dashboard. Consider whether trend should remain unfiltered (accept the mismatch) or whether a separate per-channel trend rollup should be added to the seeded payload builder.",
+    "Upload adapter: the current TenantMetricsSnapshot schema does not mandate adAccountId or platform fields in campaign.rows. The plan team (Raj/Mira) should decide whether to enforce a schema migration on existing snapshots or document the upload adapter as 'best-effort scoping only'.",
+    "Fake adapter: _PAYLOAD.campaign.trend has no adAccountId or platform. If the fake adapter is used in tests that assert trend data under scoped requests, zeroing trend would break those tests. The test deltas should include a decision: zero trend or leave intact?",
+    "Once all three adapters are patched, _SCOPE_UNAWARE_ADAPTER_KEYS in combined_metrics_service.py should become an empty frozenset and the guard can optionally be removed or kept as future-proofing for new adapter additions."
+  ]
+}

@@ -13,6 +13,9 @@ on:
       - '.github/workflows/dbt.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   run-dbt:
     runs-on: ubuntu-latest

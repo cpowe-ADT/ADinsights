@@ -1,76 +1,32 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  type SortingState,
-  useReactTable,
-} from '@tanstack/react-table';
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import type { ComponentType } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 
-import EmptyState from '../components/EmptyState';
+import {
+  AccessibleTableToggle,
+  BubbleScatter,
+  ChartSkeleton,
+  EmptyState,
+  KpiTile,
+  TrendLine,
+  VizDataTable,
+  type KpiTileProps,
+} from '../components/viz';
+import type { BubbleScatterDatum } from '../components/viz/BubbleScatter';
+import type { TrendLinePoint } from '../components/viz/TrendLine';
 import { useToastStore } from '../stores/useToastStore';
 import { syncMetaIntegration } from '../lib/airbyte';
 import { ApiError } from '../lib/apiClient';
-import { formatCurrency, formatNumber } from '../lib/format';
+import { formatCurrency, formatNumber, formatPercent } from '../lib/format';
 import type { MetaInsightRecord } from '../lib/meta';
+import {
+  aggregatedRoas,
+  derivedRoas,
+  groupCtrCpmByDate,
+  hasPurchaseActions,
+  sumInsights,
+} from '../lib/metaAggregates';
 import useMetaStore from '../state/useMetaStore';
-
-const columnHelper = createColumnHelper<MetaInsightRecord>();
-
-const columns = [
-  columnHelper.accessor('date', {
-    header: 'Date',
-    cell: (info) => info.getValue(),
-  }),
-  columnHelper.accessor('level', {
-    header: 'Level',
-    cell: (info) => info.getValue(),
-  }),
-  columnHelper.accessor('external_id', {
-    header: 'Entity ID',
-    cell: (info) => info.getValue(),
-  }),
-  columnHelper.accessor('impressions', {
-    header: 'Impressions',
-    cell: (info) => formatNumber(info.getValue()),
-  }),
-  columnHelper.accessor('reach', {
-    header: 'Reach',
-    cell: (info) => formatNumber(info.getValue()),
-  }),
-  columnHelper.accessor('clicks', {
-    header: 'Clicks',
-    cell: (info) => formatNumber(info.getValue()),
-  }),
-  columnHelper.accessor('spend', {
-    header: 'Spend',
-    cell: (info) => formatCurrency(Number(info.getValue()), 'USD', 2),
-  }),
-  columnHelper.accessor('cpc', {
-    header: 'CPC',
-    cell: (info) => formatCurrency(Number(info.getValue()), 'USD', 2),
-  }),
-  columnHelper.accessor('cpm', {
-    header: 'CPM',
-    cell: (info) => formatCurrency(Number(info.getValue()), 'USD', 2),
-  }),
-  columnHelper.accessor('conversions', {
-    header: 'Conversions',
-    cell: (info) => formatNumber(info.getValue()),
-  }),
-];
 
 function resolveInsightsErrorMessage(errorCode?: string, fallback?: string): string {
   if (errorCode === 'token_expired') {
@@ -85,8 +41,20 @@ function resolveInsightsErrorMessage(errorCode?: string, fallback?: string): str
   return fallback ?? 'Try again.';
 }
 
+type InsightsTableRow = {
+  id: string;
+  campaign: string;
+  spend: number;
+  impressions: number;
+  ctr: number;
+  cpm: number;
+  roas: number | null;
+  objective: string;
+};
+
+type InsightsColumn = ColumnDef<InsightsTableRow, unknown>;
+
 const MetaInsightsDashboardPage = () => {
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }]);
   const [syncing, setSyncing] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
   const { filters, setFilters, accounts, insights, loadAccounts, loadInsights } = useMetaStore(
@@ -116,36 +84,118 @@ const MetaInsightsDashboardPage = () => {
     loadInsights,
   ]);
 
-  const chartData = useMemo(() => {
-    const grouped = new Map<
-      string,
-      { date: string; spend: number; clicks: number; impressions: number }
-    >();
-    insights.rows.forEach((row) => {
-      const key = row.date;
-      const existing = grouped.get(key) ?? { date: key, spend: 0, clicks: 0, impressions: 0 };
-      existing.spend += Number(row.spend);
-      existing.clicks += Number(row.clicks);
-      existing.impressions += Number(row.impressions);
-      grouped.set(key, existing);
+  const rows: MetaInsightRecord[] = insights.rows;
+
+  // Dual-axis CTR + CPM trend
+  const trendPoints = useMemo(() => groupCtrCpmByDate(rows), [rows]);
+
+  // Headline KPIs (includes ROAS conditional)
+  const kpis = useMemo(() => sumInsights(rows), [rows]);
+  const roas = useMemo(() => aggregatedRoas(rows), [rows]);
+  const roasAvailable = useMemo(() => hasPurchaseActions(rows), [rows]);
+
+  const kpiTiles: KpiTileProps[] = useMemo(() => {
+    const tiles: KpiTileProps[] = [
+      {
+        label: 'Spend',
+        value: rows.length ? kpis.spend : null,
+        format: 'currency',
+        currency: 'USD',
+      },
+    ];
+    if (roasAvailable) {
+      tiles.push({ label: 'ROAS', value: roas, format: 'number', hint: 'Revenue / spend' });
+    }
+    tiles.push(
+      { label: 'CTR', value: rows.length ? kpis.ctr : null, format: 'percent' },
+      // Frequency is not derivable from MetaInsightRecord; substitute CPC per §3 audit.
+      { label: 'CPC', value: rows.length ? kpis.cpc : null, format: 'currency', currency: 'USD' },
+      { label: 'CPM', value: rows.length ? kpis.cpm : null, format: 'currency', currency: 'USD' },
+    );
+    return tiles;
+  }, [rows.length, kpis.spend, kpis.ctr, kpis.cpc, kpis.cpm, roas, roasAvailable]);
+
+  // BubbleScatter data. Prefer campaign-level insights; fall back to whatever
+  // level the user selected if no campaign rows are present (e.g. when
+  // `filters.level !== 'campaign'` the slice may only carry account-level rows).
+  const campaignRows = useMemo(() => {
+    const campaign = rows.filter((r) => r.level === 'campaign');
+    return campaign.length > 0 ? campaign : rows;
+  }, [rows]);
+
+  const bubbleData = useMemo<BubbleScatterDatum[]>(() => {
+    return campaignRows.map((row) => {
+      const roasForRow = derivedRoas(row);
+      const cpmForRow = Number(row.cpm) || 0;
+      const yValue = roasAvailable ? (roasForRow ?? 0) : cpmForRow;
+      const shape: BubbleScatterDatum['shape'] = filters.accountId ? 'triangle' : 'circle';
+      return {
+        id: row.id,
+        label: row.external_id,
+        x: Number(row.spend) || 0,
+        y: yValue,
+        z: Number(row.impressions) || 0,
+        shape,
+      };
     });
-    return [...grouped.values()].sort((a, b) => a.date.localeCompare(b.date));
-  }, [insights.rows]);
+  }, [campaignRows, filters.accountId, roasAvailable]);
 
-  const table = useReactTable({
-    data: insights.rows,
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  });
+  // Table rows (replacing the old @tanstack/react-table grid)
+  const tableRows: InsightsTableRow[] = useMemo(
+    () =>
+      campaignRows.map((row) => {
+        const spend = Number(row.spend) || 0;
+        const impressions = Number(row.impressions) || 0;
+        const clicks = Number(row.clicks) || 0;
+        return {
+          id: row.id,
+          campaign: row.external_id,
+          spend,
+          impressions,
+          ctr: impressions > 0 ? clicks / impressions : 0,
+          cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
+          roas: derivedRoas(row),
+          objective: row.level,
+        };
+      }),
+    [campaignRows],
+  );
 
-  const GridComponent = CartesianGrid as unknown as ComponentType<Record<string, unknown>>;
-  const XAxisComponent = XAxis as unknown as ComponentType<Record<string, unknown>>;
-  const YAxisComponent = YAxis as unknown as ComponentType<Record<string, unknown>>;
-  const TooltipComponent = Tooltip as unknown as ComponentType<Record<string, unknown>>;
-  const LineComponent = Line as unknown as ComponentType<Record<string, unknown>>;
+  const tableColumns = useMemo<InsightsColumn[]>(
+    () => [
+      { accessorKey: 'campaign', header: 'Campaign' },
+      {
+        accessorKey: 'spend',
+        header: 'Spend',
+        cell: (info) => formatCurrency(Number(info.getValue()), 'USD', 2),
+      },
+      {
+        accessorKey: 'impressions',
+        header: 'Impressions',
+        cell: (info) => formatNumber(Number(info.getValue())),
+      },
+      {
+        accessorKey: 'ctr',
+        header: 'CTR',
+        cell: (info) => formatPercent(Number(info.getValue())),
+      },
+      {
+        accessorKey: 'cpm',
+        header: 'CPM',
+        cell: (info) => formatCurrency(Number(info.getValue()), 'USD', 2),
+      },
+      {
+        accessorKey: 'roas',
+        header: 'ROAS',
+        cell: (info) => {
+          const value = info.getValue();
+          return value === null ? '—' : formatNumber(Number(value));
+        },
+      },
+      { accessorKey: 'objective', header: 'Level' },
+    ],
+    [],
+  );
 
   const handleSyncNow = async () => {
     if (syncing) {
@@ -158,11 +208,13 @@ const MetaInsightsDashboardPage = () => {
         addToast(
           payload.job_id
             ? `Meta sync is already running (job ${payload.job_id}).`
-            : 'Meta sync is already running.', 'success',
+            : 'Meta sync is already running.',
+          'success',
         );
       } else {
         addToast(
-          payload.job_id ? `Meta sync queued (job ${payload.job_id}).` : 'Meta sync triggered.', 'success',
+          payload.job_id ? `Meta sync queued (job ${payload.job_id}).` : 'Meta sync triggered.',
+          'success',
         );
       }
       await Promise.all([loadAccounts(), loadInsights()]);
@@ -176,6 +228,8 @@ const MetaInsightsDashboardPage = () => {
       setSyncing(false);
     }
   };
+
+  const insightsLoading = insights.status === 'loading' && rows.length === 0;
 
   return (
     <section className="dashboardPage">
@@ -262,10 +316,6 @@ const MetaInsightsDashboardPage = () => {
         </div>
       </div>
 
-      {insights.status === 'loading' && insights.rows.length === 0 ? (
-        <div className="dashboard-state dashboard-state--page">Loading insights...</div>
-      ) : null}
-
       {insights.status === 'stale' ? (
         <div className="dashboard-state" role="status" style={{ marginBottom: '1rem' }}>
           Showing stale insights data.{' '}
@@ -281,10 +331,11 @@ const MetaInsightsDashboardPage = () => {
           actionLabel="Retry"
           onAction={() => void loadInsights()}
           className="panel"
+          reasonCode="error"
         />
       ) : null}
 
-      {insights.status !== 'error' && insights.rows.length === 0 ? (
+      {insights.status !== 'error' && insights.status !== 'loading' && rows.length === 0 ? (
         <EmptyState
           icon={<span aria-hidden>0</span>}
           title="No insights in selected range"
@@ -292,61 +343,152 @@ const MetaInsightsDashboardPage = () => {
           actionLabel={syncing ? 'Syncing…' : 'Sync now'}
           onAction={() => void handleSyncNow()}
           className="panel"
+          reasonCode="no_data_for_range"
         />
       ) : null}
 
-      {insights.rows.length > 0 ? (
+      {/* KPI strip */}
+      <article className="panel" style={{ marginBottom: '1rem' }} data-testid="meta-insights-kpis">
+        {insightsLoading ? (
+          <ChartSkeleton variant="kpi-strip" />
+        ) : (
+          <div
+            className="viz-kpi-strip"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+              gap: '0.75rem',
+            }}
+          >
+            {kpiTiles.map((tile) => (
+              <KpiTile key={tile.label} {...tile} />
+            ))}
+          </div>
+        )}
+      </article>
+
+      {rows.length > 0 ? (
         <>
-          <article className="panel" style={{ minHeight: 320, marginBottom: '1rem' }}>
-            <h3>Spend trend</h3>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={chartData}>
-                <GridComponent strokeDasharray="3 3" />
-                <XAxisComponent dataKey="date" />
-                <YAxisComponent />
-                <TooltipComponent />
-                <LineComponent type="monotone" dataKey="spend" stroke="#2a8f72" strokeWidth={2} />
-                <LineComponent type="monotone" dataKey="clicks" stroke="#1a4f8f" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+          {/* Dual-axis trend: CTR (left) + CPM (right) */}
+          <article className="panel" style={{ marginBottom: '1rem' }}>
+            <h3>CTR and CPM trend</h3>
+            <AccessibleTableToggle
+              chartAriaLabel="CTR and CPM per day"
+              chart={
+                <TrendLine
+                  data={trendPoints as unknown as TrendLinePoint[]}
+                  series={[
+                    { key: 'ctr', label: 'CTR', yAxis: 'left' },
+                    { key: 'cpm', label: 'CPM', yAxis: 'right' },
+                  ]}
+                  yFormat="percent"
+                  rightYFormat="currency"
+                  currency="USD"
+                  ariaLabel="CTR and CPM per day"
+                />
+              }
+              table={
+                <VizDataTable
+                  columns={[
+                    { accessorKey: 'campaign', header: 'Date' } as InsightsColumn,
+                    {
+                      accessorKey: 'ctr',
+                      header: 'CTR',
+                      cell: (info) => formatPercent(Number(info.getValue())),
+                    } as InsightsColumn,
+                    {
+                      accessorKey: 'cpm',
+                      header: 'CPM',
+                      cell: (info) => formatCurrency(Number(info.getValue()), 'USD', 2),
+                    } as InsightsColumn,
+                  ]}
+                  data={trendPoints.map((p) => ({
+                    id: p.date,
+                    campaign: p.date,
+                    spend: 0,
+                    impressions: 0,
+                    ctr: p.ctr,
+                    cpm: p.cpm,
+                    roas: null,
+                    objective: '',
+                  }))}
+                  caption="CTR and CPM per day (tabular)"
+                  captionHidden
+                />
+              }
+            />
           </article>
 
+          {/* Bubble scatter */}
+          <article className="panel" style={{ marginBottom: '1rem' }}>
+            <h3>
+              {roasAvailable ? 'Spend vs. ROAS' : 'Spend vs. CPM'}{' '}
+              <span className="status-message muted" style={{ fontSize: '0.85rem' }}>
+                (bubble size = impressions)
+              </span>
+            </h3>
+            <AccessibleTableToggle
+              chartAriaLabel={
+                roasAvailable
+                  ? 'Spend versus ROAS by campaign, bubble size shows impressions'
+                  : 'Spend versus CPM by campaign, bubble size shows impressions'
+              }
+              chart={
+                <BubbleScatter
+                  data={bubbleData}
+                  xLabel="Spend"
+                  yLabel={roasAvailable ? 'ROAS' : 'CPM'}
+                  zLabel="Impressions"
+                  xFormat="currency"
+                  yFormat={roasAvailable ? 'number' : 'currency'}
+                  zFormat="number"
+                  currency="USD"
+                  ariaLabel={
+                    roasAvailable ? 'Spend versus ROAS by campaign' : 'Spend versus CPM by campaign'
+                  }
+                />
+              }
+              table={
+                <VizDataTable
+                  columns={[
+                    { accessorKey: 'campaign', header: 'Campaign' } as InsightsColumn,
+                    {
+                      accessorKey: 'spend',
+                      header: 'Spend',
+                      cell: (info) => formatCurrency(Number(info.getValue()), 'USD', 2),
+                    } as InsightsColumn,
+                    {
+                      accessorKey: 'impressions',
+                      header: 'Impressions',
+                      cell: (info) => formatNumber(Number(info.getValue())),
+                    } as InsightsColumn,
+                    {
+                      accessorKey: 'cpm',
+                      header: roasAvailable ? 'ROAS' : 'CPM',
+                      cell: (info) => {
+                        const value = Number(info.getValue());
+                        return roasAvailable
+                          ? formatNumber(value)
+                          : formatCurrency(value, 'USD', 2);
+                      },
+                    } as InsightsColumn,
+                  ]}
+                  data={tableRows}
+                  caption={
+                    roasAvailable
+                      ? 'Spend vs ROAS by campaign (tabular)'
+                      : 'Spend vs CPM by campaign (tabular)'
+                  }
+                  captionHidden
+                />
+              }
+            />
+          </article>
+
+          {/* Data table */}
           <article className="panel">
             <h3>Insights records ({insights.count})</h3>
-            <div className="table-responsive">
-              <table className="dashboard-table">
-                <thead>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <tr key={headerGroup.id} className="dashboard-table__header-row">
-                      {headerGroup.headers.map((header) => (
-                        <th key={header.id} className="dashboard-table__header-cell">
-                          {header.isPlaceholder ? null : (
-                            <button
-                              type="button"
-                              className="button tertiary"
-                              onClick={header.column.getToggleSortingHandler()}
-                            >
-                              {flexRender(header.column.columnDef.header, header.getContext())}
-                            </button>
-                          )}
-                        </th>
-                      ))}
-                    </tr>
-                  ))}
-                </thead>
-                <tbody>
-                  {table.getRowModel().rows.map((row) => (
-                    <tr key={row.id} className="dashboard-table__row dashboard-table__row--zebra">
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className="dashboard-table__cell">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <VizDataTable columns={tableColumns} data={tableRows} ariaLabel="Top campaigns table" />
           </article>
         </>
       ) : null}

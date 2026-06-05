@@ -6,6 +6,8 @@ import SkeletonLoader from '../components/SkeletonLoader';
 import {
   deleteAlert,
   getAlert,
+  pauseAlert,
+  resumeAlert,
   updateAlert,
   listNotificationChannels,
   type AlertRule,
@@ -16,6 +18,34 @@ import { useToastStore } from '../stores/useToastStore';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 import '../styles/skeleton.css';
+
+type PauseDurationKey = '1h' | '4h' | '24h' | '7d' | 'indefinite';
+
+const PAUSE_DURATION_OPTIONS: { value: PauseDurationKey; label: string; hours?: number }[] = [
+  { value: '1h', label: '1 hour', hours: 1 },
+  { value: '4h', label: '4 hours', hours: 4 },
+  { value: '24h', label: '24 hours', hours: 24 },
+  { value: '7d', label: '7 days', hours: 168 },
+  { value: 'indefinite', label: 'Indefinite' },
+];
+
+type EditFormState = {
+  name: string;
+  metric: string;
+  comparison_operator: string;
+  threshold: string;
+  lookback_hours: string;
+  severity: string;
+};
+
+const buildEditState = (alert: AlertRule): EditFormState => ({
+  name: alert.name,
+  metric: alert.metric,
+  comparison_operator: alert.comparison_operator,
+  threshold: alert.threshold,
+  lookback_hours: String(alert.lookback_hours),
+  severity: alert.severity,
+});
 
 const AlertDetailPage = () => {
   const { alertId } = useParams<{ alertId: string }>();
@@ -28,6 +58,10 @@ const AlertDetailPage = () => {
   const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [pauseDuration, setPauseDuration] = useState<PauseDurationKey>('indefinite');
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState<EditFormState | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const load = useCallback(async () => {
     if (!alertId) {
@@ -75,15 +109,59 @@ const AlertDetailPage = () => {
     if (!alertId || !alert) return;
     setToggling(true);
     try {
-      const updated = await updateAlert(alertId, { is_active: !alert.is_active });
+      let updated: AlertRule;
+      if (alert.is_active) {
+        const selected = PAUSE_DURATION_OPTIONS.find((opt) => opt.value === pauseDuration);
+        const body =
+          selected && typeof selected.hours === 'number' ? { duration_hours: selected.hours } : {};
+        updated = await pauseAlert(alertId, body);
+        const pausedUntil = updated.paused_until;
+        addToast(`Alert paused${pausedUntil ? ` until ${formatAbsoluteTime(pausedUntil)}` : ''}`);
+      } else {
+        updated = await resumeAlert(alertId);
+        addToast('Alert resumed');
+      }
       setAlert(updated);
-      addToast(updated.is_active ? 'Alert resumed' : 'Alert paused');
     } catch {
       addToast('Failed to update alert', 'error');
     } finally {
       setToggling(false);
     }
-  }, [alertId, alert, addToast]);
+  }, [alertId, alert, addToast, pauseDuration]);
+
+  const beginEdit = useCallback(() => {
+    if (!alert) return;
+    setEditForm(buildEditState(alert));
+    setEditing(true);
+  }, [alert]);
+
+  const cancelEdit = useCallback(() => {
+    setEditing(false);
+    setEditForm(null);
+  }, []);
+
+  const saveEdit = useCallback(async () => {
+    if (!alertId || !editForm) return;
+    setSavingEdit(true);
+    try {
+      const updated = await updateAlert(alertId, {
+        name: editForm.name,
+        metric: editForm.metric,
+        comparison_operator: editForm.comparison_operator,
+        threshold: editForm.threshold,
+        lookback_hours: Number(editForm.lookback_hours),
+        severity: editForm.severity,
+      });
+      setAlert(updated);
+      setEditing(false);
+      setEditForm(null);
+      addToast('Alert rule updated');
+    } catch {
+      addToast('Failed to update alert', 'error');
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [alertId, editForm, addToast]);
 
   if (state === 'loading') {
     return (
@@ -127,6 +205,11 @@ const AlertDetailPage = () => {
           <button type="button" className="button secondary" onClick={() => void load()}>
             Refresh
           </button>
+          {!editing ? (
+            <button type="button" className="button secondary" onClick={beginEdit}>
+              Edit
+            </button>
+          ) : null}
           <button
             type="button"
             className="button tertiary"
@@ -152,43 +235,185 @@ const AlertDetailPage = () => {
 
       <article className="phase2-card">
         <h3>Rule details</h3>
-        <p>
-          Metric: <strong>{alert.metric}</strong>
-        </p>
-        <p>
-          Condition: <strong>{alert.comparison_operator}</strong> <strong>{alert.threshold}</strong>
-        </p>
-        <p>
-          Lookback: <strong>{alert.lookback_hours} hours</strong>
-        </p>
-        <p>
-          Severity:{' '}
-          <span className={`phase2-pill phase2-pill--${alert.severity}`}>{alert.severity}</span>
-        </p>
-        <p>
-          Status:{' '}
-          <span className={`phase2-pill phase2-pill--${alert.is_active ? 'fresh' : 'stale'}`}>
-            {alert.is_active ? 'Active' : 'Paused'}
-          </span>
-          <button
-            type="button"
-            className="button tertiary"
-            style={{ marginLeft: '0.5rem' }}
-            disabled={toggling}
-            onClick={() => void handleToggle()}
+        {editing && editForm ? (
+          <form
+            className="phase2-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveEdit();
+            }}
           >
-            {alert.is_active ? 'Pause' : 'Resume'}
-          </button>
-        </p>
-        <p>
-          Updated {formatRelativeTime(alert.updated_at)} ({formatAbsoluteTime(alert.updated_at)})
-        </p>
+            <label className="phase2-form__field" htmlFor="alert-edit-name">
+              <span>Name</span>
+              <input
+                id="alert-edit-name"
+                value={editForm.name}
+                onChange={(event) =>
+                  setEditForm((prev) => (prev ? { ...prev, name: event.target.value } : prev))
+                }
+                disabled={savingEdit}
+              />
+            </label>
+
+            <label className="phase2-form__field" htmlFor="alert-edit-metric">
+              <span>Metric</span>
+              <input
+                id="alert-edit-metric"
+                value={editForm.metric}
+                onChange={(event) =>
+                  setEditForm((prev) => (prev ? { ...prev, metric: event.target.value } : prev))
+                }
+                disabled={savingEdit}
+              />
+            </label>
+
+            <label className="phase2-form__field" htmlFor="alert-edit-operator">
+              <span>Operator</span>
+              <select
+                id="alert-edit-operator"
+                value={editForm.comparison_operator}
+                onChange={(event) =>
+                  setEditForm((prev) =>
+                    prev ? { ...prev, comparison_operator: event.target.value } : prev,
+                  )
+                }
+                disabled={savingEdit}
+              >
+                <option value="gt">Greater than</option>
+                <option value="gte">Greater than or equal</option>
+                <option value="lt">Less than</option>
+                <option value="lte">Less than or equal</option>
+                <option value="eq">Equal to</option>
+              </select>
+            </label>
+
+            <label className="phase2-form__field" htmlFor="alert-edit-threshold">
+              <span>Threshold</span>
+              <input
+                id="alert-edit-threshold"
+                type="number"
+                step="any"
+                value={editForm.threshold}
+                onChange={(event) =>
+                  setEditForm((prev) => (prev ? { ...prev, threshold: event.target.value } : prev))
+                }
+                disabled={savingEdit}
+              />
+            </label>
+
+            <label className="phase2-form__field" htmlFor="alert-edit-lookback">
+              <span>Lookback (hours)</span>
+              <input
+                id="alert-edit-lookback"
+                type="number"
+                min="1"
+                value={editForm.lookback_hours}
+                onChange={(event) =>
+                  setEditForm((prev) =>
+                    prev ? { ...prev, lookback_hours: event.target.value } : prev,
+                  )
+                }
+                disabled={savingEdit}
+              />
+            </label>
+
+            <label className="phase2-form__field" htmlFor="alert-edit-severity">
+              <span>Severity</span>
+              <select
+                id="alert-edit-severity"
+                value={editForm.severity}
+                onChange={(event) =>
+                  setEditForm((prev) => (prev ? { ...prev, severity: event.target.value } : prev))
+                }
+                disabled={savingEdit}
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </label>
+
+            <div className="phase2-row-actions">
+              <button
+                type="button"
+                className="button tertiary"
+                onClick={cancelEdit}
+                disabled={savingEdit}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="button primary" disabled={savingEdit}>
+                {savingEdit ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <p>
+              Metric: <strong>{alert.metric}</strong>
+            </p>
+            <p>
+              Condition: <strong>{alert.comparison_operator}</strong>{' '}
+              <strong>{alert.threshold}</strong>
+            </p>
+            <p>
+              Lookback: <strong>{alert.lookback_hours} hours</strong>
+            </p>
+            <p>
+              Severity:{' '}
+              <span className={`phase2-pill phase2-pill--${alert.severity}`}>{alert.severity}</span>
+            </p>
+            <p>
+              Status:{' '}
+              <span className={`phase2-pill phase2-pill--${alert.is_active ? 'fresh' : 'stale'}`}>
+                {alert.is_active ? 'Active' : 'Paused'}
+              </span>
+              {alert.is_active ? (
+                <select
+                  aria-label="Pause duration"
+                  value={pauseDuration}
+                  onChange={(event) => setPauseDuration(event.target.value as PauseDurationKey)}
+                  disabled={toggling}
+                  style={{ marginLeft: '0.5rem' }}
+                >
+                  {PAUSE_DURATION_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              <button
+                type="button"
+                className="button tertiary"
+                style={{ marginLeft: '0.5rem' }}
+                disabled={toggling}
+                onClick={() => void handleToggle()}
+              >
+                {alert.is_active ? 'Pause' : 'Resume'}
+              </button>
+            </p>
+            {alert.paused_until ? (
+              <p className="phase2-note">
+                Auto-resumes {formatRelativeTime(alert.paused_until)} (
+                {formatAbsoluteTime(alert.paused_until)})
+              </p>
+            ) : null}
+            <p>
+              Updated {formatRelativeTime(alert.updated_at)} ({formatAbsoluteTime(alert.updated_at)}
+              )
+            </p>
+          </>
+        )}
       </article>
 
       <article className="phase2-card">
         <h3>Notification Channels</h3>
         {channels.length === 0 ? (
-          <p>No notification channels configured. <Link to="/settings/notifications">Create one</Link>.</p>
+          <p>
+            No notification channels configured.{' '}
+            <Link to="/settings/notifications">Create one</Link>.
+          </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {channels.map((ch) => (

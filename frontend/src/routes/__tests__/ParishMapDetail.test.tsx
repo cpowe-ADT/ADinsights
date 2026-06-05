@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
@@ -78,12 +78,15 @@ const parishRows = [
   },
 ];
 
+const setSelectedMetricSpy = vi.fn();
+
 const mockState = {
   filters: {
     dateRange: '7d' as const,
     customRange: { start: '2024-10-01', end: '2024-10-07' },
     accountId: '',
     channels: [],
+    platforms: ['meta_ads'],
     campaignQuery: '',
   },
   selectedParish: undefined,
@@ -111,7 +114,7 @@ const mockState = {
   getBudgetRowsForSelectedParish: () => [],
   reset: () => {},
   setSelectedParish: vi.fn(),
-  setSelectedMetric: () => {},
+  setSelectedMetric: setSelectedMetricSpy,
   setActiveTenant: () => {},
   getSavedTableView: () => undefined,
   setSavedTableView: () => {},
@@ -154,7 +157,9 @@ describe('ParishMapDetail', () => {
     );
 
     expect(screen.getByRole('button', { name: /back to dashboard/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: /regional performance/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: /regional performance/i }),
+    ).toBeInTheDocument();
   });
 
   it('renders the map mock', () => {
@@ -208,5 +213,21 @@ describe('ParishMapDetail', () => {
     );
 
     expect(screen.getByRole('heading', { name: /region breakdown/i })).toBeInTheDocument();
+  });
+
+  it('renders the KPI picker select and dispatches setSelectedMetric on change', () => {
+    setSelectedMetricSpy.mockClear();
+    render(
+      <MemoryRouter future={routerFuture}>
+        <ParishMapDetail />
+      </MemoryRouter>,
+    );
+
+    const picker = screen.getByLabelText('Choropleth metric');
+    expect(picker).toBeInTheDocument();
+    expect(picker).toHaveValue('spend');
+
+    fireEvent.change(picker, { target: { value: 'clicks' } });
+    expect(setSelectedMetricSpy).toHaveBeenCalledWith('clicks');
   });
 });

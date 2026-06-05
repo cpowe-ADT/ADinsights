@@ -1,10 +1,15 @@
-import type { GoogleAdsSavedView, GoogleAdsWorkspaceSummaryResponse } from '../../../lib/googleAdsDashboard';
+import type {
+  GoogleAdsSavedView,
+  GoogleAdsWorkspaceSummaryResponse,
+} from '../../../lib/googleAdsDashboard';
 
 export type WorkspaceFilters = {
   startDate: string;
   endDate: string;
   compare: 'none' | 'dod' | 'wow' | 'mom' | 'yoy';
   customerId: string;
+  /** client_id for backend resolution (set from global FilterBar clientId). */
+  clientId?: string;
   campaignId: string;
 };
 
