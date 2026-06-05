@@ -129,6 +129,7 @@ If context is unclear, follow this order:
 Run the canonical checks for the folder you touch:
 
 - **Backend:** `make backend-lint && make backend-test`
+- **Backend release preflight:** `backend/.venv/bin/python backend/manage.py backend_release_preflight`
 - **Frontend:** `make frontend-guardrails && make frontend-lint && make frontend-test && make frontend-build`
 - **dbt:** `make dbt-deps && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select staging && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' snapshot && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select marts`
 - **dbt validation / contract-sensitive marts:** `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select all_ad_performance dim_campaign fact_performance && ./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' test --select all_ad_performance dim_campaign fact_performance vw_campaign_daily`
