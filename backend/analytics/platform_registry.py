@@ -44,10 +44,13 @@ PLATFORM_TIKTOK = ClientPlatformAccount.PLATFORM_TIKTOK
 
 
 # Platforms that currently contribute spend/clicks/impressions to the
-# combined payload. GA4 / Search Console / LinkedIn / TikTok are reserved
-# for Phase 2 pilot contracts and not wired into combined metrics yet.
+# combined payload. TikTok is wired through the dbt performance lineage
+# (stg_tiktok_ads_performance -> fact_performance) behind the enable_tiktok
+# warehouse flag; it returns zeros until that data is present and a tenant has
+# configured TikTok accounts. GA4 / Search Console / LinkedIn remain reserved
+# for Phase 2 pilot contracts.
 COMBINED_SUPPORTED: frozenset[str] = frozenset(
-    {PLATFORM_META_ADS, PLATFORM_GOOGLE_ADS}
+    {PLATFORM_META_ADS, PLATFORM_GOOGLE_ADS, PLATFORM_TIKTOK}
 )
 
 
