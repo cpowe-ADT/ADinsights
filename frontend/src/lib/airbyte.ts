@@ -413,7 +413,12 @@ export interface SocialReportingReadiness {
   auth_status: SocialConnectionStatus;
   direct_sync_status: string;
   warehouse_status: string;
-  dataset_live_reason: 'adapter_disabled' | 'missing_snapshot' | 'stale_snapshot' | 'default_snapshot' | 'ready';
+  dataset_live_reason:
+    | 'adapter_disabled'
+    | 'missing_snapshot'
+    | 'stale_snapshot'
+    | 'default_snapshot'
+    | 'ready';
   warehouse_adapter_enabled: boolean;
   snapshot_generated_at?: string | null;
 }
@@ -539,9 +544,7 @@ export async function syncMetaIntegration(): Promise<{
     reused_existing_job?: boolean;
     sync_status?: 'queued' | 'already_running';
     task_dispatch_mode?: 'queued' | 'inline';
-  }>(
-    '/integrations/meta/sync/',
-  );
+  }>('/integrations/meta/sync/');
 }
 
 export async function logoutMetaOAuth(): Promise<{
@@ -574,7 +577,10 @@ export async function loadMetaSetupStatus(
   if (runtimeContext?.client_origin?.trim()) {
     params.set('client_origin', runtimeContext.client_origin.trim());
   }
-  if (typeof runtimeContext?.client_port === 'number' && Number.isFinite(runtimeContext.client_port)) {
+  if (
+    typeof runtimeContext?.client_port === 'number' &&
+    Number.isFinite(runtimeContext.client_port)
+  ) {
     params.set('client_port', String(runtimeContext.client_port));
   }
   const suffix = params.toString();
@@ -592,7 +598,10 @@ export async function loadGoogleAnalyticsSetupStatus(
   if (runtimeContext?.client_origin?.trim()) {
     params.set('client_origin', runtimeContext.client_origin.trim());
   }
-  if (typeof runtimeContext?.client_port === 'number' && Number.isFinite(runtimeContext.client_port)) {
+  if (
+    typeof runtimeContext?.client_port === 'number' &&
+    Number.isFinite(runtimeContext.client_port)
+  ) {
     params.set('client_port', String(runtimeContext.client_port));
   }
   const suffix = params.toString();
@@ -612,11 +621,16 @@ export async function loadGoogleAdsSetupStatus(
   if (runtimeContext?.client_origin?.trim()) {
     params.set('client_origin', runtimeContext.client_origin.trim());
   }
-  if (typeof runtimeContext?.client_port === 'number' && Number.isFinite(runtimeContext.client_port)) {
+  if (
+    typeof runtimeContext?.client_port === 'number' &&
+    Number.isFinite(runtimeContext.client_port)
+  ) {
     params.set('client_port', String(runtimeContext.client_port));
   }
   const suffix = params.toString();
-  const path = suffix ? `/integrations/google_ads/setup/?${suffix}` : '/integrations/google_ads/setup/';
+  const path = suffix
+    ? `/integrations/google_ads/setup/?${suffix}`
+    : '/integrations/google_ads/setup/';
   return apiClient.get<GoogleAdsSetupStatusResponse>(path);
 }
 
@@ -643,7 +657,10 @@ export async function exchangeGoogleAnalyticsOAuthCode(payload: {
 export async function startGoogleAdsOAuth(
   payload?: GoogleAdsOAuthStartPayload,
 ): Promise<GoogleAdsOAuthStartResponse> {
-  return apiClient.post<GoogleAdsOAuthStartResponse>('/integrations/google_ads/oauth/start/', payload ?? {});
+  return apiClient.post<GoogleAdsOAuthStartResponse>(
+    '/integrations/google_ads/oauth/start/',
+    payload ?? {},
+  );
 }
 
 export async function exchangeGoogleAdsOAuthCode(payload: {
@@ -818,15 +835,20 @@ export async function provisionIntegration(
   provider: IntegrationProviderSlug,
   payload: IntegrationProvisionPayload,
 ): Promise<IntegrationProvisionResponse> {
-  return apiClient.post<IntegrationProvisionResponse>(`/integrations/${provider}/provision/`, payload);
+  return apiClient.post<IntegrationProvisionResponse>(
+    `/integrations/${provider}/provision/`,
+    payload,
+  );
 }
 
 export async function syncIntegration(
   provider: IntegrationProviderSlug,
 ): Promise<{ provider: IntegrationProviderSlug; connection_id: string; job_id?: string | null }> {
-  return apiClient.post<{ provider: IntegrationProviderSlug; connection_id: string; job_id?: string | null }>(
-    `/integrations/${provider}/sync/`,
-  );
+  return apiClient.post<{
+    provider: IntegrationProviderSlug;
+    connection_id: string;
+    job_id?: string | null;
+  }>(`/integrations/${provider}/sync/`);
 }
 
 export async function loadIntegrationStatus(

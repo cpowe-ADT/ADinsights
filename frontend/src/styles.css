@@ -880,7 +880,7 @@ label,
   background: var(--nav-active-bg);
 }
 
-.dashboard-nav__trigger[aria-expanded="true"] {
+.dashboard-nav__trigger[aria-expanded='true'] {
   background: rgba(37, 99, 235, 0.12);
   color: var(--nav-active-text);
 }
@@ -897,7 +897,7 @@ label,
   transition: transform var(--motion-duration-short) var(--motion-ease-out);
 }
 
-.dashboard-nav__trigger[aria-expanded="true"] .dashboard-nav__chevron {
+.dashboard-nav__trigger[aria-expanded='true'] .dashboard-nav__chevron {
   transform: rotate(180deg);
 }
 
@@ -918,8 +918,14 @@ label,
 }
 
 @keyframes nav-dropdown-enter {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .dashboard-nav__dropdown a {

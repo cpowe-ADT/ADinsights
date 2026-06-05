@@ -91,9 +91,7 @@ describe('ConnectorLifecycleControls', () => {
 
     await user.click(await screen.findByRole('button', { name: /reconnect/i }));
 
-    await waitFor(() =>
-      expect(reconnectIntegration).toHaveBeenCalledWith('google_ads'),
-    );
+    await waitFor(() => expect(reconnectIntegration).toHaveBeenCalledWith('google_ads'));
     expect(assign).toHaveBeenCalledWith('https://auth.example.com/go');
   });
 });
