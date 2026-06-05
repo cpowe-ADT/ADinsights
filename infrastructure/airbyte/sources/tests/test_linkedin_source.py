@@ -1,21 +1,21 @@
 from __future__ import annotations
 
-import json
+import logging
+from dataclasses import dataclass
 from typing import Dict
-
-from airbyte_cdk.logger import AirbyteLogger
-from airbyte_cdk.models import ConfiguredAirbyteCatalog, ConfiguredAirbyteStream, DestinationSyncMode, SyncMode
-from airbyte_cdk.test.entrypoint_wrapper import read
-from airbyte_cdk.test.mock_http import HttpMocker, HttpRequest, HttpResponse
 
 from infrastructure.airbyte.sources.linkedin_ads import SourceLinkedinAds
 
 
-def _config() -> Dict[str, str]:
+LOGGER = logging.getLogger("test.linkedin_ads_source")
+
+
+def _config() -> Dict[str, object]:
     return {
         "account_id": "12345",
         "access_token": "test-token",
         "start_date": "2024-07-01",
+        "end_date": "2024-07-01",
         "lookback_window_days": 0,
         "slice_span_days": 1,
         "page_size": 500,
@@ -23,24 +23,17 @@ def _config() -> Dict[str, str]:
     }
 
 
-def _configured_catalog(source: SourceLinkedinAds, config: Dict[str, str]) -> ConfiguredAirbyteCatalog:
-    catalog = source.discover(AirbyteLogger(), config)
-    configured_streams = [
-        ConfiguredAirbyteStream(
-            stream=stream,
-            sync_mode=SyncMode.incremental,
-            destination_sync_mode=DestinationSyncMode.append_dedup,
-            cursor_field=stream.default_cursor_field or ["date"],
-            primary_key=stream.source_defined_primary_key or [["ad_id"], ["date"]],
-        )
-        for stream in catalog.streams
-    ]
-    return ConfiguredAirbyteCatalog(streams=configured_streams)
+@dataclass
+class _JsonResponse:
+    payload: Dict[str, object]
+
+    def json(self) -> Dict[str, object]:
+        return self.payload
 
 
 def test_discover_publishes_expected_schema() -> None:
     source = SourceLinkedinAds()
-    catalog = source.discover(AirbyteLogger(), _config())
+    catalog = source.discover(LOGGER, _config())
     assert len(catalog.streams) == 1
     stream = catalog.streams[0]
     schema_props = stream.json_schema["properties"]
@@ -65,11 +58,14 @@ def test_discover_publishes_expected_schema() -> None:
     assert stream.source_defined_primary_key == [["ad_id"], ["date"]]
 
 
-def test_incremental_read_emits_state_and_records() -> None:
+def test_request_body_targets_slice_window() -> None:
     source = SourceLinkedinAds()
-    config = _config()
-    catalog = _configured_catalog(source, config)
-    expected_body = {
+    stream = source.streams(_config())[0]
+    body = stream.request_body_json(
+        stream_state=None,
+        stream_slice={"start_date": "2024-07-01", "end_date": "2024-07-01"},
+    )
+    assert body == {
         "q": "analytics",
         "timeGranularity": "DAILY",
         "accounts": ["urn:li:sponsoredAccount:12345"],
@@ -87,6 +83,11 @@ def test_incremental_read_emits_state_and_records() -> None:
         "timeGranularityTimezone": "America/Jamaica",
         "count": 500,
     }
+
+
+def test_parse_response_normalizes_urns_and_state() -> None:
+    source = SourceLinkedinAds()
+    stream = source.streams(_config())[0]
     api_response = {
         "elements": [
             {
@@ -112,25 +113,13 @@ def test_incremental_read_emits_state_and_records() -> None:
         "paging": {"start": 0, "count": 500, "total": 1},
     }
 
-    with HttpMocker() as http_mocker:
-        http_mocker.get(
-            HttpRequest(
-                "https://api.linkedin.com/v2/adAnalyticsV2",
-                headers={"Authorization": "Bearer test-token"},
-            ),
-            HttpResponse(body=json.dumps(api_response)),
+    records = list(
+        stream.parse_response(
+            _JsonResponse(api_response),
+            stream_state={},
+            stream_slice={"start_date": "2024-07-01", "end_date": "2024-07-01"},
         )
-        http_mocker.post(
-            HttpRequest(
-                "https://api.linkedin.com/v2/adAnalyticsV2",
-                    headers={"Authorization": "Bearer test-token"},
-                    body=expected_body,
-                ),
-                HttpResponse(body=json.dumps(api_response)),
-            )
-        output = read(source, config, catalog)
-
-    records = [message.record.data for message in output.records]
+    )
     assert records == [
         {
             "platform": "linkedin",
@@ -149,6 +138,15 @@ def test_incremental_read_emits_state_and_records() -> None:
             "currency": "USD",
         }
     ]
-    latest_state = output.state_messages[-1].state.stream.stream_state  # type: ignore[attr-defined]
+
+    latest_state = stream.get_updated_state({}, records[0])
     assert latest_state == {"date": "2024-07-01"}
 
+
+def test_next_page_token_stops_at_total() -> None:
+    source = SourceLinkedinAds()
+    stream = source.streams(_config())[0]
+    more = _JsonResponse({"paging": {"start": 0, "count": 500, "total": 1200}})
+    done = _JsonResponse({"paging": {"start": 1000, "count": 500, "total": 1200}})
+    assert stream.next_page_token(more) == {"start": 500, "count": 500}
+    assert stream.next_page_token(done) is None
