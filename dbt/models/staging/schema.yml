@@ -58,6 +58,13 @@ sources:
           warn_after: { count: 7, period: day }
           error_after: { count: 14, period: day }
         enabled: "{{ var('enable_tiktok', False) }}"
+      - name: tiktok_ads_performance
+        description: 'TikTok Ads daily performance (canonical connector output; feeds combined reporting).'
+        loaded_at_field: _airbyte_emitted_at
+        freshness:
+          warn_after: { count: 2, period: day }
+          error_after: { count: 5, period: day }
+        enabled: "{{ var('enable_tiktok', False) }}"
       - name: ga4_reports
         description: 'GA4 daily reporting extract (Phase 2 pilot source).'
         loaded_at_field: _airbyte_emitted_at
@@ -137,6 +144,42 @@ models:
               config:
                 enabled: "{{ var('enable_tiktok', False) }}"
       - name: ad_account_id
+        tests:
+          - not_null:
+              config:
+                enabled: "{{ var('enable_tiktok', False) }}"
+  - name: stg_tiktok_ads_performance
+    description: 'TikTok Ads daily performance normalized to the shared fact grain (feeds combined reporting).'
+    tests:
+      - unique_combination_of_columns:
+          config:
+            enabled: "{{ var('enable_tiktok', False) }}"
+          arguments:
+            combination:
+              - tenant_id
+              - ad_account_id
+              - campaign_id
+              - adset_id
+              - ad_id
+              - date_day
+    columns:
+      - name: tenant_id
+        description: 'Tenant identifier for row-level isolation.'
+        tests:
+          - not_null:
+              config:
+                enabled: "{{ var('enable_tiktok', False) }}"
+      - name: ad_account_id
+        tests:
+          - not_null:
+              config:
+                enabled: "{{ var('enable_tiktok', False) }}"
+      - name: ad_id
+        tests:
+          - not_null:
+              config:
+                enabled: "{{ var('enable_tiktok', False) }}"
+      - name: date_day
         tests:
           - not_null:
               config:
