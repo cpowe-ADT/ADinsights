@@ -8,6 +8,9 @@ on:
       - 'backend/**'
       - '.github/workflows/backend.yml'
 
+permissions:
+  contents: read
+
 jobs:
   lint-and-test:
     name: Lint and test backend
@@ -22,7 +25,7 @@ jobs:
       AWS_REGION: us-east-1
       AIRBYTE_API_URL: http://localhost:8001
       AIRBYTE_API_TOKEN: ci-placeholder
-      RUN_BACKEND_INTEGRATION_TESTS: "0"
+      RUN_BACKEND_INTEGRATION_TESTS: '0'
     steps:
       - uses: actions/checkout@v4
 

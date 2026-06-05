@@ -9,6 +9,9 @@ on:
       - 'scripts/ci/**'
       - '.github/workflows/frontend.yml'
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Test and build frontend
