@@ -14,6 +14,12 @@ Keep this brief and link to PRs or commits when available.
 ## Entries
 
 - **2026-06-05**
+  - Endpoints: error paths of `/api/clients/` (create + attach-account), `/api/analytics/web/*`, the AI summary refresh endpoint, and the GA4 OAuth callback (`/api/integrations/google_analytics/oauth/*`).
+  - Change: on broad/unexpected failures these endpoints no longer return raw exception text. The `clients` 409 drops its `error` key (DB constraint text); web analytics returns `"detail": "Query failed."`; summary refresh returns `"Failed to refresh summary."`; GA4 token-exchange/userinfo/property-discovery return generic details (`"Token exchange failed."`, etc.). Full exceptions are logged server-side. Controlled config/validation messages (e.g. `"... must be configured"`) are unchanged.
+  - Impact: clients relying on the raw exception string in these error bodies will now see a generic message; status codes unchanged; the `clients` 409 `error` field is removed.
+  - Owner: Backend Integrations (CodeQL stack-trace-exposure remediation)
+
+- **2026-06-05**
   - Endpoints: integration endpoints that surface Airbyte errors (e.g. `POST /api/integrations/{provider}/provision/`, `.../sync/`, and Google Ads provision/sync paths) via `_airbyte_exception_response`.
   - Change: the `detail` returned on Airbyte upstream errors is now length-bounded to 1000 chars (`client_safe_detail`); the full, untruncated error is logged server-side. Short, actionable config/validation messages are unchanged.
   - Impact: clients no longer receive arbitrarily large raw upstream Airbyte response bodies; oversized details are truncated with a `… (truncated)` suffix. No change to status codes or to short error messages.
