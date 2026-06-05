@@ -43,7 +43,9 @@ import {
   type PlatformCredentialRecord,
   type SocialConnectionStatus,
   type SocialPlatformStatusRecord,
+  type IntegrationProviderSlug,
 } from '../lib/airbyte';
+import { ConnectorLifecycleControls } from '../components/ConnectorLifecycleControls';
 import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
 import {
   callbackMetaOAuth,
@@ -149,6 +151,14 @@ const CONNECT_PROVIDER_LABELS: Record<ConnectProvider, string> = {
   META: 'Meta (Facebook & Instagram)',
   GOOGLE: 'Google Ads',
   GA4: 'Google Analytics 4',
+};
+
+// Maps the connect-panel provider keys to the generic lifecycle API slugs
+// served by `api/integrations/<provider>/*`.
+const CONNECT_PROVIDER_SLUGS: Record<ConnectProvider, IntegrationProviderSlug> = {
+  META: 'meta_ads',
+  GOOGLE: 'google_ads',
+  GA4: 'ga4',
 };
 
 const CONNECT_PROVIDER_ACCOUNT_LABELS: Record<'GOOGLE', string> = {
@@ -2300,6 +2310,12 @@ const DataSources = () => {
                 Cancel
               </button>
             </header>
+
+            <ConnectorLifecycleControls
+              provider={CONNECT_PROVIDER_SLUGS[connectProvider]}
+              label={CONNECT_PROVIDER_LABELS[connectProvider]}
+              onChanged={() => void loadData()}
+            />
 
             {connectProvider === 'META' && metaReportingStatusNote ? (
               <p

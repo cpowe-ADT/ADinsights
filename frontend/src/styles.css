@@ -1298,6 +1298,51 @@ label,
   flex-wrap: wrap;
 }
 
+.connector-lifecycle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 var(--space-3);
+}
+
+.connector-lifecycle__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.connector-lifecycle__jobs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.connector-lifecycle__job-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.connector-lifecycle__job {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.connector-lifecycle__job-status {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.connector-lifecycle__job-meta {
+  color: var(--color-text-muted, #64748b);
+}
+
 .data-sources-connect-form__grid {
   display: grid;
   gap: var(--space-4);
