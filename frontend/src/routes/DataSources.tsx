@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import EmptyState from '../components/EmptyState';
@@ -55,8 +55,7 @@ type LoadStatus = 'loading' | 'loaded' | 'error';
 type ConnectionState = 'healthy' | 'stale' | 'paused' | 'needs-attention' | 'syncing';
 type ConnectProvider = 'facebook_pages' | 'google_ads' | 'ga4' | 'search_console';
 
-const OAUTH_PROVIDER_KEY = 'adinsights.integration.oauth.provider';
-const FLOW_EXTERNAL_ID_KEY = 'adinsights.integration.flow.external_id';
+const FLOW_KIND_KEY = 'adinsights.integration.flow.kind';
 
 const CONNECT_PROVIDERS: ConnectProvider[] = [
   'facebook_pages',
@@ -81,6 +80,8 @@ interface MetaOAuthSelectionState {
   selectionToken: string | null;
   pages: MetaOAuthPage[];
   selectedPageId: string;
+  missingRequiredPermissions: string[];
+  connectedButMissingPermissions: boolean;
 }
 
 const CONNECT_PROVIDER_LABELS: Record<ConnectProvider, string> = {
@@ -271,6 +272,8 @@ const DataSources = () => {
     selectionToken: null,
     pages: [],
     selectedPageId: '',
+    missingRequiredPermissions: [],
+    connectedButMissingPermissions: false,
   });
 
   const loadData = useCallback(async () => {
@@ -321,6 +324,8 @@ const DataSources = () => {
       selectionToken: null,
       pages: [],
       selectedPageId: '',
+      missingRequiredPermissions: [],
+      connectedButMissingPermissions: false,
     });
     setOAuthStartingProvider(null);
     setMetaOAuthExchanging(false);
@@ -343,19 +348,17 @@ const DataSources = () => {
     void loadData();
   }, [loadData]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const params = new URLSearchParams(location.search);
     const oauthError = params.get('error') || params.get('error_reason');
     const oauthErrorDescription = params.get('error_description');
     const code = params.get('code');
     const state = params.get('state');
-    const oauthProviderRaw =
-      typeof window !== 'undefined' ? window.sessionStorage.getItem(OAUTH_PROVIDER_KEY) : null;
-    const oauthProvider = CONNECT_PROVIDERS.includes(oauthProviderRaw as ConnectProvider)
-      ? (oauthProviderRaw as ConnectProvider)
+    const flowKindRaw =
+      typeof window !== 'undefined' ? window.sessionStorage.getItem(FLOW_KIND_KEY) : null;
+    const flowKind = CONNECT_PROVIDERS.includes(flowKindRaw as ConnectProvider)
+      ? (flowKindRaw as ConnectProvider)
       : null;
-    const oauthAccountId =
-      typeof window !== 'undefined' ? window.sessionStorage.getItem(FLOW_EXTERNAL_ID_KEY) ?? '' : '';
 
     if (!oauthError && (!code || !state)) {
       return;
@@ -369,8 +372,7 @@ const DataSources = () => {
         { tone: 'error' },
       );
       if (typeof window !== 'undefined') {
-        window.sessionStorage.removeItem(OAUTH_PROVIDER_KEY);
-        window.sessionStorage.removeItem(FLOW_EXTERNAL_ID_KEY);
+        window.sessionStorage.removeItem(FLOW_KIND_KEY);
       }
       navigate(location.pathname, { replace: true });
       return;
@@ -379,18 +381,27 @@ const DataSources = () => {
     const oauthCode = code ?? '';
     const oauthState = state ?? '';
 
-    if (!oauthProvider || oauthProvider === 'facebook_pages') {
+    if (!flowKind || flowKind === 'facebook_pages') {
       setConnectProvider('facebook_pages');
       setConnectForm(buildInitialConnectForm('facebook_pages'));
       setMetaOAuthExchanging(true);
       void exchangeMetaOAuthCode({ code: oauthCode, state: oauthState })
         .then((response) => {
           const firstPageId = response.pages[0]?.id ?? '';
+          const missingRequiredPermissions = response.missing_required_permissions ?? [];
           setMetaOAuthSelection({
             selectionToken: response.selection_token,
             pages: response.pages,
             selectedPageId: firstPageId,
+            missingRequiredPermissions,
+            connectedButMissingPermissions: response.oauth_connected_but_missing_permissions ?? false,
           });
+          if (response.oauth_connected_but_missing_permissions || missingRequiredPermissions.length) {
+            pushToast('Meta OAuth completed, but Meta permissions need review.', {
+              tone: 'error',
+            });
+            return;
+          }
           if (!response.pages.length) {
             pushToast('Meta OAuth completed, but no Facebook pages were returned.', {
               tone: 'error',
@@ -411,37 +422,25 @@ const DataSources = () => {
         .finally(() => {
           setMetaOAuthExchanging(false);
           if (typeof window !== 'undefined') {
-            window.sessionStorage.removeItem(OAUTH_PROVIDER_KEY);
-            window.sessionStorage.removeItem(FLOW_EXTERNAL_ID_KEY);
+            window.sessionStorage.removeItem(FLOW_KIND_KEY);
           }
           navigate(location.pathname, { replace: true });
         });
       return;
     }
 
-    setConnectProvider(oauthProvider);
+    setConnectProvider(flowKind);
     setConnectForm((previous) => ({
-      ...buildInitialConnectForm(oauthProvider),
-      accountId: oauthAccountId,
+      ...buildInitialConnectForm(flowKind),
+      accountId: previous.accountId,
     }));
     setMetaOAuthExchanging(true);
-    void callbackIntegrationOAuth(oauthProvider, {
+    void callbackIntegrationOAuth(flowKind, {
       code: oauthCode,
       state: oauthState,
-      external_account_id: oauthAccountId || undefined,
     })
       .then(async () => {
-        pushToast(`${CONNECT_PROVIDER_LABELS[oauthProvider]} OAuth connected.`, { tone: 'success' });
-        if (oauthAccountId) {
-          await provisionIntegration(oauthProvider, {
-            external_account_id: oauthAccountId,
-            connection_name: buildInitialConnectForm(oauthProvider).connectionName,
-            schedule_type: 'cron',
-            cron_expression: DEFAULT_CRON_EXPRESSION,
-            is_active: true,
-          });
-          pushToast(`${CONNECT_PROVIDER_LABELS[oauthProvider]} provisioned.`, { tone: 'success' });
-        }
+        pushToast(`${CONNECT_PROVIDER_LABELS[flowKind]} OAuth connected.`, { tone: 'success' });
         void loadData();
       })
       .catch((oauthExchangeError) => {
@@ -454,8 +453,7 @@ const DataSources = () => {
       .finally(() => {
         setMetaOAuthExchanging(false);
         if (typeof window !== 'undefined') {
-          window.sessionStorage.removeItem(OAUTH_PROVIDER_KEY);
-          window.sessionStorage.removeItem(FLOW_EXTERNAL_ID_KEY);
+          window.sessionStorage.removeItem(FLOW_KIND_KEY);
         }
         navigate(location.pathname, { replace: true });
       });
@@ -478,8 +476,7 @@ const DataSources = () => {
         return;
       }
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(OAUTH_PROVIDER_KEY, connectProvider);
-        window.sessionStorage.setItem(FLOW_EXTERNAL_ID_KEY, accountId);
+        window.sessionStorage.setItem(FLOW_KIND_KEY, connectProvider);
       }
       const response =
         connectProvider === 'facebook_pages'
@@ -628,10 +625,8 @@ const DataSources = () => {
       }
       setProviderReconnecting(provider);
       try {
-        const accountId = integrationStatuses[provider]?.credentials[0]?.account_id ?? '';
         if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(OAUTH_PROVIDER_KEY, provider);
-          window.sessionStorage.setItem(FLOW_EXTERNAL_ID_KEY, accountId);
+          window.sessionStorage.setItem(FLOW_KIND_KEY, provider);
         }
         const response = await reconnectIntegration(provider);
         if (typeof window !== 'undefined') {
@@ -644,7 +639,7 @@ const DataSources = () => {
         setProviderReconnecting(null);
       }
     },
-    [integrationStatuses, providerReconnecting, pushToast],
+    [providerReconnecting, pushToast],
   );
 
   const handleConnectFieldChange = useCallback(
@@ -1029,7 +1024,21 @@ const DataSources = () => {
                   ) : null}
                 </div>
 
-                {metaOAuthSelection.selectionToken && metaOAuthSelection.pages.length ? (
+                {metaOAuthSelection.connectedButMissingPermissions ||
+                metaOAuthSelection.missingRequiredPermissions.length ? (
+                  <div className="status-message error" role="alert">
+                    Required permissions are missing. Re-run OAuth and grant the requested Meta
+                    permissions
+                    {metaOAuthSelection.missingRequiredPermissions.length
+                      ? `: ${metaOAuthSelection.missingRequiredPermissions.join(', ')}.`
+                      : '.'}
+                  </div>
+                ) : null}
+
+                {metaOAuthSelection.selectionToken &&
+                metaOAuthSelection.pages.length &&
+                !metaOAuthSelection.connectedButMissingPermissions &&
+                !metaOAuthSelection.missingRequiredPermissions.length ? (
                   <div className="data-sources-oauth-selection">
                     <label className="dashboard-field">
                       <span className="dashboard-field__label">Facebook page</span>
@@ -1056,7 +1065,7 @@ const DataSources = () => {
                       disabled={metaOAuthSavingPage || !metaOAuthSelection.selectedPageId}
                       aria-busy={metaOAuthSavingPage}
                     >
-                      {metaOAuthSavingPage ? 'Saving page…' : 'Save selected page'}
+                      {metaOAuthSavingPage ? 'Saving page…' : 'Save selected business page'}
                     </button>
                   </div>
                 ) : null}

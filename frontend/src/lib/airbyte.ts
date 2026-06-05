@@ -184,6 +184,11 @@ export interface MetaOAuthExchangeResponse {
   selection_token: string;
   expires_in_seconds: number;
   pages: MetaOAuthPage[];
+  granted_permissions?: string[];
+  declined_permissions?: string[];
+  missing_required_permissions?: string[];
+  oauth_connected_but_missing_permissions?: boolean;
+  token_debug_valid?: boolean;
 }
 
 export interface MetaPageConnectResponse {

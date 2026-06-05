@@ -144,8 +144,7 @@ describe('DataSources connector flow', () => {
 
     await waitFor(() => {
       expect(airbyteMocks.startIntegrationOAuth).toHaveBeenCalledWith('google_ads');
-      expect(window.sessionStorage.getItem('adinsights.integration.oauth.provider')).toBe('google_ads');
-      expect(window.sessionStorage.getItem('adinsights.integration.flow.external_id')).toBe('1234567890');
+      expect(window.sessionStorage.getItem('adinsights.integration.flow.kind')).toBe('google_ads');
     });
   });
 
@@ -161,7 +160,7 @@ describe('DataSources connector flow', () => {
       });
     });
 
-    await user.click(screen.getByRole('button', { name: 'Save selected page' }));
+    await user.click(screen.getByRole('button', { name: 'Save selected business page' }));
 
     await waitFor(() => {
       expect(airbyteMocks.connectMetaPage).toHaveBeenCalledWith({
