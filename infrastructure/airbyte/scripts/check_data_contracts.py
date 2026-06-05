@@ -284,6 +284,88 @@ def _check_microsoft_ads_template_contract(errors: list[str]) -> None:
             )
 
 
+_CANONICAL_NORMALIZED_FIELDS = (
+    "platform",
+    "date",
+    "account_id",
+    "campaign_id",
+    "ad_group_id",
+    "ad_id",
+    "region",
+    "device",
+    "spend",
+    "impressions",
+    "clicks",
+    "conversions",
+    "conversion_value",
+    "currency",
+)
+
+
+def _check_custom_connector_contract(
+    errors: list[str],
+    *,
+    slug: str,
+    label: str,
+    stream_name: str,
+    credential_token: str,
+) -> None:
+    """Validate a custom Airbyte connector emits the canonical performance contract.
+
+    Mirrors the Microsoft Ads check for the other custom connectors (TikTok,
+    LinkedIn). The ``*.json.example`` files use a nested example shape, so token
+    presence is asserted against the yaml/spec/source only; the example file is
+    asserted to exist.
+    """
+    base = f"infrastructure/airbyte/sources/{slug}"
+    must_exist = (
+        f"infrastructure/airbyte/{slug}_source.yaml",
+        f"infrastructure/airbyte/sources/{slug}.json.example",
+        f"{base}/spec.json",
+        f"{base}/source.py",
+    )
+    for rel_path in must_exist:
+        if not (ROOT / rel_path).exists():
+            errors.append(f"{rel_path}: missing {label} connector contract file.")
+
+    required_tokens = (
+        credential_token,
+        "access_token",
+        "start_date",
+        "lookback_window_days",
+        "America/Jamaica",
+    )
+    token_files = (
+        f"infrastructure/airbyte/{slug}_source.yaml",
+        f"{base}/spec.json",
+        f"{base}/source.py",
+    )
+    for rel_path in token_files:
+        if not (ROOT / rel_path).exists():
+            continue
+        content = _read_text(rel_path)
+        for token in required_tokens:
+            if token not in content:
+                errors.append(f"{rel_path}: missing {label} token '{token}'.")
+
+    stream_files = (
+        f"infrastructure/airbyte/{slug}_source.yaml",
+        f"{base}/source.py",
+    )
+    for rel_path in stream_files:
+        if not (ROOT / rel_path).exists():
+            continue
+        if stream_name not in _read_text(rel_path):
+            errors.append(f"{rel_path}: missing {label} stream '{stream_name}'.")
+
+    source_path = f"{base}/source.py"
+    if (ROOT / source_path).exists():
+        source_content = _read_text(source_path)
+        for field in _CANONICAL_NORMALIZED_FIELDS:
+            if f'"{field}"' not in source_content:
+                errors.append(f"{source_path}: missing normalized output field '{field}'.")
+
+
 def main() -> int:
     errors: list[str] = []
     _check_google_query_aliases(errors)
@@ -293,6 +375,20 @@ def main() -> int:
     _check_csv_runbook_link(errors)
     _check_meta_template_contract(errors)
     _check_microsoft_ads_template_contract(errors)
+    _check_custom_connector_contract(
+        errors,
+        slug="tiktok_ads",
+        label="TikTok Ads",
+        stream_name="tiktok_ads_performance",
+        credential_token="advertiser_id",
+    )
+    _check_custom_connector_contract(
+        errors,
+        slug="linkedin_ads",
+        label="LinkedIn Ads",
+        stream_name="linkedin_ads_performance",
+        credential_token="account_id",
+    )
 
     if errors:
         print("Data-contract validation failed:")
