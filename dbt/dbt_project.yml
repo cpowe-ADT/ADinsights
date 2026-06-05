@@ -144,6 +144,23 @@ seeds:
           clicks: numeric
           spend: numeric
           _airbyte_emitted_at: timestamp
+      tiktok_ads_performance:
+        +column_types:
+          platform: text
+          date: date
+          account_id: text
+          campaign_id: text
+          ad_group_id: text
+          ad_id: text
+          region: text
+          device: text
+          spend: numeric
+          impressions: numeric
+          clicks: numeric
+          conversions: numeric
+          conversion_value: numeric
+          currency: text
+          _airbyte_emitted_at: timestamp
       meta_ads_insights:
         +column_types:
           ad_account_id: text
@@ -354,6 +371,24 @@ seeds:
         impressions: numeric
         clicks: numeric
         spend: numeric
+        _airbyte_emitted_at: timestamp
+    raw__tiktok_ads_performance:
+      +quote_columns: true
+      +column_types:
+        platform: text
+        date: date
+        account_id: text
+        campaign_id: text
+        ad_group_id: text
+        ad_id: text
+        region: text
+        device: text
+        spend: numeric
+        impressions: numeric
+        clicks: numeric
+        conversions: numeric
+        conversion_value: numeric
+        currency: text
         _airbyte_emitted_at: timestamp
     raw__tiktok_transparency:
       +quote_columns: true
