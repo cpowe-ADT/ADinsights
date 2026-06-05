@@ -191,6 +191,50 @@ export interface MetaPageConnectResponse {
   page: MetaOAuthPage;
 }
 
+export type SocialConnectionPlatform = 'meta' | 'instagram';
+export type SocialConnectionStatus =
+  | 'not_connected'
+  | 'started_not_complete'
+  | 'complete'
+  | 'active';
+
+export interface SocialReportingReadiness {
+  stage: string;
+  message: string;
+  auth_status: SocialConnectionStatus;
+  direct_sync_status: string;
+  warehouse_status: string;
+  dataset_live_reason:
+    | 'adapter_disabled'
+    | 'missing_snapshot'
+    | 'stale_snapshot'
+    | 'default_snapshot'
+    | 'ready';
+  warehouse_adapter_enabled: boolean;
+  snapshot_generated_at?: string | null;
+}
+
+export interface SocialPlatformStatusRecord {
+  platform: SocialConnectionPlatform;
+  display_name: string;
+  status: SocialConnectionStatus;
+  reason: {
+    code: string;
+    message: string;
+    [key: string]: unknown;
+  };
+  last_checked_at?: string | null;
+  last_synced_at?: string | null;
+  actions: string[];
+  reporting_readiness?: SocialReportingReadiness;
+  metadata: Record<string, unknown>;
+}
+
+export interface SocialConnectionStatusResponse {
+  generated_at: string;
+  platforms: SocialPlatformStatusRecord[];
+}
+
 const CONNECTIONS_ENDPOINT = '/airbyte/connections/';
 const SUMMARY_ENDPOINT = '/airbyte/connections/summary/';
 const CONNECTIONS_FIXTURE = '/mock/airbyte_connections.json';
@@ -284,6 +328,24 @@ export async function syncIntegration(
   );
 }
 
+export async function syncMetaIntegration(): Promise<{
+  provider: 'meta_ads';
+  connection_id: string;
+  job_id?: string | null;
+  reused_existing_job?: boolean;
+  sync_status?: 'queued' | 'already_running';
+  task_dispatch_mode?: 'queued' | 'inline';
+}> {
+  return apiClient.post<{
+    provider: 'meta_ads';
+    connection_id: string;
+    job_id?: string | null;
+    reused_existing_job?: boolean;
+    sync_status?: 'queued' | 'already_running';
+    task_dispatch_mode?: 'queued' | 'inline';
+  }>('/integrations/meta/sync/');
+}
+
 export async function loadIntegrationStatus(
   provider: IntegrationProviderSlug,
   signal?: AbortSignal,
@@ -315,4 +377,10 @@ export async function reconnectIntegration(
   provider: IntegrationProviderSlug,
 ): Promise<IntegrationOAuthStartResponse> {
   return apiClient.post<IntegrationOAuthStartResponse>(`/integrations/${provider}/reconnect/`);
+}
+
+export async function loadSocialConnectionStatus(
+  signal?: AbortSignal,
+): Promise<SocialConnectionStatusResponse> {
+  return apiClient.get<SocialConnectionStatusResponse>('/integrations/social/status/', { signal });
 }

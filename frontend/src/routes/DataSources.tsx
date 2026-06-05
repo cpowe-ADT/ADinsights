@@ -56,7 +56,7 @@ type ConnectionState = 'healthy' | 'stale' | 'paused' | 'needs-attention' | 'syn
 type ConnectProvider = 'facebook_pages' | 'google_ads' | 'ga4' | 'search_console';
 
 const OAUTH_PROVIDER_KEY = 'adinsights.integration.oauth.provider';
-const OAUTH_ACCOUNT_KEY = 'adinsights.integration.oauth.account';
+const FLOW_EXTERNAL_ID_KEY = 'adinsights.integration.flow.external_id';
 
 const CONNECT_PROVIDERS: ConnectProvider[] = [
   'facebook_pages',
@@ -355,7 +355,7 @@ const DataSources = () => {
       ? (oauthProviderRaw as ConnectProvider)
       : null;
     const oauthAccountId =
-      typeof window !== 'undefined' ? window.sessionStorage.getItem(OAUTH_ACCOUNT_KEY) ?? '' : '';
+      typeof window !== 'undefined' ? window.sessionStorage.getItem(FLOW_EXTERNAL_ID_KEY) ?? '' : '';
 
     if (!oauthError && (!code || !state)) {
       return;
@@ -370,7 +370,7 @@ const DataSources = () => {
       );
       if (typeof window !== 'undefined') {
         window.sessionStorage.removeItem(OAUTH_PROVIDER_KEY);
-        window.sessionStorage.removeItem(OAUTH_ACCOUNT_KEY);
+        window.sessionStorage.removeItem(FLOW_EXTERNAL_ID_KEY);
       }
       navigate(location.pathname, { replace: true });
       return;
@@ -412,7 +412,7 @@ const DataSources = () => {
           setMetaOAuthExchanging(false);
           if (typeof window !== 'undefined') {
             window.sessionStorage.removeItem(OAUTH_PROVIDER_KEY);
-            window.sessionStorage.removeItem(OAUTH_ACCOUNT_KEY);
+            window.sessionStorage.removeItem(FLOW_EXTERNAL_ID_KEY);
           }
           navigate(location.pathname, { replace: true });
         });
@@ -455,7 +455,7 @@ const DataSources = () => {
         setMetaOAuthExchanging(false);
         if (typeof window !== 'undefined') {
           window.sessionStorage.removeItem(OAUTH_PROVIDER_KEY);
-          window.sessionStorage.removeItem(OAUTH_ACCOUNT_KEY);
+          window.sessionStorage.removeItem(FLOW_EXTERNAL_ID_KEY);
         }
         navigate(location.pathname, { replace: true });
       });
@@ -479,7 +479,7 @@ const DataSources = () => {
       }
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem(OAUTH_PROVIDER_KEY, connectProvider);
-        window.sessionStorage.setItem(OAUTH_ACCOUNT_KEY, accountId);
+        window.sessionStorage.setItem(FLOW_EXTERNAL_ID_KEY, accountId);
       }
       const response =
         connectProvider === 'facebook_pages'
@@ -631,7 +631,7 @@ const DataSources = () => {
         const accountId = integrationStatuses[provider]?.credentials[0]?.account_id ?? '';
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(OAUTH_PROVIDER_KEY, provider);
-          window.sessionStorage.setItem(OAUTH_ACCOUNT_KEY, accountId);
+          window.sessionStorage.setItem(FLOW_EXTERNAL_ID_KEY, accountId);
         }
         const response = await reconnectIntegration(provider);
         if (typeof window !== 'undefined') {

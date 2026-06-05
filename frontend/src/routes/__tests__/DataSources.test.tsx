@@ -145,7 +145,7 @@ describe('DataSources connector flow', () => {
     await waitFor(() => {
       expect(airbyteMocks.startIntegrationOAuth).toHaveBeenCalledWith('google_ads');
       expect(window.sessionStorage.getItem('adinsights.integration.oauth.provider')).toBe('google_ads');
-      expect(window.sessionStorage.getItem('adinsights.integration.oauth.account')).toBe('1234567890');
+      expect(window.sessionStorage.getItem('adinsights.integration.flow.external_id')).toBe('1234567890');
     });
   });
 
