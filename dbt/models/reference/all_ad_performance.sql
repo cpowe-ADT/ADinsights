@@ -125,7 +125,7 @@ linkedin as (
 )
 {% endif %}
 {% if enable_tiktok %}
-{% set tiktok_columns = adapter.get_columns_in_relation(ref('stg_tiktok_transparency')) %}
+{% set tiktok_columns = adapter.get_columns_in_relation(ref('stg_tiktok_ads_performance')) %}
 {% set tiktok_column_names = tiktok_columns | map(attribute='name') | map('lower') | list %}
 {% set tiktok_has_campaign_name = 'campaign_name' in tiktok_column_names %}
 ,
@@ -151,11 +151,11 @@ tiktok as (
         impressions,
         cast(0 as numeric) as reach,
         clicks,
-        null as conversions,
+        conversions,
         'Unknown' as status,
         'Unknown' as objective,
         effective_from
-    from {{ ref('stg_tiktok_transparency') }}
+    from {{ ref('stg_tiktok_ads_performance') }}
 )
 {% endif %}
 
