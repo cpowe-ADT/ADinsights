@@ -18,6 +18,7 @@ frontend/frontend-dist.zip
 frontend/coverage/
 frontend/test-results/
 frontend/frontend-ci-artifacts.json
+frontend/.dev-certs/
 qa/test-results/
 qa/playwright-report/
 .dist/

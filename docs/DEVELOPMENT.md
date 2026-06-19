@@ -88,6 +88,7 @@ This file includes:
 - `DEV_ACTIVE_PROFILE`
 - `POSTGRES_PORT`, `REDIS_PORT`, `BACKEND_PORT`, `FRONTEND_PORT`
 - `DEV_BACKEND_URL`, `DEV_FRONTEND_URL`
+- `VITE_DEV_HTTPS`, `VITE_DEV_HTTPS_KEY`, `VITE_DEV_HTTPS_CERT`
 - `META_LOCAL_OAUTH_CANONICAL_FRONTEND_URL`
 - `META_OAUTH_REDIRECT_URI`
 - `META_LOCAL_OAUTH_SUPPORTED`, `META_LOCAL_OAUTH_REASON`
@@ -99,13 +100,16 @@ the backend/celery compose environment (`FRONTEND_BASE_URL`, `META_OAUTH_REDIREC
 app links follow the active launcher profile ports.
 
 Launcher-backed local Meta OAuth now uses the selected frontend URL plus
-`/dashboards/data-sources` as the redirect URI. `profile-1` (`http://localhost:5173`) still
-matches the checked-in default Meta app configuration. Alternate launcher profiles such as `5174`
-or `5175` can work too, but only if the Meta App Domain and valid redirect URI list include that
-exact frontend origin and redirect path first.
+`/dashboards/data-sources` as the redirect URI. Meta enforces HTTPS for local Facebook Login
+redirects, so the launcher defaults the frontend to `https://localhost:<port>` and generates a
+self-signed local certificate under `frontend/.dev-certs/`. `profile-1`
+(`https://localhost:5173`) and `profile-2` (`https://localhost:5174`) match the configured local
+Meta app redirect list. Alternate launcher profiles such as `5175` can work too, but only if the
+Meta App Domain and valid redirect URI list include that exact HTTPS frontend origin and redirect
+path first.
 
 For manual non-launcher runs, `backend/.env` still explicitly pins
-`META_OAUTH_REDIRECT_URI=http://localhost:5173/dashboards/data-sources` unless you export a
+`META_OAUTH_REDIRECT_URI=https://localhost:5173/dashboards/data-sources` unless you export a
 different value in the process environment before starting Django.
 
 ADinsights surfaces redirect-origin mismatches instead of silently rewriting the redirect host.
@@ -155,6 +159,16 @@ Health check:
 ```bash
 scripts/dev-healthcheck.sh
 ```
+
+Optional local Airbyte destination check, after backend and frontend are reachable:
+
+```bash
+scripts/dev-healthcheck.sh --airbyte-destination-id <airbyte-destination-id>
+scripts/dev-healthcheck.sh --airbyte-connection-id <airbyte-connection-id>
+```
+
+This validates the redacted Airbyte destination config and runs Airbyte's destination check against
+the expected local Postgres target. It does not trigger a provider sync or call Meta/Facebook.
 
 Check active compose mappings:
 

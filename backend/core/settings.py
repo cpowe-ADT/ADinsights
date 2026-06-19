@@ -46,6 +46,11 @@ env = environ.Env(
     SES_EXPECTED_FROM_DOMAIN=(str, ""),
     REPORT_EXPORTER_DIR=(str, str(BASE_DIR.parent / "integrations" / "exporter")),
     REPORT_EXPORT_ARTIFACT_ROOT=(str, ""),
+    CONTENT_OPS_ASSET_ROOT=(str, ""),
+    CONTENT_OPS_ASSET_MAX_UPLOAD_BYTES=(int, 25 * 1024 * 1024),
+    CONTENT_OPS_PUBLIC_MEDIA_BASE_URL=(str, ""),
+    CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING=(bool, False),
+    CONTENT_OPS_META_INSTAGRAM_BETA=(bool, False),
     FRONTEND_BASE_URL=(str, "http://localhost:5173"),
     META_APP_ID=(str, ""),
     META_APP_SECRET=(str, ""),
@@ -215,6 +220,16 @@ REPORT_EXPORT_ARTIFACT_ROOT = (
     if _report_export_artifact_root
     else REPORT_EXPORTER_DIR / "out"
 )
+_content_ops_asset_root = env("CONTENT_OPS_ASSET_ROOT").strip()
+CONTENT_OPS_ASSET_ROOT = (
+    Path(_content_ops_asset_root)
+    if _content_ops_asset_root
+    else REPORT_EXPORT_ARTIFACT_ROOT / "content_ops_assets"
+)
+CONTENT_OPS_ASSET_MAX_UPLOAD_BYTES = env.int("CONTENT_OPS_ASSET_MAX_UPLOAD_BYTES")
+CONTENT_OPS_PUBLIC_MEDIA_BASE_URL = env("CONTENT_OPS_PUBLIC_MEDIA_BASE_URL").strip()
+CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING = env.bool("CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING")
+CONTENT_OPS_META_INSTAGRAM_BETA = env.bool("CONTENT_OPS_META_INSTAGRAM_BETA")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -229,6 +244,7 @@ INSTALLED_APPS = [
     "accounts",
     "integrations",
     "analytics",
+    "content_ops",
 ]
 
 MIDDLEWARE = [
@@ -432,6 +448,12 @@ CELERY_TASK_ROUTES = {
     "integrations.tasks.trigger_scheduled_airbyte_syncs": {"queue": CELERY_QUEUE_SYNC},
     "integrations.tasks.remind_expiring_credentials": {"queue": CELERY_QUEUE_SYNC},
     "integrations.tasks.refresh_*": {"queue": CELERY_QUEUE_SYNC},
+    "content_ops.tasks.dispatch_due_content_schedules": {"queue": CELERY_QUEUE_SYNC},
+    "content_ops.tasks.process_content_publish_attempt": {"queue": CELERY_QUEUE_SYNC},
+    "content_ops.tasks.process_due_content_publish_attempts": {"queue": CELERY_QUEUE_SYNC},
+    "content_ops.tasks.refresh_content_published_post_metrics": {"queue": CELERY_QUEUE_SYNC},
+    "content_ops.tasks.requeue_due_content_publish_attempts": {"queue": CELERY_QUEUE_SYNC},
+    "content_ops.tasks.process_content_caption_generation_job": {"queue": CELERY_QUEUE_SYNC},
     "analytics.sync_metrics_snapshots": {"queue": CELERY_QUEUE_SNAPSHOT},
     "analytics.tasks.sync_metrics_snapshots": {"queue": CELERY_QUEUE_SNAPSHOT},
     "analytics.ai_daily_summary": {"queue": CELERY_QUEUE_SUMMARY},
@@ -542,6 +564,26 @@ CELERY_BEAT_SCHEDULE = {
     "meta-post-insights-hourly": {
         "task": "integrations.tasks.sync_post_insights",
         "schedule": crontab(minute=25, hour="6-22"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
+    },
+    "content-publish-due-scan": {
+        "task": "content_ops.tasks.dispatch_due_content_schedules",
+        "schedule": crontab(minute="*"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
+    },
+    "content-publish-retry-scan": {
+        "task": "content_ops.tasks.requeue_due_content_publish_attempts",
+        "schedule": crontab(minute="*"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
+    },
+    "content-publish-process-scan": {
+        "task": "content_ops.tasks.process_due_content_publish_attempts",
+        "schedule": crontab(minute="*"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
+    },
+    "content-organic-metrics-refresh": {
+        "task": "content_ops.tasks.refresh_content_published_post_metrics",
+        "schedule": crontab(minute=35, hour="6-22"),
         "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "rotate-tenant-deks": {

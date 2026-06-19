@@ -13,6 +13,462 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-06-18**
+  - Endpoint: `POST /api/dashboards/widget-preview/` and `POST /api/reports/{id}/preview/`.
+  - Change: Organic Facebook Page/Post reporting now treats missing stored insight values as
+    unavailable (`null`) instead of synthetic zeroes. Top-post table previews can include stored
+    post activity columns (`date`, `content`, `permalink`) when synced posts exist even if Graph
+    returns no post insight metric rows. Graph v24 Page/Post provider defaults are refreshed from
+    the canonical metric catalog, and deprecated post impression keys are no longer requested by
+    default.
+  - Impact: Existing saved reports keep stable ADinsights product metric keys, but preview/export
+    readiness is more truthful. Reports may render real synced post/activity rows with partial
+    coverage while hard-blocking exports when required organic Page/Post insight history is
+    unavailable.
+  - Owner: Sofia (Backend API) + Andre (metric correctness) + Maya/Leo (Meta sync path)
+    + Lina/Joel (report UX) + Raj/Mira review
+
+- **2026-06-18**
+  - Endpoint: `GET /api/dashboards/reporting-catalog/`, `GET /api/reports/templates/`,
+    `POST /api/reports/from-template/`, and `POST /api/reports/slb-monthly-template/`.
+  - Change: The reporting catalog now exposes additive `source_metric_semantics` so frontend and
+    reporting clients can inspect the governed Graph-v24-aware provider keys behind stable
+    ADinsights product metrics. Reports now have a backend template registry plus a generic
+    create-from-template path; the SLB monthly endpoint remains as a compatibility wrapper.
+  - Impact: Saved reports keep using stable product metric keys while ingestion, preview, Content Ops
+    metrics, and exports share one backend metric registry. Future report templates can be added
+    without hardcoding SLB-specific creation paths. Clients should ignore unknown additive catalog
+    fields.
+  - Owner: Sofia (Backend API) + Andre (metric correctness) + Mira (registry boundary)
+    + Lina/Joel (frontend payload and UX) + Raj review
+
+- **2026-06-17**
+  - Endpoint: management commands `slb_report_evidence_bundle` and
+    `slb_report_evidence_validate`.
+  - Change: Evidence bundles now preserve diagnostics `source_health`, and offline evidence
+    validation requires `slb_source_health.v1` with stored-aggregate/no-live-provider guardrails,
+    Meta credential/Page/Airbyte/stored-row sections, required stored-row counts, and recommended
+    next actions before a G2-G9 artifact set can pass.
+  - Impact: G8 diagnostics/support evidence cannot be skipped during fixed-range cancellation
+    evidence collection. Missing source-health proof becomes a validation blocker before G10
+    adversarial review or G11 hardening starts.
+  - Owner: Sofia (Backend API) + Omar/Hannah (diagnostics/support) + Nina (safety)
+    + Raj/Mira review
+
+- **2026-06-17**
+  - Endpoint: `GET /api/reports/{id}/diagnostics/`; management command
+    `slb_report_history_probe`.
+  - Change: Report diagnostics now include a support-safe `source_health` block shared with the
+    history probe. The block reports stored-aggregate-only/no-live-provider guardrails, Meta
+    credential status counts, required scope coverage, Page connection counts, Meta Airbyte status
+    counts and sanitized error categories, stored asset counts, stored row counts, and recommended
+    next actions.
+  - Impact: Operators can explain why an SLB report is missing or stale from the Report Detail page
+    without reading logs or exposing tokens, raw provider payloads, Airbyte logs, ad account IDs,
+    Page IDs, delivery emails, or user-level metrics.
+  - Owner: Sofia (Backend API) + Omar/Hannah (diagnostics/support) + Lina/Joel (frontend UX)
+    + Nina (safety) + Raj/Mira review
+
+- **2026-06-17**
+  - Endpoint: `POST /api/reports/{id}/preview/`; `POST /api/reports/{id}/exports/`;
+    `POST /api/reports/{id}/scheduled-dry-run/`; `GET /api/reports/{id}/diagnostics/`.
+  - Change: Tightened `report.v1` export readiness. Report preview still renders available
+    stored aggregate data, but dataset coverage statuses `missing_history`,
+    `not_previously_synced`, `permission_missing`, and `unsupported_metric` now add
+    `blocking_reasons` and set `export_ready=false`. Manual exports return `409` before queueing,
+    and scheduled dry-runs create sanitized `blocked_by_coverage` evidence instead of rendering an
+    artifact when those hard-blocking states are present.
+  - Impact: The frontend must treat missing required stored history as blocked, not merely
+    warning-ready. This prevents SLB/DashThis evidence from exporting reports where organic Page,
+    top-post, or Content Ops sections have no retained aggregate rows. Stale, partial, and
+    source-disconnected retained data can still render with visible coverage notes.
+  - Owner: Sofia (Backend API) + Andre (coverage semantics) + Lina/Joel (frontend readiness UI)
+    + Omar/Hannah (support/evidence) + Raj/Mira review
+
+- **2026-06-16**
+  - Endpoint: management command `slb_report_history_probe`.
+  - Change: Added a backend-only retained-history probe for SLB reporting evidence. The command
+    renders report preview/diagnostics from stored aggregate data for both a primary monthly range
+    and a retained 90-day range, then emits a redacted `slb_history_probe.v1` dataset matrix for
+    `paid_meta_ads`, `organic_facebook_page`, and `content_ops`.
+  - Impact: Operators can collect G2/G3 monthly and 90-day coverage states consistently before
+    copying values into evidence packets. The command does not call live providers, does not expose
+    raw rows/tokens, and does not change API responses. G2/G3 still require fixed G1 runtime proof
+    and reviewer approval.
+  - Owner: Sofia (Backend API) + Andre (coverage semantics) + Omar/Hannah (support/evidence)
+    + Raj/Mira review
+
+- **2026-06-16**
+  - Endpoint: management command `slb_report_target_intake`.
+  - Change: Added a backend-only G1 intake helper for candidate SLB reports. The command validates
+    the governed report layout and emits a redacted `slb_target_intake.v1` summary with report
+    schema/template identifiers, date-range fields, required dataset/page checks, scope-presence
+    booleans, delivery recipient count, schedule flags, validation errors, and operator fields still
+    required.
+  - Impact: Operators can verify a candidate `ReportDefinition.id` is a valid SLB `report.v1`
+    target before collecting G2-G11 evidence. The command does not call live providers, does not
+    expose delivery emails/tokens/raw provider payloads, and does not change API responses. G1 still
+    requires human confirmation of environment, safe tenant/client, source scopes, DashThis status,
+    and Raj/Mira route.
+  - Owner: Sofia (Backend API) + Hannah (evidence intake) + Raj/Mira review
+
+- **2026-06-16**
+  - Endpoint: management command `slb_report_evidence_validate`.
+  - Change: Added a backend-only offline validator for SLB cancellation-readiness evidence
+    artifacts. The command reads an evidence bundle and optional parity comparison JSON, then
+    reports blockers/warnings for date-range mismatch, missing datasets, blocking coverage states,
+    missing report pages, missing or empty CSV/PDF/PNG export summaries, preview/snapshot hash drift,
+    missing scheduled dry-run proof, unresolved parity rows, Instagram leakage, and high-signal
+    sensitive payload patterns.
+  - Impact: Operators and reviewers can run a repeatable pre-G10/pre-G11 artifact check before
+    adversarial review or hardening. The command is file-based, does not query providers, does not
+    create export jobs, and does not change API responses.
+  - Owner: Sofia (Backend API) + Omar/Hannah (evidence/support) + Nina (safety) + Raj/Mira review
+
+- **2026-06-16**
+  - Endpoint: management command `slb_report_parity_compare`.
+  - Change: Added a backend-only parity comparison command that merges `slb_evidence_bundle.v1`
+    parity rows with a redacted comparison-values JSON file, then computes absolute deltas,
+    percentage deltas, pass/fail outcomes, and blocked states from approved percent or absolute
+    tolerances.
+  - Impact: Operators can calculate the G6 worksheet consistently after DashThis/source values are
+    provided. The command is file-based, does not call live providers, does not create export jobs,
+    and does not change API responses. G6 still requires real comparison values, reviewer-approved
+    tolerances, explanations, and sign-off before cancellation review.
+  - Owner: Sofia (Backend API) + Andre (metric semantics/tolerances) + Raj review
+
+- **2026-06-16**
+  - Endpoint: management command `slb_report_evidence_bundle`.
+  - Change: Added a backend-only fixed-range evidence bundle command for SLB cancellation-readiness
+    collection. The command emits a redacted `slb_evidence_bundle.v1` JSON payload containing report
+    metadata, custom date range, preview hash, coverage summary, diagnostics for the same range,
+    rendering page/widget summary, export status/hash/artifact-size summary, and parity rows.
+  - Impact: Operators can collect G2-G9 implementation/runtime evidence from one stored-data path
+    before filling screenshots, downloaded artifacts, DashThis/source values, and reviewer notes.
+    The command does not create export jobs, send email, call live providers, or change API
+    responses.
+  - Owner: Sofia (Backend API) + Andre (metric semantics) + Omar/Hannah (evidence/support)
+    + Raj/Mira review
+
+- **2026-06-16**
+  - Endpoint: `GET /api/reports/{id}/diagnostics/`; `POST /api/reports/{id}/preview/`.
+  - Change: Report coverage summaries now preserve the latest safe `last_successful_sync_at`
+    timestamp from widget coverage, and diagnostics expose that timestamp per dataset when stored
+    snapshot coverage provides it.
+  - Impact: Support diagnostics can explain when stored aggregate data was last successfully synced
+    instead of always returning `null` for dataset sync recency. No live provider calls are added;
+    the timestamp comes from stored snapshot/coverage metadata.
+  - Owner: Sofia (Backend API) + Omar/Hannah (diagnostics/support) + Andre (coverage semantics)
+    + Raj/Mira review
+
+- **2026-06-16**
+  - Endpoint: management command `slb_report_parity_evidence`.
+  - Change: Aligned seeded parity worksheet rows with the G6 allowed result values. Rows without
+    DashThis/source comparison values now use `result="blocked_missing_dashthis_value"` instead of
+    the ad hoc `pending_dashthis_value`, and markdown output uses the same result. Regression
+    coverage also verifies manually authored report sections do not appear as parity rows.
+  - Impact: The ADinsights-side worksheet seed can be pasted into the G6 parity packet without
+    introducing a non-governed result state. G6 still cannot pass until DashThis/source values,
+    deltas, tolerances, explanations, and reviewer approvals are filled.
+  - Owner: Sofia (Backend API) + Andre (metric semantics) + Raj review
+
+- **2026-06-16**
+  - Endpoint: `POST /api/reports/{id}/preview/`; `GET /api/reports/{id}/diagnostics/`;
+    `POST /api/reports/{id}/exports/`; `POST /api/reports/{id}/scheduled-dry-run/`.
+  - Change: Corrected `report.v1` coverage rollups so manually authored `report_section`
+    widgets do not contribute to `coverage_summary.datasets`, retained-history row counts, or
+    diagnostics dataset retained ranges. Coverage payloads with `row_count == 0` now report
+    `covered_start_date=null` and `covered_end_date=null` even when a widget can display a zero
+    value for the requested end date.
+  - Impact: Report coverage and diagnostics no longer overstate stored Content Ops history because
+    of cover/recommendation/appendix narrative sections or zero-count placeholders. Frontend clients
+    should continue to render widget-level report section notes, while dataset-level coverage should
+    be treated as data-widget evidence only.
+  - Owner: Sofia (Backend API) + Andre (coverage semantics) + Omar/Hannah (diagnostics/support)
+    + Raj/Mira review
+
+- **2026-06-16**
+  - Endpoint: `POST /api/reports/{id}/preview/`; `POST /api/reports/{id}/exports/`;
+    `GET /api/reports/{id}/diagnostics/`; `POST /api/reports/{id}/scheduled-dry-run/`;
+    `POST/PATCH /api/reports/`; management command `slb_report_parity_evidence`.
+  - Change: Added governed `report.v1` layout validation for report definitions, a read-only
+    report preview endpoint that renders ordered report pages from stored aggregate widget preview
+    data, and report export preflight metadata capture for `report.v1`. Exports now preserve a
+    server-computed report preview metadata block with schema/template/catalog identifiers, date
+    range, full ordered `report_snapshot`, coverage summary, blocking reasons, export readiness,
+    delivery status, and preview hash; blocking coverage returns `409` before queueing a manual
+    export. Added diagnostics for support-safe dataset/export-history states, scheduled delivery
+    dry-run evidence jobs, report-specific privilege gates, conservative report preview/export/dry-run
+    quotas, and a parity evidence command that outputs ADinsights-side aggregate rows with manual
+    DashThis comparison columns. Legacy reports without `schema_version` remain accepted.
+  - Impact: Frontend report pages can render SLB `report.v1` previews with coverage notes and avoid
+    misleading exports when required coverage is missing; support can diagnose stale/missing/partial
+    data without reading logs; scheduled report delivery can be proven in dry-run mode before real
+    client sends. No live provider calls are introduced at report render/export-preflight time, and
+    existing legacy report export behavior remains compatible.
+  - Owner: Sofia (Backend API) + Andre (Analytics catalog) + Lina/Joel (Frontend rendering)
+    + Omar/Hannah (coverage/support states) + Raj/Mira review
+
+- **2026-06-16**
+  - Endpoint: `POST /api/dashboards/widget-preview/`.
+  - Change: Added an authenticated, `dashboard_edit`-gated read-only widget preview endpoint for
+    `dashboard.v1` configs. The request accepts one governed widget plus optional date/client/account/page
+    scope fields, reuses the backend reporting catalog validator, reads only stored ADinsights aggregate
+    data, and returns `{widget_id, dataset, type, data, coverage, warnings}`. Coverage states include
+    fresh, stale, partial, disconnected-source-with-history, missing history, not previously synced, and
+    permission/unsupported blocks. Coverage policies can return `409` when a widget must not render.
+  - Impact: Frontend builders can preview governed widgets without hardcoding metric compatibility or
+    calling upstream providers at render time. Existing dashboard CRUD, legacy layouts, and audit behavior
+    remain unchanged.
+  - Owner: Sofia (Backend API) + Lina (Frontend contract) + Andre (Analytics catalog) + Raj/Mira review
+
+- **2026-06-16**
+  - Endpoint: `POST /api/reports/slb-monthly-template/`; report export metadata.
+  - Change: Added a tenant-scoped SLB monthly report template creation action that creates a `report.v1`
+    layout using active v1 datasets `paid_meta_ads`, `organic_facebook_page`, and `content_ops`; Instagram
+    remains deferred. Generic report export job metadata now preserves report schema version, template key,
+    catalog schema version, generation timestamp, and any report coverage metadata stored on the layout.
+  - Impact: ADinsights can create an SLB-style monthly report scaffold from the governed reporting schema
+    and retain contract/coverage metadata on generated export jobs. Existing generic CSV/PDF/PNG artifact
+    generation and download safety behavior are unchanged.
+  - Owner: Sofia (Backend API) + Lina (Frontend contract) + Andre (Analytics catalog) + Raj/Mira review
+
+- **2026-06-15**
+  - Endpoint: `GET /api/dashboards/reporting-catalog/`.
+  - Change: Added an authenticated read-only reporting catalog endpoint backed by the backend
+    registry. The response exposes `reporting_catalog.v1` metadata for `dashboard.v1` builders,
+    including datasets, metrics, dimensions, widget types, coverage policies/statuses, and
+    compatibility rules such as required table row limits, line-chart time dimensions, map geography
+    dimensions, future-gated datasets/widgets, relative date ranges, and deprecated Page metrics.
+  - Impact: Frontend dashboard/report builders can fetch governed reporting options from the
+    backend instead of hardcoding dataset, metric, dimension, widget, and compatibility lists.
+    Existing dashboard CRUD and legacy saved layouts are unchanged.
+  - Owner: Sofia (Backend API) + Lina (Frontend contract) + Andre (Analytics catalog) + Raj review
+
+- **2026-06-15**
+  - Endpoint: `POST/PATCH /api/dashboards/definitions/`.
+  - Change: Added backend reporting catalog validation for saved dashboard layouts with
+    `layout.schema_version="dashboard.v1"`. The validator now rejects unknown/future-gated
+    datasets, dataset-incompatible metrics or dimensions, invalid widget types, table widgets
+    without row limits, source-comparison widgets without source labels, deprecated or unknown
+    Page metrics, invalid coverage policies, unbounded date ranges, and malformed slot/widget
+    references.
+  - Impact: Legacy saved dashboard layouts without `schema_version` remain accepted, and existing
+    `template_key`/`default_metric` behavior is unchanged. New `dashboard.v1` clients must follow
+    `docs/project/reporting-builder-catalog-contract.md` before persisted dashboard configs save.
+  - Owner: Sofia (Backend API) + Lina (Frontend contract) + Andre (Analytics catalog) + Raj review
+
+- **2026-06-10**
+  - Endpoint: Content Ops Instagram publisher boundary,
+    `content_ops.instagram_graph.InstagramGraphPublisher`.
+  - Change: Added a disabled-by-default Instagram Graph adapter behind
+    `CONTENT_OPS_META_INSTAGRAM_BETA`. When enabled, the adapter resolves the tenant-local selected
+    `MetaPage` through the Instagram publishing identity, decrypts the active Meta connection token
+    or Page token inside the provider boundary, creates media containers through
+    `/{ig-user-id}/media`, polls container status through `/{container-id}`, and publishes with
+    `/{ig-user-id}/media_publish`.
+  - Impact: Existing API payloads and default runtime behavior remain fail-closed with
+    `provider_not_configured`. No OAuth scopes are activated and no live Instagram publishing occurs
+    unless the beta flag is explicitly enabled in a gated environment. Frontend clients continue to
+    consume existing publish-attempt container states, retry states, and safe failure fields.
+  - Owner: Sofia (Backend API) + Maya (Meta integration) + Leo (Scheduler/retry) + Nina (Security)
+    + Raj/Mira review
+
+- **2026-06-10**
+  - Endpoint: Content Ops Facebook Page publisher boundary,
+    `content_ops.facebook_graph.FacebookGraphPagePublisher`.
+  - Change: Added a disabled-by-default live Facebook Page Graph adapter behind
+    `CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING`. When enabled, the adapter resolves the selected
+    tenant-local `MetaPage`, decrypts the stored Page token inside the provider boundary, and posts
+    approved caption text to the configured Graph API Page feed endpoint. Provider failures are
+    mapped to safe retryable or terminal Content Ops failure codes before persistence.
+  - Impact: Existing API payloads and default runtime behavior remain fail-closed with
+    `provider_not_configured`. No OAuth scopes are activated and no live Graph publishing occurs
+    unless the new flag is explicitly enabled in a gated environment. Frontend clients continue to
+    consume the existing publish-attempt states and safe failure fields.
+  - Owner: Sofia (Backend API) + Maya (Meta integration) + Nina (Security) + Raj/Mira review
+
+- **2026-06-10**
+  - Endpoint: `GET /api/content-ops/public-media/{asset_id}/`,
+    `GET /api/content-ops/assets/{asset_id}/public-media-proof/`.
+  - Change: Added an opaque public media fetch path for Meta/CDN access and an authenticated,
+    redacted public-media proof action. The public fetch path serves only available assets attached
+    to the active version of a client-approved or later draft. The proof action reports HTTPS
+    readiness, safe failure code, redacted URL, host, MIME type, content length, and
+    `storage_key_exposed=false`.
+  - Impact: Instagram publishing can use a Meta-fetchable HTTPS asset URL without exposing
+    tenant-private `storage_key` values or local paths. `CONTENT_OPS_PUBLIC_MEDIA_BASE_URL` must be
+    configured to the deployed HTTPS app/CDN route before live Instagram adapter work. No OAuth
+    scope, Graph publishing call, token decryption, or live provider adapter behavior changed.
+  - Owner: Sofia (Backend API) + Nina (Security) + Maya (Meta integration) + Hannah evidence review
+
+- **2026-06-10**
+  - Endpoint: `POST /api/content-ops/published-posts/{post_id}/refresh-metrics/`; task contract
+    for `content_ops.tasks.refresh_content_published_post_metrics`.
+  - Change: Replaced the inert `501 not_implemented` metric-refresh action with a backend refresh
+    path that bridges already-synced Meta post insight rows into aggregate-only
+    `OrganicPostMetricSnapshot` records. Added an hourly `content-organic-metrics-refresh` beat
+    entry on the sync queue for tenant-scoped published-post refresh scans.
+  - Impact: Publish-capable clients can trigger a per-post refresh and receive `200 refreshed` with
+    `snapshot_id` when provider rows exist, or `409 organic_metrics_unavailable` when no aggregate
+    provider data is available. The worker updates `reporting_link_state` and
+    `last_metrics_refresh_at`. No user-level insight identifiers, live Meta Graph publishing, OAuth
+    scope, Graph-version, dbt mart, or frontend behavior changed.
+  - Owner: Sofia (Backend Metrics/API) + Omar (Observability/Evals) + Nina (Security) + Raj review
+
+- **2026-06-10**
+  - Endpoint: `POST /api/content-ops/exports/`, `GET /api/content-ops/exports/{export_id}/`,
+    `GET /api/content-ops/exports/{export_id}/download/`.
+  - Change: Added persisted Content Ops content-plan export artifacts. Export creation writes a
+    client-safe JSON packet under the configured report artifact root, returns server-safe export
+    metadata plus `download_url`, and keeps the storage `artifact_path` out of public payloads.
+    Download validates the stored path remains under the export root before serving the packet.
+  - Impact: Frontend clients can list, retrieve, and redownload prior content-plan packets without
+    retaining private storage keys, provider prompts, or AI lineage. Existing
+    `POST /api/content-ops/exports/content-plan/` remains available for immediate client-safe
+    JSON snapshots. No live Meta Graph publishing, OAuth scope, metric refresh, dbt mart, or
+    frontend export-history behavior changed.
+  - Owner: Sofia (Backend Metrics/API) + Nina (Security) + Lina (Frontend contract) + Raj review
+
+- **2026-06-10**
+  - Endpoint: `/api/content-ops/*` OpenAPI contract.
+  - Change: Added OpenAPI regression coverage for Content Ops routes, custom action request
+    serializers, schedule `channels`, public serializer state enums, credential/storage
+    write-only fields, and read-only workflow/runtime fields. Updated Content Ops viewsets so
+    custom actions such as schedule, draft versions, approval submission/decisions, and caption
+    generation expose action-specific serializers in the generated schema.
+  - Impact: Frontend clients have a pinned schema surface for path availability and state-bearing
+    enums before deeper live integration. Remaining schema work is limited to richer custom
+    response payloads for readiness/reporting/export actions and deeper write-contract examples.
+    Runtime behavior is unchanged except that the schedule serializer now explicitly documents the
+    write-only `channels` list accepted by the schedule action.
+  - Owner: Sofia (Backend Metrics/API) + Lina (Frontend contract) + Raj review
+
+- **2026-06-10**
+  - Endpoint: `POST /api/content-ops/drafts/{draft_id}/schedule/`; task contract for
+    `content_ops.tasks.dispatch_due_content_schedules`.
+  - Change: Schedule creation now freezes publish destinations into
+    `approval_snapshot.target_channels`. Requests can provide `channels` as strings or target
+    objects with `type`, `page_id`, or `ig_user_id`; omitted `channels` snapshot the current
+    workspace target channels. Due-schedule dispatch now uses the frozen targets and narrows
+    publishing identity selection by snapshotted `page_id` or `ig_user_id` when present.
+  - Impact: Frontend clients can present schedule-level destination choice without relying on
+    mutable workspace defaults. Existing schedules without `approval_snapshot.target_channels`
+    retain compatibility by falling back to workspace channels. No live Meta Graph publishing,
+    token decryption, queued-attempt processor scan, Instagram container creation, metric refresh,
+    dbt mart, or OAuth scope behavior changed.
+  - Owner: Sofia (Backend Metrics/API) + Leo (Scheduler) + Lina (Frontend contract) + Raj review
+
+- **2026-06-10**
+  - Endpoint: `PATCH /api/content-ops/assets/{asset_id}/`, `GET /api/content-ops/readiness/`.
+  - Change: Public asset updates now ignore server-owned storage/runtime metadata, including
+    `source`, `storage_key`, `mime_type`, dimensions, `renditions`, and `status`. Publishing
+    readiness now requires selected publishing identities to be explicitly `ready`; `unknown`
+    identity readiness blocks the Facebook Page or Instagram publishing axis with
+    `publishing_identity_blocked`.
+  - Impact: Frontend clients must treat asset storage metadata and publishing identity readiness as
+    server-owned. Publishing controls should remain disabled until identity validation has produced
+    an explicit ready state. No live Meta Graph publishing, token decryption, queued-attempt
+    processor scan, Instagram container creation, metric refresh, dbt mart, or OAuth scope behavior
+    changed.
+  - Owner: Nina (Security) + Sofia (Backend Metrics/API) + Raj review
+
+- **2026-06-10**
+  - Endpoint: task contracts for `content_ops.tasks.dispatch_due_content_schedules` and `content_ops.tasks.requeue_due_content_publish_attempts`.
+  - Change: Added explicit Celery sync-queue routes and beat entries for Content Ops due schedule dispatch and retry requeue scans. Both scans run every minute on the `sync` queue and continue to use existing tenant-scoped, idempotent task behavior.
+  - Impact: Operators can expect due schedules and due retryable attempts to be scanned automatically by Celery beat. This does not add live Meta Graph publishing, token decryption, an automatic queued-attempt processor, Instagram container creation, metric refresh, dbt marts, or API payload changes.
+  - Owner: Leo (Scheduler) + Sofia (Backend Metrics/API) + Raj review
+
+- **2026-06-09**
+  - Endpoint: `POST /api/content-ops/approval-requests/{approval_id}/decisions/`, `GET/POST/PATCH /api/content-ops/generation-jobs/`, `GET/POST/PATCH /api/content-ops/assets/`, `POST /api/content-ops/assets/upload/`, `GET /api/content-ops/assets/{asset_id}/download/`, `GET/POST/PATCH /api/content-ops/publishing-identities/`; task contracts for `content_ops.tasks.process_content_caption_generation_job`, `dispatch_due_content_schedules`, `process_content_publish_attempt`, and `requeue_due_content_publish_attempts`.
+  - Change: Hardened Content Ops API and task contracts. Approval decisions now reject non-pending requests, stale non-active versions, and drafts outside the expected review state before persisting a decision. Caption-generation task execution now resolves tenant context from the `GenerationJob` instead of treating the job UUID as a tenant identifier. Public serializers no longer return publishing credential references or media `storage_key`/`ai_lineage`; publishing readiness fields and generation runtime result fields are server-owned/read-only. Public asset creation now requires `POST /assets/upload/`, stores image/video uploads under a generated tenant/workspace storage key, and serves available assets through an authenticated download action. Content Ops Celery tasks now allow five retries; scheduler/publisher row locks skip locked rows; retryable publisher failures use jittered exponential retry delays and become terminal after the fifth failed attempt.
+  - Impact: Frontend clients must not depend on mutating generation runtime fields, publishing readiness fields, asset status, or reading credential/storage internals from public Content Ops payloads. Operators can expect bounded retry attempts and non-blocking queue scans. Existing workflow actions remain the supported path for approvals, generation, scheduling, and publishing queue operations. No live Meta Graph call, AI provider activation, externally signed URL service, dbt mart, or metric refresh behavior changed at that time; due/retry beat scans were activated in a later 2026-06-10 entry.
+  - Owner: Sofia (Backend Metrics/API) + Nina (Security) + Lina (Frontend contract) + Raj review
+
+- **2026-06-06**
+  - Endpoint: `POST /api/content-ops/briefs/{brief_id}/captions/generate/`.
+  - Change: Added tenant-scoped caption-generation quota guardrails. Requests are blocked before job creation when active caption jobs, rolling 24-hour caption jobs, or rolling 24-hour requested candidates exceed configured limits. Quota blocks return safe `400` payloads with `reason` values `caption_active_limit_exceeded`, `caption_daily_limit_exceeded`, or `caption_candidate_limit_exceeded` plus numeric quota counters/limits.
+  - Impact: Frontend clients can display actionable quota blockers and retry later without creating hidden queued jobs. No live AI provider, billing integration, graphics, scheduling, publishing, metric refresh, or Celery beat behavior is active.
+  - Owner: Nina (Security) + Sofia (Backend Metrics/API) + Omar (Observability/Evals) + Raj review
+
+- **2026-06-06**
+  - Endpoint: `POST /api/content-ops/briefs/{brief_id}/captions/generate/`; task contract for `content_ops.tasks.process_content_caption_generation_job`.
+  - Change: Added a tenant-scoped caption-generation request endpoint that creates queued `GenerationJob` records with capped `candidate_count`, supported `facebook_page`/`instagram` platforms, redacted prompt summary, and safe prompt policy metadata. Added a fakeable caption processor that validates provider candidate schema, enforces blocked/required terms, fails closed by default with `provider_not_configured`, and creates editable `generated` drafts plus active versions linked to `source_generation_job` only when injected provider output is valid.
+  - Impact: Future frontend clients can request caption generation jobs and poll existing generation-job endpoints. No live OpenAI/API provider call, AI graphic generation, approval, schedule, publish attempt, published post, metric refresh, Celery beat activation, frontend client, or dbt behavior is active.
+  - Owner: Sofia (Backend Metrics/API) + Nina (Security) + Omar (Observability/Evals) + Lina (Frontend contract) + Raj/Mira review
+
+- **2026-06-06**
+  - Endpoint: `GET /api/content-ops/publishing/attempts/?state=&channel=&scheduled_from=&scheduled_to=&retry_due=`; task contract for `content_ops.tasks.requeue_due_content_publish_attempts`.
+  - Change: Added schedule-window and retry-due filters to the publish-attempt list endpoint. Added due-retry requeue scanner/task that moves tenant-scoped `failed_retryable` attempts back to `queued` when `next_retry_at` has arrived.
+  - Impact: Operators and future queue UI can find due retryable attempts without scanning client-side, and workers can requeue due retry attempts without calling Meta. No beat cadence, processor scan, live Graph adapter, token decryption, Instagram container flow, or metric refresh is active.
+  - Owner: Leo (Scheduler) + Sofia (Backend Metrics/API) + Lina (Frontend contract) + Raj/Mira review
+
+- **2026-06-06**
+  - Endpoint: `POST /api/content-ops/publishing/attempts/{attempt_id}/retry/`; task contract for `content_ops.tasks.process_content_publish_attempt`.
+  - Change: Publish-attempt retry now requeues only `failed_retryable` attempts, clears safe failure/retry fields, and returns the refreshed attempt payload. Added a single-attempt Celery task wrapper around the disabled-by-default Facebook Page processor.
+  - Impact: Publish-capable users can safely requeue retryable attempts without calling Meta immediately. Workers have a task boundary for one-attempt processing, but no beat cadence, retry worker, live Graph adapter, token decryption, Instagram container flow, or metric refresh is active.
+  - Owner: Leo (Scheduler) + Maya (Integrations) + Sofia (Backend Metrics/API) + Raj/Mira review
+
+- **2026-06-05**
+  - Endpoint: none; service contract for `content_ops.publisher.process_facebook_page_publish_attempt`.
+  - Change: Added fakeable Facebook Page publish-attempt processor and disabled-by-default publisher boundary. Injected publisher success creates `PublishedPost`, marks attempts `published`, persists returned post IDs, and refreshes schedule/draft state. Provider failures are classified as retryable or terminal with sanitized failure details.
+  - Impact: Future worker wiring can exercise the Page publishing state machine without live Meta calls. No public endpoint, token decryption, live Graph provider adapter, Celery beat cadence, Instagram container flow, or metric refresh behavior is live.
+  - Owner: Maya (Integrations) + Leo (Scheduler) + Sofia (Backend Metrics/API) + Nina (Security) + Raj/Mira review
+
+- **2026-06-05**
+  - Endpoint: none; service contract for `content_ops.publisher.preflight_facebook_page_attempt`.
+  - Change: Added Facebook Page publish preflight contract that validates tenant ownership, supported channel, publishable state, active scheduled version, client approval snapshot, publishing identity readiness, Facebook Page publishing readiness, and caption content before any provider handoff.
+  - Impact: Future publisher workers can block unsafe attempts with stable client-safe failure codes before calling Meta. No public endpoint, token decryption, Graph publish call, attempt mutation, Instagram container flow, Celery beat cadence, or metric refresh behavior is live.
+  - Owner: Maya (Integrations) + Sofia (Backend Metrics/API) + Nina (Security) + Raj/Mira review
+
+- **2026-06-05**
+  - Endpoint: none; operational task contract for `content_ops.tasks.dispatch_due_content_schedules`.
+  - Change: Added app-owned due-schedule dispatcher that scans scheduled drafts and creates idempotent per-channel `PublishAttempt` rows after validating tenant scope, active draft version, client approval snapshot, selected publishing identity, and separated publishing readiness.
+  - Impact: Scheduler/runtime workers can safely queue Facebook Page or Instagram publish attempts without calling Meta. No public endpoint, Celery beat cadence, Graph publishing call, Instagram container flow, or metric refresh behavior is live yet.
+  - Owner: Leo (Scheduler) + Sofia (Backend Metrics/API) + Maya (Integrations) + Raj/Mira review
+
+- **2026-06-05**
+  - Endpoint: `GET /api/content-ops/reports/overview/`, `GET /api/content-ops/reports/posts/`, `POST /api/content-ops/exports/content-plan/`.
+  - Change: Added aggregate-only Content Ops overview/post reporting over stored published-post metric snapshots, plus client-safe JSON content-plan export for workspace drafts/versions/approvals/schedules.
+  - Impact: Frontend clients can render basic organic content reporting and approval/export packets before live publishing is enabled. Reports do not fetch Meta and expose aggregate metrics only; content-plan exports omit private storage keys, raw prompts, and AI lineage.
+  - Owner: Sofia (Backend Metrics/API) + Lina (Frontend) + Raj review
+
+- **2026-06-05**
+  - Endpoint: `/api/content-ops/drafts/{id}/`, `/api/content-ops/versions/`, `/api/content-ops/approval-requests/`, `/api/content-ops/schedules/`.
+  - Change: Hardened workflow bypasses by making draft `state` read-only and keeping draft-version, approval-request, and schedule collection endpoints read-only. Version creation, approval submission, and scheduling must go through the draft workflow actions.
+  - Impact: Clients cannot directly force approval/schedule states or create workflow records without the action-level role, audit, approval-snapshot, and state-transition logic. Existing read surfaces remain available.
+  - Owner: Sofia (Backend Metrics/API) + Nina (Security) + Raj review
+
+- **2026-06-05**
+  - Endpoint: `GET /api/content-ops/readiness/` and role-gated mutations on existing `/api/content-ops/*` workflow endpoints.
+  - Change: Added separated Content Operations readiness axes for Meta auth, Page selection, Instagram linkage, Facebook Page publishing, Instagram publishing, and reporting readiness. Added module-local role gates for read, edit, internal approval, client approval, publishing actions, and publishing identity mutation.
+  - Impact: Frontend clients can render independent blockers without changing `/api/integrations/social/status/` or `/api/datasets/status/`. Non-publish roles now receive `403` on schedule/publish/retry-style Content Ops actions.
+  - Owner: Sofia (Backend Metrics/API) + Nina (Security) + Maya (Integrations) + Raj/Mira review
+
+- **2026-06-05**
+  - Endpoint: additive `/api/content-ops/*` backend skeleton including workspaces, publishing identities, briefs, generation jobs, assets, drafts, versions, approval requests/decisions, schedules, publish attempts, published posts, and metric snapshots.
+  - Change: Added tenant-scoped serializers/viewsets/routes plus draft version, internal/client approval, decision, schedule, unschedule, generation-job cancel, and explicit inert publish/retry/metric-refresh actions. `publish-now`, publish-attempt `retry`, and published-post `refresh-metrics` return `501` with `reason: "not_implemented"` until their runtime tickets ship.
+  - Impact: Backend clients can begin integrating Content Operations CRUD/workflow skeletons. No Meta OAuth, Meta Graph publishing, Instagram container, scheduler, AI provider, frontend, dbt, or reporting-readiness behavior changed.
+  - Owner: Sofia (Backend Metrics/API) + Raj/Mira/Sofia/Hannah review
+
+- **2026-06-05**
+  - Endpoint: proposal only, future additive `/api/content-ops/*` surfaces documented in `docs/project/content-operations-api-contract.md`.
+  - Change: Added a planned API contract doc plus eval/runbook/evidence documentation for Content Operations. No runtime endpoint, serializer, frontend client, scheduler task, Meta/OAuth behavior, AI provider call, or dbt model changed in this docs pack.
+  - Impact: Future backend tickets must treat the documented endpoint shapes/enums as the planning baseline and update this changelog when serializers/viewsets become live.
+  - Owner: Raj (Cross-Stream Integration) + Sofia (Backend Metrics/API) + Lina (Frontend)
+
+- **2026-06-05**
+  - Endpoint: none; backend data foundation only for future `/api/content-ops/*`.
+  - Change: Added the `content_ops` Django app and initial tenant-scoped model/migration foundation for Content Operations records. No DRF endpoint, serializer, frontend contract, Meta call, scheduler task, AI provider call, or runtime OAuth scope changed.
+  - Impact: Future API work can build on durable backend tables, but clients cannot call Content Operations APIs yet. Treat later serializers/viewsets as additive contract work and update this changelog again when endpoints ship.
+  - Owner: Sofia (Backend Metrics/API) + Raj/Mira review
+
+- **2026-06-05**
+  - Endpoint: proposal only, future additive `/api/content-ops/*` surface for Meta/Facebook/Instagram organic content operations.
+  - Change: Added `docs/project/content-operations-meta-publishing-spec.md` with proposed contracts for readiness, workspaces, briefs, AI generation jobs, drafts, approvals, scheduling, publish attempts, exports, and aggregate organic post reporting. No runtime endpoint or serializer changed in this docs slice.
+  - Impact: Future backend/frontend implementation must treat the proposed surface as contract-sensitive, keep Meta auth/Page selection/Instagram linkage/publishing readiness/reporting readiness separate, and update this changelog again when real endpoints ship.
+  - Owner: Raj (Cross-Stream Integration) + Sofia (Backend Metrics/API) + Lina (Frontend) + Maya/Leo (Integrations/Scheduler)
+
 - **2026-06-05**
   - Endpoints: error paths of `/api/clients/` (create + attach-account), `/api/analytics/web/*`, the AI summary refresh endpoint, and the GA4 OAuth callback (`/api/integrations/google_analytics/oauth/*`).
   - Change: on broad/unexpected failures these endpoints no longer return raw exception text. The `clients` 409 drops its `error` key (DB constraint text); web analytics returns `"detail": "Query failed."`; summary refresh returns `"Failed to refresh summary."`; GA4 token-exchange/userinfo/property-discovery return generic details (`"Token exchange failed."`, etc.). Full exceptions are logged server-side. Controlled config/validation messages (e.g. `"... must be configured"`) are unchanged.

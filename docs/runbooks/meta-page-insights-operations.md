@@ -152,6 +152,15 @@ Canonical source of metric definitions:
 
 - `backend/integrations/data/meta_metric_catalog.json`
 
+Runtime source of truth:
+
+- `backend/integrations/services/metric_registry.py`
+
+The runtime registry should refresh from the canonical catalog before falling back to the legacy
+metric pack. This is required because local/dev databases can keep stale registry rows after
+catalog updates; relying only on "registry is non-empty" can leave deprecated Graph metric names in
+default sync sets.
+
 Sync catalog into registry:
 
 - `cd backend && python manage.py sync_meta_metric_catalog`
@@ -159,6 +168,18 @@ Sync catalog into registry:
 Regenerate catalog documentation from source:
 
 - `python3 scripts/render_meta_metric_catalog.py`
+
+Graph v24 organic reporting defaults:
+
+- Page reach/impression product aliases use current v24 source keys such as
+  `page_total_media_view_unique` and `page_media_view`.
+- Post impression aliases use `post_media_view`; unique post reach aliases use
+  `post_total_media_view_unique`.
+- Legacy direct post keys such as `post_impressions` and `post_impressions_unique` are retained for
+  historical stored rows only and must not be requested by default.
+- If Graph returns synced posts but zero Page/Post insight metric rows, reports may show stored post
+  activity (`date`, `content`, `permalink`) with `null` metric values and partial coverage. Do not
+  convert missing metrics to zero, and do not mark exports ready until required coverage is present.
 
 ## Failure triage
 
@@ -213,6 +234,32 @@ Actions:
 1. Confirm registry row status and replacement.
 2. Verify UI hides INVALID metric in default picker.
 3. If replacement metric is valid, continue ingestion with replacement key.
+
+For Graph v24 Page/Post reporting, specifically confirm that default sync keys come from
+`get_default_metric_keys()` after `seed_default_metrics()` and do not include deprecated direct post
+impression keys. If a local database still contains old defaults, run `sync_meta_metric_catalog` or
+restart the backend so the runtime seed refresh can update existing rows.
+
+### Graph returns posts but no Page/Post insight rows
+
+Signal:
+
+- `sync_meta_page_posts` stores `MetaPost` rows for the selected Page/range.
+- `sync_meta_page_insights` or `sync_meta_post_insights` completes with zero insight rows.
+- Report preview shows stored top-post/activity rows but organic metric widgets have partial or
+  missing coverage.
+
+Actions:
+
+1. Confirm the Page token and Page `can_analyze=true` state through `GET /api/meta/pages/`.
+2. Confirm the selected date range is inside Graph's supported lookback window for the chosen
+   metric and period.
+3. Probe current v24 metric keys from the catalog; do not retry deprecated direct keys such as
+   `post_impressions` or `post_impressions_unique` by default.
+4. Keep report metrics unavailable (`null`) when Graph returns no metric values. Showing zero would
+   imply a measured value when the provider returned no retained history.
+5. If client-ready reporting is required, use a real backfill/source export/upload fallback and
+   record the fallback source in coverage notes before enabling export readiness.
 
 ### Error `3001` + subcode `1504028` (missing metric parameter)
 

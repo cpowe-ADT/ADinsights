@@ -10,6 +10,7 @@ from integrations.meta_page_insights.metric_pack_loader import (
     load_metric_pack_v1,
 )
 from integrations.models import MetaMetricRegistry
+from integrations.services.meta_metric_catalog import load_metric_catalog
 
 FALLBACK_METRIC_DEFINITIONS: list[dict[str, Any]] = [
     {
@@ -53,9 +54,9 @@ FALLBACK_METRIC_DEFINITIONS: list[dict[str, Any]] = [
         "level": MetaMetricRegistry.LEVEL_PAGE,
         "supported_periods": ["day", "week", "days_28"],
         "supports_breakdowns": [],
-        "status": MetaMetricRegistry.STATUS_ACTIVE,
+        "status": MetaMetricRegistry.STATUS_UNKNOWN,
         "replacement_metric_key": "",
-        "is_default": True,
+        "is_default": False,
     },
     {
         "metric_key": "page_daily_follows_unique",
@@ -132,8 +133,132 @@ REPLACEMENT_CANDIDATES: dict[tuple[str, str], str] = {
     (MetaMetricRegistry.LEVEL_POST, "post_video_views_10s"): "post_video_views",
 }
 
+PAGE_PRODUCT_METRIC_SOURCE_KEYS: dict[str, tuple[str, ...]] = {
+    "page_reach": ("page_total_media_view_unique", "page_impressions_unique"),
+    "page_impressions": ("page_media_view", "page_impressions"),
+    "page_engagements": ("page_post_engagements",),
+    "page_actions": ("page_total_actions",),
+    "page_follows": ("page_daily_follows_unique", "page_follows"),
+    "page_fans": ("page_follows", "page_fans"),
+    "page_reactions_like": ("page_actions_post_reactions_like_total",),
+    "page_reactions_love": ("page_actions_post_reactions_love_total",),
+    "page_reactions_wow": ("page_actions_post_reactions_wow_total",),
+}
+
+POST_REACTION_PRODUCT_BREAKDOWN_KEYS: dict[str, str] = {
+    "like": "post_reactions_like",
+    "love": "post_reactions_love",
+    "wow": "post_reactions_wow",
+    "haha": "post_reactions_haha",
+    "sorry": "post_reactions_sorry",
+    "anger": "post_reactions_anger",
+}
+
+POST_REACTION_TOTAL_SOURCE_KEYS: tuple[str, ...] = (
+    "post_reactions_like_total",
+    "post_reactions_love_total",
+    "post_reactions_wow_total",
+    "post_reactions_haha_total",
+    "post_reactions_sorry_total",
+    "post_reactions_anger_total",
+)
+
+POST_PRODUCT_METRIC_SOURCE_KEYS: dict[str, tuple[str, ...]] = {
+    "post_impressions": ("post_media_view", "post_impressions"),
+    "post_reach": (
+        "post_total_media_view_unique",
+        "post_impressions_unique",
+        "post_impressions_organic_unique",
+    ),
+    "post_clicks": ("post_clicks",),
+    "post_reactions_like": ("post_reactions_by_type_total", "post_reactions_like_total"),
+    "post_reactions_love": ("post_reactions_by_type_total", "post_reactions_love_total"),
+    "post_reactions_wow": ("post_reactions_by_type_total", "post_reactions_wow_total"),
+    "post_reactions_haha": ("post_reactions_by_type_total", "post_reactions_haha_total"),
+    "post_reactions_sorry": ("post_reactions_by_type_total", "post_reactions_sorry_total"),
+    "post_reactions_anger": ("post_reactions_by_type_total", "post_reactions_anger_total"),
+}
+
+CONTENT_OPS_POST_SOURCE_KEYS: dict[str, tuple[str, ...]] = {
+    "impressions": POST_PRODUCT_METRIC_SOURCE_KEYS["post_impressions"],
+    "reach": POST_PRODUCT_METRIC_SOURCE_KEYS["post_reach"],
+    "video_views": ("post_video_views", "post_video_views_organic"),
+}
+
 
 _metrics_seeded = False
+
+
+def _reporting_default_source_keys(level: str) -> tuple[str, ...]:
+    if level == MetaMetricRegistry.LEVEL_PAGE:
+        mappings = PAGE_PRODUCT_METRIC_SOURCE_KEYS.values()
+    elif level == MetaMetricRegistry.LEVEL_POST:
+        mappings = POST_PRODUCT_METRIC_SOURCE_KEYS.values()
+    else:
+        return ()
+
+    keys: list[str] = []
+    for source_keys in mappings:
+        for source_key in source_keys:
+            if source_key and source_key not in keys and not is_blocked_metric(source_key):
+                keys.append(source_key)
+    return tuple(keys)
+
+
+def get_reporting_metric_source_map(
+    dataset: str,
+    level: str | None = None,
+) -> dict[str, tuple[str, ...]]:
+    """Return provider metric keys used to hydrate stable product metrics."""
+
+    if dataset == "organic_facebook_page":
+        normalized_level = (level or "").strip().lower()
+        if normalized_level == MetaMetricRegistry.LEVEL_POST.lower():
+            return dict(POST_PRODUCT_METRIC_SOURCE_KEYS)
+        if normalized_level == MetaMetricRegistry.LEVEL_PAGE.lower():
+            return dict(PAGE_PRODUCT_METRIC_SOURCE_KEYS)
+        return {**PAGE_PRODUCT_METRIC_SOURCE_KEYS, **POST_PRODUCT_METRIC_SOURCE_KEYS}
+    if dataset == "content_ops":
+        return {
+            "content_ops_impressions": CONTENT_OPS_POST_SOURCE_KEYS["impressions"],
+            "content_ops_reach": CONTENT_OPS_POST_SOURCE_KEYS["reach"],
+            "content_ops_engagements": (
+                "post_clicks",
+                "post_reactions_by_type_total",
+                *POST_REACTION_TOTAL_SOURCE_KEYS,
+            ),
+        }
+    return {}
+
+
+def get_reporting_metric_source_keys(
+    dataset: str,
+    product_metric: str,
+    *,
+    level: str | None = None,
+) -> tuple[str, ...]:
+    return get_reporting_metric_source_map(dataset, level=level).get(product_metric, ())
+
+
+def get_content_ops_post_source_keys(field: str) -> tuple[str, ...]:
+    return CONTENT_OPS_POST_SOURCE_KEYS.get(field, ())
+
+
+def map_reporting_source_metric_to_product_metric(
+    dataset: str,
+    source_metric: str,
+    *,
+    breakdown_key: str | None = None,
+    level: str | None = None,
+) -> str | None:
+    if dataset == "organic_facebook_page" and source_metric == "post_reactions_by_type_total":
+        normalized_breakdown = (breakdown_key or "").strip().lower()
+        return POST_REACTION_PRODUCT_BREAKDOWN_KEYS.get(normalized_breakdown)
+
+    for product_metric, source_keys in get_reporting_metric_source_map(dataset, level=level).items():
+        if source_metric in source_keys and source_metric != "post_reactions_by_type_total":
+            return product_metric
+    return None
 
 
 def ensure_default_metrics_seeded() -> None:
@@ -141,30 +266,18 @@ def ensure_default_metrics_seeded() -> None:
     if _metrics_seeded:
         return
     try:
-        if MetaMetricRegistry.objects.exists():
-            _metrics_seeded = True
-            return
+        seed_default_metrics()
     except (OperationalError, ProgrammingError):
         return
-    seed_default_metrics()
     _metrics_seeded = True
 
 
 def seed_default_metrics() -> None:
-    loaded = load_metric_pack_v1()
+    loaded = _sync_canonical_metric_catalog()
     if loaded <= 0:
-        for definition in FALLBACK_METRIC_DEFINITIONS:
-            MetaMetricRegistry.objects.update_or_create(
-                metric_key=definition["metric_key"],
-                level=definition["level"],
-                defaults={
-                    "supported_periods": definition["supported_periods"],
-                    "supports_breakdowns": definition["supports_breakdowns"],
-                    "status": definition["status"],
-                    "replacement_metric_key": definition["replacement_metric_key"],
-                    "is_default": definition["is_default"],
-                },
-            )
+        loaded = load_metric_pack_v1()
+    if loaded <= 0:
+        _sync_fallback_metric_definitions()
 
     for metric in MetaMetricRegistry.objects.all():
         if not is_blocked_metric(metric.metric_key):
@@ -172,22 +285,80 @@ def seed_default_metrics() -> None:
         replacement = REPLACEMENT_CANDIDATES.get((metric.level, metric.metric_key), "")
         metric.status = MetaMetricRegistry.STATUS_DEPRECATED
         metric.is_default = False
-        if replacement and not metric.replacement_metric_key:
+        if replacement:
             metric.replacement_metric_key = replacement
         metric.save(update_fields=["status", "is_default", "replacement_metric_key", "updated_at"])
 
 
+def _sync_canonical_metric_catalog() -> int:
+    try:
+        catalog = load_metric_catalog()
+    except (OSError, ValueError):
+        return 0
+
+    synced = 0
+    for definition in catalog:
+        MetaMetricRegistry.objects.update_or_create(
+            metric_key=definition["metric_key"],
+            level=definition["level"],
+            defaults={
+                "supported_periods": definition["supported_periods"],
+                "supports_breakdowns": definition["supports_breakdowns"],
+                "status": definition["status"],
+                "replacement_metric_key": definition["replacement_metric_key"],
+                "is_default": definition["is_default"],
+                "metadata": {
+                    "provider": "meta",
+                    "metric_catalog": "canonical",
+                    **(
+                        {"deprecated_on": definition["deprecated_on"]}
+                        if definition.get("deprecated_on")
+                        else {}
+                    ),
+                },
+            },
+        )
+        synced += 1
+    return synced
+
+
+def _sync_fallback_metric_definitions() -> None:
+    for definition in FALLBACK_METRIC_DEFINITIONS:
+        MetaMetricRegistry.objects.update_or_create(
+            metric_key=definition["metric_key"],
+            level=definition["level"],
+            defaults={
+                "supported_periods": definition["supported_periods"],
+                "supports_breakdowns": definition["supports_breakdowns"],
+                "status": definition["status"],
+                "replacement_metric_key": definition["replacement_metric_key"],
+                "is_default": definition["is_default"],
+            },
+        )
+
+
 def get_default_metric_keys(level: str) -> list[str]:
     ensure_default_metrics_seeded()
+    reporting_source_keys = _reporting_default_source_keys(level)
     rows = (
         MetaMetricRegistry.objects.filter(
             level=level,
-            is_default=True,
         )
+        .exclude(status__in=[MetaMetricRegistry.STATUS_INVALID, MetaMetricRegistry.STATUS_DEPRECATED])
+        .filter(is_default=True)
+        .order_by("metric_key")
+        .values_list("metric_key", flat=True)
+    )
+    reporting_rows = set(
+        MetaMetricRegistry.objects.filter(level=level, metric_key__in=reporting_source_keys)
         .exclude(status__in=[MetaMetricRegistry.STATUS_INVALID, MetaMetricRegistry.STATUS_DEPRECATED])
         .values_list("metric_key", flat=True)
     )
-    return [row for row in rows if not is_blocked_metric(row)]
+    keys = [row for row in rows if not is_blocked_metric(row)]
+    for source_key in reporting_source_keys:
+        if source_key in reporting_rows and source_key not in keys:
+            keys.append(source_key)
+    return keys
 
 
 def get_active_metric_keys(level: str, *, include_all: bool = False) -> list[str]:

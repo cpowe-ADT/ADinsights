@@ -1,0 +1,72 @@
+{
+  "schema_version": "slb_g0_raj_mira_review.v1",
+  "status": "approved_with_followups",
+  "references": {
+    "review_packet": "docs/project/evidence/dashthis-replacement/2026-06-16-g0-raj-mira-review-packet.md",
+    "preflight_packet": "docs/project/evidence/dashthis-replacement/preflight/2026-06-16-g0-g1-review-target-intake/",
+    "checked_preflight_packet": "docs/project/evidence/dashthis-replacement/preflight/2026-06-16-g0-g1-review-target-intake-with-checks/",
+    "decision_id": "slb-g0-example-raj-mira-decision",
+    "decision_timestamp": "2026-06-16T22:00:00-05:00",
+    "operator": "example-operator"
+  },
+  "decision": {
+    "scope_classification": "accepted_with_followups",
+    "architecture_classification": "accepted_with_followups",
+    "g1_g11_evidence_capture": "proceed_to_g1_with_followups",
+    "dashthis_cancellation": "no_go",
+    "reason": "Example only: Raj and Mira allow fixed-target evidence capture while DashThis remains active and cancellation remains blocked."
+  },
+  "reviewers": {
+    "raj": {
+      "decision": "approved_with_followups",
+      "name_or_handle": "Raj",
+      "notes": "Example only: cross-stream scope accepted for G1-G11 evidence capture with listed followups."
+    },
+    "mira": {
+      "decision": "approved_with_followups",
+      "name_or_handle": "Mira",
+      "notes": "Example only: architecture accepted for fixed-target evidence capture with listed followups."
+    }
+  },
+  "guardrails": {
+    "instagram_deferred": true,
+    "stored_aggregate_only": true,
+    "no_live_provider_calls_at_render_export_time": true,
+    "tenant_isolation_required": true,
+    "aggregate_only_no_user_level_metrics": true,
+    "dashthis_active_until_g12": true
+  },
+  "preflight_interpretation": {
+    "scope_status": "ESCALATE_ARCH_RISK",
+    "contract_status": "WARN_POSSIBLE_CONTRACT_CHANGE",
+    "release_status": "GATE_BLOCK",
+    "classified_as_architecture_review_not_runtime_failure": true,
+    "contract_warning_route": "Raj/Mira/Sofia/Andre",
+    "security_pii_warning_route": "Nina/Omar/Hannah"
+  },
+  "required_followups": [
+    {
+      "id": "FOLLOW-EXAMPLE-001",
+      "owner_route": ["Omar", "Hannah"],
+      "required_before_g1": false,
+      "required_before_g12": true,
+      "description": "Example only: attach the final support and hardening evidence before G12."
+    }
+  ],
+  "reviewer_route_confirmed": {
+    "sofia": true,
+    "andre": true,
+    "lina_or_joel": true,
+    "omar_or_hannah": true,
+    "nina_if_sensitive": true,
+    "priya_martin_if_retention_gap": true,
+    "raj_mira_for_g12": true
+  },
+  "decision_log": [
+    {
+      "timestamp": "2026-06-16T22:00:00-05:00",
+      "actor": "Raj/Mira example",
+      "summary": "Example only: approved G1-G11 evidence capture with DashThis cancellation still blocked."
+    }
+  ]
+}

@@ -22,7 +22,9 @@ vi.mock('./apiClient', () => ({
 
 import {
   createReport,
+  createSlbMonthlyReportTemplate,
   fetchDashboardLibrary,
+  fetchReportingCatalog,
   fetchHealthOverview,
   fetchSyncHealth,
   getAlert,
@@ -31,6 +33,7 @@ import {
   listAlerts,
   listReports,
   listSummaries,
+  previewDashboardWidget,
 } from './phase2Api';
 
 describe('phase2Api', () => {
@@ -51,6 +54,110 @@ describe('phase2Api', () => {
       const result = await fetchDashboardLibrary();
       expect(result.systemTemplates).toHaveLength(1);
       expect(result.systemTemplates[0].name).toBe('Template');
+    });
+  });
+
+  describe('fetchReportingCatalog', () => {
+    it('fetches the governed reporting catalog payload', async () => {
+      apiClientMock.get.mockResolvedValue({
+        schema_version: 'reporting_catalog.v1',
+        dashboard_schema_version: 'dashboard.v1',
+        datasets: [
+          { key: 'paid_meta_ads', status: 'active_v1', is_future_gated: false },
+          { key: 'combined_social', status: 'future_gated', is_future_gated: true },
+        ],
+        metrics: [
+          {
+            key: 'spend',
+            dataset: 'paid_meta_ads',
+            widgets: ['kpi', 'line_chart', 'data_table'],
+            dimensions: ['date', 'campaign'],
+            is_future_gated: false,
+          },
+        ],
+        dimensions: [
+          { key: 'date', datasets: ['paid_meta_ads'] },
+          { key: 'campaign', datasets: ['paid_meta_ads'] },
+        ],
+        widgets: [
+          { key: 'kpi', status: 'active_v1', is_future_gated: false },
+          { key: 'scatter_chart', status: 'future_gated', is_future_gated: true },
+        ],
+        coverage_policies: ['render_with_warning', 'require_full_coverage'],
+        coverage_statuses: ['fresh', 'stale', 'source_disconnected'],
+        compatibility: {
+          time_dimensions: ['date', 'week', 'month'],
+          geography_dimensions: ['region', 'parish'],
+          source_label_datasets: ['combined_paid_media', 'combined_social'],
+          future_gated_datasets: ['combined_social'],
+          future_gated_widgets: ['scatter_chart'],
+          relative_date_ranges: ['last_30d', 'last_90d'],
+          table: { requires_row_limit: true, max_row_limit: 500 },
+          line_chart: { requires_one_of_dimensions: ['date', 'week', 'month'] },
+          map: { requires_one_of_dimensions: ['region', 'parish'] },
+        },
+        validation: {
+          legacy_layouts_without_schema_version: 'accepted',
+          dashboard_v1_layouts: 'validated',
+          deprecated_or_unknown_page_metrics: ['page_video_views_10s'],
+        },
+      });
+
+      const catalog = await fetchReportingCatalog();
+
+      expect(apiClientMock.get).toHaveBeenCalledWith('/dashboards/reporting-catalog/', {
+        signal: undefined,
+      });
+      expect(catalog.dashboard_schema_version).toBe('dashboard.v1');
+      expect(catalog.datasets.find((dataset) => dataset.key === 'combined_social')).toMatchObject({
+        is_future_gated: true,
+      });
+      expect(catalog.metrics[0]).toMatchObject({
+        key: 'spend',
+        dataset: 'paid_meta_ads',
+      });
+      expect(catalog.compatibility.table).toEqual({
+        requires_row_limit: true,
+        max_row_limit: 500,
+      });
+      expect(catalog.validation.deprecated_or_unknown_page_metrics).toContain(
+        'page_video_views_10s',
+      );
+    });
+  });
+
+  describe('previewDashboardWidget', () => {
+    it('posts a governed dashboard.v1 widget preview payload', async () => {
+      apiClientMock.post.mockResolvedValue({
+        widget_id: 'paid_spend_kpi',
+        dataset: 'paid_meta_ads',
+        type: 'kpi',
+        data: { kind: 'kpi', metrics: [] },
+        coverage: {
+          coverage_status: 'fresh',
+          coverage_note: 'Warehouse aggregate metrics covers the requested range.',
+        },
+        warnings: [],
+      });
+
+      const widget = {
+        id: 'paid_spend_kpi',
+        type: 'kpi',
+        dataset: 'paid_meta_ads',
+        metrics: ['spend'],
+        dimensions: [],
+        filters: { date_range: 'last_30d' },
+        coverage_policy: 'render_with_warning',
+        visual: { source_labels: true },
+      };
+      const result = await previewDashboardWidget({ widget, account_id: 'act_1' });
+
+      expect(apiClientMock.post).toHaveBeenCalledWith(
+        '/dashboards/widget-preview/',
+        { widget, account_id: 'act_1' },
+        { signal: undefined },
+      );
+      expect(result.coverage.coverage_status).toBe('fresh');
     });
   });
 
@@ -76,6 +183,27 @@ describe('phase2Api', () => {
       const result = await createReport({ name: 'New Report', description: '' });
       expect(apiClientMock.post).toHaveBeenCalled();
       expect(result.name).toBe('New Report');
+    });
+  });
+
+  describe('createSlbMonthlyReportTemplate', () => {
+    it('posts the SLB template creation request', async () => {
+      apiClientMock.post.mockResolvedValue({
+        id: 'r-slb',
+        name: 'SLB report',
+        layout: { schema_version: 'report.v1', template_key: 'slb_monthly_social_report' },
+      });
+
+      const result = await createSlbMonthlyReportTemplate({
+        name: 'SLB report',
+        date_range: 'last_month',
+      });
+
+      expect(apiClientMock.post).toHaveBeenCalledWith('/reports/slb-monthly-template/', {
+        name: 'SLB report',
+        date_range: 'last_month',
+      });
+      expect(result.layout.template_key).toBe('slb_monthly_social_report');
     });
   });
 

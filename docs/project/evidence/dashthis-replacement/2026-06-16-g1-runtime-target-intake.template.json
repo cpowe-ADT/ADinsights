@@ -1,0 +1,46 @@
+{
+  "schema_version": "slb_g1_runtime_target_intake.v1",
+  "status": "pending_operator_input",
+  "g0_clearance": {
+    "raj_decision": "Pending",
+    "mira_decision": "Pending",
+    "can_proceed_to_g1_g11": "Pending",
+    "conditions": "Pending"
+  },
+  "target": {
+    "environment": "Pending",
+    "backend_url": "Pending",
+    "frontend_url": "Pending",
+    "safe_tenant_identifier": "Pending",
+    "safe_client_identifier": "SLB / Students' Loan Bureau",
+    "report_definition_id": "Pending",
+    "template_key": "slb_monthly_social_report",
+    "report_schema_version": "report.v1",
+    "primary_start_date": "2026-05-01",
+    "primary_end_date": "2026-05-31",
+    "timezone": "America/Jamaica",
+    "currency": "Pending",
+    "paid_meta_account_scope": "Pending",
+    "organic_facebook_page_scope": "Pending",
+    "content_ops_workspace_scope": "Pending"
+  },
+  "comparison": {
+    "dashthis_source_comparison_owner": "Pending",
+    "dashthis_source_evidence_location": "Pending",
+    "tolerances_confirmed": false
+  },
+  "delivery": {
+    "scheduled_delivery_mode": "dry_run_only",
+    "recipient_assumption": "Pending",
+    "dashthis_active": true
+  },
+  "guardrails": {
+    "instagram_decision": "deferred_in_v1",
+    "stored_aggregate_only": true,
+    "no_live_provider_calls_at_render_export_time": true
+  },
+  "evidence": {
+    "slb_report_target_intake_output": "Pending",
+    "operator_notes": "Pending"
+  }
+}

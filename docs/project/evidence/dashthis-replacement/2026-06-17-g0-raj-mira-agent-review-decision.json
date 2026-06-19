@@ -1,0 +1,115 @@
+{
+  "schema_version": "slb_g0_raj_mira_review.v1",
+  "status": "approved_with_followups",
+  "references": {
+    "review_packet": "docs/project/evidence/dashthis-replacement/2026-06-16-g0-raj-mira-review-packet.md",
+    "preflight_packet": "docs/project/evidence/dashthis-replacement/preflight/2026-06-16-g0-g1-review-target-intake/",
+    "checked_preflight_packet": "docs/project/evidence/dashthis-replacement/preflight/2026-06-16-g0-g1-review-target-intake-with-checks/",
+    "decision_id": "slb-g0-2026-06-17-raj-mira-agent-review",
+    "decision_timestamp": "2026-06-17T11:01:58-05:00",
+    "operator": "Codex"
+  },
+  "decision": {
+    "scope_classification": "accepted_with_followups",
+    "architecture_classification": "accepted_with_followups",
+    "g1_g11_evidence_capture": "proceed_to_g1_with_followups",
+    "dashthis_cancellation": "no_go",
+    "reason": "Raj and Mira approve conditional fixed-target SLB evidence capture only. DashThis cancellation remains blocked until G1-G12 evidence, parity, export, delivery, hardening, and final recommendation gates pass."
+  },
+  "reviewers": {
+    "raj": {
+      "role": "Cross-Stream Integration Lead",
+      "name_or_handle": "Raj agent",
+      "decision": "approved_with_followups",
+      "reviewed_at": "2026-06-17T11:01:58-05:00",
+      "notes": [
+        "Accept cross-stream SLB cancellation-readiness as an evidence track, not a runtime failure.",
+        "G1-G11 may proceed only as conditional evidence capture.",
+        "DashThis stays active and cancellation remains no_go."
+      ]
+    },
+    "mira": {
+      "role": "Architecture/Refactor Engineer",
+      "name_or_handle": "Mira agent",
+      "decision": "approved_with_followups",
+      "reviewed_at": "2026-06-17T11:01:58-05:00",
+      "notes": [
+        "Accept additive report/dashboard schema and snapshot architecture with followups.",
+        "Preview, diagnostics, scheduled dry-run, and export gating must remain stored-aggregate only.",
+        "Meta sync and backfill are upstream remediation only and must not run during preview or export."
+      ]
+    }
+  },
+  "guardrails": {
+    "instagram_deferred": true,
+    "stored_aggregate_only": true,
+    "no_live_provider_calls_at_render_export_time": true,
+    "tenant_isolation_required": true,
+    "aggregate_only_no_user_level_metrics": true,
+    "dashthis_active_until_g12": true
+  },
+  "required_followups": [
+    {
+      "id": "slb-g0-followup-g1-fixed-target",
+      "owner_route": ["Raj", "Mira", "Sofia", "Andre"],
+      "required_before_g1": true,
+      "required_before_g12": true,
+      "description": "Fill and validate one fixed May 2026 credentialed staging runtime target with redacted tenant/client/account/page/workspace scope, timezone, currency, dry-run-only delivery, and Instagram deferred."
+    },
+    {
+      "id": "slb-g0-followup-stored-coverage",
+      "owner_route": ["Sofia", "Andre", "Maya", "Leo", "Priya", "Martin"],
+      "required_before_g1": false,
+      "required_before_g12": true,
+      "description": "Prove retained stored aggregate rows for paid Meta Ads, organic Facebook/Page, top posts, and Content Ops for the fixed May 2026 range and 90-day readiness, or document approved dbt/retention gaps."
+    },
+    {
+      "id": "slb-g0-followup-export-snapshot-parity",
+      "owner_route": ["Mira", "Sofia", "Andre", "Nina"],
+      "required_before_g1": false,
+      "required_before_g12": true,
+      "description": "Before treating exports as parity proof, prove CSV/PDF/PNG artifacts render from the report.v1 snapshot payload with matching preview hashes, non-empty artifact bytes, and safe metadata."
+    },
+    {
+      "id": "slb-g0-followup-ux-ops-hardening",
+      "owner_route": ["Lina", "Joel", "Omar", "Hannah"],
+      "required_before_g1": false,
+      "required_before_g12": true,
+      "description": "Polish the report review UI, diagnostics, coverage notes, scheduled dry-run states, adversarial review packet, and 24-48 hour hardening evidence before final recommendation."
+    }
+  ],
+  "preflight_interpretation": {
+    "scope_status": "ESCALATE_ARCH_RISK",
+    "contract_status": "WARN_POSSIBLE_CONTRACT_CHANGE",
+    "release_status": "GATE_BLOCK",
+    "classified_as_architecture_review_not_runtime_failure": true,
+    "contract_warning_route": "Sofia and Andre review additive reporting/backfill evidence behavior before G2-G9 evidence is treated as parity proof.",
+    "security_pii_warning_route": "Nina reviews export artifacts and evidence files before G10/G12 to confirm no secrets, addresses, tokens, or user-level data are present.",
+    "packet_refs": {
+      "scope_packet": "docs/project/evidence/dashthis-replacement/preflight/2026-06-16-g0-g1-review-target-intake/scope-packet.json",
+      "contract_packet": "docs/project/evidence/dashthis-replacement/preflight/2026-06-16-g0-g1-review-target-intake/contract-packet.json",
+      "release_packet": "docs/project/evidence/dashthis-replacement/preflight/2026-06-16-g0-g1-review-target-intake/release-packet.json"
+    }
+  },
+  "reviewer_route_confirmed": {
+    "sofia": true,
+    "andre": true,
+    "lina_or_joel": true,
+    "omar_or_hannah": true,
+    "nina_if_sensitive": true,
+    "priya_martin_if_retention_gap": true,
+    "raj_mira_for_g12": true
+  },
+  "decision_log": [
+    {
+      "timestamp": "2026-06-17T11:01:58-05:00",
+      "actor": "Raj agent",
+      "summary": "Approved conditional cross-stream SLB cancellation-readiness evidence capture with followups. DashThis cancellation remains no_go."
+    },
+    {
+      "timestamp": "2026-06-17T11:01:58-05:00",
+      "actor": "Mira agent",
+      "summary": "Approved additive report architecture for fixed-target evidence capture with followups. Preview and export must remain stored-aggregate only."
+    }
+  ]
+}

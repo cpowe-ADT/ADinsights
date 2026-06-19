@@ -23,7 +23,7 @@ from adapters.warehouse import (
     WAREHOUSE_SNAPSHOT_STATUS_DETAIL_KEY,
     WAREHOUSE_SNAPSHOT_STATUS_KEY,
 )
-from analytics.models import AISummary, ReportExportJob, TenantMetricsSnapshot
+from analytics.models import AISummary, ReportDefinition, ReportExportJob, TenantMetricsSnapshot
 from analytics.snapshots import (
     default_snapshot_metrics,
     fetch_snapshot_metrics,
@@ -644,7 +644,20 @@ def run_report_export_job(self, report_export_job_id: str) -> dict[str, object]:
         job.status = ReportExportJob.STATUS_COMPLETED
         job.artifact_path = str(outcome["artifact_path"])
         job.completed_at = timestamp
-        job.metadata = outcome["metadata"]
+        request_metadata = job.metadata if isinstance(job.metadata, dict) else {}
+        merged_metadata = {**outcome["metadata"], **request_metadata}
+        delivery_status = merged_metadata.get("delivery_status")
+        if (
+            isinstance(delivery_status, dict)
+            and delivery_status.get("mode") == "dry_run"
+            and delivery_status.get("status") == "queued"
+        ):
+            merged_metadata["delivery_status"] = {
+                **delivery_status,
+                "status": "rendered",
+                "rendered_at": timezone.now().isoformat(),
+            }
+        job.metadata = merged_metadata
         job.save(
             update_fields=[
                 "status",
@@ -863,7 +876,22 @@ def _export_generic_report(*, job: ReportExportJob, timestamp: datetime) -> dict
             "row_count": len(normalized_rows),
             "export_format": extension,
             "selected_platforms": sorted(selected_platforms),
+            **_report_contract_metadata(report=job.report, generated_at=timestamp),
         },
+    }
+
+
+def _report_contract_metadata(*, report: ReportDefinition, generated_at: datetime) -> dict[str, Any]:
+    layout = report.layout if isinstance(report.layout, dict) else {}
+    coverage = layout.get("coverage")
+    if not isinstance(coverage, (dict, list)):
+        coverage = {}
+    return {
+        "report_schema_version": layout.get("schema_version"),
+        "report_template_key": layout.get("template_key"),
+        "catalog_schema_version": layout.get("catalog_schema_version"),
+        "report_generated_at": generated_at.isoformat(),
+        "coverage": coverage,
     }
 
 

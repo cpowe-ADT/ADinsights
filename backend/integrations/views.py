@@ -871,7 +871,15 @@ def _airbyte_exception_response(exc: AirbyteClientError) -> Response:
     logger.warning("airbyte.api_error", exc_info=exc)
     detail = client_safe_detail(str(exc))
     if getattr(exc, "status_code", None) is not None:
-        return Response({"detail": detail}, status=int(exc.status_code))
+        upstream_status = int(exc.status_code)
+        if 400 <= upstream_status < 500:
+            return Response({"detail": detail}, status=upstream_status)
+        gateway_status = (
+            status.HTTP_504_GATEWAY_TIMEOUT
+            if upstream_status == status.HTTP_504_GATEWAY_TIMEOUT
+            else status.HTTP_502_BAD_GATEWAY
+        )
+        return Response({"detail": detail}, status=gateway_status)
     status_code = (
         status.HTTP_504_GATEWAY_TIMEOUT
         if isinstance(exc.__cause__, httpx.TimeoutException)

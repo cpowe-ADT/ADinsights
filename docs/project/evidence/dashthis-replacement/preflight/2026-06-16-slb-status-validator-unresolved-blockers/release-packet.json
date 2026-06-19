@@ -1,0 +1,208 @@
+{
+  "schema_version": "1.1.0",
+  "release_status": "GATE_BLOCK",
+  "gate_results": {
+    "scope_control": {
+      "status": "BLOCK",
+      "rationale": "Scope status 'ESCALATE_ARCH_RISK' is blocking for release.",
+      "evidence": [
+        "ESCALATE_ARCH_RISK"
+      ]
+    },
+    "contract_integrity": {
+      "status": "WARN",
+      "rationale": "Contract status 'WARN_POSSIBLE_CONTRACT_CHANGE' requires follow-up.",
+      "evidence": [
+        "WARN_POSSIBLE_CONTRACT_CHANGE"
+      ]
+    },
+    "test_coverage": {
+      "status": "INFO",
+      "rationale": "Required tests identified; pending explicit execution/verification.",
+      "evidence": [
+        "ruff check backend && pytest -q backend",
+        "docs-only change (no canonical code test)",
+        "cd frontend && npm ci && npm test -- --run && npm run build",
+        "ruff check backend",
+        "pytest backend/tests/test_dek_manager.py scripts/tests/test_rotate_deks.py"
+      ]
+    },
+    "security_pii_secrets": {
+      "status": "WARN",
+      "rationale": "Prompt/paths include security-sensitive signals; verify secrets/PII handling.",
+      "evidence": [
+        "backend/.env.sample"
+      ]
+    },
+    "runbook_ops_readiness": {
+      "status": "PASS",
+      "rationale": "Required runbook artifacts are present.",
+      "evidence": []
+    },
+    "documentation_completeness": {
+      "status": "PASS",
+      "rationale": "All required documentation updates are present in current change evidence.",
+      "evidence": [
+        "docs/ops/doc-index.md",
+        "docs/ops/agent-activity-log.md"
+      ]
+    },
+    "rollout_rollback_plan": {
+      "status": "PASS",
+      "rationale": "Deployment runbook exists for rollout/rollback planning.",
+      "evidence": [
+        "docs/runbooks/deployment.md"
+      ]
+    },
+    "observability": {
+      "status": "PASS",
+      "rationale": "Observability gate not explicitly blocked by packet/check evidence.",
+      "evidence": []
+    }
+  },
+  "blocking_issues": [
+    "Scope control gate blocked by architecture-level scope risk."
+  ],
+  "warnings": [
+    "Contract integrity requires follow-up before release.",
+    "Security/PII gate requires verification due to sensitive signals."
+  ],
+  "pending_items": [
+    "Run and verify required tests before release."
+  ],
+  "required_approvers": [
+    "Raj",
+    "Mira",
+    "Sofia",
+    "Hannah",
+    "Lina",
+    "Nina"
+  ],
+  "required_artifacts": [
+    "docs/runbooks/release-checklist.md",
+    "docs/runbooks/deployment.md",
+    "docs/runbooks/operations.md",
+    "docs/project/api-contract-changelog.md",
+    "docs/project/integration-data-contract-matrix.md"
+  ],
+  "recommended_next_action": "Address blocking issues and rerun readiness evaluation before release.",
+  "evidence": [
+    {
+      "type": "scope_status",
+      "value": "ESCALATE_ARCH_RISK",
+      "strength": 0.9,
+      "source": "scope_packet"
+    },
+    {
+      "type": "contract_status",
+      "value": "WARN_POSSIBLE_CONTRACT_CHANGE",
+      "strength": 0.9,
+      "source": "contract_packet"
+    }
+  ],
+  "executive_summary": "Release status GATE_BLOCK. Blocking issues: 1. Warnings: 2. Pending items: 1.",
+  "advisory_only": true,
+  "signals": {
+    "run_checks": false,
+    "check_results": [],
+    "router_packet_present": true,
+    "scope_packet_present": true,
+    "contract_packet_present": true,
+    "changed_files": [
+      ".gitignore",
+      "AGENTS.md",
+      "backend/.env.sample",
+      "backend/accounts/permissions.py",
+      "backend/analytics/phase2_serializers.py",
+      "backend/analytics/phase2_views.py",
+      "backend/analytics/tasks.py",
+      "backend/core/settings.py",
+      "backend/core/urls.py",
+      "backend/tests/test_phase2_api.py",
+      "backend/tests/test_schema_regressions.py",
+      "backend/tests/test_tasks.py",
+      "docker-compose.dev.yml",
+      "docs/DEVELOPMENT.md",
+      "docs/ops/agent-activity-log.md",
+      "docs/ops/doc-index.md",
+      "docs/ops/exports.md",
+      "docs/orchestration.md",
+      "docs/project/api-contract-changelog.md",
+      "docs/project/current-priority-todo.md",
+      "docs/project/feature-catalog.md",
+      "docs/project/feature-flags-reference.md",
+      "docs/project/integration-data-contract-matrix.md",
+      "docs/project/meta-permission-profile.md",
+      "docs/project/meta-permissions-catalog.yaml",
+      "docs/runbooks/meta-app-review-copy-pack.md",
+      "docs/runbooks/meta-app-review-submission-checklist.md",
+      "frontend/src/lib/phase2Api.test.ts",
+      "frontend/src/lib/phase2Api.ts",
+      "frontend/src/router.tsx",
+      "frontend/src/routes/DashboardCreate.tsx",
+      "frontend/src/routes/DashboardLayout.tsx",
+      "frontend/src/routes/DataSources.tsx",
+      "frontend/src/routes/ReportDetailPage.tsx",
+      "frontend/src/routes/ReportsPage.tsx",
+      "frontend/src/routes/SavedDashboardPage.tsx",
+      "frontend/src/routes/__tests__/DashboardCreate.test.tsx",
+      "frontend/src/routes/__tests__/DashboardLayout.test.tsx",
+      "frontend/src/routes/__tests__/DataSources.test.tsx",
+      "frontend/src/routes/__tests__/ReportDetailPage.test.tsx",
+      "frontend/src/routes/__tests__/ReportsPage.test.tsx",
+      "frontend/src/routes/__tests__/SavedDashboardPage.test.tsx",
+      "frontend/src/styles/phase2.css",
+      "frontend/vite.config.ts",
+      "scripts/dev-healthcheck.sh",
+      "scripts/dev-launch.sh",
+      "backend/analytics/management/commands/slb_report_evidence_bundle.py",
+      "backend/analytics/management/commands/slb_report_evidence_validate.py",
+      "backend/analytics/management/commands/slb_report_history_probe.py",
+      "backend/analytics/management/commands/slb_report_parity_compare.py",
+      "backend/analytics/management/commands/slb_report_parity_evidence.py",
+      "backend/analytics/management/commands/slb_report_target_intake.py",
+      "backend/analytics/reporting_catalog.py",
+      "backend/analytics/reporting_delivery.py",
+      "backend/analytics/reporting_preview.py",
+      "backend/analytics/reporting_report_preview.py",
+      "backend/analytics/reporting_templates.py",
+      "backend/content_ops/",
+      "backend/tests/fixtures/",
+      "backend/tests/test_content_ops_api.py",
+      "backend/tests/test_content_ops_evals.py",
+      "backend/tests/test_content_ops_generation.py",
+      "backend/tests/test_content_ops_models.py",
+      "backend/tests/test_content_ops_publisher.py",
+      "backend/tests/test_content_ops_scheduler.py",
+      "backend/tests/test_reporting_catalog.py",
+      "docs/design/dashthis-replacement-reporting-moodboard.html",
+      "docs/design/dashthis-replacement-reporting-moodboard.md",
+      "docs/project/content-operations-api-contract.md",
+      "docs/project/content-operations-architecture-sprint-plan.md",
+      "docs/project/content-operations-current-state.md",
+      "docs/project/content-operations-eval-plan.md",
+      "docs/project/content-operations-implementation-backlog.md",
+      "docs/project/content-operations-live-publishing-audit-spec.md",
+      "docs/project/content-operations-meta-publishing-spec.md",
+      "docs/project/content-operations-sprint0-decisions.md",
+      "docs/project/dashthis-replacement-reporting-plan.md",
+      "docs/project/evidence/content-operations/",
+      "docs/project/evidence/dashthis-replacement/",
+      "docs/project/reporting-builder-architecture-plan.md",
+      "docs/project/reporting-builder-backend-data-structure-audit.md",
+      "docs/project/reporting-builder-catalog-contract.md",
+      "docs/runbooks/content-operations-app-review.md",
+      "docs/runbooks/content-operations-failures.md",
+      "docs/runbooks/content-operations-publishing.md",
+      "frontend/src/components/reporting/",
+      "frontend/src/lib/contentOps.test.ts",
+      "frontend/src/lib/contentOps.ts",
+      "frontend/src/lib/contentOpsMock.ts",
+      "frontend/src/routes/ContentOpsPage.tsx",
+      "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
+      "frontend/src/styles/contentOps.css",
+      "scripts/tests/test_validate_slb_cancellation_readiness_status.py",
+      "scripts/validate_slb_cancellation_readiness_status.py"
+    ]
+  }
+}

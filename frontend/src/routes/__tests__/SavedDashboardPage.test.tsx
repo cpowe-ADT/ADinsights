@@ -9,6 +9,7 @@ import * as dashboardTemplatesModule from '../../lib/dashboardTemplates';
 
 const apiMocks = vi.hoisted(() => ({
   getDashboardDefinition: vi.fn(),
+  previewDashboardWidget: vi.fn(),
 }));
 
 const storeMock = vi.hoisted(() => ({
@@ -24,6 +25,7 @@ vi.mock('../../lib/phase2Api', async () => {
   return {
     ...actual,
     getDashboardDefinition: apiMocks.getDashboardDefinition,
+    previewDashboardWidget: apiMocks.previewDashboardWidget,
   };
 });
 
@@ -73,6 +75,31 @@ describe('SavedDashboardPage', () => {
       owner_email: 'admin@example.com',
       created_at: '2026-03-30T12:00:00Z',
       updated_at: '2026-03-30T12:05:00Z',
+    });
+    apiMocks.previewDashboardWidget.mockResolvedValue({
+      widget_id: 'spend_kpi',
+      dataset: 'paid_meta_ads',
+      type: 'kpi',
+      status: 'rendered',
+      data: {
+        kind: 'kpi',
+        metrics: [{ key: 'spend', label: 'Spend', value: 1200 }],
+      },
+      coverage: {
+        dataset: 'paid_meta_ads',
+        requested_start_date: '2026-05-01',
+        requested_end_date: '2026-05-31',
+        covered_start_date: '2026-05-01',
+        covered_end_date: '2026-05-31',
+        coverage_status: 'fresh',
+        history_status: 'available',
+        freshness_status: 'fresh',
+        last_successful_sync_at: '2026-06-01T00:00:00Z',
+        row_count: 1,
+        source_label: 'Warehouse aggregate metrics',
+        coverage_note: 'Warehouse aggregate metrics covers the requested range.',
+      },
+      warnings: [],
     });
   });
 
@@ -161,5 +188,56 @@ describe('SavedDashboardPage', () => {
     expect(screen.queryByText('Creative dashboard body')).not.toBeInTheDocument();
 
     spy.mockRestore();
+  });
+
+  it('renders dashboard.v1 widgets through governed previews', async () => {
+    apiMocks.getDashboardDefinition.mockResolvedValue({
+      id: 'dash-v1',
+      name: 'SLB governed dashboard',
+      description: 'Catalog dashboard',
+      template_key: 'meta_campaign_performance',
+      filters: {},
+      layout: {
+        schema_version: 'dashboard.v1',
+        layout: {
+          columns: 12,
+          slots: [{ id: 'slot-spend', widget_id: 'spend_kpi', cols: 4, rows: 1 }],
+        },
+        widgets: [
+          {
+            id: 'spend_kpi',
+            type: 'kpi',
+            dataset: 'paid_meta_ads',
+            metrics: ['spend'],
+            dimensions: [],
+            filters: { date_range: 'last_month' },
+            coverage_policy: 'render_with_warning',
+            visual: { title: 'Paid spend', source_labels: true },
+          },
+        ],
+      },
+      default_metric: 'spend',
+      is_active: true,
+      owner_email: 'admin@example.com',
+      created_at: '2026-03-30T12:00:00Z',
+      updated_at: '2026-03-30T12:05:00Z',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/saved/dash-v1']}>
+        <Routes>
+          <Route path="/dashboards/saved/:dashboardId" element={<SavedDashboardPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'SLB governed dashboard' })).toBeInTheDocument();
+    expect(await screen.findByText('Spend')).toBeInTheDocument();
+    expect(apiMocks.previewDashboardWidget).toHaveBeenCalledWith(
+      expect.objectContaining({
+        widget: expect.objectContaining({ id: 'spend_kpi', dataset: 'paid_meta_ads' }),
+      }),
+      expect.any(AbortSignal),
+    );
   });
 });

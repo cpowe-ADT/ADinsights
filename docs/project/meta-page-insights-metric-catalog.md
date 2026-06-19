@@ -41,7 +41,7 @@ This document is generated from `backend/integrations/data/meta_metric_catalog.j
 | `page_impressions_nonviral_unique` | `ACTIVE` | no | day, week, days_28 | - | - | - |
 | `page_impressions_paid` | `ACTIVE` | no | day, week, days_28 | - | - | - |
 | `page_impressions_paid_unique` | `ACTIVE` | no | day, week, days_28 | - | - | - |
-| `page_impressions_unique` | `ACTIVE` | yes | day, week, days_28 | - | page_views_total | - |
+| `page_impressions_unique` | `ACTIVE` | yes | day, week, days_28 | - | page_total_media_view_unique | - |
 | `page_impressions_viral` | `ACTIVE` | no | day, week, days_28 | - | - | - |
 | `page_impressions_viral_unique` | `ACTIVE` | no | day, week, days_28 | - | - | - |
 | `page_lifetime_engaged_followers_unique` | `ACTIVE` | no | lifetime | - | - | - |
@@ -105,7 +105,7 @@ This document is generated from `backend/integrations/data/meta_metric_catalog.j
 | `post_click_configuration` | `ACTIVE` | no | lifetime | - | - | - |
 | `post_clicks` | `ACTIVE` | no | lifetime | - | - | - |
 | `post_clicks_by_type` | `ACTIVE` | no | lifetime | - | - | - |
-| `post_impressions` | `ACTIVE` | yes | lifetime | - | - | - |
+| `post_impressions` | `DEPRECATED` | no | lifetime | - | post_media_view | - |
 | `post_impressions_fan` | `ACTIVE` | no | lifetime | - | - | - |
 | `post_impressions_fan_unique` | `ACTIVE` | no | lifetime | - | - | - |
 | `post_impressions_nonviral` | `ACTIVE` | no | lifetime | - | - | - |
@@ -114,7 +114,7 @@ This document is generated from `backend/integrations/data/meta_metric_catalog.j
 | `post_impressions_organic_unique` | `ACTIVE` | no | lifetime | - | - | - |
 | `post_impressions_paid` | `ACTIVE` | no | lifetime | - | - | - |
 | `post_impressions_paid_unique` | `ACTIVE` | no | lifetime | - | - | - |
-| `post_impressions_unique` | `UNKNOWN` | yes | lifetime | - | post_impressions | - |
+| `post_impressions_unique` | `DEPRECATED` | no | lifetime | - | post_total_media_view_unique | - |
 | `post_impressions_viral` | `ACTIVE` | no | lifetime | - | - | - |
 | `post_impressions_viral_unique` | `ACTIVE` | no | lifetime | - | - | - |
 | `post_media_view` | `UNKNOWN` | yes | lifetime | is_from_ads, is_from_followers | - | - |

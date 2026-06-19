@@ -1,0 +1,906 @@
+{
+  "schema_version": "2.1.0",
+  "mode": "preflight",
+  "input_prompt": "Assess SLB G12 approval/signoff validation for DashThis cancellation readiness",
+  "resolved_by": "folder_path",
+  "action": "clarify",
+  "confidence": 0.65,
+  "selected_persona": {
+    "id": "sofia",
+    "name": "Sofia",
+    "role": "Backend metrics API owner"
+  },
+  "backup_persona": {
+    "id": "andre",
+    "name": "Andre",
+    "role": "Metrics infrastructure and snapshot task backup"
+  },
+  "conflict_flags": {
+    "conflict": false,
+    "cross_stream": true,
+    "strong_conflict_count": 0
+  },
+  "touched_streams": [
+    "S3",
+    "S4"
+  ],
+  "required_tests": [
+    "ruff check backend",
+    "pytest backend/tests/test_metrics_api.py backend/tests/test_snapshot_task.py backend/tests/test_analytics_endpoints.py",
+    "cd frontend && npm test -- --run",
+    "cd frontend && npm run build"
+  ],
+  "docs_to_open": [
+    "docs/workstreams.md",
+    "docs/project/feature-ownership-map.md",
+    "docs/project/api-contract-changelog.md",
+    "docs/runbooks/operations.md",
+    "docs/ops/testing-cheat-sheet.md",
+    "docs/project/frontend-finished-product-spec.md",
+    "docs/design-system.md",
+    "docs/project/frontend-spec-review-checklist.md",
+    "AGENTS.md",
+    "docs/ops/escalation-rules.md"
+  ],
+  "escalation_decision": {
+    "advisory_only": true,
+    "required_reviewers": [
+      "Raj",
+      "Mira"
+    ],
+    "reason": "Multiple streams detected in routing evidence."
+  },
+  "recommended_report_template": "C",
+  "clarifying_question": "Your request maps to multiple streams (S3, S4). Which single stream should lead this pass?",
+  "downstream_recommendations": {
+    "invoke_scope_gatekeeper": true,
+    "invoke_contract_guard": true,
+    "invoke_release_readiness": false
+  },
+  "invoke_scope_gatekeeper": true,
+  "evidence": [
+    {
+      "type": "folder_path",
+      "value": "S3:backend/analytics",
+      "strength": 0.8,
+      "source": "paths"
+    },
+    {
+      "type": "folder_path",
+      "value": "S4:frontend/src",
+      "strength": 0.8,
+      "source": "paths"
+    },
+    {
+      "type": "changed_file",
+      "value": ".gitignore",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "AGENTS.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/.env.sample",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/accounts/permissions.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/analytics/phase2_serializers.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/analytics/phase2_views.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/analytics/tasks.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/core/settings.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/core/urls.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/tests/test_phase2_api.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/tests/test_schema_regressions.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/tests/test_tasks.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docker-compose.dev.yml",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/DEVELOPMENT.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/ops/agent-activity-log.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/ops/doc-index.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/ops/exports.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/orchestration.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/api-contract-changelog.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/current-priority-todo.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/feature-catalog.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/feature-flags-reference.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/integration-data-contract-matrix.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/meta-permission-profile.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/meta-permissions-catalog.yaml",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/runbooks/meta-app-review-copy-pack.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/runbooks/meta-app-review-submission-checklist.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/lib/phase2Api.test.ts",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/lib/phase2Api.ts",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/router.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/routes/DashboardCreate.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/routes/DashboardLayout.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/routes/DataSources.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/routes/ReportDetailPage.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/routes/ReportsPage.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/routes/SavedDashboardPage.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/routes/__tests__/DashboardCreate.test.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/routes/__tests__/DashboardLayout.test.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/routes/__tests__/DataSources.test.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/routes/__tests__/ReportDetailPage.test.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/routes/__tests__/ReportsPage.test.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/routes/__tests__/SavedDashboardPage.test.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/styles/phase2.css",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/vite.config.ts",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/dev-healthcheck.sh",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/dev-launch.sh",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/analytics/management/commands/slb_report_evidence_bundle.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/analytics/management/commands/slb_report_evidence_validate.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/analytics/management/commands/slb_report_history_probe.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/analytics/management/commands/slb_report_parity_compare.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/analytics/management/commands/slb_report_parity_evidence.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/analytics/management/commands/slb_report_target_intake.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/analytics/reporting_catalog.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/analytics/reporting_delivery.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/analytics/reporting_preview.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/analytics/reporting_report_preview.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/analytics/reporting_templates.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/content_ops/",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/tests/fixtures/",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/tests/test_content_ops_api.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/tests/test_content_ops_evals.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/tests/test_content_ops_generation.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/tests/test_content_ops_models.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/tests/test_content_ops_publisher.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/tests/test_content_ops_scheduler.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "backend/tests/test_reporting_catalog.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/design/dashthis-replacement-reporting-moodboard.html",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/design/dashthis-replacement-reporting-moodboard.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/content-operations-api-contract.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/content-operations-architecture-sprint-plan.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/content-operations-current-state.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/content-operations-eval-plan.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/content-operations-implementation-backlog.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/content-operations-live-publishing-audit-spec.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/content-operations-meta-publishing-spec.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/content-operations-sprint0-decisions.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/dashthis-replacement-reporting-plan.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/evidence/content-operations/",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/evidence/dashthis-replacement/",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/reporting-builder-architecture-plan.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/reporting-builder-backend-data-structure-audit.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/project/reporting-builder-catalog-contract.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/runbooks/content-operations-app-review.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/runbooks/content-operations-failures.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "docs/runbooks/content-operations-publishing.md",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/components/reporting/",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/lib/contentOps.test.ts",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/lib/contentOps.ts",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/lib/contentOpsMock.ts",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/routes/ContentOpsPage.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "frontend/src/styles/contentOps.css",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/slb_cancellation_readiness_doctor.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/tests/test_slb_cancellation_readiness_doctor.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/tests/test_validate_slb_cancellation_readiness_status.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/tests/test_validate_slb_evidence_chain.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/tests/test_validate_slb_g0_g1_handoff.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/tests/test_validate_slb_g0_raj_mira_review.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/tests/test_validate_slb_g10_adversarial_review.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/tests/test_validate_slb_g11_hardening_window.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/tests/test_validate_slb_g12_final_recommendation.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/tests/test_validate_slb_g1_runtime_target_intake.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/tests/test_validate_slb_g2_g9_evidence_run.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/validate_slb_cancellation_readiness_status.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/validate_slb_evidence_chain.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/validate_slb_g0_g1_handoff.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/validate_slb_g0_raj_mira_review.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/validate_slb_g10_adversarial_review.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/validate_slb_g11_hardening_window.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/validate_slb_g12_final_recommendation.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/validate_slb_g1_runtime_target_intake.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "changed_file",
+      "value": "scripts/validate_slb_g2_g9_evidence_run.py",
+      "strength": 0.7,
+      "source": "changed_files"
+    },
+    {
+      "type": "prompt_path",
+      "value": "approval/signoff",
+      "strength": 0.65,
+      "source": "prompt_paths"
+    }
+  ],
+  "decision_trace": "winner=S3; resolved_by=folder_path; score=0.6500; conflicts=0; cross_stream=True; action=clarify; contract_sensitive=True; release_requested=False",
+  "rationale": [
+    "Selected via folder_path with score 0.65.",
+    "Strong streams: S3, S4.",
+    "Touched streams: S3, S4.",
+    "Cross-stream signal detected; advisory escalation prepared.",
+    "Contract-sensitive indicators detected; contract guard recommended."
+  ],
+  "signals": {
+    "explicit_persona_id": null,
+    "explicit_stream_ids": [],
+    "folder_stream_ids": [
+      "S3",
+      "S4"
+    ],
+    "keyword_stream_ids": [],
+    "explicit_paths": [],
+    "changed_files": [
+      ".gitignore",
+      "AGENTS.md",
+      "backend/.env.sample",
+      "backend/accounts/permissions.py",
+      "backend/analytics/phase2_serializers.py",
+      "backend/analytics/phase2_views.py",
+      "backend/analytics/tasks.py",
+      "backend/core/settings.py",
+      "backend/core/urls.py",
+      "backend/tests/test_phase2_api.py",
+      "backend/tests/test_schema_regressions.py",
+      "backend/tests/test_tasks.py",
+      "docker-compose.dev.yml",
+      "docs/DEVELOPMENT.md",
+      "docs/ops/agent-activity-log.md",
+      "docs/ops/doc-index.md",
+      "docs/ops/exports.md",
+      "docs/orchestration.md",
+      "docs/project/api-contract-changelog.md",
+      "docs/project/current-priority-todo.md",
+      "docs/project/feature-catalog.md",
+      "docs/project/feature-flags-reference.md",
+      "docs/project/integration-data-contract-matrix.md",
+      "docs/project/meta-permission-profile.md",
+      "docs/project/meta-permissions-catalog.yaml",
+      "docs/runbooks/meta-app-review-copy-pack.md",
+      "docs/runbooks/meta-app-review-submission-checklist.md",
+      "frontend/src/lib/phase2Api.test.ts",
+      "frontend/src/lib/phase2Api.ts",
+      "frontend/src/router.tsx",
+      "frontend/src/routes/DashboardCreate.tsx",
+      "frontend/src/routes/DashboardLayout.tsx",
+      "frontend/src/routes/DataSources.tsx",
+      "frontend/src/routes/ReportDetailPage.tsx",
+      "frontend/src/routes/ReportsPage.tsx",
+      "frontend/src/routes/SavedDashboardPage.tsx",
+      "frontend/src/routes/__tests__/DashboardCreate.test.tsx",
+      "frontend/src/routes/__tests__/DashboardLayout.test.tsx",
+      "frontend/src/routes/__tests__/DataSources.test.tsx",
+      "frontend/src/routes/__tests__/ReportDetailPage.test.tsx",
+      "frontend/src/routes/__tests__/ReportsPage.test.tsx",
+      "frontend/src/routes/__tests__/SavedDashboardPage.test.tsx",
+      "frontend/src/styles/phase2.css",
+      "frontend/vite.config.ts",
+      "scripts/dev-healthcheck.sh",
+      "scripts/dev-launch.sh",
+      "backend/analytics/management/commands/slb_report_evidence_bundle.py",
+      "backend/analytics/management/commands/slb_report_evidence_validate.py",
+      "backend/analytics/management/commands/slb_report_history_probe.py",
+      "backend/analytics/management/commands/slb_report_parity_compare.py",
+      "backend/analytics/management/commands/slb_report_parity_evidence.py",
+      "backend/analytics/management/commands/slb_report_target_intake.py",
+      "backend/analytics/reporting_catalog.py",
+      "backend/analytics/reporting_delivery.py",
+      "backend/analytics/reporting_preview.py",
+      "backend/analytics/reporting_report_preview.py",
+      "backend/analytics/reporting_templates.py",
+      "backend/content_ops/",
+      "backend/tests/fixtures/",
+      "backend/tests/test_content_ops_api.py",
+      "backend/tests/test_content_ops_evals.py",
+      "backend/tests/test_content_ops_generation.py",
+      "backend/tests/test_content_ops_models.py",
+      "backend/tests/test_content_ops_publisher.py",
+      "backend/tests/test_content_ops_scheduler.py",
+      "backend/tests/test_reporting_catalog.py",
+      "docs/design/dashthis-replacement-reporting-moodboard.html",
+      "docs/design/dashthis-replacement-reporting-moodboard.md",
+      "docs/project/content-operations-api-contract.md",
+      "docs/project/content-operations-architecture-sprint-plan.md",
+      "docs/project/content-operations-current-state.md",
+      "docs/project/content-operations-eval-plan.md",
+      "docs/project/content-operations-implementation-backlog.md",
+      "docs/project/content-operations-live-publishing-audit-spec.md",
+      "docs/project/content-operations-meta-publishing-spec.md",
+      "docs/project/content-operations-sprint0-decisions.md",
+      "docs/project/dashthis-replacement-reporting-plan.md",
+      "docs/project/evidence/content-operations/",
+      "docs/project/evidence/dashthis-replacement/",
+      "docs/project/reporting-builder-architecture-plan.md",
+      "docs/project/reporting-builder-backend-data-structure-audit.md",
+      "docs/project/reporting-builder-catalog-contract.md",
+      "docs/runbooks/content-operations-app-review.md",
+      "docs/runbooks/content-operations-failures.md",
+      "docs/runbooks/content-operations-publishing.md",
+      "frontend/src/components/reporting/",
+      "frontend/src/lib/contentOps.test.ts",
+      "frontend/src/lib/contentOps.ts",
+      "frontend/src/lib/contentOpsMock.ts",
+      "frontend/src/routes/ContentOpsPage.tsx",
+      "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
+      "frontend/src/styles/contentOps.css",
+      "scripts/slb_cancellation_readiness_doctor.py",
+      "scripts/tests/test_slb_cancellation_readiness_doctor.py",
+      "scripts/tests/test_validate_slb_cancellation_readiness_status.py",
+      "scripts/tests/test_validate_slb_evidence_chain.py",
+      "scripts/tests/test_validate_slb_g0_g1_handoff.py",
+      "scripts/tests/test_validate_slb_g0_raj_mira_review.py",
+      "scripts/tests/test_validate_slb_g10_adversarial_review.py",
+      "scripts/tests/test_validate_slb_g11_hardening_window.py",
+      "scripts/tests/test_validate_slb_g12_final_recommendation.py",
+      "scripts/tests/test_validate_slb_g1_runtime_target_intake.py",
+      "scripts/tests/test_validate_slb_g2_g9_evidence_run.py",
+      "scripts/validate_slb_cancellation_readiness_status.py",
+      "scripts/validate_slb_evidence_chain.py",
+      "scripts/validate_slb_g0_g1_handoff.py",
+      "scripts/validate_slb_g0_raj_mira_review.py",
+      "scripts/validate_slb_g10_adversarial_review.py",
+      "scripts/validate_slb_g11_hardening_window.py",
+      "scripts/validate_slb_g12_final_recommendation.py",
+      "scripts/validate_slb_g1_runtime_target_intake.py",
+      "scripts/validate_slb_g2_g9_evidence_run.py"
+    ],
+    "prompt_paths": [
+      "approval/signoff"
+    ],
+    "used_git_changed_files": true,
+    "folder_matches": {
+      "S3": [
+        "backend/analytics"
+      ],
+      "S4": [
+        "frontend/src"
+      ]
+    },
+    "keyword_matches": {},
+    "contract_sensitive": true,
+    "contract_reasons": [
+      "Path 'backend/core/urls.py' matched contract pattern 'backend/.*/urls\\.py'.",
+      "Path 'docs/project/api-contract-changelog.md' matched contract pattern 'docs/project/api-contract-changelog.md'.",
+      "Path 'docs/project/integration-data-contract-matrix.md' matched contract pattern 'docs/project/integration-data-contract-matrix.md'."
+    ],
+    "release_requested": false,
+    "release_keyword": null
+  }
+}

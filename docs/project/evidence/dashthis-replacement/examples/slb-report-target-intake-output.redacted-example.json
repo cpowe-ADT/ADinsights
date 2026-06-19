@@ -1,0 +1,78 @@
+{
+  "schema_version": "slb_target_intake.v1",
+  "status": "candidate_ready_for_operator_confirmation",
+  "report": {
+    "id": "11111111-2222-3333-4444-555555555555",
+    "tenant_id": "tenant-redacted-example",
+    "is_active": true,
+    "schema_version": "report.v1",
+    "template_key": "slb_monthly_social_report",
+    "catalog_schema_version": "reporting_catalog.v1"
+  },
+  "date_range": {
+    "report_filter": {
+      "date_range": "custom",
+      "start_date": "2026-05-01",
+      "end_date": "2026-05-31"
+    },
+    "layout_filters": []
+  },
+  "source_scope_presence": {
+    "client_id_present": true,
+    "account_id_present": true,
+    "page_id_present": true,
+    "workspace_id_present": true,
+    "delivery_recipient_count": 0
+  },
+  "datasets": {
+    "active": [
+      "content_ops",
+      "organic_facebook_page",
+      "paid_meta_ads"
+    ],
+    "required_active_v1_present": [
+      "content_ops",
+      "organic_facebook_page",
+      "paid_meta_ads"
+    ],
+    "missing_required_active_v1": [],
+    "by_widget": []
+  },
+  "pages": {
+    "count": 8,
+    "ids": [
+      "cover",
+      "executive_summary",
+      "paid_meta_ads",
+      "organic_facebook",
+      "top_posts",
+      "content_activity",
+      "recommendations",
+      "appendix"
+    ],
+    "required_slb_pages_present": true
+  },
+  "widgets": {
+    "count": 8,
+    "by_type": {
+      "bar_chart": 1,
+      "data_table": 2,
+      "kpi": 3,
+      "line_chart": 2
+    }
+  },
+  "schedule": {
+    "schedule_enabled": false,
+    "schedule_cron_present": false,
+    "last_scheduled_at": null
+  },
+  "guardrails": {
+    "report_v1": true,
+    "slb_template": true,
+    "instagram_deferred": true,
+    "no_sensitive_patterns_detected": true,
+    "no_live_provider_check": "not_applicable_offline_metadata_only"
+  },
+  "validation_errors": [],
+  "operator_fields_still_required": []
+}

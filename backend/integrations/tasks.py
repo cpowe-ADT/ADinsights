@@ -2551,6 +2551,8 @@ def sync_meta_page_insights(  # noqa: ANN001
     page_pk: str | None = None,
     mode: str = "incremental",
     metrics: list[str] | None = None,
+    since: str | None = None,
+    until: str | None = None,
 ):
     """Sync Meta Page Insights from Graph API into MetaInsightPoint."""
 
@@ -2588,10 +2590,15 @@ def sync_meta_page_insights(  # noqa: ANN001
                     if not registry_metrics:
                         continue
 
-                    since, until = _resolve_sync_window(mode=mode, now=now)
+                    since_date, until_date = _resolve_sync_window(
+                        mode=mode,
+                        now=now,
+                        since=since,
+                        until=until,
+                    )
                     chunk_size = max(int(getattr(settings, "META_PAGE_INSIGHTS_METRIC_CHUNK_SIZE", 10)), 1)
 
-                    for window_since, window_until in _window_chunks(since=since, until=until, max_days=90):
+                    for window_since, window_until in _window_chunks(since=since_date, until=until_date, max_days=90):
                         rows_processed = _sync_page_metric_window(
                             client=client,
                             page=page,
@@ -2645,6 +2652,8 @@ def sync_meta_post_insights(  # noqa: ANN001
     page_pk: str | None = None,
     mode: str = "incremental",
     metrics: list[str] | None = None,
+    since: str | None = None,
+    until: str | None = None,
 ):
     """Sync Meta Page Post Insights from Graph API into MetaPostInsightPoint."""
 
@@ -2674,13 +2683,18 @@ def sync_meta_post_insights(  # noqa: ANN001
                     if not page_tokens:
                         continue
 
-                    since, until = _resolve_sync_window(mode=mode, now=now)
+                    since_date, until_date = _resolve_sync_window(
+                        mode=mode,
+                        now=now,
+                        since=since,
+                        until=until,
+                    )
                     posts_payload = _fetch_page_posts_with_fallback(
                         client=client,
                         page=page,
                         page_tokens=page_tokens,
-                        since=since,
-                        until=until,
+                        since=since_date,
+                        until=until_date,
                     )
                     posts = _upsert_meta_posts(page=page, rows=posts_payload)
                     if not posts:
@@ -2701,8 +2715,8 @@ def sync_meta_post_insights(  # noqa: ANN001
                             post=post,
                             page_tokens=page_tokens,
                             metrics=registry_metrics,
-                            since=since,
-                            until=until,
+                            since=since_date,
+                            until=until_date,
                             chunk_size=chunk_size,
                         )
                         total_rows_processed += rows_processed
@@ -2829,19 +2843,31 @@ def discover_supported_metrics(self, page_id: str | None = None):  # noqa: ANN00
 
 
 @shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
-def sync_page_insights(self, page_id: str | None = None, mode: str = "backfill"):  # noqa: ANN001
+def sync_page_insights(  # noqa: ANN001
+    self,
+    page_id: str | None = None,
+    mode: str = "backfill",
+    since: str | None = None,
+    until: str | None = None,
+):
     """Compatibility task wrapper for syncing page insights by page_id."""
 
     if page_id:
         page = _resolve_page(page_id)
         if page is None:
             return {"page_id": page_id, "rows_processed": 0, "detail": "Page not found"}
-        return sync_meta_page_insights.run(page_pk=str(page.pk), mode=mode)
-    return sync_meta_page_insights.run(mode=mode)
+        return sync_meta_page_insights.run(page_pk=str(page.pk), mode=mode, since=since, until=until)
+    return sync_meta_page_insights.run(mode=mode, since=since, until=until)
 
 
 @shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
-def sync_page_posts(self, page_id: str | None = None, mode: str = "incremental"):  # noqa: ANN001
+def sync_page_posts(  # noqa: ANN001
+    self,
+    page_id: str | None = None,
+    mode: str = "incremental",
+    since: str | None = None,
+    until: str | None = None,
+):
     """Sync recent posts for a page without post-level insight metrics."""
 
     if not bool(getattr(settings, "META_PAGE_INSIGHTS_ENABLED", True)):
@@ -2855,12 +2881,19 @@ def sync_page_posts(self, page_id: str | None = None, mode: str = "incremental")
         pages = list(MetaPage.all_objects.filter(can_analyze=True).select_related("tenant"))
 
     now = timezone.now()
-    if mode == "backfill":
-        since, until = _resolve_sync_window(mode="backfill", now=now)
+    if since or until:
+        since_date, until_date = _resolve_sync_window(
+            mode=mode,
+            now=now,
+            since=since,
+            until=until,
+        )
+    elif mode == "backfill":
+        since_date, until_date = _resolve_sync_window(mode="backfill", now=now)
     else:
-        until = now.date()
+        until_date = now.date()
         lookback_days = max(int(getattr(settings, "META_PAGE_INSIGHTS_POST_RECENCY_DAYS", 28)), 1)
-        since = until - timedelta(days=lookback_days)
+        since_date = until_date - timedelta(days=lookback_days)
 
     total_posts = 0
     try:
@@ -2873,8 +2906,8 @@ def sync_page_posts(self, page_id: str | None = None, mode: str = "incremental")
                     client=client,
                     page=page,
                     page_tokens=page_tokens,
-                    since=since,
-                    until=until,
+                    since=since_date,
+                    until=until_date,
                 )
                 posts = _upsert_meta_posts(page=page, rows=payload)
                 total_posts += len(posts)
@@ -2901,15 +2934,21 @@ def sync_page_posts(self, page_id: str | None = None, mode: str = "incremental")
 
 
 @shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
-def sync_post_insights(self, page_id: str | None = None, mode: str = "incremental"):  # noqa: ANN001
+def sync_post_insights(  # noqa: ANN001
+    self,
+    page_id: str | None = None,
+    mode: str = "incremental",
+    since: str | None = None,
+    until: str | None = None,
+):
     """Compatibility task wrapper for syncing post insight metrics by page_id."""
 
     if page_id:
         page = _resolve_page(page_id)
         if page is None:
             return {"page_id": page_id, "rows_processed": 0, "detail": "Page not found"}
-        return sync_meta_post_insights.run(page_pk=str(page.pk), mode=mode)
-    return sync_meta_post_insights.run(mode=mode)
+        return sync_meta_post_insights.run(page_pk=str(page.pk), mode=mode, since=since, until=until)
+    return sync_meta_post_insights.run(mode=mode, since=since, until=until)
 
 
 @shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
@@ -3441,7 +3480,19 @@ def _upsert_meta_posts(*, page: MetaPage, rows: list[dict[str, Any]]) -> list[Me
     return posts
 
 
-def _resolve_sync_window(*, mode: str, now: datetime) -> tuple[date, date]:
+def _resolve_sync_window(
+    *,
+    mode: str,
+    now: datetime,
+    since: str | None = None,
+    until: str | None = None,
+) -> tuple[date, date]:
+    if since or until:
+        return _resolve_meta_window(
+            since=since,
+            until=until,
+            lookback_days=max(int(getattr(settings, "META_PAGE_INSIGHTS_BACKFILL_DAYS", 90)), 1),
+        )
     end_date = timezone.localdate() - timedelta(days=1)
     if mode == "backfill":
         backfill_days = max(int(getattr(settings, "META_PAGE_INSIGHTS_BACKFILL_DAYS", 90)), 1)

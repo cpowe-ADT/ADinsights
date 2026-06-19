@@ -477,7 +477,7 @@
     ],
     "supports_breakdowns": [],
     "status": "ACTIVE",
-    "replacement_metric_key": "page_views_total",
+    "replacement_metric_key": "page_total_media_view_unique",
     "is_default": true,
     "deprecated_on": ""
   },
@@ -1286,9 +1286,9 @@
       "lifetime"
     ],
     "supports_breakdowns": [],
-    "status": "ACTIVE",
-    "replacement_metric_key": "",
-    "is_default": true,
+    "status": "DEPRECATED",
+    "replacement_metric_key": "post_media_view",
+    "is_default": false,
     "deprecated_on": ""
   },
   {
@@ -1394,9 +1394,9 @@
       "lifetime"
     ],
     "supports_breakdowns": [],
-    "status": "UNKNOWN",
-    "replacement_metric_key": "post_impressions",
-    "is_default": true,
+    "status": "DEPRECATED",
+    "replacement_metric_key": "post_total_media_view_unique",
+    "is_default": false,
     "deprecated_on": ""
   },
   {

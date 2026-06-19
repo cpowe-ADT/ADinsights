@@ -10,7 +10,7 @@ This document defines the behavior-preserving Celery orchestration profile used 
 
 ## Queue classes
 
-- `sync` queue: ingestion and provider sync workloads (`core.tasks.sync_*`, `integrations.tasks.sync_*`, `integrations.tasks.refresh_*`, parity checks, and scheduled Airbyte triggers).
+- `sync` queue: ingestion and provider sync workloads (`core.tasks.sync_*`, `integrations.tasks.sync_*`, `integrations.tasks.refresh_*`, `content_ops.tasks.*`, parity checks, and scheduled Airbyte triggers).
 - `snapshot` queue: metrics snapshot generation (`analytics.sync_metrics_snapshots`).
 - `summary` queue: async summaries/exports (`analytics.ai_daily_summary`, `analytics.run_report_export_job`).
 - `default` queue: fallback for tasks that are not explicitly routed.
@@ -43,6 +43,14 @@ Tune via `backend/.env.dev` / `backend/.env.sample`:
 ## Schedule windows
 
 - Hourly sync window: 06:00–22:00 (`airbyte-scheduled-syncs-hourly`, Meta and Google sync tasks).
+- Content Ops publishing scans: every minute (`content-publish-due-scan`,
+  `content-publish-retry-scan`, and `content-publish-process-scan`) on the `sync` queue. The
+  processor advances due queued attempts and due Instagram container-pending/ready attempts through
+  disabled-by-default/fakeable provider boundaries unless provider adapters and permission evidence
+  are explicitly activated.
+- Content Ops organic metric refresh: hourly at minute 35 from 06:00-22:00
+  (`content-organic-metrics-refresh`) on the `sync` queue. It bridges already-synced Meta post
+  insight rows into aggregate-only Content Ops metric snapshots.
 - Daily dimension/maintenance window: 02:15+ (hierarchy and credential lifecycle tasks).
 - Snapshot cadence: every 30 minutes (`metrics-snapshot-sync`).
 - Daily summary cadence: 06:10 (`ai-daily-summary`); generated aggregate summaries are delivered

@@ -222,6 +222,36 @@ def test_airbyte_connection_sync_upstream_error(api_client, user, tenant, monkey
 
 
 @pytest.mark.django_db
+def test_airbyte_connection_sync_upstream_500_returns_bad_gateway(api_client, user, tenant, monkeypatch):
+    connection = AirbyteConnection.objects.create(
+        tenant=tenant,
+        name="Sync",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+    )
+
+    class ErrorClient(_BaseStubClient):
+        def latest_job(self, connection_id: str):  # pragma: no cover - unused
+            raise AssertionError("latest_job should not be called during sync error path")
+
+        def trigger_sync(self, connection_id: str):
+            raise AirbyteClientError("Airbyte upstream failed", status_code=500)
+
+    monkeypatch.setattr(
+        AirbyteClient,
+        "from_settings",
+        classmethod(lambda cls: ErrorClient()),
+    )
+
+    api_client.force_authenticate(user=user)
+    response = api_client.post(f"/api/airbyte/connections/{connection.id}/sync/")
+    api_client.force_authenticate(user=None)
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Airbyte upstream failed"
+
+
+@pytest.mark.django_db
 def test_airbyte_connection_create_and_list(api_client, user):
     api_client.force_authenticate(user=user)
 

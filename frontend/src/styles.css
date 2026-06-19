@@ -1225,6 +1225,25 @@ label,
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
+.data-sources-advanced-intro {
+  align-items: flex-start;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+  padding-top: var(--space-5);
+}
+
+.data-sources-advanced-intro h3 {
+  color: var(--text-primary);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.data-sources-advanced-intro .status-message {
+  margin-bottom: 0;
+}
+
 .summary-card {
   padding: var(--space-4);
   border-radius: var(--radius-md);

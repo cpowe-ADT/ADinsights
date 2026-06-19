@@ -1,0 +1,152 @@
+{
+  "schema_version": "slb_g2_g9_evidence_run.v1",
+  "status": "pending_operator_input",
+  "references": {
+    "g1_intake_file": "Pending",
+    "g0_can_proceed": false,
+    "evidence_run_id": "slb-YYYYMMDD-operator",
+    "run_timestamp": "Pending",
+    "operator": "Pending"
+  },
+  "target": {
+    "environment": "Pending",
+    "backend_url": "Pending",
+    "frontend_url": "Pending",
+    "safe_tenant_identifier": "Pending",
+    "safe_client_identifier": "SLB / Students' Loan Bureau",
+    "report_definition_id": "Pending",
+    "template_key": "slb_monthly_social_report",
+    "report_schema_version": "report.v1",
+    "primary_start_date": "2026-05-01",
+    "primary_end_date": "2026-05-31",
+    "timezone": "America/Jamaica"
+  },
+  "guardrails": {
+    "instagram_deferred": true,
+    "dashthis_active": true,
+    "stored_aggregate_only": true,
+    "no_live_provider_calls_at_render_export_time": true
+  },
+  "evidence_files": {
+    "preview": "Pending",
+    "diagnostics": "Pending",
+    "history_probe": "Pending",
+    "evidence_bundle": "Pending",
+    "evidence_validation": "Pending",
+    "parity_output": "Pending",
+    "parity_comparison": "Pending",
+    "report_ui_screenshot": "Pending",
+    "dashboard_ui_screenshot": "Pending",
+    "scheduled_dry_run": "Pending",
+    "redaction_scan": "Pending",
+    "gate_output": "Pending"
+  },
+  "coverage": {
+    "datasets": {
+      "paid_meta_ads": {
+        "status": "Pending",
+        "row_count": null,
+        "covered_start_date": "Pending",
+        "covered_end_date": "Pending",
+        "reviewer": "Pending"
+      },
+      "organic_facebook_page": {
+        "status": "Pending",
+        "row_count": null,
+        "covered_start_date": "Pending",
+        "covered_end_date": "Pending",
+        "reviewer": "Pending"
+      },
+      "content_ops": {
+        "status": "Pending",
+        "row_count": null,
+        "covered_start_date": "Pending",
+        "covered_end_date": "Pending",
+        "reviewer": "Pending"
+      }
+    },
+    "monthly_and_90_day_history_proven": false
+  },
+  "rendering": {
+    "report_v1_pages_rendered": false,
+    "dashboard_v1_rendered_or_not_in_scope": false,
+    "required_sections_present": {
+      "cover": false,
+      "executive_summary": false,
+      "paid_meta_ads": false,
+      "organic_facebook_page": false,
+      "top_posts": false,
+      "content_ops": false,
+      "recommendations": false,
+      "appendix_data_notes": false
+    },
+    "coverage_notes_visible": false
+  },
+  "exports": {
+    "csv": {
+      "job_id": "Pending",
+      "status": "Pending",
+      "byte_count": 0,
+      "preview_hash": "Pending",
+      "snapshot_preview_hash": "Pending"
+    },
+    "pdf": {
+      "job_id": "Pending",
+      "status": "Pending",
+      "byte_count": 0,
+      "preview_hash": "Pending",
+      "snapshot_preview_hash": "Pending"
+    },
+    "png": {
+      "job_id": "Pending",
+      "status": "Pending",
+      "byte_count": 0,
+      "preview_hash": "Pending",
+      "snapshot_preview_hash": "Pending"
+    }
+  },
+  "parity": {
+    "comparison_values_attached": false,
+    "result_counts": {
+      "pass": 0,
+      "fail": 0,
+      "blocked": 0
+    },
+    "non_pass_rows_resolved": false,
+    "reviewer": "Pending"
+  },
+  "delivery": {
+    "scheduled_dry_run_status": "Pending",
+    "delivery_mode": "Pending",
+    "no_client_email_sent": false,
+    "sanitized_status_recorded": false
+  },
+  "safety": {
+    "diagnostics_support_proof_captured": false,
+    "permissions_matrix_passed": false,
+    "tenant_isolation_passed": false,
+    "audit_events_verified": false,
+    "quota_controls_verified": false,
+    "aggregate_only_verified": false,
+    "redaction_scan_passed": false
+  },
+  "gates": {
+    "backend_lint": "Pending",
+    "backend_test": "Pending",
+    "frontend_guardrails": "Pending",
+    "frontend_lint": "Pending",
+    "frontend_test": "Pending",
+    "frontend_build": "Pending",
+    "dev_healthcheck": "Pending",
+    "adinsights_preflight_status": "Pending",
+    "adinsights_preflight_block_accepted_by_g0": false
+  },
+  "reviewer_route": {
+    "sofia": "Pending",
+    "andre": "Pending",
+    "lina_or_joel": "Pending",
+    "omar_or_hannah": "Pending",
+    "nina_if_sensitive": "Pending",
+    "raj_mira": "Pending"
+  }
+}

@@ -6,6 +6,7 @@ import mimetypes
 from datetime import timedelta
 from typing import Any
 
+from django.core.cache import cache
 from django.db import transaction
 from django.http import HttpResponseBase
 from django.http import FileResponse
@@ -37,10 +38,46 @@ from .phase2_serializers import (
     ReportExportCreateSerializer,
     ReportExportJobSerializer,
 )
+from .reporting_preview import ReportingWidgetPreviewError, build_widget_preview
+from .reporting_catalog import get_reporting_catalog
+from .reporting_delivery import create_scheduled_report_dry_run
+from .reporting_report_preview import (
+    ReportingReportExportBlocked,
+    ReportingReportPreviewError,
+    build_report_diagnostics,
+    build_report_export_metadata,
+    build_report_preview,
+)
+from .reporting_templates import (
+    SLB_MONTHLY_TEMPLATE_KEY,
+    build_report_layout_from_template,
+    get_report_template_definition,
+    get_report_template_registry,
+)
 
 logger = logging.getLogger(__name__)
 
 SYNC_HEALTH_STALE_THRESHOLD = timedelta(hours=2)
+REPORT_PREVIEW_CALLS_PER_HOUR = 120
+REPORT_EXPORTS_PER_HOUR = 24
+REPORT_SCHEDULED_DRY_RUNS_PER_HOUR = 12
+REPORT_ACTION_PRIVILEGES = {
+    "list": "report_view",
+    "retrieve": "report_view",
+    "exports": "report_view",
+    "preview": "report_preview",
+    "diagnostics": "report_preview",
+    "create_export": "report_export",
+    "scheduled_dry_run": "report_schedule",
+    "toggle_schedule": "report_schedule",
+    "destroy": "report_delete",
+    "create": "report_edit",
+    "update": "report_edit",
+    "partial_update": "report_edit",
+    "slb_monthly_template": "report_edit",
+    "templates": "report_view",
+    "from_template": "report_edit",
+}
 
 DASHBOARD_TEMPLATE_LIBRARY = (
     {
@@ -180,6 +217,29 @@ def ensure_default_dashboard_presets(*, tenant) -> None:
             )
 
 
+def _check_report_action_quota(
+    *,
+    tenant_id: object,
+    report_id: object,
+    action_name: str,
+    limit: int,
+) -> tuple[bool, int]:
+    now = timezone.now()
+    cache_key = (
+        f"reporting:{tenant_id}:{report_id}:{action_name}:"
+        f"{now.strftime('%Y%m%d%H')}"
+    )
+    added = cache.add(cache_key, 1, timeout=3700)
+    if added:
+        return True, 1
+    try:
+        current = cache.incr(cache_key)
+    except ValueError:
+        cache.set(cache_key, 1, timeout=3700)
+        current = 1
+    return current <= limit, int(current)
+
+
 class ReportDefinitionSchema(AutoSchema):
     """Ensure unique operationIds for mixed-method custom actions."""
 
@@ -195,6 +255,14 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, HasPrivilege]
     required_privilege = "dashboard_edit"
     schema = ReportDefinitionSchema()
+
+    def get_permissions(self):
+        action_name = getattr(self, "action", None)
+        if action_name == "exports" and getattr(self.request, "method", "").upper() == "POST":
+            self.required_privilege = "report_export"
+        else:
+            self.required_privilege = REPORT_ACTION_PRIVILEGES.get(action_name, "report_edit")
+        return super().get_permissions()
 
     def get_queryset(self):
         user = self.request.user
@@ -261,12 +329,144 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
         )
         return Response(ReportDefinitionSerializer(report).data)
 
+    @action(detail=False, methods=["post"], url_path="slb-monthly-template")
+    def slb_monthly_template(self, request):
+        return self._create_report_from_template(
+            request=request,
+            template_key=SLB_MONTHLY_TEMPLATE_KEY,
+            default_name="SLB Monthly Social Report",
+            default_description="Catalog-governed SLB monthly report without Instagram in v1.",
+        )
+
+    @action(detail=False, methods=["get"], url_path="templates")
+    def templates(self, request):
+        return Response(
+            {
+                "schema_version": "report_template_registry.v1",
+                "templates": get_report_template_registry(),
+            }
+        )
+
+    @action(detail=False, methods=["post"], url_path="from-template")
+    def from_template(self, request):
+        template_key = str(request.data.get("template_key") or "").strip()
+        if not template_key:
+            return Response({"errors": ["template_key is required."]}, status=status.HTTP_400_BAD_REQUEST)
+        return self._create_report_from_template(request=request, template_key=template_key)
+
+    def _create_report_from_template(
+        self,
+        *,
+        request,
+        template_key: str,
+        default_name: str | None = None,
+        default_description: str | None = None,
+    ):
+        definition = get_report_template_definition(template_key)
+        if definition is None:
+            return Response(
+                {"errors": [f"unknown report template '{template_key}'."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        actor = request.user if request.user.is_authenticated else None
+        date_range = str(request.data.get("date_range") or "last_month").strip()
+        start_date = str(request.data.get("start_date") or "").strip()
+        end_date = str(request.data.get("end_date") or "").strip()
+        report = ReportDefinition.objects.create(
+            tenant=request.user.tenant,
+            name=str(request.data.get("name") or default_name or definition.label).strip(),
+            description=(
+                str(request.data.get("description") or "")
+                or default_description
+                or f"Catalog-governed {definition.label}."
+            ),
+            filters={
+                "date_range": date_range,
+                "start_date": start_date,
+                "end_date": end_date,
+                "client_id": str(request.data.get("client_id") or "").strip(),
+                "template_key": template_key,
+            },
+            layout=build_report_layout_from_template(
+                template_key=template_key,
+                date_range=date_range,
+                start_date=start_date,
+                end_date=end_date,
+            ),
+            created_by=actor,
+            updated_by=actor,
+        )
+        log_audit_event(
+            tenant=report.tenant,
+            user=actor,
+            action="report_template_created",
+            resource_type="report_definition",
+            resource_id=report.id,
+            metadata={
+                "redacted": True,
+                "template_key": template_key,
+                "fields": ["date_range", "client_id"],
+            },
+        )
+        return Response(ReportDefinitionSerializer(report).data, status=status.HTTP_201_CREATED)
+
     @action(detail=True, methods=["get"], url_path="exports")
     def exports(self, request, pk=None):
         report = self.get_object()
 
         jobs = report.export_jobs.filter(tenant_id=report.tenant_id).order_by("-created_at")
         return Response(ReportExportJobSerializer(jobs, many=True).data)
+
+    @action(detail=True, methods=["post"], url_path="preview")
+    def preview(self, request, pk=None):
+        report = self.get_object()
+        allowed, current = _check_report_action_quota(
+            tenant_id=report.tenant_id,
+            report_id=report.id,
+            action_name="preview",
+            limit=REPORT_PREVIEW_CALLS_PER_HOUR,
+        )
+        if not allowed:
+            return Response(
+                {"errors": [f"Report preview quota exceeded ({current}/{REPORT_PREVIEW_CALLS_PER_HOUR} per hour)."]},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        try:
+            preview_payload = build_report_preview(report=report, payload=request.data or {})
+        except ReportingReportPreviewError as exc:
+            return Response({"errors": exc.errors}, status=exc.status_code)
+        log_audit_event(
+            tenant=report.tenant,
+            user=request.user if request.user.is_authenticated else None,
+            action="report_previewed",
+            resource_type="report_definition",
+            resource_id=report.id,
+            metadata={
+                "redacted": True,
+                "schema_version": preview_payload.get("report", {}).get("schema_version"),
+                "export_ready": preview_payload.get("export_ready"),
+                "preview_hash": preview_payload.get("preview_hash"),
+            },
+        )
+        return Response(preview_payload)
+
+    @action(detail=True, methods=["get"], url_path="diagnostics")
+    def diagnostics(self, request, pk=None):
+        report = self.get_object()
+        diagnostics_payload = build_report_diagnostics(report=report)
+        log_audit_event(
+            tenant=report.tenant,
+            user=request.user if request.user.is_authenticated else None,
+            action="report_diagnostics_viewed",
+            resource_type="report_definition",
+            resource_id=report.id,
+            metadata={
+                "redacted": True,
+                "schema_version": diagnostics_payload.get("report", {}).get("schema_version"),
+                "export_ready": diagnostics_payload.get("export_ready"),
+            },
+        )
+        return Response(diagnostics_payload)
 
     @exports.mapping.post
     def create_export(self, request, pk=None):
@@ -275,12 +475,43 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
 
         payload = ReportExportCreateSerializer(data=request.data or {})
         payload.is_valid(raise_exception=True)
+        allowed, current = _check_report_action_quota(
+            tenant_id=report.tenant_id,
+            report_id=report.id,
+            action_name="export",
+            limit=REPORT_EXPORTS_PER_HOUR,
+        )
+        if not allowed:
+            return Response(
+                {"errors": [f"Report export quota exceeded ({current}/{REPORT_EXPORTS_PER_HOUR} per hour)."]},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        metadata: dict[str, Any] = {}
+        if isinstance(report.layout, dict) and report.layout.get("schema_version") == "report.v1":
+            try:
+                metadata["report_preview"] = build_report_export_metadata(report=report)
+            except ReportingReportExportBlocked as exc:
+                log_audit_event(
+                    tenant=report.tenant,
+                    user=actor,
+                    action="report_export_blocked",
+                    resource_type="report_definition",
+                    resource_id=report.id,
+                    metadata={
+                        "redacted": True,
+                        "blocking_reasons": exc.errors,
+                        "export_format": payload.validated_data["export_format"],
+                    },
+                )
+                return Response({"errors": exc.errors}, status=status.HTTP_409_CONFLICT)
+
         export_job = ReportExportJob.objects.create(
             tenant=report.tenant,
             report=report,
             requested_by=actor,
             export_format=payload.validated_data["export_format"],
             status=ReportExportJob.STATUS_QUEUED,
+            metadata=metadata,
         )
 
         log_audit_event(
@@ -315,6 +546,83 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
             export_job.completed_at = timezone.now()
             export_job.save(update_fields=["status", "error_message", "completed_at", "updated_at"])
 
+        return Response(ReportExportJobSerializer(export_job).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="scheduled-dry-run")
+    def scheduled_dry_run(self, request, pk=None):
+        report = self.get_object()
+        actor = request.user if request.user.is_authenticated else None
+        payload = ReportExportCreateSerializer(data=request.data or {})
+        payload.is_valid(raise_exception=True)
+        allowed, current = _check_report_action_quota(
+            tenant_id=report.tenant_id,
+            report_id=report.id,
+            action_name="scheduled_dry_run",
+            limit=REPORT_SCHEDULED_DRY_RUNS_PER_HOUR,
+        )
+        if not allowed:
+            return Response(
+                {
+                    "errors": [
+                        (
+                            "Scheduled report dry-run quota exceeded "
+                            f"({current}/{REPORT_SCHEDULED_DRY_RUNS_PER_HOUR} per hour)."
+                        )
+                    ]
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        export_job = create_scheduled_report_dry_run(
+            report=report,
+            requested_by=actor,
+            export_format=payload.validated_data["export_format"],
+        )
+        delivery_status = (
+            export_job.metadata.get("delivery_status")
+            if isinstance(export_job.metadata, dict)
+            else {}
+        )
+        log_audit_event(
+            tenant=report.tenant,
+            user=actor,
+            action="report_scheduled_dry_run_requested",
+            resource_type="report_export_job",
+            resource_id=export_job.id,
+            metadata={
+                "redacted": True,
+                "report_id": str(report.id),
+                "delivery_status": delivery_status,
+                "export_format": export_job.export_format,
+            },
+        )
+        if export_job.status == ReportExportJob.STATUS_QUEUED:
+            try:
+                from analytics.tasks import run_report_export_job
+
+                run_report_export_job.delay(str(export_job.id))
+            except Exception as exc:  # pragma: no cover - defensive fallback
+                logger.warning(
+                    "analytics.report_scheduled_dry_run.enqueue_failed",
+                    extra={
+                        "tenant_id": str(report.tenant_id),
+                        "report_export_job_id": str(export_job.id),
+                        "error_type": type(exc).__name__,
+                    },
+                )
+                export_job.status = ReportExportJob.STATUS_FAILED
+                export_job.error_message = f"Scheduled dry-run failed ({type(exc).__name__})."
+                export_job.completed_at = timezone.now()
+                metadata = export_job.metadata if isinstance(export_job.metadata, dict) else {}
+                metadata["delivery_status"] = {
+                    "mode": "dry_run",
+                    "status": "failed",
+                    "sanitized": True,
+                    "error_type": type(exc).__name__,
+                }
+                export_job.metadata = metadata
+                export_job.save(
+                    update_fields=["status", "error_message", "completed_at", "metadata", "updated_at"]
+                )
         return Response(ReportExportJobSerializer(export_job).data, status=status.HTTP_201_CREATED)
 
 
@@ -412,6 +720,26 @@ class DashboardDefinitionViewSet(viewsets.ModelViewSet):
             DashboardDefinitionSerializer(clone, context=self.get_serializer_context()).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class ReportingCatalogView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response(get_reporting_catalog())
+
+
+class DashboardWidgetPreviewView(APIView):
+    permission_classes = [permissions.IsAuthenticated, HasPrivilege]
+    required_privilege = "dashboard_edit"
+    schema = AutoSchema(operation_id_base="DashboardWidgetPreview")
+
+    def post(self, request):
+        try:
+            payload = build_widget_preview(tenant=request.user.tenant, payload=request.data or {})
+        except ReportingWidgetPreviewError as exc:
+            return Response({"detail": exc.errors}, status=exc.status_code)
+        return Response(payload)
 
 
 class AlertsViewSet(AlertRuleDefinitionViewSet):

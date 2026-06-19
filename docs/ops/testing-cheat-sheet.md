@@ -24,6 +24,7 @@ Notes:
 - `scripts/dev-launch.sh --profile 2 --non-interactive --no-update --no-pull --no-open --no-healthcheck`
 - `scripts/dev-launch.sh --profile 2 --non-interactive --no-update --no-pull --no-open` (includes demo-adapter verification)
 - `scripts/dev-healthcheck.sh`
+- `scripts/dev-healthcheck.sh --airbyte-destination-id <airbyte-destination-id>` (adds local Airbyte destination readiness)
 - `cat .dev-launch.active.env`
 
 Supported local live-Meta recipe:
@@ -42,6 +43,8 @@ Notes:
   domains and valid redirect URIs for a different host/port.
 - `GET /api/datasets/status/` is the source of truth for live dashboard readiness.
 - `GET /api/integrations/social/status/` is the source of truth for connection/auth state.
+- Use the optional Airbyte destination healthcheck when local evidence must prove Airbyte writes to
+  the expected Postgres target; it does not trigger Meta/Facebook provider sync.
 - Meta triage order:
   - `GET /api/integrations/social/status/`
   - `GET /api/datasets/status/`

@@ -39,11 +39,39 @@ See also:
 - [ ] Complete SES sender identity, DKIM/SPF/DMARC, and final outbound sender verification. Status: `blocked-external`.
 - [ ] Execute the final staging go/no-go rehearsal and archive evidence. Status: `blocked-external`.
 - [ ] Finish Meta Ads MVP live verification for SLB, JDIC, and Bedi Walker, plus stale-snapshot UX evidence in a real runtime. Status: `blocked-external`.
+- [ ] Complete Phase 0 and Phase 0A of `docs/project/dashthis-replacement-reporting-plan.md`:
+      inventory the DashThis reports to replace, confirm required KPIs/outputs, choose the first
+      tenant/client proof target, run the adversarial plan review, and record operator questions
+      before runtime code changes. Started 2026-06-15 with evidence scaffolding, report inventory
+      template, source comparison worksheet, external prerequisite checklist, and adversarial
+      findings under `docs/project/evidence/dashthis-replacement/`. Gmail evidence now recommends
+      SLB as first proof target; SLB report attachments show full parity requires organic
+      Facebook/Instagram metrics, top performers, narrative report sections, and recommendations,
+      not only paid-media metrics. Blocked on operator confirmation of full SLB report parity vs
+      paid-media-only MVP, required sources, recipients, date range, and source-platform totals.
+      Added `docs/project/reporting-builder-architecture-plan.md` to define the custom dashboard
+      and report-builder direction: govern the builder through a dataset/metric/dimension/widget
+      catalog first, then add backend validation, frontend custom widget creation, SLB monthly
+      report templates, combined social semantics, and SaaS hardening.
+      Scope: `docs/`. Status: `repo-ready`.
 
 ## Next Unblocked Repo Work
 
-No unchecked `repo-ready` pilot-critical work remains as of 2026-05-28. The next phase is
-operator-gated staging activation unless a new repo defect is discovered by validation.
+The next unchecked `repo-ready` item is the DashThis replacement Phase 0/0A audit. After that audit,
+the critical path returns to operator-gated staging activation unless the audit discovers a repo
+defect, weak gate, missing scaffolding, or missing reporting surface.
+
+For reporting-builder work, the next repo-ready slice should be docs-first: create the v1
+reporting catalog contract described in `docs/project/reporting-builder-architecture-plan.md`.
+Do not start with drag-and-drop UI; start with governed dataset, metric, dimension, and widget
+schema rules so later backend/frontend work has a stable contract. Include historical coverage and
+disconnected-source fallback states so 90-day/monthly reports can render from retained data when a
+provider is down, disconnected, or stale. Created 2026-06-15 as
+`docs/project/reporting-builder-catalog-contract.md`; the next implementation slice should be
+backend-only catalog registry plus `DashboardDefinition.layout` validation for `dashboard.v1`.
+Backend audit completed in `docs/project/reporting-builder-backend-data-structure-audit.md`;
+recommendation is go, constrained to serializer-layer `dashboard.v1` validation, no model
+migration, no report layout validation, and no historical fallback computation in the first slice.
 
 - [x] **Usable pilot delivery (2026-05-26):** Implement real generic report artifacts, encrypted
       notification channel secrets with masked API/UI responses, and scheduled daily summary email
@@ -69,6 +97,11 @@ operator-gated staging activation unless a new repo defect is discovered by vali
 - [ ] GA4 live onboarding completion and Search Console tenant onboarding for the pilot. Scope:
       `backend/`, `frontend/`, `infrastructure/airbyte/`. Status: `defer`.
 - [ ] Enterprise UAC UX (`S4-K`). Scope: `frontend/`. Status: `defer`.
+- [ ] Remaining Content Operations governance and external readiness for Meta/Facebook/Instagram
+      organic publishing (`CO-0A`, `CO-0C`, App Review evidence, asset URL strategy, scheduler
+      activation). Scope: `docs/`/future backend slices. Status: `defer`; backend data/API skeleton
+      has started under `backend/content_ops/`; implementation backlog:
+      `docs/project/content-operations-implementation-backlog.md`.
 - [ ] LinkedIn/TikTok connector implementation beyond planning. Scope: `backend/` or `infrastructure/airbyte/`. Status: `defer`.
 
 ## Working Order

@@ -11,8 +11,14 @@ DEFAULT_POSTGRES_PORT=5432
 DEFAULT_REDIS_PORT=6379
 DEFAULT_BACKEND_PORT=8000
 DEFAULT_FRONTEND_PORT=5173
-META_LOCAL_OAUTH_CANONICAL_FRONTEND_URL="http://localhost:5173"
+DEV_FRONTEND_SCHEME="${DEV_FRONTEND_SCHEME:-https}"
+META_LOCAL_OAUTH_CANONICAL_FRONTEND_URL="https://localhost:5173"
 META_OAUTH_REDIRECT_PATH="/dashboards/data-sources"
+LOCAL_HTTPS_CERT_DIR="$REPO_ROOT/frontend/.dev-certs"
+LOCAL_HTTPS_CERT_KEY="$LOCAL_HTTPS_CERT_DIR/localhost.key"
+LOCAL_HTTPS_CERT_CRT="$LOCAL_HTTPS_CERT_DIR/localhost.crt"
+LOCAL_HTTPS_CONTAINER_KEY="/usr/src/app/.dev-certs/localhost.key"
+LOCAL_HTTPS_CONTAINER_CRT="/usr/src/app/.dev-certs/localhost.crt"
 
 DETACH="${DEV_DETACH:-1}"
 AUTO_UPDATE="${DEV_AUTO_UPDATE:-1}"
@@ -71,6 +77,7 @@ Environment overrides:
   DEV_REDIS_PORT=6379
   DEV_BACKEND_PORT=8000
   DEV_FRONTEND_PORT=5173
+  DEV_FRONTEND_SCHEME=https
 USAGE
 }
 
@@ -100,6 +107,13 @@ validate_port() {
   fi
   if (( value < 1 || value > 65535 )); then
     echo "Invalid $name '$value' (must be between 1 and 65535)."
+    exit 1
+  fi
+}
+
+validate_frontend_scheme() {
+  if [[ "$DEV_FRONTEND_SCHEME" != "http" && "$DEV_FRONTEND_SCHEME" != "https" ]]; then
+    echo "Invalid DEV_FRONTEND_SCHEME '$DEV_FRONTEND_SCHEME' (must be http or https)."
     exit 1
   fi
 }
@@ -243,13 +257,13 @@ write_active_env() {
   local meta_oauth_supported
   local meta_oauth_reason
   generated_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-  meta_oauth_redirect_uri="http://localhost:${FRONTEND_PORT}${META_OAUTH_REDIRECT_PATH}"
-  if [[ "$FRONTEND_PORT" == "5173" ]]; then
+  meta_oauth_redirect_uri="${DEV_FRONTEND_SCHEME}://localhost:${FRONTEND_PORT}${META_OAUTH_REDIRECT_PATH}"
+  if [[ "$DEV_FRONTEND_SCHEME" == "https" && ( "$FRONTEND_PORT" == "5173" || "$FRONTEND_PORT" == "5174" ) ]]; then
     meta_oauth_supported=1
-    meta_oauth_reason="active_frontend_matches_canonical_local_meta_oauth_host"
+    meta_oauth_reason="active_https_frontend_matches_configured_local_meta_oauth_redirect"
   else
     meta_oauth_supported=0
-    meta_oauth_reason="launcher_redirect_aligned_but_meta_app_must_allow_this_exact_frontend_origin_and_redirect_uri"
+    meta_oauth_reason="meta_app_must_allow_this_exact_https_frontend_origin_and_redirect_uri"
   fi
 
   cat > "$ACTIVE_ENV_FILE" <<ACTIVE_ENV
@@ -260,13 +274,44 @@ REDIS_PORT=$REDIS_PORT
 BACKEND_PORT=$BACKEND_PORT
 FRONTEND_PORT=$FRONTEND_PORT
 DEV_BACKEND_URL=http://localhost:$BACKEND_PORT
-DEV_FRONTEND_URL=http://localhost:$FRONTEND_PORT
+DEV_FRONTEND_URL=${DEV_FRONTEND_SCHEME}://localhost:$FRONTEND_PORT
 DEV_LAUNCH_GENERATED_AT=$generated_at
 META_LOCAL_OAUTH_CANONICAL_FRONTEND_URL=$META_LOCAL_OAUTH_CANONICAL_FRONTEND_URL
 META_OAUTH_REDIRECT_URI=$meta_oauth_redirect_uri
 META_LOCAL_OAUTH_SUPPORTED=$meta_oauth_supported
 META_LOCAL_OAUTH_REASON=$meta_oauth_reason
+VITE_DEV_HTTPS=${VITE_DEV_HTTPS:-0}
+VITE_DEV_HTTPS_KEY=${VITE_DEV_HTTPS_KEY:-}
+VITE_DEV_HTTPS_CERT=${VITE_DEV_HTTPS_CERT:-}
 ACTIVE_ENV
+}
+
+ensure_local_https_cert() {
+  if [[ "$DEV_FRONTEND_SCHEME" != "https" ]]; then
+    export VITE_DEV_HTTPS=0
+    export VITE_DEV_HTTPS_KEY=""
+    export VITE_DEV_HTTPS_CERT=""
+    return 0
+  fi
+
+  if ! command -v openssl >/dev/null 2>&1; then
+    echo "OpenSSL is required to generate a local HTTPS certificate for Meta OAuth."
+    exit 1
+  fi
+
+  mkdir -p "$LOCAL_HTTPS_CERT_DIR"
+  if [[ ! -f "$LOCAL_HTTPS_CERT_KEY" || ! -f "$LOCAL_HTTPS_CERT_CRT" ]]; then
+    echo "Generating local HTTPS certificate for https://localhost..."
+    openssl req -x509 -newkey rsa:2048 -sha256 -days 825 -nodes \
+      -keyout "$LOCAL_HTTPS_CERT_KEY" \
+      -out "$LOCAL_HTTPS_CERT_CRT" \
+      -subj "/CN=localhost" \
+      -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" >/dev/null 2>&1
+  fi
+
+  export VITE_DEV_HTTPS=1
+  export VITE_DEV_HTTPS_KEY="$LOCAL_HTTPS_CONTAINER_KEY"
+  export VITE_DEV_HTTPS_CERT="$LOCAL_HTTPS_CONTAINER_CRT"
 }
 
 extract_access_token() {
@@ -444,6 +489,8 @@ if [[ -n "${DEV_FRONTEND_PORT+x}" ]]; then
   validate_port "DEV_FRONTEND_PORT" "$DEV_FRONTEND_PORT"
 fi
 
+validate_frontend_scheme
+
 if [[ ! -f "$COMPOSE_FILE" ]]; then
   echo "Missing $COMPOSE_FILE. Did you pull the repo updates?"
   exit 1
@@ -554,10 +601,12 @@ fi
 
 export POSTGRES_PORT REDIS_PORT BACKEND_PORT FRONTEND_PORT
 export DEV_BACKEND_URL="http://localhost:${BACKEND_PORT}"
-export DEV_FRONTEND_URL="http://localhost:${FRONTEND_PORT}"
+export DEV_FRONTEND_URL="${DEV_FRONTEND_SCHEME}://localhost:${FRONTEND_PORT}"
 export DEV_ACTIVE_PROFILE="$SELECTED_PROFILE"
 export FRONTEND_BASE_URL="$DEV_FRONTEND_URL"
 export META_OAUTH_REDIRECT_URI="${DEV_FRONTEND_URL}${META_OAUTH_REDIRECT_PATH}"
+
+ensure_local_https_cert
 
 write_active_env "$SELECTED_PROFILE"
 
@@ -567,12 +616,12 @@ echo "Backend URL: $DEV_BACKEND_URL"
 echo "Frontend URL: $DEV_FRONTEND_URL"
 echo "Open this exact frontend URL (do not use bare http://127.0.0.1): $DEV_FRONTEND_URL"
 echo "Active runtime file: $ACTIVE_ENV_FILE"
-if [[ "$FRONTEND_PORT" == "5173" ]]; then
+if [[ "$DEV_FRONTEND_SCHEME" == "https" && ( "$FRONTEND_PORT" == "5173" || "$FRONTEND_PORT" == "5174" ) ]]; then
   echo "Meta OAuth note: launcher redirect is set to $META_OAUTH_REDIRECT_URI."
-  echo "                 This matches the default local Meta app configuration."
+  echo "                 This matches the configured local Meta app redirect list."
 else
   echo "Meta OAuth note: launcher redirect is set to $META_OAUTH_REDIRECT_URI."
-  echo "                 OAuth on $DEV_FRONTEND_URL will work only if the Meta app domain and valid redirect settings include this exact frontend URL."
+  echo "                 OAuth on $DEV_FRONTEND_URL will work only if the Meta app domain and valid redirect settings include this exact HTTPS frontend URL."
 fi
 
 if [[ "$AUTO_UPDATE" == "1" ]] && command -v git >/dev/null 2>&1; then

@@ -1,0 +1,137 @@
+{
+  "schema_version": "1.1.0",
+  "scope_status": "ESCALATE_CROSS_SCOPE",
+  "touched_top_level_folders": [
+    "frontend",
+    "docs"
+  ],
+  "required_reviewers": [
+    "Raj",
+    "Lina",
+    "Hannah"
+  ],
+  "required_tests_by_folder": {
+    "frontend": [
+      "cd frontend && npm ci && npm test -- --run && npm run build"
+    ],
+    "docs": [
+      "docs-only change (no canonical code test)"
+    ]
+  },
+  "required_docs_updates": [
+    "docs/ops/doc-index.md",
+    "docs/ops/agent-activity-log.md"
+  ],
+  "recommended_next_action": "Either split work into single-folder PR slices or route to Raj for cross-stream coordination.",
+  "rationale": [
+    "Evidence source: explicit_paths.",
+    "Detected 9 path(s): frontend/src/routes/ContentOpsPage.tsx, frontend/src/lib/contentOpsMock.ts, frontend/src/styles/contentOps.css, frontend/src/routes/__tests__/ContentOpsPage.test.tsx, docs/project/evidence/content-operations/2026-06-10-goal-q-frontend-live-readiness.md, docs/project/content-operations-current-state.md, docs/project/content-operations-implementation-backlog.md, docs/ops/agent-activity-log.md, docs/ops/doc-index.md.",
+    "Touched top-level folders: frontend, docs."
+  ],
+  "advisory_only": true,
+  "evidence_source": "explicit_paths",
+  "evidence_paths": [
+    "frontend/src/routes/ContentOpsPage.tsx",
+    "frontend/src/lib/contentOpsMock.ts",
+    "frontend/src/styles/contentOps.css",
+    "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
+    "docs/project/evidence/content-operations/2026-06-10-goal-q-frontend-live-readiness.md",
+    "docs/project/content-operations-current-state.md",
+    "docs/project/content-operations-implementation-backlog.md",
+    "docs/ops/agent-activity-log.md",
+    "docs/ops/doc-index.md"
+  ],
+  "evidence": [
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/ContentOpsPage.tsx",
+      "strength": 0.8,
+      "source": "explicit_paths"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/lib/contentOpsMock.ts",
+      "strength": 0.8,
+      "source": "explicit_paths"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/styles/contentOps.css",
+      "strength": 0.8,
+      "source": "explicit_paths"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
+      "strength": 0.8,
+      "source": "explicit_paths"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/evidence/content-operations/2026-06-10-goal-q-frontend-live-readiness.md",
+      "strength": 0.8,
+      "source": "explicit_paths"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/content-operations-current-state.md",
+      "strength": 0.8,
+      "source": "explicit_paths"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/content-operations-implementation-backlog.md",
+      "strength": 0.8,
+      "source": "explicit_paths"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/ops/agent-activity-log.md",
+      "strength": 0.8,
+      "source": "explicit_paths"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/ops/doc-index.md",
+      "strength": 0.8,
+      "source": "explicit_paths"
+    }
+  ],
+  "contract_risk_signal": false,
+  "contract_risk_reasons": [],
+  "handoff_recommendations": {
+    "invoke_contract_guard": false,
+    "invoke_release_readiness": true
+  },
+  "signals": {
+    "prompt_paths": [
+      "docs/evidence"
+    ],
+    "explicit_paths": [
+      "frontend/src/routes/ContentOpsPage.tsx",
+      "frontend/src/lib/contentOpsMock.ts",
+      "frontend/src/styles/contentOps.css",
+      "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
+      "docs/project/evidence/content-operations/2026-06-10-goal-q-frontend-live-readiness.md",
+      "docs/project/content-operations-current-state.md",
+      "docs/project/content-operations-implementation-backlog.md",
+      "docs/ops/agent-activity-log.md",
+      "docs/ops/doc-index.md"
+    ],
+    "changed_files": [
+      "frontend/src/routes/ContentOpsPage.tsx",
+      "frontend/src/lib/contentOpsMock.ts",
+      "frontend/src/styles/contentOps.css",
+      "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
+      "docs/project/evidence/content-operations/2026-06-10-goal-q-frontend-live-readiness.md",
+      "docs/project/content-operations-current-state.md",
+      "docs/project/content-operations-implementation-backlog.md",
+      "docs/ops/agent-activity-log.md",
+      "docs/ops/doc-index.md"
+    ],
+    "used_git_changed_files": false,
+    "architecture_hits": [],
+    "contract_hits": [],
+    "contract_keyword_hits": []
+  }
+}

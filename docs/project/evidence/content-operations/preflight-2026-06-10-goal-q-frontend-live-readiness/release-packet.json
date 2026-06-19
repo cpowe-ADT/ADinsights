@@ -1,0 +1,103 @@
+{
+  "schema_version": "1.1.0",
+  "release_status": "GATE_WARN",
+  "gate_results": {
+    "scope_control": {
+      "status": "WARN",
+      "rationale": "Scope status 'ESCALATE_CROSS_SCOPE' requires escalation/clarification.",
+      "evidence": [
+        "ESCALATE_CROSS_SCOPE"
+      ]
+    },
+    "contract_integrity": {
+      "status": "PASS",
+      "rationale": "Contract status 'PASS_NO_CONTRACT_CHANGE' is acceptable.",
+      "evidence": [
+        "PASS_NO_CONTRACT_CHANGE"
+      ]
+    },
+    "test_coverage": {
+      "status": "INFO",
+      "rationale": "Required tests identified; pending explicit execution/verification.",
+      "evidence": [
+        "cd frontend && npm ci && npm test -- --run && npm run build",
+        "docs-only change (no canonical code test)"
+      ]
+    },
+    "security_pii_secrets": {
+      "status": "PASS",
+      "rationale": "No security-sensitive prompt/path signals detected.",
+      "evidence": []
+    },
+    "runbook_ops_readiness": {
+      "status": "PASS",
+      "rationale": "Required runbook artifacts are present.",
+      "evidence": []
+    },
+    "documentation_completeness": {
+      "status": "INFO",
+      "rationale": "Documentation updates are required before release.",
+      "evidence": [
+        "docs/ops/doc-index.md",
+        "docs/ops/agent-activity-log.md"
+      ]
+    },
+    "rollout_rollback_plan": {
+      "status": "PASS",
+      "rationale": "Deployment runbook exists for rollout/rollback planning.",
+      "evidence": [
+        "docs/runbooks/deployment.md"
+      ]
+    },
+    "observability": {
+      "status": "PASS",
+      "rationale": "Observability gate not explicitly blocked by packet/check evidence.",
+      "evidence": []
+    }
+  },
+  "blocking_issues": [],
+  "warnings": [
+    "Scope control requires escalation or clarification before release."
+  ],
+  "pending_items": [
+    "Run and verify required tests before release.",
+    "Complete required documentation updates before release."
+  ],
+  "required_approvers": [
+    "Raj",
+    "Lina",
+    "Hannah"
+  ],
+  "required_artifacts": [
+    "docs/runbooks/release-checklist.md",
+    "docs/runbooks/deployment.md",
+    "docs/runbooks/operations.md",
+    "docs/project/api-contract-changelog.md",
+    "docs/project/integration-data-contract-matrix.md"
+  ],
+  "recommended_next_action": "Resolve warnings or capture explicit risk acceptance before release.",
+  "evidence": [
+    {
+      "type": "scope_status",
+      "value": "ESCALATE_CROSS_SCOPE",
+      "strength": 0.9,
+      "source": "scope_packet"
+    },
+    {
+      "type": "contract_status",
+      "value": "PASS_NO_CONTRACT_CHANGE",
+      "strength": 0.9,
+      "source": "contract_packet"
+    }
+  ],
+  "executive_summary": "Release status GATE_WARN. Blocking issues: 0. Warnings: 1. Pending items: 2.",
+  "advisory_only": true,
+  "signals": {
+    "run_checks": false,
+    "check_results": [],
+    "router_packet_present": true,
+    "scope_packet_present": true,
+    "contract_packet_present": true,
+    "changed_files": []
+  }
+}
