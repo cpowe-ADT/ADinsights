@@ -44,10 +44,7 @@
       "endDate": { "type": "string", "format": "date" },
       "thumbnailUrl": {
         "type": "string",
-        "anyOf": [
-          { "format": "uri" },
-          { "pattern": "^/" }
-        ]
+        "anyOf": [{ "format": "uri" }, { "pattern": "^/" }]
       }
     }
   }

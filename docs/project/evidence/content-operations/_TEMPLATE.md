@@ -39,9 +39,9 @@ Feature flag(s):
 
 | Step | Action | Expected | Actual | Pass/Fail |
 | ---- | ------ | -------- | ------ | --------- |
-| 1 | | | | |
-| 2 | | | | |
-| 3 | | | | |
+| 1    |        |          |        |           |
+| 2    |        |          |        |           |
+| 3    |        |          |        |           |
 
 ## API/Task Evidence
 

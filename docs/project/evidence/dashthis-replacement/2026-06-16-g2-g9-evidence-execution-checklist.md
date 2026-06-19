@@ -35,23 +35,23 @@ Do not start this checklist until all are true:
 
 Copy these from G1 before running anything.
 
-| Input | Value |
-| --- | --- |
-| Evidence operator | TBD |
-| Target environment | TBD |
-| Backend URL | TBD |
-| Frontend URL | TBD |
-| Safe tenant/client | TBD |
-| `ReportDefinition.id` | TBD |
-| `template_key` | `slb_monthly_social_report` expected |
-| Report schema | `report.v1` expected |
-| Primary date range | TBD |
-| 90-day retained-history range | TBD |
-| Paid Meta account scope | TBD |
-| Organic Facebook Page scope | TBD |
-| Content Ops workspace/client scope | TBD |
-| DashThis/source comparison owner | TBD |
-| Instagram | Deferred in v1 |
+| Input                              | Value                                |
+| ---------------------------------- | ------------------------------------ |
+| Evidence operator                  | TBD                                  |
+| Target environment                 | TBD                                  |
+| Backend URL                        | TBD                                  |
+| Frontend URL                       | TBD                                  |
+| Safe tenant/client                 | TBD                                  |
+| `ReportDefinition.id`              | TBD                                  |
+| `template_key`                     | `slb_monthly_social_report` expected |
+| Report schema                      | `report.v1` expected                 |
+| Primary date range                 | TBD                                  |
+| 90-day retained-history range      | TBD                                  |
+| Paid Meta account scope            | TBD                                  |
+| Organic Facebook Page scope        | TBD                                  |
+| Content Ops workspace/client scope | TBD                                  |
+| DashThis/source comparison owner   | TBD                                  |
+| Instagram                          | Deferred in v1                       |
 
 If any input changes, stop and update G1 before continuing.
 
@@ -96,31 +96,31 @@ and at least one row must pass before G10 can start.
 Each `pass` row must include metric identity, ADinsights value, source value, absolute delta,
 accepted tolerance, and an explanation.
 
-| Field | Value |
-| --- | --- |
-| Evidence run ID | `slb-YYYYMMDD-<operator-initials>` |
-| Evidence run timestamp America/Jamaica | TBD |
-| Operator | TBD |
-| Code branch/commit or worktree note | TBD |
-| Target environment | TBD |
-| Safe tenant/client | TBD |
-| Report ID | TBD |
-| Date range | TBD |
-| Preview payload file/path | TBD |
-| Diagnostics payload file/path | TBD |
-| History probe file/path | TBD |
-| Parity output file/path | TBD |
-| Evidence bundle file/path | TBD |
-| Evidence validation file/path | TBD |
-| Report UI screenshot/path | TBD |
-| Dashboard UI screenshot/path if applicable | TBD |
-| CSV export job ID/path/byte count | TBD |
-| PDF export job ID/path/byte count | TBD |
-| PNG export job ID/path/byte count | TBD |
-| Scheduled dry-run job ID/path/status | TBD |
-| G9 redaction scan result/path | TBD |
-| Gate output path | TBD |
-| Evidence copied into packets? | Pending |
+| Field                                      | Value                              |
+| ------------------------------------------ | ---------------------------------- |
+| Evidence run ID                            | `slb-YYYYMMDD-<operator-initials>` |
+| Evidence run timestamp America/Jamaica     | TBD                                |
+| Operator                                   | TBD                                |
+| Code branch/commit or worktree note        | TBD                                |
+| Target environment                         | TBD                                |
+| Safe tenant/client                         | TBD                                |
+| Report ID                                  | TBD                                |
+| Date range                                 | TBD                                |
+| Preview payload file/path                  | TBD                                |
+| Diagnostics payload file/path              | TBD                                |
+| History probe file/path                    | TBD                                |
+| Parity output file/path                    | TBD                                |
+| Evidence bundle file/path                  | TBD                                |
+| Evidence validation file/path              | TBD                                |
+| Report UI screenshot/path                  | TBD                                |
+| Dashboard UI screenshot/path if applicable | TBD                                |
+| CSV export job ID/path/byte count          | TBD                                |
+| PDF export job ID/path/byte count          | TBD                                |
+| PNG export job ID/path/byte count          | TBD                                |
+| Scheduled dry-run job ID/path/status       | TBD                                |
+| G9 redaction scan result/path              | TBD                                |
+| Gate output path                           | TBD                                |
+| Evidence copied into packets?              | Pending                            |
 
 Minimum safe summary to copy into the packet:
 
@@ -156,21 +156,21 @@ mkdir -p "$ADI_EVIDENCE_TMP"
 
 Suggested output files:
 
-| Evidence | Suggested path |
-| --- | --- |
-| Preview | `$ADI_EVIDENCE_TMP/preview.json` |
-| Diagnostics | `$ADI_EVIDENCE_TMP/diagnostics.json` |
-| Monthly/90-day history probe | `$ADI_EVIDENCE_TMP/history-probe.json` |
-| Parity JSON/Markdown | `$ADI_EVIDENCE_TMP/parity.json` or `$ADI_EVIDENCE_TMP/parity.md` |
-| Combined evidence bundle | `$ADI_EVIDENCE_TMP/evidence-bundle.json` |
-| Comparison values | `$ADI_EVIDENCE_TMP/comparison-values.json` |
-| Parity comparison | `$ADI_EVIDENCE_TMP/parity-comparison.json` or `$ADI_EVIDENCE_TMP/parity-comparison.md` |
-| Evidence validation | `$ADI_EVIDENCE_TMP/evidence-validation.json` |
-| Export create responses | `$ADI_EVIDENCE_TMP/export-csv.json`, `export-pdf.json`, `export-png.json` |
-| Export history | `$ADI_EVIDENCE_TMP/export-history.json` |
-| Scheduled dry-run | `$ADI_EVIDENCE_TMP/scheduled-dry-run.json` |
-| Redaction scan | `$ADI_EVIDENCE_TMP/redaction-scan.txt` |
-| Gate output | `$ADI_EVIDENCE_TMP/gates.txt` |
+| Evidence                     | Suggested path                                                                         |
+| ---------------------------- | -------------------------------------------------------------------------------------- |
+| Preview                      | `$ADI_EVIDENCE_TMP/preview.json`                                                       |
+| Diagnostics                  | `$ADI_EVIDENCE_TMP/diagnostics.json`                                                   |
+| Monthly/90-day history probe | `$ADI_EVIDENCE_TMP/history-probe.json`                                                 |
+| Parity JSON/Markdown         | `$ADI_EVIDENCE_TMP/parity.json` or `$ADI_EVIDENCE_TMP/parity.md`                       |
+| Combined evidence bundle     | `$ADI_EVIDENCE_TMP/evidence-bundle.json`                                               |
+| Comparison values            | `$ADI_EVIDENCE_TMP/comparison-values.json`                                             |
+| Parity comparison            | `$ADI_EVIDENCE_TMP/parity-comparison.json` or `$ADI_EVIDENCE_TMP/parity-comparison.md` |
+| Evidence validation          | `$ADI_EVIDENCE_TMP/evidence-validation.json`                                           |
+| Export create responses      | `$ADI_EVIDENCE_TMP/export-csv.json`, `export-pdf.json`, `export-png.json`              |
+| Export history               | `$ADI_EVIDENCE_TMP/export-history.json`                                                |
+| Scheduled dry-run            | `$ADI_EVIDENCE_TMP/scheduled-dry-run.json`                                             |
+| Redaction scan               | `$ADI_EVIDENCE_TMP/redaction-scan.txt`                                                 |
+| Gate output                  | `$ADI_EVIDENCE_TMP/gates.txt`                                                          |
 
 Required pre-G10 validation output:
 
@@ -550,37 +550,37 @@ accepted as a cancellation blocker.
 
 ## Evidence Routing
 
-| Goal | Primary packet to update |
-| --- | --- |
-| G2/G3 | `2026-06-16-g2-g3-coverage-retained-history-proof.md` |
-| G4/G5 | `2026-06-16-g4-g5-render-export-reproducibility-proof.md` |
-| G6 | `2026-06-16-g6-parity-worksheet-proof.md` |
-| G7/G8 | `2026-06-16-g7-g8-delivery-diagnostics-proof.md` |
-| G9 | `2026-06-16-g9-safety-controls-proof.md` |
-| Overall status | `2026-06-16-slb-cancellation-readiness-goals.md` |
+| Goal                 | Primary packet to update                                    |
+| -------------------- | ----------------------------------------------------------- |
+| G2/G3                | `2026-06-16-g2-g3-coverage-retained-history-proof.md`       |
+| G4/G5                | `2026-06-16-g4-g5-render-export-reproducibility-proof.md`   |
+| G6                   | `2026-06-16-g6-parity-worksheet-proof.md`                   |
+| G7/G8                | `2026-06-16-g7-g8-delivery-diagnostics-proof.md`            |
+| G9                   | `2026-06-16-g9-safety-controls-proof.md`                    |
+| Overall status       | `2026-06-16-slb-cancellation-readiness-goals.md`            |
 | Main evidence rollup | `2026-06-16-slb-reporting-render-export-parity-evidence.md` |
 
 ## Completion Matrix Before G10
 
 Fill this matrix after routing evidence. Any `No` blocks G10.
 
-| Check | Yes/No | Evidence link or note |
-| --- | --- | --- |
-| All evidence uses the same target environment. | Pending | Pending |
-| All evidence uses the same safe tenant/client. | Pending | Pending |
-| All evidence uses the same `ReportDefinition.id`. | Pending | Pending |
-| All evidence uses the same primary date range. | Pending | Pending |
-| `template_key` is `slb_monthly_social_report`. | Pending | Pending |
-| `schema_version` is `report.v1`. | Pending | Pending |
-| Instagram remains deferred/absent from v1 pass claims. | Pending | Pending |
-| G2/G3 coverage/history packet is filled. | Pending | Pending |
-| G4/G5 render/export packet is filled. | Pending | Pending |
-| G6 parity worksheet is filled or blocker recorded. | Pending | Pending |
-| G7/G8 delivery/diagnostics packet is filled. | Pending | Pending |
-| G9 safety packet is filled. | Pending | Pending |
-| Evidence files passed redaction scan. | Pending | Pending |
-| Required gates are attached. | Pending | Pending |
-| Reviewer route for any warnings/blockers is recorded. | Pending | Pending |
+| Check                                                  | Yes/No  | Evidence link or note |
+| ------------------------------------------------------ | ------- | --------------------- |
+| All evidence uses the same target environment.         | Pending | Pending               |
+| All evidence uses the same safe tenant/client.         | Pending | Pending               |
+| All evidence uses the same `ReportDefinition.id`.      | Pending | Pending               |
+| All evidence uses the same primary date range.         | Pending | Pending               |
+| `template_key` is `slb_monthly_social_report`.         | Pending | Pending               |
+| `schema_version` is `report.v1`.                       | Pending | Pending               |
+| Instagram remains deferred/absent from v1 pass claims. | Pending | Pending               |
+| G2/G3 coverage/history packet is filled.               | Pending | Pending               |
+| G4/G5 render/export packet is filled.                  | Pending | Pending               |
+| G6 parity worksheet is filled or blocker recorded.     | Pending | Pending               |
+| G7/G8 delivery/diagnostics packet is filled.           | Pending | Pending               |
+| G9 safety packet is filled.                            | Pending | Pending               |
+| Evidence files passed redaction scan.                  | Pending | Pending               |
+| Required gates are attached.                           | Pending | Pending               |
+| Reviewer route for any warnings/blockers is recorded.  | Pending | Pending               |
 
 ## Pass To G10
 

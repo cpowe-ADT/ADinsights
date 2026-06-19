@@ -91,58 +91,58 @@ Recommended implementation shape:
 
 ### v1 Datasets
 
-| Dataset key | Status | Source family | Product use | Source of truth | Notes |
-| --- | --- | --- | --- | --- | --- |
-| `paid_meta_ads` | active_v1 | Paid social | Meta Ads campaign/ad/creative dashboards and SLB paid pages | Airbyte/warehouse + Meta direct fallback where already supported | Do not confuse ad-account reporting with Page Insights. |
-| `organic_facebook_page` | active_v1 | Organic social | Facebook Page overview, top posts, organic engagement sections | Meta Page/Post Insights stored rows and Page Insights APIs | Use only active, supported Page/Post metrics. |
-| `content_ops` | active_v1 | Organic operations | Work completed, content counts, publishing activity, recommendations support | Content Ops stored app tables and aggregate snapshots | Aggregate-only; no user-level engagement or commenter data. |
-| `combined_paid_media` | active_v1 | Paid media aggregate | Meta Ads + Google Ads paid dashboard summaries | Existing combined metrics path and warehouse marts | Only paid media metrics with matching semantics. |
-| `csv_upload` | active_v1_support | Manual fallback | Manual backfill or proof fixtures for campaign/parish/budget data | `TenantMetricsSnapshot` source `upload` | Support path, not preferred live source. |
+| Dataset key             | Status            | Source family        | Product use                                                                  | Source of truth                                                  | Notes                                                       |
+| ----------------------- | ----------------- | -------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------- |
+| `paid_meta_ads`         | active_v1         | Paid social          | Meta Ads campaign/ad/creative dashboards and SLB paid pages                  | Airbyte/warehouse + Meta direct fallback where already supported | Do not confuse ad-account reporting with Page Insights.     |
+| `organic_facebook_page` | active_v1         | Organic social       | Facebook Page overview, top posts, organic engagement sections               | Meta Page/Post Insights stored rows and Page Insights APIs       | Use only active, supported Page/Post metrics.               |
+| `content_ops`           | active_v1         | Organic operations   | Work completed, content counts, publishing activity, recommendations support | Content Ops stored app tables and aggregate snapshots            | Aggregate-only; no user-level engagement or commenter data. |
+| `combined_paid_media`   | active_v1         | Paid media aggregate | Meta Ads + Google Ads paid dashboard summaries                               | Existing combined metrics path and warehouse marts               | Only paid media metrics with matching semantics.            |
+| `csv_upload`            | active_v1_support | Manual fallback      | Manual backfill or proof fixtures for campaign/parish/budget data            | `TenantMetricsSnapshot` source `upload`                          | Support path, not preferred live source.                    |
 
 ### Future-Gated Datasets
 
-| Dataset key | Status | Gate before activation | Notes |
-| --- | --- | --- | --- |
-| `organic_instagram` | future_gated | Confirm scopes, source rows, metric definitions, and App Review readiness | Required for full SLB parity only if Instagram pages are mandatory. |
-| `combined_social` | future_gated | Define approved blended metrics and source-label requirements | v1 may compose paid and organic widgets on one page but should not blend metrics silently. |
-| `ga4_web` | future_gated | Product approval to bring web analytics into reporting builder | Existing pilot endpoint remains separate. |
-| `search_console` | future_gated | Product approval and source semantic mapping | Existing pilot endpoint remains separate. |
+| Dataset key         | Status       | Gate before activation                                                    | Notes                                                                                      |
+| ------------------- | ------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `organic_instagram` | future_gated | Confirm scopes, source rows, metric definitions, and App Review readiness | Required for full SLB parity only if Instagram pages are mandatory.                        |
+| `combined_social`   | future_gated | Define approved blended metrics and source-label requirements             | v1 may compose paid and organic widgets on one page but should not blend metrics silently. |
+| `ga4_web`           | future_gated | Product approval to bring web analytics into reporting builder            | Existing pilot endpoint remains separate.                                                  |
+| `search_console`    | future_gated | Product approval and source semantic mapping                              | Existing pilot endpoint remains separate.                                                  |
 
 ## Metric Catalog
 
 Metric fields:
 
-| Field | Meaning |
-| --- | --- |
-| `key` | Product-facing stable key used by widget configs. |
-| `source_metric` | Provider/dbt/API field or expression. |
-| `dataset` | Dataset key where metric is valid. |
-| `label` | UI/report label. |
-| `value_type` | `currency`, `count`, `decimal`, `percent`, `ratio`, or `text`. |
-| `aggregation` | `sum`, `avg`, `weighted_avg`, `latest`, `count_distinct`, `derived`, or `none`. |
-| `format` | UI/export formatting hint. |
-| `grains` | Supported grains: `day`, `week`, `month`, `lifetime`, `selected_range`. |
-| `dimensions` | Allowed dimension keys. |
-| `widgets` | Allowed widget types. |
-| `required_status` | Required source/catalog status such as `active_v1` or `future_gated`. |
-| `source_label_required` | Whether widgets must show source label. |
+| Field                   | Meaning                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `key`                   | Product-facing stable key used by widget configs.                               |
+| `source_metric`         | Provider/dbt/API field or expression.                                           |
+| `dataset`               | Dataset key where metric is valid.                                              |
+| `label`                 | UI/report label.                                                                |
+| `value_type`            | `currency`, `count`, `decimal`, `percent`, `ratio`, or `text`.                  |
+| `aggregation`           | `sum`, `avg`, `weighted_avg`, `latest`, `count_distinct`, `derived`, or `none`. |
+| `format`                | UI/export formatting hint.                                                      |
+| `grains`                | Supported grains: `day`, `week`, `month`, `lifetime`, `selected_range`.         |
+| `dimensions`            | Allowed dimension keys.                                                         |
+| `widgets`               | Allowed widget types.                                                           |
+| `required_status`       | Required source/catalog status such as `active_v1` or `future_gated`.           |
+| `source_label_required` | Whether widgets must show source label.                                         |
 
 ### Paid Meta Ads Metrics
 
-| Key | Source metric | Type | Aggregation | Widgets | Notes |
-| --- | --- | --- | --- | --- | --- |
-| `spend` | `spend` | currency | sum | KPI, line, bar, table, map | Account currency preserved; do not mix with organic. |
-| `impressions` | `impressions` | count | sum | KPI, line, bar, table, map | Paid impressions only. |
-| `reach` | `reach` | count | sum or latest by source grain | KPI, line, bar, table, map | Paid reach semantics differ from Page reach. |
-| `clicks` | `clicks` | count | sum | KPI, line, bar, table | Paid clicks. |
-| `conversions` | `conversions` | decimal | sum | KPI, line, bar, table | Subject to attribution lag. |
-| `conversion_value` | `conversions_value` or source equivalent | currency | sum | KPI, line, bar, table | Optional until source availability is proven. |
-| `ctr` | `clicks / impressions` | percent | derived | KPI, line, bar, table, scatter | Weighted by impressions. |
-| `cpc` | `spend / clicks` | currency | derived | KPI, line, bar, table, scatter | Block when denominator is zero. |
-| `cpm` | `spend / impressions * 1000` | currency | derived | KPI, line, bar, table | Block when denominator is zero. |
-| `cpa` | `spend / conversions` | currency | derived | KPI, line, bar, table | Block or null when conversions are zero. |
-| `roas` | `conversion_value / spend` | ratio | derived | KPI, line, bar, table | Requires conversion value. |
-| `frequency` | `impressions / reach` | decimal | derived | KPI, line, table | Block when reach is zero. |
+| Key                | Source metric                            | Type     | Aggregation                   | Widgets                        | Notes                                                |
+| ------------------ | ---------------------------------------- | -------- | ----------------------------- | ------------------------------ | ---------------------------------------------------- |
+| `spend`            | `spend`                                  | currency | sum                           | KPI, line, bar, table, map     | Account currency preserved; do not mix with organic. |
+| `impressions`      | `impressions`                            | count    | sum                           | KPI, line, bar, table, map     | Paid impressions only.                               |
+| `reach`            | `reach`                                  | count    | sum or latest by source grain | KPI, line, bar, table, map     | Paid reach semantics differ from Page reach.         |
+| `clicks`           | `clicks`                                 | count    | sum                           | KPI, line, bar, table          | Paid clicks.                                         |
+| `conversions`      | `conversions`                            | decimal  | sum                           | KPI, line, bar, table          | Subject to attribution lag.                          |
+| `conversion_value` | `conversions_value` or source equivalent | currency | sum                           | KPI, line, bar, table          | Optional until source availability is proven.        |
+| `ctr`              | `clicks / impressions`                   | percent  | derived                       | KPI, line, bar, table, scatter | Weighted by impressions.                             |
+| `cpc`              | `spend / clicks`                         | currency | derived                       | KPI, line, bar, table, scatter | Block when denominator is zero.                      |
+| `cpm`              | `spend / impressions * 1000`             | currency | derived                       | KPI, line, bar, table          | Block when denominator is zero.                      |
+| `cpa`              | `spend / conversions`                    | currency | derived                       | KPI, line, bar, table          | Block or null when conversions are zero.             |
+| `roas`             | `conversion_value / spend`               | ratio    | derived                       | KPI, line, bar, table          | Requires conversion value.                           |
+| `frequency`        | `impressions / reach`                    | decimal  | derived                       | KPI, line, table               | Block when reach is zero.                            |
 
 Allowed dimensions: `date`, `client`, `platform`, `ad_account`, `campaign`, `adset`, `ad`, `creative`,
 `placement`, `region`, `parish`, `objective`, `status`.
@@ -153,22 +153,22 @@ Only active/supported Page and Post metrics from `docs/project/meta-page-insight
 should be selectable by default. Deprecated metrics must be hidden. Unknown metrics must be hidden
 unless explicitly enabled for internal validation.
 
-| Key | Source metric | Type | Aggregation | Widgets | Notes |
-| --- | --- | --- | --- | --- | --- |
-| `page_reach` | `page_total_media_view_unique` fallback `page_impressions_unique` | count | sum or latest by period | KPI, line, bar, table | Product alias for organic Page reach. |
-| `page_impressions` | `page_media_view` fallback `page_impressions` | count | sum | KPI, line, bar, table | Organic Page impressions where source supports it. |
-| `page_engagements` | `page_post_engagements` | count | sum | KPI, line, bar, table | Default Page engagement KPI. |
-| `page_actions` | `page_total_actions` | count | sum | KPI, line, bar, table | Page actions total. |
-| `page_follows` | `page_daily_follows_unique` | count | sum | KPI, line, bar, table | New follows over selected period. |
-| `page_fans` | `page_follows` fallback `page_fans` | count | latest | KPI, line, table | Current/lifetime audience count. |
-| `page_reactions_like` | `page_actions_post_reactions_like_total` | count | sum | KPI, bar, table | Reaction breakdown. |
-| `page_reactions_love` | `page_actions_post_reactions_love_total` | count | sum | KPI, bar, table | Reaction breakdown. |
-| `page_reactions_wow` | `page_actions_post_reactions_wow_total` | count | sum | KPI, bar, table | Reaction breakdown. |
-| `post_impressions` | `post_media_view`; historical stored rows may still contain legacy `post_impressions` | count | sum | KPI, bar, table | Top post table metric. Do not request deprecated direct keys by default. |
-| `post_clicks` | `post_clicks` | count | sum | KPI, bar, table | Top post table metric. |
-| `post_reactions_like` | `post_reactions_by_type_total[like]` fallback `post_reactions_like_total` | count | sum | KPI, bar, table | Top post table metric. |
-| `post_reactions_love` | `post_reactions_by_type_total[love]` fallback `post_reactions_love_total` | count | sum | KPI, bar, table | Top post table metric. |
-| `post_activity` | `post_activity_by_action_type` | count/object | derived or exploded | table | Requires backend normalization before broad chart use. |
+| Key                   | Source metric                                                                         | Type         | Aggregation             | Widgets               | Notes                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------- | ------------ | ----------------------- | --------------------- | ------------------------------------------------------------------------ |
+| `page_reach`          | `page_total_media_view_unique` fallback `page_impressions_unique`                     | count        | sum or latest by period | KPI, line, bar, table | Product alias for organic Page reach.                                    |
+| `page_impressions`    | `page_media_view` fallback `page_impressions`                                         | count        | sum                     | KPI, line, bar, table | Organic Page impressions where source supports it.                       |
+| `page_engagements`    | `page_post_engagements`                                                               | count        | sum                     | KPI, line, bar, table | Default Page engagement KPI.                                             |
+| `page_actions`        | `page_total_actions`                                                                  | count        | sum                     | KPI, line, bar, table | Page actions total.                                                      |
+| `page_follows`        | `page_daily_follows_unique`                                                           | count        | sum                     | KPI, line, bar, table | New follows over selected period.                                        |
+| `page_fans`           | `page_follows` fallback `page_fans`                                                   | count        | latest                  | KPI, line, table      | Current/lifetime audience count.                                         |
+| `page_reactions_like` | `page_actions_post_reactions_like_total`                                              | count        | sum                     | KPI, bar, table       | Reaction breakdown.                                                      |
+| `page_reactions_love` | `page_actions_post_reactions_love_total`                                              | count        | sum                     | KPI, bar, table       | Reaction breakdown.                                                      |
+| `page_reactions_wow`  | `page_actions_post_reactions_wow_total`                                               | count        | sum                     | KPI, bar, table       | Reaction breakdown.                                                      |
+| `post_impressions`    | `post_media_view`; historical stored rows may still contain legacy `post_impressions` | count        | sum                     | KPI, bar, table       | Top post table metric. Do not request deprecated direct keys by default. |
+| `post_clicks`         | `post_clicks`                                                                         | count        | sum                     | KPI, bar, table       | Top post table metric.                                                   |
+| `post_reactions_like` | `post_reactions_by_type_total[like]` fallback `post_reactions_like_total`             | count        | sum                     | KPI, bar, table       | Top post table metric.                                                   |
+| `post_reactions_love` | `post_reactions_by_type_total[love]` fallback `post_reactions_love_total`             | count        | sum                     | KPI, bar, table       | Top post table metric.                                                   |
+| `post_activity`       | `post_activity_by_action_type`                                                        | count/object | derived or exploded     | table                 | Requires backend normalization before broad chart use.                   |
 
 Allowed dimensions: `date`, `client`, `platform`, `page`, `post`, `content_type`, `reaction_type`,
 `period`, `source`.
@@ -183,15 +183,15 @@ unavailable rather than zero, and coverage stays partial or blocked as appropria
 
 ### Content Ops Metrics
 
-| Key | Source metric | Type | Aggregation | Widgets | Notes |
-| --- | --- | --- | --- | --- | --- |
-| `content_items_created` | app content/draft count | count | count_distinct | KPI, line, bar, table | Work completed metric. |
-| `published_posts` | `PublishedPost` count | count | count_distinct | KPI, line, bar, table | Aggregate only. |
-| `scheduled_posts` | schedule count | count | count_distinct | KPI, line, bar, table | Use schedule timezone baseline. |
-| `approved_items` | approval decision count | count | count_distinct | KPI, line, bar, table | Monthly operations summary. |
-| `content_ops_reach` | `OrganicPostMetricSnapshot.reach` | count | sum | KPI, line, bar, table | Only where aggregate snapshots exist. |
-| `content_ops_engagements` | aggregate engagement snapshot | count | sum | KPI, line, bar, table | No user-level engagement details. |
-| `content_ops_impressions` | aggregate impression snapshot | count | sum | KPI, line, bar, table | Optional based on available snapshots. |
+| Key                       | Source metric                     | Type  | Aggregation    | Widgets               | Notes                                  |
+| ------------------------- | --------------------------------- | ----- | -------------- | --------------------- | -------------------------------------- |
+| `content_items_created`   | app content/draft count           | count | count_distinct | KPI, line, bar, table | Work completed metric.                 |
+| `published_posts`         | `PublishedPost` count             | count | count_distinct | KPI, line, bar, table | Aggregate only.                        |
+| `scheduled_posts`         | schedule count                    | count | count_distinct | KPI, line, bar, table | Use schedule timezone baseline.        |
+| `approved_items`          | approval decision count           | count | count_distinct | KPI, line, bar, table | Monthly operations summary.            |
+| `content_ops_reach`       | `OrganicPostMetricSnapshot.reach` | count | sum            | KPI, line, bar, table | Only where aggregate snapshots exist.  |
+| `content_ops_engagements` | aggregate engagement snapshot     | count | sum            | KPI, line, bar, table | No user-level engagement details.      |
+| `content_ops_impressions` | aggregate impression snapshot     | count | sum            | KPI, line, bar, table | Optional based on available snapshots. |
 
 Allowed dimensions: `date`, `client`, `workspace`, `channel`, `content_type`, `status`,
 `published_post`, `source`.
@@ -222,42 +222,42 @@ Candidate keys: `instagram_reach`, `instagram_impressions`, `instagram_profile_v
 
 ## Dimension Catalog
 
-| Key | Type | Valid datasets | Notes |
-| --- | --- | --- | --- |
-| `date` | time | all time-series datasets | Required x-axis for trend lines. |
-| `week` | time | all time-series datasets | Derived from `date`; use America/Jamaica reporting baseline unless source forces UTC. |
-| `month` | time | all time-series datasets | Derived from `date`; required for monthly reports. |
-| `client` | entity | all tenant-scoped datasets | Must be tenant-scoped. |
-| `platform` | category | all multi-source datasets | Examples: Meta Ads, Google Ads, Facebook Page, Instagram, Content Ops. |
-| `source` | category | all combined dashboards | Required for paid/organic source labels. |
-| `ad_account` | entity | `paid_meta_ads`, `combined_paid_media` | Must not be confused with Facebook Page. |
-| `campaign` | entity | `paid_meta_ads`, `combined_paid_media` | Paid-only campaign dimension. |
-| `adset` | entity | `paid_meta_ads` | Meta Ads only. |
-| `ad` | entity | `paid_meta_ads` | Meta Ads only. |
-| `creative` | entity | `paid_meta_ads` | Creative leaderboard/table. |
-| `placement` | category | `paid_meta_ads` | Use only where source provides trustworthy placement. |
-| `region` | geography | `paid_meta_ads` | Map/table only with coverage proof. |
-| `parish` | geography | `paid_meta_ads` | Jamaica map/table only with coverage proof. |
-| `page` | entity | `organic_facebook_page` | Facebook Page dimension. |
-| `post` | entity | `organic_facebook_page`, `content_ops` | Top post/content table. |
-| `content_type` | category | `organic_facebook_page`, `content_ops` | Post/content classification. |
-| `reaction_type` | category | `organic_facebook_page` | Reaction breakdowns. |
-| `workspace` | entity | `content_ops` | Tenant-scoped Content Ops workspace. |
-| `status` | category | `paid_meta_ads`, `content_ops` | Campaign/content workflow state. |
+| Key             | Type      | Valid datasets                         | Notes                                                                                 |
+| --------------- | --------- | -------------------------------------- | ------------------------------------------------------------------------------------- |
+| `date`          | time      | all time-series datasets               | Required x-axis for trend lines.                                                      |
+| `week`          | time      | all time-series datasets               | Derived from `date`; use America/Jamaica reporting baseline unless source forces UTC. |
+| `month`         | time      | all time-series datasets               | Derived from `date`; required for monthly reports.                                    |
+| `client`        | entity    | all tenant-scoped datasets             | Must be tenant-scoped.                                                                |
+| `platform`      | category  | all multi-source datasets              | Examples: Meta Ads, Google Ads, Facebook Page, Instagram, Content Ops.                |
+| `source`        | category  | all combined dashboards                | Required for paid/organic source labels.                                              |
+| `ad_account`    | entity    | `paid_meta_ads`, `combined_paid_media` | Must not be confused with Facebook Page.                                              |
+| `campaign`      | entity    | `paid_meta_ads`, `combined_paid_media` | Paid-only campaign dimension.                                                         |
+| `adset`         | entity    | `paid_meta_ads`                        | Meta Ads only.                                                                        |
+| `ad`            | entity    | `paid_meta_ads`                        | Meta Ads only.                                                                        |
+| `creative`      | entity    | `paid_meta_ads`                        | Creative leaderboard/table.                                                           |
+| `placement`     | category  | `paid_meta_ads`                        | Use only where source provides trustworthy placement.                                 |
+| `region`        | geography | `paid_meta_ads`                        | Map/table only with coverage proof.                                                   |
+| `parish`        | geography | `paid_meta_ads`                        | Jamaica map/table only with coverage proof.                                           |
+| `page`          | entity    | `organic_facebook_page`                | Facebook Page dimension.                                                              |
+| `post`          | entity    | `organic_facebook_page`, `content_ops` | Top post/content table.                                                               |
+| `content_type`  | category  | `organic_facebook_page`, `content_ops` | Post/content classification.                                                          |
+| `reaction_type` | category  | `organic_facebook_page`                | Reaction breakdowns.                                                                  |
+| `workspace`     | entity    | `content_ops`                          | Tenant-scoped Content Ops workspace.                                                  |
+| `status`        | category  | `paid_meta_ads`, `content_ops`         | Campaign/content workflow state.                                                      |
 
 ## Widget Types
 
-| Widget type | Purpose | Required config | v1 status |
-| --- | --- | --- | --- |
-| `kpi` | Single or grouped top-line metric tiles | `dataset`, `metrics`, filters, optional compare | active_v1 |
-| `line_chart` | Trend over time | `x_dimension=date`, one or more y metrics | active_v1 |
-| `bar_chart` | Category comparison | categorical x dimension, one or more y metrics | active_v1 |
-| `stacked_bar_chart` | Category comparison with breakdown | x dimension, y metric, breakdown dimension | active_v1_guarded |
-| `donut_chart` | Share of total | category dimension, one metric | active_v1_guarded |
-| `data_table` | Detailed rows | columns, sort, row limit | active_v1 |
-| `report_section` | Narrative report block | section type, title, optional data bindings | active_v1 |
-| `map` | Geography view | geography dimension, one numeric metric | active_v1_guarded |
-| `scatter_chart` | X/y metric comparison | x metric, y metric, optional size metric | future_gated |
+| Widget type         | Purpose                                 | Required config                                 | v1 status         |
+| ------------------- | --------------------------------------- | ----------------------------------------------- | ----------------- |
+| `kpi`               | Single or grouped top-line metric tiles | `dataset`, `metrics`, filters, optional compare | active_v1         |
+| `line_chart`        | Trend over time                         | `x_dimension=date`, one or more y metrics       | active_v1         |
+| `bar_chart`         | Category comparison                     | categorical x dimension, one or more y metrics  | active_v1         |
+| `stacked_bar_chart` | Category comparison with breakdown      | x dimension, y metric, breakdown dimension      | active_v1_guarded |
+| `donut_chart`       | Share of total                          | category dimension, one metric                  | active_v1_guarded |
+| `data_table`        | Detailed rows                           | columns, sort, row limit                        | active_v1         |
+| `report_section`    | Narrative report block                  | section type, title, optional data bindings     | active_v1         |
+| `map`               | Geography view                          | geography dimension, one numeric metric         | active_v1_guarded |
+| `scatter_chart`     | X/y metric comparison                   | x metric, y metric, optional size metric        | future_gated      |
 
 Required shared widget fields:
 
@@ -285,31 +285,31 @@ Required shared widget fields:
 
 ## Chart And Table Compatibility
 
-| Widget | Valid x | Valid y | Valid breakdown | Required coverage rule |
-| --- | --- | --- | --- | --- |
-| `kpi` | none | one or more metrics from one dataset | source/platform optional | Must show stale/partial note when not fresh. |
-| `line_chart` | `date`, `week`, `month` | numeric metrics | platform/source allowed | Must show covered date range. |
-| `bar_chart` | category/entity dimension | numeric metrics | source/platform/content type optional | Must cap categories or require top-N. |
-| `stacked_bar_chart` | category/time dimension | one numeric metric | one category breakdown | Must reject high-cardinality breakdowns. |
-| `donut_chart` | one category dimension | one numeric metric | none | Must reject negative or non-additive metrics. |
-| `data_table` | row dimensions | metric and dimension columns | none | Must enforce row limit and sort rules. |
-| `report_section` | none | optional bound metrics | none | Must inherit coverage notes from bound widgets. |
-| `map` | `parish` or `region` | one numeric paid metric | none | Must require geography coverage proof. |
+| Widget              | Valid x                   | Valid y                              | Valid breakdown                       | Required coverage rule                          |
+| ------------------- | ------------------------- | ------------------------------------ | ------------------------------------- | ----------------------------------------------- |
+| `kpi`               | none                      | one or more metrics from one dataset | source/platform optional              | Must show stale/partial note when not fresh.    |
+| `line_chart`        | `date`, `week`, `month`   | numeric metrics                      | platform/source allowed               | Must show covered date range.                   |
+| `bar_chart`         | category/entity dimension | numeric metrics                      | source/platform/content type optional | Must cap categories or require top-N.           |
+| `stacked_bar_chart` | category/time dimension   | one numeric metric                   | one category breakdown                | Must reject high-cardinality breakdowns.        |
+| `donut_chart`       | one category dimension    | one numeric metric                   | none                                  | Must reject negative or non-additive metrics.   |
+| `data_table`        | row dimensions            | metric and dimension columns         | none                                  | Must enforce row limit and sort rules.          |
+| `report_section`    | none                      | optional bound metrics               | none                                  | Must inherit coverage notes from bound widgets. |
+| `map`               | `parish` or `region`      | one numeric paid metric              | none                                  | Must require geography coverage proof.          |
 
 ## X/Y Rules
 
 Allowed examples:
 
-| Use case | Dataset | x | y | Widget |
-| --- | --- | --- | --- | --- |
-| Spend trend | `paid_meta_ads` | `date` | `spend` | `line_chart` |
-| Campaign performance | `paid_meta_ads` | `campaign` | `spend`, `clicks`, `ctr` | `bar_chart` or `data_table` |
-| Creative efficiency | `paid_meta_ads` | `creative` | `ctr`, `cpc`, `conversions` | `data_table`; scatter later |
-| Parish performance | `paid_meta_ads` | `parish` | `spend`, `reach`, `conversions` | `map` or `data_table` |
-| Page engagement trend | `organic_facebook_page` | `date` | `page_engagements` | `line_chart` |
-| Top posts | `organic_facebook_page` | `post` | `post_impressions`, `post_clicks`, reactions | `data_table` |
-| Content production | `content_ops` | `date` or `content_type` | `published_posts`, `content_items_created` | `line_chart`, `bar_chart`, `data_table` |
-| Paid platform split | `combined_paid_media` | `platform` | `spend`, `clicks`, `conversions` | `bar_chart`, `data_table` |
+| Use case              | Dataset                 | x                        | y                                            | Widget                                  |
+| --------------------- | ----------------------- | ------------------------ | -------------------------------------------- | --------------------------------------- |
+| Spend trend           | `paid_meta_ads`         | `date`                   | `spend`                                      | `line_chart`                            |
+| Campaign performance  | `paid_meta_ads`         | `campaign`               | `spend`, `clicks`, `ctr`                     | `bar_chart` or `data_table`             |
+| Creative efficiency   | `paid_meta_ads`         | `creative`               | `ctr`, `cpc`, `conversions`                  | `data_table`; scatter later             |
+| Parish performance    | `paid_meta_ads`         | `parish`                 | `spend`, `reach`, `conversions`              | `map` or `data_table`                   |
+| Page engagement trend | `organic_facebook_page` | `date`                   | `page_engagements`                           | `line_chart`                            |
+| Top posts             | `organic_facebook_page` | `post`                   | `post_impressions`, `post_clicks`, reactions | `data_table`                            |
+| Content production    | `content_ops`           | `date` or `content_type` | `published_posts`, `content_items_created`   | `line_chart`, `bar_chart`, `data_table` |
+| Paid platform split   | `combined_paid_media`   | `platform`               | `spend`, `clicks`, `conversions`             | `bar_chart`, `data_table`               |
 
 General rules:
 
@@ -324,20 +324,20 @@ General rules:
 
 Backend validation must reject these examples even if the frontend sends them:
 
-| Invalid config | Reason |
-| --- | --- |
-| `organic_facebook_page` metric `page_engagements` grouped by `campaign` | Page metrics do not have paid campaign grain. |
-| `paid_meta_ads` metric `spend` grouped by `page` | Paid ad spend is ad-account/campaign grain, not Page grain. |
-| `combined_social` KPI `reach` without source labels or approved blend definition | Paid reach and organic reach have different semantics. |
-| `donut_chart` with `cpc` | Cost-per-click is non-additive and not a share-of-total metric. |
-| `line_chart` with x=`campaign` | Line charts require time x-axis. |
-| `map` using `organic_facebook_page` without geography coverage | Organic Page geo coverage is not approved for v1 maps. |
-| `scatter_chart` in v1 user-facing builder | Future-gated until backend validation and UX are ready. |
-| Deprecated Page metrics such as `page_video_views_10s` | Deprecated in current Meta Page metric catalog. |
-| Unknown Page metrics such as `page_views_total` by default | Unknown status must not be exposed by default. |
-| Table without row limit | Report builder must prevent unbounded queries/exports. |
-| Cross-tenant `client_id`, `page_id`, `ad_account`, or `workspace` | Violates tenant isolation. |
-| `last_90d` report when only 47 days are retained and policy=`require_full_coverage` | Must block or switch to warning policy explicitly. |
+| Invalid config                                                                      | Reason                                                          |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `organic_facebook_page` metric `page_engagements` grouped by `campaign`             | Page metrics do not have paid campaign grain.                   |
+| `paid_meta_ads` metric `spend` grouped by `page`                                    | Paid ad spend is ad-account/campaign grain, not Page grain.     |
+| `combined_social` KPI `reach` without source labels or approved blend definition    | Paid reach and organic reach have different semantics.          |
+| `donut_chart` with `cpc`                                                            | Cost-per-click is non-additive and not a share-of-total metric. |
+| `line_chart` with x=`campaign`                                                      | Line charts require time x-axis.                                |
+| `map` using `organic_facebook_page` without geography coverage                      | Organic Page geo coverage is not approved for v1 maps.          |
+| `scatter_chart` in v1 user-facing builder                                           | Future-gated until backend validation and UX are ready.         |
+| Deprecated Page metrics such as `page_video_views_10s`                              | Deprecated in current Meta Page metric catalog.                 |
+| Unknown Page metrics such as `page_views_total` by default                          | Unknown status must not be exposed by default.                  |
+| Table without row limit                                                             | Report builder must prevent unbounded queries/exports.          |
+| Cross-tenant `client_id`, `page_id`, `ad_account`, or `workspace`                   | Violates tenant isolation.                                      |
+| `last_90d` report when only 47 days are retained and policy=`require_full_coverage` | Must block or switch to warning policy explicitly.              |
 
 ## Historical Fallback And Coverage States
 
@@ -346,16 +346,16 @@ metadata. The builder should not need to infer freshness from chart data.
 
 Coverage status values:
 
-| Status | Meaning | Render rule |
-| --- | --- | --- |
-| `fresh` | Source connected and data covers requested range within freshness SLA. | Render normally. |
-| `stale` | Historical data exists, but latest sync is outside freshness SLA. | Render with freshness note. |
-| `partial` | Some requested dates are available, but not the full range. | Render with warning or block based on widget/report policy. |
-| `source_disconnected` | Provider/OAuth/connector cannot fetch fresh data, but retained data may exist. | Render only if `history_status=available`; show clear note. |
-| `missing_history` | Source may be connected, but requested range is not retained in ADinsights. | Block or require smaller date range. |
-| `not_previously_synced` | The source/account/page was never synced for the requested range. | Block and show setup/backfill action. |
-| `permission_missing` | Required provider scope/permission is missing. | Block fresh sync; render retained data only if policy permits. |
-| `unsupported_metric` | Metric is not valid for dataset/source status. | Block. |
+| Status                  | Meaning                                                                        | Render rule                                                    |
+| ----------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| `fresh`                 | Source connected and data covers requested range within freshness SLA.         | Render normally.                                               |
+| `stale`                 | Historical data exists, but latest sync is outside freshness SLA.              | Render with freshness note.                                    |
+| `partial`               | Some requested dates are available, but not the full range.                    | Render with warning or block based on widget/report policy.    |
+| `source_disconnected`   | Provider/OAuth/connector cannot fetch fresh data, but retained data may exist. | Render only if `history_status=available`; show clear note.    |
+| `missing_history`       | Source may be connected, but requested range is not retained in ADinsights.    | Block or require smaller date range.                           |
+| `not_previously_synced` | The source/account/page was never synced for the requested range.              | Block and show setup/backfill action.                          |
+| `permission_missing`    | Required provider scope/permission is missing.                                 | Block fresh sync; render retained data only if policy permits. |
+| `unsupported_metric`    | Metric is not valid for dataset/source status.                                 | Block.                                                         |
 
 Recommended coverage payload shape:
 
@@ -378,12 +378,12 @@ Recommended coverage payload shape:
 
 Coverage policies:
 
-| Policy | Behavior |
-| --- | --- |
+| Policy                  | Behavior                                                                                  |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
 | `require_full_coverage` | Block if `covered_start_date` or `covered_end_date` does not fully match requested range. |
-| `render_with_warning` | Render available data with visible coverage note. |
-| `render_snapshot_only` | Use the saved/generated report snapshot only; do not attempt fresh source pull. |
-| `block_if_stale` | Block when outside freshness SLA even if history exists. |
+| `render_with_warning`   | Render available data with visible coverage note.                                         |
+| `render_snapshot_only`  | Use the saved/generated report snapshot only; do not attempt fresh source pull.           |
+| `block_if_stale`        | Block when outside freshness SLA even if history exists.                                  |
 
 Default v1 policy:
 
@@ -472,17 +472,17 @@ Rules:
 Use SLB as the first proof template because it exercises paid, organic, top-content, and narrative
 report needs.
 
-| Report page | Dataset | Widgets | Required metrics | Coverage policy |
-| --- | --- | --- | --- | --- |
-| Cover + period | all bound datasets | `report_section` | reporting period, client, source coverage summary | `render_with_warning` |
-| Executive summary | `paid_meta_ads`, `organic_facebook_page`, `content_ops` | KPI group, narrative section | spend, reach, clicks, page engagements, published posts | `render_with_warning` |
-| Paid Meta Ads performance | `paid_meta_ads` | KPI, line, bar, table | spend, impressions, reach, clicks, ctr, cpc, cpm, conversions | `require_full_coverage` for cancellation proof; otherwise warning |
-| Organic Facebook/Page performance | `organic_facebook_page` | KPI, line, table | page reach, impressions, engagements, actions, follows, fans | `render_with_warning` |
-| Top posts | `organic_facebook_page` | data table | post impressions, clicks, reactions, activity | `render_with_warning` |
-| Content activity/work completed | `content_ops` | KPI, bar/table, narrative section | content items created, published posts, scheduled posts, approvals | `render_with_warning` |
-| Instagram performance | `organic_instagram` | KPI, line, table | future-gated Instagram metrics | Block until dataset is active. |
-| Recommendations | bound source datasets | `report_section` | data-backed highlights and next actions | Must disclose source coverage. |
-| Appendix/data notes | all bound datasets | coverage table | source status, freshness, retained range, row counts | Always required for v1 exports. |
+| Report page                       | Dataset                                                 | Widgets                           | Required metrics                                                   | Coverage policy                                                   |
+| --------------------------------- | ------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| Cover + period                    | all bound datasets                                      | `report_section`                  | reporting period, client, source coverage summary                  | `render_with_warning`                                             |
+| Executive summary                 | `paid_meta_ads`, `organic_facebook_page`, `content_ops` | KPI group, narrative section      | spend, reach, clicks, page engagements, published posts            | `render_with_warning`                                             |
+| Paid Meta Ads performance         | `paid_meta_ads`                                         | KPI, line, bar, table             | spend, impressions, reach, clicks, ctr, cpc, cpm, conversions      | `require_full_coverage` for cancellation proof; otherwise warning |
+| Organic Facebook/Page performance | `organic_facebook_page`                                 | KPI, line, table                  | page reach, impressions, engagements, actions, follows, fans       | `render_with_warning`                                             |
+| Top posts                         | `organic_facebook_page`                                 | data table                        | post impressions, clicks, reactions, activity                      | `render_with_warning`                                             |
+| Content activity/work completed   | `content_ops`                                           | KPI, bar/table, narrative section | content items created, published posts, scheduled posts, approvals | `render_with_warning`                                             |
+| Instagram performance             | `organic_instagram`                                     | KPI, line, table                  | future-gated Instagram metrics                                     | Block until dataset is active.                                    |
+| Recommendations                   | bound source datasets                                   | `report_section`                  | data-backed highlights and next actions                            | Must disclose source coverage.                                    |
+| Appendix/data notes               | all bound datasets                                      | coverage table                    | source status, freshness, retained range, row counts               | Always required for v1 exports.                                   |
 
 Minimum SLB v1 without Instagram:
 
@@ -561,16 +561,16 @@ Contract/preflight tests:
 
 ## Reviewer Route By Persona
 
-| Area | Primary | Backup | Review focus |
-| --- | --- | --- | --- |
-| Source ingestion, disconnects, backfill | Maya | Leo | Retry behavior, source telemetry, disconnected-source states, raw landing. |
-| Warehouse retention and marts | Priya | Martin | Metric grain, freshness, retention, rebuildability, dbt tests. |
-| Backend catalog/API validation | Sofia | Andre | Serializer validation, metrics API compatibility, snapshots, coverage payloads. |
-| Frontend builder/report UX | Lina | Joel | Builder controls, x/y rules, source labels, stale/partial states, responsive layout. |
-| Secrets/data retention safety | Nina | Victor | No secrets, token, or user-level PII retention or logs. |
-| Observability/support | Omar | Hannah | Alert states, support runbooks, freshness diagnostics. |
-| BI/deployment/export operations | Carlos | Mei | Artifact retention, export reproducibility, deployment/runbook fit. |
-| Cross-stream integration | Raj | Mira | Multi-folder sequencing, architecture consistency, contract review. |
+| Area                                    | Primary | Backup | Review focus                                                                         |
+| --------------------------------------- | ------- | ------ | ------------------------------------------------------------------------------------ |
+| Source ingestion, disconnects, backfill | Maya    | Leo    | Retry behavior, source telemetry, disconnected-source states, raw landing.           |
+| Warehouse retention and marts           | Priya   | Martin | Metric grain, freshness, retention, rebuildability, dbt tests.                       |
+| Backend catalog/API validation          | Sofia   | Andre  | Serializer validation, metrics API compatibility, snapshots, coverage payloads.      |
+| Frontend builder/report UX              | Lina    | Joel   | Builder controls, x/y rules, source labels, stale/partial states, responsive layout. |
+| Secrets/data retention safety           | Nina    | Victor | No secrets, token, or user-level PII retention or logs.                              |
+| Observability/support                   | Omar    | Hannah | Alert states, support runbooks, freshness diagnostics.                               |
+| BI/deployment/export operations         | Carlos  | Mei    | Artifact retention, export reproducibility, deployment/runbook fit.                  |
+| Cross-stream integration                | Raj     | Mira   | Multi-folder sequencing, architecture consistency, contract review.                  |
 
 ## Implementation Slices
 
@@ -590,7 +590,7 @@ Recommended safe order:
 ## Open Decisions
 
 - Confirm whether SLB cancellation requires Instagram in v1 or whether Facebook Page + paid Meta Ads
-  + Content Ops is acceptable for the first proof.
+  - Content Ops is acceptable for the first proof.
 - Confirm v1 retention targets for raw rows, marts, report artifacts, and sync telemetry.
 - Decide whether `combined_paid_media` should include Google Ads in the first SLB template or remain
   paid Meta-only for that client.

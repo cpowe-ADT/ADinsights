@@ -54,17 +54,21 @@ const ReportsPage = () => {
   }, [load]);
 
   const visibleReports = useMemo(() => {
-    const filtered = showInternal ? reports : reports.filter((report) => {
-      const filters = report.filters as Record<string, unknown> | undefined;
-      if (filters && filters.internal === true) {
-        return false;
-      }
-      if (typeof report.name === 'string' && report.name.startsWith('internal:')) {
-        return false;
-      }
-      return true;
-    });
-    return [...filtered].sort((left, right) => Number(isSlbReport(right)) - Number(isSlbReport(left)));
+    const filtered = showInternal
+      ? reports
+      : reports.filter((report) => {
+          const filters = report.filters as Record<string, unknown> | undefined;
+          if (filters && filters.internal === true) {
+            return false;
+          }
+          if (typeof report.name === 'string' && report.name.startsWith('internal:')) {
+            return false;
+          }
+          return true;
+        });
+    return [...filtered].sort(
+      (left, right) => Number(isSlbReport(right)) - Number(isSlbReport(left)),
+    );
   }, [reports, showInternal]);
 
   const existingSlbReport = useMemo(
@@ -121,7 +125,10 @@ const ReportsPage = () => {
           <p className="phase2-page__subhead">Manage saved report definitions and export jobs.</p>
         </div>
         <div className="phase2-row-actions">
-          <label className="meta-toggle-all" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+          <label
+            className="meta-toggle-all"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+          >
             <input
               type="checkbox"
               checked={showInternal}

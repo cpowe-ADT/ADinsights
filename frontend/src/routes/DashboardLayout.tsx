@@ -109,13 +109,7 @@ const segmentLabels: Record<string, string> = {
   uploads: 'CSV uploads',
 };
 
-const OAUTH_CALLBACK_QUERY_KEYS = [
-  'code',
-  'state',
-  'error',
-  'error_reason',
-  'error_description',
-];
+const OAUTH_CALLBACK_QUERY_KEYS = ['code', 'state', 'error', 'error_reason', 'error_description'];
 
 function hasOAuthCallbackQuery(search: string): boolean {
   const params = new URLSearchParams(search);

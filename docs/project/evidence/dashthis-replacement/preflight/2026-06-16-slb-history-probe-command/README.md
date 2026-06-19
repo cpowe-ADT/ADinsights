@@ -16,13 +16,13 @@ backend/.venv/bin/python docs/ops/skills/adinsights-release-readiness/scripts/ru
 
 ## Result Summary
 
-| Field | Value |
-| --- | --- |
-| Router action | `clarify` |
-| Scope status | `ESCALATE_ARCH_RISK` |
-| Contract status | `WARN_POSSIBLE_CONTRACT_CHANGE` |
-| Release status | `GATE_BLOCK` |
-| Contract executed | `True` |
+| Field             | Value                           |
+| ----------------- | ------------------------------- |
+| Router action     | `clarify`                       |
+| Scope status      | `ESCALATE_ARCH_RISK`            |
+| Contract status   | `WARN_POSSIBLE_CONTRACT_CHANGE` |
+| Release status    | `GATE_BLOCK`                    |
+| Contract executed | `True`                          |
 
 Release blocking issue:
 

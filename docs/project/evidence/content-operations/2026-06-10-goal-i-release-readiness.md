@@ -45,17 +45,17 @@ Persisted packet directory:
 
 Key results from `release-packet.json`:
 
-| Gate | Status | Evidence |
-| ---- | ------ | -------- |
-| Release status | `GATE_BLOCK` | `release_status` |
-| Scope control | `BLOCK` | `ESCALATE_ARCH_RISK` |
-| Contract integrity | `WARN` | `WARN_POSSIBLE_CONTRACT_CHANGE` |
-| Security/PII/secrets | `WARN` | Sensitive path signals, including env sample and publishing-related surfaces |
-| Runbook operations readiness | `PASS` | Required runbooks present |
-| Documentation completeness | `PASS` | Doc index and activity log present |
-| Rollout/rollback plan | `PASS` | Deployment runbook present |
-| Observability | `PASS` | No explicit packet blocker |
-| Test coverage | `INFO` | Required tests identified; packet did not execute optional checks |
+| Gate                         | Status       | Evidence                                                                     |
+| ---------------------------- | ------------ | ---------------------------------------------------------------------------- |
+| Release status               | `GATE_BLOCK` | `release_status`                                                             |
+| Scope control                | `BLOCK`      | `ESCALATE_ARCH_RISK`                                                         |
+| Contract integrity           | `WARN`       | `WARN_POSSIBLE_CONTRACT_CHANGE`                                              |
+| Security/PII/secrets         | `WARN`       | Sensitive path signals, including env sample and publishing-related surfaces |
+| Runbook operations readiness | `PASS`       | Required runbooks present                                                    |
+| Documentation completeness   | `PASS`       | Doc index and activity log present                                           |
+| Rollout/rollback plan        | `PASS`       | Deployment runbook present                                                   |
+| Observability                | `PASS`       | No explicit packet blocker                                                   |
+| Test coverage                | `INFO`       | Required tests identified; packet did not execute optional checks            |
 
 ## Release Blocking Issues
 

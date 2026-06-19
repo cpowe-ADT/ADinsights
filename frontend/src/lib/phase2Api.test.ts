@@ -46,7 +46,16 @@ describe('phase2Api', () => {
       apiClientMock.get.mockResolvedValue({
         generatedAt: '2026-04-10',
         systemTemplates: [
-          { id: 't1', name: 'Template', template_key: 'meta_campaign_performance', type: 'System', owner: 'System', tags: [], description: '', route: '/a' },
+          {
+            id: 't1',
+            name: 'Template',
+            template_key: 'meta_campaign_performance',
+            type: 'System',
+            owner: 'System',
+            tags: [],
+            description: '',
+            route: '/a',
+          },
         ],
         savedDashboards: [],
       });
@@ -241,7 +250,12 @@ describe('phase2Api', () => {
 
   describe('fetchSyncHealth', () => {
     it('returns sync health data', async () => {
-      const mockData = { generated_at: '2026-04-10', stale_after_minutes: 60, counts: { total: 0, fresh: 0, stale: 0, failed: 0, missing: 0, inactive: 0 }, rows: [] };
+      const mockData = {
+        generated_at: '2026-04-10',
+        stale_after_minutes: 60,
+        counts: { total: 0, fresh: 0, stale: 0, failed: 0, missing: 0, inactive: 0 },
+        rows: [],
+      };
       apiClientMock.get.mockResolvedValue(mockData);
       const result = await fetchSyncHealth();
       expect(result.rows).toEqual([]);

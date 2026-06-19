@@ -35,16 +35,16 @@ while richer PDF/CSV/ZIP packet formats remain future work.
 
 ## Evidence Matrix
 
-| Requirement | Evidence | Goal L result |
-| --- | --- | --- |
-| Tenant isolation | `backend/tests/test_content_ops_api.py` workspace scope, role gates, retry/list filters, task tenant scans; `backend/tests/test_content_ops_publisher.py` wrong-tenant preflight and task tenant targeting | Covered for current fakeable surfaces |
-| API contracts | `backend/tests/test_schema_regressions.py` pins Content Ops paths, action serializers, publish-attempt states, channel enums, readiness enums, `credential_ref` write-only, and asset `storage_key` write-only | Covered for current contract |
-| Token boundaries | `test_publishing_identity_create_hides_credentials_and_readiness`; provider boundaries still do not decrypt or call Meta by default | Covered for current disabled provider state |
-| No secret logging / safe provider errors | Facebook retryable/terminal provider error tests and Instagram provider error redaction test prove token-like fragments persist as generic safe details | Covered by tests; log inspection still required in staging goals |
-| Credential handling | `credential_ref` is write-only and server-owned readiness fields cannot be client-forced | Covered for API writes; live token retrieval remains future work |
-| Storage and public URL leakage | Asset upload/download tests hide `storage_key` and reject unsafe paths; export tests omit `storage_key` and `ai_lineage` | Covered for private/authenticated paths; public CDN proof remains missing |
-| Aggregate-only reporting | Report overview/posts and metric refresh tests expose aggregate metrics, not viewer/commenter/reaction user IDs | Covered for current reporting endpoints |
-| Live publishing disabled | API contract and tests confirm `publish-now` is not implemented and default publishers fail closed | Covered |
+| Requirement                              | Evidence                                                                                                                                                                                                       | Goal L result                                                             |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Tenant isolation                         | `backend/tests/test_content_ops_api.py` workspace scope, role gates, retry/list filters, task tenant scans; `backend/tests/test_content_ops_publisher.py` wrong-tenant preflight and task tenant targeting     | Covered for current fakeable surfaces                                     |
+| API contracts                            | `backend/tests/test_schema_regressions.py` pins Content Ops paths, action serializers, publish-attempt states, channel enums, readiness enums, `credential_ref` write-only, and asset `storage_key` write-only | Covered for current contract                                              |
+| Token boundaries                         | `test_publishing_identity_create_hides_credentials_and_readiness`; provider boundaries still do not decrypt or call Meta by default                                                                            | Covered for current disabled provider state                               |
+| No secret logging / safe provider errors | Facebook retryable/terminal provider error tests and Instagram provider error redaction test prove token-like fragments persist as generic safe details                                                        | Covered by tests; log inspection still required in staging goals          |
+| Credential handling                      | `credential_ref` is write-only and server-owned readiness fields cannot be client-forced                                                                                                                       | Covered for API writes; live token retrieval remains future work          |
+| Storage and public URL leakage           | Asset upload/download tests hide `storage_key` and reject unsafe paths; export tests omit `storage_key` and `ai_lineage`                                                                                       | Covered for private/authenticated paths; public CDN proof remains missing |
+| Aggregate-only reporting                 | Report overview/posts and metric refresh tests expose aggregate metrics, not viewer/commenter/reaction user IDs                                                                                                | Covered for current reporting endpoints                                   |
+| Live publishing disabled                 | API contract and tests confirm `publish-now` is not implemented and default publishers fail closed                                                                                                             | Covered                                                                   |
 
 ## Remaining Blockers Before Live Adapters
 

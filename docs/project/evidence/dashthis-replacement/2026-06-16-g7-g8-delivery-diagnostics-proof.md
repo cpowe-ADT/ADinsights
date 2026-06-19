@@ -25,15 +25,15 @@ coverage/retention, render/export, and parity proof inputs are established.
 
 ## Inputs Required Before Collection
 
-| Input | Required source | Status |
-| --- | --- | --- |
-| Target environment/backend URL | G1 fixed target | Pending |
-| SLB report ID and template key | G1 fixed target | Pending |
-| Fixed report date range | G1 fixed target | Pending |
-| Coverage and retained-history proof | G2/G3 | Pending |
-| Render/export proof | G4/G5 | Pending |
-| Parity worksheet status | G6 | Pending |
-| Safe dry-run recipient assumption | Operator/runtime setup | Pending |
+| Input                               | Required source        | Status  |
+| ----------------------------------- | ---------------------- | ------- |
+| Target environment/backend URL      | G1 fixed target        | Pending |
+| SLB report ID and template key      | G1 fixed target        | Pending |
+| Fixed report date range             | G1 fixed target        | Pending |
+| Coverage and retained-history proof | G2/G3                  | Pending |
+| Render/export proof                 | G4/G5                  | Pending |
+| Parity worksheet status             | G6                     | Pending |
+| Safe dry-run recipient assumption   | Operator/runtime setup | Pending |
 
 ## G7 Scheduled Delivery Dry-Run Proof
 
@@ -72,20 +72,20 @@ Expected blocked dry-run behavior:
 
 Evidence to capture:
 
-| Evidence item | Required value |
-| --- | --- |
-| Report ID | Same as G1-G6 |
-| Export job ID | Dry-run job ID |
-| Export format | Usually `pdf` unless Raj approves another proof format |
-| Job status | `completed` or intentionally `failed` with `blocked_by_coverage` |
-| `metadata.delivery_status.mode` | `dry_run` |
-| `metadata.delivery_status.status` | `rendered` or `blocked_by_coverage` |
-| `metadata.preview_hash` | Matches report preview/export snapshot when data has not changed |
-| `metadata.coverage_summary` | Same status families as G2/G3 |
-| `metadata.blocking_reasons` | Empty for rendered proof; explicit for blocked proof |
-| `last_scheduled_at` | Updated by dry-run path |
-| Email sent? | Must be `no` for G7 |
-| Sanitized failure? | Must be `yes` if failed |
+| Evidence item                     | Required value                                                   |
+| --------------------------------- | ---------------------------------------------------------------- |
+| Report ID                         | Same as G1-G6                                                    |
+| Export job ID                     | Dry-run job ID                                                   |
+| Export format                     | Usually `pdf` unless Raj approves another proof format           |
+| Job status                        | `completed` or intentionally `failed` with `blocked_by_coverage` |
+| `metadata.delivery_status.mode`   | `dry_run`                                                        |
+| `metadata.delivery_status.status` | `rendered` or `blocked_by_coverage`                              |
+| `metadata.preview_hash`           | Matches report preview/export snapshot when data has not changed |
+| `metadata.coverage_summary`       | Same status families as G2/G3                                    |
+| `metadata.blocking_reasons`       | Empty for rendered proof; explicit for blocked proof             |
+| `last_scheduled_at`               | Updated by dry-run path                                          |
+| Email sent?                       | Must be `no` for G7                                              |
+| Sanitized failure?                | Must be `yes` if failed                                          |
 
 ## G8 Diagnostics/Support Proof
 
@@ -103,35 +103,35 @@ curl -fsS \
 
 Required diagnostic fields:
 
-| Field | Required proof |
-| --- | --- |
-| `report.id` | Same as G1-G7 |
-| `report.schema_version` | `report.v1` |
-| `report.template_key` | `slb_monthly_social_report` |
-| `date_range` | Matches G1 |
-| `datasets[*].dataset` | Includes `paid_meta_ads`, `organic_facebook_page`, and `content_ops` when available |
-| `datasets[*].coverage_status` | One of the governed coverage states |
-| `datasets[*].freshness_status` | Support-readable state |
-| `datasets[*].retained_range` | Start/end dates or explicit missing range |
-| `datasets[*].row_count` | Aggregate row count only |
-| `datasets[*].source_label` | Safe source label, no raw account/Page IDs |
-| `datasets[*].recommended_next_action` | Actionable support instruction |
-| `blocking_reasons` | Clear reasons if not export-ready |
-| `export_history[*]` | Recent safe export status, format, preview hash, delivery status |
-| `preview_error` | Validation errors only; no secrets/raw payloads |
+| Field                                 | Required proof                                                                      |
+| ------------------------------------- | ----------------------------------------------------------------------------------- |
+| `report.id`                           | Same as G1-G7                                                                       |
+| `report.schema_version`               | `report.v1`                                                                         |
+| `report.template_key`                 | `slb_monthly_social_report`                                                         |
+| `date_range`                          | Matches G1                                                                          |
+| `datasets[*].dataset`                 | Includes `paid_meta_ads`, `organic_facebook_page`, and `content_ops` when available |
+| `datasets[*].coverage_status`         | One of the governed coverage states                                                 |
+| `datasets[*].freshness_status`        | Support-readable state                                                              |
+| `datasets[*].retained_range`          | Start/end dates or explicit missing range                                           |
+| `datasets[*].row_count`               | Aggregate row count only                                                            |
+| `datasets[*].source_label`            | Safe source label, no raw account/Page IDs                                          |
+| `datasets[*].recommended_next_action` | Actionable support instruction                                                      |
+| `blocking_reasons`                    | Clear reasons if not export-ready                                                   |
+| `export_history[*]`                   | Recent safe export status, format, preview hash, delivery status                    |
+| `preview_error`                       | Validation errors only; no secrets/raw payloads                                     |
 
 Support scenarios to document:
 
-| Scenario | Expected diagnostic explanation |
-| --- | --- |
-| Fresh stored data | No action required or normal export-ready state. |
-| Stale data | Check last successful sync and rerun stored-data sync if needed. |
-| Partial history | Review retained history before approving export/delivery. |
+| Scenario                         | Expected diagnostic explanation                                                           |
+| -------------------------------- | ----------------------------------------------------------------------------------------- |
+| Fresh stored data                | No action required or normal export-ready state.                                          |
+| Stale data                       | Check last successful sync and rerun stored-data sync if needed.                          |
+| Partial history                  | Review retained history before approving export/delivery.                                 |
 | Source disconnected with history | Reconnect source; retained history can support limited reporting only with visible notes. |
-| Missing history | Confirm backfill/upload fallback before claiming DashThis parity. |
-| Not previously synced | Complete first sync before using this section in parity evidence. |
-| Permission missing | Review source permissions and account/Page access. |
-| Unsupported metric | Remove metric or add to governed catalog after review. |
+| Missing history                  | Confirm backfill/upload fallback before claiming DashThis parity.                         |
+| Not previously synced            | Complete first sync before using this section in parity evidence.                         |
+| Permission missing               | Review source permissions and account/Page access.                                        |
+| Unsupported metric               | Remove metric or add to governed catalog after review.                                    |
 
 ## Redaction Checklist
 

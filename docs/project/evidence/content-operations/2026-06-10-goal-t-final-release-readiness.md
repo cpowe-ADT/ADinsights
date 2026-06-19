@@ -48,19 +48,19 @@ Packet directory:
 
 ## Gate Matrix
 
-| Gate | Status | Evidence / reason |
-| --- | --- | --- |
-| Scope control | Block | Final preflight returned `ESCALATE_ARCH_RISK`; route to Raj + Mira before any release activation. |
-| Contract integrity | Warn | Final preflight returned `WARN_POSSIBLE_CONTRACT_CHANGE`; contract follow-up remains required. |
-| Security / PII / secrets | Warn | Publishing touches OAuth tokens, public media URLs, provider errors, and evidence redaction; Nina signoff is not recorded. |
-| Facebook staging proof | Block | Goal R is blocked; no approved Facebook Page staging publish proof exists. |
-| Instagram staging proof | Block | Goal S is blocked; no approved Instagram feed staging publish proof exists. |
-| Meta App Review | Block | Permission availability/approval evidence is not captured for `pages_manage_posts` or the selected Instagram publishing family. |
-| Public media deployment | Block for Instagram | Backend proof path exists, but deployed HTTPS/CDN proof for staging is missing. |
-| Test coverage | Pending before release | Prior J-Q focused/full tests are recorded, but release packet still requires explicit backend/frontend verification before a go decision. |
-| Runbook / ops readiness | Pass with blockers | Runbooks exist and now include blocked R/S proof checklists, but release activation remains prohibited. |
-| Rollout / rollback plan | Pass as disabled plan | Rollback defaults are clear: keep flags false and publishing scopes absent. Staging rollback proof still missing. |
-| Final decision | No-go | Do not enable live Facebook or Instagram publishing. |
+| Gate                     | Status                 | Evidence / reason                                                                                                                         |
+| ------------------------ | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Scope control            | Block                  | Final preflight returned `ESCALATE_ARCH_RISK`; route to Raj + Mira before any release activation.                                         |
+| Contract integrity       | Warn                   | Final preflight returned `WARN_POSSIBLE_CONTRACT_CHANGE`; contract follow-up remains required.                                            |
+| Security / PII / secrets | Warn                   | Publishing touches OAuth tokens, public media URLs, provider errors, and evidence redaction; Nina signoff is not recorded.                |
+| Facebook staging proof   | Block                  | Goal R is blocked; no approved Facebook Page staging publish proof exists.                                                                |
+| Instagram staging proof  | Block                  | Goal S is blocked; no approved Instagram feed staging publish proof exists.                                                               |
+| Meta App Review          | Block                  | Permission availability/approval evidence is not captured for `pages_manage_posts` or the selected Instagram publishing family.           |
+| Public media deployment  | Block for Instagram    | Backend proof path exists, but deployed HTTPS/CDN proof for staging is missing.                                                           |
+| Test coverage            | Pending before release | Prior J-Q focused/full tests are recorded, but release packet still requires explicit backend/frontend verification before a go decision. |
+| Runbook / ops readiness  | Pass with blockers     | Runbooks exist and now include blocked R/S proof checklists, but release activation remains prohibited.                                   |
+| Rollout / rollback plan  | Pass as disabled plan  | Rollback defaults are clear: keep flags false and publishing scopes absent. Staging rollback proof still missing.                         |
+| Final decision           | No-go                  | Do not enable live Facebook or Instagram publishing.                                                                                      |
 
 ## Required Approvers Before Any Future Go
 

@@ -392,14 +392,14 @@ Not required in first backend slice:
 
 ## Reviewer Route By Persona
 
-| Area | Reviewer | Why |
-| --- | --- | --- |
-| Backend serializer/catalog validation | Sofia + Andre | Own `backend/analytics/`, metrics API compatibility, snapshots, and validation behavior. |
-| Contract awareness | Raj | New validation affects dashboard API writes for `dashboard.v1`. |
-| Architecture watch | Mira if scope expands | Needed only if the implementation becomes a broader schema/refactor or crosses folders. |
-| Frontend notification | Lina | Inform only; no frontend code in first slice. |
-| Data/freshness watch | Priya + Martin later | Needed when historical coverage moves into dbt/marts. |
-| Ops/freshness watch | Omar + Hannah later | Needed when fallback states become live alerts/runbooks. |
+| Area                                  | Reviewer              | Why                                                                                      |
+| ------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------- |
+| Backend serializer/catalog validation | Sofia + Andre         | Own `backend/analytics/`, metrics API compatibility, snapshots, and validation behavior. |
+| Contract awareness                    | Raj                   | New validation affects dashboard API writes for `dashboard.v1`.                          |
+| Architecture watch                    | Mira if scope expands | Needed only if the implementation becomes a broader schema/refactor or crosses folders.  |
+| Frontend notification                 | Lina                  | Inform only; no frontend code in first slice.                                            |
+| Data/freshness watch                  | Priya + Martin later  | Needed when historical coverage moves into dbt/marts.                                    |
+| Ops/freshness watch                   | Omar + Hannah later   | Needed when fallback states become live alerts/runbooks.                                 |
 
 ## Final Go/No-Go
 

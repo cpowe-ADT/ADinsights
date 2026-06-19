@@ -80,21 +80,21 @@ Observed safe result:
 
 ## Required Successful Evidence Still Missing
 
-| Evidence item | Required proof | Current result |
-| --- | --- | --- |
-| Readiness | Redacted `GET /api/content-ops/readiness/` showing Instagram publishing ready | Missing |
-| Public media URL proof | Redacted `public-media-proof` output with HTTPS URL, approved active version, image/video MIME, non-zero length, and `storage_key_exposed=false` | Missing |
-| Clean unauthenticated media fetch | HTTP `200`, expected `Content-Type`, expected `Content-Length`, no tenant/private storage data | Missing |
-| Approval snapshot | Approved draft version with internal and client approval for the exact Instagram media/caption | Missing |
-| Schedule / attempt | Redacted schedule ID and publish attempt ID for a due Instagram target | Missing |
-| Container creation | Redacted container ID suffix and attempt state transition to `container_pending` or `container_ready` | Missing |
-| Container polling | Redacted status polling evidence through ready, retryable, expired, or terminal state | Missing |
-| Media publish | Redacted Instagram published media ID suffix only | Missing |
-| External media proof | Screenshot/link reference showing published staging Instagram feed media | Missing |
-| Logs | Structured logs with `tenant_id`, `task_id`, `correlation_id`, `schedule_id`, `attempt_id`, `draft_id`, `channel`, `state`, and no secrets | Missing |
-| Metrics | Queue delay, container processing duration, publish duration, retry count, terminal failure count, and safe failure code if applicable | Missing |
-| Rollback | Proof that `CONTENT_OPS_META_INSTAGRAM_BETA` can be returned to `false` and processing fails closed | Missing |
-| Redaction review | Confirmation that no raw token, app secret, authorization header, Page token, IG token, credential ref, signed URL secret, private URL, storage key, or user-level engagement data appears in evidence | Missing |
+| Evidence item                     | Required proof                                                                                                                                                                                         | Current result |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- |
+| Readiness                         | Redacted `GET /api/content-ops/readiness/` showing Instagram publishing ready                                                                                                                          | Missing        |
+| Public media URL proof            | Redacted `public-media-proof` output with HTTPS URL, approved active version, image/video MIME, non-zero length, and `storage_key_exposed=false`                                                       | Missing        |
+| Clean unauthenticated media fetch | HTTP `200`, expected `Content-Type`, expected `Content-Length`, no tenant/private storage data                                                                                                         | Missing        |
+| Approval snapshot                 | Approved draft version with internal and client approval for the exact Instagram media/caption                                                                                                         | Missing        |
+| Schedule / attempt                | Redacted schedule ID and publish attempt ID for a due Instagram target                                                                                                                                 | Missing        |
+| Container creation                | Redacted container ID suffix and attempt state transition to `container_pending` or `container_ready`                                                                                                  | Missing        |
+| Container polling                 | Redacted status polling evidence through ready, retryable, expired, or terminal state                                                                                                                  | Missing        |
+| Media publish                     | Redacted Instagram published media ID suffix only                                                                                                                                                      | Missing        |
+| External media proof              | Screenshot/link reference showing published staging Instagram feed media                                                                                                                               | Missing        |
+| Logs                              | Structured logs with `tenant_id`, `task_id`, `correlation_id`, `schedule_id`, `attempt_id`, `draft_id`, `channel`, `state`, and no secrets                                                             | Missing        |
+| Metrics                           | Queue delay, container processing duration, publish duration, retry count, terminal failure count, and safe failure code if applicable                                                                 | Missing        |
+| Rollback                          | Proof that `CONTENT_OPS_META_INSTAGRAM_BETA` can be returned to `false` and processing fails closed                                                                                                    | Missing        |
+| Redaction review                  | Confirmation that no raw token, app secret, authorization header, Page token, IG token, credential ref, signed URL secret, private URL, storage key, or user-level engagement data appears in evidence | Missing        |
 
 ## Required Staging Run Preconditions
 
@@ -122,21 +122,21 @@ Before rerunning Goal S as a pass/fail staging publish:
 
 ## Staging Evidence Template For The Real Run
 
-| Step | Action | Expected | Actual | Pass/Fail |
-| ---- | ------ | -------- | ------ | --------- |
-| 1 | Capture beta flag state before enabling staging publish | `CONTENT_OPS_META_INSTAGRAM_BETA=false` | Not run | Fail |
-| 2 | Enable Instagram beta in staging only | Flag true in staging runtime, not committed | Not run | Fail |
-| 3 | Capture readiness endpoint | Instagram publishing axis ready | Not run | Fail |
-| 4 | Capture public media proof | HTTPS, approved, fetchable, non-secret URL proof | Not run | Fail |
-| 5 | Fetch public media unauthenticated | HTTP `200`, safe headers, no private paths | Not run | Fail |
-| 6 | Capture exact approved draft/version | Internal and client approvals match active version and media | Not run | Fail |
-| 7 | Dispatch due schedule | One Instagram `PublishAttempt` created/queued | Not run | Fail |
-| 8 | Process attempt: create container | Attempt enters container lifecycle with redacted container ID | Not run | Fail |
-| 9 | Poll container | Attempt reaches `container_ready` or safe failure state | Not run | Fail |
-| 10 | Publish media | Attempt transitions to `published` with redacted media ID suffix | Not run | Fail |
-| 11 | Capture external Instagram media | Staging Instagram feed media visible | Not run | Fail |
-| 12 | Capture logs/metrics | Structured logs and queue/container/publish metrics without secrets | Not run | Fail |
-| 13 | Roll back flag | Flag false and processor fails closed | Not run | Fail |
+| Step | Action                                                  | Expected                                                            | Actual  | Pass/Fail |
+| ---- | ------------------------------------------------------- | ------------------------------------------------------------------- | ------- | --------- |
+| 1    | Capture beta flag state before enabling staging publish | `CONTENT_OPS_META_INSTAGRAM_BETA=false`                             | Not run | Fail      |
+| 2    | Enable Instagram beta in staging only                   | Flag true in staging runtime, not committed                         | Not run | Fail      |
+| 3    | Capture readiness endpoint                              | Instagram publishing axis ready                                     | Not run | Fail      |
+| 4    | Capture public media proof                              | HTTPS, approved, fetchable, non-secret URL proof                    | Not run | Fail      |
+| 5    | Fetch public media unauthenticated                      | HTTP `200`, safe headers, no private paths                          | Not run | Fail      |
+| 6    | Capture exact approved draft/version                    | Internal and client approvals match active version and media        | Not run | Fail      |
+| 7    | Dispatch due schedule                                   | One Instagram `PublishAttempt` created/queued                       | Not run | Fail      |
+| 8    | Process attempt: create container                       | Attempt enters container lifecycle with redacted container ID       | Not run | Fail      |
+| 9    | Poll container                                          | Attempt reaches `container_ready` or safe failure state             | Not run | Fail      |
+| 10   | Publish media                                           | Attempt transitions to `published` with redacted media ID suffix    | Not run | Fail      |
+| 11   | Capture external Instagram media                        | Staging Instagram feed media visible                                | Not run | Fail      |
+| 12   | Capture logs/metrics                                    | Structured logs and queue/container/publish metrics without secrets | Not run | Fail      |
+| 13   | Roll back flag                                          | Flag false and processor fails closed                               | Not run | Fail      |
 
 ## Outcome
 

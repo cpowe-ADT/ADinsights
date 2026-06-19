@@ -1,39 +1,18 @@
 {
   "schema_version": "1.1.0",
   "scope_status": "ESCALATE_ARCH_RISK",
-  "touched_top_level_folders": [
-    "backend",
-    "docs",
-    "frontend",
-    "scripts"
-  ],
-  "required_reviewers": [
-    "Raj",
-    "Mira",
-    "Sofia",
-    "Hannah",
-    "Lina",
-    "Nina"
-  ],
+  "touched_top_level_folders": ["backend", "docs", "frontend", "scripts"],
+  "required_reviewers": ["Raj", "Mira", "Sofia", "Hannah", "Lina", "Nina"],
   "required_tests_by_folder": {
-    "backend": [
-      "ruff check backend && pytest -q backend"
-    ],
-    "docs": [
-      "docs-only change (no canonical code test)"
-    ],
-    "frontend": [
-      "cd frontend && npm ci && npm test -- --run && npm run build"
-    ],
+    "backend": ["ruff check backend && pytest -q backend"],
+    "docs": ["docs-only change (no canonical code test)"],
+    "frontend": ["cd frontend && npm ci && npm test -- --run && npm run build"],
     "scripts": [
       "ruff check backend",
       "pytest backend/tests/test_dek_manager.py scripts/tests/test_rotate_deks.py"
     ]
   },
-  "required_docs_updates": [
-    "docs/ops/doc-index.md",
-    "docs/ops/agent-activity-log.md"
-  ],
+  "required_docs_updates": ["docs/ops/doc-index.md", "docs/ops/agent-activity-log.md"],
   "recommended_next_action": "Route to Raj + Mira before implementation and capture architecture rationale/rollback notes.",
   "rationale": [
     "Evidence source: git_changed_files.",
@@ -879,9 +858,7 @@
     "invoke_release_readiness": true
   },
   "signals": {
-    "prompt_paths": [
-      "approval/signoff"
-    ],
+    "prompt_paths": ["approval/signoff"],
     "explicit_paths": [],
     "changed_files": [
       ".gitignore",
@@ -998,11 +975,7 @@
       "scripts/validate_slb_g2_g9_evidence_run.py"
     ],
     "used_git_changed_files": true,
-    "architecture_hits": [
-      "AGENTS.md",
-      "backend/core/settings.py",
-      "backend/core/urls.py"
-    ],
+    "architecture_hits": ["AGENTS.md", "backend/core/settings.py", "backend/core/urls.py"],
     "contract_hits": [
       "backend/core/urls.py",
       "docs/project/api-contract-changelog.md",

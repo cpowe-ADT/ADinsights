@@ -20,17 +20,17 @@ the backend foundation; external/App Review items remain blocked until evidence 
 
 ## Decision Summary
 
-| ID | Decision | Recommendation | Status | Owners |
-| -- | -------- | -------------- | ------ | ------ |
-| CO-D0-1 | Backend app boundary | Create a new `backend/content_ops/` Django app | Accepted/implemented; still needs Raj/Mira architecture review before release | Sofia + Mira + Raj |
-| CO-D0-2 | First code ticket | Start with `CO-1A` backend data model only | Superseded by completion of CO-1A | Sofia |
-| CO-D0-3 | Meta publishing scope | Do not add runtime publish scopes until Meta permission family is reverified | Accepted; external evidence still blocked | Maya + Raj |
-| CO-D0-4 | Scheduling source of truth | ADinsights owns scheduling; publish at due time | Accepted/partially implemented; due/retry beat scans active, live publishing inactive | Leo + Raj |
-| CO-D0-5 | Instagram container timing | Create containers only near publish time | Accepted; implementation not started | Leo + Maya |
-| CO-D0-6 | Asset hosting | Private storage plus short-lived public HTTPS publish URLs | Proposed; deployment proof still needed | Nina + Victor |
-| CO-D0-7 | Reporting source of truth | API aggregate snapshots first; dbt marts later | Accepted/partially implemented | Sofia + Priya |
-| CO-D0-8 | Frontend start mode | Build mocked frontend after backend contract skeleton is named | Accepted/partially implemented; state mapping and workflow depth need hardening | Lina + Joel |
-| CO-D0-9 | AI safety | Structured outputs, redaction, evals, human approval before scheduling | Accepted/partially implemented | Sofia + Nina + Omar |
+| ID      | Decision                   | Recommendation                                                               | Status                                                                                | Owners              |
+| ------- | -------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------- |
+| CO-D0-1 | Backend app boundary       | Create a new `backend/content_ops/` Django app                               | Accepted/implemented; still needs Raj/Mira architecture review before release         | Sofia + Mira + Raj  |
+| CO-D0-2 | First code ticket          | Start with `CO-1A` backend data model only                                   | Superseded by completion of CO-1A                                                     | Sofia               |
+| CO-D0-3 | Meta publishing scope      | Do not add runtime publish scopes until Meta permission family is reverified | Accepted; external evidence still blocked                                             | Maya + Raj          |
+| CO-D0-4 | Scheduling source of truth | ADinsights owns scheduling; publish at due time                              | Accepted/partially implemented; due/retry beat scans active, live publishing inactive | Leo + Raj           |
+| CO-D0-5 | Instagram container timing | Create containers only near publish time                                     | Accepted; implementation not started                                                  | Leo + Maya          |
+| CO-D0-6 | Asset hosting              | Private storage plus short-lived public HTTPS publish URLs                   | Proposed; deployment proof still needed                                               | Nina + Victor       |
+| CO-D0-7 | Reporting source of truth  | API aggregate snapshots first; dbt marts later                               | Accepted/partially implemented                                                        | Sofia + Priya       |
+| CO-D0-8 | Frontend start mode        | Build mocked frontend after backend contract skeleton is named               | Accepted/partially implemented; state mapping and workflow depth need hardening       | Lina + Joel         |
+| CO-D0-9 | AI safety                  | Structured outputs, redaction, evals, human approval before scheduling       | Accepted/partially implemented                                                        | Sofia + Nina + Omar |
 
 Status meanings:
 

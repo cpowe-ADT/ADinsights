@@ -55,20 +55,10 @@ const AgeDistributionBar = ({ data, metric, currency = 'USD' }: AgeDistributionB
           stroke={chartTheme.grid.stroke}
           strokeDasharray={chartTheme.grid.strokeDasharray}
         />
-        <XAxisComponent
-          dataKey="age"
-          tick={{ fill: 'var(--color-text-primary)', fontSize: 13 }}
-        />
-        <YAxisComponent
-          tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }}
-        />
+        <XAxisComponent dataKey="age" tick={{ fill: 'var(--color-text-primary)', fontSize: 13 }} />
+        <YAxisComponent tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }} />
         <TooltipComponent {...tooltipProps} />
-        <BarComponent
-          dataKey="Male"
-          stackId="gender"
-          fill={MALE_COLOR}
-          radius={[0, 0, 0, 0]}
-        />
+        <BarComponent dataKey="Male" stackId="gender" fill={MALE_COLOR} radius={[0, 0, 0, 0]} />
         <BarComponent
           dataKey="Female"
           stackId="gender"

@@ -2,10 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 
 import { DistributionBar, KpiTile, TrendLine, VizDataTable } from '../viz';
 import type { TrendLinePoint, TrendLineSeries } from '../viz/TrendLine';
-import type {
-  DashboardWidgetCoverage,
-  DashboardWidgetPreviewResponse,
-} from '../../lib/phase2Api';
+import type { DashboardWidgetCoverage, DashboardWidgetPreviewResponse } from '../../lib/phase2Api';
 
 type TableRow = Record<string, unknown>;
 
@@ -106,7 +103,9 @@ const KpiPreview = ({ widget }: { widget: DashboardWidgetPreviewResponse }) => {
 const LinePreview = ({ widget }: { widget: DashboardWidgetPreviewResponse }) => {
   const rows = Array.isArray(widget.data.rows) ? (widget.data.rows as TableRow[]) : [];
   const metricKeys = rows.length
-    ? Object.keys(rows[0]).filter((key) => key !== 'date' && key !== String(widget.data.x ?? 'date'))
+    ? Object.keys(rows[0]).filter(
+        (key) => key !== 'date' && key !== String(widget.data.x ?? 'date'),
+      )
     : [];
   const series: TrendLineSeries[] = metricKeys.map((key) => ({
     key,
@@ -130,7 +129,7 @@ const BarPreview = ({ widget }: { widget: DashboardWidgetPreviewResponse }) => {
   const rows = Array.isArray(widget.data.rows) ? (widget.data.rows as TableRow[]) : [];
   const xKey = String(widget.data.x ?? 'label');
   const metricKey =
-    rows.length > 0 ? Object.keys(rows[0]).find((key) => key !== xKey) ?? 'value' : 'value';
+    rows.length > 0 ? (Object.keys(rows[0]).find((key) => key !== xKey) ?? 'value') : 'value';
   const data = rows.map((row) => ({
     label: String(row[xKey] ?? row.label ?? 'Unspecified'),
     value: numberValue(row[metricKey]) ?? 0,
@@ -174,11 +173,7 @@ const ReportSectionPreview = ({ widget }: { widget: DashboardWidgetPreviewRespon
   </div>
 );
 
-export const GovernedWidgetRenderer = ({
-  widget,
-}: {
-  widget: DashboardWidgetPreviewResponse;
-}) => {
+export const GovernedWidgetRenderer = ({ widget }: { widget: DashboardWidgetPreviewResponse }) => {
   const title = titleFromWidget(widget);
   const blocked = widget.status === 'blocked' || widget.status === 'error';
   const statusLabel = widgetStatusLabel(widget);

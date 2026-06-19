@@ -11,9 +11,9 @@ data.
 
 ## Attachments Reviewed
 
-| Gmail message id | Attachment | Review result |
-| ---------------- | ---------- | ------------- |
-| `19ebdf5cdfb29c0e` | `SLB Monthly Report - May 2026 Editable v2 (1).pdf` | Parsed 14-page May 2026 SLB campaign status report. |
+| Gmail message id   | Attachment                                                      | Review result                                               |
+| ------------------ | --------------------------------------------------------------- | ----------------------------------------------------------- |
+| `19ebdf5cdfb29c0e` | `SLB Monthly Report - May 2026 Editable v2 (1).pdf`             | Parsed 14-page May 2026 SLB campaign status report.         |
 | `19df52e8ccc43eae` | `SLB Marketing Campaign Status Report - March - April 2026.pdf` | Parsed 15-page March-April 2026 SLB campaign status report. |
 
 ## Main Finding
@@ -36,20 +36,20 @@ narrative report template backed by Meta Page/Instagram Insights and Meta Ads da
 
 ## Recurring SLB Report Shape
 
-| Report section | Needed for parity | Data/source implication |
-| -------------- | ----------------- | ----------------------- |
-| Cover and reporting period | Yes | Report metadata and template rendering. |
-| Account activity summary | Yes | Manual/narrative inputs or structured campaign notes. |
-| Campaign and content development | Yes | Manual/narrative inputs or Content Operations activity log. |
-| Creative and strategic support | Yes | Manual/narrative inputs or Content Operations activity log. |
-| Video, podcast, print, or brand support | Sometimes | Manual/narrative inputs unless tracked in ADinsights. |
-| Platform performance summary | Yes | Meta Page and Instagram aggregate insights. |
-| Instagram metrics | Yes | Views, reach, visits, follows, interactions, link clicks, and MoM deltas. |
-| Facebook metrics | Yes | Views, reach/viewers, visits, follows, content interactions, link clicks, and MoM deltas. |
-| Content counts | Yes | Posts, reels, stories, statics/carousels by period. |
-| Top static/carousel/reel posts | Yes | Post/media insights plus creative metadata. |
-| Digital ads top performers | Yes | Meta Ads creative/campaign insights, including reach, impressions, clicks or conversions where available. |
-| Recommendations and next steps | Yes | Manual/narrative inputs, optionally assisted by generated summary text. |
+| Report section                          | Needed for parity | Data/source implication                                                                                   |
+| --------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------- |
+| Cover and reporting period              | Yes               | Report metadata and template rendering.                                                                   |
+| Account activity summary                | Yes               | Manual/narrative inputs or structured campaign notes.                                                     |
+| Campaign and content development        | Yes               | Manual/narrative inputs or Content Operations activity log.                                               |
+| Creative and strategic support          | Yes               | Manual/narrative inputs or Content Operations activity log.                                               |
+| Video, podcast, print, or brand support | Sometimes         | Manual/narrative inputs unless tracked in ADinsights.                                                     |
+| Platform performance summary            | Yes               | Meta Page and Instagram aggregate insights.                                                               |
+| Instagram metrics                       | Yes               | Views, reach, visits, follows, interactions, link clicks, and MoM deltas.                                 |
+| Facebook metrics                        | Yes               | Views, reach/viewers, visits, follows, content interactions, link clicks, and MoM deltas.                 |
+| Content counts                          | Yes               | Posts, reels, stories, statics/carousels by period.                                                       |
+| Top static/carousel/reel posts          | Yes               | Post/media insights plus creative metadata.                                                               |
+| Digital ads top performers              | Yes               | Meta Ads creative/campaign insights, including reach, impressions, clicks or conversions where available. |
+| Recommendations and next steps          | Yes               | Manual/narrative inputs, optionally assisted by generated summary text.                                   |
 
 ## Metrics Observed
 

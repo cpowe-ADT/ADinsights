@@ -34,19 +34,19 @@ No runtime code was changed.
 
 ## Findings
 
-| Check | Result | Cancellation-readiness implication |
-| --- | --- | --- |
-| Configured database | `/Users/thristannewman/ADinsights/backend/db.sqlite3` | Local SQLite only; not staging/production proof. |
-| Content Ops tables | Missing `content_ops_contentworkspace` | Local DB cannot prove G7/G8 Content Ops diagnostics or G2/G3 `content_ops` coverage. |
-| Total report definitions | `1` | Local runtime has only one report record. |
-| SLB `slb_monthly_social_report` reports | `0` | No local `report.v1` SLB proof target exists. |
-| Existing report | Inactive legacy report, no `template_key`, no `schema_version` | Cannot be used for G1 SLB proof. |
-| Export jobs | `0` | No local export/snapshot evidence exists for G5. |
-| Saved dashboards | `3` | Only legacy dashboards are present. |
-| Saved `dashboard.v1` dashboards | `0` | No local saved governed dashboard proof target exists for G4. |
-| Tenant metrics snapshots | `5` | Stored snapshots exist, but they are not enough for SLB fixed-range proof. |
-| Latest warehouse snapshot | `2026-04-05T05:36:35.149541+00:00` | Stale for the recommended May 2026 proof range and current date. |
-| Demo/fake snapshots | Present | Cannot be used for DashThis cancellation proof unless explicitly labeled as non-parity fallback. |
+| Check                                   | Result                                                         | Cancellation-readiness implication                                                               |
+| --------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Configured database                     | `/Users/thristannewman/ADinsights/backend/db.sqlite3`          | Local SQLite only; not staging/production proof.                                                 |
+| Content Ops tables                      | Missing `content_ops_contentworkspace`                         | Local DB cannot prove G7/G8 Content Ops diagnostics or G2/G3 `content_ops` coverage.             |
+| Total report definitions                | `1`                                                            | Local runtime has only one report record.                                                        |
+| SLB `slb_monthly_social_report` reports | `0`                                                            | No local `report.v1` SLB proof target exists.                                                    |
+| Existing report                         | Inactive legacy report, no `template_key`, no `schema_version` | Cannot be used for G1 SLB proof.                                                                 |
+| Export jobs                             | `0`                                                            | No local export/snapshot evidence exists for G5.                                                 |
+| Saved dashboards                        | `3`                                                            | Only legacy dashboards are present.                                                              |
+| Saved `dashboard.v1` dashboards         | `0`                                                            | No local saved governed dashboard proof target exists for G4.                                    |
+| Tenant metrics snapshots                | `5`                                                            | Stored snapshots exist, but they are not enough for SLB fixed-range proof.                       |
+| Latest warehouse snapshot               | `2026-04-05T05:36:35.149541+00:00`                             | Stale for the recommended May 2026 proof range and current date.                                 |
+| Demo/fake snapshots                     | Present                                                        | Cannot be used for DashThis cancellation proof unless explicitly labeled as non-parity fallback. |
 
 ## Migration And Template Path Check
 

@@ -1661,7 +1661,7 @@ def _create_meta_post_insight_points(
     user = User.objects.create_user(
         username=f"metrics-{uuid.uuid4()}",
         email=f"metrics-{uuid.uuid4()}@example.com",
-        password="password",
+        password=None,
         tenant=tenant,
     )
     connection = MetaConnection(

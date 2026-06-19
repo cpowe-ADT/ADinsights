@@ -20,26 +20,26 @@ Queries used:
 
 Shortlisted messages read:
 
-| Gmail message id | Date | Signal |
-| ---------------- | ---- | ------ |
-| `19db0cd06e9a5618` | 2026-04-21 | DashThis billing/payment pressure. |
+| Gmail message id   | Date       | Signal                                                |
+| ------------------ | ---------- | ----------------------------------------------------- |
+| `19db0cd06e9a5618` | 2026-04-21 | DashThis billing/payment pressure.                    |
 | `19ecc324bce0af95` | 2026-06-15 | SLB May 2026 marketing campaign status report thread. |
-| `19ec01dad5cd2276` | 2026-06-13 | SLB Meta ads receipt for Ready Set Apply campaigns. |
-| `19ec9a2cdd83c4d2` | 2026-06-15 | JDIC Meta ads receipt for engagement campaigns. |
-| `19ecd0860fdd2337` | 2026-06-15 | Common Cents/BOJ Meta ads receipt. |
-| `19e9324deedceab2` | 2026-06-04 | Grace Foods Search Console performance email. |
-| `19ea90a498266bdf` | 2026-06-08 | Grace Foods Google Analytics performance email. |
+| `19ec01dad5cd2276` | 2026-06-13 | SLB Meta ads receipt for Ready Set Apply campaigns.   |
+| `19ec9a2cdd83c4d2` | 2026-06-15 | JDIC Meta ads receipt for engagement campaigns.       |
+| `19ecd0860fdd2337` | 2026-06-15 | Common Cents/BOJ Meta ads receipt.                    |
+| `19e9324deedceab2` | 2026-06-04 | Grace Foods Search Console performance email.         |
+| `19ea90a498266bdf` | 2026-06-08 | Grace Foods Google Analytics performance email.       |
 
 ## Public Lookup Context
 
 Public sources checked to validate client/campaign naming:
 
-| Client/campaign | Public source | Relevance |
-| --------------- | ------------- | --------- |
-| BOJ/Common Cents | `https://boj.org.jm/` and `https://jis.gov.jm/boj-launches-common-cents-series-to-boost-financial-literacy/` | Confirms Bank of Jamaica identity and public Common Cents campaign context. |
-| SLB | `https://portal.slbja.com/` and public SLB social search results for Ready Set Apply | Confirms SLB public portal and that Ready Set Apply is an active public campaign theme. |
-| JDIC | `https://www.jdic.org/` and `https://www.jdic.org/about-jdic/` | Confirms JDIC official identity and public role. |
-| Grace Foods | `https://www.gracefoods.com/` | Confirms Grace Foods official web property for the GA4/Search Console evidence. |
+| Client/campaign  | Public source                                                                                                | Relevance                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| BOJ/Common Cents | `https://boj.org.jm/` and `https://jis.gov.jm/boj-launches-common-cents-series-to-boost-financial-literacy/` | Confirms Bank of Jamaica identity and public Common Cents campaign context.             |
+| SLB              | `https://portal.slbja.com/` and public SLB social search results for Ready Set Apply                         | Confirms SLB public portal and that Ready Set Apply is an active public campaign theme. |
+| JDIC             | `https://www.jdic.org/` and `https://www.jdic.org/about-jdic/`                                               | Confirms JDIC official identity and public role.                                        |
+| Grace Foods      | `https://www.gracefoods.com/`                                                                                | Confirms Grace Foods official web property for the GA4/Search Console evidence.         |
 
 ## Recommended First Proof Target
 
@@ -64,21 +64,21 @@ Notable limitation:
 
 ## Report Inventory
 
-| Report/dashboard | Client/tenant | Evidence strength | Sources indicated by Gmail | Required widgets inferred | Outputs inferred | Status |
-| ---------------- | ------------- | ----------------- | -------------------------- | ------------------------- | ---------------- | ------ |
-| SLB Marketing Campaign Status Report, May 2026 | SLB / Students' Loan Bureau | Strong | Meta Ads, Instagram/Facebook social performance; organic/content activity likely included | KPI summary, platform performance, top posts, campaign activity, creative/work completed, June recommendations | Monthly report attachment/email; ADinsights should support dashboard plus PDF/CSV/PNG export and scheduled email | Select as first proof target; needs recipient/output confirmation |
-| JDIC campaign reporting | JDIC | Medium | Meta Ads engagement campaigns and boosted/social posts | KPI summary, campaign table, platform split, creative/post performance | Dashboard/report export not proven by Gmail | Candidate after SLB; needs exact report name and recipient confirmation |
-| Common Cents campaign reporting | BOJ/Common Cents | Medium | Meta Ads engagement/awareness campaigns, segmented ad sets, campaign optimization tasks | KPI summary, campaign/ad set table, audience/segment split, platform split | Dashboard/report export not proven by Gmail | Candidate after SLB/JDIC; needs exact report name and BOJ recipient confirmation |
-| Grace Foods web performance reporting | Grace Foods | Strong for GA4/Search Console, weak for paid-media DashThis replacement | Search Console and Google Analytics performance reports | Website traffic, search clicks/impressions, top pages, top queries, devices, countries, active users, events, engagement | Google-generated performance email; ADinsights replacement would require GA4/Search Console reporting | Scope expansion; do not use as first paid-media proof target unless GA4/Search Console becomes required |
+| Report/dashboard                               | Client/tenant               | Evidence strength                                                       | Sources indicated by Gmail                                                                | Required widgets inferred                                                                                                | Outputs inferred                                                                                                 | Status                                                                                                  |
+| ---------------------------------------------- | --------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| SLB Marketing Campaign Status Report, May 2026 | SLB / Students' Loan Bureau | Strong                                                                  | Meta Ads, Instagram/Facebook social performance; organic/content activity likely included | KPI summary, platform performance, top posts, campaign activity, creative/work completed, June recommendations           | Monthly report attachment/email; ADinsights should support dashboard plus PDF/CSV/PNG export and scheduled email | Select as first proof target; needs recipient/output confirmation                                       |
+| JDIC campaign reporting                        | JDIC                        | Medium                                                                  | Meta Ads engagement campaigns and boosted/social posts                                    | KPI summary, campaign table, platform split, creative/post performance                                                   | Dashboard/report export not proven by Gmail                                                                      | Candidate after SLB; needs exact report name and recipient confirmation                                 |
+| Common Cents campaign reporting                | BOJ/Common Cents            | Medium                                                                  | Meta Ads engagement/awareness campaigns, segmented ad sets, campaign optimization tasks   | KPI summary, campaign/ad set table, audience/segment split, platform split                                               | Dashboard/report export not proven by Gmail                                                                      | Candidate after SLB/JDIC; needs exact report name and BOJ recipient confirmation                        |
+| Grace Foods web performance reporting          | Grace Foods                 | Strong for GA4/Search Console, weak for paid-media DashThis replacement | Search Console and Google Analytics performance reports                                   | Website traffic, search clicks/impressions, top pages, top queries, devices, countries, active users, events, engagement | Google-generated performance email; ADinsights replacement would require GA4/Search Console reporting            | Scope expansion; do not use as first paid-media proof target unless GA4/Search Console becomes required |
 
 ## Source Decision
 
-| Source | Decision from Gmail evidence | Notes |
-| ------ | ---------------------------- | ----- |
-| Meta Ads | Required for SLB, JDIC, and BOJ/Common Cents. | Multiple Meta campaign/receipt signals exist. |
-| Google Ads | Not proven for BOJ, Grace, JDIC, or SLB in this Gmail pass. | Keep as required only if DashThis or source-platform access proves it. |
-| GA4 | Required if Grace is in the cancellation scope. | Grace Foods Google Analytics performance email exists. |
-| Search Console | Required if Grace is in the cancellation scope. | Grace Foods Search Console performance email exists. |
+| Source                            | Decision from Gmail evidence                                                           | Notes                                                                                                                           |
+| --------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Meta Ads                          | Required for SLB, JDIC, and BOJ/Common Cents.                                          | Multiple Meta campaign/receipt signals exist.                                                                                   |
+| Google Ads                        | Not proven for BOJ, Grace, JDIC, or SLB in this Gmail pass.                            | Keep as required only if DashThis or source-platform access proves it.                                                          |
+| GA4                               | Required if Grace is in the cancellation scope.                                        | Grace Foods Google Analytics performance email exists.                                                                          |
+| Search Console                    | Required if Grace is in the cancellation scope.                                        | Grace Foods Search Console performance email exists.                                                                            |
 | Organic social/content operations | Likely required for exact SLB report parity, but not for paid-media replacement proof. | The SLB report references content/social support and top posts. Treat as a known gap unless operator narrows scope to paid ads. |
 
 ## Attachment Review Update
@@ -95,18 +95,18 @@ status report generator backed by Meta Ads plus organic Meta/Page/Instagram insi
 
 ## Required Widgets For First SLB Proof
 
-| Widget or section | Status | Notes |
-| ----------------- | ------ | ----- |
-| KPI cards | Required | Spend, impressions, clicks, CTR, CPC, CPM, and campaign totals from Meta. |
-| Campaign table | Required | Needed for Ready Set Apply campaign proof. |
-| Creative/post table | Required for parity, partial for paid-media MVP | Gmail report scope references top Instagram/Facebook posts. |
-| Platform split | Required | At minimum Facebook vs Instagram. |
-| Date comparison | Recommended | Month-over-month if the existing report uses it. |
-| PDF export | Required | Existing report was sent as a report attachment/email; exact format needs confirmation. |
-| CSV export | Required by ADinsights cancellation bar | Not proven as required by email, but part of replacement gate. |
-| PNG export | Required by ADinsights cancellation bar | Not proven as required by email, but part of replacement gate. |
-| Scheduled email | Required | Email delivery must replace manual report sending. |
-| Slack/webhook | Not proven | Keep deferred unless operator confirms DashThis currently delivers through Slack/webhook. |
+| Widget or section   | Status                                          | Notes                                                                                     |
+| ------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| KPI cards           | Required                                        | Spend, impressions, clicks, CTR, CPC, CPM, and campaign totals from Meta.                 |
+| Campaign table      | Required                                        | Needed for Ready Set Apply campaign proof.                                                |
+| Creative/post table | Required for parity, partial for paid-media MVP | Gmail report scope references top Instagram/Facebook posts.                               |
+| Platform split      | Required                                        | At minimum Facebook vs Instagram.                                                         |
+| Date comparison     | Recommended                                     | Month-over-month if the existing report uses it.                                          |
+| PDF export          | Required                                        | Existing report was sent as a report attachment/email; exact format needs confirmation.   |
+| CSV export          | Required by ADinsights cancellation bar         | Not proven as required by email, but part of replacement gate.                            |
+| PNG export          | Required by ADinsights cancellation bar         | Not proven as required by email, but part of replacement gate.                            |
+| Scheduled email     | Required                                        | Email delivery must replace manual report sending.                                        |
+| Slack/webhook       | Not proven                                      | Keep deferred unless operator confirms DashThis currently delivers through Slack/webhook. |
 
 ## Open Blockers
 

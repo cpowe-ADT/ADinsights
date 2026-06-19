@@ -91,8 +91,14 @@ const SummariesPage = () => {
         </div>
       </header>
 
-      <div className="phase2-card" style={{ background: 'var(--color-surface-info, #f0f4ff)', marginBottom: '1rem' }}>
-        <p><strong>Automatic generation:</strong> Summaries are generated every day at 6:10 AM (Jamaica time). You can also trigger a manual refresh below.</p>
+      <div
+        className="phase2-card"
+        style={{ background: 'var(--color-surface-info, #f0f4ff)', marginBottom: '1rem' }}
+      >
+        <p>
+          <strong>Automatic generation:</strong> Summaries are generated every day at 6:10 AM
+          (Jamaica time). You can also trigger a manual refresh below.
+        </p>
       </div>
 
       {summaries.length === 0 ? (
@@ -123,7 +129,9 @@ const SummariesPage = () => {
                   </span>
                 </td>
                 <td>
-                  <span className={`phase2-pill phase2-pill--${summary.source === 'daily_summary' ? 'generated' : 'info'}`}>
+                  <span
+                    className={`phase2-pill phase2-pill--${summary.source === 'daily_summary' ? 'generated' : 'info'}`}
+                  >
                     {summary.source === 'daily_summary' ? 'Daily' : 'Manual'}
                   </span>
                 </td>

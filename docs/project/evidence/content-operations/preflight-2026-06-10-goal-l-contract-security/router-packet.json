@@ -20,10 +20,7 @@
     "cross_stream": true,
     "strong_conflict_count": 0
   },
-  "touched_streams": [
-    "S4",
-    "S6"
-  ],
+  "touched_streams": ["S4", "S6"],
   "required_tests": [
     "cd frontend && npm test -- --run",
     "cd frontend && npm run build",
@@ -44,10 +41,7 @@
   ],
   "escalation_decision": {
     "advisory_only": true,
-    "required_reviewers": [
-      "Raj",
-      "Mira"
-    ],
+    "required_reviewers": ["Raj", "Mira"],
     "reason": "Multiple streams detected in routing evidence."
   },
   "recommended_report_template": "C",
@@ -341,12 +335,8 @@
   "signals": {
     "explicit_persona_id": null,
     "explicit_stream_ids": [],
-    "folder_stream_ids": [
-      "S4"
-    ],
-    "keyword_stream_ids": [
-      "S6"
-    ],
+    "folder_stream_ids": ["S4"],
+    "keyword_stream_ids": ["S6"],
     "explicit_paths": [],
     "changed_files": [
       "AGENTS.md",
@@ -392,19 +382,13 @@
       "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
       "frontend/src/styles/contentOps.css"
     ],
-    "prompt_paths": [
-      "docs/tests"
-    ],
+    "prompt_paths": ["docs/tests"],
     "used_git_changed_files": true,
     "folder_matches": {
-      "S4": [
-        "frontend/src"
-      ]
+      "S4": ["frontend/src"]
     },
     "keyword_matches": {
-      "S6": [
-        "logging"
-      ]
+      "S6": ["logging"]
     },
     "contract_sensitive": true,
     "contract_reasons": [

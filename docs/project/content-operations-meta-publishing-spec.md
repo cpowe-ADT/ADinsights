@@ -119,18 +119,18 @@ separate problems:
 
 These are the main unresolved items that must be closed before backend implementation.
 
-| Area | Missing decision | Why it matters | Proposed default |
-| ---- | ---------------- | -------------- | ---------------- |
-| Meta permission family | Whether production should use legacy Instagram Graph permissions or newer business permission names | App Review may reject the wrong family or scopes may not appear for the app type | Reverify in Meta developer console before implementation; keep feature flag disabled until confirmed |
-| Facebook Page endpoint path | Exact Page publishing endpoint and scheduling fields for current pinned Graph API version | Meta Pages docs can be login-gated and behavior changes by API version | Implement publish-at-due-time first; treat native Meta scheduling as later optimization |
-| Asset URL strategy | How Meta fetches media generated/stored privately in ADinsights | Instagram publishing requires Meta to fetch media by URL; private app storage is not enough | Generate short-lived public HTTPS asset URLs at publish time, with content type and size headers validated |
-| Media validation | Supported image/video/reel/story/carousel formats per phase | Invalid media creates late publish failures and bad client experience | MVP supports single-image Facebook Page and Instagram feed posts; beta adds reels/carousels after staging proof |
-| Client approval identity | Whether clients are ADinsights users or external approval-link users | Affects auth, audit, tenant access, and notifications | MVP uses invited client users with restricted tenant role; external approval links are later |
-| Brand governance | Where brand voice, visual rules, disclaimers, and banned claims live | AI output quality depends on structured constraints | Add `brand_profile` on workspace and version it later if needed |
-| Reporting source of truth | Whether content metrics are direct API snapshots, dbt marts, or both | Affects data freshness and dashboard consistency | API snapshots first; dbt marts only after beta contract proves stable |
-| Human override | Whether operators can bypass approvals for urgent posts | Affects agency governance and audit | Disabled by default; tenant admin override only with required audit reason |
-| Failure notifications | Who gets notified for failed scheduled posts | Affects SLA and client trust | Notify draft owner plus operators; client notifications only after internal review |
-| AI provider costs | How tenants control batch generation spend | Batch graphics can get expensive quickly | Add tenant quotas, job estimates, and admin limits before beta |
+| Area                        | Missing decision                                                                                    | Why it matters                                                                              | Proposed default                                                                                                |
+| --------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Meta permission family      | Whether production should use legacy Instagram Graph permissions or newer business permission names | App Review may reject the wrong family or scopes may not appear for the app type            | Reverify in Meta developer console before implementation; keep feature flag disabled until confirmed            |
+| Facebook Page endpoint path | Exact Page publishing endpoint and scheduling fields for current pinned Graph API version           | Meta Pages docs can be login-gated and behavior changes by API version                      | Implement publish-at-due-time first; treat native Meta scheduling as later optimization                         |
+| Asset URL strategy          | How Meta fetches media generated/stored privately in ADinsights                                     | Instagram publishing requires Meta to fetch media by URL; private app storage is not enough | Generate short-lived public HTTPS asset URLs at publish time, with content type and size headers validated      |
+| Media validation            | Supported image/video/reel/story/carousel formats per phase                                         | Invalid media creates late publish failures and bad client experience                       | MVP supports single-image Facebook Page and Instagram feed posts; beta adds reels/carousels after staging proof |
+| Client approval identity    | Whether clients are ADinsights users or external approval-link users                                | Affects auth, audit, tenant access, and notifications                                       | MVP uses invited client users with restricted tenant role; external approval links are later                    |
+| Brand governance            | Where brand voice, visual rules, disclaimers, and banned claims live                                | AI output quality depends on structured constraints                                         | Add `brand_profile` on workspace and version it later if needed                                                 |
+| Reporting source of truth   | Whether content metrics are direct API snapshots, dbt marts, or both                                | Affects data freshness and dashboard consistency                                            | API snapshots first; dbt marts only after beta contract proves stable                                           |
+| Human override              | Whether operators can bypass approvals for urgent posts                                             | Affects agency governance and audit                                                         | Disabled by default; tenant admin override only with required audit reason                                      |
+| Failure notifications       | Who gets notified for failed scheduled posts                                                        | Affects SLA and client trust                                                                | Notify draft owner plus operators; client notifications only after internal review                              |
+| AI provider costs           | How tenants control batch generation spend                                                          | Batch graphics can get expensive quickly                                                    | Add tenant quotas, job estimates, and admin limits before beta                                                  |
 
 ## 1. Product Requirements
 
@@ -205,16 +205,20 @@ Returns separate readiness axes:
 
 ```json
 {
-  "meta_auth": {"state": "connected", "reason": null},
-  "page_selection": {"state": "complete", "page_count": 2, "reason": null},
-  "instagram_linkage": {"state": "partial", "linked_count": 1, "reason": "some_pages_without_ig"},
-  "facebook_page_publishing": {"state": "ready", "missing_permissions": []},
+  "meta_auth": { "state": "connected", "reason": null },
+  "page_selection": { "state": "complete", "page_count": 2, "reason": null },
+  "instagram_linkage": {
+    "state": "partial",
+    "linked_count": 1,
+    "reason": "some_pages_without_ig"
+  },
+  "facebook_page_publishing": { "state": "ready", "missing_permissions": [] },
   "instagram_publishing": {
     "state": "blocked",
     "missing_permissions": ["instagram_content_publish"],
     "business_permission_variant": "needs_review"
   },
-  "reporting_readiness": {"state": "ready", "dataset_live_reason": "ready"}
+  "reporting_readiness": { "state": "ready", "dataset_live_reason": "ready" }
 }
 ```
 
@@ -391,7 +395,7 @@ Draft response:
     "caption": "Caption text",
     "media_asset_ids": ["uuid"],
     "platform_overrides": {
-      "instagram": {"caption": "IG caption", "first_comment": "#tags"}
+      "instagram": { "caption": "IG caption", "first_comment": "#tags" }
     }
   },
   "approval_summary": {
@@ -441,8 +445,8 @@ Schedule request:
   "scheduled_at": "2026-06-12T09:30:00-05:00",
   "timezone": "America/Jamaica",
   "channels": [
-    {"type": "facebook_page", "page_id": "123"},
-    {"type": "instagram", "ig_user_id": "1784..."}
+    { "type": "facebook_page", "page_id": "123" },
+    { "type": "instagram", "ig_user_id": "1784..." }
   ]
 }
 ```
@@ -490,7 +494,7 @@ Reporting overview response stores and returns aggregate metrics only:
 ```json
 {
   "workspace_id": "uuid",
-  "date_range": {"start_date": "2026-06-01", "end_date": "2026-06-30"},
+  "date_range": { "start_date": "2026-06-01", "end_date": "2026-06-30" },
   "totals": {
     "posts_published": 18,
     "impressions": 120000,
@@ -499,8 +503,18 @@ Reporting overview response stores and returns aggregate metrics only:
     "clicks": 740
   },
   "by_channel": [
-    {"channel": "facebook_page", "posts": 10, "impressions": 70000, "engagements": 3000},
-    {"channel": "instagram", "posts": 8, "impressions": 50000, "engagements": 2100}
+    {
+      "channel": "facebook_page",
+      "posts": 10,
+      "impressions": 70000,
+      "engagements": 3000
+    },
+    {
+      "channel": "instagram",
+      "posts": 8,
+      "impressions": 50000,
+      "engagements": 2100
+    }
   ]
 }
 ```
@@ -707,10 +721,10 @@ candidates deterministically.
       "type": "object",
       "required": ["brief_id", "platforms", "tone", "audience"],
       "properties": {
-        "brief_id": {"type": "string"},
-        "platforms": {"type": "array", "items": {"type": "string"}},
-        "tone": {"type": "string"},
-        "audience": {"type": "string"}
+        "brief_id": { "type": "string" },
+        "platforms": { "type": "array", "items": { "type": "string" } },
+        "tone": { "type": "string" },
+        "audience": { "type": "string" }
       }
     },
     "candidates": {
@@ -727,17 +741,20 @@ candidates deterministically.
           "quality_score"
         ],
         "properties": {
-          "platform": {"type": "string", "enum": ["facebook_page", "instagram"]},
-          "caption": {"type": "string"},
-          "hashtags": {"type": "array", "items": {"type": "string"}},
-          "cta": {"type": "string"},
-          "alt_text": {"type": "string"},
-          "risk_flags": {"type": "array", "items": {"type": "string"}},
-          "quality_score": {"type": "number"}
+          "platform": {
+            "type": "string",
+            "enum": ["facebook_page", "instagram"]
+          },
+          "caption": { "type": "string" },
+          "hashtags": { "type": "array", "items": { "type": "string" } },
+          "cta": { "type": "string" },
+          "alt_text": { "type": "string" },
+          "risk_flags": { "type": "array", "items": { "type": "string" } },
+          "quality_score": { "type": "number" }
         }
       }
     },
-    "warnings": {"type": "array", "items": {"type": "string"}}
+    "warnings": { "type": "array", "items": { "type": "string" } }
   }
 }
 ```
@@ -953,18 +970,18 @@ AI evaluation:
 The module needs product evals, model evals, API contract evals, and operations evals. Treat these as
 separate gates.
 
-| Suite | What it proves | Primary owner | Minimum pass gate |
-| ----- | -------------- | ------------- | ----------------- |
-| `caption_schema_eval` | AI caption output matches the JSON schema and backend can deserialize it | Backend AI slice | 100% valid schema on golden set |
-| `caption_brand_eval` | Captions match brand voice, include required terms, avoid blocked terms, and fit platform limits | Strategy/product + backend | >=90% reviewer pass, 0 blocked-term leaks |
-| `caption_safety_eval` | Captions avoid unsupported claims, sensitive targeting language, and unsafe regulated claims | Product + security | 0 critical policy failures |
-| `graphic_asset_eval` | Generated graphics are non-blank, correct aspect ratio, readable, and pass moderation | Frontend/design + backend AI | >=95% technical pass, 0 moderation criticals |
-| `approval_integrity_eval` | Approved version is exactly the scheduled/published version | Backend + QA | 100% invariant pass |
-| `scheduler_due_time_eval` | Due posts dispatch on time without duplicate attempts | Scheduler | P95 dispatch <=2 minutes, 0 duplicate publishes |
-| `instagram_container_eval` | Container creation, polling, expiry, and recreation behave correctly | Scheduler/integrations | 100% deterministic state transitions in tests |
-| `readiness_separation_eval` | UI/API never collapses auth, Page, Instagram, publishing, and reporting readiness | Backend + frontend | 100% mocked-state coverage |
-| `aggregate_reporting_eval` | Reports expose only aggregate metrics and link to published posts | Backend/reporting | 0 user-level fields, 100% tenant isolation |
-| `export_packet_eval` | Calendar/export artifacts are complete, client-safe, and match approved versions | Frontend/export | 100% fixture snapshot match |
+| Suite                       | What it proves                                                                                   | Primary owner                | Minimum pass gate                               |
+| --------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------- | ----------------------------------------------- |
+| `caption_schema_eval`       | AI caption output matches the JSON schema and backend can deserialize it                         | Backend AI slice             | 100% valid schema on golden set                 |
+| `caption_brand_eval`        | Captions match brand voice, include required terms, avoid blocked terms, and fit platform limits | Strategy/product + backend   | >=90% reviewer pass, 0 blocked-term leaks       |
+| `caption_safety_eval`       | Captions avoid unsupported claims, sensitive targeting language, and unsafe regulated claims     | Product + security           | 0 critical policy failures                      |
+| `graphic_asset_eval`        | Generated graphics are non-blank, correct aspect ratio, readable, and pass moderation            | Frontend/design + backend AI | >=95% technical pass, 0 moderation criticals    |
+| `approval_integrity_eval`   | Approved version is exactly the scheduled/published version                                      | Backend + QA                 | 100% invariant pass                             |
+| `scheduler_due_time_eval`   | Due posts dispatch on time without duplicate attempts                                            | Scheduler                    | P95 dispatch <=2 minutes, 0 duplicate publishes |
+| `instagram_container_eval`  | Container creation, polling, expiry, and recreation behave correctly                             | Scheduler/integrations       | 100% deterministic state transitions in tests   |
+| `readiness_separation_eval` | UI/API never collapses auth, Page, Instagram, publishing, and reporting readiness                | Backend + frontend           | 100% mocked-state coverage                      |
+| `aggregate_reporting_eval`  | Reports expose only aggregate metrics and link to published posts                                | Backend/reporting            | 0 user-level fields, 100% tenant isolation      |
+| `export_packet_eval`        | Calendar/export artifacts are complete, client-safe, and match approved versions                 | Frontend/export              | 100% fixture snapshot match                     |
 
 ### Golden Eval Dataset
 
@@ -1312,21 +1329,21 @@ Exit artifact: tenant-by-tenant rollout with rollback plan.
 
 ## Risk Register
 
-| Risk | Impact | Mitigation |
-| ---- | ------ | ---------- |
-| Meta App Review rejects publishing permissions | Publishing cannot go live | Build planning/export/approval first; keep publishing behind flags; create reviewer evidence early |
-| Meta permission names or app type requirements change | OAuth implementation may drift | Reverify before code and before submission; document exact permission family in catalog/profile |
-| Instagram containers expire before publish | Scheduled posts fail late | Create containers only near due time; recreate expired containers; track expiry state |
-| Meta cannot fetch media URL | Publish fails after approval | Validate public HTTPS URL, content type, content length, and no-auth fetch before container creation |
-| Duplicate publish attempts | Client-facing duplicate posts | Use DB locks, idempotency keys, per-channel attempts, and duplicate post detection |
-| AI produces off-brand or unsafe content | Client trust and compliance risk | Human approval required; brand constraints; blocked-term checks; eval gates |
-| Generated graphics have unreadable text | Client-facing quality issue | Visual QA, aspect-ratio checks, and human approval |
-| Approval version drift | Wrong content publishes | Approval snapshot bound to exact version and media asset IDs; edits invalidate approval |
-| Reporting stores user-level data by accident | PII/privacy violation | Aggregate-only serializers, tests that reject user-level fields, dbt review before marts |
-| Paid and organic metrics blur | Misleading reports | Separate channels and labels; combined summaries only with explicit organic/paid split |
-| Token revocation or permission drift | Scheduled posts fail | Readiness checks before scheduling and again before publishing; operator alerts |
-| Batch AI cost spike | Tenant cost surprise | Quotas, estimates, admin limits, and cancellation |
-| Cross-stream PR grows too large | Review/release risk | Raj-managed slice plan and per-folder tests |
+| Risk                                                  | Impact                           | Mitigation                                                                                           |
+| ----------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Meta App Review rejects publishing permissions        | Publishing cannot go live        | Build planning/export/approval first; keep publishing behind flags; create reviewer evidence early   |
+| Meta permission names or app type requirements change | OAuth implementation may drift   | Reverify before code and before submission; document exact permission family in catalog/profile      |
+| Instagram containers expire before publish            | Scheduled posts fail late        | Create containers only near due time; recreate expired containers; track expiry state                |
+| Meta cannot fetch media URL                           | Publish fails after approval     | Validate public HTTPS URL, content type, content length, and no-auth fetch before container creation |
+| Duplicate publish attempts                            | Client-facing duplicate posts    | Use DB locks, idempotency keys, per-channel attempts, and duplicate post detection                   |
+| AI produces off-brand or unsafe content               | Client trust and compliance risk | Human approval required; brand constraints; blocked-term checks; eval gates                          |
+| Generated graphics have unreadable text               | Client-facing quality issue      | Visual QA, aspect-ratio checks, and human approval                                                   |
+| Approval version drift                                | Wrong content publishes          | Approval snapshot bound to exact version and media asset IDs; edits invalidate approval              |
+| Reporting stores user-level data by accident          | PII/privacy violation            | Aggregate-only serializers, tests that reject user-level fields, dbt review before marts             |
+| Paid and organic metrics blur                         | Misleading reports               | Separate channels and labels; combined summaries only with explicit organic/paid split               |
+| Token revocation or permission drift                  | Scheduled posts fail             | Readiness checks before scheduling and again before publishing; operator alerts                      |
+| Batch AI cost spike                                   | Tenant cost surprise             | Quotas, estimates, admin limits, and cancellation                                                    |
+| Cross-stream PR grows too large                       | Review/release risk              | Raj-managed slice plan and per-folder tests                                                          |
 
 ## Source Notes Checked
 

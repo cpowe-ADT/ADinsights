@@ -85,14 +85,19 @@ vi.mock('../../components/Skeleton', () => ({
 vi.mock('../../components/ui/Card', () => ({
   __esModule: true,
   default: ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div><h2>{title}</h2>{children}</div>
+    <div>
+      <h2>{title}</h2>
+      {children}
+    </div>
   ),
 }));
 
 vi.mock('../../components/ui/StatCard', () => ({
   __esModule: true,
   default: ({ label, value }: { label: string; value: string }) => (
-    <div data-testid="stat-card">{label}: {value}</div>
+    <div data-testid="stat-card">
+      {label}: {value}
+    </div>
   ),
 }));
 

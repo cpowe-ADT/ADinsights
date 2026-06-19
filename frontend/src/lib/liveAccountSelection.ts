@@ -51,7 +51,11 @@ function normalizeAccountValue(value: string): string {
 
 function resolvePrimaryAccountLabel(account: LiveAccountLike, accountId: string): string {
   const name = normalizeText(account.name);
-  if (name && !isNumericLabel(name) && normalizeAccountValue(name) !== normalizeAccountValue(accountId)) {
+  if (
+    name &&
+    !isNumericLabel(name) &&
+    normalizeAccountValue(name) !== normalizeAccountValue(accountId)
+  ) {
     return name;
   }
 
@@ -79,7 +83,9 @@ export function buildLiveAccountOption(account: LiveAccountLike): LiveAccountOpt
   return {
     value,
     label:
-      primaryLabel && accountId && normalizeAccountValue(primaryLabel) !== normalizeAccountValue(accountId)
+      primaryLabel &&
+      accountId &&
+      normalizeAccountValue(primaryLabel) !== normalizeAccountValue(accountId)
         ? `${primaryLabel} · ${accountId}`
         : primaryLabel || accountId,
   };
@@ -124,7 +130,8 @@ function readSelections(): AccountSelectionRecord {
           return acc;
         }
         const accountId =
-          typeof (selection as PersistedAccountSelection & { accountId?: string }).accountId === 'string'
+          typeof (selection as PersistedAccountSelection & { accountId?: string }).accountId ===
+          'string'
             ? (selection as PersistedAccountSelection & { accountId?: string }).accountId?.trim()
             : '';
         if (!accountId) {
@@ -132,10 +139,14 @@ function readSelections(): AccountSelectionRecord {
         }
         const rawSource =
           typeof (selection as PersistedAccountSelection & { source?: string }).source === 'string'
-            ? (selection as PersistedAccountSelection & { source?: string }).source?.trim().toLowerCase()
+            ? (selection as PersistedAccountSelection & { source?: string }).source
+                ?.trim()
+                .toLowerCase()
             : '';
         const source: AccountSelectionSource =
-          rawSource === 'user' || rawSource === 'auto' ? (rawSource as AccountSelectionSource) : 'legacy';
+          rawSource === 'user' || rawSource === 'auto'
+            ? (rawSource as AccountSelectionSource)
+            : 'legacy';
         acc[tenantId] = { accountId, source };
         return acc;
       },
@@ -215,7 +226,8 @@ export function chooseDefaultLiveAccountId(
     if (
       preferred &&
       preferred !== stored.accountId &&
-      (stored.source === 'auto' || (stored.source === 'legacy' && stored.accountId === firstAccountId))
+      (stored.source === 'auto' ||
+        (stored.source === 'legacy' && stored.accountId === firstAccountId))
     ) {
       return preferred;
     }

@@ -14,16 +14,16 @@ runtime target, DashThis parity, retained history, or cancellation readiness.
 
 ## Current Local Demo
 
-| Field | Value |
-| --- | --- |
-| Local report ID | `a40abad9-9f1d-4e75-92b0-3e0feaed27b5` |
-| Local route | `/reports/a40abad9-9f1d-4e75-92b0-3e0feaed27b5` |
-| Report name | `SLB Monthly Social Report - Local Demo` |
-| Template key | `slb_monthly_social_report` |
-| Schema version | `report.v1` |
-| Preview pages | 8 |
-| Preview hash | `e795fb08d22ec0ee02015c771f7cef15d19cf8188140f0baaaadc90dd07fa6ff` |
-| Cancellation evidence? | No |
+| Field                  | Value                                                              |
+| ---------------------- | ------------------------------------------------------------------ |
+| Local report ID        | `a40abad9-9f1d-4e75-92b0-3e0feaed27b5`                             |
+| Local route            | `/reports/a40abad9-9f1d-4e75-92b0-3e0feaed27b5`                    |
+| Report name            | `SLB Monthly Social Report - Local Demo`                           |
+| Template key           | `slb_monthly_social_report`                                        |
+| Schema version         | `report.v1`                                                        |
+| Preview pages          | 8                                                                  |
+| Preview hash           | `e795fb08d22ec0ee02015c771f7cef15d19cf8188140f0baaaadc90dd07fa6ff` |
+| Cancellation evidence? | No                                                                 |
 
 Local proof artifact:
 
@@ -90,16 +90,16 @@ Expected local result:
 
 Use this order to convert the working local demo into cancellation-review evidence.
 
-| Step | Action | Evidence destination | Owner route |
-| --- | --- | --- | --- |
-| 1 | Fill the G0 Raj/Mira decision JSON and validate it. | G0 review packet and status manifest | Raj, Mira |
-| 2 | Choose the real runtime target: environment, tenant/client, report ID, date range, and source scopes. | G1 runtime intake checklist and JSON | Operator, Hannah, Raj |
-| 3 | Generate `slb_report_target_intake` output for the chosen report. | G1 target-intake output | Operator |
-| 4 | Validate G0/G1 agreement before collecting evidence. | G0/G1 handoff validator output | Operator, Raj, Mira |
-| 5 | Run preview, diagnostics, history probe, evidence bundle, parity, exports, and dry-run only against that same target. | G2-G9 evidence run | Sofia, Andre, Lina, Joel, Omar, Hannah |
-| 6 | Run adversarial review only after G2-G9 evidence exists. | G10 adversarial packet | Raj, Mira, Omar, Hannah, Nina |
-| 7 | Start hardening only after G10 has no unresolved blockers. | G11 hardening packet | Raj, Mira, Omar |
-| 8 | Write keep/cancel recommendation only after G0-G11 pass or are explicitly waived. | G12 recommendation | Raj, Mira, business owner |
+| Step | Action                                                                                                                | Evidence destination                 | Owner route                            |
+| ---- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | -------------------------------------- |
+| 1    | Fill the G0 Raj/Mira decision JSON and validate it.                                                                   | G0 review packet and status manifest | Raj, Mira                              |
+| 2    | Choose the real runtime target: environment, tenant/client, report ID, date range, and source scopes.                 | G1 runtime intake checklist and JSON | Operator, Hannah, Raj                  |
+| 3    | Generate `slb_report_target_intake` output for the chosen report.                                                     | G1 target-intake output              | Operator                               |
+| 4    | Validate G0/G1 agreement before collecting evidence.                                                                  | G0/G1 handoff validator output       | Operator, Raj, Mira                    |
+| 5    | Run preview, diagnostics, history probe, evidence bundle, parity, exports, and dry-run only against that same target. | G2-G9 evidence run                   | Sofia, Andre, Lina, Joel, Omar, Hannah |
+| 6    | Run adversarial review only after G2-G9 evidence exists.                                                              | G10 adversarial packet               | Raj, Mira, Omar, Hannah, Nina          |
+| 7    | Start hardening only after G10 has no unresolved blockers.                                                            | G11 hardening packet                 | Raj, Mira, Omar                        |
+| 8    | Write keep/cancel recommendation only after G0-G11 pass or are explicitly waived.                                     | G12 recommendation                   | Raj, Mira, business owner              |
 
 ## Commands For The Real Target
 

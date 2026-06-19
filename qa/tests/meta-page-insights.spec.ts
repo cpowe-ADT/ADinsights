@@ -42,7 +42,10 @@ async function ensureSignedIn(
 }
 
 test.describe('meta page insights smoke', () => {
-  test('connect callback, select page, view dashboard and post drill-down', async ({ page, mockMode }) => {
+  test('connect callback, select page, view dashboard and post drill-down', async ({
+    page,
+    mockMode,
+  }) => {
     test.skip(!mockMode, 'Mock mode only');
 
     await page.route('**/api/meta/connect/callback/**', async (route) => {
@@ -351,8 +354,8 @@ test.describe('meta page insights smoke', () => {
     await expect(page).toHaveURL(/\/dashboards\/meta\/pages\/page-1\/overview/);
 
     await expect(page.getByRole('heading', { name: /Business Page/i })).toBeVisible();
-    await expect(page.getByText(/Some metrics are not available for this Page/i)).toBeVisible();
-    await expect(page.locator('.meta-kpi-metric').filter({ hasText: 'page_post_engagements' })).toBeVisible();
+    await expect(page.getByTestId('meta-page-kpi-strip')).toContainText('page_post_engagements');
+    await expect(page.getByText('No access to this metric.')).toBeVisible();
 
     await page.getByRole('link', { name: 'Posts' }).click();
     await expect(page.getByRole('heading', { name: /Page Posts/i })).toBeVisible();

@@ -33,7 +33,7 @@
     "evidence_validation_final_status": "pending",
     "redaction_scan_passed": false
   },
-    "checkpoints": {
+  "checkpoints": {
     "start": {
       "timestamp": "pending",
       "preview_status": "pending",

@@ -1,27 +1,13 @@
 {
   "schema_version": "1.1.0",
   "scope_status": "ESCALATE_CROSS_SCOPE",
-  "touched_top_level_folders": [
-    "frontend",
-    "docs"
-  ],
-  "required_reviewers": [
-    "Raj",
-    "Lina",
-    "Hannah"
-  ],
+  "touched_top_level_folders": ["frontend", "docs"],
+  "required_reviewers": ["Raj", "Lina", "Hannah"],
   "required_tests_by_folder": {
-    "frontend": [
-      "cd frontend && npm ci && npm test -- --run && npm run build"
-    ],
-    "docs": [
-      "docs-only change (no canonical code test)"
-    ]
+    "frontend": ["cd frontend && npm ci && npm test -- --run && npm run build"],
+    "docs": ["docs-only change (no canonical code test)"]
   },
-  "required_docs_updates": [
-    "docs/ops/doc-index.md",
-    "docs/ops/agent-activity-log.md"
-  ],
+  "required_docs_updates": ["docs/ops/doc-index.md", "docs/ops/agent-activity-log.md"],
   "recommended_next_action": "Either split work into single-folder PR slices or route to Raj for cross-stream coordination.",
   "rationale": [
     "Evidence source: explicit_paths.",
@@ -104,9 +90,7 @@
     "invoke_release_readiness": true
   },
   "signals": {
-    "prompt_paths": [
-      "docs/evidence"
-    ],
+    "prompt_paths": ["docs/evidence"],
     "explicit_paths": [
       "frontend/src/routes/ContentOpsPage.tsx",
       "frontend/src/lib/contentOpsMock.ts",

@@ -628,7 +628,9 @@
 /* Selected parish detail card accent */
 .parishDetailCard--selected {
   border-color: var(--color-accent, #2563eb);
-  box-shadow: 0 0 0 1px var(--color-accent, #2563eb), var(--shadow-soft);
+  box-shadow:
+    0 0 0 1px var(--color-accent, #2563eb),
+    var(--shadow-soft);
 }
 
 /* Detail content accent border */

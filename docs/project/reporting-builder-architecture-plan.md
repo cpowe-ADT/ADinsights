@@ -34,17 +34,17 @@ The immediate proof target remains SLB-style monthly reporting because the Gmail
 
 The repo already has a good foundation. The next build should extend these surfaces rather than create a second reporting stack.
 
-| Area | Existing surface | Use in this plan |
-| --- | --- | --- |
-| Saved dashboards | `backend/analytics/models.py` `DashboardDefinition` with tenant, template, filters, layout, default metric, audit metadata | Upgrade `layout` into a versioned dashboard config schema. |
-| Generic reports | `ReportDefinition`, `ReportExportJob`, report export endpoints, scheduled delivery fields | Use for monthly report definitions and PDF/CSV export jobs. |
-| Dashboard builder UI | `frontend/src/routes/DashboardCreate.tsx` | Evolve from template/widget toggles to governed chart/table configuration. |
-| Template registry | `frontend/src/lib/dashboardTemplates.ts` | Existing `SlotConfig` and slot kinds are the natural bridge to composable widgets. |
-| Combined metrics | `backend/analytics/combined_metrics_service.py` and `platform_registry.py` | Keep for paid-media combined views; extend cautiously with source-labeled dataset semantics. |
-| Meta Ads | `backend/adapters/meta_direct.py`, warehouse paths, combined metrics endpoint | Source for paid campaign, ad set, ad, creative, spend, clicks, reach, conversions, ROAS, CTR, CPC, CPM, CPA. |
-| Facebook Page Insights | `backend/integrations/page_insights_views.py`, Page/Post insight models, metric registry, runbook | Source for organic Page/post engagement, views, reactions, actions, and top post tables. |
-| Content Ops reporting | `backend/content_ops/metrics.py`, `backend/content_ops/exports.py` | Candidate source for organic publishing activity, content counts, and monthly work-completed sections. |
-| Design direction | `docs/design/dashthis-replacement-reporting-moodboard.md` and `.html` | Visual system for dashboards and monthly report output. |
+| Area                   | Existing surface                                                                                                           | Use in this plan                                                                                             |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Saved dashboards       | `backend/analytics/models.py` `DashboardDefinition` with tenant, template, filters, layout, default metric, audit metadata | Upgrade `layout` into a versioned dashboard config schema.                                                   |
+| Generic reports        | `ReportDefinition`, `ReportExportJob`, report export endpoints, scheduled delivery fields                                  | Use for monthly report definitions and PDF/CSV export jobs.                                                  |
+| Dashboard builder UI   | `frontend/src/routes/DashboardCreate.tsx`                                                                                  | Evolve from template/widget toggles to governed chart/table configuration.                                   |
+| Template registry      | `frontend/src/lib/dashboardTemplates.ts`                                                                                   | Existing `SlotConfig` and slot kinds are the natural bridge to composable widgets.                           |
+| Combined metrics       | `backend/analytics/combined_metrics_service.py` and `platform_registry.py`                                                 | Keep for paid-media combined views; extend cautiously with source-labeled dataset semantics.                 |
+| Meta Ads               | `backend/adapters/meta_direct.py`, warehouse paths, combined metrics endpoint                                              | Source for paid campaign, ad set, ad, creative, spend, clicks, reach, conversions, ROAS, CTR, CPC, CPM, CPA. |
+| Facebook Page Insights | `backend/integrations/page_insights_views.py`, Page/Post insight models, metric registry, runbook                          | Source for organic Page/post engagement, views, reactions, actions, and top post tables.                     |
+| Content Ops reporting  | `backend/content_ops/metrics.py`, `backend/content_ops/exports.py`                                                         | Candidate source for organic publishing activity, content counts, and monthly work-completed sections.       |
+| Design direction       | `docs/design/dashthis-replacement-reporting-moodboard.md` and `.html`                                                      | Visual system for dashboards and monthly report output.                                                      |
 
 ## Current Gaps
 
@@ -130,14 +130,14 @@ Widget rules:
 
 Start narrow and label sources clearly.
 
-| Dataset key | Product meaning | First use |
-| --- | --- | --- |
-| `paid_meta_ads` | Meta Ads paid media performance | SLB paid ads pages, campaign dashboards |
-| `organic_facebook_page` | Facebook Page and post insights | SLB organic Facebook pages and top posts |
-| `organic_instagram` | Instagram insights where available and approved | SLB Instagram pages after scope readiness |
-| `content_ops` | Publishing activity, content counts, approvals, recommendations | Monthly work-completed report sections |
-| `combined_paid_media` | Meta Ads + Google Ads paid media | Existing combined paid dashboard |
-| `combined_social` | Approved paid + organic social rollups | Later, after metric semantics are documented |
+| Dataset key             | Product meaning                                                 | First use                                    |
+| ----------------------- | --------------------------------------------------------------- | -------------------------------------------- |
+| `paid_meta_ads`         | Meta Ads paid media performance                                 | SLB paid ads pages, campaign dashboards      |
+| `organic_facebook_page` | Facebook Page and post insights                                 | SLB organic Facebook pages and top posts     |
+| `organic_instagram`     | Instagram insights where available and approved                 | SLB Instagram pages after scope readiness    |
+| `content_ops`           | Publishing activity, content counts, approvals, recommendations | Monthly work-completed report sections       |
+| `combined_paid_media`   | Meta Ads + Google Ads paid media                                | Existing combined paid dashboard             |
+| `combined_social`       | Approved paid + organic social rollups                          | Later, after metric semantics are documented |
 
 Combined dashboards should either:
 
@@ -208,28 +208,28 @@ Retention decision points:
 
 Consultant/reviewer route:
 
-| Concern | Reviewer persona | Main question |
-| --- | --- | --- |
-| Source outage and backfill behavior | Maya + Leo | Can sync failures stop fresh pulls without corrupting stored history? |
-| Warehouse retention and rebuilds | Priya + Martin | Can we regenerate 90-day/13-month reports from retained data? |
-| Metrics API fallback semantics | Sofia + Andre | Does the API expose coverage/freshness without changing metric meaning? |
-| Alerts and support diagnosis | Omar + Hannah | Will ops know source disconnected vs history unavailable vs stale mart? |
-| UI trust and report labeling | Lina + Joel | Does the user understand what period is covered and what is stale? |
-| Cross-stream architecture | Raj + Mira | Is the retention/fallback design consistent across ingestion, dbt, backend, frontend, and docs? |
+| Concern                             | Reviewer persona | Main question                                                                                   |
+| ----------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------- |
+| Source outage and backfill behavior | Maya + Leo       | Can sync failures stop fresh pulls without corrupting stored history?                           |
+| Warehouse retention and rebuilds    | Priya + Martin   | Can we regenerate 90-day/13-month reports from retained data?                                   |
+| Metrics API fallback semantics      | Sofia + Andre    | Does the API expose coverage/freshness without changing metric meaning?                         |
+| Alerts and support diagnosis        | Omar + Hannah    | Will ops know source disconnected vs history unavailable vs stale mart?                         |
+| UI trust and report labeling        | Lina + Joel      | Does the user understand what period is covered and what is stale?                              |
+| Cross-stream architecture           | Raj + Mira       | Is the retention/fallback design consistent across ingestion, dbt, backend, frontend, and docs? |
 
 ## Metric And Dimension Compatibility
 
 The first implementation should ship a small compatibility matrix and expand it intentionally.
 
-| Visualization | Valid x | Valid y | Dataset examples |
-| --- | --- | --- | --- |
-| KPI tile | none | spend, reach, clicks, CTR, engagements, views, reactions | paid Meta, organic Page |
-| Line chart | date | spend, reach, clicks, engagements, views | paid Meta, organic Page |
-| Bar chart | campaign, platform, post, content type | spend, clicks, reach, interactions | paid Meta, organic Page, content ops |
-| Donut chart | platform, placement, reaction type, content type | reach, interactions, post count | organic and combined dashboards |
-| Scatter chart | CTR, CPC, engagement rate | conversions, clicks, interactions | paid creative and top content views |
-| Data table | campaign, ad, creative, post, date | approved metrics by dataset | all datasets |
-| Map | parish/region | spend, reach, conversions | paid Meta only until organic geo coverage exists |
+| Visualization | Valid x                                          | Valid y                                                  | Dataset examples                                 |
+| ------------- | ------------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------ |
+| KPI tile      | none                                             | spend, reach, clicks, CTR, engagements, views, reactions | paid Meta, organic Page                          |
+| Line chart    | date                                             | spend, reach, clicks, engagements, views                 | paid Meta, organic Page                          |
+| Bar chart     | campaign, platform, post, content type           | spend, clicks, reach, interactions                       | paid Meta, organic Page, content ops             |
+| Donut chart   | platform, placement, reaction type, content type | reach, interactions, post count                          | organic and combined dashboards                  |
+| Scatter chart | CTR, CPC, engagement rate                        | conversions, clicks, interactions                        | paid creative and top content views              |
+| Data table    | campaign, ad, creative, post, date               | approved metrics by dataset                              | all datasets                                     |
+| Map           | parish/region                                    | spend, reach, conversions                                | paid Meta only until organic geo coverage exists |
 
 ## Phased Build Plan
 

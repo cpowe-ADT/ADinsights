@@ -28,29 +28,29 @@ runtime target that later evidence can consistently reference.
 
 ## Operator Fill-In
 
-| Field | Value | Evidence/source | Owner | Status |
-| --- | --- | --- | --- | --- |
-| Target environment | Pending | Pending | Pending | Required |
-| Backend URL | Pending | Pending | Pending | Required |
-| Frontend URL | Pending | Pending | Pending | Required |
-| Safe tenant identifier | Pending | Pending | Pending | Required |
-| Safe client identifier | SLB / Students' Loan Bureau | Gmail-derived inventory; operator to confirm | Pending | Required |
-| `ReportDefinition.id` | Pending | Runtime report record | Pending | Required |
-| `template_key` | `slb_monthly_social_report` expected | Runtime report record | Pending | Required |
-| Report schema version | `report.v1` expected | Runtime report record | Pending | Required |
-| Primary date range | Recommended: 2026-05-01 through 2026-05-31 | SLB May 2026 report inventory; operator to confirm | Pending | Required |
-| Baseline date range | Recommended: 2026-03-01 through 2026-04-30 | SLB March-April report inventory; operator to confirm | Pending | Optional |
-| Timezone used for proof | America/Jamaica | Goal guardrail | Pending | Required |
-| Currency | Pending | Source/report config | Pending | Required for paid parity |
-| Paid Meta account scope | Pending | Redacted account label or ID | Pending | Required |
-| Organic Facebook Page scope | Pending | Redacted Page label or ID | Pending | Required |
-| Content Ops workspace/client scope | Pending | Redacted workspace/client label | Pending | Required |
-| DashThis/source comparison owner | Pending | Operator/business confirmation | Pending | Required |
-| DashThis/source evidence location | Pending | Redacted evidence path or owner note | Pending | Required for G6 |
-| Scheduled delivery mode | Dry-run only | Goal guardrail | Pending | Required |
-| Recipient assumption | Pending | Redacted recipient group or owner note | Pending | Required for G7 |
-| Instagram decision | Deferred in v1 | Goal guardrail | Pending | Required confirmation |
-| DashThis status during proof | Active | Goal guardrail | Pending | Required confirmation |
+| Field                              | Value                                      | Evidence/source                                       | Owner   | Status                   |
+| ---------------------------------- | ------------------------------------------ | ----------------------------------------------------- | ------- | ------------------------ |
+| Target environment                 | Pending                                    | Pending                                               | Pending | Required                 |
+| Backend URL                        | Pending                                    | Pending                                               | Pending | Required                 |
+| Frontend URL                       | Pending                                    | Pending                                               | Pending | Required                 |
+| Safe tenant identifier             | Pending                                    | Pending                                               | Pending | Required                 |
+| Safe client identifier             | SLB / Students' Loan Bureau                | Gmail-derived inventory; operator to confirm          | Pending | Required                 |
+| `ReportDefinition.id`              | Pending                                    | Runtime report record                                 | Pending | Required                 |
+| `template_key`                     | `slb_monthly_social_report` expected       | Runtime report record                                 | Pending | Required                 |
+| Report schema version              | `report.v1` expected                       | Runtime report record                                 | Pending | Required                 |
+| Primary date range                 | Recommended: 2026-05-01 through 2026-05-31 | SLB May 2026 report inventory; operator to confirm    | Pending | Required                 |
+| Baseline date range                | Recommended: 2026-03-01 through 2026-04-30 | SLB March-April report inventory; operator to confirm | Pending | Optional                 |
+| Timezone used for proof            | America/Jamaica                            | Goal guardrail                                        | Pending | Required                 |
+| Currency                           | Pending                                    | Source/report config                                  | Pending | Required for paid parity |
+| Paid Meta account scope            | Pending                                    | Redacted account label or ID                          | Pending | Required                 |
+| Organic Facebook Page scope        | Pending                                    | Redacted Page label or ID                             | Pending | Required                 |
+| Content Ops workspace/client scope | Pending                                    | Redacted workspace/client label                       | Pending | Required                 |
+| DashThis/source comparison owner   | Pending                                    | Operator/business confirmation                        | Pending | Required                 |
+| DashThis/source evidence location  | Pending                                    | Redacted evidence path or owner note                  | Pending | Required for G6          |
+| Scheduled delivery mode            | Dry-run only                               | Goal guardrail                                        | Pending | Required                 |
+| Recipient assumption               | Pending                                    | Redacted recipient group or owner note                | Pending | Required for G7          |
+| Instagram decision                 | Deferred in v1                             | Goal guardrail                                        | Pending | Required confirmation    |
+| DashThis status during proof       | Active                                     | Goal guardrail                                        | Pending | Required confirmation    |
 
 Machine-readable intake template:
 
@@ -84,17 +84,17 @@ Validator preflight packet:
 Run or capture the following after the fields above are filled. Store only summarized/redacted
 outputs in evidence docs.
 
-| Check | Required result | Evidence destination |
-| --- | --- | --- |
-| Generate redacted report target intake | `slb_target_intake.v1` shows `candidate_ready_for_operator_confirmation`, `report.v1`, expected SLB template, required datasets/pages present, Instagram deferred, and no sensitive values in output | This checklist and G1 packet |
-| Validate filled G1 intake JSON | `validate_slb_g1_runtime_target_intake.py` returns valid with zero errors | This checklist and G1 packet |
-| Confirm report exists and belongs to the expected tenant/client | Report ID, safe tenant/client label, `template_key`, and `report.v1` match this checklist | This checklist and G1 packet |
-| Confirm report preview route is reachable | Preview returns report metadata, ordered pages, coverage summary, and no live-provider-call evidence | G2/G3 and G4/G5 packets |
-| Confirm diagnostics route is reachable | Diagnostics returns dataset statuses, retained range, row counts, source labels, and no secrets/user-level rows | G2/G3 and G7/G8 packets |
-| Confirm parity command can run for the fixed range | Command emits aggregate-only SLB rows for paid, organic Page, top posts, and Content Ops | G6 packet |
-| Confirm export route can queue CSV/PDF/PNG | Export preflight stores coverage metadata/report snapshot or blocks clearly | G4/G5 packet |
-| Confirm scheduled dry-run route can execute | Dry-run metadata records no client email sent | G7/G8 packet |
-| Confirm G0 route | Raj/Mira either approve proceeding or explicitly allow evidence capture while scope review remains open | G0 packet and goal doc |
+| Check                                                           | Required result                                                                                                                                                                                      | Evidence destination         |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Generate redacted report target intake                          | `slb_target_intake.v1` shows `candidate_ready_for_operator_confirmation`, `report.v1`, expected SLB template, required datasets/pages present, Instagram deferred, and no sensitive values in output | This checklist and G1 packet |
+| Validate filled G1 intake JSON                                  | `validate_slb_g1_runtime_target_intake.py` returns valid with zero errors                                                                                                                            | This checklist and G1 packet |
+| Confirm report exists and belongs to the expected tenant/client | Report ID, safe tenant/client label, `template_key`, and `report.v1` match this checklist                                                                                                            | This checklist and G1 packet |
+| Confirm report preview route is reachable                       | Preview returns report metadata, ordered pages, coverage summary, and no live-provider-call evidence                                                                                                 | G2/G3 and G4/G5 packets      |
+| Confirm diagnostics route is reachable                          | Diagnostics returns dataset statuses, retained range, row counts, source labels, and no secrets/user-level rows                                                                                      | G2/G3 and G7/G8 packets      |
+| Confirm parity command can run for the fixed range              | Command emits aggregate-only SLB rows for paid, organic Page, top posts, and Content Ops                                                                                                             | G6 packet                    |
+| Confirm export route can queue CSV/PDF/PNG                      | Export preflight stores coverage metadata/report snapshot or blocks clearly                                                                                                                          | G4/G5 packet                 |
+| Confirm scheduled dry-run route can execute                     | Dry-run metadata records no client email sent                                                                                                                                                        | G7/G8 packet                 |
+| Confirm G0 route                                                | Raj/Mira either approve proceeding or explicitly allow evidence capture while scope review remains open                                                                                              | G0 packet and goal doc       |
 
 ## First Evidence Commands
 

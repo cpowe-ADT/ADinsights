@@ -23,51 +23,51 @@ For the SLB cancellation-readiness chain, use the SLB-specific G6 packet as the 
 
 ## Tolerance Defaults
 
-| Metric | Default threshold | Notes |
-| ------ | ----------------- | ----- |
-| Spend | Drift <= 1.0% | Confirm currency and tax/fee handling. |
-| Impressions | Drift <= 2.0% | Check platform/date filters first. |
-| Clicks | Drift <= 2.0% | Check link clicks vs clicks semantics. |
-| Conversions | Drift <= 2.0% | Subject to attribution lag and conversion-window differences. |
-| CTR/CPC/CPM/CPA/ROAS | Derived from accepted raw metric totals | Recalculate after raw metrics pass. |
+| Metric               | Default threshold                       | Notes                                                         |
+| -------------------- | --------------------------------------- | ------------------------------------------------------------- |
+| Spend                | Drift <= 1.0%                           | Confirm currency and tax/fee handling.                        |
+| Impressions          | Drift <= 2.0%                           | Check platform/date filters first.                            |
+| Clicks               | Drift <= 2.0%                           | Check link clicks vs clicks semantics.                        |
+| Conversions          | Drift <= 2.0%                           | Subject to attribution lag and conversion-window differences. |
+| CTR/CPC/CPM/CPA/ROAS | Derived from accepted raw metric totals | Recalculate after raw metrics pass.                           |
 
 ## Meta Ads Totals
 
-| Metric | Meta source total | ADinsights total | Drift | Pass/fail | Notes |
-| ------ | ----------------- | ---------------- | ----- | --------- | ----- |
-| Spend | TBD | TBD | TBD | TBD | TBD |
-| Impressions | TBD | TBD | TBD | TBD | TBD |
-| Clicks | TBD | TBD | TBD | TBD | TBD |
-| Conversions | TBD | TBD | TBD | TBD | TBD |
-| Reach | TBD | TBD | TBD | TBD | Only required if the DashThis report uses it. |
+| Metric      | Meta source total | ADinsights total | Drift | Pass/fail | Notes                                         |
+| ----------- | ----------------- | ---------------- | ----- | --------- | --------------------------------------------- |
+| Spend       | TBD               | TBD              | TBD   | TBD       | TBD                                           |
+| Impressions | TBD               | TBD              | TBD   | TBD       | TBD                                           |
+| Clicks      | TBD               | TBD              | TBD   | TBD       | TBD                                           |
+| Conversions | TBD               | TBD              | TBD   | TBD       | TBD                                           |
+| Reach       | TBD               | TBD              | TBD   | TBD       | Only required if the DashThis report uses it. |
 
 ## Organic Facebook/Page Totals
 
-| Metric | Source total | ADinsights total | Drift | Pass/fail | Notes |
-| ------ | ------------ | ---------------- | ----- | --------- | ----- |
-| Page reach | TBD | TBD | TBD | TBD | Confirm metric naming and date semantics. |
-| Page impressions/views | TBD | TBD | TBD | TBD | Confirm whether DashThis uses views or impressions. |
-| Page engagements/interactions | TBD | TBD | TBD | TBD | Confirm action family. |
-| Link clicks/actions | TBD | TBD | TBD | TBD | Confirm click/action semantics. |
-| Follows/fans | TBD | TBD | TBD | TBD | Confirm daily delta vs period-end fan count. |
+| Metric                        | Source total | ADinsights total | Drift | Pass/fail | Notes                                               |
+| ----------------------------- | ------------ | ---------------- | ----- | --------- | --------------------------------------------------- |
+| Page reach                    | TBD          | TBD              | TBD   | TBD       | Confirm metric naming and date semantics.           |
+| Page impressions/views        | TBD          | TBD              | TBD   | TBD       | Confirm whether DashThis uses views or impressions. |
+| Page engagements/interactions | TBD          | TBD              | TBD   | TBD       | Confirm action family.                              |
+| Link clicks/actions           | TBD          | TBD              | TBD   | TBD       | Confirm click/action semantics.                     |
+| Follows/fans                  | TBD          | TBD              | TBD   | TBD       | Confirm daily delta vs period-end fan count.        |
 
 ## Content Ops Totals
 
-| Metric | Source total | ADinsights total | Drift | Pass/fail | Notes |
-| ------ | ------------ | ---------------- | ----- | --------- | ----- |
-| Published posts | TBD | TBD | TBD | TBD | Should match internal aggregate counts unless manually reconciled. |
-| Scheduled posts | TBD | TBD | TBD | TBD | Confirm schedule timezone. |
-| Approved items | TBD | TBD | TBD | TBD | Confirm approval state inclusion. |
-| Content items created | TBD | TBD | TBD | TBD | Confirm item type scope. |
+| Metric                | Source total | ADinsights total | Drift | Pass/fail | Notes                                                              |
+| --------------------- | ------------ | ---------------- | ----- | --------- | ------------------------------------------------------------------ |
+| Published posts       | TBD          | TBD              | TBD   | TBD       | Should match internal aggregate counts unless manually reconciled. |
+| Scheduled posts       | TBD          | TBD              | TBD   | TBD       | Confirm schedule timezone.                                         |
+| Approved items        | TBD          | TBD              | TBD   | TBD       | Confirm approval state inclusion.                                  |
+| Content items created | TBD          | TBD              | TBD   | TBD       | Confirm item type scope.                                           |
 
 ## Google Ads Totals
 
-| Metric | Google Ads source total | ADinsights total | Drift | Pass/fail | Notes |
-| ------ | ----------------------- | ---------------- | ----- | --------- | ----- |
-| Spend | TBD | TBD | TBD | TBD | Convert cost micros to currency. |
-| Impressions | TBD | TBD | TBD | TBD | TBD |
-| Clicks | TBD | TBD | TBD | TBD | TBD |
-| Conversions | TBD | TBD | TBD | TBD | Confirm conversion action scope. |
+| Metric      | Google Ads source total | ADinsights total | Drift | Pass/fail | Notes                            |
+| ----------- | ----------------------- | ---------------- | ----- | --------- | -------------------------------- |
+| Spend       | TBD                     | TBD              | TBD   | TBD       | Convert cost micros to currency. |
+| Impressions | TBD                     | TBD              | TBD   | TBD       | TBD                              |
+| Clicks      | TBD                     | TBD              | TBD   | TBD       | TBD                              |
+| Conversions | TBD                     | TBD              | TBD   | TBD       | Confirm conversion action scope. |
 
 ## Formula
 

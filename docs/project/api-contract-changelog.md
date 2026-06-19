@@ -26,7 +26,7 @@ Keep this brief and link to PRs or commits when available.
     coverage while hard-blocking exports when required organic Page/Post insight history is
     unavailable.
   - Owner: Sofia (Backend API) + Andre (metric correctness) + Maya/Leo (Meta sync path)
-    + Lina/Joel (report UX) + Raj/Mira review
+    - Lina/Joel (report UX) + Raj/Mira review
 
 - **2026-06-18**
   - Endpoint: `GET /api/dashboards/reporting-catalog/`, `GET /api/reports/templates/`,
@@ -40,7 +40,7 @@ Keep this brief and link to PRs or commits when available.
     without hardcoding SLB-specific creation paths. Clients should ignore unknown additive catalog
     fields.
   - Owner: Sofia (Backend API) + Andre (metric correctness) + Mira (registry boundary)
-    + Lina/Joel (frontend payload and UX) + Raj review
+    - Lina/Joel (frontend payload and UX) + Raj review
 
 - **2026-06-17**
   - Endpoint: management commands `slb_report_evidence_bundle` and
@@ -53,7 +53,7 @@ Keep this brief and link to PRs or commits when available.
     evidence collection. Missing source-health proof becomes a validation blocker before G10
     adversarial review or G11 hardening starts.
   - Owner: Sofia (Backend API) + Omar/Hannah (diagnostics/support) + Nina (safety)
-    + Raj/Mira review
+    - Raj/Mira review
 
 - **2026-06-17**
   - Endpoint: `GET /api/reports/{id}/diagnostics/`; management command
@@ -67,7 +67,7 @@ Keep this brief and link to PRs or commits when available.
     without reading logs or exposing tokens, raw provider payloads, Airbyte logs, ad account IDs,
     Page IDs, delivery emails, or user-level metrics.
   - Owner: Sofia (Backend API) + Omar/Hannah (diagnostics/support) + Lina/Joel (frontend UX)
-    + Nina (safety) + Raj/Mira review
+    - Nina (safety) + Raj/Mira review
 
 - **2026-06-17**
   - Endpoint: `POST /api/reports/{id}/preview/`; `POST /api/reports/{id}/exports/`;
@@ -83,7 +83,7 @@ Keep this brief and link to PRs or commits when available.
     top-post, or Content Ops sections have no retained aggregate rows. Stale, partial, and
     source-disconnected retained data can still render with visible coverage notes.
   - Owner: Sofia (Backend API) + Andre (coverage semantics) + Lina/Joel (frontend readiness UI)
-    + Omar/Hannah (support/evidence) + Raj/Mira review
+    - Omar/Hannah (support/evidence) + Raj/Mira review
 
 - **2026-06-16**
   - Endpoint: management command `slb_report_history_probe`.
@@ -96,7 +96,7 @@ Keep this brief and link to PRs or commits when available.
     raw rows/tokens, and does not change API responses. G2/G3 still require fixed G1 runtime proof
     and reviewer approval.
   - Owner: Sofia (Backend API) + Andre (coverage semantics) + Omar/Hannah (support/evidence)
-    + Raj/Mira review
+    - Raj/Mira review
 
 - **2026-06-16**
   - Endpoint: management command `slb_report_target_intake`.
@@ -148,7 +148,7 @@ Keep this brief and link to PRs or commits when available.
     The command does not create export jobs, send email, call live providers, or change API
     responses.
   - Owner: Sofia (Backend API) + Andre (metric semantics) + Omar/Hannah (evidence/support)
-    + Raj/Mira review
+    - Raj/Mira review
 
 - **2026-06-16**
   - Endpoint: `GET /api/reports/{id}/diagnostics/`; `POST /api/reports/{id}/preview/`.
@@ -159,7 +159,7 @@ Keep this brief and link to PRs or commits when available.
     instead of always returning `null` for dataset sync recency. No live provider calls are added;
     the timestamp comes from stored snapshot/coverage metadata.
   - Owner: Sofia (Backend API) + Omar/Hannah (diagnostics/support) + Andre (coverage semantics)
-    + Raj/Mira review
+    - Raj/Mira review
 
 - **2026-06-16**
   - Endpoint: management command `slb_report_parity_evidence`.
@@ -185,7 +185,7 @@ Keep this brief and link to PRs or commits when available.
     should continue to render widget-level report section notes, while dataset-level coverage should
     be treated as data-widget evidence only.
   - Owner: Sofia (Backend API) + Andre (coverage semantics) + Omar/Hannah (diagnostics/support)
-    + Raj/Mira review
+    - Raj/Mira review
 
 - **2026-06-16**
   - Endpoint: `POST /api/reports/{id}/preview/`; `POST /api/reports/{id}/exports/`;
@@ -207,7 +207,7 @@ Keep this brief and link to PRs or commits when available.
     client sends. No live provider calls are introduced at report render/export-preflight time, and
     existing legacy report export behavior remains compatible.
   - Owner: Sofia (Backend API) + Andre (Analytics catalog) + Lina/Joel (Frontend rendering)
-    + Omar/Hannah (coverage/support states) + Raj/Mira review
+    - Omar/Hannah (coverage/support states) + Raj/Mira review
 
 - **2026-06-16**
   - Endpoint: `POST /api/dashboards/widget-preview/`.
@@ -272,7 +272,7 @@ Keep this brief and link to PRs or commits when available.
     unless the beta flag is explicitly enabled in a gated environment. Frontend clients continue to
     consume existing publish-attempt container states, retry states, and safe failure fields.
   - Owner: Sofia (Backend API) + Maya (Meta integration) + Leo (Scheduler/retry) + Nina (Security)
-    + Raj/Mira review
+    - Raj/Mira review
 
 - **2026-06-10**
   - Endpoint: Content Ops Facebook Page publisher boundary,

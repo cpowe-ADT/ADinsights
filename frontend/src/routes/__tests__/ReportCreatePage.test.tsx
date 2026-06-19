@@ -27,7 +27,10 @@ vi.mock('../../lib/rbac', () => ({
 vi.mock('../../components/DashboardState', () => ({
   __esModule: true,
   default: ({ title, message }: { title?: string; message?: string }) => (
-    <div>{title}{message}</div>
+    <div>
+      {title}
+      {message}
+    </div>
   ),
 }));
 

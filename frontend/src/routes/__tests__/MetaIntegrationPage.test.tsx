@@ -7,7 +7,13 @@ import MetaIntegrationPage from '../MetaIntegrationPage';
 const pageInsightsStoreMock = vi.hoisted(() => ({
   pagesStatus: 'loaded' as string,
   oauthStatus: 'idle' as string,
-  pages: [] as Array<{ id: string; page_id: string; name: string; can_analyze: boolean; is_default: boolean }>,
+  pages: [] as Array<{
+    id: string;
+    page_id: string;
+    name: string;
+    can_analyze: boolean;
+    is_default: boolean;
+  }>,
   error: null as string | null,
   missingRequiredPermissions: [] as string[],
   selectedPageId: null as string | null,
@@ -32,7 +38,10 @@ vi.mock('../../lib/airbyte', () => ({
 vi.mock('../../components/EmptyState', () => ({
   __esModule: true,
   default: ({ title, message }: { title: string; message: string }) => (
-    <div><h3>{title}</h3><p>{message}</p></div>
+    <div>
+      <h3>{title}</h3>
+      <p>{message}</p>
+    </div>
   ),
 }));
 

@@ -18,15 +18,15 @@ G12 recommends cancellation.
 
 ## Current State
 
-| Item | State |
-| --- | --- |
-| Default SLB scope | Monthly Social Report without Instagram in v1 |
-| Render/export data source | Stored aggregate ADinsights data only |
-| Live provider calls at preview/export | Forbidden |
-| G0 status | `review_pending` |
-| G1 status | `blocked_external` |
-| Current preflight result | Release `GATE_BLOCK` from architecture-level scope risk |
-| Current decision | Keep DashThis active |
+| Item                                  | State                                                   |
+| ------------------------------------- | ------------------------------------------------------- |
+| Default SLB scope                     | Monthly Social Report without Instagram in v1           |
+| Render/export data source             | Stored aggregate ADinsights data only                   |
+| Live provider calls at preview/export | Forbidden                                               |
+| G0 status                             | `review_pending`                                        |
+| G1 status                             | `blocked_external`                                      |
+| Current preflight result              | Release `GATE_BLOCK` from architecture-level scope risk |
+| Current decision                      | Keep DashThis active                                    |
 
 Run the readiness doctor to confirm the current next blocker:
 
@@ -98,25 +98,25 @@ shape and wording.
 
 Minimum required fields:
 
-| Field | Required value |
-| --- | --- |
-| Environment | Target runtime used for evidence capture |
-| Backend/frontend URLs | Safe runtime URLs |
-| Safe tenant/client | Redacted labels only |
-| `ReportDefinition.id` | Real SLB report record |
-| `template_key` | `slb_monthly_social_report` |
-| Schema version | `report.v1` |
-| Primary date range | Fixed month, recommended 2026-05-01 through 2026-05-31 unless operator chooses otherwise |
-| Timezone | `America/Jamaica` |
-| Currency | Required for paid parity |
-| Paid Meta account scope | Redacted account label or ID |
-| Organic Facebook Page scope | Redacted Page label or ID |
-| Content Ops scope | Redacted workspace/client label |
-| DashThis/source owner | Person or team responsible for comparison values |
-| Scheduled delivery | `dry_run_only` |
-| Recipient assumption | Redacted recipient group only |
-| Instagram decision | `deferred_in_v1` |
-| DashThis status | Active |
+| Field                       | Required value                                                                           |
+| --------------------------- | ---------------------------------------------------------------------------------------- |
+| Environment                 | Target runtime used for evidence capture                                                 |
+| Backend/frontend URLs       | Safe runtime URLs                                                                        |
+| Safe tenant/client          | Redacted labels only                                                                     |
+| `ReportDefinition.id`       | Real SLB report record                                                                   |
+| `template_key`              | `slb_monthly_social_report`                                                              |
+| Schema version              | `report.v1`                                                                              |
+| Primary date range          | Fixed month, recommended 2026-05-01 through 2026-05-31 unless operator chooses otherwise |
+| Timezone                    | `America/Jamaica`                                                                        |
+| Currency                    | Required for paid parity                                                                 |
+| Paid Meta account scope     | Redacted account label or ID                                                             |
+| Organic Facebook Page scope | Redacted Page label or ID                                                                |
+| Content Ops scope           | Redacted workspace/client label                                                          |
+| DashThis/source owner       | Person or team responsible for comparison values                                         |
+| Scheduled delivery          | `dry_run_only`                                                                           |
+| Recipient assumption        | Redacted recipient group only                                                            |
+| Instagram decision          | `deferred_in_v1`                                                                         |
+| DashThis status             | Active                                                                                   |
 
 Generate a redacted target summary:
 

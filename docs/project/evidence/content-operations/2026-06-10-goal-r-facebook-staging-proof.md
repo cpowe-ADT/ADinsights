@@ -69,17 +69,17 @@ Observed safe result:
 
 ## Required Successful Evidence Still Missing
 
-| Evidence item | Required proof | Current result |
-| --- | --- | --- |
-| Readiness | Redacted `GET /api/content-ops/readiness/` showing Facebook publishing ready | Missing |
-| Approval snapshot | Approved draft version with internal and client approval for the exact Facebook post | Missing |
-| Schedule / attempt | Redacted schedule ID and publish attempt ID for a due Facebook Page target | Missing |
-| Live provider result | Redacted provider result with Meta post ID suffix only | Missing |
-| External post proof | Screenshot/link reference showing published staging Facebook Page post | Missing |
-| Logs | Structured logs with `tenant_id`, `task_id`, `correlation_id`, `schedule_id`, `attempt_id`, `draft_id`, `channel`, `state`, and no secrets | Missing |
-| Metrics | Queue delay, publish duration, retry count, terminal failure count, and safe failure code if applicable | Missing |
-| Rollback | Proof that `CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING` can be returned to `false` and processing fails closed | Missing |
-| Redaction review | Confirmation that no raw token, app secret, authorization header, Page token, credential ref, private URL, or user-level engagement data appears in evidence | Missing |
+| Evidence item        | Required proof                                                                                                                                               | Current result |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- |
+| Readiness            | Redacted `GET /api/content-ops/readiness/` showing Facebook publishing ready                                                                                 | Missing        |
+| Approval snapshot    | Approved draft version with internal and client approval for the exact Facebook post                                                                         | Missing        |
+| Schedule / attempt   | Redacted schedule ID and publish attempt ID for a due Facebook Page target                                                                                   | Missing        |
+| Live provider result | Redacted provider result with Meta post ID suffix only                                                                                                       | Missing        |
+| External post proof  | Screenshot/link reference showing published staging Facebook Page post                                                                                       | Missing        |
+| Logs                 | Structured logs with `tenant_id`, `task_id`, `correlation_id`, `schedule_id`, `attempt_id`, `draft_id`, `channel`, `state`, and no secrets                   | Missing        |
+| Metrics              | Queue delay, publish duration, retry count, terminal failure count, and safe failure code if applicable                                                      | Missing        |
+| Rollback             | Proof that `CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING` can be returned to `false` and processing fails closed                                                     | Missing        |
+| Redaction review     | Confirmation that no raw token, app secret, authorization header, Page token, credential ref, private URL, or user-level engagement data appears in evidence | Missing        |
 
 ## Required Staging Run Preconditions
 
@@ -100,18 +100,18 @@ Before rerunning Goal R as a pass/fail staging publish:
 
 ## Staging Evidence Template For The Real Run
 
-| Step | Action | Expected | Actual | Pass/Fail |
-| ---- | ------ | -------- | ------ | --------- |
-| 1 | Capture feature flag state before enabling staging publish | `CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING=false` | Not run | Fail |
-| 2 | Enable Facebook publishing in staging only | Flag true in staging runtime, not committed | Not run | Fail |
-| 3 | Capture readiness endpoint | Facebook Page publishing axis ready | Not run | Fail |
-| 4 | Capture exact approved draft/version | Internal and client approvals match active version | Not run | Fail |
-| 5 | Dispatch due schedule | One Facebook Page `PublishAttempt` created/queued | Not run | Fail |
-| 6 | Process attempt | Attempt transitions through preflight/publishing to published | Not run | Fail |
-| 7 | Capture provider result | Redacted Meta post ID suffix only | Not run | Fail |
-| 8 | Capture external Page post | Staging Facebook Page post visible | Not run | Fail |
-| 9 | Capture logs/metrics | Structured logs and queue/publish metrics without secrets | Not run | Fail |
-| 10 | Roll back flag | Flag false and processor fails closed | Not run | Fail |
+| Step | Action                                                     | Expected                                                      | Actual  | Pass/Fail |
+| ---- | ---------------------------------------------------------- | ------------------------------------------------------------- | ------- | --------- |
+| 1    | Capture feature flag state before enabling staging publish | `CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING=false`                  | Not run | Fail      |
+| 2    | Enable Facebook publishing in staging only                 | Flag true in staging runtime, not committed                   | Not run | Fail      |
+| 3    | Capture readiness endpoint                                 | Facebook Page publishing axis ready                           | Not run | Fail      |
+| 4    | Capture exact approved draft/version                       | Internal and client approvals match active version            | Not run | Fail      |
+| 5    | Dispatch due schedule                                      | One Facebook Page `PublishAttempt` created/queued             | Not run | Fail      |
+| 6    | Process attempt                                            | Attempt transitions through preflight/publishing to published | Not run | Fail      |
+| 7    | Capture provider result                                    | Redacted Meta post ID suffix only                             | Not run | Fail      |
+| 8    | Capture external Page post                                 | Staging Facebook Page post visible                            | Not run | Fail      |
+| 9    | Capture logs/metrics                                       | Structured logs and queue/publish metrics without secrets     | Not run | Fail      |
+| 10   | Roll back flag                                             | Flag false and processor fails closed                         | Not run | Fail      |
 
 ## Outcome
 

@@ -60,18 +60,18 @@ Do not start G11 until all are true:
 
 ## Window Metadata
 
-| Field | Value |
-| --- | --- |
-| Environment | Pending |
-| Tenant/client safe identifier | Pending |
-| SLB `ReportDefinition.id` | Pending |
-| Template key | Pending |
-| Proof date range | Pending |
-| Window length | Pending: 24h or 48h |
-| Window start timestamp | Pending |
-| Window end timestamp | Pending |
-| Observer/operator | Pending |
-| Raj/Mira approval to start | Pending |
+| Field                         | Value                        |
+| ----------------------------- | ---------------------------- |
+| Environment                   | Pending                      |
+| Tenant/client safe identifier | Pending                      |
+| SLB `ReportDefinition.id`     | Pending                      |
+| Template key                  | Pending                      |
+| Proof date range              | Pending                      |
+| Window length                 | Pending: 24h or 48h          |
+| Window start timestamp        | Pending                      |
+| Window end timestamp          | Pending                      |
+| Observer/operator             | Pending                      |
+| Raj/Mira approval to start    | Pending                      |
 | DashThis status during window | Active; pending confirmation |
 
 ## Pre-Window Readiness Checklist
@@ -79,18 +79,18 @@ Do not start G11 until all are true:
 Fill this table immediately before starting the 24-48 hour clock. Any `No` answer means G11 cannot
 start.
 
-| Gate | Required evidence | Status | Link/notes |
-| --- | --- | --- | --- |
-| G0 cleared | Raj/Mira classify or approve the architecture/scope `GATE_BLOCK`. | Pending | `2026-06-16-g0-raj-mira-review-packet.md` |
-| G1 locked | Fixed environment, tenant/client, report ID, template key, date range, source scope, delivery assumptions, DashThis active status. | Pending | `2026-06-16-g1-runtime-target-intake-checklist.md` |
-| G2/G3 passed | Stored coverage and monthly/90-day retained-history proof for paid Meta Ads, organic Facebook/Page, and Content Ops. | Pending | `2026-06-16-g2-g3-coverage-retained-history-proof.md` |
-| G4/G5 passed | Saved dashboard/report rendering and CSV/PDF/PNG export reproducibility proof. | Pending | `2026-06-16-g4-g5-render-export-reproducibility-proof.md` |
-| G6 passed or accepted | Parity worksheet completed with DashThis/source values, deltas, tolerances, pass/fail, and explanations. | Pending | `2026-06-16-g6-parity-worksheet-proof.md` |
-| G7/G8 passed | Scheduled dry-run and diagnostics/support proof complete without real client delivery or sensitive data. | Pending | `2026-06-16-g7-g8-delivery-diagnostics-proof.md` |
-| G9 passed | Fixed-target permission, tenant-isolation, audit, quota, aggregate-only, and evidence-file hygiene proof complete. | Pending | `2026-06-16-g9-safety-controls-proof.md` |
-| G10 passed | Adversarial review has no unresolved blocker/high-risk issue. | Pending | `2026-06-16-g10-adversarial-review.md` |
-| DashThis active | DashThis remains active and available as rollback/fallback during the window. | Pending | Operator confirmation |
-| Observer assigned | Operator and reviewer route named for checkpoint execution and escalation. | Pending | Raj/Omar/Hannah |
+| Gate                  | Required evidence                                                                                                                  | Status  | Link/notes                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------- | --------------------------------------------------------- |
+| G0 cleared            | Raj/Mira classify or approve the architecture/scope `GATE_BLOCK`.                                                                  | Pending | `2026-06-16-g0-raj-mira-review-packet.md`                 |
+| G1 locked             | Fixed environment, tenant/client, report ID, template key, date range, source scope, delivery assumptions, DashThis active status. | Pending | `2026-06-16-g1-runtime-target-intake-checklist.md`        |
+| G2/G3 passed          | Stored coverage and monthly/90-day retained-history proof for paid Meta Ads, organic Facebook/Page, and Content Ops.               | Pending | `2026-06-16-g2-g3-coverage-retained-history-proof.md`     |
+| G4/G5 passed          | Saved dashboard/report rendering and CSV/PDF/PNG export reproducibility proof.                                                     | Pending | `2026-06-16-g4-g5-render-export-reproducibility-proof.md` |
+| G6 passed or accepted | Parity worksheet completed with DashThis/source values, deltas, tolerances, pass/fail, and explanations.                           | Pending | `2026-06-16-g6-parity-worksheet-proof.md`                 |
+| G7/G8 passed          | Scheduled dry-run and diagnostics/support proof complete without real client delivery or sensitive data.                           | Pending | `2026-06-16-g7-g8-delivery-diagnostics-proof.md`          |
+| G9 passed             | Fixed-target permission, tenant-isolation, audit, quota, aggregate-only, and evidence-file hygiene proof complete.                 | Pending | `2026-06-16-g9-safety-controls-proof.md`                  |
+| G10 passed            | Adversarial review has no unresolved blocker/high-risk issue.                                                                      | Pending | `2026-06-16-g10-adversarial-review.md`                    |
+| DashThis active       | DashThis remains active and available as rollback/fallback during the window.                                                      | Pending | Operator confirmation                                     |
+| Observer assigned     | Operator and reviewer route named for checkpoint execution and escalation.                                                         | Pending | Raj/Omar/Hannah                                           |
 
 ## Checkpoint Command Pack
 
@@ -197,49 +197,49 @@ blocking reasons, export job IDs, artifact byte counts, and sanitized delivery s
 Use America/Jamaica timestamps. A 24-hour window needs at least start, midpoint, and end checks. A
 48-hour window needs at least start, daily midpoint, and end checks.
 
-| Checkpoint | Target time | Required checks | Actual timestamp | Result | Notes |
-| --- | --- | --- | --- | --- | --- |
-| Start | T+0 | Preview, diagnostics, CSV/PDF/PNG export, scheduled dry-run, evidence packet status, gate snapshot | Pending | Pending | Pending |
-| Midpoint 1 | T+12h or T+24h | Preview hash, diagnostics, latest sync/freshness, export history, blocked states | Pending | Pending | Pending |
-| Midpoint 2 | T+36h if 48h | Preview hash, diagnostics, latest sync/freshness, export history, blocked states | Pending | Pending | Pending |
-| End | T+24h or T+48h | Full preview, diagnostics, CSV/PDF/PNG export or snapshot re-download proof, dry-run, gates/preflight | Pending | Pending | Pending |
+| Checkpoint | Target time    | Required checks                                                                                       | Actual timestamp | Result  | Notes   |
+| ---------- | -------------- | ----------------------------------------------------------------------------------------------------- | ---------------- | ------- | ------- |
+| Start      | T+0            | Preview, diagnostics, CSV/PDF/PNG export, scheduled dry-run, evidence packet status, gate snapshot    | Pending          | Pending | Pending |
+| Midpoint 1 | T+12h or T+24h | Preview hash, diagnostics, latest sync/freshness, export history, blocked states                      | Pending          | Pending | Pending |
+| Midpoint 2 | T+36h if 48h   | Preview hash, diagnostics, latest sync/freshness, export history, blocked states                      | Pending          | Pending | Pending |
+| End        | T+24h or T+48h | Full preview, diagnostics, CSV/PDF/PNG export or snapshot re-download proof, dry-run, gates/preflight | Pending          | Pending | Pending |
 
 ## Checkpoint Result Template
 
 Use one block per checkpoint.
 
-| Field | Value |
-| --- | --- |
-| Checkpoint | Start / Midpoint 1 / Midpoint 2 / End |
-| Timestamp America/Jamaica | Pending |
-| Preview HTTP status | Pending |
-| Preview hash | Pending |
-| Export ready | Pending |
-| Coverage statuses by dataset | Pending |
-| Blocking reasons | Pending |
-| Diagnostics status summary | Pending |
-| CSV export job ID and byte count | Pending |
-| PDF export job ID and byte count | Pending |
-| PNG export job ID and byte count | Pending |
-| Scheduled dry-run job ID/status | Pending |
-| No-client-email proof | Pending |
-| Redaction scan result | Pending |
-| Gate/preflight result | Pending |
-| Evidence validation result | Pending |
-| Reviewer note | Pending |
+| Field                            | Value                                 |
+| -------------------------------- | ------------------------------------- |
+| Checkpoint                       | Start / Midpoint 1 / Midpoint 2 / End |
+| Timestamp America/Jamaica        | Pending                               |
+| Preview HTTP status              | Pending                               |
+| Preview hash                     | Pending                               |
+| Export ready                     | Pending                               |
+| Coverage statuses by dataset     | Pending                               |
+| Blocking reasons                 | Pending                               |
+| Diagnostics status summary       | Pending                               |
+| CSV export job ID and byte count | Pending                               |
+| PDF export job ID and byte count | Pending                               |
+| PNG export job ID and byte count | Pending                               |
+| Scheduled dry-run job ID/status  | Pending                               |
+| No-client-email proof            | Pending                               |
+| Redaction scan result            | Pending                               |
+| Gate/preflight result            | Pending                               |
+| Evidence validation result       | Pending                               |
+| Reviewer note                    | Pending                               |
 
 ## Evidence To Capture At Each Checkpoint
 
-| Evidence | Required fields |
-| --- | --- |
-| Report preview | HTTP status, `preview_hash`, `export_ready`, coverage summary, blocking reasons. |
-| Diagnostics | Dataset statuses, retained range, row counts, source labels, recommended next action, export history summary. |
-| Export proof | Export job IDs, formats, statuses, non-empty artifact check, snapshot hash, generated timestamp. |
-| Scheduled dry-run | Dry-run job ID, `delivery_status.mode`, `delivery_status.status`, proof no client email was sent. |
-| Freshness/sync | Dataset freshness state, last successful sync if available, source-disconnected state if applicable. |
-| Safety | Audit event sample, quota status if tested, no secrets/user-level data in captured payloads. |
-| UI proof | Report Detail visible coverage notes, appendix/data notes, export readiness/blocked state. |
-| Gate snapshot | Relevant backend/frontend/preflight commands and any failures. |
+| Evidence          | Required fields                                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------------- |
+| Report preview    | HTTP status, `preview_hash`, `export_ready`, coverage summary, blocking reasons.                              |
+| Diagnostics       | Dataset statuses, retained range, row counts, source labels, recommended next action, export history summary. |
+| Export proof      | Export job IDs, formats, statuses, non-empty artifact check, snapshot hash, generated timestamp.              |
+| Scheduled dry-run | Dry-run job ID, `delivery_status.mode`, `delivery_status.status`, proof no client email was sent.             |
+| Freshness/sync    | Dataset freshness state, last successful sync if available, source-disconnected state if applicable.          |
+| Safety            | Audit event sample, quota status if tested, no secrets/user-level data in captured payloads.                  |
+| UI proof          | Report Detail visible coverage notes, appendix/data notes, export readiness/blocked state.                    |
+| Gate snapshot     | Relevant backend/frontend/preflight commands and any failures.                                                |
 
 ## Reset Conditions
 
@@ -260,9 +260,9 @@ start a new G11 window only after G10 is clean again.
 
 ## Hardening Findings Log
 
-| ID | Timestamp | Checkpoint | Finding | Severity | Owner | Resolution | Status |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| HARD-001 | Pending | Pending | Pending execution | Pending | Pending | Pending | Pending |
+| ID       | Timestamp | Checkpoint | Finding           | Severity | Owner   | Resolution | Status  |
+| -------- | --------- | ---------- | ----------------- | -------- | ------- | ---------- | ------- |
+| HARD-001 | Pending   | Pending    | Pending execution | Pending  | Pending | Pending    | Pending |
 
 Severity values:
 

@@ -15,18 +15,18 @@ values still required before G2/G3/G6 evidence can be treated as fixed-range pro
 
 ## Recommended Default Proof Target
 
-| Field | Recommended value | Evidence basis | Status |
-| --- | --- | --- | --- |
-| Client/proof target | SLB / Students' Loan Bureau | Gmail inventory identifies SLB as the strongest first proof target. | Operator confirmation pending |
-| Report family | SLB monthly social/campaign status report | Reviewed SLB PDFs show a recurring monthly campaign status report shape. | Operator confirmation pending |
-| Template key | `slb_monthly_social_report` | Existing sprint scope and template endpoint target the SLB monthly report scaffold. | Runtime report confirmation pending |
-| Primary fixed proof range | 2026-05-01 through 2026-05-31 | Gmail attachment review found a complete May 2026 SLB monthly report. | Operator confirmation pending |
-| Baseline/comparison range | 2026-03-01 through 2026-04-30 | Gmail attachment review found a March-April 2026 SLB report and recommends it for trend/baseline comparison. | Optional; operator confirmation pending |
-| Active v1 datasets | `paid_meta_ads`, `organic_facebook_page`, `content_ops` | Current v1 reporting goal excludes Instagram and uses stored aggregate ADinsights data only. | Coverage proof pending |
-| Deferred dataset | `organic_instagram` | Instagram remains out of v1 until source rows, scopes, catalog entries, and reviewer approval are proven. | Deferred |
-| Render/export source | Stored aggregate ADinsights data only | Reporting guardrail: no live provider calls at report preview/export time. | Required |
-| Delivery mode for proof | Manual preview/export plus scheduled delivery dry-run | DashThis cancellation bar requires export and dry-run delivery proof before real delivery claims. | Runtime proof pending |
-| Actual DashThis cancellation | No-go | G0-G11 evidence and G12 recommendation are not complete. | No-go |
+| Field                        | Recommended value                                       | Evidence basis                                                                                               | Status                                  |
+| ---------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
+| Client/proof target          | SLB / Students' Loan Bureau                             | Gmail inventory identifies SLB as the strongest first proof target.                                          | Operator confirmation pending           |
+| Report family                | SLB monthly social/campaign status report               | Reviewed SLB PDFs show a recurring monthly campaign status report shape.                                     | Operator confirmation pending           |
+| Template key                 | `slb_monthly_social_report`                             | Existing sprint scope and template endpoint target the SLB monthly report scaffold.                          | Runtime report confirmation pending     |
+| Primary fixed proof range    | 2026-05-01 through 2026-05-31                           | Gmail attachment review found a complete May 2026 SLB monthly report.                                        | Operator confirmation pending           |
+| Baseline/comparison range    | 2026-03-01 through 2026-04-30                           | Gmail attachment review found a March-April 2026 SLB report and recommends it for trend/baseline comparison. | Optional; operator confirmation pending |
+| Active v1 datasets           | `paid_meta_ads`, `organic_facebook_page`, `content_ops` | Current v1 reporting goal excludes Instagram and uses stored aggregate ADinsights data only.                 | Coverage proof pending                  |
+| Deferred dataset             | `organic_instagram`                                     | Instagram remains out of v1 until source rows, scopes, catalog entries, and reviewer approval are proven.    | Deferred                                |
+| Render/export source         | Stored aggregate ADinsights data only                   | Reporting guardrail: no live provider calls at report preview/export time.                                   | Required                                |
+| Delivery mode for proof      | Manual preview/export plus scheduled delivery dry-run   | DashThis cancellation bar requires export and dry-run delivery proof before real delivery claims.            | Runtime proof pending                   |
+| Actual DashThis cancellation | No-go                                                   | G0-G11 evidence and G12 recommendation are not complete.                                                     | No-go                                   |
 
 ## Required Runtime Values To Close G1
 
@@ -36,17 +36,17 @@ Operator checklist:
 
 Record these values in the evidence packet before marking G1 `passed`:
 
-| Required value | Why it matters | Status |
-| --- | --- | --- |
-| Target environment | Prevents mixing local, staging, and production evidence. | Pending |
-| Tenant/client identifier | Required for tenant isolation and source scoping. Use safe/redacted identifiers in docs. | Pending |
-| Created `ReportDefinition.id` | Required for preview, export, diagnostics, dry-run, and parity commands. | Pending |
-| Confirmed `template_key` | Proves the report uses the governed SLB template. | Pending |
-| Date range | Must be fixed before coverage, parity, export, and hardening evidence can be compared. | Recommended May 2026; pending confirmation |
-| Account/page/source scope | Required to prove the report is using the intended ad account/Page and not demo or wrong-tenant data. | Pending |
-| Recipient/delivery assumptions | Required for scheduled dry-run and eventual delivery replacement evidence. Do not store private recipient lists unless redacted. | Pending |
-| DashThis/source comparison owner | Required because DashThis/source values are manually added to the parity worksheet in v1. | Pending |
-| Instagram defer confirmation | Prevents the v1 report from accidentally claiming full historical SLB parity. | Pending |
+| Required value                   | Why it matters                                                                                                                   | Status                                     |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Target environment               | Prevents mixing local, staging, and production evidence.                                                                         | Pending                                    |
+| Tenant/client identifier         | Required for tenant isolation and source scoping. Use safe/redacted identifiers in docs.                                         | Pending                                    |
+| Created `ReportDefinition.id`    | Required for preview, export, diagnostics, dry-run, and parity commands.                                                         | Pending                                    |
+| Confirmed `template_key`         | Proves the report uses the governed SLB template.                                                                                | Pending                                    |
+| Date range                       | Must be fixed before coverage, parity, export, and hardening evidence can be compared.                                           | Recommended May 2026; pending confirmation |
+| Account/page/source scope        | Required to prove the report is using the intended ad account/Page and not demo or wrong-tenant data.                            | Pending                                    |
+| Recipient/delivery assumptions   | Required for scheduled dry-run and eventual delivery replacement evidence. Do not store private recipient lists unless redacted. | Pending                                    |
+| DashThis/source comparison owner | Required because DashThis/source values are manually added to the parity worksheet in v1.                                        | Pending                                    |
+| Instagram defer confirmation     | Prevents the v1 report from accidentally claiming full historical SLB parity.                                                    | Pending                                    |
 
 ## Target Intake Command
 

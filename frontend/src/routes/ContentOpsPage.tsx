@@ -78,9 +78,8 @@ const livePublishingReadinessSummary = (readiness: ContentOpsReadinessAxis[]) =>
     tone: blockedAxes.length ? 'blocked' : 'partial',
     title: blockedAxes.length ? 'Live publishing gates blocked' : 'Live publishing gates partial',
     detail:
-      blockers
-        .map((axis) => `${axis.label}: ${axis.reason ?? axis.actionLabel}`)
-        .join(' · ') || 'Publishing readiness is still being checked.',
+      blockers.map((axis) => `${axis.label}: ${axis.reason ?? axis.actionLabel}`).join(' · ') ||
+      'Publishing readiness is still being checked.',
   };
 };
 
@@ -338,10 +337,7 @@ const DraftWorkflowControls = ({
       setMessage('Choose a valid schedule time.');
       return;
     }
-    await runAction(
-      () => onScheduleDraft(draft, scheduledAt.toISOString()),
-      'Draft scheduled.',
-    );
+    await runAction(() => onScheduleDraft(draft, scheduledAt.toISOString()), 'Draft scheduled.');
   };
 
   return (
@@ -354,10 +350,7 @@ const DraftWorkflowControls = ({
           className="button secondary"
           disabled={baseDisabled}
           onClick={() =>
-            void runAction(
-              () => onSubmitInternalReview(draft),
-              'Internal review request created.',
-            )
+            void runAction(() => onSubmitInternalReview(draft), 'Internal review request created.')
           }
         >
           {isSubmitting ? 'Submitting...' : 'Submit internal review'}
@@ -472,7 +465,9 @@ const DraftWorkflowControls = ({
       {draft.state === 'scheduled' ? (
         <span className="content-ops-workflow__state">Scheduled for dispatch</span>
       ) : null}
-      {disabledReason ? <span className="content-ops-workflow__state">{disabledReason}</span> : null}
+      {disabledReason ? (
+        <span className="content-ops-workflow__state">{disabledReason}</span>
+      ) : null}
       {message ? (
         <span className={`content-ops-workflow__message content-ops-workflow__message--${status}`}>
           {message}
@@ -730,7 +725,11 @@ const GenerationPanel = ({
     channel: ContentOpsChannel;
     caption: string;
   }) => Promise<void>;
-  onGenerateCaptions: (candidateCount: number, platforms: ContentOpsChannel[], toneOverride: string) => Promise<void>;
+  onGenerateCaptions: (
+    candidateCount: number,
+    platforms: ContentOpsChannel[],
+    toneOverride: string,
+  ) => Promise<void>;
   source: 'api' | 'mock';
 }) => {
   const [candidateCount, setCandidateCount] = useState(3);
@@ -1076,7 +1075,11 @@ const BriefCreatePanel = ({
         </label>
         <label className="content-ops-field">
           <span>Start date</span>
-          <input type="date" value={dateStart} onChange={(event) => setDateStart(event.target.value)} />
+          <input
+            type="date"
+            value={dateStart}
+            onChange={(event) => setDateStart(event.target.value)}
+          />
         </label>
         <label className="content-ops-field">
           <span>End date</span>
@@ -1328,7 +1331,9 @@ const CalendarPanel = ({
 }) => {
   const scheduledDrafts = drafts.filter((draft) => Boolean(draft.scheduledAt));
   const unscheduledCount = drafts.length - scheduledDrafts.length;
-  const blockedCount = queue.filter((item) => item.blocker || queueTone(item.state) === 'blocked').length;
+  const blockedCount = queue.filter(
+    (item) => item.blocker || queueTone(item.state) === 'blocked',
+  ).length;
 
   return (
     <section className="content-ops-section" aria-labelledby="calendar-title">
@@ -1491,10 +1496,7 @@ const ExportHistoryPanel = ({
                       className="button tertiary"
                       disabled={!artifact.download_url || isSubmitting}
                       onClick={() =>
-                        void run(
-                          () => onDownloadArtifact(artifact),
-                          'Saved export downloaded.',
-                        )
+                        void run(() => onDownloadArtifact(artifact), 'Saved export downloaded.')
                       }
                     >
                       Download
@@ -1537,7 +1539,9 @@ const ContentReportPanel = ({
     <section className="content-ops-section" aria-labelledby="reports-title">
       <div className="content-ops-section__header">
         <h2 id="reports-title">Organic Report</h2>
-        <span>{source === 'api' ? 'Stored aggregate snapshots' : 'Waiting for live report data'}</span>
+        <span>
+          {source === 'api' ? 'Stored aggregate snapshots' : 'Waiting for live report data'}
+        </span>
       </div>
       <div className="content-ops-report-grid">
         <article className="content-ops-report-card">
@@ -1545,7 +1549,10 @@ const ContentReportPanel = ({
           <strong>{formatNumber(postCount)}</strong>
           <p>
             {topBuckets(report.published_posts_by_channel)
-              .map(([channel, count]) => `${channelLabel(channel as ContentOpsQueueItem['channel'])}: ${formatNumber(count)}`)
+              .map(
+                ([channel, count]) =>
+                  `${channelLabel(channel as ContentOpsQueueItem['channel'])}: ${formatNumber(count)}`,
+              )
               .join(' · ') || 'No published posts yet'}
           </p>
         </article>
@@ -1566,10 +1573,18 @@ const ContentReportPanel = ({
         </article>
         <article className="content-ops-report-card">
           <span>Queue health</span>
-          <strong>{formatNumber(Object.values(report.publish_attempts_by_state).reduce((sum, count) => sum + Number(count || 0), 0))}</strong>
+          <strong>
+            {formatNumber(
+              Object.values(report.publish_attempts_by_state).reduce(
+                (sum, count) => sum + Number(count || 0),
+                0,
+              ),
+            )}
+          </strong>
           <p>
-            {statusBuckets.map(([state, count]) => `${stateLabel(state)}: ${formatNumber(count)}`).join(' · ') ||
-              'No publish attempts yet'}
+            {statusBuckets
+              .map(([state, count]) => `${stateLabel(state)}: ${formatNumber(count)}`)
+              .join(' · ') || 'No publish attempts yet'}
           </p>
         </article>
       </div>
@@ -1608,7 +1623,8 @@ const ContentReportPanel = ({
                   </td>
                   <td>{formatNumber(post.metrics.engagements)}</td>
                   <td>
-                    {formatNumber(post.metrics.clicks)} clicks · {formatNumber(post.metrics.saves)} saves
+                    {formatNumber(post.metrics.clicks)} clicks · {formatNumber(post.metrics.saves)}{' '}
+                    saves
                   </td>
                 </tr>
               ))
@@ -1659,12 +1675,14 @@ const ContentOpsPage = () => {
         let exportWarning: string | null = null;
         let reportWarning: string | null = null;
         if (result.source === 'api' && result.workspace.id) {
-          const [assetResult, exportResult, overviewResult, postsResult] = await Promise.allSettled([
-            listContentOpsAssets(result.workspace.id, controller.signal),
-            listContentOpsExportArtifacts(result.workspace.id, controller.signal),
-            fetchContentOpsReportOverview(result.workspace.id, controller.signal),
-            fetchContentOpsReportPosts(result.workspace.id, controller.signal),
-          ]);
+          const [assetResult, exportResult, overviewResult, postsResult] = await Promise.allSettled(
+            [
+              listContentOpsAssets(result.workspace.id, controller.signal),
+              listContentOpsExportArtifacts(result.workspace.id, controller.signal),
+              fetchContentOpsReportOverview(result.workspace.id, controller.signal),
+              fetchContentOpsReportPosts(result.workspace.id, controller.signal),
+            ],
+          );
           if (assetResult.status === 'fulfilled') {
             assets = assetResult.value;
           } else {
@@ -1737,7 +1755,8 @@ const ContentOpsPage = () => {
       mediaAssetIds: variant.mediaAssetIds,
       assetId,
     });
-    const nextMediaAssets = version.media_assets ?? Array.from(new Set([...variant.mediaAssetIds, assetId]));
+    const nextMediaAssets =
+      version.media_assets ?? Array.from(new Set([...variant.mediaAssetIds, assetId]));
     setWorkspace((current) => ({
       ...current,
       drafts: current.drafts.map((currentDraft) => {
@@ -1909,9 +1928,7 @@ const ContentOpsPage = () => {
     const cancelled = await cancelContentOpsGenerationJob(job.id);
     setWorkspace((current) => ({
       ...current,
-      generationJobs: current.generationJobs.map((item) =>
-        item.id === job.id ? cancelled : item,
-      ),
+      generationJobs: current.generationJobs.map((item) => (item.id === job.id ? cancelled : item)),
     }));
   };
 
@@ -1970,8 +1987,7 @@ const ContentOpsPage = () => {
           ? {
               ...queueItem,
               state: result.attempt.state,
-              blocker:
-                result.attempt.failure_detail_safe || result.attempt.failure_code || null,
+              blocker: result.attempt.failure_detail_safe || result.attempt.failure_code || null,
             }
           : queueItem,
       ),
@@ -2019,7 +2035,10 @@ const ContentOpsPage = () => {
 
   const handleDownloadExportArtifact = async (artifact: ContentOpsExportArtifact) => {
     const download = await downloadContentOpsExportArtifact(artifact);
-    saveBlobAsFile(download.blob, download.filename || buildContentOpsExportFilename(workspace.name));
+    saveBlobAsFile(
+      download.blob,
+      download.filename || buildContentOpsExportFilename(workspace.name),
+    );
   };
 
   if (isLoading) {
@@ -2174,7 +2193,11 @@ const ContentOpsPage = () => {
       />
 
       <div className="content-ops-main-grid">
-        <CalendarPanel drafts={workspace.drafts} queue={workspace.queue} timezone={workspace.timezone} />
+        <CalendarPanel
+          drafts={workspace.drafts}
+          queue={workspace.queue}
+          timezone={workspace.timezone}
+        />
         <ClientReviewPanel drafts={workspace.drafts} />
       </div>
 

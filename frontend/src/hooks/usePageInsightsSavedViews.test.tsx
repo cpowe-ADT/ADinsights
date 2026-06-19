@@ -20,7 +20,12 @@ const sampleView = {
   name: 'My View',
   description: '',
   template_key: 'meta_page_insights' as const,
-  filters: { page_id: 'page-1', date_preset: 'last_28d', metric: 'page_post_engagements', period: 'day' },
+  filters: {
+    page_id: 'page-1',
+    date_preset: 'last_28d',
+    metric: 'page_post_engagements',
+    period: 'day',
+  },
   layout: {},
   default_metric: 'page_post_engagements',
   is_active: true,
@@ -49,11 +54,7 @@ const Harness = ({ pageId = 'page-1' }: HarnessProps) => {
       >
         Save
       </button>
-      <button
-        type="button"
-        data-testid="remove"
-        onClick={() => void remove('view-1')}
-      >
+      <button type="button" data-testid="remove" onClick={() => void remove('view-1')}>
         Remove
       </button>
     </div>

@@ -50,17 +50,17 @@ validation.
 
 Local smoke report:
 
-| Field | Value |
-| --- | --- |
-| Report ID | `09c96ea9-a9e5-4283-aa29-401179ab05dc` |
-| Tenant prefix | `7f9b2f19` |
-| Name | `LOCAL SMOKE - SLB Monthly Social Report May 2026` |
-| Template key | `slb_monthly_social_report` |
-| Schema version | `report.v1` |
-| Date range | `2026-05-01` through `2026-05-31` |
-| Client ID | Empty local placeholder |
-| Delivery | Disabled |
-| Cancellation evidence? | No |
+| Field                  | Value                                              |
+| ---------------------- | -------------------------------------------------- |
+| Report ID              | `09c96ea9-a9e5-4283-aa29-401179ab05dc`             |
+| Tenant prefix          | `7f9b2f19`                                         |
+| Name                   | `LOCAL SMOKE - SLB Monthly Social Report May 2026` |
+| Template key           | `slb_monthly_social_report`                        |
+| Schema version         | `report.v1`                                        |
+| Date range             | `2026-05-01` through `2026-05-31`                  |
+| Client ID              | Empty local placeholder                            |
+| Delivery               | Disabled                                           |
+| Cancellation evidence? | No                                                 |
 
 ## Smoke Command
 
@@ -109,15 +109,15 @@ server:
 
 Results:
 
-| Check | Result | Notes |
-| --- | --- | --- |
-| Report preview | Passed locally | Preview hash `ba2a9703c40b76f6f929c1a3ee999bf17dedea5ea30e452bee7ed1d9fdafdae4`; `export_ready=True`. |
-| Coverage status summary | Local-only mixed state | `fresh=3`, `stale=3`, `missing_history=4`; not cancellation-grade coverage. |
-| Diagnostics | Passed locally | Diagnostics returned the same preview hash and 3 dataset summaries. |
-| Export metadata/snapshot | Passed locally | Snapshot included 8 ordered report pages and the same preview hash. |
-| CSV export | Passed locally | Job `899a1037-6c63-4b8a-be8f-79b4920a3218` completed; artifact size was 63 bytes. |
-| PDF export before Chromium install | Failed locally | Job `73b5a6fd-b8da-45a6-836a-2575d0812be1` failed with sanitized `CalledProcessError`. |
-| PNG export before Chromium install | Failed locally | Job `3548bb3e-8e73-4a96-a6bb-a2a52ce58c7f` failed with sanitized `CalledProcessError`. |
+| Check                                     | Result                              | Notes                                                                                                                   |
+| ----------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Report preview                            | Passed locally                      | Preview hash `ba2a9703c40b76f6f929c1a3ee999bf17dedea5ea30e452bee7ed1d9fdafdae4`; `export_ready=True`.                   |
+| Coverage status summary                   | Local-only mixed state              | `fresh=3`, `stale=3`, `missing_history=4`; not cancellation-grade coverage.                                             |
+| Diagnostics                               | Passed locally                      | Diagnostics returned the same preview hash and 3 dataset summaries.                                                     |
+| Export metadata/snapshot                  | Passed locally                      | Snapshot included 8 ordered report pages and the same preview hash.                                                     |
+| CSV export                                | Passed locally                      | Job `899a1037-6c63-4b8a-be8f-79b4920a3218` completed; artifact size was 63 bytes.                                       |
+| PDF export before Chromium install        | Failed locally                      | Job `73b5a6fd-b8da-45a6-836a-2575d0812be1` failed with sanitized `CalledProcessError`.                                  |
+| PNG export before Chromium install        | Failed locally                      | Job `3548bb3e-8e73-4a96-a6bb-a2a52ce58c7f` failed with sanitized `CalledProcessError`.                                  |
 | Scheduled dry-run before Chromium install | Created, then failed render locally | Job `d27f5f0b-a317-4372-b22b-1fb570bb2231`; `delivery_status.mode=dry_run`; renderer failed before artifact completion. |
 
 The local export task emitted warnings that `vw_dashboard_aggregate_snapshot` is missing and fell
@@ -149,10 +149,10 @@ npm --prefix integrations/exporter exec -- playwright-core install chromium
 
 Then reran local PDF, PNG, and scheduled dry-run artifact generation with fresh job IDs.
 
-| Check | Result | Artifact proof |
-| --- | --- | --- |
-| PDF export | Passed locally | Job `9a355a57-2573-4bbe-bc77-eb0f7a606117`; 62,136 bytes; `file` reports PDF document version 1.4. |
-| PNG export | Passed locally | Job `76f6a417-b101-4743-af90-507e9f2f9bc4`; 37,160 bytes; `file` reports PNG image data 1280 x 720. |
+| Check                 | Result         | Artifact proof                                                                                                               |
+| --------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| PDF export            | Passed locally | Job `9a355a57-2573-4bbe-bc77-eb0f7a606117`; 62,136 bytes; `file` reports PDF document version 1.4.                           |
+| PNG export            | Passed locally | Job `76f6a417-b101-4743-af90-507e9f2f9bc4`; 37,160 bytes; `file` reports PNG image data 1280 x 720.                          |
 | Scheduled dry-run PDF | Passed locally | Job `b36d8529-d3b4-40d2-9963-26826967060c`; 62,136 bytes; `delivery_status.mode=dry_run`; `delivery_status.status=rendered`. |
 
 All three post-install jobs preserved preview hash
@@ -242,11 +242,11 @@ make frontend-build
 
 Results:
 
-| Gate | Result | Notes |
-| --- | --- | --- |
-| `make frontend-guardrails` | Passed | Reported `Frontend guardrail check passed.` |
-| `make frontend-lint` | Passed | ESLint completed with `--max-warnings=0`. |
-| `make frontend-build` | Passed | `tsc -p tsconfig.build.json && vite build` completed successfully. |
+| Gate                       | Result | Notes                                                              |
+| -------------------------- | ------ | ------------------------------------------------------------------ |
+| `make frontend-guardrails` | Passed | Reported `Frontend guardrail check passed.`                        |
+| `make frontend-lint`       | Passed | ESLint completed with `--max-warnings=0`.                          |
+| `make frontend-build`      | Passed | `tsc -p tsconfig.build.json && vite build` completed successfully. |
 
 This supports frontend implementation readiness only. It does not prove fixed SLB runtime data,
 real-browser screenshot review, DashThis/source parity, or cancellation readiness.
@@ -263,10 +263,10 @@ make frontend-test
 
 Results:
 
-| Gate | Result | Notes |
-| --- | --- | --- |
-| `make backend-lint` | Passed | Ruff completed with `All checks passed!`. |
-| `make backend-test` | Passed | Full backend pytest suite completed successfully. |
+| Gate                 | Result | Notes                                                           |
+| -------------------- | ------ | --------------------------------------------------------------- |
+| `make backend-lint`  | Passed | Ruff completed with `All checks passed!`.                       |
+| `make backend-test`  | Passed | Full backend pytest suite completed successfully.               |
 | `make frontend-test` | Passed | Vitest reported `139 passed` test files and `893 passed` tests. |
 
 The frontend test run emitted existing non-fatal console warnings from jsdom navigation, React
@@ -290,12 +290,12 @@ python3 infrastructure/airbyte/scripts/verify_production_readiness.py
 
 Results:
 
-| Gate | Result | Notes |
-| --- | --- | --- |
-| `backend_release_preflight` | Passed | Local deterministic backend preflight returned `ok: true`; `/api/health/airbyte/` returned `502 sync_failed` and `/api/health/dbt/` returned `503 missing_run_results`, both within allowed local preflight statuses. |
-| `check_data_contracts.py` | Passed | Reported `Data-contract validation passed.` |
-| `verify_observability_prereqs.py` | Passed | Reported `Observability prerequisite validation passed.` |
-| `verify_production_readiness.py` | Failed | Still missing `AIRBYTE_TEMPLATE_META_METRICS_CONNECTION_ID` for bootstrap connection validation. |
+| Gate                              | Result | Notes                                                                                                                                                                                                                 |
+| --------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `backend_release_preflight`       | Passed | Local deterministic backend preflight returned `ok: true`; `/api/health/airbyte/` returned `502 sync_failed` and `/api/health/dbt/` returned `503 missing_run_results`, both within allowed local preflight statuses. |
+| `check_data_contracts.py`         | Passed | Reported `Data-contract validation passed.`                                                                                                                                                                           |
+| `verify_observability_prereqs.py` | Passed | Reported `Observability prerequisite validation passed.`                                                                                                                                                              |
+| `verify_production_readiness.py`  | Failed | Still missing `AIRBYTE_TEMPLATE_META_METRICS_CONNECTION_ID` for bootstrap connection validation.                                                                                                                      |
 
 This narrows the release warning surface: backend deterministic preflight, data-contract validation,
 and observability prerequisites are green locally. Production readiness remains blocked by the

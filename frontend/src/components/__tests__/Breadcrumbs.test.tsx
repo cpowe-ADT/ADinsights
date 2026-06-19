@@ -4,8 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import Breadcrumbs from '../Breadcrumbs';
 
-const renderWithRouter = (ui: React.ReactElement) =>
-  render(<MemoryRouter>{ui}</MemoryRouter>);
+const renderWithRouter = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
 describe('Breadcrumbs', () => {
   it('renders breadcrumb navigation with correct aria label', () => {
@@ -40,14 +39,13 @@ describe('Breadcrumbs', () => {
   });
 
   it('renders the last item as a span with aria-current="page"', () => {
-    const items = [
-      { label: 'Home', to: '/' },
-      { label: 'Current Page' },
-    ];
+    const items = [{ label: 'Home', to: '/' }, { label: 'Current Page' }];
     renderWithRouter(<Breadcrumbs items={items} />);
     // The span in the ol list (not the option in the dropdown)
     const matches = screen.getAllByText('Current Page');
-    const spanMatch = matches.find((el) => el.tagName === 'SPAN' && el.getAttribute('aria-current') === 'page');
+    const spanMatch = matches.find(
+      (el) => el.tagName === 'SPAN' && el.getAttribute('aria-current') === 'page',
+    );
     expect(spanMatch).toBeDefined();
   });
 
@@ -58,7 +56,9 @@ describe('Breadcrumbs', () => {
     ];
     renderWithRouter(<Breadcrumbs items={items} />);
     const matches = screen.getAllByText('Current');
-    const spanMatch = matches.find((el) => el.tagName === 'SPAN' && el.getAttribute('aria-current') === 'page');
+    const spanMatch = matches.find(
+      (el) => el.tagName === 'SPAN' && el.getAttribute('aria-current') === 'page',
+    );
     expect(spanMatch).toBeDefined();
   });
 
@@ -76,10 +76,7 @@ describe('Breadcrumbs', () => {
   });
 
   it('renders the mobile dropdown select', () => {
-    const items = [
-      { label: 'Home', to: '/' },
-      { label: 'Overview' },
-    ];
+    const items = [{ label: 'Home', to: '/' }, { label: 'Overview' }];
     renderWithRouter(<Breadcrumbs items={items} />);
     expect(screen.getByLabelText('Navigate to')).toBeInTheDocument();
   });
@@ -87,7 +84,9 @@ describe('Breadcrumbs', () => {
   it('handles a single breadcrumb item', () => {
     renderWithRouter(<Breadcrumbs items={[{ label: 'Home' }]} />);
     const matches = screen.getAllByText('Home');
-    const spanMatch = matches.find((el) => el.tagName === 'SPAN' && el.getAttribute('aria-current') === 'page');
+    const spanMatch = matches.find(
+      (el) => el.tagName === 'SPAN' && el.getAttribute('aria-current') === 'page',
+    );
     expect(spanMatch).toBeDefined();
   });
 });

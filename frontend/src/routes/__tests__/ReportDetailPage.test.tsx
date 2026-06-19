@@ -398,15 +398,17 @@ describe('ReportDetailPage inline editing', () => {
 
     expect(await screen.findByText('Coverage and export readiness')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Cover and period' })).toBeInTheDocument();
-    expect(screen.getAllByText('Report narrative section is manually authored.').length).toBeGreaterThan(
-      0,
-    );
+    expect(
+      screen.getAllByText('Report narrative section is manually authored.').length,
+    ).toBeGreaterThan(0);
     expect(phase2ApiMock.previewReport).toHaveBeenCalledWith('r1');
     expect(phase2ApiMock.fetchReportDiagnostics).toHaveBeenCalledWith('r1');
     expect(screen.getByText('Stored data and delivery readiness')).toBeInTheDocument();
     expect(screen.getByText('Source health')).toBeInTheDocument();
     expect(screen.getByText('Ready to export')).toBeInTheDocument();
-    expect(screen.getByText('Make this report pull real Facebook and Meta Ads data')).toBeInTheDocument();
+    expect(
+      screen.getByText('Make this report pull real Facebook and Meta Ads data'),
+    ).toBeInTheDocument();
     const metaSetupLinks = screen.getAllByRole('link', { name: 'Open Meta setup' });
     expect(metaSetupLinks.length).toBeGreaterThanOrEqual(1);
     for (const link of metaSetupLinks) {
@@ -444,7 +446,9 @@ describe('ReportDetailPage inline editing', () => {
             covered_start_date: null,
             covered_end_date: null,
             source_label: 'Facebook Page Insights stored rows',
-            notes: ['Facebook Page Insights stored rows has no retained rows for the requested range.'],
+            notes: [
+              'Facebook Page Insights stored rows has no retained rows for the requested range.',
+            ],
           },
         ],
       },
@@ -633,7 +637,9 @@ describe('ReportDetailPage inline editing', () => {
     phase2ApiMock.previewReport.mockResolvedValue({
       ...(await phase2ApiMock.previewReport()),
       export_ready: false,
-      blocking_reasons: ['coverage_policy require_full_coverage blocks coverage_status missing_history.'],
+      blocking_reasons: [
+        'coverage_policy require_full_coverage blocks coverage_status missing_history.',
+      ],
     });
 
     renderPage();

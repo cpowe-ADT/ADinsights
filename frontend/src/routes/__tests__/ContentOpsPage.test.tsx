@@ -324,8 +324,12 @@ describe('ContentOpsPage', () => {
     const draft = screen.getByRole('heading', { name: 'Manual launch post' }).closest('article');
     expect(draft).not.toBeNull();
     expect(within(draft as HTMLElement).getByText('Generated')).toBeInTheDocument();
-    expect(within(draft as HTMLElement).getByText('Manual caption for Instagram.')).toBeInTheDocument();
-    expect(within(draft as HTMLElement).getByRole('button', { name: 'Submit internal review' })).toBeInTheDocument();
+    expect(
+      within(draft as HTMLElement).getByText('Manual caption for Instagram.'),
+    ).toBeInTheDocument();
+    expect(
+      within(draft as HTMLElement).getByRole('button', { name: 'Submit internal review' }),
+    ).toBeInTheDocument();
   }, 15000);
 
   it('downloads a live workspace content plan export', async () => {
@@ -398,9 +402,9 @@ describe('ContentOpsPage', () => {
 
     renderPage();
 
-    const exportHistory = (
-      await screen.findByRole('heading', { name: 'Export History' })
-    ).closest('section');
+    const exportHistory = (await screen.findByRole('heading', { name: 'Export History' })).closest(
+      'section',
+    );
     expect(exportHistory).not.toBeNull();
     expect(contentOpsApiMock.listContentOpsExportArtifacts).toHaveBeenCalledWith(
       'workspace-live',
@@ -410,7 +414,9 @@ describe('ContentOpsPage', () => {
     expect(within(exportHistory as HTMLElement).getByText('Content plan')).toBeInTheDocument();
     expect(within(exportHistory as HTMLElement).getByText('JSON')).toBeInTheDocument();
 
-    await user.click(within(exportHistory as HTMLElement).getByRole('button', { name: 'Download' }));
+    await user.click(
+      within(exportHistory as HTMLElement).getByRole('button', { name: 'Download' }),
+    );
 
     expect(contentOpsApiMock.downloadContentOpsExportArtifact).toHaveBeenCalledWith(
       existingArtifact,
@@ -423,7 +429,9 @@ describe('ContentOpsPage', () => {
       await within(exportHistory as HTMLElement).findByText('Saved export downloaded.'),
     ).toBeInTheDocument();
 
-    await user.click(within(exportHistory as HTMLElement).getByRole('button', { name: 'Save export' }));
+    await user.click(
+      within(exportHistory as HTMLElement).getByRole('button', { name: 'Save export' }),
+    );
 
     expect(contentOpsApiMock.createContentOpsExportArtifact).toHaveBeenCalledWith({
       workspaceId: 'workspace-live',
@@ -444,14 +452,14 @@ describe('ContentOpsPage', () => {
     expect(calendar).not.toBeNull();
     expect(clientReview).not.toBeNull();
     expect(within(calendar as HTMLElement).getByText('Scheduled drafts')).toBeInTheDocument();
-    expect(within(calendar as HTMLElement).getByText('Weekend bundle announcement')).toBeInTheDocument();
+    expect(
+      within(calendar as HTMLElement).getByText('Weekend bundle announcement'),
+    ).toBeInTheDocument();
     expect(within(calendar as HTMLElement).getByText('Unscheduled drafts')).toBeInTheDocument();
     expect(
       within(clientReview as HTMLElement).getByText('1 client-facing drafts'),
     ).toBeInTheDocument();
-    expect(
-      within(clientReview as HTMLElement).getByText('Pending · v3'),
-    ).toBeInTheDocument();
+    expect(within(clientReview as HTMLElement).getByText('Pending · v3')).toBeInTheDocument();
   });
 
   it('renders aggregate organic report data from live API endpoints', async () => {
@@ -700,7 +708,9 @@ describe('ContentOpsPage', () => {
     renderPage();
 
     expect(await screen.findByText('Mock fallback - not live data')).toBeInTheDocument();
-    expect(screen.getByText('No Content Ops workspaces have been created yet.')).toBeInTheDocument();
+    expect(
+      screen.getByText('No Content Ops workspaces have been created yet.'),
+    ).toBeInTheDocument();
   });
 
   it('keeps readiness blockers as six separate axes', async () => {
@@ -731,8 +741,9 @@ describe('ContentOpsPage', () => {
   it('renders Facebook and Instagram draft variants independently', async () => {
     renderPage();
 
-    const draft = (await screen.findByRole('heading', { name: 'Weekend bundle announcement' }))
-      .closest('article');
+    const draft = (
+      await screen.findByRole('heading', { name: 'Weekend bundle announcement' })
+    ).closest('article');
 
     expect(draft).not.toBeNull();
     expect(
@@ -783,7 +794,9 @@ describe('ContentOpsPage', () => {
       file,
       altText: 'Hero product visual',
     });
-    expect(await screen.findByText('Asset uploaded and is available for draft versions.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Asset uploaded and is available for draft versions.'),
+    ).toBeInTheDocument();
     expect(screen.getAllByText('Hero product visual').length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: 'Preview' })).toHaveAttribute(
       'href',
@@ -810,7 +823,9 @@ describe('ContentOpsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Upload asset' }));
 
     expect(await screen.findByText('Asset MIME type is not supported.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'June Meta content plan', level: 1 })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'June Meta content plan', level: 1 }),
+    ).toBeInTheDocument();
   });
 
   it('disables media upload for viewer-only users', async () => {
@@ -822,7 +837,9 @@ describe('ContentOpsPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Viewer access can review media but cannot upload assets.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Viewer access can review media but cannot upload assets.'),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Asset file')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Upload asset' })).toBeDisabled();
   });
@@ -984,7 +1001,10 @@ describe('ContentOpsPage', () => {
     await user.click(within(draft as HTMLElement).getByRole('button', { name: 'Approve client' }));
     const scheduleButton = within(draft as HTMLElement).getByRole('button', { name: 'Schedule' });
     expect(scheduleButton).toBeDisabled();
-    await user.type(await within(draft as HTMLElement).findByLabelText('Schedule time'), '2026-06-18T09:30');
+    await user.type(
+      await within(draft as HTMLElement).findByLabelText('Schedule time'),
+      '2026-06-18T09:30',
+    );
     expect(scheduleButton).toBeDisabled();
     await user.click(
       within(draft as HTMLElement).getByLabelText(

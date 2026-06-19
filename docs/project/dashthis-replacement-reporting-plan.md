@@ -102,15 +102,15 @@ Treat this DashThis replacement plan as the business driver and
 
 Use this mapping:
 
-| Existing plan area | How the reporting builder plan integrates |
-| --- | --- |
-| Phase 0/0A audit | Add required report pages, datasets, metrics, dimensions, widgets, and invalid combinations to the audit. |
-| Paid-media replacement | Keep the current Meta/Google Ads proof path for the first cancellation gate. |
-| SLB full monthly parity | Build the SLB report as the first reusable report template on top of the dashboard/report schema. |
-| Dashboard UI proof | Evolve from approved templates to catalog-driven widget creation only after backend validation exists. |
-| Report artifact proof | Use `ReportDefinition` and export jobs, but define report pages/sections through the same governed schema. |
-| Combined dashboards | Require explicit source labels and backend-approved blended metrics before paid and organic data are mixed. |
-| Future SaaS users | Add sharing, role permissions, audit events, quotas, versioning, and support/debug states before external rollout. |
+| Existing plan area      | How the reporting builder plan integrates                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Phase 0/0A audit        | Add required report pages, datasets, metrics, dimensions, widgets, and invalid combinations to the audit.          |
+| Paid-media replacement  | Keep the current Meta/Google Ads proof path for the first cancellation gate.                                       |
+| SLB full monthly parity | Build the SLB report as the first reusable report template on top of the dashboard/report schema.                  |
+| Dashboard UI proof      | Evolve from approved templates to catalog-driven widget creation only after backend validation exists.             |
+| Report artifact proof   | Use `ReportDefinition` and export jobs, but define report pages/sections through the same governed schema.         |
+| Combined dashboards     | Require explicit source labels and backend-approved blended metrics before paid and organic data are mixed.        |
+| Future SaaS users       | Add sharing, role permissions, audit events, quotas, versioning, and support/debug states before external rollout. |
 
 Do not replace existing scaffolding. Extend it:
 
@@ -444,31 +444,31 @@ Prepare these before Phase 1 so activation work does not stall on missing contex
 
 ## Phase Map
 
-| Phase | Name | Primary owner route | Status | Exit gate |
-| ----- | ---- | ------------------- | ------ | --------- |
-| 0 | DashThis parity audit | Raj + Sofia + Lina | Ready | Required DashThis reports and KPIs are listed with acceptance thresholds. |
-| 0A | Adversarial plan review | Raj + stream owners | Ready after Phase 0 | Blockers, weak gates, and scaffolding needs are classified before activation. |
-| 1 | Activation readiness audit | Maya + Nina + Omar | Ready | Required env, credentials, Airbyte, KMS, SES, and staging blockers are known. |
-| 2 | Live source sync proof | Maya + Leo | Blocked until credentials/runtime | Meta and Google Ads syncs complete with non-empty tenant rows. |
-| 3 | Warehouse and snapshot proof | Priya + Sofia | Blocked until Phase 2 rows exist | dbt marts and warehouse snapshot produce live combined metrics. |
-| 4 | Dashboard UI proof | Lina + Joel | Blocked until Phase 3 | Frontend renders live paid-media dashboards with honest empty/stale states. |
-| 5 | Report artifact and delivery proof | Sofia + Nina + Omar | Blocked until Phase 3 | CSV/PDF/PNG exports and scheduled email delivery are proven. |
-| 6 | DashThis parity decision | Raj + Sofia + stakeholder | Blocked until Phase 5 | ADinsights totals match accepted thresholds for a fixed range. |
-| 7 | Replacement hardening window | Omar + Hannah + Mei | Blocked until Phase 6 | 24-48 hour monitor passes and cancellation decision is recorded. |
+| Phase | Name                               | Primary owner route       | Status                            | Exit gate                                                                     |
+| ----- | ---------------------------------- | ------------------------- | --------------------------------- | ----------------------------------------------------------------------------- |
+| 0     | DashThis parity audit              | Raj + Sofia + Lina        | Ready                             | Required DashThis reports and KPIs are listed with acceptance thresholds.     |
+| 0A    | Adversarial plan review            | Raj + stream owners       | Ready after Phase 0               | Blockers, weak gates, and scaffolding needs are classified before activation. |
+| 1     | Activation readiness audit         | Maya + Nina + Omar        | Ready                             | Required env, credentials, Airbyte, KMS, SES, and staging blockers are known. |
+| 2     | Live source sync proof             | Maya + Leo                | Blocked until credentials/runtime | Meta and Google Ads syncs complete with non-empty tenant rows.                |
+| 3     | Warehouse and snapshot proof       | Priya + Sofia             | Blocked until Phase 2 rows exist  | dbt marts and warehouse snapshot produce live combined metrics.               |
+| 4     | Dashboard UI proof                 | Lina + Joel               | Blocked until Phase 3             | Frontend renders live paid-media dashboards with honest empty/stale states.   |
+| 5     | Report artifact and delivery proof | Sofia + Nina + Omar       | Blocked until Phase 3             | CSV/PDF/PNG exports and scheduled email delivery are proven.                  |
+| 6     | DashThis parity decision           | Raj + Sofia + stakeholder | Blocked until Phase 5             | ADinsights totals match accepted thresholds for a fixed range.                |
+| 7     | Replacement hardening window       | Omar + Hannah + Mei       | Blocked until Phase 6             | 24-48 hour monitor passes and cancellation decision is recorded.              |
 
 ## Phase Testing And Debugging Matrix
 
-| Phase | Test focus | Debug focus | Scaffolding update trigger |
-| ----- | ---------- | ----------- | -------------------------- |
-| 0 | Docs-only audit; no runtime tests unless a proof artifact is created. | Missing or ambiguous replacement requirements. | Add/update evidence template if the same report inventory questions recur. |
-| 0A | Adversarial review; no runtime tests unless evidence claims need verification. | Weak assumptions, missing source proof, weak cancellation gates, hidden external blockers. | Add templates, checklists, tests, or runbook gates for any blocker/plan-update finding. |
-| 1 | Launcher syntax, profile list, healthcheck, data-contract, observability prereq checks. | Env flags, OAuth redirect, Airbyte IDs, KMS/SES readiness, shared artifact volume. | Add launcher/healthcheck/runbook checks for recurring config mistakes. |
-| 2 | Integration readiness scripts, provider status endpoints, sync telemetry, row-count proof. | Auth, permission, asset selection, empty syncs, ad account vs Page confusion. | Add connector/status tests or contract checks for repeated setup/sync bugs. |
-| 3 | dbt staging, snapshot, mart, and targeted mart tests plus combined metrics API proof. | Raw relation drift, tenant_id issues, stale/missing/default snapshots. | Add dbt schema tests, seed fixtures, or snapshot health checks. |
-| 4 | Frontend guardrails, lint, tests, build, plus live UI smoke with `VITE_MOCK_MODE=false`. | Dataset toggle, stale cache, empty/stale UI states, tenant/client scoping. | Add frontend fixtures/tests for any readiness or render state bug. |
-| 5 | Backend/frontend suites, preflight, export downloads, delivery audit records. | Artifact storage, renderer runtime, sanitized failures, email/channel config. | Add export/download tests, renderer checks, or delivery runbook steps. |
-| 6 | Fixed-range parity comparison against DashThis/source platforms. | Attribution lag, timezone, currency, platform filter, account selection differences. | Add parity worksheet/template if comparisons require repeated manual structure. |
-| 7 | Strict observability smoke after real queue activity and 24-48 hour monitor evidence. | Missing metrics, stale syncs, empty syncs, alert noise, rollback readiness. | Add alert simulation or dashboard evidence template for repeated operational gaps. |
+| Phase | Test focus                                                                                 | Debug focus                                                                                | Scaffolding update trigger                                                              |
+| ----- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| 0     | Docs-only audit; no runtime tests unless a proof artifact is created.                      | Missing or ambiguous replacement requirements.                                             | Add/update evidence template if the same report inventory questions recur.              |
+| 0A    | Adversarial review; no runtime tests unless evidence claims need verification.             | Weak assumptions, missing source proof, weak cancellation gates, hidden external blockers. | Add templates, checklists, tests, or runbook gates for any blocker/plan-update finding. |
+| 1     | Launcher syntax, profile list, healthcheck, data-contract, observability prereq checks.    | Env flags, OAuth redirect, Airbyte IDs, KMS/SES readiness, shared artifact volume.         | Add launcher/healthcheck/runbook checks for recurring config mistakes.                  |
+| 2     | Integration readiness scripts, provider status endpoints, sync telemetry, row-count proof. | Auth, permission, asset selection, empty syncs, ad account vs Page confusion.              | Add connector/status tests or contract checks for repeated setup/sync bugs.             |
+| 3     | dbt staging, snapshot, mart, and targeted mart tests plus combined metrics API proof.      | Raw relation drift, tenant_id issues, stale/missing/default snapshots.                     | Add dbt schema tests, seed fixtures, or snapshot health checks.                         |
+| 4     | Frontend guardrails, lint, tests, build, plus live UI smoke with `VITE_MOCK_MODE=false`.   | Dataset toggle, stale cache, empty/stale UI states, tenant/client scoping.                 | Add frontend fixtures/tests for any readiness or render state bug.                      |
+| 5     | Backend/frontend suites, preflight, export downloads, delivery audit records.              | Artifact storage, renderer runtime, sanitized failures, email/channel config.              | Add export/download tests, renderer checks, or delivery runbook steps.                  |
+| 6     | Fixed-range parity comparison against DashThis/source platforms.                           | Attribution lag, timezone, currency, platform filter, account selection differences.       | Add parity worksheet/template if comparisons require repeated manual structure.         |
+| 7     | Strict observability smoke after real queue activity and 24-48 hour monitor evidence.      | Missing metrics, stale syncs, empty syncs, alert noise, rollback readiness.                | Add alert simulation or dashboard evidence template for repeated operational gaps.      |
 
 ## Phase 0 - DashThis Parity Audit
 

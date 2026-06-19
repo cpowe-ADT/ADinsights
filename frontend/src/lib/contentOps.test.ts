@@ -76,7 +76,9 @@ describe('fetchContentOpsWorkspace', () => {
         };
       }
       if (path === '/content-ops/workspaces/') {
-        return { results: [{ id: 'workspace-1', name: 'Live Workspace', timezone: 'America/Jamaica' }] };
+        return {
+          results: [{ id: 'workspace-1', name: 'Live Workspace', timezone: 'America/Jamaica' }],
+        };
       }
       if (path === '/content-ops/briefs/?workspace_id=workspace-1') {
         return {
@@ -749,9 +751,7 @@ describe('fetchContentOpsWorkspace', () => {
       download_url: '/api/content-ops/exports/export-1/download/',
     });
 
-    expect(apiClientMock.download).toHaveBeenCalledWith(
-      '/content-ops/exports/export-1/download/',
-    );
+    expect(apiClientMock.download).toHaveBeenCalledWith('/content-ops/exports/export-1/download/');
     expect(result.filename).toBe('content-plan.json');
   });
 

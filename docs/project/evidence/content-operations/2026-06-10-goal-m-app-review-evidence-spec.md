@@ -37,15 +37,15 @@ Interpretation used for ADinsights:
 
 ## Locked Permission Scope
 
-| Channel | Permission | Status | Submission rule |
-| --- | --- | --- | --- |
-| Facebook Page | `pages_manage_posts` | `content_ops_gated` | Request only after Goal O adapter, staging proof, and reviewer screencast are ready. |
-| Facebook Page | `pages_show_list` | existing baseline | Preserve for managed Page listing/selection. |
-| Facebook Page | `pages_read_engagement` | existing baseline | Preserve for Page context/readiness and post context. |
-| Facebook Page | `pages_manage_metadata` | existing optional/Page setup dependency | Include only if the current Page connection flow still requires it in the selected submission path. |
-| Instagram | `instagram_business_basic` | `content_ops_gated` | Primary current account identity/readiness permission for Instagram publishing planning. |
-| Instagram | `instagram_business_content_publish` | `content_ops_gated` | Primary current Instagram organic feed publishing permission for App Review planning. |
-| Instagram | `instagram_basic` + `instagram_content_publish` | `content_ops_gated_fallback` | Use only for confirmed legacy Facebook Login / Instagram Graph API path. |
+| Channel       | Permission                                      | Status                                  | Submission rule                                                                                     |
+| ------------- | ----------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Facebook Page | `pages_manage_posts`                            | `content_ops_gated`                     | Request only after Goal O adapter, staging proof, and reviewer screencast are ready.                |
+| Facebook Page | `pages_show_list`                               | existing baseline                       | Preserve for managed Page listing/selection.                                                        |
+| Facebook Page | `pages_read_engagement`                         | existing baseline                       | Preserve for Page context/readiness and post context.                                               |
+| Facebook Page | `pages_manage_metadata`                         | existing optional/Page setup dependency | Include only if the current Page connection flow still requires it in the selected submission path. |
+| Instagram     | `instagram_business_basic`                      | `content_ops_gated`                     | Primary current account identity/readiness permission for Instagram publishing planning.            |
+| Instagram     | `instagram_business_content_publish`            | `content_ops_gated`                     | Primary current Instagram organic feed publishing permission for App Review planning.               |
+| Instagram     | `instagram_basic` + `instagram_content_publish` | `content_ops_gated_fallback`            | Use only for confirmed legacy Facebook Login / Instagram Graph API path.                            |
 
 No Content Ops publishing permission is added to default runtime OAuth by Goal M.
 

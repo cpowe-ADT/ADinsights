@@ -35,11 +35,7 @@ function isDashboardV1Layout(value: unknown): value is {
   widgets: DashboardV1Widget[];
   layout?: { slots?: Array<{ id: string; widget_id: string; cols?: number; rows?: number }> };
 } {
-  return (
-    isRecord(value) &&
-    value.schema_version === 'dashboard.v1' &&
-    Array.isArray(value.widgets)
-  );
+  return isRecord(value) && value.schema_version === 'dashboard.v1' && Array.isArray(value.widgets);
 }
 
 function normalizeFilters(value: unknown): FilterBarState {
@@ -202,7 +198,7 @@ const DashboardV1Renderer = ({ dashboard }: { dashboard: DashboardDefinition }) 
   }
 
   const widgetById = new Map(previews.map((preview) => [preview.widget_id, preview]));
-  const slots = isDashboardV1Layout(layout) ? layout.layout?.slots ?? [] : [];
+  const slots = isDashboardV1Layout(layout) ? (layout.layout?.slots ?? []) : [];
   const orderedWidgets = slots.length
     ? slots.map((slot) => widgetById.get(slot.widget_id)).filter(Boolean)
     : previews;

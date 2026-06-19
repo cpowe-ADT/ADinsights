@@ -2,21 +2,10 @@
   "schema_version": "1.0.0",
   "contract_status": "WARN_POSSIBLE_CONTRACT_CHANGE",
   "breaking_change_detected": false,
-  "contract_surfaces_touched": [
-    "api_contract",
-    "contract_docs"
-  ],
+  "contract_surfaces_touched": ["api_contract", "contract_docs"],
   "required_docs_updates": [],
-  "required_reviewers": [
-    "Raj",
-    "Mira",
-    "Sofia",
-    "Hannah",
-    "Lina"
-  ],
-  "required_tests": [
-    "ruff check backend && pytest -q backend"
-  ],
+  "required_reviewers": ["Raj", "Mira", "Sofia", "Hannah", "Lina"],
+  "required_tests": ["ruff check backend && pytest -q backend"],
   "rationale": [
     "Evidence source: git_changed_files.",
     "Detected 45 path(s): AGENTS.md, backend/.env.sample, backend/core/settings.py, backend/core/urls.py, backend/tests/test_schema_regressions.py, backend/tests/test_tasks.py, docs/ops/agent-activity-log.md, docs/ops/doc-index.md, docs/orchestration.md, docs/project/api-contract-changelog.md, docs/project/current-priority-todo.md, docs/project/feature-catalog.md, docs/project/feature-flags-reference.md, docs/project/integration-data-contract-matrix.md, docs/project/meta-permission-profile.md, docs/project/meta-permissions-catalog.yaml, docs/runbooks/meta-app-review-copy-pack.md, docs/runbooks/meta-app-review-submission-checklist.md, frontend/src/router.tsx, backend/content_ops/, backend/tests/fixtures/, backend/tests/test_content_ops_api.py, backend/tests/test_content_ops_evals.py, backend/tests/test_content_ops_generation.py, backend/tests/test_content_ops_models.py, backend/tests/test_content_ops_publisher.py, backend/tests/test_content_ops_scheduler.py, docs/project/content-operations-api-contract.md, docs/project/content-operations-architecture-sprint-plan.md, docs/project/content-operations-current-state.md, docs/project/content-operations-eval-plan.md, docs/project/content-operations-implementation-backlog.md, docs/project/content-operations-live-publishing-audit-spec.md, docs/project/content-operations-meta-publishing-spec.md, docs/project/content-operations-sprint0-decisions.md, docs/project/evidence/content-operations/, docs/runbooks/content-operations-app-review.md, docs/runbooks/content-operations-failures.md, docs/runbooks/content-operations-publishing.md, frontend/src/lib/contentOps.test.ts, frontend/src/lib/contentOps.ts, frontend/src/lib/contentOpsMock.ts, frontend/src/routes/ContentOpsPage.tsx, frontend/src/routes/__tests__/ContentOpsPage.test.tsx, frontend/src/styles/contentOps.css.",
@@ -324,9 +313,7 @@
   },
   "advisory_only": true,
   "signals": {
-    "prompt_paths": [
-      "go/no-go"
-    ],
+    "prompt_paths": ["go/no-go"],
     "packet_paths": [
       "AGENTS.md",
       "backend/.env.sample",

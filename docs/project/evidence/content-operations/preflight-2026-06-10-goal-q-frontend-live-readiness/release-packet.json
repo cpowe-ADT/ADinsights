@@ -5,16 +5,12 @@
     "scope_control": {
       "status": "WARN",
       "rationale": "Scope status 'ESCALATE_CROSS_SCOPE' requires escalation/clarification.",
-      "evidence": [
-        "ESCALATE_CROSS_SCOPE"
-      ]
+      "evidence": ["ESCALATE_CROSS_SCOPE"]
     },
     "contract_integrity": {
       "status": "PASS",
       "rationale": "Contract status 'PASS_NO_CONTRACT_CHANGE' is acceptable.",
-      "evidence": [
-        "PASS_NO_CONTRACT_CHANGE"
-      ]
+      "evidence": ["PASS_NO_CONTRACT_CHANGE"]
     },
     "test_coverage": {
       "status": "INFO",
@@ -37,17 +33,12 @@
     "documentation_completeness": {
       "status": "INFO",
       "rationale": "Documentation updates are required before release.",
-      "evidence": [
-        "docs/ops/doc-index.md",
-        "docs/ops/agent-activity-log.md"
-      ]
+      "evidence": ["docs/ops/doc-index.md", "docs/ops/agent-activity-log.md"]
     },
     "rollout_rollback_plan": {
       "status": "PASS",
       "rationale": "Deployment runbook exists for rollout/rollback planning.",
-      "evidence": [
-        "docs/runbooks/deployment.md"
-      ]
+      "evidence": ["docs/runbooks/deployment.md"]
     },
     "observability": {
       "status": "PASS",
@@ -56,18 +47,12 @@
     }
   },
   "blocking_issues": [],
-  "warnings": [
-    "Scope control requires escalation or clarification before release."
-  ],
+  "warnings": ["Scope control requires escalation or clarification before release."],
   "pending_items": [
     "Run and verify required tests before release.",
     "Complete required documentation updates before release."
   ],
-  "required_approvers": [
-    "Raj",
-    "Lina",
-    "Hannah"
-  ],
+  "required_approvers": ["Raj", "Lina", "Hannah"],
   "required_artifacts": [
     "docs/runbooks/release-checklist.md",
     "docs/runbooks/deployment.md",

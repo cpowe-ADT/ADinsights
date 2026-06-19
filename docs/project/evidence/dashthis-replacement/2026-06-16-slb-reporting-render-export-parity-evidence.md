@@ -657,7 +657,7 @@ Known preflight signal:
   evidence collection but does not close fixed-runtime monthly or 90-day proof.
 - G2/G3/G8 source-health probe regression coverage was added and passed:
   focused history-probe test returned `1 passed`, `make backend-lint` passed, and `make
-  backend-test` passed. This proves `slb_report_history_probe` now emits a redacted `source_health`
+backend-test` passed. This proves `slb_report_history_probe` now emits a redacted `source_health`
   section covering Meta credential status counts, Page connection scope coverage, sanitized Airbyte
   sync error categories, stored ad/Page asset counts, stored row ranges, and recommended next
   actions without exposing raw Meta errors, account IDs, Page IDs, tokens, or host paths. This
@@ -772,17 +772,17 @@ G4/G5 render/export collection protocol:
 
 - `docs/project/evidence/dashthis-replacement/2026-06-16-g4-g5-render-export-reproducibility-proof.md`
 
-| Section | Dataset | Evidence status | Notes |
-| --- | --- | --- | --- |
-| Cover and period | Report scaffold | Implemented path | Narrative section; inherits appendix coverage notes. |
-| Executive summary | `paid_meta_ads`, `organic_facebook_page` | Implemented path | Renders governed KPI widgets. |
-| Paid Meta Ads | `paid_meta_ads` | Implemented path | Must use `require_full_coverage` for cancellation proof. |
-| Organic Facebook/Page | `organic_facebook_page` | Implemented path | Stored Page/Post Insight rows only. |
-| Top posts | `organic_facebook_page` | Implemented path | Stored post insight rows only. |
-| Content activity | `content_ops` | Implemented path | Uses aggregate Content Ops snapshots/published-post counts. |
-| Recommendations | Report scaffold | Implemented path | Must not hide stale/partial states. |
-| Appendix/data notes | All bound datasets | Implemented path | Must list coverage summary before cancellation review. |
-| Instagram | `organic_instagram` | Deferred | Future-gated until data/scope readiness is proven. |
+| Section               | Dataset                                  | Evidence status  | Notes                                                       |
+| --------------------- | ---------------------------------------- | ---------------- | ----------------------------------------------------------- |
+| Cover and period      | Report scaffold                          | Implemented path | Narrative section; inherits appendix coverage notes.        |
+| Executive summary     | `paid_meta_ads`, `organic_facebook_page` | Implemented path | Renders governed KPI widgets.                               |
+| Paid Meta Ads         | `paid_meta_ads`                          | Implemented path | Must use `require_full_coverage` for cancellation proof.    |
+| Organic Facebook/Page | `organic_facebook_page`                  | Implemented path | Stored Page/Post Insight rows only.                         |
+| Top posts             | `organic_facebook_page`                  | Implemented path | Stored post insight rows only.                              |
+| Content activity      | `content_ops`                            | Implemented path | Uses aggregate Content Ops snapshots/published-post counts. |
+| Recommendations       | Report scaffold                          | Implemented path | Must not hide stale/partial states.                         |
+| Appendix/data notes   | All bound datasets                       | Implemented path | Must list coverage summary before cancellation review.      |
+| Instagram             | `organic_instagram`                      | Deferred         | Future-gated until data/scope readiness is proven.          |
 
 ## Parity Worksheet
 
@@ -790,19 +790,19 @@ G6 SLB-specific worksheet protocol:
 
 - `docs/project/evidence/dashthis-replacement/2026-06-16-g6-parity-worksheet-proof.md`
 
-| Metric/output | ADinsights source | DashThis/source comparison | Coverage status | Result |
-| --- | --- | --- | --- | --- |
-| Paid spend | `paid_meta_ads` | Pending fixed-range comparison | Pending | Not approved |
-| Paid impressions | `paid_meta_ads` | Pending fixed-range comparison | Pending | Not approved |
-| Paid reach | `paid_meta_ads` | Pending fixed-range comparison | Pending | Not approved |
-| Paid clicks | `paid_meta_ads` | Pending fixed-range comparison | Pending | Not approved |
-| CTR/CPC/CPM | `paid_meta_ads` | Pending fixed-range comparison | Pending | Not approved |
-| Conversions | `paid_meta_ads` | Pending fixed-range comparison | Pending | Not approved |
-| Organic reach/impressions | `organic_facebook_page` | Pending fixed-range comparison | Pending | Not approved |
-| Organic engagement/actions | `organic_facebook_page` | Pending fixed-range comparison | Pending | Not approved |
-| Follows/fans | `organic_facebook_page` | Pending fixed-range comparison | Pending | Not approved |
-| Top posts | `organic_facebook_page` | Pending fixed-range comparison | Pending | Not approved |
-| Published/scheduled/approved counts | `content_ops` | Pending fixed-range comparison | Pending | Not approved |
+| Metric/output                       | ADinsights source       | DashThis/source comparison     | Coverage status | Result       |
+| ----------------------------------- | ----------------------- | ------------------------------ | --------------- | ------------ |
+| Paid spend                          | `paid_meta_ads`         | Pending fixed-range comparison | Pending         | Not approved |
+| Paid impressions                    | `paid_meta_ads`         | Pending fixed-range comparison | Pending         | Not approved |
+| Paid reach                          | `paid_meta_ads`         | Pending fixed-range comparison | Pending         | Not approved |
+| Paid clicks                         | `paid_meta_ads`         | Pending fixed-range comparison | Pending         | Not approved |
+| CTR/CPC/CPM                         | `paid_meta_ads`         | Pending fixed-range comparison | Pending         | Not approved |
+| Conversions                         | `paid_meta_ads`         | Pending fixed-range comparison | Pending         | Not approved |
+| Organic reach/impressions           | `organic_facebook_page` | Pending fixed-range comparison | Pending         | Not approved |
+| Organic engagement/actions          | `organic_facebook_page` | Pending fixed-range comparison | Pending         | Not approved |
+| Follows/fans                        | `organic_facebook_page` | Pending fixed-range comparison | Pending         | Not approved |
+| Top posts                           | `organic_facebook_page` | Pending fixed-range comparison | Pending         | Not approved |
+| Published/scheduled/approved counts | `content_ops`           | Pending fixed-range comparison | Pending         | Not approved |
 
 Generate the ADinsights-side worksheet rows with:
 

@@ -214,58 +214,58 @@ Locked planning target:
 
 ### Approval
 
-| State | Enters when | Leaves when | Live-posting rule |
-| ---- | ---- | ---- | ---- |
-| `draft` / `generated` | User or generation job creates a draft/version | submitted for internal review | Cannot publish |
-| `internal_review` | User submits exact active version | internal approve/change/reject | Cannot publish |
-| `internal_approved` | Internal approver approves active version | submitted for client review | Cannot publish |
-| `client_review` | User submits approved version to client | client approve/change/reject | Cannot publish |
-| `client_approved` | Client approves active version | scheduled/publish-now | Only approved version may be queued |
-| `scheduled` | Publish-capable user schedules approved version | dispatcher queues attempts | Must use approval snapshot |
+| State                 | Enters when                                     | Leaves when                    | Live-posting rule                   |
+| --------------------- | ----------------------------------------------- | ------------------------------ | ----------------------------------- |
+| `draft` / `generated` | User or generation job creates a draft/version  | submitted for internal review  | Cannot publish                      |
+| `internal_review`     | User submits exact active version               | internal approve/change/reject | Cannot publish                      |
+| `internal_approved`   | Internal approver approves active version       | submitted for client review    | Cannot publish                      |
+| `client_review`       | User submits approved version to client         | client approve/change/reject   | Cannot publish                      |
+| `client_approved`     | Client approves active version                  | scheduled/publish-now          | Only approved version may be queued |
+| `scheduled`           | Publish-capable user schedules approved version | dispatcher queues attempts     | Must use approval snapshot          |
 
 ### Scheduling
 
-| State | Meaning | Required checks |
-| ---- | ---- | ---- |
-| `scheduled` | Waiting for scheduled time | active version, client approval, target channels, identity readiness |
-| `dispatching` | Attempts created or being processed | idempotent attempts per channel |
-| `published` | All attempts published | published post IDs present |
-| `partially_published` | Some channels published and some blocked/failed | operator triage required |
-| `failed` | All attempts blocked/failed terminal | no automatic retry without root-cause fix |
-| `cancelled` | User/operator cancelled schedule | no queue processing |
+| State                 | Meaning                                         | Required checks                                                      |
+| --------------------- | ----------------------------------------------- | -------------------------------------------------------------------- |
+| `scheduled`           | Waiting for scheduled time                      | active version, client approval, target channels, identity readiness |
+| `dispatching`         | Attempts created or being processed             | idempotent attempts per channel                                      |
+| `published`           | All attempts published                          | published post IDs present                                           |
+| `partially_published` | Some channels published and some blocked/failed | operator triage required                                             |
+| `failed`              | All attempts blocked/failed terminal            | no automatic retry without root-cause fix                            |
+| `cancelled`           | User/operator cancelled schedule                | no queue processing                                                  |
 
 ### Publishing
 
-| State | Meaning | Retry rule |
-| ---- | ---- | ---- |
-| `queued` | Durable attempt ready for processor | process once with lock |
-| `preflight` | Validating tenant, schedule, approval, identity, media | failure becomes blocked or retryable depending cause |
-| `blocked` | Missing readiness or non-retryable precondition | no automatic retry |
-| `publishing` | Provider call in flight | provider result decides next state |
-| `published` | Provider returned post/media ID | terminal success |
-| `failed_retryable` | Rate limit/transient/provider retryable failure | requeue with jittered backoff up to max attempts |
-| `failed_terminal` | Permanent provider or validation failure | terminal until operator fix |
-| `cancelled` | Operator/user cancelled | terminal unless new schedule/attempt |
+| State              | Meaning                                                | Retry rule                                           |
+| ------------------ | ------------------------------------------------------ | ---------------------------------------------------- |
+| `queued`           | Durable attempt ready for processor                    | process once with lock                               |
+| `preflight`        | Validating tenant, schedule, approval, identity, media | failure becomes blocked or retryable depending cause |
+| `blocked`          | Missing readiness or non-retryable precondition        | no automatic retry                                   |
+| `publishing`       | Provider call in flight                                | provider result decides next state                   |
+| `published`        | Provider returned post/media ID                        | terminal success                                     |
+| `failed_retryable` | Rate limit/transient/provider retryable failure        | requeue with jittered backoff up to max attempts     |
+| `failed_terminal`  | Permanent provider or validation failure               | terminal until operator fix                          |
+| `cancelled`        | Operator/user cancelled                                | terminal unless new schedule/attempt                 |
 
 ### Instagram Container
 
-| State | Meaning | Rule |
-| ---- | ---- | ---- |
-| `container_creating` | Preparing media container payload | create only near publish time |
-| `container_pending` | Meta accepted container but media not ready | poll status; do not publish yet |
-| `container_ready` | Container can be published | call media publish promptly |
-| `container_expired` | Container TTL exceeded | recreate only if still retryable and approval/media remain valid |
-| `failed_retryable` | transient container/status/publish failure | backoff and retry |
-| `failed_terminal` | unsupported media, permission, invalid account, policy failure | operator fix required |
+| State                | Meaning                                                        | Rule                                                             |
+| -------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `container_creating` | Preparing media container payload                              | create only near publish time                                    |
+| `container_pending`  | Meta accepted container but media not ready                    | poll status; do not publish yet                                  |
+| `container_ready`    | Container can be published                                     | call media publish promptly                                      |
+| `container_expired`  | Container TTL exceeded                                         | recreate only if still retryable and approval/media remain valid |
+| `failed_retryable`   | transient container/status/publish failure                     | backoff and retry                                                |
+| `failed_terminal`    | unsupported media, permission, invalid account, policy failure | operator fix required                                            |
 
 ### Metrics
 
-| State | Meaning | Rule |
-| ---- | ---- | ---- |
-| no snapshot | Published post has no linked metric row yet | show zero/empty aggregate state |
-| refresh requested | User/task triggered aggregate metric refresh | read already-synced post insight rows |
-| refreshed | Snapshot rows updated | aggregate-only display/export |
-| stale/failed | Missing upstream row or task failure | safe operator message; no user-level data |
+| State             | Meaning                                      | Rule                                      |
+| ----------------- | -------------------------------------------- | ----------------------------------------- |
+| no snapshot       | Published post has no linked metric row yet  | show zero/empty aggregate state           |
+| refresh requested | User/task triggered aggregate metric refresh | read already-synced post insight rows     |
+| refreshed         | Snapshot rows updated                        | aggregate-only display/export             |
+| stale/failed      | Missing upstream row or task failure         | safe operator message; no user-level data |
 
 ## 8. Security, PII, Tenant Isolation, And Secrets Rules
 
@@ -329,18 +329,18 @@ Minimum matrix before live adapter work:
 
 ## 11. Review Gates And Required Reviewers
 
-| Gate | Required reviewers | Must happen before |
-| ---- | ---- | ---- |
-| Goal J audit accepted | Raj, Mira, Sofia, Lina, Maya, Nina, Leo, Hannah as reviewer lenses | Goal K execution |
-| Goal K debug/test hardening | Raj, Mira, Sofia, Lina, Leo, Hannah | Contract/security signoff |
-| Goal L contract/security review | Sofia, Nina, Raj, Mira | App Review packet and live adapters |
-| Goal M App Review evidence spec | Maya, Hannah, Raj | OAuth scope expansion or live adapter activation |
-| Goal N media URL/CDN proof | Nina, Maya, Hannah, Raj | Instagram live adapter |
-| Goal O Facebook adapter | Sofia, Maya, Nina, Leo, Raj, Mira | Facebook staging proof |
-| Goal P Instagram adapter | Sofia, Maya, Nina, Leo, Raj, Mira | Instagram staging proof |
-| Goal Q frontend live readiness | Lina, Sofia, Hannah | staging publish proof |
-| Goals R/S staging proof | Maya, Nina, Leo, Hannah, Raj | final release pass |
-| Goal T release readiness | Raj, Mira, Sofia, Lina, Maya, Nina, Leo, Hannah | production enablement |
+| Gate                            | Required reviewers                                                 | Must happen before                               |
+| ------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------ |
+| Goal J audit accepted           | Raj, Mira, Sofia, Lina, Maya, Nina, Leo, Hannah as reviewer lenses | Goal K execution                                 |
+| Goal K debug/test hardening     | Raj, Mira, Sofia, Lina, Leo, Hannah                                | Contract/security signoff                        |
+| Goal L contract/security review | Sofia, Nina, Raj, Mira                                             | App Review packet and live adapters              |
+| Goal M App Review evidence spec | Maya, Hannah, Raj                                                  | OAuth scope expansion or live adapter activation |
+| Goal N media URL/CDN proof      | Nina, Maya, Hannah, Raj                                            | Instagram live adapter                           |
+| Goal O Facebook adapter         | Sofia, Maya, Nina, Leo, Raj, Mira                                  | Facebook staging proof                           |
+| Goal P Instagram adapter        | Sofia, Maya, Nina, Leo, Raj, Mira                                  | Instagram staging proof                          |
+| Goal Q frontend live readiness  | Lina, Sofia, Hannah                                                | staging publish proof                            |
+| Goals R/S staging proof         | Maya, Nina, Leo, Hannah, Raj                                       | final release pass                               |
+| Goal T release readiness        | Raj, Mira, Sofia, Lina, Maya, Nina, Leo, Hannah                    | production enablement                            |
 
 ## 12. Staging Evidence Checklist
 

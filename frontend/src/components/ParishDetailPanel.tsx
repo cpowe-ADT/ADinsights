@@ -56,7 +56,9 @@ const ParishDetailPanel = ({ parish, currency, demographics, onClear }: ParishDe
           <ul className="parishCampaignItems">
             {campaigns.map((c) => (
               <li key={c.id} className="parishCampaignItem">
-                <span className="parishCampaignName" title={c.name}>{c.name}</span>
+                <span className="parishCampaignName" title={c.name}>
+                  {c.name}
+                </span>
               </li>
             ))}
           </ul>
@@ -66,11 +68,7 @@ const ParishDetailPanel = ({ parish, currency, demographics, onClear }: ParishDe
       {hasDemographics && (
         <div className="parishDemographicsMini">
           <h4 className="parishSubheading">Audience snapshot</h4>
-          <AgeDistributionBar
-            data={demographics.byAgeGender}
-            metric="impressions"
-            currency={cur}
-          />
+          <AgeDistributionBar data={demographics.byAgeGender} metric="impressions" currency={cur} />
         </div>
       )}
 

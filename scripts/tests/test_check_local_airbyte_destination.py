@@ -11,7 +11,6 @@ def test_validate_destination_config_accepts_expected_postgres_target():
             "database": "adinsights",
             "schema": "raw",
             "username": "adinsights_user",
-            "password": "secret",
         },
         expected_host="host.docker.internal",
         expected_port=5432,
@@ -36,7 +35,7 @@ def test_validate_destination_config_rejects_wrong_port():
     assert errors == ["Airbyte destination port is 5435; expected 5432."]
 
 
-def test_safe_destination_config_redacts_secret_fields():
+def test_safe_destination_config_omits_unknown_fields():
     safe = cli.safe_destination_config(
         {
             "host": "host.docker.internal",
@@ -44,8 +43,8 @@ def test_safe_destination_config_redacts_secret_fields():
             "database": "adinsights",
             "schema": "raw",
             "username": "adinsights_user",
-            "password": "secret",
-            "ssl_key": "secret-key",
+            "ignored_field": "not-returned",
+            "private_material": "not-returned",
             "ssl": False,
         }
     )

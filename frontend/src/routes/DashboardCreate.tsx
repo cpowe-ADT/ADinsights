@@ -336,16 +336,15 @@ const DashboardCreate = () => {
   );
   const metricOptions = useMemo(
     () =>
-      catalog
-        ? allowedMetrics(catalog, governedWidget.dataset, governedWidget.widgetType)
-        : [],
+      catalog ? allowedMetrics(catalog, governedWidget.dataset, governedWidget.widgetType) : [],
     [catalog, governedWidget.dataset, governedWidget.widgetType],
   );
   const selectedCatalogMetric = metricOptions.find(
     (metric) => metric.key === governedWidget.metric,
   );
   const dimensionOptions = useMemo(
-    () => (catalog ? allowedDimensions(catalog, selectedCatalogMetric, governedWidget.widgetType) : []),
+    () =>
+      catalog ? allowedDimensions(catalog, selectedCatalogMetric, governedWidget.widgetType) : [],
     [catalog, governedWidget.widgetType, selectedCatalogMetric],
   );
 
@@ -396,11 +395,7 @@ const DashboardCreate = () => {
     if (!catalog) {
       return;
     }
-    const nextMetrics = allowedMetrics(
-      catalog,
-      governedWidget.dataset,
-      governedWidget.widgetType,
-    );
+    const nextMetrics = allowedMetrics(catalog, governedWidget.dataset, governedWidget.widgetType);
     const metric = nextMetrics.some((item) => item.key === governedWidget.metric)
       ? governedWidget.metric
       : nextMetrics[0]?.key;
@@ -408,7 +403,7 @@ const DashboardCreate = () => {
     const nextDimensions = allowedDimensions(catalog, metricDefinition, governedWidget.widgetType);
     const dimension = nextDimensions.includes(governedWidget.dimension)
       ? governedWidget.dimension
-      : nextDimensions[0] ?? '';
+      : (nextDimensions[0] ?? '');
     if (metric && (metric !== governedWidget.metric || dimension !== governedWidget.dimension)) {
       setGovernedWidget((previous) => ({
         ...previous,
@@ -643,8 +638,7 @@ const DashboardCreate = () => {
           }
           setGovernedPreview({
             status: 'error',
-            message:
-              error instanceof Error ? error.message : 'Unable to preview governed widget.',
+            message: error instanceof Error ? error.message : 'Unable to preview governed widget.',
           });
         });
     }, 250);
@@ -695,15 +689,7 @@ const DashboardCreate = () => {
       setSaveState('error');
       setSaveError(error instanceof Error ? error.message : 'Unable to save dashboard.');
     }
-  }, [
-    defaultMetric,
-    description,
-    filters,
-    name,
-    navigate,
-    templateKey,
-    activeWidget,
-  ]);
+  }, [defaultMetric, description, filters, name, navigate, templateKey, activeWidget]);
 
   if (!canCreate) {
     return (
@@ -864,7 +850,11 @@ const DashboardCreate = () => {
         </header>
 
         {catalogState.status === 'loading' || catalogState.status === 'idle' ? (
-          <DashboardState variant="loading" layout="compact" message="Loading reporting catalog..." />
+          <DashboardState
+            variant="loading"
+            layout="compact"
+            message="Loading reporting catalog..."
+          />
         ) : null}
 
         {catalogState.status === 'error' ? (

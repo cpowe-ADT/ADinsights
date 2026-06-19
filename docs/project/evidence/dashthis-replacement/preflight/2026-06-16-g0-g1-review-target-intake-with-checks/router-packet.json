@@ -20,11 +20,7 @@
     "cross_stream": true,
     "strong_conflict_count": 0
   },
-  "touched_streams": [
-    "S3",
-    "S4",
-    "S7"
-  ],
+  "touched_streams": ["S3", "S4", "S7"],
   "required_tests": [
     "ruff check backend",
     "pytest backend/tests/test_metrics_api.py backend/tests/test_snapshot_task.py backend/tests/test_analytics_endpoints.py",
@@ -49,10 +45,7 @@
   ],
   "escalation_decision": {
     "advisory_only": true,
-    "required_reviewers": [
-      "Raj",
-      "Mira"
-    ],
+    "required_reviewers": ["Raj", "Mira"],
     "reason": "Multiple streams detected in routing evidence."
   },
   "recommended_report_template": "C",
@@ -617,13 +610,8 @@
   "signals": {
     "explicit_persona_id": null,
     "explicit_stream_ids": [],
-    "folder_stream_ids": [
-      "S3",
-      "S4"
-    ],
-    "keyword_stream_ids": [
-      "S7"
-    ],
+    "folder_stream_ids": ["S3", "S4"],
+    "keyword_stream_ids": ["S7"],
     "explicit_paths": [],
     "changed_files": [
       ".gitignore",
@@ -717,17 +705,11 @@
     "prompt_paths": [],
     "used_git_changed_files": true,
     "folder_matches": {
-      "S3": [
-        "backend/analytics"
-      ],
-      "S4": [
-        "frontend/src"
-      ]
+      "S3": ["backend/analytics"],
+      "S4": ["frontend/src"]
     },
     "keyword_matches": {
-      "S7": [
-        "release"
-      ]
+      "S7": ["release"]
     },
     "contract_sensitive": true,
     "contract_reasons": [

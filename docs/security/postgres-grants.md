@@ -15,6 +15,7 @@ The PostgreSQL database user used by the Django application (e.g., `adinsights_a
 ### 1. DDL Permissions (Migrations & Setup)
 
 During initial setup and migrations, the user (or a separate migration user) must be able to:
+
 - Create tables, indexes, and constraints.
 - Enable RLS on tables: `ALTER TABLE <table_name> ENABLE ROW LEVEL SECURITY;`
 - Create and drop policies: `CREATE POLICY ... ON <table_name> ...;`
@@ -22,12 +23,14 @@ During initial setup and migrations, the user (or a separate migration user) mus
 ### 2. DML Permissions (Runtime)
 
 The application user requires standard DML on all tenant-aware tables:
+
 - `SELECT`, `INSERT`, `UPDATE`, `DELETE` on all tables in the `public` schema.
 - `USAGE` on all sequences.
 
 ### 3. Session Configuration
 
 The application user must be able to set the `app.tenant_id` configuration parameter:
+
 - `SET app.tenant_id = '...';`
 - `RESET app.tenant_id;`
 
@@ -55,7 +58,9 @@ USING (tenant_id = current_setting('app.tenant_id')::uuid);
 If you see errors like `permission denied for table ...`, verify that the application user has the correct `GRANT`s.
 
 If a query returns 0 rows when you expect data, verify that `app.tenant_id` is correctly set for the session:
+
 ```sql
 SHOW app.tenant_id;
 ```
+
 If it is empty or set to a different tenant ID, RLS is doing its job.

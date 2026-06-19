@@ -15,11 +15,11 @@ than "finish reporting implementation."
 
 ## Readiness Definitions
 
-| State | Meaning | Decision |
-| --- | --- | --- |
-| Implementation readiness | The repo has the needed reporting features, APIs, UI paths, docs, and tests. | Necessary but not enough to cancel DashThis. |
+| State                         | Meaning                                                                                                                                      | Decision                                             |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Implementation readiness      | The repo has the needed reporting features, APIs, UI paths, docs, and tests.                                                                 | Necessary but not enough to cancel DashThis.         |
 | Cancellation-review readiness | A fixed SLB report/date range has evidence for rendering, parity, exports, snapshots, diagnostics, scheduled dry-run, safety, and hardening. | Ready for Raj/Mira and business cancellation review. |
-| Actual DashThis cancellation | Business owner accepts the evidence, unresolved blockers are absent, and a rollback/monitoring path exists. | DashThis can be cancelled only after this decision. |
+| Actual DashThis cancellation  | Business owner accepts the evidence, unresolved blockers are absent, and a rollback/monitoring path exists.                                  | DashThis can be cancelled only after this decision.  |
 
 Current decision: implementation readiness is partially achieved for the reporting ops slice, but
 cancellation-review readiness is not achieved. Actual DashThis cancellation is no-go.
@@ -367,21 +367,21 @@ Latest validator preflight packet:
 
 ## Sub-Goals
 
-| ID | Sub-goal | Status | Evidence needed | Reviewer route | Update when complete |
-| --- | --- | --- | --- | --- | --- |
-| G0 | Raj/Mira architecture and scope review | `passed` | `2026-06-17-g0-raj-mira-agent-review-decision.json`; validated conditional approval that preflight block is architecture scope, not test failure | Raj, Mira | Goal doc, evidence packet, activity log |
-| G1 | Fixed SLB proof target and date range | `blocked_external` | Tenant/client, SLB report ID, template key, reporting date range in America/Jamaica, recipient assumptions, Instagram defer note | Raj, Hannah | Evidence packet parity section |
-| G2 | Stored data coverage proof | `evidence_pending` | Coverage summary for `paid_meta_ads`, `organic_facebook_page`, and `content_ops`; source labels; row counts; freshness states; no user-level metrics | Andre, Sofia, Omar | Evidence packet coverage section |
-| G3 | 90-day/monthly retained-history proof | `evidence_pending` | Separate monthly and 90-day retained-history classification per active dataset: fresh, stale, partial, source_disconnected, missing_history, or not_previously_synced | Priya/Martin if dbt or retention gap appears; Andre/Omar otherwise | Evidence packet and retention/handoff note |
-| G4 | Report rendering proof | `evidence_pending` | Saved `dashboard.v1` and SLB `report.v1` page render proof, including cover, executive summary, paid, organic Page/top posts, Content Ops, recommendations, appendix/data notes | Lina, Joel | Evidence packet with screenshots or verified UI paths |
-| G5 | CSV/PDF/PNG export reproducibility proof | `evidence_pending` | Export job IDs for CSV/PDF/PNG; non-empty artifact checks; `report_snapshot`; snapshot hash; generated timestamp; coverage summary; download proof | Sofia, Omar, Nina if artifact sensitivity appears | Evidence packet export section |
-| G6 | Parity worksheet against DashThis/source values | `evidence_pending` | ADinsights values from `slb_report_parity_evidence`; DashThis/source values; absolute deltas; percentage deltas; accepted tolerance; pass/fail; explanation | Andre, Raj, business owner | Evidence packet parity worksheet |
-| G7 | Scheduled delivery dry-run proof | `evidence_pending` | Dry-run export job ID; `delivery_status.mode == "dry_run"`; blocked coverage behavior; sanitized failures; proof no client email was sent | Omar, Hannah, Carlos/Mei if runtime delivery path changes | Evidence packet delivery section |
-| G8 | Diagnostics/support proof | `evidence_pending` | Diagnostics payload showing dataset status, retained range, row count, source label, export history, blocking reasons, recommended next action, and no secrets/user-level data | Omar, Hannah, Sofia | Evidence packet diagnostics section; support/runbook if behavior changes |
-| G9 | Permissions, tenant isolation, audit, and quota proof | `evidence_pending` | Viewer/editor/admin action behavior; cross-tenant rejection; audit events; quota behavior; aggregate-only verification | Sofia, Nina, Raj if cross-stream | Evidence packet safety section |
-| G10 | Adversarial review | `not_started` | Review against wrong date range/timezone, wrong tenant/client/account/page, stale shown as fresh, partial export without warning, missing history, unsupported Instagram assumptions, empty artifacts, delivery failure, cross-tenant leak, quota bypass, missing rollback path | Raj, Mira, Omar, Hannah, Nina as needed | Evidence packet adversarial checklist |
-| G11 | 24-48 hour hardening window | `not_started` | Timestamped observation window with sync/freshness/export/dry-run checks, failures, mitigations, unresolved blockers, and rollback path | Raj, Mira, Omar | Evidence packet hardening section |
-| G12 | Final cancellation recommendation | `not_started` | Completed G0-G11 evidence; explicit keep/cancel DashThis recommendation; known gaps; rollback/monitoring plan | Raj, Mira, business owner | Evidence packet current decision |
+| ID  | Sub-goal                                              | Status             | Evidence needed                                                                                                                                                                                                                                                                 | Reviewer route                                                     | Update when complete                                                     |
+| --- | ----------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| G0  | Raj/Mira architecture and scope review                | `passed`           | `2026-06-17-g0-raj-mira-agent-review-decision.json`; validated conditional approval that preflight block is architecture scope, not test failure                                                                                                                                | Raj, Mira                                                          | Goal doc, evidence packet, activity log                                  |
+| G1  | Fixed SLB proof target and date range                 | `blocked_external` | Tenant/client, SLB report ID, template key, reporting date range in America/Jamaica, recipient assumptions, Instagram defer note                                                                                                                                                | Raj, Hannah                                                        | Evidence packet parity section                                           |
+| G2  | Stored data coverage proof                            | `evidence_pending` | Coverage summary for `paid_meta_ads`, `organic_facebook_page`, and `content_ops`; source labels; row counts; freshness states; no user-level metrics                                                                                                                            | Andre, Sofia, Omar                                                 | Evidence packet coverage section                                         |
+| G3  | 90-day/monthly retained-history proof                 | `evidence_pending` | Separate monthly and 90-day retained-history classification per active dataset: fresh, stale, partial, source_disconnected, missing_history, or not_previously_synced                                                                                                           | Priya/Martin if dbt or retention gap appears; Andre/Omar otherwise | Evidence packet and retention/handoff note                               |
+| G4  | Report rendering proof                                | `evidence_pending` | Saved `dashboard.v1` and SLB `report.v1` page render proof, including cover, executive summary, paid, organic Page/top posts, Content Ops, recommendations, appendix/data notes                                                                                                 | Lina, Joel                                                         | Evidence packet with screenshots or verified UI paths                    |
+| G5  | CSV/PDF/PNG export reproducibility proof              | `evidence_pending` | Export job IDs for CSV/PDF/PNG; non-empty artifact checks; `report_snapshot`; snapshot hash; generated timestamp; coverage summary; download proof                                                                                                                              | Sofia, Omar, Nina if artifact sensitivity appears                  | Evidence packet export section                                           |
+| G6  | Parity worksheet against DashThis/source values       | `evidence_pending` | ADinsights values from `slb_report_parity_evidence`; DashThis/source values; absolute deltas; percentage deltas; accepted tolerance; pass/fail; explanation                                                                                                                     | Andre, Raj, business owner                                         | Evidence packet parity worksheet                                         |
+| G7  | Scheduled delivery dry-run proof                      | `evidence_pending` | Dry-run export job ID; `delivery_status.mode == "dry_run"`; blocked coverage behavior; sanitized failures; proof no client email was sent                                                                                                                                       | Omar, Hannah, Carlos/Mei if runtime delivery path changes          | Evidence packet delivery section                                         |
+| G8  | Diagnostics/support proof                             | `evidence_pending` | Diagnostics payload showing dataset status, retained range, row count, source label, export history, blocking reasons, recommended next action, and no secrets/user-level data                                                                                                  | Omar, Hannah, Sofia                                                | Evidence packet diagnostics section; support/runbook if behavior changes |
+| G9  | Permissions, tenant isolation, audit, and quota proof | `evidence_pending` | Viewer/editor/admin action behavior; cross-tenant rejection; audit events; quota behavior; aggregate-only verification                                                                                                                                                          | Sofia, Nina, Raj if cross-stream                                   | Evidence packet safety section                                           |
+| G10 | Adversarial review                                    | `not_started`      | Review against wrong date range/timezone, wrong tenant/client/account/page, stale shown as fresh, partial export without warning, missing history, unsupported Instagram assumptions, empty artifacts, delivery failure, cross-tenant leak, quota bypass, missing rollback path | Raj, Mira, Omar, Hannah, Nina as needed                            | Evidence packet adversarial checklist                                    |
+| G11 | 24-48 hour hardening window                           | `not_started`      | Timestamped observation window with sync/freshness/export/dry-run checks, failures, mitigations, unresolved blockers, and rollback path                                                                                                                                         | Raj, Mira, Omar                                                    | Evidence packet hardening section                                        |
+| G12 | Final cancellation recommendation                     | `not_started`      | Completed G0-G11 evidence; explicit keep/cancel DashThis recommendation; known gaps; rollback/monitoring plan                                                                                                                                                                   | Raj, Mira, business owner                                          | Evidence packet current decision                                         |
 
 ## Recommended Execution Order
 
@@ -402,11 +402,11 @@ Latest validator preflight packet:
 The next meaningful progress is external. The consolidated intake lives in
 `2026-06-16-g0-g1-review-target-intake.md` and `external-prerequisites-checklist.md`.
 
-| Priority | Owner | Required answer |
-| --- | --- | --- |
-| 1 | Operator + Hannah | Fill environment, URLs, safe tenant/client, runtime report ID, date range, source scopes, delivery assumptions, and DashThis active status. |
-| 2 | DashThis/source comparison owner + Andre | Provide redacted fixed-range comparison values and tolerances for required non-Instagram metrics. |
-| 3 | Runtime owner + Raj/Mira | Resolve the non-secret Airbyte Meta metrics template connection prerequisite or approve an alternate bootstrap path. |
+| Priority | Owner                                    | Required answer                                                                                                                             |
+| -------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1        | Operator + Hannah                        | Fill environment, URLs, safe tenant/client, runtime report ID, date range, source scopes, delivery assumptions, and DashThis active status. |
+| 2        | DashThis/source comparison owner + Andre | Provide redacted fixed-range comparison values and tolerances for required non-Instagram metrics.                                           |
+| 3        | Runtime owner + Raj/Mira                 | Resolve the non-secret Airbyte Meta metrics template connection prerequisite or approve an alternate bootstrap path.                        |
 
 After G1 is filled, use `2026-06-16-g2-g9-evidence-execution-checklist.md` as the single-run
 evidence controller. It now includes a run sheet, recommended output filenames, and a completion
@@ -446,20 +446,20 @@ Update conditionally:
 
 ## Evidence Packet Sections To Maintain
 
-| Evidence area | Primary doc section |
-| --- | --- |
-| G0 review control | Current Reporting Ops Review Packet |
-| G1 proof target | Evidence To Attach Before Cancellation Review |
-| G2/G3 coverage and retention | Snapshot And Diagnostics Evidence |
-| G4 rendering | Required SLB Sections |
-| G5 exports | Snapshot And Diagnostics Evidence |
-| G6 parity | Parity Worksheet |
-| G7 delivery | Scheduled Delivery Dry-Run Evidence |
-| G8 diagnostics | Snapshot And Diagnostics Evidence |
-| G9 permissions/safety | Adversarial Review Checklist plus gate results |
-| G10 adversarial review | Adversarial Review Checklist |
-| G11 hardening | Evidence To Attach Before Cancellation Review |
-| G12 decision | Current Decision |
+| Evidence area                | Primary doc section                            |
+| ---------------------------- | ---------------------------------------------- |
+| G0 review control            | Current Reporting Ops Review Packet            |
+| G1 proof target              | Evidence To Attach Before Cancellation Review  |
+| G2/G3 coverage and retention | Snapshot And Diagnostics Evidence              |
+| G4 rendering                 | Required SLB Sections                          |
+| G5 exports                   | Snapshot And Diagnostics Evidence              |
+| G6 parity                    | Parity Worksheet                               |
+| G7 delivery                  | Scheduled Delivery Dry-Run Evidence            |
+| G8 diagnostics               | Snapshot And Diagnostics Evidence              |
+| G9 permissions/safety        | Adversarial Review Checklist plus gate results |
+| G10 adversarial review       | Adversarial Review Checklist                   |
+| G11 hardening                | Evidence To Attach Before Cancellation Review  |
+| G12 decision                 | Current Decision                               |
 
 ## Active Blocker Register
 

@@ -52,17 +52,17 @@ flowchart LR
 
 ## Backend Components
 
-| Component | Proposed module | Owns | Reviewer |
-| --------- | --------------- | ---- | -------- |
-| Models/migrations | `backend/content_ops/models.py` | workspace, brief, asset, draft, approval, schedule, attempt, published post, metric snapshot | Sofia + Raj |
-| Serializers | `backend/content_ops/serializers.py` | additive DRF contracts and enum validation | Sofia |
-| Views/routes | `backend/content_ops/views.py`, `urls.py` | `/api/content-ops/*` | Sofia + Lina |
-| AI generation services | `backend/content_ops/generation.py` | caption jobs, schema validation, redaction, fakeable provider boundary, eval hooks | Sofia + Nina |
-| Asset service | `backend/content_ops/assets.py` | private storage, renditions, temporary public fetch URLs | Nina + Victor |
-| Publisher | `backend/content_ops/publisher.py` | Page preflight, fakeable Page attempt processing, safe error mapping | Maya + Leo |
-| Scheduler tasks | `backend/content_ops/tasks.py` | due scan, locks, dispatch, retries, metric refresh | Leo + Omar |
-| Permissions | `backend/content_ops/permissions.py` | strategist/internal/client/operator/viewer access | Sofia + Nina |
-| Audit/events | existing audit/logging helpers | approval and publish trace | Omar + Hannah |
+| Component              | Proposed module                           | Owns                                                                                         | Reviewer      |
+| ---------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------- | ------------- |
+| Models/migrations      | `backend/content_ops/models.py`           | workspace, brief, asset, draft, approval, schedule, attempt, published post, metric snapshot | Sofia + Raj   |
+| Serializers            | `backend/content_ops/serializers.py`      | additive DRF contracts and enum validation                                                   | Sofia         |
+| Views/routes           | `backend/content_ops/views.py`, `urls.py` | `/api/content-ops/*`                                                                         | Sofia + Lina  |
+| AI generation services | `backend/content_ops/generation.py`       | caption jobs, schema validation, redaction, fakeable provider boundary, eval hooks           | Sofia + Nina  |
+| Asset service          | `backend/content_ops/assets.py`           | private storage, renditions, temporary public fetch URLs                                     | Nina + Victor |
+| Publisher              | `backend/content_ops/publisher.py`        | Page preflight, fakeable Page attempt processing, safe error mapping                         | Maya + Leo    |
+| Scheduler tasks        | `backend/content_ops/tasks.py`            | due scan, locks, dispatch, retries, metric refresh                                           | Leo + Omar    |
+| Permissions            | `backend/content_ops/permissions.py`      | strategist/internal/client/operator/viewer access                                            | Sofia + Nina  |
+| Audit/events           | existing audit/logging helpers            | approval and publish trace                                                                   | Omar + Hannah |
 
 The `backend/content_ops/` app boundary is now implemented and remains architecture-sensitive until
 Raj/Mira complete review. Future slices should stay within one top-level folder unless Raj
@@ -114,16 +114,16 @@ Completed recent planning/build-control slices:
 
 ## Frontend Components
 
-| Screen | Route idea | Purpose | Reviewer |
-| ------ | ---------- | ------- | -------- |
-| Calendar/queue | `/content` | first screen, production calendar, publish queue | Lina |
-| Brief builder | `/content/briefs/:id` | brand, audience, offer, generation constraints | Lina + Joel |
-| Draft editor | `/content/drafts/:id` | platform variants, captions, media, version history | Lina + Joel |
-| Asset library | `/content/assets` | generated/uploaded graphics and renditions | Joel |
-| Approval queue | `/content/approvals` | internal/client decisions | Lina |
-| Client review | `/content/review/:id` or tenant-auth route | restricted approval surface | Lina + Nina |
-| Readiness panel | embedded in content shell | separate Meta auth/Page/IG/publishing/reporting blockers | Lina + Maya |
-| Reports | `/content/reports` | aggregate organic performance and exports | Lina + Sofia |
+| Screen          | Route idea                                 | Purpose                                                  | Reviewer     |
+| --------------- | ------------------------------------------ | -------------------------------------------------------- | ------------ |
+| Calendar/queue  | `/content`                                 | first screen, production calendar, publish queue         | Lina         |
+| Brief builder   | `/content/briefs/:id`                      | brand, audience, offer, generation constraints           | Lina + Joel  |
+| Draft editor    | `/content/drafts/:id`                      | platform variants, captions, media, version history      | Lina + Joel  |
+| Asset library   | `/content/assets`                          | generated/uploaded graphics and renditions               | Joel         |
+| Approval queue  | `/content/approvals`                       | internal/client decisions                                | Lina         |
+| Client review   | `/content/review/:id` or tenant-auth route | restricted approval surface                              | Lina + Nina  |
+| Readiness panel | embedded in content shell                  | separate Meta auth/Page/IG/publishing/reporting blockers | Lina + Maya  |
+| Reports         | `/content/reports`                         | aggregate organic performance and exports                | Lina + Sofia |
 
 Frontend should ship against mocked contracts first, then swap to real API clients after backend
 contract tests pass.
@@ -133,10 +133,10 @@ contract tests pass.
 Add two queue classes only after load is known. MVP can reuse `summary` for AI/export jobs and
 `sync` for Meta publishing, but production should split them:
 
-| Queue | Work | Concurrency default | Notes |
-| ----- | ---- | ------------------- | ----- |
-| `content_ai` | caption and graphic generation | 1-2 | cost and rate-limit controlled |
-| `content_publish` | due scans, publish attempts, metric refresh | 2 | idempotent and lock-based |
+| Queue             | Work                                        | Concurrency default | Notes                          |
+| ----------------- | ------------------------------------------- | ------------------- | ------------------------------ |
+| `content_ai`      | caption and graphic generation              | 1-2                 | cost and rate-limit controlled |
+| `content_publish` | due scans, publish attempts, metric refresh | 2                   | idempotent and lock-based      |
 
 Beat entries:
 
@@ -194,13 +194,13 @@ sequenceDiagram
 
 Goal: close design ambiguity before code.
 
-| Task | Owner | Output | Done when |
-| ---- | ----- | ------ | --------- |
-| Confirm Meta permission family | Maya + Raj | permission decision note | catalog/profile update queued |
-| Confirm asset URL strategy | Nina + Victor | storage/CDN/proxy decision | staging-feasible URL path known |
-| Confirm backend app boundary | Sofia + Mira | architecture note | route/model location agreed |
-| Confirm frontend IA | Lina + Joel | route/component map | mock contract list agreed |
-| Confirm eval harness | Sofia + Omar | eval fixture plan | golden set paths agreed |
+| Task                           | Owner         | Output                     | Done when                       |
+| ------------------------------ | ------------- | -------------------------- | ------------------------------- |
+| Confirm Meta permission family | Maya + Raj    | permission decision note   | catalog/profile update queued   |
+| Confirm asset URL strategy     | Nina + Victor | storage/CDN/proxy decision | staging-feasible URL path known |
+| Confirm backend app boundary   | Sofia + Mira  | architecture note          | route/model location agreed     |
+| Confirm frontend IA            | Lina + Joel   | route/component map        | mock contract list agreed       |
+| Confirm eval harness           | Sofia + Omar  | eval fixture plan          | golden set paths agreed         |
 
 Tests: docs-only, guardrail checks.
 
@@ -208,12 +208,12 @@ Tests: docs-only, guardrail checks.
 
 Goal: make the contract real without publishing.
 
-| Task | Owner | Scope | Tests |
-| ---- | ----- | ----- | ----- |
-| Add content ops app/models | Sofia | `backend/` | `make backend-lint && make backend-test` |
-| Add serializers/viewsets/OpenAPI | Sofia | `backend/` | OpenAPI path tests |
-| Add permissions/audit events | Nina + Sofia | `backend/` | permission + tenant isolation tests |
-| Add readiness composition endpoint | Maya + Sofia | `backend/` | readiness separation tests |
+| Task                               | Owner        | Scope      | Tests                                    |
+| ---------------------------------- | ------------ | ---------- | ---------------------------------------- |
+| Add content ops app/models         | Sofia        | `backend/` | `make backend-lint && make backend-test` |
+| Add serializers/viewsets/OpenAPI   | Sofia        | `backend/` | OpenAPI path tests                       |
+| Add permissions/audit events       | Nina + Sofia | `backend/` | permission + tenant isolation tests      |
+| Add readiness composition endpoint | Maya + Sofia | `backend/` | readiness separation tests               |
 
 Reviewers: Raj, Sofia, Nina, Maya.
 
@@ -221,12 +221,12 @@ Reviewers: Raj, Sofia, Nina, Maya.
 
 Goal: make the agency workflow usable before integrations.
 
-| Task | Owner | Scope | Tests |
-| ---- | ----- | ----- | ----- |
-| Content shell/calendar | Lina | `frontend/src/` | frontend guardrails/lint/test/build |
-| Brief and draft editor | Lina + Joel | `frontend/src/` | component/integration tests |
-| Approval queue/client review | Lina + Nina | `frontend/src/` | role-state tests |
-| Readiness panel | Lina + Maya | `frontend/src/` | mocked matrix tests |
+| Task                         | Owner       | Scope           | Tests                               |
+| ---------------------------- | ----------- | --------------- | ----------------------------------- |
+| Content shell/calendar       | Lina        | `frontend/src/` | frontend guardrails/lint/test/build |
+| Brief and draft editor       | Lina + Joel | `frontend/src/` | component/integration tests         |
+| Approval queue/client review | Lina + Nina | `frontend/src/` | role-state tests                    |
+| Readiness panel              | Lina + Maya | `frontend/src/` | mocked matrix tests                 |
 
 Reviewers: Lina, Joel, Raj for contract alignment.
 
@@ -234,13 +234,13 @@ Reviewers: Lina, Joel, Raj for contract alignment.
 
 Goal: generate client-ready drafts and graphics with evals.
 
-| Task | Owner | Scope | Tests |
-| ---- | ----- | ----- | ----- |
-| Caption structured output adapter | Sofia | `backend/` | schema and redaction tests |
-| Graphic generation job | Sofia + Joel | `backend/` | asset persistence/dimension tests |
-| Prompt redaction | Nina | `backend/` | no-secret tests |
-| Eval fixture set | Omar + Sofia | `backend/`/docs evidence | local eval tests |
-| Generation UI | Lina | `frontend/src/` | job state tests |
+| Task                              | Owner        | Scope                    | Tests                             |
+| --------------------------------- | ------------ | ------------------------ | --------------------------------- |
+| Caption structured output adapter | Sofia        | `backend/`               | schema and redaction tests        |
+| Graphic generation job            | Sofia + Joel | `backend/`               | asset persistence/dimension tests |
+| Prompt redaction                  | Nina         | `backend/`               | no-secret tests                   |
+| Eval fixture set                  | Omar + Sofia | `backend/`/docs evidence | local eval tests                  |
+| Generation UI                     | Lina         | `frontend/src/`          | job state tests                   |
 
 Reviewers: Sofia, Nina, Lina, Omar.
 
@@ -248,12 +248,12 @@ Reviewers: Sofia, Nina, Lina, Omar.
 
 Goal: make the module valuable without live publishing.
 
-| Task | Owner | Scope | Tests |
-| ---- | ----- | ----- | ----- |
-| Immutable approval snapshots | Sofia | `backend/` | version drift tests |
-| Client approval UX | Lina | `frontend/src/` | role and accessibility tests |
-| Calendar/export artifacts | Sofia + Lina | backend/frontend split | export snapshot tests |
-| Notification hooks | Hannah + Omar | backend/docs split | alert/runbook checks |
+| Task                         | Owner         | Scope                  | Tests                        |
+| ---------------------------- | ------------- | ---------------------- | ---------------------------- |
+| Immutable approval snapshots | Sofia         | `backend/`             | version drift tests          |
+| Client approval UX           | Lina          | `frontend/src/`        | role and accessibility tests |
+| Calendar/export artifacts    | Sofia + Lina  | backend/frontend split | export snapshot tests        |
+| Notification hooks           | Hannah + Omar | backend/docs split     | alert/runbook checks         |
 
 Reviewers: Sofia, Lina, Hannah.
 
@@ -261,13 +261,13 @@ Reviewers: Sofia, Lina, Hannah.
 
 Goal: publish approved Page posts from ADinsights-owned schedule.
 
-| Task | Owner | Scope | Tests |
-| ---- | ----- | ----- | ----- |
-| Page publishing preflight | Maya | `backend/` | permission/readiness tests |
-| Page publisher service | Maya + Leo | `backend/` | safe error/idempotency tests |
-| Publish scheduler | Leo | `backend/` | duplicate-dispatch tests |
-| Publish queue UI | Lina | `frontend/src/` | state/retry tests |
-| App Review evidence | Hannah + Maya | `docs/` | evidence checklist |
+| Task                      | Owner         | Scope           | Tests                        |
+| ------------------------- | ------------- | --------------- | ---------------------------- |
+| Page publishing preflight | Maya          | `backend/`      | permission/readiness tests   |
+| Page publisher service    | Maya + Leo    | `backend/`      | safe error/idempotency tests |
+| Publish scheduler         | Leo           | `backend/`      | duplicate-dispatch tests     |
+| Publish queue UI          | Lina          | `frontend/src/` | state/retry tests            |
+| App Review evidence       | Hannah + Maya | `docs/`         | evidence checklist           |
 
 Reviewers: Raj, Maya, Leo, Sofia, Lina.
 
@@ -275,12 +275,12 @@ Reviewers: Raj, Maya, Leo, Sofia, Lina.
 
 Goal: connect published posts to aggregate reporting.
 
-| Task | Owner | Scope | Tests |
-| ---- | ----- | ----- | ----- |
-| Published post metric snapshots | Sofia | `backend/analytics` or `backend/content_ops` | aggregate-only tests |
-| Content report endpoints | Sofia | `backend/` | tenant scoping tests |
-| Content report UI | Lina | `frontend/src/` | frontend tests |
-| Optional dbt design note | Priya | `docs/` then `dbt/` later | dbt only when implemented |
+| Task                            | Owner | Scope                                        | Tests                     |
+| ------------------------------- | ----- | -------------------------------------------- | ------------------------- |
+| Published post metric snapshots | Sofia | `backend/analytics` or `backend/content_ops` | aggregate-only tests      |
+| Content report endpoints        | Sofia | `backend/`                                   | tenant scoping tests      |
+| Content report UI               | Lina  | `frontend/src/`                              | frontend tests            |
+| Optional dbt design note        | Priya | `docs/` then `dbt/` later                    | dbt only when implemented |
 
 Reviewers: Sofia, Priya, Lina, Raj.
 
@@ -288,13 +288,13 @@ Reviewers: Sofia, Priya, Lina, Raj.
 
 Goal: publish approved Instagram feed posts safely.
 
-| Task | Owner | Scope | Tests |
-| ---- | ----- | ----- | ----- |
-| IG publishing readiness | Maya | `backend/` | linkage/permission tests |
-| Media URL validation | Nina + Maya | `backend/` | content-type/size tests |
-| Container create/poll/publish | Leo + Maya | `backend/` | expiry/retry tests |
-| IG queue states UI | Lina | `frontend/src/` | mocked state tests |
-| IG App Review evidence | Hannah | `docs/` | validation checklist |
+| Task                          | Owner       | Scope           | Tests                    |
+| ----------------------------- | ----------- | --------------- | ------------------------ |
+| IG publishing readiness       | Maya        | `backend/`      | linkage/permission tests |
+| Media URL validation          | Nina + Maya | `backend/`      | content-type/size tests  |
+| Container create/poll/publish | Leo + Maya  | `backend/`      | expiry/retry tests       |
+| IG queue states UI            | Lina        | `frontend/src/` | mocked state tests       |
+| IG App Review evidence        | Hannah      | `docs/`         | validation checklist     |
 
 Reviewers: Raj, Maya, Leo, Nina, Lina.
 
@@ -302,12 +302,12 @@ Reviewers: Raj, Maya, Leo, Nina, Lina.
 
 Goal: make rollout safe tenant by tenant.
 
-| Task | Owner | Scope | Tests |
-| ---- | ----- | ----- | ----- |
-| Quotas and cost controls | Nina + Sofia | `backend/` | quota tests |
-| Ops dashboards/alerts | Omar + Hannah | docs/backend split | observability smoke |
-| Runbooks and rollback | Hannah + Mei | `docs/runbooks/` | docs review |
-| Release preflight | Raj + Mei | all touched slices | `make adinsights-preflight` |
+| Task                     | Owner         | Scope              | Tests                       |
+| ------------------------ | ------------- | ------------------ | --------------------------- |
+| Quotas and cost controls | Nina + Sofia  | `backend/`         | quota tests                 |
+| Ops dashboards/alerts    | Omar + Hannah | docs/backend split | observability smoke         |
+| Runbooks and rollback    | Hannah + Mei  | `docs/runbooks/`   | docs review                 |
+| Release preflight        | Raj + Mei     | all touched slices | `make adinsights-preflight` |
 
 Reviewers: Raj, Mira, stream owners.
 
@@ -437,16 +437,16 @@ with clear organic paid labels.
 
 ## Reviewer Scorecards
 
-| Reviewer | Must confirm before approval |
-| -------- | ---------------------------- |
-| Raj/Mira | Slice stays single-folder or has explicit cross-stream coordination; architecture docs match implementation; no broad refactor is hidden in feature work. |
-| Sofia | DRF contracts, serializer omission/null semantics, tenant filters, OpenAPI coverage, and machine-readable safe errors are current. |
-| Maya/Leo | Meta auth/Page/IG/reporting states remain separate; Celery state transitions, retries, idempotency, and disabled provider boundaries are deterministic. |
-| Nina/Victor | Tokens, prompts, signed URLs, provider payloads, and failure details cannot leak; asset URL strategy has deployment proof before IG media work. |
-| Lina/Joel | Frontend work starts from calendar/queue/editor workflows with mocked contracts; readiness blockers remain separate and controls have stable responsive states. |
-| Omar/Hannah | Evals, structured logs, failure codes, runbooks, and evidence artifacts are actionable without exposing secrets. |
-| Priya/Martin | Organic reporting stays aggregate-only and labeled separately from paid reporting; dbt marts wait for stable API snapshots and beta evidence. |
-| Mei | Rollback, release checklist, and preflight evidence are explicit before production activation. |
+| Reviewer     | Must confirm before approval                                                                                                                                    |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Raj/Mira     | Slice stays single-folder or has explicit cross-stream coordination; architecture docs match implementation; no broad refactor is hidden in feature work.       |
+| Sofia        | DRF contracts, serializer omission/null semantics, tenant filters, OpenAPI coverage, and machine-readable safe errors are current.                              |
+| Maya/Leo     | Meta auth/Page/IG/reporting states remain separate; Celery state transitions, retries, idempotency, and disabled provider boundaries are deterministic.         |
+| Nina/Victor  | Tokens, prompts, signed URLs, provider payloads, and failure details cannot leak; asset URL strategy has deployment proof before IG media work.                 |
+| Lina/Joel    | Frontend work starts from calendar/queue/editor workflows with mocked contracts; readiness blockers remain separate and controls have stable responsive states. |
+| Omar/Hannah  | Evals, structured logs, failure codes, runbooks, and evidence artifacts are actionable without exposing secrets.                                                |
+| Priya/Martin | Organic reporting stays aggregate-only and labeled separately from paid reporting; dbt marts wait for stable API snapshots and beta evidence.                   |
+| Mei          | Rollback, release checklist, and preflight evidence are explicit before production activation.                                                                  |
 
 ## Documentation To Maintain During Implementation
 

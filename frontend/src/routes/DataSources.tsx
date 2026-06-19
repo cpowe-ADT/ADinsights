@@ -865,10 +865,7 @@ const DataSources = () => {
     setConnectProvider('META');
     setConnectForm(buildInitialConnectForm('META'));
     setMetaConnectStep('page-selection');
-    addToast(
-      'Finish Meta setup by saving the selected business Page and ad account.',
-      'info',
-    );
+    addToast('Finish Meta setup by saving the selected business Page and ad account.', 'info');
   }, [addToast, connectProvider, metaOAuthSelection.selectionToken]);
 
   const resetGoogleAdsState = useCallback(() => {
@@ -1727,13 +1724,7 @@ const DataSources = () => {
       }
       openConnectPanel('META');
     },
-    [
-      handleStartMetaOAuth,
-      handleStartMetaRecovery,
-      loadData,
-      addToast,
-      openConnectPanel,
-    ],
+    [handleStartMetaOAuth, handleStartMetaRecovery, loadData, addToast, openConnectPanel],
   );
 
   const handleConnectSubmit = useCallback(
@@ -2186,7 +2177,7 @@ const DataSources = () => {
                           : socialActionPendingPlatform === platformStatus.platform &&
                               platformStatus.actions.includes('sync_now')
                             ? 'Checking…'
-                          : primaryActionLabel}
+                            : primaryActionLabel}
                     </button>
                   </div>
                 </article>

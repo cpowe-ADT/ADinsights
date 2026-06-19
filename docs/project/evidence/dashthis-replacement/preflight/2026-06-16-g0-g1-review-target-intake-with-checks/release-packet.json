@@ -5,30 +5,22 @@
     "scope_control": {
       "status": "BLOCK",
       "rationale": "Scope status 'ESCALATE_ARCH_RISK' is blocking for release.",
-      "evidence": [
-        "ESCALATE_ARCH_RISK"
-      ]
+      "evidence": ["ESCALATE_ARCH_RISK"]
     },
     "contract_integrity": {
       "status": "WARN",
       "rationale": "Contract status 'WARN_POSSIBLE_CONTRACT_CHANGE' requires follow-up.",
-      "evidence": [
-        "WARN_POSSIBLE_CONTRACT_CHANGE"
-      ]
+      "evidence": ["WARN_POSSIBLE_CONTRACT_CHANGE"]
     },
     "test_coverage": {
       "status": "BLOCK",
       "rationale": "Optional check 'production_readiness' failed (exit=1).",
-      "evidence": [
-        "python3 infrastructure/airbyte/scripts/verify_production_readiness.py"
-      ]
+      "evidence": ["python3 infrastructure/airbyte/scripts/verify_production_readiness.py"]
     },
     "security_pii_secrets": {
       "status": "WARN",
       "rationale": "Prompt/paths include security-sensitive signals; verify secrets/PII handling.",
-      "evidence": [
-        "backend/.env.sample"
-      ]
+      "evidence": ["backend/.env.sample"]
     },
     "runbook_ops_readiness": {
       "status": "PASS",
@@ -38,17 +30,12 @@
     "documentation_completeness": {
       "status": "PASS",
       "rationale": "All required documentation updates are present in current change evidence.",
-      "evidence": [
-        "docs/ops/doc-index.md",
-        "docs/ops/agent-activity-log.md"
-      ]
+      "evidence": ["docs/ops/doc-index.md", "docs/ops/agent-activity-log.md"]
     },
     "rollout_rollback_plan": {
       "status": "PASS",
       "rationale": "Deployment runbook exists for rollout/rollback planning.",
-      "evidence": [
-        "docs/runbooks/deployment.md"
-      ]
+      "evidence": ["docs/runbooks/deployment.md"]
     },
     "observability": {
       "status": "PASS",
@@ -64,17 +51,8 @@
     "Contract integrity requires follow-up before release.",
     "Security/PII gate requires verification due to sensitive signals."
   ],
-  "pending_items": [
-    "Run and verify required tests before release."
-  ],
-  "required_approvers": [
-    "Raj",
-    "Mira",
-    "Sofia",
-    "Hannah",
-    "Lina",
-    "Nina"
-  ],
+  "pending_items": ["Run and verify required tests before release."],
+  "required_approvers": ["Raj", "Mira", "Sofia", "Hannah", "Lina", "Nina"],
   "required_artifacts": [
     "docs/runbooks/release-checklist.md",
     "docs/runbooks/deployment.md",

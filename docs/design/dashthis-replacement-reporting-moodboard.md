@@ -23,33 +23,33 @@ The visual direction is:
 
 These references should guide structure and interaction patterns, not be copied directly.
 
-| Reference | Use it for | What to adapt |
-| --------- | ---------- | ------------- |
-| Whatagraph social media report template: `https://whatagraph.com/templates/social-media-report` | Monthly report/deck flow | Cover, overview, channel breakdown, top content, recommendations. |
-| DashThis social media report template: `https://dashthis.com/social-media-report-template/` | Replacement parity | KPI widgets, client-friendly dashboard layout, report simplicity. |
-| DashThis client report guide: `https://dashthis.com/blog/client-social-media-report/` | Client storytelling | Performance summary plus next-campaign recommendations. |
-| Supermetrics organic social Looker template: `https://supermetrics.com/template-gallery/looker-studio-organic-social-report-template` | Organic dashboard structure | Multi-platform engagement, growth, and performance sections. |
-| Porter Metrics social templates: `https://portermetrics.com/en/templates/social-media/` | Looker-style density | Instagram Insights, Facebook + Instagram, content performance, client presentation layouts. |
-| Coupler social media examples: `https://www.coupler.io/dashboard-examples/social-media-dashboard` | Analytical widgets | Geography, content-type breakdowns, reach, engagement, platform comparisons. |
-| Sprout Social reporting guide: `https://sproutsocial.com/insights/social-media-reporting/` | Strategic commentary | Explain what happened and what to do next. |
-| HubSpot social media report template: `https://www.hubspot.com/resources/templates/social-media-report` | Simple stakeholder decks | Report sections that non-technical stakeholders can follow. |
+| Reference                                                                                                                             | Use it for                  | What to adapt                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------- |
+| Whatagraph social media report template: `https://whatagraph.com/templates/social-media-report`                                       | Monthly report/deck flow    | Cover, overview, channel breakdown, top content, recommendations.                           |
+| DashThis social media report template: `https://dashthis.com/social-media-report-template/`                                           | Replacement parity          | KPI widgets, client-friendly dashboard layout, report simplicity.                           |
+| DashThis client report guide: `https://dashthis.com/blog/client-social-media-report/`                                                 | Client storytelling         | Performance summary plus next-campaign recommendations.                                     |
+| Supermetrics organic social Looker template: `https://supermetrics.com/template-gallery/looker-studio-organic-social-report-template` | Organic dashboard structure | Multi-platform engagement, growth, and performance sections.                                |
+| Porter Metrics social templates: `https://portermetrics.com/en/templates/social-media/`                                               | Looker-style density        | Instagram Insights, Facebook + Instagram, content performance, client presentation layouts. |
+| Coupler social media examples: `https://www.coupler.io/dashboard-examples/social-media-dashboard`                                     | Analytical widgets          | Geography, content-type breakdowns, reach, engagement, platform comparisons.                |
+| Sprout Social reporting guide: `https://sproutsocial.com/insights/social-media-reporting/`                                            | Strategic commentary        | Explain what happened and what to do next.                                                  |
+| HubSpot social media report template: `https://www.hubspot.com/resources/templates/social-media-report`                               | Simple stakeholder decks    | Report sections that non-technical stakeholders can follow.                                 |
 
 ## Visual Direction
 
 Use a restrained analytics base with sharp accents:
 
-| Role | Color | Usage |
-| ---- | ----- | ----- |
-| Canvas | `#f8fafc` | App background and report margin. |
-| Paper | `#ffffff` | Report pages and cards. |
-| Ink | `#0f172a` | Headings and high-priority text. |
-| Muted text | `#64748b` | Captions, helper text, table metadata. |
-| Primary blue | `#2563eb` | Active filters, primary series, Meta/paid emphasis. |
-| Teal | `#0f766e` | Organic social, secondary series, positive engagement. |
-| Amber | `#d97706` | Caution, underperformance, attention callouts. |
-| Coral | `#e11d48` | Negative deltas and urgent exceptions. |
-| Green | `#16a34a` | Growth and positive variance. |
-| Violet | `#7c3aed` | Creative/content-performance accent only. |
+| Role         | Color     | Usage                                                  |
+| ------------ | --------- | ------------------------------------------------------ |
+| Canvas       | `#f8fafc` | App background and report margin.                      |
+| Paper        | `#ffffff` | Report pages and cards.                                |
+| Ink          | `#0f172a` | Headings and high-priority text.                       |
+| Muted text   | `#64748b` | Captions, helper text, table metadata.                 |
+| Primary blue | `#2563eb` | Active filters, primary series, Meta/paid emphasis.    |
+| Teal         | `#0f766e` | Organic social, secondary series, positive engagement. |
+| Amber        | `#d97706` | Caution, underperformance, attention callouts.         |
+| Coral        | `#e11d48` | Negative deltas and urgent exceptions.                 |
+| Green        | `#16a34a` | Growth and positive variance.                          |
+| Violet       | `#7c3aed` | Creative/content-performance accent only.              |
 
 Rules:
 
@@ -97,18 +97,18 @@ raw dashboard screenshot.
 
 Recommended SLB report sequence:
 
-| Page | Purpose | Main content |
-| ---- | ------- | ------------ |
-| 1 | Cover | Client, month, campaign theme, prepared-by line. |
-| 2 | Executive summary | 3-5 highlights, key wins, key declines, next focus. |
-| 3 | Performance scorecard | Views, reach, clicks, interactions, follows, spend if available. |
-| 4 | Instagram performance | Metrics, MoM deltas, top insight, content count. |
-| 5 | Facebook performance | Metrics, MoM deltas, top insight, content count. |
-| 6 | Paid digital ads | Reach, impressions, clicks/conversions, best campaigns/ads. |
-| 7 | Top performers | Best static, carousel, reel, and ad creative with metrics. |
-| 8 | Work completed | Campaign/content development, creative support, production support. |
-| 9 | Recommendations | Next month priorities, experiments, content themes, CTA focus. |
-| 10 | Appendix | Source notes, definitions, data freshness, caveats. |
+| Page | Purpose               | Main content                                                        |
+| ---- | --------------------- | ------------------------------------------------------------------- |
+| 1    | Cover                 | Client, month, campaign theme, prepared-by line.                    |
+| 2    | Executive summary     | 3-5 highlights, key wins, key declines, next focus.                 |
+| 3    | Performance scorecard | Views, reach, clicks, interactions, follows, spend if available.    |
+| 4    | Instagram performance | Metrics, MoM deltas, top insight, content count.                    |
+| 5    | Facebook performance  | Metrics, MoM deltas, top insight, content count.                    |
+| 6    | Paid digital ads      | Reach, impressions, clicks/conversions, best campaigns/ads.         |
+| 7    | Top performers        | Best static, carousel, reel, and ad creative with metrics.          |
+| 8    | Work completed        | Campaign/content development, creative support, production support. |
+| 9    | Recommendations       | Next month priorities, experiments, content themes, CTA focus.      |
+| 10   | Appendix              | Source notes, definitions, data freshness, caveats.                 |
 
 Page layout rules:
 
@@ -121,15 +121,15 @@ Page layout rules:
 
 ## Component Moodboard
 
-| Component | Visual treatment | Notes |
-| --------- | ---------------- | ----- |
-| KPI card | White surface, thin border, 8px radius, large value, compact delta chip, optional sparkline. | Use for both dashboard and report pages. |
-| Delta chip | Green, coral, or neutral chip with arrow icon and period label. | Always show compare period. |
-| Insight callout | Left accent border, concise headline, 1-2 sentence interpretation. | Use in reports, not every dashboard card. |
-| Top performer tile | Thumbnail/creative placeholder, format badge, title, metric row, why-it-worked note. | Needed for SLB parity. |
-| Source badge | Paid, Organic, Instagram, Facebook, Search, Analytics. | Prevent paid/organic confusion. |
-| Data quality banner | Amber for missing data, coral for failed sync, neutral for caveats. | Never hide missing scopes. |
-| Report footer | Client, period, timezone, generated timestamp, source labels. | Must appear on every PDF page. |
+| Component           | Visual treatment                                                                             | Notes                                     |
+| ------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| KPI card            | White surface, thin border, 8px radius, large value, compact delta chip, optional sparkline. | Use for both dashboard and report pages.  |
+| Delta chip          | Green, coral, or neutral chip with arrow icon and period label.                              | Always show compare period.               |
+| Insight callout     | Left accent border, concise headline, 1-2 sentence interpretation.                           | Use in reports, not every dashboard card. |
+| Top performer tile  | Thumbnail/creative placeholder, format badge, title, metric row, why-it-worked note.         | Needed for SLB parity.                    |
+| Source badge        | Paid, Organic, Instagram, Facebook, Search, Analytics.                                       | Prevent paid/organic confusion.           |
+| Data quality banner | Amber for missing data, coral for failed sync, neutral for caveats.                          | Never hide missing scopes.                |
+| Report footer       | Client, period, timezone, generated timestamp, source labels.                                | Must appear on every PDF page.            |
 
 ## Data Story Rules
 

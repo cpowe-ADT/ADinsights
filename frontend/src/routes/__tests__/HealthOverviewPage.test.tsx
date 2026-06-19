@@ -37,7 +37,7 @@ describe('HealthOverviewPage', () => {
 
     await waitFor(() => expect(phase2ApiMock.fetchHealthOverview).toHaveBeenCalled());
     expect(screen.getByRole('heading', { name: 'Health Overview' })).toBeInTheDocument();
-    expect(screen.getByText('API')).toBeInTheDocument();
+    expect(await screen.findByText('API')).toBeInTheDocument();
     expect(screen.getByText('AIRBYTE')).toBeInTheDocument();
     expect(screen.getByText('DBT')).toBeInTheDocument();
     expect(screen.getByText('TIMEZONE')).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe('HealthOverviewPage', () => {
     );
 
     await waitFor(() => expect(phase2ApiMock.fetchHealthOverview).toHaveBeenCalled());
-    expect(screen.getByText('No health cards')).toBeInTheDocument();
+    expect(await screen.findByText('No health cards')).toBeInTheDocument();
   });
 
   it('shows error state when fetch fails', async () => {
@@ -70,7 +70,7 @@ describe('HealthOverviewPage', () => {
     );
 
     await waitFor(() => expect(phase2ApiMock.fetchHealthOverview).toHaveBeenCalled());
-    expect(screen.getByText('Health overview unavailable')).toBeInTheDocument();
+    expect(await screen.findByText('Health overview unavailable')).toBeInTheDocument();
     expect(screen.getByText('Timeout')).toBeInTheDocument();
   });
 });

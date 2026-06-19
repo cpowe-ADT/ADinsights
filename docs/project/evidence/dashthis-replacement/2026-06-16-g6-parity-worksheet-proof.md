@@ -17,14 +17,14 @@ and review route required before DashThis cancellation can be considered.
 
 ## Required Preconditions
 
-| Precondition | Required source | Status |
-| --- | --- | --- |
-| G0 Raj/Mira review route | `2026-06-16-g0-raj-mira-review-packet.md` | Pending human review |
-| Fixed SLB target/date range | `2026-06-16-g1-fixed-slb-proof-target.md` | Pending operator/runtime values |
-| Stored coverage and retained history | `2026-06-16-g2-g3-coverage-retained-history-proof.md` | Pending runtime proof |
-| Report render/export evidence | `2026-06-16-g4-g5-render-export-reproducibility-proof.md` | Pending runtime proof |
-| DashThis/source values owner | Operator/business owner | Pending |
-| Instagram defer confirmation | G1 | Pending |
+| Precondition                         | Required source                                           | Status                          |
+| ------------------------------------ | --------------------------------------------------------- | ------------------------------- |
+| G0 Raj/Mira review route             | `2026-06-16-g0-raj-mira-review-packet.md`                 | Pending human review            |
+| Fixed SLB target/date range          | `2026-06-16-g1-fixed-slb-proof-target.md`                 | Pending operator/runtime values |
+| Stored coverage and retained history | `2026-06-16-g2-g3-coverage-retained-history-proof.md`     | Pending runtime proof           |
+| Report render/export evidence        | `2026-06-16-g4-g5-render-export-reproducibility-proof.md` | Pending runtime proof           |
+| DashThis/source values owner         | Operator/business owner                                   | Pending                         |
+| Instagram defer confirmation         | G1                                                        | Pending                         |
 
 G6 can start producing ADinsights-side rows before all preconditions are passed, but it cannot pass
 until the fixed report/date range and comparison values are recorded.
@@ -176,80 +176,80 @@ Rounding rule:
 These are starting defaults, not automatic approval. Andre/Raj can tighten or override them for the
 fixed SLB proof.
 
-| Metric family | Default tolerance | Notes |
-| --- | --- | --- |
-| Paid spend | `<= 1.0%` | Confirm currency, taxes, fees, refunds, and account filter. |
-| Paid impressions/reach/clicks | `<= 2.0%` | Confirm campaign/date/platform filters. |
-| Paid conversions | `<= 2.0%` or documented attribution-lag exception | Confirm conversion action and attribution window. |
-| Paid CTR/CPC/CPM | Derived from accepted raw paid totals | Do not approve if raw totals fail. |
-| Organic Page impressions/reach/engagement/actions | `<= 5.0%` pending Andre approval | Page Insights naming/date semantics may differ from DashThis. |
-| Organic follows/fans | `<= 5.0%` pending Andre approval | Confirm whether value is daily delta, unique follows, or end-of-period fan count. |
-| Top post rankings | Same top items and order, or documented tie/ranking reason | Compare IDs/titles safely; do not expose user-level engagement. |
-| Content Ops counts | Exact match unless manually reconciled | Published/scheduled/approved counts should be deterministic internal totals. |
+| Metric family                                     | Default tolerance                                          | Notes                                                                             |
+| ------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Paid spend                                        | `<= 1.0%`                                                  | Confirm currency, taxes, fees, refunds, and account filter.                       |
+| Paid impressions/reach/clicks                     | `<= 2.0%`                                                  | Confirm campaign/date/platform filters.                                           |
+| Paid conversions                                  | `<= 2.0%` or documented attribution-lag exception          | Confirm conversion action and attribution window.                                 |
+| Paid CTR/CPC/CPM                                  | Derived from accepted raw paid totals                      | Do not approve if raw totals fail.                                                |
+| Organic Page impressions/reach/engagement/actions | `<= 5.0%` pending Andre approval                           | Page Insights naming/date semantics may differ from DashThis.                     |
+| Organic follows/fans                              | `<= 5.0%` pending Andre approval                           | Confirm whether value is daily delta, unique follows, or end-of-period fan count. |
+| Top post rankings                                 | Same top items and order, or documented tie/ranking reason | Compare IDs/titles safely; do not expose user-level engagement.                   |
+| Content Ops counts                                | Exact match unless manually reconciled                     | Published/scheduled/approved counts should be deterministic internal totals.      |
 
 ## Worksheet Header
 
 Fill before any metric comparison:
 
-| Field | Value |
-| --- | --- |
-| Proof target | SLB / Students' Loan Bureau |
-| Report ID | TBD |
-| Template key | `slb_monthly_social_report` |
-| Date range | TBD |
-| Timezone | America/Jamaica unless source evidence proves otherwise |
-| Currency | TBD |
-| ADinsights preview hash | TBD |
-| ADinsights export snapshot hash | TBD |
-| DashThis/source evidence owner | TBD |
-| DashThis/source evidence path/reference | TBD |
-| Instagram treatment | Deferred in v1 |
-| Coverage proof reference | `2026-06-16-g2-g3-coverage-retained-history-proof.md` |
-| Export proof reference | `2026-06-16-g4-g5-render-export-reproducibility-proof.md` |
+| Field                                   | Value                                                     |
+| --------------------------------------- | --------------------------------------------------------- |
+| Proof target                            | SLB / Students' Loan Bureau                               |
+| Report ID                               | TBD                                                       |
+| Template key                            | `slb_monthly_social_report`                               |
+| Date range                              | TBD                                                       |
+| Timezone                                | America/Jamaica unless source evidence proves otherwise   |
+| Currency                                | TBD                                                       |
+| ADinsights preview hash                 | TBD                                                       |
+| ADinsights export snapshot hash         | TBD                                                       |
+| DashThis/source evidence owner          | TBD                                                       |
+| DashThis/source evidence path/reference | TBD                                                       |
+| Instagram treatment                     | Deferred in v1                                            |
+| Coverage proof reference                | `2026-06-16-g2-g3-coverage-retained-history-proof.md`     |
+| Export proof reference                  | `2026-06-16-g4-g5-render-export-reproducibility-proof.md` |
 
 ## Paid Meta Ads Worksheet
 
-| Metric | ADinsights value | DashThis/source value | Absolute delta | % delta | Tolerance | Result | Explanation |
-| --- | ---: | ---: | ---: | ---: | --- | --- | --- |
-| Spend | TBD | TBD | TBD | TBD | `<= 1.0%` | Pending | TBD |
-| Impressions | TBD | TBD | TBD | TBD | `<= 2.0%` | Pending | TBD |
-| Reach | TBD | TBD | TBD | TBD | `<= 2.0%` | Pending | TBD |
-| Clicks | TBD | TBD | TBD | TBD | `<= 2.0%` | Pending | TBD |
-| CTR | TBD | Derived from accepted raw totals | TBD | TBD | Derived | Pending | TBD |
-| CPC | TBD | Derived from accepted raw totals | TBD | TBD | Derived | Pending | TBD |
-| CPM | TBD | Derived from accepted raw totals | TBD | TBD | Derived | Pending | TBD |
-| Conversions | TBD | TBD | TBD | TBD | `<= 2.0%` or exception | Pending | TBD |
+| Metric      | ADinsights value |            DashThis/source value | Absolute delta | % delta | Tolerance              | Result  | Explanation |
+| ----------- | ---------------: | -------------------------------: | -------------: | ------: | ---------------------- | ------- | ----------- |
+| Spend       |              TBD |                              TBD |            TBD |     TBD | `<= 1.0%`              | Pending | TBD         |
+| Impressions |              TBD |                              TBD |            TBD |     TBD | `<= 2.0%`              | Pending | TBD         |
+| Reach       |              TBD |                              TBD |            TBD |     TBD | `<= 2.0%`              | Pending | TBD         |
+| Clicks      |              TBD |                              TBD |            TBD |     TBD | `<= 2.0%`              | Pending | TBD         |
+| CTR         |              TBD | Derived from accepted raw totals |            TBD |     TBD | Derived                | Pending | TBD         |
+| CPC         |              TBD | Derived from accepted raw totals |            TBD |     TBD | Derived                | Pending | TBD         |
+| CPM         |              TBD | Derived from accepted raw totals |            TBD |     TBD | Derived                | Pending | TBD         |
+| Conversions |              TBD |                              TBD |            TBD |     TBD | `<= 2.0%` or exception | Pending | TBD         |
 
 ## Organic Facebook/Page Worksheet
 
-| Metric | ADinsights value | DashThis/source value | Absolute delta | % delta | Tolerance | Result | Explanation |
-| --- | ---: | ---: | ---: | ---: | --- | --- | --- |
-| Page reach | TBD | TBD | TBD | TBD | `<= 5.0%` pending approval | Pending | TBD |
-| Page impressions/views | TBD | TBD | TBD | TBD | `<= 5.0%` pending approval | Pending | TBD |
-| Page engagements/interactions | TBD | TBD | TBD | TBD | `<= 5.0%` pending approval | Pending | TBD |
-| Page actions/link clicks | TBD | TBD | TBD | TBD | `<= 5.0%` pending approval | Pending | TBD |
-| Follows/fans | TBD | TBD | TBD | TBD | `<= 5.0%` pending approval | Pending | TBD |
+| Metric                        | ADinsights value | DashThis/source value | Absolute delta | % delta | Tolerance                  | Result  | Explanation |
+| ----------------------------- | ---------------: | --------------------: | -------------: | ------: | -------------------------- | ------- | ----------- |
+| Page reach                    |              TBD |                   TBD |            TBD |     TBD | `<= 5.0%` pending approval | Pending | TBD         |
+| Page impressions/views        |              TBD |                   TBD |            TBD |     TBD | `<= 5.0%` pending approval | Pending | TBD         |
+| Page engagements/interactions |              TBD |                   TBD |            TBD |     TBD | `<= 5.0%` pending approval | Pending | TBD         |
+| Page actions/link clicks      |              TBD |                   TBD |            TBD |     TBD | `<= 5.0%` pending approval | Pending | TBD         |
+| Follows/fans                  |              TBD |                   TBD |            TBD |     TBD | `<= 5.0%` pending approval | Pending | TBD         |
 
 ## Top Posts Worksheet
 
 Use safe post labels. Do not paste user-level comments, profile data, or raw engagement payloads.
 
-| Rank | ADinsights post label | DashThis/source post label | Matched? | AD metric | Source metric | Delta | Result | Explanation |
-| ---: | --- | --- | --- | ---: | ---: | ---: | --- | --- |
-| 1 | TBD | TBD | TBD | TBD | TBD | TBD | Pending | TBD |
-| 2 | TBD | TBD | TBD | TBD | TBD | TBD | Pending | TBD |
-| 3 | TBD | TBD | TBD | TBD | TBD | TBD | Pending | TBD |
-| 4 | TBD | TBD | TBD | TBD | TBD | TBD | Pending | TBD |
-| 5 | TBD | TBD | TBD | TBD | TBD | TBD | Pending | TBD |
+| Rank | ADinsights post label | DashThis/source post label | Matched? | AD metric | Source metric | Delta | Result  | Explanation |
+| ---: | --------------------- | -------------------------- | -------- | --------: | ------------: | ----: | ------- | ----------- |
+|    1 | TBD                   | TBD                        | TBD      |       TBD |           TBD |   TBD | Pending | TBD         |
+|    2 | TBD                   | TBD                        | TBD      |       TBD |           TBD |   TBD | Pending | TBD         |
+|    3 | TBD                   | TBD                        | TBD      |       TBD |           TBD |   TBD | Pending | TBD         |
+|    4 | TBD                   | TBD                        | TBD      |       TBD |           TBD |   TBD | Pending | TBD         |
+|    5 | TBD                   | TBD                        | TBD      |       TBD |           TBD |   TBD | Pending | TBD         |
 
 ## Content Ops Worksheet
 
-| Metric | ADinsights value | DashThis/source value | Absolute delta | % delta | Tolerance | Result | Explanation |
-| --- | ---: | ---: | ---: | ---: | --- | --- | --- |
-| Published posts | TBD | TBD | TBD | TBD | Exact or documented exception | Pending | TBD |
-| Scheduled posts | TBD | TBD | TBD | TBD | Exact or documented exception | Pending | TBD |
-| Approved items | TBD | TBD | TBD | TBD | Exact or documented exception | Pending | TBD |
-| Content items created | TBD | TBD | TBD | TBD | Exact or documented exception | Pending | TBD |
+| Metric                | ADinsights value | DashThis/source value | Absolute delta | % delta | Tolerance                     | Result  | Explanation |
+| --------------------- | ---------------: | --------------------: | -------------: | ------: | ----------------------------- | ------- | ----------- |
+| Published posts       |              TBD |                   TBD |            TBD |     TBD | Exact or documented exception | Pending | TBD         |
+| Scheduled posts       |              TBD |                   TBD |            TBD |     TBD | Exact or documented exception | Pending | TBD         |
+| Approved items        |              TBD |                   TBD |            TBD |     TBD | Exact or documented exception | Pending | TBD         |
+| Content items created |              TBD |                   TBD |            TBD |     TBD | Exact or documented exception | Pending | TBD         |
 
 ## Result Values
 

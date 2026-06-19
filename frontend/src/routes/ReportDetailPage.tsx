@@ -135,7 +135,10 @@ function metaSetupPath(reportId?: string): string {
   return `/dashboards/data-sources?sources=social&returnTo=${encodeURIComponent(`/reports/${reportId}`)}`;
 }
 
-function storedRowCount(sourceHealth: ReportDiagnosticsResponse['source_health'], key: string): string {
+function storedRowCount(
+  sourceHealth: ReportDiagnosticsResponse['source_health'],
+  key: string,
+): string {
   const rows = objectValue(sourceHealth?.stored_rows);
   const row = objectValue(rows[key]);
   const count = row.row_count;
@@ -166,7 +169,9 @@ const ReportClientHero = ({
         <div className="report-client-hero__meta" aria-label="Report metadata">
           <span>{reportDateRangeLabel(report, preview)}</span>
           <span>{preview?.report.catalog_schema_version ?? 'Catalog pending'}</span>
-          <span>{preview ? `Generated ${formatRelativeTime(preview.generated_at)}` : 'Preview loading'}</span>
+          <span>
+            {preview ? `Generated ${formatRelativeTime(preview.generated_at)}` : 'Preview loading'}
+          </span>
         </div>
       </div>
       <div className="report-client-hero__aside">
@@ -219,7 +224,9 @@ const ReportReadinessHero = ({
       : 'The report shell renders, but source data coverage is incomplete. Reconnect Meta, then run the fixed-range backfill before using it as a client-ready report.';
   const blockerItems =
     preview?.blocking_reasons.length || diagnostics?.blocking_reasons.length
-      ? Array.from(new Set([...(preview?.blocking_reasons ?? []), ...(diagnostics?.blocking_reasons ?? [])]))
+      ? Array.from(
+          new Set([...(preview?.blocking_reasons ?? []), ...(diagnostics?.blocking_reasons ?? [])]),
+        )
       : [];
   const nextActions = sourceHealth?.recommended_next_actions ?? [];
   const rowItems = [
@@ -230,7 +237,9 @@ const ReportReadinessHero = ({
   ] as const;
 
   return (
-    <section className={`reporting-status-hero reporting-status-hero--${isExportReady ? 'ready' : 'blocked'}`}>
+    <section
+      className={`reporting-status-hero reporting-status-hero--${isExportReady ? 'ready' : 'blocked'}`}
+    >
       <div className="reporting-status-hero__main">
         <p className="dashboardEyebrow">Report data readiness</p>
         <div className="reporting-status-hero__headline">
@@ -257,7 +266,9 @@ const ReportReadinessHero = ({
 
       <div className="reporting-status-hero__side">
         <h3>Stored source rows</h3>
-        <p className="phase2-note">Source-health counts; preview blockers still decide export readiness.</p>
+        <p className="phase2-note">
+          Source-health counts; preview blockers still decide export readiness.
+        </p>
         <div className="reporting-status-hero__rows">
           {rowItems.map(([label, key]) => (
             <div className="reporting-source-row" key={key}>
@@ -317,8 +328,8 @@ const DataPathPanel = ({
     sourceHealth.meta_page_connection.has_active_connection;
   const pageTokenProblemCount =
     sourceHealth.meta_page_connection.unusable_page_auth_count ??
-    ((sourceHealth.meta_page_connection.page_auth_status_counts?.missing ?? 0) +
-      (sourceHealth.meta_page_connection.page_auth_status_counts?.unreadable ?? 0));
+    (sourceHealth.meta_page_connection.page_auth_status_counts?.missing ?? 0) +
+      (sourceHealth.meta_page_connection.page_auth_status_counts?.unreadable ?? 0);
   const steps = [
     {
       label: 'Meta OAuth',
@@ -460,8 +471,8 @@ const DiagnosticsPanel = ({
     metaPageConnection?.has_usable_page_auth ?? Boolean(metaPageConnection?.has_active_connection);
   const pageTokenProblemCount =
     metaPageConnection?.unusable_page_auth_count ??
-    ((metaPageConnection?.page_auth_status_counts?.missing ?? 0) +
-      (metaPageConnection?.page_auth_status_counts?.unreadable ?? 0));
+    (metaPageConnection?.page_auth_status_counts?.missing ?? 0) +
+      (metaPageConnection?.page_auth_status_counts?.unreadable ?? 0);
   return (
     <details className="phase2-card report-diagnostics">
       <summary className="reporting-widget__header">
@@ -469,7 +480,9 @@ const DiagnosticsPanel = ({
           <p className="dashboardEyebrow">Support diagnostics</p>
           <h3>Stored data and delivery readiness</h3>
         </div>
-        <span className={`phase2-pill phase2-pill--${diagnostics.export_ready ? 'fresh' : 'failed'}`}>
+        <span
+          className={`phase2-pill phase2-pill--${diagnostics.export_ready ? 'fresh' : 'failed'}`}
+        >
           {diagnostics.export_ready ? 'ready' : 'blocked'}
         </span>
       </summary>
@@ -505,8 +518,12 @@ const DiagnosticsPanel = ({
         <div className="reporting-coverage-list">
           <h4>Source health</h4>
           <div className="reporting-coverage-note">
-            <span className={`phase2-pill phase2-pill--${sourceHealthTone(Boolean(metaCredentials?.has_valid_credential))}`}>
-              {metaCredentials?.has_valid_credential ? 'meta credential valid' : 'meta reauth needed'}
+            <span
+              className={`phase2-pill phase2-pill--${sourceHealthTone(Boolean(metaCredentials?.has_valid_credential))}`}
+            >
+              {metaCredentials?.has_valid_credential
+                ? 'meta credential valid'
+                : 'meta reauth needed'}
             </span>
             <span>
               {metaCredentials?.credential_count ?? 0} Meta credential records
@@ -525,7 +542,9 @@ const DiagnosticsPanel = ({
             </span>
           </div>
           <div className="reporting-coverage-note">
-            <span className={`phase2-pill phase2-pill--${sourceHealthTone(Boolean(metaAirbyte?.active_count))}`}>
+            <span
+              className={`phase2-pill phase2-pill--${sourceHealthTone(Boolean(metaAirbyte?.active_count))}`}
+            >
               {metaAirbyte?.active_count ? 'airbyte configured' : 'airbyte inactive'}
             </span>
             <span>
@@ -593,9 +612,7 @@ const ReportPreviewPanel = ({
             <p className="dashboardEyebrow">Report preview</p>
             <h3>Coverage and export readiness</h3>
           </div>
-          <span className={`phase2-pill phase2-pill--${readiness.tone}`}>
-            {readiness.label}
-          </span>
+          <span className={`phase2-pill phase2-pill--${readiness.tone}`}>{readiness.label}</span>
         </div>
         {preview.blocking_reasons.length > 0 ? (
           <ul className="reporting-widget__warnings">
@@ -996,9 +1013,7 @@ const ReportDetailPage = () => {
                 type="button"
                 className="button secondary"
                 onClick={() => void requestExport(format)}
-                disabled={
-                  creatingFormat !== null || reportActionsBlocked
-                }
+                disabled={creatingFormat !== null || reportActionsBlocked}
               >
                 {creatingFormat === format
                   ? `Generating ${format.toUpperCase()}…`
@@ -1034,9 +1049,7 @@ const ReportDetailPage = () => {
                   onChange={(e) => setScheduleCron(e.target.value)}
                   placeholder="0 8 * * 1"
                 />
-                <span className="phase2-note">
-                  e.g. &quot;0 8 * * 1&quot; = 8 AM every Monday
-                </span>
+                <span className="phase2-note">e.g. &quot;0 8 * * 1&quot; = 8 AM every Monday</span>
               </label>
               <label className="phase2-form__field">
                 <span>Delivery emails (comma-separated)</span>

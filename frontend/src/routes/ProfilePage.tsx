@@ -109,11 +109,7 @@ const ProfilePage = () => {
         <p>
           Current theme: <strong>{theme}</strong>
         </p>
-        <button
-          type="button"
-          className="button secondary"
-          onClick={toggleTheme}
-        >
+        <button type="button" className="button secondary" onClick={toggleTheme}>
           Switch to {theme === 'dark' ? 'light' : 'dark'} mode
         </button>
       </article>

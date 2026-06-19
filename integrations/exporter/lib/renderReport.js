@@ -2,12 +2,7 @@ const fs = require('fs/promises');
 const path = require('path');
 
 const TEMPLATE_REPORT_PATH = path.join(__dirname, '..', 'templates', 'report.html');
-const TEMPLATE_META_PAGES_V1_PATH = path.join(
-  __dirname,
-  '..',
-  'templates',
-  'meta_pages_v1.html',
-);
+const TEMPLATE_META_PAGES_V1_PATH = path.join(__dirname, '..', 'templates', 'meta_pages_v1.html');
 
 function escapeHtml(value) {
   return String(value)
@@ -98,9 +93,7 @@ function renderMetaPostRow(row) {
   const snippet = escapeHtml(row.messageSnippet ?? '—');
   const metricValue = escapeHtml(row.metricValue ?? '—');
   const permalink = row.permalink ? String(row.permalink) : '';
-  const linkCell = permalink
-    ? `<a href="${escapeHtml(permalink)}">Open</a>`
-    : '—';
+  const linkCell = permalink ? `<a href="${escapeHtml(permalink)}">Open</a>` : '—';
 
   return [
     '        <tr>',

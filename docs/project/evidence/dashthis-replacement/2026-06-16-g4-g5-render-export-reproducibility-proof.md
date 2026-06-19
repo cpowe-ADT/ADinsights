@@ -25,16 +25,16 @@ runtime/report/date range and G2/G3 prove stored-data coverage and retained hist
 
 ## Inputs Required Before Collection
 
-| Input | Required source | Status |
-| --- | --- | --- |
-| Target environment and frontend/backend URLs | G1 fixed target | Pending |
-| Safe tenant/client identifier | G1 fixed target | Pending |
-| SLB `ReportDefinition.id` | G1 fixed target | Pending |
-| SLB `template_key` | Expected `slb_monthly_social_report` | Pending |
-| Fixed monthly date range | G1 fixed target | Pending |
-| Coverage/retention classification | G2/G3 proof packet | Pending |
-| Saved `dashboard.v1` dashboard ID | Runtime proof setup | Pending |
-| Operator auth/session | Runtime proof setup | Pending |
+| Input                                        | Required source                      | Status  |
+| -------------------------------------------- | ------------------------------------ | ------- |
+| Target environment and frontend/backend URLs | G1 fixed target                      | Pending |
+| Safe tenant/client identifier                | G1 fixed target                      | Pending |
+| SLB `ReportDefinition.id`                    | G1 fixed target                      | Pending |
+| SLB `template_key`                           | Expected `slb_monthly_social_report` | Pending |
+| Fixed monthly date range                     | G1 fixed target                      | Pending |
+| Coverage/retention classification            | G2/G3 proof packet                   | Pending |
+| Saved `dashboard.v1` dashboard ID            | Runtime proof setup                  | Pending |
+| Operator auth/session                        | Runtime proof setup                  | Pending |
 
 ## G4 Rendering Proof
 
@@ -53,16 +53,16 @@ Expected frontend path:
 
 Evidence to capture:
 
-| Evidence item | Required value |
-| --- | --- |
-| Dashboard ID | Safe ID or redacted ID |
-| `layout.schema_version` | `dashboard.v1` |
-| Widget IDs rendered | List of governed widget IDs |
-| Widget preview source | `POST /api/dashboards/widget-preview/` only |
-| Coverage notes | Visible beside affected widgets |
-| Tenant scope | Dashboard belongs to the authenticated tenant |
-| Screenshot paths | Desktop and mobile screenshots, or equivalent verified UI paths |
-| Failure states | Record any blocked/error widgets and reason |
+| Evidence item           | Required value                                                  |
+| ----------------------- | --------------------------------------------------------------- |
+| Dashboard ID            | Safe ID or redacted ID                                          |
+| `layout.schema_version` | `dashboard.v1`                                                  |
+| Widget IDs rendered     | List of governed widget IDs                                     |
+| Widget preview source   | `POST /api/dashboards/widget-preview/` only                     |
+| Coverage notes          | Visible beside affected widgets                                 |
+| Tenant scope            | Dashboard belongs to the authenticated tenant                   |
+| Screenshot paths        | Desktop and mobile screenshots, or equivalent verified UI paths |
+| Failure states          | Record any blocked/error widgets and reason                     |
 
 ### SLB `report.v1` Rendering
 
@@ -81,31 +81,31 @@ Expected frontend path:
 
 Required SLB pages:
 
-| Page | Required evidence |
-| --- | --- |
-| Cover and period | Page is visible and uses the fixed G1 date range. |
-| Executive summary | Paid and organic KPI widgets render or clearly block with coverage notes. |
-| Paid Meta Ads | Paid trend/table widgets render from stored aggregate data. |
-| Organic Facebook/Page | Page insights widgets render from stored Page/Post rows. |
-| Top posts | Top-post table renders or records a coverage/history blocker. |
-| Content activity | Content Ops summary renders from aggregate records/snapshots. |
-| Recommendations | Narrative section renders and does not hide coverage caveats. |
-| Appendix/data notes | Coverage summary and notes are visible. |
-| Instagram | Absent/deferred in v1 proof. |
+| Page                  | Required evidence                                                         |
+| --------------------- | ------------------------------------------------------------------------- |
+| Cover and period      | Page is visible and uses the fixed G1 date range.                         |
+| Executive summary     | Paid and organic KPI widgets render or clearly block with coverage notes. |
+| Paid Meta Ads         | Paid trend/table widgets render from stored aggregate data.               |
+| Organic Facebook/Page | Page insights widgets render from stored Page/Post rows.                  |
+| Top posts             | Top-post table renders or records a coverage/history blocker.             |
+| Content activity      | Content Ops summary renders from aggregate records/snapshots.             |
+| Recommendations       | Narrative section renders and does not hide coverage caveats.             |
+| Appendix/data notes   | Coverage summary and notes are visible.                                   |
+| Instagram             | Absent/deferred in v1 proof.                                              |
 
 Evidence to capture:
 
-| Evidence item | Required value |
-| --- | --- |
-| Report ID | Same report ID as G1/G2/G3 |
-| `template_key` | `slb_monthly_social_report` |
-| `schema_version` | `report.v1` |
-| `catalog_schema_version` | `reporting_catalog.v1` |
-| `preview_hash` | From `POST /api/reports/<id>/preview/` |
-| `export_ready` | `true` for export proof, or explicit blocker recorded |
-| `coverage_summary` | Same datasets/statuses as G2/G3 proof |
-| Screenshot paths | Desktop and mobile report screenshots, or equivalent verified UI paths |
-| Long label/table behavior | No overlap; tables scroll or wrap predictably |
+| Evidence item             | Required value                                                         |
+| ------------------------- | ---------------------------------------------------------------------- |
+| Report ID                 | Same report ID as G1/G2/G3                                             |
+| `template_key`            | `slb_monthly_social_report`                                            |
+| `schema_version`          | `report.v1`                                                            |
+| `catalog_schema_version`  | `reporting_catalog.v1`                                                 |
+| `preview_hash`            | From `POST /api/reports/<id>/preview/`                                 |
+| `export_ready`            | `true` for export proof, or explicit blocker recorded                  |
+| `coverage_summary`        | Same datasets/statuses as G2/G3 proof                                  |
+| Screenshot paths          | Desktop and mobile report screenshots, or equivalent verified UI paths |
+| Long label/table behavior | No overlap; tables scroll or wrap predictably                          |
 
 ## G5 CSV/PDF/PNG Export Reproducibility Proof
 
@@ -158,22 +158,22 @@ curl -fsS \
 
 For each `csv`, `pdf`, and `png` job:
 
-| Field | Required proof |
-| --- | --- |
-| `ReportExportJob.id` | Recorded in evidence packet |
-| `export_format` | `csv`, `pdf`, or `png` |
-| `status` | `completed` |
-| `artifact_path` | Starts with `/exports/` and belongs to the same tenant/report/job |
-| Download size | Non-zero byte count |
-| `metadata.report_preview.report_schema_version` | `report.v1` |
-| `metadata.report_preview.template_key` | `slb_monthly_social_report` |
-| `metadata.report_preview.catalog_schema_version` | `reporting_catalog.v1` |
-| `metadata.report_preview.generated_at` | Timestamp recorded |
-| `metadata.report_preview.date_range` | Matches G1 |
-| `metadata.report_preview.coverage_summary` | Matches G2/G3 summary |
-| `metadata.report_preview.preview_hash` | Matches report preview hash when no data changed |
-| `metadata.report_preview.report_snapshot.pages[*].id` | Contains ordered SLB pages |
-| `metadata.delivery_status.mode` | `manual_export` for manual exports |
+| Field                                                 | Required proof                                                    |
+| ----------------------------------------------------- | ----------------------------------------------------------------- |
+| `ReportExportJob.id`                                  | Recorded in evidence packet                                       |
+| `export_format`                                       | `csv`, `pdf`, or `png`                                            |
+| `status`                                              | `completed`                                                       |
+| `artifact_path`                                       | Starts with `/exports/` and belongs to the same tenant/report/job |
+| Download size                                         | Non-zero byte count                                               |
+| `metadata.report_preview.report_schema_version`       | `report.v1`                                                       |
+| `metadata.report_preview.template_key`                | `slb_monthly_social_report`                                       |
+| `metadata.report_preview.catalog_schema_version`      | `reporting_catalog.v1`                                            |
+| `metadata.report_preview.generated_at`                | Timestamp recorded                                                |
+| `metadata.report_preview.date_range`                  | Matches G1                                                        |
+| `metadata.report_preview.coverage_summary`            | Matches G2/G3 summary                                             |
+| `metadata.report_preview.preview_hash`                | Matches report preview hash when no data changed                  |
+| `metadata.report_preview.report_snapshot.pages[*].id` | Contains ordered SLB pages                                        |
+| `metadata.delivery_status.mode`                       | `manual_export` for manual exports                                |
 
 ### Artifact Safety Checks
 

@@ -56,7 +56,9 @@ const renderPreviewTable = (rows: Record<string, unknown>[], label: string) => {
 
   return (
     <article className="phase2-card">
-      <h3>{label} preview ({rows.length} total rows, showing first {preview.length})</h3>
+      <h3>
+        {label} preview ({rows.length} total rows, showing first {preview.length})
+      </h3>
       <div className="table-responsive">
         <table>
           <thead>
@@ -103,12 +105,9 @@ const CsvUploadDetail = () => {
       const dataset = locationState.dataset;
       setDetail({
         snapshotGeneratedAt: status?.snapshot_generated_at ?? dataset?.uploadedAt,
-        campaignRowCount:
-          status?.counts?.campaign_rows ?? dataset?.campaignMetrics?.length ?? 0,
-        parishRowCount:
-          status?.counts?.parish_rows ?? dataset?.parishMetrics?.length ?? 0,
-        budgetRowCount:
-          status?.counts?.budget_rows ?? dataset?.budgets?.length ?? 0,
+        campaignRowCount: status?.counts?.campaign_rows ?? dataset?.campaignMetrics?.length ?? 0,
+        parishRowCount: status?.counts?.parish_rows ?? dataset?.parishMetrics?.length ?? 0,
+        budgetRowCount: status?.counts?.budget_rows ?? dataset?.budgets?.length ?? 0,
         dataset,
       });
       setPageState('ready');
@@ -204,9 +203,7 @@ const CsvUploadDetail = () => {
   const parishColumns = detail.dataset?.parishMetrics?.[0]
     ? Object.keys(detail.dataset.parishMetrics[0])
     : [];
-  const budgetColumns = detail.dataset?.budgets?.[0]
-    ? Object.keys(detail.dataset.budgets[0])
-    : [];
+  const budgetColumns = detail.dataset?.budgets?.[0] ? Object.keys(detail.dataset.budgets[0]) : [];
 
   return (
     <section className="phase2-page">
@@ -216,9 +213,7 @@ const CsvUploadDetail = () => {
           <h1 className="dashboardHeading">
             Upload {uploadId === 'current' ? '(current)' : uploadId}
           </h1>
-          <p className="phase2-page__subhead">
-            Uploaded dataset details and data preview.
-          </p>
+          <p className="phase2-page__subhead">Uploaded dataset details and data preview.</p>
         </div>
         <div className="phase2-row-actions">
           <Link to="/dashboards/uploads" className="button tertiary">
@@ -233,16 +228,16 @@ const CsvUploadDetail = () => {
           Status: <StatusPill hasData={totalRows > 0} />
         </p>
         <p>
-          Dataset types: <strong>{datasetTypes.length > 0 ? datasetTypes.join(', ') : 'none'}</strong>
+          Dataset types:{' '}
+          <strong>{datasetTypes.length > 0 ? datasetTypes.join(', ') : 'none'}</strong>
         </p>
         <p>
           Upload date:{' '}
-          <strong>
-            {formatRelativeTime(detail.snapshotGeneratedAt) ?? 'Unknown'}
-          </strong>
+          <strong>{formatRelativeTime(detail.snapshotGeneratedAt) ?? 'Unknown'}</strong>
           {detail.snapshotGeneratedAt ? (
             <span className="status-message muted">
-              {' '}({formatAbsoluteTime(detail.snapshotGeneratedAt)})
+              {' '}
+              ({formatAbsoluteTime(detail.snapshotGeneratedAt)})
             </span>
           ) : null}
         </p>
@@ -294,8 +289,8 @@ const CsvUploadDetail = () => {
         <article className="phase2-card">
           <h3>Data preview</h3>
           <p className="status-message muted">
-            Data preview is only available when navigating from the upload page. Visit the
-            upload page to view row-level data.
+            Data preview is only available when navigating from the upload page. Visit the upload
+            page to view row-level data.
           </p>
         </article>
       ) : null}

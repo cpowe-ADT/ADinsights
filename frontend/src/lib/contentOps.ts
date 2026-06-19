@@ -342,15 +342,12 @@ export async function createContentOpsVersionWithAsset({
   assetId: string;
 }): Promise<ContentOpsDraftVersionPayload> {
   const nextMediaAssets = Array.from(new Set([...mediaAssetIds, assetId]));
-  return apiClient.post<ContentOpsDraftVersionPayload>(
-    `/content-ops/drafts/${draftId}/versions/`,
-    {
-      caption,
-      platform_overrides: { platform: channel },
-      media_assets: nextMediaAssets,
-      change_note: 'Attached media asset from Content Ops workspace.',
-    },
-  );
+  return apiClient.post<ContentOpsDraftVersionPayload>(`/content-ops/drafts/${draftId}/versions/`, {
+    caption,
+    platform_overrides: { platform: channel },
+    media_assets: nextMediaAssets,
+    change_note: 'Attached media asset from Content Ops workspace.',
+  });
 }
 
 export async function createContentOpsBrief({
@@ -695,10 +692,7 @@ function readinessActionLabel(value?: string | null): string {
   return 'Review';
 }
 
-function readinessDetails(
-  id: ContentOpsReadinessAxis['id'],
-  axis: BackendReadinessAxis,
-): string[] {
+function readinessDetails(id: ContentOpsReadinessAxis['id'], axis: BackendReadinessAxis): string[] {
   const details: string[] = [];
   if (id === 'meta_auth') {
     appendCountDetail(details, axis.usable_credential_count, 'usable credential');

@@ -25,16 +25,8 @@
     "delivery_recipient_count": 0
   },
   "datasets": {
-    "active": [
-      "content_ops",
-      "organic_facebook_page",
-      "paid_meta_ads"
-    ],
-    "required_active_v1_present": [
-      "content_ops",
-      "organic_facebook_page",
-      "paid_meta_ads"
-    ],
+    "active": ["content_ops", "organic_facebook_page", "paid_meta_ads"],
+    "required_active_v1_present": ["content_ops", "organic_facebook_page", "paid_meta_ads"],
     "missing_required_active_v1": [],
     "by_widget": []
   },

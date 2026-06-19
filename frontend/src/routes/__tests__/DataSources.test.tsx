@@ -80,7 +80,8 @@ vi.mock('../../lib/datasetStatus', () => ({
   messageForLiveDatasetReason: vi.fn((reason: string) => {
     const messages: Record<string, string> = {
       adapter_disabled: 'Live reporting is not enabled in this environment.',
-      missing_snapshot: 'Meta is connected, but the first live warehouse snapshot has not been generated yet.',
+      missing_snapshot:
+        'Meta is connected, but the first live warehouse snapshot has not been generated yet.',
       stale_snapshot: 'Live data is refreshing.',
       default_snapshot: 'Latest live snapshot is fallback data.',
       ready: 'Live reporting is ready.',
@@ -343,7 +344,8 @@ describe('DataSources connect flow', () => {
           status: 'not_connected',
           reason: {
             code: 'instagram_not_linked',
-            message: 'Instagram business linking is optional and is completed inside the Meta asset-selection flow.',
+            message:
+              'Instagram business linking is optional and is completed inside the Meta asset-selection flow.',
           },
           last_checked_at: '2026-02-17T20:00:00Z',
           last_synced_at: null,
@@ -599,10 +601,7 @@ describe('DataSources connect flow', () => {
       expect(airbyteMocks.syncMetaIntegration).toHaveBeenCalledTimes(1);
     });
     expect(airbyteMocks.triggerAirbyteSync).not.toHaveBeenCalled();
-    expect(addToast).toHaveBeenCalledWith(
-      'Meta data check queued (job direct-101).',
-      'success',
-    );
+    expect(addToast).toHaveBeenCalledWith('Meta data check queued (job direct-101).', 'success');
   });
 
   it('keeps failed Airbyte connection rows disabled for manual sync', async () => {
@@ -742,7 +741,10 @@ describe('DataSources connect flow', () => {
     await user.click(await findMetaConnectButton());
 
     await waitFor(() => {
-      expect(addToast).toHaveBeenCalledWith('META_APP_ID must be configured for Meta OAuth.', 'error');
+      expect(addToast).toHaveBeenCalledWith(
+        'META_APP_ID must be configured for Meta OAuth.',
+        'error',
+      );
       expect(screen.getByRole('heading', { name: /connect meta/i })).toBeInTheDocument();
     });
   });
@@ -819,7 +821,10 @@ describe('DataSources connect flow', () => {
     renderDataSources();
 
     await waitFor(() => {
-      expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith('oauth-code', 'oauth-state');
+      expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith(
+        'oauth-code',
+        'oauth-state',
+      );
     });
     expect(airbyteMocks.exchangeMetaOAuthCode).not.toHaveBeenCalled();
   });
@@ -834,10 +839,16 @@ describe('DataSources connect flow', () => {
     renderDataSources();
 
     await waitFor(() => {
-      expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith('oauth-code', 'oauth-state');
+      expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith(
+        'oauth-code',
+        'oauth-state',
+      );
     });
     await waitFor(() => {
-      expect(addToast).toHaveBeenCalledWith('Meta Page Insights connected. Loading page dashboard.', 'success');
+      expect(addToast).toHaveBeenCalledWith(
+        'Meta Page Insights connected. Loading page dashboard.',
+        'success',
+      );
     });
   });
 
@@ -849,7 +860,10 @@ describe('DataSources connect flow', () => {
     await user.click(screen.getByRole('button', { name: 'Save connection' }));
 
     expect(airbyteMocks.provisionMetaIntegration).not.toHaveBeenCalled();
-    expect(addToast).toHaveBeenCalledWith('Complete Meta OAuth and save a business page first.', 'error');
+    expect(addToast).toHaveBeenCalledWith(
+      'Complete Meta OAuth and save a business page first.',
+      'error',
+    );
   });
 
   it('restores pending Meta asset selection so setup can be finished after refresh', async () => {
@@ -871,12 +885,8 @@ describe('DataSources connect flow', () => {
 
     renderDataSources();
 
-    expect(
-      await screen.findByText(/Facebook OAuth returned your assets/i),
-    ).toBeInTheDocument();
-    await user.click(
-      screen.getByRole('button', { name: /finish setup and save meta assets/i }),
-    );
+    expect(await screen.findByText(/Facebook OAuth returned your assets/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /finish setup and save meta assets/i }));
 
     await waitFor(() => {
       expect(airbyteMocks.connectMetaPage).toHaveBeenCalledWith(
@@ -943,9 +953,9 @@ describe('DataSources connect flow', () => {
     await waitFor(() => {
       expect(airbyteMocks.connectMetaPage).toHaveBeenCalledWith(
         expect.objectContaining({
-        selection_token: 'recovery-token',
-        page_id: 'page-1',
-        ad_account_id: 'act_123',
+          selection_token: 'recovery-token',
+          page_id: 'page-1',
+          ad_account_id: 'act_123',
         }),
       );
     });
@@ -961,7 +971,9 @@ describe('DataSources connect flow', () => {
       'success',
     );
     expect(addToast).toHaveBeenCalledWith(
-      expect.stringContaining('Meta marketing access restored; Airbyte connection was not provisioned.'),
+      expect.stringContaining(
+        'Meta marketing access restored; Airbyte connection was not provisioned.',
+      ),
       'info',
     );
   });

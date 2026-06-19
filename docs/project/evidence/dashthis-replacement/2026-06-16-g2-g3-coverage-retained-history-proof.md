@@ -27,25 +27,25 @@ target environment, tenant/client, report ID, date range, account/Page scope, an
 
 ## Inputs Required From G1
 
-| Input | Required before collection | Notes |
-| --- | --- | --- |
-| Target environment | Yes | Prevents mixing local/staging/production proof. |
-| Safe tenant/client identifier | Yes | Use redacted or internal-safe labels. |
-| `ReportDefinition.id` | Yes | Required for preview, diagnostics, export, and parity commands. |
-| `template_key` | Yes | Expected: `slb_monthly_social_report`. |
-| Primary monthly date range | Yes | Recommended default: 2026-05-01 through 2026-05-31. |
-| 90-day retained-history range | Yes | Recommended default if May 2026 is confirmed: 2026-03-03 through 2026-05-31. |
-| Account/Page scope | Yes | Record safely; do not paste raw account/Page IDs if sensitive. |
-| Source comparison owner | Yes for G6 | G2/G3 can collect ADinsights coverage first, but parity cannot pass without comparison values. |
+| Input                         | Required before collection | Notes                                                                                          |
+| ----------------------------- | -------------------------- | ---------------------------------------------------------------------------------------------- |
+| Target environment            | Yes                        | Prevents mixing local/staging/production proof.                                                |
+| Safe tenant/client identifier | Yes                        | Use redacted or internal-safe labels.                                                          |
+| `ReportDefinition.id`         | Yes                        | Required for preview, diagnostics, export, and parity commands.                                |
+| `template_key`                | Yes                        | Expected: `slb_monthly_social_report`.                                                         |
+| Primary monthly date range    | Yes                        | Recommended default: 2026-05-01 through 2026-05-31.                                            |
+| 90-day retained-history range | Yes                        | Recommended default if May 2026 is confirmed: 2026-03-03 through 2026-05-31.                   |
+| Account/Page scope            | Yes                        | Record safely; do not paste raw account/Page IDs if sensitive.                                 |
+| Source comparison owner       | Yes for G6                 | G2/G3 can collect ADinsights coverage first, but parity cannot pass without comparison values. |
 
 ## Datasets To Prove
 
-| Dataset | Required for v1 | Stored-data source expected | G2 coverage proof | G3 retention proof | Reviewer route |
-| --- | --- | --- | --- | --- | --- |
-| `paid_meta_ads` | Yes | `TenantMetricsSnapshot` warehouse aggregate metrics, with upload fallback only if explicitly labeled | Coverage status, source label, row count, requested/covered dates, freshness, snapshot timestamp | Monthly and 90-day retained range from coverage/diagnostics; route to dbt if not provable | Sofia, Andre; Priya/Martin if warehouse retention gap |
-| `organic_facebook_page` | Yes | Stored `MetaInsightPoint` and `MetaPostInsightPoint` rows | Coverage status, source label, row count, requested/covered dates, page scope, freshness | Monthly and 90-day retained range from diagnostics; route to Meta/Page ops if source rows absent | Sofia, Andre, Omar; Maya/Leo only if sync/backfill behavior changes |
-| `content_ops` | Yes | Stored Content Ops aggregate records/snapshots and published-post counts | Coverage status, source label, row count, requested/covered dates, freshness | Monthly and 90-day retained range from diagnostics | Sofia, Andre, Omar |
-| `organic_instagram` | No in v1 | Deferred | Must remain absent from pass claims | Must remain absent from pass claims | Raj/Mira required before adding |
+| Dataset                 | Required for v1 | Stored-data source expected                                                                          | G2 coverage proof                                                                                | G3 retention proof                                                                               | Reviewer route                                                      |
+| ----------------------- | --------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `paid_meta_ads`         | Yes             | `TenantMetricsSnapshot` warehouse aggregate metrics, with upload fallback only if explicitly labeled | Coverage status, source label, row count, requested/covered dates, freshness, snapshot timestamp | Monthly and 90-day retained range from coverage/diagnostics; route to dbt if not provable        | Sofia, Andre; Priya/Martin if warehouse retention gap               |
+| `organic_facebook_page` | Yes             | Stored `MetaInsightPoint` and `MetaPostInsightPoint` rows                                            | Coverage status, source label, row count, requested/covered dates, page scope, freshness         | Monthly and 90-day retained range from diagnostics; route to Meta/Page ops if source rows absent | Sofia, Andre, Omar; Maya/Leo only if sync/backfill behavior changes |
+| `content_ops`           | Yes             | Stored Content Ops aggregate records/snapshots and published-post counts                             | Coverage status, source label, row count, requested/covered dates, freshness                     | Monthly and 90-day retained range from diagnostics                                               | Sofia, Andre, Omar                                                  |
+| `organic_instagram`     | No in v1        | Deferred                                                                                             | Must remain absent from pass claims                                                              | Must remain absent from pass claims                                                              | Raj/Mira required before adding                                     |
 
 ## Evidence Collection Commands
 
@@ -159,11 +159,11 @@ are added.
 
 Fill this table for the confirmed G1 monthly range.
 
-| Dataset | Requested range | Covered range | Row count | Coverage status | Freshness status | Source label | Result | Notes/reviewer |
-| --- | --- | --- | ---: | --- | --- | --- | --- | --- |
-| `paid_meta_ads` | TBD | TBD | TBD | TBD | TBD | TBD | Pending | Sofia/Andre |
-| `organic_facebook_page` | TBD | TBD | TBD | TBD | TBD | TBD | Pending | Sofia/Andre/Omar |
-| `content_ops` | TBD | TBD | TBD | TBD | TBD | TBD | Pending | Sofia/Andre/Omar |
+| Dataset                 | Requested range | Covered range | Row count | Coverage status | Freshness status | Source label | Result  | Notes/reviewer   |
+| ----------------------- | --------------- | ------------- | --------: | --------------- | ---------------- | ------------ | ------- | ---------------- |
+| `paid_meta_ads`         | TBD             | TBD           |       TBD | TBD             | TBD              | TBD          | Pending | Sofia/Andre      |
+| `organic_facebook_page` | TBD             | TBD           |       TBD | TBD             | TBD              | TBD          | Pending | Sofia/Andre/Omar |
+| `content_ops`           | TBD             | TBD           |       TBD | TBD             | TBD              | TBD          | Pending | Sofia/Andre/Omar |
 
 Result values:
 
@@ -178,11 +178,11 @@ Result values:
 Fill this table for the confirmed 90-day range. If May 2026 is confirmed, use 2026-03-03 through
 2026-05-31 unless Raj/Mira approve a different retained-history window.
 
-| Dataset | Requested range | Covered range | Row count | Coverage status | History status | Source label | Result | Retention owner |
-| --- | --- | --- | ---: | --- | --- | --- | --- | --- |
-| `paid_meta_ads` | TBD | TBD | TBD | TBD | TBD | TBD | Pending | Andre; Priya/Martin if warehouse gap |
-| `organic_facebook_page` | TBD | TBD | TBD | TBD | TBD | TBD | Pending | Andre/Omar |
-| `content_ops` | TBD | TBD | TBD | TBD | TBD | TBD | Pending | Andre/Omar |
+| Dataset                 | Requested range | Covered range | Row count | Coverage status | History status | Source label | Result  | Retention owner                      |
+| ----------------------- | --------------- | ------------- | --------: | --------------- | -------------- | ------------ | ------- | ------------------------------------ |
+| `paid_meta_ads`         | TBD             | TBD           |       TBD | TBD             | TBD            | TBD          | Pending | Andre; Priya/Martin if warehouse gap |
+| `organic_facebook_page` | TBD             | TBD           |       TBD | TBD             | TBD            | TBD          | Pending | Andre/Omar                           |
+| `content_ops`           | TBD             | TBD           |       TBD | TBD             | TBD            | TBD          | Pending | Andre/Omar                           |
 
 ## Pass/Block Rules
 

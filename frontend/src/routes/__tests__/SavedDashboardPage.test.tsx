@@ -231,7 +231,9 @@ describe('SavedDashboardPage', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: 'SLB governed dashboard' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'SLB governed dashboard' }),
+    ).toBeInTheDocument();
     expect(await screen.findByText('Spend')).toBeInTheDocument();
     expect(apiMocks.previewDashboardWidget).toHaveBeenCalledWith(
       expect.objectContaining({

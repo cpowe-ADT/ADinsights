@@ -17,12 +17,12 @@ from G0/G1 into G2-G11 evidence capture.
 The next progress requires four external answers. Do not start fixed-target cancellation evidence
 until at least actions 1 and 2 are complete.
 
-| # | Owner | Action | Required response format | Blocks |
-| --- | --- | --- | --- | --- |
-| 1 | Raj + Mira | Classify the current architecture/scope `GATE_BLOCK` and decide whether G1-G11 evidence capture may proceed. | Fill the G0 Decision Record below with approve / approve-with-conditions / block, reviewer route, and required changes. | G0, all later goals |
-| 2 | Operator + Hannah | Fill the fixed SLB runtime target. | Complete the G1 Fixed Target Intake table with environment, backend/frontend URLs, safe tenant/client, runtime report ID, scopes, date range, delivery assumptions, and DashThis active confirmation. | G1-G11 |
-| 3 | DashThis/source comparison owner + Andre | Provide safe comparison values for the fixed SLB range. | Fill or attach redacted values for every required non-Instagram metric with source, tolerance, and explanation. | G6, G10-G12 |
-| 4 | Carlos/Mei or runtime owner + Raj/Mira | Resolve the Airbyte production-readiness prerequisite. | Record target-runtime `AIRBYTE_TEMPLATE_META_METRICS_CONNECTION_ID` evidence path or approved alternative bootstrap path. Do not paste tokens. | G11-G12 |
+| #   | Owner                                    | Action                                                                                                       | Required response format                                                                                                                                                                              | Blocks              |
+| --- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| 1   | Raj + Mira                               | Classify the current architecture/scope `GATE_BLOCK` and decide whether G1-G11 evidence capture may proceed. | Fill the G0 Decision Record below with approve / approve-with-conditions / block, reviewer route, and required changes.                                                                               | G0, all later goals |
+| 2   | Operator + Hannah                        | Fill the fixed SLB runtime target.                                                                           | Complete the G1 Fixed Target Intake table with environment, backend/frontend URLs, safe tenant/client, runtime report ID, scopes, date range, delivery assumptions, and DashThis active confirmation. | G1-G11              |
+| 3   | DashThis/source comparison owner + Andre | Provide safe comparison values for the fixed SLB range.                                                      | Fill or attach redacted values for every required non-Instagram metric with source, tolerance, and explanation.                                                                                       | G6, G10-G12         |
+| 4   | Carlos/Mei or runtime owner + Raj/Mira   | Resolve the Airbyte production-readiness prerequisite.                                                       | Record target-runtime `AIRBYTE_TEMPLATE_META_METRICS_CONNECTION_ID` evidence path or approved alternative bootstrap path. Do not paste tokens.                                                        | G11-G12             |
 
 Minimum acceptable response:
 
@@ -93,18 +93,18 @@ Primary docs:
 
 Fill this table after Raj/Mira review. Do not infer approval from silence.
 
-| Field | Decision |
-| --- | --- |
-| Review date/time | Pending |
-| Raj decision | Pending |
-| Mira decision | Pending |
-| Scope classification | Pending: architecture scope / test failure / runtime blocker / approved |
-| Architecture classification | Pending |
-| Can G1-G11 proceed? | Pending |
-| Snapshot-store decision | Pending |
-| Required follow-up reviewers | Pending |
-| Required implementation changes before evidence capture | Pending |
-| Explicit DashThis cancellation status | No-go; pending reviewer confirmation |
+| Field                                                   | Decision                                                                |
+| ------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Review date/time                                        | Pending                                                                 |
+| Raj decision                                            | Pending                                                                 |
+| Mira decision                                           | Pending                                                                 |
+| Scope classification                                    | Pending: architecture scope / test failure / runtime blocker / approved |
+| Architecture classification                             | Pending                                                                 |
+| Can G1-G11 proceed?                                     | Pending                                                                 |
+| Snapshot-store decision                                 | Pending                                                                 |
+| Required follow-up reviewers                            | Pending                                                                 |
+| Required implementation changes before evidence capture | Pending                                                                 |
+| Explicit DashThis cancellation status                   | No-go; pending reviewer confirmation                                    |
 
 G0 can move to `passed` only if the decision explicitly allows G1-G11 evidence capture or records
 an approved path for doing so. If implementation changes are required first, keep G0
@@ -120,14 +120,14 @@ make adinsights-preflight PROMPT="Assess SLB DashThis cancellation-readiness G0 
 
 Result captured 2026-06-16:
 
-| Field | Value |
-| --- | --- |
-| Router action | `clarify` |
-| Scope status | `ESCALATE_ARCH_RISK` |
-| Contract status | `WARN_POSSIBLE_CONTRACT_CHANGE` |
-| Release status | `GATE_BLOCK` |
-| Contract executed | `True` |
-| Output directory | `/var/folders/4k/xdt2s05j1tl9zpyxhwtt8pk80000gn/T/adinsights-preflight-output-tjwl5mjo` |
+| Field             | Value                                                                                   |
+| ----------------- | --------------------------------------------------------------------------------------- |
+| Router action     | `clarify`                                                                               |
+| Scope status      | `ESCALATE_ARCH_RISK`                                                                    |
+| Contract status   | `WARN_POSSIBLE_CONTRACT_CHANGE`                                                         |
+| Release status    | `GATE_BLOCK`                                                                            |
+| Contract executed | `True`                                                                                  |
+| Output directory  | `/var/folders/4k/xdt2s05j1tl9zpyxhwtt8pk80000gn/T/adinsights-preflight-output-tjwl5mjo` |
 
 Blocking issue:
 
@@ -189,24 +189,24 @@ python3 scripts/validate_slb_g1_runtime_target_intake.py \
 Fill this table before running coverage, parity, export, delivery, diagnostics, safety, adversarial,
 or hardening evidence. Every later packet must use the same values.
 
-| Required value | Selected value | Evidence/source | Notes |
-| --- | --- | --- | --- |
-| Target environment | Pending | Pending | Local/staging/prod-like; do not mix. |
-| Backend URL | Pending | Pending | Redact if needed. |
-| Frontend URL | Pending | Pending | Redact if needed. |
-| Safe tenant identifier | Pending | Pending | Use safe/redacted ID, not secrets. |
-| Safe client identifier | Pending | Pending | Expected: SLB / Students' Loan Bureau. |
-| `ReportDefinition.id` | Pending | Pending | Must be real runtime report ID. |
-| `template_key` | Pending | Pending | Expected: `slb_monthly_social_report`. |
-| Primary report date range | Recommended: 2026-05-01 through 2026-05-31 | Gmail-derived report inventory | Operator confirmation pending. |
-| Optional baseline range | Recommended: 2026-03-01 through 2026-04-30 | Gmail-derived report inventory | Optional trend/parity baseline. |
-| Paid Meta account scope | Pending | Pending | Safe/redacted account label or ID. |
-| Organic Facebook Page scope | Pending | Pending | Safe/redacted Page label or ID. |
-| Content Ops workspace/client scope | Pending | Pending | Safe/redacted workspace/client label. |
-| DashThis/source comparison owner | Pending | Pending | Person who can supply comparison values. |
-| Recipient/delivery assumption | Pending | Pending | Redact private recipient details. |
-| Instagram decision | Deferred in v1 | Goal guardrail | Requires source rows/scopes/catalog/reviewer approval to change. |
-| DashThis status during proof | Active | Goal guardrail | Must remain active until G12. |
+| Required value                     | Selected value                             | Evidence/source                | Notes                                                            |
+| ---------------------------------- | ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------- |
+| Target environment                 | Pending                                    | Pending                        | Local/staging/prod-like; do not mix.                             |
+| Backend URL                        | Pending                                    | Pending                        | Redact if needed.                                                |
+| Frontend URL                       | Pending                                    | Pending                        | Redact if needed.                                                |
+| Safe tenant identifier             | Pending                                    | Pending                        | Use safe/redacted ID, not secrets.                               |
+| Safe client identifier             | Pending                                    | Pending                        | Expected: SLB / Students' Loan Bureau.                           |
+| `ReportDefinition.id`              | Pending                                    | Pending                        | Must be real runtime report ID.                                  |
+| `template_key`                     | Pending                                    | Pending                        | Expected: `slb_monthly_social_report`.                           |
+| Primary report date range          | Recommended: 2026-05-01 through 2026-05-31 | Gmail-derived report inventory | Operator confirmation pending.                                   |
+| Optional baseline range            | Recommended: 2026-03-01 through 2026-04-30 | Gmail-derived report inventory | Optional trend/parity baseline.                                  |
+| Paid Meta account scope            | Pending                                    | Pending                        | Safe/redacted account label or ID.                               |
+| Organic Facebook Page scope        | Pending                                    | Pending                        | Safe/redacted Page label or ID.                                  |
+| Content Ops workspace/client scope | Pending                                    | Pending                        | Safe/redacted workspace/client label.                            |
+| DashThis/source comparison owner   | Pending                                    | Pending                        | Person who can supply comparison values.                         |
+| Recipient/delivery assumption      | Pending                                    | Pending                        | Redact private recipient details.                                |
+| Instagram decision                 | Deferred in v1                             | Goal guardrail                 | Requires source rows/scopes/catalog/reviewer approval to change. |
+| DashThis status during proof       | Active                                     | Goal guardrail                 | Must remain active until G12.                                    |
 
 G1 can move to `passed` only after all required runtime values are filled and Raj/Mira either clear
 G0 or explicitly allow fixed-range evidence capture while G0 remains under review.
@@ -263,16 +263,16 @@ Before updating individual packets, create one run sheet in:
 The checklist now includes a single-run evidence sheet, recommended temporary output names, and a
 completion matrix that must be filled before G10 starts.
 
-| Next goal | Packet to update |
-| --- | --- |
-| G2/G3 coverage and history | `2026-06-16-g2-g3-coverage-retained-history-proof.md` |
-| G4/G5 rendering and exports | `2026-06-16-g4-g5-render-export-reproducibility-proof.md` |
-| G6 parity worksheet | `2026-06-16-g6-parity-worksheet-proof.md` and `source-platform-comparison-worksheet.md` |
-| G7/G8 delivery and diagnostics | `2026-06-16-g7-g8-delivery-diagnostics-proof.md` |
-| G9 safety controls | `2026-06-16-g9-safety-controls-proof.md` |
-| G10 adversarial review | `2026-06-16-g10-adversarial-review.md` |
-| G11 hardening window | `2026-06-16-g11-hardening-window.md` |
-| G12 recommendation | `2026-06-16-g12-final-cancellation-recommendation.md` |
+| Next goal                      | Packet to update                                                                        |
+| ------------------------------ | --------------------------------------------------------------------------------------- |
+| G2/G3 coverage and history     | `2026-06-16-g2-g3-coverage-retained-history-proof.md`                                   |
+| G4/G5 rendering and exports    | `2026-06-16-g4-g5-render-export-reproducibility-proof.md`                               |
+| G6 parity worksheet            | `2026-06-16-g6-parity-worksheet-proof.md` and `source-platform-comparison-worksheet.md` |
+| G7/G8 delivery and diagnostics | `2026-06-16-g7-g8-delivery-diagnostics-proof.md`                                        |
+| G9 safety controls             | `2026-06-16-g9-safety-controls-proof.md`                                                |
+| G10 adversarial review         | `2026-06-16-g10-adversarial-review.md`                                                  |
+| G11 hardening window           | `2026-06-16-g11-hardening-window.md`                                                    |
+| G12 recommendation             | `2026-06-16-g12-final-cancellation-recommendation.md`                                   |
 
 ## Current Decision
 

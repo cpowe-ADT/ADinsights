@@ -25,25 +25,25 @@ free of credentials, webhook URLs, OAuth tokens, raw user-level data, or custome
 
 | Command or endpoint | Result | Notes |
 | ------------------- | ------ | ----- |
-| TBD | TBD | TBD |
+| TBD                 | TBD    | TBD   |
 
 ## Source Evidence
 
-| Source | Date range | Metric | Source total | ADinsights total | Drift | Status |
-| ------ | ---------- | ------ | ------------ | ---------------- | ----- | ------ |
-| TBD | TBD | Spend | TBD | TBD | TBD | TBD |
-| TBD | TBD | Impressions | TBD | TBD | TBD | TBD |
-| TBD | TBD | Clicks | TBD | TBD | TBD | TBD |
-| TBD | TBD | Conversions | TBD | TBD | TBD | TBD |
+| Source | Date range | Metric      | Source total | ADinsights total | Drift | Status |
+| ------ | ---------- | ----------- | ------------ | ---------------- | ----- | ------ |
+| TBD    | TBD        | Spend       | TBD          | TBD              | TBD   | TBD    |
+| TBD    | TBD        | Impressions | TBD          | TBD              | TBD   | TBD    |
+| TBD    | TBD        | Clicks      | TBD          | TBD              | TBD   | TBD    |
+| TBD    | TBD        | Conversions | TBD          | TBD              | TBD   | TBD    |
 
 ## Artifact Evidence
 
-| Artifact | Path or ticket reference | Non-empty | Downloadable | Notes |
-| -------- | ------------------------ | --------- | ------------ | ----- |
-| CSV | TBD | TBD | TBD | TBD |
-| PDF | TBD | TBD | TBD | TBD |
-| PNG | TBD | TBD | TBD | TBD |
-| Scheduled email | TBD | TBD | TBD | TBD |
+| Artifact        | Path or ticket reference | Non-empty | Downloadable | Notes |
+| --------------- | ------------------------ | --------- | ------------ | ----- |
+| CSV             | TBD                      | TBD       | TBD          | TBD   |
+| PDF             | TBD                      | TBD       | TBD          | TBD   |
+| PNG             | TBD                      | TBD       | TBD          | TBD   |
+| Scheduled email | TBD                      | TBD       | TBD          | TBD   |
 
 ## Failure Classification
 
@@ -61,9 +61,9 @@ Use the exact failure classes from the plan:
 
 ## Findings
 
-| Finding | Classification | Owner | Required action | Evidence path |
-| ------- | -------------- | ----- | --------------- | ------------- |
-| TBD | blocker/plan update/scaffolding update/known risk/non-issue | TBD | TBD | TBD |
+| Finding | Classification                                              | Owner | Required action | Evidence path |
+| ------- | ----------------------------------------------------------- | ----- | --------------- | ------------- |
+| TBD     | blocker/plan update/scaffolding update/known risk/non-issue | TBD   | TBD             | TBD           |
 
 ## Scaffolding Updates
 

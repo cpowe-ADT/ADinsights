@@ -24,20 +24,20 @@ privacy, exports, and readiness separation.
 
 ## Eval Suites
 
-| Suite | Ticket | Owner | Gate |
-| ----- | ------ | ----- | ---- |
-| Caption schema | CO-3A | Sofia | Implemented deterministic schema tests; live provider outputs must stay 100% schema-valid |
-| Caption brand fit | CO-3E | Sofia + Omar | >=90% reviewer/model pass |
-| Caption safety | CO-3E | Nina + Sofia | 0 critical policy failures |
-| Prompt redaction | CO-3B | Nina | Implemented deterministic no-secret tests; 0 secret-like leaks |
-| Caption golden fixtures | CO-3E | Omar + Sofia | Implemented local fixture harness; provider/model quality scoring remains future tuning |
-| Graphic technical QA | CO-3C | Sofia + Joel | >=95% dimension/nonblank pass |
-| Approval integrity | CO-4A | Sofia | 100% approved-version invariant pass |
-| Scheduler correctness | CO-5D/CO-7D | Leo | 0 duplicate publish attempts |
-| Instagram container lifecycle | CO-7D | Leo + Maya | 100% deterministic state transition pass |
-| Readiness separation | CO-1D/CO-2E | Maya + Lina | all axes independently covered |
-| Aggregate reporting privacy | CO-6B | Sofia + Priya | 0 user-level fields |
-| Export packet fidelity | CO-4D/CO-4E | Sofia + Lina | exported artifact matches approved snapshot |
+| Suite                         | Ticket      | Owner         | Gate                                                                                      |
+| ----------------------------- | ----------- | ------------- | ----------------------------------------------------------------------------------------- |
+| Caption schema                | CO-3A       | Sofia         | Implemented deterministic schema tests; live provider outputs must stay 100% schema-valid |
+| Caption brand fit             | CO-3E       | Sofia + Omar  | >=90% reviewer/model pass                                                                 |
+| Caption safety                | CO-3E       | Nina + Sofia  | 0 critical policy failures                                                                |
+| Prompt redaction              | CO-3B       | Nina          | Implemented deterministic no-secret tests; 0 secret-like leaks                            |
+| Caption golden fixtures       | CO-3E       | Omar + Sofia  | Implemented local fixture harness; provider/model quality scoring remains future tuning   |
+| Graphic technical QA          | CO-3C       | Sofia + Joel  | >=95% dimension/nonblank pass                                                             |
+| Approval integrity            | CO-4A       | Sofia         | 100% approved-version invariant pass                                                      |
+| Scheduler correctness         | CO-5D/CO-7D | Leo           | 0 duplicate publish attempts                                                              |
+| Instagram container lifecycle | CO-7D       | Leo + Maya    | 100% deterministic state transition pass                                                  |
+| Readiness separation          | CO-1D/CO-2E | Maya + Lina   | all axes independently covered                                                            |
+| Aggregate reporting privacy   | CO-6B       | Sofia + Priya | 0 user-level fields                                                                       |
+| Export packet fidelity        | CO-4D/CO-4E | Sofia + Lina  | exported artifact matches approved snapshot                                               |
 
 ## Golden Fixture Set
 

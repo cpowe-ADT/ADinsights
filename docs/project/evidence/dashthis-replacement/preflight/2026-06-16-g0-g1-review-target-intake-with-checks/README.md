@@ -17,13 +17,13 @@ backend/.venv/bin/python docs/ops/skills/adinsights-release-readiness/scripts/ru
 
 ## Result Summary
 
-| Field | Value |
-| --- | --- |
-| Router action | `clarify` |
-| Scope status | `ESCALATE_ARCH_RISK` |
-| Contract status | `WARN_POSSIBLE_CONTRACT_CHANGE` |
-| Release status | `GATE_BLOCK` |
-| Contract executed | `True` |
+| Field             | Value                           |
+| ----------------- | ------------------------------- |
+| Router action     | `clarify`                       |
+| Scope status      | `ESCALATE_ARCH_RISK`            |
+| Contract status   | `WARN_POSSIBLE_CONTRACT_CHANGE` |
+| Release status    | `GATE_BLOCK`                    |
+| Contract executed | `True`                          |
 
 Release blocking issues:
 
@@ -37,11 +37,11 @@ Release warnings:
 
 ## Optional Check Results
 
-| Check ID | Command | Result | Notes |
-| --- | --- | --- | --- |
-| `data_contract_gate` | `python3 infrastructure/airbyte/scripts/check_data_contracts.py` | Pass | Recorded as `optional_check_pass` in `release-packet.json`. |
-| `observability_prereqs` | `python3 infrastructure/airbyte/scripts/verify_observability_prereqs.py` | Pass | Recorded as `optional_check_pass` in `release-packet.json`. |
-| `production_readiness` | `python3 infrastructure/airbyte/scripts/verify_production_readiness.py` | Fail | Missing `AIRBYTE_TEMPLATE_META_METRICS_CONNECTION_ID` for bootstrap connection validation. |
+| Check ID                | Command                                                                  | Result | Notes                                                                                      |
+| ----------------------- | ------------------------------------------------------------------------ | ------ | ------------------------------------------------------------------------------------------ |
+| `data_contract_gate`    | `python3 infrastructure/airbyte/scripts/check_data_contracts.py`         | Pass   | Recorded as `optional_check_pass` in `release-packet.json`.                                |
+| `observability_prereqs` | `python3 infrastructure/airbyte/scripts/verify_observability_prereqs.py` | Pass   | Recorded as `optional_check_pass` in `release-packet.json`.                                |
+| `production_readiness`  | `python3 infrastructure/airbyte/scripts/verify_production_readiness.py`  | Fail   | Missing `AIRBYTE_TEMPLATE_META_METRICS_CONNECTION_ID` for bootstrap connection validation. |
 
 Production-readiness failure detail from `release-packet.json`:
 
@@ -60,16 +60,16 @@ Production-readiness failure detail from `release-packet.json`:
 
 ## Gate Results
 
-| Gate | Status | Rationale |
-| --- | --- | --- |
-| `scope_control` | `BLOCK` | Scope status `ESCALATE_ARCH_RISK` is blocking for release. |
-| `contract_integrity` | `WARN` | Contract status `WARN_POSSIBLE_CONTRACT_CHANGE` requires follow-up. |
-| `test_coverage` | `BLOCK` | Optional production-readiness check failed. |
-| `security_pii_secrets` | `WARN` | Prompt/paths include security-sensitive signals; verify secrets/PII handling. |
-| `documentation_completeness` | `PASS` | Required documentation updates are present in current change evidence. |
-| `runbook_ops_readiness` | `PASS` | Required runbook artifacts are present. |
-| `rollout_rollback_plan` | `PASS` | Deployment runbook exists for rollout/rollback planning. |
-| `observability` | `PASS` | Observability gate not explicitly blocked by packet/check evidence. |
+| Gate                         | Status  | Rationale                                                                     |
+| ---------------------------- | ------- | ----------------------------------------------------------------------------- |
+| `scope_control`              | `BLOCK` | Scope status `ESCALATE_ARCH_RISK` is blocking for release.                    |
+| `contract_integrity`         | `WARN`  | Contract status `WARN_POSSIBLE_CONTRACT_CHANGE` requires follow-up.           |
+| `test_coverage`              | `BLOCK` | Optional production-readiness check failed.                                   |
+| `security_pii_secrets`       | `WARN`  | Prompt/paths include security-sensitive signals; verify secrets/PII handling. |
+| `documentation_completeness` | `PASS`  | Required documentation updates are present in current change evidence.        |
+| `runbook_ops_readiness`      | `PASS`  | Required runbook artifacts are present.                                       |
+| `rollout_rollback_plan`      | `PASS`  | Deployment runbook exists for rollout/rollback planning.                      |
+| `observability`              | `PASS`  | Observability gate not explicitly blocked by packet/check evidence.           |
 
 Required approvers from `release-packet.json`:
 

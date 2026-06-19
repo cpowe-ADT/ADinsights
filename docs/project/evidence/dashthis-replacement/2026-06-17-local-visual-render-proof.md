@@ -15,26 +15,26 @@ fixed-target cancellation-review readiness.
 
 ## Runtime Target
 
-| Field | Value |
-| --- | --- |
-| Frontend URL | `https://localhost:5173` |
-| Backend URL | `http://localhost:8000` |
-| Report route | `/reports/a40abad9-9f1d-4e75-92b0-3e0feaed27b5` |
-| Report name | `SLB Monthly Social Report - Local Demo` |
-| Template key | `slb_monthly_social_report` |
-| Schema version | `report.v1` |
-| Evidence class | Local visual smoke only |
+| Field          | Value                                           |
+| -------------- | ----------------------------------------------- |
+| Frontend URL   | `https://localhost:5173`                        |
+| Backend URL    | `http://localhost:8000`                         |
+| Report route   | `/reports/a40abad9-9f1d-4e75-92b0-3e0feaed27b5` |
+| Report name    | `SLB Monthly Social Report - Local Demo`        |
+| Template key   | `slb_monthly_social_report`                     |
+| Schema version | `report.v1`                                     |
+| Evidence class | Local visual smoke only                         |
 
 ## Screenshot Artifacts
 
 Screenshot files are local artifacts under ignored `output/playwright/`:
 
-| View | Path |
-| --- | --- |
-| Desktop top viewport | `output/playwright/slb-report-desktop-top.png` |
-| Desktop full page | `output/playwright/slb-report-desktop-full.png` |
-| Mobile top viewport | `output/playwright/slb-report-mobile-top.png` |
-| Mobile full page | `output/playwright/slb-report-mobile-full.png` |
+| View                 | Path                                            |
+| -------------------- | ----------------------------------------------- |
+| Desktop top viewport | `output/playwright/slb-report-desktop-top.png`  |
+| Desktop full page    | `output/playwright/slb-report-desktop-full.png` |
+| Mobile top viewport  | `output/playwright/slb-report-mobile-top.png`   |
+| Mobile full page     | `output/playwright/slb-report-mobile-full.png`  |
 
 ## Observed Status Labels
 

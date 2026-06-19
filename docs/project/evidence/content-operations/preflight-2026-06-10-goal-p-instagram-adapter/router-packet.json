@@ -20,13 +20,8 @@
     "cross_stream": false,
     "strong_conflict_count": 0
   },
-  "touched_streams": [
-    "S4"
-  ],
-  "required_tests": [
-    "cd frontend && npm test -- --run",
-    "cd frontend && npm run build"
-  ],
+  "touched_streams": ["S4"],
+  "required_tests": ["cd frontend && npm test -- --run", "cd frontend && npm run build"],
   "docs_to_open": [
     "docs/workstreams.md",
     "docs/project/feature-ownership-map.md",
@@ -343,9 +338,7 @@
   "signals": {
     "explicit_persona_id": null,
     "explicit_stream_ids": [],
-    "folder_stream_ids": [
-      "S4"
-    ],
+    "folder_stream_ids": ["S4"],
     "keyword_stream_ids": [],
     "explicit_paths": [],
     "changed_files": [
@@ -395,14 +388,10 @@
       "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
       "frontend/src/styles/contentOps.css"
     ],
-    "prompt_paths": [
-      "docs/evidence"
-    ],
+    "prompt_paths": ["docs/evidence"],
     "used_git_changed_files": true,
     "folder_matches": {
-      "S4": [
-        "frontend/src"
-      ]
+      "S4": ["frontend/src"]
     },
     "keyword_matches": {},
     "contract_sensitive": true,

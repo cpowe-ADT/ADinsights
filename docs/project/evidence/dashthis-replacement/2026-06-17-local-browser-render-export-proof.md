@@ -17,15 +17,15 @@ SLB data coverage.
 
 ## Local Target
 
-| Field | Value |
-| --- | --- |
-| Report ID | `a40abad9-9f1d-4e75-92b0-3e0feaed27b5` |
-| Report name | `SLB Monthly Social Report - Local Demo` |
-| Template key | `slb_monthly_social_report` |
-| Schema version | `report.v1` |
-| Date range | `last_month` resolved in preview to May 2026 |
-| Frontend route | `/reports/a40abad9-9f1d-4e75-92b0-3e0feaed27b5` |
-| Cancellation evidence? | No |
+| Field                  | Value                                           |
+| ---------------------- | ----------------------------------------------- |
+| Report ID              | `a40abad9-9f1d-4e75-92b0-3e0feaed27b5`          |
+| Report name            | `SLB Monthly Social Report - Local Demo`        |
+| Template key           | `slb_monthly_social_report`                     |
+| Schema version         | `report.v1`                                     |
+| Date range             | `last_month` resolved in preview to May 2026    |
+| Frontend route         | `/reports/a40abad9-9f1d-4e75-92b0-3e0feaed27b5` |
+| Cancellation evidence? | No                                              |
 
 ## Browser Observation
 
@@ -55,20 +55,20 @@ curl -ksS -X POST \
 
 Observed summary:
 
-| Field | Value |
-| --- | --- |
-| `export_ready` | `true` |
-| Report pages | `8` |
-| Blocking reasons | `[]` |
-| Preview hash | `e795fb08d22ec0ee02015c771f7cef15d19cf8188140f0baaaadc90dd07fa6ff` |
+| Field            | Value                                                              |
+| ---------------- | ------------------------------------------------------------------ |
+| `export_ready`   | `true`                                                             |
+| Report pages     | `8`                                                                |
+| Blocking reasons | `[]`                                                               |
+| Preview hash     | `e795fb08d22ec0ee02015c771f7cef15d19cf8188140f0baaaadc90dd07fa6ff` |
 
 Coverage summary:
 
-| Dataset | Row count | Coverage state | Covered range | Interpretation |
-| --- | ---: | --- | --- | --- |
-| `paid_meta_ads` | 21 | `source_disconnected` | `2026-02-27` to `2026-03-29` | Local retained paid data exists, but the source is disconnected/stale for the requested May range. |
-| `organic_facebook_page` | 0 | `missing_history` | None | No retained Page/Post rows for the requested range. |
-| `content_ops` | 0 | `missing_history` | None | No retained Content Ops aggregate rows for the requested range. |
+| Dataset                 | Row count | Coverage state        | Covered range                | Interpretation                                                                                     |
+| ----------------------- | --------: | --------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------- |
+| `paid_meta_ads`         |        21 | `source_disconnected` | `2026-02-27` to `2026-03-29` | Local retained paid data exists, but the source is disconnected/stale for the requested May range. |
+| `organic_facebook_page` |         0 | `missing_history`     | None                         | No retained Page/Post rows for the requested range.                                                |
+| `content_ops`           |         0 | `missing_history`     | None                         | No retained Content Ops aggregate rows for the requested range.                                    |
 
 ## Diagnostics Proof
 
@@ -82,11 +82,11 @@ curl -ksS \
 
 Observed dataset diagnostics:
 
-| Dataset | Status | Rows | Recommended next action |
-| --- | --- | ---: | --- |
-| `content_ops` | `missing_history` | 0 | Confirm backfill or upload fallback before claiming DashThis parity. |
-| `organic_facebook_page` | `missing_history` | 0 | Confirm backfill or upload fallback before claiming DashThis parity. |
-| `paid_meta_ads` | `source_disconnected` | 21 | Reconnect the source; retained history can still support limited reporting. |
+| Dataset                 | Status                | Rows | Recommended next action                                                     |
+| ----------------------- | --------------------- | ---: | --------------------------------------------------------------------------- |
+| `content_ops`           | `missing_history`     |    0 | Confirm backfill or upload fallback before claiming DashThis parity.        |
+| `organic_facebook_page` | `missing_history`     |    0 | Confirm backfill or upload fallback before claiming DashThis parity.        |
+| `paid_meta_ads`         | `source_disconnected` |   21 | Reconnect the source; retained history can still support limited reporting. |
 
 ## Export Proof
 
@@ -94,11 +94,11 @@ Manual export requests were tested through the authenticated local API.
 
 Completed jobs:
 
-| Format | Job ID | Status | Download proof |
-| --- | --- | --- | --- |
-| CSV | `d9e393e2-f7c2-4e41-a559-f04e8d3dfb2e` | `completed` | HTTP `200`, `775` bytes, `file` reports CSV text. |
-| PDF | `0b4c79ac-d83d-48d4-9f1a-f2f162f88e0c` | `completed` | HTTP `200`, `72,931` bytes, `file` reports PDF document version 1.4. |
-| PNG | `f5b93451-23f9-4dce-bff7-284f27102952` | `completed` | HTTP `200`, `92,143` bytes, `file` reports PNG image data, 1280 x 720. |
+| Format | Job ID                                 | Status      | Download proof                                                         |
+| ------ | -------------------------------------- | ----------- | ---------------------------------------------------------------------- |
+| CSV    | `d9e393e2-f7c2-4e41-a559-f04e8d3dfb2e` | `completed` | HTTP `200`, `775` bytes, `file` reports CSV text.                      |
+| PDF    | `0b4c79ac-d83d-48d4-9f1a-f2f162f88e0c` | `completed` | HTTP `200`, `72,931` bytes, `file` reports PDF document version 1.4.   |
+| PNG    | `f5b93451-23f9-4dce-bff7-284f27102952` | `completed` | HTTP `200`, `92,143` bytes, `file` reports PNG image data, 1280 x 720. |
 
 Export artifact paths were tenant/report/job scoped under `/exports/`.
 

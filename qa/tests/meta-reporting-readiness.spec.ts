@@ -14,7 +14,11 @@ async function setLiveDatasetMode(page: import('@playwright/test').Page): Promis
 
 async function mockWarehouseDatasetBootstrap(
   page: import('@playwright/test').Page,
-  liveReason: 'missing_snapshot' | 'stale_snapshot' | 'default_snapshot' | 'ready' = 'missing_snapshot',
+  liveReason:
+    | 'missing_snapshot'
+    | 'stale_snapshot'
+    | 'default_snapshot'
+    | 'ready' = 'missing_snapshot',
 ): Promise<void> {
   await page.route('**/api/adapters/', async (route) => {
     await route.fulfill({
@@ -162,9 +166,10 @@ test.describe('meta reporting readiness', () => {
 
     await expect(page.getByText(/Reporting stage:/)).toBeVisible();
     await expect(page.getByText('Waiting snapshot')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Open Meta setup' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Run Meta sync' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Link Instagram via Meta' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Open Meta setup' }).click();
+    await page.getByRole('button', { name: 'Link Instagram via Meta' }).click();
 
     await expect(
       page.getByRole('heading', { name: 'Connect Meta (Facebook & Instagram)' }),
@@ -278,9 +283,7 @@ test.describe('meta reporting readiness', () => {
       '/dashboards/create',
     ]) {
       await page.goto(path);
-      await expect(
-        page.getByLabel('Live data status'),
-      ).toContainText(
+      await expect(page.getByLabel('Live data status')).toContainText(
         'Meta is connected, but the first live warehouse snapshot has not been generated yet.',
       );
     }
@@ -292,7 +295,7 @@ test.describe('meta reporting readiness', () => {
     ).toBeVisible();
 
     await page.goto('/dashboards/meta/pages');
-    await expect(page.getByText('Business Page')).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Business Page' }).first()).toBeVisible();
     await expect(page.getByText(/This screen lists Facebook Pages only\./i)).toBeVisible();
   });
 });

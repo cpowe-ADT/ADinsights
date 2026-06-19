@@ -71,7 +71,9 @@ describe('ReportsPage', () => {
 
     await waitFor(() => expect(phase2ApiMock.listReports).toHaveBeenCalled());
     expect(screen.queryByRole('link', { name: /new report/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /create slb monthly report/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /create slb monthly report/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('creates an SLB monthly report and navigates to detail', async () => {
@@ -92,7 +94,9 @@ describe('ReportsPage', () => {
       </MemoryRouter>,
     );
 
-    await userEvent.click(await screen.findByRole('button', { name: /create slb monthly report/i }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: /create slb monthly report/i }),
+    );
 
     await waitFor(() =>
       expect(phase2ApiMock.createSlbMonthlyReportTemplate).toHaveBeenCalledWith({
@@ -143,6 +147,8 @@ describe('ReportsPage', () => {
 
     const openSlbLinks = await screen.findAllByRole('link', { name: 'Open SLB report' });
     expect(openSlbLinks[0]).toHaveAttribute('href', '/reports/report-slb');
-    expect(screen.queryByRole('button', { name: /create slb monthly report/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /create slb monthly report/i }),
+    ).not.toBeInTheDocument();
   });
 });

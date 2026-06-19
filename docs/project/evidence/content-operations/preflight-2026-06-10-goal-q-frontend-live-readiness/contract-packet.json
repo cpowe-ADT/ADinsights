@@ -4,11 +4,7 @@
   "breaking_change_detected": false,
   "contract_surfaces_touched": [],
   "required_docs_updates": [],
-  "required_reviewers": [
-    "Raj",
-    "Lina",
-    "Hannah"
-  ],
+  "required_reviewers": ["Raj", "Lina", "Hannah"],
   "required_tests": [],
   "rationale": [
     "Evidence source: explicit_paths.",
@@ -70,9 +66,7 @@
       "source": "explicit_paths"
     }
   ],
-  "next_actions": [
-    "Proceed with normal single-stream review and canonical tests."
-  ],
+  "next_actions": ["Proceed with normal single-stream review and canonical tests."],
   "ci_strict_evaluation": {
     "enabled": false,
     "strict_level": "breaking_only",
@@ -80,9 +74,7 @@
   },
   "advisory_only": true,
   "signals": {
-    "prompt_paths": [
-      "docs/evidence"
-    ],
+    "prompt_paths": ["docs/evidence"],
     "packet_paths": [
       "frontend/src/routes/ContentOpsPage.tsx",
       "frontend/src/lib/contentOpsMock.ts",

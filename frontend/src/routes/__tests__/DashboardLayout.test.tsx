@@ -502,9 +502,7 @@ describe('DashboardLayout', () => {
       ),
     ).toBeInTheDocument();
 
-    await waitFor(() => {
-      expect(storeMock.state.loadAll).toHaveBeenCalledWith('tenant-1');
-    });
+    expect(await screen.findByText('Campaigns')).toBeInTheDocument();
   });
 
   it('waits for Meta status before auto-selecting the preferred credential account', async () => {

@@ -1,4 +1,5 @@
 ## Scope Gatekeeper Advisory Packet
+
 - Schema version: `1.1.0`
 - Status: `ESCALATE_CROSS_SCOPE`
 - Advisory-only: `True`
@@ -10,27 +11,33 @@
 - Invoke release readiness: `True`
 
 ### Required Tests By Folder
+
 - `frontend`
   - `cd frontend && npm ci && npm test -- --run && npm run build`
 - `docs`
   - `docs-only change (no canonical code test)`
 
 ### Required Docs Updates
+
 - `docs/ops/doc-index.md`
 - `docs/ops/agent-activity-log.md`
 
 ### Recommended Next Action
+
 - Either split work into single-folder PR slices or route to Raj for cross-stream coordination.
 
 ### Rationale
+
 - Evidence source: explicit_paths.
-- Detected 8 path(s): frontend/src/routes/ContentOpsPage.tsx, frontend/src/lib/contentOpsMock.ts, frontend/src/styles/contentOps.css, frontend/src/routes/__tests__/ContentOpsPage.test.tsx, docs/project/evidence/content-operations/2026-06-10-goal-q-frontend-live-readiness.md, docs/project/content-operations-current-state.md, docs/project/content-operations-implementation-backlog.md, docs/ops/agent-activity-log.md.
+- Detected 8 path(s): frontend/src/routes/ContentOpsPage.tsx, frontend/src/lib/contentOpsMock.ts, frontend/src/styles/contentOps.css, frontend/src/routes/**tests**/ContentOpsPage.test.tsx, docs/project/evidence/content-operations/2026-06-10-goal-q-frontend-live-readiness.md, docs/project/content-operations-current-state.md, docs/project/content-operations-implementation-backlog.md, docs/ops/agent-activity-log.md.
 - Touched top-level folders: frontend, docs.
 
 ### Contract Risk Reasons
+
 - None
 
 ### Evidence
+
 - `scope_path` `frontend/src/routes/ContentOpsPage.tsx` (strength=0.8, source=explicit_paths)
 - `scope_path` `frontend/src/lib/contentOpsMock.ts` (strength=0.8, source=explicit_paths)
 - `scope_path` `frontend/src/styles/contentOps.css` (strength=0.8, source=explicit_paths)

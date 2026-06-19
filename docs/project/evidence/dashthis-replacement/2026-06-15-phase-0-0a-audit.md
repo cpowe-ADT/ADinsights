@@ -24,17 +24,17 @@ Scope-gate advisory:
 
 ## Phase 0 Inventory Status
 
-| Requirement | Current status | Notes |
-| ----------- | -------------- | ----- |
-| DashThis report names | Partially known | Gmail evidence identified `SLB Marketing Campaign Status Report, May 2026`; exact DashThis dashboard names still need confirmation. |
-| First proof tenant/client | Recommended | Use SLB first unless the operator overrides it. Gmail has the clearest report-plus-Meta-activity evidence. |
-| Required paid media sources | Partially known | Meta Ads is proven for SLB, JDIC, and BOJ/Common Cents. Google Ads was not proven in the Gmail pass. |
-| GA4/Search Console requirement | Partially known | Required if Grace is in cancellation scope; Gmail shows Grace Foods GA4 and Search Console performance emails. |
-| Required date ranges | Partially known | May 2026 is recommended for SLB because Gmail shows a May 2026 campaign status report and nearby Meta activity. |
-| Required outputs | Partially assumed | Dashboard view, CSV, PDF, PNG, scheduled email, and daily summary are in scope; Slack/webhook only if DashThis currently provides equivalent delivery. |
-| Required recipients | Blocked | Need scheduled-report and daily-summary recipient list. |
-| Source-platform comparison data | Blocked | Need aggregated Meta/Google source totals or screenshots/exports for the fixed parity range. Do not commit sensitive exports. |
-| SLB full-report parity | Blocked | Gmail attachments show the SLB deliverable includes organic social metrics, top performers, narrative work completed, and recommendations. Operator must decide full parity vs paid-media-only MVP. |
+| Requirement                     | Current status    | Notes                                                                                                                                                                                               |
+| ------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DashThis report names           | Partially known   | Gmail evidence identified `SLB Marketing Campaign Status Report, May 2026`; exact DashThis dashboard names still need confirmation.                                                                 |
+| First proof tenant/client       | Recommended       | Use SLB first unless the operator overrides it. Gmail has the clearest report-plus-Meta-activity evidence.                                                                                          |
+| Required paid media sources     | Partially known   | Meta Ads is proven for SLB, JDIC, and BOJ/Common Cents. Google Ads was not proven in the Gmail pass.                                                                                                |
+| GA4/Search Console requirement  | Partially known   | Required if Grace is in cancellation scope; Gmail shows Grace Foods GA4 and Search Console performance emails.                                                                                      |
+| Required date ranges            | Partially known   | May 2026 is recommended for SLB because Gmail shows a May 2026 campaign status report and nearby Meta activity.                                                                                     |
+| Required outputs                | Partially assumed | Dashboard view, CSV, PDF, PNG, scheduled email, and daily summary are in scope; Slack/webhook only if DashThis currently provides equivalent delivery.                                              |
+| Required recipients             | Blocked           | Need scheduled-report and daily-summary recipient list.                                                                                                                                             |
+| Source-platform comparison data | Blocked           | Need aggregated Meta/Google source totals or screenshots/exports for the fixed parity range. Do not commit sensitive exports.                                                                       |
+| SLB full-report parity          | Blocked           | Gmail attachments show the SLB deliverable includes organic social metrics, top performers, narrative work completed, and recommendations. Operator must decide full parity vs paid-media-only MVP. |
 
 ## Working Replacement Bar
 
@@ -71,17 +71,17 @@ are confirmed.
 
 ## Phase 0A Adversarial Findings
 
-| Finding | Classification | Owner | Required action |
-| ------- | -------------- | ----- | --------------- |
-| No actual DashThis report inventory exists in repo evidence. | blocker | Operator + Raj/Sofia/Lina | Provide active DashThis report names, widgets, recipients, and date ranges. |
-| No first proof tenant/client is selected. | blocker | Operator + Raj | Select one target tenant/client before Phase 1 runtime validation. |
-| GA4/Search Console dependency is unknown. | blocker | Operator + Raj | Explicitly mark each non-paid-media source required or deferred. |
-| Source-platform comparison evidence is absent. | blocker | Operator + Sofia/Priya | Provide aggregated Meta/Google totals for the fixed date range. |
-| Phase gates could pass with demo, stale, default, upload, or wrong-tenant data if evidence is not structured. | scaffolding update | Raj/Omar | Use the new evidence template and require source, tenant, date range, and artifact proof per phase. |
-| Report delivery could look complete without proof of actual recipient delivery. | plan update | Nina/Omar | Record scheduled report recipients and delivery audit evidence before Phase 5 exit. |
-| Meta "connected" state can be confused with ad-account reporting readiness. | known risk | Maya/Sofia | Phase 2 must prove ad account selection and non-empty reporting rows, not only social status. |
-| Attribution lag, timezone, currency, and conversion-window differences can create false parity failures. | known risk | Sofia/Priya | Maintain an acceptable-differences list before Phase 6. |
-| Secrets or webhook URLs could leak through evidence artifacts. | blocker | Nina/Omar | Evidence must stay redacted and aggregated; never paste credentials, tokens, or webhook URLs. |
+| Finding                                                                                                       | Classification     | Owner                     | Required action                                                                                     |
+| ------------------------------------------------------------------------------------------------------------- | ------------------ | ------------------------- | --------------------------------------------------------------------------------------------------- |
+| No actual DashThis report inventory exists in repo evidence.                                                  | blocker            | Operator + Raj/Sofia/Lina | Provide active DashThis report names, widgets, recipients, and date ranges.                         |
+| No first proof tenant/client is selected.                                                                     | blocker            | Operator + Raj            | Select one target tenant/client before Phase 1 runtime validation.                                  |
+| GA4/Search Console dependency is unknown.                                                                     | blocker            | Operator + Raj            | Explicitly mark each non-paid-media source required or deferred.                                    |
+| Source-platform comparison evidence is absent.                                                                | blocker            | Operator + Sofia/Priya    | Provide aggregated Meta/Google totals for the fixed date range.                                     |
+| Phase gates could pass with demo, stale, default, upload, or wrong-tenant data if evidence is not structured. | scaffolding update | Raj/Omar                  | Use the new evidence template and require source, tenant, date range, and artifact proof per phase. |
+| Report delivery could look complete without proof of actual recipient delivery.                               | plan update        | Nina/Omar                 | Record scheduled report recipients and delivery audit evidence before Phase 5 exit.                 |
+| Meta "connected" state can be confused with ad-account reporting readiness.                                   | known risk         | Maya/Sofia                | Phase 2 must prove ad account selection and non-empty reporting rows, not only social status.       |
+| Attribution lag, timezone, currency, and conversion-window differences can create false parity failures.      | known risk         | Sofia/Priya               | Maintain an acceptable-differences list before Phase 6.                                             |
+| Secrets or webhook URLs could leak through evidence artifacts.                                                | blocker            | Nina/Omar                 | Evidence must stay redacted and aggregated; never paste credentials, tokens, or webhook URLs.       |
 
 ## No-Go Criteria Before DashThis Cancellation
 

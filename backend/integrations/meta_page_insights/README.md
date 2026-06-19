@@ -40,7 +40,7 @@ python manage.py shell -c "from integrations.tasks import sync_post_insights; sy
 - `wrong_oauth_flow`: OAuth callback state and endpoint mismatch. For page dashboard flow use:
   - start: `POST /api/meta/connect/start/`
   - callback: `POST /api/meta/connect/callback/`
-  and do not send that state to `POST /api/integrations/meta/oauth/exchange/`.
+    and do not send that state to `POST /api/integrations/meta/oauth/exchange/`.
 
 ## Page-Only Connect Runbook
 

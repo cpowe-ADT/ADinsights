@@ -3,13 +3,16 @@
 Purpose: summarize feature flags/entitlements for AI and humans.
 
 ## Source of truth
+
 - `docs/security/uac-spec.md`
 
 ## Core concepts
+
 - **Entitlements**: per-agency/tenant toggles for premium features.
 - **Feature flags**: temporary gates for staged rollouts.
 
 ## Examples (planned)
+
 - CSV exports
 - Portfolio mode
 - Board packs
@@ -37,6 +40,7 @@ selection, Instagram linkage, Facebook publishing readiness, Instagram publishin
 reporting readiness into one generic connected state.
 
 ## Operational runtime controls (not entitlement flags)
+
 - `CORS_ALLOWED_ORIGINS`, `CORS_ALLOW_ALL_ORIGINS`, `CORS_ALLOW_CREDENTIALS`
 - `CONTENT_OPS_PUBLIC_MEDIA_BASE_URL` configures the deployed HTTPS public media route used by Meta
   fetches for approved Content Ops media. It is not a live publishing flag and does not enable Graph

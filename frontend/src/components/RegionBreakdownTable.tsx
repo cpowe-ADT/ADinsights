@@ -129,7 +129,9 @@ const RegionBreakdownTable = ({ onReload }: RegionBreakdownTableProps) => {
           </thead>
           <tbody>
             {sortedRows.map((row, index) => {
-              const isSelected = !!selectedParish && normalizeParishValue(selectedParish) === normalizeParishValue(row.parish);
+              const isSelected =
+                !!selectedParish &&
+                normalizeParishValue(selectedParish) === normalizeParishValue(row.parish);
               return (
                 <tr
                   key={row.parish}
