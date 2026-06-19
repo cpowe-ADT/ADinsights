@@ -644,6 +644,16 @@ def test_report_v1_completed_export_preserves_preview_snapshot_hash(
     )
     job_id = export_response.json()["id"]
 
+    if export_format in {ReportExportJob.FORMAT_PDF, ReportExportJob.FORMAT_PNG}:
+
+        def fake_render(command, **_kwargs):
+            pdf_path = command[command.index("--out") + 1]
+            png_path = command[command.index("--png") + 1]
+            Path(pdf_path).write_bytes(b"pdf artifact")
+            Path(png_path).write_bytes(b"png artifact")
+
+        monkeypatch.setattr("analytics.tasks.subprocess.run", fake_render)
+
     result = run_report_export_job.run(job_id)
 
     job = ReportExportJob.all_objects.get(id=job_id)
