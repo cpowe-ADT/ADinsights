@@ -207,7 +207,17 @@ def _recommended_source_actions(*, tenant) -> list[str]:
     ) and not page_auth_counts.get("usable"):
         actions.append("Reconnect/select the Facebook Page because the stored Page authorization cannot be used for Page Insights backfill.")
     if not MetaInsightPoint.all_objects.filter(tenant=tenant).exists():
-        actions.append("Backfill Facebook Page Insights stored rows for the fixed SLB Page/date range.")
+        synced_pages_without_rows = MetaPage.all_objects.filter(
+            tenant=tenant,
+            last_synced_at__isnull=False,
+        ).exists()
+        if synced_pages_without_rows:
+            actions.append(
+                "Meta Page Insights sync has run, but Graph returned no Page insight metric rows; "
+                "verify the selected Page/date range in Meta or upload fallback organic values."
+            )
+        else:
+            actions.append("Backfill Facebook Page Insights stored rows for the fixed SLB Page/date range.")
     has_meta_posts = MetaPost.all_objects.filter(tenant=tenant).exists()
     if not MetaPostInsightPoint.all_objects.filter(tenant=tenant).exists():
         if has_meta_posts:
