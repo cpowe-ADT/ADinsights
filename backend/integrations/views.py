@@ -40,7 +40,6 @@ from integrations.airbyte.client import (
     AirbyteClient,
     AirbyteClientConfigurationError,
     AirbyteClientError,
-    client_safe_detail,
 )
 from integrations.airbyte.service import (
     AttemptSnapshot,
@@ -867,25 +866,27 @@ def _upsert_meta_account_sync_state(
 
 def _airbyte_exception_response(exc: AirbyteClientError) -> Response:
     # Log the full, untruncated error (incl. any upstream Airbyte body) server-side;
-    # return only a length-bounded detail to the client.
+    # return only a stable, non-upstream detail to the client.
     logger.warning("airbyte.api_error", exc_info=exc)
-    detail = client_safe_detail(str(exc))
     if getattr(exc, "status_code", None) is not None:
         upstream_status = int(exc.status_code)
         if 400 <= upstream_status < 500:
-            return Response({"detail": detail}, status=upstream_status)
+            return Response(
+                {"detail": "Airbyte rejected the request."},
+                status=upstream_status,
+            )
         gateway_status = (
             status.HTTP_504_GATEWAY_TIMEOUT
             if upstream_status == status.HTTP_504_GATEWAY_TIMEOUT
             else status.HTTP_502_BAD_GATEWAY
         )
-        return Response({"detail": detail}, status=gateway_status)
+        return Response({"detail": "Airbyte request failed."}, status=gateway_status)
     status_code = (
         status.HTTP_504_GATEWAY_TIMEOUT
         if isinstance(exc.__cause__, httpx.TimeoutException)
         else status.HTTP_502_BAD_GATEWAY
     )
-    return Response({"detail": detail}, status=status_code)
+    return Response({"detail": "Airbyte request failed."}, status=status_code)
 
 
 def _looks_like_airbyte_source_config_error(message: str) -> bool:

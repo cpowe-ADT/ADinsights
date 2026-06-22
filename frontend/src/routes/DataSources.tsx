@@ -139,8 +139,6 @@ interface SocialPlatformCard extends Omit<SocialPlatformStatusRecord, 'platform'
 }
 
 const CONNECT_OAUTH_PROVIDER_KEY = 'adinsights.connect.oauth.provider';
-const META_OAUTH_SELECTION_STORAGE_KEY = 'adinsights.meta.oauth.selection';
-const META_OAUTH_FLOW_MARKETING = 'marketing';
 const EMPTY_META_OAUTH_SELECTION: MetaOAuthSelectionState = {
   selectionToken: null,
   pages: [],
@@ -177,52 +175,6 @@ const CONNECT_PROVIDER_SLUGS: Record<ConnectProvider, IntegrationProviderSlug> =
 const CONNECT_PROVIDER_ACCOUNT_LABELS: Record<'GOOGLE', string> = {
   GOOGLE: 'Google Ads customer/account ID',
 };
-
-function readStoredMetaOAuthSelection(): MetaOAuthSelectionState | null {
-  if (typeof window === 'undefined' || !window.sessionStorage) {
-    return null;
-  }
-  try {
-    const raw = window.sessionStorage.getItem(META_OAUTH_SELECTION_STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
-    const parsed = JSON.parse(raw) as Partial<MetaOAuthSelectionState>;
-    if (typeof parsed.selectionToken !== 'string' || !parsed.selectionToken.trim()) {
-      return null;
-    }
-    return {
-      selectionToken: parsed.selectionToken,
-      pages: Array.isArray(parsed.pages) ? parsed.pages : [],
-      adAccounts: Array.isArray(parsed.adAccounts) ? parsed.adAccounts : [],
-      instagramAccounts: Array.isArray(parsed.instagramAccounts) ? parsed.instagramAccounts : [],
-      selectedPageId: typeof parsed.selectedPageId === 'string' ? parsed.selectedPageId : '',
-      selectedAdAccountId:
-        typeof parsed.selectedAdAccountId === 'string' ? parsed.selectedAdAccountId : '',
-      selectedInstagramAccountId:
-        typeof parsed.selectedInstagramAccountId === 'string'
-          ? parsed.selectedInstagramAccountId
-          : '',
-      source: typeof parsed.source === 'string' ? parsed.source : null,
-      recoveredFromExistingToken: Boolean(parsed.recoveredFromExistingToken),
-    };
-  } catch (error) {
-    console.warn('Failed to restore pending Meta OAuth selection', error);
-    window.sessionStorage.removeItem(META_OAUTH_SELECTION_STORAGE_KEY);
-    return null;
-  }
-}
-
-function writeStoredMetaOAuthSelection(selection: MetaOAuthSelectionState | null): void {
-  if (typeof window === 'undefined' || !window.sessionStorage) {
-    return;
-  }
-  if (selection?.selectionToken) {
-    window.sessionStorage.setItem(META_OAUTH_SELECTION_STORAGE_KEY, JSON.stringify(selection));
-  } else {
-    window.sessionStorage.removeItem(META_OAUTH_SELECTION_STORAGE_KEY);
-  }
-}
 
 const SOCIAL_PLATFORM_ORDER: Array<SocialPlatformStatusRecord['platform']> = ['meta', 'instagram'];
 const SOCIAL_PLACEHOLDERS: Array<{
@@ -559,7 +511,7 @@ const DataSources = () => {
   const [savingConnect, setSavingConnect] = useState(false);
   const [metaConnectStep, setMetaConnectStep] = useState<MetaConnectStep>('idle');
   const [metaOAuthSelection, setMetaOAuthSelection] = useState<MetaOAuthSelectionState>(
-    () => readStoredMetaOAuthSelection() ?? EMPTY_META_OAUTH_SELECTION,
+    EMPTY_META_OAUTH_SELECTION,
   );
   const [metaOAuthStarting, setMetaOAuthStarting] = useState(false);
   const [metaOAuthExchanging, setMetaOAuthExchanging] = useState(false);
@@ -576,7 +528,6 @@ const DataSources = () => {
     tone: MetaReportingNoteTone;
     message: string;
   } | null>(null);
-  const restoredMetaSelectionNoticeRef = useRef(false);
   const [googleAdsConnectStep, setGoogleAdsConnectStep] = useState<GoogleAdsConnectStep>('idle');
   const [googleAdsCredential, setGoogleAdsCredential] = useState<PlatformCredentialRecord | null>(
     null,
@@ -848,25 +799,6 @@ const DataSources = () => {
     setMetaOAuthExchanging(false);
     setMetaOAuthSavingPage(false);
   }, []);
-
-  useEffect(() => {
-    writeStoredMetaOAuthSelection(metaOAuthSelection);
-  }, [metaOAuthSelection]);
-
-  useEffect(() => {
-    if (
-      restoredMetaSelectionNoticeRef.current ||
-      !metaOAuthSelection.selectionToken ||
-      connectProvider
-    ) {
-      return;
-    }
-    restoredMetaSelectionNoticeRef.current = true;
-    setConnectProvider('META');
-    setConnectForm(buildInitialConnectForm('META'));
-    setMetaConnectStep('page-selection');
-    addToast('Finish Meta setup by saving the selected business Page and ad account.', 'info');
-  }, [addToast, connectProvider, metaOAuthSelection.selectionToken]);
 
   const resetGoogleAdsState = useCallback(() => {
     setGoogleAdsConnectStep('idle');
@@ -1354,7 +1286,6 @@ const DataSources = () => {
       try {
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(CONNECT_OAUTH_PROVIDER_KEY, 'META');
-          window.sessionStorage.setItem(META_OAUTH_FLOW_SESSION_KEY, META_OAUTH_FLOW_MARKETING);
         }
         const hasRuntimeContext = Boolean(
           runtimeContext.client_origin ||

@@ -257,7 +257,9 @@ class CaptionGenerateRequestSerializer(serializers.Serializer):
                 platforms=attrs.get("platforms"),
             )
         except ValueError as exc:
-            raise serializers.ValidationError({"detail": str(exc)}) from exc
+            raise serializers.ValidationError(
+                {"detail": "Caption request is invalid."}
+            ) from exc
         invalid = set(attrs["platforms"]) - SUPPORTED_CAPTION_PLATFORMS
         if invalid:
             raise serializers.ValidationError(

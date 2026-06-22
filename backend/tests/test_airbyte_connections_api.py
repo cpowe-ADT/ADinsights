@@ -144,7 +144,7 @@ def test_airbyte_connections_health_timeout(api_client, user, tenant, monkeypatc
     api_client.force_authenticate(user=None)
 
     assert response.status_code == 504
-    assert "Timed out" in response.json()["detail"]
+    assert response.json()["detail"] == "Airbyte request failed."
 
 
 @pytest.mark.django_db
@@ -214,7 +214,7 @@ def test_airbyte_connection_sync_upstream_error(api_client, user, tenant, monkey
     api_client.force_authenticate(user=None)
 
     assert response.status_code == 502
-    assert response.json()["detail"] == "Boom"
+    assert response.json()["detail"] == "Airbyte request failed."
     assert not AuditLog.all_objects.filter(
         action="airbyte_connection_sync_triggered",
         resource_id=str(connection.id),
@@ -248,7 +248,7 @@ def test_airbyte_connection_sync_upstream_500_returns_bad_gateway(api_client, us
     api_client.force_authenticate(user=None)
 
     assert response.status_code == 502
-    assert response.json()["detail"] == "Airbyte upstream failed"
+    assert response.json()["detail"] == "Airbyte request failed."
 
 
 @pytest.mark.django_db

@@ -524,7 +524,7 @@ describe('DataSources connect flow', () => {
     await waitFor(() => {
       expect(airbyteMocks.startMetaOAuth).toHaveBeenCalledTimes(1);
       expect(window.sessionStorage.getItem('adinsights.connect.oauth.provider')).toBe('META');
-      expect(window.sessionStorage.getItem('adinsights.meta.oauth.flow')).toBe('marketing');
+      expect(window.sessionStorage.getItem('adinsights.meta.oauth.flow')).toBeNull();
     });
     expect(screen.queryByRole('heading', { name: /connect meta/i })).not.toBeInTheDocument();
   });
@@ -866,8 +866,7 @@ describe('DataSources connect flow', () => {
     );
   });
 
-  it('restores pending Meta asset selection so setup can be finished after refresh', async () => {
-    const user = userEvent.setup();
+  it('ignores legacy persisted Meta asset selections instead of restoring selection tokens', async () => {
     window.sessionStorage.setItem(
       'adinsights.meta.oauth.selection',
       JSON.stringify({
@@ -885,21 +884,9 @@ describe('DataSources connect flow', () => {
 
     renderDataSources();
 
-    expect(await screen.findByText(/Facebook OAuth returned your assets/i)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /finish setup and save meta assets/i }));
-
-    await waitFor(() => {
-      expect(airbyteMocks.connectMetaPage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          selection_token: 'persisted-selection-token',
-          page_id: 'page-1',
-          ad_account_id: 'act_123',
-        }),
-      );
-    });
-    await waitFor(() => {
-      expect(window.sessionStorage.getItem('adinsights.meta.oauth.selection')).toBeNull();
-    });
+    await screen.findByText('Social connections');
+    expect(screen.queryByText(/Facebook OAuth returned your assets/i)).not.toBeInTheDocument();
+    expect(airbyteMocks.connectMetaPage).not.toHaveBeenCalled();
   });
 
   it('treats restore as successful when sync succeeds even if provisioning fails', async () => {

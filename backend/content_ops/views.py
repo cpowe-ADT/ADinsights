@@ -399,7 +399,7 @@ class ContentExportArtifactViewSet(
         try:
             file_path = resolve_content_export_artifact_path(artifact.artifact_path)
         except ContentOpsExportArtifactError as exc:
-            reason = str(exc)
+            reason = _safe_export_artifact_error_reason(str(exc))
             response_status = (
                 status.HTTP_404_NOT_FOUND
                 if reason == "export_artifact_missing"
@@ -602,7 +602,10 @@ class MediaAssetViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
                 alt_text=str(request.data.get("alt_text") or ""),
             )
         except ContentOpsAssetStorageError as exc:
-            raise ValidationError({"detail": _asset_error_detail(str(exc)), "reason": str(exc)}) from exc
+            reason = _safe_asset_error_reason(str(exc))
+            raise ValidationError(
+                {"detail": _asset_error_detail(reason), "reason": reason}
+            ) from exc
         self._audit(
             action="content_asset_uploaded",
             resource_type="content_media_asset",
@@ -1298,7 +1301,7 @@ class PublishAttemptViewSet(
                 attempt_id=attempt.id,
             )
         except ValueError as exc:
-            reason = str(exc)
+            reason = _safe_publish_retry_reason(str(exc))
             if reason == PREFLIGHT_ATTEMPT_MISSING:
                 raise ValidationError(
                     {"detail": "Publish attempt does not exist.", "reason": reason}
@@ -1463,6 +1466,17 @@ def _asset_error_detail(reason: str) -> str:
     return details.get(reason, "Asset upload failed.")
 
 
+def _safe_asset_error_reason(reason: str) -> str:
+    allowed = {
+        "file_required",
+        "asset_empty",
+        "asset_too_large",
+        "asset_mime_type_unsupported",
+        "workspace_wrong_tenant",
+    }
+    return reason if reason in allowed else "asset_upload_failed"
+
+
 def _export_artifact_error_detail(reason: str) -> str:
     details = {
         "export_artifact_missing": "Export artifact file was not found or is empty.",
@@ -1470,6 +1484,23 @@ def _export_artifact_error_detail(reason: str) -> str:
         "export_artifact_path_unsafe": "Export artifact path is unsafe.",
     }
     return details.get(reason, "Export artifact download failed.")
+
+
+def _safe_export_artifact_error_reason(reason: str) -> str:
+    allowed = {
+        "export_artifact_missing",
+        "export_artifact_path_invalid",
+        "export_artifact_path_unsafe",
+    }
+    return reason if reason in allowed else "export_artifact_error"
+
+
+def _safe_publish_retry_reason(reason: str) -> str:
+    allowed = {
+        PREFLIGHT_ATTEMPT_MISSING,
+        PREFLIGHT_ATTEMPT_STATE_NOT_PUBLISHABLE,
+    }
+    return reason if reason in allowed else "attempt_retry_failed"
 
 
 def _date_range_from_request(request: Request):
