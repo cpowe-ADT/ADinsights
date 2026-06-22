@@ -82,8 +82,11 @@ export async function fetchTenants(options: FetchOptions): Promise<TenantRecord[
     signal: options.signal,
   });
 
-  const records =
-    Array.isArray(payload) ? payload : Array.isArray(payload?.results) ? payload.results : [];
+  const records = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.results)
+      ? payload.results
+      : [];
 
   validate('tenants', records);
   return records;

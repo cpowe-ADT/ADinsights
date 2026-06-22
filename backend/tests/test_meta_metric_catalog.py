@@ -34,6 +34,22 @@ def test_meta_metric_catalog_contains_expected_metrics():
         for row in catalog
     )
     assert any(
+        row["level"] == MetaMetricRegistry.LEVEL_POST
+        and row["metric_key"] == "post_impressions"
+        and row["status"] == MetaMetricRegistry.STATUS_DEPRECATED
+        and row["replacement_metric_key"] == "post_media_view"
+        and row["is_default"] is False
+        for row in catalog
+    )
+    assert any(
+        row["level"] == MetaMetricRegistry.LEVEL_POST
+        and row["metric_key"] == "post_impressions_unique"
+        and row["status"] == MetaMetricRegistry.STATUS_DEPRECATED
+        and row["replacement_metric_key"] == "post_total_media_view_unique"
+        and row["is_default"] is False
+        for row in catalog
+    )
+    assert any(
         row["level"] == MetaMetricRegistry.LEVEL_PAGE
         and row["metric_key"] == "page_video_views_10s"
         and row["status"] == MetaMetricRegistry.STATUS_DEPRECATED

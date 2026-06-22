@@ -16,4 +16,3 @@ export const GoogleAdsCampaignDrawerRedirect = () => {
   const drawer = encodeURIComponent(`campaign:${campaignId}`);
   return <Navigate to={`/dashboards/google-ads?tab=campaigns&drawer=${drawer}`} replace />;
 };
-

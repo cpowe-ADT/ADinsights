@@ -4,12 +4,28 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import DashboardState from '../components/DashboardState';
 import SkeletonLoader from '../components/SkeletonLoader';
-import { listReports, type ReportDefinition } from '../lib/phase2Api';
+import {
+  createSlbMonthlyReportTemplate,
+  listReports,
+  type ReportDefinition,
+} from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import { canAccessCreatorUi } from '../lib/rbac';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
 import '../styles/skeleton.css';
+
+const SLB_TEMPLATE_KEY = 'slb_monthly_social_report';
+
+function reportTemplateKey(report: ReportDefinition): string {
+  const filters = report.filters as Record<string, unknown> | undefined;
+  const layout = report.layout as Record<string, unknown> | undefined;
+  return String(filters?.template_key ?? layout?.template_key ?? '');
+}
+
+function isSlbReport(report: ReportDefinition): boolean {
+  return reportTemplateKey(report) === SLB_TEMPLATE_KEY;
+}
 
 const ReportsPage = () => {
   const { user } = useAuth();
@@ -19,6 +35,7 @@ const ReportsPage = () => {
   const [reports, setReports] = useState<ReportDefinition[]>([]);
   const [error, setError] = useState('Unable to load reports.');
   const [showInternal, setShowInternal] = useState(false);
+  const [creatingSlb, setCreatingSlb] = useState(false);
 
   const load = useCallback(async () => {
     setState('loading');
@@ -37,20 +54,40 @@ const ReportsPage = () => {
   }, [load]);
 
   const visibleReports = useMemo(() => {
-    if (showInternal) {
-      return reports;
-    }
-    return reports.filter((report) => {
-      const filters = report.filters as Record<string, unknown> | undefined;
-      if (filters && filters.internal === true) {
-        return false;
-      }
-      if (typeof report.name === 'string' && report.name.startsWith('internal:')) {
-        return false;
-      }
-      return true;
-    });
+    const filtered = showInternal
+      ? reports
+      : reports.filter((report) => {
+          const filters = report.filters as Record<string, unknown> | undefined;
+          if (filters && filters.internal === true) {
+            return false;
+          }
+          if (typeof report.name === 'string' && report.name.startsWith('internal:')) {
+            return false;
+          }
+          return true;
+        });
+    return [...filtered].sort(
+      (left, right) => Number(isSlbReport(right)) - Number(isSlbReport(left)),
+    );
   }, [reports, showInternal]);
+
+  const existingSlbReport = useMemo(
+    () => visibleReports.find((report) => isSlbReport(report)),
+    [visibleReports],
+  );
+
+  const createSlbReport = useCallback(async () => {
+    setCreatingSlb(true);
+    try {
+      const report = await createSlbMonthlyReportTemplate({
+        name: 'SLB Monthly Social Report',
+        date_range: 'last_month',
+      });
+      navigate(`/reports/${report.id}`);
+    } finally {
+      setCreatingSlb(false);
+    }
+  }, [navigate]);
 
   if (state === 'loading') {
     return (
@@ -88,7 +125,10 @@ const ReportsPage = () => {
           <p className="phase2-page__subhead">Manage saved report definitions and export jobs.</p>
         </div>
         <div className="phase2-row-actions">
-          <label className="meta-toggle-all" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+          <label
+            className="meta-toggle-all"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+          >
             <input
               type="checkbox"
               checked={showInternal}
@@ -100,9 +140,25 @@ const ReportsPage = () => {
             Refresh
           </button>
           {canCreate ? (
-            <Link to="/reports/new" className="button primary">
-              New report
-            </Link>
+            <>
+              {existingSlbReport ? (
+                <Link to={`/reports/${existingSlbReport.id}`} className="button primary">
+                  Open SLB report
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => void createSlbReport()}
+                  disabled={creatingSlb}
+                >
+                  {creatingSlb ? 'Creating SLB report...' : 'Create SLB monthly report'}
+                </button>
+              )}
+              <Link to="/reports/new" className="button primary">
+                New report
+              </Link>
+            </>
           ) : null}
         </div>
       </header>
@@ -113,8 +169,8 @@ const ReportsPage = () => {
           layout="page"
           title="No reports yet"
           message="Create your first report definition to unlock exports and scheduling."
-          actionLabel={canCreate ? 'Create report' : undefined}
-          onAction={canCreate ? () => navigate('/reports/new') : undefined}
+          actionLabel={canCreate ? 'Start SLB report' : undefined}
+          onAction={canCreate ? () => void createSlbReport() : undefined}
         />
       ) : (
         <div className="phase2-grid">
@@ -136,7 +192,7 @@ const ReportsPage = () => {
                   <span className="phase2-pill phase2-pill--fresh">Scheduled</span>
                 ) : null}
                 <Link to={`/reports/${report.id}`} className="button tertiary">
-                  Open
+                  {isSlbReport(report) ? 'Open SLB report' : 'Open report'}
                 </Link>
               </div>
             </article>

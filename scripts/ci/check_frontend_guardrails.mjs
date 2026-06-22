@@ -109,7 +109,11 @@ function checkRouter() {
   }
 }
 
-assertAbsent(String.raw`\.\./state/useToastStore`, frontendSrc, 'Found deprecated toast store import path.');
+assertAbsent(
+  String.raw`\.\./state/useToastStore`,
+  frontendSrc,
+  'Found deprecated toast store import path.',
+);
 assertAbsent(String.raw`\bpushToast\b`, frontendSrc, 'Found deprecated pushToast usage.');
 assertAbsent(
   String.raw`import\s+useToastStore\s+from\s+['"][^'"]*useToastStore['"]`,
@@ -125,7 +129,11 @@ assertAbsent(
   'Found addToast object-argument usage.',
   ['-P', '-U'],
 );
-assertAbsent(String.raw`\bas any\b`, path.join(frontendSrc, 'routes'), 'Found `as any` in frontend/src/routes.');
+assertAbsent(
+  String.raw`\bas any\b`,
+  path.join(frontendSrc, 'routes'),
+  'Found `as any` in frontend/src/routes.',
+);
 
 assertMissing('frontend/src/state/useToastStore.ts');
 assertMissing('frontend/src/components/ToastProvider.tsx');

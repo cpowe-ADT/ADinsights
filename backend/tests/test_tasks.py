@@ -114,6 +114,23 @@ def test_metrics_snapshot_sync_schedule_present():
     assert entry["options"]["queue"] == settings.CELERY_QUEUE_SNAPSHOT
 
 
+def test_content_ops_publish_scan_schedules_present():
+    schedule = settings.CELERY_BEAT_SCHEDULE
+    dispatch_entry = schedule["content-publish-due-scan"]
+    retry_entry = schedule["content-publish-retry-scan"]
+    process_entry = schedule["content-publish-process-scan"]
+    metrics_entry = schedule["content-organic-metrics-refresh"]
+
+    assert dispatch_entry["task"] == "content_ops.tasks.dispatch_due_content_schedules"
+    assert dispatch_entry["options"]["queue"] == settings.CELERY_QUEUE_SYNC
+    assert retry_entry["task"] == "content_ops.tasks.requeue_due_content_publish_attempts"
+    assert retry_entry["options"]["queue"] == settings.CELERY_QUEUE_SYNC
+    assert process_entry["task"] == "content_ops.tasks.process_due_content_publish_attempts"
+    assert process_entry["options"]["queue"] == settings.CELERY_QUEUE_SYNC
+    assert metrics_entry["task"] == "content_ops.tasks.refresh_content_published_post_metrics"
+    assert metrics_entry["options"]["queue"] == settings.CELERY_QUEUE_SYNC
+
+
 def test_celery_task_routes_assign_workload_queues():
     routes = settings.CELERY_TASK_ROUTES
     assert routes["core.tasks.sync_meta_metrics"]["queue"] == settings.CELERY_QUEUE_SYNC
@@ -121,6 +138,22 @@ def test_celery_task_routes_assign_workload_queues():
     assert routes["integrations.tasks.evaluate_*"]["queue"] == settings.CELERY_QUEUE_SYNC
     assert routes["analytics.sync_metrics_snapshots"]["queue"] == settings.CELERY_QUEUE_SNAPSHOT
     assert routes["analytics.ai_daily_summary"]["queue"] == settings.CELERY_QUEUE_SUMMARY
+    assert (
+        routes["content_ops.tasks.dispatch_due_content_schedules"]["queue"]
+        == settings.CELERY_QUEUE_SYNC
+    )
+    assert (
+        routes["content_ops.tasks.requeue_due_content_publish_attempts"]["queue"]
+        == settings.CELERY_QUEUE_SYNC
+    )
+    assert (
+        routes["content_ops.tasks.process_due_content_publish_attempts"]["queue"]
+        == settings.CELERY_QUEUE_SYNC
+    )
+    assert (
+        routes["content_ops.tasks.refresh_content_published_post_metrics"]["queue"]
+        == settings.CELERY_QUEUE_SYNC
+    )
 
 
 def test_celery_task_queues_include_workload_queues():
@@ -223,6 +256,10 @@ def test_celery_critical_routes_do_not_fall_back_to_default_queue():
         "integrations.tasks.sync_*",
         "integrations.tasks.refresh_*",
         "integrations.tasks.evaluate_*",
+        "content_ops.tasks.dispatch_due_content_schedules",
+        "content_ops.tasks.requeue_due_content_publish_attempts",
+        "content_ops.tasks.process_due_content_publish_attempts",
+        "content_ops.tasks.refresh_content_published_post_metrics",
         "analytics.sync_metrics_snapshots",
         "analytics.ai_daily_summary",
         "analytics.run_report_export_job",

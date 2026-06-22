@@ -19,9 +19,7 @@ vi.mock('../../lib/dataService', async () => {
 
 function renderWithRouter(uploadId = 'current', state?: Record<string, unknown>) {
   return render(
-    <MemoryRouter
-      initialEntries={[{ pathname: `/dashboards/uploads/${uploadId}`, state }]}
-    >
+    <MemoryRouter initialEntries={[{ pathname: `/dashboards/uploads/${uploadId}`, state }]}>
       <Routes>
         <Route path="/dashboards/uploads/:uploadId" element={<CsvUploadDetail />} />
       </Routes>
@@ -77,18 +75,14 @@ describe('CsvUploadDetail', () => {
     });
 
     expect(screen.getByText('No upload data')).toBeInTheDocument();
-    expect(
-      screen.getByText('This upload does not exist or has been cleared.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('This upload does not exist or has been cleared.')).toBeInTheDocument();
 
     const backLink = screen.getByRole('link', { name: /back to uploads/i });
     expect(backLink).toBeInTheDocument();
   });
 
   it('shows error state when fetch fails', async () => {
-    dataServiceMocks.fetchUploadStatus.mockRejectedValue(
-      new Error('Network error'),
-    );
+    dataServiceMocks.fetchUploadStatus.mockRejectedValue(new Error('Network error'));
 
     renderWithRouter('current');
 

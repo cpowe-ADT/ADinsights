@@ -10,34 +10,19 @@ const DATASET_LABELS: Record<'live' | 'dummy', string> = {
 };
 
 const DatasetToggle = (): JSX.Element | null => {
-  const {
-    mode,
-    status,
-    adapters,
-    error,
-    source,
-    loadAdapters,
-    toggleMode,
-    demoTenants,
-    demoTenantId,
-    setDemoTenantId,
-  } = useDatasetStore((state) => ({
-    mode: state.mode,
-    status: state.status,
-    adapters: state.adapters,
-    error: state.error,
-    source: state.source,
-    loadAdapters: state.loadAdapters,
-    toggleMode: state.toggleMode,
-    demoTenants: state.demoTenants,
-    demoTenantId: state.demoTenantId,
-    setDemoTenantId: state.setDemoTenantId,
-  }));
+  const mode = useDatasetStore((state) => state.mode);
+  const status = useDatasetStore((state) => state.status);
+  const adapters = useDatasetStore((state) => state.adapters);
+  const error = useDatasetStore((state) => state.error);
+  const source = useDatasetStore((state) => state.source);
+  const loadAdapters = useDatasetStore((state) => state.loadAdapters);
+  const toggleMode = useDatasetStore((state) => state.toggleMode);
+  const demoTenants = useDatasetStore((state) => state.demoTenants);
+  const demoTenantId = useDatasetStore((state) => state.demoTenantId);
+  const setDemoTenantId = useDatasetStore((state) => state.setDemoTenantId);
 
-  const { activeTenantId, loadAll } = useDashboardStore((state) => ({
-    activeTenantId: state.activeTenantId,
-    loadAll: state.loadAll,
-  }));
+  const activeTenantId = useDashboardStore((state) => state.activeTenantId);
+  const loadAll = useDashboardStore((state) => state.loadAll);
   const [seedStatus, setSeedStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [seedMessage, setSeedMessage] = useState<string | null>(null);
   const lastFetchedTenantRef = useRef<string | undefined>(
@@ -68,7 +53,8 @@ const DatasetToggle = (): JSX.Element | null => {
   }
 
   const hasDemoData = adapters.includes('demo') || adapters.includes('fake');
-  const hasLiveData = source === 'warehouse' || source === 'meta_direct' || adapters.includes('warehouse');
+  const hasLiveData =
+    source === 'warehouse' || source === 'meta_direct' || adapters.includes('warehouse');
 
   const nextLabel = mode === 'live' ? 'Use demo data' : 'Use live data';
   const badge = DATASET_LABELS[mode];

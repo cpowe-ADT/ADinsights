@@ -25,7 +25,13 @@ import { formatNumber } from '../lib/format';
 import { loadMetaAccounts } from '../lib/meta';
 import {
   createDashboardDefinition,
+  fetchReportingCatalog,
+  previewDashboardWidget,
+  type DashboardV1Widget,
   type DashboardMetricKey,
+  type DashboardWidgetPreviewResponse,
+  type ReportingCatalogMetric,
+  type ReportingCatalogResponse,
   type DashboardTemplateKey,
 } from '../lib/phase2Api';
 import { canAccessCreatorUi } from '../lib/rbac';
@@ -50,6 +56,25 @@ type PreviewState =
   | { status: 'idle' | 'loading' }
   | { status: 'error'; message: string }
   | { status: 'ready'; summary: PreviewSummary };
+
+type CatalogState =
+  | { status: 'idle' | 'loading' }
+  | { status: 'error'; message: string }
+  | { status: 'ready'; catalog: ReportingCatalogResponse };
+
+type GovernedWidgetState = {
+  dataset: string;
+  widgetType: string;
+  metric: string;
+  dimension: string;
+  rowLimit: number;
+  coveragePolicy: string;
+};
+
+type GovernedPreviewState =
+  | { status: 'idle' | 'loading' }
+  | { status: 'error'; message: string }
+  | { status: 'ready'; payload: DashboardWidgetPreviewResponse };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -133,6 +158,122 @@ function buildPreviewBlockedMessage(metaStatus: SocialPlatformStatusRecord | nul
   return 'No Meta ad accounts are available for dashboard preview yet.';
 }
 
+function labelForCatalogKey(value: string): string {
+  return value
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function normalizeDateRange(filters: FilterBarState): Record<string, string> {
+  if (filters.dateRange === 'custom') {
+    return {
+      date_range: 'custom',
+      start_date: filters.customRange.start,
+      end_date: filters.customRange.end,
+    };
+  }
+  const mapped: Partial<Record<FilterBarState['dateRange'], string>> = {
+    '7d': 'last_7d',
+    '30d': 'last_30d',
+    '90d': 'last_90d',
+    mtd: 'mtd',
+  };
+  return { date_range: mapped[filters.dateRange] ?? 'last_30d' };
+}
+
+function sanitizeWidgetId(...parts: string[]): string {
+  return parts
+    .join('_')
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function buildGovernedWidget(
+  state: GovernedWidgetState,
+  filters: FilterBarState,
+): DashboardV1Widget {
+  const dimensions =
+    state.widgetType === 'kpi'
+      ? []
+      : state.widgetType === 'line_chart'
+        ? ['date']
+        : [state.dimension].filter(Boolean);
+  const visual: Record<string, unknown> = {
+    title: labelForCatalogKey(`${state.dataset}_${state.metric}`),
+    source_labels: true,
+  };
+  if (state.widgetType === 'data_table') {
+    visual.row_limit = state.rowLimit;
+  }
+  return {
+    id: sanitizeWidgetId(state.dataset, state.metric, state.widgetType),
+    type: state.widgetType,
+    dataset: state.dataset,
+    metrics: [state.metric],
+    dimensions,
+    filters: normalizeDateRange(filters),
+    coverage_policy: state.coveragePolicy,
+    visual,
+  };
+}
+
+function buildDashboardV1Layout(widget: DashboardV1Widget): Record<string, unknown> {
+  return {
+    schema_version: 'dashboard.v1',
+    layout: {
+      columns: 12,
+      slots: [
+        {
+          id: `slot_${widget.id}`,
+          widget_id: widget.id,
+          cols: widget.type === 'kpi' ? 4 : 8,
+          rows: widget.type === 'data_table' ? 3 : 2,
+        },
+      ],
+    },
+    widgets: [widget],
+  };
+}
+
+function firstActiveDataset(catalog: ReportingCatalogResponse): string {
+  return (
+    catalog.datasets.find((dataset) => dataset.status === 'active_v1' && !dataset.is_future_gated)
+      ?.key ?? 'paid_meta_ads'
+  );
+}
+
+function allowedMetrics(
+  catalog: ReportingCatalogResponse,
+  dataset: string,
+  widgetType: string,
+): ReportingCatalogMetric[] {
+  return catalog.metrics.filter(
+    (metric) =>
+      metric.dataset === dataset && metric.widgets.includes(widgetType) && !metric.is_future_gated,
+  );
+}
+
+function allowedDimensions(
+  catalog: ReportingCatalogResponse,
+  metric: ReportingCatalogMetric | undefined,
+  widgetType: string,
+): string[] {
+  if (!metric || widgetType === 'kpi') {
+    return [];
+  }
+  if (widgetType === 'line_chart') {
+    return metric.dimensions.filter((dimension) =>
+      catalog.compatibility.time_dimensions.includes(dimension),
+    );
+  }
+  return metric.dimensions.filter(
+    (dimension) => !catalog.compatibility.time_dimensions.includes(dimension),
+  );
+}
+
 const DashboardCreate = () => {
   const { user, tenantId } = useAuth();
   const navigate = useNavigate();
@@ -172,15 +313,111 @@ const DashboardCreate = () => {
   const [metaStatus, setMetaStatus] = useState<SocialPlatformStatusRecord | null>(null);
   const [metaStatusResolved, setMetaStatusResolved] = useState(false);
   const [preview, setPreview] = useState<PreviewState>({ status: 'idle' });
+  const [catalogState, setCatalogState] = useState<CatalogState>({ status: 'idle' });
+  const [governedWidget, setGovernedWidget] = useState<GovernedWidgetState>({
+    dataset: 'paid_meta_ads',
+    widgetType: 'kpi',
+    metric: 'spend',
+    dimension: 'campaign',
+    rowLimit: 25,
+    coveragePolicy: 'render_with_warning',
+  });
+  const [governedPreview, setGovernedPreview] = useState<GovernedPreviewState>({
+    status: 'idle',
+  });
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
   const [saveError, setSaveError] = useState<string>();
 
   const selectedTemplate = useMemo(() => getDashboardTemplate(templateKey), [templateKey]);
+  const catalog = catalogState.status === 'ready' ? catalogState.catalog : null;
+  const activeWidget = useMemo(
+    () => buildGovernedWidget(governedWidget, filters),
+    [filters, governedWidget],
+  );
+  const metricOptions = useMemo(
+    () =>
+      catalog ? allowedMetrics(catalog, governedWidget.dataset, governedWidget.widgetType) : [],
+    [catalog, governedWidget.dataset, governedWidget.widgetType],
+  );
+  const selectedCatalogMetric = metricOptions.find(
+    (metric) => metric.key === governedWidget.metric,
+  );
+  const dimensionOptions = useMemo(
+    () =>
+      catalog ? allowedDimensions(catalog, selectedCatalogMetric, governedWidget.widgetType) : [],
+    [catalog, governedWidget.widgetType, selectedCatalogMetric],
+  );
 
   useEffect(() => {
     setDefaultMetric(selectedTemplate.defaultMetric);
     setSelectedWidgets(selectedTemplate.widgets.map((widget) => widget.id));
   }, [selectedTemplate]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setCatalogState({ status: 'loading' });
+    void fetchReportingCatalog(controller.signal)
+      .then((payload) => {
+        const dataset = firstActiveDataset(payload);
+        const widgetType =
+          payload.widgets.find((widget) => widget.key === 'kpi' && !widget.is_future_gated)?.key ??
+          'kpi';
+        const metric = allowedMetrics(payload, dataset, widgetType)[0]?.key ?? 'spend';
+        const metricDefinition = allowedMetrics(payload, dataset, widgetType).find(
+          (item) => item.key === metric,
+        );
+        const dimension = allowedDimensions(payload, metricDefinition, widgetType)[0] ?? 'campaign';
+        setCatalogState({ status: 'ready', catalog: payload });
+        setGovernedWidget((previous) => ({
+          ...previous,
+          dataset,
+          widgetType,
+          metric,
+          dimension,
+          coveragePolicy: payload.coverage_policies.includes(previous.coveragePolicy)
+            ? previous.coveragePolicy
+            : 'render_with_warning',
+        }));
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setCatalogState({
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Unable to load reporting catalog.',
+        });
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    if (!catalog) {
+      return;
+    }
+    const nextMetrics = allowedMetrics(catalog, governedWidget.dataset, governedWidget.widgetType);
+    const metric = nextMetrics.some((item) => item.key === governedWidget.metric)
+      ? governedWidget.metric
+      : nextMetrics[0]?.key;
+    const metricDefinition = nextMetrics.find((item) => item.key === metric);
+    const nextDimensions = allowedDimensions(catalog, metricDefinition, governedWidget.widgetType);
+    const dimension = nextDimensions.includes(governedWidget.dimension)
+      ? governedWidget.dimension
+      : (nextDimensions[0] ?? '');
+    if (metric && (metric !== governedWidget.metric || dimension !== governedWidget.dimension)) {
+      setGovernedWidget((previous) => ({
+        ...previous,
+        metric,
+        dimension,
+      }));
+    }
+  }, [
+    catalog,
+    governedWidget.dataset,
+    governedWidget.dimension,
+    governedWidget.metric,
+    governedWidget.widgetType,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -373,6 +610,45 @@ const DashboardCreate = () => {
     datasetSource,
   ]);
 
+  useEffect(() => {
+    if (!catalog) {
+      setGovernedPreview({ status: 'idle' });
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setGovernedPreview({ status: 'loading' });
+      void previewDashboardWidget(
+        {
+          widget: activeWidget,
+          date_range: normalizeDateRange(filters),
+          account_id: filters.accountId.trim() || undefined,
+          client_id: filters.clientId.trim() || undefined,
+        },
+        controller.signal,
+      )
+        .then((payload) => {
+          if (!controller.signal.aborted) {
+            setGovernedPreview({ status: 'ready', payload });
+          }
+        })
+        .catch((error) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+          setGovernedPreview({
+            status: 'error',
+            message: error instanceof Error ? error.message : 'Unable to preview governed widget.',
+          });
+        });
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [activeWidget, catalog, filters]);
+
   const toggleWidget = useCallback((widgetId: string) => {
     setSelectedWidgets((current) =>
       current.includes(widgetId)
@@ -404,10 +680,7 @@ const DashboardCreate = () => {
           ...filters,
           channels: ['Meta Ads'],
         },
-        layout: {
-          routeKind: selectedTemplate.routeKind,
-          widgets: selectedWidgets,
-        },
+        layout: buildDashboardV1Layout(activeWidget),
         default_metric: defaultMetric,
         is_active: true,
       });
@@ -416,16 +689,7 @@ const DashboardCreate = () => {
       setSaveState('error');
       setSaveError(error instanceof Error ? error.message : 'Unable to save dashboard.');
     }
-  }, [
-    defaultMetric,
-    description,
-    filters,
-    name,
-    navigate,
-    selectedTemplate.routeKind,
-    selectedWidgets,
-    templateKey,
-  ]);
+  }, [defaultMetric, description, filters, name, navigate, templateKey, activeWidget]);
 
   if (!canCreate) {
     return (
@@ -573,6 +837,193 @@ const DashboardCreate = () => {
             );
           })}
         </div>
+      </section>
+
+      <section className="panel full-width">
+        <header className="panel-header">
+          <div className="panel-header__title-row">
+            <h2>Governed reporting widget</h2>
+          </div>
+          <p className="muted">
+            These options come from the backend reporting catalog and save as a dashboard.v1 widget.
+          </p>
+        </header>
+
+        {catalogState.status === 'loading' || catalogState.status === 'idle' ? (
+          <DashboardState
+            variant="loading"
+            layout="compact"
+            message="Loading reporting catalog..."
+          />
+        ) : null}
+
+        {catalogState.status === 'error' ? (
+          <DashboardState
+            variant="error"
+            layout="compact"
+            title="Catalog unavailable"
+            message={catalogState.message}
+          />
+        ) : null}
+
+        {catalog ? (
+          <>
+            <div className="dashboard-builder__grid">
+              <label className="library-field">
+                <span className="library-field__label">Dataset</span>
+                <select
+                  value={governedWidget.dataset}
+                  onChange={(event) =>
+                    setGovernedWidget((previous) => ({
+                      ...previous,
+                      dataset: event.target.value,
+                    }))
+                  }
+                >
+                  {catalog.datasets
+                    .filter((dataset) => dataset.status === 'active_v1' && !dataset.is_future_gated)
+                    .map((dataset) => (
+                      <option key={dataset.key} value={dataset.key}>
+                        {labelForCatalogKey(dataset.key)}
+                      </option>
+                    ))}
+                </select>
+              </label>
+
+              <label className="library-field">
+                <span className="library-field__label">Widget type</span>
+                <select
+                  value={governedWidget.widgetType}
+                  onChange={(event) =>
+                    setGovernedWidget((previous) => ({
+                      ...previous,
+                      widgetType: event.target.value,
+                    }))
+                  }
+                >
+                  {catalog.widgets
+                    .filter((widget) =>
+                      ['kpi', 'line_chart', 'bar_chart', 'data_table'].includes(widget.key),
+                    )
+                    .filter((widget) => !widget.is_future_gated)
+                    .map((widget) => (
+                      <option key={widget.key} value={widget.key}>
+                        {labelForCatalogKey(widget.key)}
+                      </option>
+                    ))}
+                </select>
+              </label>
+
+              <label className="library-field">
+                <span className="library-field__label">Metric</span>
+                <select
+                  value={governedWidget.metric}
+                  onChange={(event) =>
+                    setGovernedWidget((previous) => ({
+                      ...previous,
+                      metric: event.target.value,
+                    }))
+                  }
+                >
+                  {metricOptions.map((metric) => (
+                    <option key={`${metric.dataset}.${metric.key}`} value={metric.key}>
+                      {labelForCatalogKey(metric.key)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {governedWidget.widgetType !== 'kpi' ? (
+                <label className="library-field">
+                  <span className="library-field__label">X dimension</span>
+                  <select
+                    value={governedWidget.dimension}
+                    onChange={(event) =>
+                      setGovernedWidget((previous) => ({
+                        ...previous,
+                        dimension: event.target.value,
+                      }))
+                    }
+                  >
+                    {dimensionOptions.map((dimension) => (
+                      <option key={dimension} value={dimension}>
+                        {labelForCatalogKey(dimension)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+
+              {governedWidget.widgetType === 'data_table' ? (
+                <label className="library-field">
+                  <span className="library-field__label">Row limit</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={catalog.compatibility.table.max_row_limit}
+                    value={governedWidget.rowLimit}
+                    onChange={(event) =>
+                      setGovernedWidget((previous) => ({
+                        ...previous,
+                        rowLimit: Number(event.target.value),
+                      }))
+                    }
+                  />
+                </label>
+              ) : null}
+
+              <label className="library-field">
+                <span className="library-field__label">Coverage policy</span>
+                <select
+                  value={governedWidget.coveragePolicy}
+                  onChange={(event) =>
+                    setGovernedWidget((previous) => ({
+                      ...previous,
+                      coveragePolicy: event.target.value,
+                    }))
+                  }
+                >
+                  {catalog.coverage_policies.map((policy) => (
+                    <option key={policy} value={policy}>
+                      {labelForCatalogKey(policy)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="dashboard-builder__preview-meta">
+              {governedPreview.status === 'idle' || governedPreview.status === 'loading' ? (
+                <p>
+                  <strong>Governed preview:</strong> Loading widget preview...
+                </p>
+              ) : null}
+              {governedPreview.status === 'error' ? (
+                <p className="status-message error">{governedPreview.message}</p>
+              ) : null}
+              {governedPreview.status === 'ready' ? (
+                <>
+                  <p>
+                    <strong>Governed preview:</strong>{' '}
+                    {labelForCatalogKey(governedPreview.payload.type)} from{' '}
+                    {labelForCatalogKey(governedPreview.payload.dataset)}
+                  </p>
+                  <p>
+                    <strong>Coverage state:</strong>{' '}
+                    {governedPreview.payload.coverage
+                      ? labelForCatalogKey(governedPreview.payload.coverage.coverage_status)
+                      : 'Unavailable'}
+                  </p>
+                  <p>
+                    <strong>Coverage note:</strong>{' '}
+                    {governedPreview.payload.coverage?.coverage_note ??
+                      'Coverage was not returned for this preview.'}
+                  </p>
+                </>
+              ) : null}
+            </div>
+          </>
+        ) : null}
       </section>
 
       <section className="panel full-width">

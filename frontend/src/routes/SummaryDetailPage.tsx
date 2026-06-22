@@ -71,14 +71,16 @@ const SummaryDetailPage = () => {
           <p className="dashboardEyebrow">AI Summaries</p>
           <h1 className="dashboardHeading">{summary.title}</h1>
           <p className="phase2-page__subhead">
-            Generated {formatRelativeTime(summary.generated_at)} ({formatAbsoluteTime(summary.generated_at)})
-            {' · '}Source: {summary.source}
+            Generated {formatRelativeTime(summary.generated_at)} (
+            {formatAbsoluteTime(summary.generated_at)}){' · '}Source: {summary.source}
             {summary.model_name && ` · Model: ${summary.model_name}`}
           </p>
         </div>
         <div className="phase2-row-actions">
           <span className={`phase2-pill phase2-pill--${summary.status}`}>{summary.status}</span>
-          <span className={`phase2-pill phase2-pill--${summary.source === 'daily_summary' ? 'generated' : 'info'}`}>
+          <span
+            className={`phase2-pill phase2-pill--${summary.source === 'daily_summary' ? 'generated' : 'info'}`}
+          >
             {summary.source === 'daily_summary' ? 'Daily summary' : 'Manual refresh'}
           </span>
           <Link to="/summaries" className="button tertiary">
@@ -97,7 +99,14 @@ const SummaryDetailPage = () => {
           <button
             type="button"
             onClick={() => setPayloadExpanded(!payloadExpanded)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', fontWeight: 'inherit', padding: 0 }}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              font: 'inherit',
+              fontWeight: 'inherit',
+              padding: 0,
+            }}
           >
             {payloadExpanded ? '▾' : '▸'} Raw payload
           </button>

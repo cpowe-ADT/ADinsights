@@ -164,10 +164,7 @@ describe('liveAccountSelection', () => {
     });
 
     it('reads legacy string format from localStorage', () => {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ 'tenant-x': 'act_legacy' }),
-      );
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ 'tenant-x': 'act_legacy' }));
       expect(getLastLiveAccountId('tenant-x')).toBe('act_legacy');
     });
 
@@ -203,20 +200,17 @@ describe('liveAccountSelection', () => {
 
     it('returns stored user selection when valid', () => {
       setLastLiveAccountId(tenantId, 'act_791712443035541', 'user');
-      expect(
-        chooseDefaultLiveAccountOptionId(options, tenantId, ['act_697812007883214']),
-      ).toBe('act_791712443035541');
+      expect(chooseDefaultLiveAccountOptionId(options, tenantId, ['act_697812007883214'])).toBe(
+        'act_791712443035541',
+      );
     });
 
     it('prefers the credential account over a legacy first-option selection', () => {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ [tenantId]: 'act_335732240' }),
-      );
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ [tenantId]: 'act_335732240' }));
 
-      expect(
-        chooseDefaultLiveAccountOptionId(options, tenantId, ['act_697812007883214']),
-      ).toBe('act_697812007883214');
+      expect(chooseDefaultLiveAccountOptionId(options, tenantId, ['act_697812007883214'])).toBe(
+        'act_697812007883214',
+      );
     });
 
     it('preserves a legacy stored selection when it is not the fallback first option', () => {
@@ -225,31 +219,31 @@ describe('liveAccountSelection', () => {
         JSON.stringify({ [tenantId]: 'act_791712443035541' }),
       );
 
-      expect(
-        chooseDefaultLiveAccountOptionId(options, tenantId, ['act_697812007883214']),
-      ).toBe('act_791712443035541');
+      expect(chooseDefaultLiveAccountOptionId(options, tenantId, ['act_697812007883214'])).toBe(
+        'act_791712443035541',
+      );
     });
 
     it('upgrades an auto-selected stored account to the credential account when available', () => {
       setLastLiveAccountId(tenantId, 'act_335732240', 'auto');
 
-      expect(
-        chooseDefaultLiveAccountOptionId(options, tenantId, ['act_697812007883214']),
-      ).toBe('act_697812007883214');
+      expect(chooseDefaultLiveAccountOptionId(options, tenantId, ['act_697812007883214'])).toBe(
+        'act_697812007883214',
+      );
     });
 
     it('respects an explicit user-selected account over the credential preference', () => {
       setLastLiveAccountId(tenantId, 'act_791712443035541', 'user');
 
-      expect(
-        chooseDefaultLiveAccountOptionId(options, tenantId, ['act_697812007883214']),
-      ).toBe('act_791712443035541');
+      expect(chooseDefaultLiveAccountOptionId(options, tenantId, ['act_697812007883214'])).toBe(
+        'act_791712443035541',
+      );
     });
 
     it('returns preferred account when no stored selection exists', () => {
-      expect(
-        chooseDefaultLiveAccountOptionId(options, tenantId, ['act_791712443035541']),
-      ).toBe('act_791712443035541');
+      expect(chooseDefaultLiveAccountOptionId(options, tenantId, ['act_791712443035541'])).toBe(
+        'act_791712443035541',
+      );
     });
 
     it('returns first option as fallback when no stored or preferred', () => {
@@ -266,9 +260,7 @@ describe('liveAccountSelection', () => {
     });
 
     it('works without tenantId (no stored selection)', () => {
-      const result = chooseDefaultLiveAccountOptionId(options, undefined, [
-        'act_697812007883214',
-      ]);
+      const result = chooseDefaultLiveAccountOptionId(options, undefined, ['act_697812007883214']);
       expect(result).toBe('act_697812007883214');
     });
   });

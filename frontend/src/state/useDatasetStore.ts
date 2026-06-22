@@ -206,9 +206,9 @@ export const useDatasetStore = create<DatasetState>()(
                   resolvedSource === WAREHOUSE_KEY &&
                   datasetStatus.live.reason !== 'ready'
                 ? messageForLiveDatasetReason(datasetStatus.live.reason)
-              : resolvedMode === 'dummy' && !demoAvailable
-                ? 'Demo dataset is unavailable.'
-                : undefined;
+                : resolvedMode === 'dummy' && !demoAvailable
+                  ? 'Demo dataset is unavailable.'
+                  : undefined;
 
           set((s) => ({
             ...s,

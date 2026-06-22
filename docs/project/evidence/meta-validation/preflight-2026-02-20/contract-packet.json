@@ -4,9 +4,7 @@
   "breaking_change_detected": false,
   "contract_surfaces_touched": [],
   "required_docs_updates": [],
-  "required_reviewers": [
-    "Raj"
-  ],
+  "required_reviewers": ["Raj"],
   "required_tests": [],
   "rationale": [
     "Evidence source: git_changed_files.",
@@ -26,9 +24,7 @@
       "source": "git_changed_files"
     }
   ],
-  "next_actions": [
-    "Proceed with normal single-stream review and canonical tests."
-  ],
+  "next_actions": ["Proceed with normal single-stream review and canonical tests."],
   "ci_strict_evaluation": {
     "enabled": false,
     "strict_level": "breaking_only",

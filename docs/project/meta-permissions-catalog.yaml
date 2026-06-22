@@ -122,6 +122,32 @@ permissions:
     requested_in_page_insights_oauth: true
     notes: 'Foundational dependency for Page-scoped and some ad-scoped permissions.'
     last_reviewed_on: 2026-03-16
+  - permission: pages_manage_posts
+    family: pages
+    dependencies:
+      - pages_read_engagement
+      - pages_show_list
+    allowed_usage:
+      - Create, edit, and delete posts on authorized Facebook Pages.
+      - Publish approved organic Page content on behalf of business customers.
+    app_review_use_case_requirements:
+      - State that ADinsights uses pages_manage_posts to publish approved organic Facebook Page content on behalf of onboarded business customers.
+      - Specify that publishing is available only after tenant-scoped internal/client approval and operator confirmation.
+      - Specify the exact Content Ops screen where the approved post is scheduled or published.
+    app_review_screencast_requirements:
+      - Demonstrate the complete Facebook login process and permission grant.
+      - Demonstrate Page selection in ADinsights.
+      - Demonstrate Content Ops brief/draft creation, internal approval, client approval, and schedule or publish confirmation.
+      - Demonstrate the resulting post on the selected Facebook Page and the tenant-scoped publish attempt in ADinsights.
+    adinsights_status: content_ops_gated
+    adinsights_feature_mapping:
+      - Content Ops Facebook Page organic publishing.
+      - Tenant-scoped approved content scheduling and publishing workflow.
+    runtime_gate_required: false
+    requested_in_default_oauth: false
+    requested_in_page_insights_oauth: false
+    notes: 'Goal M locks this as the additive Facebook Page publishing permission. Do not add to runtime OAuth until Content Ops live publishing is feature-flagged and App Review evidence is accepted.'
+    last_reviewed_on: 2026-06-10
   - permission: instagram_basic
     family: instagram
     dependencies:
@@ -143,6 +169,69 @@ permissions:
     requested_in_page_insights_oauth: false
     notes: 'Optional only. Current Facebook Login authorize requests ignore this scope in ADinsights.'
     last_reviewed_on: 2026-02-19
+  - permission: instagram_content_publish
+    family: instagram
+    dependencies:
+      - instagram_basic
+    allowed_usage:
+      - Publish organic media to Instagram professional accounts through the legacy Instagram Graph API permission family.
+    app_review_use_case_requirements:
+      - Use only if the selected Meta product path is the Facebook Login / Instagram Graph API flow and the Meta developer console exposes this permission for the app.
+      - State that ADinsights publishes only approved Instagram content on behalf of onboarded business customers.
+    app_review_screencast_requirements:
+      - Demonstrate the complete Facebook login process and permission grant for the selected Instagram Graph API flow.
+      - Demonstrate linked Instagram professional account selection.
+      - Demonstrate approved media asset validation, container creation, publish confirmation, and the resulting Instagram media.
+    adinsights_status: content_ops_gated_fallback
+    adinsights_feature_mapping:
+      - Content Ops Instagram organic publishing through the legacy Instagram Graph API permission family only if confirmed by the app console.
+    runtime_gate_required: false
+    requested_in_default_oauth: false
+    requested_in_page_insights_oauth: false
+    notes: 'Fallback only for the older Instagram Graph API path. Goal M primary App Review planning uses instagram_business_content_publish.'
+    last_reviewed_on: 2026-06-10
+  - permission: instagram_business_basic
+    family: instagram_business
+    dependencies: []
+    allowed_usage:
+      - Access basic profile information for Instagram professional accounts through Instagram API with Instagram Login.
+    app_review_use_case_requirements:
+      - State that ADinsights uses instagram_business_basic to identify the Instagram professional account selected for approved Content Ops publishing.
+      - Specify where the selected Instagram account identity appears in ADinsights readiness and publishing screens.
+    app_review_screencast_requirements:
+      - Demonstrate the Instagram professional account connection flow for the selected Meta product path.
+      - Demonstrate the selected Instagram account identity in ADinsights before publishing.
+    adinsights_status: content_ops_gated
+    adinsights_feature_mapping:
+      - Content Ops Instagram professional account identity and readiness for organic publishing.
+    runtime_gate_required: false
+    requested_in_default_oauth: false
+    requested_in_page_insights_oauth: false
+    notes: 'Current primary Instagram publishing companion permission for Goal M planning; do not add to runtime OAuth until the Instagram publishing adapter goal.'
+    last_reviewed_on: 2026-06-10
+  - permission: instagram_business_content_publish
+    family: instagram_business
+    dependencies:
+      - instagram_business_basic
+    allowed_usage:
+      - Create organic feed photo and video posts on behalf of a business user for an Instagram professional account.
+    app_review_use_case_requirements:
+      - State that ADinsights uses instagram_business_content_publish to publish approved organic Instagram media on behalf of onboarded business customers.
+      - Specify that publishing is available only after tenant-scoped internal/client approval, media validation, and operator confirmation.
+      - Specify the exact Content Ops screen where the approved Instagram post is scheduled or published.
+    app_review_screencast_requirements:
+      - Demonstrate the Instagram professional account connection flow for the selected Meta product path.
+      - Demonstrate Content Ops brief/draft creation, approved media, internal approval, client approval, and schedule or publish confirmation.
+      - Demonstrate media container creation/polling evidence in ADinsights and the resulting Instagram media.
+    adinsights_status: content_ops_gated
+    adinsights_feature_mapping:
+      - Content Ops Instagram organic feed publishing.
+      - Tenant-scoped approved media scheduling and publishing workflow.
+    runtime_gate_required: false
+    requested_in_default_oauth: false
+    requested_in_page_insights_oauth: false
+    notes: 'Goal M locks this as the primary current Instagram publishing permission for App Review planning. Verify availability in the Meta app console before adding runtime scopes.'
+    last_reviewed_on: 2026-06-10
   - permission: instagram_manage_insights
     family: instagram
     dependencies:

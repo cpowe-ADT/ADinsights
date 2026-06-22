@@ -2,10 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import {
-  GoogleAdsCampaignDrawerRedirect,
-  GoogleAdsTabRedirect,
-} from '../GoogleAdsLegacyRedirects';
+import { GoogleAdsCampaignDrawerRedirect, GoogleAdsTabRedirect } from '../GoogleAdsLegacyRedirects';
 
 const LocationProbe = () => {
   const location = useLocation();
@@ -42,7 +39,10 @@ describe('Google Ads legacy redirects', () => {
     render(
       <MemoryRouter initialEntries={['/dashboards/google-ads/campaigns/12345']}>
         <Routes>
-          <Route path="/dashboards/google-ads/campaigns/:campaignId" element={<GoogleAdsCampaignDrawerRedirect />} />
+          <Route
+            path="/dashboards/google-ads/campaigns/:campaignId"
+            element={<GoogleAdsCampaignDrawerRedirect />}
+          />
           <Route path="/dashboards/google-ads" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>,
@@ -55,4 +55,3 @@ describe('Google Ads legacy redirects', () => {
     });
   });
 });
-

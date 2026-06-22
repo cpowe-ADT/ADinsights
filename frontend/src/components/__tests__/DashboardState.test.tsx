@@ -48,9 +48,7 @@ describe('DashboardState', () => {
     });
 
     it('renders a custom action label', () => {
-      render(
-        <DashboardState variant="error" actionLabel="Reload now" onAction={() => {}} />,
-      );
+      render(<DashboardState variant="error" actionLabel="Reload now" onAction={() => {}} />);
       expect(screen.getByRole('button', { name: 'Reload now' })).toBeInTheDocument();
     });
   });
@@ -59,7 +57,9 @@ describe('DashboardState', () => {
     it('renders default empty title and message', () => {
       render(<DashboardState variant="empty" />);
       expect(screen.getByText('No data yet')).toBeInTheDocument();
-      expect(screen.getByText('Data will appear once your next sync finishes.')).toBeInTheDocument();
+      expect(
+        screen.getByText('Data will appear once your next sync finishes.'),
+      ).toBeInTheDocument();
     });
 
     it('renders action button when onAction is provided', () => {

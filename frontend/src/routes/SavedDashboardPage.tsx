@@ -2,7 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
-import { getDashboardDefinition, type DashboardDefinition } from '../lib/phase2Api';
+import GovernedWidgetRenderer from '../components/reporting/GovernedWidgetRenderer';
+import {
+  getDashboardDefinition,
+  previewDashboardWidget,
+  type DashboardDefinition,
+  type DashboardV1Widget,
+  type DashboardWidgetPreviewResponse,
+} from '../lib/phase2Api';
 import {
   createDefaultFilterState,
   serializeFilterQueryParams,
@@ -21,6 +28,14 @@ import useDashboardStore, { type MetricKey } from '../state/useDashboardStore';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function isDashboardV1Layout(value: unknown): value is {
+  schema_version: 'dashboard.v1';
+  widgets: DashboardV1Widget[];
+  layout?: { slots?: Array<{ id: string; widget_id: string; cols?: number; rows?: number }> };
+} {
+  return isRecord(value) && value.schema_version === 'dashboard.v1' && Array.isArray(value.widgets);
 }
 
 function normalizeFilters(value: unknown): FilterBarState {
@@ -119,10 +134,92 @@ const SavedDashboardSlotGrid = ({ slots }: { slots: SlotConfig[] }) => {
   );
 };
 
+const DashboardV1Renderer = ({ dashboard }: { dashboard: DashboardDefinition }) => {
+  const layout = dashboard.layout;
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [previews, setPreviews] = useState<DashboardWidgetPreviewResponse[]>([]);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!isDashboardV1Layout(layout)) {
+      setStatus('error');
+      setError('Saved dashboard layout is not dashboard.v1.');
+      return;
+    }
+    const controller = new AbortController();
+    setStatus('loading');
+    setError('');
+    void Promise.all(
+      layout.widgets.map((widget) =>
+        previewDashboardWidget({ widget }, controller.signal).catch((previewError) => ({
+          widget_id: widget.id,
+          dataset: widget.dataset,
+          type: widget.type,
+          status: 'error' as const,
+          data: {},
+          coverage: null,
+          warnings: [
+            previewError instanceof Error ? previewError.message : 'Widget preview failed.',
+          ],
+          error: previewError instanceof Error ? previewError.message : 'Widget preview failed.',
+        })),
+      ),
+    )
+      .then((payload) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setPreviews(payload);
+        setStatus('ready');
+      })
+      .catch((loadError) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setError(loadError instanceof Error ? loadError.message : 'Unable to preview dashboard.');
+        setStatus('error');
+      });
+    return () => controller.abort();
+  }, [layout]);
+
+  if (status === 'loading') {
+    return <DashboardState variant="loading" layout="page" message="Previewing saved widgets..." />;
+  }
+
+  if (status === 'error') {
+    return (
+      <DashboardState
+        variant="error"
+        layout="page"
+        title="Saved dashboard preview unavailable"
+        message={error}
+      />
+    );
+  }
+
+  const widgetById = new Map(previews.map((preview) => [preview.widget_id, preview]));
+  const slots = isDashboardV1Layout(layout) ? (layout.layout?.slots ?? []) : [];
+  const orderedWidgets = slots.length
+    ? slots.map((slot) => widgetById.get(slot.widget_id)).filter(Boolean)
+    : previews;
+
+  return (
+    <div className="reporting-grid">
+      {orderedWidgets.map((widget) =>
+        widget ? <GovernedWidgetRenderer key={widget.widget_id} widget={widget} /> : null,
+      )}
+    </div>
+  );
+};
+
 function renderTemplateBody(
   template: DashboardTemplateDefinition,
   templateKey: DashboardDefinition['template_key'],
+  dashboard: DashboardDefinition,
 ) {
+  if (isDashboardV1Layout(dashboard.layout)) {
+    return <DashboardV1Renderer dashboard={dashboard} />;
+  }
   // S4c: if the template carries optional slot layout metadata, hand off to
   // the grid renderer; otherwise preserve the legacy full-page dispatch so
   // every shipped Sprint-4 template (all four route-kinds) renders exactly
@@ -246,7 +343,7 @@ const SavedDashboardPage = () => {
           <p className="muted">{dashboard.description || template.subtitle}</p>
         </header>
       </section>
-      {renderTemplateBody(template, dashboard.template_key)}
+      {renderTemplateBody(template, dashboard.template_key, dashboard)}
     </div>
   );
 };

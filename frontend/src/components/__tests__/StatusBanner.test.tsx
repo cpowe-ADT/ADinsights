@@ -30,16 +30,12 @@ describe('StatusBanner', () => {
   });
 
   it('renders ReactNode message content', () => {
-    render(
-      <StatusBanner message={<span data-testid="rich">Rich message</span>} />,
-    );
+    render(<StatusBanner message={<span data-testid="rich">Rich message</span>} />);
     expect(screen.getByTestId('rich')).toBeInTheDocument();
   });
 
   it('renders an icon when provided', () => {
-    render(
-      <StatusBanner message="With icon" icon={<span data-testid="banner-icon">!</span>} />,
-    );
+    render(<StatusBanner message="With icon" icon={<span data-testid="banner-icon">!</span>} />);
     expect(screen.getByTestId('banner-icon')).toBeInTheDocument();
   });
 

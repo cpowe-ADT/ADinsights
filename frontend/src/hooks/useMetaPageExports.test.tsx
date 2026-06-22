@@ -80,9 +80,7 @@ describe('useMetaPageExports', () => {
   });
 
   it('creates export and refreshes history', async () => {
-    exportMocks.listMetaPageExports
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([sampleJob]);
+    exportMocks.listMetaPageExports.mockResolvedValueOnce([]).mockResolvedValueOnce([sampleJob]);
     exportMocks.createMetaPageExport.mockResolvedValue(sampleJob);
 
     render(<ExportHarness />);

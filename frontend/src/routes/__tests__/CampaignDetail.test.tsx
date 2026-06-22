@@ -100,7 +100,9 @@ vi.mock('../../components/ui/Card', () => ({
 vi.mock('../../components/ui/StatCard', () => ({
   __esModule: true,
   default: ({ label, value }: { label: string; value: string }) => (
-    <div data-testid="stat-card">{label}: {value}</div>
+    <div data-testid="stat-card">
+      {label}: {value}
+    </div>
   ),
 }));
 

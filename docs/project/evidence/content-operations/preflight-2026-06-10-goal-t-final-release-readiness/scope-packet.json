@@ -1,0 +1,446 @@
+{
+  "schema_version": "1.1.0",
+  "scope_status": "ESCALATE_ARCH_RISK",
+  "touched_top_level_folders": ["backend", "docs", "frontend"],
+  "required_reviewers": ["Raj", "Mira", "Sofia", "Hannah", "Lina"],
+  "required_tests_by_folder": {
+    "backend": ["ruff check backend && pytest -q backend"],
+    "docs": ["docs-only change (no canonical code test)"],
+    "frontend": ["cd frontend && npm ci && npm test -- --run && npm run build"]
+  },
+  "required_docs_updates": ["docs/ops/doc-index.md", "docs/ops/agent-activity-log.md"],
+  "recommended_next_action": "Route to Raj + Mira before implementation and capture architecture rationale/rollback notes.",
+  "rationale": [
+    "Evidence source: git_changed_files.",
+    "Detected 45 path(s): AGENTS.md, backend/.env.sample, backend/core/settings.py, backend/core/urls.py, backend/tests/test_schema_regressions.py, backend/tests/test_tasks.py, docs/ops/agent-activity-log.md, docs/ops/doc-index.md, docs/orchestration.md, docs/project/api-contract-changelog.md, docs/project/current-priority-todo.md, docs/project/feature-catalog.md, docs/project/feature-flags-reference.md, docs/project/integration-data-contract-matrix.md, docs/project/meta-permission-profile.md, docs/project/meta-permissions-catalog.yaml, docs/runbooks/meta-app-review-copy-pack.md, docs/runbooks/meta-app-review-submission-checklist.md, frontend/src/router.tsx, backend/content_ops/, backend/tests/fixtures/, backend/tests/test_content_ops_api.py, backend/tests/test_content_ops_evals.py, backend/tests/test_content_ops_generation.py, backend/tests/test_content_ops_models.py, backend/tests/test_content_ops_publisher.py, backend/tests/test_content_ops_scheduler.py, docs/project/content-operations-api-contract.md, docs/project/content-operations-architecture-sprint-plan.md, docs/project/content-operations-current-state.md, docs/project/content-operations-eval-plan.md, docs/project/content-operations-implementation-backlog.md, docs/project/content-operations-live-publishing-audit-spec.md, docs/project/content-operations-meta-publishing-spec.md, docs/project/content-operations-sprint0-decisions.md, docs/project/evidence/content-operations/, docs/runbooks/content-operations-app-review.md, docs/runbooks/content-operations-failures.md, docs/runbooks/content-operations-publishing.md, frontend/src/lib/contentOps.test.ts, frontend/src/lib/contentOps.ts, frontend/src/lib/contentOpsMock.ts, frontend/src/routes/ContentOpsPage.tsx, frontend/src/routes/__tests__/ContentOpsPage.test.tsx, frontend/src/styles/contentOps.css.",
+    "Touched top-level folders: backend, docs, frontend.",
+    "Architecture-sensitive paths detected: AGENTS.md, backend/core/settings.py, backend/core/urls.py",
+    "Contract-risk signal detected: backend/core/urls.py, docs/project/api-contract-changelog.md, docs/project/integration-data-contract-matrix.md"
+  ],
+  "advisory_only": true,
+  "evidence_source": "git_changed_files",
+  "evidence_paths": [
+    "AGENTS.md",
+    "backend/.env.sample",
+    "backend/core/settings.py",
+    "backend/core/urls.py",
+    "backend/tests/test_schema_regressions.py",
+    "backend/tests/test_tasks.py",
+    "docs/ops/agent-activity-log.md",
+    "docs/ops/doc-index.md",
+    "docs/orchestration.md",
+    "docs/project/api-contract-changelog.md",
+    "docs/project/current-priority-todo.md",
+    "docs/project/feature-catalog.md",
+    "docs/project/feature-flags-reference.md",
+    "docs/project/integration-data-contract-matrix.md",
+    "docs/project/meta-permission-profile.md",
+    "docs/project/meta-permissions-catalog.yaml",
+    "docs/runbooks/meta-app-review-copy-pack.md",
+    "docs/runbooks/meta-app-review-submission-checklist.md",
+    "frontend/src/router.tsx",
+    "backend/content_ops/",
+    "backend/tests/fixtures/",
+    "backend/tests/test_content_ops_api.py",
+    "backend/tests/test_content_ops_evals.py",
+    "backend/tests/test_content_ops_generation.py",
+    "backend/tests/test_content_ops_models.py",
+    "backend/tests/test_content_ops_publisher.py",
+    "backend/tests/test_content_ops_scheduler.py",
+    "docs/project/content-operations-api-contract.md",
+    "docs/project/content-operations-architecture-sprint-plan.md",
+    "docs/project/content-operations-current-state.md",
+    "docs/project/content-operations-eval-plan.md",
+    "docs/project/content-operations-implementation-backlog.md",
+    "docs/project/content-operations-live-publishing-audit-spec.md",
+    "docs/project/content-operations-meta-publishing-spec.md",
+    "docs/project/content-operations-sprint0-decisions.md",
+    "docs/project/evidence/content-operations/",
+    "docs/runbooks/content-operations-app-review.md",
+    "docs/runbooks/content-operations-failures.md",
+    "docs/runbooks/content-operations-publishing.md",
+    "frontend/src/lib/contentOps.test.ts",
+    "frontend/src/lib/contentOps.ts",
+    "frontend/src/lib/contentOpsMock.ts",
+    "frontend/src/routes/ContentOpsPage.tsx",
+    "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
+    "frontend/src/styles/contentOps.css"
+  ],
+  "evidence": [
+    {
+      "type": "scope_path",
+      "value": "AGENTS.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/.env.sample",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/core/settings.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/core/urls.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_schema_regressions.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_tasks.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/ops/agent-activity-log.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/ops/doc-index.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/orchestration.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/api-contract-changelog.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/current-priority-todo.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/feature-catalog.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/feature-flags-reference.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/integration-data-contract-matrix.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/meta-permission-profile.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/meta-permissions-catalog.yaml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/runbooks/meta-app-review-copy-pack.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/runbooks/meta-app-review-submission-checklist.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/router.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/content_ops/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/fixtures/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_content_ops_api.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_content_ops_evals.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_content_ops_generation.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_content_ops_models.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_content_ops_publisher.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "backend/tests/test_content_ops_scheduler.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/content-operations-api-contract.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/content-operations-architecture-sprint-plan.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/content-operations-current-state.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/content-operations-eval-plan.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/content-operations-implementation-backlog.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/content-operations-live-publishing-audit-spec.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/content-operations-meta-publishing-spec.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/content-operations-sprint0-decisions.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/project/evidence/content-operations/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/runbooks/content-operations-app-review.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/runbooks/content-operations-failures.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "docs/runbooks/content-operations-publishing.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/lib/contentOps.test.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/lib/contentOps.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/lib/contentOpsMock.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/ContentOpsPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "scope_path",
+      "value": "frontend/src/styles/contentOps.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "architecture_sensitive_match",
+      "value": "AGENTS.md",
+      "strength": 1.0,
+      "source": "rules"
+    },
+    {
+      "type": "architecture_sensitive_match",
+      "value": "backend/core/settings.py",
+      "strength": 1.0,
+      "source": "rules"
+    },
+    {
+      "type": "architecture_sensitive_match",
+      "value": "backend/core/urls.py",
+      "strength": 1.0,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "backend/core/urls.py",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "docs/project/api-contract-changelog.md",
+      "strength": 0.9,
+      "source": "rules"
+    },
+    {
+      "type": "contract_risk_match",
+      "value": "docs/project/integration-data-contract-matrix.md",
+      "strength": 0.9,
+      "source": "rules"
+    }
+  ],
+  "contract_risk_signal": true,
+  "contract_risk_reasons": [
+    "Matched contract-risk pattern on 'backend/core/urls.py'.",
+    "Matched contract-risk pattern on 'docs/project/api-contract-changelog.md'.",
+    "Matched contract-risk pattern on 'docs/project/integration-data-contract-matrix.md'."
+  ],
+  "handoff_recommendations": {
+    "invoke_contract_guard": true,
+    "invoke_release_readiness": true
+  },
+  "signals": {
+    "prompt_paths": ["go/no-go"],
+    "explicit_paths": [],
+    "changed_files": [
+      "AGENTS.md",
+      "backend/.env.sample",
+      "backend/core/settings.py",
+      "backend/core/urls.py",
+      "backend/tests/test_schema_regressions.py",
+      "backend/tests/test_tasks.py",
+      "docs/ops/agent-activity-log.md",
+      "docs/ops/doc-index.md",
+      "docs/orchestration.md",
+      "docs/project/api-contract-changelog.md",
+      "docs/project/current-priority-todo.md",
+      "docs/project/feature-catalog.md",
+      "docs/project/feature-flags-reference.md",
+      "docs/project/integration-data-contract-matrix.md",
+      "docs/project/meta-permission-profile.md",
+      "docs/project/meta-permissions-catalog.yaml",
+      "docs/runbooks/meta-app-review-copy-pack.md",
+      "docs/runbooks/meta-app-review-submission-checklist.md",
+      "frontend/src/router.tsx",
+      "backend/content_ops/",
+      "backend/tests/fixtures/",
+      "backend/tests/test_content_ops_api.py",
+      "backend/tests/test_content_ops_evals.py",
+      "backend/tests/test_content_ops_generation.py",
+      "backend/tests/test_content_ops_models.py",
+      "backend/tests/test_content_ops_publisher.py",
+      "backend/tests/test_content_ops_scheduler.py",
+      "docs/project/content-operations-api-contract.md",
+      "docs/project/content-operations-architecture-sprint-plan.md",
+      "docs/project/content-operations-current-state.md",
+      "docs/project/content-operations-eval-plan.md",
+      "docs/project/content-operations-implementation-backlog.md",
+      "docs/project/content-operations-live-publishing-audit-spec.md",
+      "docs/project/content-operations-meta-publishing-spec.md",
+      "docs/project/content-operations-sprint0-decisions.md",
+      "docs/project/evidence/content-operations/",
+      "docs/runbooks/content-operations-app-review.md",
+      "docs/runbooks/content-operations-failures.md",
+      "docs/runbooks/content-operations-publishing.md",
+      "frontend/src/lib/contentOps.test.ts",
+      "frontend/src/lib/contentOps.ts",
+      "frontend/src/lib/contentOpsMock.ts",
+      "frontend/src/routes/ContentOpsPage.tsx",
+      "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
+      "frontend/src/styles/contentOps.css"
+    ],
+    "used_git_changed_files": true,
+    "architecture_hits": ["AGENTS.md", "backend/core/settings.py", "backend/core/urls.py"],
+    "contract_hits": [
+      "backend/core/urls.py",
+      "docs/project/api-contract-changelog.md",
+      "docs/project/integration-data-contract-matrix.md"
+    ],
+    "contract_keyword_hits": []
+  }
+}

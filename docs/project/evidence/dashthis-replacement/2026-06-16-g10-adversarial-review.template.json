@@ -1,0 +1,161 @@
+{
+  "schema_version": "slb_g10_adversarial_review.v1",
+  "status": "pending_operator_input",
+  "references": {
+    "g2_g9_run_file": "Pending",
+    "g2_g9_run_valid": false,
+    "review_id": "slb-g10-YYYYMMDD-operator",
+    "review_timestamp": "Pending",
+    "operator": "Pending"
+  },
+  "target": {
+    "environment": "Pending",
+    "safe_tenant_identifier": "Pending",
+    "safe_client_identifier": "SLB / Students' Loan Bureau",
+    "report_definition_id": "Pending",
+    "template_key": "slb_monthly_social_report",
+    "report_schema_version": "report.v1",
+    "primary_start_date": "2026-05-01",
+    "primary_end_date": "2026-05-31",
+    "timezone": "America/Jamaica"
+  },
+  "guardrails": {
+    "instagram_deferred": true,
+    "dashthis_active": true,
+    "stored_aggregate_only": true,
+    "no_live_provider_calls_at_render_export_time": true
+  },
+  "attack_reviews": {
+    "date_range_timezone": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "tenant_scope": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "client_account_page_scope": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "stale_freshness": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "partial_coverage": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "missing_history": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "source_disconnected": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "unsupported_instagram": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "user_level_data": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "empty_artifacts": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "artifact_safety": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "csv_formula_safety": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "delivery_failure": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "quota_bypass": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "audit_gap": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    },
+    "rollback_gap": {
+      "outcome": "Pending",
+      "severity": "Pending",
+      "evidence": "Pending",
+      "resolution": "Pending",
+      "reviewer": "Pending"
+    }
+  },
+  "final_checks": {
+    "all_attack_reviews_closed": false,
+    "no_unresolved_blocker_or_high": false,
+    "no_unsupported_instagram_claim": false,
+    "no_hidden_stale_partial_missing_history": false,
+    "no_user_level_secret_or_raw_provider_data": false,
+    "rollback_path_confirmed": false,
+    "dashthis_still_active": true,
+    "raj_mira_acceptance": false
+  },
+  "reviewer_route": {
+    "raj": "Pending",
+    "mira": "Pending",
+    "sofia": "Pending",
+    "andre": "Pending",
+    "lina_or_joel": "Pending",
+    "omar_or_hannah": "Pending",
+    "nina_if_sensitive": "Pending"
+  }
+}

@@ -402,10 +402,7 @@ const createResponse = (body: unknown, init?: ResponseInit) =>
 
 const createJwt = (exp = Math.floor(Date.now() / 1000) + 7_200) => {
   const encode = (value: object) =>
-    btoa(JSON.stringify(value))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/g, '');
+    btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
   return `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ exp })}.signature`;
 };
 

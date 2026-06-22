@@ -152,6 +152,248 @@ export type HealthOverviewResponse = {
   cards: HealthOverviewCard[];
 };
 
+export type ReportingCatalogDataset = {
+  key: string;
+  status: string;
+  is_future_gated: boolean;
+};
+
+export type ReportingCatalogMetric = {
+  key: string;
+  dataset: string;
+  widgets: string[];
+  dimensions: string[];
+  is_future_gated: boolean;
+};
+
+export type ReportingCatalogDimension = {
+  key: string;
+  datasets: string[];
+};
+
+export type ReportingCatalogWidget = {
+  key: string;
+  status: string;
+  is_future_gated: boolean;
+};
+
+export type ReportingCatalogCompatibility = {
+  time_dimensions: string[];
+  geography_dimensions: string[];
+  source_label_datasets: string[];
+  future_gated_datasets: string[];
+  future_gated_widgets: string[];
+  relative_date_ranges: string[];
+  table: {
+    requires_row_limit: boolean;
+    max_row_limit: number;
+  };
+  line_chart: {
+    requires_one_of_dimensions: string[];
+  };
+  map: {
+    requires_one_of_dimensions: string[];
+  };
+};
+
+export type ReportingCatalogValidation = {
+  legacy_layouts_without_schema_version: string;
+  dashboard_v1_layouts: string;
+  deprecated_or_unknown_page_metrics: string[];
+};
+
+export type ReportingCatalogResponse = {
+  schema_version: 'reporting_catalog.v1';
+  dashboard_schema_version: 'dashboard.v1';
+  report_schema_version?: 'report.v1';
+  datasets: ReportingCatalogDataset[];
+  metrics: ReportingCatalogMetric[];
+  dimensions: ReportingCatalogDimension[];
+  widgets: ReportingCatalogWidget[];
+  coverage_policies: string[];
+  coverage_statuses: string[];
+  source_metric_semantics?: Record<string, Record<string, unknown>>;
+  compatibility: ReportingCatalogCompatibility;
+  validation: ReportingCatalogValidation;
+};
+
+export type ReportTemplateDefinition = {
+  template_key: string;
+  label: string;
+  version: string;
+  supported_datasets: string[];
+  required_sources: string[];
+  eligibility: Record<string, unknown>;
+};
+
+export type ReportTemplateRegistryResponse = {
+  schema_version: 'report_template_registry.v1';
+  templates: ReportTemplateDefinition[];
+};
+
+export type DashboardV1Widget = {
+  id: string;
+  type: string;
+  dataset: string;
+  metrics: string[];
+  dimensions: string[];
+  filters: Record<string, unknown>;
+  coverage_policy: string;
+  visual?: Record<string, unknown>;
+};
+
+export type DashboardWidgetCoverage = {
+  dataset: string;
+  requested_start_date: string;
+  requested_end_date: string;
+  covered_start_date: string | null;
+  covered_end_date: string | null;
+  coverage_status: string;
+  history_status: string;
+  freshness_status: string;
+  last_successful_sync_at: string | null;
+  row_count: number;
+  source_label: string;
+  coverage_note: string;
+};
+
+export type DashboardWidgetPreviewResponse = {
+  widget_id: string;
+  dataset: string;
+  type: string;
+  status?: 'rendered' | 'blocked' | 'error';
+  data: Record<string, unknown>;
+  coverage: DashboardWidgetCoverage | null;
+  warnings: string[];
+  error?: string;
+};
+
+export type ReportPreviewSection = {
+  id: string;
+  type: string;
+  widgets: DashboardWidgetPreviewResponse[];
+};
+
+export type ReportPreviewPage = {
+  id: string;
+  title: string;
+  sections: ReportPreviewSection[];
+};
+
+export type ReportCoverageDatasetSummary = {
+  dataset: string;
+  statuses: Record<string, number>;
+  row_count: number;
+  covered_start_date: string | null;
+  covered_end_date: string | null;
+  source_label?: string | null;
+  notes: string[];
+};
+
+export type ReportPreviewResponse = {
+  report: {
+    id: string;
+    name: string;
+    template_key: string;
+    schema_version: 'report.v1';
+    catalog_schema_version: string;
+  };
+  generated_at: string;
+  date_range: Record<string, unknown>;
+  pages: ReportPreviewPage[];
+  coverage_summary: {
+    by_status: Record<string, number>;
+    datasets: ReportCoverageDatasetSummary[];
+  };
+  warnings: string[];
+  blocking_reasons: string[];
+  export_ready: boolean;
+  preview_hash: string;
+};
+
+export type ReportSourceHealth = {
+  schema_version: string;
+  stored_aggregate_only: boolean;
+  no_live_provider_calls: boolean;
+  meta_credentials: {
+    credential_count: number;
+    token_status_counts: Record<string, number>;
+    has_valid_credential: boolean;
+    has_reauth_required: boolean;
+    required_scope_coverage: {
+      present: string[];
+      missing: string[];
+    };
+    latest_validated_at: string | null;
+    latest_expires_at: string | null;
+  };
+  meta_page_connection: {
+    connection_count: number;
+    active_count: number;
+    inactive_count: number;
+    has_active_connection: boolean;
+    has_usable_page_auth?: boolean;
+    usable_page_auth_count?: number;
+    unusable_page_auth_count?: number;
+    page_auth_status_counts?: Record<string, number>;
+    required_scope_coverage: {
+      present: string[];
+      missing: string[];
+    };
+    latest_token_expires_at: string | null;
+  };
+  meta_airbyte: {
+    connection_count: number;
+    active_count: number;
+    inactive_count: number;
+    last_job_status_counts: Record<string, number>;
+    latest_synced_at: string | null;
+    latest_completed_at: string | null;
+    sanitized_error_categories: Record<string, number>;
+  };
+  stored_assets: Record<string, number>;
+  stored_rows: Record<string, unknown>;
+  recommended_next_actions: string[];
+};
+
+export type ReportDiagnosticsResponse = {
+  report: {
+    id: string;
+    name: string;
+    schema_version: string;
+    template_key: string;
+  };
+  generated_at: string;
+  date_range: Record<string, unknown>;
+  datasets: Array<{
+    dataset: string;
+    coverage_status: string;
+    freshness_status: string;
+    retained_range: { start_date: string | null; end_date: string | null };
+    row_count: number;
+    source_label: string;
+    last_successful_sync_at: string | null;
+    notes: string[];
+    recommended_next_action: string;
+  }>;
+  coverage_summary: ReportPreviewResponse['coverage_summary'] | Record<string, unknown>;
+  blocking_reasons: string[];
+  export_ready: boolean;
+  preview_hash: string;
+  preview_error: { status: string; errors: string[] } | null;
+  source_health?: ReportSourceHealth;
+  export_history: Array<{
+    id: string;
+    format: string;
+    status: string;
+    created_at: string;
+    completed_at: string | null;
+    preview_hash: string;
+    delivery_status: string;
+    blocking_reasons: string[];
+  }>;
+};
+
 export type AuditLogEntry = {
   id: string;
   action: string;
@@ -229,6 +471,27 @@ export async function fetchDashboardLibrary(
   return normalizeDashboardLibraryResponse(payload);
 }
 
+export async function fetchReportingCatalog(
+  signal?: AbortSignal,
+): Promise<ReportingCatalogResponse> {
+  return apiClient.get<ReportingCatalogResponse>('/dashboards/reporting-catalog/', { signal });
+}
+
+export async function previewDashboardWidget(
+  payload: {
+    widget: DashboardV1Widget;
+    date_range?: Record<string, unknown>;
+    client_id?: string;
+    account_id?: string;
+    page_id?: string;
+  },
+  signal?: AbortSignal,
+): Promise<DashboardWidgetPreviewResponse> {
+  return apiClient.post<DashboardWidgetPreviewResponse>('/dashboards/widget-preview/', payload, {
+    signal,
+  });
+}
+
 export async function createDashboardDefinition(
   payload: Pick<
     DashboardDefinition,
@@ -304,8 +567,56 @@ export async function createReport(
   return apiClient.post<ReportDefinition>('/reports/', payload);
 }
 
+export async function listReportTemplates(
+  signal?: AbortSignal,
+): Promise<ReportTemplateRegistryResponse> {
+  return apiClient.get<ReportTemplateRegistryResponse>('/reports/templates/', { signal });
+}
+
+export async function createReportFromTemplate(payload: {
+  template_key: string;
+  name?: string;
+  description?: string;
+  date_range?: string;
+  start_date?: string;
+  end_date?: string;
+  client_id?: string;
+}): Promise<ReportDefinition> {
+  return apiClient.post<ReportDefinition>('/reports/from-template/', payload);
+}
+
+export async function createSlbMonthlyReportTemplate(payload: {
+  name?: string;
+  description?: string;
+  date_range?: string;
+  start_date?: string;
+  end_date?: string;
+  client_id?: string;
+}): Promise<ReportDefinition> {
+  return apiClient.post<ReportDefinition>('/reports/slb-monthly-template/', payload);
+}
+
 export async function getReport(reportId: string, signal?: AbortSignal): Promise<ReportDefinition> {
   return apiClient.get<ReportDefinition>(`/reports/${reportId}/`, { signal });
+}
+
+export async function previewReport(
+  reportId: string,
+  payload: Record<string, unknown> = {},
+  signal?: AbortSignal,
+): Promise<ReportPreviewResponse> {
+  return apiClient.post<ReportPreviewResponse>(`/reports/${reportId}/preview/`, payload, {
+    signal,
+  });
+}
+
+export async function fetchReportDiagnostics(
+  reportId: string,
+  signal?: AbortSignal,
+): Promise<ReportDiagnosticsResponse> {
+  return apiClient.get<ReportDiagnosticsResponse>(`/reports/${reportId}/diagnostics/`, {
+    signal,
+  });
 }
 
 export async function updateReport(
@@ -356,6 +667,15 @@ export async function createReportExport(
   exportFormat: 'csv' | 'pdf' | 'png',
 ): Promise<ReportExportJob> {
   return apiClient.post<ReportExportJob>(`/reports/${reportId}/exports/`, {
+    export_format: exportFormat,
+  });
+}
+
+export async function runScheduledReportDryRun(
+  reportId: string,
+  exportFormat: 'csv' | 'pdf' | 'png' = 'pdf',
+): Promise<ReportExportJob> {
+  return apiClient.post<ReportExportJob>(`/reports/${reportId}/scheduled-dry-run/`, {
     export_format: exportFormat,
   });
 }

@@ -109,6 +109,13 @@ const segmentLabels: Record<string, string> = {
   uploads: 'CSV uploads',
 };
 
+const OAUTH_CALLBACK_QUERY_KEYS = ['code', 'state', 'error', 'error_reason', 'error_description'];
+
+function hasOAuthCallbackQuery(search: string): boolean {
+  const params = new URLSearchParams(search);
+  return OAUTH_CALLBACK_QUERY_KEYS.some((key) => params.has(key));
+}
+
 function decodeSegmentValue(value: string): string {
   try {
     return decodeURIComponent(value);
@@ -196,9 +203,11 @@ const DashboardLayout = () => {
 
   const hideGlobalFilters = useMemo(() => {
     return (
+      location.pathname.startsWith('/dashboards/data-sources') ||
       location.pathname.startsWith('/dashboards/meta/pages') ||
       location.pathname.startsWith('/dashboards/meta/posts') ||
-      location.pathname.startsWith('/dashboards/create')
+      location.pathname.startsWith('/dashboards/create') ||
+      location.pathname.startsWith('/reports')
     );
   }, [location.pathname]);
 
@@ -452,6 +461,14 @@ const DashboardLayout = () => {
   ]);
 
   useEffect(() => {
+    if (hideGlobalFilters) {
+      return;
+    }
+
+    if (hasOAuthCallbackQuery(location.search)) {
+      return;
+    }
+
     const nextSearch = serializeFilterQueryParams(filters);
     const currentSearch = location.search.replace(/^\?/, '');
     if (nextSearch === currentSearch) {
@@ -459,7 +476,7 @@ const DashboardLayout = () => {
     }
     const nextPath = nextSearch ? `${location.pathname}?${nextSearch}` : location.pathname;
     navigate(nextPath, { replace: true });
-  }, [filters, location.pathname, location.search, navigate]);
+  }, [filters, hideGlobalFilters, location.pathname, location.search, navigate]);
 
   const shellRef = useRef<HTMLDivElement>(null);
   const dashboardTopRef = useRef<HTMLDivElement>(null);
@@ -846,18 +863,18 @@ const DashboardLayout = () => {
     }
     if (datasetSource === 'meta_direct') {
       if (liveReason === 'adapter_disabled') {
-        return 'Showing direct Meta sync data. Warehouse reporting is not enabled in this environment.';
+        return 'Showing stored Meta snapshot data. Warehouse reporting is not enabled in this environment.';
       }
       if (liveReason === 'missing_snapshot') {
-        return 'Showing direct Meta sync data while the first warehouse snapshot is still pending.';
+        return 'Showing stored Meta snapshot data while the first warehouse snapshot is still pending.';
       }
       if (liveReason === 'stale_snapshot') {
-        return 'Showing direct Meta sync data while the warehouse snapshot refresh completes.';
+        return 'Showing stored Meta snapshot data while the warehouse snapshot refresh completes.';
       }
       if (liveReason === 'default_snapshot') {
-        return `Showing direct Meta sync data. ${messageForLiveDatasetReason(liveReason, liveDetail)}`;
+        return `Showing stored Meta snapshot data. ${messageForLiveDatasetReason(liveReason, liveDetail)}`;
       }
-      return 'Showing direct Meta sync data.';
+      return 'Showing stored Meta snapshot data.';
     }
     return liveReason ? messageForLiveDatasetReason(liveReason, liveDetail) : null;
   }, [datasetMode, datasetSource, liveDetail, liveReason]);
@@ -870,8 +887,8 @@ const DashboardLayout = () => {
     }
     if (datasetSource === 'meta_direct') {
       return snapshotRelative
-        ? `Direct Meta sync updated ${snapshotRelative}`
-        : 'Direct Meta sync active';
+        ? `Stored Meta snapshot updated ${snapshotRelative}`
+        : 'Stored Meta snapshot available';
     }
     if (liveReason === 'adapter_disabled') {
       return 'Live reporting disabled';

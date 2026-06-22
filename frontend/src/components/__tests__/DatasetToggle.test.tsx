@@ -65,8 +65,12 @@ describe('DatasetToggle', () => {
 
     render(<DatasetToggle />);
 
-    expect(screen.getByText('Live reporting is not enabled in this environment.')).toBeInTheDocument();
-    expect(screen.queryByText('Dataset unavailable. Results may be empty.')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Live reporting is not enabled in this environment.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Dataset unavailable. Results may be empty.'),
+    ).not.toBeInTheDocument();
   });
 
   it('describes direct Meta sync when that is the active live source', () => {

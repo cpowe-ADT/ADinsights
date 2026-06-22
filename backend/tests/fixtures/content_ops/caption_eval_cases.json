@@ -1,0 +1,320 @@
+{
+  "schema_version": "1.0",
+  "cases": [
+    {
+      "id": "facebook_required_terms_pass",
+      "workspace": {
+        "name": "Retail weekend fixture",
+        "objective": "Drive weekend enquiries",
+        "brand_profile": {
+          "voice": "clear, premium, practical",
+          "blocked_terms": ["guaranteed"]
+        },
+        "target_channels": ["facebook_page"]
+      },
+      "brief": {
+        "campaign_theme": "June retail weekend",
+        "audience": "Jamaica homeowners",
+        "offer": "Book a weekend consultation",
+        "tone": "clear and useful",
+        "required_terms": ["Terms apply"],
+        "blocked_terms": []
+      },
+      "request": {
+        "candidate_count": 1,
+        "platforms": ["facebook_page"],
+        "tone_override": "premium and practical"
+      },
+      "provider_response": {
+        "candidates": [
+          {
+            "platform": "facebook_page",
+            "caption": "Plan your weekend upgrade with a practical consultation slot. Terms apply.",
+            "hashtags": ["#WeekendPlanning"],
+            "cta": "Book a consultation",
+            "alt_text": "Weekend promotion graphic",
+            "risk_flags": [],
+            "quality_score": 0.94
+          }
+        ],
+        "warnings": []
+      },
+      "expected": {
+        "status": "succeeded",
+        "failure_code": "",
+        "draft_count": 1,
+        "platforms": ["facebook_page"]
+      }
+    },
+    {
+      "id": "instagram_schema_pass",
+      "workspace": {
+        "name": "Restaurant fixture",
+        "objective": "Fill event bookings",
+        "brand_profile": {
+          "voice": "warm and concise"
+        },
+        "target_channels": ["instagram"]
+      },
+      "brief": {
+        "campaign_theme": "Friday tasting",
+        "audience": "Kingston diners",
+        "offer": "Reserve a Friday tasting table",
+        "tone": "warm",
+        "required_terms": [],
+        "blocked_terms": ["free forever"]
+      },
+      "request": {
+        "candidate_count": 1,
+        "platforms": ["instagram"],
+        "tone_override": "short caption with one CTA"
+      },
+      "provider_response": {
+        "candidates": [
+          {
+            "platform": "instagram",
+            "caption": "Friday tables are open for a relaxed tasting menu. Reserve your spot.",
+            "hashtags": ["#KingstonDining", "#FridayPlans"],
+            "cta": "Reserve now",
+            "alt_text": "Dining table set for a Friday tasting",
+            "risk_flags": [],
+            "quality_score": 0.9
+          }
+        ],
+        "warnings": ["fixture"]
+      },
+      "expected": {
+        "status": "succeeded",
+        "failure_code": "",
+        "draft_count": 1,
+        "platforms": ["instagram"]
+      }
+    },
+    {
+      "id": "blocked_term_failure",
+      "workspace": {
+        "name": "Blocked claim fixture",
+        "objective": "Prevent unsupported claims",
+        "brand_profile": {
+          "blocked_terms": ["guaranteed"]
+        },
+        "target_channels": ["facebook_page"]
+      },
+      "brief": {
+        "campaign_theme": "Claim safety",
+        "audience": "Business owners",
+        "offer": "Consultation",
+        "tone": "careful",
+        "required_terms": [],
+        "blocked_terms": []
+      },
+      "request": {
+        "candidate_count": 1,
+        "platforms": ["facebook_page"],
+        "tone_override": ""
+      },
+      "provider_response": {
+        "candidates": [
+          {
+            "platform": "facebook_page",
+            "caption": "Get guaranteed business results with one quick consultation.",
+            "hashtags": [],
+            "cta": "Start now",
+            "alt_text": "Business consultation graphic",
+            "risk_flags": ["unsupported_claim"],
+            "quality_score": 0.6
+          }
+        ],
+        "warnings": []
+      },
+      "expected": {
+        "status": "failed",
+        "failure_code": "caption_policy_blocked",
+        "draft_count": 0
+      }
+    },
+    {
+      "id": "required_terms_missing_failure",
+      "workspace": {
+        "name": "Disclaimer fixture",
+        "objective": "Require offer disclaimer",
+        "brand_profile": {},
+        "target_channels": ["facebook_page"]
+      },
+      "brief": {
+        "campaign_theme": "Offer disclaimer",
+        "audience": "SMB owners",
+        "offer": "Limited-time bundle",
+        "tone": "direct",
+        "required_terms": ["Terms apply"],
+        "blocked_terms": []
+      },
+      "request": {
+        "candidate_count": 1,
+        "platforms": ["facebook_page"],
+        "tone_override": ""
+      },
+      "provider_response": {
+        "candidates": [
+          {
+            "platform": "facebook_page",
+            "caption": "A limited-time bundle is ready for your next campaign.",
+            "hashtags": ["#CampaignPlanning"],
+            "cta": "Review the bundle",
+            "alt_text": "Campaign bundle graphic",
+            "risk_flags": [],
+            "quality_score": 0.86
+          }
+        ],
+        "warnings": []
+      },
+      "expected": {
+        "status": "failed",
+        "failure_code": "required_terms_missing",
+        "draft_count": 0
+      }
+    },
+    {
+      "id": "schema_invalid_missing_caption",
+      "workspace": {
+        "name": "Schema fixture",
+        "objective": "Reject malformed provider output",
+        "brand_profile": {},
+        "target_channels": ["facebook_page"]
+      },
+      "brief": {
+        "campaign_theme": "Malformed output",
+        "audience": "Agency users",
+        "offer": "Draft captions",
+        "tone": "plain",
+        "required_terms": [],
+        "blocked_terms": []
+      },
+      "request": {
+        "candidate_count": 1,
+        "platforms": ["facebook_page"],
+        "tone_override": ""
+      },
+      "provider_response": {
+        "candidates": [
+          {
+            "platform": "facebook_page",
+            "hashtags": [],
+            "cta": "Review",
+            "alt_text": "Missing caption graphic",
+            "risk_flags": [],
+            "quality_score": 0.75
+          }
+        ],
+        "warnings": []
+      },
+      "expected": {
+        "status": "failed",
+        "failure_code": "caption_schema_invalid",
+        "draft_count": 0
+      }
+    },
+    {
+      "id": "secret_prompt_redaction_pass",
+      "workspace": {
+        "name": "Secret redaction fixture",
+        "objective": "Drive enquiries with access_token=raw-token-123",
+        "brand_profile": {
+          "voice": "clear api_key=fixture-key-456"
+        },
+        "target_channels": ["facebook_page"]
+      },
+      "brief": {
+        "campaign_theme": "Secret prompt sk-fixtureSECRET123",
+        "audience": "Operators",
+        "offer": "Run a safe caption job with refresh_token=refresh-fixture-789",
+        "tone": "direct",
+        "required_terms": [],
+        "blocked_terms": []
+      },
+      "request": {
+        "candidate_count": 1,
+        "platforms": ["facebook_page"],
+        "tone_override": "useful secret=tone-fixture-000"
+      },
+      "provider_response": {
+        "candidates": [
+          {
+            "platform": "facebook_page",
+            "caption": "Create a practical content plan your team can review safely.",
+            "hashtags": ["#ContentOps"],
+            "cta": "Review the draft",
+            "alt_text": "Content planning workspace",
+            "risk_flags": [],
+            "quality_score": 0.93
+          }
+        ],
+        "warnings": []
+      },
+      "expected": {
+        "status": "succeeded",
+        "failure_code": "",
+        "draft_count": 1,
+        "platforms": ["facebook_page"],
+        "redacted_fragments_absent": [
+          "raw-token-123",
+          "fixture-key-456",
+          "sk-fixtureSECRET123",
+          "refresh-fixture-789",
+          "tone-fixture-000"
+        ]
+      }
+    },
+    {
+      "id": "multi_candidate_no_publish_side_effects",
+      "workspace": {
+        "name": "No publish side effects fixture",
+        "objective": "Generate editable drafts only",
+        "brand_profile": {},
+        "target_channels": ["facebook_page", "instagram"]
+      },
+      "brief": {
+        "campaign_theme": "Batch captions",
+        "audience": "Agency strategists",
+        "offer": "Three draft options",
+        "tone": "practical",
+        "required_terms": [],
+        "blocked_terms": ["guaranteed"]
+      },
+      "request": {
+        "candidate_count": 2,
+        "platforms": ["facebook_page", "instagram"],
+        "tone_override": "clear"
+      },
+      "provider_response": {
+        "candidates": [
+          {
+            "platform": "facebook_page",
+            "caption": "Turn the brief into a review-ready Facebook draft.",
+            "hashtags": ["#ContentPlanning"],
+            "cta": "Review draft",
+            "alt_text": "Facebook content draft",
+            "risk_flags": [],
+            "quality_score": 0.91
+          },
+          {
+            "platform": "instagram",
+            "caption": "A clean content draft is ready for your review.",
+            "hashtags": ["#ContentOps", "#AgencyWorkflow"],
+            "cta": "Review draft",
+            "alt_text": "Instagram content draft",
+            "risk_flags": [],
+            "quality_score": 0.9
+          }
+        ],
+        "warnings": []
+      },
+      "expected": {
+        "status": "succeeded",
+        "failure_code": "",
+        "draft_count": 2,
+        "platforms": ["facebook_page", "instagram"]
+      }
+    }
+  ]
+}

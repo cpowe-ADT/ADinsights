@@ -1,0 +1,792 @@
+{
+  "schema_version": "1.0.0",
+  "contract_status": "WARN_POSSIBLE_CONTRACT_CHANGE",
+  "breaking_change_detected": false,
+  "contract_surfaces_touched": ["api_contract", "contract_docs"],
+  "required_docs_updates": [],
+  "required_reviewers": ["Raj", "Mira", "Sofia", "Hannah", "Lina", "Nina"],
+  "required_tests": ["ruff check backend && pytest -q backend"],
+  "rationale": [
+    "Evidence source: git_changed_files.",
+    "Detected 92 path(s): gitignore, AGENTS.md, backend/.env.sample, backend/accounts/permissions.py, backend/analytics/phase2_serializers.py, backend/analytics/phase2_views.py, backend/analytics/tasks.py, backend/core/settings.py, backend/core/urls.py, backend/tests/test_phase2_api.py, backend/tests/test_schema_regressions.py, backend/tests/test_tasks.py, docker-compose.dev.yml, docs/DEVELOPMENT.md, docs/ops/agent-activity-log.md, docs/ops/doc-index.md, docs/ops/exports.md, docs/orchestration.md, docs/project/api-contract-changelog.md, docs/project/current-priority-todo.md, docs/project/feature-catalog.md, docs/project/feature-flags-reference.md, docs/project/integration-data-contract-matrix.md, docs/project/meta-permission-profile.md, docs/project/meta-permissions-catalog.yaml, docs/runbooks/meta-app-review-copy-pack.md, docs/runbooks/meta-app-review-submission-checklist.md, frontend/src/lib/phase2Api.test.ts, frontend/src/lib/phase2Api.ts, frontend/src/router.tsx, frontend/src/routes/DashboardCreate.tsx, frontend/src/routes/DashboardLayout.tsx, frontend/src/routes/DataSources.tsx, frontend/src/routes/ReportDetailPage.tsx, frontend/src/routes/ReportsPage.tsx, frontend/src/routes/SavedDashboardPage.tsx, frontend/src/routes/__tests__/DashboardCreate.test.tsx, frontend/src/routes/__tests__/DashboardLayout.test.tsx, frontend/src/routes/__tests__/DataSources.test.tsx, frontend/src/routes/__tests__/ReportDetailPage.test.tsx, frontend/src/routes/__tests__/ReportsPage.test.tsx, frontend/src/routes/__tests__/SavedDashboardPage.test.tsx, frontend/src/styles/phase2.css, frontend/vite.config.ts, scripts/dev-healthcheck.sh, scripts/dev-launch.sh, backend/analytics/management/commands/slb_report_evidence_bundle.py, backend/analytics/management/commands/slb_report_evidence_validate.py, backend/analytics/management/commands/slb_report_history_probe.py, backend/analytics/management/commands/slb_report_parity_compare.py, backend/analytics/management/commands/slb_report_parity_evidence.py, backend/analytics/management/commands/slb_report_target_intake.py, backend/analytics/reporting_catalog.py, backend/analytics/reporting_delivery.py, backend/analytics/reporting_preview.py, backend/analytics/reporting_report_preview.py, backend/analytics/reporting_templates.py, backend/content_ops/, backend/tests/fixtures/, backend/tests/test_content_ops_api.py, backend/tests/test_content_ops_evals.py, backend/tests/test_content_ops_generation.py, backend/tests/test_content_ops_models.py, backend/tests/test_content_ops_publisher.py, backend/tests/test_content_ops_scheduler.py, backend/tests/test_reporting_catalog.py, docs/design/dashthis-replacement-reporting-moodboard.html, docs/design/dashthis-replacement-reporting-moodboard.md, docs/project/content-operations-api-contract.md, docs/project/content-operations-architecture-sprint-plan.md, docs/project/content-operations-current-state.md, docs/project/content-operations-eval-plan.md, docs/project/content-operations-implementation-backlog.md, docs/project/content-operations-live-publishing-audit-spec.md, docs/project/content-operations-meta-publishing-spec.md, docs/project/content-operations-sprint0-decisions.md, docs/project/dashthis-replacement-reporting-plan.md, docs/project/evidence/content-operations/, docs/project/evidence/dashthis-replacement/, docs/project/reporting-builder-architecture-plan.md, docs/project/reporting-builder-backend-data-structure-audit.md, docs/project/reporting-builder-catalog-contract.md, docs/runbooks/content-operations-app-review.md, docs/runbooks/content-operations-failures.md, docs/runbooks/content-operations-publishing.md, frontend/src/components/reporting/, frontend/src/lib/contentOps.test.ts, frontend/src/lib/contentOps.ts, frontend/src/lib/contentOpsMock.ts, frontend/src/routes/ContentOpsPage.tsx, frontend/src/routes/__tests__/ContentOpsPage.test.tsx, frontend/src/styles/contentOps.css.",
+    "Surface 'api_contract' matched paths: backend/core/urls.py.",
+    "Surface 'contract_docs' matched paths: docs/project/api-contract-changelog.md, docs/project/integration-data-contract-matrix.md."
+  ],
+  "evidence": [
+    {
+      "type": "surface_path_match",
+      "value": "api_contract:backend/core/urls.py",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "contract_docs:docs/project/api-contract-changelog.md",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "surface_path_match",
+      "value": "contract_docs:docs/project/integration-data-contract-matrix.md",
+      "strength": 0.9,
+      "source": "paths"
+    },
+    {
+      "type": "input_path",
+      "value": "gitignore",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "AGENTS.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/.env.sample",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/accounts/permissions.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/phase2_serializers.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/phase2_views.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/tasks.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/core/settings.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/core/urls.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_phase2_api.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_schema_regressions.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_tasks.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docker-compose.dev.yml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/DEVELOPMENT.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/agent-activity-log.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/doc-index.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/ops/exports.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/orchestration.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/api-contract-changelog.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/current-priority-todo.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/feature-catalog.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/feature-flags-reference.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/integration-data-contract-matrix.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/meta-permission-profile.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/meta-permissions-catalog.yaml",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/runbooks/meta-app-review-copy-pack.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/runbooks/meta-app-review-submission-checklist.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/phase2Api.test.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/phase2Api.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/router.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/DashboardCreate.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/DashboardLayout.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/DataSources.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/ReportDetailPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/ReportsPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/SavedDashboardPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/__tests__/DashboardCreate.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/__tests__/DashboardLayout.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/__tests__/DataSources.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/__tests__/ReportDetailPage.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/__tests__/ReportsPage.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/__tests__/SavedDashboardPage.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/styles/phase2.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/vite.config.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "scripts/dev-healthcheck.sh",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "scripts/dev-launch.sh",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/management/commands/slb_report_evidence_bundle.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/management/commands/slb_report_evidence_validate.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/management/commands/slb_report_history_probe.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/management/commands/slb_report_parity_compare.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/management/commands/slb_report_parity_evidence.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/management/commands/slb_report_target_intake.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/reporting_catalog.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/reporting_delivery.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/reporting_preview.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/reporting_report_preview.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/analytics/reporting_templates.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/content_ops/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/fixtures/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_content_ops_api.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_content_ops_evals.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_content_ops_generation.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_content_ops_models.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_content_ops_publisher.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_content_ops_scheduler.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "backend/tests/test_reporting_catalog.py",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/design/dashthis-replacement-reporting-moodboard.html",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/design/dashthis-replacement-reporting-moodboard.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/content-operations-api-contract.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/content-operations-architecture-sprint-plan.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/content-operations-current-state.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/content-operations-eval-plan.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/content-operations-implementation-backlog.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/content-operations-live-publishing-audit-spec.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/content-operations-meta-publishing-spec.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/content-operations-sprint0-decisions.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/dashthis-replacement-reporting-plan.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/content-operations/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/evidence/dashthis-replacement/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/reporting-builder-architecture-plan.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/reporting-builder-backend-data-structure-audit.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/project/reporting-builder-catalog-contract.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/runbooks/content-operations-app-review.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/runbooks/content-operations-failures.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "docs/runbooks/content-operations-publishing.md",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/components/reporting/",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/contentOps.test.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/contentOps.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/lib/contentOpsMock.ts",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/ContentOpsPage.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    },
+    {
+      "type": "input_path",
+      "value": "frontend/src/styles/contentOps.css",
+      "strength": 0.8,
+      "source": "git_changed_files"
+    }
+  ],
+  "next_actions": [
+    "Confirm downstream consumers for touched contract surfaces.",
+    "Validate data contract checks before merge."
+  ],
+  "ci_strict_evaluation": {
+    "enabled": false,
+    "strict_level": "breaking_only",
+    "would_fail_ci": false
+  },
+  "advisory_only": true,
+  "signals": {
+    "prompt_paths": [],
+    "packet_paths": [
+      ".gitignore",
+      "AGENTS.md",
+      "backend/.env.sample",
+      "backend/accounts/permissions.py",
+      "backend/analytics/phase2_serializers.py",
+      "backend/analytics/phase2_views.py",
+      "backend/analytics/tasks.py",
+      "backend/core/settings.py",
+      "backend/core/urls.py",
+      "backend/tests/test_phase2_api.py",
+      "backend/tests/test_schema_regressions.py",
+      "backend/tests/test_tasks.py",
+      "docker-compose.dev.yml",
+      "docs/DEVELOPMENT.md",
+      "docs/ops/agent-activity-log.md",
+      "docs/ops/doc-index.md",
+      "docs/ops/exports.md",
+      "docs/orchestration.md",
+      "docs/project/api-contract-changelog.md",
+      "docs/project/current-priority-todo.md",
+      "docs/project/feature-catalog.md",
+      "docs/project/feature-flags-reference.md",
+      "docs/project/integration-data-contract-matrix.md",
+      "docs/project/meta-permission-profile.md",
+      "docs/project/meta-permissions-catalog.yaml",
+      "docs/runbooks/meta-app-review-copy-pack.md",
+      "docs/runbooks/meta-app-review-submission-checklist.md",
+      "frontend/src/lib/phase2Api.test.ts",
+      "frontend/src/lib/phase2Api.ts",
+      "frontend/src/router.tsx",
+      "frontend/src/routes/DashboardCreate.tsx",
+      "frontend/src/routes/DashboardLayout.tsx",
+      "frontend/src/routes/DataSources.tsx",
+      "frontend/src/routes/ReportDetailPage.tsx",
+      "frontend/src/routes/ReportsPage.tsx",
+      "frontend/src/routes/SavedDashboardPage.tsx",
+      "frontend/src/routes/__tests__/DashboardCreate.test.tsx",
+      "frontend/src/routes/__tests__/DashboardLayout.test.tsx",
+      "frontend/src/routes/__tests__/DataSources.test.tsx",
+      "frontend/src/routes/__tests__/ReportDetailPage.test.tsx",
+      "frontend/src/routes/__tests__/ReportsPage.test.tsx",
+      "frontend/src/routes/__tests__/SavedDashboardPage.test.tsx",
+      "frontend/src/styles/phase2.css",
+      "frontend/vite.config.ts",
+      "scripts/dev-healthcheck.sh",
+      "scripts/dev-launch.sh",
+      "backend/analytics/management/commands/slb_report_evidence_bundle.py",
+      "backend/analytics/management/commands/slb_report_evidence_validate.py",
+      "backend/analytics/management/commands/slb_report_history_probe.py",
+      "backend/analytics/management/commands/slb_report_parity_compare.py",
+      "backend/analytics/management/commands/slb_report_parity_evidence.py",
+      "backend/analytics/management/commands/slb_report_target_intake.py",
+      "backend/analytics/reporting_catalog.py",
+      "backend/analytics/reporting_delivery.py",
+      "backend/analytics/reporting_preview.py",
+      "backend/analytics/reporting_report_preview.py",
+      "backend/analytics/reporting_templates.py",
+      "backend/content_ops/",
+      "backend/tests/fixtures/",
+      "backend/tests/test_content_ops_api.py",
+      "backend/tests/test_content_ops_evals.py",
+      "backend/tests/test_content_ops_generation.py",
+      "backend/tests/test_content_ops_models.py",
+      "backend/tests/test_content_ops_publisher.py",
+      "backend/tests/test_content_ops_scheduler.py",
+      "backend/tests/test_reporting_catalog.py",
+      "docs/design/dashthis-replacement-reporting-moodboard.html",
+      "docs/design/dashthis-replacement-reporting-moodboard.md",
+      "docs/project/content-operations-api-contract.md",
+      "docs/project/content-operations-architecture-sprint-plan.md",
+      "docs/project/content-operations-current-state.md",
+      "docs/project/content-operations-eval-plan.md",
+      "docs/project/content-operations-implementation-backlog.md",
+      "docs/project/content-operations-live-publishing-audit-spec.md",
+      "docs/project/content-operations-meta-publishing-spec.md",
+      "docs/project/content-operations-sprint0-decisions.md",
+      "docs/project/dashthis-replacement-reporting-plan.md",
+      "docs/project/evidence/content-operations/",
+      "docs/project/evidence/dashthis-replacement/",
+      "docs/project/reporting-builder-architecture-plan.md",
+      "docs/project/reporting-builder-backend-data-structure-audit.md",
+      "docs/project/reporting-builder-catalog-contract.md",
+      "docs/runbooks/content-operations-app-review.md",
+      "docs/runbooks/content-operations-failures.md",
+      "docs/runbooks/content-operations-publishing.md",
+      "frontend/src/components/reporting/",
+      "frontend/src/lib/contentOps.test.ts",
+      "frontend/src/lib/contentOps.ts",
+      "frontend/src/lib/contentOpsMock.ts",
+      "frontend/src/routes/ContentOpsPage.tsx",
+      "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
+      "frontend/src/styles/contentOps.css",
+      "gitignore"
+    ],
+    "explicit_paths": [],
+    "changed_files": [
+      ".gitignore",
+      "AGENTS.md",
+      "backend/.env.sample",
+      "backend/accounts/permissions.py",
+      "backend/analytics/phase2_serializers.py",
+      "backend/analytics/phase2_views.py",
+      "backend/analytics/tasks.py",
+      "backend/core/settings.py",
+      "backend/core/urls.py",
+      "backend/tests/test_phase2_api.py",
+      "backend/tests/test_schema_regressions.py",
+      "backend/tests/test_tasks.py",
+      "docker-compose.dev.yml",
+      "docs/DEVELOPMENT.md",
+      "docs/ops/agent-activity-log.md",
+      "docs/ops/doc-index.md",
+      "docs/ops/exports.md",
+      "docs/orchestration.md",
+      "docs/project/api-contract-changelog.md",
+      "docs/project/current-priority-todo.md",
+      "docs/project/feature-catalog.md",
+      "docs/project/feature-flags-reference.md",
+      "docs/project/integration-data-contract-matrix.md",
+      "docs/project/meta-permission-profile.md",
+      "docs/project/meta-permissions-catalog.yaml",
+      "docs/runbooks/meta-app-review-copy-pack.md",
+      "docs/runbooks/meta-app-review-submission-checklist.md",
+      "frontend/src/lib/phase2Api.test.ts",
+      "frontend/src/lib/phase2Api.ts",
+      "frontend/src/router.tsx",
+      "frontend/src/routes/DashboardCreate.tsx",
+      "frontend/src/routes/DashboardLayout.tsx",
+      "frontend/src/routes/DataSources.tsx",
+      "frontend/src/routes/ReportDetailPage.tsx",
+      "frontend/src/routes/ReportsPage.tsx",
+      "frontend/src/routes/SavedDashboardPage.tsx",
+      "frontend/src/routes/__tests__/DashboardCreate.test.tsx",
+      "frontend/src/routes/__tests__/DashboardLayout.test.tsx",
+      "frontend/src/routes/__tests__/DataSources.test.tsx",
+      "frontend/src/routes/__tests__/ReportDetailPage.test.tsx",
+      "frontend/src/routes/__tests__/ReportsPage.test.tsx",
+      "frontend/src/routes/__tests__/SavedDashboardPage.test.tsx",
+      "frontend/src/styles/phase2.css",
+      "frontend/vite.config.ts",
+      "scripts/dev-healthcheck.sh",
+      "scripts/dev-launch.sh",
+      "backend/analytics/management/commands/slb_report_evidence_bundle.py",
+      "backend/analytics/management/commands/slb_report_evidence_validate.py",
+      "backend/analytics/management/commands/slb_report_history_probe.py",
+      "backend/analytics/management/commands/slb_report_parity_compare.py",
+      "backend/analytics/management/commands/slb_report_parity_evidence.py",
+      "backend/analytics/management/commands/slb_report_target_intake.py",
+      "backend/analytics/reporting_catalog.py",
+      "backend/analytics/reporting_delivery.py",
+      "backend/analytics/reporting_preview.py",
+      "backend/analytics/reporting_report_preview.py",
+      "backend/analytics/reporting_templates.py",
+      "backend/content_ops/",
+      "backend/tests/fixtures/",
+      "backend/tests/test_content_ops_api.py",
+      "backend/tests/test_content_ops_evals.py",
+      "backend/tests/test_content_ops_generation.py",
+      "backend/tests/test_content_ops_models.py",
+      "backend/tests/test_content_ops_publisher.py",
+      "backend/tests/test_content_ops_scheduler.py",
+      "backend/tests/test_reporting_catalog.py",
+      "docs/design/dashthis-replacement-reporting-moodboard.html",
+      "docs/design/dashthis-replacement-reporting-moodboard.md",
+      "docs/project/content-operations-api-contract.md",
+      "docs/project/content-operations-architecture-sprint-plan.md",
+      "docs/project/content-operations-current-state.md",
+      "docs/project/content-operations-eval-plan.md",
+      "docs/project/content-operations-implementation-backlog.md",
+      "docs/project/content-operations-live-publishing-audit-spec.md",
+      "docs/project/content-operations-meta-publishing-spec.md",
+      "docs/project/content-operations-sprint0-decisions.md",
+      "docs/project/dashthis-replacement-reporting-plan.md",
+      "docs/project/evidence/content-operations/",
+      "docs/project/evidence/dashthis-replacement/",
+      "docs/project/reporting-builder-architecture-plan.md",
+      "docs/project/reporting-builder-backend-data-structure-audit.md",
+      "docs/project/reporting-builder-catalog-contract.md",
+      "docs/runbooks/content-operations-app-review.md",
+      "docs/runbooks/content-operations-failures.md",
+      "docs/runbooks/content-operations-publishing.md",
+      "frontend/src/components/reporting/",
+      "frontend/src/lib/contentOps.test.ts",
+      "frontend/src/lib/contentOps.ts",
+      "frontend/src/lib/contentOpsMock.ts",
+      "frontend/src/routes/ContentOpsPage.tsx",
+      "frontend/src/routes/__tests__/ContentOpsPage.test.tsx",
+      "frontend/src/styles/contentOps.css"
+    ],
+    "used_git_changed_files": true,
+    "evidence_source": "git_changed_files"
+  }
+}

@@ -97,7 +97,14 @@ const PostsTable = ({ rows, metricKey, availability, onOpenPost }: PostsTablePro
         header: '',
         enableSorting: false,
         cell: (context) => (
-          <button className="button tertiary" type="button" onClick={(e) => { e.stopPropagation(); onOpenPost(context.row.original.post_id); }}>
+          <button
+            className="button tertiary"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenPost(context.row.original.post_id);
+            }}
+          >
             Open
           </button>
         ),

@@ -27,6 +27,7 @@ const CampaignDetail = lazy(() => import('./routes/CampaignDetail'));
 const ClientsPage = lazy(() => import('./routes/ClientsPage'));
 const ClientDetailPage = lazy(() => import('./routes/ClientDetailPage'));
 const ClientSuggestPage = lazy(() => import('./routes/ClientSuggestPage'));
+const ContentOpsPage = lazy(() => import('./routes/ContentOpsPage'));
 const CreativeDashboard = lazy(() => import('./routes/CreativeDashboard'));
 const CreativeDetail = lazy(() => import('./routes/CreativeDetail'));
 const CsvUpload = lazy(() => import('./routes/CsvUpload'));
@@ -228,6 +229,10 @@ export const router = createBrowserRouter(
         {
           path: '/clients/:id',
           element: withRouteLoader(<ClientDetailPage />, 'Loading client…'),
+        },
+        {
+          path: '/content',
+          element: withRouteLoader(<ContentOpsPage />, 'Loading content operations…'),
         },
         {
           path: '/dashboards',

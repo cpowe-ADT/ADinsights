@@ -14,7 +14,9 @@ const ReportCreatePage = () => {
   const canCreate = canAccessCreatorUi(user);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [filtersJson, setFiltersJson] = useState('{\n  "platforms": ["google", "meta"],\n  "lookback_days": 30\n}');
+  const [filtersJson, setFiltersJson] = useState(
+    '{\n  "platforms": ["google", "meta"],\n  "lookback_days": 30\n}',
+  );
   const [layoutJson, setLayoutJson] = useState('{\n  "sections": ["performance", "creatives"]\n}');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,16 +114,33 @@ const ReportCreatePage = () => {
       <div className="phase2-form-helpers">
         <p className="phase2-form-helpers__label">Quick templates:</p>
         <div className="phase2-row-actions">
-          <button type="button" className="button tertiary small" onClick={() => applyTemplate('full')}>
+          <button
+            type="button"
+            className="button tertiary small"
+            onClick={() => applyTemplate('full')}
+          >
             Full platform
           </button>
-          <button type="button" className="button tertiary small" onClick={() => applyTemplate('google')}>
+          <button
+            type="button"
+            className="button tertiary small"
+            onClick={() => applyTemplate('google')}
+          >
             Google Ads
           </button>
-          <button type="button" className="button tertiary small" onClick={() => applyTemplate('meta')}>
+          <button
+            type="button"
+            className="button tertiary small"
+            onClick={() => applyTemplate('meta')}
+          >
             Meta Ads
           </button>
-          <button type="button" className="button tertiary small" style={{ marginLeft: 'auto' }} onClick={formatJson}>
+          <button
+            type="button"
+            className="button tertiary small"
+            style={{ marginLeft: 'auto' }}
+            onClick={formatJson}
+          >
             Format JSON
           </button>
         </div>

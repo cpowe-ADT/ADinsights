@@ -12,4 +12,3 @@ export function saveBlobAsFile(blob: Blob, filename: string): void {
   anchor.remove();
   window.URL.revokeObjectURL(url);
 }
-

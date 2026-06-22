@@ -8,11 +8,13 @@ from alerts.views import AlertRunViewSet
 from analytics.phase2_views import (
     AISummaryViewSet,
     AlertsViewSet,
+    DashboardWidgetPreviewView,
     DashboardDefinitionViewSet,
     DashboardLibraryView,
     ExportDownloadView,
     HealthOverviewView,
     RecentDashboardsView,
+    ReportingCatalogView,
     ReportDefinitionViewSet,
     SyncHealthView,
 )
@@ -236,6 +238,16 @@ urlpatterns = [
         RecentDashboardsView.as_view(),
         name="dashboard-recent",
     ),
+    path(
+        "api/dashboards/reporting-catalog/",
+        ReportingCatalogView.as_view(),
+        name="dashboard-reporting-catalog",
+    ),
+    path(
+        "api/dashboards/widget-preview/",
+        DashboardWidgetPreviewView.as_view(),
+        name="dashboard-widget-preview",
+    ),
     path("api/uploads/metrics/", UploadMetricsView.as_view(), name="metrics-upload"),
     path("api/metrics/", MetricsView.as_view(), name="metrics"),
     path("api/metrics/combined/", CombinedMetricsView.as_view(), name="metrics-combined"),
@@ -258,6 +270,7 @@ urlpatterns = [
         name="report-export-download",
     ),
     path("api/analytics/", include("analytics.urls")),
+    path("api/content-ops/", include("content_ops.urls")),
     path("api/meta/accounts/", MetaAccountsListView.as_view(), name="meta-accounts"),
     path("api/meta/campaigns/", MetaCampaignListView.as_view(), name="meta-campaigns"),
     path("api/meta/adsets/", MetaAdSetListView.as_view(), name="meta-adsets"),

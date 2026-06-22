@@ -20,7 +20,10 @@ type MetaRangeOptions = {
   windowDays?: number;
 };
 
-function getDatePartsInTimeZone(date: Date, timeZone: string): { year: number; month: number; day: number } {
+function getDatePartsInTimeZone(
+  date: Date,
+  timeZone: string,
+): { year: number; month: number; day: number } {
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone,
     year: 'numeric',

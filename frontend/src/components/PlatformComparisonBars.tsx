@@ -73,13 +73,8 @@ const PlatformComparisonBars = ({
           stroke={chartTheme.grid.stroke}
           strokeDasharray={chartTheme.grid.strokeDasharray}
         />
-        <XAxisComponent
-          dataKey="name"
-          tick={{ fill: 'var(--color-text-primary)', fontSize: 13 }}
-        />
-        <YAxisComponent
-          tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }}
-        />
+        <XAxisComponent dataKey="name" tick={{ fill: 'var(--color-text-primary)', fontSize: 13 }} />
+        <YAxisComponent tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }} />
         <TooltipComponent {...tooltipProps} />
         <BarComponent
           dataKey="value"

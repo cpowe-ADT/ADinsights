@@ -40,7 +40,7 @@ export default defineConfig({
   ],
   webServer: isMock
     ? {
-        command: `npm run dev -- --host --port=${devPort}`,
+        command: `npm --prefix .. run dev -- --host --port=${devPort}`,
         url: devUrl,
         reuseExistingServer: true,
         timeout: 120_000,
@@ -50,7 +50,7 @@ export default defineConfig({
         },
       }
     : {
-        command: `npm run build && npm run preview -- --host --port=${previewPort}`,
+        command: `npm --prefix .. run build && npm --prefix .. run preview -- --host --port=${previewPort}`,
         url: previewUrl,
         reuseExistingServer: true,
         timeout: 120_000,

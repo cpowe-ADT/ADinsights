@@ -147,7 +147,7 @@ def test_trigger_sync_airbyte_error(api_client, user, tenant, monkeypatch):
     api_client.force_authenticate(user=None)
 
     assert response.status_code == 502
-    assert "Connection refused" in response.json()["detail"]
+    assert response.json()["detail"] == "Airbyte request failed."
 
 
 @pytest.mark.django_db

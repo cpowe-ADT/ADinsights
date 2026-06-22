@@ -13,6 +13,17 @@ Ads artifact download handlers reject paths that escape the expected export dire
 In container profiles, the API and summary worker use `REPORT_EXPORT_ARTIFACT_ROOT` on a shared
 volume so successfully rendered worker artifacts are immediately downloadable by the API.
 
+For `report.v1` exports, `ReportExportJob.metadata.report_preview` is the reproducibility record.
+It includes schema/template/catalog identifiers, the requested date range, coverage summary,
+blocking reasons, preview hash, and a durable `report_snapshot` with ordered pages and widget
+preview payloads. Support should compare the visible preview hash with the latest export snapshot
+hash before claiming an export reflects the current report state.
+
+Scheduled report delivery starts with dry-run evidence. `POST /api/reports/{id}/scheduled-dry-run/`
+creates a normal export job with `metadata.delivery_status.mode == "dry_run"` and does not send
+client email. Coverage-blocked dry-runs are recorded as failed jobs with sanitized
+`blocked_by_coverage` status so operators can prove the schedule gate without reading logs.
+
 ## Setup
 
 1. Install prerequisites (Node.js 18+). Linux deployments use the bundled

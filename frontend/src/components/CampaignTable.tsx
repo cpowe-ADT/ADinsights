@@ -156,7 +156,10 @@ const CampaignTable = ({
                 {row.original.name}
               </Link>
             </strong>
-            <span className="campaign-meta dashboard-table__truncate" title={row.original.platform ?? undefined}>
+            <span
+              className="campaign-meta dashboard-table__truncate"
+              title={row.original.platform ?? undefined}
+            >
               {row.original.platform ?? '—'}
             </span>
           </div>
@@ -173,7 +176,9 @@ const CampaignTable = ({
         cell: ({ row }) => {
           const value = row.original.status || 'Unknown';
           const tone = normalizeStatusTone(value);
-          return <span className={`metric-status-badge metric-status-badge--${tone}`}>{value}</span>;
+          return (
+            <span className={`metric-status-badge metric-status-badge--${tone}`}>{value}</span>
+          );
         },
       },
       {

@@ -88,6 +88,25 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 
 - Attribution window documentation expansion.
 
+### Content Operations
+
+- Backend foundation for the planned Meta/Facebook/Instagram organic content operations module:
+  tenant-scoped `content_ops` app models, initial migration, serializers, DRF routes under
+  `/api/content-ops/`, and workflow skeletons for draft versions, approvals, decisions,
+  scheduling, unscheduling, generation-job cancellation, role-gated mutations, and separated
+  readiness axes for Meta auth/Page selection/Instagram linkage/publishing/reporting. Basic
+  aggregate overview/post reports and client-safe JSON content-plan export are available over
+  stored Content Ops records. Caption generation can create queued jobs and generated drafts through
+  a fakeable disabled-by-default provider boundary, and the local golden caption eval harness covers
+  schema, redaction, policy, and no-side-effect cases. Caption job quotas enforce active-job and
+  rolling 24-hour candidate limits before provider handoff; no live AI provider is active. Due
+  schedule dispatch, retry requeue, queue filters, every-minute due/retry/process beat scans,
+  fakeable Facebook Page and Instagram processor boundaries, persisted export artifacts, and an
+  aggregate organic metric refresh worker exist. A `/content` frontend foundation exists with mock
+  fallback and partial live API wiring, but workflow state mapping and export history need hardening
+  before operator rollout. No live Meta Graph publishing, live AI provider, dbt mart, or OAuth scope
+  activation is available yet.
+
 ### Pilot Activation
 
 - Meta and Google Ads live credential/sync evidence, secure alert evidence, SES delivery evidence,
@@ -111,6 +130,19 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Reporting enhancements beyond the pilot artifact reliability fix.
 - Enterprise UAC UX (agency admin, approvals, MFA, impersonation).
 
+### Content Operations
+
+- Meta/Facebook/Instagram organic content operations module: content workspaces, briefs, AI caption
+  generation, AI graphic generation, asset library, internal/client approval, app-owned scheduling,
+  Facebook Page publishing, Instagram publishing beta, content exports, and aggregate organic
+  reporting. Backend data/API/caption/scheduler foundations are in progress; remaining product
+  surfaces are planned and ordered in the build control sheet.
+  Planning docs:
+  `docs/project/content-operations-current-state.md`,
+  `docs/project/content-operations-meta-publishing-spec.md`,
+  `docs/project/content-operations-architecture-sprint-plan.md`, and
+  `docs/project/content-operations-implementation-backlog.md`.
+
 ### Deferred Integrations
 
 - GA4 live tenant onboarding completion and Search Console tenant onboarding are explicitly
@@ -127,6 +159,7 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Task sequencing + gaps: `docs/task_breakdown.md`
 - Finished frontend scope: `docs/project/frontend-finished-product-spec.md`
 - Integration roadmap: `docs/project/integration-roadmap.md`
+- Content Operations tickets: `docs/project/content-operations-implementation-backlog.md`
 - Live backlog: `docs/project/phase1-execution-backlog.md`
 - UAC epics: `docs/project/uac-epics.md`
 - Vertical slice: `docs/project/vertical_slice_plan.md`

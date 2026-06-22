@@ -190,6 +190,10 @@ services:
     working_dir: /usr/src/app
     env_file:
       - ./frontend/.env
+    environment:
+      VITE_DEV_HTTPS: ${VITE_DEV_HTTPS:-0}
+      VITE_DEV_HTTPS_KEY: ${VITE_DEV_HTTPS_KEY:-}
+      VITE_DEV_HTTPS_CERT: ${VITE_DEV_HTTPS_CERT:-}
     volumes:
       - ./frontend:/usr/src/app
       - frontend_node_modules:/usr/src/app/node_modules

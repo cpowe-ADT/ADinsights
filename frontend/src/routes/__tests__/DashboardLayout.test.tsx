@@ -1,11 +1,16 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DashboardLayout from '../DashboardLayout';
 import { loadMetaAccounts } from '../../lib/meta';
 
 const pendingAsync = () => new Promise<never>(() => {});
+
+function LocationSearchProbe() {
+  const location = useLocation();
+  return <div data-testid="location-search">{location.search}</div>;
+}
 
 const storeMock = vi.hoisted(() => ({
   state: {
@@ -251,6 +256,56 @@ describe('DashboardLayout', () => {
     expect(screen.getByText('Saved dashboard')).toBeInTheDocument();
   });
 
+  it('preserves OAuth callback query params for the data sources route handler', async () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboards/data-sources?code=oauth-code&state=oauth-state']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route
+              path="data-sources"
+              element={
+                <>
+                  <div>Data sources</div>
+                  <LocationSearchProbe />
+                </>
+              }
+            />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-search')).toHaveTextContent(
+        '?code=oauth-code&state=oauth-state',
+      );
+    });
+  });
+
+  it('preserves data sources focus query params instead of replacing them with dashboard filters', async () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboards/data-sources?sources=social']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route
+              path="data-sources"
+              element={
+                <>
+                  <div>Data sources</div>
+                  <LocationSearchProbe />
+                </>
+              }
+            />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-search')).toHaveTextContent('?sources=social');
+    });
+  });
+
   it('waits for dataset availability before loading dashboard metrics', () => {
     datasetStoreMock.state = {
       mode: 'live',
@@ -443,13 +498,11 @@ describe('DashboardLayout', () => {
 
     expect(
       screen.getByText(
-        'Showing direct Meta sync data. Warehouse reporting is not enabled in this environment.',
+        'Showing stored Meta snapshot data. Warehouse reporting is not enabled in this environment.',
       ),
     ).toBeInTheDocument();
 
-    await waitFor(() => {
-      expect(storeMock.state.loadAll).toHaveBeenCalledWith('tenant-1');
-    });
+    expect(await screen.findByText('Campaigns')).toBeInTheDocument();
   });
 
   it('waits for Meta status before auto-selecting the preferred credential account', async () => {
@@ -566,6 +619,20 @@ describe('DashboardLayout', () => {
     );
 
     // FilterBar must be absent on meta/pages (legitimate hide)
+    expect(screen.queryByTestId('filter-bar')).not.toBeInTheDocument();
+  });
+
+  it('hides global FilterBar on /dashboards/data-sources route', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboards/data-sources?sources=social']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="data-sources" element={<div>Data sources</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
     expect(screen.queryByTestId('filter-bar')).not.toBeInTheDocument();
   });
 

@@ -14,10 +14,7 @@
   },
   "touched_streams": [],
   "required_tests": [],
-  "docs_to_open": [
-    "AGENTS.md",
-    "docs/workstreams.md"
-  ],
+  "docs_to_open": ["AGENTS.md", "docs/workstreams.md"],
   "escalation_decision": {
     "advisory_only": true,
     "required_reviewers": [],

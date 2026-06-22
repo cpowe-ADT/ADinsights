@@ -346,7 +346,14 @@ const Home = () => {
           action: () => navigate('/ops/sync-health'),
         },
       ].filter((action): action is QuickAction => Boolean(action)),
-    [canCreate, handleConnectSocials, handleCreateDashboard, handleViewCampaigns, handleOpenMap, navigate],
+    [
+      canCreate,
+      handleConnectSocials,
+      handleCreateDashboard,
+      handleViewCampaigns,
+      handleOpenMap,
+      navigate,
+    ],
   );
 
   const resourceLinks: ResourceLink[] = useMemo(
@@ -403,7 +410,11 @@ const Home = () => {
           </div>
           <div className={styles.heroActions}>
             {canCreate ? (
-              <button type="button" className={styles.primaryAction} onClick={handleCreateDashboard}>
+              <button
+                type="button"
+                className={styles.primaryAction}
+                onClick={handleCreateDashboard}
+              >
                 Create dashboard
               </button>
             ) : null}
