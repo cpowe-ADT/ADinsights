@@ -27,10 +27,18 @@ from analytics.models import (
 )
 from analytics.reporting_templates import build_slb_monthly_report_layout
 from analytics.tasks import run_report_export_job
+from content_ops.models import (
+    ContentDraft,
+    ContentDraftVersion,
+    ContentWorkspace,
+    OrganicPostMetricSnapshot,
+    PublishedPost,
+)
 from integrations.models import (
     AirbyteConnection,
     AlertRuleDefinition,
     MetaConnection,
+    MetaInsightPoint,
     MetaPage,
     MetaPost,
     MetaPostInsightPoint,
@@ -493,6 +501,274 @@ def test_report_template_registry_and_generic_create_path(api_client, user):
     payload = create_response.json()
     assert payload["name"] == "Generic SLB report"
     assert payload["layout"]["template_key"] == "slb_monthly_social_report"
+
+
+def test_report_data_availability_returns_stored_source_scope(api_client, user, tenant):
+    authenticate(api_client, user)
+    account = AdAccount.objects.create(
+        tenant=tenant,
+        external_id="act_123",
+        account_id="123",
+        name="SLB Meta Account",
+        currency="USD",
+    )
+    for day in (1, 31):
+        RawPerformanceRecord.objects.create(
+            tenant=tenant,
+            ad_account=account,
+            external_id=f"paid-{day}",
+            date=datetime(2026, 5, day).date(),
+            level="campaign",
+            source="meta",
+            spend=10,
+            impressions=100,
+            clicks=5,
+        )
+    connection = MetaConnection(tenant=tenant, user=user, app_scoped_user_id="meta-user")
+    connection.set_raw_token("meta-user-token")
+    connection.scopes = ["pages_show_list", "pages_read_engagement"]
+    connection.save()
+    page = MetaPage(
+        tenant=tenant,
+        connection=connection,
+        page_id="page-123",
+        name="SLB Facebook Page",
+        can_analyze=True,
+        is_default=True,
+        last_synced_at=timezone.now(),
+        last_posts_synced_at=timezone.now(),
+    )
+    page.set_raw_page_token("page-token")
+    page.save()
+    for day in (1, 31):
+        MetaInsightPoint.objects.create(
+            tenant=tenant,
+            page=page,
+            metric_key="page_media_view",
+            period="day",
+            end_time=datetime(2026, 5, day, 12, tzinfo=dt_timezone.utc),
+            value_num=100,
+        )
+    post = MetaPost.objects.create(
+        tenant=tenant,
+        page=page,
+        post_id="page-123_1",
+        message="May update",
+        created_time=datetime(2026, 5, 15, 12, tzinfo=dt_timezone.utc),
+        last_synced_at=timezone.now(),
+    )
+    MetaPostInsightPoint.objects.create(
+        tenant=tenant,
+        post=post,
+        metric_key="post_clicks",
+        period="lifetime",
+        end_time=datetime(2026, 5, 15, 12, tzinfo=dt_timezone.utc),
+        value_num=7,
+    )
+
+    response = api_client.get(
+        reverse("report-definition-data-availability"),
+        {
+            "template_key": "slb_monthly_social_report",
+            "start_date": "2026-05-01",
+            "end_date": "2026-05-31",
+            "account_id": "act_123",
+            "page_id": "page-123",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["schema_version"] == "report_data_availability.v1"
+    assert payload["stored_aggregate_only"] is True
+    assert payload["no_live_provider_calls"] is True
+    assert payload["requested"]["account_id"] == "act_123"
+    assert payload["requested"]["page_id"] == "page-123"
+    assert payload["datasets"]["paid_meta_ads"]["row_count"] == 2
+    assert payload["datasets"]["paid_meta_ads"]["coverage_status"] == "fresh"
+    assert payload["datasets"]["paid_meta_ads"]["available_accounts"][0]["account_id"] == "123"
+    assert payload["datasets"]["organic_facebook_page"]["row_count"] == 2
+    assert payload["datasets"]["organic_facebook_page"]["available_pages"][0]["page_id"] == "page-123"
+    assert payload["datasets"]["organic_facebook_posts"]["post_count"] == 1
+    assert payload["datasets"]["organic_facebook_posts"]["row_count"] == 1
+    assert "content_ops" in payload["blocking_datasets"]
+    assert payload["eligible_for_report_export"] is False
+    assert_report_payload_excludes_sensitive_values(payload)
+
+
+def test_report_data_availability_blocks_partial_required_source(api_client, user, tenant):
+    authenticate(api_client, user)
+    account = AdAccount.objects.create(
+        tenant=tenant,
+        external_id="act_123",
+        account_id="123",
+        name="SLB Meta Account",
+        currency="USD",
+    )
+    for day in (1, 31):
+        RawPerformanceRecord.objects.create(
+            tenant=tenant,
+            ad_account=account,
+            external_id=f"paid-partial-{day}",
+            date=datetime(2026, 5, day).date(),
+            level="campaign",
+            source="meta",
+            spend=10,
+            impressions=100,
+            clicks=5,
+        )
+    connection = MetaConnection(tenant=tenant, user=user, app_scoped_user_id="meta-user")
+    connection.set_raw_token("meta-user-token")
+    connection.scopes = ["pages_show_list", "pages_read_engagement"]
+    connection.save()
+    page = MetaPage(
+        tenant=tenant,
+        connection=connection,
+        page_id="page-123",
+        name="SLB Facebook Page",
+        can_analyze=True,
+        is_default=True,
+    )
+    page.set_raw_page_token("page-token")
+    page.save()
+    for day in (1, 31):
+        MetaInsightPoint.objects.create(
+            tenant=tenant,
+            page=page,
+            metric_key="page_media_view",
+            period="day",
+            end_time=datetime(2026, 5, day, 12, tzinfo=dt_timezone.utc),
+            value_num=100,
+        )
+    MetaPost.objects.create(
+        tenant=tenant,
+        page=page,
+        post_id="page-123_1",
+        message="Stored post without insights",
+        created_time=datetime(2026, 5, 15, 12, tzinfo=dt_timezone.utc),
+        last_synced_at=timezone.now(),
+    )
+
+    workspace = ContentWorkspace.all_objects.create(tenant=tenant, name="SLB Content")
+    draft = ContentDraft.all_objects.create(
+        tenant=tenant,
+        workspace=workspace,
+        title="SLB May post",
+        state=ContentDraft.STATE_PUBLISHED,
+    )
+    version = ContentDraftVersion.all_objects.create(
+        tenant=tenant,
+        draft=draft,
+        version_number=1,
+        caption="SLB May post",
+    )
+    published_post = PublishedPost.all_objects.create(
+        tenant=tenant,
+        workspace=workspace,
+        draft=draft,
+        version=version,
+        channel=PublishedPost.CHANNEL_FACEBOOK_PAGE,
+        meta_post_id="page-123_1",
+        published_at=datetime(2026, 5, 15, 12, tzinfo=dt_timezone.utc),
+        reporting_link_state=PublishedPost.REPORTING_LINKED,
+    )
+    for day in (1, 31):
+        OrganicPostMetricSnapshot.all_objects.create(
+            tenant=tenant,
+            published_post=published_post,
+            metric_date=datetime(2026, 5, day).date(),
+            channel=PublishedPost.CHANNEL_FACEBOOK_PAGE,
+            impressions=100,
+            reach=80,
+            engagements=10,
+            clicks=3,
+            source="meta_page_post_insights",
+        )
+
+    response = api_client.get(
+        reverse("report-definition-data-availability"),
+        {
+            "template_key": "slb_monthly_social_report",
+            "start_date": "2026-05-01",
+            "end_date": "2026-05-31",
+            "account_id": "act_123",
+            "page_id": "page-123",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["datasets"]["paid_meta_ads"]["coverage_status"] == "fresh"
+    assert payload["datasets"]["organic_facebook_page"]["coverage_status"] == "fresh"
+    assert payload["datasets"]["content_ops"]["coverage_status"] == "fresh"
+    assert payload["datasets"]["organic_facebook_posts"]["coverage_status"] == "partial"
+    assert "organic_facebook_posts" in payload["blocking_datasets"]
+    assert payload["eligible_for_report_export"] is False
+
+
+def test_report_data_availability_rejects_cross_tenant_page(api_client, user, tenant):
+    authenticate(api_client, user)
+    other_tenant = Tenant.objects.create(name="Other tenant")
+    other_user = create_user_with_role(
+        tenant=other_tenant,
+        email="other-reporting@example.com",
+        role_name=Role.ADMIN,
+    )
+    connection = MetaConnection(tenant=other_tenant, user=other_user, app_scoped_user_id="other")
+    connection.set_raw_token("other-token")
+    connection.scopes = ["pages_show_list", "pages_read_engagement"]
+    connection.save()
+    page = MetaPage(
+        tenant=other_tenant,
+        connection=connection,
+        page_id="other-page",
+        name="Other Page",
+        can_analyze=True,
+    )
+    page.set_raw_page_token("other-page-token")
+    page.save()
+
+    response = api_client.get(
+        reverse("report-definition-data-availability"),
+        {
+            "template_key": "slb_monthly_social_report",
+            "start_date": "2026-05-01",
+            "end_date": "2026-05-31",
+            "page_id": "other-page",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "page_id does not belong to the authenticated tenant" in str(response.json())
+
+
+def test_report_create_from_template_persists_source_scope(api_client, user):
+    authenticate(api_client, user)
+
+    response = api_client.post(
+        reverse("report-definition-from-template"),
+        {
+            "template_key": "slb_monthly_social_report",
+            "name": "Scoped SLB report",
+            "date_range": "custom",
+            "start_date": "2026-05-01",
+            "end_date": "2026-05-31",
+            "account_id": "act_123",
+            "page_id": "page-123",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["filters"] == {
+        "date_range": "custom",
+        "start_date": "2026-05-01",
+        "end_date": "2026-05-31",
+        "client_id": "",
+        "account_id": "act_123",
+        "page_id": "page-123",
+        "template_key": "slb_monthly_social_report",
+    }
 
 
 def test_report_v1_layout_validation_rejects_unknown_widget_reference(api_client, user):
