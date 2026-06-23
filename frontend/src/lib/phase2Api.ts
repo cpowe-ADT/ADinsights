@@ -231,6 +231,61 @@ export type ReportTemplateRegistryResponse = {
   templates: ReportTemplateDefinition[];
 };
 
+export type ReportDataAvailabilityDataset = {
+  dataset: string;
+  label: string;
+  row_count: number;
+  min_date: string | null;
+  max_date: string | null;
+  coverage_status: string;
+  coverage_note: string;
+  source_label: string;
+  available_accounts?: Array<{
+    id: string;
+    account_id: string;
+    external_id: string;
+    name: string;
+    currency: string;
+    row_count: number;
+    min_date: string | null;
+    max_date: string | null;
+  }>;
+  available_pages?: Array<{
+    page_id: string;
+    name: string;
+    can_analyze: boolean;
+    is_default: boolean;
+    last_synced_at: string | null;
+    last_posts_synced_at: string | null;
+    page_insight_row_count: number;
+    post_count: number;
+    post_insight_row_count: number;
+    min_date: string | null;
+    max_date: string | null;
+  }>;
+  post_count?: number;
+  published_post_count?: number;
+};
+
+export type ReportDataAvailabilityResponse = {
+  schema_version: 'report_data_availability.v1';
+  stored_aggregate_only: boolean;
+  no_live_provider_calls: boolean;
+  template: ReportTemplateDefinition;
+  requested: {
+    date_range: string;
+    start_date: string;
+    end_date: string;
+    client_id: string;
+    account_id: string;
+    page_id: string;
+  };
+  datasets: Record<string, ReportDataAvailabilityDataset>;
+  blocking_datasets: string[];
+  eligible_for_report_export: boolean;
+  recommended_next_actions: string[];
+};
+
 export type DashboardV1Widget = {
   id: string;
   type: string;
@@ -571,6 +626,24 @@ export async function listReportTemplates(
   signal?: AbortSignal,
 ): Promise<ReportTemplateRegistryResponse> {
   return apiClient.get<ReportTemplateRegistryResponse>('/reports/templates/', { signal });
+}
+
+export async function fetchReportDataAvailability(
+  query: {
+    template_key?: string;
+    date_range?: string;
+    start_date?: string;
+    end_date?: string;
+    client_id?: string;
+    account_id?: string;
+    page_id?: string;
+  } = {},
+  signal?: AbortSignal,
+): Promise<ReportDataAvailabilityResponse> {
+  return apiClient.get<ReportDataAvailabilityResponse>(
+    appendQueryParams('/reports/data-availability/', query),
+    { signal },
+  );
 }
 
 export async function createReportFromTemplate(payload: {

@@ -2,6 +2,10 @@
 
 One-line, timestamped notes of agent-driven changes to help preserve context between sessions. Newest entries at the top.
 
+## 2026-06-23
+
+- 2026-06-23T12:25:00-0500 feat(reporting): start data-readiness sprint - Merged the empty organic diagnostics baseline, added a stored-data report availability contract for SLB target selection, persisted account/page filters on template-created reports, and surfaced SLB source availability on the Reports page so missing organic rows are visible before opening a report.
+
 ## 2026-06-18
 
 - 2026-06-18T12:40:00-0500 fix(reporting): refresh Graph v24 metric defaults and honest organic gaps - Refreshed existing Meta metric registry rows from the canonical catalog, stopped default requests for deprecated direct post impression keys, rendered synced top-post/activity rows with null unavailable metrics instead of synthetic zeroes, and documented that SLB paid Meta sync works while Page/Post insight metrics remain provider-unavailable for the checked range. Focused backend tests passed; export remains correctly blocked for missing organic coverage.

@@ -39,6 +39,7 @@ from .phase2_serializers import (
     ReportExportJobSerializer,
 )
 from .reporting_preview import ReportingWidgetPreviewError, build_widget_preview
+from .reporting_availability import ReportingAvailabilityError, build_report_data_availability
 from .reporting_catalog import get_reporting_catalog
 from .reporting_delivery import create_scheduled_report_dry_run
 from .reporting_report_preview import (
@@ -77,6 +78,7 @@ REPORT_ACTION_PRIVILEGES = {
     "slb_monthly_template": "report_edit",
     "templates": "report_view",
     "from_template": "report_edit",
+    "data_availability": "report_view",
 }
 
 DASHBOARD_TEMPLATE_LIBRARY = (
@@ -347,6 +349,17 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @action(detail=False, methods=["get"], url_path="data-availability")
+    def data_availability(self, request):
+        try:
+            payload = build_report_data_availability(
+                tenant=request.user.tenant,
+                params=request.query_params,
+            )
+        except ReportingAvailabilityError as exc:
+            return Response({"errors": exc.errors}, status=exc.status_code)
+        return Response(payload)
+
     @action(detail=False, methods=["post"], url_path="from-template")
     def from_template(self, request):
         template_key = str(request.data.get("template_key") or "").strip()
@@ -385,6 +398,8 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
                 "start_date": start_date,
                 "end_date": end_date,
                 "client_id": str(request.data.get("client_id") or "").strip(),
+                "account_id": str(request.data.get("account_id") or "").strip(),
+                "page_id": str(request.data.get("page_id") or "").strip(),
                 "template_key": template_key,
             },
             layout=build_report_layout_from_template(

@@ -13,6 +13,21 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-06-23**
+  - Endpoint: `GET /api/reports/data-availability/`, `POST /api/reports/from-template/`, and
+    `POST /api/reports/slb-monthly-template/`.
+  - Change: Added a read-only report data availability endpoint for selecting reportable
+    ad-account/Page/date targets before opening or creating a report. The response is
+    tenant-scoped, stored-aggregate-only, and exposes dataset row counts, retained date ranges,
+    coverage status, available Meta ad accounts, available Facebook Pages, blocking datasets, and
+    recommended next actions. Template-created reports now preserve optional `account_id` and
+    `page_id` filters alongside `client_id` and date range.
+  - Impact: Frontend report flows can show whether paid Meta Ads, organic Facebook Page/Post, and
+    Content Ops data exists before users open a mostly empty SLB report. Existing reports remain
+    valid; the new endpoint is additive and does not call live provider APIs.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Lina/Joel (report UX)
+    - Maya/Leo (Meta sync path) + Raj/Mira review
+
 - **2026-06-18**
   - Endpoint: `POST /api/dashboards/widget-preview/` and `POST /api/reports/{id}/preview/`.
   - Change: Organic Facebook Page/Post reporting now treats missing stored insight values as

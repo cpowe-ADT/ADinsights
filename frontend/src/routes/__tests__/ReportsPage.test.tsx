@@ -12,6 +12,7 @@ const authMock = vi.hoisted(() => ({
 const phase2ApiMock = vi.hoisted(() => ({
   listReports: vi.fn(),
   createSlbMonthlyReportTemplate: vi.fn(),
+  fetchReportDataAvailability: vi.fn(),
 }));
 
 vi.mock('../../auth/AuthContext', () => ({
@@ -21,6 +22,7 @@ vi.mock('../../auth/AuthContext', () => ({
 vi.mock('../../lib/phase2Api', () => ({
   listReports: phase2ApiMock.listReports,
   createSlbMonthlyReportTemplate: phase2ApiMock.createSlbMonthlyReportTemplate,
+  fetchReportDataAvailability: phase2ApiMock.fetchReportDataAvailability,
 }));
 
 const LocationProbe = () => {
@@ -32,6 +34,77 @@ describe('ReportsPage', () => {
   beforeEach(() => {
     authMock.user = { email: 'admin@example.com', roles: ['ADMIN'] };
     phase2ApiMock.listReports.mockResolvedValue([]);
+    phase2ApiMock.fetchReportDataAvailability.mockResolvedValue({
+      schema_version: 'report_data_availability.v1',
+      stored_aggregate_only: true,
+      no_live_provider_calls: true,
+      template: {
+        template_key: 'slb_monthly_social_report',
+        label: 'SLB monthly social report',
+        version: '1',
+        supported_datasets: ['paid_meta_ads', 'organic_facebook_page', 'content_ops'],
+        required_sources: ['meta_marketing_credential', 'facebook_page', 'content_ops_workspace'],
+        eligibility: {},
+      },
+      requested: {
+        date_range: 'last_month',
+        start_date: '2026-05-01',
+        end_date: '2026-05-31',
+        client_id: '',
+        account_id: '',
+        page_id: '',
+      },
+      datasets: {
+        paid_meta_ads: {
+          dataset: 'paid_meta_ads',
+          label: 'Paid Meta Ads',
+          row_count: 42,
+          min_date: '2026-05-01',
+          max_date: '2026-05-31',
+          coverage_status: 'fresh',
+          coverage_note: 'Stored rows cover the requested report range.',
+          source_label: 'Stored Meta Ads rows',
+          available_accounts: [],
+        },
+        organic_facebook_page: {
+          dataset: 'organic_facebook_page',
+          label: 'Organic Facebook Page',
+          row_count: 0,
+          min_date: null,
+          max_date: null,
+          coverage_status: 'missing_history',
+          coverage_note: 'No stored rows are available for the requested report range.',
+          source_label: 'Stored Facebook Page Insights rows',
+          available_pages: [],
+        },
+        organic_facebook_posts: {
+          dataset: 'organic_facebook_posts',
+          label: 'Organic Facebook Top Posts',
+          row_count: 0,
+          min_date: null,
+          max_date: null,
+          coverage_status: 'missing_history',
+          coverage_note: 'No stored rows are available for the requested report range.',
+          source_label: 'Stored Facebook Page post rows',
+          post_count: 0,
+          available_pages: [],
+        },
+        content_ops: {
+          dataset: 'content_ops',
+          label: 'Content Ops',
+          row_count: 0,
+          min_date: null,
+          max_date: null,
+          coverage_status: 'missing_history',
+          coverage_note: 'No stored rows are available for the requested report range.',
+          source_label: 'Stored Content Ops aggregate rows',
+          published_post_count: 0,
+        },
+      },
+      blocking_datasets: ['organic_facebook_page', 'content_ops'],
+      eligible_for_report_export: false,
+      recommended_next_actions: [],
+    });
     phase2ApiMock.createSlbMonthlyReportTemplate.mockResolvedValue({
       id: 'report-slb',
       name: 'SLB Monthly Social Report',
@@ -56,8 +129,15 @@ describe('ReportsPage', () => {
     );
 
     await waitFor(() => expect(phase2ApiMock.listReports).toHaveBeenCalled());
+    expect(phase2ApiMock.fetchReportDataAvailability).toHaveBeenCalledWith({
+      template_key: 'slb_monthly_social_report',
+      date_range: 'last_month',
+    });
     expect(screen.getByRole('link', { name: /new report/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /create slb monthly report/i })).toBeInTheDocument();
+    expect(screen.getByText(/slb report source availability/i)).toBeInTheDocument();
+    expect(screen.getByText(/paid meta ads/i)).toBeInTheDocument();
+    expect(screen.getByText(/organic facebook page/i)).toBeInTheDocument();
   });
 
   it('hides report creation actions for viewer-only users', async () => {
