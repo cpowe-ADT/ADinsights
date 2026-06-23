@@ -219,11 +219,24 @@ def _recommended_source_actions(*, tenant) -> list[str]:
         else:
             actions.append("Backfill Facebook Page Insights stored rows for the fixed SLB Page/date range.")
     has_meta_posts = MetaPost.all_objects.filter(tenant=tenant).exists()
+    post_sync_ran_without_rows = (
+        not has_meta_posts
+        and MetaPage.all_objects.filter(
+            tenant=tenant,
+            last_posts_synced_at__isnull=False,
+        ).exists()
+    )
     if not MetaPostInsightPoint.all_objects.filter(tenant=tenant).exists():
         if has_meta_posts:
             actions.append(
                 "Facebook posts are stored, but Meta returned no post insight metric rows; "
                 "top-post activity can render from stored posts while post metrics remain unavailable."
+            )
+        elif post_sync_ran_without_rows:
+            actions.append(
+                "Meta Page posts sync has run, but Graph returned no Page posts for the selected "
+                "Page/date range; choose a Page/date range with organic posts or upload fallback "
+                "top-post values."
             )
         else:
             actions.append("Backfill Facebook post insight rows for top-post reporting.")
@@ -240,6 +253,11 @@ def _recommended_source_actions(*, tenant) -> list[str]:
             actions.append(
                 "Content Ops has Meta-linked published posts, but no aggregate metric snapshots; "
                 "keep this section activity-only until post insight rows are available."
+            )
+        elif post_sync_ran_without_rows:
+            actions.append(
+                "Content Ops cannot import published activity because Meta returned no Page posts "
+                "for the selected Page/date range."
             )
         else:
             actions.append("Generate or backfill Content Ops aggregate snapshots for the fixed SLB date range.")
