@@ -920,6 +920,69 @@ def test_report_diagnostics_explains_empty_graph_page_insights_after_sync(
     assert "Facebook posts are stored, but Meta returned no post insight metric rows" in actions
 
 
+def test_report_diagnostics_explains_empty_graph_posts_after_sync(
+    api_client, user, tenant
+):
+    authenticate(api_client, user)
+    generated_at = timezone.now()
+    PlatformCredential.objects.create(
+        tenant=tenant,
+        provider=PlatformCredential.META,
+        account_id="act_current",
+        access_token_enc=b"encrypted",
+        access_token_nonce=b"nonce",
+        access_token_tag=b"tag",
+        dek_key_version="test",
+        token_status=PlatformCredential.TOKEN_STATUS_VALID,
+        granted_scopes=[
+            "ads_read",
+            "business_management",
+            "pages_read_engagement",
+            "pages_show_list",
+        ],
+        last_validated_at=generated_at,
+    )
+    meta_connection = MetaConnection.objects.create(
+        tenant=tenant,
+        user=user,
+        app_scoped_user_id="app-user-current",
+        token_enc=b"encrypted",
+        token_nonce=b"nonce",
+        token_tag=b"tag",
+        dek_key_version="test",
+        scopes=["pages_read_engagement", "pages_show_list"],
+        is_active=True,
+    )
+    current_page = MetaPage(
+        tenant=tenant,
+        connection=meta_connection,
+        page_id="page-current",
+        name="Current Page",
+        can_analyze=True,
+        is_default=True,
+        last_synced_at=generated_at,
+        last_posts_synced_at=generated_at,
+    )
+    current_page.set_raw_page_token("page-token-current")
+    current_page.save()
+    report = ReportDefinition.objects.create(
+        tenant=tenant,
+        name="SLB diagnostics synced empty posts",
+        filters={"date_range": "last_month"},
+        layout=build_slb_monthly_report_layout(date_range="last_month"),
+    )
+
+    response = api_client.get(reverse("report-definition-diagnostics", args=[report.id]))
+
+    assert response.status_code == 200
+    actions = " ".join(response.json()["source_health"]["recommended_next_actions"])
+    assert "Meta Page Insights sync has run, but Graph returned no Page insight metric rows" in actions
+    assert "Meta Page posts sync has run, but Graph returned no Page posts" in actions
+    assert "Content Ops cannot import published activity because Meta returned no Page posts" in actions
+    assert "Backfill Facebook post insight rows" not in actions
+    assert "Generate or backfill Content Ops aggregate snapshots" not in actions
+
+
 def test_scheduled_report_dry_run_creates_sanitized_export_evidence(
     api_client, user, tenant, monkeypatch
 ):
