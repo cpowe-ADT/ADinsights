@@ -24,7 +24,9 @@ Keep this brief and link to PRs or commits when available.
     `page_id` filters alongside `client_id` and date range.
   - Impact: Frontend report flows can show whether paid Meta Ads, organic Facebook Page/Post, and
     Content Ops data exists before users open a mostly empty SLB report. Existing reports remain
-    valid; the new endpoint is additive and does not call live provider APIs.
+    valid; the new endpoint is additive and does not call live provider APIs. Required datasets
+    with `partial` stored coverage are treated as availability blockers so the source-selection
+    screen does not present incomplete source data as export-ready.
   - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Lina/Joel (report UX)
     - Maya/Leo (Meta sync path) + Raj/Mira review
 

@@ -4,6 +4,7 @@ One-line, timestamped notes of agent-driven changes to help preserve context bet
 
 ## 2026-06-23
 
+- 2026-06-23T12:50:00-0500 fix(reporting): block partial source availability - Tightened the new report data availability contract so partial required stored coverage does not present as export-ready and added regression coverage for partial top-post insight rows.
 - 2026-06-23T12:25:00-0500 feat(reporting): start data-readiness sprint - Merged the empty organic diagnostics baseline, added a stored-data report availability contract for SLB target selection, persisted account/page filters on template-created reports, and surfaced SLB source availability on the Reports page so missing organic rows are visible before opening a report.
 
 ## 2026-06-18

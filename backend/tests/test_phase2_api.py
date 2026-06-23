@@ -27,6 +27,13 @@ from analytics.models import (
 )
 from analytics.reporting_templates import build_slb_monthly_report_layout
 from analytics.tasks import run_report_export_job
+from content_ops.models import (
+    ContentDraft,
+    ContentDraftVersion,
+    ContentWorkspace,
+    OrganicPostMetricSnapshot,
+    PublishedPost,
+)
 from integrations.models import (
     AirbyteConnection,
     AlertRuleDefinition,
@@ -587,6 +594,116 @@ def test_report_data_availability_returns_stored_source_scope(api_client, user, 
     assert "content_ops" in payload["blocking_datasets"]
     assert payload["eligible_for_report_export"] is False
     assert_report_payload_excludes_sensitive_values(payload)
+
+
+def test_report_data_availability_blocks_partial_required_source(api_client, user, tenant):
+    authenticate(api_client, user)
+    account = AdAccount.objects.create(
+        tenant=tenant,
+        external_id="act_123",
+        account_id="123",
+        name="SLB Meta Account",
+        currency="USD",
+    )
+    for day in (1, 31):
+        RawPerformanceRecord.objects.create(
+            tenant=tenant,
+            ad_account=account,
+            external_id=f"paid-partial-{day}",
+            date=datetime(2026, 5, day).date(),
+            level="campaign",
+            source="meta",
+            spend=10,
+            impressions=100,
+            clicks=5,
+        )
+    connection = MetaConnection(tenant=tenant, user=user, app_scoped_user_id="meta-user")
+    connection.set_raw_token("meta-user-token")
+    connection.scopes = ["pages_show_list", "pages_read_engagement"]
+    connection.save()
+    page = MetaPage(
+        tenant=tenant,
+        connection=connection,
+        page_id="page-123",
+        name="SLB Facebook Page",
+        can_analyze=True,
+        is_default=True,
+    )
+    page.set_raw_page_token("page-token")
+    page.save()
+    for day in (1, 31):
+        MetaInsightPoint.objects.create(
+            tenant=tenant,
+            page=page,
+            metric_key="page_media_view",
+            period="day",
+            end_time=datetime(2026, 5, day, 12, tzinfo=dt_timezone.utc),
+            value_num=100,
+        )
+    MetaPost.objects.create(
+        tenant=tenant,
+        page=page,
+        post_id="page-123_1",
+        message="Stored post without insights",
+        created_time=datetime(2026, 5, 15, 12, tzinfo=dt_timezone.utc),
+        last_synced_at=timezone.now(),
+    )
+
+    workspace = ContentWorkspace.all_objects.create(tenant=tenant, name="SLB Content")
+    draft = ContentDraft.all_objects.create(
+        tenant=tenant,
+        workspace=workspace,
+        title="SLB May post",
+        state=ContentDraft.STATE_PUBLISHED,
+    )
+    version = ContentDraftVersion.all_objects.create(
+        tenant=tenant,
+        draft=draft,
+        version_number=1,
+        caption="SLB May post",
+    )
+    published_post = PublishedPost.all_objects.create(
+        tenant=tenant,
+        workspace=workspace,
+        draft=draft,
+        version=version,
+        channel=PublishedPost.CHANNEL_FACEBOOK_PAGE,
+        meta_post_id="page-123_1",
+        published_at=datetime(2026, 5, 15, 12, tzinfo=dt_timezone.utc),
+        reporting_link_state=PublishedPost.REPORTING_LINKED,
+    )
+    for day in (1, 31):
+        OrganicPostMetricSnapshot.all_objects.create(
+            tenant=tenant,
+            published_post=published_post,
+            metric_date=datetime(2026, 5, day).date(),
+            channel=PublishedPost.CHANNEL_FACEBOOK_PAGE,
+            impressions=100,
+            reach=80,
+            engagements=10,
+            clicks=3,
+            source="meta_page_post_insights",
+        )
+
+    response = api_client.get(
+        reverse("report-definition-data-availability"),
+        {
+            "template_key": "slb_monthly_social_report",
+            "start_date": "2026-05-01",
+            "end_date": "2026-05-31",
+            "account_id": "act_123",
+            "page_id": "page-123",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["datasets"]["paid_meta_ads"]["coverage_status"] == "fresh"
+    assert payload["datasets"]["organic_facebook_page"]["coverage_status"] == "fresh"
+    assert payload["datasets"]["content_ops"]["coverage_status"] == "fresh"
+    assert payload["datasets"]["organic_facebook_posts"]["coverage_status"] == "partial"
+    assert "organic_facebook_posts" in payload["blocking_datasets"]
+    assert payload["eligible_for_report_export"] is False
 
 
 def test_report_data_availability_rejects_cross_tenant_page(api_client, user, tenant):

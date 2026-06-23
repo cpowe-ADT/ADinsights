@@ -17,6 +17,14 @@ from integrations.models import Client, MetaInsightPoint, MetaPage, MetaPost, Me
 from .reporting_source_health import build_reporting_source_health
 from .reporting_templates import SLB_MONTHLY_TEMPLATE_KEY, get_report_template_definition
 
+REPORT_AVAILABILITY_BLOCKING_STATUSES = {
+    "missing_history",
+    "not_previously_synced",
+    "partial",
+    "permission_missing",
+    "unsupported_metric",
+}
+
 
 class ReportingAvailabilityError(ValueError):
     """Safe API-facing availability error."""
@@ -75,7 +83,7 @@ def build_report_data_availability(*, tenant, params: Mapping[str, Any]) -> dict
     blocking = [
         key
         for key, value in required_for_template.items()
-        if value["coverage_status"] in {"missing_history", "not_previously_synced", "permission_missing"}
+        if value["coverage_status"] in REPORT_AVAILABILITY_BLOCKING_STATUSES
     ]
     source_health = build_reporting_source_health(tenant=tenant)
     return {
