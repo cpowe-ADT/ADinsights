@@ -241,6 +241,83 @@ def lint_sections(
     return findings
 
 
+def _as_list(value: Any) -> list[str]:
+    if isinstance(value, (list, tuple)):
+        return [str(v).strip() for v in value if str(v).strip()]
+    if isinstance(value, str) and value.strip():
+        return [value.strip()]
+    return []
+
+
+def _dedupe(items: list[str]) -> list[str]:
+    seen: dict[str, str] = {}
+    for item in items:
+        key = item.strip()
+        if key and key.lower() not in seen:
+            seen[key.lower()] = key
+    return list(seen.values())
+
+
+def resolve_sections_defaults(
+    sections: dict[str, Any], *, brand_kit: Any = None, agent: Any = None
+) -> tuple[dict[str, Any], dict[str, str]]:
+    """Fill unset Tier-2/3 fields from BrandKit -> agent -> system default.
+
+    Returns ``(resolved, provenance)`` where ``provenance`` maps each populated
+    field to its origin (``user`` | ``brand_kit`` | ``agent`` | ``default``).
+    The resolved object is what gets snapshotted into job lineage so a later
+    regenerate reads the snapshot, never a since-edited BrandKit (spec A4/F5).
+    Pure and idempotent: ``resolve(resolve(x)) == resolve(x)``.
+    """
+
+    resolved = dict(sections or {})
+    provenance: dict[str, str] = {}
+    instructions = dict(getattr(brand_kit, "standing_instructions", None) or {})
+    visual = dict(getattr(brand_kit, "visual_config", None) or {})
+    voice = dict(getattr(agent, "brand_voice", None) or {})
+
+    def fill(field: str, candidates: list[tuple[str, Any]], system_default: str | None = None) -> None:
+        current = resolved.get(field)
+        if (isinstance(current, str) and current.strip()) or (
+            current not in (None, "", []) and not isinstance(current, str)
+        ):
+            provenance[field] = "user"
+            return
+        for origin, value in candidates:
+            if isinstance(value, str) and value.strip():
+                resolved[field] = value.strip()
+                provenance[field] = origin
+                return
+        if system_default is not None:
+            resolved[field] = system_default
+            provenance[field] = "default"
+
+    fill("tone", [("brand_kit", instructions.get("tone")), ("agent", voice.get("tone"))])
+    fill(
+        "visual_style",
+        [("brand_kit", instructions.get("visual_style") or visual.get("visual_style"))],
+    )
+    fill(
+        "color_direction",
+        [("brand_kit", instructions.get("color_direction"))],
+        system_default="brand_palette",
+    )
+    agent_locale = getattr(agent, "locale", "") if agent is not None else ""
+    fill("locale", [("agent", agent_locale)])
+
+    # Derived required/blocked terms (Tier 3): union of user-provided + BrandKit.
+    kit_required = _as_list(getattr(brand_kit, "required_terms", None))
+    kit_blocked = _as_list(getattr(brand_kit, "blocked_terms", None))
+    if kit_required:
+        resolved["required_terms"] = _dedupe([*_as_list(resolved.get("required_terms")), *kit_required])
+        provenance.setdefault("required_terms", "brand_kit")
+    if kit_blocked:
+        resolved["blocked_terms"] = _dedupe([*_as_list(resolved.get("blocked_terms")), *kit_blocked])
+        provenance.setdefault("blocked_terms", "brand_kit")
+
+    return resolved, provenance
+
+
 def brief_strength(sections: dict[str, Any]) -> str:
     """A deterministic weak | ok | strong indicator of input completeness."""
 
