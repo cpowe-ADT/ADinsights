@@ -389,6 +389,25 @@ class ContentDraft(TenantScopedModel):
             superseded_reason=reason,
         )
 
+    def has_current_client_approval(self, version=None) -> bool:
+        """True when the given (or active) version holds a current client approval.
+
+        A version edit supersedes prior approvals via :meth:`invalidate_approvals`,
+        so an ``approved`` client request only survives for the version it was
+        granted against — making this the publish-readiness invariant.
+        """
+
+        version_id = version.id if version is not None else self.active_version_id
+        if version_id is None:
+            return False
+        return ApprovalRequest.all_objects.filter(
+            tenant_id=self.tenant_id,
+            draft=self,
+            version_id=version_id,
+            reviewer_type=ApprovalRequest.REVIEWER_CLIENT,
+            status=ApprovalRequest.STATUS_APPROVED,
+        ).exists()
+
 
 class ContentDraftVersion(TenantScopedModel):
     """Immutable-ish version payload for a content draft."""

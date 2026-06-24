@@ -917,6 +917,15 @@ class ContentDraftViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
         draft = self.get_object()
         if draft.active_version_id is None:
             raise ValidationError({"active_version": "Draft has no active version."})
+        if not draft.has_current_client_approval():
+            raise ValidationError(
+                {
+                    "approval": (
+                        "Draft requires a current client approval for its active "
+                        "version before it can be scheduled."
+                    )
+                }
+            )
         payload = request.data.copy()
         payload["draft"] = str(draft.id)
         payload["version"] = str(draft.active_version_id)
