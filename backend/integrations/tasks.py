@@ -2952,6 +2952,71 @@ def sync_post_insights(  # noqa: ANN001
 
 
 @shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def sync_meta_organic_reporting_bundle(  # noqa: ANN001
+    self,
+    page_id: str,
+    mode: str = "backfill",
+    since: str | None = None,
+    until: str | None = None,
+):
+    """Run the ordered organic Facebook sync needed by reporting surfaces."""
+
+    page = _resolve_page(page_id)
+    if page is None:
+        return {
+            "page_id": page_id,
+            "status": "blocked",
+            "reason": "facebook_page_missing",
+            "posts_processed": 0,
+            "page_insight_rows_processed": 0,
+            "post_insight_rows_processed": 0,
+        }
+
+    posts_result = sync_page_posts.run(
+        page_id=page.page_id,
+        mode=mode,
+        since=since,
+        until=until,
+    )
+    discovery_result = discover_supported_metrics.run(page_id=page.page_id)
+    page_result = sync_page_insights.run(
+        page_id=page.page_id,
+        mode=mode,
+        since=since,
+        until=until,
+    )
+    post_result = sync_post_insights.run(
+        page_id=page.page_id,
+        mode=mode,
+        since=since,
+        until=until,
+    )
+
+    posts_processed = _safe_int(posts_result.get("posts_processed") if isinstance(posts_result, dict) else 0)
+    page_rows = _safe_int(page_result.get("rows_processed") if isinstance(page_result, dict) else 0)
+    post_rows = _safe_int(post_result.get("rows_processed") if isinstance(post_result, dict) else 0)
+    status = "completed" if posts_processed or page_rows or post_rows else "completed_no_rows"
+    reason = "" if status == "completed" else "graph_returned_no_page_or_post_rows"
+    return {
+        "page_id": page.page_id,
+        "status": status,
+        "reason": reason,
+        "mode": mode,
+        "since": since,
+        "until": until,
+        "posts_processed": posts_processed,
+        "page_insight_rows_processed": page_rows,
+        "post_insight_rows_processed": post_rows,
+        "tasks": {
+            "sync_page_posts": posts_result,
+            "discover_supported_metrics": discovery_result,
+            "sync_page_insights": page_result,
+            "sync_post_insights": post_result,
+        },
+    }
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
 def refresh_tokens(self):  # noqa: ANN001
     """Backward-compatible token refresh alias for insights workers."""
 
@@ -2963,6 +3028,13 @@ def _resolve_page(page_id: str) -> MetaPage | None:
     if page is not None:
         return page
     return MetaPage.all_objects.filter(pk=page_id).select_related("tenant").first()
+
+
+def _safe_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _sync_page_metric_window(
@@ -3278,7 +3350,18 @@ def _sync_post_metric_chunk(
 def _candidate_page_tokens(page: MetaPage) -> list[str]:
     tokens: list[str] = []
 
-    page_token = page.decrypt_page_token()
+    try:
+        page_token = page.decrypt_page_token()
+    except Exception as exc:
+        logger.warning(
+            "meta.page_token.decrypt_failed",
+            extra={
+                "tenant_id": str(page.tenant_id),
+                "page_id": page.page_id,
+                "error_type": type(exc).__name__,
+            },
+        )
+        page_token = None
     if isinstance(page_token, str) and page_token.strip():
         tokens.append(page_token.strip())
 
@@ -3295,7 +3378,20 @@ def _candidate_page_tokens(page: MetaPage) -> list[str]:
         candidates.append(latest_connection)
 
     for candidate in candidates:
-        token = candidate.decrypt_token()
+        try:
+            token = candidate.decrypt_token()
+        except Exception as exc:
+            log_method = logger.debug if tokens else logger.warning
+            log_method(
+                "meta.connection_token.decrypt_failed",
+                extra={
+                    "tenant_id": str(page.tenant_id),
+                    "page_id": page.page_id,
+                    "connection_id": str(candidate.pk),
+                    "error_type": type(exc).__name__,
+                },
+            )
+            continue
         if not isinstance(token, str):
             continue
         normalized = token.strip()

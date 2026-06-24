@@ -7,6 +7,7 @@ import {
   useNavigate,
   type NavLinkRenderProps,
 } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 
 import { useAuth } from '../auth/AuthContext';
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -167,21 +168,23 @@ const DashboardLayout = () => {
     parish,
     activeTenantLabel,
     lastSnapshotGeneratedAt,
-  } = useDashboardStore((state) => ({
-    loadAll: state.loadAll,
-    filters: state.filters,
-    setFilters: state.setFilters,
-    selectedMetric: state.selectedMetric,
-    setSelectedMetric: state.setSelectedMetric,
-    selectedParish: state.selectedParish,
-    setSelectedParish: state.setSelectedParish,
-    campaign: state.campaign,
-    creative: state.creative,
-    budget: state.budget,
-    parish: state.parish,
-    activeTenantLabel: state.activeTenantLabel,
-    lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
-  }));
+  } = useDashboardStore(
+    useShallow((state) => ({
+      loadAll: state.loadAll,
+      filters: state.filters,
+      setFilters: state.setFilters,
+      selectedMetric: state.selectedMetric,
+      setSelectedMetric: state.setSelectedMetric,
+      selectedParish: state.selectedParish,
+      setSelectedParish: state.setSelectedParish,
+      campaign: state.campaign,
+      creative: state.creative,
+      budget: state.budget,
+      parish: state.parish,
+      activeTenantLabel: state.activeTenantLabel,
+      lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+    })),
+  );
 
   const handleFilterChange = useCallback(
     (state: FilterBarState) => {

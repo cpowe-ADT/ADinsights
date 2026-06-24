@@ -4,6 +4,8 @@ One-line, timestamped notes of agent-driven changes to help preserve context bet
 
 ## 2026-06-23
 
+- 2026-06-23T16:16:06-0500 backend/frontend(meta): connect Run Meta sync to Page/Post reporting bundle - Extended `POST /api/integrations/meta/sync/` with additive `organic_sync` metadata and a bounded organic Page/Post reporting bundle, updated Data Sources toast copy, and documented that the fixed May local SLB backfill still returns zero organic/content rows so export remains correctly blocked. Focused Meta sync and DataSources tests passed; no `read_insights` or Graph version change.
+- 2026-06-23T15:30:00-0500 docs/frontend(meta): activate Meta reporting compatibility audit - Created the Meta reporting compatibility sprint and Graph v24 provider-key audit handoff docs, captured local SLB source-health evidence, and clarified Data Sources direct-sync labels so "complete" is not confused with report readiness. Official Meta docs/Graph Explorer verification remains required before metric or version changes.
 - 2026-06-23T12:50:00-0500 fix(reporting): block partial source availability - Tightened the new report data availability contract so partial required stored coverage does not present as export-ready and added regression coverage for partial top-post insight rows.
 - 2026-06-23T12:25:00-0500 feat(reporting): start data-readiness sprint - Merged the empty organic diagnostics baseline, added a stored-data report availability contract for SLB target selection, persisted account/page filters on template-created reports, and surfaced SLB source availability on the Reports page so missing organic rows are visible before opening a report.
 

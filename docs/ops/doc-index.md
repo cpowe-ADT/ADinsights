@@ -233,3 +233,5 @@ After rebuilding context, draft the sprint/task plan with stream/ID, scope (fold
 - `docs/runbooks/meta-page-insights-operations.md` — operations runbook for Facebook Page/Post Insights ingestion, refresh, and failure triage.
 - `docs/project/meta-page-insights-data-dictionary.md` — storage-level dictionary for Meta Page/Post Insights models and metric semantics.
 - `docs/project/meta-page-insights-metric-catalog.md` — generated full metric inventory (PAGE/POST) with periods, breakdowns, and status/replacement metadata.
+- `docs/project/meta-reporting-compatibility-sprint.md` — current Meta reporting compatibility sprint audit covering runtime evidence, agent handoffs, diagnoses, and go/no-go decisions.
+- `docs/project/meta-graph-v24-provider-key-audit.md` — official-verification checklist and provider-key matrix for Graph v24 Page/Post reporting semantics.

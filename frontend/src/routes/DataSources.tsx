@@ -97,6 +97,16 @@ type Ga4ConnectStep = 'idle' | 'oauth-pending' | 'property-selection' | 'connect
 type SocialStatusLoad = 'loading' | 'loaded' | 'error';
 type MetaReportingNoteTone = 'success' | 'info' | 'warning';
 
+interface MetaOrganicSyncSummary {
+  status?: string;
+  reason?: string;
+  page_count?: number;
+  total_analyzable_page_count?: number;
+  page_limit?: number;
+  task_dispatch_mode?: string;
+  tasks?: Array<Record<string, unknown>>;
+}
+
 interface ConnectFormState {
   accountId: string;
   loginCustomerId: string;
@@ -393,6 +403,34 @@ const resolveSocialPrimaryAction = (platformStatus: SocialPlatformCard): string 
   return 'View details';
 };
 
+const formatPageCount = (count?: number): string => {
+  const safeCount = typeof count === 'number' && Number.isFinite(count) ? count : 0;
+  return `${safeCount} page${safeCount === 1 ? '' : 's'}`;
+};
+
+const formatMetaOrganicSyncToast = (organicSync?: MetaOrganicSyncSummary): string => {
+  const status = organicSync?.status;
+  if (!status) {
+    return '';
+  }
+  if (status === 'queued') {
+    return ` Organic Page/Post sync queued for ${formatPageCount(organicSync.page_count)}.`;
+  }
+  if (status === 'completed') {
+    return ` Organic Page/Post sync completed for ${formatPageCount(organicSync.page_count)}.`;
+  }
+  if (status === 'completed_no_rows') {
+    return ' Organic Page/Post sync ran but found no report rows.';
+  }
+  if (status === 'skipped') {
+    return ' No analyzable Facebook Page is selected for organic reporting.';
+  }
+  if (status === 'partial' || status === 'failed') {
+    return ' Organic Page/Post sync needs attention.';
+  }
+  return '';
+};
+
 const resolveDirectSyncStatusLabel = (value?: string): string => {
   if (value === 'blocked') {
     return 'Blocked';
@@ -410,10 +448,10 @@ const resolveDirectSyncStatusLabel = (value?: string): string => {
     return 'Paused';
   }
   if (value === 'complete_no_data') {
-    return 'Complete (no data)';
+    return 'Sync complete, no report rows';
   }
   if (value === 'complete') {
-    return 'Complete';
+    return 'Sync complete';
   }
   return 'Unknown';
 };
@@ -1472,10 +1510,11 @@ const DataSources = () => {
           const syncPayload = await syncMetaIntegration();
           syncCompleted = true;
           if (syncPayload.job_id) {
+            const organicMessage = formatMetaOrganicSyncToast(syncPayload.organic_sync);
             addToast(
               syncPayload.task_dispatch_mode === 'inline'
-                ? `Meta restore completed and sync ran inline (job ${syncPayload.job_id}).`
-                : `Meta restore completed and sync started (job ${syncPayload.job_id}).`,
+                ? `Meta restore completed and sync ran inline (job ${syncPayload.job_id}).${organicMessage}`
+                : `Meta restore completed and sync started (job ${syncPayload.job_id}).${organicMessage}`,
               'success',
             );
           }
@@ -1636,10 +1675,11 @@ const DataSources = () => {
                 : syncPayload.task_dispatch_mode === 'inline'
                   ? 'ran inline'
                   : 'queued';
+            const organicMessage = formatMetaOrganicSyncToast(syncPayload.organic_sync);
             addToast(
               jobId
-                ? `Meta data check ${statusLabel} (job ${jobId}).`
-                : `Meta data check ${statusLabel}.`,
+                ? `Meta data check ${statusLabel} (job ${jobId}).${organicMessage}`
+                : `Meta data check ${statusLabel}.${organicMessage}`,
               'success',
             );
             void loadData();
@@ -1722,7 +1762,12 @@ const DataSources = () => {
             });
             const syncPayload = await syncMetaIntegration();
             if (syncPayload.job_id) {
-              addToast(`Meta insights sync started (job ${syncPayload.job_id}).`, 'success');
+              addToast(
+                `Meta insights sync started (job ${syncPayload.job_id}).${formatMetaOrganicSyncToast(
+                  syncPayload.organic_sync,
+                )}`,
+                'success',
+              );
             }
             await applyMetaReportingStatusNote({ syncCompleted: true });
           }
