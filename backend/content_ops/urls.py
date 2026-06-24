@@ -26,11 +26,17 @@ from .views import (
     PublishedPostViewSet,
     PublishingIdentityViewSet,
     PublishAttemptViewSet,
+    RegionalAgentProfileViewSet,
 )
 
 
 router = ADinsightsDefaultRouter()
 router.register(r"workspaces", ContentWorkspaceViewSet, basename="content-workspace")
+router.register(
+    r"regional-agents",
+    RegionalAgentProfileViewSet,
+    basename="content-regional-agent",
+)
 router.register(
     r"publishing-identities",
     PublishingIdentityViewSet,

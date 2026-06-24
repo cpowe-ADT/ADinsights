@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import mimetypes
 import re
 import uuid
 from collections.abc import Iterable
@@ -105,6 +106,87 @@ def store_uploaded_asset(
         mime_type=str(getattr(upload, "content_type", "") or "application/octet-stream"),
         alt_text=alt_text[:1000],
         status=MediaAsset.STATUS_AVAILABLE,
+    )
+
+
+def max_generated_asset_bytes() -> int:
+    return int(
+        getattr(settings, "CONTENT_OPS_GENERATED_ASSET_MAX_BYTES", 15 * 1024 * 1024)
+    )
+
+
+def _extension_for_mime(mime_type: str) -> str:
+    mime = str(mime_type or "").split(";")[0].strip().lower()
+    known = {
+        "image/png": ".png",
+        "image/jpeg": ".jpg",
+        "image/webp": ".webp",
+        "image/gif": ".gif",
+        "video/mp4": ".mp4",
+        "video/quicktime": ".mov",
+    }
+    if mime in known:
+        return known[mime]
+    return (mimetypes.guess_extension(mime) if mime else None) or ""
+
+
+def store_generated_asset_bytes(
+    *,
+    tenant,
+    workspace: ContentWorkspace,
+    content: bytes,
+    mime_type: str,
+    alt_text: str = "",
+    ai_lineage: dict[str, Any] | None = None,
+    width: int | None = None,
+    height: int | None = None,
+    max_bytes: int | None = None,
+) -> MediaAsset:
+    """Persist generated media bytes; quarantine oversized or unsupported output.
+
+    Empty output is a generation failure (raises). Output with an unsupported
+    mime type or larger than the configured limit is still written for
+    inspection but created in QUARANTINED status so it can never be published.
+    """
+
+    if workspace.tenant_id != tenant.id:
+        raise ContentOpsAssetStorageError("workspace_wrong_tenant")
+    if not content:
+        raise ContentOpsAssetStorageError("asset_empty")
+    limit = int(max_bytes) if max_bytes else max_generated_asset_bytes()
+    mime = str(mime_type or "").strip()
+    quarantine_reason = ""
+    if not any(mime.startswith(prefix) for prefix in ALLOWED_ASSET_MIME_PREFIXES):
+        quarantine_reason = "unsupported_mime"
+    elif len(content) > limit:
+        quarantine_reason = "too_large"
+    asset_id = uuid.uuid4()
+    storage_key = (
+        f"{ASSET_STORAGE_PREFIX}/{tenant.id}/{workspace.id}/{asset_id}/"
+        f"generated{_extension_for_mime(mime)}"
+    )
+    file_path = asset_file_path(storage_key)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(content)
+    lineage = dict(ai_lineage or {})
+    if quarantine_reason:
+        lineage["quarantine_reason"] = quarantine_reason
+    return MediaAsset.all_objects.create(
+        id=asset_id,
+        tenant=tenant,
+        workspace=workspace,
+        source=MediaAsset.SOURCE_AI_GENERATED,
+        storage_key=storage_key,
+        mime_type=mime or "application/octet-stream",
+        width=width,
+        height=height,
+        alt_text=alt_text[:1000],
+        ai_lineage=lineage,
+        status=(
+            MediaAsset.STATUS_QUARANTINED
+            if quarantine_reason
+            else MediaAsset.STATUS_AVAILABLE
+        ),
     )
 
 

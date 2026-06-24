@@ -11,6 +11,9 @@ from core.tasks import BaseAdInsightsTask
 from .generation import (
     process_content_caption_generation_job as process_caption_generation_job,
 )
+from .image_generation import (
+    process_content_image_generation_job as process_image_generation_job,
+)
 from .metrics import refresh_published_post_metrics
 from .models import GenerationJob, PublishedPost
 from .publisher import (
@@ -200,9 +203,34 @@ def process_content_caption_generation_job(
     return result.as_dict()
 
 
+@shared_task(
+    bind=True,
+    base=ContentOpsGenerationJobTask,
+    max_retries=5,
+    name="content_ops.tasks.process_content_image_generation_job",
+)
+def process_content_image_generation_job(
+    self,
+    job_id: str,
+    tenant_id: str | None = None,
+):
+    """Process one queued image generation job through the provider boundary."""
+
+    job = GenerationJob.all_objects.only("tenant_id").filter(id=job_id).first()
+    if job is None:
+        result = process_image_generation_job(job_id=job_id)
+        return result.as_dict()
+    if tenant_id is not None and str(job.tenant_id) != str(tenant_id):
+        raise ValueError("generation_job_tenant_mismatch")
+    with tenant_context(str(job.tenant_id)):
+        result = process_image_generation_job(job_id=job_id)
+    return result.as_dict()
+
+
 __all__ = [
     "dispatch_due_content_schedules",
     "process_content_caption_generation_job",
+    "process_content_image_generation_job",
     "process_due_content_publish_attempts",
     "process_content_publish_attempt",
     "refresh_content_published_post_metrics",

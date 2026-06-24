@@ -205,6 +205,13 @@ class GenerationJob(TenantScopedModel):
         blank=True,
         related_name="generation_jobs",
     )
+    regional_agent_profile = models.ForeignKey(
+        "RegionalAgentProfile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="generation_jobs",
+    )
     job_type = models.CharField(max_length=32, choices=TYPE_CHOICES)
     provider = models.CharField(max_length=64, blank=True)
     model_name = models.CharField(max_length=128, blank=True)
@@ -266,12 +273,18 @@ class MediaAsset(TenantScopedModel):
     renditions = models.JSONField(default=dict, blank=True)
     ai_lineage = models.JSONField(default=dict, blank=True)
     status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_AVAILABLE)
+    is_approved_reference = models.BooleanField(default=False)
+    reference_region = models.CharField(max_length=32, blank=True)
+    reference_locale = models.CharField(max_length=16, blank=True)
 
     class Meta:
         ordering = ("-created_at",)
         indexes = [
             models.Index(fields=["tenant", "workspace"], name="content_asset_ws"),
             models.Index(fields=["tenant", "status"], name="content_asset_status"),
+            models.Index(
+                fields=["tenant", "is_approved_reference"], name="content_asset_ref"
+            ),
         ]
 
 
@@ -762,3 +775,103 @@ class ContentExportArtifact(TenantScopedModel):
             models.Index(fields=["tenant", "workspace"], name="content_export_ws"),
             models.Index(fields=["tenant", "status"], name="content_export_status"),
         ]
+
+
+class AIUsageRecord(TenantScopedModel):
+    """Per-generation AI provider token usage for metering and billing.
+
+    One row is written per provider call that reports usage. Tokens are the
+    billable unit; ``estimated_cost`` is a best-effort figure derived from the
+    configured per-1k-token rate (0 unless a rate is set), so cost can also be
+    recomputed downstream from a price table.
+    """
+
+    generation_job = models.ForeignKey(
+        GenerationJob, on_delete=models.CASCADE, related_name="usage_records"
+    )
+    provider = models.CharField(max_length=64)
+    model_name = models.CharField(max_length=128, blank=True)
+    input_tokens = models.BigIntegerField(default=0)
+    output_tokens = models.BigIntegerField(default=0)
+    total_tokens = models.BigIntegerField(default=0)
+    images = models.PositiveIntegerField(default=0)
+    estimated_cost = models.DecimalField(max_digits=12, decimal_places=6, default=0)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=["tenant", "created_at"], name="content_ai_usage_created"),
+            models.Index(fields=["tenant", "provider"], name="content_ai_usage_provider"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"AIUsageRecord<{self.tenant_id}:{self.provider}:{self.total_tokens}>"
+
+
+class RegionalAgentProfile(TenantScopedModel):
+    """A regional AI content agent: locale, brand voice, and approved references.
+
+    Each agent is scoped to a workspace and a region. Locale, language, and the
+    scheduling timezone default from the region when left blank, so a Caribbean
+    agent posts in en-JM/America/Jamaica and a Peru agent in es-PE/America/Lima.
+    """
+
+    REGION_CARIBBEAN = "caribbean"
+    REGION_PERU_LATAM = "peru_latam"
+    REGION_CHOICES = [
+        (REGION_CARIBBEAN, "Caribbean"),
+        (REGION_PERU_LATAM, "Peru / LATAM"),
+    ]
+
+    REGION_DEFAULTS = {
+        REGION_CARIBBEAN: {
+            "locale": "en-JM",
+            "language": "English",
+            "timezone": "America/Jamaica",
+        },
+        REGION_PERU_LATAM: {
+            "locale": "es-PE",
+            "language": "Spanish",
+            "timezone": "America/Lima",
+        },
+    }
+
+    workspace = models.ForeignKey(
+        ContentWorkspace, on_delete=models.CASCADE, related_name="regional_agents"
+    )
+    name = models.CharField(max_length=255)
+    region = models.CharField(max_length=32, choices=REGION_CHOICES)
+    locale = models.CharField(max_length=16, blank=True)
+    language = models.CharField(max_length=64, blank=True)
+    timezone = models.CharField(max_length=64, blank=True)
+    brand_voice = models.JSONField(default=dict, blank=True)
+    required_terms = models.JSONField(default=list, blank=True)
+    blocked_terms = models.JSONField(default=list, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_regional_agents",
+    )
+
+    class Meta:
+        ordering = ("name",)
+        indexes = [
+            models.Index(fields=["tenant", "workspace"], name="content_agent_ws"),
+            models.Index(fields=["tenant", "region"], name="content_agent_region"),
+        ]
+
+    def save(self, *args, **kwargs):
+        defaults = self.REGION_DEFAULTS.get(self.region, {})
+        if not self.locale:
+            self.locale = defaults.get("locale", "")
+        if not self.language:
+            self.language = defaults.get("language", "")
+        if not self.timezone:
+            self.timezone = defaults.get("timezone", "")
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"RegionalAgentProfile<{self.tenant_id}:{self.region}:{self.name}>"

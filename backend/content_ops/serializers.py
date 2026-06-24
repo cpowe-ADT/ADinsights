@@ -16,6 +16,7 @@ from .generation import (
     normalize_caption_platforms,
     redact_secret_like_text,
 )
+from .image_generation import MAX_IMAGE_COUNT
 from .models import (
     ApprovalDecision,
     ApprovalRequest,
@@ -31,6 +32,7 @@ from .models import (
     PublishedPost,
     PublishingIdentity,
     PublishAttempt,
+    RegionalAgentProfile,
 )
 
 
@@ -91,6 +93,37 @@ class ContentWorkspaceSerializer(
             "timezone",
             "created_by",
             "archived_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+
+
+class RegionalAgentProfileSerializer(
+    TenantScopedContentSerializerMixin, serializers.ModelSerializer
+):
+    workspace = serializers.PrimaryKeyRelatedField(
+        queryset=ContentWorkspace.all_objects.all()
+    )
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    tenant_related_fields = ("workspace",)
+
+    class Meta:
+        model = RegionalAgentProfile
+        fields = [
+            "id",
+            "workspace",
+            "name",
+            "region",
+            "locale",
+            "language",
+            "timezone",
+            "brand_voice",
+            "required_terms",
+            "blocked_terms",
+            "is_active",
+            "created_by",
             "created_at",
             "updated_at",
         ]
@@ -174,6 +207,7 @@ class GenerationJobSerializer(
         allow_null=True,
         required=False,
     )
+    regional_agent_profile = serializers.PrimaryKeyRelatedField(read_only=True)
     created_by = serializers.PrimaryKeyRelatedField(read_only=True)
 
     tenant_related_fields = ("workspace", "brief")
@@ -184,6 +218,7 @@ class GenerationJobSerializer(
             "id",
             "workspace",
             "brief",
+            "regional_agent_profile",
             "job_type",
             "provider",
             "model_name",
@@ -240,6 +275,21 @@ class CaptionGenerateRequestSerializer(serializers.Serializer):
         allow_blank=True,
         max_length=128,
     )
+    regional_agent_profile_id = serializers.PrimaryKeyRelatedField(
+        source="regional_agent_profile",
+        queryset=RegionalAgentProfile.all_objects.none(),
+        allow_null=True,
+        required=False,
+    )
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        request = self.context.get("request")
+        tenant_id = getattr(getattr(request, "user", None), "tenant_id", None)
+        if tenant_id is not None:
+            self.fields["regional_agent_profile_id"].queryset = (
+                RegionalAgentProfile.all_objects.filter(tenant_id=tenant_id)
+            )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         attrs = super().validate(attrs)
@@ -265,9 +315,71 @@ class CaptionGenerateRequestSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"platforms": f"Unsupported caption platforms: {sorted(invalid)}"}
             )
+        agent = attrs.get("regional_agent_profile")
+        if agent is not None and agent.workspace_id != workspace.id:
+            raise serializers.ValidationError(
+                {"regional_agent_profile_id": "Agent does not belong to this workspace."}
+            )
         attrs["tone_override"] = redact_secret_like_text(
             attrs.get("tone_override", "")
         )[:128]
+        return attrs
+
+
+class ImageGenerateRequestSerializer(serializers.Serializer):
+    prompt = serializers.CharField(max_length=2000)
+    count = serializers.IntegerField(
+        required=False, min_value=1, max_value=MAX_IMAGE_COUNT
+    )
+    size = serializers.CharField(required=False, allow_blank=True, max_length=16)
+    brief_id = serializers.PrimaryKeyRelatedField(
+        source="brief",
+        queryset=ContentBrief.all_objects.none(),
+        allow_null=True,
+        required=False,
+    )
+    regional_agent_profile_id = serializers.PrimaryKeyRelatedField(
+        source="regional_agent_profile",
+        queryset=RegionalAgentProfile.all_objects.none(),
+        allow_null=True,
+        required=False,
+    )
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        request = self.context.get("request")
+        tenant_id = getattr(getattr(request, "user", None), "tenant_id", None)
+        if tenant_id is not None:
+            self.fields["brief_id"].queryset = ContentBrief.all_objects.filter(
+                tenant_id=tenant_id
+            )
+            self.fields["regional_agent_profile_id"].queryset = (
+                RegionalAgentProfile.all_objects.filter(tenant_id=tenant_id)
+            )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
+        workspace = self.context.get("workspace")
+        if workspace is None:
+            raise serializers.ValidationError(
+                {"workspace": "Workspace context is required."}
+            )
+        prompt = redact_secret_like_text(attrs.get("prompt", "")).strip()
+        if not prompt:
+            raise serializers.ValidationError(
+                {"prompt": "A non-empty prompt is required."}
+            )
+        attrs["prompt"] = prompt[:2000]
+        brief = attrs.get("brief")
+        if brief is not None and brief.workspace_id != workspace.id:
+            raise serializers.ValidationError(
+                {"brief_id": "Brief does not belong to this workspace."}
+            )
+        agent = attrs.get("regional_agent_profile")
+        if agent is not None and agent.workspace_id != workspace.id:
+            raise serializers.ValidationError(
+                {"regional_agent_profile_id": "Agent does not belong to this workspace."}
+            )
         return attrs
 
 
@@ -304,6 +416,9 @@ class MediaAssetSerializer(TenantScopedContentSerializerMixin, serializers.Model
             "alt_text",
             "renditions",
             "status",
+            "is_approved_reference",
+            "reference_region",
+            "reference_locale",
             "download_url",
             "created_at",
             "updated_at",

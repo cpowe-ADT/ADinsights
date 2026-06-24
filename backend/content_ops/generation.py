@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 from dataclasses import dataclass
 from datetime import timedelta
@@ -19,13 +20,17 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from .metering import record_ai_usage, tenant_over_token_cap
 from .models import (
     ContentBrief,
     ContentDraft,
     ContentDraftVersion,
     ContentWorkspace,
     GenerationJob,
+    MediaAsset,
 )
+
+logger = logging.getLogger(__name__)
 
 CAPTION_FAILURE_PROVIDER_NOT_CONFIGURED = "provider_not_configured"
 CAPTION_FAILURE_SCHEMA_INVALID = "caption_schema_invalid"
@@ -38,6 +43,8 @@ CAPTION_FAILURE_JOB_MISSING = "generation_job_missing"
 CAPTION_FAILURE_ACTIVE_LIMIT_EXCEEDED = "caption_active_limit_exceeded"
 CAPTION_FAILURE_DAILY_LIMIT_EXCEEDED = "caption_daily_limit_exceeded"
 CAPTION_FAILURE_CANDIDATE_LIMIT_EXCEEDED = "caption_candidate_limit_exceeded"
+CAPTION_FAILURE_PROVIDER_ERROR = "provider_error"
+CAPTION_FAILURE_TOKEN_QUOTA_EXCEEDED = "token_quota_exceeded"
 
 CAPTION_PROCESS_STATUS_FAILED = "failed"
 CAPTION_PROCESS_STATUS_NOOP = "noop"
@@ -48,6 +55,7 @@ MAX_CAPTION_CANDIDATE_COUNT = 5
 DEFAULT_CAPTION_ACTIVE_JOB_LIMIT = 25
 DEFAULT_CAPTION_DAILY_JOB_LIMIT = 100
 DEFAULT_CAPTION_DAILY_CANDIDATE_LIMIT = 300
+MAX_APPROVED_REFERENCES = 12
 SUPPORTED_CAPTION_PLATFORMS = {
     ContentWorkspace.CHANNEL_FACEBOOK_PAGE,
     ContentWorkspace.CHANNEL_INSTAGRAM,
@@ -57,6 +65,7 @@ SAFE_PLATFORM_OVERRIDE_KEYS = {
     "alt_text",
     "cta",
     "hashtags",
+    "image_prompt",
     "platform",
     "quality_score",
     "risk_flags",
@@ -96,6 +105,7 @@ class CaptionCandidate:
     alt_text: str = ""
     risk_flags: tuple[str, ...] = ()
     quality_score: float = 0.0
+    image_prompt: str = ""
 
 
 @dataclass(frozen=True)
@@ -209,11 +219,16 @@ def create_caption_generation_job(
     candidate_count: Any = None,
     platforms: Any = None,
     tone_override: str = "",
+    agent=None,
 ) -> GenerationJob:
     """Create a queued caption generation job with only redacted prompt context."""
 
     if brief.tenant_id != tenant.id:
         raise ValueError("brief_missing")
+    if agent is not None and (
+        agent.tenant_id != tenant.id or agent.workspace_id != brief.workspace_id
+    ):
+        raise ValueError("regional_agent_profile_invalid")
     normalized_count = normalize_caption_candidate_count(candidate_count)
     quota_snapshot = enforce_caption_generation_quota(
         tenant=tenant,
@@ -228,9 +243,10 @@ def create_caption_generation_job(
         candidate_count=normalized_count,
         platforms=normalized_platforms,
         tone_override=tone_override,
+        agent=agent,
     )
     prompt_summary = redacted_caption_prompt_summary(provider_payload)
-    required_terms, blocked_terms = _content_policy_terms(brief)
+    required_terms, blocked_terms = _content_policy_terms(brief, agent=agent)
     policy_result = {
         "candidate_count": normalized_count,
         "platforms": normalized_platforms,
@@ -241,11 +257,15 @@ def create_caption_generation_job(
         "tone_override": redact_secret_like_text(tone_override)[:128],
         "tone_override_present": bool(str(tone_override or "").strip()),
         "quota_snapshot": quota_snapshot,
+        "agent_id": str(agent.id) if agent is not None else "",
+        "region": agent.region if agent is not None else "",
+        "locale": agent.locale if agent is not None else "",
     }
     return GenerationJob.all_objects.create(
         tenant=tenant,
         workspace=brief.workspace,
         brief=brief,
+        regional_agent_profile=agent,
         job_type=GenerationJob.TYPE_CAPTION,
         provider="disabled",
         model_name="",
@@ -264,6 +284,7 @@ def build_caption_provider_payload(
     candidate_count: int,
     platforms: list[str],
     tone_override: str = "",
+    agent=None,
 ) -> dict[str, Any]:
     """Build sanitized provider input for fake/future caption providers."""
 
@@ -290,6 +311,17 @@ def build_caption_provider_payload(
         },
         "tone_override": tone_override,
     }
+    if agent is not None:
+        raw_payload["agent"] = {
+            "region": agent.region,
+            "locale": agent.locale,
+            "language": agent.language,
+            "timezone": agent.timezone,
+            "brand_voice": agent.brand_voice,
+            "required_terms": agent.required_terms,
+            "blocked_terms": agent.blocked_terms,
+            "approved_references": _approved_reference_descriptors(agent),
+        }
     redacted = _redact_json_value(raw_payload)
     return {
         **redacted,
@@ -298,6 +330,37 @@ def build_caption_provider_payload(
             "policy": "content_ops_caption_v1",
         },
     }
+
+
+def _approved_reference_descriptors(agent) -> list[dict[str, Any]]:
+    """Safe descriptors for an agent's approved visual references (no secrets).
+
+    Only approved, available assets in the agent's workspace are eligible, and
+    region-tagged assets are limited to the agent's own region. Storage keys and
+    renditions are never exposed — captions and prompts only see alt text.
+    """
+
+    assets = MediaAsset.all_objects.filter(
+        tenant_id=agent.tenant_id,
+        workspace_id=agent.workspace_id,
+        is_approved_reference=True,
+        status=MediaAsset.STATUS_AVAILABLE,
+    ).order_by("-created_at")
+    descriptors: list[dict[str, Any]] = []
+    for asset in assets[: MAX_APPROVED_REFERENCES * 2]:
+        if asset.reference_region and asset.reference_region != agent.region:
+            continue
+        descriptors.append(
+            {
+                "id": str(asset.id),
+                "alt_text": asset.alt_text,
+                "region": asset.reference_region,
+                "locale": asset.reference_locale,
+            }
+        )
+        if len(descriptors) >= MAX_APPROVED_REFERENCES:
+            break
+    return descriptors
 
 
 def enforce_caption_generation_quota(
@@ -448,6 +511,12 @@ def process_content_caption_generation_job(
             code=CAPTION_FAILURE_BRIEF_MISSING,
             detail="Generation job is missing a content brief.",
         )
+    if tenant_over_token_cap(tenant=existing_job.tenant):
+        return _mark_job_failed(
+            job_id=existing_job.id,
+            code=CAPTION_FAILURE_TOKEN_QUOTA_EXCEEDED,
+            detail="Monthly AI token quota has been reached for this tenant.",
+        )
 
     with transaction.atomic():
         job = _locked_job(job_id=job_id)
@@ -474,9 +543,26 @@ def process_content_caption_generation_job(
         job.save(update_fields=["status", "error_code", "updated_at"])
         provider_payload = _payload_from_job(job)
 
-    selected_provider = provider or DisabledCaptionGenerationProvider()
+    selected_provider = provider or _resolve_caption_provider(existing_job.tenant)
+    generation_error: CaptionGenerationError | None = None
+    provider_result: Any = None
     try:
         provider_result = selected_provider.generate(provider_payload)
+    except CaptionGenerationError as exc:
+        generation_error = exc
+
+    # Record any reported token usage even when the response later fails
+    # validation — the provider call was billable regardless of the outcome.
+    _record_provider_usage(job=existing_job, provider=selected_provider)
+
+    if generation_error is not None:
+        return _mark_job_failed(
+            job_id=existing_job.id,
+            code=generation_error.code,
+            detail=generation_error.detail_safe,
+        )
+
+    try:
         parsed_result = validate_caption_generation_result(
             provider_result,
             requested_platforms=set(provider_payload["platforms"]),
@@ -493,6 +579,26 @@ def process_content_caption_generation_job(
         parsed_result=parsed_result,
         requested_candidate_count=int(provider_payload["candidate_count"]),
     )
+
+
+def _resolve_caption_provider(tenant):
+    """Select the configured caption provider (lazy import avoids a cycle)."""
+
+    from .providers import get_caption_provider
+
+    return get_caption_provider(tenant=tenant)
+
+
+def _record_provider_usage(*, job: GenerationJob, provider: Any) -> None:
+    """Persist provider token usage; never raise into the generation flow."""
+
+    usage = getattr(provider, "last_usage", None)
+    if usage is None:
+        return
+    try:
+        record_ai_usage(job=job, usage=usage)
+    except Exception:  # noqa: BLE001 - metering must never break generation
+        logger.warning("Failed to record AI usage for job %s", job.id, exc_info=True)
 
 
 def validate_caption_generation_result(
@@ -565,7 +671,9 @@ def _create_generated_drafts_from_candidates(
                 detail="Generation job is missing a content brief.",
             )
 
-        required_terms, blocked_terms = _content_policy_terms(job.brief)
+        required_terms, blocked_terms = _content_policy_terms(
+            job.brief, agent=job.regional_agent_profile
+        )
         accepted: list[CaptionCandidate] = []
         rejected_codes: list[str] = []
         for candidate in parsed_result.candidates:
@@ -664,6 +772,7 @@ def _payload_from_job(job: GenerationJob) -> dict[str, Any]:
         candidate_count=candidate_count,
         platforms=platforms,
         tone_override=str(prompt_policy.get("tone_override") or ""),
+        agent=job.regional_agent_profile,
     )
 
 
@@ -710,6 +819,7 @@ def _validate_caption_candidate(
             _string_list(value.get("risk_flags"), field_name="risk_flags", max_items=20)
         ),
         quality_score=quality_score,
+        image_prompt=str(value.get("image_prompt") or "").strip()[:1000],
     )
     if _candidate_contains_secret_like_text(candidate):
         raise CaptionGenerationError(
@@ -755,6 +865,7 @@ def _candidate_search_text(candidate: CaptionCandidate) -> str:
             candidate.caption,
             candidate.cta,
             candidate.alt_text,
+            candidate.image_prompt,
             " ".join(candidate.hashtags),
             " ".join(candidate.risk_flags),
         ]
@@ -769,13 +880,16 @@ def _candidate_contains_secret_like_text(candidate: CaptionCandidate) -> bool:
     return any(fragment in lowered for fragment in FORBIDDEN_SECRET_FRAGMENTS)
 
 
-def _content_policy_terms(brief: ContentBrief) -> tuple[list[str], list[str]]:
+def _content_policy_terms(brief: ContentBrief, agent=None) -> tuple[list[str], list[str]]:
     brand_profile = brief.workspace.brand_profile or {}
     required_terms = _safe_term_list(brief.required_terms)
     blocked_terms = _safe_term_list(brief.blocked_terms)
     if isinstance(brand_profile, dict):
         required_terms.extend(_safe_term_list(brand_profile.get("required_terms")))
         blocked_terms.extend(_safe_term_list(brand_profile.get("blocked_terms")))
+    if agent is not None:
+        required_terms.extend(_safe_term_list(agent.required_terms))
+        blocked_terms.extend(_safe_term_list(agent.blocked_terms))
     return _dedupe_terms(required_terms), _dedupe_terms(blocked_terms)
 
 
@@ -801,6 +915,7 @@ def _safe_platform_overrides(candidate: CaptionCandidate) -> dict[str, Any]:
         "alt_text": candidate.alt_text,
         "cta": candidate.cta,
         "hashtags": list(candidate.hashtags),
+        "image_prompt": candidate.image_prompt,
         "platform": candidate.platform,
         "quality_score": candidate.quality_score,
         "risk_flags": list(candidate.risk_flags),
@@ -886,7 +1001,9 @@ def _schema_error(detail: str) -> CaptionGenerationError:
 
 def _get_job(*, job_id: str | UUID) -> GenerationJob | None:
     return (
-        GenerationJob.all_objects.select_related("tenant", "workspace", "brief")
+        GenerationJob.all_objects.select_related(
+            "tenant", "workspace", "brief", "regional_agent_profile"
+        )
         .filter(id=job_id)
         .first()
     )
@@ -895,7 +1012,7 @@ def _get_job(*, job_id: str | UUID) -> GenerationJob | None:
 def _locked_job(*, job_id: str | UUID) -> GenerationJob | None:
     return (
         GenerationJob.all_objects.select_for_update()
-        .select_related("tenant", "workspace", "brief")
+        .select_related("tenant", "workspace", "brief", "regional_agent_profile")
         .filter(id=job_id)
         .first()
     )
@@ -960,9 +1077,11 @@ __all__ = [
     "CAPTION_FAILURE_JOB_MISSING",
     "CAPTION_FAILURE_JOB_WRONG_TYPE",
     "CAPTION_FAILURE_POLICY_BLOCKED",
+    "CAPTION_FAILURE_PROVIDER_ERROR",
     "CAPTION_FAILURE_PROVIDER_NOT_CONFIGURED",
     "CAPTION_FAILURE_REQUIRED_TERMS_MISSING",
     "CAPTION_FAILURE_SCHEMA_INVALID",
+    "CAPTION_FAILURE_TOKEN_QUOTA_EXCEEDED",
     "CAPTION_PROCESS_STATUS_FAILED",
     "CAPTION_PROCESS_STATUS_NOOP",
     "CAPTION_PROCESS_STATUS_SUCCEEDED",
