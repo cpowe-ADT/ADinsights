@@ -19,6 +19,7 @@ from .views import (
     ContentOpsReadinessView,
     ContentOpsReportOverviewView,
     ContentOpsReportPostsView,
+    ContentOpsSectionsPreviewView,
     ContentScheduleViewSet,
     ContentWorkspaceViewSet,
     FooterPresetViewSet,
@@ -110,6 +111,11 @@ urlpatterns = [
         "exports/content-plan/",
         ContentOpsContentPlanExportView.as_view(),
         name="content-ops-content-plan-export",
+    ),
+    path(
+        "sections/preview/",
+        ContentOpsSectionsPreviewView.as_view(),
+        name="content-ops-sections-preview",
     ),
     path(
         "public-media/<uuid:asset_id>/",
