@@ -1201,6 +1201,10 @@ class ContentOpsSectionsPreviewView(APIView):
         sections = data.get("sections")
         if not isinstance(sections, dict):
             raise ValidationError({"sections": "A sections object is required."})
+        if len(str(sections)) > 20000:
+            raise ValidationError({"sections": "Brief is too large."})
+        if len(str(sections.get("base_idea") or "")) > 4000:
+            raise ValidationError({"base_idea": "Base idea is too long."})
 
         brand_kit = None
         agent = None

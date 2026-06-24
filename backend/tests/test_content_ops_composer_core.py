@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import time
+
 import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from content_ops.input_brief import resolve_sections_defaults
+from content_ops.input_brief import contains_url, lint_sections, resolve_sections_defaults
 from content_ops.models import BrandKit, ContentWorkspace, RegionalAgentProfile
 from content_ops.prompt_contract import (
     build_composer_payload,
@@ -155,6 +157,80 @@ def test_validate_flags_each_violation():
     assert "empty" in codes(prompt="   ")
 
 
+# --- hardening (regressions from the adversarial review) ----------------------
+
+
+def test_url_detection_is_linear_on_adversarial_input():
+    # The old whole-string regex took ~3s on this; the token scan must be instant.
+    evil = "a.a" * 40000
+    start = time.time()
+    assert contains_url(evil) is False
+    assert time.time() - start < 0.5
+    # And it still catches real domains/URLs.
+    assert contains_url("see acme.jm please") is True
+    assert contains_url("Visit www.acme.jm now") is True
+
+
+def test_lint_handles_adversarial_idea_fast():
+    start = time.time()
+    lint_sections({"base_idea": "a.a" * 40000})
+    assert time.time() - start < 0.5
+
+
+def test_validate_rejects_json_and_rule_echo():
+    def codes(prompt):
+        return {f["code"] for f in validate_composed_prompt(prompt, aspect_ratio="1:1")}
+
+    assert "looks_like_json" in codes('{"prompt": "a calm lower band, square"}')
+    assert "rule_echo" in codes("HARD RULES: keep the logo corner clean. Square framing.")
+
+
+def test_validate_term_matching_is_word_bounded():
+    prompt = "A smart studio scene with a calm lower band, square framing."
+    # 'art' must not match inside 'smart'.
+    assert "blocked_term" not in {
+        f["code"] for f in validate_composed_prompt(prompt, blocked_terms=["art"], aspect_ratio="1:1")
+    }
+    # 'smart' (whole word) must match.
+    assert "blocked_term" in {
+        f["code"] for f in validate_composed_prompt(prompt, blocked_terms=["smart"], aspect_ratio="1:1")
+    }
+    # 'cat' required must NOT be satisfied by 'educational'.
+    edu = "An educational tip scene with a calm lower band, square framing."
+    assert "required_missing" in {
+        f["code"] for f in validate_composed_prompt(edu, required_terms=["cat"], aspect_ratio="1:1")
+    }
+
+
+def test_validate_flags_named_mechanics():
+    prompt = "A scene with a clean lower band and a logo in the corner, square framing."
+    assert "mechanics_named" in {
+        f["code"] for f in validate_composed_prompt(prompt, aspect_ratio="1:1")
+    }
+
+
+def test_coerce_does_not_corrupt_internal_quotes():
+    # First+last are quotes but the quote is part of the content — must not strip.
+    text = '"calm" lower band scene framed as a "square"'
+    assert coerce_composed_prompt(text) == text
+
+
+def test_resolve_defaults_ignores_non_string_enum_values():
+    resolved, provenance = resolve_sections_defaults(
+        {"base_idea": "x", "tone": 0, "color_direction": {}}
+    )
+    assert provenance.get("tone") != "user"  # a stray int is not a user value
+    assert resolved["color_direction"] == "brand_palette"
+    assert provenance["color_direction"] == "default"
+
+
+def test_resolve_defaults_does_not_alias_caller_lists():
+    src = {"base_idea": "x", "must_include": ["beach"]}
+    resolved, _ = resolve_sections_defaults(src)
+    resolved["must_include"].append("sea")
+    assert src["must_include"] == ["beach"]  # caller's list untouched
+
+
 # --- preview endpoint ---------------------------------------------------------
 
 
@@ -190,6 +266,15 @@ def test_sections_preview_endpoint(auth_client, tenant):
 
 def test_sections_preview_requires_sections(auth_client, tenant):
     resp = auth_client.post(f"{BASE}/sections/preview/", {}, format="json")
+    assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+
+def test_sections_preview_rejects_oversized_idea(auth_client, tenant):
+    resp = auth_client.post(
+        f"{BASE}/sections/preview/",
+        {"sections": {"base_idea": "x" * 5000}},
+        format="json",
+    )
     assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
 
