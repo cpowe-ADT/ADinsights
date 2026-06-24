@@ -314,6 +314,36 @@ def test_factory_selects_provider_by_setting():
         assert isinstance(get_caption_provider(), DisabledCaptionGenerationProvider)
 
 
+def test_openai_caption_uses_completion_tokens_for_reasoning_models(monkeypatch):
+    calls: list[dict] = []
+    _install_fake_post(monkeypatch, payload=_openai_payload(_candidates_json()), calls=calls)
+    provider = OpenAICaptionProvider(
+        api_key="k", model="gpt-5.1", base_url="https://api.openai.com/v1", timeout=5
+    )
+
+    provider.generate({"platforms": ["facebook_page"], "candidate_count": 1})
+
+    body = calls[0]["json"]
+    assert "max_completion_tokens" in body
+    assert "max_tokens" not in body
+    assert "temperature" not in body  # GPT-5 rejects non-default temperature
+
+
+def test_openai_caption_uses_max_tokens_for_chat_models(monkeypatch):
+    calls: list[dict] = []
+    _install_fake_post(monkeypatch, payload=_openai_payload(_candidates_json()), calls=calls)
+    provider = OpenAICaptionProvider(
+        api_key="k", model="gpt-4o", base_url="https://api.openai.com/v1", timeout=5
+    )
+
+    provider.generate({"platforms": ["facebook_page"], "candidate_count": 1})
+
+    body = calls[0]["json"]
+    assert body["max_tokens"] == 1200
+    assert body["temperature"] == 0.4
+    assert "max_completion_tokens" not in body
+
+
 def test_normalize_caption_payload_tolerates_fenced_json():
     raw = "```json\n" + json.dumps(
         {"candidates": [{"platform": "facebook_page", "caption": "Hi", "quality_score": 0.8}]}

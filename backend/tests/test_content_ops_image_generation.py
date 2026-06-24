@@ -25,7 +25,7 @@ from content_ops.models import (
     MediaAsset,
 )
 from content_ops.providers.base import ProviderUsage
-from content_ops.providers.image_base import GeneratedImage
+from content_ops.providers.image_base import GeneratedImage, build_image_prompt
 from content_ops.providers.openai_image import OpenAIImageProvider
 
 
@@ -265,3 +265,66 @@ def test_image_daily_image_quota_blocks_high_count(auth_client, tenant, user):
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.data["reason"] == IMAGE_FAILURE_IMAGE_LIMIT_EXCEEDED
     assert GenerationJob.all_objects.count() == 0
+
+
+def _image_response(content: bytes, usage: dict | None = None) -> _FakeResponse:
+    return _FakeResponse(
+        {"data": [{"b64_json": base64.b64encode(content).decode()}], "usage": usage or {}}
+    )
+
+
+def test_openai_image_adapter_sniffs_png_and_excludes_tokens(monkeypatch):
+    png = b"\x89PNG\r\n\x1a\n" + b"payload"
+
+    def fake_post(url, json=None, headers=None, timeout=None):  # noqa: A002
+        return _image_response(png, usage={"input_tokens": 500, "output_tokens": 10})
+
+    monkeypatch.setattr("httpx.post", fake_post)
+    provider = OpenAIImageProvider(
+        api_key="k", model="gpt-image-1", base_url="https://api.openai.com/v1", timeout=5
+    )
+
+    images = provider.generate({"prompt": "x", "count": 1, "size": "1024x1024"})
+
+    assert images[0].mime_type == "image/png"
+    # image usage must not pollute the text token counters / monthly token cap
+    assert provider.last_usage.input_tokens == 0
+    assert provider.last_usage.output_tokens == 0
+    assert provider.last_usage.images == 1
+
+
+def test_openai_image_adapter_sniffs_jpeg(monkeypatch):
+    jpeg = b"\xff\xd8\xff\xe0" + b"payload"
+
+    def fake_post(url, json=None, headers=None, timeout=None):  # noqa: A002
+        return _image_response(jpeg)
+
+    monkeypatch.setattr("httpx.post", fake_post)
+    provider = OpenAIImageProvider(
+        api_key="k", model="gpt-image-1", base_url="https://api.openai.com/v1", timeout=5
+    )
+
+    images = provider.generate({"prompt": "x", "count": 1, "size": "1024x1024"})
+
+    assert images[0].mime_type == "image/jpeg"
+
+
+def test_build_image_prompt_folds_in_regional_agent():
+    assert build_image_prompt({"prompt": "A market scene"}) == "A market scene"
+
+    enriched = build_image_prompt(
+        {
+            "prompt": "A market scene",
+            "agent": {
+                "region": "peru_latam",
+                "locale": "es-PE",
+                "language": "Spanish",
+                "brand_voice": {"tone": "warm"},
+            },
+        }
+    )
+
+    assert "A market scene" in enriched
+    assert "es-PE" in enriched
+    assert "peru_latam" in enriched
+    assert "warm" in enriched

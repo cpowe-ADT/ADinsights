@@ -8,6 +8,7 @@ mime type so the storage layer can validate and quarantine output.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,6 +20,30 @@ from ..image_generation import (
     ImageGenerationError,
 )
 from .base import ProviderUsage
+
+
+def build_image_prompt(payload: dict[str, Any]) -> str:
+    """Compose the image prompt, folding in regional-agent context when present
+    so a Caribbean vs Peru agent produces different, on-locale visuals."""
+
+    prompt = str(payload.get("prompt") or "").strip()
+    agent = payload.get("agent")
+    if not isinstance(agent, dict):
+        return prompt
+    parts: list[str] = []
+    language = str(agent.get("language") or "").strip()
+    locale = str(agent.get("locale") or "").strip()
+    region = str(agent.get("region") or "").strip()
+    if language or locale:
+        parts.append(f"Audience language/locale: {language} ({locale}).")
+    if region:
+        parts.append(f"Region: {region}.")
+    brand_voice = agent.get("brand_voice")
+    if brand_voice:
+        parts.append(f"Brand voice/style: {json.dumps(brand_voice, ensure_ascii=False)}.")
+    if not parts:
+        return prompt
+    return f"{prompt}\n\n{' '.join(parts)}".strip()
 
 
 @dataclass
@@ -62,7 +87,7 @@ class BaseHTTPImageProvider:
                 code=IMAGE_FAILURE_PROVIDER_NOT_CONFIGURED,
                 detail_safe="Image generation provider is not configured.",
             )
-        prompt = str(payload.get("prompt") or "").strip()
+        prompt = build_image_prompt(payload)
         count = int(payload.get("count") or 1)
         size = str(payload.get("size") or self.default_size)
         try:
@@ -83,4 +108,4 @@ class BaseHTTPImageProvider:
         raise NotImplementedError
 
 
-__all__ = ["BaseHTTPImageProvider", "GeneratedImage"]
+__all__ = ["BaseHTTPImageProvider", "GeneratedImage", "build_image_prompt"]

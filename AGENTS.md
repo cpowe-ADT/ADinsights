@@ -35,6 +35,7 @@ This file serves as the operational prompt for any agent working on ADinsights. 
 - Content Operations current-state checkpoint: `docs/project/content-operations-current-state.md`
 - Content Operations publishing runbook: `docs/runbooks/content-operations-publishing.md`
 - Content Operations App Review runbook: `docs/runbooks/content-operations-app-review.md`
+- Content Operations AI generation runbook: `docs/runbooks/content-operations-ai-generation.md`
 - Meta Page Insights operations runbook: `docs/runbooks/meta-page-insights-operations.md`
 - Operations runbook: `docs/runbooks/operations.md`
 - Meta Page Insights data dictionary: `docs/project/meta-page-insights-data-dictionary.md`

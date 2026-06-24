@@ -10,6 +10,14 @@ DEFAULT_MAX_TOKENS = 1200
 DEFAULT_TEMPERATURE = 0.4
 
 
+def _is_reasoning_model(model: str) -> bool:
+    """GPT-5 / o-series models require max_completion_tokens and reject custom
+    temperature (the chat completions API 400s on max_tokens / temperature!=1)."""
+
+    name = str(model or "").lower()
+    return name.startswith(("gpt-5", "o1", "o3", "o4"))
+
+
 class OpenAICaptionProvider(BaseHTTPCaptionProvider):
     """Caption provider backed by the OpenAI chat completions API."""
 
@@ -27,10 +35,13 @@ class OpenAICaptionProvider(BaseHTTPCaptionProvider):
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            "temperature": DEFAULT_TEMPERATURE,
-            "max_tokens": DEFAULT_MAX_TOKENS,
             "response_format": {"type": "json_object"},
         }
+        if _is_reasoning_model(self.model):
+            body["max_completion_tokens"] = DEFAULT_MAX_TOKENS
+        else:
+            body["max_tokens"] = DEFAULT_MAX_TOKENS
+            body["temperature"] = DEFAULT_TEMPERATURE
         response = httpx.post(url, json=body, headers=headers, timeout=self.timeout)
         response.raise_for_status()
         data = response.json()

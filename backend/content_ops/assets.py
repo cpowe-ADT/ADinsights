@@ -163,6 +163,7 @@ def store_generated_asset_bytes(
         quarantine_reason = "too_large"
     asset_id = uuid.uuid4()
     lineage = dict(ai_lineage or {})
+    renditions: dict[str, Any] = {}
     if quarantine_reason:
         # Rejected output is never published, so skip writing the bytes to disk.
         lineage["quarantine_reason"] = quarantine_reason
@@ -175,6 +176,13 @@ def store_generated_asset_bytes(
         file_path = asset_file_path(storage_key)
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_bytes(content)
+        # Seed the public fetch URL so a generated asset can be published once a
+        # public media base URL is configured (otherwise it can never reach Meta).
+        base_url = str(
+            getattr(settings, "CONTENT_OPS_PUBLIC_MEDIA_BASE_URL", "") or ""
+        ).strip()
+        if base_url:
+            renditions = {"public_url": f"{base_url.rstrip('/')}/{asset_id}/"}
     return MediaAsset.all_objects.create(
         id=asset_id,
         tenant=tenant,
@@ -186,6 +194,7 @@ def store_generated_asset_bytes(
         height=height,
         alt_text=alt_text[:1000],
         ai_lineage=lineage,
+        renditions=renditions,
         status=(
             MediaAsset.STATUS_QUARANTINED
             if quarantine_reason
