@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -108,5 +108,21 @@ describe('RegionalAgentsPage', () => {
       );
     });
     expect(addToast).toHaveBeenCalledWith(expect.stringContaining('Image job queued'), 'success');
+  });
+
+  it('clamps the image count to the 1-4 range', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('table', { name: 'Regional agents' });
+
+    fireEvent.change(screen.getByLabelText('Count'), { target: { value: '99' } });
+    await user.type(screen.getByLabelText('Prompt'), 'Sunset over Kingston');
+    await user.click(screen.getByRole('button', { name: 'Queue image job' }));
+
+    await waitFor(() => {
+      expect(contentOpsMocks.requestContentOpsImageGeneration).toHaveBeenCalledWith(
+        expect.objectContaining({ count: 4 }),
+      );
+    });
   });
 });

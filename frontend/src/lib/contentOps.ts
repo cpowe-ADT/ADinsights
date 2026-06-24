@@ -484,7 +484,7 @@ function mapRegionalAgent(agent: BackendRegionalAgent): ContentOpsRegionalAgent 
 export async function listContentOpsWorkspaces(
   signal?: AbortSignal,
 ): Promise<ContentOpsWorkspaceSummary[]> {
-  const workspaces = await getResults<BackendWorkspace>('/content-ops/workspaces/', signal);
+  const workspaces = await getAllResults<BackendWorkspace>('/content-ops/workspaces/', signal);
   return workspaces.map((workspace) => ({
     id: workspace.id,
     name: workspace.name,
@@ -499,7 +499,7 @@ export async function listContentOpsRegionalAgents(
   const path = workspaceId
     ? appendQueryParams('/content-ops/regional-agents/', { workspace_id: workspaceId })
     : '/content-ops/regional-agents/';
-  const agents = await getResults<BackendRegionalAgent>(path, signal);
+  const agents = await getAllResults<BackendRegionalAgent>(path, signal);
   return agents.map(mapRegionalAgent);
 }
 
@@ -770,6 +770,27 @@ export async function fetchContentOpsWorkspace(
 async function getResults<T>(path: string, signal?: AbortSignal): Promise<T[]> {
   const payload = await apiClient.get<T[] | Paginated<T>>(path, { signal });
   return Array.isArray(payload) ? payload : Array.isArray(payload.results) ? payload.results : [];
+}
+
+async function getAllResults<T>(path: string, signal?: AbortSignal): Promise<T[]> {
+  const items: T[] = [];
+  // Follow DRF page pagination; bounded to guard against a runaway loop.
+  for (let page = 1; page <= 50; page += 1) {
+    const separator = path.includes('?') ? '&' : '?';
+    const payload = await apiClient.get<T[] | (Paginated<T> & { next?: string | null })>(
+      `${path}${separator}page=${page}`,
+      { signal },
+    );
+    if (Array.isArray(payload)) {
+      items.push(...payload);
+      break;
+    }
+    items.push(...(payload.results ?? []));
+    if (!payload.next) {
+      break;
+    }
+  }
+  return items;
 }
 
 async function loadActiveVersions(

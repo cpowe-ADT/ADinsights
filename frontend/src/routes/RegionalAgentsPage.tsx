@@ -25,6 +25,13 @@ function regionLabel(region: ContentOpsRegion): string {
   return region === 'peru_latam' ? 'Peru / LATAM' : 'Caribbean';
 }
 
+function clampImageCount(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 1;
+  }
+  return Math.min(4, Math.max(1, Math.floor(value)));
+}
+
 const RegionalAgentsPage = () => {
   const addToast = useToastStore((state) => state.addToast);
   const [loadState, setLoadState] = useState<LoadState>('loading');
@@ -274,7 +281,7 @@ const RegionalAgentsPage = () => {
               max={4}
               value={imageCount}
               disabled={generating || !workspaceId}
-              onChange={(event) => setImageCount(Number(event.target.value) || 1)}
+              onChange={(event) => setImageCount(clampImageCount(Number(event.target.value)))}
             />
           </label>
           <label className="content-ops-field">

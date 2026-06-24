@@ -137,6 +137,7 @@ def test_oversized_output_is_quarantined(settings, tenant, user):
     asset = MediaAsset.all_objects.get(id=result.asset_ids[0])
     assert asset.status == MediaAsset.STATUS_QUARANTINED
     assert asset.ai_lineage["quarantine_reason"] == "too_large"
+    assert asset.storage_key == ""  # rejected bytes are not written to disk
 
 
 @pytest.mark.django_db
@@ -155,6 +156,7 @@ def test_unsupported_mime_output_is_quarantined(tenant, user):
     asset = MediaAsset.all_objects.get(id=result.asset_ids[0])
     assert asset.status == MediaAsset.STATUS_QUARANTINED
     assert asset.ai_lineage["quarantine_reason"] == "unsupported_mime"
+    assert asset.storage_key == ""  # rejected bytes are not written to disk
 
 
 @pytest.mark.django_db

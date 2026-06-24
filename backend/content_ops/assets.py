@@ -145,8 +145,9 @@ def store_generated_asset_bytes(
     """Persist generated media bytes; quarantine oversized or unsupported output.
 
     Empty output is a generation failure (raises). Output with an unsupported
-    mime type or larger than the configured limit is still written for
-    inspection but created in QUARANTINED status so it can never be published.
+    mime type or larger than the configured limit is recorded in QUARANTINED
+    status with no stored file (the rejected bytes are never written to disk),
+    so it can never be published.
     """
 
     if workspace.tenant_id != tenant.id:
@@ -161,16 +162,19 @@ def store_generated_asset_bytes(
     elif len(content) > limit:
         quarantine_reason = "too_large"
     asset_id = uuid.uuid4()
-    storage_key = (
-        f"{ASSET_STORAGE_PREFIX}/{tenant.id}/{workspace.id}/{asset_id}/"
-        f"generated{_extension_for_mime(mime)}"
-    )
-    file_path = asset_file_path(storage_key)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_bytes(content)
     lineage = dict(ai_lineage or {})
     if quarantine_reason:
+        # Rejected output is never published, so skip writing the bytes to disk.
         lineage["quarantine_reason"] = quarantine_reason
+        storage_key = ""
+    else:
+        storage_key = (
+            f"{ASSET_STORAGE_PREFIX}/{tenant.id}/{workspace.id}/{asset_id}/"
+            f"generated{_extension_for_mime(mime)}"
+        )
+        file_path = asset_file_path(storage_key)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_bytes(content)
     return MediaAsset.all_objects.create(
         id=asset_id,
         tenant=tenant,

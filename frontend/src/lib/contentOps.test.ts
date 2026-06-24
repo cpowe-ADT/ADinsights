@@ -15,6 +15,7 @@ import {
   fetchContentOpsWorkspace,
   listContentOpsExportArtifacts,
   listContentOpsAssets,
+  listContentOpsWorkspaces,
   requestContentOpsCaptionGeneration,
   retryContentOpsPublishAttempt,
   scheduleContentOpsDraft,
@@ -510,6 +511,7 @@ describe('fetchContentOpsWorkspace', () => {
         candidate_count: 4,
         platforms: ['facebook_page', 'instagram'],
         tone_override: 'Warmer',
+        regional_agent_profile_id: null,
       },
     );
     expect(result).toMatchObject({
@@ -828,5 +830,28 @@ describe('fetchContentOpsWorkspace', () => {
     expect(buildContentOpsExportFilename(' ', new Date('2026-06-10T12:00:00Z'))).toBe(
       'content-plan-workspace-2026-06-10.json',
     );
+  });
+});
+
+describe('listContentOpsWorkspaces', () => {
+  beforeEach(() => {
+    apiClientMock.get.mockReset();
+  });
+
+  it('follows pagination until next is null', async () => {
+    apiClientMock.get
+      .mockResolvedValueOnce({
+        results: [{ id: 'ws-1', name: 'Alpha', timezone: 'America/Jamaica' }],
+        next: 'http://example/api/content-ops/workspaces/?page=2',
+      })
+      .mockResolvedValueOnce({
+        results: [{ id: 'ws-2', name: 'Beta', timezone: 'America/Lima' }],
+        next: null,
+      });
+
+    const workspaces = await listContentOpsWorkspaces();
+
+    expect(workspaces.map((workspace) => workspace.id)).toEqual(['ws-1', 'ws-2']);
+    expect(apiClientMock.get).toHaveBeenCalledTimes(2);
   });
 });
