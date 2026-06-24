@@ -12,6 +12,7 @@ default CI and client-side for instant feedback.
 
 from __future__ import annotations
 
+import copy
 import re
 from typing import Any
 
@@ -143,12 +144,30 @@ POST_TYPE_TEMPLATES: dict[str, dict[str, Any]] = {
 }
 
 
-_URL_RE = re.compile(r"\b(?:https?://|www\.)\S+|\b[\w.-]+\.(?:com|net|org|io|co|jm|pe)\b",
-                     re.IGNORECASE)
+# URL/domain detection is a per-token anchored match over a length-bounded slice
+# — linear, so a long adversarial brief can't trigger catastrophic backtracking
+# (a whole-string regex with `\b` + greedy dotted runs is quadratic; see tests).
+URL_SCAN_LIMIT = 4000
+_URL_TOKEN_RE = re.compile(
+    r"^(?:https?://|www\.)\S+$"
+    r"|^[\w-]+(?:\.[\w-]+){0,8}\.(?:com|net|org|io|co|jm|pe)$",
+    re.IGNORECASE,
+)
 _PHONE_RE = re.compile(r"(?:\+?\d[\d\s().-]{6,}\d)")
 _QUOTED_RE = re.compile(r"[\"“”']{1}[^\"“”']{2,}[\"“”']{1}")
 _SAYS_RE = re.compile(r"\btext that says\b|\bwords?\s+saying\b|\bcaption reads\b",
                       re.IGNORECASE)
+
+
+def contains_url(text: Any) -> bool:
+    """True if a length-bounded slice of ``text`` contains a URL or known domain."""
+
+    head = str(text or "")[:URL_SCAN_LIMIT]
+    for token in head.split():
+        clean = token.strip(".,;:!?()[]{}\"'“”")[:256]
+        if clean and _URL_TOKEN_RE.match(clean):
+            return True
+    return False
 
 
 def _norm_terms(value: Any) -> list[str]:
@@ -196,8 +215,9 @@ def lint_sections(
         if len(idea) > IDEA_MAX_CHARS:
             add("warn", "base_idea", "idea_too_long",
                 "This is long; the focal subject may get diluted.", "Trim to one idea.")
-        if _URL_RE.search(idea) or _PHONE_RE.search(idea) or _QUOTED_RE.search(idea) \
-                or _SAYS_RE.search(idea):
+        idea_head = idea[:URL_SCAN_LIMIT]
+        if contains_url(idea_head) or _PHONE_RE.search(idea_head) \
+                or _QUOTED_RE.search(idea_head) or _SAYS_RE.search(idea_head):
             add("warn", "base_idea", "literal_text_in_idea",
                 "The image renders no text — a URL, phone, or slogan belongs in the footer.",
                 "Move literal text to the footer preset.")
@@ -270,17 +290,19 @@ def resolve_sections_defaults(
     Pure and idempotent: ``resolve(resolve(x)) == resolve(x)``.
     """
 
-    resolved = dict(sections or {})
+    # Deep-copy so the resolved snapshot (frozen into lineage) never aliases the
+    # caller's nested lists/dicts.
+    resolved = copy.deepcopy(sections) if isinstance(sections, dict) else {}
     provenance: dict[str, str] = {}
     instructions = dict(getattr(brand_kit, "standing_instructions", None) or {})
     visual = dict(getattr(brand_kit, "visual_config", None) or {})
     voice = dict(getattr(agent, "brand_voice", None) or {})
 
     def fill(field: str, candidates: list[tuple[str, Any]], system_default: str | None = None) -> None:
+        # These are string-valued enum fields: only a non-empty string counts as
+        # a deliberate user value; a stray number/dict/blank is treated as unset.
         current = resolved.get(field)
-        if (isinstance(current, str) and current.strip()) or (
-            current not in (None, "", []) and not isinstance(current, str)
-        ):
+        if isinstance(current, str) and current.strip():
             provenance[field] = "user"
             return
         for origin, value in candidates:
