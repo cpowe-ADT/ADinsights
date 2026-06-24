@@ -82,6 +82,8 @@ Local/dev note:
 4. Provision + trigger sync:
    - `POST /api/integrations/meta/provision/`
    - `POST /api/integrations/meta/sync/`
+     - confirm additive `organic_sync.status` is `queued`, `completed`, or an honest non-ready state
+       such as `skipped`, `completed_no_rows`, or `partial`
 5. Verify direct read surfaces:
    - `GET /api/meta/accounts/` returns at least one account
    - `GET /api/meta/insights/?account_id=<act_id>&level=ad&since=<today-30>&until=<yesterday>`

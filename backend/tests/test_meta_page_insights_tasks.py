@@ -119,6 +119,48 @@ def test_sync_meta_page_insights_handles_empty_dataset(monkeypatch, user):
 
 
 @pytest.mark.django_db
+def test_sync_meta_page_insights_skips_unreadable_connection_token(monkeypatch, user):
+    page = _create_page(user)
+    connection = page.connection
+    connection.token_tag = b"0" * 16
+    connection.save(update_fields=["token_tag"])
+
+    seen_tokens: list[str] = []
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def fetch_page_insights(self, **kwargs):  # noqa: ANN003
+            seen_tokens.append(kwargs["token"])
+            return {
+                "data": [
+                    {
+                        "name": "page_post_engagements",
+                        "period": "day",
+                        "values": [
+                            {
+                                "value": 12,
+                                "end_time": "2026-02-18T08:00:00+0000",
+                            }
+                        ],
+                    }
+                ]
+            }
+
+    monkeypatch.setattr("integrations.tasks.MetaInsightsGraphClient.from_settings", lambda: DummyClient())
+
+    result = sync_meta_page_insights.run(page_pk=str(page.pk), mode="incremental", metrics=["page_post_engagements"])
+
+    assert result["rows_processed"] == 1
+    assert seen_tokens == ["page-token"]
+    assert MetaInsightPoint.all_objects.filter(page=page, metric_key="page_post_engagements").exists()
+
+
+@pytest.mark.django_db
 def test_sync_meta_page_insights_marks_invalid_metric_on_100(monkeypatch, user):
     page = _create_page(user)
 

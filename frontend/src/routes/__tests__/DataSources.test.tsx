@@ -585,6 +585,10 @@ describe('DataSources connect flow', () => {
       job_id: 'direct-101',
       sync_status: 'queued',
       task_dispatch_mode: 'queued',
+      organic_sync: {
+        status: 'queued',
+        page_count: 1,
+      },
     });
 
     renderDataSources();
@@ -601,7 +605,10 @@ describe('DataSources connect flow', () => {
       expect(airbyteMocks.syncMetaIntegration).toHaveBeenCalledTimes(1);
     });
     expect(airbyteMocks.triggerAirbyteSync).not.toHaveBeenCalled();
-    expect(addToast).toHaveBeenCalledWith('Meta data check queued (job direct-101).', 'success');
+    expect(addToast).toHaveBeenCalledWith(
+      'Meta data check queued (job direct-101). Organic Page/Post sync queued for 1 page.',
+      'success',
+    );
   });
 
   it('keeps failed Airbyte connection rows disabled for manual sync', async () => {

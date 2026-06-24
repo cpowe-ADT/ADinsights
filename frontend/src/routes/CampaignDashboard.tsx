@@ -1,5 +1,6 @@
 import { useCallback, useId, useMemo, type ReactNode } from 'react';
 import { ResponsiveContainer } from 'recharts';
+import { useShallow } from 'zustand/react/shallow';
 
 import CampaignTable from '../components/CampaignTable';
 import CampaignTrendChart from '../components/CampaignTrendChart';
@@ -70,21 +71,24 @@ const CampaignDashboard = () => {
   const { tenantId } = useAuth();
   const {
     campaign,
-    campaignRows,
     parish,
     loadAll,
     lastSnapshotGeneratedAt,
     availability,
     coverage,
-  } = useDashboardStore((state) => ({
-    campaign: state.campaign,
-    campaignRows: state.getCampaignRowsForSelectedParish(),
-    parish: state.parish,
-    loadAll: state.loadAll,
-    lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
-    availability: state.availability,
-    coverage: state.coverage,
-  }));
+  } = useDashboardStore(
+    useShallow((state) => ({
+      campaign: state.campaign,
+      parish: state.parish,
+      loadAll: state.loadAll,
+      lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+      availability: state.availability,
+      coverage: state.coverage,
+    })),
+  );
+  const campaignRows = useDashboardStore(
+    useShallow((state) => state.getCampaignRowsForSelectedParish()),
+  );
   const datasetMode = useDatasetStore((state) => state.mode);
   const datasetSource = useDatasetStore((state) => state.source);
   const liveReason = useDatasetStore((state) => state.liveReason);
@@ -537,7 +541,7 @@ const CampaignDashboard = () => {
       ) : null}
 
       {shouldShowRegionBreakdown ? (
-        <Card title="Region breakdown" className={shouldShowMap ? undefined : 'tableCardWide'}>
+        <Card title="Region breakdown" className="tableCardWide">
           <p className="muted">
             Parish coverage: {(parishCoverage * 100).toFixed(0)}%. Click a row to filter the
             performance tables below.

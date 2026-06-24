@@ -93,6 +93,7 @@ META_OAUTH_FLOW_PAGE_INSIGHTS = "page_insights"
 DEFAULT_CONNECTOR_CRON_EXPRESSION = "0 6-22 * * *"
 DEFAULT_CONNECTOR_TIMEZONE = "America/Jamaica"
 META_DIRECT_SYNC_FRESHNESS_GRACE_HOUR = 6
+META_ORGANIC_SYNC_PAGE_LIMIT = 5
 # Airbyte OSS source definition ID for Facebook Marketing.
 DEFAULT_META_SOURCE_DEFINITION_ID = "e7778cfc-e97c-4458-9ecb-b4f2bba8946c"
 DEFAULT_META_REQUIRED_SCOPE_ANY = ("ads_read", "ads_management")
@@ -1070,6 +1071,154 @@ def _select_preferred_meta_credential(
         )
 
     return sorted(credentials, key=score, reverse=True)[0]
+
+
+def _meta_organic_sync_response(
+    *,
+    status_value: str,
+    reason: str = "",
+    page_count: int,
+    total_analyzable_page_count: int,
+    task_dispatch_mode: str,
+    tasks: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "status": status_value,
+        "reason": reason,
+        "page_count": page_count,
+        "total_analyzable_page_count": total_analyzable_page_count,
+        "page_limit": META_ORGANIC_SYNC_PAGE_LIMIT,
+        "task_dispatch_mode": task_dispatch_mode,
+        "tasks": tasks,
+    }
+
+
+def _summarize_meta_organic_sync_tasks(tasks: list[dict[str, Any]]) -> tuple[str, str]:
+    statuses = {str(row.get("status") or "").strip() for row in tasks}
+    if not statuses:
+        return "skipped", "no_analyzable_facebook_page"
+    if statuses == {"queued"}:
+        return "queued", ""
+    if "failed" in statuses:
+        return "partial", "one_or_more_page_syncs_failed"
+    if statuses <= {"completed_no_rows"}:
+        return "completed_no_rows", "graph_returned_no_page_or_post_rows"
+    if statuses <= {"completed", "completed_no_rows"}:
+        return "completed", ""
+    if "blocked" in statuses:
+        return "partial", "one_or_more_page_syncs_blocked"
+    return "partial", "mixed_page_sync_states"
+
+
+def _dispatch_meta_organic_reporting_sync(*, tenant, task) -> dict[str, Any]:  # noqa: ANN001
+    page_queryset = MetaPage.objects.filter(tenant=tenant, can_analyze=True).order_by(
+        "-is_default",
+        "name",
+        "page_id",
+    )
+    total_page_count = page_queryset.count()
+    pages = list(page_queryset[:META_ORGANIC_SYNC_PAGE_LIMIT])
+    if not pages:
+        return _meta_organic_sync_response(
+            status_value="skipped",
+            reason="no_analyzable_facebook_page",
+            page_count=0,
+            total_analyzable_page_count=total_page_count,
+            task_dispatch_mode="unavailable",
+            tasks=[],
+        )
+
+    task_summaries: list[dict[str, Any]] = []
+    dispatch_mode = "queued"
+    for page in pages:
+        task_id = str(uuid.uuid4())
+        task_kwargs = {"page_id": page.page_id, "mode": "backfill"}
+        try:
+            result = task.apply_async(kwargs=task_kwargs, task_id=task_id)
+            task_summaries.append(
+                {
+                    "page_id": page.page_id,
+                    "task_id": str(getattr(result, "id", "") or task_id),
+                    "status": "queued",
+                }
+            )
+        except Exception as exc:
+            if _is_meta_task_dispatch_error(exc):
+                logger.warning(
+                    "meta.sync.organic_inline_fallback",
+                    extra={
+                        "tenant_id": str(tenant.id),
+                        "page_id": page.page_id,
+                        "task_id": task_id,
+                        "error_type": type(exc).__name__,
+                    },
+                )
+                try:
+                    result_payload = task.run(**task_kwargs)
+                except Exception as inline_exc:
+                    logger.exception(
+                        "meta.sync.organic_inline_failed",
+                        extra={
+                            "tenant_id": str(tenant.id),
+                            "page_id": page.page_id,
+                            "task_id": task_id,
+                            "error_type": type(inline_exc).__name__,
+                        },
+                    )
+                    dispatch_mode = "inline"
+                    task_summaries.append(
+                        {
+                            "page_id": page.page_id,
+                            "task_id": task_id,
+                            "status": "failed",
+                            "error_type": type(inline_exc).__name__,
+                        }
+                    )
+                    continue
+
+                dispatch_mode = "inline"
+                result_status = (
+                    str(result_payload.get("status") or "completed")
+                    if isinstance(result_payload, dict)
+                    else "completed"
+                )
+                task_summaries.append(
+                    {
+                        "page_id": page.page_id,
+                        "task_id": task_id,
+                        "status": result_status,
+                        "result": result_payload if isinstance(result_payload, dict) else {},
+                    }
+                )
+                continue
+
+            logger.exception(
+                "meta.sync.organic_task_dispatch_failed",
+                extra={
+                    "tenant_id": str(tenant.id),
+                    "page_id": page.page_id,
+                    "task_id": task_id,
+                    "error_type": type(exc).__name__,
+                },
+            )
+            task_summaries.append(
+                {
+                    "page_id": page.page_id,
+                    "task_id": task_id,
+                    "status": "failed",
+                    "error_type": type(exc).__name__,
+                }
+            )
+
+    status_value, reason = _summarize_meta_organic_sync_tasks(task_summaries)
+    return _meta_organic_sync_response(
+        status_value=status_value,
+        reason=reason,
+        page_count=len(pages),
+        total_analyzable_page_count=total_page_count,
+        task_dispatch_mode=dispatch_mode,
+        tasks=task_summaries,
+    )
 
 
 def _resolve_meta_status(
@@ -2545,7 +2694,11 @@ class MetaSyncView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):  # noqa: ANN001 - DRF signature
-        from .tasks import META_DIRECT_SYNC_LOOKBACK_DAYS, sync_meta_reporting_slice
+        from .tasks import (
+            META_DIRECT_SYNC_LOOKBACK_DAYS,
+            sync_meta_organic_reporting_bundle,
+            sync_meta_reporting_slice,
+        )
 
         tenant_id = request.user.tenant_id
         now = timezone.now()
@@ -2646,6 +2799,11 @@ class MetaSyncView(APIView):
                         },
                     )
 
+        organic_sync = _dispatch_meta_organic_reporting_sync(
+            tenant=request.user.tenant,
+            task=sync_meta_organic_reporting_bundle,
+        )
+
         log_audit_event(
             tenant=request.user.tenant,
             user=request.user,
@@ -2660,6 +2818,8 @@ class MetaSyncView(APIView):
                 "reused_existing_job": reused_existing_job,
                 "sync_engine": MetaAccountSyncState.SYNC_ENGINE_DIRECT,
                 "task_dispatch_mode": task_dispatch_mode,
+                "organic_sync_status": organic_sync["status"],
+                "organic_sync_page_count": organic_sync["page_count"],
             },
         )
 
@@ -2671,6 +2831,7 @@ class MetaSyncView(APIView):
                 "reused_existing_job": reused_existing_job,
                 "sync_status": "already_running" if reused_existing_job else "queued",
                 "task_dispatch_mode": task_dispatch_mode,
+                "organic_sync": organic_sync,
             },
             status=status.HTTP_202_ACCEPTED if job_id is not None else status.HTTP_200_OK,
         )

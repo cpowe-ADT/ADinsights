@@ -1546,10 +1546,92 @@ def test_meta_sync_queues_direct_reporting_task(api_client, user, monkeypatch):
     window_start = window_end - timedelta(days=META_DIRECT_SYNC_LOOKBACK_DAYS - 1)
     assert observed["kwargs"]["since"] == window_start.isoformat()
     assert observed["kwargs"]["until"] == window_end.isoformat()
+    assert payload["organic_sync"]["status"] == "skipped"
+    assert payload["organic_sync"]["reason"] == "no_analyzable_facebook_page"
+    assert payload["organic_sync"]["page_count"] == 0
     state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
     assert state.last_job_id == payload["job_id"]
     assert state.last_job_status == "pending"
     assert state.last_sync_engine == MetaAccountSyncState.SYNC_ENGINE_DIRECT
+
+
+@pytest.mark.django_db
+def test_meta_sync_queues_organic_reporting_bundle_for_selected_page(api_client, user, monkeypatch):
+    _authenticate(api_client, user)
+    credential = PlatformCredential.objects.create(
+        tenant=user.tenant,
+        provider=PlatformCredential.META,
+        account_id="act_123",
+        expires_at=None,
+        access_token_enc=b"",
+        access_token_nonce=b"",
+        access_token_tag=b"",
+    )
+    credential.set_raw_tokens("meta-token", None)
+    credential.save()
+    AirbyteConnection.objects.create(
+        tenant=user.tenant,
+        name="Meta Connection",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_CRON,
+        cron_expression="0 6-22 * * *",
+    )
+    page_connection = MetaConnection(
+        tenant=user.tenant,
+        user=user,
+        app_scoped_user_id="meta-page-user",
+        scopes=["ads_read", "business_management", "pages_show_list", "pages_read_engagement"],
+        is_active=True,
+    )
+    page_connection.set_raw_token("page-token")
+    page_connection.save()
+    page = MetaPage(
+        tenant=user.tenant,
+        connection=page_connection,
+        page_id="page-1",
+        name="Business Page",
+        can_analyze=True,
+        is_default=True,
+        tasks=["ANALYZE"],
+    )
+    page.set_raw_page_token("page-token")
+    page.save()
+    observed_direct: dict[str, object] = {}
+    observed_organic: dict[str, object] = {}
+
+    class DummyAsyncResult:
+        id = "organic-task-1"
+
+    def fake_direct_apply_async(*, kwargs=None, task_id=None, **_extra):  # noqa: ANN001
+        observed_direct["kwargs"] = kwargs or {}
+        observed_direct["task_id"] = task_id
+        return None
+
+    def fake_organic_apply_async(*, kwargs=None, task_id=None, **_extra):  # noqa: ANN001
+        observed_organic["kwargs"] = kwargs or {}
+        observed_organic["task_id"] = task_id
+        return DummyAsyncResult()
+
+    monkeypatch.setattr("integrations.tasks.sync_meta_reporting_slice.apply_async", fake_direct_apply_async)
+    monkeypatch.setattr(
+        "integrations.tasks.sync_meta_organic_reporting_bundle.apply_async",
+        fake_organic_apply_async,
+    )
+
+    response = api_client.post(reverse("meta-sync"), {}, format="json")
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["provider"] == "meta_ads"
+    assert observed_direct["kwargs"]["account_id"] == "act_123"
+    assert observed_organic["kwargs"] == {"page_id": "page-1", "mode": "backfill"}
+    assert observed_organic["task_id"]
+    assert payload["organic_sync"]["status"] == "queued"
+    assert payload["organic_sync"]["page_count"] == 1
+    assert payload["organic_sync"]["total_analyzable_page_count"] == 1
+    assert payload["organic_sync"]["tasks"][0]["page_id"] == "page-1"
+    assert payload["organic_sync"]["tasks"][0]["task_id"] == "organic-task-1"
 
 
 @pytest.mark.django_db
@@ -1597,6 +1679,7 @@ def test_meta_sync_reuses_existing_direct_job(api_client, user, monkeypatch):
     assert payload["job_id"] == "job-existing"
     assert payload["reused_existing_job"] is True
     assert payload["sync_status"] == "already_running"
+    assert payload["organic_sync"]["status"] == "skipped"
     state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
     assert state.last_job_id == "job-existing"
 
@@ -1640,11 +1723,92 @@ def test_meta_sync_falls_back_to_inline_when_broker_unavailable(api_client, user
     assert response.status_code == 202
     payload = response.json()
     assert payload["task_dispatch_mode"] == "inline"
+    assert payload["organic_sync"]["status"] == "skipped"
     assert observed["kwargs"]["tenant_id"] == str(user.tenant.id)
     assert observed["kwargs"]["account_id"] == "act_123"
     assert observed["kwargs"]["connection_pk"] == str(connection.id)
     state = MetaAccountSyncState.objects.get(tenant=user.tenant, account_id="act_123")
     assert state.last_job_status == "pending"
+
+
+@pytest.mark.django_db
+def test_meta_sync_falls_back_to_inline_organic_reporting_when_broker_unavailable(
+    api_client, user, monkeypatch
+):
+    _authenticate(api_client, user)
+    credential = PlatformCredential.objects.create(
+        tenant=user.tenant,
+        provider=PlatformCredential.META,
+        account_id="act_123",
+        expires_at=None,
+        access_token_enc=b"",
+        access_token_nonce=b"",
+        access_token_tag=b"",
+    )
+    credential.set_raw_tokens("meta-token", None)
+    credential.save()
+    AirbyteConnection.objects.create(
+        tenant=user.tenant,
+        name="Meta Connection",
+        connection_id=uuid.uuid4(),
+        provider=PlatformCredential.META,
+        schedule_type=AirbyteConnection.SCHEDULE_CRON,
+        cron_expression="0 6-22 * * *",
+    )
+    page_connection = MetaConnection(
+        tenant=user.tenant,
+        user=user,
+        app_scoped_user_id="meta-page-user",
+        scopes=["ads_read", "business_management", "pages_show_list", "pages_read_engagement"],
+        is_active=True,
+    )
+    page_connection.set_raw_token("page-token")
+    page_connection.save()
+    page = MetaPage(
+        tenant=user.tenant,
+        connection=page_connection,
+        page_id="page-1",
+        name="Business Page",
+        can_analyze=True,
+        is_default=True,
+        tasks=["ANALYZE"],
+    )
+    page.set_raw_page_token("page-token")
+    page.save()
+    observed_organic: dict[str, object] = {}
+
+    def fake_direct_apply_async(*args, **kwargs):  # noqa: ANN001, ARG001
+        return None
+
+    def fake_organic_apply_async(*args, **kwargs):  # noqa: ANN001, ARG001
+        raise RuntimeError("Redis connection refused")
+
+    def fake_organic_run(**kwargs):  # noqa: ANN001
+        observed_organic["kwargs"] = kwargs
+        return {
+            "page_id": kwargs["page_id"],
+            "status": "completed_no_rows",
+            "reason": "graph_returned_no_page_or_post_rows",
+            "posts_processed": 0,
+            "page_insight_rows_processed": 0,
+            "post_insight_rows_processed": 0,
+        }
+
+    monkeypatch.setattr("integrations.tasks.sync_meta_reporting_slice.apply_async", fake_direct_apply_async)
+    monkeypatch.setattr(
+        "integrations.tasks.sync_meta_organic_reporting_bundle.apply_async",
+        fake_organic_apply_async,
+    )
+    monkeypatch.setattr("integrations.tasks.sync_meta_organic_reporting_bundle.run", fake_organic_run)
+
+    response = api_client.post(reverse("meta-sync"), {}, format="json")
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert observed_organic["kwargs"] == {"page_id": "page-1", "mode": "backfill"}
+    assert payload["organic_sync"]["status"] == "completed_no_rows"
+    assert payload["organic_sync"]["reason"] == "graph_returned_no_page_or_post_rows"
+    assert payload["organic_sync"]["task_dispatch_mode"] == "inline"
 
 
 @pytest.mark.django_db

@@ -536,6 +536,15 @@ export async function syncMetaIntegration(): Promise<{
   reused_existing_job?: boolean;
   sync_status?: 'queued' | 'already_running';
   task_dispatch_mode?: 'queued' | 'inline';
+  organic_sync?: {
+    status?: string;
+    reason?: string;
+    page_count?: number;
+    total_analyzable_page_count?: number;
+    page_limit?: number;
+    task_dispatch_mode?: string;
+    tasks?: Array<Record<string, unknown>>;
+  };
 }> {
   return apiClient.post<{
     provider: 'meta_ads';
@@ -544,6 +553,15 @@ export async function syncMetaIntegration(): Promise<{
     reused_existing_job?: boolean;
     sync_status?: 'queued' | 'already_running';
     task_dispatch_mode?: 'queued' | 'inline';
+    organic_sync?: {
+      status?: string;
+      reason?: string;
+      page_count?: number;
+      total_analyzable_page_count?: number;
+      page_limit?: number;
+      task_dispatch_mode?: string;
+      tasks?: Array<Record<string, unknown>>;
+    };
   }>('/integrations/meta/sync/');
 }
 
