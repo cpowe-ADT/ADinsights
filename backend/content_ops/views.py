@@ -34,6 +34,10 @@ from .exports import (
     resolve_content_export_artifact_path,
 )
 from .generation import CaptionGenerationQuotaError, create_caption_generation_job
+from .image_generation import (
+    ImageGenerationQuotaError,
+    create_image_generation_job,
+)
 from .metrics import refresh_published_post_metrics
 from .models import (
     ApprovalDecision,
@@ -50,6 +54,7 @@ from .models import (
     PublishedPost,
     PublishingIdentity,
     PublishAttempt,
+    RegionalAgentProfile,
 )
 from .permissions import (
     CONTENT_OPS_ADMIN_ROLES,
@@ -77,11 +82,13 @@ from .serializers import (
     ContentScheduleSerializer,
     ContentWorkspaceSerializer,
     GenerationJobSerializer,
+    ImageGenerateRequestSerializer,
     MediaAssetSerializer,
     OrganicPostMetricSnapshotSerializer,
     PublishedPostSerializer,
     PublishingIdentitySerializer,
     PublishAttemptSerializer,
+    RegionalAgentProfileSerializer,
 )
 
 
@@ -420,6 +427,11 @@ class ContentWorkspaceViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet
     queryset = ContentWorkspace.all_objects.all().order_by("name", "created_at")
     serializer_class = ContentWorkspaceSerializer
 
+    def get_serializer_class(self):  # noqa: D401 - DRF schema/action hook
+        if getattr(self, "action", "") == "generate_images":
+            return ImageGenerateRequestSerializer
+        return super().get_serializer_class()
+
     def get_queryset(self) -> QuerySet[ContentWorkspace]:  # type: ignore[override]
         queryset = super().get_queryset()
         archived = self.request.query_params.get("archived")
@@ -430,6 +442,78 @@ class ContentWorkspaceViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet
             queryset = queryset.filter(archived_at__isnull=False)
         if client_id:
             queryset = queryset.filter(client_id=client_id)
+        return queryset
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="images/generate",
+        url_name="images-generate",
+    )
+    def generate_images(self, request: Request, pk: str | None = None) -> Response:
+        workspace = self.get_object()
+        serializer = ImageGenerateRequestSerializer(
+            data=request.data,
+            context={"request": request, "workspace": workspace},
+        )
+        serializer.is_valid(raise_exception=True)
+        try:
+            job = create_image_generation_job(
+                tenant=self._tenant(),
+                workspace=workspace,
+                user=request.user,
+                prompt=serializer.validated_data["prompt"],
+                count=serializer.validated_data.get("count"),
+                size=serializer.validated_data.get("size", ""),
+                brief=serializer.validated_data.get("brief"),
+                agent=serializer.validated_data.get("regional_agent_profile"),
+            )
+        except ImageGenerationQuotaError as exc:
+            return Response(
+                {
+                    "detail": exc.detail_safe,
+                    "reason": exc.code,
+                    "quota": exc.quota_snapshot,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        self._audit(
+            action="content_image_generation_requested",
+            resource_type="content_workspace",
+            resource_id=str(workspace.id),
+            metadata={
+                "generation_job_id": str(job.id),
+                "count": job.prompt_policy_result.get("count"),
+                "provider_configured": False,
+            },
+        )
+        return Response(
+            GenerationJobSerializer(job, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class RegionalAgentProfileViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
+    queryset = (
+        RegionalAgentProfile.all_objects.select_related("workspace")
+        .all()
+        .order_by("name", "created_at")
+    )
+    serializer_class = RegionalAgentProfileSerializer
+
+    def get_queryset(self) -> QuerySet[RegionalAgentProfile]:  # type: ignore[override]
+        queryset = super().get_queryset()
+        workspace_id = self.request.query_params.get("workspace_id")
+        region = self.request.query_params.get("region")
+        is_active = self.request.query_params.get("is_active")
+        if workspace_id:
+            queryset = queryset.filter(workspace_id=workspace_id)
+        if region:
+            queryset = queryset.filter(region=region)
+        if is_active == "true":
+            queryset = queryset.filter(is_active=True)
+        elif is_active == "false":
+            queryset = queryset.filter(is_active=False)
         return queryset
 
 
@@ -494,6 +578,7 @@ class ContentBriefViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
                 candidate_count=serializer.validated_data["candidate_count"],
                 platforms=serializer.validated_data["platforms"],
                 tone_override=serializer.validated_data.get("tone_override", ""),
+                agent=serializer.validated_data.get("regional_agent_profile"),
             )
         except CaptionGenerationQuotaError as exc:
             return Response(
@@ -832,6 +917,15 @@ class ContentDraftViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
         draft = self.get_object()
         if draft.active_version_id is None:
             raise ValidationError({"active_version": "Draft has no active version."})
+        if not draft.has_current_client_approval():
+            raise ValidationError(
+                {
+                    "approval": (
+                        "Draft requires a current client approval for its active "
+                        "version before it can be scheduled."
+                    )
+                }
+            )
         payload = request.data.copy()
         payload["draft"] = str(draft.id)
         payload["version"] = str(draft.active_version_id)

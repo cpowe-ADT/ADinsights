@@ -51,6 +51,15 @@ env = environ.Env(
     CONTENT_OPS_PUBLIC_MEDIA_BASE_URL=(str, ""),
     CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING=(bool, False),
     CONTENT_OPS_META_INSTAGRAM_BETA=(bool, False),
+    CONTENT_OPS_TEXT_PROVIDER=(str, "disabled"),
+    CONTENT_OPS_TEXT_TIMEOUT=(float, 30.0),
+    CONTENT_OPS_TENANT_MONTHLY_TOKEN_CAP=(int, 0),
+    CONTENT_OPS_IMAGE_PROVIDER=(str, "disabled"),
+    CONTENT_OPS_IMAGE_TIMEOUT=(float, 60.0),
+    CONTENT_OPS_GENERATED_ASSET_MAX_BYTES=(int, 15 * 1024 * 1024),
+    CONTENT_OPS_IMAGE_ACTIVE_JOB_LIMIT=(int, 10),
+    CONTENT_OPS_IMAGE_DAILY_JOB_LIMIT=(int, 50),
+    CONTENT_OPS_IMAGE_DAILY_IMAGE_LIMIT=(int, 100),
     FRONTEND_BASE_URL=(str, "http://localhost:5173"),
     META_APP_ID=(str, ""),
     META_APP_SECRET=(str, ""),
@@ -230,6 +239,53 @@ CONTENT_OPS_ASSET_MAX_UPLOAD_BYTES = env.int("CONTENT_OPS_ASSET_MAX_UPLOAD_BYTES
 CONTENT_OPS_PUBLIC_MEDIA_BASE_URL = env("CONTENT_OPS_PUBLIC_MEDIA_BASE_URL").strip()
 CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING = env.bool("CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING")
 CONTENT_OPS_META_INSTAGRAM_BETA = env.bool("CONTENT_OPS_META_INSTAGRAM_BETA")
+# Content Ops AI caption generation (vendor-neutral; default off).
+# CONTENT_OPS_TEXT_PROVIDER selects the platform-default text provider:
+#   "disabled" (no live calls) | "openai" | "anthropic".
+CONTENT_OPS_TEXT_PROVIDER = env("CONTENT_OPS_TEXT_PROVIDER").strip().lower()
+CONTENT_OPS_TEXT_TIMEOUT = env.float("CONTENT_OPS_TEXT_TIMEOUT")
+# Per-tenant monthly token cap (0 = unlimited). Checked before each provider call.
+CONTENT_OPS_TENANT_MONTHLY_TOKEN_CAP = env.int("CONTENT_OPS_TENANT_MONTHLY_TOKEN_CAP")
+CONTENT_OPS_OPENAI_API_KEY = _optional(env("CONTENT_OPS_OPENAI_API_KEY", default=None))
+CONTENT_OPS_OPENAI_BASE_URL = env(
+    "CONTENT_OPS_OPENAI_BASE_URL", default="https://api.openai.com/v1"
+).strip()
+CONTENT_OPS_OPENAI_MODEL = env("CONTENT_OPS_OPENAI_MODEL", default="gpt-5.1").strip()
+CONTENT_OPS_OPENAI_USD_PER_1K_TOKENS = env(
+    "CONTENT_OPS_OPENAI_USD_PER_1K_TOKENS", default="0"
+).strip()
+CONTENT_OPS_ANTHROPIC_API_KEY = _optional(
+    env("CONTENT_OPS_ANTHROPIC_API_KEY", default=None)
+)
+CONTENT_OPS_ANTHROPIC_BASE_URL = env(
+    "CONTENT_OPS_ANTHROPIC_BASE_URL", default="https://api.anthropic.com/v1"
+).strip()
+CONTENT_OPS_ANTHROPIC_MODEL = env(
+    "CONTENT_OPS_ANTHROPIC_MODEL", default="claude-opus-4-8"
+).strip()
+CONTENT_OPS_ANTHROPIC_VERSION = env(
+    "CONTENT_OPS_ANTHROPIC_VERSION", default="2023-06-01"
+).strip()
+CONTENT_OPS_ANTHROPIC_USD_PER_1K_TOKENS = env(
+    "CONTENT_OPS_ANTHROPIC_USD_PER_1K_TOKENS", default="0"
+).strip()
+# Content Ops AI image/video generation (vendor-neutral; default off).
+# Provider: disabled | openai. Reuses the OpenAI key/base URL above.
+CONTENT_OPS_IMAGE_PROVIDER = env("CONTENT_OPS_IMAGE_PROVIDER").strip().lower()
+CONTENT_OPS_IMAGE_TIMEOUT = env.float("CONTENT_OPS_IMAGE_TIMEOUT")
+CONTENT_OPS_GENERATED_ASSET_MAX_BYTES = env.int("CONTENT_OPS_GENERATED_ASSET_MAX_BYTES")
+CONTENT_OPS_OPENAI_IMAGE_MODEL = env(
+    "CONTENT_OPS_OPENAI_IMAGE_MODEL", default="gpt-image-1"
+).strip()
+CONTENT_OPS_OPENAI_IMAGE_SIZE = env(
+    "CONTENT_OPS_OPENAI_IMAGE_SIZE", default="1024x1024"
+).strip()
+CONTENT_OPS_OPENAI_USD_PER_IMAGE = env(
+    "CONTENT_OPS_OPENAI_USD_PER_IMAGE", default="0"
+).strip()
+CONTENT_OPS_IMAGE_ACTIVE_JOB_LIMIT = env.int("CONTENT_OPS_IMAGE_ACTIVE_JOB_LIMIT")
+CONTENT_OPS_IMAGE_DAILY_JOB_LIMIT = env.int("CONTENT_OPS_IMAGE_DAILY_JOB_LIMIT")
+CONTENT_OPS_IMAGE_DAILY_IMAGE_LIMIT = env.int("CONTENT_OPS_IMAGE_DAILY_IMAGE_LIMIT")
 
 INSTALLED_APPS = [
     "django.contrib.admin",

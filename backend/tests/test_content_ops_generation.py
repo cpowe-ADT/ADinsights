@@ -212,6 +212,7 @@ def test_fake_caption_provider_success_creates_generated_drafts_and_versions(
             "alt_text",
             "cta",
             "hashtags",
+            "image_prompt",
             "platform",
             "quality_score",
             "risk_flags",

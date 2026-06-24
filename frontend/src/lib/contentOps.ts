@@ -73,6 +73,43 @@ export type ContentOpsCaptionGenerationRequest = {
   candidateCount: number;
   platforms: ContentOpsChannel[];
   toneOverride?: string;
+  regionalAgentProfileId?: string;
+};
+
+export type ContentOpsRegion = 'caribbean' | 'peru_latam';
+
+export type ContentOpsRegionalAgent = {
+  id: string;
+  workspaceId: string;
+  name: string;
+  region: ContentOpsRegion;
+  locale: string;
+  language: string;
+  timezone: string;
+  isActive: boolean;
+};
+
+export type ContentOpsRegionalAgentCreateRequest = {
+  workspaceId: string;
+  name: string;
+  region: ContentOpsRegion;
+  locale?: string;
+  language?: string;
+  timezone?: string;
+};
+
+export type ContentOpsWorkspaceSummary = {
+  id: string;
+  name: string;
+  timezone: string;
+};
+
+export type ContentOpsImageGenerationRequest = {
+  workspaceId: string;
+  prompt: string;
+  count?: number;
+  size?: string;
+  regionalAgentProfileId?: string;
 };
 
 export type ContentOpsBriefCreateRequest = {
@@ -406,6 +443,7 @@ export async function requestContentOpsCaptionGeneration({
   candidateCount,
   platforms,
   toneOverride,
+  regionalAgentProfileId,
 }: ContentOpsCaptionGenerationRequest): Promise<ContentOpsGenerationJob> {
   const job = await apiClient.post<BackendGenerationJob>(
     `/content-ops/briefs/${briefId}/captions/generate/`,
@@ -413,6 +451,91 @@ export async function requestContentOpsCaptionGeneration({
       candidate_count: candidateCount,
       platforms,
       tone_override: toneOverride?.trim() ?? '',
+      regional_agent_profile_id: regionalAgentProfileId || null,
+    },
+  );
+  return mapGenerationJob(job);
+}
+
+type BackendRegionalAgent = {
+  id: string;
+  workspace: string;
+  name: string;
+  region: string;
+  locale: string;
+  language: string;
+  timezone: string;
+  is_active: boolean;
+};
+
+function mapRegionalAgent(agent: BackendRegionalAgent): ContentOpsRegionalAgent {
+  return {
+    id: agent.id,
+    workspaceId: agent.workspace,
+    name: agent.name,
+    region: agent.region === 'peru_latam' ? 'peru_latam' : 'caribbean',
+    locale: agent.locale,
+    language: agent.language,
+    timezone: agent.timezone,
+    isActive: agent.is_active,
+  };
+}
+
+export async function listContentOpsWorkspaces(
+  signal?: AbortSignal,
+): Promise<ContentOpsWorkspaceSummary[]> {
+  const workspaces = await getAllResults<BackendWorkspace>('/content-ops/workspaces/', signal);
+  return workspaces.map((workspace) => ({
+    id: workspace.id,
+    name: workspace.name,
+    timezone: workspace.timezone || 'America/Jamaica',
+  }));
+}
+
+export async function listContentOpsRegionalAgents(
+  workspaceId?: string,
+  signal?: AbortSignal,
+): Promise<ContentOpsRegionalAgent[]> {
+  const path = workspaceId
+    ? appendQueryParams('/content-ops/regional-agents/', { workspace_id: workspaceId })
+    : '/content-ops/regional-agents/';
+  const agents = await getAllResults<BackendRegionalAgent>(path, signal);
+  return agents.map(mapRegionalAgent);
+}
+
+export async function createContentOpsRegionalAgent({
+  workspaceId,
+  name,
+  region,
+  locale,
+  language,
+  timezone,
+}: ContentOpsRegionalAgentCreateRequest): Promise<ContentOpsRegionalAgent> {
+  const agent = await apiClient.post<BackendRegionalAgent>('/content-ops/regional-agents/', {
+    workspace: workspaceId,
+    name: name.trim(),
+    region,
+    locale: locale?.trim() || '',
+    language: language?.trim() || '',
+    timezone: timezone?.trim() || '',
+  });
+  return mapRegionalAgent(agent);
+}
+
+export async function requestContentOpsImageGeneration({
+  workspaceId,
+  prompt,
+  count,
+  size,
+  regionalAgentProfileId,
+}: ContentOpsImageGenerationRequest): Promise<ContentOpsGenerationJob> {
+  const job = await apiClient.post<BackendGenerationJob>(
+    `/content-ops/workspaces/${workspaceId}/images/generate/`,
+    {
+      prompt: prompt.trim(),
+      count: count ?? 1,
+      size: size?.trim() || '1024x1024',
+      regional_agent_profile_id: regionalAgentProfileId || null,
     },
   );
   return mapGenerationJob(job);
@@ -647,6 +770,27 @@ export async function fetchContentOpsWorkspace(
 async function getResults<T>(path: string, signal?: AbortSignal): Promise<T[]> {
   const payload = await apiClient.get<T[] | Paginated<T>>(path, { signal });
   return Array.isArray(payload) ? payload : Array.isArray(payload.results) ? payload.results : [];
+}
+
+async function getAllResults<T>(path: string, signal?: AbortSignal): Promise<T[]> {
+  const items: T[] = [];
+  // Follow DRF page pagination; bounded to guard against a runaway loop.
+  for (let page = 1; page <= 50; page += 1) {
+    const separator = path.includes('?') ? '&' : '?';
+    const payload = await apiClient.get<T[] | (Paginated<T> & { next?: string | null })>(
+      `${path}${separator}page=${page}`,
+      { signal },
+    );
+    if (Array.isArray(payload)) {
+      items.push(...payload);
+      break;
+    }
+    items.push(...(payload.results ?? []));
+    if (!payload.next) {
+      break;
+    }
+  }
+  return items;
 }
 
 async function loadActiveVersions(

@@ -13,6 +13,27 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-06-24**
+  - Endpoint: `GET/POST /api/content-ops/regional-agents/` (+ `GET/PATCH/DELETE .../{id}/`);
+    `POST /api/content-ops/workspaces/{id}/images/generate/`;
+    `POST /api/content-ops/briefs/{brief_id}/captions/generate/` (now accepts an optional
+    `regional_agent_profile_id`).
+  - Change: Added Regional AI Content Agents on the `content_ops` app — tenant-scoped
+    `RegionalAgentProfile` CRUD (filterable by `workspace_id`, `region`, `is_active`) carrying
+    region, locale/language, brand voice, and approved-reference scoping (locale/language/timezone
+    default from the region when blank); a workspace image-generation action that enqueues an AI
+    image job and returns `400` with `reason`/`quota` when active/daily-job/daily-image limits are
+    reached; an optional regional agent on caption generation; pluggable OpenAI/Anthropic text and
+    OpenAI image providers (default `disabled`, fail closed `provider_not_configured`); per-tenant
+    `AIUsageRecord` token/image/cost metering plus an additive monthly token cap. Migrations 0003–0005.
+  - Impact: Frontend Content Ops can manage regional agents, enqueue image jobs (and surface quota
+    blockers), and pass a regional agent into caption generation. Additive and default-off — no live
+    OpenAI/Anthropic call, no token spend, and no tenant content leaves the platform unless a provider
+    is explicitly enabled. Existing caption clients can omit `regional_agent_profile_id` and are
+    unaffected. No OAuth scope, Meta Graph publishing, or dbt mart behavior changed. `AIUsageRecord`
+    is aggregate metering only (provider, token/image counts, estimated cost) — no user-level data.
+  - Owner: AI-built; Raj (integration) + Mira (architecture) AI review.
+
 - **2026-06-23**
   - Endpoint: `GET /api/reports/data-availability/`, `POST /api/reports/from-template/`, and
     `POST /api/reports/slb-monthly-template/`.
