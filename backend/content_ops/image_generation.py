@@ -15,10 +15,13 @@ import json
 import logging
 import re
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 from uuid import UUID
 
+from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
 
 from .assets import ContentOpsAssetStorageError, store_generated_asset_bytes
 from .generation import redact_secret_like_text
@@ -34,6 +37,9 @@ IMAGE_FAILURE_JOB_MISSING = "image_job_missing"
 IMAGE_FAILURE_JOB_CANCELLED = "image_job_cancelled"
 IMAGE_FAILURE_JOB_WRONG_TYPE = "image_job_wrong_type"
 IMAGE_FAILURE_PROMPT_MISSING = "image_prompt_missing"
+IMAGE_FAILURE_ACTIVE_LIMIT_EXCEEDED = "image_active_limit_exceeded"
+IMAGE_FAILURE_DAILY_LIMIT_EXCEEDED = "image_daily_limit_exceeded"
+IMAGE_FAILURE_IMAGE_LIMIT_EXCEEDED = "image_daily_image_limit_exceeded"
 
 IMAGE_PROCESS_STATUS_FAILED = "failed"
 IMAGE_PROCESS_STATUS_NOOP = "noop"
@@ -42,6 +48,9 @@ IMAGE_PROCESS_STATUS_SUCCEEDED = "succeeded"
 DEFAULT_IMAGE_COUNT = 1
 MAX_IMAGE_COUNT = 4
 DEFAULT_IMAGE_SIZE = "1024x1024"
+DEFAULT_IMAGE_ACTIVE_JOB_LIMIT = 10
+DEFAULT_IMAGE_DAILY_JOB_LIMIT = 50
+DEFAULT_IMAGE_DAILY_IMAGE_LIMIT = 100
 _SIZE_RE = re.compile(r"^\d{3,4}x\d{3,4}$")
 
 
@@ -76,6 +85,14 @@ class ImageGenerationError(RuntimeError):
         self.detail_safe = detail_safe
 
 
+class ImageGenerationQuotaError(ImageGenerationError):
+    """Client-safe quota error for image generation requests."""
+
+    def __init__(self, *, code: str, detail_safe: str, quota_snapshot: dict[str, Any]) -> None:
+        super().__init__(code=code, detail_safe=detail_safe)
+        self.quota_snapshot = quota_snapshot
+
+
 class DisabledImageGenerationProvider:
     """Default provider boundary that prevents accidental live render spend."""
 
@@ -102,6 +119,76 @@ def normalize_image_count(value: Any = None) -> int:
 def normalize_image_size(value: Any = None) -> str:
     candidate = str(value or "").strip().lower()
     return candidate if _SIZE_RE.match(candidate) else DEFAULT_IMAGE_SIZE
+
+
+def _image_generation_limits() -> dict[str, int]:
+    return {
+        "active_job_limit": int(
+            getattr(settings, "CONTENT_OPS_IMAGE_ACTIVE_JOB_LIMIT", DEFAULT_IMAGE_ACTIVE_JOB_LIMIT)
+        ),
+        "daily_job_limit": int(
+            getattr(settings, "CONTENT_OPS_IMAGE_DAILY_JOB_LIMIT", DEFAULT_IMAGE_DAILY_JOB_LIMIT)
+        ),
+        "daily_image_limit": int(
+            getattr(settings, "CONTENT_OPS_IMAGE_DAILY_IMAGE_LIMIT", DEFAULT_IMAGE_DAILY_IMAGE_LIMIT)
+        ),
+    }
+
+
+def _job_image_count(job: GenerationJob) -> int:
+    try:
+        return max(int((job.prompt_policy_result or {}).get("count") or 0), 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def image_generation_quota_snapshot(*, tenant, now=None) -> dict[str, Any]:
+    """Return safe tenant-level quota counters for image generation."""
+
+    now = now or timezone.now()
+    since = now - timedelta(hours=24)
+    active_statuses = {GenerationJob.STATUS_QUEUED, GenerationJob.STATUS_RUNNING}
+    base_queryset = GenerationJob.all_objects.filter(
+        tenant=tenant,
+        job_type=GenerationJob.TYPE_GRAPHIC_BATCH,
+    )
+    recent_jobs = list(
+        base_queryset.filter(created_at__gte=since).only("id", "prompt_policy_result")
+    )
+    return {
+        "active_job_count": base_queryset.filter(status__in=active_statuses).count(),
+        "rolling_24h_job_count": len(recent_jobs),
+        "rolling_24h_image_count": sum(_job_image_count(job) for job in recent_jobs),
+        "limits": _image_generation_limits(),
+    }
+
+
+def enforce_image_generation_quota(
+    *, tenant, requested_image_count: int, now=None
+) -> dict[str, Any]:
+    """Fail closed when image generation would exceed tenant-safe limits."""
+
+    snapshot = image_generation_quota_snapshot(tenant=tenant, now=now)
+    limits = snapshot["limits"]
+    if snapshot["active_job_count"] >= limits["active_job_limit"]:
+        raise ImageGenerationQuotaError(
+            code=IMAGE_FAILURE_ACTIVE_LIMIT_EXCEEDED,
+            detail_safe="Image generation active job limit has been reached.",
+            quota_snapshot=snapshot,
+        )
+    if snapshot["rolling_24h_job_count"] >= limits["daily_job_limit"]:
+        raise ImageGenerationQuotaError(
+            code=IMAGE_FAILURE_DAILY_LIMIT_EXCEEDED,
+            detail_safe="Image generation daily job limit has been reached.",
+            quota_snapshot=snapshot,
+        )
+    if snapshot["rolling_24h_image_count"] + requested_image_count > limits["daily_image_limit"]:
+        raise ImageGenerationQuotaError(
+            code=IMAGE_FAILURE_IMAGE_LIMIT_EXCEEDED,
+            detail_safe="Image generation daily image limit has been reached.",
+            quota_snapshot=snapshot,
+        )
+    return snapshot
 
 
 def create_image_generation_job(
@@ -131,6 +218,9 @@ def create_image_generation_job(
     if not redacted_prompt:
         raise ValueError(IMAGE_FAILURE_PROMPT_MISSING)
     normalized_count = normalize_image_count(count)
+    quota_snapshot = enforce_image_generation_quota(
+        tenant=tenant, requested_image_count=normalized_count
+    )
     normalized_size = normalize_image_size(size)
     policy_result = {
         "count": normalized_count,
@@ -139,6 +229,7 @@ def create_image_generation_job(
         "agent_id": str(agent.id) if agent is not None else "",
         "region": agent.region if agent is not None else "",
         "locale": agent.locale if agent is not None else "",
+        "quota_snapshot": quota_snapshot,
     }
     prompt_summary = redact_secret_like_text(
         f"Image generation: count={normalized_count}; size={normalized_size}; "
@@ -428,6 +519,9 @@ def _fingerprint(payload: dict[str, Any]) -> str:
 
 __all__ = [
     "DEFAULT_IMAGE_SIZE",
+    "IMAGE_FAILURE_ACTIVE_LIMIT_EXCEEDED",
+    "IMAGE_FAILURE_DAILY_LIMIT_EXCEEDED",
+    "IMAGE_FAILURE_IMAGE_LIMIT_EXCEEDED",
     "IMAGE_FAILURE_JOB_WRONG_TYPE",
     "IMAGE_FAILURE_NO_OUTPUT",
     "IMAGE_FAILURE_PROMPT_MISSING",
@@ -440,7 +534,10 @@ __all__ = [
     "DisabledImageGenerationProvider",
     "ImageGenerationError",
     "ImageGenerationProcessResult",
+    "ImageGenerationQuotaError",
     "create_image_generation_job",
+    "enforce_image_generation_quota",
+    "image_generation_quota_snapshot",
     "normalize_image_count",
     "normalize_image_size",
     "process_content_image_generation_job",

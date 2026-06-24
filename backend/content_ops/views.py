@@ -34,7 +34,10 @@ from .exports import (
     resolve_content_export_artifact_path,
 )
 from .generation import CaptionGenerationQuotaError, create_caption_generation_job
-from .image_generation import create_image_generation_job
+from .image_generation import (
+    ImageGenerationQuotaError,
+    create_image_generation_job,
+)
 from .metrics import refresh_published_post_metrics
 from .models import (
     ApprovalDecision,
@@ -454,16 +457,26 @@ class ContentWorkspaceViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet
             context={"request": request, "workspace": workspace},
         )
         serializer.is_valid(raise_exception=True)
-        job = create_image_generation_job(
-            tenant=self._tenant(),
-            workspace=workspace,
-            user=request.user,
-            prompt=serializer.validated_data["prompt"],
-            count=serializer.validated_data.get("count"),
-            size=serializer.validated_data.get("size", ""),
-            brief=serializer.validated_data.get("brief"),
-            agent=serializer.validated_data.get("regional_agent_profile"),
-        )
+        try:
+            job = create_image_generation_job(
+                tenant=self._tenant(),
+                workspace=workspace,
+                user=request.user,
+                prompt=serializer.validated_data["prompt"],
+                count=serializer.validated_data.get("count"),
+                size=serializer.validated_data.get("size", ""),
+                brief=serializer.validated_data.get("brief"),
+                agent=serializer.validated_data.get("regional_agent_profile"),
+            )
+        except ImageGenerationQuotaError as exc:
+            return Response(
+                {
+                    "detail": exc.detail_safe,
+                    "reason": exc.code,
+                    "quota": exc.quota_snapshot,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         self._audit(
             action="content_image_generation_requested",
             resource_type="content_workspace",

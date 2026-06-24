@@ -29,8 +29,11 @@ class OpenAIImageProvider(BaseHTTPImageProvider):
             "prompt": prompt,
             "n": max(int(count), 1),
             "size": size,
-            "response_format": "b64_json",
         }
+        # dall-e-* needs response_format to return base64; gpt-image-1 returns
+        # b64_json natively and rejects the parameter (HTTP 400).
+        if str(self.model or "").lower().startswith("dall-e"):
+            body["response_format"] = "b64_json"
         response = httpx.post(url, json=body, headers=headers, timeout=self.timeout)
         response.raise_for_status()
         data = response.json()

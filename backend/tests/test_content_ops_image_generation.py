@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import base64
+
 import pytest
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from content_ops.image_generation import (
+    IMAGE_FAILURE_ACTIVE_LIMIT_EXCEEDED,
+    IMAGE_FAILURE_IMAGE_LIMIT_EXCEEDED,
     IMAGE_FAILURE_PROVIDER_NOT_CONFIGURED,
     IMAGE_PROCESS_STATUS_FAILED,
     IMAGE_PROCESS_STATUS_SUCCEEDED,
@@ -21,6 +26,7 @@ from content_ops.models import (
 )
 from content_ops.providers.base import ProviderUsage
 from content_ops.providers.image_base import GeneratedImage
+from content_ops.providers.openai_image import OpenAIImageProvider
 
 
 @pytest.fixture(autouse=True)
@@ -173,3 +179,87 @@ def test_image_generate_endpoint_enqueues_redacted_job(auth_client, tenant, user
     assert job.prompt_policy_result["size"] == "1024x1024"
     assert "secret-value" not in str(response.data).lower()
     assert "secret-value" not in job.prompt_policy_result["prompt"].lower()
+
+
+class _FakeResponse:
+    def __init__(self, payload: dict) -> None:
+        self._payload = payload
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> dict:
+        return self._payload
+
+
+def _install_fake_image_post(monkeypatch, *, calls):
+    payload = {
+        "data": [{"b64_json": base64.b64encode(b"PNGBYTES").decode()}],
+        "usage": {},
+    }
+
+    def fake_post(url, json=None, headers=None, timeout=None):  # noqa: A002
+        calls.append({"url": url, "json": json, "headers": headers})
+        return _FakeResponse(payload)
+
+    monkeypatch.setattr("httpx.post", fake_post)
+
+
+def test_openai_image_adapter_omits_response_format_for_gpt_image(monkeypatch):
+    calls: list[dict] = []
+    _install_fake_image_post(monkeypatch, calls=calls)
+    provider = OpenAIImageProvider(
+        api_key="k", model="gpt-image-1", base_url="https://api.openai.com/v1", timeout=5
+    )
+
+    images = provider.generate({"prompt": "x", "count": 1, "size": "1024x1024"})
+
+    assert len(images) == 1
+    assert "response_format" not in calls[0]["json"]
+
+
+def test_openai_image_adapter_sends_response_format_for_dalle(monkeypatch):
+    calls: list[dict] = []
+    _install_fake_image_post(monkeypatch, calls=calls)
+    provider = OpenAIImageProvider(
+        api_key="k", model="dall-e-3", base_url="https://api.openai.com/v1", timeout=5
+    )
+
+    provider.generate({"prompt": "x", "count": 1, "size": "1024x1024"})
+
+    assert calls[0]["json"]["response_format"] == "b64_json"
+
+
+@pytest.mark.django_db
+@override_settings(CONTENT_OPS_IMAGE_ACTIVE_JOB_LIMIT=1)
+def test_image_active_job_quota_blocks_second_request(auth_client, tenant, user):
+    workspace = _workspace(tenant, user)
+    create_image_generation_job(
+        tenant=tenant, workspace=workspace, prompt="first", user=user
+    )
+
+    response = auth_client.post(
+        f"/api/content-ops/workspaces/{workspace.id}/images/generate/",
+        data={"prompt": "second"},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data["reason"] == IMAGE_FAILURE_ACTIVE_LIMIT_EXCEEDED
+    assert response.data["quota"]["active_job_count"] == 1
+
+
+@pytest.mark.django_db
+@override_settings(CONTENT_OPS_IMAGE_DAILY_IMAGE_LIMIT=1)
+def test_image_daily_image_quota_blocks_high_count(auth_client, tenant, user):
+    workspace = _workspace(tenant, user)
+
+    response = auth_client.post(
+        f"/api/content-ops/workspaces/{workspace.id}/images/generate/",
+        data={"prompt": "many", "count": 2},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data["reason"] == IMAGE_FAILURE_IMAGE_LIMIT_EXCEEDED
+    assert GenerationJob.all_objects.count() == 0
