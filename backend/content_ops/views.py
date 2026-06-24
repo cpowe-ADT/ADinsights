@@ -38,8 +38,10 @@ from .image_generation import (
     ImageGenerationQuotaError,
     create_image_generation_job,
 )
+from .input_brief import brief_strength, lint_sections, resolve_sections_defaults
 from .metrics import refresh_published_post_metrics
 from .overlay_service import OverlayServiceError, apply_overlay_to_asset
+from .prompt_contract import build_composer_payload
 from .models import (
     ApprovalDecision,
     ApprovalRequest,
@@ -1179,6 +1181,64 @@ class MediaAssetTagViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
         if workspace_id:
             queryset = queryset.filter(workspace_id=workspace_id)
         return queryset
+
+
+class ContentOpsSectionsPreviewView(APIView):
+    """Resolve, default, and lint a creative brief — no provider, no spend.
+
+    Returns the resolved sections with per-field provenance, the lint report, a
+    weak/ok/strong strength signal, and the sanitized payload the composer would
+    receive — so a user can iterate on the brief cheaply before any image spend.
+    """
+
+    permission_classes = [ContentOpsPermission]
+
+    def post(self, request: Request) -> Response:
+        tenant_id = getattr(request.user, "tenant_id", None)
+        if tenant_id is None:
+            raise PermissionDenied("Unable to resolve tenant.")
+        data = request.data if isinstance(request.data, dict) else {}
+        sections = data.get("sections")
+        if not isinstance(sections, dict):
+            raise ValidationError({"sections": "A sections object is required."})
+
+        brand_kit = None
+        agent = None
+        brand_kit_id = data.get("brand_kit_id")
+        agent_id = data.get("regional_agent_profile_id")
+        if brand_kit_id:
+            brand_kit = get_object_or_404(
+                BrandKit.all_objects, tenant_id=tenant_id, id=brand_kit_id
+            )
+        if agent_id:
+            agent = get_object_or_404(
+                RegionalAgentProfile.all_objects, tenant_id=tenant_id, id=agent_id
+            )
+
+        logo_corner = str(
+            data.get("logo_corner")
+            or (brand_kit.logo_placement if brand_kit else "bottom_right")
+        )
+        footer_intent = "present" if data.get("footer_intent") else ""
+        resolved, provenance = resolve_sections_defaults(
+            sections, brand_kit=brand_kit, agent=agent
+        )
+        payload = build_composer_payload(
+            resolved,
+            brand_kit=brand_kit,
+            agent=agent,
+            logo_corner=logo_corner,
+            footer_intent=footer_intent,
+        )
+        return Response(
+            {
+                "resolved_sections": resolved,
+                "provenance": provenance,
+                "lint": lint_sections(resolved, brand_kit=brand_kit),
+                "strength": brief_strength(resolved),
+                "composer_payload": payload,
+            }
+        )
 
 
 class ContentOpsPublicMediaView(APIView):
