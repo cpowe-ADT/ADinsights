@@ -16,7 +16,7 @@ import re
 from typing import Any
 
 from .generation import redact_secret_like_text
-from .input_brief import FORMAT_ASPECTS
+from .input_brief import FORMAT_ASPECTS, contains_url
 from .safe_areas import SAFE_AREA_VERSION
 
 # The composer system prompt — the contract the LLM must satisfy. Placeholders
@@ -62,41 +62,53 @@ INPUTS:
 # A version stamp for the contract so cached prompts/evals invalidate on edits.
 COMPOSER_TEMPLATE_VERSION = "1"
 
-_URL_RE = re.compile(
-    r"\b(?:https?://|www\.)\S+|\b[\w.-]+\.(?:com|net|org|io|co|jm|pe)\b",
-    re.IGNORECASE,
-)
 _FENCE_RE = re.compile(r"```[a-zA-Z0-9]*\n?|```")
 _PREAMBLE_RE = re.compile(
     r"^\s*(?:here(?:'s| is)\b[^:]{0,40}:|image prompt:|prompt:|sure[,!.]?|"
     r"certainly[,!.]?|okay[,!.]?)\s*",
     re.IGNORECASE,
 )
-_QUOTES = "\"'“”‘’"
-# Language that signals the composer reserved calm negative space (rule 2/3).
+_QUOTE_PAIRS = (('"', '"'), ("'", "'"), ("“", "”"), ("‘", "’"))
+
+# A composed prompt longer than this is itself malformed (the contract asks for
+# 60-130 words) — cap before scanning.
+MAX_PROMPT_CHARS = 4000
+
+# Phrase-level reserved-space signals — substring matching is safe here because
+# these are phrases, not incidental single words ("lower"/"clear"/"calm" appear
+# in flower/clearly/calmly and would falsely pass a busy scene).
 _RESERVED_SPACE_TERMS = (
-    "negative space",
-    "lower",
-    "bottom",
-    "calm",
-    "clean",
-    "uncluttered",
-    "plain",
-    "clear",
-    "low-detail",
-    "low detail",
-    "soft gradient",
-    "out-of-focus",
-    "out of focus",
-    "empty",
-    "minimal",
+    "negative space", "lower band", "lower third", "bottom band",
+    "calm band", "calm lower", "calm foreground", "low-detail", "low detail",
+    "out-of-focus", "out of focus", "uncluttered", "soft gradient",
+    "clear space", "open space", "empty space", "plain lower",
+    "minimal foreground", "smooth surface", "simple background",
 )
+# Overlay mechanics the composer must NEVER name (system-prompt rules 2/3 + the
+# "never mention overlays/branding mechanics/safe zones" line).
+_MECHANICS_TERMS = (
+    "footer", "text area", "safe zone", "safe area", "watermark",
+    "wordmark", "overlay", "logo",
+)
+# System-prompt phrases that, if echoed, mean the model returned its instructions.
+_RULE_ECHO_TERMS = ("hard rules", "art director", "image-generation prompt", "logo corner")
 _ASPECT_WORDS = {
     "1:1": ("square",),
     "4:5": ("vertical", "portrait", "tall"),
     "9:16": ("vertical", "tall", "story", "portrait"),
     "16:9": ("wide", "landscape", "horizontal"),
 }
+
+
+def _contains_word(haystack_lower: str, term: str) -> bool:
+    """Word-boundary (or phrase substring) membership — avoids 'art' in 'part'."""
+
+    term = term.strip().lower()
+    if not term:
+        return False
+    if " " in term or "-" in term:
+        return term in haystack_lower
+    return re.search(r"\b" + re.escape(term) + r"\b", haystack_lower) is not None
 
 
 def _as_list(value: Any) -> list[str]:
@@ -162,7 +174,12 @@ def build_composer_payload(
 
 
 def coerce_composed_prompt(raw: str) -> str:
-    """Strip preamble/fences/quotes a model may wrap the prompt in (R2)."""
+    """Strip preamble/fences/wrapping quotes a model may add (R2).
+
+    Coercion is best-effort cleanup; the caller must still run
+    :func:`validate_composed_prompt` and fail closed on any finding — coercion
+    cannot by itself guarantee the result is a valid prompt.
+    """
 
     text = str(raw or "").strip()
     if "```" in text:
@@ -173,8 +190,15 @@ def coerce_composed_prompt(raw: str) -> str:
         if stripped == text:
             break
         text = stripped
-    if len(text) >= 2 and text[0] in _QUOTES and text[-1] in _QUOTES:
-        text = text[1:-1].strip()
+    # Strip wrapping quotes only when they actually wrap (don't corrupt content
+    # that legitimately contains a quote).
+    for open_q, close_q in _QUOTE_PAIRS:
+        if len(text) >= 2 and text[0] == open_q and text[-1] == close_q:
+            inner = text[1:-1]
+            if open_q == close_q and open_q in inner:
+                break
+            text = inner.strip()
+            break
     return text
 
 
@@ -187,8 +211,11 @@ def validate_composed_prompt(
 ) -> list[dict[str, str]]:
     """Return Layer-1 invariant violations; empty list means the prompt is valid.
 
-    This is both the runtime gate before spending on an image and the
-    deterministic composer eval (assert on structure, never exact strings).
+    The runtime gate before spending on an image *and* the deterministic composer
+    eval. It enforces a strict subset of the system-prompt HARD RULES that can be
+    checked deterministically (no rendered text/URL/secret, no named overlay
+    mechanics, reserved space + aspect stated, required/blocked terms); semantic
+    judgement (e.g. rendered-number intent) is left to the gated LLM/vision judge.
     """
 
     findings: list[dict[str, str]] = []
@@ -200,16 +227,27 @@ def validate_composed_prompt(
     if not text.strip():
         add("empty", "Composed prompt is empty.")
         return findings
+    if len(text) > MAX_PROMPT_CHARS:
+        add("too_long", f"Composed prompt exceeds {MAX_PROMPT_CHARS} characters.")
+        text = text[:MAX_PROMPT_CHARS]
 
     lowered = text.lower()
-    if _URL_RE.search(text):
+    # R2: the model returned JSON or echoed its own instructions, not a prompt.
+    if text.lstrip()[:1] in ("{", "["):
+        add("looks_like_json", "Composed prompt looks like JSON, not prose.")
+    if any(term in lowered for term in _RULE_ECHO_TERMS):
+        add("rule_echo", "Composed prompt echoes the system instructions.")
+    if contains_url(text):
         add("url_present", "Composed prompt contains a literal URL.")
     if redact_secret_like_text(text) != text:
         add("secret_like", "Composed prompt contains secret-like text.")
+    named = [term for term in _MECHANICS_TERMS if _contains_word(lowered, term)]
+    if named:
+        add("mechanics_named", f"Prompt names overlay mechanics: {', '.join(named)}.")
     for term in _as_list(blocked_terms):
-        if term.lower() in lowered:
+        if _contains_word(lowered, term):
             add("blocked_term", f"Blocked term present: {term}.")
-    missing = [term for term in _as_list(required_terms) if term.lower() not in lowered]
+    missing = [term for term in _as_list(required_terms) if not _contains_word(lowered, term)]
     if missing:
         add("required_missing", f"Required terms missing: {', '.join(missing)}.")
     if not any(term in lowered for term in _RESERVED_SPACE_TERMS):
