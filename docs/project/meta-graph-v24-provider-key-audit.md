@@ -56,3 +56,68 @@ Complete this in a logged-in Meta Developer or Graph Explorer session:
 - If a newer Graph version changes semantics, create a separate v25 migration plan instead of changing the v24 runtime pin in-place.
 - If official docs require a scope change, route to Raj, Mira, Sofia, Andre, Maya, Leo, and Nina before implementation.
 
+## Verification Results (2026-06-25)
+
+Verified against the live SLB Page `106570709383133` ("Students' Loan Bureau") using the stored
+Page access token via a tenant-scoped diagnostic probe (no tokens printed; aggregate-only).
+
+Token state (from `debug_token`):
+
+- Type `PAGE`, `is_valid=true`, `profile_id=106570709383133`, non-expiring.
+- Scopes granted: `pages_show_list`, `pages_read_engagement`, `pages_manage_metadata`,
+  `pages_manage_ads`, `pages_messaging`, `ads_management`, `ads_read`, `business_management`,
+  `catalog_management`, `public_profile`.
+- **`read_insights` is NOT granted.**
+
+Provider-key validity:
+
+- Every registry Page and Post metric key resolved as **valid** in v24 — the `/insights` calls
+  return HTTP 200 with **no `error_code` 100/3001**, and `MetaMetricSupportStatus` marks all 21
+  probed metrics `supported=true`. The registry keys (`page_media_view`,
+  `page_total_media_view_unique`, `page_post_engagements`, `page_daily_follows_unique`,
+  `post_media_view`, `post_total_media_view_unique`, `post_clicks`,
+  `post_reactions_by_type_total`) are correct for v24. **No registry change is required.**
+
+Data result:
+
+- Page Insights: HTTP 200 with empty `data: []` for May 2026 **and** for a recent control window.
+- Post Insights: HTTP 200 with empty `data: []` for a stored May post.
+- `fan_count` / `followers_count` / `is_published` returned `null` (Page name resolved normally).
+- `normalize_insights_payload` correctly yields 0 points (no parse/store bug).
+
+Classification: **`valid_zero_rows` driven by the permission model.** Graph API v24 requires the
+`read_insights` permission for `/{page}/insights`, `/{post}/insights`, and Page stat fields such as
+`fan_count`. With only `pages_read_engagement`, Graph returns 200-with-empty-data (silently, not a
+permission error), so the pipeline correctly stores zero rows and keeps the report export-blocked.
+
+Decision (per the rules above): provider keys are valid → do **not** rewrite the registry; do **not**
+invent values; keep coverage blocked. Because `read_insights` is intentionally out of scope, real
+organic numbers can only enter the report via an operator upload of Meta-exported Page/Post values
+mapped into the existing aggregate tables. Required human verification before that build: confirm in
+a logged-in Meta Business Suite session whether this Page actually has May 2026 Page/Post insight
+values — if Meta UI shows none, the empty report is correct; if it shows values, decide between
+read_insights approval (App Review) or the export-upload fallback.
+
+## Resolution (2026-06-25): edge-sourced engagement (no read_insights)
+
+`/{object}/insights` is read_insights-gated, but the Graph object **edges** are not — they resolve
+with `pages_read_engagement` / `pages_show_list`, which the stored Page token already holds. Re-tested
+against the SLB Page:
+
+- `GET /{page}?fields=followers_count,fan_count` → `6023` (real; the earlier `null` was an artifact of
+  a combined multi-field request, not a permission block).
+- `GET /{post}?fields=shares,reactions.summary(true),comments.summary(true)` → real per-post reaction,
+  comment, and share counts.
+- Instagram: the SLB Page has **no** linked `instagram_business_account` / `connected_instagram_account`,
+  so there is no IG organic data to pull for this report.
+
+Implemented `backend/integrations/meta_page_insights/engagement_edges.py` and wired it into
+`slb_backfill_meta_reporting` (organic_facebook_posts dataset). It stores real follower counts under
+`page_follows` and per-post engagement under `post_reactions_total` / `post_comments_total` /
+`post_shares_total` in the existing aggregate tables — no `read_insights`, no Graph-version bump, no
+faked values (a measured `0` is kept; an unreadable metric is skipped), and no live calls during
+preview/export. Reach/impressions/clicks remain read_insights-gated and stay absent. After backfill the
+SLB report's organic Page/Post sections move from "metrics unavailable" to real follower + engagement
+values; the remaining export gate is comparison-history coverage (backfill prior months), not a
+permission or code defect.
+
