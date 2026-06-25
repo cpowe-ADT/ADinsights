@@ -369,6 +369,20 @@ def test_tag_create_and_filter_assets(auth_client, tenant):
     assert [r["id"] for r in rows] == [str(logo.id)]
 
 
+def test_add_tag_handles_slug_collision_across_scopes(auth_client, tenant):
+    workspace = _workspace(tenant)
+    logo = _logo_asset(tenant, workspace)
+    # The same slug exists both tenant-global (workspace NULL) and workspace-scoped.
+    MediaAssetTag.all_objects.create(tenant=tenant, workspace=None, label="Q3", slug="q3")
+    MediaAssetTag.all_objects.create(
+        tenant=tenant, workspace=workspace, label="Q3", slug="q3"
+    )
+    resp = auth_client.post(f"{BASE}/assets/{logo.id}/tags/", {"slug": "q3"}, format="json")
+    assert resp.status_code == status.HTTP_201_CREATED  # not a 500
+    assignment = MediaAssetTagAssignment.all_objects.get(asset=logo)
+    assert assignment.tag.workspace_id == workspace.id  # workspace-scoped preferred
+
+
 # --- Apply overlay to an existing asset (deterministic, no AI) ----------------
 
 

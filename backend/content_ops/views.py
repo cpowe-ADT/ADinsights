@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework import decorators, mixins, status, viewsets
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -922,9 +922,16 @@ class MediaAssetViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
         slug = str(request.data.get("slug") or "").strip()
         if not slug:
             raise ValidationError({"slug": "This field is required."})
-        tag = get_object_or_404(
-            MediaAssetTag.all_objects, tenant_id=self._tenant_id(), slug=slug
+        # A slug can exist both workspace-scoped and tenant-global (workspace
+        # NULL); prefer the asset's workspace, then the global one, so this never
+        # raises MultipleObjectsReturned.
+        tags = MediaAssetTag.all_objects.filter(tenant_id=self._tenant_id(), slug=slug)
+        tag = (
+            tags.filter(workspace_id=asset.workspace_id).first()
+            or tags.filter(workspace__isnull=True).first()
         )
+        if tag is None:
+            raise NotFound("No such tag for this asset's workspace.")
         MediaAssetTagAssignment.all_objects.get_or_create(
             tenant=self._tenant(), tag=tag, asset=asset
         )

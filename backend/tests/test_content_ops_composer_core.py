@@ -94,7 +94,7 @@ def test_resolve_defaults_is_idempotent(tenant):
 
 def test_build_payload_maps_and_redacts():
     resolved = {
-        "base_idea": "Launch deal contact api_key=ABCDEFGHIJKLMNOP1234567890",
+        "base_idea": "Launch deal contact api_key=ABCDEFGHIJKLMNOP1234567890",  # pragma: allowlist secret
         "post_type": "promo_offer",
         "format": "portrait_4x5",
         "tone": "urgent",
@@ -103,7 +103,7 @@ def test_build_payload_maps_and_redacts():
         "must_avoid": ["alcohol"],
     }
     payload = build_composer_payload(resolved, logo_corner="top_right")
-    assert "ABCDEFGHIJKLMNOP1234567890" not in payload["base_idea"]
+    assert "ABCDEFGHIJKLMNOP1234567890" not in payload["base_idea"]  # pragma: allowlist secret
     assert payload["aspect_ratio"] == "4:5"  # derived from format
     assert payload["logo_corner"] == "top_right"
     assert "tone: urgent" in payload["brand_style"]
