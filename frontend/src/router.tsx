@@ -69,6 +69,7 @@ const MetaPageOverviewPage = lazy(() => import('./routes/MetaPageOverviewPage'))
 const MetaPagePostsPage = lazy(() => import('./routes/MetaPagePostsPage'));
 const MetaPostDetailPage = lazy(() => import('./routes/MetaPostDetailPage'));
 const ParishMapDetail = lazy(() => import('./routes/ParishMapDetail'));
+const ReportLayoutPreview = lazy(() => import('./routes/ReportLayoutPreview'));
 const ProfilePage = lazy(() => import('./routes/ProfilePage'));
 const ReportCreatePage = lazy(() => import('./routes/ReportCreatePage'));
 const ReportDetailPage = lazy(() => import('./routes/ReportDetailPage'));
@@ -443,6 +444,10 @@ export const router = createBrowserRouter(
             {
               path: 'map',
               element: withRouteLoader(<ParishMapDetail />, 'Loading parish map…'),
+            },
+            {
+              path: 'report-preview',
+              element: withRouteLoader(<ReportLayoutPreview />, 'Loading report preview…'),
             },
             {
               path: 'uploads',

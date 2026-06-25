@@ -13,6 +13,25 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-06-25**
+  - Endpoint: `GET/POST /api/analytics/report-layouts/` (+ `GET/PATCH/PUT/DELETE
+.../{id}/`).
+  - Change: Added tenant/owner-scoped CRUD for saved report-builder layouts
+    (`SavedReportLayoutViewSet`, migration `0009_savedreportlayout`). Each row is
+    `{id, name, description, config, is_shared, created_at, updated_at}` where
+    `config` round-trips a `DashboardLayoutConfig` (the grid JSON the frontend
+    renders: `{id, title, cols, rowHeight, widgets:[{id,type,x,y,w,h,dataKey,options}]}`).
+    Querysets always filter to the request tenant; non-admins see their own
+    layouts plus `is_shared` ones; `perform_create` stamps tenant + owner from
+    the authenticated user (never from request body). Mirrors the existing
+    `GoogleAdsSavedView` surface.
+  - Impact: The report builder (`/dashboards/report-preview`) now persists
+    layouts per tenant/user via this API, with a localStorage fallback when
+    offline/unauthenticated. Fully additive — no existing endpoint or payload
+    changed. Aggregate-only: `config` stores widget placement and data-binding
+    keys, no per-user or PII data; no Meta Graph or dbt behavior touched.
+  - Owner: Raj (integration)
+
 - **2026-06-24**
   - Endpoint: `GET/POST /api/content-ops/brand-kits/` (+ `.../{id}/`, `.../{id}/set-default-logo/`,
     `.../{id}/clear-default-logo/`, `.../{id}/resolved-logo/`); `GET/POST /api/content-ops/footer-presets/`
@@ -21,7 +40,7 @@ Keep this brief and link to PRs or commits when available.
     `assets/` actions `POST .../{id}/apply-overlay/`, `.../{id}/attest-rights/`,
     `.../{id}/approve-reference/`, `.../{id}/revoke-reference/`, `POST .../{id}/tags/` and
     `DELETE .../{id}/tags/{slug}/`; `POST /api/content-ops/sections/preview/`. `POST
-    /api/content-ops/assets/upload/` now also accepts optional `kind`/`logo_variant`/`reference_role`/
+/api/content-ops/assets/upload/` now also accepts optional `kind`/`logo_variant`/`reference_role`/
     `reference_region`/`reference_locale`, and the MediaAsset payload gained `kind`, `logo_variant`,
     `reference_role`, `reference_weight`, `reference_descriptor`, `usage_rights_attested` (+`_by`/`_at`/
     `_note`), `content_hash`, `file_size_bytes`, and `deliverable_group_id`.

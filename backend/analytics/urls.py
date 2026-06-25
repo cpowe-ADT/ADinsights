@@ -35,6 +35,7 @@ from .google_ads_views import (
     GoogleAdsSearchTermsView,
     GoogleAdsWorkspaceSummaryView,
 )
+from .report_layout_views import SavedReportLayoutViewSet
 from .web_views import GA4WebInsightsView, SearchConsoleInsightsView
 
 router = ADinsightsDefaultRouter()
@@ -55,6 +56,11 @@ router.register(
     r"google-ads/account-assignments",
     GoogleAdsAccountAssignmentViewSet,
     basename="analytics-google-ads-account-assignment",
+)
+router.register(
+    r"report-layouts",
+    SavedReportLayoutViewSet,
+    basename="analytics-report-layout",
 )
 
 urlpatterns = [
