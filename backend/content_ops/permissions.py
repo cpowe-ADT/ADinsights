@@ -57,6 +57,18 @@ CONTENT_OPS_ADMIN_ROLES = {
     Role.ADMIN,
 }
 
+# Brand identity (logos, brand kits, footer presets, reference approval) is a
+# narrower surface than general content editing — the default edit roles reach
+# analyst level, which is too broad for assets that govern every graphic.
+CONTENT_OPS_BRAND_ADMIN_ROLES = {
+    Role.SUPER_ADMIN,
+    Role.SM_ADMIN,
+    Role.AGENCY_OWNER,
+    Role.AGENCY_ADMIN,
+    Role.AGENCY_TEAM_LEAD,
+    Role.ADMIN,
+}
+
 
 class ContentOpsPermission(permissions.BasePermission):
     """Tenant-authenticated read access with role-gated workflow writes."""

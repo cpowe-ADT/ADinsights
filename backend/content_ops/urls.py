@@ -9,6 +9,7 @@ from core.routers import ADinsightsDefaultRouter
 from .views import (
     ApprovalDecisionViewSet,
     ApprovalRequestViewSet,
+    BrandKitViewSet,
     ContentBriefViewSet,
     ContentDraftVersionViewSet,
     ContentDraftViewSet,
@@ -18,9 +19,13 @@ from .views import (
     ContentOpsReadinessView,
     ContentOpsReportOverviewView,
     ContentOpsReportPostsView,
+    ContentOpsSectionsPreviewView,
     ContentScheduleViewSet,
     ContentWorkspaceViewSet,
+    FooterPresetViewSet,
     GenerationJobViewSet,
+    MediaAssetCollectionViewSet,
+    MediaAssetTagViewSet,
     MediaAssetViewSet,
     OrganicPostMetricSnapshotViewSet,
     PublishedPostViewSet,
@@ -47,6 +52,16 @@ router.register(
     r"generation-jobs", GenerationJobViewSet, basename="content-generation-job"
 )
 router.register(r"assets", MediaAssetViewSet, basename="content-asset")
+router.register(
+    r"asset-collections",
+    MediaAssetCollectionViewSet,
+    basename="content-asset-collection",
+)
+router.register(r"asset-tags", MediaAssetTagViewSet, basename="content-asset-tag")
+router.register(r"brand-kits", BrandKitViewSet, basename="content-brand-kit")
+router.register(
+    r"footer-presets", FooterPresetViewSet, basename="content-footer-preset"
+)
 router.register(r"exports", ContentExportArtifactViewSet, basename="content-export")
 router.register(r"drafts", ContentDraftViewSet, basename="content-draft")
 router.register(
@@ -96,6 +111,11 @@ urlpatterns = [
         "exports/content-plan/",
         ContentOpsContentPlanExportView.as_view(),
         name="content-ops-content-plan-export",
+    ),
+    path(
+        "sections/preview/",
+        ContentOpsSectionsPreviewView.as_view(),
+        name="content-ops-sections-preview",
     ),
     path(
         "public-media/<uuid:asset_id>/",

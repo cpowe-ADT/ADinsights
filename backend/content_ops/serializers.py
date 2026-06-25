@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
+from django.utils.text import slugify
 from rest_framework import serializers
 
 from integrations.models import Client, PlatformCredential
@@ -20,14 +22,19 @@ from .image_generation import MAX_IMAGE_COUNT
 from .models import (
     ApprovalDecision,
     ApprovalRequest,
+    BrandKit,
     ContentBrief,
     ContentDraft,
     ContentDraftVersion,
     ContentExportArtifact,
     ContentSchedule,
     ContentWorkspace,
+    FooterPreset,
     GenerationJob,
     MediaAsset,
+    MediaAssetCollection,
+    MediaAssetCollectionItem,
+    MediaAssetTag,
     OrganicPostMetricSnapshot,
     PublishedPost,
     PublishingIdentity,
@@ -416,14 +423,40 @@ class MediaAssetSerializer(TenantScopedContentSerializerMixin, serializers.Model
             "alt_text",
             "renditions",
             "status",
+            "kind",
+            "logo_variant",
+            "reference_role",
+            "reference_weight",
+            "reference_descriptor",
             "is_approved_reference",
             "reference_region",
             "reference_locale",
+            "usage_rights_attested",
+            "usage_rights_attested_by",
+            "usage_rights_attested_at",
+            "usage_rights_note",
+            "content_hash",
+            "file_size_bytes",
+            "deliverable_group_id",
             "download_url",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "status", "download_url", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "status",
+            "reference_descriptor",
+            "usage_rights_attested",
+            "usage_rights_attested_by",
+            "usage_rights_attested_at",
+            "usage_rights_note",
+            "content_hash",
+            "file_size_bytes",
+            "deliverable_group_id",
+            "download_url",
+            "created_at",
+            "updated_at",
+        ]
 
     def get_download_url(self, obj: MediaAsset) -> str | None:
         if obj.status != MediaAsset.STATUS_AVAILABLE:
@@ -438,6 +471,197 @@ class MediaAssetSerializer(TenantScopedContentSerializerMixin, serializers.Model
         for field_name in self.server_owned_fields:
             validated_data.pop(field_name, None)
         return super().update(instance, validated_data)
+
+
+_HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+
+def _validate_optional_hex(value: str) -> str:
+    if value and not _HEX_COLOR_RE.match(value):
+        raise serializers.ValidationError("Enter a hex color like #1A2B3C.")
+    return value
+
+
+class FooterPresetSerializer(
+    TenantScopedContentSerializerMixin, serializers.ModelSerializer
+):
+    workspace = serializers.PrimaryKeyRelatedField(
+        queryset=ContentWorkspace.all_objects.all()
+    )
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    tenant_related_fields = ("workspace",)
+
+    class Meta:
+        model = FooterPreset
+        fields = [
+            "id",
+            "workspace",
+            "name",
+            "website",
+            "contact",
+            "handles",
+            "tagline",
+            "background_hex",
+            "text_hex",
+            "band_position",
+            "band_height_pct",
+            "separator",
+            "field_priority",
+            "uppercase_primary",
+            "locale",
+            "is_active",
+            "created_by",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+
+    def validate_background_hex(self, value: str) -> str:
+        return _validate_optional_hex(value)
+
+    def validate_text_hex(self, value: str) -> str:
+        return _validate_optional_hex(value)
+
+    def validate_band_height_pct(self, value):
+        if value is not None and not (0 < value <= 1):
+            raise serializers.ValidationError(
+                "Band height must be a fraction between 0 and 1."
+            )
+        return value
+
+
+class BrandKitSerializer(
+    TenantScopedContentSerializerMixin, serializers.ModelSerializer
+):
+    workspace = serializers.PrimaryKeyRelatedField(
+        queryset=ContentWorkspace.all_objects.all()
+    )
+    client_id = serializers.PrimaryKeyRelatedField(
+        source="client",
+        queryset=Client.all_objects.all(),
+        allow_null=True,
+        required=False,
+    )
+    default_logo = serializers.PrimaryKeyRelatedField(
+        queryset=MediaAsset.all_objects.all(), allow_null=True, required=False
+    )
+    logo_light = serializers.PrimaryKeyRelatedField(
+        queryset=MediaAsset.all_objects.all(), allow_null=True, required=False
+    )
+    logo_dark = serializers.PrimaryKeyRelatedField(
+        queryset=MediaAsset.all_objects.all(), allow_null=True, required=False
+    )
+    default_footer_preset = serializers.PrimaryKeyRelatedField(
+        queryset=FooterPreset.all_objects.all(), allow_null=True, required=False
+    )
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    tenant_related_fields = (
+        "workspace",
+        "client",
+        "default_logo",
+        "logo_light",
+        "logo_dark",
+        "default_footer_preset",
+    )
+
+    class Meta:
+        model = BrandKit
+        fields = [
+            "id",
+            "workspace",
+            "client_id",
+            "name",
+            "scope",
+            "post_type",
+            "standing_instructions",
+            "visual_config",
+            "required_terms",
+            "blocked_terms",
+            "default_logo",
+            "logo_light",
+            "logo_dark",
+            "logo_placement",
+            "default_footer_preset",
+            "is_active",
+            "created_by",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
+        for field_name in ("default_logo", "logo_light", "logo_dark"):
+            asset = attrs.get(field_name)
+            if asset is not None and asset.kind != MediaAsset.KIND_LOGO:
+                raise serializers.ValidationError(
+                    {field_name: "Asset must be a logo (kind='logo')."}
+                )
+        return attrs
+
+
+class MediaAssetCollectionSerializer(
+    TenantScopedContentSerializerMixin, serializers.ModelSerializer
+):
+    workspace = serializers.PrimaryKeyRelatedField(
+        queryset=ContentWorkspace.all_objects.all()
+    )
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    item_count = serializers.SerializerMethodField()
+
+    tenant_related_fields = ("workspace",)
+
+    class Meta:
+        model = MediaAssetCollection
+        fields = [
+            "id",
+            "workspace",
+            "name",
+            "purpose",
+            "description",
+            "region",
+            "locale",
+            "item_count",
+            "created_by",
+            "archived_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+
+    def get_item_count(self, obj: MediaAssetCollection) -> int:
+        return MediaAssetCollectionItem.all_objects.filter(collection=obj).count()
+
+
+class MediaAssetTagSerializer(
+    TenantScopedContentSerializerMixin, serializers.ModelSerializer
+):
+    workspace = serializers.PrimaryKeyRelatedField(
+        queryset=ContentWorkspace.all_objects.all(),
+        allow_null=True,
+        required=False,
+    )
+    slug = serializers.SlugField(required=False, allow_blank=True, max_length=64)
+
+    tenant_related_fields = ("workspace",)
+
+    class Meta:
+        model = MediaAssetTag
+        fields = ["id", "workspace", "label", "slug", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
+        if not attrs.get("slug"):
+            label = attrs.get("label") or getattr(self.instance, "label", "")
+            attrs["slug"] = slugify(label)[:64]
+        if not attrs.get("slug"):
+            raise serializers.ValidationError(
+                {"slug": "Provide a slug or a label that yields one."}
+            )
+        return attrs
 
 
 class ContentDraftVersionSerializer(
