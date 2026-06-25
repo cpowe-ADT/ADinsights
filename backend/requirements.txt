@@ -10,7 +10,7 @@ sentry-sdk==2.54.0
 croniter==6.2.2
 cryptography==46.0.6
 boto3==1.42.60
-prometheus-client==0.20.0
+prometheus-client==0.25.0
 jsonschema==4.26.0
 inflection==0.5.1
 uritemplate==4.2.0
