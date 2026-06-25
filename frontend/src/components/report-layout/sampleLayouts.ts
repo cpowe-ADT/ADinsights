@@ -73,3 +73,38 @@ export const slbSampleLayout: DashboardLayoutConfig = {
     },
   ],
 };
+
+/**
+ * Live-bound layout: widgets carry `dataKey`s instead of inline data, so the
+ * page binds them to the real dashboard store (campaign summary + parish rows)
+ * via {@link createStoreResolver}. Same schema, real data.
+ */
+export const liveDashboardLayout: DashboardLayoutConfig = {
+  id: 'live-dashboard',
+  title: 'Live dashboard',
+  cols: 12,
+  rowHeight: 64,
+  widgets: [
+    { id: 'spend', type: 'kpi', title: 'Spend', x: 1, y: 1, w: 3, h: 2, dataKey: 'summary.totalSpend', options: { format: 'currency', currency: 'JMD' } },
+    { id: 'clicks', type: 'kpi', title: 'Clicks', x: 4, y: 1, w: 3, h: 2, dataKey: 'summary.totalClicks', options: { format: 'number' } },
+    { id: 'conversions', type: 'kpi', title: 'Conversions', x: 7, y: 1, w: 3, h: 2, dataKey: 'summary.totalConversions', options: { format: 'number' } },
+    { id: 'roas', type: 'kpi', title: 'ROAS', x: 10, y: 1, w: 3, h: 2, dataKey: 'summary.averageRoas', options: { format: 'rate' } },
+    { id: 'parish-spend', type: 'bar', title: 'Spend by parish', x: 1, y: 3, w: 7, h: 4, dataKey: 'parish.spend', options: { currency: 'JMD', height: 220 } },
+    { id: 'parish-clicks', type: 'pie', title: 'Clicks by parish', x: 8, y: 3, w: 5, h: 4, dataKey: 'parish.clicks', options: { height: 220 } },
+    {
+      id: 'parish-table',
+      type: 'table',
+      title: 'Parish metrics',
+      x: 1, y: 7, w: 12, h: 4,
+      dataKey: 'parish.rows',
+      options: {
+        columns: [
+          { key: 'parish', header: 'Parish' },
+          { key: 'spend', header: 'Spend', align: 'right' },
+          { key: 'clicks', header: 'Clicks', align: 'right' },
+          { key: 'roas', header: 'ROAS', align: 'right' },
+        ],
+      },
+    },
+  ],
+};

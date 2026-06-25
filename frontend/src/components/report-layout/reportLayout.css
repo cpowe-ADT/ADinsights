@@ -172,3 +172,96 @@
   outline: 2px solid var(--color-accent, #0b756f);
   outline-offset: 1px;
 }
+
+.report-grid__cell--editable.is-selected {
+  outline: 2px solid var(--color-accent, #0b756f);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px rgba(11, 117, 111, 0.12);
+}
+
+.report-editor__settings {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+  border-radius: 0.25rem;
+}
+
+.report-editor__settings:hover {
+  color: var(--color-text-primary, #111827);
+  background: rgba(15, 23, 42, 0.06);
+}
+
+/* ---- Widget config panel ---- */
+.report-config {
+  margin-bottom: var(--space-4, 1rem);
+  padding: 0.75rem 1rem 1rem;
+  background: var(--color-surface-card, #ffffff);
+  border: 1px solid var(--color-border-subtle, #e5e7eb);
+  border-radius: var(--radius-md, 0.75rem);
+  box-shadow: var(--shadow-subtle, 0 1px 2px rgba(15, 23, 42, 0.04));
+}
+
+.report-config__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.report-config__title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, #111827);
+}
+
+.report-config__close {
+  border: none;
+  background: transparent;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-text-muted, #6b7280);
+  padding: 0 0.3rem;
+}
+
+.report-config__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.report-config__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.report-config__field--wide {
+  grid-column: 1 / -1;
+}
+
+.report-config__field input,
+.report-config__field select,
+.report-config__field textarea {
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--color-border-subtle, #e5e7eb);
+  border-radius: var(--radius-sm, 0.4rem);
+  background: var(--color-surface-card, #ffffff);
+  color: var(--color-text-primary, #111827);
+  font-family: inherit;
+}
+
+.report-config__field input:focus-visible,
+.report-config__field select:focus-visible,
+.report-config__field textarea:focus-visible {
+  outline: var(--focus-outline, 2px solid #0b756f);
+  outline-offset: 1px;
+}

@@ -54,4 +54,16 @@ describe('LayoutEditor', () => {
     render(<LayoutEditor layout={baseLayout} onChange={() => {}} />);
     expect(screen.queryByText('Save layout')).toBeNull();
   });
+
+  it('selects a widget and edits it via the config panel', () => {
+    const onChange = vi.fn();
+    render(<LayoutEditor layout={baseLayout} onChange={onChange} />);
+    // No panel until a widget is selected.
+    expect(screen.queryByText('Widget settings')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Configure Alpha' }));
+    expect(screen.getByText('Widget settings')).toBeInTheDocument();
+    fireEvent.change(screen.getByDisplayValue('Alpha'), { target: { value: 'Renamed' } });
+    const next = onChange.mock.calls.at(-1)?.[0] as DashboardLayoutConfig;
+    expect(next.widgets[0].title).toBe('Renamed');
+  });
 });

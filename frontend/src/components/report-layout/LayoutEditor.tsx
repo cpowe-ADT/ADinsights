@@ -7,6 +7,7 @@ import {
 } from 'react';
 
 import WidgetRenderer from './WidgetRenderer';
+import WidgetConfigPanel from './WidgetConfigPanel';
 import { clampMove, clampResize, columnPixels, nextFreeRow, pxToUnits } from './gridMath';
 import {
   DEFAULT_GRID_COLS,
@@ -87,6 +88,8 @@ export interface LayoutEditorProps {
   layout: DashboardLayoutConfig;
   onChange: (layout: DashboardLayoutConfig) => void;
   onSave?: (layout: DashboardLayoutConfig) => void;
+  /** Optional live-data binding so widgets show real values while editing. */
+  resolveData?: (widget: DashboardWidget) => unknown;
 }
 
 /**
@@ -95,7 +98,7 @@ export interface LayoutEditorProps {
  * the ×, and save. It only mutates the config — the same config {@link GridCanvas}
  * renders read-only — so the view and editor never drift.
  */
-const LayoutEditor = ({ layout, onChange, onSave }: LayoutEditorProps) => {
+const LayoutEditor = ({ layout, onChange, onSave, resolveData }: LayoutEditorProps) => {
   const cols = layout.cols || DEFAULT_GRID_COLS;
   const rowHeight = layout.rowHeight || DEFAULT_ROW_HEIGHT;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -104,6 +107,17 @@ const LayoutEditor = ({ layout, onChange, onSave }: LayoutEditorProps) => {
   const latest = useRef({ layout, onChange, cols });
   latest.current = { layout, onChange, cols };
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const updateWidget = useCallback(
+    (id: string, patch: Partial<DashboardWidget>) => {
+      onChange({
+        ...layout,
+        widgets: layout.widgets.map((w) => (w.id === id ? { ...w, ...patch } : w)),
+      });
+    },
+    [layout, onChange],
+  );
 
   const applyDrag = useCallback((clientX: number, clientY: number) => {
     const drag = dragRef.current;
@@ -176,10 +190,13 @@ const LayoutEditor = ({ layout, onChange, onSave }: LayoutEditorProps) => {
 
   const removeWidget = useCallback(
     (id: string) => {
+      setSelectedId((cur) => (cur === id ? null : cur));
       onChange({ ...layout, widgets: layout.widgets.filter((w) => w.id !== id) });
     },
     [layout, onChange],
   );
+
+  const selectedWidget = layout.widgets.find((w) => w.id === selectedId) ?? null;
 
   return (
     <div className="report-editor">
@@ -207,6 +224,14 @@ const LayoutEditor = ({ layout, onChange, onSave }: LayoutEditorProps) => {
         ) : null}
       </div>
 
+      {selectedWidget ? (
+        <WidgetConfigPanel
+          widget={selectedWidget}
+          onChange={(patch) => updateWidget(selectedWidget.id, patch)}
+          onClose={() => setSelectedId(null)}
+        />
+      ) : null}
+
       <section
         ref={containerRef}
         className="report-grid report-grid--editing"
@@ -223,6 +248,7 @@ const LayoutEditor = ({ layout, onChange, onSave }: LayoutEditorProps) => {
               'report-grid__cell',
               'report-grid__cell--editable',
               activeId === widget.id ? 'is-active' : '',
+              selectedId === widget.id ? 'is-selected' : '',
             ]
               .filter(Boolean)
               .join(' ')}
@@ -244,7 +270,17 @@ const LayoutEditor = ({ layout, onChange, onSave }: LayoutEditorProps) => {
               <span className="report-editor__drag-title">{widget.title ?? widget.type}</span>
               <button
                 type="button"
+                className="report-editor__settings"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => setSelectedId(widget.id)}
+                aria-label={`Configure ${widget.title ?? widget.type}`}
+              >
+                ⚙
+              </button>
+              <button
+                type="button"
                 className="report-editor__remove"
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => removeWidget(widget.id)}
                 aria-label={`Remove ${widget.title ?? widget.type}`}
               >
@@ -252,7 +288,7 @@ const LayoutEditor = ({ layout, onChange, onSave }: LayoutEditorProps) => {
               </button>
             </header>
             <div className="report-grid__body report-editor__body">
-              <WidgetRenderer widget={widget} />
+              <WidgetRenderer widget={widget} data={resolveData?.(widget)} />
             </div>
             <span
               className="report-editor__resize"

@@ -9,8 +9,12 @@ export { default as WidgetRenderer } from './WidgetRenderer';
 export type { WidgetRendererProps } from './WidgetRenderer';
 export { default as LayoutEditor } from './LayoutEditor';
 export type { LayoutEditorProps } from './LayoutEditor';
+export { default as WidgetConfigPanel } from './WidgetConfigPanel';
+export type { WidgetConfigPanelProps } from './WidgetConfigPanel';
 export { saveLayout, loadLayout, clearLayout } from './layoutStorage';
-export { slbSampleLayout } from './sampleLayouts';
+export { slbSampleLayout, liveDashboardLayout } from './sampleLayouts';
+export { resolveStoreData, createStoreResolver } from './dataResolvers';
+export type { ResolverData } from './dataResolvers';
 export {
   DEFAULT_GRID_COLS,
   DEFAULT_ROW_HEIGHT,
