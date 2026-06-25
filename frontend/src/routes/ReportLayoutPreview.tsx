@@ -11,10 +11,7 @@ import {
   saveLayout,
   type DashboardLayoutConfig,
 } from '../components/report-layout';
-import {
-  listSavedLayouts,
-  saveLayoutToApi,
-} from '../components/report-layout/savedReportLayouts';
+import { listSavedLayouts, saveLayoutToApi } from '../components/report-layout/savedReportLayouts';
 
 import '../styles/dashboard.css';
 
@@ -56,8 +53,7 @@ const ReportLayoutPreview = () => {
     listSavedLayouts({ signal: controller.signal })
       .then((rows) => {
         if (!active || rows.length === 0) return;
-        const match =
-          rows.find((row) => row.config?.id === liveDashboardLayout.id) ?? rows[0];
+        const match = rows.find((row) => row.config?.id === liveDashboardLayout.id) ?? rows[0];
         if (match?.config) {
           remoteId.current = match.id;
           setLayout(match.config);

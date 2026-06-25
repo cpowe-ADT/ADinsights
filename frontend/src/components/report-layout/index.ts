@@ -24,11 +24,7 @@ export type { SavedReportLayout, SavedReportLayoutInput } from './savedReportLay
 export { slbSampleLayout, liveDashboardLayout } from './sampleLayouts';
 export { resolveStoreData, createStoreResolver } from './dataResolvers';
 export type { ResolverData } from './dataResolvers';
-export {
-  DEFAULT_GRID_COLS,
-  DEFAULT_ROW_HEIGHT,
-  isDashboardLayoutConfig,
-} from './layoutSchema';
+export { DEFAULT_GRID_COLS, DEFAULT_ROW_HEIGHT, isDashboardLayoutConfig } from './layoutSchema';
 export type {
   DashboardLayoutConfig,
   DashboardWidget,

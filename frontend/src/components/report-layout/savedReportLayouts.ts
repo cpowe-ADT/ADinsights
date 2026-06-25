@@ -38,13 +38,13 @@ interface Paginated<T> {
   results: T[];
 }
 
-const unwrapList = <T,>(payload: T[] | Paginated<T>): T[] =>
+const unwrapList = <T>(payload: T[] | Paginated<T>): T[] =>
   Array.isArray(payload) ? payload : (payload?.results ?? []);
 
 /** List layouts visible to the current user (own + shared, newest first). */
-export const listSavedLayouts = async (
-  options?: { signal?: AbortSignal },
-): Promise<SavedReportLayout[]> => {
+export const listSavedLayouts = async (options?: {
+  signal?: AbortSignal;
+}): Promise<SavedReportLayout[]> => {
   const payload = await get<SavedReportLayout[] | Paginated<SavedReportLayout>>(BASE, options);
   return unwrapList(payload);
 };
@@ -57,9 +57,8 @@ export const getSavedLayout = (
   get<SavedReportLayout>(`${BASE}${encodeURIComponent(id)}/`, options);
 
 /** Create a new saved layout. The server stamps tenant + owner. */
-export const createSavedLayout = (
-  input: SavedReportLayoutInput,
-): Promise<SavedReportLayout> => post<SavedReportLayout>(BASE, input);
+export const createSavedLayout = (input: SavedReportLayoutInput): Promise<SavedReportLayout> =>
+  post<SavedReportLayout>(BASE, input);
 
 /** Patch an existing layout (partial update). */
 export const updateSavedLayout = (
