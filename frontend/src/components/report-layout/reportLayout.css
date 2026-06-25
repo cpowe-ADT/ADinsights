@@ -52,3 +52,123 @@
     grid-row: auto !important;
   }
 }
+
+/* ---- Drag-and-drop editor ---- */
+.report-editor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: var(--space-4, 1rem);
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface-muted, #f3f4f6);
+  border: 1px solid var(--color-border-subtle, #e5e7eb);
+  border-radius: var(--radius-md, 0.75rem);
+}
+
+.report-editor__group-label {
+  font-size: 0.78rem;
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-muted, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.report-editor__add,
+.report-editor__save {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-pill, 9999px);
+  border: 1px solid var(--color-border-subtle, #e5e7eb);
+  background: var(--color-surface-card, #ffffff);
+  color: var(--color-text-primary, #111827);
+  cursor: pointer;
+}
+
+.report-editor__add:hover,
+.report-editor__save:hover {
+  background: var(--color-surface-muted, #f3f4f6);
+}
+
+.report-editor__save {
+  margin-left: auto;
+  background: var(--color-accent, #0b756f);
+  color: #ffffff;
+  border-color: transparent;
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.report-grid__cell--editable {
+  padding: 0;
+  position: relative;
+}
+
+.report-editor__drag {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  background: var(--color-surface-muted, #f3f4f6);
+  border-bottom: 1px solid var(--color-border-subtle, #e5e7eb);
+}
+
+.report-editor__drag:active {
+  cursor: grabbing;
+}
+
+.report-editor__drag-grip {
+  color: var(--color-text-muted, #9ca3af);
+}
+
+.report-editor__drag-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, #111827);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report-editor__remove {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.3rem;
+  border-radius: 0.25rem;
+}
+
+.report-editor__remove:hover {
+  color: var(--color-danger, #dc2626);
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.report-editor__body {
+  padding: 0.6rem 0.75rem;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.report-editor__resize {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+  background: linear-gradient(135deg, transparent 45%, var(--color-text-muted, #9ca3af) 45%);
+  border-bottom-right-radius: var(--radius-md, 0.75rem);
+}
+
+.report-grid__cell--editable.is-active {
+  outline: 2px solid var(--color-accent, #0b756f);
+  outline-offset: 1px;
+}

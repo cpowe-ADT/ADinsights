@@ -7,6 +7,9 @@ export { default as GridCanvas } from './GridCanvas';
 export type { GridCanvasProps } from './GridCanvas';
 export { default as WidgetRenderer } from './WidgetRenderer';
 export type { WidgetRendererProps } from './WidgetRenderer';
+export { default as LayoutEditor } from './LayoutEditor';
+export type { LayoutEditorProps } from './LayoutEditor';
+export { saveLayout, loadLayout, clearLayout } from './layoutStorage';
 export { slbSampleLayout } from './sampleLayouts';
 export {
   DEFAULT_GRID_COLS,
