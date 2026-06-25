@@ -22,7 +22,9 @@ from content_ops.models import (
 )
 from content_ops.tasks import refresh_content_published_post_metrics
 from integrations.models import AirbyteConnection, MetaPage, MetaPost, PlatformCredential
+from integrations.meta_page_insights.engagement_edges import ingest_engagement_edges
 from integrations.tasks import (
+    _candidate_page_tokens,
     sync_meta_reporting_slice,
     sync_page_insights,
     sync_page_posts,
@@ -364,11 +366,27 @@ def _backfill_organic_facebook_posts(
                 },
             )
         )
+    # Edge-sourced engagement (reactions/comments/shares + page followers) via
+    # pages_read_engagement — no read_insights, no faked values. Runs after post
+    # discovery so MetaPost rows exist for the window. Best-effort: never fail
+    # the backfill on an enrichment error.
+    engagement_edges: dict[str, Any] = {}
+    for page in pages:
+        try:
+            engagement_edges[page.page_id] = ingest_engagement_edges(
+                page=page,
+                tokens=_candidate_page_tokens(page),
+                since=start_date,
+                until=end_date,
+            )
+        except Exception as exc:  # noqa: BLE001 - best-effort enrichment
+            engagement_edges[page.page_id] = {"error": type(exc).__name__}
     return {
         "status": _status_from_tasks(tasks),
         "source_path": "meta_post_insights",
         "page_count": len(pages),
         "tasks": tasks,
+        "engagement_edges": engagement_edges,
     }
 
 
