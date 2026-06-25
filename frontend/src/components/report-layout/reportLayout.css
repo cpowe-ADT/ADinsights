@@ -1,0 +1,54 @@
+.report-grid {
+  display: grid;
+  gap: var(--space-4, 1rem);
+  width: 100%;
+  align-items: stretch;
+}
+
+.report-grid__cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--color-surface-card, #ffffff);
+  border: 1px solid var(--color-border-subtle, #e5e7eb);
+  border-radius: var(--radius-md, 0.75rem);
+  box-shadow: var(--shadow-subtle, 0 1px 2px rgba(15, 23, 42, 0.04));
+  padding: var(--space-4, 1rem);
+  overflow: hidden;
+}
+
+.report-grid__title {
+  margin: 0 0 0.5rem;
+  font-size: var(--font-size-h3, 0.95rem);
+  line-height: 1.25;
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, #111827);
+}
+
+.report-grid__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.report-grid__note {
+  margin: 0;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.85rem;
+}
+
+/* Flatten to a single column on small screens — placement is ignored. */
+@media (max-width: 767px) {
+  .report-grid {
+    grid-template-columns: 1fr !important;
+    grid-auto-rows: auto !important;
+  }
+
+  .report-grid__cell {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+  }
+}
