@@ -1,13 +1,7 @@
 import type { ReactElement } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 
-import {
-  DistributionBar,
-  GaugeRing,
-  KpiTile,
-  PieComposition,
-  VizDataTable,
-} from '../viz';
+import { DistributionBar, GaugeRing, KpiTile, PieComposition, VizDataTable } from '../viz';
 import type { DashboardWidget } from './layoutSchema';
 
 export interface WidgetRendererProps {

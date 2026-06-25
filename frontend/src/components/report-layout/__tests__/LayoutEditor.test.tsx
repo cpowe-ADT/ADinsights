@@ -10,7 +10,17 @@ const baseLayout: DashboardLayoutConfig = {
   cols: 12,
   rowHeight: 64,
   widgets: [
-    { id: 'a', type: 'kpi', title: 'Alpha', x: 1, y: 1, w: 3, h: 2, data: 1, options: { format: 'number' } },
+    {
+      id: 'a',
+      type: 'kpi',
+      title: 'Alpha',
+      x: 1,
+      y: 1,
+      w: 3,
+      h: 2,
+      data: 1,
+      options: { format: 'number' },
+    },
   ],
 };
 

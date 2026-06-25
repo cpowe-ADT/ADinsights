@@ -58,10 +58,7 @@ describe('clampResize', () => {
 describe('nextFreeRow', () => {
   it('returns the first row below every widget', () => {
     expect(
-      nextFreeRow([
-        widget({ x: 1, y: 1, w: 3, h: 2 }),
-        widget({ x: 1, y: 3, w: 4, h: 4 }),
-      ]),
+      nextFreeRow([widget({ x: 1, y: 1, w: 3, h: 2 }), widget({ x: 1, y: 3, w: 4, h: 4 })]),
     ).toBe(7);
     expect(nextFreeRow([])).toBe(1);
   });

@@ -17,9 +17,13 @@ describe('GridCanvas', () => {
     render(<GridCanvas layout={slbSampleLayout} />);
     // KPI self-titles via its label; the cell does NOT repeat it.
     expect(screen.getByText('Followers')).toBeInTheDocument();
-    expect(document.querySelector('[data-widget-id="kpi-followers"] .report-grid__title')).toBeNull();
+    expect(
+      document.querySelector('[data-widget-id="kpi-followers"] .report-grid__title'),
+    ).toBeNull();
     // A bar chart is title-less, so the cell heading supplies the title.
-    const barHeading = document.querySelector('[data-widget-id="bar-top-posts"] .report-grid__title');
+    const barHeading = document.querySelector(
+      '[data-widget-id="bar-top-posts"] .report-grid__title',
+    );
     expect(barHeading?.textContent).toBe('Top posts by reactions');
   });
 
@@ -37,7 +41,17 @@ describe('GridCanvas', () => {
       cols: 12,
       rowHeight: 64,
       widgets: [
-        { id: 'k', type: 'kpi', title: 'Count', x: 1, y: 1, w: 3, h: 2, data: 1, options: { format: 'number' } },
+        {
+          id: 'k',
+          type: 'kpi',
+          title: 'Count',
+          x: 1,
+          y: 1,
+          w: 3,
+          h: 2,
+          data: 1,
+          options: { format: 'number' },
+        },
       ],
     };
     render(<GridCanvas layout={layout} resolveData={() => 999} />);
@@ -47,11 +61,7 @@ describe('GridCanvas', () => {
 
 describe('WidgetRenderer', () => {
   it('degrades gracefully for an unknown widget type', () => {
-    render(
-      <WidgetRenderer
-        widget={{ id: 'x', type: 'bogus' as never, x: 1, y: 1, w: 1, h: 1 }}
-      />,
-    );
+    render(<WidgetRenderer widget={{ id: 'x', type: 'bogus' as never, x: 1, y: 1, w: 1, h: 1 }} />);
     expect(screen.getByText(/unsupported widget type/i)).toBeInTheDocument();
   });
 });

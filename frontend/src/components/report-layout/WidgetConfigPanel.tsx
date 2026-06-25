@@ -17,8 +17,7 @@ export interface WidgetConfigPanelProps {
  */
 const WidgetConfigPanel = ({ widget, onChange, onClose }: WidgetConfigPanelProps) => {
   const opts = widget.options ?? {};
-  const setOption = (patch: Partial<WidgetOptions>) =>
-    onChange({ options: { ...opts, ...patch } });
+  const setOption = (patch: Partial<WidgetOptions>) => onChange({ options: { ...opts, ...patch } });
 
   return (
     <aside className="report-config" aria-label={`Configure ${widget.title ?? widget.type}`}>
