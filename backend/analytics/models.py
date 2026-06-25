@@ -647,3 +647,53 @@ class DailyFxRate(models.Model):
             f"DailyFxRate<{self.rate_date.isoformat()} "
             f"{self.base_currency}→{self.quote_currency}={self.rate}>"
         )
+
+
+class SavedReportLayout(models.Model):
+    """Tenant-scoped saved layouts for the config-driven report builder.
+
+    ``config`` holds a ``DashboardLayoutConfig`` (the same JSON the frontend grid
+    renders): ``{id, title, cols, rowHeight, widgets:[{id,type,x,y,w,h,...}]}``.
+    Layouts are owner-scoped unless ``is_shared`` is set, mirroring
+    :class:`GoogleAdsSavedView`. Aggregate-only — only widget placement and
+    data-binding keys live here, never per-user or PII data.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="saved_report_layouts"
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    config = models.JSONField(default=dict, blank=True)
+    is_shared = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_saved_report_layouts",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_saved_report_layouts",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("-updated_at", "name")
+        indexes = [
+            models.Index(
+                fields=["tenant", "is_shared"], name="report_layout_tenant_shared"
+            ),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"SavedReportLayout<{self.name}>"

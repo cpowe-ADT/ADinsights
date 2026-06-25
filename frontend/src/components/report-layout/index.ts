@@ -12,6 +12,15 @@ export type { LayoutEditorProps } from './LayoutEditor';
 export { default as WidgetConfigPanel } from './WidgetConfigPanel';
 export type { WidgetConfigPanelProps } from './WidgetConfigPanel';
 export { saveLayout, loadLayout, clearLayout } from './layoutStorage';
+export {
+  listSavedLayouts,
+  getSavedLayout,
+  createSavedLayout,
+  updateSavedLayout,
+  deleteSavedLayout,
+  saveLayoutToApi,
+} from './savedReportLayouts';
+export type { SavedReportLayout, SavedReportLayoutInput } from './savedReportLayouts';
 export { slbSampleLayout, liveDashboardLayout } from './sampleLayouts';
 export { resolveStoreData, createStoreResolver } from './dataResolvers';
 export type { ResolverData } from './dataResolvers';

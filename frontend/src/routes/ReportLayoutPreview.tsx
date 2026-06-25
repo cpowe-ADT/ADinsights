@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useAuth } from '../auth/AuthContext';
 import useDashboardStore from '../state/useDashboardStore';
@@ -11,6 +11,10 @@ import {
   saveLayout,
   type DashboardLayoutConfig,
 } from '../components/report-layout';
+import {
+  listSavedLayouts,
+  saveLayoutToApi,
+} from '../components/report-layout/savedReportLayouts';
 
 import '../styles/dashboard.css';
 
@@ -19,8 +23,11 @@ import '../styles/dashboard.css';
  * drag-and-drop editor. Widgets carry `dataKey`s ("summary.totalSpend",
  * "parish.spend", …); `createStoreResolver` maps them to the real campaign +
  * parish metrics the store loads. The editor mutates the same config the canvas
- * renders, so view and editor never drift. Layouts persist to localStorage today
- * (tenant/user backend store is the planned follow-up).
+ * renders, so view and editor never drift.
+ *
+ * Persistence is tenant/user-scoped via the saved-layouts API
+ * (`SavedReportLayoutViewSet`), with a localStorage fallback when the user is
+ * offline or unauthenticated so editing never blocks on the network.
  */
 const ReportLayoutPreview = () => {
   const { tenantId } = useAuth();
@@ -33,10 +40,37 @@ const ReportLayoutPreview = () => {
     () => loadLayout(liveDashboardLayout.id) ?? liveDashboardLayout,
   );
   const [savedNote, setSavedNote] = useState<string | null>(null);
+  // The persisted row id (when the layout lives in the backend), so subsequent
+  // saves PATCH the same record instead of creating duplicates.
+  const remoteId = useRef<string | null>(null);
 
   useEffect(() => {
     void loadAll(tenantId);
   }, [loadAll, tenantId]);
+
+  // Hydrate from the backend once on mount. Best-effort: any failure (offline,
+  // 401, empty) silently leaves the localStorage/default layout in place.
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    listSavedLayouts({ signal: controller.signal })
+      .then((rows) => {
+        if (!active || rows.length === 0) return;
+        const match =
+          rows.find((row) => row.config?.id === liveDashboardLayout.id) ?? rows[0];
+        if (match?.config) {
+          remoteId.current = match.id;
+          setLayout(match.config);
+        }
+      })
+      .catch(() => {
+        /* offline / unauthenticated — keep the local layout */
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, []);
 
   const resolveData = useMemo(
     () =>
@@ -48,8 +82,17 @@ const ReportLayoutPreview = () => {
   );
 
   const handleSave = (next: DashboardLayoutConfig) => {
+    // Always keep a local copy so the layout survives an offline reload.
     saveLayout(next);
-    setSavedNote('Saved to this browser');
+    setSavedNote('Saving…');
+    saveLayoutToApi(next, { id: remoteId.current ?? undefined, name: next.title })
+      .then((row) => {
+        remoteId.current = row.id;
+        setSavedNote('Saved to your account');
+      })
+      .catch(() => {
+        setSavedNote('Saved to this browser (offline)');
+      });
   };
 
   return (
