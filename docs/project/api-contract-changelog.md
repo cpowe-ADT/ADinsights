@@ -67,6 +67,21 @@ Keep this brief and link to PRs or commits when available.
   - Owner: AI-built; Raj (integration) + Mira (architecture) AI review.
 
 - **2026-06-23**
+  - Endpoint: `POST /api/integrations/meta/sync/`.
+  - Change: Added an additive `organic_sync` response block and dispatch path. The endpoint still
+    queues or runs the existing paid Meta direct sync, and now also attempts a bounded organic
+    Facebook reporting bundle for selected analyzable Pages (`sync_page_posts`,
+    `discover_supported_metrics`, `sync_page_insights`, and `sync_post_insights`). The bundle
+    reports `queued`, `skipped`, `completed`, `completed_no_rows`, or `partial` without exposing
+    tokens or raw provider payloads.
+  - Impact: The Data Sources "Run Meta sync" action now tries the Page/Post reporting data path
+    that SLB organic sections need, while existing clients can ignore the additive field. No OAuth
+    scopes were added, `read_insights` remains excluded, and report preview/export still read only
+    stored aggregate data.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Maya/Leo (Meta sync path)
+    - Lina/Joel (Data Sources UX) + Raj/Mira review
+
+- **2026-06-23**
   - Endpoint: `GET /api/reports/data-availability/`, `POST /api/reports/from-template/`, and
     `POST /api/reports/slb-monthly-template/`.
   - Change: Added a read-only report data availability endpoint for selecting reportable

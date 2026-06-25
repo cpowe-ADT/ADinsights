@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { useAuth } from '../auth/AuthContext';
 import { loadTenants, type TenantOption } from '../lib/tenants';
@@ -44,11 +45,13 @@ function getAnnouncementForCount(count: number): string {
 
 const TenantSwitcher = (): JSX.Element => {
   const { tenantId: authTenantId, setActiveTenant: setAuthTenant } = useAuth();
-  const { activeTenantId, activeTenantLabel, loadAll } = useDashboardStore((state) => ({
-    activeTenantId: state.activeTenantId,
-    activeTenantLabel: state.activeTenantLabel,
-    loadAll: state.loadAll,
-  }));
+  const { activeTenantId, activeTenantLabel, loadAll } = useDashboardStore(
+    useShallow((state) => ({
+      activeTenantId: state.activeTenantId,
+      activeTenantLabel: state.activeTenantLabel,
+      loadAll: state.loadAll,
+    })),
+  );
 
   const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [status, setStatus] = useState<LoadState>('idle');

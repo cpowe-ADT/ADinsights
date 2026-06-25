@@ -1,5 +1,6 @@
 import { useCallback, useId, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 
 import Card from '../components/ui/Card';
 import StatCard from '../components/ui/StatCard';
@@ -48,19 +49,21 @@ const ParishMapDetail = () => {
     campaignSummary,
     demographics,
     loadAll,
-  } = useDashboardStore((state) => ({
-    parish: state.parish,
-    selectedParish: state.selectedParish,
-    setSelectedParish: state.setSelectedParish,
-    selectedMetric: state.selectedMetric,
-    setSelectedMetric: state.setSelectedMetric,
-    // Architect §8.6 + risk #8 (B-MAP-01 mitigation): subscribe to
-    // filters.platforms so we can force Leaflet layer remount via React key.
-    platformsFilterKey: (state.filters.platforms ?? []).join(','),
-    campaignSummary: state.campaign.data?.summary,
-    demographics: state.demographics.data,
-    loadAll: state.loadAll,
-  }));
+  } = useDashboardStore(
+    useShallow((state) => ({
+      parish: state.parish,
+      selectedParish: state.selectedParish,
+      setSelectedParish: state.setSelectedParish,
+      selectedMetric: state.selectedMetric,
+      setSelectedMetric: state.setSelectedMetric,
+      // Architect §8.6 + risk #8 (B-MAP-01 mitigation): subscribe to
+      // filters.platforms so we can force Leaflet layer remount via React key.
+      platformsFilterKey: (state.filters.platforms ?? []).join(','),
+      campaignSummary: state.campaign.data?.summary,
+      demographics: state.demographics.data,
+      loadAll: state.loadAll,
+    })),
+  );
 
   const parishRows = useMemo(() => parish.data ?? [], [parish.data]);
   const currency = campaignSummary?.currency ?? parishRows[0]?.currency ?? 'USD';
@@ -72,10 +75,15 @@ const ParishMapDetail = () => {
         impressions: acc.impressions + row.impressions,
         clicks: acc.clicks + row.clicks,
         conversions: acc.conversions + row.conversions,
+        roasWeighted: acc.roasWeighted + (row.roas ?? 0) * row.spend,
       }),
-      { spend: 0, impressions: 0, clicks: 0, conversions: 0 },
+      { spend: 0, impressions: 0, clicks: 0, conversions: 0, roasWeighted: 0 },
     );
-    return { ...totals, roas: safeDiv(totals.conversions, totals.spend) };
+    // Island ROAS is the spend-weighted average of per-parish ROAS so the
+    // headline KPI stays consistent with the per-parish ROAS column in the
+    // breakdown table, instead of collapsing toward 0 via conversions/spend.
+    const { roasWeighted, ...rest } = totals;
+    return { ...rest, roas: safeDiv(roasWeighted, rest.spend) };
   }, [parishRows]);
 
   const selectedParishData = useMemo(() => {
@@ -234,7 +242,7 @@ const ParishMapDetail = () => {
               name + KPI values only (ARIA-equivalent text is the map legend).
             */}
             <div className="mapViewport" key={`parish-map-${platformsFilterKey}`}>
-              <ParishMap height={480} onRetry={handleRetry} />
+              <ParishMap height={540} onRetry={handleRetry} />
             </div>
           </Card>
 

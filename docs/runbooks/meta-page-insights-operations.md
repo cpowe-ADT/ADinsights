@@ -124,6 +124,29 @@ Tune via:
 
 ## Manual refresh
 
+For the Data Sources "Run Meta sync" action, trigger the combined reporting sync with:
+
+- `POST /api/integrations/meta/sync/`
+
+This still queues or runs paid Meta direct sync. It also returns additive `organic_sync` metadata
+and attempts a bounded organic Facebook reporting bundle for selected analyzable Pages:
+
+- `sync_page_posts`
+- `discover_supported_metrics`
+- `sync_page_insights`
+- `sync_post_insights`
+
+Expected `organic_sync.status` values:
+
+- `queued`: organic Page/Post work was queued for background processing.
+- `skipped`: no analyzable Facebook Page is selected for the tenant.
+- `completed`: inline fallback ran and stored at least one Page/Post reporting row.
+- `completed_no_rows`: inline fallback ran but Graph returned no Page/Post report rows.
+- `partial`: one or more Page sync tasks failed or returned mixed states.
+
+The reporting bundle uses existing Page-scoped permissions. Do not add `read_insights`, and do not
+call live providers during report preview/export.
+
 For the current Page Insights dashboard, trigger a sync per page with:
 
 - `POST /api/meta/pages/{page_id}/sync/`

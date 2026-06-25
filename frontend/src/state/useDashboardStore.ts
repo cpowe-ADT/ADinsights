@@ -685,9 +685,22 @@ function normalizeParishAggregates(
       }
     }
 
+    // Derive CTR (clicks / impressions, expressed as a fraction for
+    // formatPercent) when upstream omits it. The warehouse/meta adapters do
+    // not always include a per-parish ctr column, which otherwise renders as
+    // 0% in the region breakdown table even though clicks and impressions are
+    // present.
+    const ctr =
+      typeof row.ctr === 'number' && Number.isFinite(row.ctr)
+        ? row.ctr
+        : row.impressions > 0
+          ? row.clicks / row.impressions
+          : 0;
+
     return {
       ...row,
       currency,
+      ctr,
     };
   });
 }

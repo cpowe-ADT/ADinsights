@@ -120,6 +120,12 @@ This lean pass intentionally does not expand all permissions from the compiled M
 
 Rationale: these are not required for current Meta onboarding, sync, and reporting operations in ADinsights.
 
+The `POST /api/integrations/meta/sync/` reporting action now attempts a bounded organic
+Facebook Page/Post reporting bundle after paid Meta direct sync. That bundle still relies on the
+existing Page-scoped permissions (`pages_show_list`, `pages_read_engagement`, and stored Page
+tokens from the asset-selection flow). It does not require `read_insights`, and it must not be used
+as a reason to reintroduce `read_insights` into Facebook Login.
+
 ## Local OAuth Reminder
 
 Launcher-backed local Meta OAuth now follows the selected frontend origin and uses
