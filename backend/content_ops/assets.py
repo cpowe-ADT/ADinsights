@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import mimetypes
 import re
 import uuid
@@ -78,8 +79,20 @@ def store_uploaded_asset(
     workspace: ContentWorkspace,
     upload,
     alt_text: str = "",
+    kind: str = MediaAsset.KIND_CONTENT,
+    logo_variant: str = "",
+    reference_role: str = "",
+    reference_region: str = "",
+    reference_locale: str = "",
+    dedup: bool = True,
 ) -> MediaAsset:
-    """Persist an uploaded file and create a tenant-scoped MediaAsset row."""
+    """Persist an uploaded file and create a tenant-scoped MediaAsset row.
+
+    ``kind`` discriminates a content asset from a brand logo or an approved
+    reference; the remaining facets are stored as-is. When ``dedup`` is set,
+    re-uploading bytes identical to an existing available asset of the same kind
+    in this workspace returns the existing row instead of writing a duplicate.
+    """
 
     if workspace.tenant_id != tenant.id:
         raise ContentOpsAssetStorageError("workspace_wrong_tenant")
@@ -91,12 +104,33 @@ def store_uploaded_asset(
     )
     file_path = asset_file_path(storage_key)
     file_path.parent.mkdir(parents=True, exist_ok=True)
+    hasher = hashlib.sha256()
+    size = 0
     with file_path.open("wb") as destination:
         for chunk in _chunks(upload):
+            hasher.update(chunk)
+            size += len(chunk)
             destination.write(chunk)
-    if file_path.stat().st_size == 0:
+    if size == 0:
         file_path.unlink(missing_ok=True)
         raise ContentOpsAssetStorageError("asset_empty")
+    content_hash = hasher.hexdigest()
+    if dedup:
+        existing = (
+            MediaAsset.all_objects.filter(
+                tenant=tenant,
+                workspace=workspace,
+                content_hash=content_hash,
+                kind=kind,
+                status=MediaAsset.STATUS_AVAILABLE,
+            )
+            .order_by("created_at")
+            .first()
+        )
+        if existing is not None:
+            # Identical bytes already stored — drop the duplicate, return canonical.
+            file_path.unlink(missing_ok=True)
+            return existing
     return MediaAsset.all_objects.create(
         id=asset_id,
         tenant=tenant,
@@ -106,6 +140,13 @@ def store_uploaded_asset(
         mime_type=str(getattr(upload, "content_type", "") or "application/octet-stream"),
         alt_text=alt_text[:1000],
         status=MediaAsset.STATUS_AVAILABLE,
+        kind=kind,
+        logo_variant=logo_variant,
+        reference_role=reference_role,
+        reference_region=reference_region,
+        reference_locale=reference_locale,
+        content_hash=content_hash,
+        file_size_bytes=size,
     )
 
 
@@ -195,6 +236,8 @@ def store_generated_asset_bytes(
         alt_text=alt_text[:1000],
         ai_lineage=lineage,
         renditions=renditions,
+        content_hash=hashlib.sha256(content).hexdigest(),
+        file_size_bytes=len(content),
         status=(
             MediaAsset.STATUS_QUARANTINED
             if quarantine_reason

@@ -17,6 +17,7 @@ uritemplate==4.2.0
 google-analytics-data==0.18.5
 google-ads==29.2.0
 PyYAML==6.0.3
+Pillow==11.3.0
 Faker==25.2.0
 pytest==9.0.2
 pytest-django==4.12.0

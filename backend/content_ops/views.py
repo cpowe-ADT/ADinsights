@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework import decorators, mixins, status, viewsets
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -38,18 +38,27 @@ from .image_generation import (
     ImageGenerationQuotaError,
     create_image_generation_job,
 )
+from .input_brief import brief_strength, lint_sections, resolve_sections_defaults
 from .metrics import refresh_published_post_metrics
+from .overlay_service import OverlayServiceError, apply_overlay_to_asset
+from .prompt_contract import build_composer_payload
 from .models import (
     ApprovalDecision,
     ApprovalRequest,
+    BrandKit,
     ContentBrief,
     ContentDraft,
     ContentDraftVersion,
     ContentExportArtifact,
     ContentSchedule,
     ContentWorkspace,
+    FooterPreset,
     GenerationJob,
     MediaAsset,
+    MediaAssetCollection,
+    MediaAssetCollectionItem,
+    MediaAssetTag,
+    MediaAssetTagAssignment,
     OrganicPostMetricSnapshot,
     PublishedPost,
     PublishingIdentity,
@@ -58,6 +67,7 @@ from .models import (
 )
 from .permissions import (
     CONTENT_OPS_ADMIN_ROLES,
+    CONTENT_OPS_BRAND_ADMIN_ROLES,
     CONTENT_OPS_CLIENT_APPROVER_ROLES,
     CONTENT_OPS_EDIT_ROLES,
     CONTENT_OPS_INTERNAL_APPROVER_ROLES,
@@ -74,6 +84,7 @@ from .readiness import build_content_ops_readiness_payload
 from .serializers import (
     ApprovalDecisionSerializer,
     ApprovalRequestSerializer,
+    BrandKitSerializer,
     CaptionGenerateRequestSerializer,
     ContentBriefSerializer,
     ContentDraftSerializer,
@@ -81,9 +92,12 @@ from .serializers import (
     ContentExportArtifactSerializer,
     ContentScheduleSerializer,
     ContentWorkspaceSerializer,
+    FooterPresetSerializer,
     GenerationJobSerializer,
     ImageGenerateRequestSerializer,
+    MediaAssetCollectionSerializer,
     MediaAssetSerializer,
+    MediaAssetTagSerializer,
     OrganicPostMetricSnapshotSerializer,
     PublishedPostSerializer,
     PublishingIdentitySerializer,
@@ -647,18 +661,46 @@ class MediaAssetViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
     queryset = MediaAsset.all_objects.select_related("workspace").order_by("-created_at")
     serializer_class = MediaAssetSerializer
 
+    def get_content_ops_required_roles(self) -> set[str]:
+        action = getattr(self, "action", "")
+        if action in {"approve_reference", "revoke_reference", "attest_rights"}:
+            return CONTENT_OPS_BRAND_ADMIN_ROLES
+        return super().get_content_ops_required_roles()
+
     def get_queryset(self) -> QuerySet[MediaAsset]:  # type: ignore[override]
         queryset = super().get_queryset()
-        workspace_id = self.request.query_params.get("workspace_id")
-        status_filter = self.request.query_params.get("status")
-        source = self.request.query_params.get("source")
-        if workspace_id:
-            queryset = queryset.filter(workspace_id=workspace_id)
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-        if source:
-            queryset = queryset.filter(source=source)
-        return queryset
+        params = self.request.query_params
+        library = params.get("library")
+        if library == "logos":
+            queryset = queryset.filter(kind=MediaAsset.KIND_LOGO)
+        elif library == "references":
+            queryset = queryset.filter(kind=MediaAsset.KIND_REFERENCE)
+        direct_filters = {
+            "workspace_id": "workspace_id",
+            "status": "status",
+            "source": "source",
+            "kind": "kind",
+            "logo_variant": "logo_variant",
+            "reference_role": "reference_role",
+            "reference_region": "reference_region",
+            "content_hash": "content_hash",
+        }
+        for param, field in direct_filters.items():
+            value = params.get(param)
+            if value:
+                queryset = queryset.filter(**{field: value})
+        is_approved = params.get("is_approved_reference")
+        if is_approved == "true":
+            queryset = queryset.filter(is_approved_reference=True)
+        elif is_approved == "false":
+            queryset = queryset.filter(is_approved_reference=False)
+        collection_id = params.get("collection_id")
+        if collection_id:
+            queryset = queryset.filter(collection_items__collection_id=collection_id)
+        tag = params.get("tag")
+        if tag:
+            queryset = queryset.filter(tag_assignments__tag__slug=tag)
+        return queryset.distinct()
 
     def create(self, request: Request, *args, **kwargs) -> Response:
         return Response(
@@ -679,12 +721,30 @@ class MediaAssetViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
             workspace_id=str(workspace_id),
         )
         upload = request.FILES.get("file")
+        kind = str(request.data.get("kind") or MediaAsset.KIND_CONTENT)
+        if kind not in {choice[0] for choice in MediaAsset.KIND_CHOICES}:
+            raise ValidationError({"kind": "Invalid asset kind."})
+        logo_variant = str(request.data.get("logo_variant") or "")
+        if logo_variant and logo_variant not in {
+            choice[0] for choice in MediaAsset.LOGO_VARIANT_CHOICES
+        }:
+            raise ValidationError({"logo_variant": "Invalid logo variant."})
+        reference_role = str(request.data.get("reference_role") or "")
+        if reference_role and reference_role not in {
+            choice[0] for choice in MediaAsset.REFERENCE_ROLE_CHOICES
+        }:
+            raise ValidationError({"reference_role": "Invalid reference role."})
         try:
             asset = store_uploaded_asset(
                 tenant=self._tenant(),
                 workspace=workspace,
                 upload=upload,
                 alt_text=str(request.data.get("alt_text") or ""),
+                kind=kind,
+                logo_variant=logo_variant,
+                reference_role=reference_role,
+                reference_region=str(request.data.get("reference_region") or ""),
+                reference_locale=str(request.data.get("reference_locale") or ""),
             )
         except ContentOpsAssetStorageError as exc:
             reason = _safe_asset_error_reason(str(exc))
@@ -699,6 +759,7 @@ class MediaAssetViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
                 "workspace_id": str(workspace.id),
                 "mime_type": asset.mime_type,
                 "source": asset.source,
+                "kind": asset.kind,
             },
         )
         return Response(
@@ -736,6 +797,459 @@ class MediaAssetViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
     def public_media_proof(self, request: Request, pk: str | None = None) -> Response:
         asset = self.get_object()
         return Response(public_media_asset_proof(asset))
+
+    @decorators.action(detail=True, methods=["post"], url_path="apply-overlay")
+    def apply_overlay(self, request: Request, pk: str | None = None) -> Response:
+        source = self.get_object()
+        brand_kit = None
+        footer_preset = None
+        brand_kit_id = request.data.get("brand_kit_id")
+        footer_preset_id = request.data.get("footer_preset_id")
+        if brand_kit_id:
+            brand_kit = get_object_or_404(
+                BrandKit.all_objects, tenant_id=self._tenant_id(), id=brand_kit_id
+            )
+        if footer_preset_id:
+            footer_preset = get_object_or_404(
+                FooterPreset.all_objects,
+                tenant_id=self._tenant_id(),
+                id=footer_preset_id,
+            )
+        if brand_kit is None and footer_preset is None:
+            raise ValidationError(
+                {
+                    "detail": "Provide a brand_kit_id and/or footer_preset_id.",
+                    "reason": "overlay_inputs_required",
+                }
+            )
+        placement = str(request.data.get("placement") or "")
+        if placement and placement not in {
+            choice[0] for choice in BrandKit.LOGO_PLACEMENT_CHOICES
+        }:
+            raise ValidationError({"placement": "Invalid placement."})
+        try:
+            asset, _result = apply_overlay_to_asset(
+                tenant=self._tenant(),
+                source_asset=source,
+                brand_kit=brand_kit,
+                footer_preset=footer_preset,
+                placement=placement,
+            )
+        except OverlayServiceError as exc:
+            raise ValidationError(
+                {"detail": "Overlay could not be applied.", "reason": exc.reason}
+            ) from exc
+        self._audit(
+            action="content_asset_overlay_applied",
+            resource_type="content_media_asset",
+            resource_id=str(asset.id),
+            metadata={"source_asset_id": str(source.id)},
+        )
+        return Response(
+            self.get_serializer(asset).data, status=status.HTTP_201_CREATED
+        )
+
+    @decorators.action(detail=True, methods=["post"], url_path="attest-rights")
+    def attest_rights(self, request: Request, pk: str | None = None) -> Response:
+        asset = self.get_object()
+        asset.usage_rights_attested = True
+        asset.usage_rights_attested_by = request.user
+        asset.usage_rights_attested_at = timezone.now()
+        note = str(request.data.get("note") or "")[:255]
+        if note:
+            asset.usage_rights_note = note
+        asset.save(
+            update_fields=[
+                "usage_rights_attested",
+                "usage_rights_attested_by",
+                "usage_rights_attested_at",
+                "usage_rights_note",
+                "updated_at",
+            ]
+        )
+        self._audit(
+            action="content_asset_rights_attested",
+            resource_type="content_media_asset",
+            resource_id=str(asset.id),
+            metadata={"kind": asset.kind},
+        )
+        return Response(self.get_serializer(asset).data)
+
+    @decorators.action(detail=True, methods=["post"], url_path="approve-reference")
+    def approve_reference(self, request: Request, pk: str | None = None) -> Response:
+        asset = self.get_object()
+        if asset.kind == MediaAsset.KIND_LOGO:
+            raise ValidationError(
+                {
+                    "detail": "Logos are overlay assets, not references.",
+                    "reason": "logo_not_reference",
+                }
+            )
+        if not asset.usage_rights_attested:
+            raise ValidationError(
+                {
+                    "detail": "Attest usage rights before approving a reference.",
+                    "reason": "usage_rights_required",
+                }
+            )
+        asset.is_approved_reference = True
+        if asset.kind == MediaAsset.KIND_CONTENT:
+            asset.kind = MediaAsset.KIND_REFERENCE
+        asset.save(update_fields=["is_approved_reference", "kind", "updated_at"])
+        self._audit(
+            action="content_reference_approved",
+            resource_type="content_media_asset",
+            resource_id=str(asset.id),
+            metadata={"kind": asset.kind},
+        )
+        return Response(self.get_serializer(asset).data)
+
+    @decorators.action(detail=True, methods=["post"], url_path="revoke-reference")
+    def revoke_reference(self, request: Request, pk: str | None = None) -> Response:
+        asset = self.get_object()
+        asset.is_approved_reference = False
+        asset.save(update_fields=["is_approved_reference", "updated_at"])
+        self._audit(
+            action="content_reference_revoked",
+            resource_type="content_media_asset",
+            resource_id=str(asset.id),
+        )
+        return Response(self.get_serializer(asset).data)
+
+    @decorators.action(detail=True, methods=["post"], url_path="tags")
+    def add_tag(self, request: Request, pk: str | None = None) -> Response:
+        asset = self.get_object()
+        slug = str(request.data.get("slug") or "").strip()
+        if not slug:
+            raise ValidationError({"slug": "This field is required."})
+        # A slug can exist both workspace-scoped and tenant-global (workspace
+        # NULL); prefer the asset's workspace, then the global one, so this never
+        # raises MultipleObjectsReturned.
+        tags = MediaAssetTag.all_objects.filter(tenant_id=self._tenant_id(), slug=slug)
+        tag = (
+            tags.filter(workspace_id=asset.workspace_id).first()
+            or tags.filter(workspace__isnull=True).first()
+        )
+        if tag is None:
+            raise NotFound("No such tag for this asset's workspace.")
+        MediaAssetTagAssignment.all_objects.get_or_create(
+            tenant=self._tenant(), tag=tag, asset=asset
+        )
+        return Response(
+            self.get_serializer(asset).data, status=status.HTTP_201_CREATED
+        )
+
+    @decorators.action(
+        detail=True, methods=["delete"], url_path=r"tags/(?P<slug>[-\w]+)"
+    )
+    def remove_tag(
+        self, request: Request, pk: str | None = None, slug: str | None = None
+    ) -> Response:
+        asset = self.get_object()
+        MediaAssetTagAssignment.all_objects.filter(
+            tenant_id=self._tenant_id(), asset=asset, tag__slug=slug
+        ).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FooterPresetViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
+    queryset = (
+        FooterPreset.all_objects.select_related("workspace").order_by("name", "created_at")
+    )
+    serializer_class = FooterPresetSerializer
+
+    def get_content_ops_required_roles(self) -> set[str]:
+        action = getattr(self, "action", "")
+        if action in {"create", "update", "partial_update", "destroy"}:
+            return CONTENT_OPS_BRAND_ADMIN_ROLES
+        return super().get_content_ops_required_roles()
+
+    def get_queryset(self) -> QuerySet[FooterPreset]:  # type: ignore[override]
+        queryset = super().get_queryset()
+        params = self.request.query_params
+        workspace_id = params.get("workspace_id")
+        is_active = params.get("is_active")
+        if workspace_id:
+            queryset = queryset.filter(workspace_id=workspace_id)
+        if is_active == "true":
+            queryset = queryset.filter(is_active=True)
+        elif is_active == "false":
+            queryset = queryset.filter(is_active=False)
+        return queryset
+
+
+class BrandKitViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
+    queryset = (
+        BrandKit.all_objects.select_related("workspace", "client", "default_logo")
+        .order_by("name", "created_at")
+    )
+    serializer_class = BrandKitSerializer
+
+    def get_content_ops_required_roles(self) -> set[str]:
+        action = getattr(self, "action", "")
+        if action in {
+            "create",
+            "update",
+            "partial_update",
+            "destroy",
+            "set_default_logo",
+            "clear_default_logo",
+        }:
+            return CONTENT_OPS_BRAND_ADMIN_ROLES
+        return super().get_content_ops_required_roles()
+
+    def get_queryset(self) -> QuerySet[BrandKit]:  # type: ignore[override]
+        queryset = super().get_queryset()
+        params = self.request.query_params
+        workspace_id = params.get("workspace_id")
+        client_id = params.get("client_id")
+        scope = params.get("scope")
+        is_active = params.get("is_active")
+        if workspace_id:
+            queryset = queryset.filter(workspace_id=workspace_id)
+        if client_id:
+            queryset = queryset.filter(client_id=client_id)
+        if scope:
+            queryset = queryset.filter(scope=scope)
+        if is_active == "true":
+            queryset = queryset.filter(is_active=True)
+        elif is_active == "false":
+            queryset = queryset.filter(is_active=False)
+        return queryset
+
+    def _resolve_logo_asset(self, asset_id: str) -> MediaAsset:
+        asset = get_object_or_404(
+            MediaAsset.all_objects, tenant_id=self._tenant_id(), id=asset_id
+        )
+        if asset.kind != MediaAsset.KIND_LOGO:
+            raise ValidationError(
+                {"logo_asset_id": "Asset must be a logo (kind='logo')."}
+            )
+        if not asset.usage_rights_attested:
+            raise ValidationError(
+                {
+                    "detail": "Attest usage rights on the logo first.",
+                    "reason": "usage_rights_required",
+                }
+            )
+        return asset
+
+    @decorators.action(detail=True, methods=["post"], url_path="set-default-logo")
+    def set_default_logo(self, request: Request, pk: str | None = None) -> Response:
+        brand_kit = self.get_object()
+        asset_id = str(request.data.get("logo_asset_id") or "")
+        if not asset_id:
+            raise ValidationError({"logo_asset_id": "This field is required."})
+        asset = self._resolve_logo_asset(asset_id)
+        variant = str(request.data.get("variant") or "")
+        if variant and variant not in {
+            choice[0] for choice in MediaAsset.LOGO_VARIANT_CHOICES
+        }:
+            raise ValidationError({"variant": "Invalid logo variant."})
+        brand_kit.default_logo = asset
+        update_fields = ["default_logo", "updated_at"]
+        if variant == MediaAsset.LOGO_VARIANT_LIGHT:
+            brand_kit.logo_light = asset
+            update_fields.append("logo_light")
+        elif variant == MediaAsset.LOGO_VARIANT_DARK:
+            brand_kit.logo_dark = asset
+            update_fields.append("logo_dark")
+        brand_kit.save(update_fields=update_fields)
+        self._audit(
+            action="content_brand_kit_logo_set",
+            resource_type="content_brand_kit",
+            resource_id=str(brand_kit.id),
+            metadata={"logo_asset_id": str(asset.id), "variant": variant},
+        )
+        return Response(self.get_serializer(brand_kit).data)
+
+    @decorators.action(detail=True, methods=["post"], url_path="clear-default-logo")
+    def clear_default_logo(self, request: Request, pk: str | None = None) -> Response:
+        brand_kit = self.get_object()
+        brand_kit.default_logo = None
+        brand_kit.logo_light = None
+        brand_kit.logo_dark = None
+        brand_kit.save(
+            update_fields=["default_logo", "logo_light", "logo_dark", "updated_at"]
+        )
+        self._audit(
+            action="content_brand_kit_logo_cleared",
+            resource_type="content_brand_kit",
+            resource_id=str(brand_kit.id),
+        )
+        return Response(self.get_serializer(brand_kit).data)
+
+    @decorators.action(detail=True, methods=["get"], url_path="resolved-logo")
+    def resolved_logo(self, request: Request, pk: str | None = None) -> Response:
+        brand_kit = self.get_object()
+        luminance_raw = request.query_params.get("luminance")
+        try:
+            luminance = float(luminance_raw) if luminance_raw is not None else 0.5
+        except (TypeError, ValueError):
+            luminance = 0.5
+        # A dark background (luminance < 0.5) wants the light logo, and vice versa.
+        prefer_light = luminance < 0.5
+        chosen_id = None
+        variant = ""
+        if prefer_light and brand_kit.logo_light_id:
+            chosen_id, variant = brand_kit.logo_light_id, MediaAsset.LOGO_VARIANT_LIGHT
+        elif not prefer_light and brand_kit.logo_dark_id:
+            chosen_id, variant = brand_kit.logo_dark_id, MediaAsset.LOGO_VARIANT_DARK
+        if chosen_id is None and brand_kit.default_logo_id:
+            chosen_id, variant = brand_kit.default_logo_id, "default"
+        return Response(
+            {
+                "brand_kit_id": str(brand_kit.id),
+                "luminance": luminance,
+                "logo_asset_id": str(chosen_id) if chosen_id else None,
+                "variant": variant,
+                "placement": brand_kit.logo_placement,
+            }
+        )
+
+
+class MediaAssetCollectionViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
+    queryset = (
+        MediaAssetCollection.all_objects.select_related("workspace").order_by(
+            "name", "created_at"
+        )
+    )
+    serializer_class = MediaAssetCollectionSerializer
+
+    def get_queryset(self) -> QuerySet[MediaAssetCollection]:  # type: ignore[override]
+        queryset = super().get_queryset()
+        params = self.request.query_params
+        workspace_id = params.get("workspace_id")
+        purpose = params.get("purpose")
+        region = params.get("region")
+        if workspace_id:
+            queryset = queryset.filter(workspace_id=workspace_id)
+        if purpose:
+            queryset = queryset.filter(purpose=purpose)
+        if region:
+            queryset = queryset.filter(region=region)
+        return queryset
+
+    @decorators.action(detail=True, methods=["get"], url_path="items")
+    def items(self, request: Request, pk: str | None = None) -> Response:
+        collection = self.get_object()
+        rows = MediaAssetCollectionItem.all_objects.filter(
+            collection=collection
+        ).order_by("order", "created_at")
+        return Response(
+            [{"asset": str(item.asset_id), "order": item.order} for item in rows]
+        )
+
+    @items.mapping.post
+    def add_item(self, request: Request, pk: str | None = None) -> Response:
+        collection = self.get_object()
+        asset_id = str(request.data.get("asset") or "")
+        if not asset_id:
+            raise ValidationError({"asset": "This field is required."})
+        asset = get_object_or_404(
+            MediaAsset.all_objects, tenant_id=self._tenant_id(), id=asset_id
+        )
+        order_raw = request.data.get("order")
+        try:
+            order_value = int(order_raw) if order_raw is not None else 0
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({"order": "Must be an integer."}) from exc
+        item, _created = MediaAssetCollectionItem.all_objects.update_or_create(
+            tenant=self._tenant(),
+            collection=collection,
+            asset=asset,
+            defaults={"order": order_value, "added_by": request.user},
+        )
+        return Response(
+            {"asset": str(item.asset_id), "order": item.order},
+            status=status.HTTP_201_CREATED,
+        )
+
+    @decorators.action(
+        detail=True, methods=["delete"], url_path=r"items/(?P<asset_id>[0-9a-fA-F-]+)"
+    )
+    def remove_item(
+        self, request: Request, pk: str | None = None, asset_id: str | None = None
+    ) -> Response:
+        collection = self.get_object()
+        MediaAssetCollectionItem.all_objects.filter(
+            tenant_id=self._tenant_id(), collection=collection, asset_id=asset_id
+        ).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MediaAssetTagViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
+    queryset = MediaAssetTag.all_objects.order_by("label", "created_at")
+    serializer_class = MediaAssetTagSerializer
+
+    def get_queryset(self) -> QuerySet[MediaAssetTag]:  # type: ignore[override]
+        queryset = super().get_queryset()
+        workspace_id = self.request.query_params.get("workspace_id")
+        if workspace_id:
+            queryset = queryset.filter(workspace_id=workspace_id)
+        return queryset
+
+
+class ContentOpsSectionsPreviewView(APIView):
+    """Resolve, default, and lint a creative brief — no provider, no spend.
+
+    Returns the resolved sections with per-field provenance, the lint report, a
+    weak/ok/strong strength signal, and the sanitized payload the composer would
+    receive — so a user can iterate on the brief cheaply before any image spend.
+    """
+
+    permission_classes = [ContentOpsPermission]
+
+    def post(self, request: Request) -> Response:
+        tenant_id = getattr(request.user, "tenant_id", None)
+        if tenant_id is None:
+            raise PermissionDenied("Unable to resolve tenant.")
+        data = request.data if isinstance(request.data, dict) else {}
+        sections = data.get("sections")
+        if not isinstance(sections, dict):
+            raise ValidationError({"sections": "A sections object is required."})
+        if len(str(sections)) > 20000:
+            raise ValidationError({"sections": "Brief is too large."})
+        if len(str(sections.get("base_idea") or "")) > 4000:
+            raise ValidationError({"base_idea": "Base idea is too long."})
+
+        brand_kit = None
+        agent = None
+        brand_kit_id = data.get("brand_kit_id")
+        agent_id = data.get("regional_agent_profile_id")
+        if brand_kit_id:
+            brand_kit = get_object_or_404(
+                BrandKit.all_objects, tenant_id=tenant_id, id=brand_kit_id
+            )
+        if agent_id:
+            agent = get_object_or_404(
+                RegionalAgentProfile.all_objects, tenant_id=tenant_id, id=agent_id
+            )
+
+        logo_corner = str(
+            data.get("logo_corner")
+            or (brand_kit.logo_placement if brand_kit else "bottom_right")
+        )
+        footer_intent = "present" if data.get("footer_intent") else ""
+        resolved, provenance = resolve_sections_defaults(
+            sections, brand_kit=brand_kit, agent=agent
+        )
+        payload = build_composer_payload(
+            resolved,
+            brand_kit=brand_kit,
+            agent=agent,
+            logo_corner=logo_corner,
+            footer_intent=footer_intent,
+        )
+        return Response(
+            {
+                "resolved_sections": resolved,
+                "provenance": provenance,
+                "lint": lint_sections(resolved, brand_kit=brand_kit),
+                "strength": brief_strength(resolved),
+                "composer_payload": payload,
+            }
+        )
 
 
 class ContentOpsPublicMediaView(APIView):

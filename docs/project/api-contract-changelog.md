@@ -13,6 +13,59 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-06-24**
+  - Endpoint: `GET/POST /api/content-ops/brand-kits/` (+ `.../{id}/`, `.../{id}/set-default-logo/`,
+    `.../{id}/clear-default-logo/`, `.../{id}/resolved-logo/`); `GET/POST /api/content-ops/footer-presets/`
+    (+ `.../{id}/`); `GET/POST /api/content-ops/asset-collections/` (+ `.../{id}/`, `.../{id}/items/`,
+    `DELETE .../{id}/items/{asset_id}/`); `GET/POST /api/content-ops/asset-tags/` (+ `.../{id}/`); new
+    `assets/` actions `POST .../{id}/apply-overlay/`, `.../{id}/attest-rights/`,
+    `.../{id}/approve-reference/`, `.../{id}/revoke-reference/`, `POST .../{id}/tags/` and
+    `DELETE .../{id}/tags/{slug}/`; `POST /api/content-ops/sections/preview/`. `POST
+    /api/content-ops/assets/upload/` now also accepts optional `kind`/`logo_variant`/`reference_role`/
+    `reference_region`/`reference_locale`, and the MediaAsset payload gained `kind`, `logo_variant`,
+    `reference_role`, `reference_weight`, `reference_descriptor`, `usage_rights_attested` (+`_by`/`_at`/
+    `_note`), `content_hash`, `file_size_bytes`, and `deliverable_group_id`.
+  - Change: Added the Branded Graphic Composition layer on `content_ops` (Slices 1-3, all default-off,
+    no provider call): a tenant-scoped brand-asset library (logos + approved references on MediaAsset
+    via a `kind` discriminator with content-hash dedup, light/dark logo variants, usage-rights
+    attestation, collections + tags); reusable `FooterPreset` and `BrandKit` (default logo + swap,
+    footer/visual config) gated to a new brand-admin role set; a deterministic Pillow brand overlay
+    (`apply-overlay` composites a gradient-scrim footer + logo onto a stored asset and snapshots the
+    resolved inputs + content hashes into `ai_lineage`, with zero AI spend); and a provider-free
+    composer core where `sections/preview/` resolves + defaults + lints a structured creative brief
+    (per-field provenance + a weak/ok/strong signal) and returns the sanitized composer payload.
+    Migration `0006_asset_library` (additive). New backend dependency: Pillow (pinned).
+  - Impact: Frontend Content Ops can manage brand kits / footer presets / logo + reference libraries,
+    brand an existing image deterministically, and preview/lint a brief before any spend. Fully
+    additive and default-off — no OpenAI/Anthropic call and no tenant content leaves the platform.
+    Existing asset/caption/image clients are unaffected: all new MediaAsset fields are optional and
+    server-managed, and `assets/upload/` extra fields are optional. Brand-identity mutation (kits,
+    footer presets, logos, reference approval) requires `CONTENT_OPS_BRAND_ADMIN_ROLES`; composition,
+    tagging, and preview stay at edit level. No OAuth scope, Meta Graph publishing, or dbt mart
+    behavior changed; lineage snapshots store ids/hashes/footer text only — no user-level data.
+  - Owner: AI-built; Raj (integration) + Mira (architecture) AI review.
+
+- **2026-06-24**
+  - Endpoint: `GET/POST /api/content-ops/regional-agents/` (+ `GET/PATCH/DELETE .../{id}/`);
+    `POST /api/content-ops/workspaces/{id}/images/generate/`;
+    `POST /api/content-ops/briefs/{brief_id}/captions/generate/` (now accepts an optional
+    `regional_agent_profile_id`).
+  - Change: Added Regional AI Content Agents on the `content_ops` app — tenant-scoped
+    `RegionalAgentProfile` CRUD (filterable by `workspace_id`, `region`, `is_active`) carrying
+    region, locale/language, brand voice, and approved-reference scoping (locale/language/timezone
+    default from the region when blank); a workspace image-generation action that enqueues an AI
+    image job and returns `400` with `reason`/`quota` when active/daily-job/daily-image limits are
+    reached; an optional regional agent on caption generation; pluggable OpenAI/Anthropic text and
+    OpenAI image providers (default `disabled`, fail closed `provider_not_configured`); per-tenant
+    `AIUsageRecord` token/image/cost metering plus an additive monthly token cap. Migrations 0003–0005.
+  - Impact: Frontend Content Ops can manage regional agents, enqueue image jobs (and surface quota
+    blockers), and pass a regional agent into caption generation. Additive and default-off — no live
+    OpenAI/Anthropic call, no token spend, and no tenant content leaves the platform unless a provider
+    is explicitly enabled. Existing caption clients can omit `regional_agent_profile_id` and are
+    unaffected. No OAuth scope, Meta Graph publishing, or dbt mart behavior changed. `AIUsageRecord`
+    is aggregate metering only (provider, token/image counts, estimated cost) — no user-level data.
+  - Owner: AI-built; Raj (integration) + Mira (architecture) AI review.
+
 - **2026-06-23**
   - Endpoint: `POST /api/integrations/meta/sync/`.
   - Change: Added an additive `organic_sync` response block and dispatch path. The endpoint still

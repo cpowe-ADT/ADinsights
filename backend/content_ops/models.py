@@ -258,6 +258,35 @@ class MediaAsset(TenantScopedModel):
         (STATUS_DELETED, "Deleted"),
     ]
 
+    KIND_CONTENT = "content"
+    KIND_LOGO = "logo"
+    KIND_REFERENCE = "reference"
+    KIND_CHOICES = [
+        (KIND_CONTENT, "Content"),
+        (KIND_LOGO, "Logo"),
+        (KIND_REFERENCE, "Reference"),
+    ]
+
+    LOGO_VARIANT_LIGHT = "light"
+    LOGO_VARIANT_DARK = "dark"
+    LOGO_VARIANT_FULL_COLOR = "full_color"
+    LOGO_VARIANT_MONOCHROME = "monochrome"
+    LOGO_VARIANT_CHOICES = [
+        (LOGO_VARIANT_LIGHT, "Light (for dark backgrounds)"),
+        (LOGO_VARIANT_DARK, "Dark (for light backgrounds)"),
+        (LOGO_VARIANT_FULL_COLOR, "Full color"),
+        (LOGO_VARIANT_MONOCHROME, "Monochrome"),
+    ]
+
+    REFERENCE_ROLE_STYLE = "style"
+    REFERENCE_ROLE_SUBJECT = "subject"
+    REFERENCE_ROLE_MOOD = "mood"
+    REFERENCE_ROLE_CHOICES = [
+        (REFERENCE_ROLE_STYLE, "Style"),
+        (REFERENCE_ROLE_SUBJECT, "Subject"),
+        (REFERENCE_ROLE_MOOD, "Mood"),
+    ]
+
     workspace = models.ForeignKey(
         ContentWorkspace, on_delete=models.CASCADE, related_name="media_assets"
     )
@@ -276,6 +305,36 @@ class MediaAsset(TenantScopedModel):
     is_approved_reference = models.BooleanField(default=False)
     reference_region = models.CharField(max_length=32, blank=True)
     reference_locale = models.CharField(max_length=16, blank=True)
+    # Asset-library facets (Slice 1). ``kind`` discriminates content vs brand
+    # logo vs approved reference; the rest are meaningful per-kind.
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES, default=KIND_CONTENT)
+    logo_variant = models.CharField(max_length=16, choices=LOGO_VARIANT_CHOICES, blank=True)
+    reference_role = models.CharField(
+        max_length=16, choices=REFERENCE_ROLE_CHOICES, blank=True
+    )
+    reference_weight = models.DecimalField(max_digits=4, decimal_places=2, default=1)
+    # Structured description of an uploaded reference (populated later by the
+    # cheap vision "reference reader"); empty until then.
+    reference_descriptor = models.JSONField(default=dict, blank=True)
+    # Usage-rights attestation — gates a logo/reference becoming usable.
+    usage_rights_attested = models.BooleanField(default=False)
+    usage_rights_attested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="content_attested_assets",
+    )
+    usage_rights_attested_at = models.DateTimeField(null=True, blank=True)
+    usage_rights_note = models.CharField(max_length=255, blank=True)
+    # Content hash (sha256 hex) of the stored bytes — dedup + reproducibility
+    # anchor (snapshotted into job lineage so a swapped asset can't silently
+    # alter a past graphic).
+    content_hash = models.CharField(max_length=64, blank=True)
+    file_size_bytes = models.PositiveBigIntegerField(null=True, blank=True)
+    # Groups multi-asset deliverables (poster + clip, N carousel slides) — a
+    # forward seam for video/carousel; nullable + indexed.
+    deliverable_group_id = models.UUIDField(null=True, blank=True)
 
     class Meta:
         ordering = ("-created_at",)
@@ -284,6 +343,11 @@ class MediaAsset(TenantScopedModel):
             models.Index(fields=["tenant", "status"], name="content_asset_status"),
             models.Index(
                 fields=["tenant", "is_approved_reference"], name="content_asset_ref"
+            ),
+            models.Index(fields=["tenant", "kind", "status"], name="content_asset_kind"),
+            models.Index(fields=["tenant", "content_hash"], name="content_asset_hash"),
+            models.Index(
+                fields=["tenant", "deliverable_group_id"], name="content_asset_group"
             ),
         ]
 
@@ -894,3 +958,278 @@ class RegionalAgentProfile(TenantScopedModel):
 
     def __str__(self) -> str:  # pragma: no cover - debug helper
         return f"RegionalAgentProfile<{self.tenant_id}:{self.region}:{self.name}>"
+
+
+class FooterPreset(TenantScopedModel):
+    """Reusable footer content + deterministic render controls.
+
+    The literal footer (website/contact/handles/tagline) is composited by the
+    deterministic brand overlay — it is NEVER sent to the image model.
+    """
+
+    BAND_POSITION_BOTTOM = "bottom"
+    BAND_POSITION_TOP = "top"
+    BAND_POSITION_CHOICES = [
+        (BAND_POSITION_BOTTOM, "Bottom"),
+        (BAND_POSITION_TOP, "Top"),
+    ]
+
+    workspace = models.ForeignKey(
+        ContentWorkspace, on_delete=models.CASCADE, related_name="footer_presets"
+    )
+    name = models.CharField(max_length=255)
+    # Footer content fields.
+    website = models.CharField(max_length=255, blank=True)
+    contact = models.CharField(max_length=255, blank=True)
+    handles = models.JSONField(default=list, blank=True)
+    tagline = models.CharField(max_length=255, blank=True)
+    # Deterministic render controls (consumed by the overlay only).
+    background_hex = models.CharField(max_length=7, blank=True)
+    text_hex = models.CharField(max_length=7, blank=True)
+    band_position = models.CharField(
+        max_length=8, choices=BAND_POSITION_CHOICES, default=BAND_POSITION_BOTTOM
+    )
+    band_height_pct = models.DecimalField(
+        max_digits=4,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Band height as a fraction of canvas height (0–1).",
+    )
+    separator = models.CharField(max_length=8, blank=True, default=" • ")
+    field_priority = models.JSONField(default=list, blank=True)
+    uppercase_primary = models.BooleanField(default=False)
+    locale = models.CharField(max_length=16, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_footer_presets",
+    )
+
+    class Meta:
+        ordering = ("name",)
+        indexes = [
+            models.Index(fields=["tenant", "workspace", "is_active"], name="content_footer_ws"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"FooterPreset<{self.tenant_id}:{self.name}>"
+
+
+class BrandKit(TenantScopedModel):
+    """Standing brand instructions + the default logo (and light/dark variants).
+
+    Scoped to a workspace, optionally to a client or a post type. The default
+    logo is swappable; light/dark variants let the overlay pick by background
+    luminance. Standing instructions compose into the prompt like brand voice;
+    the logo is overlay-only and never a generation input.
+    """
+
+    SCOPE_WORKSPACE = "workspace"
+    SCOPE_CLIENT = "client"
+    SCOPE_POST_TYPE = "post_type"
+    SCOPE_CHOICES = [
+        (SCOPE_WORKSPACE, "Workspace"),
+        (SCOPE_CLIENT, "Client"),
+        (SCOPE_POST_TYPE, "Post type"),
+    ]
+
+    LOGO_PLACEMENT_TOP_LEFT = "top_left"
+    LOGO_PLACEMENT_TOP_RIGHT = "top_right"
+    LOGO_PLACEMENT_BOTTOM_LEFT = "bottom_left"
+    LOGO_PLACEMENT_BOTTOM_RIGHT = "bottom_right"
+    LOGO_PLACEMENT_CENTER = "center"
+    LOGO_PLACEMENT_CHOICES = [
+        (LOGO_PLACEMENT_TOP_LEFT, "Top left"),
+        (LOGO_PLACEMENT_TOP_RIGHT, "Top right"),
+        (LOGO_PLACEMENT_BOTTOM_LEFT, "Bottom left"),
+        (LOGO_PLACEMENT_BOTTOM_RIGHT, "Bottom right"),
+        (LOGO_PLACEMENT_CENTER, "Center"),
+    ]
+
+    workspace = models.ForeignKey(
+        ContentWorkspace, on_delete=models.CASCADE, related_name="brand_kits"
+    )
+    client = models.ForeignKey(
+        "integrations.Client",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="content_brand_kits",
+    )
+    name = models.CharField(max_length=255)
+    scope = models.CharField(max_length=16, choices=SCOPE_CHOICES, default=SCOPE_WORKSPACE)
+    post_type = models.CharField(max_length=64, blank=True)
+    standing_instructions = models.JSONField(default=dict, blank=True)
+    visual_config = models.JSONField(default=dict, blank=True)
+    required_terms = models.JSONField(default=list, blank=True)
+    blocked_terms = models.JSONField(default=list, blank=True)
+    # Default logo (swap target) + explicit light/dark variants.
+    default_logo = models.ForeignKey(
+        MediaAsset,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="default_for_brand_kits",
+    )
+    logo_light = models.ForeignKey(
+        MediaAsset, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    logo_dark = models.ForeignKey(
+        MediaAsset, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    logo_placement = models.CharField(
+        max_length=16,
+        choices=LOGO_PLACEMENT_CHOICES,
+        default=LOGO_PLACEMENT_BOTTOM_RIGHT,
+    )
+    default_footer_preset = models.ForeignKey(
+        "FooterPreset",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="brand_kits",
+    )
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_brand_kits",
+    )
+
+    class Meta:
+        ordering = ("name",)
+        indexes = [
+            models.Index(fields=["tenant", "workspace", "is_active"], name="content_brandkit_ws"),
+            models.Index(fields=["tenant", "client"], name="content_brandkit_client"),
+            models.Index(fields=["tenant", "scope", "post_type"], name="content_brandkit_scope"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"BrandKit<{self.tenant_id}:{self.name}>"
+
+
+class MediaAssetCollection(TenantScopedModel):
+    """A curated, browsable library of assets (logos or references)."""
+
+    PURPOSE_GENERAL = "general"
+    PURPOSE_LOGO_LIBRARY = "logo_library"
+    PURPOSE_REFERENCE_LIBRARY = "reference_library"
+    PURPOSE_CHOICES = [
+        (PURPOSE_GENERAL, "General"),
+        (PURPOSE_LOGO_LIBRARY, "Logo library"),
+        (PURPOSE_REFERENCE_LIBRARY, "Reference library"),
+    ]
+
+    workspace = models.ForeignKey(
+        ContentWorkspace, on_delete=models.CASCADE, related_name="asset_collections"
+    )
+    name = models.CharField(max_length=255)
+    purpose = models.CharField(
+        max_length=24, choices=PURPOSE_CHOICES, default=PURPOSE_GENERAL
+    )
+    description = models.TextField(blank=True)
+    region = models.CharField(max_length=32, blank=True)
+    locale = models.CharField(max_length=16, blank=True)
+    assets = models.ManyToManyField(
+        MediaAsset,
+        through="MediaAssetCollectionItem",
+        related_name="collections",
+        blank=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_asset_collections",
+    )
+    archived_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("name",)
+        indexes = [
+            models.Index(fields=["tenant", "workspace", "purpose"], name="content_coll_ws"),
+        ]
+        unique_together = ("tenant", "workspace", "name")
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"MediaAssetCollection<{self.tenant_id}:{self.name}>"
+
+
+class MediaAssetCollectionItem(TenantScopedModel):
+    """Tenant-scoped through row: an asset's membership + order in a collection."""
+
+    collection = models.ForeignKey(
+        MediaAssetCollection, on_delete=models.CASCADE, related_name="items"
+    )
+    asset = models.ForeignKey(
+        MediaAsset, on_delete=models.CASCADE, related_name="collection_items"
+    )
+    order = models.PositiveIntegerField(default=0)
+    added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+
+    class Meta:
+        ordering = ("collection_id", "order")
+        unique_together = ("tenant", "collection", "asset")
+        indexes = [
+            models.Index(fields=["tenant", "collection"], name="content_coll_item"),
+        ]
+
+
+class MediaAssetTag(TenantScopedModel):
+    """Reusable tenant-scoped tag vocabulary for assets."""
+
+    workspace = models.ForeignKey(
+        ContentWorkspace,
+        on_delete=models.CASCADE,
+        related_name="asset_tags",
+        null=True,
+        blank=True,
+    )
+    label = models.CharField(max_length=64)
+    slug = models.SlugField(max_length=64)
+    assets = models.ManyToManyField(
+        MediaAsset,
+        through="MediaAssetTagAssignment",
+        related_name="tags",
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ("label",)
+        unique_together = ("tenant", "workspace", "slug")
+        indexes = [
+            models.Index(fields=["tenant", "slug"], name="content_tag_slug"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"MediaAssetTag<{self.tenant_id}:{self.slug}>"
+
+
+class MediaAssetTagAssignment(TenantScopedModel):
+    """Tenant-scoped through row linking a tag to an asset."""
+
+    tag = models.ForeignKey(
+        MediaAssetTag, on_delete=models.CASCADE, related_name="assignments"
+    )
+    asset = models.ForeignKey(
+        MediaAsset, on_delete=models.CASCADE, related_name="tag_assignments"
+    )
+
+    class Meta:
+        unique_together = ("tenant", "tag", "asset")
+        indexes = [
+            models.Index(fields=["tenant", "asset"], name="content_tag_assign"),
+        ]
