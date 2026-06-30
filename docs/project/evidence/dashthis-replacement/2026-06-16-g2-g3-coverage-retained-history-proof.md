@@ -72,6 +72,10 @@ Capture:
 - primary and retained-history `preview_hash`
 - dataset matrix rows for `paid_meta_ads`, `organic_facebook_page`, and `content_ops`
 - primary and history status, row count, retained range, and decision per dataset
+- per-probe compact `data_availability` with requested scope, export eligibility, and any
+  `paid_meta_ads.scope_diagnostic.credential_status`
+- redacted `source_health.report_scope.paid_meta_ads` with selected-scope row count,
+  credential/backfill status, and paid backfill remediation placeholders
 - audit event `report_history_probe_generated`
 
 The command is an evidence collector only. A `blocked_retained_history` or

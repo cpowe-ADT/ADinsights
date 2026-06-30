@@ -8,7 +8,7 @@
  * {@link ./layoutStorage} (localStorage) when offline or unauthenticated — see
  * {@link ReportLayoutPreview}.
  */
-import { del, get, patch, post } from '../../lib/apiClient';
+import { appendQueryParams, del, get, patch, post } from '../../lib/apiClient';
 
 import { isDashboardLayoutConfig, type DashboardLayoutConfig } from './layoutSchema';
 
@@ -43,9 +43,11 @@ const unwrapList = <T>(payload: T[] | Paginated<T>): T[] =>
 
 /** List layouts visible to the current user (own + shared, newest first). */
 export const listSavedLayouts = async (options?: {
+  configId?: string;
   signal?: AbortSignal;
 }): Promise<SavedReportLayout[]> => {
-  const payload = await get<SavedReportLayout[] | Paginated<SavedReportLayout>>(BASE, options);
+  const path = options?.configId ? appendQueryParams(BASE, { config_id: options.configId }) : BASE;
+  const payload = await get<SavedReportLayout[] | Paginated<SavedReportLayout>>(path, options);
   return unwrapList(payload);
 };
 

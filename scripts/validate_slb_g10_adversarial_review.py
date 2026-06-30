@@ -15,6 +15,7 @@ from typing import Any, Mapping
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_SCHEMA_VERSION = "slb_g10_adversarial_review.v1"
 G2_G9_SCHEMA_VERSION = "slb_g2_g9_evidence_run.v1"
+G1_SCHEMA_VERSION = "slb_g1_runtime_target_intake.v1"
 EXPECTED_TEMPLATE_KEY = "slb_monthly_social_report"
 EXPECTED_REPORT_SCHEMA = "report.v1"
 EXPECTED_TIMEZONE = "America/Jamaica"
@@ -74,6 +75,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--g2-g9-run-file",
         help="Optional filled G2-G9 evidence run JSON. When provided, target fields must match.",
     )
+    parser.add_argument(
+        "--intake-file",
+        help="Required filled G1 runtime target intake JSON. Target fields must match before G10 can pass.",
+    )
     parser.add_argument("--format", choices=["text", "json"], default="text")
     return parser.parse_args(argv)
 
@@ -82,18 +87,27 @@ def main(argv: list[str]) -> int:
     args = parse_args(argv)
     review_path = _resolve_path(args.review_file)
     run_path = _resolve_path(args.g2_g9_run_file) if args.g2_g9_run_file else None
+    intake_path = _resolve_path(args.intake_file) if args.intake_file else None
 
     errors: list[str] = []
     warnings: list[str] = []
     review_payload = _load_json(review_path, "Review file", errors)
     run_payload = _load_json(run_path, "G2-G9 run file", errors) if run_path else None
+    intake_payload = _load_json(intake_path, "G1 intake file", errors) if intake_path else None
     if review_payload:
-        _validate_review(review_payload, run_payload=run_payload, errors=errors, warnings=warnings)
+        _validate_review(
+            review_payload,
+            run_payload=run_payload,
+            intake_payload=intake_payload,
+            errors=errors,
+            warnings=warnings,
+        )
 
     result = {
         "schema_version": "slb_g10_adversarial_review_validation.v1",
         "review_file": _display_path(review_path),
         "g2_g9_run_file": _display_path(run_path) if run_path else None,
+        "intake_file": _display_path(intake_path) if intake_path else None,
         "valid": not errors,
         "error_count": len(errors),
         "warning_count": len(warnings),
@@ -107,6 +121,8 @@ def main(argv: list[str]) -> int:
         print(f"Review file: {result['review_file']}")
         if result["g2_g9_run_file"]:
             print(f"G2-G9 run file: {result['g2_g9_run_file']}")
+        if result["intake_file"]:
+            print(f"G1 intake file: {result['intake_file']}")
         print(f"Errors: {len(errors)}")
         for error in errors:
             print(f"- ERROR: {error}")
@@ -120,29 +136,96 @@ def _validate_review(
     payload: Mapping[str, Any],
     *,
     run_payload: Mapping[str, Any] | None,
+    intake_payload: Mapping[str, Any] | None,
     errors: list[str],
     warnings: list[str],
 ) -> None:
     _expect(payload.get("schema_version") == REQUIRED_SCHEMA_VERSION, "Unexpected schema_version.", errors)
     _expect(str(payload.get("status") or "") == "ready_for_g11_hardening", "status must be ready_for_g11_hardening.", errors)
-    _validate_references(payload.get("references"), errors)
+    references = _validate_references(payload.get("references"), errors)
+    _validate_g1_prerequisite(intake_payload, errors)
+    _validate_g2_g9_prerequisite(run_payload, errors)
     target = _validate_target(payload.get("target"), errors)
     _validate_guardrails(payload.get("guardrails"), errors)
     _validate_attack_reviews(payload.get("attack_reviews"), errors, warnings)
     _validate_final_checks(payload.get("final_checks"), errors)
     _validate_reviewer_route(payload.get("reviewer_route"), errors)
     if run_payload and target:
-        _validate_g2_g9_match(target, run_payload, errors)
+        _validate_g2_g9_match(target, run_payload, review_references=references, errors=errors)
+    if intake_payload and target:
+        _validate_g1_match(target, intake_payload, errors)
     _validate_sensitive_patterns(payload, errors)
 
 
-def _validate_references(value: Any, errors: list[str]) -> None:
+def _validate_references(value: Any, errors: list[str]) -> Mapping[str, Any] | None:
     references = _require_mapping(value, "references", errors)
     if not references:
-        return
-    for key in ["g2_g9_run_file", "review_id", "review_timestamp", "operator"]:
+        return None
+    for key in ["g1_intake_file", "g2_g9_run_file", "review_id", "review_timestamp", "operator"]:
         _expect(_filled(references.get(key)), f"references.{key} is required.", errors)
+    _expect(references.get("g1_intake_valid") is True, "references.g1_intake_valid must be true.", errors)
     _expect(references.get("g2_g9_run_valid") is True, "references.g2_g9_run_valid must be true.", errors)
+    return references
+
+
+def _validate_g1_prerequisite(intake_payload: Mapping[str, Any] | None, errors: list[str]) -> None:
+    if not intake_payload:
+        errors.append("G10 validation requires --intake-file with a filled G1 runtime target intake.")
+        return
+    _expect(intake_payload.get("schema_version") == G1_SCHEMA_VERSION, "G1 intake schema_version is invalid.", errors)
+    _expect(
+        str(intake_payload.get("status") or "") == "candidate_ready_for_review",
+        "G1 intake status must be candidate_ready_for_review before G10 adversarial review can pass.",
+        errors,
+    )
+    g0 = _require_mapping(intake_payload.get("g0_clearance"), "G1 intake g0_clearance", errors)
+    if g0:
+        _expect(
+            _filled(g0.get("can_proceed_to_g1_g11")),
+            "G1 intake g0_clearance.can_proceed_to_g1_g11 is required before G10 adversarial review can pass.",
+            errors,
+        )
+    comparison = _require_mapping(intake_payload.get("comparison"), "G1 intake comparison", errors)
+    if comparison:
+        _expect(
+            comparison.get("tolerances_confirmed") is True,
+            "G1 intake comparison.tolerances_confirmed must be true before G10 adversarial review can pass.",
+            errors,
+        )
+    delivery = _require_mapping(intake_payload.get("delivery"), "G1 intake delivery", errors)
+    if delivery:
+        _expect(
+            delivery.get("scheduled_delivery_mode") == "dry_run_only",
+            "G1 intake delivery.scheduled_delivery_mode must be dry_run_only before G10 adversarial review can pass.",
+            errors,
+        )
+        _expect(
+            delivery.get("dashthis_active") is True,
+            "G1 intake delivery.dashthis_active must be true before G10 adversarial review can pass.",
+            errors,
+        )
+    guardrails = _require_mapping(intake_payload.get("guardrails"), "G1 intake guardrails", errors)
+    if guardrails:
+        _expect(
+            guardrails.get("instagram_decision") == "deferred_in_v1",
+            "G1 intake guardrails.instagram_decision must be deferred_in_v1 before G10 adversarial review can pass.",
+            errors,
+        )
+        _expect(
+            guardrails.get("stored_aggregate_only") is True,
+            "G1 intake guardrails.stored_aggregate_only must be true before G10 adversarial review can pass.",
+            errors,
+        )
+        _expect(
+            guardrails.get("no_live_provider_calls_at_render_export_time") is True,
+            "G1 intake guardrails.no_live_provider_calls_at_render_export_time must be true before G10 adversarial review can pass.",
+            errors,
+        )
+
+
+def _validate_g2_g9_prerequisite(run_payload: Mapping[str, Any] | None, errors: list[str]) -> None:
+    if not run_payload:
+        errors.append("G10 validation requires --g2-g9-run-file with a filled G2-G9 evidence run.")
 
 
 def _validate_target(value: Any, errors: list[str]) -> Mapping[str, Any] | None:
@@ -296,12 +379,25 @@ def _validate_reviewer_route(value: Any, errors: list[str]) -> None:
         _expect(_filled(route.get(key)), f"reviewer_route.{key} is required.", errors)
 
 
-def _validate_g2_g9_match(target: Mapping[str, Any], run_payload: Mapping[str, Any], errors: list[str]) -> None:
+def _validate_g2_g9_match(
+    target: Mapping[str, Any],
+    run_payload: Mapping[str, Any],
+    *,
+    review_references: Mapping[str, Any] | None,
+    errors: list[str],
+) -> None:
     _expect(run_payload.get("schema_version") == G2_G9_SCHEMA_VERSION, "G2-G9 run schema_version is invalid.", errors)
     _expect(str(run_payload.get("status") or "") == "ready_for_g10_review", "G2-G9 run status must be ready_for_g10_review.", errors)
     references = _require_mapping(run_payload.get("references"), "G2-G9 run references", errors)
     if references:
         _expect(references.get("g0_can_proceed") is True, "G2-G9 run references.g0_can_proceed must be true.", errors)
+        _expect(_filled(references.get("g1_intake_file")), "G2-G9 run references.g1_intake_file is required.", errors)
+        if review_references:
+            _expect(
+                str(references.get("g1_intake_file") or "") == str(review_references.get("g1_intake_file") or ""),
+                "references.g1_intake_file must match G2-G9 run references.g1_intake_file.",
+                errors,
+            )
     run_target = _require_mapping(run_payload.get("target"), "G2-G9 run target", errors)
     if not run_target:
         return
@@ -322,6 +418,29 @@ def _validate_g2_g9_match(target: Mapping[str, Any], run_payload: Mapping[str, A
             errors,
         )
     _validate_g2_g9_evidence_validation(run_payload.get("evidence_files"), target=target, errors=errors)
+
+
+def _validate_g1_match(target: Mapping[str, Any], intake_payload: Mapping[str, Any], errors: list[str]) -> None:
+    _expect(intake_payload.get("schema_version") == G1_SCHEMA_VERSION, "G1 intake schema_version is invalid.", errors)
+    intake_target = _require_mapping(intake_payload.get("target"), "G1 intake target", errors)
+    if not intake_target:
+        return
+    for key in [
+        "environment",
+        "safe_tenant_identifier",
+        "safe_client_identifier",
+        "report_definition_id",
+        "template_key",
+        "report_schema_version",
+        "primary_start_date",
+        "primary_end_date",
+        "timezone",
+    ]:
+        _expect(
+            str(target.get(key) or "") == str(intake_target.get(key) or ""),
+            f"target.{key} must match G1 intake target.{key}.",
+            errors,
+        )
 
 
 def _validate_g2_g9_evidence_validation(

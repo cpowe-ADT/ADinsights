@@ -2,6 +2,11 @@ import apiClient, { appendQueryParams, type QueryParams } from './apiClient';
 import { buildRuntimeContextPayload } from './runtimeContext';
 
 export type MetricStatus = 'ACTIVE' | 'DEPRECATED' | 'INVALID' | 'UNKNOWN';
+export type MetricAvailabilityState =
+  | 'available'
+  | 'callable_no_data'
+  | 'permission_gated'
+  | 'unsupported';
 export const META_OAUTH_FLOW_SESSION_KEY = 'adinsights.meta.oauth.flow';
 export const META_OAUTH_FLOW_PAGE_INSIGHTS = 'page_insights';
 
@@ -10,6 +15,8 @@ export interface MetricAvailabilityEntry {
   status?: MetricStatus;
   last_checked_at: string | null;
   reason: string;
+  availability_state?: MetricAvailabilityState;
+  availability_note?: string;
 }
 
 export interface MetaPageRecord {

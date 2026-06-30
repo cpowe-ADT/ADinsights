@@ -11,6 +11,8 @@ const api = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../lib/apiClient', () => ({
+  appendQueryParams: (path: string, params: Record<string, string>) =>
+    `${path}?config_id=${params.config_id}`,
   get: api.get,
   post: api.post,
   patch: api.patch,
@@ -51,6 +53,14 @@ describe('savedReportLayouts API client', () => {
     expect(api.get).toHaveBeenCalledWith('/analytics/report-layouts/', undefined);
     expect(rows).toHaveLength(1);
     expect(rows[0].id).toBe('row-1');
+  });
+
+  it('supports config-scoped list requests', async () => {
+    api.get.mockResolvedValue({ results: [row()] });
+    await listSavedLayouts({ configId: 'report-r1' });
+    expect(api.get).toHaveBeenCalledWith('/analytics/report-layouts/?config_id=report-r1', {
+      configId: 'report-r1',
+    });
   });
 
   it('passes a bare array list response through', async () => {

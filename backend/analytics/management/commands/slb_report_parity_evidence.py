@@ -15,6 +15,8 @@ from analytics.reporting_report_preview import (
     build_report_preview,
 )
 
+_NO_DATA_COVERAGE_STATUSES = {"missing_history", "not_previously_synced"}
+
 
 class Command(BaseCommand):
     help = "Render aggregate-only SLB report parity evidence rows for manual DashThis comparison."
@@ -117,6 +119,7 @@ def _widget_rows(
         "result": "blocked_missing_dashthis_value",
         "explanation": "",
     }
+    no_data_coverage = base["coverage_status"] in _NO_DATA_COVERAGE_STATUSES
     kind = str(data.get("kind") or "")
     if kind == "kpi":
         return [
@@ -124,7 +127,9 @@ def _widget_rows(
                 **base,
                 "metric": str(metric.get("key") or ""),
                 "label": str(metric.get("label") or metric.get("key") or ""),
-                "adinsights_value": metric.get("value"),
+                "adinsights_value": _evidence_value(
+                    metric.get("value"), no_data_coverage=no_data_coverage
+                ),
             }
             for metric in data.get("metrics", [])
             if isinstance(metric, Mapping)
@@ -144,12 +149,25 @@ def _widget_rows(
                     {
                         **base,
                         "metric": metric,
-                        "label": str(row.get("name") or row.get("campaign") or row.get("date") or metric),
-                        "adinsights_value": row.get(metric),
+                        "label": str(
+                            row.get("name")
+                            or row.get("campaign")
+                            or row.get("date")
+                            or metric
+                        ),
+                        "adinsights_value": _evidence_value(
+                            row.get(metric), no_data_coverage=no_data_coverage
+                        ),
                     }
                 )
         return output
     return []
+
+
+def _evidence_value(value: object, *, no_data_coverage: bool) -> object:
+    if no_data_coverage:
+        return None
+    return value
 
 
 def _markdown(evidence: Mapping[str, Any]) -> str:

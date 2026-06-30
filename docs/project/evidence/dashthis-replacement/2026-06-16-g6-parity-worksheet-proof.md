@@ -116,9 +116,10 @@ Supported tolerance fields:
 - `accepted_tolerance_percent`
 - `accepted_tolerance_absolute`
 
-Rows without a comparison value remain `blocked_missing_dashthis_value`. Rows with a value but no
-approved tolerance become `blocked_metric_semantics`. Source references containing email/token/secret
-signals are emitted as `redacted` by the comparator.
+Rows without a comparison value remain `blocked_missing_dashthis_value`. Rows with a real numeric
+source value but no retained ADinsights value become `blocked_missing_adinsights_value`. Rows with a
+value but no approved tolerance become `blocked_metric_semantics`. Source references containing
+email/token/secret signals are emitted as `redacted` by the comparator.
 
 Allowed parity results are:
 
@@ -126,6 +127,7 @@ Allowed parity results are:
 - `fail`
 - `blocked_missing_dashthis_value`
 - `blocked_missing_source_value`
+- `blocked_missing_adinsights_value`
 - `blocked_metric_semantics`
 
 The offline evidence validator rejects unsupported labels such as `waived`, `pending`, or
@@ -138,6 +140,16 @@ The parity comparison output must preserve the same `report.id`, `report.templat
 `preview_hash` as the evidence bundle. The offline evidence validator blocks G6 if the parity
 worksheet report identity, date range, or preview hash differs from the fixed bundle used for G2-G5.
 It also blocks if `row_count` or `result_summary` does not match the actual `rows` content.
+Comparator and validator output also carry `parity_completion_requirements`, a derived
+machine-readable grouping of unresolved rows. Use this field for the next operational handoff: it
+separates missing selected-account paid source exports, tenant-owned SLB Page selection required
+before organic import, Content Ops source-total needs, metric-semantics/tolerance work, and parity
+delta investigation without treating any row as approved.
+When the worksheet is complete, use the `slb_report_evidence_validate` JSON output as the G6 link in
+the filled G12 recommendation. The G12 validator now requires that JSON to be
+`slb_evidence_validation.v1`, to have `blocker_count: 0`, no unresolved parity rows, no missing or
+unmatched source values, no completion requirements, and report/date/preview identity matching the
+G12 target.
 
 ## Calculation Rules
 
@@ -260,6 +272,7 @@ Use one of these exact result values:
 - `fail`
 - `blocked_missing_dashthis_value`
 - `blocked_missing_source_value`
+- `blocked_missing_adinsights_value`
 - `blocked_coverage`
 - `blocked_metric_semantics`
 - `not_applicable_v1`
@@ -320,17 +333,49 @@ keeps unresolved rows blocked:
 ```bash
 backend/.venv/bin/pytest -q \
   backend/tests/test_phase2_api.py::test_slb_report_parity_compare_command_computes_deltas_and_blocks_missing_values \
-  backend/tests/test_phase2_api.py::test_slb_report_parity_compare_command_does_not_call_live_providers
+  backend/tests/test_phase2_api.py::test_slb_report_parity_compare_command_does_not_call_live_providers \
+  backend/tests/test_phase2_api.py::test_slb_report_parity_compare_blocks_non_finite_source_values \
+  backend/tests/test_phase2_api.py::test_slb_report_parity_compare_treats_blank_source_values_as_missing \
+  backend/tests/test_phase2_api.py::test_slb_report_evidence_validate_rejects_non_finite_pass_row_values
 ```
 
-Result: `2 passed`.
+Result: focused parity/evidence validation tests pass locally.
 
 The regression asserts:
 
 - `slb_report_parity_compare` produces `schema_version == "slb_parity_comparison.v1"`.
 - Percent and absolute tolerances produce `pass` or `fail` consistently.
 - Rows without comparison values stay `blocked_missing_dashthis_value`.
+- Rows with real numeric source values but missing retained ADinsights values become
+  `blocked_missing_adinsights_value`, keeping missing import/backfill prerequisites separate from
+  metric-semantics/tolerance work.
 - Rows with comparison values but no approved tolerance become `blocked_metric_semantics`.
+- Blank strings and placeholders such as `n/a`, `none`, `null`, `tbd`, and `-` stay missing-source
+  blockers unless a numeric fallback field exists on the same comparison row.
+- Blank or placeholder `unmatched_source_values` entries are not carried as source facts; only real
+  aggregate source values belong in unmatched audit evidence.
+- Source values such as `NaN` or `Infinity` are treated as non-numeric and remain
+  `blocked_metric_semantics`; the comparator must not compute deltas from non-finite values.
+- `slb_report_evidence_validate` rejects `pass` rows whose ADinsights value, source value, delta,
+  percent delta, or accepted tolerance is non-finite or non-numeric, preventing placeholder values
+  from being read as completed parity.
+- Sanitized `source_search_provenance` is preserved from the comparison-values file so no-source
+  searches are auditable without leaking sensitive source text.
+- `slb_report_evidence_validate` blocks `blocked_missing_source_value` rows that do not include
+  substantive `source_search_provenance`, so missing source values need explicit search proof rather
+  than a narrative-only explanation.
+- `slb_report_parity_compare` emits `unresolved_row_count`, `unresolved_summary`, and
+  `unresolved_rows`; `slb_report_evidence_validate` mirrors that as `unresolved_parity` so reviewers
+  can audit exactly which rows need source values versus retained ADinsights report data.
+- Sanitized `missing_source_values` and `unmatched_source_values` are preserved from the
+  comparison-values file; the validator mirrors them as `source_value_inventory` so reviewers can
+  see real source facts that were reviewed but intentionally not mapped to parity rows.
+- Unresolved rows carry additive `recommended_next_action` text so paid source-export needs,
+  selected-account backfill, manual organic import prerequisites, and Content Ops source needs are
+  explicit without being treated as parity approvals.
+- `parity_completion_requirements` groups those unresolved rows into executable blocker categories
+  and mirrors redacted scope evidence for paid and organic prerequisites, including
+  `can_run_now=false` when the selected paid credential or tenant-owned SLB Page is still missing.
 - Sensitive-looking source references are redacted.
 - The comparator completes while live network/provider calls are blocked.
 

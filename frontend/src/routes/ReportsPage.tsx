@@ -8,6 +8,7 @@ import {
   createSlbMonthlyReportTemplate,
   fetchReportDataAvailability,
   listReports,
+  type ReportDataAvailabilityDataset,
   type ReportDataAvailabilityResponse,
   type ReportDefinition,
 } from '../lib/phase2Api';
@@ -29,6 +30,10 @@ function isSlbReport(report: ReportDefinition): boolean {
   return reportTemplateKey(report) === SLB_TEMPLATE_KEY;
 }
 
+function isReportBuilderEligible(report: ReportDefinition): boolean {
+  return report.layout?.schema_version === 'report.v1' || isSlbReport(report);
+}
+
 const availabilityDatasetOrder = [
   'paid_meta_ads',
   'organic_facebook_page',
@@ -48,16 +53,40 @@ function formatDatasetName(value: string): string {
   return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function formatCredentialStatus(status: string | undefined): string {
+  if (!status) return 'Unknown';
+  return status.replace(/_/g, ' ');
+}
+
+function formatMetricAvailabilitySummary(dataset: ReportDataAvailabilityDataset): string {
+  const summary = dataset.metric_availability?.summary;
+  if (!summary) return '';
+  const parts = [
+    [summary.available, 'available'],
+    [summary.callable_no_data, 'no data'],
+    [summary.permission_gated, 'gated'],
+    [summary.unsupported, 'unsupported'],
+  ]
+    .filter(([count]) => Number(count) > 0)
+    .map(([count, label]) => `${count} ${label}`);
+  return parts.join('; ');
+}
+
 const ReportAvailabilityPanel = ({
   availability,
   error,
   existingSlbReport,
+  canCustomize,
 }: {
   availability: ReportDataAvailabilityResponse | null;
   error: string;
   existingSlbReport: ReportDefinition | undefined;
+  canCustomize: boolean;
 }) => {
   if (!availability && !error) return null;
+  const hasWarnings = Boolean(
+    availability?.eligible_for_report_export && availability.warning_datasets.length > 0,
+  );
   return (
     <section className="phase2-card report-availability-panel">
       <div className="reporting-widget__header">
@@ -72,10 +101,14 @@ const ReportAvailabilityPanel = ({
         {availability ? (
           <span
             className={`phase2-pill phase2-pill--${
-              availability.eligible_for_report_export ? 'fresh' : 'failed'
+              availability.eligible_for_report_export ? (hasWarnings ? 'stale' : 'fresh') : 'failed'
             }`}
           >
-            {availability.eligible_for_report_export ? 'ready' : 'blocked'}
+            {availability.eligible_for_report_export
+              ? hasWarnings
+                ? 'ready with warnings'
+                : 'ready'
+              : 'blocked'}
           </span>
         ) : null}
       </div>
@@ -86,6 +119,9 @@ const ReportAvailabilityPanel = ({
             {availabilityDatasetOrder.map((datasetKey) => {
               const dataset = availability.datasets[datasetKey];
               if (!dataset) return null;
+              const diagnostic = dataset.scope_diagnostic;
+              const credentialStatus = diagnostic?.credential_status;
+              const metricSummary = formatMetricAvailabilitySummary(dataset);
               return (
                 <div className="reporting-coverage-card" key={datasetKey}>
                   <div>
@@ -108,7 +144,24 @@ const ReportAvailabilityPanel = ({
                   >
                     {dataset.coverage_status}
                   </span>
+                  {metricSummary ? (
+                    <p className="reporting-coverage-card__metrics">Metrics: {metricSummary}</p>
+                  ) : null}
                   <p className="reporting-coverage-card__note">{dataset.coverage_note}</p>
+                  {diagnostic ? (
+                    <div className="reporting-coverage-card__diagnostic">
+                      <p>{diagnostic.message}</p>
+                      {credentialStatus ? (
+                        <p>
+                          Meta credential: {formatCredentialStatus(credentialStatus.status)}
+                          {credentialStatus.token_status
+                            ? `; token ${formatCredentialStatus(credentialStatus.token_status)}`
+                            : ''}
+                        </p>
+                      ) : null}
+                      <p>{diagnostic.required_action}</p>
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
@@ -117,6 +170,11 @@ const ReportAvailabilityPanel = ({
             {existingSlbReport ? (
               <Link to={`/reports/${existingSlbReport.id}`} className="button primary">
                 Open SLB report
+              </Link>
+            ) : null}
+            {existingSlbReport && canCustomize ? (
+              <Link to={`/reports/${existingSlbReport.id}/builder`} className="button secondary">
+                Customize layout
               </Link>
             ) : null}
             <Link to="/dashboards/data-sources?sources=social" className="button secondary">
@@ -291,6 +349,7 @@ const ReportsPage = () => {
         availability={availability}
         error={availabilityError}
         existingSlbReport={existingSlbReport}
+        canCustomize={canCreate}
       />
 
       {visibleReports.length === 0 ? (
@@ -324,6 +383,11 @@ const ReportsPage = () => {
                 <Link to={`/reports/${report.id}`} className="button tertiary">
                   {isSlbReport(report) ? 'Open SLB report' : 'Open report'}
                 </Link>
+                {canCreate && isReportBuilderEligible(report) ? (
+                  <Link to={`/reports/${report.id}/builder`} className="button tertiary">
+                    Customize layout
+                  </Link>
+                ) : null}
               </div>
             </article>
           ))}

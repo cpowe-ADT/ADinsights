@@ -16,7 +16,12 @@ Two features were built this session and merged to `main`:
 | [#400](https://github.com/cpowe-ADT/ADinsights/pull/400) | Config-driven report builder: render-from-config grid, drag-and-drop editor, live-data binding, per-widget config panel, tenant/user-scoped saved-layouts API | `f0772d20`   |
 | [#399](https://github.com/cpowe-ADT/ADinsights/pull/399) | SLB Meta **organic** engagement via Graph object edges (no `read_insights`)                                                                                   | `3a5ce449`   |
 
-**Live route:** `/dashboards/report-preview` → click **Edit layout** to drag/resize/add/remove/configure widgets.
+**Live routes:**
+
+- `/reports/:reportId/builder` → governed report-scoped builder seeded from `POST /api/reports/{id}/preview/` plus the backend reporting catalog, linked from Report Detail as **Customize layout**.
+- `/reports/:reportId` → client-facing Report Detail consumes any saved `report-<id>` layout, rebinds it to the current governed preview values, and appends missing governed preview widgets below stale saved layouts before rendering.
+- `/dashboards/report-preview` → legacy dashboard-store preview; click **Edit layout** to drag/resize/add/remove/configure widgets.
+- `POST /api/reports/{id}/exports/` PDF/PNG → uses the requester/shared saved `report-<id>` grid layout when present, appending any missing governed preview widgets below stale saved grids. The data still comes from the queued governed `report.v1` snapshot. CSV keeps the governed snapshot row shape for auditability.
 
 **Verified on merged `main` (2026-06-25):** `ruff` clean · full backend `pytest` exit 0 · ESLint clean · frontend `vitest` 944/944 · `npm run build` green · `makemigrations --check` no drift.
 
@@ -45,13 +50,14 @@ DashboardLayoutConfig = {
 
 DashboardWidget = {
   id: string;
-  type: 'kpi' | 'bar' | 'pie' | 'gauge' | 'table' | 'note';
+  type: 'kpi' | 'bar' | 'line' | 'pie' | 'gauge' | 'table' | 'note';
   title?: string;
   x: number; y: number;  // 1-based grid position
   w: number; h: number;  // span in columns / rows
   dataKey?: string;      // binds to live store data, e.g. "summary.totalSpend"
   data?: unknown;        // static fallback data if no dataKey/resolver
   options?: WidgetOptions; // format, currency, max, unit, columns, text, …
+  source?: WidgetSourceBinding; // governed dataset/widget/metric binding + runtime availability
 }
 ```
 
@@ -61,31 +67,37 @@ DashboardWidget = {
 
 Everything is dependency-free (no `react-grid-layout`) — deliberately, to keep the lockfile/CI clean. Pointer events do the drag/resize.
 
-| File                    | Responsibility                                                                                                                                                      |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `layoutSchema.ts`       | Types + `isDashboardLayoutConfig()` validator + `DEFAULT_GRID_COLS`/`DEFAULT_ROW_HEIGHT`. **Start here.**                                                           |
-| `GridCanvas.tsx`        | Renders a config to a CSS grid (read-only). `resolveData?` prop binds live data.                                                                                    |
-| `WidgetRenderer.tsx`    | Maps one `widget.type` → the matching viz-kit component (`KpiTile`, `DistributionBar`, `PieComposition`, `GaugeRing`, `VizDataTable`). **This is the switchboard.** |
-| `LayoutEditor.tsx`      | Drag-and-drop editor over the config. Palette to add, ⠿ to move, corner to resize, ⚙ to configure, × to remove. Calls `onChange`/`onSave`.                          |
-| `gridMath.ts`           | Pure functions: px↔grid-unit conversion, clamp move/resize, next free row. Fully unit-tested; no React.                                                             |
-| `WidgetConfigPanel.tsx` | The ⚙ inline form: edit title, type, `dataKey`, format/currency/unit/note.                                                                                          |
-| `dataResolvers.ts`      | `createStoreResolver({summary, parish})` → resolves a widget's `dataKey` to real values. **This is the live-data bridge.**                                          |
-| `layoutStorage.ts`      | localStorage read/write (`adinsights.report-layout.<id>`). The offline fallback.                                                                                    |
-| `savedReportLayouts.ts` | API client for the backend saved-layouts endpoint (list/get/create/update/delete + `saveLayoutToApi` upsert).                                                       |
-| `sampleLayouts.ts`      | `liveDashboardLayout` (bound to live dataKeys) + `slbSampleLayout` (static demo).                                                                                   |
-| `index.ts`              | Barrel. Import from here.                                                                                                                                           |
-| `reportLayout.css`      | All grid + editor + config-panel styles (CSS vars with fallbacks).                                                                                                  |
-| `__tests__/`            | 36 tests. Mirror these when you add features.                                                                                                                       |
+| File                      | Responsibility                                                                                                                                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `layoutSchema.ts`         | Types + `isDashboardLayoutConfig()` validator + `DEFAULT_GRID_COLS`/`DEFAULT_ROW_HEIGHT`, including optional `source` metadata for governed dataset/widget/metric availability. **Start here.**        |
+| `GridCanvas.tsx`          | Renders a config to a CSS grid (read-only). `resolveData?` prop binds live data.                                                                                                                       |
+| `WidgetRenderer.tsx`      | Maps one `widget.type` → the matching viz-kit component (`KpiTile`, `DistributionBar`, `TrendLine`, `PieComposition`, `GaugeRing`, `VizDataTable`). **This is the switchboard.**                       |
+| `LayoutEditor.tsx`        | Drag-and-drop editor over the config. Palette to add, ⠿ to move, corner to resize, ⚙ to configure, × to remove. Calls `onChange`/`onSave`.                                                             |
+| `gridMath.ts`             | Pure functions: px↔grid-unit conversion, clamp move/resize, next free row. Fully unit-tested; no React.                                                                                                |
+| `WidgetConfigPanel.tsx`   | The ⚙ inline form: edit title, type, `dataKey`, format/currency/unit/note.                                                                                                                             |
+| `dataResolvers.ts`        | `createStoreResolver({summary, parish})` → resolves a widget's `dataKey` to real values. **This is the live-data bridge.**                                                                             |
+| `reportPreviewAdapter.ts` | Converts governed `ReportPreviewResponse` pages/widgets into `DashboardLayoutConfig` for `/reports/:reportId/builder`; preserves missing metric values as `null` and turns blocked widgets into notes. |
+| `layoutStorage.ts`        | localStorage read/write (`adinsights.report-layout.<id>`). The offline fallback.                                                                                                                       |
+| `savedReportLayouts.ts`   | API client for the backend saved-layouts endpoint (list/get/create/update/delete + `is_shared` + `saveLayoutToApi` upsert).                                                                            |
+| `sampleLayouts.ts`        | `liveDashboardLayout` (bound to live dataKeys) + `slbSampleLayout` (static demo).                                                                                                                      |
+| `index.ts`                | Barrel. Import from here.                                                                                                                                                                              |
+| `reportLayout.css`        | All grid + editor + config-panel styles (CSS vars with fallbacks).                                                                                                                                     |
+| `__tests__/`              | 36 tests. Mirror these when you add features.                                                                                                                                                          |
 
-Consumer route: `frontend/src/routes/ReportLayoutPreview.tsx` (wires store + API + edit toggle). Registered in `frontend/src/router.tsx` (`path: 'report-preview'`).
+Consumer route: `frontend/src/routes/ReportLayoutPreview.tsx` (wires report preview/catalog/data-availability or dashboard store data + API + edit toggle, plus report-scoped saved-layout selection, rename, delete, and tenant-share toggle). Registered in `frontend/src/router.tsx` as `/reports/:reportId/builder` and legacy dashboard child `report-preview`.
 
 ---
 
 ## 4. How live data binding works (READ before changing data flow)
 
-1. `ReportLayoutPreview` reads `summary` (campaign totals) and `parish` (per-parish rows) from `useDashboardStore` and calls `loadAll(tenantId)`.
-2. It builds a resolver: `createStoreResolver({ summary, parish })`.
-3. `GridCanvas`/`LayoutEditor` call `resolveData(widget)` per widget. The resolver reads `widget.dataKey`:
+There are now two data-binding modes:
+
+1. Report builder mode (`/reports/:reportId/builder`) calls `getReport`, `previewReport`, `fetchReportingCatalog`, and `fetchReportDataAvailability`, then `reportPreviewToLayout(preview)` seeds the same layout config the canvas/editor mutate. The generated config id is `report-<reportId>` so saved layouts are report-scoped. Runtime availability annotates widget `source.availability`; `LayoutEditor` disables governed add-back for `permission_gated`/`unsupported` states and shows `available`/`no data`/`gated`/`unsupported` chips in the canvas and settings panel.
+2. Report Detail mode (`/reports/:reportId`) looks for a saved layout with `config.id === report-<reportId>`. If found, it renders that layout but resolves each widget's `data` from a freshly generated layout for the current preview. It also appends any governed preview widgets missing from the saved layout below the custom grid, matching by widget id and source signature. This keeps user positioning/titles while avoiding stale saved metric values or hidden newly governed notes/metrics.
+3. Export mode stores the same saved grid config in `ReportExportJob.metadata.report_layout` when a matching layout exists. Before storing, the backend appends any governed preview widgets missing from that saved config, using the same widget-id/source-signature rule as Report Detail and placing them below the custom grid. PDF/PNG render that augmented config through the `report_v1_snapshot` exporter template, but the values remain the already queued governed report snapshot. CSV remains the governed row snapshot so coverage/status evidence stays stable.
+4. Legacy dashboard preview mode (`/dashboards/report-preview`) reads `summary` (campaign totals) and `parish` (per-parish rows) from `useDashboardStore` and calls `loadAll(tenantId)`.
+5. Dashboard preview mode builds a resolver: `createStoreResolver({ summary, parish })`.
+6. `GridCanvas`/`LayoutEditor` call `resolveData(widget)` per widget when a resolver exists. The resolver reads `widget.dataKey`:
    - `summary.<field>` → a number (or **`null`** if missing — never invented, never `0`).
    - `parish.<metric>` → `[{label, value}]` for bar/pie.
    - `parish.rows` → raw rows for tables.
@@ -97,7 +109,7 @@ Consumer route: `frontend/src/routes/ReportLayoutPreview.tsx` (wires store + API
 
 ## 5. Recipes (do exactly these)
 
-### 5a. Add a new widget type (e.g. `line`)
+### 5a. Add a new widget type
 
 1. `layoutSchema.ts`: add `'line'` to the `WidgetType` union; add any new `WidgetOptions` fields.
 2. `WidgetRenderer.tsx`: add a `case 'line':` that renders the viz-kit component. If no viz component exists, build it under `frontend/src/components/viz/` first (match the existing ones).
@@ -162,16 +174,15 @@ Backend model: `analytics.SavedReportLayout` (migration `0009_savedreportlayout`
 
 ---
 
-## 9. Suggested next steps (backlog — not started)
+## 9. Suggested next steps (backlog)
+
+Done after the original handover: report builder mode now lists report-scoped saved layouts (`config.id === report-<reportId>`), switches between them, renames the selected backend row, deletes the selected backend row while keeping a browser copy active, and toggles `is_shared` on the selected backend row so admins/users can publish a layout to the tenant. Report exports now persist a matching saved layout into `ReportExportJob.metadata.report_layout`; PDF/PNG render that saved grid layout when present, append missing governed widgets below stale saved grids, and fall back to the governed snapshot table when absent.
 
 Ordered roughly by value. None are required; the shipped feature is complete and standalone.
 
-1. **Saved-layouts UI** — a picker to list/switch/rename/delete layouts (API already supports all of it; only the UI is missing). Currently the preview auto-loads the first layout whose `config.id` matches `liveDashboardLayout.id`.
-2. **Share toggle** — surface `is_shared` in the editor so a user can publish a layout to their tenant.
-3. **Wire into the real reports nav** — `/dashboards/report-preview` is currently a standalone route; promote it into the reporting section once the UX is signed off.
-4. **More widget types** — line/area/sparkline, a big-number-with-trend, a map widget reusing the parish Leaflet component.
-5. **Export** — render a saved layout to PDF/PNG for the existing report-export pipeline (respect the no-live-Meta-during-export constraint — use already-synced/aggregated data only).
-6. **Per-tenant default layout** — let an admin mark one shared layout as the tenant default.
+1. **More widget types** — area/sparkline, a big-number-with-trend, a map widget reusing the parish Leaflet component.
+2. **Export polish** — make the static Node renderer visually closer to the React `GridCanvas` for complex charts, while preserving the no-live-Meta-during-export constraint.
+3. **Per-tenant default layout** — let an admin mark one shared layout as the tenant default.
 
 ---
 
@@ -183,6 +194,22 @@ If you touch SLB/Meta reporting: organic Page/Post engagement is now sourced fro
 - Backfill command: `backend/analytics/management/commands/slb_backfill_meta_reporting.py`.
 - Context docs: `docs/project/meta-reporting-data-path.md`, `docs/project/meta-reporting-roadmap.md`, `docs/project/meta-graph-v24-provider-key-audit.md`.
 - Known truthful limitation: follower **history** (day-by-day deltas) isn't available without `read_insights`; the export surfaces this honestly rather than fabricating a series. Instagram is gated behind Meta App Review scopes (`DEFAULT_META_LOGIN_IGNORED_SCOPES`) — a review/config gate, not a code bug.
+- 2026-06-26 follow-up: the SLB monthly template uses Page follows plus post reactions/comments/shares, marks gated organic reach/impression/click metrics through reporting-catalog `availability_state`, allows paid coverage gaps to export only as explicit warnings, and adds `import_meta_organic_csv` for approved aggregate Meta UI/export values when manual reach/impression fallback is required. Later the same day, SLB gained an explicit warning-only export policy so missing organic Facebook/Page, organic post, and Content Ops history can render as visible warnings; the local fixed target generated non-empty CSV/PDF/PNG plus a sanitized dry-run. Parity still needs real DashThis/source values.
+- 2026-06-26 truthfulness correction: the local fixed target must be scoped to the SLB paid account before export evidence counts. An account-scope recheck pinned `account_id=act_791712443035541`, blocked unscoped SLB paid widgets, and superseded the earlier export-ready local bundle because the retained May paid rows were not SLB rows. Follow-up made selected-account paid `missing_history`/`not_previously_synced` warning-only for SLB exports, so current fixed-target CSV/PDF/PNG artifacts are non-empty but paid values remain no-data until scoped SLB rows are backfilled or manually imported.
+- 2026-06-26 readiness UI follow-up: `GET /api/reports/data-availability/` can now return `paid_meta_ads.scope_diagnostic` with `credential_status`; the Reports page renders that guidance inside the SLB source availability card so operators see when the selected SLB ad account is missing a Meta credential and must be reconnected/backfilled instead of using unrelated tenant rows.
+- 2026-06-26 evidence follow-up: `slb_report_export_evidence` and `slb_report_evidence_bundle` now include a compact `data_availability` summary, including successful warning-only runs. For the fixed SLB target, keep `data_availability.datasets.paid_meta_ads.scope_diagnostic.credential_status` in the evidence packet so reviewers see the selected SLB account is missing retained paid rows/credential and unrelated retained tenant rows were not substituted.
+- 2026-06-26 validation follow-up: `slb_report_evidence_validate` now reads bundle `data_availability` when present and emits `data_availability_paid_credential` only when paid availability remains blocking. Warning-only selected-account no-data exports still require reviewer explanation and do not close paid parity until the SLB ad account is reconnected/backfilled or manually imported.
+- 2026-06-26 retained-history follow-up: `slb_report_history_probe` now includes per-probe `data_availability` for `primary_month` and `retained_90_day`, so G2/G3 evidence preserves the selected paid account scope diagnostic and missing credential status for both date windows.
+- 2026-06-26 diagnostics follow-up: SLB diagnostics `source_health` now includes redacted `report_scope.paid_meta_ads` with selected-scope row count, redacted credential status, backfill status, and a placeholder `slb_paid_meta_backfill` remediation action so G8 support evidence can name the paid reconnect/backfill task without leaking account IDs.
+- 2026-06-26 paid fallback follow-up: `import_meta_paid_csv` can import approved daily Meta Ads UI/export rows for the selected SLB account into stored paid reporting rows when API backfill is blocked by missing credentials. It rejects multi-day aggregate rows, skips blank metric cells on update, and does not create ad accounts or call Meta. `slb_backfill_meta_reporting` now emits the redacted import template in `post_backfill_commands.manual_paid_csv_import` and `fallback_actions[].code=manual_meta_paid_csv_import` when paid API backfill is credential-blocked; paired `dry_run_command_template` / `manual_paid_csv_import_dry_run` values should be used before write-capable repair commands. Fixed-range `slb_backfill_meta_reporting --dispatch-mode dry-run` is plan-only: it emits `audit_event.status=skipped`, skips request audit creation, and reports organic engagement-edge enrichment as planned without calling Meta.
+- 2026-06-26 report-builder follow-up: `/reports/:reportId/builder` now uses the real governed report preview/catalog as its seed, adds layout-schema `line` widgets backed by `TrendLine`, and Report Detail consumes saved `report-<id>` layouts while rebinding current preview data before the collapsed support/data-path/evidence diagnostics.
+- 2026-06-27 report-detail follow-up: Report Detail now appends any missing governed preview widgets below a saved custom `report-<id>` layout, keyed by widget id and source signature, so stale custom layouts do not hide newly governed SLB notes or metrics.
+- 2026-06-27 export follow-up: report.v1 export metadata now augments matching saved `report-<id>` layouts with any missing governed preview widgets before PDF/PNG rendering, using the same id/source-signature fallback as Report Detail and preserving null missing values instead of zeros.
+- 2026-06-27 evidence follow-up: `slb_report_export_evidence` now attaches the same augmented saved-layout snapshot to its fixed-target CSV/PDF/PNG jobs and emits layout source/append-count evidence fields. `slb_report_evidence_bundle` preserves those fields in its export summary too, so G5/G7 bundled artifacts exercise the same governed PDF/PNG path as API exports.
+- 2026-06-26 report-builder saved-layout UI follow-up: `/reports/:reportId/builder` now includes a report-scoped saved-layout selector plus rename/delete actions and an `is_shared` tenant-share toggle for backend `SavedReportLayout` rows. The route still keeps a browser copy after delete, preserves sharing state when saving the selected row, and filters out unrelated dashboard layouts.
+- 2026-06-26 report-builder availability follow-up: `/reports/:reportId/builder` now fetches `GET /api/reports/data-availability/` from the saved report filters, annotates generated and older saved widgets through `source.availability`, surfaces metric-state chips in the editor/settings panel, and keeps permission-gated or unsupported governed widgets from being re-added as active metric widgets.
+- 2026-06-28 report-builder metric-binding follow-up: `POST /api/reports/{id}/preview/` now includes additive widget `metrics`/`dimensions` arrays. The React adapter and backend saved-layout snapshot adapter use declared `metrics` for `source.metrics` before falling back to row inference, so table dimensions like `campaign`, `post`, and `content` stay display columns and do not affect source signatures, runtime availability chips, stale-layout append matching, or PDF/PNG saved-grid exports.
+- 2026-06-28 report-detail UX follow-up: Report Detail keeps `report.v1` edit, layout, refresh, export, and delivery controls inside the collapsed operator-controls section so the first visible surface reads like a client monthly report. Non-`report.v1` reports still expose edit/refresh actions in the page header.
 
 ---
 

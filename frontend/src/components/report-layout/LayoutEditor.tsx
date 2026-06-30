@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -14,8 +15,11 @@ import {
   DEFAULT_ROW_HEIGHT,
   type DashboardLayoutConfig,
   type DashboardWidget,
+  type WidgetMetricAvailabilityState,
+  type WidgetSourceBinding,
   type WidgetOptions,
   type WidgetType,
+  widgetSourceSignature,
 } from './layoutSchema';
 import './reportLayout.css';
 
@@ -25,11 +29,25 @@ const GAP_PX = 16;
 const PALETTE: ReadonlyArray<{ type: WidgetType; label: string }> = [
   { type: 'kpi', label: 'KPI' },
   { type: 'bar', label: 'Bar' },
+  { type: 'line', label: 'Line' },
   { type: 'pie', label: 'Pie' },
   { type: 'gauge', label: 'Gauge' },
   { type: 'table', label: 'Table' },
   { type: 'note', label: 'Note' },
 ];
+const DEFAULT_PLACEHOLDER_WIDGET_TYPES: readonly WidgetType[] = PALETTE.map((item) => item.type);
+const SOURCE_STATE_LABELS = {
+  available: 'available',
+  callable_no_data: 'no data',
+  permission_gated: 'gated',
+  unsupported: 'unsupported',
+} as const;
+const SOURCE_STATE_PRIORITY = {
+  unsupported: 4,
+  permission_gated: 3,
+  callable_no_data: 2,
+  available: 1,
+} satisfies Record<WidgetMetricAvailabilityState, number>;
 
 let counter = 0;
 const newId = (): string => `w-${(counter += 1).toString(36)}`;
@@ -46,6 +64,12 @@ const placeholderData = (type: WidgetType): unknown => {
         { label: 'A', value: 3 },
         { label: 'B', value: 2 },
         { label: 'C', value: 1 },
+      ];
+    case 'line':
+      return [
+        { date: '2026-05-01', value: 2 },
+        { date: '2026-05-02', value: 5 },
+        { date: '2026-05-03', value: 3 },
       ];
     case 'table':
       return [{ label: 'Row 1', value: 1 }];
@@ -67,12 +91,36 @@ const placeholderOptions = (type: WidgetType): WidgetOptions => {
           { key: 'value', header: 'Value', align: 'right' },
         ],
       };
+    case 'line':
+      return { height: 200, series: [{ key: 'value', label: 'Value' }], yFormat: 'number' };
     case 'note':
       return { text: 'New note' };
     default:
       return { height: 200 };
   }
 };
+
+function sourceAvailability(source?: WidgetSourceBinding): {
+  label: string;
+  tone: 'available' | 'warning' | 'blocked';
+  disabled: boolean;
+} | null {
+  const states = source?.availability?.map((entry) => entry.state) ?? [];
+  if (states.length === 0) return null;
+  let state = states[0];
+  for (const candidate of states) {
+    if (SOURCE_STATE_PRIORITY[candidate] > SOURCE_STATE_PRIORITY[state]) {
+      state = candidate;
+    }
+  }
+  if (state === 'unsupported' || state === 'permission_gated') {
+    return { label: SOURCE_STATE_LABELS[state], tone: 'blocked', disabled: true };
+  }
+  if (state === 'callable_no_data') {
+    return { label: SOURCE_STATE_LABELS[state], tone: 'warning', disabled: false };
+  }
+  return { label: SOURCE_STATE_LABELS[state], tone: 'available', disabled: false };
+}
 
 interface DragState {
   id: string;
@@ -90,6 +138,14 @@ export interface LayoutEditorProps {
   onSave?: (layout: DashboardLayoutConfig) => void;
   /** Optional live-data binding so widgets show real values while editing. */
   resolveData?: (widget: DashboardWidget) => unknown;
+  /**
+   * Governed source widgets, typically adapted from the backend report preview.
+   * When supplied, editors can restore missing source-bound widgets without
+   * creating placeholder-only components.
+   */
+  availableWidgets?: DashboardWidget[];
+  /** Placeholder widget types available from the generic palette. */
+  placeholderWidgetTypes?: readonly WidgetType[];
 }
 
 /**
@@ -98,7 +154,14 @@ export interface LayoutEditorProps {
  * the ×, and save. It only mutates the config — the same config {@link GridCanvas}
  * renders read-only — so the view and editor never drift.
  */
-const LayoutEditor = ({ layout, onChange, onSave, resolveData }: LayoutEditorProps) => {
+const LayoutEditor = ({
+  layout,
+  onChange,
+  onSave,
+  resolveData,
+  availableWidgets = [],
+  placeholderWidgetTypes = DEFAULT_PLACEHOLDER_WIDGET_TYPES,
+}: LayoutEditorProps) => {
   const cols = layout.cols || DEFAULT_GRID_COLS;
   const rowHeight = layout.rowHeight || DEFAULT_ROW_HEIGHT;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -108,6 +171,30 @@ const LayoutEditor = ({ layout, onChange, onSave, resolveData }: LayoutEditorPro
   latest.current = { layout, onChange, cols };
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedSourceWidgetId, setSelectedSourceWidgetId] = useState('');
+
+  const sourceWidgetChoices = useMemo(() => {
+    const currentIds = new Set(layout.widgets.map((widget) => widget.id));
+    const currentSourceSignatures = new Set(
+      layout.widgets.flatMap((widget) => {
+        const signature = widgetSourceSignature(widget);
+        return signature ? [signature] : [];
+      }),
+    );
+    return availableWidgets.filter((widget) => {
+      if (currentIds.has(widget.id)) return false;
+      const signature = widgetSourceSignature(widget);
+      return !signature || !currentSourceSignatures.has(signature);
+    });
+  }, [availableWidgets, layout.widgets]);
+  const selectedSourceWidget = sourceWidgetChoices.find(
+    (widget) => widget.id === selectedSourceWidgetId,
+  );
+  const selectedSourceAvailability = sourceAvailability(selectedSourceWidget?.source);
+  const placeholderPalette = useMemo(() => {
+    const allowedTypes = new Set(placeholderWidgetTypes);
+    return PALETTE.filter((item) => allowedTypes.has(item.type));
+  }, [placeholderWidgetTypes]);
 
   const updateWidget = useCallback(
     (id: string, patch: Partial<DashboardWidget>) => {
@@ -151,6 +238,15 @@ const LayoutEditor = ({ layout, onChange, onSave, resolveData }: LayoutEditorPro
     };
   }, [applyDrag]);
 
+  useEffect(() => {
+    if (
+      selectedSourceWidgetId &&
+      !sourceWidgetChoices.some((widget) => widget.id === selectedSourceWidgetId)
+    ) {
+      setSelectedSourceWidgetId('');
+    }
+  }, [selectedSourceWidgetId, sourceWidgetChoices]);
+
   const beginDrag = useCallback(
     (e: ReactPointerEvent, widget: DashboardWidget, mode: 'move' | 'resize') => {
       e.preventDefault();
@@ -188,6 +284,20 @@ const LayoutEditor = ({ layout, onChange, onSave, resolveData }: LayoutEditorPro
     [layout, onChange],
   );
 
+  const addSourceWidget = useCallback(() => {
+    const sourceWidget = sourceWidgetChoices.find((widget) => widget.id === selectedSourceWidgetId);
+    if (!sourceWidget) return;
+    if (sourceAvailability(sourceWidget.source)?.disabled) return;
+    const nextWidget: DashboardWidget = {
+      ...sourceWidget,
+      x: Math.min(Math.max(sourceWidget.x || 1, 1), cols),
+      y: nextFreeRow(layout.widgets),
+    };
+    onChange({ ...layout, widgets: [...layout.widgets, nextWidget] });
+    setSelectedSourceWidgetId('');
+    setSelectedId(nextWidget.id);
+  }, [cols, layout, onChange, selectedSourceWidgetId, sourceWidgetChoices]);
+
   const removeWidget = useCallback(
     (id: string) => {
       setSelectedId((cur) => (cur === id ? null : cur));
@@ -202,7 +312,7 @@ const LayoutEditor = ({ layout, onChange, onSave, resolveData }: LayoutEditorPro
     <div className="report-editor">
       <div className="report-editor__toolbar" role="toolbar" aria-label="Layout editor">
         <span className="report-editor__group-label">Add</span>
-        {PALETTE.map((item) => (
+        {placeholderPalette.map((item) => (
           <button
             key={item.type}
             type="button"
@@ -213,6 +323,41 @@ const LayoutEditor = ({ layout, onChange, onSave, resolveData }: LayoutEditorPro
             + {item.label}
           </button>
         ))}
+        {sourceWidgetChoices.length > 0 ? (
+          <div className="report-editor__catalog">
+            <label className="report-editor__catalog-field">
+              <span className="report-editor__group-label">Governed</span>
+              <select
+                value={selectedSourceWidgetId}
+                onChange={(event) => setSelectedSourceWidgetId(event.target.value)}
+                aria-label="Governed report widget"
+              >
+                <option value="">Select widget</option>
+                {sourceWidgetChoices.map((widget) => {
+                  const availability = sourceAvailability(widget.source);
+                  return (
+                    <option
+                      key={widget.id}
+                      value={widget.id}
+                      disabled={availability?.disabled ?? false}
+                    >
+                      {widget.title ?? widget.id}
+                      {availability ? ` (${availability.label})` : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="report-editor__add"
+              onClick={addSourceWidget}
+              disabled={!selectedSourceWidgetId || Boolean(selectedSourceAvailability?.disabled)}
+            >
+              Add governed widget
+            </button>
+          </div>
+        ) : null}
         {onSave ? (
           <button
             type="button"
@@ -241,64 +386,74 @@ const LayoutEditor = ({ layout, onChange, onSave, resolveData }: LayoutEditorPro
         }}
         aria-label={`${layout.title} (editing)`}
       >
-        {layout.widgets.map((widget) => (
-          <article
-            key={widget.id}
-            className={[
-              'report-grid__cell',
-              'report-grid__cell--editable',
-              activeId === widget.id ? 'is-active' : '',
-              selectedId === widget.id ? 'is-selected' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            style={{
-              gridColumn: `${widget.x} / span ${widget.w}`,
-              gridRow: `${widget.y} / span ${widget.h}`,
-            }}
-            data-widget-id={widget.id}
-            data-widget-type={widget.type}
-          >
-            <header
-              className="report-editor__drag"
-              onPointerDown={(e) => beginDrag(e, widget, 'move')}
-              title="Drag to move"
+        {layout.widgets.map((widget) => {
+          const availability = sourceAvailability(widget.source);
+          return (
+            <article
+              key={widget.id}
+              className={[
+                'report-grid__cell',
+                'report-grid__cell--editable',
+                activeId === widget.id ? 'is-active' : '',
+                selectedId === widget.id ? 'is-selected' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              style={{
+                gridColumn: `${widget.x} / span ${widget.w}`,
+                gridRow: `${widget.y} / span ${widget.h}`,
+              }}
+              data-widget-id={widget.id}
+              data-widget-type={widget.type}
             >
-              <span className="report-editor__drag-grip" aria-hidden="true">
-                ⠿
-              </span>
-              <span className="report-editor__drag-title">{widget.title ?? widget.type}</span>
-              <button
-                type="button"
-                className="report-editor__settings"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => setSelectedId(widget.id)}
-                aria-label={`Configure ${widget.title ?? widget.type}`}
+              <header
+                className="report-editor__drag"
+                onPointerDown={(e) => beginDrag(e, widget, 'move')}
+                title="Drag to move"
               >
-                ⚙
-              </button>
-              <button
-                type="button"
-                className="report-editor__remove"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => removeWidget(widget.id)}
-                aria-label={`Remove ${widget.title ?? widget.type}`}
-              >
-                ×
-              </button>
-            </header>
-            <div className="report-grid__body report-editor__body">
-              <WidgetRenderer widget={widget} data={resolveData?.(widget)} />
-            </div>
-            <span
-              className="report-editor__resize"
-              onPointerDown={(e) => beginDrag(e, widget, 'resize')}
-              role="separator"
-              aria-label={`Resize ${widget.title ?? widget.type}`}
-              title="Drag to resize"
-            />
-          </article>
-        ))}
+                <span className="report-editor__drag-grip" aria-hidden="true">
+                  ⠿
+                </span>
+                <span className="report-editor__drag-title">{widget.title ?? widget.type}</span>
+                {availability ? (
+                  <span
+                    className={`report-editor__availability report-editor__availability--${availability.tone}`}
+                  >
+                    {availability.label}
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  className="report-editor__settings"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => setSelectedId(widget.id)}
+                  aria-label={`Configure ${widget.title ?? widget.type}`}
+                >
+                  ⚙
+                </button>
+                <button
+                  type="button"
+                  className="report-editor__remove"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => removeWidget(widget.id)}
+                  aria-label={`Remove ${widget.title ?? widget.type}`}
+                >
+                  ×
+                </button>
+              </header>
+              <div className="report-grid__body report-editor__body">
+                <WidgetRenderer widget={widget} data={resolveData?.(widget)} />
+              </div>
+              <span
+                className="report-editor__resize"
+                onPointerDown={(e) => beginDrag(e, widget, 'resize')}
+                role="separator"
+                aria-label={`Resize ${widget.title ?? widget.type}`}
+                title="Drag to resize"
+              />
+            </article>
+          );
+        })}
       </section>
     </div>
   );

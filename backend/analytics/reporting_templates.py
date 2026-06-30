@@ -8,6 +8,12 @@ from typing import Any
 
 
 SLB_MONTHLY_TEMPLATE_KEY = "slb_monthly_social_report"
+SLB_EXPORT_WARNING_ONLY_COVERAGE_STATUSES: dict[str, tuple[str, ...]] = {
+    "paid_meta_ads": ("partial", "missing_history", "not_previously_synced"),
+    "organic_facebook_page": ("missing_history", "not_previously_synced"),
+    "organic_facebook_posts": ("missing_history", "not_previously_synced"),
+    "content_ops": ("missing_history", "not_previously_synced"),
+}
 
 
 @dataclass(frozen=True)
@@ -27,6 +33,7 @@ class ReportTemplateDefinition:
             "version": self.version,
             "supported_datasets": list(self.supported_datasets),
             "required_sources": list(self.required_sources),
+            "export_policy": get_template_export_policy(self.template_key),
             "eligibility": dict(self.eligibility),
         }
 
@@ -55,20 +62,35 @@ def build_slb_monthly_report_layout(
         _kpi(
             "organic_page_summary",
             "organic_facebook_page",
-            ["page_reach", "page_impressions", "page_engagements", "page_follows"],
+            ["page_follows"],
+            filters,
+        ),
+        _kpi(
+            "organic_post_engagement_summary",
+            "organic_facebook_page",
+            ["post_reactions", "post_comments", "post_shares"],
             filters,
         ),
         _line(
             "organic_engagement_trend",
             "organic_facebook_page",
-            ["page_engagements"],
+            ["post_reactions", "post_comments", "post_shares"],
             filters,
+        ),
+        _report_section(
+            "organic_reach_impressions_note",
+            "Reach and impressions availability",
+            (
+                "Organic Facebook reach and impressions are unavailable in ADinsights until Meta "
+                "approves the required insights access. This report uses Page follows plus post "
+                "reactions, comments, and shares from the approved engagement edge path instead."
+            ),
         ),
         _table(
             "top_posts_table",
             "organic_facebook_page",
             ["post"],
-            ["post_impressions", "post_clicks", "post_reactions_like", "post_reactions_love"],
+            ["post_reactions", "post_comments", "post_shares"],
             filters,
         ),
         _kpi(
@@ -85,11 +107,24 @@ def build_slb_monthly_report_layout(
         "schema_version": "report.v1",
         "template_key": SLB_MONTHLY_TEMPLATE_KEY,
         "catalog_schema_version": "reporting_catalog.v1",
+        "export_policy": get_template_export_policy(SLB_MONTHLY_TEMPLATE_KEY),
         "pages": [
             _page("cover", "Cover and period", ["cover_period"]),
-            _page("executive_summary", "Executive summary", ["paid_summary", "organic_page_summary"]),
-            _page("paid_meta_ads", "Paid Meta Ads performance", ["paid_spend_trend", "paid_campaign_table"]),
-            _page("organic_facebook", "Organic Facebook/Page performance", ["organic_engagement_trend"]),
+            _page(
+                "executive_summary",
+                "Executive summary",
+                ["paid_summary", "organic_page_summary", "organic_post_engagement_summary"],
+            ),
+            _page(
+                "paid_meta_ads",
+                "Paid Meta Ads performance",
+                ["paid_spend_trend", "paid_campaign_table"],
+            ),
+            _page(
+                "organic_facebook",
+                "Organic Facebook/Page performance",
+                ["organic_engagement_trend", "organic_reach_impressions_note"],
+            ),
             _page("top_posts", "Top posts", ["top_posts_table"]),
             _page("content_activity", "Content activity/work completed", ["content_activity_summary"]),
             _page("recommendations", "Recommendations and next actions", ["recommendations"]),
@@ -114,6 +149,23 @@ REPORT_TEMPLATE_REGISTRY: dict[str, ReportTemplateDefinition] = {
         },
     )
 }
+
+
+def get_template_export_policy(template_key: str) -> dict[str, Any]:
+    if template_key != SLB_MONTHLY_TEMPLATE_KEY:
+        return {"warning_only_coverage_statuses": {}}
+    return {
+        "warning_only_coverage_statuses": {
+            dataset: list(statuses)
+            for dataset, statuses in SLB_EXPORT_WARNING_ONLY_COVERAGE_STATUSES.items()
+        },
+        "notes": [
+            "SLB monthly reports may export missing/partial stored-data sections as explicit "
+            "warnings when no permission, unsupported-metric, or unscoped paid-account blocker "
+            "is present. Missing metrics remain no-data values; unrelated paid account rows must "
+            "not be substituted."
+        ],
+    }
 
 
 def get_report_template_registry() -> list[dict[str, Any]]:
@@ -201,7 +253,7 @@ def _table(
     }
 
 
-def _report_section(widget_id: str, title: str) -> dict[str, Any]:
+def _report_section(widget_id: str, title: str, body: str = "") -> dict[str, Any]:
     return {
         "id": widget_id,
         "type": "report_section",
@@ -210,5 +262,5 @@ def _report_section(widget_id: str, title: str) -> dict[str, Any]:
         "dimensions": [],
         "filters": {"date_range": "last_month"},
         "coverage_policy": "render_with_warning",
-        "visual": {"title": title, "source_labels": True},
+        "visual": {"title": title, "body": body, "source_labels": True},
     }

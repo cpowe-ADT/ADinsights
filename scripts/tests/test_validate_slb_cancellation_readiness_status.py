@@ -67,6 +67,121 @@ def test_current_slb_readiness_status_manifest_is_valid(tmp_path, capsys):
     assert result["warnings"] == []
 
 
+def test_validator_rejects_missing_readiness_doctor_script(tmp_path, capsys, monkeypatch):
+    status_path, goal_doc_path, blocker_register_path = _copy_control_files(tmp_path)
+    monkeypatch.setattr(cli, "DOCTOR_SCRIPT", tmp_path / "missing-doctor.py")
+
+    exit_code, result = _run_validator(status_path, goal_doc_path, blocker_register_path, capsys)
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert any("SLB readiness doctor script does not exist" in error for error in result["errors"])
+
+
+def test_validator_rejects_readiness_doctor_product_capability_drift(
+    tmp_path, capsys, monkeypatch
+):
+    status_path, goal_doc_path, blocker_register_path = _copy_control_files(tmp_path)
+    fake_doctor = tmp_path / "fake-doctor.py"
+    fake_doctor.write_text(
+        "import json\n"
+        f"ids = {cli.EXPECTED_OBJECTIVE_IDS!r}\n"
+        "print(json.dumps({"
+        "'product_capability_assessment': {"
+        "'schema_version': 'slb_product_capability_assessment.v1', "
+        "'external_inputs_are_product_blockers': True, "
+        "'no_fake_data_rule': 'Missing values are fine.', "
+        "'counts': {'product_capability_blockers': 0, 'comparison_or_release_inputs': 0}, "
+        "'lanes': {}"
+        "}, "
+        "'fixed_target_prerequisite': {'id': 'G1', 'status': 'blocked_external'}, "
+        "'g1_intake_requirements': {"
+        "'template_exists': True, "
+        "'pending_fields': ['target.report_definition_id'], "
+        "'false_confirmation_fields': ['comparison.tolerances_confirmed']"
+        "}, "
+        "'objective_progress': ["
+        "{'id': objective_id, 'status': 'evidence_pending', "
+        "'readiness_goals': [{'id': 'G2', 'status': 'evidence_pending'}], "
+        "'fixed_target_prerequisite': {"
+        "'required': True, "
+        "'satisfied': False, "
+        "'goal': {'id': 'G1', 'status': 'blocked_external'}"
+        "}, "
+        "'can_start_fixed_target_evidence': False, "
+        "'note': 'Testing drift.'}"
+        " for objective_id in ids"
+        "]"
+        "}))\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(cli, "DOCTOR_SCRIPT", fake_doctor)
+
+    exit_code, result = _run_validator(status_path, goal_doc_path, blocker_register_path, capsys)
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert any(
+        "must not classify external comparison/release inputs as product blockers"
+        in error
+        for error in result["errors"]
+    )
+    assert any("must preserve the no-fake-data rule" in error for error in result["errors"])
+
+
+def test_validator_rejects_readiness_doctor_objective_map_drift(
+    tmp_path, capsys, monkeypatch
+):
+    status_path, goal_doc_path, blocker_register_path = _copy_control_files(tmp_path)
+    monkeypatch.setattr(cli, "EXPECTED_OBJECTIVE_IDS", ["SLB-001", "SLB-999"])
+
+    exit_code, result = _run_validator(status_path, goal_doc_path, blocker_register_path, capsys)
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert any("objective_progress must list active objectives in order" in error for error in result["errors"])
+
+
+def test_validator_rejects_readiness_doctor_objective_fixed_target_gate_drift(
+    tmp_path, capsys, monkeypatch
+):
+    status_path, goal_doc_path, blocker_register_path = _copy_control_files(tmp_path)
+    fake_doctor = tmp_path / "fake-doctor.py"
+    fake_doctor.write_text(
+        "import json\n"
+        f"ids = {cli.EXPECTED_OBJECTIVE_IDS!r}\n"
+        "print(json.dumps({"
+        "'fixed_target_prerequisite': {'id': 'G1', 'status': 'blocked_external'}, "
+        "'g1_intake_requirements': {"
+        "'template_exists': True, "
+        "'pending_fields': ['target.report_definition_id'], "
+        "'false_confirmation_fields': ['comparison.tolerances_confirmed']"
+        "}, "
+        "'objective_progress': ["
+        "{'id': objective_id, 'status': 'evidence_pending', "
+        "'readiness_goals': [{'id': 'G2', 'status': 'evidence_pending'}], "
+        "'note': 'Testing drift.'}"
+        " for objective_id in ids"
+        "]"
+        "}))\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(cli, "DOCTOR_SCRIPT", fake_doctor)
+
+    exit_code, result = _run_validator(status_path, goal_doc_path, blocker_register_path, capsys)
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert any(
+        "SLB readiness doctor objective SLB-001 must emit fixed_target_prerequisite" in error
+        for error in result["errors"]
+    )
+    assert any(
+        "SLB readiness doctor objective SLB-001 can_start_fixed_target_evidence must match G1 status" in error
+        for error in result["errors"]
+    )
+
+
 def test_validator_rejects_goal_doc_status_drift(tmp_path, capsys):
     status_path, goal_doc_path, blocker_register_path = _copy_control_files(tmp_path)
     _write_goal_statuses(goal_doc_path, {"G2": "passed"})
@@ -169,6 +284,7 @@ def test_validator_rejects_missing_g1_intake_links(tmp_path, capsys):
     status_path, goal_doc_path, blocker_register_path = _copy_control_files(tmp_path)
     payload = json.loads(status_path.read_text(encoding="utf-8"))
     payload["next_execution"]["g1_intake_template"] = "docs/project/evidence/dashthis-replacement/missing-g1.json"
+    payload["next_execution"]["g1_intake_draft_helper"] = "python3 scripts/other_draft.py"
     payload["next_execution"]["g1_intake_validator"] = "python3 scripts/other_validator.py"
     status_path.write_text(json.dumps(payload), encoding="utf-8")
 
@@ -178,6 +294,47 @@ def test_validator_rejects_missing_g1_intake_links(tmp_path, capsys):
     assert result["valid"] is False
     assert any("next_execution.g1_intake_template path does not exist" in error for error in result["errors"])
     assert any("next_execution.g1_intake_validator must reference" in error for error in result["errors"])
+    assert any("next_execution.g1_intake_draft_helper must reference" in error for error in result["errors"])
+    assert any(
+        "doctor g1_intake_requirements must point to an existing template" in error
+        for error in result["errors"]
+    )
+
+
+def test_validator_rejects_missing_g1_draft_helper_script(tmp_path, capsys, monkeypatch):
+    status_path, goal_doc_path, blocker_register_path = _copy_control_files(tmp_path)
+    monkeypatch.setattr(cli, "G1_DRAFT_HELPER_SCRIPT", tmp_path / "missing-draft.py")
+
+    exit_code, result = _run_validator(status_path, goal_doc_path, blocker_register_path, capsys)
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert any("G1 intake draft helper script does not exist" in error for error in result["errors"])
+
+
+def test_validator_rejects_g1_draft_helper_example_output_drift(
+    tmp_path, capsys, monkeypatch
+):
+    status_path, goal_doc_path, blocker_register_path = _copy_control_files(tmp_path)
+    fake_helper = tmp_path / "fake-g1-draft-helper.py"
+    fake_helper.write_text(
+        "import json\n"
+        "print(json.dumps({"
+        "'schema_version': 'slb_g1_intake_draft_result.v1', "
+        "'valid': True, "
+        "'candidate_ready_for_review': False, "
+        "'pending_fields': [], "
+        "'false_confirmation_fields': []"
+        "}))\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(cli, "G1_DRAFT_HELPER_SCRIPT", fake_helper)
+
+    exit_code, result = _run_validator(status_path, goal_doc_path, blocker_register_path, capsys)
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert any("G1 draft helper example did not write draft output" in error for error in result["errors"])
 
 
 def test_validator_rejects_missing_g0_g1_handoff_validator(tmp_path, capsys):
@@ -204,6 +361,12 @@ def test_validator_rejects_missing_evidence_chain_validator(tmp_path, capsys):
     assert exit_code == 1
     assert result["valid"] is False
     assert any("next_execution.evidence_chain_validator must reference" in error for error in result["errors"])
+    assert any("next_execution.evidence_chain_validator must include --status-manifest-file" in error for error in result["errors"])
+    assert any("next_execution.evidence_chain_validator must include --g1-intake-file" in error for error in result["errors"])
+    assert any("next_execution.evidence_chain_validator must include --g2-g9-run-file" in error for error in result["errors"])
+    assert any("next_execution.evidence_chain_validator must include --g10-review-file" in error for error in result["errors"])
+    assert any("next_execution.evidence_chain_validator must include --g11-window-file" in error for error in result["errors"])
+    assert any("next_execution.evidence_chain_validator must include --g12-recommendation-file" in error for error in result["errors"])
 
 
 def test_validator_rejects_missing_g2_g9_run_links(tmp_path, capsys):
@@ -219,6 +382,7 @@ def test_validator_rejects_missing_g2_g9_run_links(tmp_path, capsys):
     assert result["valid"] is False
     assert any("next_execution.g2_g9_run_template path does not exist" in error for error in result["errors"])
     assert any("next_execution.g2_g9_run_validator must reference" in error for error in result["errors"])
+    assert any("next_execution.g2_g9_run_validator must include --intake-file" in error for error in result["errors"])
 
 
 def test_validator_rejects_missing_g10_adversarial_links(tmp_path, capsys):
@@ -234,6 +398,8 @@ def test_validator_rejects_missing_g10_adversarial_links(tmp_path, capsys):
     assert result["valid"] is False
     assert any("next_execution.g10_adversarial_template path does not exist" in error for error in result["errors"])
     assert any("next_execution.g10_adversarial_validator must reference" in error for error in result["errors"])
+    assert any("next_execution.g10_adversarial_validator must include --g2-g9-run-file" in error for error in result["errors"])
+    assert any("next_execution.g10_adversarial_validator must include --intake-file" in error for error in result["errors"])
 
 
 def test_validator_rejects_missing_g11_hardening_links(tmp_path, capsys):
@@ -249,6 +415,39 @@ def test_validator_rejects_missing_g11_hardening_links(tmp_path, capsys):
     assert result["valid"] is False
     assert any("next_execution.g11_hardening_template path does not exist" in error for error in result["errors"])
     assert any("next_execution.g11_hardening_validator must reference" in error for error in result["errors"])
+    assert any("next_execution.g11_hardening_validator must include --g10-review-file" in error for error in result["errors"])
+
+
+def test_validator_rejects_g11_template_reference_drift(tmp_path, capsys):
+    status_path, goal_doc_path, blocker_register_path = _copy_control_files(tmp_path)
+    template_path = tmp_path / "g11-template.json"
+    template = json.loads(
+        (
+            cli.DEFAULT_STATUS_FILE.parent
+            / "2026-06-16-g11-hardening-window.template.json"
+        ).read_text(encoding="utf-8")
+    )
+    del template["references"]["g1_intake_file"]
+    template["references"]["g2_g9_run_valid"] = True
+    template_path.write_text(json.dumps(template), encoding="utf-8")
+    payload = json.loads(status_path.read_text(encoding="utf-8"))
+    payload["next_execution"]["g11_hardening_template"] = str(template_path)
+    status_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    exit_code, result = _run_validator(
+        status_path, goal_doc_path, blocker_register_path, capsys
+    )
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert (
+        "next_execution.g11_hardening_template.references.g1_intake_file is required."
+        in result["errors"]
+    )
+    assert (
+        "next_execution.g11_hardening_template.references.g2_g9_run_valid must default to false."
+        in result["errors"]
+    )
 
 
 def test_validator_rejects_missing_g12_recommendation_links(tmp_path, capsys):
@@ -264,6 +463,46 @@ def test_validator_rejects_missing_g12_recommendation_links(tmp_path, capsys):
     assert result["valid"] is False
     assert any("next_execution.g12_recommendation_template path does not exist" in error for error in result["errors"])
     assert any("next_execution.g12_recommendation_validator must reference" in error for error in result["errors"])
+    assert any(
+        "next_execution.g12_recommendation_validator must include --status-manifest-file" in error
+        for error in result["errors"]
+    )
+    assert any(
+        "next_execution.g12_recommendation_validator must include --g11-window-file" in error
+        for error in result["errors"]
+    )
+
+
+def test_validator_rejects_g12_template_reference_drift(tmp_path, capsys):
+    status_path, goal_doc_path, blocker_register_path = _copy_control_files(tmp_path)
+    template_path = tmp_path / "g12-template.json"
+    template = json.loads(
+        (
+            cli.DEFAULT_STATUS_FILE.parent
+            / "2026-06-16-g12-final-recommendation.template.json"
+        ).read_text(encoding="utf-8")
+    )
+    del template["references"]["g10_review_file"]
+    template["references"]["g11_window_valid"] = True
+    template_path.write_text(json.dumps(template), encoding="utf-8")
+    payload = json.loads(status_path.read_text(encoding="utf-8"))
+    payload["next_execution"]["g12_recommendation_template"] = str(template_path)
+    status_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    exit_code, result = _run_validator(
+        status_path, goal_doc_path, blocker_register_path, capsys
+    )
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert (
+        "next_execution.g12_recommendation_template.references.g10_review_file is required."
+        in result["errors"]
+    )
+    assert (
+        "next_execution.g12_recommendation_template.references.g11_window_valid must default to false."
+        in result["errors"]
+    )
 
 
 def test_validator_rejects_missing_g12_approval_signoff_preflight(tmp_path, capsys):

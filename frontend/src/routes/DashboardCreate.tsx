@@ -252,7 +252,10 @@ function allowedMetrics(
 ): ReportingCatalogMetric[] {
   return catalog.metrics.filter(
     (metric) =>
-      metric.dataset === dataset && metric.widgets.includes(widgetType) && !metric.is_future_gated,
+      metric.dataset === dataset &&
+      metric.widgets.includes(widgetType) &&
+      !metric.is_future_gated &&
+      (!metric.availability_state || metric.availability_state === 'available'),
   );
 }
 

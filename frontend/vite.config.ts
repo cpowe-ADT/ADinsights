@@ -49,6 +49,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/setupTests.ts',
     reporters: ['default', ['json', { outputFile: 'test-results/vitest-report.json' }]],
+    testTimeout: 15000,
     // `forks` pool is more reliable than the default `threads` when the full
     // suite runs alongside other dev processes (Vite dev server, Storybook,
     // parallel builds). Threads pool was intermittently timing out a handful

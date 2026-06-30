@@ -28,7 +28,9 @@ def _authenticate(api_client, *, username: str, password: str) -> None:
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
 
-def _recent_utc_datetime(*, days_ago: int = 1, hour: int = 8, minute: int = 0) -> datetime:
+def _recent_utc_datetime(
+    *, days_ago: int = 1, hour: int = 8, minute: int = 0
+) -> datetime:
     target_day = timezone.localdate() - timedelta(days=days_ago)
     return datetime(
         target_day.year,
@@ -136,12 +138,24 @@ def test_meta_page_contract_endpoints_return_metric_availability(api_client, use
     assert pages.status_code == 200
     assert pages.json()["count"] == 1
 
-    overview = api_client.get(reverse("meta-page-insights-overview", kwargs={"page_id": page.page_id}))
+    overview = api_client.get(
+        reverse("meta-page-insights-overview", kwargs={"page_id": page.page_id})
+    )
     assert overview.status_code == 200
     overview_payload = overview.json()
     assert "metric_availability" in overview_payload
     assert "kpis" in overview_payload
     assert overview_payload["page_id"] == page.page_id
+    assert (
+        overview_payload["metric_availability"]["page_post_engagements"][
+            "availability_state"
+        ]
+        == "available"
+    )
+    assert (
+        overview_payload["metric_availability"]["page_post_engagements"]["supported"]
+        is True
+    )
 
     page_timeseries = api_client.get(
         reverse("meta-page-insights-timeseries", kwargs={"page_id": page.page_id}),
@@ -153,7 +167,9 @@ def test_meta_page_contract_endpoints_return_metric_availability(api_client, use
     assert "metric_availability" in page_timeseries_payload
     assert len(page_timeseries_payload["points"]) >= 1
 
-    posts = api_client.get(reverse("meta-page-insights-posts", kwargs={"page_id": page.page_id}))
+    posts = api_client.get(
+        reverse("meta-page-insights-posts", kwargs={"page_id": page.page_id})
+    )
     assert posts.status_code == 200
     posts_payload = posts.json()
     assert "metric_availability" in posts_payload
@@ -161,10 +177,21 @@ def test_meta_page_contract_endpoints_return_metric_availability(api_client, use
     assert "count" in posts_payload
     assert "limit" in posts_payload
     assert "offset" in posts_payload
+    assert (
+        posts_payload["metric_availability"]["post_media_view"]["availability_state"]
+        == "available"
+    )
 
-    detail = api_client.get(reverse("meta-post-insights-detail", kwargs={"post_id": post.post_id}))
+    detail = api_client.get(
+        reverse("meta-post-insights-detail", kwargs={"post_id": post.post_id})
+    )
     assert detail.status_code == 200
-    assert "metric_availability" in detail.json()
+    detail_payload = detail.json()
+    assert "metric_availability" in detail_payload
+    assert (
+        detail_payload["metric_availability"]["post_media_view"]["availability_state"]
+        == "available"
+    )
 
     post_timeseries = api_client.get(
         reverse("meta-post-insights-timeseries", kwargs={"post_id": post.post_id}),
@@ -179,7 +206,69 @@ def test_meta_page_contract_endpoints_return_metric_availability(api_client, use
 
 
 @pytest.mark.django_db
-def test_meta_page_sync_pipeline_surfaces_graph_data_in_api(api_client, user, monkeypatch):
+def test_meta_page_metric_availability_marks_callable_no_data(api_client, user):
+    _authenticate(api_client, username="user@example.com", password="password123")
+    page = _create_page(user)
+
+    MetaMetricRegistry.objects.update_or_create(
+        metric_key="page_post_engagements",
+        level=MetaMetricRegistry.LEVEL_PAGE,
+        defaults={
+            "is_default": True,
+            "status": MetaMetricRegistry.STATUS_ACTIVE,
+            "supported_periods": ["day"],
+            "supports_breakdowns": [],
+        },
+    )
+
+    response = api_client.get(
+        reverse("meta-page-insights-overview", kwargs={"page_id": page.page_id}),
+        {"date_preset": "last_28d"},
+    )
+
+    assert response.status_code == 200
+    availability = response.json()["metric_availability"]["page_post_engagements"]
+    assert availability["supported"] is True
+    assert availability["availability_state"] == "callable_no_data"
+    assert "no stored data" in availability["availability_note"]
+
+
+@pytest.mark.django_db
+def test_meta_page_metric_availability_marks_missing_scope_permission_gated(
+    api_client, user
+):
+    _authenticate(api_client, username="user@example.com", password="password123")
+    page = _create_page(user)
+    page.connection.scopes = ["pages_show_list"]
+    page.connection.save(update_fields=["scopes", "updated_at"])
+
+    MetaMetricRegistry.objects.update_or_create(
+        metric_key="page_post_engagements",
+        level=MetaMetricRegistry.LEVEL_PAGE,
+        defaults={
+            "is_default": True,
+            "status": MetaMetricRegistry.STATUS_ACTIVE,
+            "supported_periods": ["day"],
+            "supports_breakdowns": [],
+        },
+    )
+
+    response = api_client.get(
+        reverse("meta-page-insights-overview", kwargs={"page_id": page.page_id}),
+        {"date_preset": "last_28d"},
+    )
+
+    assert response.status_code == 200
+    availability = response.json()["metric_availability"]["page_post_engagements"]
+    assert availability["supported"] is False
+    assert availability["availability_state"] == "permission_gated"
+    assert "pages_read_engagement" in availability["availability_note"]
+
+
+@pytest.mark.django_db
+def test_meta_page_sync_pipeline_surfaces_graph_data_in_api(
+    api_client, user, monkeypatch
+):
     _authenticate(api_client, username="user@example.com", password="password123")
     page = _create_page(user)
 
@@ -253,7 +342,10 @@ def test_meta_page_sync_pipeline_surfaces_graph_data_in_api(api_client, user, mo
                 ]
             }
 
-    monkeypatch.setattr("integrations.tasks.MetaInsightsGraphClient.from_settings", lambda: DummyClient())
+    monkeypatch.setattr(
+        "integrations.tasks.MetaInsightsGraphClient.from_settings",
+        lambda: DummyClient(),
+    )
 
     page_sync = sync_meta_page_insights.run(
         page_pk=str(page.pk),
@@ -274,7 +366,11 @@ def test_meta_page_sync_pipeline_surfaces_graph_data_in_api(api_client, user, mo
     )
     assert overview.status_code == 200
     overview_payload = overview.json()
-    engagement_kpi = next(item for item in overview_payload["kpis"] if item["metric"] == "page_post_engagements")
+    engagement_kpi = next(
+        item
+        for item in overview_payload["kpis"]
+        if item["metric"] == "page_post_engagements"
+    )
     assert engagement_kpi["value"] == 33
     assert engagement_kpi["today_value"] == 33
 
@@ -301,7 +397,9 @@ def test_meta_page_sync_pipeline_surfaces_graph_data_in_api(api_client, user, mo
     assert posts_payload["count"] == 1
     assert posts_payload["results"][0]["metrics"]["post_media_view"] == 77
     assert posts_payload["results"][0]["media_type"] == "VIDEO"
-    assert "Fresh post from graph sync" in posts_payload["results"][0]["message_snippet"]
+    assert (
+        "Fresh post from graph sync" in posts_payload["results"][0]["message_snippet"]
+    )
 
 
 @pytest.mark.django_db
@@ -415,7 +513,9 @@ def test_meta_page_exports_endpoint_creates_export_job(api_client, user, monkeyp
     assert payload["export_format"] == "csv"
     assert payload["status"] in {"queued", "running", "completed", "failed"}
 
-    listing = api_client.get(reverse("meta-page-exports", kwargs={"page_id": page.page_id}))
+    listing = api_client.get(
+        reverse("meta-page-exports", kwargs={"page_id": page.page_id})
+    )
     assert listing.status_code == 200
     assert isinstance(listing.json(), list)
 
@@ -460,7 +560,9 @@ def test_meta_page_sync_endpoint_triggers_all_tasks(api_client, user, monkeypatc
 
 
 @pytest.mark.django_db
-def test_meta_page_sync_endpoint_blocks_when_required_permissions_missing(api_client, user):
+def test_meta_page_sync_endpoint_blocks_when_required_permissions_missing(
+    api_client, user
+):
     _authenticate(api_client, username="user@example.com", password="password123")
     page = _create_page(user)
     page.connection.scopes = []
@@ -477,7 +579,9 @@ def test_meta_page_sync_endpoint_blocks_when_required_permissions_missing(api_cl
 
 
 @pytest.mark.django_db
-def test_meta_page_sync_endpoint_runs_inline_when_task_queue_unavailable(api_client, user, monkeypatch):
+def test_meta_page_sync_endpoint_runs_inline_when_task_queue_unavailable(
+    api_client, user, monkeypatch
+):
     _authenticate(api_client, username="user@example.com", password="password123")
     page = _create_page(user)
     observed: list[tuple[str, dict[str, object]]] = []
@@ -493,13 +597,21 @@ def test_meta_page_sync_endpoint_runs_inline_when_task_queue_unavailable(api_cli
             observed.append((self.name, kwargs))
             return {"ok": True}
 
-    monkeypatch.setattr("integrations.page_insights_views.sync_page_posts", DummyTask("sync_page_posts"))
+    monkeypatch.setattr(
+        "integrations.page_insights_views.sync_page_posts", DummyTask("sync_page_posts")
+    )
     monkeypatch.setattr(
         "integrations.page_insights_views.discover_supported_metrics",
         DummyTask("discover_supported_metrics"),
     )
-    monkeypatch.setattr("integrations.page_insights_views.sync_page_insights", DummyTask("sync_page_insights"))
-    monkeypatch.setattr("integrations.page_insights_views.sync_post_insights", DummyTask("sync_post_insights"))
+    monkeypatch.setattr(
+        "integrations.page_insights_views.sync_page_insights",
+        DummyTask("sync_page_insights"),
+    )
+    monkeypatch.setattr(
+        "integrations.page_insights_views.sync_post_insights",
+        DummyTask("sync_post_insights"),
+    )
 
     response = api_client.post(
         reverse("meta-page-insights-sync", kwargs={"page_id": page.page_id}),
@@ -550,7 +662,9 @@ def test_meta_page_list_returns_schema_out_of_date_when_db_is_behind(
     def _raise_schema_error(*args, **kwargs):  # noqa: ANN002, ANN003
         raise OperationalError("no such table: integrations_metapage")
 
-    monkeypatch.setattr("integrations.page_insights_views.MetaPage.objects.filter", _raise_schema_error)
+    monkeypatch.setattr(
+        "integrations.page_insights_views.MetaPage.objects.filter", _raise_schema_error
+    )
 
     response = api_client.get(reverse("meta-pages-insights-list"))
 
@@ -571,7 +685,9 @@ def test_meta_page_overview_returns_schema_out_of_date_when_db_is_behind(
     def _raise_schema_error(*args, **kwargs):  # noqa: ANN002, ANN003
         raise OperationalError("no such table: integrations_metapage")
 
-    monkeypatch.setattr("integrations.page_insights_views.MetaPage.objects.filter", _raise_schema_error)
+    monkeypatch.setattr(
+        "integrations.page_insights_views.MetaPage.objects.filter", _raise_schema_error
+    )
 
     response = api_client.get(
         reverse("meta-page-insights-overview", kwargs={"page_id": "page-api-1"}),
@@ -584,7 +700,9 @@ def test_meta_page_overview_returns_schema_out_of_date_when_db_is_behind(
 
 
 @pytest.mark.django_db
-def test_overview_engagement_breakdown_included_when_breakdown_rows_exist(api_client, user):
+def test_overview_engagement_breakdown_included_when_breakdown_rows_exist(
+    api_client, user
+):
     _authenticate(api_client, username="user@example.com", password="password123")
     page = _create_page(user)
     target_time = _recent_utc_datetime()

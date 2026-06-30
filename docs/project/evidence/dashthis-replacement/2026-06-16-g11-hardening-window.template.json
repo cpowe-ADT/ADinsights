@@ -2,6 +2,10 @@
   "schema_version": "slb_g11_hardening_window.v1",
   "status": "pending",
   "references": {
+    "g1_intake_file": "docs/project/evidence/dashthis-replacement/<filled-g1-runtime-target-intake.json>",
+    "g1_intake_valid": false,
+    "g2_g9_run_file": "docs/project/evidence/dashthis-replacement/<filled-g2-g9-evidence-run.json>",
+    "g2_g9_run_valid": false,
     "g10_review_file": "docs/project/evidence/dashthis-replacement/<filled-g10-adversarial-review.json>",
     "g10_review_valid": false,
     "window_id": "pending",
@@ -80,7 +84,7 @@
     "midpoint_1_checkpoint": "Pending",
     "midpoint_2_checkpoint": "not_required_for_24h",
     "end_checkpoint": "Pending",
-    "final_evidence_validation": "Pending",
+    "final_evidence_validation": "docs/project/evidence/dashthis-replacement/<filled-final-evidence-validation.json>",
     "final_redaction_scan": "Pending",
     "export_snapshot_summary": "Pending"
   },

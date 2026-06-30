@@ -143,6 +143,7 @@ def _validate_run(
     _expect(payload.get("schema_version") == REQUIRED_SCHEMA_VERSION, "Unexpected schema_version.", errors)
     _expect(str(payload.get("status") or "") == "ready_for_g10_review", "status must be ready_for_g10_review.", errors)
     _validate_references(payload.get("references"), errors)
+    _validate_g1_prerequisite(intake_payload, errors)
     target = _validate_target(payload.get("target"), errors)
     _validate_guardrails(payload.get("guardrails"), errors)
     _validate_evidence_files(payload.get("evidence_files"), errors)
@@ -158,6 +159,61 @@ def _validate_run(
     if intake_payload and target:
         _validate_intake_match(target, intake_payload, errors)
     _validate_sensitive_patterns(payload, errors)
+
+
+def _validate_g1_prerequisite(intake_payload: Mapping[str, Any] | None, errors: list[str]) -> None:
+    if not intake_payload:
+        errors.append("G2-G9 validation requires --intake-file with a filled G1 runtime target intake.")
+        return
+    _expect(intake_payload.get("schema_version") == G1_SCHEMA_VERSION, "G1 intake schema_version is invalid.", errors)
+    _expect(
+        str(intake_payload.get("status") or "") == "candidate_ready_for_review",
+        "G1 intake status must be candidate_ready_for_review before G2-G9 evidence can pass.",
+        errors,
+    )
+    g0 = _require_mapping(intake_payload.get("g0_clearance"), "G1 intake g0_clearance", errors)
+    if g0:
+        _expect(
+            _filled(g0.get("can_proceed_to_g1_g11")),
+            "G1 intake g0_clearance.can_proceed_to_g1_g11 is required before G2-G9 evidence can pass.",
+            errors,
+        )
+    comparison = _require_mapping(intake_payload.get("comparison"), "G1 intake comparison", errors)
+    if comparison:
+        _expect(
+            comparison.get("tolerances_confirmed") is True,
+            "G1 intake comparison.tolerances_confirmed must be true before G2-G9 evidence can pass.",
+            errors,
+        )
+    delivery = _require_mapping(intake_payload.get("delivery"), "G1 intake delivery", errors)
+    if delivery:
+        _expect(
+            delivery.get("scheduled_delivery_mode") == "dry_run_only",
+            "G1 intake delivery.scheduled_delivery_mode must be dry_run_only before G2-G9 evidence can pass.",
+            errors,
+        )
+        _expect(
+            delivery.get("dashthis_active") is True,
+            "G1 intake delivery.dashthis_active must be true before G2-G9 evidence can pass.",
+            errors,
+        )
+    guardrails = _require_mapping(intake_payload.get("guardrails"), "G1 intake guardrails", errors)
+    if guardrails:
+        _expect(
+            guardrails.get("instagram_decision") == "deferred_in_v1",
+            "G1 intake guardrails.instagram_decision must be deferred_in_v1 before G2-G9 evidence can pass.",
+            errors,
+        )
+        _expect(
+            guardrails.get("stored_aggregate_only") is True,
+            "G1 intake guardrails.stored_aggregate_only must be true before G2-G9 evidence can pass.",
+            errors,
+        )
+        _expect(
+            guardrails.get("no_live_provider_calls_at_render_export_time") is True,
+            "G1 intake guardrails.no_live_provider_calls_at_render_export_time must be true before G2-G9 evidence can pass.",
+            errors,
+        )
 
 
 def _validate_references(value: Any, errors: list[str]) -> None:

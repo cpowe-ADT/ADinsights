@@ -255,6 +255,37 @@
   gap: var(--space-2);
 }
 
+.report-coverage-review {
+  overflow: hidden;
+}
+
+.report-coverage-review__summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  cursor: pointer;
+  list-style: none;
+}
+
+.report-coverage-review__summary::-webkit-details-marker {
+  display: none;
+}
+
+.report-coverage-review__summary h3,
+.report-coverage-review__summary p {
+  margin: 0;
+}
+
+.report-coverage-review__summary h3 {
+  font-size: 1rem;
+}
+
+.report-coverage-review[open] .reporting-widget__warnings,
+.report-coverage-review[open] .reporting-coverage-list {
+  margin-top: var(--space-4);
+}
+
 .reporting-coverage-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -278,6 +309,51 @@
   margin: 0;
   color: var(--color-text-muted);
   font-size: 0.875rem;
+}
+
+.reporting-coverage-card__metrics {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-weight: var(--font-weight-medium);
+}
+
+.reporting-coverage-card__diagnostic {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid rgba(220, 38, 38, 0.16);
+  border-radius: var(--radius-sm);
+  background: rgba(220, 38, 38, 0.05);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.reporting-coverage-card__diagnostic p {
+  margin: 0;
+}
+
+.reporting-command-template {
+  display: block;
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono, 'SFMono-Regular'), Consolas, 'Liberation Mono', monospace;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.reporting-command-label {
+  width: 100%;
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
 }
 
 .reporting-widget__warnings {
@@ -357,6 +433,28 @@
   font-size: 0.85rem;
   font-weight: var(--font-weight-semibold);
   overflow-wrap: anywhere;
+}
+
+.report-client-availability-note {
+  display: grid;
+  gap: var(--space-1);
+  max-width: 76ch;
+  padding: var(--space-3);
+  border: 1px solid rgba(180, 83, 9, 0.24);
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.report-client-availability-note span {
+  color: #92400e;
+  font-size: 0.78rem;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+}
+
+.report-client-availability-note p {
+  color: var(--color-text-primary);
+  font-size: 0.92rem;
 }
 
 .report-client-hero__aside {
@@ -619,6 +717,117 @@
   gap: var(--space-4);
   min-width: 0;
   max-width: 100%;
+}
+
+.reporting-report-grid-canvas {
+  align-items: stretch;
+}
+
+.report-governed-source {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-3);
+}
+
+.report-governed-source__summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  cursor: pointer;
+  list-style: none;
+}
+
+.report-governed-source__summary::-webkit-details-marker {
+  display: none;
+}
+
+.report-governed-source__summary h3,
+.report-governed-source__summary p {
+  margin: 0;
+}
+
+.report-governed-source__summary h3 {
+  font-size: 1rem;
+}
+
+.report-governed-source[open] .reporting-report-pages {
+  padding-top: var(--space-4);
+}
+
+.report-support-diagnostics {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+  border-top: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: var(--space-3) 0;
+}
+
+.report-support-diagnostics__summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  cursor: pointer;
+  list-style: none;
+}
+
+.report-support-diagnostics__summary::-webkit-details-marker {
+  display: none;
+}
+
+.report-support-diagnostics__summary h3,
+.report-support-diagnostics__summary p {
+  margin: 0;
+}
+
+.report-support-diagnostics__summary h3 {
+  font-size: 1rem;
+}
+
+.report-support-diagnostics__body {
+  display: grid;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+}
+
+.report-operator-controls {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-3);
+}
+
+.report-operator-controls__summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  cursor: pointer;
+  list-style: none;
+}
+
+.report-operator-controls__summary::-webkit-details-marker {
+  display: none;
+}
+
+.report-operator-controls__summary h3,
+.report-operator-controls__summary p {
+  margin: 0;
+}
+
+.report-operator-controls__summary h3 {
+  font-size: 1rem;
+}
+
+.report-operator-controls__body {
+  display: grid;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
 }
 
 .reporting-ops-grid {

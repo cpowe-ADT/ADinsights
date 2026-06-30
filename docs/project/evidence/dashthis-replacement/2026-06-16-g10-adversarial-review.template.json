@@ -2,6 +2,8 @@
   "schema_version": "slb_g10_adversarial_review.v1",
   "status": "pending_operator_input",
   "references": {
+    "g1_intake_file": "Pending",
+    "g1_intake_valid": false,
     "g2_g9_run_file": "Pending",
     "g2_g9_run_valid": false,
     "review_id": "slb-g10-YYYYMMDD-operator",

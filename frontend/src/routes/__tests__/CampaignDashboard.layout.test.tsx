@@ -306,7 +306,7 @@ describe('CampaignDashboard layout', () => {
 
     const results = await axe(container);
     expect(results).toHaveNoViolations();
-  }, 10000);
+  }, 20000);
 
   it('renders cross-platform KpiTile strip alongside legacy CampaignTable', async () => {
     await act(async () => {

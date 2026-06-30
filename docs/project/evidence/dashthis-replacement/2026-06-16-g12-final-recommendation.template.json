@@ -4,6 +4,12 @@
   "references": {
     "status_manifest_file": "docs/project/evidence/dashthis-replacement/2026-06-16-slb-cancellation-readiness-status.json",
     "status_manifest_valid": false,
+    "g1_intake_file": "docs/project/evidence/dashthis-replacement/<filled-g1-runtime-target-intake.json>",
+    "g1_intake_valid": false,
+    "g2_g9_run_file": "docs/project/evidence/dashthis-replacement/<filled-g2-g9-evidence-run.json>",
+    "g2_g9_run_valid": false,
+    "g10_review_file": "docs/project/evidence/dashthis-replacement/<filled-g10-adversarial-review.json>",
+    "g10_review_valid": false,
     "g11_window_file": "docs/project/evidence/dashthis-replacement/<filled-g11-hardening-window.json>",
     "g11_window_valid": false,
     "decision_id": "pending",
@@ -67,7 +73,7 @@
     },
     "G6": {
       "status": "pending",
-      "evidence_link": "docs/project/evidence/dashthis-replacement/2026-06-16-g6-parity-worksheet-proof.md",
+      "evidence_link": "docs/project/evidence/dashthis-replacement/<filled-g6-slb-evidence-validation.json>",
       "reviewer_approval": "pending"
     },
     "G7": {

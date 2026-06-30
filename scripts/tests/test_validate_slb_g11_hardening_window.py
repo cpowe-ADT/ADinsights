@@ -13,21 +13,81 @@ TEMPLATE = (
     / "dashthis-replacement"
     / "2026-06-16-g11-hardening-window.template.json"
 )
-EVIDENCE_WINDOW_DIR = "docs/project/evidence/dashthis-replacement/runs/slb-g11-20260616-24h"
+EVIDENCE_WINDOW_DIR = (
+    "docs/project/evidence/dashthis-replacement/runs/slb-g11-20260616-24h"
+)
 
 
 def _write_json(path, payload):
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _final_evidence_validation_payload(window):
+    target = window["target"]
+    return {
+        "schema_version": "slb_evidence_validation.v1",
+        "readiness_status": "warning",
+        "blocker_count": 0,
+        "warning_count": 1,
+        "blockers": [],
+        "warnings": [
+            {
+                "code": "warning_only_export_note",
+                "message": "Warning-only export note is visible.",
+            }
+        ],
+        "evidence": {
+            "report": {
+                "id": target["report_definition_id"],
+                "template_key": target["template_key"],
+                "schema_version": target["report_schema_version"],
+            },
+            "date_range": {
+                "start_date": target["primary_start_date"],
+                "end_date": target["primary_end_date"],
+            },
+            "preview_hash": "preview-hash",
+            "parity_preview_hash": "preview-hash",
+        },
+        "unresolved_parity": {
+            "row_count": 0,
+            "by_result": {},
+            "by_dataset": {},
+            "rows": [],
+        },
+        "source_value_inventory": {
+            "missing_source_value_count": 0,
+            "missing_source_values": [],
+            "unmatched_source_value_count": 0,
+            "unmatched_source_values": [],
+        },
+        "parity_completion_requirements": {
+            "ready_for_final_parity": True,
+            "requirement_count": 0,
+            "requirements": [],
+        },
+        "blocking_next_actions": {
+            "action_count": 0,
+            "ready_to_run_action_count": 0,
+            "blocked_prerequisite_count": 0,
+            "primary_next_action": "",
+            "actions": [],
+        },
+    }
+
+
 def _write_evidence_files(repo_root, window):
-    for value in window["evidence_files"].values():
+    for key, value in window["evidence_files"].items():
         if value == "not_required_for_24h":
             continue
         path = repo_root / value
         path.parent.mkdir(parents=True, exist_ok=True)
-        if path.suffix == ".json":
-            _write_json(path, {"schema_version": "test_g11_evidence.v1", "status": "pass"})
+        if key == "final_evidence_validation":
+            _write_json(path, _final_evidence_validation_payload(window))
+        elif path.suffix == ".json":
+            _write_json(
+                path, {"schema_version": "test_g11_evidence.v1", "status": "pass"}
+            )
         else:
             path.write_text("status: pass\n", encoding="utf-8")
 
@@ -58,6 +118,12 @@ def _valid_g10_review():
     return {
         "schema_version": "slb_g10_adversarial_review.v1",
         "status": "ready_for_g11_hardening",
+        "references": {
+            "g1_intake_file": "tmp/g1-intake.json",
+            "g1_intake_valid": True,
+            "g2_g9_run_file": "tmp/g2-g9-run.json",
+            "g2_g9_run_valid": True,
+        },
         "target": _target(),
         "final_checks": {"raj_mira_acceptance": True},
     }
@@ -88,6 +154,10 @@ def _valid_window(length_hours=24):
         "schema_version": "slb_g11_hardening_window.v1",
         "status": "ready_for_g12_recommendation",
         "references": {
+            "g1_intake_file": "tmp/g1-intake.json",
+            "g1_intake_valid": True,
+            "g2_g9_run_file": "tmp/g2-g9-run.json",
+            "g2_g9_run_valid": True,
             "g10_review_file": "tmp/g10-review.json",
             "g10_review_valid": True,
             "window_id": "slb-g11-20260616-24h",
@@ -187,8 +257,14 @@ def test_template_pending_values_fail(tmp_path, capsys):
 
     assert exit_code == 1
     assert result["valid"] is False
-    assert any("status must be ready_for_g12_recommendation" in error for error in result["errors"])
-    assert any("references.g10_review_valid must be true" in error for error in result["errors"])
+    assert any(
+        "status must be ready_for_g12_recommendation" in error
+        for error in result["errors"]
+    )
+    assert any(
+        "references.g10_review_valid must be true" in error
+        for error in result["errors"]
+    )
 
 
 def test_target_must_match_g10_review(tmp_path, capsys):
@@ -203,7 +279,33 @@ def test_target_must_match_g10_review(tmp_path, capsys):
 
     assert exit_code == 1
     assert result["valid"] is False
-    assert any("target.report_definition_id must match G10 review" in error for error in result["errors"])
+    assert any(
+        "target.report_definition_id must match G10 review" in error
+        for error in result["errors"]
+    )
+
+
+def test_g10_review_must_reference_same_g1_and_g2_g9_inputs(tmp_path, capsys):
+    window = _valid_window()
+    review = _valid_g10_review()
+    review["references"]["g1_intake_file"] = "tmp/other-g1-intake.json"
+    review["references"]["g2_g9_run_valid"] = False
+    window_path = tmp_path / "window.json"
+    review_path = tmp_path / "review.json"
+    _write_json(window_path, window)
+    _write_json(review_path, review)
+
+    exit_code, result = _run_validator(window_path, review_path, capsys)
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert (
+        "G10 review references.g2_g9_run_valid must be true." in result["errors"]
+    )
+    assert (
+        "references.g1_intake_file must match G10 review references.g1_intake_file."
+        in result["errors"]
+    )
 
 
 def test_48_hour_window_requires_second_midpoint(tmp_path, monkeypatch, capsys):
@@ -218,7 +320,10 @@ def test_48_hour_window_requires_second_midpoint(tmp_path, monkeypatch, capsys):
 
     assert exit_code == 1
     assert result["valid"] is False
-    assert any("checkpoints.midpoint_2 must be an object" in error for error in result["errors"])
+    assert any(
+        "checkpoints.midpoint_2 must be an object" in error
+        for error in result["errors"]
+    )
 
 
 def test_reset_occurred_blocks_g12(tmp_path, capsys):
@@ -232,8 +337,12 @@ def test_reset_occurred_blocks_g12(tmp_path, capsys):
 
     assert exit_code == 1
     assert result["valid"] is False
-    assert any("window.reset_occurred must be false" in error for error in result["errors"])
-    assert any("window.reset_reason must be empty" in error for error in result["errors"])
+    assert any(
+        "window.reset_occurred must be false" in error for error in result["errors"]
+    )
+    assert any(
+        "window.reset_reason must be empty" in error for error in result["errors"]
+    )
 
 
 def test_window_timestamps_must_span_declared_length(tmp_path, capsys):
@@ -246,7 +355,10 @@ def test_window_timestamps_must_span_declared_length(tmp_path, capsys):
 
     assert exit_code == 1
     assert result["valid"] is False
-    assert "window.end_timestamp must be at least window.length_hours after start_timestamp." in result["errors"]
+    assert (
+        "window.end_timestamp must be at least window.length_hours after start_timestamp."
+        in result["errors"]
+    )
 
 
 def test_checkpoint_timestamps_must_be_ordered(tmp_path, capsys):
@@ -259,7 +371,10 @@ def test_checkpoint_timestamps_must_be_ordered(tmp_path, capsys):
 
     assert exit_code == 1
     assert result["valid"] is False
-    assert "checkpoints.midpoint_1.timestamp must be on or after the previous checkpoint." in result["errors"]
+    assert (
+        "checkpoints.midpoint_1.timestamp must be on or after the previous checkpoint."
+        in result["errors"]
+    )
 
 
 def test_checkpoint_timestamp_must_be_iso8601(tmp_path, capsys):
@@ -272,7 +387,9 @@ def test_checkpoint_timestamp_must_be_iso8601(tmp_path, capsys):
 
     assert exit_code == 1
     assert result["valid"] is False
-    assert "checkpoints.start.timestamp must be an ISO-8601 timestamp." in result["errors"]
+    assert (
+        "checkpoints.start.timestamp must be an ISO-8601 timestamp." in result["errors"]
+    )
 
 
 def test_export_hash_mismatch_or_empty_artifact_fails(tmp_path, capsys):
@@ -286,8 +403,14 @@ def test_export_hash_mismatch_or_empty_artifact_fails(tmp_path, capsys):
 
     assert exit_code == 1
     assert result["valid"] is False
-    assert any("export_reproducibility.pdf.byte_count must be greater than zero" in error for error in result["errors"])
-    assert any("export_reproducibility.png.preview_hash must match" in error for error in result["errors"])
+    assert any(
+        "export_reproducibility.pdf.byte_count must be greater than zero" in error
+        for error in result["errors"]
+    )
+    assert any(
+        "export_reproducibility.png.preview_hash must match" in error
+        for error in result["errors"]
+    )
 
 
 def test_sensitive_values_are_rejected(tmp_path, capsys):
@@ -300,10 +423,15 @@ def test_sensitive_values_are_rejected(tmp_path, capsys):
 
     assert exit_code == 1
     assert result["valid"] is False
-    assert any("Sensitive or user-level pattern detected" in error for error in result["errors"])
+    assert any(
+        "Sensitive or user-level pattern detected" in error
+        for error in result["errors"]
+    )
 
 
-def test_required_evidence_file_must_exist_under_evidence_root(tmp_path, monkeypatch, capsys):
+def test_required_evidence_file_must_exist_under_evidence_root(
+    tmp_path, monkeypatch, capsys
+):
     monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
     window = _valid_window()
     window["evidence_files"]["start_checkpoint"] = "tmp/start-checkpoint.json"
@@ -314,10 +442,16 @@ def test_required_evidence_file_must_exist_under_evidence_root(tmp_path, monkeyp
 
     assert exit_code == 1
     assert result["valid"] is False
-    assert any("evidence_files.start_checkpoint must be under docs/project/evidence/dashthis-replacement" in error for error in result["errors"])
+    assert any(
+        "evidence_files.start_checkpoint must be under docs/project/evidence/dashthis-replacement"
+        in error
+        for error in result["errors"]
+    )
 
 
-def test_48_hour_window_requires_second_midpoint_evidence_file(tmp_path, monkeypatch, capsys):
+def test_48_hour_window_requires_second_midpoint_evidence_file(
+    tmp_path, monkeypatch, capsys
+):
     monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
     window = _valid_window(length_hours=48)
     del window["evidence_files"]["midpoint_2_checkpoint"]
@@ -332,7 +466,9 @@ def test_48_hour_window_requires_second_midpoint_evidence_file(tmp_path, monkeyp
     assert "evidence_files.midpoint_2_checkpoint is required." in result["errors"]
 
 
-def test_text_evidence_file_sensitive_contents_are_rejected(tmp_path, monkeypatch, capsys):
+def test_text_evidence_file_sensitive_contents_are_rejected(
+    tmp_path, monkeypatch, capsys
+):
     monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
     window = _valid_window()
     _write_evidence_files(tmp_path, window)
@@ -347,4 +483,230 @@ def test_text_evidence_file_sensitive_contents_are_rejected(tmp_path, monkeypatc
 
     assert exit_code == 1
     assert result["valid"] is False
-    assert any("Sensitive or user-level pattern detected in evidence_files.final_redaction_scan" in error for error in result["errors"])
+    assert any(
+        "Sensitive or user-level pattern detected in evidence_files.final_redaction_scan"
+        in error
+        for error in result["errors"]
+    )
+
+
+def test_final_evidence_validation_must_be_validation_json(
+    tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
+    window = _valid_window()
+    _write_evidence_files(tmp_path, window)
+    window["evidence_files"]["final_evidence_validation"] = (
+        f"{EVIDENCE_WINDOW_DIR}/final-evidence-validation.md"
+    )
+    (tmp_path / window["evidence_files"]["final_evidence_validation"]).write_text(
+        "status: pass\n",
+        encoding="utf-8",
+    )
+    window_path = tmp_path / "window.json"
+    _write_json(window_path, window)
+
+    exit_code, result = _run_validator(window_path, None, capsys)
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert any(
+        "evidence_files.final_evidence_validation must point to slb_evidence_validation.v1 JSON"
+        in error
+        for error in result["errors"]
+    )
+
+
+def test_final_evidence_validation_must_have_no_blockers(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
+    window = _valid_window()
+    _write_evidence_files(tmp_path, window)
+    final_path = tmp_path / window["evidence_files"]["final_evidence_validation"]
+    payload = _final_evidence_validation_payload(window)
+    payload.update(
+        {
+            "readiness_status": "blocked",
+            "blocker_count": 1,
+            "blockers": [
+                {"code": "parity_results", "message": "Parity has unresolved rows."}
+            ],
+            "unresolved_parity": {
+                "row_count": 1,
+                "by_result": {"blocked_missing_source_value": 1},
+                "by_dataset": {"content_ops": {"blocked_missing_source_value": 1}},
+                "rows": [
+                    {"dataset": "content_ops", "result": "blocked_missing_source_value"}
+                ],
+            },
+            "source_value_inventory": {
+                "missing_source_value_count": 1,
+                "missing_source_values": [
+                    {"dataset": "content_ops", "metric": "published_posts"}
+                ],
+                "unmatched_source_value_count": 0,
+                "unmatched_source_values": [],
+            },
+            "parity_completion_requirements": {
+                "ready_for_final_parity": False,
+                "requirement_count": 1,
+                "requirements": [
+                    {"code": "approved_content_ops_source_totals_required"}
+                ],
+            },
+        }
+    )
+    _write_json(final_path, payload)
+    window_path = tmp_path / "window.json"
+    _write_json(window_path, window)
+
+    exit_code, result = _run_validator(window_path, None, capsys)
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert (
+        "evidence_files.final_evidence_validation.readiness_status must be pass or warning."
+        in result["errors"]
+    )
+    assert (
+        "evidence_files.final_evidence_validation.blocker_count must be 0."
+        in result["errors"]
+    )
+    assert (
+        "evidence_files.final_evidence_validation.unresolved_parity.row_count must be 0."
+        in result["errors"]
+    )
+    assert (
+        "evidence_files.final_evidence_validation.parity_completion_requirements.ready_for_final_parity must be true."
+        in result["errors"]
+    )
+
+
+def test_final_evidence_validation_blocks_missing_adinsights_parity(
+    tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
+    window = _valid_window()
+    _write_evidence_files(tmp_path, window)
+    final_path = tmp_path / window["evidence_files"]["final_evidence_validation"]
+    payload = _final_evidence_validation_payload(window)
+    payload.update(
+        {
+            "readiness_status": "warning",
+            "blocker_count": 0,
+            "blockers": [],
+            "unresolved_parity": {
+                "row_count": 1,
+                "by_result": {"blocked_missing_adinsights_value": 1},
+                "by_dataset": {
+                    "organic_facebook_page": {"blocked_missing_adinsights_value": 1}
+                },
+                "rows": [
+                    {
+                        "dataset": "organic_facebook_page",
+                        "metric": "page_follows",
+                        "result": "blocked_missing_adinsights_value",
+                    }
+                ],
+            },
+            "parity_completion_requirements": {
+                "ready_for_final_parity": False,
+                "requirement_count": 1,
+                "requirements": [
+                    {"code": "tenant_owned_slb_page_required_for_organic_import"}
+                ],
+            },
+        }
+    )
+    _write_json(final_path, payload)
+    window_path = tmp_path / "window.json"
+    _write_json(window_path, window)
+
+    exit_code, result = _run_validator(window_path, None, capsys)
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert (
+        "evidence_files.final_evidence_validation.unresolved_parity.row_count must be 0."
+        in result["errors"]
+    )
+    assert (
+        "evidence_files.final_evidence_validation.unresolved_parity.rows must be empty."
+        in result["errors"]
+    )
+    assert (
+        "evidence_files.final_evidence_validation.parity_completion_requirements.ready_for_final_parity must be true."
+        in result["errors"]
+    )
+
+
+def test_final_evidence_validation_must_have_no_blocking_next_actions(
+    tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
+    window = _valid_window()
+    _write_evidence_files(tmp_path, window)
+    final_path = tmp_path / window["evidence_files"]["final_evidence_validation"]
+    payload = _final_evidence_validation_payload(window)
+    payload["blocking_next_actions"] = {
+        "action_count": 1,
+        "ready_to_run_action_count": 0,
+        "blocked_prerequisite_count": 1,
+        "primary_next_action": "Select the tenant-owned SLB Facebook Page.",
+        "actions": [
+            {
+                "code": "tenant_owned_slb_page_required_for_organic_import",
+                "dataset": "organic_facebook_page",
+            }
+        ],
+    }
+    _write_json(final_path, payload)
+    window_path = tmp_path / "window.json"
+    _write_json(window_path, window)
+
+    exit_code, result = _run_validator(window_path, None, capsys)
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert (
+        "evidence_files.final_evidence_validation.blocking_next_actions.action_count must be 0."
+        in result["errors"]
+    )
+    assert (
+        "evidence_files.final_evidence_validation.blocking_next_actions.blocked_prerequisite_count must be 0."
+        in result["errors"]
+    )
+    assert (
+        "evidence_files.final_evidence_validation.blocking_next_actions.actions must be empty."
+        in result["errors"]
+    )
+
+
+def test_final_evidence_validation_must_match_target(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
+    window = _valid_window()
+    _write_evidence_files(tmp_path, window)
+    final_path = tmp_path / window["evidence_files"]["final_evidence_validation"]
+    payload = _final_evidence_validation_payload(window)
+    payload["evidence"]["report"]["id"] = "different-report"
+    payload["evidence"]["date_range"]["end_date"] = "2026-04-30"
+    payload["evidence"]["parity_preview_hash"] = "different-preview-hash"
+    _write_json(final_path, payload)
+    window_path = tmp_path / "window.json"
+    _write_json(window_path, window)
+
+    exit_code, result = _run_validator(window_path, None, capsys)
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert (
+        "evidence_files.final_evidence_validation.evidence.report.id must match target.report_definition_id."
+        in result["errors"]
+    )
+    assert (
+        "evidence_files.final_evidence_validation.evidence.date_range.end_date must match target.primary_end_date."
+        in result["errors"]
+    )
+    assert (
+        "evidence_files.final_evidence_validation.evidence.parity_preview_hash must match evidence.preview_hash."
+        in result["errors"]
+    )

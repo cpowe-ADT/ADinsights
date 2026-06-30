@@ -9,7 +9,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 from uuid import uuid4
 
 from celery import shared_task
@@ -23,7 +23,12 @@ from adapters.warehouse import (
     WAREHOUSE_SNAPSHOT_STATUS_DETAIL_KEY,
     WAREHOUSE_SNAPSHOT_STATUS_KEY,
 )
-from analytics.models import AISummary, ReportDefinition, ReportExportJob, TenantMetricsSnapshot
+from analytics.models import (
+    AISummary,
+    ReportDefinition,
+    ReportExportJob,
+    TenantMetricsSnapshot,
+)
 from analytics.snapshots import (
     default_snapshot_metrics,
     fetch_snapshot_metrics,
@@ -105,7 +110,9 @@ def _daily_summary_for_tenant(tenant_id: str) -> DailySummaryOutcome:
     llm_client = get_llm_client()
     summary = summarize_daily_metrics(payload)
     summary_status = (
-        AISummary.STATUS_GENERATED if llm_client.is_enabled() else AISummary.STATUS_FALLBACK
+        AISummary.STATUS_GENERATED
+        if llm_client.is_enabled()
+        else AISummary.STATUS_FALLBACK
     )
     return DailySummaryOutcome(
         tenant_id=tenant_id,
@@ -218,9 +225,7 @@ def _normalize_snapshot_tenant_ids(tenant_ids: Sequence[str] | None) -> list[str
     if not tenant_ids:
         return []
     normalized = {
-        str(tenant_id).strip()
-        for tenant_id in tenant_ids
-        if str(tenant_id).strip()
+        str(tenant_id).strip() for tenant_id in tenant_ids if str(tenant_id).strip()
     }
     return sorted(normalized)
 
@@ -266,7 +271,9 @@ def _release_snapshot_sync_lock(*, lock_key: str, token: str | None) -> None:
             cache.delete(lock_key)
 
 
-def generate_snapshots_for_tenants(tenant_ids: Sequence[str] | None = None) -> list[SnapshotOutcome]:
+def generate_snapshots_for_tenants(
+    tenant_ids: Sequence[str] | None = None,
+) -> list[SnapshotOutcome]:
     tenants: Iterable[Tenant]
     queryset = Tenant.objects.all().order_by("created_at")
     if tenant_ids:
@@ -410,7 +417,9 @@ def sync_metrics_snapshots(self, tenant_ids: list[str] | None = None) -> dict:
             "metrics.snapshot.skipped.locked",
             extra={
                 "task_id": getattr(getattr(self, "request", None), "id", None),
-                "tenant_count": len(normalized_tenant_ids) if normalized_tenant_ids else None,
+                "tenant_count": len(normalized_tenant_ids)
+                if normalized_tenant_ids
+                else None,
                 "tenant_scope": tenant_scope,
                 "failure_reason": SNAPSHOT_FAILURE_REASON_LOCKED,
                 "lock_key": lock_key,
@@ -445,7 +454,9 @@ def sync_metrics_snapshots(self, tenant_ids: list[str] | None = None) -> dict:
             "metrics.snapshot.failed",
             extra={
                 "task_id": getattr(getattr(self, "request", None), "id", None),
-                "tenant_count": len(normalized_tenant_ids) if normalized_tenant_ids else None,
+                "tenant_count": len(normalized_tenant_ids)
+                if normalized_tenant_ids
+                else None,
                 "tenant_scope": tenant_scope,
                 "failure_reason": failure_reason,
                 "error_type": type(exc).__name__,
@@ -469,8 +480,12 @@ def sync_metrics_snapshots(self, tenant_ids: list[str] | None = None) -> dict:
         "fetched": sum(outcome.status == "fetched" for outcome in outcomes),
     }
     row_totals = {
-        "campaign_rows": sum(outcome.row_counts.get("campaign_rows", 0) for outcome in outcomes),
-        "campaign_trend": sum(outcome.row_counts.get("campaign_trend", 0) for outcome in outcomes),
+        "campaign_rows": sum(
+            outcome.row_counts.get("campaign_rows", 0) for outcome in outcomes
+        ),
+        "campaign_trend": sum(
+            outcome.row_counts.get("campaign_trend", 0) for outcome in outcomes
+        ),
         "creative": sum(outcome.row_counts.get("creative", 0) for outcome in outcomes),
         "budget": sum(outcome.row_counts.get("budget", 0) for outcome in outcomes),
         "parish": sum(outcome.row_counts.get("parish", 0) for outcome in outcomes),
@@ -615,8 +630,18 @@ def run_report_export_job(self, report_export_job_id: str) -> dict[str, object]:
 
         timestamp = timezone.now()
         source = str((job.report.filters or {}).get("source") or "").strip().lower()
+        export_source = source or "generic"
         try:
-            if source == "meta_pages":
+            report_snapshot = _report_v1_snapshot_from_job(job)
+            if report_snapshot is not None:
+                export_source = "report_v1_snapshot"
+                outcome = _export_report_v1_snapshot_report(
+                    job=job,
+                    timestamp=timestamp,
+                    snapshot=report_snapshot,
+                )
+            elif source == "meta_pages":
+                export_source = "meta_pages"
                 outcome = _export_meta_pages_report(job=job, timestamp=timestamp)
             else:
                 outcome = _export_generic_report(job=job, timestamp=timestamp)
@@ -630,7 +655,7 @@ def run_report_export_job(self, report_export_job_id: str) -> dict[str, object]:
                     "tenant_id": str(job.tenant_id),
                     "report_export_job_id": str(job.id),
                     "export_format": job.export_format,
-                    "source": source or "generic",
+                    "source": export_source,
                     "duration_seconds": duration,
                     "error_type": type(exc).__name__,
                 },
@@ -638,7 +663,9 @@ def run_report_export_job(self, report_export_job_id: str) -> dict[str, object]:
             job.status = ReportExportJob.STATUS_FAILED
             job.error_message = f"Export generation failed ({type(exc).__name__})."
             job.completed_at = timezone.now()
-            job.save(update_fields=["status", "error_message", "completed_at", "updated_at"])
+            job.save(
+                update_fields=["status", "error_message", "completed_at", "updated_at"]
+            )
             return {"status": job.status, "report_export_job_id": str(job.id)}
 
         job.status = ReportExportJob.STATUS_COMPLETED
@@ -673,7 +700,7 @@ def run_report_export_job(self, report_export_job_id: str) -> dict[str, object]:
                 "tenant_id": str(job.tenant_id),
                 "report_export_job_id": str(job.id),
                 "export_format": job.export_format,
-                "source": source or "generic",
+                "source": str(job.metadata.get("source") or export_source),
                 "duration_seconds": (timezone.now() - timestamp).total_seconds(),
             },
         )
@@ -722,8 +749,12 @@ def _safe_csv_value(value: Any) -> Any:
     return value
 
 
-def _export_generic_report(*, job: ReportExportJob, timestamp: datetime) -> dict[str, Any]:
-    payload, generated_at, snapshot_status = _snapshot_payload_for_tenant(str(job.tenant_id))
+def _export_generic_report(
+    *, job: ReportExportJob, timestamp: datetime
+) -> dict[str, Any]:
+    payload, generated_at, snapshot_status = _snapshot_payload_for_tenant(
+        str(job.tenant_id)
+    )
     campaign = payload.get("campaign") or {}
     summary = campaign.get("summary") or {}
     campaign_rows = campaign.get("rows") or []
@@ -753,7 +784,9 @@ def _export_generic_report(*, job: ReportExportJob, timestamp: datetime) -> dict
             continue
         normalized_row = {
             "channel": _metric_value(row, "channel", "platform", "source"),
-            "campaign": _metric_value(row, "campaign", "campaignName", "campaign_name", "name"),
+            "campaign": _metric_value(
+                row, "campaign", "campaignName", "campaign_name", "name"
+            ),
             "impressions": _metric_value(row, "impressions", default=0),
             "clicks": _metric_value(row, "clicks", default=0),
             "ctr": _metric_value(row, "ctr", default=0),
@@ -766,6 +799,7 @@ def _export_generic_report(*, job: ReportExportJob, timestamp: datetime) -> dict
 
     render_summary = dict(summary)
     if selected_platforms:
+
         def total(key: str) -> float:
             values: list[float] = []
             for row in normalized_rows:
@@ -801,10 +835,7 @@ def _export_generic_report(*, job: ReportExportJob, timestamp: datetime) -> dict
             writer = csv.DictWriter(handle, fieldnames=headers)
             writer.writeheader()
             writer.writerows(
-                {
-                    field: _safe_csv_value(row.get(field))
-                    for field in headers
-                }
+                {field: _safe_csv_value(row.get(field)) for field in headers}
                 for row in normalized_rows
             )
     else:
@@ -831,12 +862,18 @@ def _export_generic_report(*, job: ReportExportJob, timestamp: datetime) -> dict
             "dateRange": date_range,
             "generatedAt": timestamp.isoformat(),
             "kpis": [
-                {"label": "Total Spend", "value": money(render_summary.get("totalSpend"))},
+                {
+                    "label": "Total Spend",
+                    "value": money(render_summary.get("totalSpend")),
+                },
                 {
                     "label": "Impressions",
                     "value": _format_number(render_summary.get("totalImpressions")),
                 },
-                {"label": "Clicks", "value": _format_number(render_summary.get("totalClicks"))},
+                {
+                    "label": "Clicks",
+                    "value": _format_number(render_summary.get("totalClicks")),
+                },
                 {
                     "label": "Conversions",
                     "value": _format_number(render_summary.get("totalConversions")),
@@ -881,7 +918,9 @@ def _export_generic_report(*, job: ReportExportJob, timestamp: datetime) -> dict
     }
 
 
-def _report_contract_metadata(*, report: ReportDefinition, generated_at: datetime) -> dict[str, Any]:
+def _report_contract_metadata(
+    *, report: ReportDefinition, generated_at: datetime
+) -> dict[str, Any]:
     layout = report.layout if isinstance(report.layout, dict) else {}
     coverage = layout.get("coverage")
     if not isinstance(coverage, (dict, list)):
@@ -918,13 +957,412 @@ def _format_number(value: Any) -> str:
         return str(value)
 
 
-def _export_meta_pages_report(*, job: ReportExportJob, timestamp: datetime) -> dict[str, Any]:
+def _report_v1_snapshot_from_job(job: ReportExportJob) -> dict[str, Any] | None:
+    metadata = job.metadata if isinstance(job.metadata, Mapping) else {}
+    report_preview = metadata.get("report_preview")
+    if not isinstance(report_preview, Mapping):
+        return None
+    snapshot = report_preview.get("report_snapshot")
+    if not isinstance(snapshot, Mapping):
+        return None
+    return dict(snapshot)
+
+
+def _report_v1_layout_snapshot_from_job(job: ReportExportJob) -> dict[str, Any] | None:
+    metadata = job.metadata if isinstance(job.metadata, Mapping) else {}
+    report_layout = metadata.get("report_layout")
+    if not isinstance(report_layout, Mapping):
+        return None
+    config = report_layout.get("config")
+    if not isinstance(config, Mapping):
+        return None
+    widgets = config.get("widgets")
+    if not isinstance(widgets, list):
+        return None
+    return dict(report_layout)
+
+
+def _export_report_v1_snapshot_report(
+    *,
+    job: ReportExportJob,
+    timestamp: datetime,
+    snapshot: Mapping[str, Any],
+) -> dict[str, Any]:
+    if snapshot.get("export_ready") is False:
+        raise ValueError("report.v1 export snapshot is not export-ready.")
+
+    extension = job.export_format.lower()
+    artifact_path, file_path = _artifact_file_path(job=job, extension=extension)
+    rows = _report_v1_export_rows(snapshot)
+    report_layout = _report_v1_layout_snapshot_from_job(job)
+    if not rows:
+        rows = [
+            {
+                "page": "",
+                "section": "",
+                "widget_id": "",
+                "dataset": "",
+                "widget_type": "",
+                "status": "empty",
+                "record_type": "empty",
+                "metric_key": "",
+                "metric_label": "No report rows",
+                "dimension": "",
+                "date": "",
+                "label": "",
+                "value": "",
+                "coverage_status": "",
+                "coverage_note": "",
+                "warning": "No renderable rows were present in the report snapshot.",
+            }
+        ]
+
+    if extension == "csv":
+        headers = [
+            "page",
+            "section",
+            "widget_id",
+            "dataset",
+            "widget_type",
+            "status",
+            "record_type",
+            "metric_key",
+            "metric_label",
+            "dimension",
+            "date",
+            "label",
+            "value",
+            "coverage_status",
+            "coverage_note",
+            "warning",
+        ]
+        with file_path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=headers)
+            writer.writeheader()
+            for row in rows:
+                writer.writerow(
+                    {
+                        field: _safe_csv_value(_report_v1_csv_value(row.get(field)))
+                        for field in headers
+                    }
+                )
+    else:
+        pdf_path, pdf_file = _artifact_file_path(job=job, extension="pdf")
+        png_path, png_file = _artifact_file_path(job=job, extension="png")
+        render_payload = {
+            "template": "report_v1_snapshot",
+            "title": job.report.name,
+            "subtitle": _report_v1_subtitle(snapshot),
+            "dateRange": _report_v1_date_range(snapshot),
+            "generatedAt": timestamp.isoformat(),
+            "kpis": _report_v1_kpis(rows),
+            "rows": _report_v1_visual_rows(rows),
+            "warnings": _report_v1_warnings(snapshot=snapshot, rows=rows),
+            "reportLayout": report_layout,
+        }
+        data_file = pdf_file.with_suffix(".json")
+        data_file.write_text(json.dumps(render_payload), encoding="utf-8")
+        subprocess.run(
+            [
+                "node",
+                "bin/export-report",
+                "--data",
+                str(data_file),
+                "--out",
+                str(pdf_file),
+                "--png",
+                str(png_file),
+            ],
+            cwd=str(_exporter_dir()),
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        artifact_path = png_path if extension == "png" else pdf_path
+
+    report_payload = (
+        snapshot.get("report") if isinstance(snapshot.get("report"), Mapping) else {}
+    )
+    return {
+        "artifact_path": artifact_path,
+        "metadata": {
+            "redacted": True,
+            "source": "report_v1_snapshot",
+            "report_name": job.report.name,
+            "generated_at": timestamp.isoformat(),
+            "row_count": len(rows),
+            "export_format": extension,
+            "preview_hash": snapshot.get("preview_hash") or "",
+            "report_schema_version": report_payload.get("schema_version"),
+            "report_template_key": report_payload.get("template_key"),
+            "catalog_schema_version": report_payload.get("catalog_schema_version"),
+            "coverage_summary": snapshot.get("coverage_summary") or {},
+            "blocking_reasons": snapshot.get("blocking_reasons") or [],
+            "warnings": snapshot.get("warnings") or [],
+            "report_layout_source": (
+                str(report_layout.get("source") or "") if report_layout else ""
+            ),
+        },
+    }
+
+
+def _report_v1_export_rows(snapshot: Mapping[str, Any]) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    pages = snapshot.get("pages") if isinstance(snapshot.get("pages"), list) else []
+    for page in pages:
+        if not isinstance(page, Mapping):
+            continue
+        page_title = str(page.get("title") or page.get("id") or "")
+        sections = (
+            page.get("sections") if isinstance(page.get("sections"), list) else []
+        )
+        for section in sections:
+            if not isinstance(section, Mapping):
+                continue
+            section_id = str(section.get("id") or "")
+            widgets = (
+                section.get("widgets")
+                if isinstance(section.get("widgets"), list)
+                else []
+            )
+            for widget in widgets:
+                if not isinstance(widget, Mapping):
+                    continue
+                output.extend(
+                    _report_v1_widget_rows(
+                        page_title=page_title,
+                        section_id=section_id,
+                        widget=widget,
+                    )
+                )
+    return output
+
+
+def _report_v1_widget_rows(
+    *,
+    page_title: str,
+    section_id: str,
+    widget: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    data = widget.get("data") if isinstance(widget.get("data"), Mapping) else {}
+    coverage = (
+        widget.get("coverage") if isinstance(widget.get("coverage"), Mapping) else {}
+    )
+    warnings = (
+        widget.get("warnings") if isinstance(widget.get("warnings"), list) else []
+    )
+    base = {
+        "page": page_title,
+        "section": section_id,
+        "widget_id": str(widget.get("widget_id") or ""),
+        "dataset": str(widget.get("dataset") or coverage.get("dataset") or ""),
+        "widget_type": str(widget.get("type") or data.get("kind") or ""),
+        "status": str(widget.get("status") or ""),
+        "coverage_status": str(coverage.get("coverage_status") or ""),
+        "coverage_note": str(coverage.get("coverage_note") or ""),
+        "warning": "; ".join(
+            str(warning) for warning in warnings if str(warning).strip()
+        ),
+    }
+
+    kind = str(data.get("kind") or widget.get("type") or "")
+    if kind == "report_section":
+        return [
+            {
+                **base,
+                "record_type": "note",
+                "metric_key": "",
+                "metric_label": str(data.get("title") or "Note"),
+                "dimension": "",
+                "date": "",
+                "label": str(data.get("title") or ""),
+                "value": data.get("body"),
+            }
+        ]
+
+    if kind == "kpi":
+        metrics = data.get("metrics") if isinstance(data.get("metrics"), list) else []
+        rows: list[dict[str, Any]] = []
+        for metric in metrics:
+            if not isinstance(metric, Mapping):
+                continue
+            rows.append(
+                {
+                    **base,
+                    "record_type": "metric",
+                    "metric_key": str(metric.get("key") or ""),
+                    "metric_label": str(metric.get("label") or metric.get("key") or ""),
+                    "dimension": "",
+                    "date": "",
+                    "label": str(metric.get("label") or metric.get("key") or ""),
+                    "value": metric.get("value"),
+                }
+            )
+        return rows
+
+    rows = data.get("rows") if isinstance(data.get("rows"), list) else []
+    if not rows:
+        return [
+            {
+                **base,
+                "record_type": kind or "widget",
+                "metric_key": "",
+                "metric_label": "No rows",
+                "dimension": "",
+                "date": "",
+                "label": "",
+                "value": "",
+            }
+        ]
+
+    export_rows: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        row_label = _report_v1_row_label(row)
+        row_date = str(row.get("date") or "")
+        for key, value in row.items():
+            if key in {"permalink"}:
+                continue
+            export_rows.append(
+                {
+                    **base,
+                    "record_type": kind or "row",
+                    "metric_key": str(key),
+                    "metric_label": _humanize_key(str(key)),
+                    "dimension": row_label,
+                    "date": row_date,
+                    "label": row_label,
+                    "value": value,
+                }
+            )
+    return export_rows
+
+
+def _report_v1_row_label(row: Mapping[str, Any]) -> str:
+    for key in ("campaign", "post", "content", "source", "date"):
+        value = row.get(key)
+        if value is not None and value != "":
+            return str(value)
+    return ""
+
+
+def _report_v1_csv_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        return value
+    try:
+        return json.dumps(value, sort_keys=True)
+    except TypeError:
+        return str(value)
+
+
+def _report_v1_subtitle(snapshot: Mapping[str, Any]) -> str:
+    report = (
+        snapshot.get("report") if isinstance(snapshot.get("report"), Mapping) else {}
+    )
+    template_key = str(report.get("template_key") or "").strip()
+    preview_hash = str(snapshot.get("preview_hash") or "").strip()
+    parts = []
+    if template_key:
+        parts.append(template_key)
+    if preview_hash:
+        parts.append(f"preview {preview_hash[:12]}")
+    return " | ".join(parts)
+
+
+def _report_v1_date_range(snapshot: Mapping[str, Any]) -> str:
+    date_range = (
+        snapshot.get("date_range")
+        if isinstance(snapshot.get("date_range"), Mapping)
+        else {}
+    )
+    start = str(date_range.get("start_date") or "").strip()
+    end = str(date_range.get("end_date") or "").strip()
+    label = str(date_range.get("date_range") or "").strip()
+    if start and end:
+        return f"{start} to {end}" + (f" ({label})" if label else "")
+    return label or "Report snapshot"
+
+
+def _report_v1_kpis(rows: list[Mapping[str, Any]]) -> list[dict[str, str]]:
+    kpis: list[dict[str, str]] = []
+    for row in rows:
+        if row.get("record_type") != "metric":
+            continue
+        value = row.get("value")
+        kpis.append(
+            {
+                "label": str(
+                    row.get("metric_label") or row.get("metric_key") or "Metric"
+                ),
+                "value": _format_number(value),
+                "context": str(row.get("dataset") or ""),
+            }
+        )
+        if len(kpis) >= 8:
+            break
+    return kpis
+
+
+def _report_v1_visual_rows(rows: list[Mapping[str, Any]]) -> list[dict[str, str]]:
+    visual_rows: list[dict[str, str]] = []
+    for row in rows:
+        visual_rows.append(
+            {
+                "page": str(row.get("page") or ""),
+                "widget": str(row.get("widget_id") or row.get("widget_type") or ""),
+                "metric": str(row.get("metric_label") or row.get("metric_key") or ""),
+                "value": _format_number(row.get("value")),
+                "status": str(row.get("coverage_status") or row.get("status") or ""),
+                "note": str(row.get("coverage_note") or row.get("warning") or ""),
+            }
+        )
+    return visual_rows[:250]
+
+
+def _report_v1_warnings(
+    *, snapshot: Mapping[str, Any], rows: list[Mapping[str, Any]]
+) -> list[str]:
+    warnings = [str(item) for item in snapshot.get("warnings", []) if str(item).strip()]
+    for row in rows:
+        warning = str(row.get("warning") or "").strip()
+        if warning:
+            warnings.append(warning)
+        coverage_note = str(row.get("coverage_note") or "").strip()
+        status = str(row.get("coverage_status") or "").strip()
+        if coverage_note and status and status != "fresh":
+            warnings.append(coverage_note)
+    return sorted(set(warnings))
+
+
+def _humanize_key(value: str) -> str:
+    return value.replace("_", " ").title()
+
+
+def _export_meta_pages_report(
+    *, job: ReportExportJob, timestamp: datetime
+) -> dict[str, Any]:
     from django.db.models import DecimalField, F, OuterRef, Q, Subquery, Sum
     from django.db.models.expressions import OrderBy
 
-    from integrations.models import MetaInsightPoint, MetaPage, MetaPost, MetaPostInsightPoint, MetaMetricRegistry
+    from integrations.models import (
+        MetaInsightPoint,
+        MetaPage,
+        MetaPost,
+        MetaPostInsightPoint,
+        MetaMetricRegistry,
+    )
     from integrations.page_insights_serializers import resolve_date_range
-    from integrations.services.metric_registry import get_default_metric_keys, resolve_metric_key
+    from integrations.services.metric_registry import (
+        get_default_metric_keys,
+        resolve_metric_key,
+    )
 
     tenant_id = str(job.tenant_id)
     page_id = str((job.report.filters or {}).get("page_id") or "").strip()
@@ -942,9 +1380,13 @@ def _export_meta_pages_report(*, job: ReportExportJob, timestamp: datetime) -> d
     date_preset = str(request_payload.get("date_preset") or "last_28d")
     since = _parse_iso_date(request_payload.get("since"))
     until = _parse_iso_date(request_payload.get("until"))
-    since_date, until_date = resolve_date_range(date_preset=date_preset, since=since, until=until)
+    since_date, until_date = resolve_date_range(
+        date_preset=date_preset, since=since, until=until
+    )
 
-    trend_metric = str(request_payload.get("trend_metric") or "page_post_engagements").strip()
+    trend_metric = str(
+        request_payload.get("trend_metric") or "page_post_engagements"
+    ).strip()
     trend_period = str(request_payload.get("trend_period") or "day").strip()
     posts_metric = str(request_payload.get("posts_metric") or "post_media_view").strip()
     posts_sort = str(request_payload.get("posts_sort") or "created_desc").strip()
@@ -952,7 +1394,9 @@ def _export_meta_pages_report(*, job: ReportExportJob, timestamp: datetime) -> d
     q = str(request_payload.get("q") or "").strip()
     media_type = str(request_payload.get("media_type") or "").strip()
 
-    page_kpi_keys = [key for key in get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE) if key]
+    page_kpi_keys = [
+        key for key in get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE) if key
+    ]
 
     kpis_for_pdf: list[dict[str, str]] = []
     csv_rows: list[dict[str, Any]] = []
@@ -968,7 +1412,11 @@ def _export_meta_pages_report(*, job: ReportExportJob, timestamp: datetime) -> d
             end_time__date__lte=until_date,
         )
         range_total = base_qs.aggregate(total=Sum("value_num")).get("total")
-        last_day_total = base_qs.filter(end_time__date=until_date).aggregate(total=Sum("value_num")).get("total")
+        last_day_total = (
+            base_qs.filter(end_time__date=until_date)
+            .aggregate(total=Sum("value_num"))
+            .get("total")
+        )
 
         range_value = float(range_total) if range_total is not None else None
         last_day_value = float(last_day_total) if last_day_total is not None else None
@@ -1075,7 +1523,9 @@ def _export_meta_pages_report(*, job: ReportExportJob, timestamp: datetime) -> d
     if media_type:
         posts_qs = posts_qs.filter(media_type__iexact=media_type)
 
-    resolved_posts_metric = resolve_metric_key(MetaMetricRegistry.LEVEL_POST, posts_metric)
+    resolved_posts_metric = resolve_metric_key(
+        MetaMetricRegistry.LEVEL_POST, posts_metric
+    )
     sort_value_sq = (
         MetaPostInsightPoint.objects.filter(
             tenant_id=tenant_id,
@@ -1113,7 +1563,9 @@ def _export_meta_pages_report(*, job: ReportExportJob, timestamp: datetime) -> d
         snippet = (post.message or "")[:180]
         top_post_rows.append(
             {
-                "createdTime": post.created_time.date().isoformat() if post.created_time else "—",
+                "createdTime": post.created_time.date().isoformat()
+                if post.created_time
+                else "—",
                 "mediaType": post.media_type or "—",
                 "messageSnippet": snippet or "—",
                 "metricValue": _format_number(value_num),
@@ -1133,7 +1585,9 @@ def _export_meta_pages_report(*, job: ReportExportJob, timestamp: datetime) -> d
                 "until": until_date.isoformat(),
                 "end_time": "",
                 "value": value_num if value_num is not None else "",
-                "created_time": post.created_time.isoformat() if post.created_time else "",
+                "created_time": post.created_time.isoformat()
+                if post.created_time
+                else "",
                 "media_type": post.media_type or "",
                 "permalink": post.permalink_url or "",
                 "message_snippet": snippet,
@@ -1204,7 +1658,9 @@ def _export_meta_pages_report(*, job: ReportExportJob, timestamp: datetime) -> d
             "--png",
             str(png_file),
         ]
-        subprocess.run(cmd, cwd=str(exporter_dir), check=True, capture_output=True, text=True)
+        subprocess.run(
+            cmd, cwd=str(exporter_dir), check=True, capture_output=True, text=True
+        )
 
         artifacts.update({"pdf": pdf_path, "png": png_path})
         artifact_path = png_path if extension == "png" else pdf_path

@@ -58,10 +58,17 @@ class SavedReportLayoutViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = SavedReportLayout.objects.filter(tenant_id=user.tenant_id)
         if _is_admin(user):
-            return queryset.order_by("-updated_at", "name")
-        return queryset.filter(
+            scoped = queryset
+        else:
+            scoped = queryset.filter(
             Q(is_shared=True) | Q(created_by_id=user.id)
-        ).order_by("-updated_at", "name")
+        )
+
+        config_id = str(self.request.query_params.get("config_id") or "").strip()
+        if config_id:
+            scoped = scoped.filter(config__id=config_id)
+
+        return scoped.order_by("-updated_at", "name")
 
     def perform_create(self, serializer):
         user = self.request.user

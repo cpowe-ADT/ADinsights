@@ -258,6 +258,41 @@ def test_valid_g2_g9_evidence_run_passes(tmp_path, monkeypatch, capsys):
     assert result["errors"] == []
 
 
+def test_g2_g9_requires_g1_intake_file(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
+    run = _valid_run()
+    _write_evidence_files(tmp_path, run)
+    run_path = tmp_path / "run.json"
+    _write_json(run_path, run)
+
+    exit_code, result = _run_validator(run_path, None, capsys)
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert "G2-G9 validation requires --intake-file with a filled G1 runtime target intake." in result["errors"]
+
+
+def test_g2_g9_rejects_pending_g1_intake(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
+    run = _valid_run()
+    intake = _valid_intake()
+    intake["status"] = "pending_operator_input"
+    _write_evidence_files(tmp_path, run)
+    run_path = tmp_path / "run.json"
+    intake_path = tmp_path / "intake.json"
+    _write_json(run_path, run)
+    _write_json(intake_path, intake)
+
+    exit_code, result = _run_validator(run_path, intake_path, capsys)
+
+    assert exit_code == 1
+    assert result["valid"] is False
+    assert (
+        "G1 intake status must be candidate_ready_for_review before G2-G9 evidence can pass."
+        in result["errors"]
+    )
+
+
 def test_template_pending_values_fail(tmp_path, capsys):
     run_path = tmp_path / "run.json"
     run_path.write_text(TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8")

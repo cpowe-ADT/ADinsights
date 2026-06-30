@@ -147,6 +147,162 @@ Expected `organic_sync.status` values:
 The reporting bundle uses existing Page-scoped permissions. Do not add `read_insights`, and do not
 call live providers during report preview/export.
 
+SLB monthly report behavior:
+
+- Organic reach, impressions, and clicks remain unavailable unless Meta approves the required
+  insights access or an approved manual import path is used.
+- The governed SLB template uses available Page follows plus edge-sourced post reactions, comments,
+  and shares. These are stored in the existing Page/Post aggregate tables and can render without
+  `read_insights`.
+- The report includes a client-facing availability note instead of hard-blocking on organic
+  reach/impressions. Missing organic insight values must stay `null`/unavailable, never synthetic
+  zeroes.
+- Paid Meta widgets in the SLB report must carry an explicit `account_id` or `client_id` before
+  preview/export. Do not let a fixed SLB report read all tenant Meta rows. If the scoped SLB account
+  has no retained rows, export may proceed only as explicit warning-only no-data evidence; paid
+  parity and cancellation readiness remain blocked until backfill/source repair or approved daily
+  paid CSV import supplies real selected-account values.
+- Use `GET /api/reports/data-availability/` before export handoff. The paid dataset applies
+  `client_id` to linked Meta ad accounts and may return `scope_diagnostic` when the selected account
+  or client scope has no retained rows even though other tenant Meta rows exist. Follow the
+  diagnostic required action; do not clear the blocker with unrelated account data.
+- The same data-availability response carries per-dataset `metric_availability` summaries. Use
+  `available`, `callable_no_data`, `permission_gated`, and `unsupported` to decide which report
+  metrics can render, which should stay null with a no-data warning, and which require Meta approval
+  or a manual import path. Replacement rows such as media views must not be treated as approved
+  reach/impression product metrics unless an approved manual import stores the explicit product
+  metric key.
+- If an account-scoped diagnostic includes `credential_status.status=missing`, the selected Meta ad
+  account is not reconnected for paid reporting. Reconnect/select that account and run fixed-range
+  paid backfill before claiming paid coverage completion; a warning-only export is still no-data
+  evidence, not a substitute for paid parity.
+- `GET /api/reports/<report-id>/diagnostics/` also carries redacted
+  `source_health.report_scope.paid_meta_ads` and
+  `source_health.report_scope.organic_facebook_page` for SLB reports. Use paid `backfill_status`,
+  `credential_status.status`, and `scoped_rows.row_count` to confirm whether support should
+  reconnect the selected account, run `slb_backfill_meta_reporting`, or proceed with export. Use
+  organic `page_scope_present`, `matched_page_count`, `scoped_rows.row_count`, and
+  `backfill_status` to confirm whether a tenant-owned SLB Facebook Page is selected before manual
+  organic import/backfill. The matching `source_health.remediation_actions` commands use
+  placeholders and must not expose tenant, Page, or ad-account IDs in support packets. When a
+  remediation action includes `dry_run_command_template`, run that validation command before the
+  write-capable `command_template`.
+- Fixed-range `slb_backfill_meta_reporting --dispatch-mode dry-run` is plan-only. It reports the
+  planned tasks, engagement-edge enrichment, and fallback commands, skips the redacted request audit
+  event, and emits `audit_event.status=skipped`; inline or queued runs still record the audit event.
+  Dry-run organic post backfill must report `engagement_edges[page_id].status=planned` and must not
+  call Meta edge endpoints.
+- If the selected account cannot be API-backfilled because a retained credential is missing, and an
+  approved Meta Ads UI/export file exists, use `import_meta_paid_csv` as a manual paid fallback. It
+  requires daily rows and rejects multi-day aggregates so May 1-31 coverage cannot be faked with a
+  single monthly total. `slb_backfill_meta_reporting` dry-runs now surface this as
+  `fallback_actions[].code=manual_meta_paid_csv_import` and
+  `post_backfill_commands.manual_paid_csv_import` when paid API backfill is credential-blocked, plus
+  `post_backfill_commands.manual_paid_csv_import_dry_run` so the approved daily file can be
+  validated before import.
+- If the fixed SLB report has no selected-account paid rows and/or no retained organic
+  Facebook/Page, organic post, or Content Ops rows, those sections export as visible warning-only
+  "no retained rows" notes when no hard permission, unsupported-metric, or unscoped paid blocker is
+  present. This is not a data substitute; operators should still import approved source values or
+  rerun backfill before parity evidence.
+- Partial paid Meta coverage is allowed to export only as a warning when the requested report has
+  stored paid rows and all other required sources are available. Endpoint-only rows do not prove a
+  full month; missing internal dates keep the dataset `partial` and must remain visible through
+  `coverage_gap` plus a `coverage_note` that names the missing span. Keep the coverage note visible
+  in report preview/export metadata.
+
+## Manual paid CSV fallback import
+
+When an approved Meta Ads UI/export file has selected-account daily paid rows but API backfill is
+blocked by missing credentials, import those aggregate values into the same stored paid tables used
+by report preview/export:
+
+```bash
+backend/.venv/bin/python backend/manage.py import_meta_paid_csv \
+  --tenant-id <tenant_uuid> \
+  --account-id <meta_ad_account_id> \
+  --file /path/to/meta-paid-daily-export.csv
+```
+
+Validate an approved selected-account daily export before writing with:
+
+```bash
+backend/.venv/bin/python backend/manage.py import_meta_paid_csv \
+  --tenant-id <tenant_uuid> \
+  --account-id <meta_ad_account_id> \
+  --file /path/to/meta-paid-daily-export.csv \
+  --dry-run
+```
+
+CSV requirements:
+
+- Required per row: `date` or `date_start`; `account_id` unless `--account-id` is provided.
+- `date_stop`, if present, must equal the row date. Monthly aggregate rows are rejected.
+- Optional campaign fields: `campaign_id`, `campaign_name`/`campaign`.
+- Supported metrics: `spend`/`amount_spent`/`cost`, `impressions`, `reach`, `clicks`,
+  `conversions`, `cpc`, and `cpm`.
+- Blank metric cells are skipped on update and do not overwrite existing values with zero. Invalid
+  non-finite, or negative numeric values abort the import.
+- Blank metric cells on newly created manual paid rows are tracked in row metadata and must render
+  as `null`/no-data in paid preview/export summaries and
+  `GET /api/reports/data-availability/` metric states. Do not treat the model's numeric defaults as
+  measured zeroes for manual import columns that were not supplied. Derived metrics such as `ctr`,
+  `cpc`, and `frequency` are available only when their required base inputs exist.
+- The target `AdAccount` must already exist for the tenant. The command may create campaign metadata
+  for the tenant/account, but it will not create ad accounts or cross tenant boundaries.
+
+The command emits `meta_paid_csv_import.v1` JSON with aggregate counts only and records a redacted
+audit event unless `--dry-run` is used. Dry-run mode emits the same aggregate count summary with
+`dry_run=true` but writes no paid records, creates no campaigns, and records no audit event. It does
+not call Meta and does not import user-level data.
+
+## Manual organic CSV fallback import
+
+When Meta UI/export has organic Page or post reach/impression values that the Graph API cannot
+return without `read_insights`, import those approved aggregate values into the same stored
+reporting tables used by report preview/export:
+
+```bash
+backend/.venv/bin/python backend/manage.py import_meta_organic_csv \
+  --tenant-id <tenant_uuid> \
+  --page-id <facebook_page_id> \
+  --file /path/to/meta-organic-export.csv
+```
+
+Validate an approved file and target Page before writing with:
+
+```bash
+backend/.venv/bin/python backend/manage.py import_meta_organic_csv \
+  --tenant-id <tenant_uuid> \
+  --page-id <facebook_page_id> \
+  --file /path/to/meta-organic-export.csv \
+  --dry-run
+```
+
+CSV requirements:
+
+- Required per row: `date` or `end_time`; `page_id` unless `--page-id` is provided.
+- Optional post grain: `post_id`, `post_message`/`message`, `permalink`/`permalink_url`,
+  `created_time`.
+- Supported product metric columns include `page_reach`, `page_impressions`, `page_follows`,
+  `post_impressions`, `post_reach`, `post_clicks`, `post_reactions`, `post_comments`, and
+  `post_shares`. The command also accepts the governed source keys from
+  `source_metric_semantics`.
+- Product metric columns are stored under their product keys and can satisfy runtime
+  `metric_availability` after the approved import. Source-key columns such as `page_media_view` and
+  `post_media_view` are stored as source rows for diagnostics/compatibility and do not by themselves
+  clear `permission_gated` reach/impression product metrics.
+- Blank metric cells are skipped and do not overwrite existing values with zero. Invalid or
+  non-finite, or negative numeric values abort the import.
+- The target `MetaPage` must already exist for the tenant. The command may create missing
+  `MetaPost` rows under that Page, but it will not create Pages or cross tenant boundaries.
+
+The command emits `meta_organic_csv_import.v1` JSON with aggregate counts only and records a
+redacted audit event unless `--dry-run` is used. Dry-run mode emits the same aggregate count summary
+with `dry_run=true` but writes no reporting rows, creates no posts, and records no audit event. It
+does not call Meta, does not require `read_insights`, and does not import user-level engagement,
+viewer, commenter, or reaction identity data.
+
 For the current Page Insights dashboard, trigger a sync per page with:
 
 - `POST /api/meta/pages/{page_id}/sync/`
@@ -203,6 +359,21 @@ Graph v24 organic reporting defaults:
 - If Graph returns synced posts but zero Page/Post insight metric rows, reports may show stored post
   activity (`date`, `content`, `permalink`) with `null` metric values and partial coverage. Do not
   convert missing metrics to zero, and do not mark exports ready until required coverage is present.
+  This applies to grouped/chart previews as well as tables: a missing metric for a displayed post or
+  Page group must remain `null`, not an aggregated `0`.
+- `GET /api/dashboards/reporting-catalog/` exposes `availability_state` for governed product
+  metrics. Treat `permission_gated` organic metrics as unavailable for default report-builder
+  selection until Meta approval or a manual import path exists.
+- Canonical `/api/meta/pages/*` and `/api/meta/posts/*` `metric_availability` entries also expose
+  additive `availability_state` and `availability_note` fields:
+  - `available`: the metric is supported and stored rows exist for the selected Page/Post scope.
+  - `callable_no_data`: the metric is supported/callable, but no retained rows exist for the
+    selected range. Keep values null; do not show zero.
+  - `permission_gated`: Page permissions or an auth/permission support error blocks metric access.
+  - `unsupported`: the metric is invalid, deprecated, blocked, or failed support discovery for a
+    non-permission reason.
+    Existing `supported` remains for backward compatibility; use `availability_state` for new
+    operator and builder UX because `supported=true` can still mean callable with no stored rows.
 
 ## Failure triage
 

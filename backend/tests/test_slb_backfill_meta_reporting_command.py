@@ -8,6 +8,7 @@ import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
+from accounts.models import AuditLog
 from analytics.models import ReportDefinition
 from content_ops.models import PublishedPost
 from integrations.models import MetaConnection, MetaPage, MetaPost, PlatformCredential
@@ -31,7 +32,9 @@ def _create_meta_credential(user, account_id: str = "act_123") -> PlatformCreden
     return credential
 
 
-def _create_meta_page(user, page_id: str = "page-1", *, is_default: bool = True) -> MetaPage:
+def _create_meta_page(
+    user, page_id: str = "page-1", *, is_default: bool = True
+) -> MetaPage:
     connection = MetaConnection(
         tenant=user.tenant,
         user=user,
@@ -56,7 +59,9 @@ def _create_meta_page(user, page_id: str = "page-1", *, is_default: bool = True)
     return page
 
 
-def _create_report(user, *, account_id: str = "act_123", page_id: str = "page-1") -> ReportDefinition:
+def _create_report(
+    user, *, account_id: str = "act_123", page_id: str = "page-1"
+) -> ReportDefinition:
     return ReportDefinition.objects.create(
         tenant=user.tenant,
         name="SLB Monthly Social Report",
@@ -68,7 +73,9 @@ def _create_report(user, *, account_id: str = "act_123", page_id: str = "page-1"
     )
 
 
-def _create_report_without_page_scope(user, *, account_id: str = "act_123") -> ReportDefinition:
+def _create_report_without_page_scope(
+    user, *, account_id: str = "act_123"
+) -> ReportDefinition:
     return ReportDefinition.objects.create(
         tenant=user.tenant,
         name="SLB Monthly Social Report",
@@ -81,10 +88,18 @@ def _create_report_without_page_scope(user, *, account_id: str = "act_123") -> R
 
 
 @pytest.mark.django_db
-def test_slb_backfill_meta_reporting_dry_run_plans_fixed_range(user):
+def test_slb_backfill_meta_reporting_dry_run_plans_fixed_range(user, monkeypatch):
     _create_meta_credential(user)
     _create_meta_page(user)
     report = _create_report(user)
+
+    def fail_if_called(**_kwargs):
+        raise AssertionError("dry-run must not call live engagement edge ingestion")
+
+    monkeypatch.setattr(
+        "analytics.management.commands.slb_backfill_meta_reporting.ingest_engagement_edges",
+        fail_if_called,
+    )
 
     stdout = io.StringIO()
     call_command(
@@ -103,6 +118,7 @@ def test_slb_backfill_meta_reporting_dry_run_plans_fixed_range(user):
     payload = json.loads(stdout.getvalue())
     assert payload["schema_version"] == "slb_backfill_meta_reporting.v1"
     assert payload["dispatch_mode"] == "dry-run"
+    assert payload["audit_event"] == {"status": "skipped", "reason": "dry_run"}
     assert payload["date_range"] == {
         "start_date": "2026-05-01",
         "end_date": "2026-05-31",
@@ -110,6 +126,18 @@ def test_slb_backfill_meta_reporting_dry_run_plans_fixed_range(user):
     }
     assert payload["guardrails"]["no_demo_seed_data"] is True
     assert payload["guardrails"]["no_render_export_provider_calls"] is True
+    manual_import_command = payload["post_backfill_commands"]["manual_paid_csv_import"]
+    assert "import_meta_paid_csv" in manual_import_command
+    assert "--tenant-id" in manual_import_command
+    assert "<meta_ad_account_id>" in manual_import_command
+    assert "<path-to-meta-paid-daily-export.csv>" in manual_import_command
+    assert "--dry-run" not in manual_import_command
+    manual_import_dry_run_command = payload["post_backfill_commands"][
+        "manual_paid_csv_import_dry_run"
+    ]
+    assert "import_meta_paid_csv" in manual_import_dry_run_command
+    assert "<meta_ad_account_id>" in manual_import_dry_run_command
+    assert "--dry-run" in manual_import_dry_run_command
 
     paid = payload["datasets"]["paid_meta_ads"]
     assert paid["status"] == "planned"
@@ -129,8 +157,24 @@ def test_slb_backfill_meta_reporting_dry_run_plans_fixed_range(user):
         "integrations.tasks.sync_page_posts",
         "integrations.tasks.sync_post_insights",
     }
+    assert posts["engagement_edges"] == {
+        "page-1": {
+            "status": "planned",
+            "no_live_provider_calls": True,
+            "source_path": "meta_page_post_engagement_edges",
+            "since": "2026-05-01",
+            "until": "2026-05-31",
+        }
+    }
     assert payload["datasets"]["content_ops"]["status"] == "blocked"
-    assert payload["datasets"]["content_ops"]["reason"] == "content_ops_published_posts_missing"
+    assert (
+        payload["datasets"]["content_ops"]["reason"]
+        == "content_ops_published_posts_missing"
+    )
+    assert not AuditLog.all_objects.filter(
+        tenant=user.tenant,
+        action="slb_backfill_meta_reporting_requested",
+    ).exists()
 
 
 @pytest.mark.django_db
@@ -334,8 +378,22 @@ def test_slb_backfill_meta_reporting_blocks_missing_meta_credential(user):
     )
 
     payload = json.loads(stdout.getvalue())
-    assert payload["datasets"]["paid_meta_ads"] == {
-        "status": "blocked",
-        "reason": "meta_ad_account_credential_missing",
-        "required_action": "Reconnect Meta/Facebook and select the SLB ad account before backfill.",
-    }
+    paid = payload["datasets"]["paid_meta_ads"]
+    assert paid["status"] == "blocked"
+    assert paid["reason"] == "meta_ad_account_credential_missing"
+    assert (
+        paid["required_action"]
+        == "Reconnect Meta/Facebook and select the SLB ad account before backfill."
+    )
+    fallback = paid["fallback_actions"][0]
+    assert fallback["code"] == "manual_meta_paid_csv_import"
+    assert fallback["dataset"] == "paid_meta_ads"
+    assert "import_meta_paid_csv" in fallback["command_template"]
+    assert "<meta_ad_account_id>" in fallback["command_template"]
+    assert "--dry-run" not in fallback["command_template"]
+    assert "import_meta_paid_csv" in fallback["dry_run_command_template"]
+    assert "<meta_ad_account_id>" in fallback["dry_run_command_template"]
+    assert "--dry-run" in fallback["dry_run_command_template"]
+    assert fallback["no_live_provider_calls"] is True
+    assert fallback["aggregate_only"] is True
+    assert fallback["requires_daily_rows"] is True

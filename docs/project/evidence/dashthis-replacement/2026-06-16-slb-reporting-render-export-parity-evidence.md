@@ -628,6 +628,7 @@ Known preflight signal:
   `slb_report_parity_compare` can merge a redacted comparison-values JSON file with evidence-bundle
   rows, compute absolute deltas, percent deltas, pass/fail decisions from percent or absolute
   tolerances, keep missing comparison values blocked, block rows with missing tolerance as
+  `blocked_missing_adinsights_value`, keep missing tolerance or semantic confirmation as
   `blocked_metric_semantics`, redact sensitive-looking source references, and run while live network
   calls are blocked. The broader reporting slice, `make backend-lint`, and `make backend-test`
   passed after adding the comparator. This improves parity calculation quality but does not close

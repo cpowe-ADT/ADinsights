@@ -22,20 +22,20 @@ The current repo contract says:
 
 ## Provider Key Verification Matrix
 
-| ADinsights product metric | Current primary provider key(s) | Current fallback key(s) | Needs official verification | Notes |
-| --- | --- | --- | --- | --- |
-| `page_reach` | `page_total_media_view_unique` | `page_impressions_unique` | yes | Verify whether this is the correct v24 reach proxy. |
-| `page_impressions` | `page_media_view` | `page_impressions` | yes | Verify whether media view semantics should replace legacy impressions. |
-| `page_engagements` | `page_post_engagements` | none | yes | Confirm availability for Page/date range. |
-| `page_actions` | `page_total_actions` | none | yes | Confirm current Page metric status. |
-| `page_follows` | `page_daily_follows_unique`, `page_follows` | none | yes | Confirm reporting period support. |
-| `post_impressions` | `post_media_view` | `post_impressions` | yes | Legacy key should remain fallback-only unless verified otherwise. |
-| `post_reach` | `post_total_media_view_unique` | `post_impressions_unique`, `post_impressions_organic_unique` | yes | Confirm current v24 post reach semantics. |
-| `post_clicks` | `post_clicks` | none | yes | Confirm period and availability. |
-| `post_reactions_like` | `post_reactions_by_type_total`, `post_reactions_like_total` | none | yes | Confirm breakdown response shape. |
-| `post_reactions_love` | `post_reactions_by_type_total`, `post_reactions_love_total` | none | yes | Confirm breakdown response shape. |
-| `content_ops_impressions` | `post_media_view` | `post_impressions` | yes | Content Ops depends on stored Meta post IDs and post insight rows. |
-| `content_ops_reach` | `post_total_media_view_unique` | `post_impressions_unique`, `post_impressions_organic_unique` | yes | Content Ops should not synthesize missing values. |
+| ADinsights product metric | Current primary provider key(s)                             | Current fallback key(s)                                      | Needs official verification | Notes                                                                  |
+| ------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------ | --------------------------- | ---------------------------------------------------------------------- |
+| `page_reach`              | `page_total_media_view_unique`                              | `page_impressions_unique`                                    | yes                         | Verify whether this is the correct v24 reach proxy.                    |
+| `page_impressions`        | `page_media_view`                                           | `page_impressions`                                           | yes                         | Verify whether media view semantics should replace legacy impressions. |
+| `page_engagements`        | `page_post_engagements`                                     | none                                                         | yes                         | Confirm availability for Page/date range.                              |
+| `page_actions`            | `page_total_actions`                                        | none                                                         | yes                         | Confirm current Page metric status.                                    |
+| `page_follows`            | `page_daily_follows_unique`, `page_follows`                 | none                                                         | yes                         | Confirm reporting period support.                                      |
+| `post_impressions`        | `post_media_view`                                           | `post_impressions`                                           | yes                         | Legacy key should remain fallback-only unless verified otherwise.      |
+| `post_reach`              | `post_total_media_view_unique`                              | `post_impressions_unique`, `post_impressions_organic_unique` | yes                         | Confirm current v24 post reach semantics.                              |
+| `post_clicks`             | `post_clicks`                                               | none                                                         | yes                         | Confirm period and availability.                                       |
+| `post_reactions_like`     | `post_reactions_by_type_total`, `post_reactions_like_total` | none                                                         | yes                         | Confirm breakdown response shape.                                      |
+| `post_reactions_love`     | `post_reactions_by_type_total`, `post_reactions_love_total` | none                                                         | yes                         | Confirm breakdown response shape.                                      |
+| `content_ops_impressions` | `post_media_view`                                           | `post_impressions`                                           | yes                         | Content Ops depends on stored Meta post IDs and post insight rows.     |
+| `content_ops_reach`       | `post_total_media_view_unique`                              | `post_impressions_unique`, `post_impressions_organic_unique` | yes                         | Content Ops should not synthesize missing values.                      |
 
 ## Official Verification Checklist
 
@@ -120,4 +120,3 @@ preview/export. Reach/impressions/clicks remain read_insights-gated and stay abs
 SLB report's organic Page/Post sections move from "metrics unavailable" to real follower + engagement
 values; the remaining export gate is comparison-history coverage (backfill prior months), not a
 permission or code defect.
-
