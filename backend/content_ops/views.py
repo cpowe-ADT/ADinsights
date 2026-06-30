@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import logging
 import mimetypes
 
 from django.db import transaction
@@ -81,6 +82,7 @@ from .publisher import (
     requeue_failed_publish_attempt,
 )
 from .readiness import build_content_ops_readiness_payload
+from .scheduler import dispatch_schedule_now
 from .serializers import (
     ApprovalDecisionSerializer,
     ApprovalRequestSerializer,
@@ -104,6 +106,30 @@ from .serializers import (
     PublishAttemptSerializer,
     RegionalAgentProfileSerializer,
 )
+
+
+logger = logging.getLogger(__name__)
+
+
+def _enqueue_publish_processing(tenant_id: str) -> None:
+    """Best-effort hand-off of queued attempts to the async processor.
+
+    Called from ``transaction.on_commit`` so it only fires once the schedule and
+    its attempts are durably persisted. Failures here (e.g. no broker in a given
+    environment) must not surface to the API caller — the periodic
+    ``process_due_content_publish_attempts`` beat task is the durable backstop.
+    """
+
+    try:
+        from .tasks import process_due_content_publish_attempts
+
+        process_due_content_publish_attempts.delay(tenant_id=tenant_id)
+    except Exception:  # pragma: no cover - defensive async hand-off
+        logger.warning(
+            "Failed to enqueue content publish processing for tenant %s",
+            tenant_id,
+            exc_info=True,
+        )
 
 
 class ContentOpsTenantScopedMixin:
@@ -1501,17 +1527,100 @@ class ContentDraftViewSet(ContentOpsTenantScopedMixin, viewsets.ModelViewSet):
 
     @decorators.action(detail=True, methods=["post"], url_path="publish-now")
     def publish_now(self, request: Request, pk: str | None = None) -> Response:
+        """Publish a draft's active version immediately.
+
+        Reuses the durable schedule → dispatch → attempt pipeline by creating a
+        ``scheduled_at=now`` schedule and dispatching it synchronously, then
+        handing the provider work to the async processor. Whether a client
+        approval is required first is governed by the workspace's
+        ``quick_post_approval_mode``.
+        """
+
         self._require_roles(
             CONTENT_OPS_PUBLISH_ROLES,
             "User role cannot publish Content Operations posts.",
         )
-        self.get_object()
+        draft = self.get_object()
+        if draft.active_version_id is None:
+            raise ValidationError({"active_version": "Draft has no active version."})
+
+        approval_mode = draft.workspace.quick_post_approval_mode
+        bypass = approval_mode == ContentWorkspace.APPROVAL_MODE_BYPASS
+        if not bypass and not draft.has_current_client_approval():
+            raise ValidationError(
+                {
+                    "approval": (
+                        "This workspace requires a current client approval before "
+                        "publishing. Submit the draft for client review, or switch "
+                        "the workspace to bypass mode for one-click publishing."
+                    )
+                }
+            )
+
+        target_channels = self._schedule_targets(
+            draft=draft,
+            raw_channels=request.data.get("channels"),
+        )
+        now = timezone.now()
+        approval_snapshot = self._approval_snapshot(
+            draft,
+            target_channels=target_channels,
+        )
+        approval_snapshot["approval_mode"] = approval_mode
+        if bypass:
+            approval_snapshot["bypassed_by"] = str(request.user.id)
+            approval_snapshot["bypassed_at"] = now.isoformat()
+
+        schedule = ContentSchedule.all_objects.create(
+            tenant=self._tenant(),
+            draft=draft,
+            version=draft.active_version,
+            scheduled_at=now,
+            timezone=draft.workspace.timezone or "America/Jamaica",
+            scheduled_by=request.user,
+            approval_snapshot=approval_snapshot,
+            state=ContentSchedule.STATE_SCHEDULED,
+        )
+        draft.state = ContentDraft.STATE_SCHEDULED
+        draft.save(update_fields=["state", "updated_at"])
+
+        dispatch_result = dispatch_schedule_now(schedule=schedule, now=now)
+
+        attempts = list(
+            PublishAttempt.all_objects.filter(
+                tenant_id=self._tenant_id(),
+                schedule=schedule,
+            ).order_by("channel", "created_at")
+        )
+
+        tenant_id = self._tenant_id()
+        transaction.on_commit(lambda: _enqueue_publish_processing(tenant_id))
+
+        self._audit(
+            action="content_draft_published_now",
+            resource_type="content_draft",
+            resource_id=str(draft.id),
+            metadata={
+                "schedule_id": str(schedule.id),
+                "approval_mode": approval_mode,
+                "target_channels": target_channels,
+                "attempts_created": dispatch_result.attempts_created,
+                "attempts_blocked": dispatch_result.attempts_blocked,
+            },
+        )
+
         return Response(
             {
-                "detail": "Publishing runtime is not implemented in this slice.",
-                "reason": "not_implemented",
+                "schedule": ContentScheduleSerializer(
+                    schedule, context={"request": request}
+                ).data,
+                "attempts": PublishAttemptSerializer(
+                    attempts, many=True, context={"request": request}
+                ).data,
+                "dispatch": dispatch_result.as_dict(),
+                "approval_mode": approval_mode,
             },
-            status=status.HTTP_501_NOT_IMPLEMENTED,
+            status=status.HTTP_201_CREATED,
         )
 
     def _create_approval_request(

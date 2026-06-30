@@ -17,6 +17,7 @@ from django.utils import timezone
 from .models import (
     ContentDraft,
     ContentSchedule,
+    ContentWorkspace,
     PublishingIdentity,
     PublishAttempt,
 )
@@ -136,6 +137,24 @@ def _dispatch_schedule(
     )
 
 
+def dispatch_schedule_now(
+    *,
+    schedule: ContentSchedule,
+    now=None,
+) -> DispatchResult:
+    """Immediately create publish attempts for a single just-created schedule.
+
+    Used by the "publish now" action. Unlike :func:`dispatch_due_schedules`,
+    this targets one schedule and does not require it to be discovered by the
+    due-schedule scan, so the API can dispatch synchronously inside the request
+    and hand the attempt records straight back to the caller.
+    """
+
+    now = now or timezone.now()
+    readiness = build_content_ops_readiness_payload(tenant=schedule.tenant)
+    return _dispatch_schedule(schedule=schedule, readiness=readiness)
+
+
 def _get_or_create_attempt(
     *,
     schedule: ContentSchedule,
@@ -246,6 +265,11 @@ def _schedule_snapshot_is_current(schedule: ContentSchedule) -> bool:
         return False
     if str(snapshot.get("version_id") or "") != str(schedule.version_id):
         return False
+    # A workspace configured for approval bypass records an explicit publisher
+    # action in the snapshot instead of a client approval. The version-identity
+    # checks above still guarantee the content has not changed since dispatch.
+    if snapshot.get("approval_mode") == ContentWorkspace.APPROVAL_MODE_BYPASS:
+        return True
     approvals = snapshot.get("approvals")
     if not isinstance(approvals, list):
         return False

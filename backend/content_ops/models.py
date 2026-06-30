@@ -40,6 +40,18 @@ class ContentWorkspace(TenantScopedModel):
         (CHANNEL_INSTAGRAM, "Instagram"),
     ]
 
+    # Governs the quick "publish now" path. ``required`` keeps the full
+    # internal/client approval workflow as a precondition for publishing;
+    # ``bypass`` lets a user with a publish role post immediately without a
+    # recorded client approval (the workflow on the drafts board still exists
+    # for teams that want client sign-off).
+    APPROVAL_MODE_REQUIRED = "required"
+    APPROVAL_MODE_BYPASS = "bypass"
+    APPROVAL_MODE_CHOICES = [
+        (APPROVAL_MODE_REQUIRED, "Require approval before publishing"),
+        (APPROVAL_MODE_BYPASS, "Allow publishers to post without approval"),
+    ]
+
     client = models.ForeignKey(
         "integrations.Client",
         on_delete=models.SET_NULL,
@@ -52,6 +64,11 @@ class ContentWorkspace(TenantScopedModel):
     brand_profile = models.JSONField(default=dict, blank=True)
     target_channels = models.JSONField(default=list, blank=True)
     timezone = models.CharField(max_length=64, default="America/Jamaica")
+    quick_post_approval_mode = models.CharField(
+        max_length=16,
+        choices=APPROVAL_MODE_CHOICES,
+        default=APPROVAL_MODE_BYPASS,
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

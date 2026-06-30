@@ -475,6 +475,159 @@ def test_schedule_rejects_invalid_publishing_targets(auth_client):
 
 
 @pytest.mark.django_db
+def test_publish_now_requires_active_version(auth_client):
+    workspace_id = _create_workspace(auth_client)
+    draft_id = _create_draft(auth_client, workspace_id)
+
+    response = auth_client.post(
+        f"/api/content-ops/drafts/{draft_id}/publish-now/",
+        data={},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "active_version" in response.data
+
+
+@pytest.mark.django_db
+def test_publish_now_bypass_mode_dispatches_without_client_approval(
+    auth_client, tenant, user
+):
+    _create_meta_publishing_state(tenant=tenant, user=user)
+    workspace_id = _create_workspace(auth_client)
+    draft_id = _create_draft(auth_client, workspace_id)
+    auth_client.post(
+        f"/api/content-ops/drafts/{draft_id}/versions/",
+        data={"caption": "One-click post"},
+        format="json",
+    )
+
+    response = auth_client.post(
+        f"/api/content-ops/drafts/{draft_id}/publish-now/",
+        data={},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.data["approval_mode"] == ContentWorkspace.APPROVAL_MODE_BYPASS
+    attempts = response.data["attempts"]
+    assert {attempt["channel"] for attempt in attempts} == {
+        PublishAttempt.CHANNEL_FACEBOOK_PAGE,
+        PublishAttempt.CHANNEL_INSTAGRAM,
+    }
+    assert {attempt["state"] for attempt in attempts} == {PublishAttempt.STATE_QUEUED}
+    snapshot = response.data["schedule"]["approval_snapshot"]
+    assert snapshot["approval_mode"] == ContentWorkspace.APPROVAL_MODE_BYPASS
+    assert snapshot["bypassed_by"] == str(user.id)
+
+    draft_response = auth_client.get(f"/api/content-ops/drafts/{draft_id}/")
+    assert draft_response.data["state"] == ContentDraft.STATE_SCHEDULED
+
+
+@pytest.mark.django_db
+def test_publish_now_blocks_when_no_publishing_identity(auth_client):
+    workspace_id = _create_workspace(auth_client)
+    draft_id = _create_draft(auth_client, workspace_id)
+    auth_client.post(
+        f"/api/content-ops/drafts/{draft_id}/versions/",
+        data={"caption": "No destination yet"},
+        format="json",
+    )
+
+    response = auth_client.post(
+        f"/api/content-ops/drafts/{draft_id}/publish-now/",
+        data={},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    attempts = response.data["attempts"]
+    assert attempts, "expected blocked attempts to be reported back to the caller"
+    assert {attempt["state"] for attempt in attempts} == {PublishAttempt.STATE_BLOCKED}
+    assert all(
+        attempt["failure_code"] == "publishing_identity_missing"
+        for attempt in attempts
+    )
+
+
+@pytest.mark.django_db
+def test_publish_now_required_mode_rejects_unapproved_draft(auth_client):
+    workspace_id = _create_workspace(auth_client)
+    patch = auth_client.patch(
+        f"/api/content-ops/workspaces/{workspace_id}/",
+        data={"quick_post_approval_mode": ContentWorkspace.APPROVAL_MODE_REQUIRED},
+        format="json",
+    )
+    assert patch.status_code == status.HTTP_200_OK
+    assert (
+        patch.data["quick_post_approval_mode"]
+        == ContentWorkspace.APPROVAL_MODE_REQUIRED
+    )
+    draft_id = _create_draft(auth_client, workspace_id)
+    auth_client.post(
+        f"/api/content-ops/drafts/{draft_id}/versions/",
+        data={"caption": "Needs approval"},
+        format="json",
+    )
+
+    response = auth_client.post(
+        f"/api/content-ops/drafts/{draft_id}/publish-now/",
+        data={},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "approval" in response.data
+
+
+@pytest.mark.django_db
+def test_publish_now_required_mode_publishes_client_approved_draft(
+    auth_client, tenant, user
+):
+    _create_meta_publishing_state(tenant=tenant, user=user)
+    workspace_id = _create_workspace(auth_client)
+    auth_client.patch(
+        f"/api/content-ops/workspaces/{workspace_id}/",
+        data={"quick_post_approval_mode": ContentWorkspace.APPROVAL_MODE_REQUIRED},
+        format="json",
+    )
+    draft_id = _create_client_approved_draft(auth_client, workspace_id)
+
+    response = auth_client.post(
+        f"/api/content-ops/drafts/{draft_id}/publish-now/",
+        data={},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.data["approval_mode"] == ContentWorkspace.APPROVAL_MODE_REQUIRED
+    attempts = response.data["attempts"]
+    assert {attempt["state"] for attempt in attempts} == {PublishAttempt.STATE_QUEUED}
+
+
+@pytest.mark.django_db
+def test_publish_now_requires_publish_role(api_client, user, tenant):
+    api_client.force_authenticate(user=user)
+    workspace_id = _create_workspace(api_client)
+    draft_id = _create_draft(api_client, workspace_id)
+    api_client.post(
+        f"/api/content-ops/drafts/{draft_id}/versions/",
+        data={"caption": "Quick post"},
+        format="json",
+    )
+    analyst = _user_with_role(tenant, Role.ANALYST, "analyst-publish@example.com")
+    api_client.force_authenticate(user=analyst)
+
+    response = api_client.post(
+        f"/api/content-ops/drafts/{draft_id}/publish-now/",
+        data={},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.django_db
 def test_analyst_cannot_schedule_client_approved_draft(api_client, user, tenant):
     api_client.force_authenticate(user=user)
     workspace_id = _create_workspace(api_client)
@@ -888,21 +1041,6 @@ def test_publishing_identity_create_hides_credentials_and_readiness(auth_client,
     assert "credential_ref" not in response.data
     assert response.data["publish_readiness_state"] == PublishingIdentity.READINESS_UNKNOWN
     assert response.data["publish_readiness_reason"] == ""
-
-
-@pytest.mark.django_db
-def test_publish_now_is_explicitly_not_implemented(auth_client):
-    workspace_id = _create_workspace(auth_client)
-    draft_id = _create_draft(auth_client, workspace_id)
-
-    response = auth_client.post(
-        f"/api/content-ops/drafts/{draft_id}/publish-now/",
-        data={},
-        format="json",
-    )
-
-    assert response.status_code == status.HTTP_501_NOT_IMPLEMENTED
-    assert response.data["reason"] == "not_implemented"
 
 
 @pytest.mark.django_db

@@ -14,6 +14,29 @@ Keep this brief and link to PRs or commits when available.
 ## Entries
 
 - **2026-06-30**
+  - Endpoint: `POST /api/content-ops/drafts/{id}/publish-now/` (behavior change);
+    `GET/POST /api/content-ops/workspaces/` (+ `.../{id}/`) gains a field.
+  - Change: `publish-now` is now implemented — previously it returned `501 Not
+    Implemented`. It reuses the durable schedule → dispatch → attempt pipeline by
+    creating a `scheduled_at=now` `ContentSchedule`, dispatching it synchronously,
+    and handing provider work to the async processor. Response is now `201` with
+    `{schedule, attempts: [...PublishAttempt], dispatch: {scanned, attempts_created,
+    attempts_existing, attempts_blocked}, approval_mode}`. Whether a client
+    approval is required first is governed by the new workspace field
+    `quick_post_approval_mode` (`required` | `bypass`, default `bypass`; migration
+    `0007_contentworkspace_quick_post_approval_mode`), now present on the workspace
+    payload. New management command `sync_publishing_identities` provisions
+    Facebook Page `PublishingIdentity` rows from connected Meta pages.
+  - Impact: Enables one-click publishing from the content surface. Live Graph
+    calls remain gated by the existing `CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING` /
+    `CONTENT_OPS_META_INSTAGRAM_BETA` flags (default off) and publishing
+    readiness, so with flags off attempts resolve to `blocked`/`failed` rather
+    than posting — additive and safe. Instagram destinations still require the
+    IG-account linkage (integrations layer) and are not provisioned by the new
+    command. Aggregate-only; no PII; no dbt behavior touched.
+  - Owner: Craig (content_ops publishing)
+
+- **2026-06-30**
   - Endpoint: management command `slb_report_evidence_validate`.
   - Change: Added `--validation-mode product_finish` beside the default strict
     `cancellation` mode. Product-finish mode keeps product/safety/export
