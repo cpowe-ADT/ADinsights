@@ -175,7 +175,15 @@ class MetaGraphClient:
                 "META_APP_ID and META_APP_SECRET must be configured for Meta OAuth."
             )
         graph_version = (getattr(settings, "META_GRAPH_API_VERSION", "v24.0") or "v24.0").strip()
-        return cls(app_id=app_id, app_secret=app_secret, graph_version=graph_version)
+        timeout_seconds = float(getattr(settings, "META_GRAPH_TIMEOUT_SECONDS", 10.0) or 10.0)
+        max_attempts = int(getattr(settings, "META_GRAPH_MAX_ATTEMPTS", 5) or 5)
+        return cls(
+            app_id=app_id,
+            app_secret=app_secret,
+            graph_version=graph_version,
+            timeout_seconds=timeout_seconds,
+            max_attempts=max_attempts,
+        )
 
     def close(self) -> None:
         self._client.close()
@@ -454,7 +462,7 @@ class MetaGraphClient:
                     "id,account_id,campaign_id,adset_id,name,status,effective_status,"
                     "creative{id,name,thumbnail_url},created_time,updated_time"
                 ),
-                "limit": 200,
+                "limit": 50,
                 "access_token": user_access_token,
             },
             request_name="list_ads",
@@ -483,6 +491,81 @@ class MetaGraphClient:
                 "access_token": user_access_token,
             },
             request_name="list_insights",
+        )
+
+    def list_insights_by_region(
+        self,
+        *,
+        account_id: str,
+        user_access_token: str,
+        since: str,
+        until: str,
+    ) -> list[dict[str, Any]]:
+        return self._paginated_data(
+            f"/{self._account_node_id(account_id)}/insights",
+            params={
+                "level": "campaign",
+                "time_increment": 1,
+                "time_range": json.dumps({"since": since, "until": until}),
+                "breakdowns": "region",
+                "fields": (
+                    "date_start,date_stop,account_id,campaign_id,"
+                    "impressions,reach,spend,clicks,cpc,cpm,actions"
+                ),
+                "limit": 200,
+                "access_token": user_access_token,
+            },
+            request_name="list_insights_by_region",
+        )
+
+    def list_insights_by_age_gender(
+        self,
+        *,
+        account_id: str,
+        user_access_token: str,
+        since: str,
+        until: str,
+    ) -> list[dict[str, Any]]:
+        return self._paginated_data(
+            f"/{self._account_node_id(account_id)}/insights",
+            params={
+                "level": "account",
+                "time_increment": 1,
+                "time_range": json.dumps({"since": since, "until": until}),
+                "breakdowns": "age,gender",
+                "fields": (
+                    "date_start,date_stop,account_id,"
+                    "impressions,reach,spend,clicks,cpc,cpm,actions"
+                ),
+                "limit": 200,
+                "access_token": user_access_token,
+            },
+            request_name="list_insights_by_age_gender",
+        )
+
+    def list_insights_by_platform(
+        self,
+        *,
+        account_id: str,
+        user_access_token: str,
+        since: str,
+        until: str,
+    ) -> list[dict[str, Any]]:
+        return self._paginated_data(
+            f"/{self._account_node_id(account_id)}/insights",
+            params={
+                "level": "account",
+                "time_increment": 1,
+                "time_range": json.dumps({"since": since, "until": until}),
+                "breakdowns": "publisher_platform,device_platform",
+                "fields": (
+                    "date_start,date_stop,account_id,"
+                    "impressions,reach,spend,clicks,cpc,cpm,actions"
+                ),
+                "limit": 200,
+                "access_token": user_access_token,
+            },
+            request_name="list_insights_by_platform",
         )
 
     def _request_json(

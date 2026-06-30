@@ -4,8 +4,10 @@ from io import StringIO
 import json
 
 import pytest
+from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.test import override_settings
 
 from core.metrics import observe_task_queue_start, observe_task_retry, reset_metrics
 
@@ -25,7 +27,7 @@ class _DummyClient:
         self._metrics_body = metrics_body
         self._external_status = external_status
 
-    def get(self, path: str) -> _DummyResponse:
+    def get(self, path: str, *_args, **_kwargs) -> _DummyResponse:
         if path == "/metrics/app/":
             return _DummyResponse(status_code=200, body=self._metrics_body)
         if path == "/api/health/":
@@ -37,10 +39,37 @@ class _DummyClient:
         return _DummyResponse(status_code=404, payload={"status": "error"})
 
 
+class _DummyRateLimitClient(_DummyClient):
+    def __init__(self, *, metrics_body: str, external_status: int = 200):
+        super().__init__(metrics_body=metrics_body, external_status=external_status)
+        self._auth_attempts = 0
+        self._public_attempts = 0
+
+    def get(self, path: str, *_args, **_kwargs) -> _DummyResponse:
+        if path == "/api/health/version/":
+            self._public_attempts += 1
+            return _DummyResponse(status_code=429 if self._public_attempts > 1 else 200)
+        return super().get(path, *_args, **_kwargs)
+
+    def post(self, path: str, *_args, **_kwargs) -> _DummyResponse:
+        if path == "/api/token/":
+            self._auth_attempts += 1
+            return _DummyResponse(status_code=429 if self._auth_attempts > 1 else 401)
+        return _DummyResponse(status_code=404, payload={"status": "error"})
+
+
 class _DummyClientWithDefaults(_DummyClient):
     def __init__(self, *, metrics_body: str, external_status: int = 200):
         super().__init__(metrics_body=metrics_body, external_status=external_status)
         self.defaults: dict[str, str] = {}
+
+
+def _rest_framework_with_rates(**rates: str) -> dict[str, object]:
+    rest_framework = dict(settings.REST_FRAMEWORK)
+    throttle_rates = dict(rest_framework.get("DEFAULT_THROTTLE_RATES", {}))
+    throttle_rates.update(rates)
+    rest_framework["DEFAULT_THROTTLE_RATES"] = throttle_rates
+    return rest_framework
 
 
 @pytest.mark.django_db
@@ -121,6 +150,70 @@ def test_backend_release_smoke_command_validates_metric_label_expectation(monkey
     payload = json.loads(stdout.getvalue())
     assert payload["ok"] is True
     assert payload["missing_metric_labels"] == []
+
+
+@pytest.mark.django_db
+def test_backend_release_smoke_command_checks_rate_limits(monkeypatch):
+    from analytics.management.commands import backend_release_smoke as command_module
+
+    metrics_body = "celery_task_executions_total{task_name=\"a\",status=\"success\"} 1\n"
+    dummy_client = _DummyRateLimitClient(metrics_body=metrics_body)
+    monkeypatch.setattr(command_module, "Client", lambda: dummy_client)
+
+    with override_settings(
+        REST_FRAMEWORK=_rest_framework_with_rates(
+            auth_burst="1/min",
+            auth_sustained="100/day",
+            public="1/min",
+        )
+    ):
+        stdout = StringIO()
+        call_command(
+            "backend_release_smoke",
+            "--expect-metric",
+            "celery_task_executions_total",
+            "--check-rate-limits",
+            stdout=stdout,
+        )
+
+    payload = json.loads(stdout.getvalue())
+    assert payload["ok"] is True
+    assert [check["name"] for check in payload["rate_limit_checks"]] == [
+        "auth_burst_token_obtain",
+        "public_health_version",
+    ]
+    assert all(check["ok"] for check in payload["rate_limit_checks"])
+    assert dummy_client._auth_attempts == 2
+    assert dummy_client._public_attempts == 2
+
+
+@pytest.mark.django_db
+def test_backend_release_smoke_command_fails_when_rate_limit_budget_too_large(monkeypatch):
+    from analytics.management.commands import backend_release_smoke as command_module
+
+    metrics_body = "celery_task_executions_total{task_name=\"a\",status=\"success\"} 1\n"
+    monkeypatch.setattr(
+        command_module,
+        "Client",
+        lambda: _DummyRateLimitClient(metrics_body=metrics_body),
+    )
+
+    with override_settings(
+        REST_FRAMEWORK=_rest_framework_with_rates(
+            auth_burst="10/min",
+            auth_sustained="100/day",
+            public="1/min",
+        )
+    ):
+        with pytest.raises(CommandError, match="exceeds max"):
+            call_command(
+                "backend_release_smoke",
+                "--expect-metric",
+                "celery_task_executions_total",
+                "--check-rate-limits",
+                "--max-rate-limit-smoke-attempts",
+                "2",
+            )
 
 
 @pytest.mark.django_db

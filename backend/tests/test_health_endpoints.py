@@ -536,6 +536,34 @@ def test_prometheus_metrics_endpoint(api_client):
     assert "dbt_run_duration_seconds" in body
 
 
+def test_prometheus_metrics_endpoint_collects_multiprocess_registry(monkeypatch, api_client):
+    from core import metrics
+
+    observed: dict[str, object] = {}
+
+    class FakeRegistry:
+        pass
+
+    def collect_multiprocess(registry):  # noqa: ANN001 - minimal test double
+        observed["registry"] = registry
+
+    def render_registry(registry=None):  # noqa: ANN001 - minimal test double
+        observed["rendered_registry"] = registry
+        return b"# multiprocess metrics\n"
+
+    monkeypatch.setenv("PROMETHEUS_MULTIPROC_DIR", "/tmp/prometheus-multiprocess")
+    monkeypatch.setattr(metrics, "CollectorRegistry", FakeRegistry)
+    monkeypatch.setattr(metrics.multiprocess, "MultiProcessCollector", collect_multiprocess)
+    monkeypatch.setattr(metrics, "generate_latest", render_registry)
+
+    response = api_client.get("/metrics/app/")
+
+    assert response.status_code == 200
+    assert isinstance(observed["registry"], FakeRegistry)
+    assert observed["rendered_registry"] is observed["registry"]
+    assert response.content == b"# multiprocess metrics\n"
+
+
 def test_api_logging_middleware_emits_structured_context(api_client):
     captured_records: list[logging.LogRecord] = []
 

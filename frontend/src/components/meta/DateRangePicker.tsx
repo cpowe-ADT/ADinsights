@@ -17,7 +17,8 @@ const DateRangePicker = ({
   onSinceChange,
   onUntilChange,
 }: DateRangePickerProps) => {
-  const onPresetSelect = (event: ChangeEvent<HTMLSelectElement>) => onPresetChange(event.target.value);
+  const onPresetSelect = (event: ChangeEvent<HTMLSelectElement>) =>
+    onPresetChange(event.target.value);
   const onSinceSelect = (event: ChangeEvent<HTMLInputElement>) => onSinceChange(event.target.value);
   const onUntilSelect = (event: ChangeEvent<HTMLInputElement>) => onUntilChange(event.target.value);
 

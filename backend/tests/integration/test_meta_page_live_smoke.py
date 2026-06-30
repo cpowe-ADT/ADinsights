@@ -46,7 +46,7 @@ def _create_page(user, *, page_id: str, page_name: str, user_token: str, page_to
         tenant=user.tenant,
         user=user,
         app_scoped_user_id="meta-live-smoke-user",
-        scopes=["read_insights", "pages_read_engagement", "pages_read_user_content"],
+        scopes=["pages_show_list", "pages_read_engagement", "pages_read_user_content"],
         is_active=True,
     )
     connection.set_raw_token(user_token)

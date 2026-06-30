@@ -1,4 +1,13 @@
-export type DateRangePreset = 'today' | '7d' | '30d' | 'mtd' | 'custom';
+export type DateRangePreset =
+  | 'today'
+  | '7d'
+  | '30d'
+  | '60d'
+  | '90d'
+  | '180d'
+  | '365d'
+  | 'mtd'
+  | 'custom';
 
 export type FilterBarState = {
   dateRange: DateRangePreset;
@@ -6,8 +15,23 @@ export type FilterBarState = {
     start: string;
     end: string;
   };
+  accountId: string;
   channels: string[];
   campaignQuery: string;
+  /**
+   * Sprint 8 of Client grouping: scopes the combined/single-platform dashboards
+   * to the linked platform accounts of one Client. Empty string means
+   * unscoped (legacy behaviour).
+   */
+  clientId: string;
+  /**
+   * Sprint 8 of Client grouping: toggleable platform list for the Combined
+   * view. Empty array means "use backend-configured defaults" (parity with
+   * legacy behaviour). Values are backend platform keys, e.g. 'meta_ads',
+   * 'google_ads', 'meta_page'. Unknown keys are silently dropped by the
+   * backend.
+   */
+  platforms: string[];
 };
 
 export const DEFAULT_CHANNELS = ['Meta Ads', 'Google Ads', 'LinkedIn', 'TikTok'];
@@ -28,14 +52,27 @@ const CHANNEL_LABELS: Record<string, string> = {
   tiktok: 'TikTok',
 };
 
-const DATE_RANGE_PRESETS = new Set<DateRangePreset>(['today', '7d', '30d', 'mtd', 'custom']);
+const DATE_RANGE_PRESETS = new Set<DateRangePreset>([
+  'today',
+  '7d',
+  '30d',
+  '60d',
+  '90d',
+  '180d',
+  '365d',
+  'mtd',
+  'custom',
+]);
 
 const FILTER_QUERY_KEYS = {
   dateRange: 'date_range',
   startDate: 'start_date',
   endDate: 'end_date',
+  accountId: 'account_id',
   channels: 'channels',
   campaignSearch: 'campaign_search',
+  clientId: 'client_id',
+  platforms: 'platforms',
 };
 
 const toInputDate = (date: Date): string => {
@@ -55,8 +92,11 @@ export const createDefaultCustomRange = (): FilterBarState['customRange'] => {
 export const createDefaultFilterState = (): FilterBarState => ({
   dateRange: '7d',
   customRange: createDefaultCustomRange(),
+  accountId: '',
   channels: [],
   campaignQuery: '',
+  clientId: '',
+  platforms: [],
 });
 
 const normalizeDateValue = (value: string | undefined, fallback: string): string => {
@@ -93,6 +133,11 @@ export const resolveFilterRange = (filters: FilterBarState): { start: string; en
   const today = new Date();
   const end = toInputDate(today);
   let start = end;
+  const resolveTrailingDays = (days: number): string => {
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - (days - 1));
+    return toInputDate(startDate);
+  };
 
   switch (filters.dateRange) {
     case 'today': {
@@ -106,9 +151,23 @@ export const resolveFilterRange = (filters: FilterBarState): { start: string; en
       break;
     }
     case '30d': {
-      const startDate = new Date(today);
-      startDate.setDate(startDate.getDate() - 29);
-      start = toInputDate(startDate);
+      start = resolveTrailingDays(30);
+      break;
+    }
+    case '60d': {
+      start = resolveTrailingDays(60);
+      break;
+    }
+    case '90d': {
+      start = resolveTrailingDays(90);
+      break;
+    }
+    case '180d': {
+      start = resolveTrailingDays(180);
+      break;
+    }
+    case '365d': {
+      start = resolveTrailingDays(365);
       break;
     }
     case 'mtd': {
@@ -137,6 +196,11 @@ export const buildFilterQueryParams = (filters: FilterBarState): Record<string, 
     [FILTER_QUERY_KEYS.endDate]: end,
   };
 
+  const accountId = filters.accountId.trim();
+  if (accountId) {
+    params[FILTER_QUERY_KEYS.accountId] = accountId;
+  }
+
   const channelValues = filters.channels.map(normalizeChannelValue).filter(Boolean);
   if (channelValues.length > 0) {
     params[FILTER_QUERY_KEYS.channels] = Array.from(new Set(channelValues)).join(',');
@@ -145,6 +209,16 @@ export const buildFilterQueryParams = (filters: FilterBarState): Record<string, 
   const query = filters.campaignQuery.trim();
   if (query) {
     params[FILTER_QUERY_KEYS.campaignSearch] = query;
+  }
+
+  const clientId = (filters.clientId ?? '').trim();
+  if (clientId) {
+    params[FILTER_QUERY_KEYS.clientId] = clientId;
+  }
+
+  const platforms = (filters.platforms ?? []).map((value) => value.trim()).filter(Boolean);
+  if (platforms.length > 0) {
+    params[FILTER_QUERY_KEYS.platforms] = Array.from(new Set(platforms)).join(',');
   }
 
   return params;
@@ -176,6 +250,7 @@ export const parseFilterQueryParams = (
     normalizeDateValue(endParam, fallback.customRange.end),
   );
 
+  const accountId = searchParams.get(FILTER_QUERY_KEYS.accountId)?.trim() ?? fallback.accountId;
   const channelParam = searchParams.get(FILTER_QUERY_KEYS.channels);
   const channels = channelParam
     ? channelParam
@@ -187,6 +262,16 @@ export const parseFilterQueryParams = (
 
   const campaignQuery =
     searchParams.get(FILTER_QUERY_KEYS.campaignSearch)?.trim() ?? fallback.campaignQuery;
+
+  const clientId = searchParams.get(FILTER_QUERY_KEYS.clientId)?.trim() ?? fallback.clientId;
+
+  const platformsParam = searchParams.get(FILTER_QUERY_KEYS.platforms);
+  const platforms = platformsParam
+    ? platformsParam
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean)
+    : fallback.platforms;
 
   const resolvedDateRange =
     dateRangeParam && DATE_RANGE_PRESETS.has(dateRangeParam as DateRangePreset)
@@ -201,8 +286,11 @@ export const parseFilterQueryParams = (
       start: resolvedStart,
       end: resolvedEnd,
     },
+    accountId,
     channels,
     campaignQuery,
+    clientId,
+    platforms,
   };
 };
 
@@ -215,6 +303,25 @@ export const areFiltersEqual = (left: FilterBarState, right: FilterBarState): bo
   const rightQuery = right.campaignQuery.trim();
   if (leftQuery !== rightQuery) {
     return false;
+  }
+
+  if (left.accountId.trim() !== right.accountId.trim()) {
+    return false;
+  }
+
+  if ((left.clientId ?? '').trim() !== (right.clientId ?? '').trim()) {
+    return false;
+  }
+
+  const leftPlatforms = [...(left.platforms ?? [])].sort();
+  const rightPlatforms = [...(right.platforms ?? [])].sort();
+  if (leftPlatforms.length !== rightPlatforms.length) {
+    return false;
+  }
+  for (let index = 0; index < leftPlatforms.length; index += 1) {
+    if (leftPlatforms[index] !== rightPlatforms[index]) {
+      return false;
+    }
   }
 
   const leftChannels = [...left.channels].sort();
@@ -240,3 +347,36 @@ export const areFiltersEqual = (left: FilterBarState, right: FilterBarState): bo
 
   return true;
 };
+
+// ── Route platform scope helpers ─────────────────────────────────────────────
+// R6: Extracted from DashboardLayout.tsx so they can be unit-tested in isolation.
+
+const META_ROUTE_PREFIX = '/dashboards/meta/';
+const GOOGLE_ADS_ROUTE_PREFIX = '/dashboards/google-ads';
+
+/**
+ * Given a pathname, returns the platform scope that must be applied to
+ * filters.platforms when on that route.  Returns null for combined routes
+ * (no forced scope).
+ */
+export function resolveRoutePlatformScope(pathname: string): string[] | null {
+  if (pathname.startsWith(META_ROUTE_PREFIX)) {
+    return ['meta_ads'];
+  }
+  if (pathname === GOOGLE_ADS_ROUTE_PREFIX || pathname.startsWith(`${GOOGLE_ADS_ROUTE_PREFIX}/`)) {
+    return ['google_ads'];
+  }
+  return null;
+}
+
+/**
+ * Order-insensitive equality check for platform arrays.
+ */
+export function arePlatformArraysEqual(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  const sortedLeft = [...left].sort();
+  const sortedRight = [...right].sort();
+  return sortedLeft.every((value, index) => value === sortedRight[index]);
+}

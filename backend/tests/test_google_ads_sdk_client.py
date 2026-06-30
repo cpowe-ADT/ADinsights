@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from integrations.google_ads.client import GoogleAdsSdkClient, GoogleAdsSdkError
+from integrations.google_ads.client import GoogleAdsSdkClient, GoogleAdsSdkError, _as_decimal
 from integrations.models import PlatformCredential
 
 pytestmark = pytest.mark.django_db
@@ -86,3 +86,8 @@ def test_google_ads_sdk_client_raises_when_refresh_token_missing(tenant, setting
 
     with pytest.raises(GoogleAdsSdkError):
         GoogleAdsSdkClient(credential=credential)
+
+
+def test_as_decimal_coerces_string_values():
+    assert _as_decimal("12.34") == Decimal("12.34")
+    assert _as_decimal(None) == Decimal("0")

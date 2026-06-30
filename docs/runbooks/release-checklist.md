@@ -5,11 +5,21 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 
 ## Pre-merge (feature branch)
 
-- [ ] Work scoped to a single top-level folder per `docs/workstreams.md`.
+- [ ] Work scoped to a single top-level folder per `docs/workstreams.md`, or Raj/Mira cross-stream
+      review is recorded for approved multi-folder delivery.
 - [ ] Relevant tests run and green (see stream-specific commands).
+- [ ] dbt verification for mart-facing column changes uses the full dependency sequence:
+  - `make dbt-deps`
+  - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select staging`
+  - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' snapshot`
+  - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select all_ad_performance dim_campaign fact_performance`
+  - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select marts`
+  - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' test --select all_ad_performance dim_campaign fact_performance vw_campaign_daily`
 - [ ] Data-contract gate passes: `python3 infrastructure/airbyte/scripts/check_data_contracts.py`.
 - [ ] Observability prereq gate passes: `python3 infrastructure/airbyte/scripts/verify_observability_prereqs.py`.
-- [ ] Backend release smoke gate passes (backend stream):
+- [ ] Deterministic backend release preflight passes (backend stream):
+  - `backend/.venv/bin/python backend/manage.py backend_release_preflight`
+- [ ] Live-runtime strict observability smoke is captured after worker/task activity exists:
   - `python3 backend/manage.py backend_release_smoke --strict-observability`
 - [ ] Any API contract changes recorded in `docs/project/api-contract-changelog.md`.
 - [ ] Runbooks updated for behavior changes.
@@ -22,6 +32,8 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
   - `/api/health/`, `/api/health/airbyte/`, `/api/health/dbt/`, `/api/timezone/`
 - [ ] Backend observability metrics are present and labeled as expected:
   - `curl -fsS http://localhost:8000/metrics/app/ | rg 'celery_task_executions_total|celery_task_retries_total|celery_task_queue_starts_total|celery_task_queue_wait_seconds|combined_metrics_request_duration_seconds|airbyte_sync_latency_seconds|dbt_run_duration_seconds'`
+- [ ] Backend and task workers share `PROMETHEUS_MULTIPROC_DIR`; real queue activity appears from
+      `sync`, `snapshot`, and `summary` in the backend `/metrics/app/` payload.
 - [ ] Post-MVP ops endpoints return 200 with expected payload shape:
   - `/api/ops/sync-health/`, `/api/ops/health-overview/`
 - [ ] Connector lifecycle endpoints return expected status and sync behavior:
@@ -41,12 +53,18 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 - [ ] Frontend loads with `VITE_MOCK_MODE=false` and renders live data.
 - [ ] Frontend Post-MVP routes render with live API responses:
   - `/reports`, `/alerts`, `/summaries`, `/ops/audit`
+- [ ] Generic report CSV/PDF/PNG jobs complete with non-empty downloadable artifacts.
+- [ ] The API container and summary worker share report artifact storage, and PDF/PNG rendering
+      succeeds using the packaged Chromium runtime on the staging architecture.
+- [ ] Notification channel responses show only safe/masked Slack or webhook destination status.
 
 ## Production Readiness
 
 - [ ] Secrets/KMS rotation verified (no logs leak secrets).
+- [ ] Notification-channel secret migration is applied; encrypted Slack/webhook dispatch succeeds
+      with production-equivalent KMS configuration.
 - [ ] Google OAuth client secret rotation evidence captured (old secret revoked, refresh tokens reissued, secrets manager updated).
-- [ ] SES sender identity verified and password reset/invite emails deliver successfully.
+- [ ] SES sender identity verified and password reset/invite plus daily-summary emails deliver successfully.
 - [ ] Observability dashboards + alerts configured and tested.
 - [ ] Observability simulation checklist completed in staging: `docs/runbooks/observability-alert-simulations.md`.
 - [ ] dbt runs green (staging + marts + tests).
@@ -59,9 +77,11 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 - [ ] Auto-rollback controls validated:
   - fallback to Airbyte after 2 consecutive parity failures
   - fallback to Airbyte after 3 consecutive SDK sync failures
-- [ ] GA4 and Search Console pilot sources validated in target environment (or explicitly feature-flagged off with rollback note).
+- [ ] GA4 and Search Console are explicitly feature-flagged off or labeled deferred for the
+      Meta/Google Ads usable pilot, with a rollback note.
 - [ ] CORS allowlist configured with explicit origins (`CORS_ALLOWED_ORIGINS`); wildcard origins disabled in production.
-- [ ] DRF auth/public throttles configured (`DRF_THROTTLE_AUTH_BURST`, `DRF_THROTTLE_AUTH_SUSTAINED`, `DRF_THROTTLE_PUBLIC`) and smoke-tested for `429` behavior.
+- [ ] DRF auth/public throttles configured (`DRF_THROTTLE_AUTH_BURST`, `DRF_THROTTLE_AUTH_SUSTAINED`, `DRF_THROTTLE_PUBLIC`) and smoke-tested for `429` behavior:
+  - `backend/.venv/bin/python backend/manage.py backend_release_smoke --expect-metric python_info --check-rate-limits`
 - [ ] `python3 infrastructure/airbyte/scripts/validate_tenant_config.py` succeeds in target env.
 - [ ] `python3 infrastructure/airbyte/scripts/verify_production_readiness.py` reports no errors.
 - [ ] `python3 infrastructure/airbyte/scripts/airbyte_health_check.py` reports healthy connections for Meta + Google.

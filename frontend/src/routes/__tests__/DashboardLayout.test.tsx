@@ -1,8 +1,17 @@
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DashboardLayout from '../DashboardLayout';
+import { listClients } from '../../lib/clients';
+import { loadMetaAccounts } from '../../lib/meta';
+
+const pendingAsync = () => new Promise<never>(() => {});
+
+function LocationSearchProbe() {
+  const location = useLocation();
+  return <div data-testid="location-search">{location.search}</div>;
+}
 
 const storeMock = vi.hoisted(() => ({
   state: {
@@ -10,6 +19,7 @@ const storeMock = vi.hoisted(() => ({
     filters: {
       dateRange: '7d' as const,
       customRange: { start: '2026-02-13', end: '2026-02-19' },
+      accountId: '',
       channels: [],
       campaignQuery: '',
     },
@@ -22,21 +32,25 @@ const storeMock = vi.hoisted(() => ({
       status: 'error' as const,
       data: undefined,
       error: 'Creative metrics invalid in aggregated response',
+      errorKind: undefined,
     },
     creative: {
       status: 'error' as const,
       data: undefined,
       error: 'Creative metrics invalid in aggregated response',
+      errorKind: undefined,
     },
     budget: {
       status: 'error' as const,
       data: undefined,
       error: 'Creative metrics invalid in aggregated response',
+      errorKind: undefined,
     },
     parish: {
       status: 'error' as const,
       data: undefined,
       error: 'Creative metrics invalid in aggregated response',
+      errorKind: undefined,
     },
     activeTenantLabel: 'Default Tenant',
     lastSnapshotGeneratedAt: undefined,
@@ -45,6 +59,42 @@ const storeMock = vi.hoisted(() => ({
 
 const authMock = vi.hoisted(() => ({
   user: { email: 'admin@example.com', roles: ['ADMIN'] },
+}));
+
+const airbyteMock = vi.hoisted(() => ({
+  loadSocialConnectionStatus: vi.fn().mockResolvedValue({
+    generated_at: '2026-04-05T00:00:00Z',
+    platforms: [
+      {
+        platform: 'meta',
+        display_name: 'Meta (Facebook)',
+        status: 'active',
+        reason: {
+          code: 'active_direct_sync',
+          message: 'Meta direct sync completed successfully with fresh reporting rows.',
+        },
+        metadata: { credential_account_id: 'act_697812007883214' },
+      },
+    ],
+  }),
+}));
+
+const datasetStoreMock = vi.hoisted(() => ({
+  state: {
+    mode: 'live' as const,
+    adapters: ['warehouse'],
+    status: 'loaded' as const,
+    source: 'warehouse' as string | undefined,
+    liveReason: 'ready' as
+      | 'adapter_disabled'
+      | 'missing_snapshot'
+      | 'stale_snapshot'
+      | 'default_snapshot'
+      | 'ready',
+    liveDetail: undefined as string | undefined,
+    liveSnapshotGeneratedAt: undefined as string | undefined,
+    warehouseAdapterEnabled: true,
+  },
 }));
 
 vi.mock('../../auth/AuthContext', () => ({
@@ -62,10 +112,9 @@ vi.mock('../../components/ThemeProvider', () => ({
   }),
 }));
 
-vi.mock('../../components/ToastProvider', () => ({
-  useToast: () => ({
-    pushToast: vi.fn(),
-  }),
+vi.mock('../../stores/useToastStore', () => ({
+  useToastStore: (selector: (state: { addToast: ReturnType<typeof vi.fn> }) => unknown) =>
+    selector({ addToast: vi.fn() }),
 }));
 
 vi.mock('../../components/Breadcrumbs', () => ({
@@ -74,6 +123,28 @@ vi.mock('../../components/Breadcrumbs', () => ({
 
 vi.mock('../../components/FilterBar', () => ({
   default: () => <div data-testid="filter-bar" />,
+}));
+
+vi.mock('../../lib/airbyte', () => ({
+  loadSocialConnectionStatus: airbyteMock.loadSocialConnectionStatus,
+}));
+
+vi.mock('../../lib/meta', () => ({
+  loadMetaAccounts: vi.fn().mockResolvedValue({
+    count: 0,
+    next: null,
+    previous: null,
+    results: [],
+  }),
+}));
+
+vi.mock('../../lib/clients', () => ({
+  listClients: vi.fn().mockImplementation(() => pendingAsync()),
+}));
+
+vi.mock('../../lib/layoutPreferences', () => ({
+  loadDashboardLayout: vi.fn().mockReturnValue(null),
+  saveDashboardLayout: vi.fn(),
 }));
 
 vi.mock('../../components/DatasetToggle', () => ({
@@ -88,19 +159,56 @@ vi.mock('../../components/SnapshotIndicator', () => ({
   default: () => <div data-testid="snapshot-indicator" />,
 }));
 
-vi.mock('../../state/useDashboardStore', () => ({
-  default: (selector: (state: typeof storeMock.state) => unknown) => selector(storeMock.state),
-}));
+vi.mock('../../state/useDashboardStore', () => {
+  const hook = (selector: (state: typeof storeMock.state) => unknown) => selector(storeMock.state);
+  hook.getState = () => storeMock.state;
+  return { default: hook };
+});
 
 vi.mock('../../state/useDatasetStore', () => ({
-  useDatasetStore: (selector: (state: { mode: 'live' | 'dummy'; adapters: string[] }) => unknown) =>
-    selector({ mode: 'live', adapters: ['warehouse'] }),
+  useDatasetStore: (
+    selector: (state: {
+      mode: 'live' | 'dummy';
+      adapters: string[];
+      status: 'idle' | 'loading' | 'loaded' | 'error';
+      source?: string;
+      liveReason?:
+        | 'adapter_disabled'
+        | 'missing_snapshot'
+        | 'stale_snapshot'
+        | 'default_snapshot'
+        | 'ready';
+      liveDetail?: string;
+      liveSnapshotGeneratedAt?: string;
+      warehouseAdapterEnabled: boolean;
+    }) => unknown,
+  ) => selector(datasetStoreMock.state),
 }));
 
 describe('DashboardLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authMock.user = { email: 'admin@example.com', roles: ['ADMIN'] };
+    storeMock.state.filters = {
+      dateRange: '7d',
+      customRange: { start: '2026-02-13', end: '2026-02-19' },
+      accountId: '',
+      channels: [],
+      campaignQuery: '',
+    };
+    datasetStoreMock.state = {
+      mode: 'live',
+      adapters: ['warehouse'],
+      status: 'loaded',
+      source: 'warehouse',
+      liveReason: 'ready',
+      liveDetail: undefined,
+      liveSnapshotGeneratedAt: undefined,
+      warehouseAdapterEnabled: true,
+    };
+    airbyteMock.loadSocialConnectionStatus.mockImplementation(() => pendingAsync());
+    vi.mocked(loadMetaAccounts).mockImplementation(() => pendingAsync());
+    vi.mocked(listClients).mockImplementation(() => pendingAsync());
   });
 
   it('deduplicates repeated dashboard error messages', () => {
@@ -130,7 +238,450 @@ describe('DashboardLayout', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.queryByRole('link', { name: 'Create' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Campaigns' })).toBeInTheDocument();
+    // Nav links are inside dropdowns — open the Dashboards dropdown first
+    fireEvent.click(screen.getByRole('button', { name: /dashboards/i }));
+    expect(screen.queryByRole('menuitem', { name: 'Create' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Campaigns' })).toBeInTheDocument();
+  });
+
+  it('does not overwrite saved dashboard filters from an empty route query', () => {
+    storeMock.state.filters = {
+      dateRange: '90d',
+      customRange: { start: '2026-01-01', end: '2026-03-30' },
+      accountId: 'act_697812007883214',
+      channels: ['Meta Ads'],
+      campaignQuery: 'Debt Reset',
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/saved/dash-1']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="saved/:dashboardId" element={<div>Saved dashboard</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(storeMock.state.setFilters).not.toHaveBeenCalled();
+    expect(screen.getByText('Saved dashboard')).toBeInTheDocument();
+  });
+
+  it('preserves OAuth callback query params for the data sources route handler', async () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboards/data-sources?code=oauth-code&state=oauth-state']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route
+              path="data-sources"
+              element={
+                <>
+                  <div>Data sources</div>
+                  <LocationSearchProbe />
+                </>
+              }
+            />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-search')).toHaveTextContent(
+        '?code=oauth-code&state=oauth-state',
+      );
+    });
+  });
+
+  it('preserves data sources focus query params instead of replacing them with dashboard filters', async () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboards/data-sources?sources=social']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route
+              path="data-sources"
+              element={
+                <>
+                  <div>Data sources</div>
+                  <LocationSearchProbe />
+                </>
+              }
+            />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-search')).toHaveTextContent('?sources=social');
+    });
+  });
+
+  it('waits for dataset availability before loading dashboard metrics', () => {
+    datasetStoreMock.state = {
+      mode: 'live',
+      adapters: [],
+      status: 'idle',
+      source: undefined,
+      liveReason: 'adapter_disabled',
+      liveDetail: undefined,
+      liveSnapshotGeneratedAt: undefined,
+      warehouseAdapterEnabled: false,
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/campaigns']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="campaigns" element={<div>Campaigns</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(storeMock.state.loadAll).not.toHaveBeenCalled();
+  });
+
+  it('loads dashboard metrics once the warehouse dataset is available', async () => {
+    datasetStoreMock.state = {
+      mode: 'live',
+      adapters: ['warehouse'],
+      status: 'loaded',
+      source: 'warehouse',
+      liveReason: 'ready',
+      liveDetail: undefined,
+      liveSnapshotGeneratedAt: '2026-04-04T10:00:00Z',
+      warehouseAdapterEnabled: true,
+    };
+    airbyteMock.loadSocialConnectionStatus.mockResolvedValueOnce({
+      generated_at: '2026-04-05T00:00:00Z',
+      platforms: [
+        {
+          platform: 'meta',
+          display_name: 'Meta (Facebook)',
+          status: 'active',
+          reason: {
+            code: 'active_direct_sync',
+            message: 'Meta direct sync completed successfully with fresh reporting rows.',
+          },
+          metadata: { credential_account_id: 'act_697812007883214' },
+        },
+      ],
+    });
+    vi.mocked(loadMetaAccounts).mockResolvedValueOnce({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/campaigns']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="campaigns" element={<div>Campaigns</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(storeMock.state.loadAll).toHaveBeenCalledWith('tenant-1');
+    });
+  });
+
+  it('renders persistent home and connect socials shortcuts in the dashboard shell', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboards/campaigns']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="campaigns" element={<div>Campaigns</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Connect socials' })).toHaveAttribute(
+      'href',
+      '/dashboards/data-sources?sources=social',
+    );
+  });
+
+  it('renders adapter-disabled live reporting guidance when warehouse access is off', () => {
+    datasetStoreMock.state = {
+      mode: 'live',
+      adapters: [],
+      status: 'loaded',
+      source: undefined,
+      liveReason: 'adapter_disabled',
+      liveDetail: undefined,
+      liveSnapshotGeneratedAt: undefined,
+      warehouseAdapterEnabled: false,
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/campaigns']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="campaigns" element={<div>Campaigns</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText('Live reporting is not enabled in this environment.'),
+    ).toBeInTheDocument();
+  });
+
+  it('renders missing-snapshot guidance when Meta is connected but no live snapshot exists', () => {
+    datasetStoreMock.state = {
+      mode: 'live',
+      adapters: ['warehouse'],
+      status: 'loaded',
+      source: 'warehouse',
+      liveReason: 'missing_snapshot',
+      liveDetail: undefined,
+      liveSnapshotGeneratedAt: undefined,
+      warehouseAdapterEnabled: true,
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/campaigns']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="campaigns" element={<div>Campaigns</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(
+        'Meta is connected, but the first live warehouse snapshot has not been generated yet.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('renders direct Meta guidance and still loads dashboards when live source is meta_direct', async () => {
+    datasetStoreMock.state = {
+      mode: 'live',
+      adapters: ['meta_direct'],
+      status: 'loaded',
+      source: 'meta_direct',
+      liveReason: 'adapter_disabled',
+      liveDetail: undefined,
+      liveSnapshotGeneratedAt: '2026-04-04T10:00:00Z',
+      warehouseAdapterEnabled: false,
+    };
+    airbyteMock.loadSocialConnectionStatus.mockResolvedValueOnce({
+      generated_at: '2026-04-05T00:00:00Z',
+      platforms: [
+        {
+          platform: 'meta',
+          display_name: 'Meta (Facebook)',
+          status: 'active',
+          reason: {
+            code: 'active_direct_sync',
+            message: 'Meta direct sync completed successfully with fresh reporting rows.',
+          },
+          metadata: { credential_account_id: 'act_697812007883214' },
+        },
+      ],
+    });
+    vi.mocked(loadMetaAccounts).mockResolvedValueOnce({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/campaigns']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="campaigns" element={<div>Campaigns</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(
+        'Showing stored Meta snapshot data. Warehouse reporting is not enabled in this environment.',
+      ),
+    ).toBeInTheDocument();
+
+    expect(await screen.findByText('Campaigns')).toBeInTheDocument();
+  });
+
+  it('waits for Meta status before auto-selecting the preferred credential account', async () => {
+    let resolveStatus:
+      | ((value: Awaited<ReturnType<typeof airbyteMock.loadSocialConnectionStatus>>) => void)
+      | undefined;
+    const deferredStatus = new Promise<
+      Awaited<ReturnType<typeof airbyteMock.loadSocialConnectionStatus>>
+    >((resolve) => {
+      resolveStatus = resolve;
+    });
+
+    airbyteMock.loadSocialConnectionStatus.mockReturnValueOnce(deferredStatus);
+    vi.mocked(loadMetaAccounts).mockResolvedValueOnce({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        {
+          id: '1',
+          external_id: 'act_335732240',
+          account_id: '335732240',
+          name: '335732240',
+          currency: 'USD',
+          status: '1',
+          business_name: 'Adtelligent',
+          metadata: {},
+          created_at: '2026-04-05T00:00:00Z',
+          updated_at: '2026-04-05T00:00:00Z',
+        },
+        {
+          id: '2',
+          external_id: 'act_697812007883214',
+          account_id: '697812007883214',
+          name: 'JDIC Adtelligent Ad Account',
+          currency: 'USD',
+          status: '1',
+          business_name: '',
+          metadata: {},
+          created_at: '2026-04-05T00:00:00Z',
+          updated_at: '2026-04-05T00:00:00Z',
+        },
+      ],
+    });
+    storeMock.state.filters = {
+      dateRange: '7d',
+      customRange: { start: '2026-02-13', end: '2026-02-19' },
+      accountId: '',
+      channels: [],
+      campaignQuery: '',
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboards/campaigns']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="campaigns" element={<div>Campaigns</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(storeMock.state.setFilters).not.toHaveBeenCalledWith(
+      expect.objectContaining({ accountId: 'act_335732240' }),
+    );
+
+    resolveStatus?.({
+      generated_at: '2026-04-05T00:00:00Z',
+      platforms: [
+        {
+          platform: 'meta',
+          display_name: 'Meta (Facebook)',
+          status: 'complete',
+          reason: {
+            code: 'awaiting_recent_successful_sync',
+            message: 'Meta setup is complete and awaiting a recent successful direct sync.',
+          },
+          metadata: { credential_account_id: 'act_697812007883214' },
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(storeMock.state.setFilters).toHaveBeenCalledWith(
+        expect.objectContaining({ accountId: 'act_697812007883214' }),
+      );
+    });
+  });
+
+  it('renders global FilterBar on /dashboards/google-ads route (not hidden)', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboards/google-ads']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="google-ads" element={<div>Google Ads workspace</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // FilterBar must be present — it was previously hidden on this route
+    expect(screen.getByTestId('filter-bar')).toBeInTheDocument();
+  });
+
+  it('hides global FilterBar on /dashboards/meta/pages route', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboards/meta/pages']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="meta/pages" element={<div>Meta Pages</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // FilterBar must be absent on meta/pages (legitimate hide)
+    expect(screen.queryByTestId('filter-bar')).not.toBeInTheDocument();
+  });
+
+  it('hides global FilterBar on /dashboards/data-sources route', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboards/data-sources?sources=social']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="data-sources" element={<div>Data sources</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTestId('filter-bar')).not.toBeInTheDocument();
+  });
+
+  // C1A-NEW-02: R7 reconciliation effect propagates Meta accountId on /dashboards/meta/* routes
+  it('copies Meta accountId to global filters on /dashboards/meta/accounts route', async () => {
+    // The real useMetaStore is a Zustand store. We can set state directly before render.
+    // Import the real store and set the accountId.
+    const { default: useMetaStore } = await import('../../state/useMetaStore');
+    useMetaStore.setState((s) => ({ filters: { ...s.filters, accountId: 'act_reconcile_test' } }));
+
+    storeMock.state.filters = {
+      dateRange: '7d',
+      customRange: { start: '2026-02-13', end: '2026-02-19' },
+      accountId: '',
+      channels: [],
+      campaignQuery: '',
+    };
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/dashboards/meta/accounts']}>
+        <Routes>
+          <Route path="/dashboards" element={<DashboardLayout />}>
+            <Route path="meta/accounts" element={<div>Meta Accounts</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(storeMock.state.setFilters).toHaveBeenCalledWith(
+        expect.objectContaining({ accountId: 'act_reconcile_test' }),
+      );
+    });
+
+    unmount();
+
+    // Cleanup: reset the meta store accountId after unmount so the real store
+    // does not trigger an update on a mounted DashboardLayout instance.
+    useMetaStore.setState((s) => ({ filters: { ...s.filters, accountId: '' } }));
   });
 });

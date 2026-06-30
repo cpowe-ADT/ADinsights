@@ -214,7 +214,7 @@ class MetaInsightsGraphClient:
         results: list[dict[str, Any]] = []
         next_path: str | None = f"/{page_id}/posts"
         next_params: dict[str, Any] | None = {
-            "fields": "id,message,permalink_url,created_time,updated_time,attachments{media_type,type}",
+            "fields": "id,message,permalink_url,created_time,updated_time,attachments{media_type,type,media,picture,target}",
             "since": since,
             "until": until,
             "limit": limit,

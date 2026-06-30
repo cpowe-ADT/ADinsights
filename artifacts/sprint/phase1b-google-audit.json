@@ -1,0 +1,291 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "C1B",
+  "timestamp": "2026-04-14T00:00:00Z",
+  "inputs_cited": [
+    "/Users/thristannewman/ADinsights/artifacts/verify/google-verification.json",
+    "/Users/thristannewman/ADinsights/artifacts/fixes/B1-fix-report.md",
+    "/Users/thristannewman/ADinsights/artifacts/triage/B0-triage.md",
+    "/Users/thristannewman/ADinsights/artifacts/synthesis/synthesis-report.md"
+  ],
+  "env_flag_audit": {
+    "flag": "VITE_GOOGLE_ADS_WORKSPACE_UNIFIED",
+    "files_checked": [
+      "frontend/.env",
+      "frontend/.env.local",
+      "frontend/.env.development (does not exist)"
+    ],
+    "value_in_env_files": "NOT SET in any env file",
+    "runtime_default": "true (resolveBooleanFlag in router.tsx:115-118 defaults to true when env var is absent)",
+    "effective_mode": "GOOGLE_ADS_WORKSPACE_UNIFIED=true (unified workspace active by default)",
+    "note": "OQ3 resolution confirmed: flag is absent from all frontend env files, so the unified workspace path is always active in the user's local dev environment. Both flag modes were audited; only unified mode is the actual runtime default."
+  },
+  "b1_hotfix_verification": {
+    "filterbar_hidden_predicate_check": {
+      "file": "frontend/src/routes/DashboardLayout.tsx",
+      "lines": "196-202",
+      "verified": true,
+      "current_predicate": "pathname.startsWith('/dashboards/meta/pages') || pathname.startsWith('/dashboards/meta/posts') || pathname.startsWith('/dashboards/create')",
+      "google_ads_removed": true,
+      "status": "CONFIRMED — /dashboards/google-ads is no longer in the hide list. FilterBar renders on workspace route."
+    },
+    "workspace_header_input_removed": {
+      "file": "frontend/src/components/google-ads/workspace/WorkspaceHeader.tsx",
+      "verified": true,
+      "plain_text_account_input_present": false,
+      "status": "CONFIRMED — WorkspaceHeader contains only date pickers, compare selector, Campaign ID text input, and saved-view controls. No plain Account ID text input."
+    },
+    "workspace_reads_from_dashboard_store": {
+      "file": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx",
+      "lines": "76-96",
+      "verified": true,
+      "globalAccountId_subscribed": true,
+      "globalClientId_subscribed": true,
+      "override_logic": "resolvedCustomerId = globalAccountId.trim() || urlFilters.customerId; resolvedClientId = globalClientId.trim() || ''",
+      "status": "CONFIRMED — store values override URL params; URL params serve as deep-link fallback only."
+    },
+    "empty_state_renders_when_no_customer": {
+      "file": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx",
+      "lines": "99, 336-358",
+      "verified": true,
+      "condition": "hasNoCustomer = !filters.customerId && !filters.clientId",
+      "reasonCode": "no_customer_selected",
+      "status": "CONFIRMED — EmptyState renders with data-reason-code='no_customer_selected' when both customerId and clientId are falsy."
+    },
+    "client_id_in_useGoogleAdsWorkspaceData": {
+      "file": "frontend/src/hooks/useGoogleAdsWorkspaceData.ts",
+      "lines": "70-80",
+      "verified": true,
+      "client_id_in_buildCommonParams": true,
+      "status": "CONFIRMED — client_id: filters.clientId is included in buildCommonParams."
+    },
+    "b2_seed_effect_removed": {
+      "file": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx",
+      "verified": true,
+      "stale_seed_effect_present": false,
+      "note": "No mount-only seed effect exists. Comment at line 148-151 confirms: 'No seed effect needed' because customerId is derived reactively from store in useMemo.",
+      "status": "CONFIRMED — B2 seed effect removed cleanly."
+    }
+  },
+  "filterbar_on_workspace_route": true,
+  "account_propagation_path": "User selects account in global FilterBar → FilterBar calls useDashboardStore.setFilters({ accountId }) → GoogleAdsWorkspacePage subscribes via useDashboardStore(state => state.filters.accountId) as globalAccountId → useMemo at line 90-96 computes filters.customerId = globalAccountId.trim() || urlFilters.customerId → useGoogleAdsWorkspaceData receives filters with customerId populated → buildCommonParams at line 70-79 emits { customer_id: filters.customerId, client_id: filters.clientId, platforms: 'google_ads', start_date, end_date, compare } → all tab and summary fetches include customer_id in URL query params.",
+  "workspace_tabs": [
+    {
+      "tab": "overview",
+      "component": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx → OverviewTabSection + useGoogleAdsWorkspaceData.loadSummary()",
+      "endpoint": "/analytics/google-ads/workspace/summary/",
+      "platforms_param_included": true,
+      "customer_id_included": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "tab": "campaigns",
+      "component": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx → CampaignsTabSection + useGoogleAdsWorkspaceData.loadTab('campaigns')",
+      "endpoint": "/analytics/google-ads/campaigns/",
+      "platforms_param_included": true,
+      "customer_id_included": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "tab": "search",
+      "component": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx → GenericTabSection + useGoogleAdsWorkspaceData.loadTab('search', searchMode)",
+      "endpoints": [
+        "/analytics/google-ads/keywords/ (searchMode=keywords)",
+        "/analytics/google-ads/search-terms/ (searchMode=search_terms)",
+        "/analytics/google-ads/search-term-insights/ (searchMode=insights)"
+      ],
+      "platforms_param_included": true,
+      "customer_id_included": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "tab": "pmax",
+      "component": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx → GenericTabSection + useGoogleAdsWorkspaceData.loadTab('pmax')",
+      "endpoint": "/analytics/google-ads/pmax/asset-groups/",
+      "platforms_param_included": true,
+      "customer_id_included": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "tab": "assets",
+      "component": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx → GenericTabSection + useGoogleAdsWorkspaceData.loadTab('assets')",
+      "endpoint": "/analytics/google-ads/assets/",
+      "platforms_param_included": true,
+      "customer_id_included": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "tab": "conversions",
+      "component": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx → GenericTabSection + useGoogleAdsWorkspaceData.loadTab('conversions')",
+      "endpoint": "/analytics/google-ads/conversions/actions/",
+      "platforms_param_included": true,
+      "customer_id_included": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "tab": "pacing",
+      "component": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx → GenericTabSection + useGoogleAdsWorkspaceData.loadTab('pacing')",
+      "endpoint": "/analytics/google-ads/budgets/pacing/",
+      "platforms_param_included": true,
+      "customer_id_included": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "tab": "changes",
+      "component": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx → GenericTabSection + useGoogleAdsWorkspaceData.loadTab('changes')",
+      "endpoint": "/analytics/google-ads/change-events/",
+      "platforms_param_included": true,
+      "customer_id_included": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "tab": "recommendations",
+      "component": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx → GenericTabSection + useGoogleAdsWorkspaceData.loadTab('recommendations')",
+      "endpoint": "/analytics/google-ads/recommendations/",
+      "platforms_param_included": true,
+      "customer_id_included": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "tab": "reports",
+      "component": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx → GenericTabSection + useGoogleAdsWorkspaceData.loadTab('reports')",
+      "endpoint": "/analytics/google-ads/saved-views/",
+      "platforms_param_included": true,
+      "customer_id_included": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    }
+  ],
+  "legacy_flag_mode_audit": {
+    "note": "GOOGLE_ADS_WORKSPACE_UNIFIED=false mode (legacy pages) — not the user's default, but audited per OQ3 instruction.",
+    "pages_audited": [
+      {
+        "component": "frontend/src/routes/google-ads/GoogleAdsExecutivePage.tsx",
+        "platforms_param_included": true,
+        "customer_id_included": true,
+        "new_bug": {
+          "bug_id": "NB1",
+          "severity": "medium",
+          "title": "GoogleAdsExecutivePage useEffect has empty dependency array — will not re-fetch when FilterBar account changes",
+          "description": "The useEffect at line 25-57 has dep array []. It fires once on mount, reads useDashboardStore.getState().filters.accountId at mount time, and never re-fetches when the user changes the account in the global FilterBar. The component will show stale data after a filter change without a page reload.",
+          "file": "frontend/src/routes/google-ads/GoogleAdsExecutivePage.tsx",
+          "lines": "25-57",
+          "note": "This page is only active under GOOGLE_ADS_WORKSPACE_UNIFIED=false (not the user default). Under =true it is never rendered — the workspace page handles overview via loadSummary which does react to filter changes."
+        }
+      },
+      {
+        "component": "frontend/src/routes/google-ads/GoogleAdsBudgetPage.tsx",
+        "platforms_param_included": true,
+        "customer_id_included": true,
+        "new_bug": {
+          "bug_id": "NB2",
+          "severity": "medium",
+          "title": "GoogleAdsBudgetPage useEffect has empty dependency array — stale data on filter change (legacy mode only)",
+          "description": "Same pattern as NB1. Dep array [] means the pacing data does not refresh when filters change.",
+          "file": "frontend/src/routes/google-ads/GoogleAdsBudgetPage.tsx",
+          "lines": "25-57",
+          "note": "Legacy mode only — not active under default GOOGLE_ADS_WORKSPACE_UNIFIED=true."
+        }
+      },
+      {
+        "component": "frontend/src/components/google-ads/GoogleAdsDataTablePage.tsx",
+        "platforms_param_included": true,
+        "customer_id_included": true,
+        "note": "Uses useCallback([endpoint, query]) so will re-fetch if endpoint/query props change, but not if accountId in store changes mid-session without a prop change. Low risk."
+      },
+      {
+        "component": "frontend/src/routes/google-ads/GoogleAdsCampaignDetailPage.tsx",
+        "platforms_param_included": true,
+        "customer_id_included": true,
+        "b3_verified": true,
+        "back_link": "/dashboards/google-ads?tab=campaigns",
+        "status": "CONFIRMED — B3 fix applied correctly. Back link points directly to workspace campaigns tab, no redirect hop."
+      }
+    ]
+  },
+  "sdk_migration_risk": {
+    "severity": "low",
+    "description": "No frontend components reference GoogleAdsSdk* models or SDK-specific tables. The frontend is agnostic — it calls REST endpoints and renders whatever the backend returns. SDK migration risk is entirely a backend concern. The B0-triage noted GoogleAdsSdkChangeEvent/Recommendation/AdGroupAdDaily in backend views, but these are out of scope for this audit (frontend-only). From the frontend perspective, if SDK tables are empty the workspace tabs will simply show empty data sets rather than errors, consistent with the pre-existing silent-zero behavior documented in B0-triage.",
+    "affected_files": [],
+    "fallback_exists": true,
+    "note": "Fallback = backend returns zeroed/empty payload rather than 500 error. Silent empty state is already handled by the EmptyState guard on hasNoCustomer and by tab-level error state rendering."
+  },
+  "b4_colon_encoding": {
+    "status": "DEFERRED — confirmed theoretical only",
+    "verified": true,
+    "note": "URLSearchParams.set() encodes colons in values to %3A. searchParams.get() returns decoded value. Both code paths (redirect + workspace onOpenDrawer) produce and consume the same decoded 'campaign:<id>' string. No practical bug."
+  },
+  "b5_playwright_e2e": {
+    "status": "DEFERRED — confirmed still absent",
+    "verified": true,
+    "note": "No qa/tests/google-ads*.spec.ts files exist. Gap persists. Out of C1B scope (read-only audit); flagged for Phase 2 fix agent if prioritized."
+  },
+  "cross_cutting": [
+    {
+      "id": "CC1",
+      "severity": "low",
+      "title": "filterKey in useGoogleAdsWorkspaceData does not include platforms — cache-key collision theoretical only",
+      "description": "filterKey (line 100) joins startDate|endDate|compare|customerId|clientId|campaignId. It omits 'platforms'. Since platforms is always hardcoded to 'google_ads' in buildCommonParams, this is not a real bug — the platform never varies for this hook. Cache collisions across platforms are impossible. Noted for documentation only.",
+      "file": "frontend/src/hooks/useGoogleAdsWorkspaceData.ts",
+      "lines": "99-102",
+      "action_required": false
+    },
+    {
+      "id": "CC2",
+      "severity": "medium",
+      "title": "Saved view restore does not write client_id back to URL or store — clientId will be lost on saved-view restore",
+      "description": "handleSelectSavedView (GoogleAdsWorkspacePage.tsx lines 166-186) restores start_date, end_date, compare, customer_id, campaign_id from the saved view filters object. It never restores client_id. If a saved view was created when a clientId was active, restoring it will populate customer_id from the URL fallback but clientId will still come from useDashboardStore (which may have changed). This is a new gap introduced by B1 because clientId now comes from store rather than URL.",
+      "file": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx",
+      "lines": "166-186",
+      "action_required": true,
+      "fix_complexity": "XS"
+    },
+    {
+      "id": "CC3",
+      "severity": "low",
+      "title": "handleSaveView and handleUpdateView persist customer_id from filters but not client_id",
+      "description": "The saved view filters payload (lines 195-202, 221-228) writes customer_id but omits client_id. This is consistent with the URL param approach but means saved views cannot restore a client_id-scoped session. Low severity because client_id is global-store-driven and expected to be re-selected via FilterBar.",
+      "file": "frontend/src/routes/google-ads/GoogleAdsWorkspacePage.tsx",
+      "lines": "195-228",
+      "action_required": false
+    },
+    {
+      "id": "CC4",
+      "severity": "low",
+      "title": "VITE_GOOGLE_ADS_WORKSPACE_UNIFIED not set in any env file — flag is always runtime-default (true)",
+      "description": "The flag is absent from frontend/.env, frontend/.env.local, and frontend/.env.development (which does not exist). The resolveBooleanFlag function defaults to true when the var is absent. This means the legacy route tree (GoogleAdsExecutivePage, GoogleAdsBudgetPage, GoogleAdsCampaignsPage, etc.) is dead code in all local dev and production environments unless someone manually sets VITE_GOOGLE_ADS_WORKSPACE_UNIFIED=false. The dead legacy pages (NB1, NB2 stale-dep bugs) are therefore non-issues for the live user experience.",
+      "action_required": false
+    }
+  ],
+  "deferred_items_status": {
+    "B1_platforms_param": "APPLIED AND VERIFIED — buildCommonParams line 78 includes platforms: 'google_ads' for all tab fetches",
+    "B2_mount_seed": "REMOVED AND VERIFIED — replaced by reactive useMemo reading useDashboardStore directly; no stale seed effect present",
+    "B3_back_link": "APPLIED AND VERIFIED — GoogleAdsCampaignDetailPage back link is /dashboards/google-ads?tab=campaigns",
+    "B6_executive_scope_params": "APPLIED AND VERIFIED — GoogleAdsExecutivePage passes { platforms, customer_id, start_date, end_date }",
+    "B7_data_table_scope_params": "APPLIED AND VERIFIED — GoogleAdsDataTablePage merges scopeParams with platforms and customer_id",
+    "B8_campaign_detail_scope_params": "APPLIED AND VERIFIED — GoogleAdsCampaignDetailPage passes { platforms, customer_id }",
+    "B4_colon_encoding": "DEFERRED — confirmed theoretical, no immediate fix needed",
+    "B5_playwright_e2e": "DEFERRED — gap confirmed, out of C1B scope"
+  },
+  "summary_verdict": "green",
+  "summary_notes": "All B1 hotfix changes are in place and verified: FilterBar renders on /dashboards/google-ads, WorkspaceHeader has no plain Account ID text input, GoogleAdsWorkspacePage reactively sources customerId from useDashboardStore, EmptyState renders when no customer selected, client_id is in buildCommonParams. All 10 workspace tabs (overview through reports) correctly include platforms=google_ads and customer_id in every fetch via buildCommonParams. No B1 hotfix regressions detected. Two new minor issues found: CC2 (saved-view restore loses clientId — XS fix) and legacy-mode-only stale-dep bugs NB1/NB2 (not active in default env). SDK migration risk is low from frontend perspective. VITE_GOOGLE_ADS_WORKSPACE_UNIFIED is unset in all env files; default=true confirms unified workspace is the user's actual runtime mode."
+}

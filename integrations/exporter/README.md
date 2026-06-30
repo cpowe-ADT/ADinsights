@@ -6,7 +6,10 @@ This package generates printable performance reports by combining JSON data with
 
 - Node.js 18+
 - npm 9+
-- No additional system libraries are required—the CLI relies on `@sparticuz/chromium` to supply a self-contained headless Chromium build.
+- Container runtime images set `CHROMIUM_EXECUTABLE_PATH` to an OS-native Chromium executable so
+  rendering follows the image CPU architecture. Other Linux runtimes fall back to the bundled
+  `@sparticuz/chromium` build. Local macOS/Windows development uses Playwright's installed
+  platform browser; run `npx playwright-core install chromium` if it is not already cached.
 
 Install dependencies:
 

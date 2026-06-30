@@ -39,7 +39,23 @@ const PostsTable = ({ rows, metricKey, availability, onOpenPost }: PostsTablePro
       {
         accessorKey: 'media_type',
         header: 'Media',
-        cell: (context) => context.getValue<string>() || '—',
+        cell: (context) => {
+          const mediaType = context.getValue<string>() || '—';
+          const thumbnailUrl = context.row.original.thumbnail_url;
+          if (thumbnailUrl) {
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <img
+                  src={thumbnailUrl}
+                  alt=""
+                  style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4 }}
+                />
+                <span>{mediaType}</span>
+              </div>
+            );
+          }
+          return mediaType;
+        },
       },
       {
         accessorKey: 'message_snippet',
@@ -56,7 +72,7 @@ const PostsTable = ({ rows, metricKey, availability, onOpenPost }: PostsTablePro
             return '—';
           }
           return (
-            <a href={href} target="_blank" rel="noreferrer">
+            <a href={href} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
               Open
             </a>
           );
@@ -81,7 +97,14 @@ const PostsTable = ({ rows, metricKey, availability, onOpenPost }: PostsTablePro
         header: '',
         enableSorting: false,
         cell: (context) => (
-          <button className="button tertiary" type="button" onClick={() => onOpenPost(context.row.original.post_id)}>
+          <button
+            className="button tertiary"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenPost(context.row.original.post_id);
+            }}
+          >
             Open
           </button>
         ),
@@ -121,7 +144,12 @@ const PostsTable = ({ rows, metricKey, availability, onOpenPost }: PostsTablePro
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="dashboard-table__row dashboard-table__row--zebra">
+              <tr
+                key={row.id}
+                className="dashboard-table__row dashboard-table__row--zebra"
+                style={{ cursor: 'pointer' }}
+                onClick={() => onOpenPost(row.original.post_id)}
+              >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className="dashboard-table__cell">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

@@ -1,0 +1,46 @@
+{
+  "schema_version": "slb_g1_runtime_target_intake.v1",
+  "status": "pending_operator_input",
+  "g0_clearance": {
+    "raj_decision": "approved_with_followups",
+    "mira_decision": "approved_with_followups",
+    "can_proceed_to_g1_g11": "approved_with_conditions",
+    "conditions": "Conditional evidence capture only; G1 missing fields, parity/source values, G11 hardening, and G12 signoff remain required before DashThis cancellation."
+  },
+  "target": {
+    "environment": "local product-finish evidence run",
+    "backend_url": "Pending",
+    "frontend_url": "Pending",
+    "safe_tenant_identifier": "local tenant ee1c8c78-d77f-4c65-ad37-ccf7a896f4c2",
+    "safe_client_identifier": "SLB / Students' Loan Bureau",
+    "report_definition_id": "09c96ea9-a9e5-4283-aa29-401179ab05dc",
+    "template_key": "slb_monthly_social_report",
+    "report_schema_version": "report.v1",
+    "primary_start_date": "2026-05-01",
+    "primary_end_date": "2026-05-31",
+    "timezone": "America/Jamaica",
+    "currency": "Pending",
+    "paid_meta_account_scope": "selected SLB Meta ad account act_791712443035541",
+    "organic_facebook_page_scope": "Pending",
+    "content_ops_workspace_scope": "Pending"
+  },
+  "comparison": {
+    "dashthis_source_comparison_owner": "Pending",
+    "dashthis_source_evidence_location": "docs/project/evidence/dashthis-replacement/2026-06-26-slb-may-source-comparison-values.json",
+    "tolerances_confirmed": false
+  },
+  "delivery": {
+    "scheduled_delivery_mode": "dry_run_only",
+    "recipient_assumption": "No client recipients; scheduled dry-run only.",
+    "dashthis_active": true
+  },
+  "guardrails": {
+    "instagram_decision": "deferred_in_v1",
+    "stored_aggregate_only": true,
+    "no_live_provider_calls_at_render_export_time": true
+  },
+  "evidence": {
+    "slb_report_target_intake_output": "docs/project/evidence/dashthis-replacement/2026-06-30-slb-target-intake.local-product-finish.json",
+    "operator_notes": "Drafted from the 2026-06-30 local product-finish target intake. Backend/frontend URL, currency, tenant-owned SLB Page, Content Ops workspace, comparison owner, tolerances, and final operator approval remain pending."
+  }
+}

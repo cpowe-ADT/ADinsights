@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { listSummaries, refreshSummary, type AISummary } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
+import '../styles/skeleton.css';
 
 const SummariesPage = () => {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -40,7 +42,17 @@ const SummariesPage = () => {
   }, [load]);
 
   if (state === 'loading') {
-    return <DashboardState variant="loading" layout="page" message="Loading summaries…" />;
+    return (
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">AI Summaries</p>
+            <h1 className="dashboardHeading">Summaries</h1>
+          </div>
+        </header>
+        <SkeletonLoader variant="card" count={4} />
+      </section>
+    );
   }
 
   if (state === 'error') {
@@ -79,6 +91,16 @@ const SummariesPage = () => {
         </div>
       </header>
 
+      <div
+        className="phase2-card"
+        style={{ background: 'var(--color-surface-info, #f0f4ff)', marginBottom: '1rem' }}
+      >
+        <p>
+          <strong>Automatic generation:</strong> Summaries are generated every day at 6:10 AM
+          (Jamaica time). You can also trigger a manual refresh below.
+        </p>
+      </div>
+
       {summaries.length === 0 ? (
         <DashboardState
           variant="empty"
@@ -106,7 +128,13 @@ const SummariesPage = () => {
                     {summary.status}
                   </span>
                 </td>
-                <td>{summary.source}</td>
+                <td>
+                  <span
+                    className={`phase2-pill phase2-pill--${summary.source === 'daily_summary' ? 'generated' : 'info'}`}
+                  >
+                    {summary.source === 'daily_summary' ? 'Daily' : 'Manual'}
+                  </span>
+                </td>
                 <td>
                   {formatRelativeTime(summary.generated_at)} (
                   {formatAbsoluteTime(summary.generated_at)})

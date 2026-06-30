@@ -65,9 +65,7 @@ export function resetDashboardSession(): void {
   emitDashboardSession();
 }
 
-export function subscribeDashboardSession(
-  listener: DashboardSessionListener,
-): () => void {
+export function subscribeDashboardSession(listener: DashboardSessionListener): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);

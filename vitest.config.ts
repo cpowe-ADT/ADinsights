@@ -7,6 +7,7 @@ export default defineConfig({
     setupFiles: ['src/test/setup.ts'],
     globals: true,
     css: true,
+    testTimeout: 15000,
     deps: {
       inline: ['recharts'],
     },

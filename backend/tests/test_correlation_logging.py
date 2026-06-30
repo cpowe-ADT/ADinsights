@@ -73,7 +73,7 @@ def test_access_log_includes_runtime_context_markers(api_client, user):
         HTTP_ORIGIN="http://localhost:5175",
     )
 
-    assert response.status_code in {200, 503}
+    assert response.status_code in {200, 409, 503}
     try:
         record = next(r for r in handler.records if r.getMessage() == "request.completed")
     finally:

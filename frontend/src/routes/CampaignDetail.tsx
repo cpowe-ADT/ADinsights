@@ -118,7 +118,13 @@ const CampaignDetail = (): JSX.Element => {
         { label: 'Status', value: activeCampaign.status ?? '—' },
         { label: 'Platform', value: activeCampaign.platform ?? '—' },
         { label: 'Objective', value: activeCampaign.objective ?? '—' },
-        { label: 'Primary parish', value: activeCampaign.parish ?? '—' },
+        {
+          label: 'Parishes',
+          value:
+            activeCampaign.parishes && activeCampaign.parishes.length > 0
+              ? activeCampaign.parishes.join(', ')
+              : '—',
+        },
         {
           label: 'CTR',
           value:

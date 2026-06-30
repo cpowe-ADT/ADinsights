@@ -1,24 +1,45 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Link,
   NavLink,
   Outlet,
   useLocation,
   useNavigate,
   type NavLinkRenderProps,
 } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 
 import { useAuth } from '../auth/AuthContext';
 import Breadcrumbs from '../components/Breadcrumbs';
-import FilterBar, { FilterBarState } from '../components/FilterBar';
+import ClientSuggestionBanner from '../components/ClientSuggestionBanner';
+import FilterBar, {
+  type FilterBarAccountOption,
+  type FilterBarClientOption,
+  type FilterBarPlatformOption,
+  type FilterBarState,
+} from '../components/FilterBar';
 import { useTheme } from '../components/ThemeProvider';
-import { useToast } from '../components/ToastProvider';
+import { useToastStore } from '../stores/useToastStore';
 import { loadDashboardLayout, saveDashboardLayout } from '../lib/layoutPreferences';
+import { loadSocialConnectionStatus, type SocialPlatformStatusRecord } from '../lib/airbyte';
+import {
+  buildLiveAccountOption,
+  chooseDefaultLiveAccountOptionId,
+  setLastLiveAccountId,
+  sortLiveAccountOptions,
+} from '../lib/liveAccountSelection';
+import { loadMetaAccounts } from '../lib/meta';
+import { listClients, type ClientSummary } from '../lib/clients';
 import { canAccessCreatorUi } from '../lib/rbac';
 import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
+import { MOCK_MODE } from '../lib/apiClient';
+import { messageForLiveDatasetReason } from '../lib/datasetStatus';
 import {
   areFiltersEqual,
+  arePlatformArraysEqual,
   createDefaultFilterState,
   parseFilterQueryParams,
+  resolveRoutePlatformScope,
   serializeFilterQueryParams,
 } from '../lib/dashboardFilters';
 import DatasetToggle from '../components/DatasetToggle';
@@ -27,13 +48,33 @@ import SnapshotIndicator from '../components/SnapshotIndicator';
 import StatusBanner from '../components/StatusBanner';
 import useDashboardStore from '../state/useDashboardStore';
 import { useDatasetStore } from '../state/useDatasetStore';
+import useMetaStore from '../state/useMetaStore';
+// Sprint 8 of Client grouping: combined view's toggleable platform set. Kept
+// in sync with PlatformRegistry.COMBINED_SUPPORTED on the backend.
+const COMBINED_PLATFORM_OPTIONS: FilterBarPlatformOption[] = [
+  { value: 'meta_ads', label: 'Meta Ads' },
+  { value: 'google_ads', label: 'Google Ads' },
+];
+
+// Sprint 10 polish: the Meta workspace should only show Meta data, and the
+// Google Ads workspace should only show Google data. The integrated/combined
+// dashboards (Campaigns, Creatives, Budget, Audience, Platforms, Map) keep
+// both toggles. Returning ``null`` means "combined view — no route scope".
+// resolveRoutePlatformScope and arePlatformArraysEqual are imported from
+// ../lib/dashboardFilters so they can be unit-tested in isolation (R6).
 
 const metricOptions = [
   { value: 'spend', label: 'Spend' },
   { value: 'impressions', label: 'Impressions' },
+  { value: 'reach', label: 'Reach' },
   { value: 'clicks', label: 'Clicks' },
+  { value: 'ctr', label: 'CTR' },
+  { value: 'cpc', label: 'CPC' },
+  { value: 'cpm', label: 'CPM' },
   { value: 'conversions', label: 'Conversions' },
-  { value: 'roas', label: 'ROAS' },
+  { value: 'cpa', label: 'CPA' },
+  { value: 'frequency', label: 'Frequency' },
+  { value: 'roas', label: 'Conv. / $' },
 ];
 
 const segmentLabels: Record<string, string> = {
@@ -62,9 +103,19 @@ const segmentLabels: Record<string, string> = {
   'change-log': 'Change log & governance',
   recommendations: 'Recommendations',
   reports: 'Reports & exports',
+  audience: 'Audience',
+  platforms: 'All platforms (combined)',
   map: 'Map',
+  saved: 'Saved dashboard',
   uploads: 'CSV uploads',
 };
+
+const OAUTH_CALLBACK_QUERY_KEYS = ['code', 'state', 'error', 'error_reason', 'error_description'];
+
+function hasOAuthCallbackQuery(search: string): boolean {
+  const params = new URLSearchParams(search);
+  return OAUTH_CALLBACK_QUERY_KEYS.some((key) => params.has(key));
+}
 
 function decodeSegmentValue(value: string): string {
   try {
@@ -80,12 +131,28 @@ const DashboardLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const { pushToast } = useToast();
+  const addToast = useToastStore((s) => s.addToast);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [accountOptions, setAccountOptions] = useState<FilterBarAccountOption[]>([]);
+  const [clientOptions, setClientOptions] = useState<FilterBarClientOption[]>([]);
+  const [metaStatus, setMetaStatus] = useState<SocialPlatformStatusRecord | null>(null);
   const canCreate = canAccessCreatorUi(user);
   const datasetMode = useDatasetStore((state) => state.mode);
-  const availableAdapters = useDatasetStore((state) => state.adapters);
-  const hasLiveData = availableAdapters.includes('warehouse');
+  const datasetLoadStatus = useDatasetStore((state) => state.status);
+  const datasetSource = useDatasetStore((state) => state.source);
+  const liveReason = useDatasetStore((state) => state.liveReason);
+  const liveDetail = useDatasetStore((state) => state.liveDetail);
+  const liveSnapshotGeneratedAt = useDatasetStore((state) => state.liveSnapshotGeneratedAt);
+  const loadAdapters = useDatasetStore((state) => state.loadAdapters);
+  const hasLiveData = datasetSource === 'warehouse' || datasetSource === 'meta_direct';
+  const [accountOptionsResolved, setAccountOptionsResolved] = useState(() => !hasLiveData);
+  const [metaStatusResolved, setMetaStatusResolved] = useState(() => !hasLiveData);
+  const [openNavGroup, setOpenNavGroup] = useState<string | null>(null);
+  const navRef = useRef<HTMLElement>(null);
+
+  // C1A-NEW-02: Subscribe to Meta accountId so the R7 reconciliation effect
+  // re-fires on intra-route account changes (not just pathname changes).
+  const metaAccountId = useMetaStore((state) => state.filters.accountId);
 
   const {
     loadAll,
@@ -101,27 +168,32 @@ const DashboardLayout = () => {
     parish,
     activeTenantLabel,
     lastSnapshotGeneratedAt,
-  } = useDashboardStore((state) => ({
-    loadAll: state.loadAll,
-    filters: state.filters,
-    setFilters: state.setFilters,
-    selectedMetric: state.selectedMetric,
-    setSelectedMetric: state.setSelectedMetric,
-    selectedParish: state.selectedParish,
-    setSelectedParish: state.setSelectedParish,
-    campaign: state.campaign,
-    creative: state.creative,
-    budget: state.budget,
-    parish: state.parish,
-    activeTenantLabel: state.activeTenantLabel,
-    lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
-  }));
+  } = useDashboardStore(
+    useShallow((state) => ({
+      loadAll: state.loadAll,
+      filters: state.filters,
+      setFilters: state.setFilters,
+      selectedMetric: state.selectedMetric,
+      setSelectedMetric: state.setSelectedMetric,
+      selectedParish: state.selectedParish,
+      setSelectedParish: state.setSelectedParish,
+      campaign: state.campaign,
+      creative: state.creative,
+      budget: state.budget,
+      parish: state.parish,
+      activeTenantLabel: state.activeTenantLabel,
+      lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+    })),
+  );
 
   const handleFilterChange = useCallback(
     (state: FilterBarState) => {
+      if (tenantId && state.accountId.trim() && state.accountId !== filters.accountId) {
+        setLastLiveAccountId(tenantId, state.accountId, 'user');
+      }
       setFilters(state);
     },
-    [setFilters],
+    [filters.accountId, setFilters, tenantId],
   );
 
   const defaultFilters = useMemo(() => createDefaultFilterState(), []);
@@ -130,22 +202,276 @@ const DashboardLayout = () => {
     const searchParams = new URLSearchParams(location.search);
     return parseFilterQueryParams(searchParams, defaultFilters);
   }, [defaultFilters, location.search]);
+  const isSavedDashboardRoute = location.pathname.startsWith('/dashboards/saved/');
 
   const hideGlobalFilters = useMemo(() => {
     return (
+      location.pathname.startsWith('/dashboards/data-sources') ||
       location.pathname.startsWith('/dashboards/meta/pages') ||
       location.pathname.startsWith('/dashboards/meta/posts') ||
-      location.pathname.startsWith('/dashboards/google-ads')
+      location.pathname.startsWith('/dashboards/create') ||
+      location.pathname.startsWith('/reports')
     );
   }, [location.pathname]);
 
+  // Sprint 10 polish: compute which platform toggles the filter bar should
+  // expose on the current route. Meta-only / Google-only workspaces hide the
+  // other side; integrated dashboards (campaigns, creatives, budget, audience,
+  // platforms, map) keep both.
+  const routePlatformScope = useMemo(
+    () => resolveRoutePlatformScope(location.pathname),
+    [location.pathname],
+  );
+
+  const routePlatformOptions = useMemo<FilterBarPlatformOption[]>(() => {
+    if (!routePlatformScope) {
+      return COMBINED_PLATFORM_OPTIONS;
+    }
+    return COMBINED_PLATFORM_OPTIONS.filter((option) => routePlatformScope.includes(option.value));
+  }, [routePlatformScope]);
+
+  // When the current route is scoped to a single platform, force
+  // ``filters.platforms`` to that platform so the backend never receives a
+  // cross-platform selection carried over from another dashboard.
+  //
+  // When the route is a combined/unscoped dashboard (routePlatformScope is
+  // null) and filters.platforms still holds a stale scoped value from a prior
+  // route, reset it to [] so the combined view fetches with all platforms.
+  // This handles the scoped→unscoped transition (B-PLAT-01).
   useEffect(() => {
-    if (!areFiltersEqual(filters, urlFilters)) {
+    if (routePlatformScope) {
+      const currentPlatforms = filters.platforms ?? [];
+      if (!arePlatformArraysEqual(currentPlatforms, routePlatformScope)) {
+        setFilters({ ...filters, platforms: [...routePlatformScope] });
+      }
+    } else {
+      // Combined route — if filters.platforms is narrowed from a prior scoped
+      // route, widen it back to [] (all platforms).
+      const currentPlatforms = filters.platforms ?? [];
+      if (currentPlatforms.length > 0) {
+        setFilters({ ...filters, platforms: [] });
+      }
+    }
+  }, [filters, routePlatformScope, setFilters]);
+
+  // URL → filters sync: only react to URL changes, not programmatic filter updates.
+  // Reading current filters via getState() avoids adding `filters` to the dep array,
+  // which previously caused an infinite render loop with the filters→URL effect below.
+  useEffect(() => {
+    if (isSavedDashboardRoute) {
+      return;
+    }
+    const currentFilters = useDashboardStore.getState().filters;
+    if (!areFiltersEqual(currentFilters, urlFilters)) {
       setFilters(urlFilters);
     }
-  }, [filters, setFilters, urlFilters]);
+  }, [isSavedDashboardRoute, setFilters, urlFilters]);
+
+  // R7: Reconciliation effect — mirror useMetaStore.accountId ↔ useDashboardStore.filters.accountId.
+  //
+  // Store ownership model:
+  //   - useMetaStore.filters.accountId: Meta workspace's local selection (Meta pages).
+  //   - useDashboardStore.filters.accountId: global FilterBar selection (combined dashboards).
+  //
+  // When entering a /dashboards/meta/* route with a non-empty Meta accountId that differs from
+  // the global dashboard accountId, copy Meta → Dashboard so the user's selection persists
+  // when they navigate to /dashboards/platforms or other combined dashboards.
+  //
+  // The copy is one-directional (Meta → Dashboard) and only fires when:
+  //   1. We are on a /dashboards/meta/* route.
+  //   2. useMetaStore has a non-empty accountId.
+  //   3. The global accountId does not already match.
+  // This avoids overwriting an intentional global selection when the user navigates
+  // from a combined dashboard into the Meta workspace.
+  useEffect(() => {
+    if (!location.pathname.startsWith('/dashboards/meta/')) {
+      return;
+    }
+    if (!metaAccountId) {
+      return;
+    }
+    const globalAccountId = useDashboardStore.getState().filters.accountId;
+    if (metaAccountId !== globalAccountId) {
+      setFilters({ ...useDashboardStore.getState().filters, accountId: metaAccountId });
+    }
+  }, [location.pathname, metaAccountId, setFilters]);
+
+  // In mock/e2e mode, DatasetToggle is hidden so it won't call loadAdapters.
+  // Load adapters here so liveReason is populated for status banners in tests.
+  useEffect(() => {
+    if (!MOCK_MODE) {
+      return;
+    }
+    if (datasetLoadStatus !== 'idle') {
+      return;
+    }
+    void loadAdapters();
+  }, [datasetLoadStatus, loadAdapters]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    if (!hasLiveData) {
+      setAccountOptionsResolved(true);
+      setAccountOptions([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setAccountOptionsResolved(false);
+    void loadMetaAccounts({ page_size: 200 })
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+        const options = sortLiveAccountOptions(
+          payload.results
+            .map((account) => buildLiveAccountOption(account))
+            .filter((option): option is FilterBarAccountOption => option !== null),
+        );
+        setAccountOptions(options);
+        setAccountOptionsResolved(true);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        console.warn('Failed to load dashboard client accounts', error);
+        setAccountOptions([]);
+        setAccountOptionsResolved(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasLiveData, tenantId]);
+
+  // Sprint 8 of Client grouping: load Client options once per tenant for the
+  // FilterBar client selector. Scoped behind hasLiveData because demo/dummy
+  // mode should not hit the Client API.
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!hasLiveData) {
+      setClientOptions([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void listClients({ active: true, page_size: 200 })
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+        const options = (payload.results ?? [])
+          .filter((client: ClientSummary) => client.is_active)
+          .map((client: ClientSummary) => ({
+            value: client.id,
+            label: client.name,
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+        setClientOptions(options);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        console.warn('Failed to load dashboard clients', error);
+        setClientOptions([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasLiveData, tenantId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!hasLiveData) {
+      setMetaStatus(null);
+      setMetaStatusResolved(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setMetaStatusResolved(false);
+    void loadSocialConnectionStatus()
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+        setMetaStatus(payload.platforms.find((row) => row.platform === 'meta') ?? null);
+        setMetaStatusResolved(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMetaStatus(null);
+          setMetaStatusResolved(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasLiveData]);
+
+  useEffect(() => {
+    if (!tenantId || !hasLiveData || !accountOptionsResolved || !metaStatusResolved) {
+      return;
+    }
+    if (accountOptions.length === 0) {
+      return;
+    }
+
+    const validAccountIds = accountOptions.map((option) => option.value);
+    const currentAccountId = filters.accountId.trim();
+    if (currentAccountId && validAccountIds.includes(currentAccountId)) {
+      return;
+    }
+
+    const preferredAccountIds = [
+      typeof metaStatus?.metadata?.['credential_account_id'] === 'string'
+        ? metaStatus.metadata['credential_account_id']
+        : '',
+    ];
+    const defaultAccountId = chooseDefaultLiveAccountOptionId(
+      accountOptions,
+      tenantId,
+      preferredAccountIds,
+    );
+    if (!defaultAccountId) {
+      return;
+    }
+
+    setLastLiveAccountId(tenantId, defaultAccountId, 'auto');
+    setFilters({
+      ...filters,
+      accountId: defaultAccountId,
+    });
+  }, [
+    accountOptions,
+    accountOptionsResolved,
+    filters,
+    hasLiveData,
+    metaStatus,
+    metaStatusResolved,
+    setFilters,
+    tenantId,
+  ]);
+
+  useEffect(() => {
+    if (hideGlobalFilters) {
+      return;
+    }
+
+    if (hasOAuthCallbackQuery(location.search)) {
+      return;
+    }
+
     const nextSearch = serializeFilterQueryParams(filters);
     const currentSearch = location.search.replace(/^\?/, '');
     if (nextSearch === currentSearch) {
@@ -153,19 +479,48 @@ const DashboardLayout = () => {
     }
     const nextPath = nextSearch ? `${location.pathname}?${nextSearch}` : location.pathname;
     navigate(nextPath, { replace: true });
-  }, [filters, location.pathname, location.search, navigate]);
+  }, [filters, hideGlobalFilters, location.pathname, location.search, navigate]);
 
   const shellRef = useRef<HTMLDivElement>(null);
   const dashboardTopRef = useRef<HTMLDivElement>(null);
   const layoutHydratedRef = useRef(false);
 
   useEffect(() => {
+    if (!MOCK_MODE) {
+      if (datasetLoadStatus === 'idle' || datasetLoadStatus === 'loading') {
+        return;
+      }
+
+      if (!datasetSource) {
+        return;
+      }
+    }
+
+    if (hasLiveData) {
+      if (!accountOptionsResolved || !metaStatusResolved) {
+        return;
+      }
+      if (accountOptions.length > 0 && !filters.accountId.trim()) {
+        return;
+      }
+    }
+
     const delay = filters.campaignQuery.trim().length > 0 ? 350 : 0;
     const handle = window.setTimeout(() => {
       void loadAll(tenantId);
     }, delay);
     return () => window.clearTimeout(handle);
-  }, [filters, loadAll, tenantId]);
+  }, [
+    accountOptions.length,
+    accountOptionsResolved,
+    datasetLoadStatus,
+    datasetSource,
+    filters,
+    hasLiveData,
+    loadAll,
+    metaStatusResolved,
+    tenantId,
+  ]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -233,28 +588,144 @@ const DashboardLayout = () => {
   }, [selectedMetric, setSelectedMetric, setSelectedParish]);
 
   const errors = useMemo(() => {
+    const warehouseLiveBlocked =
+      datasetMode === 'live' &&
+      datasetSource === 'warehouse' &&
+      liveReason &&
+      liveReason !== 'ready';
     return Array.from(
       new Set(
         [campaign, creative, budget, parish]
           .filter((slice) => slice.status === 'error' && slice.error)
+          .filter((slice) => {
+            if (!warehouseLiveBlocked || !slice.error) {
+              return true;
+            }
+            return !/live warehouse metrics are unavailable|snapshot is stale|default fallback payload/i.test(
+              slice.error,
+            );
+          })
           .map((slice) => slice.error as string),
       ),
     );
-  }, [budget, campaign, creative, parish]);
+  }, [budget, campaign, creative, datasetMode, datasetSource, liveReason, parish]);
 
-  const navLinks = useMemo(
-    () =>
-      [
-        { label: 'Library', to: '/dashboards', end: true },
-        canCreate ? { label: 'Create', to: '/dashboards/create', end: false } : null,
-        { label: 'Campaigns', to: '/dashboards/campaigns', end: false },
-        { label: 'Creatives', to: '/dashboards/creatives', end: false },
-        { label: 'Budget pacing', to: '/dashboards/budget', end: false },
-        { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
-        { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
-        { label: 'Facebook pages', to: '/dashboards/meta/pages', end: false },
-        { label: 'Google Ads', to: '/dashboards/google-ads', end: false },
-      ].filter((link): link is { label: string; to: string; end: boolean } => Boolean(link)),
+  // Close nav dropdown on click-outside
+  useEffect(() => {
+    if (!openNavGroup) return;
+    const handler = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) {
+        setOpenNavGroup(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openNavGroup]);
+
+  // Close nav dropdown on route change
+  useEffect(() => {
+    setOpenNavGroup(null);
+  }, [location.pathname]);
+
+  const handleNavTriggerKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>, groupLabel: string) => {
+      if (e.key === 'Escape') {
+        setOpenNavGroup(null);
+        (e.target as HTMLButtonElement).focus();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setOpenNavGroup(groupLabel);
+        // Focus first link in the dropdown after render
+        requestAnimationFrame(() => {
+          const wrapper = (e.target as HTMLElement).closest('.dashboard-nav__dropdown-wrapper');
+          const firstLink = wrapper?.querySelector<HTMLAnchorElement>('.dashboard-nav__dropdown a');
+          firstLink?.focus();
+        });
+      }
+    },
+    [],
+  );
+
+  const handleNavDropdownKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(
+      (e.currentTarget as HTMLElement).querySelectorAll<HTMLAnchorElement>('a'),
+    );
+    const idx = items.indexOf(e.target as HTMLAnchorElement);
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      items[(idx + 1) % items.length]?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      items[(idx - 1 + items.length) % items.length]?.focus();
+    } else if (e.key === 'Escape') {
+      setOpenNavGroup(null);
+      const wrapper = (e.currentTarget as HTMLElement).closest('.dashboard-nav__dropdown-wrapper');
+      wrapper?.querySelector<HTMLButtonElement>('.dashboard-nav__trigger')?.focus();
+    }
+  }, []);
+
+  type NavGroup = {
+    label: string;
+    links: Array<{ label: string; to: string; end: boolean }>;
+  };
+
+  const navGroups: NavGroup[] = useMemo(
+    () => [
+      {
+        label: 'Dashboards',
+        links: [
+          { label: 'Library', to: '/dashboards', end: true },
+          ...(canCreate ? [{ label: 'Create', to: '/dashboards/create', end: false }] : []),
+          { label: 'Campaigns', to: '/dashboards/campaigns', end: false },
+          { label: 'Creatives', to: '/dashboards/creatives', end: false },
+          { label: 'Budget pacing', to: '/dashboards/budget', end: false },
+          { label: 'Audience', to: '/dashboards/audience', end: false },
+          { label: 'All platforms (combined)', to: '/dashboards/platforms', end: false },
+          { label: 'Parish map', to: '/dashboards/map', end: false },
+        ],
+      },
+      {
+        label: 'Integrations',
+        links: [
+          { label: 'Clients', to: '/clients', end: false },
+          ...(canCreate
+            ? [{ label: 'Suggested clients', to: '/clients/suggest', end: false }]
+            : []),
+          { label: 'Meta accounts', to: '/dashboards/meta/accounts', end: false },
+          { label: 'Meta insights', to: '/dashboards/meta/insights', end: false },
+          { label: 'Meta campaigns', to: '/dashboards/meta/campaigns', end: false },
+          { label: 'Facebook pages', to: '/dashboards/meta/pages', end: false },
+          { label: 'GA4', to: '/dashboards/web/ga4', end: false },
+          { label: 'Search Console', to: '/dashboards/web/search-console', end: false },
+          { label: 'Google Ads', to: '/dashboards/google-ads', end: false },
+          { label: 'Data sources', to: '/dashboards/data-sources', end: false },
+          { label: 'CSV uploads', to: '/dashboards/uploads', end: false },
+        ],
+      },
+      {
+        label: 'Reporting',
+        links: [{ label: 'Reports', to: '/reports', end: false }],
+      },
+      {
+        label: 'Alerts & AI',
+        links: [
+          { label: 'Alerts', to: '/alerts', end: false },
+          { label: 'Alert History', to: '/alerts/history', end: false },
+          { label: 'Summaries', to: '/summaries', end: false },
+        ],
+      },
+      {
+        label: 'Operations',
+        links: [
+          { label: 'Sync Health', to: '/ops/sync-health', end: false },
+          { label: 'Health Overview', to: '/ops/health', end: false },
+          { label: 'Audit Log', to: '/ops/audit', end: false },
+          { label: 'Meta status', to: '/dashboards/meta/status', end: false },
+          { label: 'Notifications', to: '/settings/notifications', end: false },
+          { label: 'My Profile', to: '/me', end: false },
+        ],
+      },
+    ],
     [canCreate],
   );
 
@@ -305,15 +776,15 @@ const DashboardLayout = () => {
   const handleSaveLayout = useCallback(() => {
     try {
       saveDashboardLayout({ metric: selectedMetric, parish: selectedParish });
-      pushToast('Saved layout', { tone: 'success' });
+      addToast('Saved layout', 'success');
     } catch {
-      pushToast('Unable to save layout', { tone: 'error' });
+      addToast('Unable to save layout', 'error');
     }
-  }, [pushToast, selectedMetric, selectedParish]);
+  }, [addToast, selectedMetric, selectedParish]);
 
   const handleCopyLink = useCallback(async () => {
     if (typeof window === 'undefined') {
-      pushToast('Unable to copy link', { tone: 'error' });
+      addToast('Unable to copy link', 'error');
       return;
     }
 
@@ -339,11 +810,11 @@ const DashboardLayout = () => {
         }
       }
 
-      pushToast('Copied link', { tone: 'success' });
+      addToast('Copied link', 'success');
     } catch {
-      pushToast('Unable to copy link', { tone: 'error' });
+      addToast('Unable to copy link', 'error');
     }
-  }, [pushToast]);
+  }, [addToast]);
 
   const SaveIcon = (
     <svg
@@ -380,40 +851,95 @@ const DashboardLayout = () => {
   );
 
   const accountLabel = (user as { email?: string } | undefined)?.email ?? 'Account';
+  const effectiveSnapshotGeneratedAt = liveSnapshotGeneratedAt ?? lastSnapshotGeneratedAt;
   const snapshotRelative = useMemo(
-    () => (lastSnapshotGeneratedAt ? formatRelativeTime(lastSnapshotGeneratedAt) : null),
-    [lastSnapshotGeneratedAt],
+    () => (effectiveSnapshotGeneratedAt ? formatRelativeTime(effectiveSnapshotGeneratedAt) : null),
+    [effectiveSnapshotGeneratedAt],
   );
-  const snapshotIsStale = isTimestampStale(lastSnapshotGeneratedAt, 60);
+  const snapshotIsStale = isTimestampStale(effectiveSnapshotGeneratedAt, 60);
+  const liveStatusMessage = useMemo(() => {
+    if (datasetMode !== 'live') {
+      return null;
+    }
+    if (!datasetSource) {
+      return liveReason ? messageForLiveDatasetReason(liveReason, liveDetail) : null;
+    }
+    if (datasetSource === 'meta_direct') {
+      if (liveReason === 'adapter_disabled') {
+        return 'Showing stored Meta snapshot data. Warehouse reporting is not enabled in this environment.';
+      }
+      if (liveReason === 'missing_snapshot') {
+        return 'Showing stored Meta snapshot data while the first warehouse snapshot is still pending.';
+      }
+      if (liveReason === 'stale_snapshot') {
+        return 'Showing stored Meta snapshot data while the warehouse snapshot refresh completes.';
+      }
+      if (liveReason === 'default_snapshot') {
+        return `Showing stored Meta snapshot data. ${messageForLiveDatasetReason(liveReason, liveDetail)}`;
+      }
+      return 'Showing stored Meta snapshot data.';
+    }
+    return liveReason ? messageForLiveDatasetReason(liveReason, liveDetail) : null;
+  }, [datasetMode, datasetSource, liveDetail, liveReason]);
   const snapshotStatusLabel = useMemo(() => {
     if (datasetMode !== 'live') {
-      if (!lastSnapshotGeneratedAt) {
+      if (!effectiveSnapshotGeneratedAt) {
         return 'Demo dataset active';
       }
-      return snapshotRelative
-        ? `Demo dataset active - ${snapshotRelative}`
-        : 'Demo dataset active';
+      return snapshotRelative ? `Demo dataset active - ${snapshotRelative}` : 'Demo dataset active';
     }
-    if (!lastSnapshotGeneratedAt) {
+    if (datasetSource === 'meta_direct') {
+      return snapshotRelative
+        ? `Stored Meta snapshot updated ${snapshotRelative}`
+        : 'Stored Meta snapshot available';
+    }
+    if (liveReason === 'adapter_disabled') {
+      return 'Live reporting disabled';
+    }
+    if (liveReason === 'missing_snapshot') {
+      return 'Waiting for first live snapshot…';
+    }
+    if (liveReason === 'stale_snapshot') {
+      return 'Live data refreshing…';
+    }
+    if (liveReason === 'default_snapshot') {
+      return 'Fallback live snapshot';
+    }
+    if (!effectiveSnapshotGeneratedAt) {
       return 'Waiting for live snapshot…';
     }
     return snapshotRelative ? `Updated ${snapshotRelative}` : 'Live snapshot available';
-  }, [datasetMode, lastSnapshotGeneratedAt, snapshotRelative]);
+  }, [datasetMode, datasetSource, effectiveSnapshotGeneratedAt, liveReason, snapshotRelative]);
   const snapshotTone = useMemo(() => {
     if (datasetMode !== 'live') {
-      if (!lastSnapshotGeneratedAt) {
+      if (!effectiveSnapshotGeneratedAt) {
         return 'demo';
       }
       return snapshotIsStale ? 'stale' : 'demo';
     }
-    if (!lastSnapshotGeneratedAt) {
+    if (datasetSource === 'meta_direct') {
+      return snapshotIsStale ? 'stale' : 'fresh';
+    }
+    if (liveReason === 'adapter_disabled') {
+      return 'warning';
+    }
+    if (liveReason === 'missing_snapshot') {
+      return 'pending';
+    }
+    if (liveReason === 'stale_snapshot') {
+      return 'stale';
+    }
+    if (liveReason === 'default_snapshot') {
+      return 'warning';
+    }
+    if (!effectiveSnapshotGeneratedAt) {
       return 'pending';
     }
     return snapshotIsStale ? 'stale' : 'fresh';
-  }, [datasetMode, lastSnapshotGeneratedAt, snapshotIsStale]);
+  }, [datasetMode, datasetSource, effectiveSnapshotGeneratedAt, liveReason, snapshotIsStale]);
   const snapshotAbsolute = useMemo(
-    () => formatAbsoluteTime(lastSnapshotGeneratedAt),
-    [lastSnapshotGeneratedAt],
+    () => formatAbsoluteTime(effectiveSnapshotGeneratedAt),
+    [effectiveSnapshotGeneratedAt],
   );
 
   return (
@@ -480,6 +1006,9 @@ const DashboardLayout = () => {
                   role="group"
                   aria-label="Layout actions"
                 >
+                  <Link className="button tertiary" to="/dashboards/data-sources?sources=social">
+                    Connect socials
+                  </Link>
                   <button type="button" className="button secondary" onClick={handleSaveLayout}>
                     {SaveIcon}
                     Save layout
@@ -507,18 +1036,69 @@ const DashboardLayout = () => {
             </div>
           </div>
         </header>
-        <nav className="dashboard-nav" aria-label="Dashboard sections">
+        <nav className="dashboard-nav" aria-label="Dashboard sections" ref={navRef}>
           <div className="dashboard-boundary dashboard-nav__inner">
-            {navLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                end={link.end}
-                className={({ isActive }: NavLinkRenderProps) => (isActive ? 'active' : undefined)}
-              >
-                {link.label}
-              </NavLink>
-            ))}
+            <NavLink
+              to="/"
+              end
+              className={({ isActive }: NavLinkRenderProps) => (isActive ? 'active' : undefined)}
+            >
+              Home
+            </NavLink>
+            {navGroups.map((group) => {
+              const isOpen = openNavGroup === group.label;
+              const hasActive = group.links.some((l) => location.pathname.startsWith(l.to));
+              return (
+                <div key={group.label} className="dashboard-nav__dropdown-wrapper">
+                  <button
+                    type="button"
+                    className={`dashboard-nav__trigger${hasActive ? ' dashboard-nav__trigger--active' : ''}`}
+                    aria-expanded={isOpen}
+                    aria-haspopup="true"
+                    onClick={() => setOpenNavGroup(isOpen ? null : group.label)}
+                    onKeyDown={(e) => handleNavTriggerKeyDown(e, group.label)}
+                  >
+                    {group.label}
+                    <svg
+                      className="dashboard-nav__chevron"
+                      viewBox="0 0 10 6"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M1 1l4 4 4-4"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  {isOpen && (
+                    <div
+                      className="dashboard-nav__dropdown"
+                      role="menu"
+                      onKeyDown={handleNavDropdownKeyDown}
+                    >
+                      {group.links.map((link) => (
+                        <NavLink
+                          key={link.to}
+                          to={link.to}
+                          end={link.end}
+                          role="menuitem"
+                          onClick={() => setOpenNavGroup(null)}
+                          className={({ isActive }: NavLinkRenderProps) =>
+                            isActive ? 'active' : undefined
+                          }
+                        >
+                          {link.label}
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </nav>
         <div className="dashboard-boundary">
@@ -526,24 +1106,37 @@ const DashboardLayout = () => {
         </div>
       </div>
       {location.pathname === '/dashboards' || hideGlobalFilters ? null : (
-        <FilterBar state={filters} defaultState={defaultFilters} onChange={handleFilterChange} />
+        <FilterBar
+          state={filters}
+          defaultState={defaultFilters}
+          availableAccounts={hasLiveData ? accountOptions : []}
+          availableClients={hasLiveData ? clientOptions : []}
+          availablePlatforms={hasLiveData ? routePlatformOptions : []}
+          onChange={handleFilterChange}
+        />
       )}
       {datasetMode === 'dummy' ? (
         <div className="dashboard-status">
           <div className="dashboard-boundary">
             <StatusBanner
-              message="Demo dataset is active. Toggle to view live warehouse metrics."
+              message="Demo dataset is active. Toggle to view live client data."
               ariaLabel="Dataset status"
             />
           </div>
         </div>
       ) : null}
-      {datasetMode === 'live' && !hasLiveData ? (
+      {datasetMode === 'live' && liveReason && liveReason !== 'ready' ? (
         <div className="dashboard-status">
           <div className="dashboard-boundary">
             <StatusBanner
-              tone="warning"
-              message="Live warehouse metrics are unavailable. Switch to demo data to explore the interface."
+              tone={
+                datasetSource === 'meta_direct'
+                  ? 'warning'
+                  : liveReason === 'default_snapshot'
+                    ? 'error'
+                    : 'warning'
+              }
+              message={liveStatusMessage ?? 'Live data is unavailable.'}
               ariaLabel="Live data status"
             />
           </div>
@@ -562,6 +1155,7 @@ const DashboardLayout = () => {
           </div>
         </div>
       ) : null}
+      <ClientSuggestionBanner enabled={Boolean(hasLiveData && canCreate)} />
       <main className="dashboard-content">
         <div className="dashboard-boundary">
           <Outlet />

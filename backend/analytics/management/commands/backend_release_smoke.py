@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
+from uuid import uuid4
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -37,6 +39,17 @@ DEFAULT_UNKNOWN_RETRY_REASON_LABELS = (
 class EndpointCheck:
     path: str
     allowed_statuses: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class RateLimitCheck:
+    name: str
+    scope: str
+    method: str
+    path: str
+    expected_prelimit_statuses: tuple[int, ...]
+    payload: dict[str, object] | None = None
+    extra: dict[str, str] | None = None
 
 
 _SAMPLE_LINE_RE = re.compile(
@@ -104,6 +117,75 @@ def _resolve_client_http_host() -> str:
     return "localhost"
 
 
+def _configured_rate(scope: str) -> str:
+    rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
+    rate = str(rates.get(scope) or "").strip()
+    if not rate:
+        raise CommandError(f"No DRF throttle rate configured for scope '{scope}'.")
+    return rate
+
+
+def _attempts_required_for_rate(rate: str) -> int:
+    try:
+        num_requests_raw, _period = rate.split("/", 1)
+        num_requests = int(num_requests_raw)
+    except (TypeError, ValueError) as exc:
+        raise CommandError(f"Throttle rate '{rate}' is invalid.") from exc
+    if num_requests < 1:
+        raise CommandError(f"Throttle rate '{rate}' is not bounded.")
+    return num_requests + 1
+
+
+def _exercise_rate_limit(
+    *,
+    client: Client,
+    check: RateLimitCheck,
+    max_attempts: int,
+) -> dict[str, object]:
+    rate = _configured_rate(check.scope)
+    attempts_required = _attempts_required_for_rate(rate)
+    result: dict[str, object] = {
+        "name": check.name,
+        "scope": check.scope,
+        "method": check.method,
+        "path": check.path,
+        "configured_rate": rate,
+        "attempts_required": attempts_required,
+        "attempts_made": 0,
+        "observed_statuses": [],
+        "ok": False,
+    }
+    if attempts_required > max_attempts:
+        result["failure"] = (
+            f"Configured rate requires {attempts_required} attempts, "
+            f"which exceeds max {max_attempts}."
+        )
+        return result
+
+    remote_addr = f"203.0.113.{uuid4().int % 250 + 1}"
+    request_extra = {
+        "REMOTE_ADDR": remote_addr,
+        **(check.extra or {}),
+    }
+    request: Callable[..., object] = getattr(client, check.method.lower())
+    statuses: list[int] = []
+    for index in range(attempts_required):
+        response = request(check.path, check.payload or {}, **request_extra)
+        status_code = int(getattr(response, "status_code"))
+        statuses.append(status_code)
+        if status_code == 429:
+            break
+        if index == 0 and status_code not in check.expected_prelimit_statuses:
+            break
+
+    result["attempts_made"] = len(statuses)
+    result["observed_statuses"] = statuses
+    result["ok"] = 429 in statuses
+    if 429 not in statuses:
+        result["failure"] = f"Expected HTTP 429, observed statuses {statuses}."
+    return result
+
+
 class Command(BaseCommand):
     help = "Run backend release-readiness smoke checks against core health and metrics endpoints."
 
@@ -154,10 +236,26 @@ class Command(BaseCommand):
                 "and unknown retry-share guardrail)."
             ),
         )
+        parser.add_argument(
+            "--check-rate-limits",
+            action="store_true",
+            help=(
+                "Exercise configured auth and public throttles and require an HTTP 429 "
+                "before the configured attempt budget is exhausted."
+            ),
+        )
+        parser.add_argument(
+            "--max-rate-limit-smoke-attempts",
+            type=int,
+            default=150,
+            help="Maximum per-scope attempts allowed for --check-rate-limits.",
+        )
 
     def handle(self, *args, **options):  # noqa: ANN002, ANN003
         strict_external = bool(options.get("strict_external"))
         strict_observability = bool(options.get("strict_observability"))
+        check_rate_limits = bool(options.get("check_rate_limits"))
+        max_rate_limit_smoke_attempts = int(options.get("max_rate_limit_smoke_attempts") or 0)
         expected_metrics = options.get("expect_metric") or DEFAULT_REQUIRED_METRICS
         expected_metrics = [metric.strip() for metric in expected_metrics if metric and metric.strip()]
         expected_metric_label_args = options.get("expect_metric_label") or []
@@ -186,6 +284,8 @@ class Command(BaseCommand):
 
         if max_unknown_retry_share is not None and not (0 <= max_unknown_retry_share <= 1):
             raise CommandError("--max-unknown-retry-share must be between 0.0 and 1.0.")
+        if check_rate_limits and max_rate_limit_smoke_attempts < 1:
+            raise CommandError("--max-rate-limit-smoke-attempts must be at least 1.")
         if max_unknown_retry_share is not None and not unknown_retry_reason_labels:
             unknown_retry_reason_labels = list(DEFAULT_UNKNOWN_RETRY_REASON_LABELS)
 
@@ -229,6 +329,41 @@ class Command(BaseCommand):
                 )
             if check.path == "/metrics/app/" and response.status_code == 200:
                 metrics_body = response.content.decode("utf-8")
+
+        rate_limit_results: list[dict[str, object]] = []
+        if check_rate_limits:
+            rate_limit_checks = [
+                RateLimitCheck(
+                    name="auth_burst_token_obtain",
+                    scope="auth_burst",
+                    method="POST",
+                    path="/api/token/",
+                    payload={
+                        "username": f"throttle-smoke-{uuid4()}",
+                        "password": "not-a-real-password",
+                    },
+                    expected_prelimit_statuses=(400, 401),
+                ),
+                RateLimitCheck(
+                    name="public_health_version",
+                    scope="public",
+                    method="GET",
+                    path="/api/health/version/",
+                    expected_prelimit_statuses=(200,),
+                ),
+            ]
+            for rate_limit_check in rate_limit_checks:
+                result = _exercise_rate_limit(
+                    client=client,
+                    check=rate_limit_check,
+                    max_attempts=max_rate_limit_smoke_attempts,
+                )
+                rate_limit_results.append(result)
+                if not result["ok"]:
+                    failures.append(
+                        f"Rate-limit smoke '{rate_limit_check.name}' failed: "
+                        f"{result.get('failure')}"
+                    )
 
         missing_metrics = [name for name in expected_metrics if name not in metrics_body]
         for metric in missing_metrics:
@@ -292,6 +427,7 @@ class Command(BaseCommand):
             "unknown_retry_reason_labels": unknown_retry_reason_labels,
             "unknown_retry_count": unknown_retry_count,
             "retry_total": retry_total,
+            "rate_limit_checks": rate_limit_results,
         }
         self.stdout.write(json.dumps(summary, indent=2, sort_keys=True))
 

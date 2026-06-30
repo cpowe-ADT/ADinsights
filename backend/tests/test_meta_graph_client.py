@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import httpx
 import pytest
+from django.test import override_settings
 
 from integrations.meta_graph import (
     META_GRAPH_RETRY_REASON_RATE_LIMITED,
@@ -50,6 +51,37 @@ def test_meta_graph_client_paginates_ad_accounts(monkeypatch):
     monkeypatch.setattr(client._client, "request", fake_request)
     ad_accounts = client.list_ad_accounts(user_access_token="token")
     assert [item.account_id for item in ad_accounts] == ["123", "456"]
+
+
+@pytest.mark.django_db
+def test_meta_graph_client_uses_smaller_page_size_for_ads(monkeypatch):
+    client = MetaGraphClient(app_id="app", app_secret="secret", graph_version="v24.0")
+    observed_params: dict[str, object] = {}
+
+    def fake_request(method: str, url: str, params=None):  # noqa: ANN001
+        observed_params.update(params or {})
+        return _response(200, {"data": []})
+
+    monkeypatch.setattr(client._client, "request", fake_request)
+
+    assert client.list_ads(account_id="act_123", user_access_token="token") == []
+    assert observed_params["limit"] == 50
+
+
+@pytest.mark.django_db
+@override_settings(
+    META_APP_ID="app-id",
+    META_APP_SECRET="meta-app-placeholder",  # pragma: allowlist secret
+    META_GRAPH_API_VERSION="v99.0",
+    META_GRAPH_TIMEOUT_SECONDS=42.0,
+    META_GRAPH_MAX_ATTEMPTS=7,
+)
+def test_meta_graph_client_from_settings_uses_timeout_and_attempts():
+    client = MetaGraphClient.from_settings()
+    assert client.base_url == "https://graph.facebook.com/v99.0"
+    assert client.max_attempts == 7
+    assert client._client.timeout.read == 42.0
+    client.close()
 
 
 @pytest.mark.django_db

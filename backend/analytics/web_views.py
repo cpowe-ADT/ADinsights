@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
@@ -11,6 +12,8 @@ from django.utils.dateparse import parse_date
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -107,10 +110,11 @@ class BaseWebSourceView(APIView):
                 records = cursor.fetchall()
                 names = [col[0] for col in cursor.description]
         except Exception as exc:  # pragma: no cover - defensive fallback
+            logger.warning("web_view.query_failed source=%s", config.key, exc_info=exc)
             return {
                 "source": config.key,
                 "status": "unavailable",
-                "detail": str(exc),
+                "detail": "Query failed.",
                 "rows": [],
             }
 

@@ -8,13 +8,32 @@
     "additionalProperties": false,
     "required": ["parish", "spend", "impressions", "clicks", "conversions"],
     "properties": {
+      "adAccountId": { "type": "string" },
       "parish": { "type": "string" },
       "spend": { "type": "number" },
       "impressions": { "type": "number" },
+      "reach": { "type": "number" },
       "clicks": { "type": "number" },
       "conversions": { "type": "number" },
       "roas": { "type": "number" },
+      "ctr": { "type": "number" },
+      "cpc": { "type": "number" },
+      "cpm": { "type": "number" },
+      "cpa": { "type": "number" },
+      "frequency": { "type": "number" },
       "campaignCount": { "type": "number" },
+      "campaigns": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "name"],
+          "properties": {
+            "id": { "type": "string" },
+            "name": { "type": "string" }
+          }
+        }
+      },
       "currency": { "type": "string" }
     }
   }

@@ -2,7 +2,7 @@
 
 {% set adset_source %}
     select
-        {{ tenant_id_expr() }} as tenant_id,
+        tenant_id,
         source_platform,
         ad_account_id,
         adset_id,

@@ -1,0 +1,326 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "C1C",
+  "timestamp": "2026-04-14T00:00:00Z",
+  "input_artifacts_cited": [
+    "/Users/thristannewman/ADinsights/artifacts/sprint/program-design.md",
+    "/Users/thristannewman/ADinsights/artifacts/sprint/phase1a-meta-test.md",
+    "/Users/thristannewman/ADinsights/artifacts/sprint/phase1b-google-test.md",
+    "/Users/thristannewman/ADinsights/artifacts/synthesis/synthesis-report.md",
+    "/Users/thristannewman/ADinsights/artifacts/verify/combined-verification.json"
+  ],
+  "phase1_baseline": {
+    "phase1a_meta": "GREEN",
+    "phase1b_google": "GREEN",
+    "synthesis_overall": "YELLOW",
+    "synthesis_notes": "All high-severity patches applied. 10 pre-existing frontend test failures (DataSources.tsx scrollIntoView). Medium-severity items deferred: B-CAMP-01, B-CREA-01, B-AUD-01, B-CAMP-02, B-PLAT-03, B-BUDG-01, B-BUDG-02."
+  },
+
+  "r7_roundtrip_verified": true,
+  "scoped_to_unscoped_transition_verified": true,
+
+  "platform_dashboard_user_requirement": {
+    "user_statement": "make sure thats vissible as well — referring to combined view dashboard",
+    "route_exists_in_router": true,
+    "router_file": "frontend/src/router.tsx",
+    "router_line": 429,
+    "nav_link_exists": true,
+    "nav_label": "All platforms (combined)",
+    "nav_to": "/dashboards/platforms",
+    "nav_file": "frontend/src/routes/DashboardLayout.tsx",
+    "nav_line": 667,
+    "component_renders": true,
+    "renders_blank_check": "PASS — component has loading skeleton, error state, hasData guard, FP-PLAT-02 zero-row EmptyState, and full chart render path. No blank-render scenario identified in source.",
+    "filterbar_platform_toggles": {
+      "shows_both_meta_and_google": true,
+      "evidence": "DashboardLayout.tsx:217-224 — routePlatformOptions = COMBINED_PLATFORM_OPTIONS when resolveRoutePlatformScope('/dashboards/platforms') returns null. COMBINED_PLATFORM_OPTIONS = [{value:'meta_ads',label:'Meta Ads'},{value:'google_ads',label:'Google Ads'}].",
+      "caveat": "YELLOW — platform toggles only rendered when hasLiveData=true (datasetSource === 'warehouse' || 'meta_direct'). In demo/dummy mode, availablePlatforms=[] so no toggles shown. Not a bug but a user-experience gap in demo mode.",
+      "filterbar_line": 1106
+    },
+    "fetch_both_platforms_when_toggled": true,
+    "fetch_evidence": "DashboardLayout.tsx:234-248 — when routePlatformScope is null and filters.platforms.length>0 from stale scoped route, resets to []. Combined view fetches /api/metrics/combined/ with platforms=[] (backend interprets as all) or with platforms=[meta_ads,google_ads] if user explicitly selects both toggles.",
+    "rows_from_both_platforms": "Cannot verify statically — depends on backend response shape. PlatformDashboard renders data.byPlatform rows without filtering by platform key, so all rows returned by the API are shown.",
+    "empty_state_handled": true,
+    "empty_state_evidence": "PlatformDashboard.tsx:215-231 — FP-PLAT-02 applied: hasData && !isLoading && data.byPlatform.length===0 && data.byDevice.length===0 → DashboardState variant='empty'.",
+    "platform_color_legend": {
+      "status": "YELLOW",
+      "evidence": "PlatformComparisonBars renders data.byPlatform rows. No platform-color legend code found in PlatformDashboard.tsx itself. Whether PlatformComparisonBars has a color legend for Meta vs Google Ads cannot be confirmed without reading that component — out of scope per C1C instructions (not listed in audit scope files). Flag for C2C to inspect frontend/src/components/PlatformComparisonBars.tsx."
+    }
+  },
+
+  "routes": [
+    {
+      "route": "/dashboards/platforms",
+      "component": "frontend/src/routes/PlatformDashboard.tsx",
+      "status": "yellow",
+      "scope_reset_on_entry": true,
+      "scope_reset_evidence": "DashboardLayout.tsx:240-246 — else branch: when routePlatformScope is null and currentPlatforms.length > 0, calls setFilters({...filters, platforms:[]}). This fires on entry from any scoped route.",
+      "endpoint_scope_correct": true,
+      "endpoint_scope_evidence": "Filters flow from useDashboardStore.filters → buildFilterQueryParams → /api/metrics/combined/. When platforms=[] backend treats as all platforms.",
+      "empty_state_handled": true,
+      "bugs_confirmed": [
+        {
+          "id": "B-PLAT-03",
+          "still_open": true,
+          "severity": "low",
+          "title": "KPI tiles hardcode 'Facebook spend' and 'Instagram spend'",
+          "file": "frontend/src/routes/PlatformDashboard.tsx",
+          "lines": [86, 89, 114, 118],
+          "evidence": "kpis useMemo at line 86: data.byPlatform.find(p => p.platform.toLowerCase() === 'facebook'); line 89: ...=== 'instagram'. When filters.platforms=['google_ads'], both fbRow and igRow are undefined and KPIs show '—'. Labels remain 'Facebook spend' / 'Instagram spend' regardless of selected platforms.",
+          "deferred": true,
+          "fix_owner": "C2C"
+        }
+      ],
+      "new_bugs": [
+        {
+          "id": "NB-PLAT-01",
+          "severity": "low",
+          "title": "Platform toggles hidden in demo/dummy mode",
+          "description": "DashboardLayout.tsx:1106 passes availablePlatforms={hasLiveData ? routePlatformOptions : []}. When datasetSource is 'demo' or 'fake', hasLiveData is false, so availablePlatforms=[] and FilterBar renders no platform toggles. Combined dashboard user cannot switch between Meta/Google in demo mode.",
+          "file": "frontend/src/routes/DashboardLayout.tsx",
+          "line": 1106,
+          "impact": "Users on demo adapter cannot use platform toggles to filter combined view. Not a regression from synthesis — pre-existing design decision. Flag for C2C: consider whether demo mode should expose platform toggles (they would have no effect on the fixed demo data but user expectation is they should exist)."
+        }
+      ]
+    },
+    {
+      "route": "/dashboards/campaigns",
+      "component": "frontend/src/routes/CampaignDashboard.tsx",
+      "status": "yellow",
+      "scope_reset_on_entry": true,
+      "endpoint_scope_correct": true,
+      "empty_state_handled": "partial",
+      "empty_state_notes": "Two empty-state branches exist (lines 336-365 and 367-400). B-CAMP-02 (duplicate guards) still open. Gap: when campaign.data is truthy but rows=[] and availability.status='available' (not 'empty'), neither branch fires and an empty table is rendered silently.",
+      "bugs_confirmed": [
+        {
+          "id": "B-CAMP-02",
+          "still_open": true,
+          "severity": "medium",
+          "title": "Duplicate empty-state branches; gap for rows=[] with availability.status=available",
+          "file": "frontend/src/routes/CampaignDashboard.tsx",
+          "lines": [336, 367],
+          "evidence": "First guard: !hasCampaignData && !isInitialLoading (line 336). Second guard: !isInitialLoading && campaignAvailability?.status === 'empty' && rows.length===0 (line 367). Gap: if hasCampaignData=true (data object exists) but rows=[] and availability.status != 'empty', falls through to render with empty CampaignTable.",
+          "deferred": true,
+          "fix_owner": "C2C"
+        }
+      ],
+      "new_bugs": []
+    },
+    {
+      "route": "/dashboards/creatives",
+      "component": "frontend/src/routes/CreativeDashboard.tsx",
+      "status": "green",
+      "scope_reset_on_entry": true,
+      "endpoint_scope_correct": true,
+      "empty_state_handled": true,
+      "empty_state_evidence": "CreativeDashboard.tsx:50-51 — shouldShowEmptyState = creativeAvailability?.status === 'empty' || (!creative.data && creative.status !== 'loading'). Covers both availability-empty and no-data cases.",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "route": "/dashboards/budget",
+      "component": "frontend/src/routes/BudgetDashboard.tsx",
+      "status": "green",
+      "scope_reset_on_entry": true,
+      "endpoint_scope_correct": true,
+      "empty_state_handled": true,
+      "empty_state_evidence": "BudgetDashboard.tsx:52-54 — FP-BUDG-01 applied: shouldShowEmptyState = (budgetAvailability !== undefined && budgetAvailability.status !== 'available') || (!budget.data && budget.status !== 'loading'). Guards against undefined availability falsely triggering empty state.",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "route": "/dashboards/audience",
+      "component": "frontend/src/routes/AudienceDashboard.tsx",
+      "status": "green",
+      "scope_reset_on_entry": true,
+      "endpoint_scope_correct": true,
+      "empty_state_handled": true,
+      "empty_state_evidence": "AudienceDashboard.tsx:172-210 — FP-AUD-01 applied (present in source with comment). hasData && !isLoading && !data?.byAgeGender?.length && !data?.byGender?.length → DashboardState variant='empty'. B-AUD-01 marked APPLIED in source.",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "route": "/dashboards/map",
+      "component": "frontend/src/routes/ParishMapDetail.tsx",
+      "status": "green",
+      "scope_reset_on_entry": true,
+      "endpoint_scope_correct": true,
+      "empty_state_handled": true,
+      "empty_state_evidence": "ParishMapDetail.tsx:118-132 — FP-MAP-01 applied (comment in source): parish.status !== 'loading' && !isLoading && parishRows.length === 0 → DashboardState variant='empty'. Error state at line 101-115.",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "route": "/dashboards/web/ga4",
+      "component": "frontend/src/routes/GoogleAnalyticsDashboardPage.tsx",
+      "status": "green",
+      "scope_reset_on_entry": "n/a",
+      "endpoint_scope_correct": "n/a — does NOT call /api/metrics/combined/",
+      "combined_endpoint_isolation": true,
+      "combined_endpoint_evidence": "Grep of GoogleAnalyticsDashboardPage.tsx shows zero matches for 'useDashboardStore', 'combined', or 'metrics/combined'. Page uses only local state and fetchGoogleAnalyticsWebRows → dedicated web analytics endpoint.",
+      "empty_state_handled": "not_audited",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "route": "/dashboards/web/search-console",
+      "component": "frontend/src/routes/SearchConsoleDashboardPage.tsx",
+      "status": "green",
+      "scope_reset_on_entry": "n/a",
+      "endpoint_scope_correct": "n/a — does NOT call /api/metrics/combined/",
+      "combined_endpoint_isolation": true,
+      "combined_endpoint_evidence": "Grep of SearchConsoleDashboardPage.tsx shows zero matches for 'useDashboardStore', 'combined', or 'metrics/combined'.",
+      "empty_state_handled": "not_audited",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    },
+    {
+      "route": "/dashboards/saved/:id",
+      "component": "frontend/src/routes/SavedDashboardPage.tsx",
+      "status": "green",
+      "scope_reset_on_entry": "handled separately — see B-SAVED-01/02 below",
+      "endpoint_scope_correct": true,
+      "empty_state_handled": true,
+      "empty_state_evidence": "SavedDashboardPage.tsx:159-172 — loading state shows DashboardState variant='loading'. Error state shows DashboardState variant='error' with message. Successfully loaded dashboard delegates empty-state to the rendered child component (CampaignDashboard, CreativeDashboard, BudgetDashboard, or ParishMapDetail).",
+      "bugs_confirmed": [],
+      "new_bugs": []
+    }
+  ],
+
+  "deferred_items_status": [
+    {
+      "bug_id": "B-PLAT-01",
+      "still_open": false,
+      "evidence": "DashboardLayout.tsx:234-248 — scoped→unscoped transition handler present in source with comment 'B-PLAT-01'. When routePlatformScope is null and currentPlatforms.length > 0, resets to []. APPLIED.",
+      "fix_required": false
+    },
+    {
+      "bug_id": "B-PLAT-02",
+      "still_open": false,
+      "evidence": "PlatformDashboard.tsx:213-231 — FP-PLAT-02 comment present. hasData && !isLoading && data.byPlatform.length===0 && data.byDevice.length===0 guard renders DashboardState empty variant. APPLIED.",
+      "fix_required": false
+    },
+    {
+      "bug_id": "B-PLAT-03",
+      "still_open": true,
+      "evidence": "PlatformDashboard.tsx:86-91 — fbRow/igRow lookups still use hardcoded 'facebook'/'instagram' string matches. KPI labels still read 'Facebook spend' / 'Instagram spend'. NOT APPLIED.",
+      "fix_required": false,
+      "recommendation": "Cosmetic/UX deferred. Recommend C2C fix: replace fbRow/igRow with sorted top-2 from byPlatform by spend, labeled by platform name."
+    },
+    {
+      "bug_id": "B-CAMP-01",
+      "still_open": false,
+      "evidence": "useDashboardStore.ts:1490-1526 — FP-CAMP-01 comment and implementation present. resolvePlatformFilters(filters) applied in getCampaignRowsForSelectedParish. platformFilters guard ANDed with channelFilters. APPLIED.",
+      "fix_required": false,
+      "call_sites_for_c2c_validation": [
+        {
+          "consumer": "CampaignDashboard.tsx",
+          "line": 71,
+          "call": "state.getCampaignRowsForSelectedParish()",
+          "usage": "campaignRows — passed to CampaignTable component"
+        }
+      ]
+    },
+    {
+      "bug_id": "B-CREA-01",
+      "still_open": false,
+      "evidence": "useDashboardStore.ts:1528-1574 — FP-CREA-01 comment and implementation present. resolvePlatformFilters(filters) applied in getCreativeRowsForSelectedParish. APPLIED.",
+      "fix_required": false,
+      "call_sites_for_c2c_validation": [
+        {
+          "consumer": "CreativeDashboard.tsx",
+          "line": 34,
+          "call": "state.getCreativeRowsForSelectedParish()",
+          "usage": "creativeRows — passed to CreativeTable and summary useMemo"
+        }
+      ]
+    },
+    {
+      "bug_id": "B-BUDG-02",
+      "still_open": false,
+      "evidence": "useDashboardStore.ts:1576-1616 — FP-BUDG-02 comment and implementation present. resolvePlatformFilters(filters) applied in getBudgetRowsForSelectedParish. APPLIED.",
+      "fix_required": false,
+      "call_sites_for_c2c_validation": [
+        {
+          "consumer": "BudgetDashboard.tsx",
+          "line": 33,
+          "call": "state.getBudgetRowsForSelectedParish()",
+          "usage": "budgetRows — passed to BudgetPacingList and summaryCards useMemo"
+        }
+      ]
+    },
+    {
+      "bug_id": "B-CAMP-02",
+      "still_open": true,
+      "evidence": "CampaignDashboard.tsx:336-400 — two nearly identical empty-state blocks. Gap: if campaign.data is truthy (hasCampaignData=true) but rows=[] and availability.status='available', renders empty CampaignTable silently.",
+      "fix_required": true,
+      "recommendation": "C2C should consolidate to single guard: !isInitialLoading && (campaign.data?.rows.length ?? 0) === 0, deriving emptyVariant from availability."
+    },
+    {
+      "bug_id": "B-AUD-01",
+      "still_open": false,
+      "evidence": "AudienceDashboard.tsx:192-210 — FP-AUD-01 applied with comment. Empty arrays guard present. APPLIED.",
+      "fix_required": false
+    },
+    {
+      "bug_id": "B-SAVED-01",
+      "still_open": false,
+      "evidence": "SavedDashboardPage.tsx:55-58 — FP-SAVED-01 applied with comment. normalizeFilters restores platforms field: Array.isArray(value.platforms) ? value.platforms.map(String) : fallback.platforms. APPLIED.",
+      "fix_required": false
+    },
+    {
+      "bug_id": "B-SAVED-02",
+      "still_open": false,
+      "evidence": "SavedDashboardPage.tsx:129-152 — FP-SAVED-02 applied with comments. seededRef prevents re-seeding on URL changes. Dep array intentionally omits location.search with eslint-disable comment. APPLIED.",
+      "fix_required": false
+    },
+    {
+      "bug_id": "B-BUDG-01",
+      "still_open": false,
+      "evidence": "BudgetDashboard.tsx:49-54 — FP-BUDG-01 applied with comment. shouldShowEmptyState = (budgetAvailability !== undefined && budgetAvailability.status !== 'available') || (!budget.data && budget.status !== 'loading'). Guards against undefined availability. APPLIED.",
+      "fix_required": false
+    }
+  ],
+
+  "c2c_recommendations": {
+    "b_camp_01_b_crea_01_selectors": {
+      "status": "APPLIED — NOT open for C2C to fix",
+      "detail": "Both getCampaignRowsForSelectedParish and getCreativeRowsForSelectedParish now include resolvePlatformFilters guard in useDashboardStore.ts. C2C should validate no regressions at call-sites listed in deferred_items_status.",
+      "test_gap": "CampaignDashboard.layout.test.tsx does not contain a platform-filter regression test (grep found no 'platformFilters' or 'filters.platforms' references in test file). C2C should add: when filters.platforms=['meta_ads'] and rows include google_ads entries, getCampaignRowsForSelectedParish returns only meta rows."
+    },
+    "b_plat_03": {
+      "status": "OPEN — cosmetic, low priority",
+      "file": "frontend/src/routes/PlatformDashboard.tsx",
+      "lines": [86, 89, 114, 118],
+      "fix": "Replace fbRow/igRow hardcoded lookups with sorted top-2 from byPlatform by spend."
+    },
+    "b_camp_02": {
+      "status": "OPEN — medium priority",
+      "file": "frontend/src/routes/CampaignDashboard.tsx",
+      "lines": [336, 367],
+      "fix": "Consolidate duplicate empty-state branches; add guard for rows=[] when availability.status='available'."
+    },
+    "nb_plat_01_demo_mode_toggles": {
+      "status": "NEW — low priority",
+      "file": "frontend/src/routes/DashboardLayout.tsx",
+      "line": 1106,
+      "fix": "Consider whether demo mode should expose platform toggles (they filter useDashboardStore rows but the fixed demo payload may not contain both platform types)."
+    }
+  },
+
+  "console_error_suspects": [
+    {
+      "location": "PlatformDashboard.tsx:302-312",
+      "suspect": "data.byPlatformDevice.map((row) => <tr key={`${row.platform}-${row.device}`}>): if byPlatformDevice contains duplicate platform+device combinations, React will emit duplicate key warnings.",
+      "severity": "low"
+    },
+    {
+      "location": "SavedDashboardPage.tsx:150-152",
+      "suspect": "eslint-disable-next-line react-hooks/exhaustive-deps on the seed effect dep array — may suppress a legitimate warning if location.search is inadvertently depended on. Not a console error but a suppressed lint warning.",
+      "severity": "info"
+    }
+  ],
+
+  "summary_verdict": "yellow",
+  "summary_notes": "All high-severity bugs from synthesis are APPLIED and verified in source. B-CAMP-01, B-CREA-01, B-BUDG-01, B-BUDG-02, B-AUD-01, B-SAVED-01, B-SAVED-02 are all APPLIED — not open. B-PLAT-01 (scoped→unscoped transition) APPLIED. B-PLAT-02 (empty byPlatform EmptyState) APPLIED. Remaining open items: B-PLAT-03 (cosmetic, low), B-CAMP-02 (medium — duplicate empty-state branches with gap). One new bug: NB-PLAT-01 (platform toggles hidden in demo mode, low). Web cluster (GA4 + Search Console) correctly isolated from /api/metrics/combined/. Combined dashboard (/dashboards/platforms) renders, has correct route, nav link visible, FilterBar platform toggles present in live mode, scoped→unscoped transition handled, zero-row EmptyState handled. User's 'make sure thats visible as well' requirement: SATISFIED for live mode; YELLOW note for demo mode (no toggles)."
+}

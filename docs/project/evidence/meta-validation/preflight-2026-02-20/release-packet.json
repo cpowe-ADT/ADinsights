@@ -5,23 +5,17 @@
     "scope_control": {
       "status": "PASS",
       "rationale": "Scope status 'PASS_SINGLE_SCOPE' is acceptable.",
-      "evidence": [
-        "PASS_SINGLE_SCOPE"
-      ]
+      "evidence": ["PASS_SINGLE_SCOPE"]
     },
     "contract_integrity": {
       "status": "PASS",
       "rationale": "Contract status 'PASS_NO_CONTRACT_CHANGE' is acceptable.",
-      "evidence": [
-        "PASS_NO_CONTRACT_CHANGE"
-      ]
+      "evidence": ["PASS_NO_CONTRACT_CHANGE"]
     },
     "test_coverage": {
       "status": "INFO",
       "rationale": "Required tests identified; pending explicit execution/verification.",
-      "evidence": [
-        "docs-only change (no canonical code test)"
-      ]
+      "evidence": ["docs-only change (no canonical code test)"]
     },
     "security_pii_secrets": {
       "status": "PASS",
@@ -36,17 +30,12 @@
     "documentation_completeness": {
       "status": "INFO",
       "rationale": "Documentation updates are required before release.",
-      "evidence": [
-        "docs/ops/doc-index.md",
-        "docs/ops/agent-activity-log.md"
-      ]
+      "evidence": ["docs/ops/doc-index.md", "docs/ops/agent-activity-log.md"]
     },
     "rollout_rollback_plan": {
       "status": "PASS",
       "rationale": "Deployment runbook exists for rollout/rollback planning.",
-      "evidence": [
-        "docs/runbooks/deployment.md"
-      ]
+      "evidence": ["docs/runbooks/deployment.md"]
     },
     "observability": {
       "status": "PASS",
@@ -60,9 +49,7 @@
     "Run and verify required tests before release.",
     "Complete required documentation updates before release."
   ],
-  "required_approvers": [
-    "Raj"
-  ],
+  "required_approvers": ["Raj"],
   "required_artifacts": [
     "docs/runbooks/release-checklist.md",
     "docs/runbooks/deployment.md",

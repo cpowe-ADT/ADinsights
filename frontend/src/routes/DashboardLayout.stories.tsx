@@ -40,10 +40,10 @@ const StoreBootstrap = ({ children }: { children: ReactNode }) => {
       ...state,
       selectedMetric: 'spend',
       loadAll: async () => undefined,
-      campaign: { status: 'loaded' },
-      creative: { status: 'loaded' },
-      budget: { status: 'loaded' },
-      parish: { status: 'loaded' },
+      campaign: { status: 'loaded', errorKind: undefined },
+      creative: { status: 'loaded', errorKind: undefined },
+      budget: { status: 'loaded', errorKind: undefined },
+      parish: { status: 'loaded', errorKind: undefined },
     }));
 
     return () => {

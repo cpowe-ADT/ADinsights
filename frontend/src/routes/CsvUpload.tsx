@@ -1,6 +1,6 @@
 import type { ChangeEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import EmptyState from '../components/EmptyState';
 import useDashboardStore from '../state/useDashboardStore';
@@ -378,6 +378,20 @@ const CsvUpload = () => {
               {backendStatus.counts
                 ? ` · ${backendStatus.counts.campaign_rows} campaign rows, ${backendStatus.counts.parish_rows} parish rows, ${backendStatus.counts.budget_rows} budget rows`
                 : ''}
+              {' · '}
+              <Link
+                to="/dashboards/uploads/current"
+                state={{
+                  status: {
+                    has_upload: true,
+                    snapshot_generated_at: backendStatus.snapshotGeneratedAt,
+                    counts: backendStatus.counts,
+                  },
+                  dataset: uploadedDataset,
+                }}
+              >
+                View details
+              </Link>
             </p>
           ) : null}
         </div>

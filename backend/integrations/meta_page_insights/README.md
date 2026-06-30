@@ -16,6 +16,9 @@ Required env vars (see `backend/.env.sample`):
 - `META_PAGE_INSIGHTS_INCREMENTAL_LOOKBACK_DAYS`
 - `META_PAGE_INSIGHTS_POST_RECENCY_DAYS`
 
+Page Insights OAuth should request `pages_show_list`, `pages_read_engagement`, and `pages_manage_metadata`.
+Do not include `read_insights`; Facebook Login rejects it as an invalid scope.
+
 ## Local Sync Commands
 
 Run from `backend/`:
@@ -37,7 +40,7 @@ python manage.py shell -c "from integrations.tasks import sync_post_insights; sy
 - `wrong_oauth_flow`: OAuth callback state and endpoint mismatch. For page dashboard flow use:
   - start: `POST /api/meta/connect/start/`
   - callback: `POST /api/meta/connect/callback/`
-  and do not send that state to `POST /api/integrations/meta/oauth/exchange/`.
+    and do not send that state to `POST /api/integrations/meta/oauth/exchange/`.
 
 ## Page-Only Connect Runbook
 

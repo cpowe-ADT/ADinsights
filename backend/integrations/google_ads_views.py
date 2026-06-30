@@ -29,6 +29,7 @@ from integrations.airbyte.client import (
     AirbyteClient,
     AirbyteClientConfigurationError,
     AirbyteClientError,
+    client_safe_detail,
 )
 from integrations.google_ads.gaql_templates import get_gaql_template
 from integrations.google_ads.catalog import load_reference_catalog
@@ -129,17 +130,39 @@ def _google_oauth_scopes() -> list[str]:
     return resolved or list(DEFAULT_GOOGLE_ADS_OAUTH_SCOPES)
 
 
-def _google_state_payload(*, request) -> dict[str, str]:
-    return {
+def _google_state_payload(
+    *,
+    request,
+    customer_id: str | None = None,
+    login_customer_id: str | None = None,
+) -> dict[str, str]:
+    payload = {
         "tenant_id": str(request.user.tenant_id),
         "user_id": str(request.user.id),
         "nonce": secrets.token_urlsafe(24),
         "flow": "google_ads",
     }
+    if customer_id:
+        payload["customer_id"] = customer_id
+    if login_customer_id:
+        payload["login_customer_id"] = login_customer_id
+    return payload
 
 
-def _sign_google_state(*, request) -> str:
-    return signing.dumps(_google_state_payload(request=request), salt=GOOGLE_OAUTH_STATE_SALT)
+def _sign_google_state(
+    *,
+    request,
+    customer_id: str | None = None,
+    login_customer_id: str | None = None,
+) -> str:
+    return signing.dumps(
+        _google_state_payload(
+            request=request,
+            customer_id=customer_id,
+            login_customer_id=login_customer_id,
+        ),
+        salt=GOOGLE_OAUTH_STATE_SALT,
+    )
 
 
 def _validate_google_state(*, request, state: str) -> tuple[dict[str, Any], Response | None]:
@@ -325,12 +348,16 @@ def _configured_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
 
 
 def _airbyte_exception_response(exc: AirbyteClientError) -> Response:
+    # Full error (incl. any upstream Airbyte body) logged server-side; only a
+    # length-bounded detail is returned to the client.
+    logger.warning("airbyte.api_error", exc_info=exc)
+    detail = client_safe_detail(str(exc))
     status_code = (
         status.HTTP_504_GATEWAY_TIMEOUT
         if isinstance(exc.__cause__, httpx.TimeoutException)
         else status.HTTP_502_BAD_GATEWAY
     )
-    return Response({"detail": str(exc)}, status=status_code)
+    return Response({"detail": detail}, status=status_code)
 
 
 def _is_connection_active(connection: AirbyteConnection | None, now) -> bool:
@@ -482,6 +509,11 @@ class GoogleAdsSetupView(APIView):
             redirect_uri_configured = True
         except ValueError:
             redirect_uri_configured = False
+        runtime_redirect_ready = (
+            runtime_context.get("redirect_origin_matches_runtime") is not False
+            if runtime_context is not None
+            else True
+        )
         workspace_id_raw = (getattr(settings, "AIRBYTE_DEFAULT_WORKSPACE_ID", "") or "").strip()
         destination_id_raw = (getattr(settings, "AIRBYTE_DEFAULT_DESTINATION_ID", "") or "").strip()
         workspace_id = "" if _is_unset_or_placeholder(workspace_id_raw) else workspace_id_raw
@@ -491,7 +523,9 @@ class GoogleAdsSetupView(APIView):
             (getattr(settings, "AIRBYTE_SOURCE_DEFINITION_GOOGLE", "") or "").strip()
         )
 
-        ready_for_oauth = bool(client_id and client_secret and redirect_uri_configured)
+        ready_for_oauth = bool(
+            client_id and client_secret and redirect_uri_configured and runtime_redirect_ready
+        )
         ready_for_provisioning_defaults = bool(workspace_id and destination_id)
         checks = [
             {
@@ -505,6 +539,16 @@ class GoogleAdsSetupView(APIView):
                 "label": "Google OAuth redirect configured",
                 "ok": redirect_uri_configured,
                 "env_vars": ["GOOGLE_ADS_OAUTH_REDIRECT_URI", "FRONTEND_BASE_URL"],
+            },
+            {
+                "key": "google_runtime_redirect_origin",
+                "label": "Open the app on the same host as the configured OAuth redirect",
+                "ok": runtime_redirect_ready,
+                "details": (
+                    runtime_context.get("redirect_origin_mismatch_message")
+                    if runtime_context is not None
+                    else None
+                ),
             },
             {
                 "key": "google_ads_developer_token",
@@ -563,11 +607,33 @@ class GoogleAdsOAuthStartView(APIView):
             )
 
         try:
-            redirect_uri = _google_redirect_uri(request=request, payload=serializer.validated_data)
+            redirect_uri, runtime_context = _resolve_google_redirect_uri(
+                request=request,
+                payload=serializer.validated_data,
+            )
+            if runtime_context.get("redirect_origin_matches_runtime") is False:
+                return Response(
+                    {
+                        "detail": runtime_context.get("redirect_origin_mismatch_message")
+                        or "Open the app on the configured OAuth redirect host and try again.",
+                        "runtime_context": runtime_context,
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        signed_state = _sign_google_state(request=request)
+        customer_id = _normalize_google_customer_id(
+            str(serializer.validated_data.get("customer_id") or "")
+        )
+        login_customer_id = _normalize_google_customer_id(
+            str(serializer.validated_data.get("login_customer_id") or "")
+        )
+        signed_state = _sign_google_state(
+            request=request,
+            customer_id=customer_id or None,
+            login_customer_id=login_customer_id or None,
+        )
         prompt = serializer.validated_data.get("prompt") or "consent"
         query_payload = {
             "client_id": client_id,
@@ -597,7 +663,10 @@ class GoogleAdsOAuthExchangeView(APIView):
         serializer = GoogleAdsOAuthExchangeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        _, state_error = _validate_google_state(request=request, state=str(serializer.validated_data["state"]))
+        state_payload, state_error = _validate_google_state(
+            request=request,
+            state=str(serializer.validated_data["state"]),
+        )
         if state_error is not None:
             return state_error
 
@@ -609,12 +678,25 @@ class GoogleAdsOAuthExchangeView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        customer_id = _normalize_google_customer_id(str(serializer.validated_data["customer_id"]))
+        customer_id = _normalize_google_customer_id(
+            str(
+                serializer.validated_data.get("customer_id")
+                or state_payload.get("customer_id")
+                or ""
+            )
+        )
         if not customer_id:
             return Response(
                 {"detail": "customer_id must contain digits."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        login_customer_id = _normalize_google_customer_id(
+            str(
+                serializer.validated_data.get("login_customer_id")
+                or state_payload.get("login_customer_id")
+                or ""
+            )
+        )
 
         try:
             redirect_uri = _google_redirect_uri(request=request, payload=serializer.validated_data)
@@ -688,7 +770,7 @@ class GoogleAdsOAuthExchangeView(APIView):
                 "provider": PlatformCredential.GOOGLE,
                 "customer_id": customer_id,
                 "refresh_token_received": bool(refresh_token),
-                "login_customer_id": serializer.validated_data.get("login_customer_id") or "",
+                "login_customer_id": login_customer_id,
             },
         )
         emit_observability_event(
@@ -702,6 +784,8 @@ class GoogleAdsOAuthExchangeView(APIView):
             {
                 "credential": PlatformCredentialSerializer(credential).data,
                 "refresh_token_received": bool(refresh_token),
+                "customer_id": customer_id,
+                "login_customer_id": login_customer_id or "",
             },
             status=status.HTTP_201_CREATED,
         )
@@ -799,46 +883,39 @@ class GoogleAdsProvisionView(APIView):
         source_name = f"Google Ads Source {customer_id}"
         source_reused = False
         connection_reused = False
+        # Airbyte's current Google Ads connector (sourceDefinitionId
+        # 253487c0-2246-43ba-a21f-5116b20a2c50) requires credentials nested
+        # under a "credentials" object and uses conversion_window_days.
+        # custom_queries items take {query, table_name}; cursor/primary_key are
+        # managed by the connector. lookback_window and include_zero_impressions
+        # are not part of the current spec.
+        _ = lookback_window  # retained for future compatibility, unused below
+        base_credentials = {
+            "developer_token": developer_token,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "refresh_token": refresh_token,
+        }
         source_config_candidates = [
             {
-                "developer_token": developer_token,
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "refresh_token": refresh_token,
+                "credentials": base_credentials,
                 "customer_id": customer_id,
                 "login_customer_id": login_customer_id,
                 "start_date": start_date,
-                "conversion_window": conversion_window,
-                "lookback_window": lookback_window,
-                "use_resource_custom_queries": True,
+                "conversion_window_days": conversion_window,
                 "custom_queries": [
                     {
-                        "name": "ad_group_ad_performance_daily",
                         "query": runtime_query,
-                        "primary_key": ["campaign.id", "ad_group.id", "ad_group_ad.ad.id", "segments.date"],
-                        "cursor_field": "segments.date",
-                        "destination_sync_mode": "append_dedup",
+                        "table_name": "ad_group_ad_performance_daily",
                     }
                 ],
             },
             {
-                "developer_token": developer_token,
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "refresh_token": refresh_token,
+                "credentials": base_credentials,
                 "customer_id": customer_id,
                 "login_customer_id": login_customer_id,
                 "start_date": start_date,
-                "conversion_window": conversion_window,
-                "lookback_window": lookback_window,
-                "include_zero_impressions": True,
-                "custom_queries": [
-                    {
-                        "query": runtime_query,
-                        "cursor_field": "segments.date",
-                        "primary_key": ["campaign.id", "ad_group.id", "ad_group_ad.ad.id", "segments.date"],
-                    }
-                ],
+                "conversion_window_days": conversion_window,
             },
         ]
 
@@ -884,10 +961,31 @@ class GoogleAdsProvisionView(APIView):
                     if not isinstance(candidate_source_id, str) or not candidate_source_id:
                         raise ValueError("Airbyte source create/list response missing sourceId.")
 
-                    check_payload = client.check_source(candidate_source_id)
-                    check_status = str(check_payload.get("status", "")).lower()
-                    if check_status and check_status not in {"succeeded", "success"}:
-                        continue
+                    # check_source runs the connector to validate credentials and
+                    # can be slow / flaky on cold workspaces. Treat timeouts and
+                    # transient Airbyte errors as non-fatal — discover_source_schema
+                    # re-validates the credentials and will surface a clearer error
+                    # if they are actually broken.
+                    try:
+                        check_payload = client.check_source(candidate_source_id)
+                        check_status = str(check_payload.get("status", "")).lower()
+                        if check_status and check_status not in {"succeeded", "success"}:
+                            logger.warning(
+                                "google_ads.provision.check_source.rejected",
+                                extra={
+                                    "source_id": candidate_source_id,
+                                    "status": check_status,
+                                    "message": check_payload.get("message"),
+                                },
+                            )
+                            continue
+                    except AirbyteClientError as check_exc:
+                        logger.warning(
+                            "google_ads.provision.check_source.error",
+                            extra={"source_id": candidate_source_id, "error": str(check_exc)},
+                        )
+                        # Fall through to discover, which will raise a cleaner
+                        # error if credentials are truly invalid.
 
                     discovered = client.discover_source_schema(candidate_source_id)
                     catalog = discovered.get("catalog") if isinstance(discovered, dict) else None

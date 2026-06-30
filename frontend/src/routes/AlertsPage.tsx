@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
+import { useAuth } from '../auth/AuthContext';
 import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { listAlerts, type AlertRule } from '../lib/phase2Api';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
+import { canAccessCreatorUi } from '../lib/rbac';
 import '../styles/phase2.css';
 import '../styles/dashboard.css';
+import '../styles/skeleton.css';
 
 const AlertsPage = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const canCreate = canAccessCreatorUi(user);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [alerts, setAlerts] = useState<AlertRule[]>([]);
   const [error, setError] = useState('Unable to load alerts.');
@@ -29,7 +36,17 @@ const AlertsPage = () => {
   }, [load]);
 
   if (state === 'loading') {
-    return <DashboardState variant="loading" layout="page" message="Loading alerts…" />;
+    return (
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">Alerts</p>
+            <h1 className="dashboardHeading">Alert Rules</h1>
+          </div>
+        </header>
+        <SkeletonLoader variant="table" />
+      </section>
+    );
   }
 
   if (state === 'error') {
@@ -55,9 +72,19 @@ const AlertsPage = () => {
             Monitor thresholds, severities, and lookback windows.
           </p>
         </div>
-        <button type="button" className="button secondary" onClick={() => void load()}>
-          Refresh
-        </button>
+        <div className="phase2-row-actions">
+          <Link to="/alerts/history" className="button tertiary">
+            View history
+          </Link>
+          <button type="button" className="button secondary" onClick={() => void load()}>
+            Refresh
+          </button>
+          {canCreate ? (
+            <Link to="/alerts/new" className="button primary">
+              Create alert
+            </Link>
+          ) : null}
+        </div>
       </header>
 
       {alerts.length === 0 ? (
@@ -65,7 +92,9 @@ const AlertsPage = () => {
           variant="empty"
           layout="page"
           title="No alert rules"
-          message="Create alert rules in admin to drive this view."
+          message="Set up your first alert rule to monitor metric thresholds."
+          actionLabel={canCreate ? 'Create alert rule' : undefined}
+          onAction={canCreate ? () => navigate('/alerts/new') : undefined}
         />
       ) : (
         <table className="phase2-table">
@@ -75,6 +104,7 @@ const AlertsPage = () => {
               <th>Metric</th>
               <th>Rule</th>
               <th>Severity</th>
+              <th>Active</th>
               <th>Updated</th>
               <th></th>
             </tr>
@@ -90,6 +120,13 @@ const AlertsPage = () => {
                 <td>
                   <span className={`phase2-pill phase2-pill--${alert.severity}`}>
                     {alert.severity}
+                  </span>
+                </td>
+                <td>
+                  <span
+                    className={`phase2-pill phase2-pill--${alert.is_active ? 'fresh' : 'inactive'}`}
+                  >
+                    {alert.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </td>
                 <td>

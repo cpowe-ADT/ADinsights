@@ -1,6 +1,7 @@
 DBT_PROJECT_DIR ?= dbt
 DBT_PROFILES_DIR ?= $(DBT_PROJECT_DIR)
 DBT ?= dbt
+PYTHON ?= $(if $(wildcard backend/.venv/bin/python),backend/.venv/bin/python,python3)
 DBT_WRAPPER := ./scripts/dbt-wrapper.sh
 DEMO_SEED_DIR ?= dbt/seeds/demo
 COMPOSE_ENV_FILE := $(if $(wildcard .env.dev.compose),--env-file .env.dev.compose,)
@@ -11,6 +12,7 @@ $(DBT_WRAPPER) '$(DBT)' '$(DBT_PROJECT_DIR)' '$(DBT_PROFILES_DIR)' $(1)
 endef
 
 .PHONY: dbt-deps dbt-seed dbt-build dbt-test dbt-freshness dbt-docs dbt-build-full demo-data dbt-seed-demo demo-smoke
+.PHONY: frontend-build frontend-test frontend-lint frontend-guardrails backend-lint backend-test validate-local
 
 dbt-deps:
 	$(call RUN_DBT,deps)
@@ -34,14 +36,34 @@ dbt-build-full:
 	$(call RUN_DBT,build --full-refresh)
 
 demo-data:
-	python3 scripts/generate_demo_data.py --out $(DEMO_SEED_DIR) --days 90 --seed 42 --validate
+	$(PYTHON) scripts/generate_demo_data.py --out $(DEMO_SEED_DIR) --days 90 --seed 42 --validate
 
 dbt-seed-demo:
 	$(call RUN_DBT,seed --select path:seeds/demo)
 
 demo-smoke:
-	python3 scripts/generate_demo_data.py --out $(DEMO_SEED_DIR) --days 30 --seed 42 --validate
+	$(PYTHON) scripts/generate_demo_data.py --out $(DEMO_SEED_DIR) --days 30 --seed 42 --validate
 	$(call RUN_DBT,seed --select path:seeds/demo)
+
+frontend-build:
+	cd frontend && npm run build
+
+frontend-test:
+	cd frontend && npx vitest run
+
+frontend-lint:
+	cd frontend && npx eslint src/ --max-warnings=0
+
+frontend-guardrails:
+	node scripts/ci/check_frontend_guardrails.mjs
+
+backend-lint:
+	cd backend && ./.venv/bin/ruff check .
+
+backend-test:
+	cd backend && PYTHONPATH=.. ./.venv/bin/pytest -q
+
+validate-local: frontend-guardrails frontend-build frontend-test frontend-lint backend-lint backend-test
 
 .PHONY: dev dev-up dev-down dev-reset dev-seed dev-logs seed dev-bootstrap dev-ready dev-data dev-session
 
@@ -84,7 +106,7 @@ adinsights-preflight:
 		echo "Usage: make adinsights-preflight PROMPT='your planning or release question'"; \
 		exit 1; \
 	fi
-	python3 docs/ops/skills/adinsights-release-readiness/scripts/run_preflight_skillchain.py \
+	$(PYTHON) docs/ops/skills/adinsights-release-readiness/scripts/run_preflight_skillchain.py \
 		--prompt "$(PROMPT)" \
 		--changed-files-from-git \
 		--format markdown

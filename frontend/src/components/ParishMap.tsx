@@ -2,8 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Feature, FeatureCollection } from 'geojson';
 import L from 'leaflet';
 import { Link } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 
-import useDashboardStore, { type LoadStatus } from '../state/useDashboardStore';
+import useDashboardStore, {
+  type LoadStatus,
+  type ParishAggregate,
+} from '../state/useDashboardStore';
 import { formatCurrency, formatNumber, formatRatio } from '../lib/format';
 import { fetchParishGeometry } from '../lib/dataService';
 import { MOCK_MODE } from '../lib/apiClient';
@@ -12,6 +16,7 @@ import Skeleton from './Skeleton';
 import { useTheme } from './ThemeProvider';
 import styles from './ParishMap.module.css';
 const JAMAICA_CENTER: [number, number] = [18.1096, -77.2975];
+const EMPTY_PARISH_DATA: ParishAggregate[] = [];
 
 interface ParishMapProps {
   height?: number;
@@ -198,15 +203,19 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     selectedParish,
     setSelectedParish,
     activeTenantId,
-  } = useDashboardStore((state) => ({
-    parishData: state.parish.data ?? [],
-    parishStatus: state.parish.status,
-    parishError: state.parish.error,
-    selectedMetric: state.selectedMetric,
-    selectedParish: state.selectedParish,
-    setSelectedParish: state.setSelectedParish,
-    activeTenantId: state.activeTenantId,
-  }));
+    mapAvailability,
+  } = useDashboardStore(
+    useShallow((state) => ({
+      parishData: state.parish.data ?? EMPTY_PARISH_DATA,
+      parishStatus: state.parish.status,
+      parishError: state.parish.error,
+      selectedMetric: state.selectedMetric,
+      selectedParish: state.selectedParish,
+      setSelectedParish: state.setSelectedParish,
+      activeTenantId: state.activeTenantId,
+      mapAvailability: state.availability?.parish_map,
+    })),
+  );
   const [geojson, setGeojson] = useState<FeatureCollection | null>(null);
   const [geometryStatus, setGeometryStatus] = useState<LoadStatus>('idle');
   const [geometryError, setGeometryError] = useState<string>();
@@ -224,6 +233,19 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
   }));
   const [scrollZoomEnabled, setScrollZoomEnabled] = useState(false);
   const geometryControllerRef = useRef<AbortController | null>(null);
+  const invalidateCurrentMapSize = useCallback((map: L.Map | null | undefined) => {
+    const node = mapNodeRef.current;
+    if (!map || !node || mapRef.current !== map || !node.isConnected) {
+      return;
+    }
+    try {
+      if (map.getContainer() === node) {
+        map.invalidateSize();
+      }
+    } catch (error) {
+      console.warn('Skipped parish map resize after map teardown', error);
+    }
+  }, []);
 
   const palette = useMemo(() => resolvePalette(theme), [theme]);
   const borderColor = palette.border;
@@ -733,11 +755,12 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
       mapRef.current = map;
       setMapReady(true);
       requestAnimationFrame(() => {
-        map.invalidateSize();
+        invalidateCurrentMapSize(map);
       });
     } else {
+      const map = mapRef.current;
       requestAnimationFrame(() => {
-        mapRef.current?.invalidateSize();
+        invalidateCurrentMapSize(map);
       });
     }
 
@@ -750,7 +773,7 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
         setMapReady(false);
       }
     };
-  }, []);
+  }, [invalidateCurrentMapSize]);
 
   useEffect(() => {
     if (!mapRef.current || !mapReady) {
@@ -785,12 +808,13 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
       const bounds = layer.getBounds();
       if (bounds.isValid()) {
         mapRef.current.fitBounds(bounds, { padding: [16, 16], maxZoom: 11 });
+        const map = mapRef.current;
         requestAnimationFrame(() => {
-          mapRef.current?.invalidateSize();
+          invalidateCurrentMapSize(map);
         });
       }
     }
-  }, [geojson, mapReady, onEachFeature]);
+  }, [geojson, invalidateCurrentMapSize, mapReady, onEachFeature]);
 
   useEffect(() => {
     if (!geoJsonLayerRef.current) {
@@ -833,10 +857,11 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
       return;
     }
 
+    const map = mapRef.current;
     requestAnimationFrame(() => {
-      mapRef.current?.invalidateSize();
+      invalidateCurrentMapSize(map);
     });
-  }, [height, geojson, mapReady]);
+  }, [geojson, height, invalidateCurrentMapSize, mapReady]);
 
   useEffect(() => {
     if (!geojson || !mapReady) {
@@ -938,13 +963,40 @@ const ParishMap = ({ height = 320, onRetry }: ParishMapProps) => {
     );
   }
 
-  if (parishData.length === 0) {
+  if (mapAvailability?.reason === 'geo_unavailable') {
     return (
       <DashboardState
         variant="empty"
         icon={<MapPlaceholderIcon />}
-        title="No map insights yet"
-        message="Map insights will appear once this tenant has campaign data."
+        title="Map unavailable for this Meta dataset"
+        message="The selected Meta Ads data does not include trustworthy parish coverage yet, so the map is intentionally disabled instead of showing misleading geography."
+        actionLabel={selectedParish ? 'Clear parish filter' : 'Refresh data'}
+        onAction={selectedParish ? clearParishFilter : handleRetry}
+        actionVariant="secondary"
+        layout="compact"
+      />
+    );
+  }
+
+  if (parishData.length === 0) {
+    return (
+      <DashboardState
+        variant={mapAvailability?.reason === 'no_matching_filters' ? 'no-results' : 'empty'}
+        icon={<MapPlaceholderIcon />}
+        title={
+          mapAvailability?.reason === 'geo_unavailable'
+            ? 'Map unavailable for this Meta dataset'
+            : mapAvailability?.reason === 'no_matching_filters'
+              ? 'No map rows match this view'
+              : 'No map insights yet'
+        }
+        message={
+          mapAvailability?.reason === 'geo_unavailable'
+            ? 'The selected Meta Ads data does not include trustworthy parish coverage yet, so the map is intentionally disabled instead of showing misleading geography.'
+            : mapAvailability?.reason === 'no_matching_filters'
+              ? 'No parish rows matched the selected client, range, or search filters.'
+              : 'Map insights will appear once this tenant has campaign data.'
+        }
         actionLabel="Refresh data"
         onAction={handleRetry}
         actionVariant="secondary"

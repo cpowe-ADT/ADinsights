@@ -2,6 +2,11 @@ import apiClient, { appendQueryParams, type QueryParams } from './apiClient';
 import { buildRuntimeContextPayload } from './runtimeContext';
 
 export type MetricStatus = 'ACTIVE' | 'DEPRECATED' | 'INVALID' | 'UNKNOWN';
+export type MetricAvailabilityState =
+  | 'available'
+  | 'callable_no_data'
+  | 'permission_gated'
+  | 'unsupported';
 export const META_OAUTH_FLOW_SESSION_KEY = 'adinsights.meta.oauth.flow';
 export const META_OAUTH_FLOW_PAGE_INSIGHTS = 'page_insights';
 
@@ -10,6 +15,8 @@ export interface MetricAvailabilityEntry {
   status?: MetricStatus;
   last_checked_at: string | null;
   reason: string;
+  availability_state?: MetricAvailabilityState;
+  availability_note?: string;
 }
 
 export interface MetaPageRecord {
@@ -37,6 +44,7 @@ export interface MetaOAuthCallbackResponse {
 export interface MetaPagesResponse {
   results: MetaPageRecord[];
   count: number;
+  missing_required_permissions?: string[];
 }
 
 export interface MetaKpi {
@@ -44,6 +52,8 @@ export interface MetaKpi {
   resolved_metric: string;
   value: number | null;
   today_value: number | null;
+  prior_value?: number | null;
+  change_pct?: number | null;
 }
 
 export interface MetaMetricOption {
@@ -66,6 +76,11 @@ export interface MetaOverviewCard {
   value_range: string | null;
 }
 
+export interface BreakdownEntry {
+  type: string;
+  value: number | null;
+}
+
 export interface MetaOverviewResponse {
   page_id: string;
   name: string;
@@ -79,6 +94,7 @@ export interface MetaOverviewResponse {
   primary_metric: string | null;
   cards: MetaOverviewCard[];
   metrics: MetaMetricOption[];
+  engagement_breakdown?: Record<string, BreakdownEntry[]>;
 }
 
 export interface MetaPostListItem {
@@ -90,6 +106,7 @@ export interface MetaPostListItem {
   media_type: string;
   message_snippet: string;
   message?: string;
+  thumbnail_url?: string;
   metrics: Record<string, number | null>;
   last_synced_at: string | null;
 }
@@ -116,6 +133,7 @@ export interface MetaPostDetailResponse {
   permalink: string;
   media_type: string;
   message: string;
+  thumbnail_url?: string;
   last_synced_at: string | null;
   metric_availability: Record<string, MetricAvailabilityEntry>;
   metrics: Record<string, number | null>;
@@ -172,7 +190,10 @@ export async function startMetaOAuth(authType?: 'rerequest') {
   );
 }
 
-export async function callbackMetaOAuth(code: string, state: string): Promise<MetaOAuthCallbackResponse> {
+export async function callbackMetaOAuth(
+  code: string,
+  state: string,
+): Promise<MetaOAuthCallbackResponse> {
   const runtimeContext = buildRuntimeContextPayload();
   const hasRuntimeContext = Boolean(runtimeContext.client_origin || runtimeContext.client_port);
   return apiClient.post<MetaOAuthCallbackResponse>(
@@ -181,8 +202,13 @@ export async function callbackMetaOAuth(code: string, state: string): Promise<Me
   );
 }
 
-export async function selectMetaPage(pageId: string): Promise<{ page_id: string; selected: boolean }> {
-  return apiClient.post<{ page_id: string; selected: boolean }>(`/integrations/meta/pages/${pageId}/select/`, {});
+export async function selectMetaPage(
+  pageId: string,
+): Promise<{ page_id: string; selected: boolean }> {
+  return apiClient.post<{ page_id: string; selected: boolean }>(
+    `/integrations/meta/pages/${pageId}/select/`,
+    {},
+  );
 }
 
 export async function loadMetaPages(): Promise<MetaPagesResponse> {
@@ -191,9 +217,11 @@ export async function loadMetaPages(): Promise<MetaPagesResponse> {
 
 export async function loadMetaPageOverview(
   pageId: string,
-  params?: { date_preset?: string; since?: string; until?: string },
+  params?: { date_preset?: string; since?: string; until?: string; compare_to?: string },
 ): Promise<MetaOverviewResponse> {
-  const payload = await apiClient.get<MetaOverviewResponse>(withQuery(`/meta/pages/${pageId}/overview/`, params));
+  const payload = await apiClient.get<MetaOverviewResponse>(
+    withQuery(`/meta/pages/${pageId}/overview/`, params),
+  );
   return {
     ...payload,
     cards: payload.cards ?? [],
@@ -215,7 +243,9 @@ export async function loadMetaPagePosts(
     sort_metric?: string;
   },
 ): Promise<MetaPostsResponse> {
-  const payload = await apiClient.get<MetaPostsResponse>(withQuery(`/meta/pages/${pageId}/posts/`, params));
+  const payload = await apiClient.get<MetaPostsResponse>(
+    withQuery(`/meta/pages/${pageId}/posts/`, params),
+  );
   return {
     ...payload,
     results: payload.results.map((item) => ({
@@ -230,7 +260,9 @@ export async function loadMetaPageTimeseries(
   pageId: string,
   params: { metric: string; period?: string; date_preset?: string; since?: string; until?: string },
 ): Promise<MetaTimeseriesResponse> {
-  return apiClient.get<MetaTimeseriesResponse>(withQuery(`/meta/pages/${pageId}/timeseries/`, params));
+  return apiClient.get<MetaTimeseriesResponse>(
+    withQuery(`/meta/pages/${pageId}/timeseries/`, params),
+  );
 }
 
 export async function loadMetaPostDetail(postId: string): Promise<MetaPostDetailResponse> {
@@ -241,7 +273,9 @@ export async function loadMetaPostTimeseries(
   postId: string,
   params: { metric: string; period?: string; since?: string; until?: string },
 ): Promise<MetaTimeseriesResponse> {
-  return apiClient.get<MetaTimeseriesResponse>(withQuery(`/meta/posts/${postId}/timeseries/`, params));
+  return apiClient.get<MetaTimeseriesResponse>(
+    withQuery(`/meta/posts/${postId}/timeseries/`, params),
+  );
 }
 
 export async function refreshMetaPageInsights(
@@ -251,11 +285,16 @@ export async function refreshMetaPageInsights(
   return apiClient.post<MetaSyncResponse>(`/meta/pages/${pageId}/sync/`, payload ?? {});
 }
 
-export async function listMetaMetrics(params: { level: 'PAGE' | 'POST'; include_all?: boolean }): Promise<{
+export async function listMetaMetrics(params: {
+  level: 'PAGE' | 'POST';
+  include_all?: boolean;
+}): Promise<{
   results: MetaMetricOption[];
   count: number;
 }> {
-  return apiClient.get<{ results: MetaMetricOption[]; count: number }>(withQuery('/meta/metrics/', params));
+  return apiClient.get<{ results: MetaMetricOption[]; count: number }>(
+    withQuery('/meta/metrics/', params),
+  );
 }
 
 export async function listMetaPageExports(pageId: string): Promise<MetaExportJob[]> {
@@ -283,4 +322,57 @@ export async function createMetaPageExport(
 
 export async function downloadExportArtifact(exportJobId: string) {
   return apiClient.download(`/exports/${exportJobId}/download/`);
+}
+
+// --- Page Insights saved views ---
+
+export type PageInsightsSavedView = {
+  id: string;
+  name: string;
+  description: string;
+  template_key: 'meta_page_insights';
+  filters: {
+    page_id?: string;
+    date_preset?: string;
+    since?: string;
+    until?: string;
+    metric?: string;
+    period?: string;
+    compare_to?: string;
+  };
+  layout: Record<string, unknown>;
+  default_metric: string;
+  is_active: boolean;
+  owner_email?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function listPageInsightsSavedViews(pageId: string): Promise<PageInsightsSavedView[]> {
+  const all = await apiClient.get<PageInsightsSavedView[]>(
+    appendQueryParams('/dashboards/definitions/', { template_key: 'meta_page_insights' }),
+  );
+  const results = Array.isArray(all)
+    ? all
+    : ((all as { results?: PageInsightsSavedView[] }).results ?? []);
+  return results.filter((view) => view.filters?.page_id === pageId);
+}
+
+export async function savePageInsightsView(
+  name: string,
+  filters: PageInsightsSavedView['filters'],
+): Promise<PageInsightsSavedView> {
+  return apiClient.post<PageInsightsSavedView>('/dashboards/definitions/', {
+    name,
+    description: '',
+    template_key: 'meta_page_insights',
+    filters,
+    layout: {},
+    default_metric: filters.metric ?? 'page_post_engagements',
+    is_active: true,
+  });
+}
+
+export async function deletePageInsightsView(id: string): Promise<void> {
+  await apiClient.delete(`/dashboards/definitions/${id}/`);
 }

@@ -18,6 +18,7 @@ const metricsSnapshot = {
   creative: aggregatedMetricsResponse.creative,
   budget: aggregatedMetricsResponse.budget,
   parish: parishAggregates,
+  availability: aggregatedMetricsResponse.availability,
 } as const;
 
 test.describe('tenant switching', () => {

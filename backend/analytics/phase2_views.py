@@ -3,10 +3,11 @@ from __future__ import annotations
 import json
 import logging
 import mimetypes
-from pathlib import Path
 from datetime import timedelta
 from typing import Any
 
+from django.core.cache import cache
+from django.db import transaction
 from django.http import HttpResponseBase
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
@@ -20,20 +21,229 @@ from rest_framework.views import APIView
 
 from accounts.audit import log_audit_event
 from accounts.permissions import HasPrivilege
-from analytics.models import AISummary, ReportDefinition, ReportExportJob, TenantMetricsSnapshot
+from analytics.models import (
+    AISummary,
+    DashboardDefinition,
+    ReportDefinition,
+    ReportExportJob,
+    TenantMetricsSnapshot,
+)
 from integrations.models import AirbyteConnection
 from integrations.views import AlertRuleDefinitionViewSet
 
 from .phase2_serializers import (
     AISummarySerializer,
+    DashboardDefinitionSerializer,
     ReportDefinitionSerializer,
     ReportExportCreateSerializer,
     ReportExportJobSerializer,
+)
+from .reporting_preview import ReportingWidgetPreviewError, build_widget_preview
+from .reporting_availability import (
+    ReportingAvailabilityError,
+    build_report_data_availability,
+)
+from .reporting_catalog import get_reporting_catalog
+from .reporting_delivery import create_scheduled_report_dry_run
+from .reporting_report_preview import (
+    ReportingReportExportBlocked,
+    ReportingReportPreviewError,
+    build_report_diagnostics,
+    build_report_export_metadata,
+    build_report_preview,
+    build_saved_report_layout_snapshot,
+)
+from .reporting_templates import (
+    SLB_MONTHLY_TEMPLATE_KEY,
+    build_report_layout_from_template,
+    get_report_template_definition,
+    get_report_template_registry,
 )
 
 logger = logging.getLogger(__name__)
 
 SYNC_HEALTH_STALE_THRESHOLD = timedelta(hours=2)
+REPORT_PREVIEW_CALLS_PER_HOUR = 120
+REPORT_EXPORTS_PER_HOUR = 24
+REPORT_SCHEDULED_DRY_RUNS_PER_HOUR = 12
+REPORT_ACTION_PRIVILEGES = {
+    "list": "report_view",
+    "retrieve": "report_view",
+    "exports": "report_view",
+    "preview": "report_preview",
+    "diagnostics": "report_preview",
+    "create_export": "report_export",
+    "scheduled_dry_run": "report_schedule",
+    "toggle_schedule": "report_schedule",
+    "destroy": "report_delete",
+    "create": "report_edit",
+    "update": "report_edit",
+    "partial_update": "report_edit",
+    "slb_monthly_template": "report_edit",
+    "templates": "report_view",
+    "from_template": "report_edit",
+    "data_availability": "report_view",
+}
+
+DASHBOARD_TEMPLATE_LIBRARY = (
+    {
+        "id": DashboardDefinition.TEMPLATE_META_EXECUTIVE_OVERVIEW,
+        "template_key": DashboardDefinition.TEMPLATE_META_EXECUTIVE_OVERVIEW,
+        "name": "Meta executive overview",
+        "type": "Executive overview",
+        "tags": ["Meta Ads", "Executive", "KPI summary"],
+        "description": "High-level Meta Ads performance with trend, pacing, and coverage context.",
+        "route": f"/dashboards/create?template={DashboardDefinition.TEMPLATE_META_EXECUTIVE_OVERVIEW}",
+    },
+    {
+        "id": DashboardDefinition.TEMPLATE_META_CAMPAIGN_PERFORMANCE,
+        "template_key": DashboardDefinition.TEMPLATE_META_CAMPAIGN_PERFORMANCE,
+        "name": "Meta campaign performance",
+        "type": "Campaigns",
+        "tags": ["Meta Ads", "Campaigns", "ROAS"],
+        "description": "Campaign KPI strip, trend, table, and map state for Meta Ads.",
+        "route": f"/dashboards/create?template={DashboardDefinition.TEMPLATE_META_CAMPAIGN_PERFORMANCE}",
+    },
+    {
+        "id": DashboardDefinition.TEMPLATE_META_CREATIVE_INSIGHTS,
+        "template_key": DashboardDefinition.TEMPLATE_META_CREATIVE_INSIGHTS,
+        "name": "Meta creative insights",
+        "type": "Creatives",
+        "tags": ["Meta Ads", "Creatives", "CTR"],
+        "description": "Creative leaderboard and thumbnail-based performance review.",
+        "route": f"/dashboards/create?template={DashboardDefinition.TEMPLATE_META_CREATIVE_INSIGHTS}",
+    },
+    {
+        "id": DashboardDefinition.TEMPLATE_META_BUDGET_PACING,
+        "template_key": DashboardDefinition.TEMPLATE_META_BUDGET_PACING,
+        "name": "Meta budget pacing",
+        "type": "Budget pacing",
+        "tags": ["Meta Ads", "Budget", "Pacing"],
+        "description": "Budget pacing view with projected spend and pacing risk indicators.",
+        "route": f"/dashboards/create?template={DashboardDefinition.TEMPLATE_META_BUDGET_PACING}",
+    },
+    {
+        "id": DashboardDefinition.TEMPLATE_META_PARISH_MAP,
+        "template_key": DashboardDefinition.TEMPLATE_META_PARISH_MAP,
+        "name": "Meta parish map",
+        "type": "Parish map",
+        "tags": ["Meta Ads", "Geo", "Map"],
+        "description": "Geographic Meta Ads view that gracefully degrades when parish coverage is unavailable.",
+        "route": f"/dashboards/create?template={DashboardDefinition.TEMPLATE_META_PARISH_MAP}",
+    },
+    {
+        "id": DashboardDefinition.TEMPLATE_META_PAGE_INSIGHTS,
+        "template_key": DashboardDefinition.TEMPLATE_META_PAGE_INSIGHTS,
+        "name": "Meta page insights",
+        "type": "Page insights",
+        "tags": ["Meta", "Pages", "Insights"],
+        "description": "Saved view for Facebook Page overview filters and trend configuration.",
+        "route": "/dashboards/meta/pages",
+    },
+)
+
+DEFAULT_DASHBOARD_PRESETS = (
+    {
+        "name": "Executive overview (30 days)",
+        "description": "System-created executive summary dashboard for the last 30 days.",
+        "template_key": DashboardDefinition.TEMPLATE_META_EXECUTIVE_OVERVIEW,
+        "default_metric": DashboardDefinition.METRIC_SPEND,
+        "filters": {
+            "dateRange": "30d",
+            "accountId": "",
+            "channels": [],
+            "campaignQuery": "",
+            "customRange": {"start": "", "end": ""},
+        },
+        "layout": {
+            "routeKind": "campaigns",
+            "widgets": ["kpis", "trend", "campaign_table", "budget_summary", "map"],
+        },
+    },
+    {
+        "name": "Campaign review (7 days)",
+        "description": "System-created campaign review dashboard for the last 7 days.",
+        "template_key": DashboardDefinition.TEMPLATE_META_CAMPAIGN_PERFORMANCE,
+        "default_metric": DashboardDefinition.METRIC_SPEND,
+        "filters": {
+            "dateRange": "7d",
+            "accountId": "",
+            "channels": [],
+            "campaignQuery": "",
+            "customRange": {"start": "", "end": ""},
+        },
+        "layout": {
+            "routeKind": "campaigns",
+            "widgets": ["kpis", "trend", "campaign_table", "map"],
+        },
+    },
+    {
+        "name": "Budget pacing (MTD)",
+        "description": "System-created budget pacing dashboard for month-to-date monitoring.",
+        "template_key": DashboardDefinition.TEMPLATE_META_BUDGET_PACING,
+        "default_metric": DashboardDefinition.METRIC_CPA,
+        "filters": {
+            "dateRange": "mtd",
+            "accountId": "",
+            "channels": [],
+            "campaignQuery": "",
+            "customRange": {"start": "", "end": ""},
+        },
+        "layout": {
+            "routeKind": "budget",
+            "widgets": ["budget_summary", "budget_table", "coverage"],
+        },
+    },
+)
+
+
+def ensure_default_dashboard_presets(*, tenant) -> None:
+    with transaction.atomic():
+        active_dashboards = DashboardDefinition.objects.select_for_update().filter(
+            tenant=tenant,
+            is_active=True,
+        )
+        if active_dashboards.exists():
+            return
+
+        for preset in DEFAULT_DASHBOARD_PRESETS:
+            DashboardDefinition.objects.get_or_create(
+                tenant=tenant,
+                name=preset["name"],
+                template_key=preset["template_key"],
+                defaults={
+                    "description": preset["description"],
+                    "filters": preset["filters"],
+                    "layout": preset["layout"],
+                    "default_metric": preset["default_metric"],
+                    "is_active": True,
+                    "created_by": None,
+                    "updated_by": None,
+                },
+            )
+
+
+def _check_report_action_quota(
+    *,
+    tenant_id: object,
+    report_id: object,
+    action_name: str,
+    limit: int,
+) -> tuple[bool, int]:
+    now = timezone.now()
+    cache_key = (
+        f"reporting:{tenant_id}:{report_id}:{action_name}:"
+        f"{now.strftime('%Y%m%d%H')}"
+    )
+    added = cache.add(cache_key, 1, timeout=3700)
+    if added:
+        return True, 1
+    try:
+        current = cache.incr(cache_key)
+    except ValueError:
+        cache.set(cache_key, 1, timeout=3700)
+        current = 1
+    return current <= limit, int(current)
 
 
 class ReportDefinitionSchema(AutoSchema):
@@ -52,11 +262,26 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
     required_privilege = "dashboard_edit"
     schema = ReportDefinitionSchema()
 
+    def get_permissions(self):
+        action_name = getattr(self, "action", None)
+        if (
+            action_name == "exports"
+            and getattr(self.request, "method", "").upper() == "POST"
+        ):
+            self.required_privilege = "report_export"
+        else:
+            self.required_privilege = REPORT_ACTION_PRIVILEGES.get(
+                action_name, "report_edit"
+            )
+        return super().get_permissions()
+
     def get_queryset(self):
         user = self.request.user
         if not user or not user.is_authenticated:
             return ReportDefinition.objects.none()
-        return ReportDefinition.objects.filter(tenant_id=user.tenant_id).order_by("-updated_at")
+        return ReportDefinition.objects.filter(tenant_id=user.tenant_id).order_by(
+            "-updated_at"
+        )
 
     def perform_create(self, serializer):
         actor = self.request.user if self.request.user.is_authenticated else None
@@ -71,7 +296,10 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
             action="report_created",
             resource_type="report_definition",
             resource_id=report.id,
-            metadata={"fields": sorted(serializer.validated_data.keys()), "redacted": True},
+            metadata={
+                "fields": sorted(serializer.validated_data.keys()),
+                "redacted": True,
+            },
         )
 
     def perform_update(self, serializer):
@@ -83,7 +311,10 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
             action="report_updated",
             resource_type="report_definition",
             resource_id=report.id,
-            metadata={"fields": sorted(serializer.validated_data.keys()), "redacted": True},
+            metadata={
+                "fields": sorted(serializer.validated_data.keys()),
+                "redacted": True,
+            },
         )
 
     def perform_destroy(self, instance):
@@ -100,12 +331,195 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
             metadata={"fields": [], "redacted": True},
         )
 
+    @action(detail=True, methods=["post"])
+    def toggle_schedule(self, request, pk=None):
+        report = self.get_object()
+        enabled = request.data.get("enabled", False)
+        report.schedule_enabled = bool(enabled)
+        report.save(update_fields=["schedule_enabled", "updated_at"])
+        actor = request.user if request.user.is_authenticated else None
+        log_audit_event(
+            tenant=report.tenant,
+            user=actor,
+            action="report_schedule_toggled",
+            resource_type="report_definition",
+            resource_id=report.id,
+            metadata={"schedule_enabled": report.schedule_enabled},
+        )
+        return Response(ReportDefinitionSerializer(report).data)
+
+    @action(detail=False, methods=["post"], url_path="slb-monthly-template")
+    def slb_monthly_template(self, request):
+        return self._create_report_from_template(
+            request=request,
+            template_key=SLB_MONTHLY_TEMPLATE_KEY,
+            default_name="SLB Monthly Social Report",
+            default_description="Catalog-governed SLB monthly report without Instagram in v1.",
+        )
+
+    @action(detail=False, methods=["get"], url_path="templates")
+    def templates(self, request):
+        return Response(
+            {
+                "schema_version": "report_template_registry.v1",
+                "templates": get_report_template_registry(),
+            }
+        )
+
+    @action(detail=False, methods=["get"], url_path="data-availability")
+    def data_availability(self, request):
+        try:
+            payload = build_report_data_availability(
+                tenant=request.user.tenant,
+                params=request.query_params,
+            )
+        except ReportingAvailabilityError as exc:
+            return Response({"errors": exc.errors}, status=exc.status_code)
+        return Response(payload)
+
+    @action(detail=False, methods=["post"], url_path="from-template")
+    def from_template(self, request):
+        template_key = str(request.data.get("template_key") or "").strip()
+        if not template_key:
+            return Response(
+                {"errors": ["template_key is required."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return self._create_report_from_template(
+            request=request, template_key=template_key
+        )
+
+    def _create_report_from_template(
+        self,
+        *,
+        request,
+        template_key: str,
+        default_name: str | None = None,
+        default_description: str | None = None,
+    ):
+        definition = get_report_template_definition(template_key)
+        if definition is None:
+            return Response(
+                {"errors": [f"unknown report template '{template_key}'."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        actor = request.user if request.user.is_authenticated else None
+        date_range = str(request.data.get("date_range") or "last_month").strip()
+        start_date = str(request.data.get("start_date") or "").strip()
+        end_date = str(request.data.get("end_date") or "").strip()
+        report = ReportDefinition.objects.create(
+            tenant=request.user.tenant,
+            name=str(
+                request.data.get("name") or default_name or definition.label
+            ).strip(),
+            description=(
+                str(request.data.get("description") or "")
+                or default_description
+                or f"Catalog-governed {definition.label}."
+            ),
+            filters={
+                "date_range": date_range,
+                "start_date": start_date,
+                "end_date": end_date,
+                "client_id": str(request.data.get("client_id") or "").strip(),
+                "account_id": str(request.data.get("account_id") or "").strip(),
+                "page_id": str(request.data.get("page_id") or "").strip(),
+                "template_key": template_key,
+            },
+            layout=build_report_layout_from_template(
+                template_key=template_key,
+                date_range=date_range,
+                start_date=start_date,
+                end_date=end_date,
+            ),
+            created_by=actor,
+            updated_by=actor,
+        )
+        log_audit_event(
+            tenant=report.tenant,
+            user=actor,
+            action="report_template_created",
+            resource_type="report_definition",
+            resource_id=report.id,
+            metadata={
+                "redacted": True,
+                "template_key": template_key,
+                "fields": ["date_range", "client_id"],
+            },
+        )
+        return Response(
+            ReportDefinitionSerializer(report).data, status=status.HTTP_201_CREATED
+        )
+
     @action(detail=True, methods=["get"], url_path="exports")
     def exports(self, request, pk=None):
         report = self.get_object()
 
-        jobs = report.export_jobs.filter(tenant_id=report.tenant_id).order_by("-created_at")
+        jobs = report.export_jobs.filter(tenant_id=report.tenant_id).order_by(
+            "-created_at"
+        )
         return Response(ReportExportJobSerializer(jobs, many=True).data)
+
+    @action(detail=True, methods=["post"], url_path="preview")
+    def preview(self, request, pk=None):
+        report = self.get_object()
+        allowed, current = _check_report_action_quota(
+            tenant_id=report.tenant_id,
+            report_id=report.id,
+            action_name="preview",
+            limit=REPORT_PREVIEW_CALLS_PER_HOUR,
+        )
+        if not allowed:
+            return Response(
+                {
+                    "errors": [
+                        f"Report preview quota exceeded ({current}/{REPORT_PREVIEW_CALLS_PER_HOUR} per hour)."
+                    ]
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        try:
+            preview_payload = build_report_preview(
+                report=report, payload=request.data or {}
+            )
+        except ReportingReportPreviewError as exc:
+            return Response({"errors": exc.errors}, status=exc.status_code)
+        log_audit_event(
+            tenant=report.tenant,
+            user=request.user if request.user.is_authenticated else None,
+            action="report_previewed",
+            resource_type="report_definition",
+            resource_id=report.id,
+            metadata={
+                "redacted": True,
+                "schema_version": preview_payload.get("report", {}).get(
+                    "schema_version"
+                ),
+                "export_ready": preview_payload.get("export_ready"),
+                "preview_hash": preview_payload.get("preview_hash"),
+            },
+        )
+        return Response(preview_payload)
+
+    @action(detail=True, methods=["get"], url_path="diagnostics")
+    def diagnostics(self, request, pk=None):
+        report = self.get_object()
+        diagnostics_payload = build_report_diagnostics(report=report)
+        log_audit_event(
+            tenant=report.tenant,
+            user=request.user if request.user.is_authenticated else None,
+            action="report_diagnostics_viewed",
+            resource_type="report_definition",
+            resource_id=report.id,
+            metadata={
+                "redacted": True,
+                "schema_version": diagnostics_payload.get("report", {}).get(
+                    "schema_version"
+                ),
+                "export_ready": diagnostics_payload.get("export_ready"),
+            },
+        )
+        return Response(diagnostics_payload)
 
     @exports.mapping.post
     def create_export(self, request, pk=None):
@@ -114,12 +528,57 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
 
         payload = ReportExportCreateSerializer(data=request.data or {})
         payload.is_valid(raise_exception=True)
+        allowed, current = _check_report_action_quota(
+            tenant_id=report.tenant_id,
+            report_id=report.id,
+            action_name="export",
+            limit=REPORT_EXPORTS_PER_HOUR,
+        )
+        if not allowed:
+            return Response(
+                {
+                    "errors": [
+                        f"Report export quota exceeded ({current}/{REPORT_EXPORTS_PER_HOUR} per hour)."
+                    ]
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        metadata: dict[str, Any] = {}
+        if (
+            isinstance(report.layout, dict)
+            and report.layout.get("schema_version") == "report.v1"
+        ):
+            try:
+                metadata["report_preview"] = build_report_export_metadata(report=report)
+            except ReportingReportExportBlocked as exc:
+                log_audit_event(
+                    tenant=report.tenant,
+                    user=actor,
+                    action="report_export_blocked",
+                    resource_type="report_definition",
+                    resource_id=report.id,
+                    metadata={
+                        "redacted": True,
+                        "blocking_reasons": exc.errors,
+                        "export_format": payload.validated_data["export_format"],
+                    },
+                )
+                return Response({"errors": exc.errors}, status=status.HTTP_409_CONFLICT)
+            report_layout = build_saved_report_layout_snapshot(
+                report=report,
+                requested_by=actor,
+                snapshot=metadata["report_preview"].get("report_snapshot"),
+            )
+            if report_layout is not None:
+                metadata["report_layout"] = report_layout
+
         export_job = ReportExportJob.objects.create(
             tenant=report.tenant,
             report=report,
             requested_by=actor,
             export_format=payload.validated_data["export_format"],
             status=ReportExportJob.STATUS_QUEUED,
+            metadata=metadata,
         )
 
         log_audit_event(
@@ -140,13 +599,242 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
 
             run_report_export_job.delay(str(export_job.id))
         except Exception as exc:  # pragma: no cover - defensive fallback
-            logger.exception("Failed to enqueue report export", exc_info=exc)
+            logger.warning(
+                "analytics.report_export.enqueue_failed",
+                extra={
+                    "tenant_id": str(report.tenant_id),
+                    "report_export_job_id": str(export_job.id),
+                    "export_format": export_job.export_format,
+                    "error_type": type(exc).__name__,
+                },
+            )
             export_job.status = ReportExportJob.STATUS_FAILED
-            export_job.error_message = str(exc)
+            export_job.error_message = (
+                f"Export scheduling failed ({type(exc).__name__})."
+            )
             export_job.completed_at = timezone.now()
-            export_job.save(update_fields=["status", "error_message", "completed_at", "updated_at"])
+            export_job.save(
+                update_fields=["status", "error_message", "completed_at", "updated_at"]
+            )
 
-        return Response(ReportExportJobSerializer(export_job).data, status=status.HTTP_201_CREATED)
+        return Response(
+            ReportExportJobSerializer(export_job).data, status=status.HTTP_201_CREATED
+        )
+
+    @action(detail=True, methods=["post"], url_path="scheduled-dry-run")
+    def scheduled_dry_run(self, request, pk=None):
+        report = self.get_object()
+        actor = request.user if request.user.is_authenticated else None
+        payload = ReportExportCreateSerializer(data=request.data or {})
+        payload.is_valid(raise_exception=True)
+        allowed, current = _check_report_action_quota(
+            tenant_id=report.tenant_id,
+            report_id=report.id,
+            action_name="scheduled_dry_run",
+            limit=REPORT_SCHEDULED_DRY_RUNS_PER_HOUR,
+        )
+        if not allowed:
+            return Response(
+                {
+                    "errors": [
+                        (
+                            "Scheduled report dry-run quota exceeded "
+                            f"({current}/{REPORT_SCHEDULED_DRY_RUNS_PER_HOUR} per hour)."
+                        )
+                    ]
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        export_job = create_scheduled_report_dry_run(
+            report=report,
+            requested_by=actor,
+            export_format=payload.validated_data["export_format"],
+        )
+        delivery_status = (
+            export_job.metadata.get("delivery_status")
+            if isinstance(export_job.metadata, dict)
+            else {}
+        )
+        log_audit_event(
+            tenant=report.tenant,
+            user=actor,
+            action="report_scheduled_dry_run_requested",
+            resource_type="report_export_job",
+            resource_id=export_job.id,
+            metadata={
+                "redacted": True,
+                "report_id": str(report.id),
+                "delivery_status": delivery_status,
+                "export_format": export_job.export_format,
+            },
+        )
+        if export_job.status == ReportExportJob.STATUS_QUEUED:
+            try:
+                from analytics.tasks import run_report_export_job
+
+                run_report_export_job.delay(str(export_job.id))
+            except Exception as exc:  # pragma: no cover - defensive fallback
+                logger.warning(
+                    "analytics.report_scheduled_dry_run.enqueue_failed",
+                    extra={
+                        "tenant_id": str(report.tenant_id),
+                        "report_export_job_id": str(export_job.id),
+                        "error_type": type(exc).__name__,
+                    },
+                )
+                export_job.status = ReportExportJob.STATUS_FAILED
+                export_job.error_message = (
+                    f"Scheduled dry-run failed ({type(exc).__name__})."
+                )
+                export_job.completed_at = timezone.now()
+                metadata = (
+                    export_job.metadata if isinstance(export_job.metadata, dict) else {}
+                )
+                metadata["delivery_status"] = {
+                    "mode": "dry_run",
+                    "status": "failed",
+                    "sanitized": True,
+                    "error_type": type(exc).__name__,
+                }
+                export_job.metadata = metadata
+                export_job.save(
+                    update_fields=[
+                        "status",
+                        "error_message",
+                        "completed_at",
+                        "metadata",
+                        "updated_at",
+                    ]
+                )
+        return Response(
+            ReportExportJobSerializer(export_job).data, status=status.HTTP_201_CREATED
+        )
+
+
+class DashboardDefinitionSchema(AutoSchema):
+    """Ensure unique operationIds for duplicate dashboard actions."""
+
+    def get_operation_id(self, path, method):  # noqa: D401
+        operation_id = super().get_operation_id(path, method)
+        if getattr(self.view, "action", None) == "duplicate":
+            return f"{operation_id}{method.title()}"
+        return operation_id
+
+
+class DashboardDefinitionViewSet(viewsets.ModelViewSet):
+    serializer_class = DashboardDefinitionSerializer
+    permission_classes = [permissions.IsAuthenticated, HasPrivilege]
+    required_privilege = "dashboard_edit"
+    schema = DashboardDefinitionSchema()
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return DashboardDefinition.objects.none()
+        return DashboardDefinition.objects.filter(tenant_id=user.tenant_id).order_by(
+            "-updated_at", "name"
+        )
+
+    def perform_create(self, serializer):
+        actor = self.request.user if self.request.user.is_authenticated else None
+        dashboard = serializer.save(
+            tenant=self.request.user.tenant,
+            created_by=actor,
+            updated_by=actor,
+        )
+        log_audit_event(
+            tenant=dashboard.tenant,
+            user=actor,
+            action="dashboard_definition_created",
+            resource_type="dashboard_definition",
+            resource_id=dashboard.id,
+            metadata={
+                "fields": sorted(serializer.validated_data.keys()),
+                "redacted": True,
+            },
+        )
+
+    def perform_update(self, serializer):
+        actor = self.request.user if self.request.user.is_authenticated else None
+        dashboard = serializer.save(updated_by=actor)
+        log_audit_event(
+            tenant=dashboard.tenant,
+            user=actor,
+            action="dashboard_definition_updated",
+            resource_type="dashboard_definition",
+            resource_id=dashboard.id,
+            metadata={
+                "fields": sorted(serializer.validated_data.keys()),
+                "redacted": True,
+            },
+        )
+
+    def perform_destroy(self, instance):
+        actor = self.request.user if self.request.user.is_authenticated else None
+        tenant = instance.tenant
+        dashboard_id = instance.id
+        super().perform_destroy(instance)
+        log_audit_event(
+            tenant=tenant,
+            user=actor,
+            action="dashboard_definition_deleted",
+            resource_type="dashboard_definition",
+            resource_id=dashboard_id,
+            metadata={"fields": [], "redacted": True},
+        )
+
+    @action(detail=True, methods=["post"], url_path="duplicate")
+    def duplicate(self, request, pk=None):
+        dashboard = self.get_object()
+        actor = request.user if request.user.is_authenticated else None
+        clone = DashboardDefinition.objects.create(
+            tenant=dashboard.tenant,
+            name=f"{dashboard.name} Copy",
+            description=dashboard.description,
+            template_key=dashboard.template_key,
+            filters=dashboard.filters,
+            layout=dashboard.layout,
+            default_metric=dashboard.default_metric,
+            is_active=dashboard.is_active,
+            created_by=actor,
+            updated_by=actor,
+        )
+        log_audit_event(
+            tenant=clone.tenant,
+            user=actor,
+            action="dashboard_definition_duplicated",
+            resource_type="dashboard_definition",
+            resource_id=clone.id,
+            metadata={"redacted": True, "source_id": str(dashboard.id)},
+        )
+        return Response(
+            DashboardDefinitionSerializer(
+                clone, context=self.get_serializer_context()
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ReportingCatalogView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response(get_reporting_catalog())
+
+
+class DashboardWidgetPreviewView(APIView):
+    permission_classes = [permissions.IsAuthenticated, HasPrivilege]
+    required_privilege = "dashboard_edit"
+    schema = AutoSchema(operation_id_base="DashboardWidgetPreview")
+
+    def post(self, request):
+        try:
+            payload = build_widget_preview(
+                tenant=request.user.tenant, payload=request.data or {}
+            )
+        except ReportingWidgetPreviewError as exc:
+            return Response({"detail": exc.errors}, status=exc.status_code)
+        return Response(payload)
 
 
 class AlertsViewSet(AlertRuleDefinitionViewSet):
@@ -163,7 +851,9 @@ class AISummaryViewSet(viewsets.ReadOnlyModelViewSet):
         user = self.request.user
         if not user or not user.is_authenticated:
             return AISummary.objects.none()
-        queryset = AISummary.objects.filter(tenant_id=user.tenant_id).order_by("-generated_at")
+        queryset = AISummary.objects.filter(tenant_id=user.tenant_id).order_by(
+            "-generated_at"
+        )
         source = self.request.query_params.get("source")
         if source:
             queryset = queryset.filter(source=source)
@@ -176,14 +866,21 @@ class AISummaryViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             from analytics.tasks import generate_ai_summary_for_tenant
 
-            result = generate_ai_summary_for_tenant(tenant_id=str(tenant.id), task_id="manual-refresh")
+            result = generate_ai_summary_for_tenant(
+                tenant_id=str(tenant.id), task_id="manual-refresh"
+            )
             summary_id = result.get("summary_id")
             refreshed = None
             if summary_id:
-                refreshed = AISummary.objects.filter(id=summary_id, tenant_id=tenant.id).first()
+                refreshed = AISummary.objects.filter(
+                    id=summary_id, tenant_id=tenant.id
+                ).first()
         except Exception as exc:
             logger.exception("Failed to refresh AI summary", exc_info=exc)
-            return Response({"detail": f"Failed to refresh summary: {exc}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"detail": "Failed to refresh summary."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         log_audit_event(
             tenant=tenant,
@@ -196,7 +893,9 @@ class AISummaryViewSet(viewsets.ReadOnlyModelViewSet):
 
         if refreshed is None:
             return Response({"detail": "Summary refresh completed with no record."})
-        return Response(AISummarySerializer(refreshed).data, status=status.HTTP_201_CREATED)
+        return Response(
+            AISummarySerializer(refreshed).data, status=status.HTTP_201_CREATED
+        )
 
 
 class SyncHealthView(APIView):
@@ -207,7 +906,9 @@ class SyncHealthView(APIView):
         now = timezone.now()
         rows: list[dict[str, Any]] = []
 
-        connections = AirbyteConnection.objects.filter(tenant_id=tenant_id).order_by("name")
+        connections = AirbyteConnection.objects.filter(tenant_id=tenant_id).order_by(
+            "name"
+        )
         for connection in connections:
             state = "fresh"
             if not connection.is_active:
@@ -230,7 +931,9 @@ class SyncHealthView(APIView):
                     "schedule_type": connection.schedule_type,
                     "is_active": connection.is_active,
                     "state": state,
-                    "last_synced_at": connection.last_synced_at.isoformat() if connection.last_synced_at else None,
+                    "last_synced_at": connection.last_synced_at.isoformat()
+                    if connection.last_synced_at
+                    else None,
                     "last_job_status": connection.last_job_status,
                     "last_job_error": connection.last_job_error or None,
                 }
@@ -248,7 +951,9 @@ class SyncHealthView(APIView):
         return Response(
             {
                 "generated_at": now.isoformat(),
-                "stale_after_minutes": int(SYNC_HEALTH_STALE_THRESHOLD.total_seconds() / 60),
+                "stale_after_minutes": int(
+                    SYNC_HEALTH_STALE_THRESHOLD.total_seconds() / 60
+                ),
                 "counts": counts,
                 "rows": rows,
             }
@@ -277,7 +982,9 @@ class HealthOverviewView(APIView):
                 {
                     "key": key,
                     "http_status": status_code,
-                    "status": payload.get("status", "ok" if status_code < 400 else "error"),
+                    "status": payload.get(
+                        "status", "ok" if status_code < 400 else "error"
+                    ),
                     "detail": payload.get("detail"),
                     "payload": payload,
                 }
@@ -326,17 +1033,19 @@ class ExportDownloadView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        base_dir = Path(__file__).resolve().parents[2] / "integrations" / "exporter" / "out"
+        from analytics.tasks import _exports_base_dir
+
+        base_dir = _exports_base_dir()
         artifact_rel = job.artifact_path.lstrip("/")
         artifact_path = (base_dir / artifact_rel).resolve()
-        if not str(artifact_path).startswith(str(base_dir.resolve())):
+        if not artifact_path.is_relative_to(base_dir.resolve()):
             return Response(
                 {"detail": "Export artifact path is unsafe."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        if not artifact_path.exists():
+        if not artifact_path.exists() or artifact_path.stat().st_size == 0:
             return Response(
-                {"detail": "Export artifact file was not found."},
+                {"detail": "Export artifact file was not found or is empty."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -352,80 +1061,67 @@ class DashboardLibraryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request) -> Response:  # noqa: D401
-        tenant_id = request.user.tenant_id
+        tenant = request.user.tenant
+        tenant_id = tenant.id
+        ensure_default_dashboard_presets(tenant=tenant)
         generated_at = (
-            TenantMetricsSnapshot.objects.filter(tenant_id=tenant_id, source="warehouse")
+            TenantMetricsSnapshot.objects.filter(
+                tenant_id=tenant_id, source="warehouse"
+            )
             .order_by("-generated_at")
             .values_list("generated_at", flat=True)
             .first()
         )
         updated_at = (generated_at or timezone.now()).date().isoformat()
 
-        reports = ReportDefinition.objects.filter(tenant_id=tenant_id, is_active=True).order_by("-updated_at")
+        saved_dashboards = DashboardDefinition.objects.filter(
+            tenant_id=tenant_id, is_active=True
+        ).order_by("-updated_at")
 
-        items = [
+        system_templates = [
             {
-                "id": "dash-campaigns-core",
-                "name": "Campaign performance overview",
-                "type": "Campaigns",
+                **template,
+                "kind": "system_template",
                 "owner": "System",
                 "updatedAt": updated_at,
-                "tags": ["ROAS", "Spend", "Conversions"],
-                "description": "Daily campaign KPIs with trend and map context.",
-                "route": "/dashboards/campaigns",
-            },
-            {
-                "id": "dash-creatives-top",
-                "name": "Creative leaderboard",
-                "type": "Creatives",
-                "owner": "System",
-                "updatedAt": updated_at,
-                "tags": ["CTR", "Clicks", "Thumbnails"],
-                "description": "Top creative performance with preview thumbnails.",
-                "route": "/dashboards/creatives",
-            },
-            {
-                "id": "dash-budget-pace",
-                "name": "Budget pacing check-in",
-                "type": "Budget pacing",
-                "owner": "System",
-                "updatedAt": updated_at,
-                "tags": ["Pacing", "Forecast", "Risk"],
-                "description": "Monitor monthly pacing and spend risk flags.",
-                "route": "/dashboards/budget",
-            },
-            {
-                "id": "dash-parish-map",
-                "name": "Parish map snapshot",
-                "type": "Parish map",
-                "owner": "System",
-                "updatedAt": updated_at,
-                "tags": ["Geo", "Map", "Reach"],
-                "description": "Geo performance map with metric toggles.",
-                "route": "/dashboards/map",
-            },
+            }
+            for template in DASHBOARD_TEMPLATE_LIBRARY
         ]
 
-        for report in reports[:20]:
+        items = []
+        for dashboard in saved_dashboards[:50]:
             owner = "Team"
-            if report.updated_by and report.updated_by.email:
-                owner = report.updated_by.email
-            elif report.created_by and report.created_by.email:
-                owner = report.created_by.email
+            if dashboard.updated_by and dashboard.updated_by.email:
+                owner = dashboard.updated_by.email
+            elif dashboard.created_by and dashboard.created_by.email:
+                owner = dashboard.created_by.email
             items.append(
                 {
-                    "id": f"report-{report.id}",
-                    "name": report.name,
-                    "type": "Campaigns",
+                    "id": str(dashboard.id),
+                    "kind": "saved_dashboard",
+                    "template_key": dashboard.template_key,
+                    "name": dashboard.name,
+                    "type": dict(DashboardDefinition.TEMPLATE_CHOICES).get(
+                        dashboard.template_key, "Saved dashboard"
+                    ),
                     "owner": owner,
-                    "updatedAt": report.updated_at.date().isoformat(),
-                    "tags": ["Report"],
-                    "description": report.description or "Saved report configuration.",
-                    "route": f"/reports/{report.id}",
+                    "updatedAt": dashboard.updated_at.date().isoformat(),
+                    "tags": [dashboard.default_metric.upper()],
+                    "description": dashboard.description
+                    or "Saved dashboard configuration.",
+                    "route": f"/dashboards/saved/{dashboard.id}",
+                    "defaultMetric": dashboard.default_metric,
+                    "isActive": dashboard.is_active,
                 }
             )
 
-        return Response(items)
+        return Response(
+            {
+                "generatedAt": timezone.now().isoformat(),
+                "systemTemplates": system_templates,
+                "savedDashboards": items,
+            }
+        )
 
 
 class RecentDashboardsView(APIView):
@@ -438,25 +1134,26 @@ class RecentDashboardsView(APIView):
         except (ValueError, TypeError):
             limit = 3
 
-        # 1. Fetch recently updated reports for this tenant
-        reports = ReportDefinition.objects.filter(tenant_id=tenant_id, is_active=True).order_by("-updated_at")[:limit]
+        dashboards = DashboardDefinition.objects.filter(
+            tenant_id=tenant_id, is_active=True
+        ).order_by("-updated_at")[:limit]
 
         items = []
-        for report in reports:
+        for dashboard in dashboards:
             owner = "Team"
-            if report.updated_by and report.updated_by.email:
-                owner = report.updated_by.email
-            elif report.created_by and report.created_by.email:
-                owner = report.created_by.email
+            if dashboard.updated_by and dashboard.updated_by.email:
+                owner = dashboard.updated_by.email
+            elif dashboard.created_by and dashboard.created_by.email:
+                owner = dashboard.created_by.email
 
             items.append(
                 {
-                    "id": f"report-{report.id}",
-                    "name": report.name,
+                    "id": str(dashboard.id),
+                    "name": dashboard.name,
                     "owner": owner,
-                    "last_viewed_at": report.updated_at.isoformat(),
-                    "last_viewed_label": f"Updated {report.updated_at.strftime('%b %d, %H:%M')}",
-                    "route": f"/reports/{report.id}",
+                    "last_viewed_at": dashboard.updated_at.isoformat(),
+                    "last_viewed_label": f"Updated {dashboard.updated_at.strftime('%b %d, %H:%M')}",
+                    "route": f"/dashboards/saved/{dashboard.id}",
                 }
             )
 

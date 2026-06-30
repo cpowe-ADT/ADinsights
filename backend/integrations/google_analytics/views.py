@@ -202,19 +202,38 @@ class GoogleAnalyticsSetupView(APIView):
     def get(self, request):
         client_id = (getattr(settings, "GOOGLE_ANALYTICS_CLIENT_ID", "") or "").strip()
         client_secret = (getattr(settings, "GOOGLE_ANALYTICS_CLIENT_SECRET", "") or "").strip()
-        
+
         try:
             redirect_uri, runtime_context = _resolve_ga4_redirect_uri(request=request, payload=request.GET)
             redirect_configured = True
         except ValueError:
             redirect_uri, runtime_context, redirect_configured = None, None, False
+        runtime_redirect_ready = (
+            runtime_context.get("redirect_origin_matches_runtime") is not False
+            if runtime_context is not None
+            else True
+        )
 
         return Response({
             "provider": "google_analytics",
-            "ready_for_oauth": bool(client_id and client_secret and redirect_configured),
+            "ready_for_oauth": bool(
+                client_id and client_secret and redirect_configured and runtime_redirect_ready
+            ),
             "oauth_scopes": _ga4_oauth_scopes(),
             "redirect_uri": redirect_uri,
             "runtime_context": runtime_context,
+            "checks": [
+                {
+                    "key": "ga4_runtime_redirect_origin",
+                    "label": "Open the app on the same host as the configured OAuth redirect",
+                    "ok": runtime_redirect_ready,
+                    "details": (
+                        runtime_context.get("redirect_origin_mismatch_message")
+                        if runtime_context is not None
+                        else None
+                    ),
+                }
+            ],
         })
 
 
@@ -230,7 +249,19 @@ class GoogleAnalyticsOAuthStartView(APIView):
             return Response({"detail": "GA4 Client ID not configured."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         try:
-            redirect_uri, _ = _resolve_ga4_redirect_uri(request=request, payload=serializer.validated_data)
+            redirect_uri, runtime_context = _resolve_ga4_redirect_uri(
+                request=request,
+                payload=serializer.validated_data,
+            )
+            if runtime_context.get("redirect_origin_matches_runtime") is False:
+                return Response(
+                    {
+                        "detail": runtime_context.get("redirect_origin_mismatch_message")
+                        or "Open the app on the configured OAuth redirect host and try again.",
+                        "runtime_context": runtime_context,
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
@@ -281,7 +312,8 @@ class GoogleAnalyticsOAuthExchangeView(APIView):
             token_response = httpx.post("https://oauth2.googleapis.com/token", data=token_payload, timeout=30.0)
             token_response.raise_for_status()
         except httpx.HTTPError as exc:
-            return Response({"detail": f"Token exchange failed: {exc}"}, status=status.HTTP_502_BAD_GATEWAY)
+            logger.warning("ga4.oauth.token_exchange_failed", exc_info=exc)
+            return Response({"detail": "Token exchange failed."}, status=status.HTTP_502_BAD_GATEWAY)
 
         payload = token_response.json()
         access_token = payload.get("access_token")
@@ -297,8 +329,9 @@ class GoogleAnalyticsOAuthExchangeView(APIView):
             )
             userinfo_response.raise_for_status()
         except httpx.HTTPError as exc:
+            logger.warning("ga4.oauth.userinfo_failed", exc_info=exc)
             return Response(
-                {"detail": f"User profile lookup failed: {exc}"},
+                {"detail": "User profile lookup failed."},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
@@ -378,7 +411,8 @@ class GoogleAnalyticsPropertiesView(APIView):
         try:
             properties = _discover_ga4_properties(access_token=access_token)
         except RuntimeError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+            logger.warning("ga4.property_discovery_failed", exc_info=exc)
+            return Response({"detail": "Property discovery failed."}, status=status.HTTP_502_BAD_GATEWAY)
 
         return Response(
             {

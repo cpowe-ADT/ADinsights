@@ -10,12 +10,16 @@ from django.conf import settings
 from django.db import OperationalError, ProgrammingError
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 
 from accounts.tenant_context import tenant_context
 
 from analytics.models import TenantMetricsSnapshot
 
 from core.metrics import observe_dbt_run, render_metrics
+from core.throttling import PublicEndpointRateThrottle
 from integrations.airbyte import AirbyteClient, AirbyteClientConfigurationError, AirbyteClientError
 from integrations.airbyte.service import (
     extract_attempt_snapshot,
@@ -138,8 +142,11 @@ def timezone_view(request):
     return JsonResponse({"timezone": settings.TIME_ZONE})
 
 
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@throttle_classes([PublicEndpointRateThrottle])
 def health_version(request):
-    return JsonResponse({"version": settings.APP_VERSION})
+    return Response({"version": settings.APP_VERSION})
 
 
 def airbyte_health(request):

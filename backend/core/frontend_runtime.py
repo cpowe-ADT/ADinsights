@@ -185,21 +185,7 @@ def resolve_frontend_redirect_uri(
         request=request,
         runtime_context_origin=runtime_context_origin,
     )
-    explicit_origin = origin_from_url(explicit)
     if explicit:
-        explicit_parsed = urlsplit(explicit)
-        if (
-            _is_localhost_origin(explicit_origin)
-            and resolution.source in {"request_origin", "runtime_context_origin", "request_referer"}
-            and resolution.resolved_origin
-            and resolution.resolved_origin != explicit_origin
-        ):
-            explicit_path = explicit_parsed.path or f"/{path.lstrip('/')}"
-            return (
-                f"{resolution.resolved_origin.rstrip('/')}{explicit_path}",
-                resolution,
-                "explicit_localhost_redirect_overridden",
-            )
         return explicit, resolution, "explicit_redirect_uri"
 
     if not resolution.resolved_origin:
@@ -249,6 +235,23 @@ def build_runtime_context(
 ) -> dict[str, Any]:
     """Build a structured runtime context payload for setup diagnostics."""
 
+    configured_redirect_origin = origin_from_url(redirect_uri)
+    observed_runtime_origin = (
+        resolution.request_origin
+        or resolution.runtime_context_origin
+        or resolution.request_referer_origin
+    )
+    redirect_origin_matches_runtime: bool | None = None
+    redirect_origin_mismatch_message: str | None = None
+    if configured_redirect_origin and observed_runtime_origin:
+        redirect_origin_matches_runtime = observed_runtime_origin == configured_redirect_origin
+        if not redirect_origin_matches_runtime:
+            redirect_origin_mismatch_message = (
+                "Open the app on "
+                f"{configured_redirect_origin} because the current frontend origin "
+                f"{observed_runtime_origin} does not match the configured OAuth redirect origin."
+            )
+
     return {
         "redirect_uri": redirect_uri,
         "redirect_source": redirect_source,
@@ -259,6 +262,10 @@ def build_runtime_context(
         "request_port": resolution.request_port,
         "resolved_frontend_origin": resolution.resolved_origin,
         "frontend_base_url_origin": resolution.frontend_base_url_origin,
+        "configured_redirect_origin": configured_redirect_origin,
+        "observed_runtime_origin": observed_runtime_origin,
+        "redirect_origin_matches_runtime": redirect_origin_matches_runtime,
+        "redirect_origin_mismatch_message": redirect_origin_mismatch_message,
         "dev_active_profile": os.environ.get("DEV_ACTIVE_PROFILE"),
         "dev_backend_url": os.environ.get("DEV_BACKEND_URL"),
         "dev_frontend_url": os.environ.get("DEV_FRONTEND_URL"),

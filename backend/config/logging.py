@@ -83,5 +83,15 @@ def build_logging_config(level: str = DEFAULT_LOG_LEVEL) -> dict[str, Any]:
                 "level": log_level,
                 "propagate": False,
             },
+            "httpx": {
+                "handlers": ["console"],
+                "level": "WARNING",
+                "propagate": False,
+            },
+            "httpcore": {
+                "handlers": ["console"],
+                "level": "WARNING",
+                "propagate": False,
+            },
         },
     }

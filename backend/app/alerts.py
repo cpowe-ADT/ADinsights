@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Mapping
 
 from django.db import connection
 
@@ -19,6 +19,8 @@ class AlertRule:
     severity: str
     sql: str
     max_rows: int = 25
+    parameters: Mapping[str, Any] | None = None
+    tenant_id: str | None = None
 
 
 def _strip_sql(sql: str) -> str:
@@ -199,7 +201,13 @@ class AlertEvaluator:
 
     def run(self, rule: AlertRule) -> list[dict[str, Any]]:
         with self._connection.cursor() as cursor:
-            cursor.execute(rule.sql, {"limit": rule.max_rows})
+            cursor.execute(
+                rule.sql,
+                {
+                    "limit": rule.max_rows,
+                    **(rule.parameters or {}),
+                },
+            )
             columns = [meta[0] for meta in cursor.description or ()]
             rows = cursor.fetchall()
         return [dict(zip(columns, row)) for row in rows]

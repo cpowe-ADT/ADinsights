@@ -75,6 +75,12 @@
             identifier=fixture.identifier
         ) %}
 
+        {% if existing_relation and backend_raw_sql and existing_relation.type == 'view' and not should_force %}
+            {% do log('Refreshing backend bridge view for ' ~ target_relation ~ ' to match the latest bridge SQL.', info=True) %}
+            {% do adapter.drop_relation(existing_relation) %}
+            {% set existing_relation = none %}
+        {% endif %}
+
         {% if existing_relation and not should_force %}
             {% do log('Found existing relation for ' ~ target_relation ~ '; leaving it untouched.', info=True) %}
             {% continue %}

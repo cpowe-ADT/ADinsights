@@ -58,7 +58,7 @@
                   "name",
                   "platform",
                   "status",
-                  "parish",
+                  "parishes",
                   "spend",
                   "impressions",
                   "clicks",
@@ -75,7 +75,11 @@
                   "name": { "type": "string" },
                   "platform": { "type": "string" },
                   "status": { "type": "string" },
-                  "parish": { "type": "string" },
+                  "parishes": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  },
+                  "objective": { "type": "string" },
                   "spend": { "type": "number" },
                   "impressions": { "type": "number" },
                   "clicks": { "type": "number" },
@@ -103,7 +107,7 @@
               "campaignId",
               "campaignName",
               "platform",
-              "parish",
+              "parishes",
               "spend",
               "impressions",
               "clicks",
@@ -117,7 +121,10 @@
               "campaignId": { "type": "string" },
               "campaignName": { "type": "string" },
               "platform": { "type": "string" },
-              "parish": { "type": "string" },
+              "parishes": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
               "spend": { "type": "number" },
               "impressions": { "type": "number" },
               "clicks": { "type": "number" },

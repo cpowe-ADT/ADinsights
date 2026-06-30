@@ -16,12 +16,16 @@
     ],
     "properties": {
       "id": { "type": "string" },
+      "adAccountId": { "type": "string" },
       "campaignName": { "type": "string" },
+      "platform": { "type": "string" },
       "parishes": {
         "type": "array",
         "items": { "type": "string" }
       },
       "monthlyBudget": { "type": "number" },
+      "windowBudget": { "type": "number" },
+      "windowDays": { "type": "number" },
       "spendToDate": { "type": "number" },
       "projectedSpend": { "type": "number" },
       "pacingPercent": { "type": "number" },

@@ -10,7 +10,7 @@ from accounts.models import AuditLog, Tenant, TenantKey
 from core.crypto.dek_manager import rotate_all_tenant_deks, rotate_tenant_dek
 from core.crypto.fields import decrypt_value, encrypt_value
 from core.crypto.kms import KmsError, KmsUnavailableError
-from integrations.models import PlatformCredential
+from integrations.models import NotificationChannel, PlatformCredential
 
 
 def _patch_urandom(monkeypatch: pytest.MonkeyPatch, keys: list[bytes]) -> None:
@@ -52,6 +52,17 @@ def test_rotate_all_tenant_deks_updates_records(db, monkeypatch: pytest.MonkeyPa
     )
     old_key = b"\x01" * 32
     credential = _create_credential(tenant, old_key, "old-version")
+    notification_secret = encrypt_value('{"url": "https://hooks.example.test/secret"}', old_key)
+    assert notification_secret is not None
+    channel = NotificationChannel.all_objects.create(
+        tenant=tenant,
+        name="Encrypted webhook",
+        channel_type=NotificationChannel.CHANNEL_WEBHOOK,
+        secret_config_enc=notification_secret.ciphertext,
+        secret_config_nonce=notification_secret.nonce,
+        secret_config_tag=notification_secret.tag,
+        secret_dek_key_version="old-version",
+    )
 
     kms_client = Mock()
     kms_client.decrypt.return_value = old_key
@@ -85,6 +96,17 @@ def test_rotate_all_tenant_deks_updates_records(db, monkeypatch: pytest.MonkeyPa
             b"\x02" * 32,
         )
         == "refresh-token"
+    )
+    channel.refresh_from_db()
+    assert channel.secret_dek_key_version == "new-version"
+    assert (
+        decrypt_value(
+            channel.secret_config_enc,
+            channel.secret_config_nonce,
+            channel.secret_config_tag,
+            b"\x02" * 32,
+        )
+        == '{"url": "https://hooks.example.test/secret"}'
     )
     log = AuditLog.all_objects.get(action="dek_rotated", tenant=tenant)
     assert log.resource_type == "dek"

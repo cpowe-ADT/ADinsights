@@ -51,6 +51,7 @@ class MetaOverviewQuerySerializer(serializers.Serializer):
     date_preset = serializers.ChoiceField(choices=DATE_PRESET_CHOICES, required=False)
     since = serializers.DateField(required=False)
     until = serializers.DateField(required=False)
+    compare_to = serializers.CharField(required=False, allow_blank=True, default="")
 
     def validate(self, attrs):  # type: ignore[override]
         attrs = super().validate(attrs)
@@ -131,6 +132,7 @@ class MetaPostsItemSerializer(serializers.Serializer):
     created_time = serializers.DateTimeField(allow_null=True)
     permalink_url = serializers.CharField(allow_blank=True)
     message = serializers.CharField(allow_blank=True)
+    thumbnail_url = serializers.CharField(allow_blank=True, required=False, default="")
     metrics = serializers.DictField(required=False)
 
 

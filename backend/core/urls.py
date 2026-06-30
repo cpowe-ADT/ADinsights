@@ -1,17 +1,20 @@
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework.permissions import AllowAny
-from rest_framework.routers import DefaultRouter
-from rest_framework.schemas import get_schema_view
+from rest_framework.schemas.openapi import SchemaGenerator
+from rest_framework.schemas.views import SchemaView
 
 from alerts.views import AlertRunViewSet
 from analytics.phase2_views import (
     AISummaryViewSet,
     AlertsViewSet,
+    DashboardWidgetPreviewView,
+    DashboardDefinitionViewSet,
     DashboardLibraryView,
     ExportDownloadView,
     HealthOverviewView,
     RecentDashboardsView,
+    ReportingCatalogView,
     ReportDefinitionViewSet,
     SyncHealthView,
 )
@@ -20,6 +23,7 @@ from analytics.views import (
     UploadMetricsView,
     AggregateSnapshotView,
     CombinedMetricsView,
+    DatasetStatusView,
     DemoSeedView,
     MetricsExportView,
     MetricsView,
@@ -52,6 +56,7 @@ from integrations.views import (
     AlertRuleDefinitionViewSet,
     CampaignBudgetViewSet,
     MetaOAuthExchangeView,
+    MetaRecoveryPreviewView,
     MetaOAuthStartView,
     MetaSetupView,
     MetaPageConnectView,
@@ -59,6 +64,7 @@ from integrations.views import (
     MetaSystemTokenView,
     MetaLogoutView,
     MetaSyncStateView,
+    NotificationChannelViewSet,
     SocialConnectionStatusView,
     MetaSyncView,
     PlatformCredentialViewSet,
@@ -104,10 +110,38 @@ from integrations.google_analytics.views import (
     GoogleAnalyticsSetupView,
     GoogleAnalyticsStatusView,
 )
+from integrations.connector_lifecycle_views import (
+    IntegrationDisconnectView,
+    IntegrationJobsView,
+    IntegrationOAuthCallbackView,
+    IntegrationOAuthStartView,
+    IntegrationProvisionView,
+    IntegrationReconnectView,
+    IntegrationStatusView,
+    IntegrationSyncView,
+)
+from integrations.clients.views import (
+    ClientAccountDetachView,
+    ClientAccountsView,
+    ClientDetailView,
+    ClientListCreateView,
+    ClientSuggestApplyView,
+    ClientSuggestView,
+    ClientSuggestionSnapshotAcknowledgeView,
+    ClientSuggestionSnapshotRefreshView,
+    ClientSuggestionSnapshotView,
+)
 from . import views as core_views
+from .routers import ADinsightsDefaultRouter
+from .throttling import PublicEndpointRateThrottle
 from .viewsets import AirbyteTelemetryViewSet
 
-router = DefaultRouter()
+
+class PublicSchemaView(SchemaView):
+    permission_classes = [AllowAny]
+    throttle_classes = [PublicEndpointRateThrottle]
+
+router = ADinsightsDefaultRouter()
 router.register(
     r"platform-credentials",
     PlatformCredentialViewSet,
@@ -130,10 +164,16 @@ router.register(r"audit-logs", AuditLogViewSet, basename="auditlog")
 router.register(r"alerts/runs", AlertRunViewSet, basename="alert-run")
 router.register(r"alerts", AlertsViewSet, basename="alerts")
 router.register(r"reports", ReportDefinitionViewSet, basename="report-definition")
+router.register(
+    r"dashboards/definitions",
+    DashboardDefinitionViewSet,
+    basename="dashboard-definition",
+)
 router.register(r"summaries", AISummaryViewSet, basename="ai-summary")
 router.register(r"service-accounts", ServiceAccountKeyViewSet, basename="service-account")
+router.register(r"notification-channels", NotificationChannelViewSet, basename="notification-channel")
 
-admin_router = DefaultRouter()
+admin_router = ADinsightsDefaultRouter()
 admin_router.register(r"budgets", CampaignBudgetViewSet, basename="campaignbudget")
 admin_router.register(r"alerts", AlertRuleDefinitionViewSet, basename="alertruledefinition")
 
@@ -176,16 +216,18 @@ urlpatterns = [
     path("api/timezone/", core_views.timezone_view, name="timezone"),
     path(
         "api/schema/",
-        get_schema_view(
-            title="ADinsights API",
-            description="OpenAPI schema for the ADinsights backend",
-            version="1.0.0",
+        PublicSchemaView.as_view(
+            schema_generator=SchemaGenerator(
+                title="ADinsights API",
+                description="OpenAPI schema for the ADinsights backend",
+                version="1.0.0",
+            ),
             public=True,
-            permission_classes=[AllowAny],
         ),
         name="api-schema",
     ),
     path("api/adapters/", AdapterListView.as_view(), name="adapter-list"),
+    path("api/datasets/status/", DatasetStatusView.as_view(), name="dataset-status"),
     path(
         "api/dashboards/library/",
         DashboardLibraryView.as_view(),
@@ -195,6 +237,16 @@ urlpatterns = [
         "api/dashboards/recent/",
         RecentDashboardsView.as_view(),
         name="dashboard-recent",
+    ),
+    path(
+        "api/dashboards/reporting-catalog/",
+        ReportingCatalogView.as_view(),
+        name="dashboard-reporting-catalog",
+    ),
+    path(
+        "api/dashboards/widget-preview/",
+        DashboardWidgetPreviewView.as_view(),
+        name="dashboard-widget-preview",
     ),
     path("api/uploads/metrics/", UploadMetricsView.as_view(), name="metrics-upload"),
     path("api/metrics/", MetricsView.as_view(), name="metrics"),
@@ -218,6 +270,7 @@ urlpatterns = [
         name="report-export-download",
     ),
     path("api/analytics/", include("analytics.urls")),
+    path("api/content-ops/", include("content_ops.urls")),
     path("api/meta/accounts/", MetaAccountsListView.as_view(), name="meta-accounts"),
     path("api/meta/campaigns/", MetaCampaignListView.as_view(), name="meta-campaigns"),
     path("api/meta/adsets/", MetaAdSetListView.as_view(), name="meta-adsets"),
@@ -242,6 +295,11 @@ urlpatterns = [
         "api/integrations/meta/oauth/exchange/",
         MetaOAuthExchangeView.as_view(),
         name="meta-oauth-exchange",
+    ),
+    path(
+        "api/integrations/meta/recovery/preview/",
+        MetaRecoveryPreviewView.as_view(),
+        name="meta-recovery-preview",
     ),
     path(
         "api/meta/connect/callback/",
@@ -438,7 +496,88 @@ urlpatterns = [
         SocialConnectionStatusView.as_view(),
         name="social-connection-status",
     ),
+    path(
+        "api/integrations/<str:provider>/oauth/start/",
+        IntegrationOAuthStartView.as_view(),
+        name="integration-oauth-start",
+    ),
+    path(
+        "api/integrations/<str:provider>/oauth/callback/",
+        IntegrationOAuthCallbackView.as_view(),
+        name="integration-oauth-callback",
+    ),
+    path(
+        "api/integrations/<str:provider>/reconnect/",
+        IntegrationReconnectView.as_view(),
+        name="integration-reconnect",
+    ),
+    path(
+        "api/integrations/<str:provider>/disconnect/",
+        IntegrationDisconnectView.as_view(),
+        name="integration-disconnect",
+    ),
+    path(
+        "api/integrations/<str:provider>/provision/",
+        IntegrationProvisionView.as_view(),
+        name="integration-provision",
+    ),
+    path(
+        "api/integrations/<str:provider>/sync/",
+        IntegrationSyncView.as_view(),
+        name="integration-sync",
+    ),
+    path(
+        "api/integrations/<str:provider>/status/",
+        IntegrationStatusView.as_view(),
+        name="integration-status",
+    ),
+    path(
+        "api/integrations/<str:provider>/jobs/",
+        IntegrationJobsView.as_view(),
+        name="integration-jobs",
+    ),
     path("metrics/app/", core_views.prometheus_metrics, name="metrics-app"),
+    path("api/clients/", ClientListCreateView.as_view(), name="client-list-create"),
+    path(
+        "api/clients/suggest/",
+        ClientSuggestView.as_view(),
+        name="client-suggest",
+    ),
+    path(
+        "api/clients/suggest/apply/",
+        ClientSuggestApplyView.as_view(),
+        name="client-suggest-apply",
+    ),
+    path(
+        "api/clients/suggestions/latest/",
+        ClientSuggestionSnapshotView.as_view(),
+        name="client-suggestion-snapshot",
+    ),
+    path(
+        "api/clients/suggestions/latest/refresh/",
+        ClientSuggestionSnapshotRefreshView.as_view(),
+        name="client-suggestion-snapshot-refresh",
+    ),
+    path(
+        "api/clients/suggestions/latest/acknowledge/",
+        ClientSuggestionSnapshotAcknowledgeView.as_view(),
+        name="client-suggestion-snapshot-acknowledge",
+    ),
+    path(
+        "api/clients/<uuid:client_id>/",
+        ClientDetailView.as_view(),
+        name="client-detail",
+    ),
+    path(
+        "api/clients/<uuid:client_id>/accounts/",
+        ClientAccountsView.as_view(),
+        name="client-accounts",
+    ),
+    path(
+        "api/clients/<uuid:client_id>/accounts/<uuid:account_id>/",
+        ClientAccountDetachView.as_view(),
+        name="client-account-detach",
+    ),
     path("api/", include(router.urls)),
     path("api/airbyte/webhook/", AirbyteWebhookView.as_view(), name="airbyte-webhook"),
     path("api/admin/", include(admin_router.urls)),

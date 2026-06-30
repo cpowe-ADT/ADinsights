@@ -370,6 +370,12 @@ class ReportDefinition(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Scheduled delivery fields
+    schedule_enabled = models.BooleanField(default=False)
+    schedule_cron = models.CharField(max_length=100, blank=True, default="")
+    delivery_emails = models.JSONField(default=list, blank=True)
+    last_scheduled_at = models.DateTimeField(null=True, blank=True)
+
     objects = TenantAwareManager()
     all_objects = models.Manager()
 
@@ -381,6 +387,110 @@ class ReportDefinition(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - debug helper
         return f"ReportDefinition<{self.tenant_id}:{self.name}>"
+
+
+class DashboardDefinition(models.Model):
+    """Tenant-scoped saved dashboard definition for Meta Ads dashboard presets."""
+
+    TEMPLATE_META_EXECUTIVE_OVERVIEW = "meta_executive_overview"
+    TEMPLATE_META_CAMPAIGN_PERFORMANCE = "meta_campaign_performance"
+    TEMPLATE_META_CREATIVE_INSIGHTS = "meta_creative_insights"
+    TEMPLATE_META_BUDGET_PACING = "meta_budget_pacing"
+    TEMPLATE_META_PARISH_MAP = "meta_parish_map"
+    TEMPLATE_META_PAGE_INSIGHTS = "meta_page_insights"
+    TEMPLATE_CHOICES = [
+        (TEMPLATE_META_EXECUTIVE_OVERVIEW, "Meta executive overview"),
+        (TEMPLATE_META_CAMPAIGN_PERFORMANCE, "Meta campaign performance"),
+        (TEMPLATE_META_CREATIVE_INSIGHTS, "Meta creative insights"),
+        (TEMPLATE_META_BUDGET_PACING, "Meta budget pacing"),
+        (TEMPLATE_META_PARISH_MAP, "Meta parish map"),
+        (TEMPLATE_META_PAGE_INSIGHTS, "Meta page insights"),
+    ]
+
+    # Page Insights saved view filters schema:
+    # {
+    #   "page_id": "string",
+    #   "date_preset": "last_7d" | "last_28d" | "last_90d" | "custom",
+    #   "since": "YYYY-MM-DD" (optional, for custom),
+    #   "until": "YYYY-MM-DD" (optional, for custom),
+    #   "metric": "string" (metric_key for trend chart),
+    #   "period": "day" | "week" | "days_28",
+    #   "compare_to": "" | "prior_period" (optional)
+    # }
+
+    METRIC_SPEND = "spend"
+    METRIC_IMPRESSIONS = "impressions"
+    METRIC_REACH = "reach"
+    METRIC_CLICKS = "clicks"
+    METRIC_CONVERSIONS = "conversions"
+    METRIC_ROAS = "roas"
+    METRIC_CTR = "ctr"
+    METRIC_CPC = "cpc"
+    METRIC_CPM = "cpm"
+    METRIC_CPA = "cpa"
+    METRIC_FREQUENCY = "frequency"
+    DEFAULT_METRIC_CHOICES = [
+        (METRIC_SPEND, "Spend"),
+        (METRIC_IMPRESSIONS, "Impressions"),
+        (METRIC_REACH, "Reach"),
+        (METRIC_CLICKS, "Clicks"),
+        (METRIC_CONVERSIONS, "Conversions"),
+        (METRIC_ROAS, "ROAS"),
+        (METRIC_CTR, "CTR"),
+        (METRIC_CPC, "CPC"),
+        (METRIC_CPM, "CPM"),
+        (METRIC_CPA, "CPA"),
+        (METRIC_FREQUENCY, "Frequency"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="dashboard_definitions"
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    template_key = models.CharField(
+        max_length=64,
+        choices=TEMPLATE_CHOICES,
+        default=TEMPLATE_META_CAMPAIGN_PERFORMANCE,
+    )
+    filters = models.JSONField(default=dict, blank=True)
+    layout = models.JSONField(default=dict, blank=True)
+    default_metric = models.CharField(
+        max_length=32,
+        choices=DEFAULT_METRIC_CHOICES,
+        default=METRIC_SPEND,
+    )
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_dashboard_definitions",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_dashboard_definitions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("-updated_at", "name")
+        indexes = [
+            models.Index(fields=["tenant", "template_key"], name="analytics_dash_tenant_tpl"),
+            models.Index(fields=["tenant", "is_active"], name="analytics_dash_tenant_active"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"DashboardDefinition<{self.tenant_id}:{self.name}>"
 
 
 class ReportExportJob(models.Model):
@@ -482,3 +592,108 @@ class AISummary(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - debug helper
         return f"AISummary<{self.tenant_id}:{self.generated_at.isoformat()}>"
+
+
+class DailyFxRate(models.Model):
+    """Daily foreign-exchange rate between two ISO-4217 currencies.
+
+    Sprint 6 of Client grouping:
+        Jamaican agencies manage clients that bill in a mix of USD and JMD
+        (and occasionally GBP/CAD for tourism clients). When the Combined
+        view aggregates spend across accounts with different currencies it
+        normalizes to a single display currency using rows from this table.
+
+        The table is global (not tenant-scoped) — FX rates are public data
+        and tenant isolation doesn't apply. Rows are populated by a daily
+        Celery task (``integrations.tasks.refresh_fx_rates``, added in
+        Sprint 10) pulling from a chosen provider. The ``source`` field
+        records provenance so a tenant can switch providers without data
+        loss.
+    """
+
+    SOURCE_MANUAL = "manual"
+    SOURCE_OPENEXCHANGERATES = "openexchangerates"
+    SOURCE_ECB = "ecb"
+    SOURCE_BOJ = "boj"
+    SOURCE_CHOICES = [
+        (SOURCE_MANUAL, "Manual"),
+        (SOURCE_OPENEXCHANGERATES, "Open Exchange Rates"),
+        (SOURCE_ECB, "European Central Bank"),
+        (SOURCE_BOJ, "Bank of Jamaica"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    rate_date = models.DateField()
+    base_currency = models.CharField(max_length=8)
+    quote_currency = models.CharField(max_length=8)
+    # 1 unit of ``base_currency`` equals ``rate`` units of ``quote_currency``.
+    rate = models.DecimalField(max_digits=18, decimal_places=8)
+    source = models.CharField(max_length=32, choices=SOURCE_CHOICES, default=SOURCE_MANUAL)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-rate_date", "base_currency", "quote_currency")
+        unique_together = ("rate_date", "base_currency", "quote_currency")
+        indexes = [
+            models.Index(
+                fields=["base_currency", "quote_currency", "-rate_date"],
+                name="analytics_fx_pair_date",
+            ),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return (
+            f"DailyFxRate<{self.rate_date.isoformat()} "
+            f"{self.base_currency}→{self.quote_currency}={self.rate}>"
+        )
+
+
+class SavedReportLayout(models.Model):
+    """Tenant-scoped saved layouts for the config-driven report builder.
+
+    ``config`` holds a ``DashboardLayoutConfig`` (the same JSON the frontend grid
+    renders): ``{id, title, cols, rowHeight, widgets:[{id,type,x,y,w,h,...}]}``.
+    Layouts are owner-scoped unless ``is_shared`` is set, mirroring
+    :class:`GoogleAdsSavedView`. Aggregate-only — only widget placement and
+    data-binding keys live here, never per-user or PII data.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="saved_report_layouts"
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    config = models.JSONField(default=dict, blank=True)
+    is_shared = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_saved_report_layouts",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_saved_report_layouts",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("-updated_at", "name")
+        indexes = [
+            models.Index(
+                fields=["tenant", "is_shared"], name="report_layout_tenant_shared"
+            ),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - debug helper
+        return f"SavedReportLayout<{self.name}>"

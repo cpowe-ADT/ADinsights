@@ -4,11 +4,18 @@ Purpose: quick test commands per workstream.
 
 ## Backend
 
-- `ruff check backend`
-- `pytest -q backend`
-- `pytest -q backend/tests/test_social_status_api.py`
-- `pytest -q backend/tests/test_meta_oauth_api.py`
-- `pytest -q backend/tests/test_schema_regressions.py::test_openapi_schema_operation_ids_are_unique`
+- `make backend-lint`
+- `make backend-test`
+- `cd backend && ruff check .`
+- `cd backend && ./.venv/bin/pytest -q`
+- `cd backend && ./.venv/bin/pytest -q tests/test_social_status_api.py`
+- `cd backend && ./.venv/bin/pytest -q tests/test_meta_oauth_api.py`
+- `cd backend && ./.venv/bin/pytest -q tests/test_schema_regressions.py::test_openapi_schema_operation_ids_are_unique`
+
+Notes:
+
+- The checked-in backend virtualenv is the reliable local test runner in this workspace. `python -m pytest -q` can fail when `python` or `pytest` is not available on `PATH`.
+- `make backend-test` sets the required `PYTHONPATH` for the backend package layout, so it is the safest repo-native command when running from a fresh shell.
 
 ## Launcher / Local Stack
 
@@ -17,21 +24,67 @@ Purpose: quick test commands per workstream.
 - `scripts/dev-launch.sh --profile 2 --non-interactive --no-update --no-pull --no-open --no-healthcheck`
 - `scripts/dev-launch.sh --profile 2 --non-interactive --no-update --no-pull --no-open` (includes demo-adapter verification)
 - `scripts/dev-healthcheck.sh`
+- `scripts/dev-healthcheck.sh --airbyte-destination-id <airbyte-destination-id>` (adds local Airbyte destination readiness)
 - `cat .dev-launch.active.env`
+
+Supported local live-Meta recipe:
+
+```bash
+ENABLE_WAREHOUSE_ADAPTER=1 \
+ENABLE_DEMO_ADAPTER=1 \
+ENABLE_FAKE_ADAPTER=0 \
+FRONTEND_BASE_URL=http://localhost:5173 \
+scripts/dev-launch.sh --profile 1 --strict-profile --non-interactive --no-update --no-pull --no-open
+```
+
+Notes:
+
+- Use `http://localhost:5173` as the canonical local OAuth host unless you have updated the Meta app
+  domains and valid redirect URIs for a different host/port.
+- `GET /api/datasets/status/` is the source of truth for live dashboard readiness.
+- `GET /api/integrations/social/status/` is the source of truth for connection/auth state.
+- Use the optional Airbyte destination healthcheck when local evidence must prove Airbyte writes to
+  the expected Postgres target; it does not trigger Meta/Facebook provider sync.
+- Meta triage order:
+  - `GET /api/integrations/social/status/`
+  - `GET /api/datasets/status/`
+  - `GET /api/meta/accounts/`
+  - `GET /api/meta/pages/`
+  - `GET /api/metrics/combined/`
+- Use exactly one primary diagnosis:
+  - `auth/setup failure`
+  - `permission failure`
+  - `asset discovery failure`
+  - `direct sync failure`
+  - `warehouse adapter disabled`
+  - `missing/stale/default snapshot`
 
 ## Frontend
 
-- `cd frontend && npm run lint`
-- `cd frontend && npm test -- --run`
+- `make frontend-guardrails`
+- `make frontend-lint`
+- `make frontend-test`
+- `make frontend-build`
+- `cd frontend && npx eslint src/ --max-warnings=0`
+- `cd frontend && npx vitest run`
 - `cd frontend && npm run build`
-- `cd frontend && npm test -- --run src/pages/Home.test.tsx src/routes/__tests__/DataSources.test.tsx`
+- `cd frontend && npx vitest run src/pages/Home.test.tsx src/routes/__tests__/DataSources.test.tsx`
+
+## Full Local Matrix
+
+- `make validate-local`
 
 ## dbt
 
 - `make dbt-deps`
 - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select staging`
 - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' snapshot`
+- `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select all_ad_performance dim_campaign fact_performance`
 - `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' run --select marts`
+- `./scripts/dbt-wrapper.sh 'dbt' 'dbt' 'dbt' test --select all_ad_performance dim_campaign fact_performance vw_campaign_daily`
+
+When a dbt change adds or propagates mart-facing columns through the reference layer, rebuild the
+reference models before `run --select marts` so incremental marts do not read stale upstream schemas.
 
 ## Airbyte
 

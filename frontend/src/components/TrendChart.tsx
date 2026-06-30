@@ -36,7 +36,13 @@ const TrendChart = ({ title, points }: TrendChartProps) => {
             <XAxisComponent dataKey="date" />
             <YAxisComponent />
             <TooltipComponent />
-            <LineComponent type="monotone" dataKey="value" stroke="#1f8a70" strokeWidth={2} dot={false} />
+            <LineComponent
+              type="monotone"
+              dataKey="value"
+              stroke="#1f8a70"
+              strokeWidth={2}
+              dot={false}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>

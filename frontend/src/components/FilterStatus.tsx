@@ -15,6 +15,10 @@ const DATE_LABELS: Record<FilterBarState['dateRange'], string> = {
   today: 'Today',
   '7d': 'Last 7 days',
   '30d': 'Last 30 days',
+  '60d': 'Last 60 days',
+  '90d': 'Last 90 days',
+  '180d': 'Last 180 days',
+  '365d': 'Last 365 days',
   mtd: 'Month to date',
   custom: 'Custom range',
 };
@@ -26,6 +30,10 @@ const formatFilterSummary = (filters: FilterBarState): string => {
 
   if (filters.dateRange === 'custom') {
     parts.push(`Range: ${filters.customRange.start} -> ${filters.customRange.end}`);
+  }
+
+  if (filters.accountId.trim()) {
+    parts.push(`Client account: ${filters.accountId.trim()}`);
   }
 
   if (filters.channels.length > 0) {

@@ -1,12 +1,15 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import Breadcrumbs from '../components/Breadcrumbs';
 import EmptyState from '../components/EmptyState';
 import MetricAvailabilityBadge from '../components/MetricAvailabilityBadge';
 import PostsTable from '../components/PostsTable';
+import { KpiTile, PieComposition } from '../components/viz';
 import MetaPageExportHistory from '../components/meta/MetaPageExportHistory';
 import MetaPagesFilterBar from '../components/meta/MetaPagesFilterBar';
 import useMetaPageExports from '../hooks/useMetaPageExports';
+import { loadSocialConnectionStatus, type SocialPlatformStatusRecord } from '../lib/airbyte';
 import { toMetaPageDateParams } from '../lib/metaPageDateRange';
 import useMetaPageInsightsStore from '../state/useMetaPageInsightsStore';
 import '../styles/dashboard.css';
@@ -14,11 +17,19 @@ import '../styles/dashboard.css';
 const MetaPagePostsPage = () => {
   const { pageId = '' } = useParams();
   const navigate = useNavigate();
-  const { jobs: exportJobs, error: exportError, status: exportStatus, refresh: refreshExports, createExport, download } =
-    useMetaPageExports(pageId);
+  const [metaStatus, setMetaStatus] = useState<SocialPlatformStatusRecord | null>(null);
+  const {
+    jobs: exportJobs,
+    error: exportError,
+    status: exportStatus,
+    refresh: refreshExports,
+    createExport,
+    download,
+  } = useMetaPageExports(pageId);
 
   const {
     pages,
+    missingRequiredPermissions,
     postsStatus,
     posts,
     error,
@@ -28,8 +39,10 @@ const MetaPagePostsPage = () => {
     setPostsQuery,
     loadPages,
     loadPosts,
+    connectOAuthStart,
   } = useMetaPageInsightsStore((state) => ({
     pages: state.pages,
+    missingRequiredPermissions: state.missingRequiredPermissions,
     postsStatus: state.postsStatus,
     posts: state.posts,
     error: state.error,
@@ -39,6 +52,7 @@ const MetaPagePostsPage = () => {
     setPostsQuery: state.setPostsQuery,
     loadPages: state.loadPages,
     loadPosts: state.loadPosts,
+    connectOAuthStart: state.connectOAuthStart,
   }));
 
   useEffect(() => {
@@ -73,6 +87,29 @@ const MetaPagePostsPage = () => {
     postsQuery.sort,
   ]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadStatus = async () => {
+      try {
+        const payload = await loadSocialConnectionStatus();
+        if (!cancelled) {
+          setMetaStatus(payload.platforms.find((row) => row.platform === 'meta') ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setMetaStatus(null);
+        }
+      }
+    };
+
+    void loadStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const runExportCsv = async () => {
     if (!pageId) {
       return;
@@ -92,9 +129,51 @@ const MetaPagePostsPage = () => {
     });
   };
 
+  const selectedPage = useMemo(
+    () => pages.find((page) => page.page_id === pageId),
+    [pages, pageId],
+  );
+  const pageName = selectedPage?.name ?? 'Facebook Page';
   const metricKeys = useMemo(() => {
     return posts ? Object.keys(posts.metric_availability) : [];
   }, [posts]);
+
+  const postRows = useMemo(() => posts?.results ?? [], [posts]);
+  const totalPosts = postRows.length;
+
+  const reachMetricKey = useMemo(() => {
+    if (!posts) return null;
+    const preferred = ['post_impressions_unique', 'page_total_media_view_unique'];
+    return preferred.find((key) => key in posts.metric_availability) ?? null;
+  }, [posts]);
+
+  const avgReach = useMemo(() => {
+    if (!reachMetricKey || postRows.length === 0) return null;
+    const values = postRows
+      .map((row) => row.metrics?.[reachMetricKey])
+      .filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+    if (values.length === 0) return null;
+    return values.reduce((acc, v) => acc + v, 0) / values.length;
+  }, [postRows, reachMetricKey]);
+
+  const avgEngagement = useMemo(() => {
+    if (postRows.length === 0) return null;
+    const values = postRows
+      .map((row) => row.metrics?.[postsQuery.metric])
+      .filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+    if (values.length === 0) return null;
+    return values.reduce((acc, v) => acc + v, 0) / values.length;
+  }, [postRows, postsQuery.metric]);
+
+  const mediaTypeMix = useMemo(() => {
+    const counts = new Map<string, number>();
+    postRows.forEach((row) => {
+      const key = row.media_type || 'UNKNOWN';
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    return Array.from(counts.entries()).map(([label, value]) => ({ label, value }));
+  }, [postRows]);
+  const orphanedMarketingAccess = metaStatus?.reason.code === 'orphaned_marketing_access';
 
   useEffect(() => {
     if (metricKeys.length === 0) {
@@ -107,17 +186,29 @@ const MetaPagePostsPage = () => {
 
   return (
     <section className="dashboardPage">
+      <Breadcrumbs
+        items={[
+          { label: 'Dashboards', to: '/dashboards' },
+          { label: 'Facebook Pages', to: '/dashboards/meta/pages' },
+          { label: pageName, to: `/dashboards/meta/pages/${pageId}/overview` },
+          { label: 'Posts' },
+        ]}
+      />
       <header className="dashboardPageHeader">
-        <p className="dashboardEyebrow">Facebook Analytics</p>
-        <h1 className="dashboardHeading">Page Posts</h1>
+        <h1 className="dashboardHeading">{pageName} Posts</h1>
         <div className="dashboard-header__actions-row">
+          <Link className="button tertiary" to="/dashboards/meta/pages">
+            Back to Facebook pages
+          </Link>
           <Link className="button tertiary" to={`/dashboards/meta/pages/${pageId}/overview`}>
             Overview
           </Link>
-          <Link className="button tertiary" to="/dashboards/meta/pages">
-            All pages
-          </Link>
-          <button type="button" className="button tertiary" onClick={() => void runExportCsv()} disabled={exportStatus === 'loading'}>
+          <button
+            type="button"
+            className="button tertiary"
+            onClick={() => void runExportCsv()}
+            disabled={exportStatus === 'loading'}
+          >
             Export CSV
           </button>
         </div>
@@ -134,6 +225,40 @@ const MetaPagePostsPage = () => {
         onChangeSince={(value) => setFilters({ since: value })}
         onChangeUntil={(value) => setFilters({ until: value })}
       />
+
+      {orphanedMarketingAccess ? (
+        <div className="panel meta-warning-panel" role="status">
+          <h3>Restore Meta marketing access</h3>
+          <p>{metaStatus?.reason.message}</p>
+          <div className="dashboard-header__actions-row">
+            <Link className="button secondary" to="/dashboards/data-sources?sources=social">
+              Restore Meta marketing access
+            </Link>
+            <Link className="button tertiary" to="/dashboards/meta/accounts">
+              Meta accounts
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {missingRequiredPermissions.length > 0 ? (
+        <div className="panel meta-warning-panel" role="status">
+          <h3>Reconnect Meta to restore post insights</h3>
+          <p>
+            The current Meta connection is missing: {missingRequiredPermissions.join(', ')}.
+            Reconnect Meta from Data Sources before refreshing or relying on post metrics.
+          </p>
+          <div className="dashboard-header__actions-row">
+            <button
+              className="button secondary"
+              type="button"
+              onClick={() => void connectOAuthStart({ authType: 'rerequest' })}
+            >
+              Re-request Meta permissions
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="meta-posts-metric-select">
         <label htmlFor="meta-posts-metric">Table metric</label>
@@ -216,7 +341,53 @@ const MetaPagePostsPage = () => {
             })
           }
           className="panel"
+          reasonCode="error"
         />
+      ) : null}
+
+      {postsStatus === 'loaded' && posts && posts.results.length > 0 ? (
+        <div
+          className="dashboard-grid"
+          data-testid="meta-posts-kpi-strip"
+          style={{ marginBottom: '1rem' }}
+        >
+          <KpiTile
+            label="Total Posts"
+            value={totalPosts}
+            format="number"
+            reasonCode="meta_posts_total"
+          />
+          <KpiTile
+            label="Avg Reach"
+            value={avgReach}
+            format="number"
+            reasonCode="meta_posts_avg_reach"
+            hint={reachMetricKey ?? undefined}
+          />
+          <KpiTile
+            label="Avg Engagement"
+            value={avgEngagement}
+            format="number"
+            reasonCode="meta_posts_avg_engagement"
+            hint={postsQuery.metric}
+          />
+        </div>
+      ) : null}
+
+      {postsStatus === 'loaded' && posts && posts.results.length > 0 ? (
+        <article
+          className="panel"
+          data-testid="meta-posts-media-mix"
+          style={{ marginBottom: '1rem' }}
+        >
+          <h3>Post type mix</h3>
+          <PieComposition
+            data={mediaTypeMix}
+            ariaLabel="Post type mix"
+            height={240}
+            emptyReasonCode="no_posts"
+          />
+        </article>
       ) : null}
 
       {postsStatus === 'loaded' && posts ? (
@@ -229,14 +400,22 @@ const MetaPagePostsPage = () => {
       ) : null}
 
       {postsStatus === 'loaded' && posts && posts.results.length === 0 ? (
-        <div className="panel meta-warning-panel" role="status">
-          <h3>No posts found</h3>
-          <p>Adjust the date range in overview or run a sync.</p>
-        </div>
+        <EmptyState
+          icon={<span aria-hidden>0</span>}
+          title="No posts found"
+          message="Adjust the date range in overview or run a sync."
+          reasonCode="no_posts"
+          className="panel"
+        />
       ) : null}
 
-      {postsStatus === 'loaded' && posts && (posts.next_offset != null || posts.prev_offset != null) ? (
-        <div className="panel" style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+      {postsStatus === 'loaded' &&
+      posts &&
+      (posts.next_offset != null || posts.prev_offset != null) ? (
+        <div
+          className="panel"
+          style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}
+        >
           <button
             type="button"
             className="button tertiary"

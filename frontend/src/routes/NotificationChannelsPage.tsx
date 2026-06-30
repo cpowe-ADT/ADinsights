@@ -1,0 +1,223 @@
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+
+import DashboardState from '../components/DashboardState';
+import SkeletonLoader from '../components/SkeletonLoader';
+import {
+  listNotificationChannels,
+  createNotificationChannel,
+  deleteNotificationChannel,
+  type NotificationChannel,
+} from '../lib/phase2Api';
+import '../styles/phase2.css';
+import '../styles/dashboard.css';
+import '../styles/skeleton.css';
+
+const CHANNEL_TYPES: { value: NotificationChannel['channel_type']; label: string }[] = [
+  { value: 'email', label: 'Email' },
+  { value: 'webhook', label: 'Webhook' },
+  { value: 'slack', label: 'Slack' },
+];
+
+const NotificationChannelsPage = () => {
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [channels, setChannels] = useState<NotificationChannel[]>([]);
+  const [error, setError] = useState('Unable to load notification channels.');
+
+  const [name, setName] = useState('');
+  const [channelType, setChannelType] = useState<NotificationChannel['channel_type']>('email');
+  const [configValue, setConfigValue] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = useCallback(async () => {
+    setState('loading');
+    try {
+      const data = await listNotificationChannels();
+      setChannels(data);
+      setState('ready');
+    } catch (err) {
+      setState('error');
+      setError(err instanceof Error ? err.message : 'Unable to load notification channels.');
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const handleCreate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !configValue.trim()) return;
+    setSubmitting(true);
+    try {
+      await createNotificationChannel({
+        name: name.trim(),
+        channel_type: channelType,
+        ...(channelType === 'email'
+          ? { config: { emails: configValue.trim() } }
+          : { secret_config: { url: configValue.trim() } }),
+      });
+      setName('');
+      setConfigValue('');
+      await load();
+    } catch {
+      // Keep form state on error so user can retry
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (channelId: string) => {
+    if (!window.confirm('Delete this notification channel?')) return;
+    setDeletingId(channelId);
+    try {
+      await deleteNotificationChannel(channelId);
+      setChannels((prev) => prev.filter((ch) => ch.id !== channelId));
+    } catch {
+      // Silently ignore; user can retry
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  if (state === 'loading') {
+    return (
+      <section className="phase2-page">
+        <header className="phase2-page__header">
+          <div>
+            <p className="dashboardEyebrow">Settings</p>
+            <h1 className="dashboardHeading">Notification Channels</h1>
+          </div>
+        </header>
+        <SkeletonLoader variant="card" />
+        <SkeletonLoader variant="table" />
+      </section>
+    );
+  }
+
+  if (state === 'error') {
+    return (
+      <DashboardState
+        variant="error"
+        layout="page"
+        title="Notification channels unavailable"
+        message={error}
+        actionLabel="Retry"
+        onAction={() => void load()}
+      />
+    );
+  }
+
+  return (
+    <section className="phase2-page">
+      <header className="phase2-page__header">
+        <div>
+          <p className="dashboardEyebrow">Settings</p>
+          <h1 className="dashboardHeading">Notification Channels</h1>
+          <p className="phase2-page__subhead">
+            Configure where alert notifications are delivered. Webhook destinations are stored
+            encrypted and shown only as configured status.
+          </p>
+        </div>
+      </header>
+
+      <article className="phase2-card">
+        <h3>Create channel</h3>
+        <form
+          onSubmit={(e) => void handleCreate(e)}
+          style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 480 }}
+        >
+          <label>
+            Name
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Team Slack"
+              required
+              className="phase2-input"
+            />
+          </label>
+          <label>
+            Type
+            <select
+              value={channelType}
+              onChange={(e) =>
+                setChannelType(e.target.value as NotificationChannel['channel_type'])
+              }
+              className="phase2-input"
+            >
+              {CHANNEL_TYPES.map((ct) => (
+                <option key={ct.value} value={ct.value}>
+                  {ct.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {channelType === 'email' ? 'Emails (comma-separated)' : 'URL'}
+            <input
+              type="text"
+              value={configValue}
+              onChange={(e) => setConfigValue(e.target.value)}
+              placeholder={
+                channelType === 'email'
+                  ? 'a@example.com, b@example.com'
+                  : 'https://hooks.example.com/...'
+              }
+              required
+              className="phase2-input"
+            />
+          </label>
+          <button type="submit" className="button primary" disabled={submitting}>
+            {submitting ? 'Creating...' : 'Create channel'}
+          </button>
+        </form>
+      </article>
+
+      {channels.length === 0 ? (
+        <DashboardState
+          variant="empty"
+          layout="page"
+          title="No notification channels"
+          message="Create a channel above to start receiving alert notifications."
+        />
+      ) : (
+        <table className="phase2-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Destination</th>
+              <th>Active</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {channels.map((ch) => (
+              <tr key={ch.id}>
+                <td>{ch.name}</td>
+                <td>{ch.channel_type}</td>
+                <td>{ch.masked_destination}</td>
+                <td>{ch.is_active ? 'Yes' : 'No'}</td>
+                <td>
+                  <button
+                    type="button"
+                    className="button tertiary"
+                    disabled={deletingId === ch.id}
+                    onClick={() => void handleDelete(ch.id)}
+                  >
+                    {deletingId === ch.id ? 'Deleting...' : 'Delete'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+};
+
+export default NotificationChannelsPage;

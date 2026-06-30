@@ -1,0 +1,72 @@
+{
+  "schema_version": "slb_g0_raj_mira_review.v1",
+  "status": "pending",
+  "references": {
+    "review_packet": "docs/project/evidence/dashthis-replacement/2026-06-16-g0-raj-mira-review-packet.md",
+    "preflight_packet": "docs/project/evidence/dashthis-replacement/preflight/2026-06-16-g0-g1-review-target-intake/",
+    "checked_preflight_packet": "docs/project/evidence/dashthis-replacement/preflight/2026-06-16-g0-g1-review-target-intake-with-checks/",
+    "decision_id": "pending",
+    "decision_timestamp": "pending",
+    "operator": "pending"
+  },
+  "decision": {
+    "scope_classification": "pending",
+    "architecture_classification": "pending",
+    "g1_g11_evidence_capture": "pending",
+    "dashthis_cancellation": "no_go",
+    "reason": "pending"
+  },
+  "reviewers": {
+    "raj": {
+      "decision": "pending",
+      "name_or_handle": "pending",
+      "notes": "pending"
+    },
+    "mira": {
+      "decision": "pending",
+      "name_or_handle": "pending",
+      "notes": "pending"
+    }
+  },
+  "guardrails": {
+    "instagram_deferred": true,
+    "stored_aggregate_only": true,
+    "no_live_provider_calls_at_render_export_time": true,
+    "tenant_isolation_required": true,
+    "aggregate_only_no_user_level_metrics": true,
+    "dashthis_active_until_g12": true
+  },
+  "preflight_interpretation": {
+    "scope_status": "ESCALATE_ARCH_RISK",
+    "contract_status": "WARN_POSSIBLE_CONTRACT_CHANGE",
+    "release_status": "GATE_BLOCK",
+    "classified_as_architecture_review_not_runtime_failure": false,
+    "contract_warning_route": "pending",
+    "security_pii_warning_route": "pending"
+  },
+  "required_followups": [
+    {
+      "id": "pending",
+      "owner_route": ["pending"],
+      "required_before_g1": false,
+      "required_before_g12": false,
+      "description": "pending"
+    }
+  ],
+  "reviewer_route_confirmed": {
+    "sofia": false,
+    "andre": false,
+    "lina_or_joel": false,
+    "omar_or_hannah": false,
+    "nina_if_sensitive": false,
+    "priya_martin_if_retention_gap": false,
+    "raj_mira_for_g12": false
+  },
+  "decision_log": [
+    {
+      "timestamp": "pending",
+      "actor": "pending",
+      "summary": "pending"
+    }
+  ]
+}

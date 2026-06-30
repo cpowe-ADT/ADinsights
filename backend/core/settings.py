@@ -33,6 +33,7 @@ env = environ.Env(
     METRICS_SNAPSHOT_STALE_TTL_SECONDS=(int, 3600),
     METRICS_SNAPSHOT_SYNC_LOCK_TTL_SECONDS=(int, 900),
     ENABLE_FAKE_ADAPTER=(bool, False),
+    ENABLE_META_DIRECT_ADAPTER=(bool, False),
     ENABLE_WAREHOUSE_ADAPTER=(bool, False),
     ENABLE_DEMO_ADAPTER=(bool, False),
     ENABLE_UPLOAD_ADAPTER=(bool, True),
@@ -43,6 +44,22 @@ env = environ.Env(
     EMAIL_FROM_ADDRESS=(str, "no-reply@adinsights.local"),
     SES_CONFIGURATION_SET=(str, ""),
     SES_EXPECTED_FROM_DOMAIN=(str, ""),
+    REPORT_EXPORTER_DIR=(str, str(BASE_DIR.parent / "integrations" / "exporter")),
+    REPORT_EXPORT_ARTIFACT_ROOT=(str, ""),
+    CONTENT_OPS_ASSET_ROOT=(str, ""),
+    CONTENT_OPS_ASSET_MAX_UPLOAD_BYTES=(int, 25 * 1024 * 1024),
+    CONTENT_OPS_PUBLIC_MEDIA_BASE_URL=(str, ""),
+    CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING=(bool, False),
+    CONTENT_OPS_META_INSTAGRAM_BETA=(bool, False),
+    CONTENT_OPS_TEXT_PROVIDER=(str, "disabled"),
+    CONTENT_OPS_TEXT_TIMEOUT=(float, 30.0),
+    CONTENT_OPS_TENANT_MONTHLY_TOKEN_CAP=(int, 0),
+    CONTENT_OPS_IMAGE_PROVIDER=(str, "disabled"),
+    CONTENT_OPS_IMAGE_TIMEOUT=(float, 60.0),
+    CONTENT_OPS_GENERATED_ASSET_MAX_BYTES=(int, 15 * 1024 * 1024),
+    CONTENT_OPS_IMAGE_ACTIVE_JOB_LIMIT=(int, 10),
+    CONTENT_OPS_IMAGE_DAILY_JOB_LIMIT=(int, 50),
+    CONTENT_OPS_IMAGE_DAILY_IMAGE_LIMIT=(int, 100),
     FRONTEND_BASE_URL=(str, "http://localhost:5173"),
     META_APP_ID=(str, ""),
     META_APP_SECRET=(str, ""),
@@ -52,6 +69,7 @@ env = environ.Env(
     META_OAUTH_SCOPES=(
         list,
         [
+            # Keep optional Instagram scopes out of the baseline authorize request.
             "ads_management",
             "pages_show_list",
             "pages_read_engagement",
@@ -66,12 +84,16 @@ env = environ.Env(
     META_PAGE_INSIGHTS_OAUTH_SCOPES=(
         list,
         [
+            # Page Insights flow is Page-scoped; do not reintroduce read_insights here.
             "pages_show_list",
             "pages_read_engagement",
             "pages_manage_metadata",
         ],
     ),
+    # Keep the repo pin stable until an explicit Meta API version migration is validated end-to-end.
     META_GRAPH_API_VERSION=(str, "v24.0"),
+    META_GRAPH_TIMEOUT_SECONDS=(float, 10.0),
+    META_GRAPH_MAX_ATTEMPTS=(int, 5),
     META_PAGE_INSIGHTS_ENABLED=(bool, True),
     META_PAGE_INSIGHTS_METRIC_PACK_PATH=(str, ""),
     META_PAGE_INSIGHTS_BACKFILL_DAYS=(int, 90),
@@ -188,12 +210,82 @@ METRICS_SNAPSHOT_SYNC_LOCK_TTL_SECONDS = max(env.int("METRICS_SNAPSHOT_SYNC_LOCK
 # In local DEBUG sessions, keep demo/fake adapters on by default so dashboard
 # toggles always have a working non-live data source unless explicitly disabled.
 ENABLE_FAKE_ADAPTER = env.bool("ENABLE_FAKE_ADAPTER", default=DEBUG)
+ENABLE_META_DIRECT_ADAPTER = env.bool("ENABLE_META_DIRECT_ADAPTER", default=DEBUG)
 ENABLE_WAREHOUSE_ADAPTER = env.bool("ENABLE_WAREHOUSE_ADAPTER", default=False)
 ENABLE_DEMO_ADAPTER = env.bool("ENABLE_DEMO_ADAPTER", default=DEBUG)
 ENABLE_UPLOAD_ADAPTER = env.bool("ENABLE_UPLOAD_ADAPTER", default=True)
 ENABLE_DEMO_GENERATION = env.bool("ENABLE_DEMO_GENERATION", default=True)
 DEMO_SEED_DIR = _optional(env("DEMO_SEED_DIR", default=""))
 CREDENTIAL_ROTATION_REMINDER_DAYS = env.int("CREDENTIAL_ROTATION_REMINDER_DAYS")
+_report_exporter_dir = env("REPORT_EXPORTER_DIR").strip()
+REPORT_EXPORTER_DIR = (
+    Path(_report_exporter_dir)
+    if _report_exporter_dir
+    else BASE_DIR.parent / "integrations" / "exporter"
+)
+_report_export_artifact_root = env("REPORT_EXPORT_ARTIFACT_ROOT").strip()
+REPORT_EXPORT_ARTIFACT_ROOT = (
+    Path(_report_export_artifact_root)
+    if _report_export_artifact_root
+    else REPORT_EXPORTER_DIR / "out"
+)
+_content_ops_asset_root = env("CONTENT_OPS_ASSET_ROOT").strip()
+CONTENT_OPS_ASSET_ROOT = (
+    Path(_content_ops_asset_root)
+    if _content_ops_asset_root
+    else REPORT_EXPORT_ARTIFACT_ROOT / "content_ops_assets"
+)
+CONTENT_OPS_ASSET_MAX_UPLOAD_BYTES = env.int("CONTENT_OPS_ASSET_MAX_UPLOAD_BYTES")
+CONTENT_OPS_PUBLIC_MEDIA_BASE_URL = env("CONTENT_OPS_PUBLIC_MEDIA_BASE_URL").strip()
+CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING = env.bool("CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING")
+CONTENT_OPS_META_INSTAGRAM_BETA = env.bool("CONTENT_OPS_META_INSTAGRAM_BETA")
+# Content Ops AI caption generation (vendor-neutral; default off).
+# CONTENT_OPS_TEXT_PROVIDER selects the platform-default text provider:
+#   "disabled" (no live calls) | "openai" | "anthropic".
+CONTENT_OPS_TEXT_PROVIDER = env("CONTENT_OPS_TEXT_PROVIDER").strip().lower()
+CONTENT_OPS_TEXT_TIMEOUT = env.float("CONTENT_OPS_TEXT_TIMEOUT")
+# Per-tenant monthly token cap (0 = unlimited). Checked before each provider call.
+CONTENT_OPS_TENANT_MONTHLY_TOKEN_CAP = env.int("CONTENT_OPS_TENANT_MONTHLY_TOKEN_CAP")
+CONTENT_OPS_OPENAI_API_KEY = _optional(env("CONTENT_OPS_OPENAI_API_KEY", default=None))
+CONTENT_OPS_OPENAI_BASE_URL = env(
+    "CONTENT_OPS_OPENAI_BASE_URL", default="https://api.openai.com/v1"
+).strip()
+CONTENT_OPS_OPENAI_MODEL = env("CONTENT_OPS_OPENAI_MODEL", default="gpt-5.1").strip()
+CONTENT_OPS_OPENAI_USD_PER_1K_TOKENS = env(
+    "CONTENT_OPS_OPENAI_USD_PER_1K_TOKENS", default="0"
+).strip()
+CONTENT_OPS_ANTHROPIC_API_KEY = _optional(
+    env("CONTENT_OPS_ANTHROPIC_API_KEY", default=None)
+)
+CONTENT_OPS_ANTHROPIC_BASE_URL = env(
+    "CONTENT_OPS_ANTHROPIC_BASE_URL", default="https://api.anthropic.com/v1"
+).strip()
+CONTENT_OPS_ANTHROPIC_MODEL = env(
+    "CONTENT_OPS_ANTHROPIC_MODEL", default="claude-opus-4-8"
+).strip()
+CONTENT_OPS_ANTHROPIC_VERSION = env(
+    "CONTENT_OPS_ANTHROPIC_VERSION", default="2023-06-01"
+).strip()
+CONTENT_OPS_ANTHROPIC_USD_PER_1K_TOKENS = env(
+    "CONTENT_OPS_ANTHROPIC_USD_PER_1K_TOKENS", default="0"
+).strip()
+# Content Ops AI image/video generation (vendor-neutral; default off).
+# Provider: disabled | openai. Reuses the OpenAI key/base URL above.
+CONTENT_OPS_IMAGE_PROVIDER = env("CONTENT_OPS_IMAGE_PROVIDER").strip().lower()
+CONTENT_OPS_IMAGE_TIMEOUT = env.float("CONTENT_OPS_IMAGE_TIMEOUT")
+CONTENT_OPS_GENERATED_ASSET_MAX_BYTES = env.int("CONTENT_OPS_GENERATED_ASSET_MAX_BYTES")
+CONTENT_OPS_OPENAI_IMAGE_MODEL = env(
+    "CONTENT_OPS_OPENAI_IMAGE_MODEL", default="gpt-image-1"
+).strip()
+CONTENT_OPS_OPENAI_IMAGE_SIZE = env(
+    "CONTENT_OPS_OPENAI_IMAGE_SIZE", default="1024x1024"
+).strip()
+CONTENT_OPS_OPENAI_USD_PER_IMAGE = env(
+    "CONTENT_OPS_OPENAI_USD_PER_IMAGE", default="0"
+).strip()
+CONTENT_OPS_IMAGE_ACTIVE_JOB_LIMIT = env.int("CONTENT_OPS_IMAGE_ACTIVE_JOB_LIMIT")
+CONTENT_OPS_IMAGE_DAILY_JOB_LIMIT = env.int("CONTENT_OPS_IMAGE_DAILY_JOB_LIMIT")
+CONTENT_OPS_IMAGE_DAILY_IMAGE_LIMIT = env.int("CONTENT_OPS_IMAGE_DAILY_IMAGE_LIMIT")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -208,6 +300,7 @@ INSTALLED_APPS = [
     "accounts",
     "integrations",
     "analytics",
+    "content_ops",
 ]
 
 MIDDLEWARE = [
@@ -411,6 +504,12 @@ CELERY_TASK_ROUTES = {
     "integrations.tasks.trigger_scheduled_airbyte_syncs": {"queue": CELERY_QUEUE_SYNC},
     "integrations.tasks.remind_expiring_credentials": {"queue": CELERY_QUEUE_SYNC},
     "integrations.tasks.refresh_*": {"queue": CELERY_QUEUE_SYNC},
+    "content_ops.tasks.dispatch_due_content_schedules": {"queue": CELERY_QUEUE_SYNC},
+    "content_ops.tasks.process_content_publish_attempt": {"queue": CELERY_QUEUE_SYNC},
+    "content_ops.tasks.process_due_content_publish_attempts": {"queue": CELERY_QUEUE_SYNC},
+    "content_ops.tasks.refresh_content_published_post_metrics": {"queue": CELERY_QUEUE_SYNC},
+    "content_ops.tasks.requeue_due_content_publish_attempts": {"queue": CELERY_QUEUE_SYNC},
+    "content_ops.tasks.process_content_caption_generation_job": {"queue": CELERY_QUEUE_SYNC},
     "analytics.sync_metrics_snapshots": {"queue": CELERY_QUEUE_SNAPSHOT},
     "analytics.tasks.sync_metrics_snapshots": {"queue": CELERY_QUEUE_SNAPSHOT},
     "analytics.ai_daily_summary": {"queue": CELERY_QUEUE_SUMMARY},
@@ -523,6 +622,26 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute=25, hour="6-22"),
         "options": {"queue": CELERY_QUEUE_SYNC},
     },
+    "content-publish-due-scan": {
+        "task": "content_ops.tasks.dispatch_due_content_schedules",
+        "schedule": crontab(minute="*"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
+    },
+    "content-publish-retry-scan": {
+        "task": "content_ops.tasks.requeue_due_content_publish_attempts",
+        "schedule": crontab(minute="*"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
+    },
+    "content-publish-process-scan": {
+        "task": "content_ops.tasks.process_due_content_publish_attempts",
+        "schedule": crontab(minute="*"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
+    },
+    "content-organic-metrics-refresh": {
+        "task": "content_ops.tasks.refresh_content_published_post_metrics",
+        "schedule": crontab(minute=35, hour="6-22"),
+        "options": {"queue": CELERY_QUEUE_SYNC},
+    },
     "rotate-tenant-deks": {
         "task": "core.tasks.rotate_deks",
         "schedule": crontab(hour=1, minute=30, day_of_week="sun"),
@@ -531,6 +650,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "analytics.sync_metrics_snapshots",
         "schedule": crontab(minute="*/30"),
         "options": {"queue": CELERY_QUEUE_SNAPSHOT},
+    },
+    # Sprint 10: daily ECB FX refresh so currency conversions don't drift.
+    # Runs at 05:15 America/Jamaica (after ECB publishes ~16:00 CET the day
+    # before). Free public API, no key required — see ``refresh_fx_rates``.
+    "fx-rates-daily": {
+        "task": "integrations.tasks.refresh_fx_rates",
+        "schedule": crontab(hour=5, minute=15),
+        "options": {"queue": CELERY_QUEUE_SYNC},
     },
     "ai-daily-summary": {
         "task": "analytics.ai_daily_summary",
@@ -763,6 +890,8 @@ META_LOGIN_CONFIG_REQUIRED = env.bool("META_LOGIN_CONFIG_REQUIRED", default=True
 META_OAUTH_SCOPES = env.list("META_OAUTH_SCOPES")
 META_PAGE_INSIGHTS_OAUTH_SCOPES = env.list("META_PAGE_INSIGHTS_OAUTH_SCOPES")
 META_GRAPH_API_VERSION = env("META_GRAPH_API_VERSION", default="v24.0")
+META_GRAPH_TIMEOUT_SECONDS = env.float("META_GRAPH_TIMEOUT_SECONDS", default=10.0)
+META_GRAPH_MAX_ATTEMPTS = env.int("META_GRAPH_MAX_ATTEMPTS", default=5)
 META_PAGE_INSIGHTS_ENABLED = env.bool("META_PAGE_INSIGHTS_ENABLED", default=True)
 META_PAGE_INSIGHTS_METRIC_PACK_PATH = _optional(
     env("META_PAGE_INSIGHTS_METRIC_PACK_PATH", default=None)

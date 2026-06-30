@@ -31,3 +31,28 @@ function withQuery(path: string, params?: QueryParams): string {
 export function fetchGoogleAnalyticsWebRows(params?: QueryParams) {
   return get<GoogleAnalyticsWebResponse>(withQuery('/analytics/web/ga4/', params));
 }
+
+export interface SearchConsoleWebRow {
+  date_day: string;
+  site_url: string;
+  country: string;
+  device: string;
+  query: string;
+  page: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+export interface SearchConsoleWebResponse {
+  source: 'search_console';
+  status: 'ok' | 'unavailable';
+  count: number;
+  rows: SearchConsoleWebRow[];
+  detail?: string;
+}
+
+export function fetchSearchConsoleWebRows(params?: QueryParams) {
+  return get<SearchConsoleWebResponse>(withQuery('/analytics/web/search-console/', params));
+}

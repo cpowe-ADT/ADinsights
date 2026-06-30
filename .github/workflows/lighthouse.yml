@@ -15,6 +15,10 @@ on:
       - 'vitest.config.ts'
       - '.github/workflows/lighthouse.yml'
 
+permissions:
+  contents: read
+  statuses: write
+
 jobs:
   lighthouse:
     name: Lighthouse dashboards smoke

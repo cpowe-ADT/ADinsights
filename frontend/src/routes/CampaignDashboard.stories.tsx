@@ -110,10 +110,30 @@ const StoreBootstrap = ({
       selectedParish: undefined,
       selectedMetric: 'spend',
       loadAll: async () => undefined,
-      campaign: { status: 'loaded', data: snapshot.metrics.campaign, error: undefined },
-      creative: { status: 'loaded', data: snapshot.metrics.creative, error: undefined },
-      budget: { status: 'loaded', data: snapshot.metrics.budget, error: undefined },
-      parish: { status: 'loaded', data: snapshot.metrics.parish, error: undefined },
+      campaign: {
+        status: 'loaded',
+        data: snapshot.metrics.campaign,
+        error: undefined,
+        errorKind: undefined,
+      },
+      creative: {
+        status: 'loaded',
+        data: snapshot.metrics.creative,
+        error: undefined,
+        errorKind: undefined,
+      },
+      budget: {
+        status: 'loaded',
+        data: snapshot.metrics.budget,
+        error: undefined,
+        errorKind: undefined,
+      },
+      parish: {
+        status: 'loaded',
+        data: snapshot.metrics.parish,
+        error: undefined,
+        errorKind: undefined,
+      },
       metricsCache: {
         ...state.metricsCache,
         [`${snapshot.id}::${datasetMode}::${filterKey}`]: {

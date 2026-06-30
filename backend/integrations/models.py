@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Iterable, Optional
+from typing import Any, Iterable, Mapping, Optional
 
 from croniter import croniter
 from django.db import models
@@ -20,12 +21,14 @@ class PlatformCredential(models.Model):
     META = "META"
     GOOGLE = "GOOGLE"
     GOOGLE_ANALYTICS = "GOOGLE_ANALYTICS"
+    SEARCH_CONSOLE = "SEARCH_CONSOLE"
     LINKEDIN = "LINKEDIN"
     TIKTOK = "TIKTOK"
     PROVIDER_CHOICES = [
         (META, "Meta"),
         (GOOGLE, "Google Ads"),
         (GOOGLE_ANALYTICS, "Google Analytics"),
+        (SEARCH_CONSOLE, "Google Search Console"),
         (LINKEDIN, "LinkedIn"),
         (TIKTOK, "TikTok"),
     ]
@@ -766,6 +769,7 @@ class MetaPost(models.Model):
     created_time = models.DateTimeField(null=True, blank=True)
     updated_time = models.DateTimeField(null=True, blank=True)
     last_synced_at = models.DateTimeField(null=True, blank=True)
+    thumbnail_url = models.URLField(max_length=500, blank=True, default="")
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -932,6 +936,103 @@ class GoogleAdsSdkGeographicDaily(models.Model):
         indexes = [
             models.Index(fields=["tenant", "date_day"], name="gads_sdk_geo_day"),
             models.Index(fields=["tenant", "customer_id"], name="gads_sdk_geo_customer"),
+        ]
+
+
+class MetaRegionDaily(models.Model):
+    """Daily region-level metrics from Meta Ads breakdowns=region."""
+
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="meta_region_daily"
+    )
+    account_id = models.CharField(max_length=64)
+    campaign_id = models.CharField(max_length=64, blank=True, default="")
+    date_day = models.DateField()
+    region = models.CharField(max_length=128)
+    country = models.CharField(max_length=128, blank=True)
+    currency = models.CharField(max_length=16, blank=True)
+    impressions = models.BigIntegerField(default=0)
+    reach = models.BigIntegerField(default=0)
+    clicks = models.BigIntegerField(default=0)
+    spend = models.DecimalField(max_digits=20, decimal_places=6, default=Decimal("0"))
+    conversions = models.IntegerField(default=0)
+    actions = models.JSONField(default=list, blank=True)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    ingested_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "account_id", "campaign_id", "date_day", "region")
+        indexes = [
+            models.Index(fields=["tenant", "date_day"], name="meta_region_day"),
+            models.Index(fields=["tenant", "account_id"], name="meta_region_acct"),
+        ]
+
+
+class MetaAgeGenderDaily(models.Model):
+    """Daily age+gender breakdown from Meta Ads breakdowns=age,gender."""
+
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="meta_age_gender_daily"
+    )
+    account_id = models.CharField(max_length=64)
+    date_day = models.DateField()
+    age_range = models.CharField(max_length=16)
+    gender = models.CharField(max_length=16)
+    currency = models.CharField(max_length=16, blank=True)
+    impressions = models.BigIntegerField(default=0)
+    reach = models.BigIntegerField(default=0)
+    clicks = models.BigIntegerField(default=0)
+    spend = models.DecimalField(max_digits=20, decimal_places=6, default=Decimal("0"))
+    conversions = models.IntegerField(default=0)
+    actions = models.JSONField(default=list, blank=True)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    ingested_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "account_id", "date_day", "age_range", "gender")
+        indexes = [
+            models.Index(fields=["tenant", "date_day"], name="meta_agegender_day"),
+            models.Index(fields=["tenant", "account_id"], name="meta_agegender_acct"),
+        ]
+
+
+class MetaPlatformDaily(models.Model):
+    """Daily publisher_platform + device_platform breakdown from Meta Ads."""
+
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="meta_platform_daily"
+    )
+    account_id = models.CharField(max_length=64)
+    date_day = models.DateField()
+    publisher_platform = models.CharField(max_length=32)
+    device_platform = models.CharField(max_length=32)
+    currency = models.CharField(max_length=16, blank=True)
+    impressions = models.BigIntegerField(default=0)
+    reach = models.BigIntegerField(default=0)
+    clicks = models.BigIntegerField(default=0)
+    spend = models.DecimalField(max_digits=20, decimal_places=6, default=Decimal("0"))
+    conversions = models.IntegerField(default=0)
+    actions = models.JSONField(default=list, blank=True)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    ingested_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "account_id", "date_day", "publisher_platform", "device_platform")
+        indexes = [
+            models.Index(fields=["tenant", "date_day"], name="meta_platform_day"),
+            models.Index(fields=["tenant", "account_id"], name="meta_platform_acct"),
         ]
 
 
@@ -1126,6 +1227,14 @@ class GoogleAdsSdkRecommendation(models.Model):
     campaign_id = models.CharField(max_length=64, blank=True)
     ad_group_id = models.CharField(max_length=64, blank=True)
     dismissed = models.BooleanField(default=False)
+    dismissed_at = models.DateTimeField(blank=True, null=True)
+    dismissed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="google_ads_recommendation_dismissals",
+    )
     impact_metadata = models.JSONField(default=dict, blank=True)
     source_request_id = models.CharField(max_length=128, blank=True)
     last_seen_at = models.DateTimeField(default=timezone.now)
@@ -1428,6 +1537,10 @@ class AlertRuleDefinition(models.Model):
         max_length=6, choices=SEVERITY_CHOICES, default=SEVERITY_MEDIUM
     )
     is_active = models.BooleanField(default=True)
+    paused_until = models.DateTimeField(null=True, blank=True)
+    notification_channels = models.ManyToManyField(
+        'NotificationChannel', blank=True, related_name='alert_rules'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1440,3 +1553,315 @@ class AlertRuleDefinition(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - repr helper
         return f"AlertRuleDefinition<{self.name}>"
+
+    @classmethod
+    def active_for_eval(cls):
+        """Canonical "should-this-rule-evaluate-now" filter; future DB-driven evaluators must use it."""
+        now = timezone.now()
+        cls.all_objects.filter(
+            is_active=False,
+            paused_until__isnull=False,
+            paused_until__lte=now,
+        ).update(is_active=True, paused_until=None)
+        return cls.objects.filter(is_active=True)
+
+
+class NotificationChannel(models.Model):
+    SECRET_CONFIG_KEYS = {
+        "url",
+        "webhook_url",
+        "headers",
+        "auth_headers",
+        "authorization",
+        "authorization_header",
+        "token",
+        "auth_token",
+        "bearer_token",
+        "api_key",
+        "secret",
+    }
+    SECRET_CHANNEL_TYPES = {"slack", "webhook"}
+
+    CHANNEL_EMAIL = 'email'
+    CHANNEL_WEBHOOK = 'webhook'
+    CHANNEL_SLACK = 'slack'
+    CHANNEL_TYPE_CHOICES = [
+        (CHANNEL_EMAIL, 'Email'),
+        (CHANNEL_WEBHOOK, 'Webhook'),
+        (CHANNEL_SLACK, 'Slack'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name='notification_channels'
+    )
+    name = models.CharField(max_length=200)
+    channel_type = models.CharField(max_length=16, choices=CHANNEL_TYPE_CHOICES)
+    config = models.JSONField(default=dict, blank=True)
+    secret_config_enc = models.BinaryField(null=True, blank=True)
+    secret_config_nonce = models.BinaryField(null=True, blank=True)
+    secret_config_tag = models.BinaryField(null=True, blank=True)
+    secret_dek_key_version = models.CharField(max_length=128, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    _raw_secret_config: Optional[dict[str, Any]] = None
+    _secret_config_cleared: bool = False
+
+    class Meta:
+        ordering = ('name',)
+
+    def set_secret_config(self, value: Mapping[str, Any]) -> None:
+        secret_config = dict(value)
+        if not secret_config:
+            self.mark_secret_config_for_clear()
+            return
+        self._raw_secret_config = secret_config
+        self._secret_config_cleared = False
+
+    def mark_secret_config_for_clear(self) -> None:
+        self._raw_secret_config = None
+        self._secret_config_cleared = True
+
+    @property
+    def has_secret_config(self) -> bool:
+        return bool(self.secret_config_enc)
+
+    def decrypt_secret_config(self) -> dict[str, Any]:
+        if not self.secret_config_enc:
+            return {}
+        key, _ = get_dek_for_tenant(self.tenant)
+        value = decrypt_value(
+            self.secret_config_enc,
+            self.secret_config_nonce,
+            self.secret_config_tag,
+            key,
+        )
+        if not value:
+            return {}
+        decoded = json.loads(value)
+        return dict(decoded) if isinstance(decoded, dict) else {}
+
+    def save(self, *args, **kwargs):
+        if self.tenant_id is None:
+            raise ValueError("Tenant must be set before saving NotificationChannel")
+        secret_fields_changed = False
+        if self.channel_type in self.SECRET_CHANNEL_TYPES:
+            config = dict(self.config or {})
+            plaintext_secret = {
+                key: config.pop(key)
+                for key in self.SECRET_CONFIG_KEYS
+                if key in config
+            }
+            if plaintext_secret:
+                self.config = config
+                if not self._secret_config_cleared:
+                    merged_secret = (
+                        self.decrypt_secret_config()
+                        if self._raw_secret_config is None and self.has_secret_config
+                        else dict(self._raw_secret_config or {})
+                    )
+                    merged_secret.update(plaintext_secret)
+                    self.set_secret_config(merged_secret)
+                    secret_fields_changed = True
+        if self._raw_secret_config is not None:
+            key, version = get_dek_for_tenant(self.tenant)
+            encrypted = encrypt_value(
+                json.dumps(self._raw_secret_config, sort_keys=True),
+                key,
+            )
+            if encrypted:
+                self.secret_config_enc = encrypted.ciphertext
+                self.secret_config_nonce = encrypted.nonce
+                self.secret_config_tag = encrypted.tag
+            self.secret_dek_key_version = version
+            secret_fields_changed = True
+        elif self._secret_config_cleared:
+            self.secret_config_enc = None
+            self.secret_config_nonce = None
+            self.secret_config_tag = None
+            self.secret_dek_key_version = ""
+            secret_fields_changed = True
+        if secret_fields_changed and kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = list(
+                set(kwargs["update_fields"])
+                | {
+                    "config",
+                    "secret_config_enc",
+                    "secret_config_nonce",
+                    "secret_config_tag",
+                    "secret_dek_key_version",
+                }
+            )
+        super().save(*args, **kwargs)
+        self._raw_secret_config = None
+        self._secret_config_cleared = False
+
+    def __str__(self):
+        return f"NotificationChannel<{self.name}:{self.channel_type}>"
+
+
+class Client(models.Model):
+    """Tenant-scoped logical client used to group platform ad accounts for joint reporting.
+
+    A Client is an orthogonal concept to the per-platform account tables: one client
+    can own many Google Ads customer_ids, Meta ad accounts, Meta pages, and (in the
+    future) GA4 properties / Search Console sites. Platform-specific dashboards keep
+    showing platform-native metrics but can filter by client_id via the resolver.
+    The combined metrics endpoint fans out across all linked platforms for a client.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="clients"
+    )
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255)
+    industry = models.CharField(max_length=128, blank=True)
+    parish = models.CharField(max_length=64, blank=True)
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "slug")
+        ordering = ("name",)
+        indexes = [
+            models.Index(fields=["tenant", "is_active"], name="client_tenant_active"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - repr helper
+        return f"Client<{self.name}:{self.slug}>"
+
+
+class ClientPlatformAccount(models.Model):
+    """Links one Client to one platform-specific external account.
+
+    Enforced as one-account-one-client per tenant via unique_together(tenant, platform,
+    external_id). If a tenant later genuinely needs an account to serve two clients,
+    relax the constraint then — don't default to it today.
+
+    ``external_id`` is the platform-native identifier (e.g. ``"5211685017"`` for a
+    Google customer_id, ``"act_123..."`` for a Meta ad account, a Facebook page id,
+    or a GA4 property id). No cross-platform FK because the referenced tables differ
+    by platform; resolver joins by id.
+    """
+
+    PLATFORM_GOOGLE_ADS = "google_ads"
+    PLATFORM_META_ADS = "meta_ads"
+    PLATFORM_META_PAGE = "meta_page"
+    PLATFORM_GA4 = "ga4"
+    PLATFORM_SEARCH_CONSOLE = "search_console"
+    PLATFORM_LINKEDIN = "linkedin"
+    PLATFORM_TIKTOK = "tiktok"
+    PLATFORM_CHOICES = [
+        (PLATFORM_GOOGLE_ADS, "Google Ads"),
+        (PLATFORM_META_ADS, "Meta Ads"),
+        (PLATFORM_META_PAGE, "Meta Page"),
+        (PLATFORM_GA4, "Google Analytics 4"),
+        (PLATFORM_SEARCH_CONSOLE, "Google Search Console"),
+        (PLATFORM_LINKEDIN, "LinkedIn"),
+        (PLATFORM_TIKTOK, "TikTok"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="client_platform_accounts"
+    )
+    client = models.ForeignKey(
+        Client, on_delete=models.CASCADE, related_name="platform_accounts"
+    )
+    platform = models.CharField(max_length=32, choices=PLATFORM_CHOICES)
+    external_id = models.CharField(max_length=128)
+    display_name = models.CharField(max_length=255, blank=True)
+    is_primary = models.BooleanField(default=False)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        unique_together = ("tenant", "platform", "external_id")
+        ordering = ("platform", "external_id")
+        indexes = [
+            models.Index(
+                fields=["tenant", "client", "platform"],
+                name="client_platacc_tenant_cli_plat",
+            ),
+            models.Index(
+                fields=["tenant", "platform", "external_id"],
+                name="client_platacc_tenant_ext",
+            ),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - repr helper
+        return f"ClientPlatformAccount<{self.platform}:{self.external_id}→{self.client_id}>"
+
+
+class ClientSuggestionSnapshot(models.Model):
+    """Persisted snapshot of the latest ``suggest_clients()`` output for a tenant.
+
+    Refreshed by the ``refresh_client_suggestions`` Celery task after platform
+    account syncs land (post Meta OAuth + account sync, post Google Ads SDK
+    incremental sync). The banner UI reads the latest *unacknowledged* snapshot
+    so new suggestions surface proactively; once the user dismisses them the
+    row is marked acknowledged and the banner hides until the next refresh.
+    """
+
+    REASON_META_SYNC = "meta_sync"
+    REASON_GOOGLE_SYNC = "google_sync"
+    REASON_MANUAL = "manual"
+    REASON_CHOICES = [
+        (REASON_META_SYNC, "Meta sync"),
+        (REASON_GOOGLE_SYNC, "Google sync"),
+        (REASON_MANUAL, "Manual refresh"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.OneToOneField(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="client_suggestion_snapshot",
+    )
+    trigger_reason = models.CharField(
+        max_length=32, choices=REASON_CHOICES, default=REASON_MANUAL
+    )
+    threshold = models.FloatField(default=0.7)
+    suggestion_count = models.PositiveIntegerField(default=0)
+    payload = models.JSONField(default=list, blank=True)
+    generated_at = models.DateTimeField(default=timezone.now)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["tenant", "acknowledged_at"],
+                name="client_sugg_tenant_ack",
+            ),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - repr helper
+        return (
+            f"ClientSuggestionSnapshot<tenant={self.tenant_id}"
+            f" count={self.suggestion_count} reason={self.trigger_reason}>"
+        )
+
+    @property
+    def is_unacknowledged(self) -> bool:
+        return self.acknowledged_at is None and self.suggestion_count > 0

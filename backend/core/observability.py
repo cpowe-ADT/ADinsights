@@ -415,7 +415,8 @@ class InstrumentedTask(Task):
             self.logger.error("task.failed", extra=extra)
         else:
             self.logger.info("task.succeeded", extra=extra)
-        observe_task(self.name, status, duration_seconds)
+        metrics_status = getattr(self.request, "_metrics_status_override", None) or status
+        observe_task(self.name, metrics_status, duration_seconds)
         try:
             super().after_return(status, retval, task_id, args, kwargs, einfo)
         finally:

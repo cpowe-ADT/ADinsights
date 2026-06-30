@@ -10,6 +10,7 @@ from accounts.models import Tenant, User
 from integrations.models import (
     MetaConnection,
     MetaInsightPoint,
+    MetaMetricRegistry,
     MetaPage,
     MetaPost,
     MetaPostInsightPoint,
@@ -30,7 +31,7 @@ def _create_page_for_user(user: User) -> MetaPage:
         tenant=user.tenant,
         user=user,
         app_scoped_user_id=f"app-{user.id}",
-        scopes=["read_insights", "pages_read_engagement"],
+        scopes=["pages_show_list", "pages_read_engagement"],
         is_active=True,
     )
     connection.set_raw_token("user-token")
@@ -101,7 +102,7 @@ def test_meta_oauth_callback_creates_connection_and_pages(api_client, user, monk
 
         def list_permissions(self, *, user_access_token: str):
             return [
-                {"permission": "read_insights", "status": "granted"},
+                {"permission": "pages_show_list", "status": "granted"},
                 {"permission": "pages_read_engagement", "status": "granted"},
             ]
 
@@ -173,7 +174,7 @@ def test_meta_connect_callback_persists_pages_without_ad_account_requirement(
 
         def list_permissions(self, *, user_access_token: str):
             return [
-                {"permission": "read_insights", "status": "granted"},
+                {"permission": "pages_show_list", "status": "granted"},
                 {"permission": "pages_read_engagement", "status": "granted"},
             ]
 
@@ -257,7 +258,7 @@ def test_meta_connect_callback_marks_page_analyzable_when_capability_metadata_mi
 
         def list_permissions(self, *, user_access_token: str):
             return [
-                {"permission": "read_insights", "status": "granted"},
+                {"permission": "pages_show_list", "status": "granted"},
                 {"permission": "pages_read_engagement", "status": "granted"},
             ]
 
@@ -290,6 +291,101 @@ def test_meta_connect_callback_marks_page_analyzable_when_capability_metadata_mi
     assert response.status_code == 200
     page = MetaPage.objects.get(tenant=user.tenant, page_id="page-1")
     assert page.can_analyze is True
+
+
+@pytest.mark.django_db
+def test_meta_connect_callback_runs_bootstrap_inline_when_task_queue_unavailable(
+    api_client,
+    user,
+    monkeypatch,
+    settings,
+):
+    _authenticate(api_client, username="user@example.com")
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_APP_SECRET = "meta-app-secret"
+    settings.META_LOGIN_CONFIG_REQUIRED = False
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+
+    start_response = api_client.post(reverse("meta-connect-start"), {}, format="json")
+    assert start_response.status_code == 200
+    state = start_response.json()["state"]
+    observed: list[tuple[str, dict[str, object]]] = []
+
+    class DummyPage:
+        id = "page-1"
+        name = "Business Page"
+        access_token = "page-access-token"
+        tasks = ["ANALYZE"]
+        perms = ["ADMINISTER"]
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def exchange_code(self, *, code: str, redirect_uri: str):
+            assert code == "oauth-code"
+            return type("Token", (), {"access_token": "short-token", "expires_in": 3600})()
+
+        def exchange_for_long_lived_user_token(self, *, short_lived_user_token: str):
+            return type("Token", (), {"access_token": "long-token", "expires_in": 7200})()
+
+        def debug_token(self, *, input_token: str):
+            return {"is_valid": True, "user_id": "meta-user-1"}
+
+        def list_permissions(self, *, user_access_token: str):
+            return [
+                {"permission": "pages_show_list", "status": "granted"},
+                {"permission": "pages_read_engagement", "status": "granted"},
+            ]
+
+        def list_pages(self, *, user_access_token: str):
+            return [DummyPage()]
+
+    class DummyTask:
+        def __init__(self, name: str):
+            self.name = name
+
+        def delay(self, **kwargs):  # noqa: ANN003
+            raise AttributeError("'NoneType' object has no attribute 'Redis'")
+
+        def run(self, **kwargs):  # noqa: ANN003
+            observed.append((self.name, kwargs))
+            return {"ok": True}
+
+    monkeypatch.setattr("integrations.meta_page_views.MetaGraphClient.from_settings", lambda: DummyClient())
+    monkeypatch.setattr("integrations.meta_page_views.sync_page_posts", DummyTask("sync_page_posts"))
+    monkeypatch.setattr(
+        "integrations.meta_page_views.discover_supported_metrics",
+        DummyTask("discover_supported_metrics"),
+    )
+    monkeypatch.setattr("integrations.meta_page_views.sync_page_insights", DummyTask("sync_page_insights"))
+    monkeypatch.setattr("integrations.meta_page_views.sync_post_insights", DummyTask("sync_post_insights"))
+
+    response = api_client.post(
+        reverse("meta-connect-callback"),
+        {"code": "oauth-code", "state": state},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["task_dispatch_mode"] == "inline"
+    assert payload["default_page_id"] == "page-1"
+    assert set(payload["tasks"]) == {
+        "sync_page_posts",
+        "discover_supported_metrics",
+        "sync_page_insights",
+        "sync_post_insights",
+    }
+    assert {name for name, _kwargs in observed} == {
+        "sync_page_posts",
+        "discover_supported_metrics",
+        "sync_page_insights",
+        "sync_post_insights",
+    }
 
 
 @pytest.mark.django_db
@@ -454,3 +550,98 @@ def test_meta_page_endpoints_are_tenant_scoped(api_client):
     _authenticate(api_client, username="a@example.com")
     ok = api_client.get(reverse("meta-page-overview", kwargs={"page_id": "page-1"}))
     assert ok.status_code == 200
+
+
+@pytest.mark.django_db
+def test_meta_page_overview_compare_to_prior_period(api_client, user):
+    """compare_to=prior_period returns prior_value and change_pct for each card."""
+    _authenticate(api_client, username="user@example.com")
+    page = _create_page_for_user(user)
+
+    MetaMetricRegistry.objects.update_or_create(
+        metric_key="page_post_engagements",
+        level=MetaMetricRegistry.LEVEL_PAGE,
+        defaults={"is_default": True, "status": MetaMetricRegistry.STATUS_ACTIVE},
+    )
+
+    # Primary period: since=2026-04-01, until=2026-04-07 (7 days)
+    # Prior period: 2026-03-25 to 2026-03-31 (7 days)
+    primary_dates = [datetime(2026, 4, d, 8, 0, tzinfo=dt_timezone.utc) for d in range(1, 8)]
+    prior_dates = [datetime(2026, 3, d, 8, 0, tzinfo=dt_timezone.utc) for d in range(25, 32)]
+
+    for dt in primary_dates:
+        MetaInsightPoint.all_objects.create(
+            tenant=user.tenant,
+            page=page,
+            metric_key="page_post_engagements",
+            period="day",
+            end_time=dt,
+            value_num=10,
+            breakdown_key_normalized="__none__",
+        )
+    for dt in prior_dates:
+        MetaInsightPoint.all_objects.create(
+            tenant=user.tenant,
+            page=page,
+            metric_key="page_post_engagements",
+            period="day",
+            end_time=dt,
+            value_num=5,
+            breakdown_key_normalized="__none__",
+        )
+
+    # Without compare_to — prior_value and change_pct should be null
+    response = api_client.get(
+        reverse("meta-page-overview", kwargs={"page_id": "page-1"}),
+        {"since": "2026-04-01", "until": "2026-04-07"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    card = next(c for c in data["cards"] if c["metric_key"] == "page_post_engagements")
+    assert card["value_range"] == 70
+    assert card["prior_value"] is None
+    assert card["change_pct"] is None
+
+    # With compare_to=prior_period
+    response = api_client.get(
+        reverse("meta-page-overview", kwargs={"page_id": "page-1"}),
+        {"since": "2026-04-01", "until": "2026-04-07", "compare_to": "prior_period"},
+    )
+    assert response.status_code == 200
+    card = next(c for c in response.json()["cards"] if c["metric_key"] == "page_post_engagements")
+    assert card["value_range"] == 70
+    assert card["prior_value"] == 35.0  # 7 days * 5
+    assert card["change_pct"] == 100.0  # (70-35)/35 * 100
+
+
+@pytest.mark.django_db
+def test_meta_page_overview_compare_to_prior_period_no_prior_data(api_client, user):
+    """When no prior data exists, prior_value should be null."""
+    _authenticate(api_client, username="user@example.com")
+    page = _create_page_for_user(user)
+
+    MetaMetricRegistry.objects.update_or_create(
+        metric_key="page_post_engagements",
+        level=MetaMetricRegistry.LEVEL_PAGE,
+        defaults={"is_default": True, "status": MetaMetricRegistry.STATUS_ACTIVE},
+    )
+
+    MetaInsightPoint.all_objects.create(
+        tenant=user.tenant,
+        page=page,
+        metric_key="page_post_engagements",
+        period="day",
+        end_time=datetime(2026, 4, 5, 8, 0, tzinfo=dt_timezone.utc),
+        value_num=50,
+        breakdown_key_normalized="__none__",
+    )
+
+    response = api_client.get(
+        reverse("meta-page-overview", kwargs={"page_id": "page-1"}),
+        {"since": "2026-04-01", "until": "2026-04-07", "compare_to": "prior_period"},
+    )
+    assert response.status_code == 200
+    card = next(c for c in response.json()["cards"] if c["metric_key"] == "page_post_engagements")
+    assert card["value_range"] == 50
+    assert card["prior_value"] is None
+    assert card["change_pct"] is None

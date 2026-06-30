@@ -33,6 +33,7 @@ type Filters = {
   metric: string;
   period: string;
   showAllMetrics: boolean;
+  compareTo: string;
 };
 
 type PostsQuery = {
@@ -74,14 +75,20 @@ type MetaPageInsightsState = {
   setSelectedPostId: (postId: string) => void;
   loadPages: () => Promise<void>;
   loadMetricRegistry: () => Promise<void>;
-  connectOAuthStart: () => Promise<void>;
+  connectOAuthStart: (options?: { authType?: 'rerequest' }) => Promise<void>;
   connectOAuthCallback: (code: string, state: string) => Promise<void>;
   selectDefaultPage: (pageId: string) => Promise<void>;
   loadOverviewAndTimeseries: (pageId: string) => Promise<void>;
-  loadTimeseries: (pageId: string) => Promise<void>;
+  loadTimeseries: (
+    pageId: string,
+    overrides?: { metric?: string; period?: string },
+  ) => Promise<void>;
   loadPosts: (pageId: string, overrides?: Partial<PostsQuery>) => Promise<void>;
   loadPostDetail: (postId: string) => Promise<void>;
-  loadPostTimeseries: (postId: string) => Promise<void>;
+  loadPostTimeseries: (
+    postId: string,
+    overrides?: { metric?: string; period?: string },
+  ) => Promise<void>;
   refreshPage: (pageId: string) => Promise<Record<string, string>>;
 };
 
@@ -129,6 +136,7 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
     metric: 'page_post_engagements',
     period: 'day',
     showAllMetrics: false,
+    compareTo: '',
   },
   postsQuery: {
     q: '',
@@ -155,14 +163,20 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
     set({ pagesStatus: 'loading', error: undefined });
     try {
       const payload = await loadMetaPages();
-      const defaultPage = payload.results.find((page) => page.is_default) ?? payload.results[0] ?? null;
+      const defaultPage =
+        payload.results.find((page) => page.is_default) ?? payload.results[0] ?? null;
       set((state) => ({
         pagesStatus: 'loaded',
         pages: payload.results,
+        missingRequiredPermissions: payload.missing_required_permissions ?? [],
         selectedPageId: state.selectedPageId || defaultPage?.page_id || '',
       }));
     } catch (error) {
-      set({ pagesStatus: 'error', error: classifyError(error, 'Unable to load Facebook Pages.') });
+      set({
+        pagesStatus: 'error',
+        error: classifyError(error, 'Unable to load Facebook Pages.'),
+        missingRequiredPermissions: [],
+      });
     }
   },
   loadMetricRegistry: async () => {
@@ -176,11 +190,11 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
       set({ metrics: { page: [], post: [] } });
     }
   },
-  connectOAuthStart: async () => {
+  connectOAuthStart: async (options) => {
     set({ oauthStatus: 'loading', error: undefined });
     try {
       setOAuthFlowMarker(META_OAUTH_FLOW_PAGE_INSIGHTS);
-      const payload = await startMetaOAuth();
+      const payload = await startMetaOAuth(options?.authType);
       window.location.assign(payload.authorize_url);
     } catch (error) {
       clearOAuthFlowMarker();
@@ -226,11 +240,14 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
     const { filters } = get();
     set({ dashboardStatus: 'loading', error: undefined });
     try {
-      const overviewParams = toMetaPageDateParams({
-        datePreset: filters.datePreset,
-        since: filters.since,
-        until: filters.until,
-      });
+      const overviewParams: Record<string, string> = {
+        ...toMetaPageDateParams({
+          datePreset: filters.datePreset,
+          since: filters.since,
+          until: filters.until,
+        }),
+        ...(filters.compareTo ? { compare_to: filters.compareTo } : {}),
+      };
       const overview = await loadMetaPageOverview(pageId, overviewParams);
       const selectedMetric =
         filters.metric || overview.primary_metric || Object.keys(overview.daily_series)[0] || '';
@@ -258,10 +275,13 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
         },
       });
     } catch (error) {
-      set({ dashboardStatus: 'error', error: classifyError(error, 'Unable to load page overview.') });
+      set({
+        dashboardStatus: 'error',
+        error: classifyError(error, 'Unable to load page overview.'),
+      });
     }
   },
-  loadTimeseries: async (pageId) => {
+  loadTimeseries: async (pageId, overrides) => {
     const { filters, overview } = get();
     set({ dashboardStatus: 'loading', error: undefined });
     try {
@@ -271,13 +291,20 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
           since: filters.since,
           until: filters.until,
         }),
-        metric: filters.metric || overview?.primary_metric || 'page_post_engagements',
-        period: filters.period || 'day',
+        metric:
+          overrides?.metric ??
+          filters.metric ??
+          overview?.primary_metric ??
+          'page_post_engagements',
+        period: overrides?.period ?? filters.period ?? 'day',
       };
       const timeseries = await loadMetaPageTimeseries(pageId, timeseriesParams);
       set({ timeseries, dashboardStatus: 'loaded' });
     } catch (error) {
-      set({ dashboardStatus: 'error', error: classifyError(error, 'Unable to load page timeseries.') });
+      set({
+        dashboardStatus: 'error',
+        error: classifyError(error, 'Unable to load page timeseries.'),
+      });
     }
   },
   loadPosts: async (pageId, overrides) => {
@@ -315,19 +342,22 @@ export const useMetaPageInsightsStore = create<MetaPageInsightsState>((set, get)
       set({ postStatus: 'error', error: classifyError(error, 'Unable to load post details.') });
     }
   },
-  loadPostTimeseries: async (postId) => {
+  loadPostTimeseries: async (postId, overrides) => {
     const { filters } = get();
     set({ postSeriesStatus: 'loading', error: undefined });
     try {
       const postTimeseries = await loadMetaPostTimeseries(postId, {
-        metric: filters.metric,
-        period: filters.period || 'lifetime',
+        metric: overrides?.metric ?? filters.metric,
+        period: overrides?.period ?? (filters.period || 'lifetime'),
         since: filters.since,
         until: filters.until,
       });
       set({ postTimeseries, postSeriesStatus: 'loaded' });
     } catch (error) {
-      set({ postSeriesStatus: 'error', error: classifyError(error, 'Unable to load post timeseries.') });
+      set({
+        postSeriesStatus: 'error',
+        error: classifyError(error, 'Unable to load post timeseries.'),
+      });
     }
   },
   refreshPage: async (pageId) => {

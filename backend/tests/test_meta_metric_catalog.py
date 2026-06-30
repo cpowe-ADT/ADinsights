@@ -10,6 +10,8 @@ from integrations.services.meta_metric_catalog import (
     metric_catalog_doc_path,
     render_metric_catalog_markdown,
 )
+import integrations.services.metric_registry as _metric_registry_mod
+from integrations.services.metric_registry import get_default_metric_keys
 
 
 def test_meta_metric_catalog_contains_expected_metrics():
@@ -29,6 +31,22 @@ def test_meta_metric_catalog_contains_expected_metrics():
     assert any(
         row["level"] == MetaMetricRegistry.LEVEL_POST
         and row["metric_key"] == "post_video_ad_break_ad_impressions"
+        for row in catalog
+    )
+    assert any(
+        row["level"] == MetaMetricRegistry.LEVEL_POST
+        and row["metric_key"] == "post_impressions"
+        and row["status"] == MetaMetricRegistry.STATUS_DEPRECATED
+        and row["replacement_metric_key"] == "post_media_view"
+        and row["is_default"] is False
+        for row in catalog
+    )
+    assert any(
+        row["level"] == MetaMetricRegistry.LEVEL_POST
+        and row["metric_key"] == "post_impressions_unique"
+        and row["status"] == MetaMetricRegistry.STATUS_DEPRECATED
+        and row["replacement_metric_key"] == "post_total_media_view_unique"
+        and row["is_default"] is False
         for row in catalog
     )
     assert any(
@@ -58,3 +76,17 @@ def test_sync_meta_metric_catalog_command_upserts_registry():
     assert MetaMetricRegistry.objects.filter(level=MetaMetricRegistry.LEVEL_POST).exists()
     assert MetaMetricRegistry.objects.filter(metric_key="page_post_engagements", level=MetaMetricRegistry.LEVEL_PAGE).exists()
     assert MetaMetricRegistry.objects.filter(metric_key="post_video_views", level=MetaMetricRegistry.LEVEL_POST).exists()
+
+
+@pytest.mark.django_db
+def test_get_default_metric_keys_seeds_registry_when_empty():
+    MetaMetricRegistry.objects.all().delete()
+    _metric_registry_mod._metrics_seeded = False
+
+    metric_keys = get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE)
+
+    assert "page_post_engagements" in metric_keys
+    assert MetaMetricRegistry.objects.filter(
+        metric_key="page_post_engagements",
+        level=MetaMetricRegistry.LEVEL_PAGE,
+    ).exists()

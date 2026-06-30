@@ -1,0 +1,46 @@
+{
+  "schema_version": "slb_g1_runtime_target_intake.v1",
+  "status": "candidate_ready_for_review",
+  "g0_clearance": {
+    "raj_decision": "approved_with_followups",
+    "mira_decision": "approved_with_followups",
+    "can_proceed_to_g1_g11": "approved_with_conditions",
+    "conditions": "Example only: complete listed G0 followups before G12; DashThis remains active."
+  },
+  "target": {
+    "environment": "staging-example",
+    "backend_url": "https://adinsights-backend.example.invalid",
+    "frontend_url": "https://adinsights-frontend.example.invalid",
+    "safe_tenant_identifier": "tenant-slb-redacted-example",
+    "safe_client_identifier": "SLB / Students' Loan Bureau",
+    "report_definition_id": "11111111-2222-3333-4444-555555555555",
+    "template_key": "slb_monthly_social_report",
+    "report_schema_version": "report.v1",
+    "primary_start_date": "2026-05-01",
+    "primary_end_date": "2026-05-31",
+    "timezone": "America/Jamaica",
+    "currency": "JMD",
+    "paid_meta_account_scope": "paid-meta-account-redacted-example",
+    "organic_facebook_page_scope": "facebook-page-redacted-example",
+    "content_ops_workspace_scope": "content-ops-workspace-redacted-example"
+  },
+  "comparison": {
+    "dashthis_source_comparison_owner": "Andre",
+    "dashthis_source_evidence_location": "docs/project/evidence/dashthis-replacement/source-platform-comparison-worksheet.md",
+    "tolerances_confirmed": true
+  },
+  "delivery": {
+    "scheduled_delivery_mode": "dry_run_only",
+    "recipient_assumption": "internal-review-group-redacted-example",
+    "dashthis_active": true
+  },
+  "guardrails": {
+    "instagram_decision": "deferred_in_v1",
+    "stored_aggregate_only": true,
+    "no_live_provider_calls_at_render_export_time": true
+  },
+  "evidence": {
+    "slb_report_target_intake_output": "docs/project/evidence/dashthis-replacement/examples/slb-report-target-intake-output.redacted-example.json",
+    "operator_notes": "Example only: replace every example runtime value with the approved target before claiming G1."
+  }
+}

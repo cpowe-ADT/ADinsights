@@ -17,14 +17,33 @@ type AdapterMetadata = {
   };
 };
 
+type DatasetStatusResponse = {
+  live: {
+    enabled: boolean;
+    reason:
+      | 'adapter_disabled'
+      | 'missing_snapshot'
+      | 'stale_snapshot'
+      | 'default_snapshot'
+      | 'ready';
+    snapshot_generated_at?: string | null;
+  };
+  demo: {
+    enabled: boolean;
+    source?: string | null;
+    tenant_count: number;
+  };
+  warehouse_adapter_enabled: boolean;
+};
+
 describe('useDatasetStore', () => {
-  let apiGetMock: Mock<[string], Promise<AdapterMetadata[]>>;
+  let apiGetMock: Mock;
   let useDatasetStore: typeof import('./useDatasetStore').useDatasetStore;
   let getDatasetSource: typeof import('./useDatasetStore').getDatasetSource;
 
   beforeEach(async () => {
     const apiModule = await import('../lib/apiClient');
-    apiGetMock = apiModule.default.get as unknown as Mock<[string], Promise<AdapterMetadata[]>>;
+    apiGetMock = apiModule.default.get as unknown as Mock;
 
     const storeModule = await import('./useDatasetStore');
     useDatasetStore = storeModule.useDatasetStore;
@@ -38,6 +57,10 @@ describe('useDatasetStore', () => {
       status: 'idle',
       error: undefined,
       source: undefined,
+      liveReason: undefined,
+      liveDetail: undefined,
+      liveSnapshotGeneratedAt: undefined,
+      warehouseAdapterEnabled: false,
       demoTenants: [],
       demoTenantId: undefined,
     });
@@ -59,6 +82,12 @@ describe('useDatasetStore', () => {
     interfaces: [],
   };
 
+  const metaDirectAdapter: AdapterMetadata = {
+    key: 'meta_direct',
+    name: 'Meta direct sync',
+    interfaces: [],
+  };
+
   const demoAdapter: AdapterMetadata = {
     key: 'demo',
     name: 'Demo tenants',
@@ -71,8 +100,33 @@ describe('useDatasetStore', () => {
     },
   };
 
+  const datasetStatus = (
+    overrides: Partial<DatasetStatusResponse['live']> = {},
+  ): DatasetStatusResponse => ({
+    live: {
+      enabled: true,
+      reason: 'ready',
+      snapshot_generated_at: '2026-04-04T10:00:00Z',
+      ...overrides,
+    },
+    demo: {
+      enabled: true,
+      source: 'fake',
+      tenant_count: 0,
+    },
+    warehouse_adapter_enabled: overrides.reason === 'adapter_disabled' ? false : true,
+  });
+
   it('keeps live mode by default when only demo adapters are available', async () => {
-    apiGetMock.mockResolvedValueOnce([fakeAdapter]);
+    apiGetMock.mockImplementation(async (path: string) => {
+      if (path === '/adapters/') {
+        return [fakeAdapter];
+      }
+      if (path === '/datasets/status/') {
+        return datasetStatus({ enabled: false, reason: 'adapter_disabled' });
+      }
+      throw new Error(`Unexpected path: ${path}`);
+    });
 
     await useDatasetStore.getState().loadAdapters();
 
@@ -81,7 +135,28 @@ describe('useDatasetStore', () => {
     expect(state.mode).toBe('live');
     expect(state.source).toBeUndefined();
     expect(getDatasetSource()).toBeUndefined();
-    expect(state.error).toBe('Live warehouse metrics are unavailable.');
+    expect(state.error).toBe('Live reporting is not enabled in this environment.');
+  });
+
+  it('uses direct Meta sync as the live source when warehouse reporting is unavailable', async () => {
+    apiGetMock.mockImplementation(async (path: string) => {
+      if (path === '/adapters/') {
+        return [metaDirectAdapter, fakeAdapter];
+      }
+      if (path === '/datasets/status/') {
+        return datasetStatus({ enabled: false, reason: 'adapter_disabled' });
+      }
+      throw new Error(`Unexpected path: ${path}`);
+    });
+
+    await useDatasetStore.getState().loadAdapters();
+
+    const state = useDatasetStore.getState();
+    expect(state.adapters).toEqual(['meta_direct', 'fake']);
+    expect(state.mode).toBe('live');
+    expect(state.source).toBe('meta_direct');
+    expect(getDatasetSource()).toBe('meta_direct');
+    expect(state.error).toBeUndefined();
   });
 
   it('falls back to live metrics when the demo adapter is missing', async () => {
@@ -91,7 +166,15 @@ describe('useDatasetStore', () => {
       source: 'fake',
     });
 
-    apiGetMock.mockResolvedValueOnce([warehouseAdapter]);
+    apiGetMock.mockImplementation(async (path: string) => {
+      if (path === '/adapters/') {
+        return [warehouseAdapter];
+      }
+      if (path === '/datasets/status/') {
+        return datasetStatus();
+      }
+      throw new Error(`Unexpected path: ${path}`);
+    });
 
     await useDatasetStore.getState().loadAdapters();
 
@@ -109,6 +192,7 @@ describe('useDatasetStore', () => {
       source: 'fake',
       error: undefined,
       status: 'loaded',
+      warehouseAdapterEnabled: false,
     });
 
     const nextMode = useDatasetStore.getState().toggleMode();
@@ -116,12 +200,20 @@ describe('useDatasetStore', () => {
     const state = useDatasetStore.getState();
     expect(nextMode).toBe('dummy');
     expect(state.mode).toBe('dummy');
-    expect(state.error).toBe('Live warehouse metrics are unavailable.');
+    expect(state.error).toBe('Live reporting is not enabled in this environment.');
     expect(state.source).toBe('fake');
   });
 
   it('toggles between live and demo metrics when both adapters are present', async () => {
-    apiGetMock.mockResolvedValueOnce([warehouseAdapter, fakeAdapter]);
+    apiGetMock.mockImplementation(async (path: string) => {
+      if (path === '/adapters/') {
+        return [warehouseAdapter, fakeAdapter];
+      }
+      if (path === '/datasets/status/') {
+        return datasetStatus();
+      }
+      throw new Error(`Unexpected path: ${path}`);
+    });
 
     await useDatasetStore.getState().loadAdapters();
 
@@ -145,7 +237,18 @@ describe('useDatasetStore', () => {
   });
 
   it('prefers the curated demo adapter when available and selects the first tenant', async () => {
-    apiGetMock.mockResolvedValueOnce([warehouseAdapter, demoAdapter]);
+    apiGetMock.mockImplementation(async (path: string) => {
+      if (path === '/adapters/') {
+        return [warehouseAdapter, demoAdapter];
+      }
+      if (path === '/datasets/status/') {
+        return datasetStatus({
+          enabled: true,
+          reason: 'ready',
+        });
+      }
+      throw new Error(`Unexpected path: ${path}`);
+    });
 
     await useDatasetStore.getState().loadAdapters();
 
@@ -174,12 +277,45 @@ describe('useDatasetStore', () => {
       adapters: [],
       source: 'fake',
     });
-    apiGetMock.mockResolvedValueOnce([warehouseAdapter, fakeAdapter]);
+    apiGetMock.mockImplementation(async (path: string) => {
+      if (path === '/adapters/') {
+        return [warehouseAdapter, fakeAdapter];
+      }
+      if (path === '/datasets/status/') {
+        return datasetStatus();
+      }
+      throw new Error(`Unexpected path: ${path}`);
+    });
 
     await useDatasetStore.getState().loadAdapters();
 
     const state = useDatasetStore.getState();
     expect(state.mode).toBe('dummy');
     expect(state.source).toBe('fake');
+  });
+
+  it('stores missing snapshot state for live mode', async () => {
+    apiGetMock.mockImplementation(async (path: string) => {
+      if (path === '/adapters/') {
+        return [warehouseAdapter, fakeAdapter];
+      }
+      if (path === '/datasets/status/') {
+        return datasetStatus({
+          enabled: false,
+          reason: 'missing_snapshot',
+          snapshot_generated_at: null,
+        });
+      }
+      throw new Error(`Unexpected path: ${path}`);
+    });
+
+    await useDatasetStore.getState().loadAdapters();
+
+    const state = useDatasetStore.getState();
+    expect(state.mode).toBe('live');
+    expect(state.liveReason).toBe('missing_snapshot');
+    expect(state.error).toBe(
+      'Meta is connected, but the first live warehouse snapshot has not been generated yet.',
+    );
   });
 });

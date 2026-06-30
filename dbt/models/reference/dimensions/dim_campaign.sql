@@ -2,11 +2,13 @@
 
 {% set campaign_source %}
     select
-        {{ tenant_id_expr() }} as tenant_id,
+        tenant_id,
         source_platform,
         ad_account_id,
         campaign_id,
         coalesce(campaign_name, campaign_id::text) as campaign_name,
+        coalesce(status, 'Unknown') as status,
+        coalesce(objective, 'Unknown') as objective,
         coalesce(parish_code, 'UNK') as parish_code,
         coalesce(parish_name, region_name, 'Unknown') as parish_name,
         coalesce(region_name, 'Unknown') as region_name,
@@ -19,7 +21,7 @@ with scd2 as (
     {{ scd2_dimension(
         source_query=campaign_source,
         natural_key=['tenant_id', 'source_platform', 'ad_account_id', 'campaign_id'],
-        tracked_columns=['campaign_name', 'parish_code', 'parish_name', 'region_name'],
+        tracked_columns=['campaign_name', 'status', 'objective', 'parish_code', 'parish_name', 'region_name'],
         valid_from_column='dbt_valid_from',
         valid_to_column='dbt_valid_to',
         is_current_column='is_current'

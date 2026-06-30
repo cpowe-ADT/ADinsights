@@ -38,7 +38,13 @@ const TimeseriesChart = ({ title, points }: TimeseriesChartProps) => {
           <XAxisComponent dataKey="end_time" />
           <YAxisComponent tickFormatter={(value: number) => formatNumber(value)} />
           <TooltipComponent />
-          <LineComponent type="monotone" dataKey="value" stroke="#0f766e" strokeWidth={2} dot={false} />
+          <LineComponent
+            type="monotone"
+            dataKey="value"
+            stroke="#0f766e"
+            strokeWidth={2}
+            dot={false}
+          />
         </LineChart>
       </ResponsiveContainer>
     </article>

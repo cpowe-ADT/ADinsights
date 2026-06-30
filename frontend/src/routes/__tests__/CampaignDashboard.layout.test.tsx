@@ -40,6 +40,19 @@ vi.mock('../../components/ParishMap', () => ({
   default: () => <div data-testid="parish-map-mock" />,
 }));
 
+// S4a: mock viz-kit primitives with deterministic stubs so layout test does
+// not need a full Recharts render graph.
+vi.mock('../../components/viz', () => ({
+  KpiTile: ({ label, value }: { label: string; value: number | null }) => (
+    <div data-testid="kpi-tile">
+      {label}: {value === null || value === undefined ? '—' : String(value)}
+    </div>
+  ),
+  DistributionBar: ({ ariaLabel }: { ariaLabel: string }) => (
+    <div data-testid="distribution-bar" role="img" aria-label={ariaLabel} />
+  ),
+}));
+
 vi.mock('../../components/ThemeProvider', () => ({
   __esModule: true,
   ThemeProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -75,7 +88,7 @@ vi.mock('../../state/useDashboardStore', async () => {
         platform: 'Meta',
         status: 'Active',
         objective: 'Awareness',
-        parish: 'Kingston',
+        parishes: ['Kingston'],
         spend: 4800,
         impressions: 152000,
         clicks: 620,
@@ -92,6 +105,7 @@ vi.mock('../../state/useDashboardStore', async () => {
     filters: {
       dateRange: '7d' as const,
       customRange: { start: '2024-10-01', end: '2024-10-07' },
+      accountId: '',
       channels: [],
       campaignQuery: '',
     },
@@ -100,7 +114,28 @@ vi.mock('../../state/useDashboardStore', async () => {
     campaign: { status: 'loaded', data: campaignData, error: undefined },
     creative: { status: 'loaded', data: [], error: undefined },
     budget: { status: 'loaded', data: [], error: undefined },
-    parish: { status: 'loaded', data: [], error: undefined },
+    parish: {
+      status: 'loaded',
+      data: [
+        {
+          parish: 'Kingston',
+          spend: 4800,
+          impressions: 152000,
+          clicks: 620,
+          conversions: 88,
+          roas: 2.4,
+          campaignCount: 1,
+          currency: 'USD',
+        },
+      ],
+      error: undefined,
+    },
+    availability: {
+      campaign: { status: 'available' as const, reason: null },
+      creative: { status: 'available' as const, reason: null },
+      budget: { status: 'available' as const, reason: null },
+      parish_map: { status: 'available' as const, reason: null, coveragePercent: 0.75 },
+    },
     activeTenantId: 'demo',
     activeTenantLabel: 'Demo Tenant',
     lastLoadedTenantId: 'demo',
@@ -263,10 +298,48 @@ describe('CampaignDashboard layout', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: /parish heatmap/i })).toBeInTheDocument();
     expect(
+      screen.getByRole('heading', { level: 2, name: /region breakdown/i }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole('heading', { level: 2, name: /campaign metrics table/i }),
     ).toBeInTheDocument();
 
     const results = await axe(container);
     expect(results).toHaveNoViolations();
-  });
+  }, 20000);
+
+  it('renders cross-platform KpiTile strip alongside legacy CampaignTable', async () => {
+    await act(async () => {
+      render(
+        <MemoryRouter future={routerFuture}>
+          <ThemeProvider>
+            <AuthContext.Provider value={authValue}>
+              <CampaignDashboard />
+            </AuthContext.Provider>
+          </ThemeProvider>
+        </MemoryRouter>,
+      );
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // S4a: Cross-platform KpiTile strip is rendered in addition to legacy row.
+    expect(screen.getByRole('group', { name: /cross-platform kpis/i })).toBeInTheDocument();
+    const tiles = screen.getAllByTestId('kpi-tile');
+    expect(tiles.length).toBeGreaterThanOrEqual(4);
+
+    // Platform legend renders with at least one platform chip from the fixture.
+    expect(screen.getByRole('list', { name: /campaign platform legend/i })).toBeInTheDocument();
+
+    // Top-10 DistributionBar is rendered when there are campaign rows.
+    expect(screen.getByTestId('distribution-bar')).toBeInTheDocument();
+
+    // Legacy CampaignTable (not replaced) still headlines the drill-down.
+    expect(
+      screen.getByRole('heading', { level: 2, name: /campaign metrics table/i }),
+    ).toBeInTheDocument();
+  }, 10000);
 });

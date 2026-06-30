@@ -19,7 +19,14 @@ const MetaPageExportHistory = ({
 }: MetaPageExportHistoryProps) => {
   return (
     <article className="panel" style={{ marginTop: '1rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'baseline' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: '0.5rem',
+          alignItems: 'baseline',
+        }}
+      >
         <h3 style={{ margin: 0 }}>{title}</h3>
         <button type="button" className="button tertiary" onClick={onRefresh} disabled={isLoading}>
           Refresh
@@ -69,4 +76,3 @@ const MetaPageExportHistory = ({
 };
 
 export default MetaPageExportHistory;
-

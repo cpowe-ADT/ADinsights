@@ -45,6 +45,7 @@ describe('useMetaPageInsightsStore', () => {
         { id: '2', page_id: 'page-2', name: 'Page 2', can_analyze: true, is_default: false },
       ],
       count: 2,
+      missing_required_permissions: ['pages_read_engagement'],
     });
     const { default: useMetaPageInsightsStore } = await import('./useMetaPageInsightsStore');
     await useMetaPageInsightsStore.getState().loadPages();
@@ -52,6 +53,7 @@ describe('useMetaPageInsightsStore', () => {
     expect(state.pagesStatus).toBe('loaded');
     expect(state.selectedPageId).toBe('page-1');
     expect(state.pages).toHaveLength(2);
+    expect(state.missingRequiredPermissions).toEqual(['pages_read_engagement']);
   });
 
   it('sets dashboard state and derived timeseries on overview load', async () => {
@@ -103,7 +105,9 @@ describe('useMetaPageInsightsStore', () => {
   });
 
   it('captures errors on posts load', async () => {
-    apiMocks.loadMetaPagePosts.mockRejectedValue(new ApiError('Forbidden', 403, { detail: 'Forbidden' }));
+    apiMocks.loadMetaPagePosts.mockRejectedValue(
+      new ApiError('Forbidden', 403, { detail: 'Forbidden' }),
+    );
     const { default: useMetaPageInsightsStore } = await import('./useMetaPageInsightsStore');
     await useMetaPageInsightsStore.getState().loadPosts('page-1', { offset: 0 });
     const state = useMetaPageInsightsStore.getState();
@@ -113,7 +117,9 @@ describe('useMetaPageInsightsStore', () => {
 
   it('persists default page selection through API', async () => {
     apiMocks.loadMetaPages.mockResolvedValue({
-      results: [{ id: '1', page_id: 'page-1', name: 'Page 1', can_analyze: true, is_default: true }],
+      results: [
+        { id: '1', page_id: 'page-1', name: 'Page 1', can_analyze: true, is_default: true },
+      ],
       count: 1,
     });
     apiMocks.selectMetaPage.mockResolvedValue({ page_id: 'page-1', selected: true });
@@ -124,5 +130,30 @@ describe('useMetaPageInsightsStore', () => {
 
     expect(apiMocks.selectMetaPage).toHaveBeenCalledWith('page-1');
     expect(useMetaPageInsightsStore.getState().selectedPageId).toBe('page-1');
+  });
+
+  it('starts oauth with rerequest when explicitly requested', async () => {
+    const originalLocation = window.location;
+    const assignSpy = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { assign: assignSpy },
+    });
+    apiMocks.startMetaOAuth.mockResolvedValue({
+      authorize_url: 'https://facebook.com/dialog/oauth?rerequest=1',
+      state: 'state-1',
+      redirect_uri: 'http://localhost:5173/dashboards/data-sources',
+    });
+
+    const { default: useMetaPageInsightsStore } = await import('./useMetaPageInsightsStore');
+    await useMetaPageInsightsStore.getState().connectOAuthStart({ authType: 'rerequest' });
+
+    expect(apiMocks.startMetaOAuth).toHaveBeenCalledWith('rerequest');
+    expect(assignSpy).toHaveBeenCalledWith('https://facebook.com/dialog/oauth?rerequest=1');
+
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
+    });
   });
 });

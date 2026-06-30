@@ -268,6 +268,18 @@ def test_openapi_schema_includes_google_analytics_paths(openapi_paths):
     assert "/api/integrations/google_analytics/status/" in paths
 
 
+def test_openapi_schema_includes_generic_connector_lifecycle_paths(openapi_paths):
+    paths = openapi_paths
+    assert "/api/integrations/{provider}/oauth/start/" in paths
+    assert "/api/integrations/{provider}/oauth/callback/" in paths
+    assert "/api/integrations/{provider}/reconnect/" in paths
+    assert "/api/integrations/{provider}/disconnect/" in paths
+    assert "/api/integrations/{provider}/provision/" in paths
+    assert "/api/integrations/{provider}/sync/" in paths
+    assert "/api/integrations/{provider}/status/" in paths
+    assert "/api/integrations/{provider}/jobs/" in paths
+
+
 def test_openapi_schema_includes_meta_page_insights_paths(openapi_paths):
     paths = openapi_paths
     assert "/api/integrations/meta/oauth/callback/" in paths
@@ -278,6 +290,134 @@ def test_openapi_schema_includes_meta_page_insights_paths(openapi_paths):
     assert "/api/metrics/meta/pages/{page_id}/posts/" in paths
     assert "/api/metrics/meta/posts/{post_id}/timeseries/" in paths
     assert "/api/metrics/meta/pages/{page_id}/refresh/" in paths
+
+
+def test_openapi_schema_includes_content_ops_paths(openapi_paths):
+    paths = openapi_paths
+    expected_paths = {
+        "/api/content-ops/readiness/",
+        "/api/content-ops/workspaces/",
+        "/api/content-ops/publishing-identities/",
+        "/api/content-ops/briefs/",
+        "/api/content-ops/briefs/{id}/captions/generate/",
+        "/api/content-ops/generation-jobs/",
+        "/api/content-ops/generation-jobs/{id}/cancel/",
+        "/api/content-ops/assets/upload/",
+        "/api/content-ops/assets/{id}/download/",
+        "/api/content-ops/assets/{id}/public-media-proof/",
+        "/api/content-ops/public-media/{asset_id}/",
+        "/api/content-ops/drafts/",
+        "/api/content-ops/drafts/{id}/versions/",
+        "/api/content-ops/drafts/{id}/submit-internal-review/",
+        "/api/content-ops/drafts/{id}/submit-client-review/",
+        "/api/content-ops/drafts/{id}/schedule/",
+        "/api/content-ops/drafts/{id}/unschedule/",
+        "/api/content-ops/drafts/{id}/publish-now/",
+        "/api/content-ops/approval-requests/",
+        "/api/content-ops/approval-requests/{id}/decisions/",
+        "/api/content-ops/schedules/",
+        "/api/content-ops/publishing/attempts/",
+        "/api/content-ops/publishing/attempts/{id}/retry/",
+        "/api/content-ops/published-posts/",
+        "/api/content-ops/published-posts/{id}/refresh-metrics/",
+        "/api/content-ops/reports/overview/",
+        "/api/content-ops/reports/posts/",
+        "/api/content-ops/exports/content-plan/",
+        "/api/content-ops/exports/",
+        "/api/content-ops/exports/{id}/",
+        "/api/content-ops/exports/{id}/download/",
+    }
+
+    missing_paths = sorted(expected_paths - set(paths))
+    assert not missing_paths, f"Missing Content Ops OpenAPI paths: {missing_paths}"
+
+
+def test_openapi_content_ops_custom_actions_use_specific_serializers(
+    openapi_paths,
+):
+    assert _json_request_ref(
+        openapi_paths["/api/content-ops/drafts/{id}/schedule/"]["post"]
+    ) == "#/components/schemas/ContentSchedule"
+    assert _json_request_ref(
+        openapi_paths["/api/content-ops/drafts/{id}/versions/"]["post"]
+    ) == "#/components/schemas/ContentDraftVersion"
+    assert _json_request_ref(
+        openapi_paths["/api/content-ops/drafts/{id}/submit-client-review/"]["post"]
+    ) == "#/components/schemas/ApprovalRequest"
+    assert _json_request_ref(
+        openapi_paths["/api/content-ops/approval-requests/{id}/decisions/"]["post"]
+    ) == "#/components/schemas/ApprovalDecision"
+    assert _json_request_ref(
+        openapi_paths["/api/content-ops/briefs/{id}/captions/generate/"]["post"]
+    ) == "#/components/schemas/CaptionGenerateRequest"
+
+
+def test_openapi_content_ops_components_pin_state_enums(openapi_schema_payload):
+    schemas = openapi_schema_payload["components"]["schemas"]
+
+    schedule = schemas["ContentSchedule"]["properties"]
+    assert schedule["channels"]["type"] == "array"
+    assert schedule["channels"]["writeOnly"] is True
+    assert schedule["approval_snapshot"]["readOnly"] is True
+    assert set(schedule["state"]["enum"]) == {
+        "scheduled",
+        "locked",
+        "dispatching",
+        "published",
+        "partial",
+        "failed",
+        "cancelled",
+    }
+
+    draft = schemas["ContentDraft"]["properties"]
+    assert set(draft["state"]["enum"]) == {
+        "draft",
+        "generated",
+        "internal_review",
+        "internal_changes_requested",
+        "internal_approved",
+        "client_review",
+        "client_changes_requested",
+        "client_approved",
+        "scheduled",
+        "publishing",
+        "published",
+        "partially_published",
+        "failed",
+        "cancelled",
+        "archived",
+    }
+
+    attempt = schemas["PublishAttempt"]["properties"]
+    assert set(attempt["state"]["enum"]) == {
+        "queued",
+        "preflight",
+        "blocked",
+        "container_creating",
+        "container_pending",
+        "container_ready",
+        "publishing",
+        "published",
+        "failed_retryable",
+        "failed_terminal",
+        "container_expired",
+        "cancelled",
+    }
+    assert set(attempt["channel"]["enum"]) == {"facebook_page", "instagram"}
+
+    identity = schemas["PublishingIdentity"]["properties"]
+    assert set(identity["publish_readiness_state"]["enum"]) == {
+        "unknown",
+        "ready",
+        "blocked",
+        "needs_reauth",
+        "needs_review",
+    }
+    assert identity["credential_ref"]["writeOnly"] is True
+
+    asset = schemas["MediaAsset"]["properties"]
+    assert asset["storage_key"]["writeOnly"] is True
+    assert asset["status"]["readOnly"] is True
 
 
 def test_openapi_schema_operation_ids_are_unique(openapi_paths):
@@ -296,3 +436,13 @@ def test_openapi_schema_operation_ids_are_unique(openapi_paths):
 
     duplicate_ids = sorted([operation_id for operation_id, count in Counter(operation_ids).items() if count > 1])
     assert not duplicate_ids, f"Duplicate operationIds found: {duplicate_ids}"
+
+
+def _json_request_ref(operation: dict) -> str | None:
+    return (
+        operation.get("requestBody", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema", {})
+        .get("$ref")
+    )

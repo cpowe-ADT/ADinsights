@@ -55,7 +55,11 @@ describe('metaPageInsights client', () => {
       until: '2026-01-28',
       last_synced_at: null,
       metric_availability: {
-        page_post_engagements: { supported: false, last_checked_at: null, reason: 'Not available for this Page' },
+        page_post_engagements: {
+          supported: false,
+          last_checked_at: null,
+          reason: 'Not available for this Page',
+        },
       },
       kpis: [],
       daily_series: {},

@@ -34,7 +34,7 @@ const DatasetStory = ({ datasetState }: StoryArgs) => {
     const datasetSnapshot = useDatasetStore.getState();
     const dashboardSnapshot = useDashboardStore.getState();
 
-    useDatasetStore.setState(ensureDefaults(datasetState), true);
+    useDatasetStore.setState({ ...datasetSnapshot, ...ensureDefaults(datasetState) }, true);
     useDashboardStore.setState(
       {
         ...dashboardSnapshot,

@@ -48,9 +48,10 @@
       "default_period": "day",
       "supported_periods": ["day", "week", "days_28"],
       "supports_breakdown": false,
-      "is_default": true,
+      "status": "UNKNOWN",
+      "is_default": false,
       "title": "Page Views Total",
-      "description": "Daily Page view count."
+      "description": "Legacy Page view count; retained for historical registry compatibility."
     },
     {
       "name": "page_daily_follows_unique",

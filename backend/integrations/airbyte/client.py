@@ -13,6 +13,25 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
+_CLIENT_SAFE_DETAIL_MAX_CHARS = 1000
+
+
+def client_safe_detail(message: str, *, limit: int = _CLIENT_SAFE_DETAIL_MAX_CHARS) -> str:
+    """Bound an upstream error message before returning it to API clients.
+
+    Airbyte error messages embed the raw response body of the internal Airbyte
+    service (``exc.response.text``). That body is actionable for operators
+    (e.g. connector config-validation errors), so we still surface it — but cap
+    its length so an arbitrarily large or unexpected internal payload is never
+    forwarded verbatim to the client. Callers log the full, untruncated
+    exception server-side.
+    """
+    text = message or ""
+    if len(text) > limit:
+        return text[:limit].rstrip() + "… (truncated)"
+    return text
+
+
 class AirbyteClientError(RuntimeError):
     """Raised when the Airbyte API responds with an error."""
 
@@ -40,7 +59,10 @@ class AirbyteClient:
     token: Optional[str] = None
     username: Optional[str] = None
     password: Optional[str] = None
-    timeout: float = 30.0
+    # Airbyte's /sources/check_connection actually runs the connector to
+    # validate credentials (pulls the image if cold, hits upstream APIs) and
+    # can take 60–90s for Google Ads on a cold workspace. 30s was too tight.
+    timeout: float = 120.0
 
     def __post_init__(self) -> None:
         if not self.base_url:

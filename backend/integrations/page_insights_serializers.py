@@ -14,6 +14,7 @@ class DateRangeQuerySerializer(serializers.Serializer):
     date_preset = serializers.ChoiceField(choices=DATE_PRESET_CHOICES, required=False, default="last_28d")
     since = serializers.DateField(required=False)
     until = serializers.DateField(required=False)
+    compare_to = serializers.CharField(required=False, allow_blank=True, default="")
     limit = serializers.IntegerField(required=False, min_value=1, max_value=500)
     offset = serializers.IntegerField(required=False, min_value=0)
     q = serializers.CharField(required=False, allow_blank=True)

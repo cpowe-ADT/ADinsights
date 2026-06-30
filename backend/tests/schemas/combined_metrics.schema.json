@@ -55,7 +55,7 @@
               "name",
               "platform",
               "status",
-              "parish",
+              "parishes",
               "spend",
               "impressions",
               "clicks",
@@ -68,7 +68,7 @@
               "platform": { "type": "string" },
               "status": { "type": "string" },
               "objective": { "type": "string" },
-              "parish": { "type": "string" },
+              "parishes": { "type": "array", "items": { "type": "string" } },
               "spend": { "type": "number" },
               "impressions": { "type": "number" },
               "clicks": { "type": "number" },
@@ -108,7 +108,7 @@
           "campaignId": { "type": "string" },
           "campaignName": { "type": "string" },
           "platform": { "type": "string" },
-          "parish": { "type": "string" },
+          "parishes": { "type": "array", "items": { "type": "string" } },
           "spend": { "type": "number" },
           "impressions": { "type": "number" },
           "clicks": { "type": "number" },
@@ -162,10 +162,202 @@
           "conversions": { "type": "number" },
           "roas": { "type": "number" },
           "campaignCount": { "type": "number" },
-          "currency": { "type": "string" }
+          "currency": { "type": "string" },
+          "campaigns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "name"],
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          }
         },
         "additionalProperties": false
       }
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "startDate": { "type": ["string", "null"] },
+        "endDate": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "availability": {
+      "type": "object",
+      "properties": {
+        "campaign": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string" },
+            "reason": { "type": ["string", "null"] }
+          },
+          "required": ["status"],
+          "additionalProperties": false
+        },
+        "creative": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string" },
+            "reason": { "type": ["string", "null"] }
+          },
+          "required": ["status"],
+          "additionalProperties": false
+        },
+        "budget": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string" },
+            "reason": { "type": ["string", "null"] }
+          },
+          "required": ["status"],
+          "additionalProperties": false
+        },
+        "parish_map": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string" },
+            "reason": { "type": ["string", "null"] },
+            "coverage_percent": { "type": "number" }
+          },
+          "required": ["status"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["campaign", "creative", "budget", "parish_map"],
+      "additionalProperties": false
+    },
+    "demographics": {
+      "type": "object",
+      "properties": {
+        "byAge": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["ageRange", "spend", "impressions", "clicks", "conversions", "reach"],
+            "properties": {
+              "ageRange": { "type": "string" },
+              "spend": { "type": "number" },
+              "impressions": { "type": "number" },
+              "clicks": { "type": "number" },
+              "conversions": { "type": "number" },
+              "reach": { "type": "number" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "byGender": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["gender", "spend", "impressions", "clicks", "conversions", "reach"],
+            "properties": {
+              "gender": { "type": "string" },
+              "spend": { "type": "number" },
+              "impressions": { "type": "number" },
+              "clicks": { "type": "number" },
+              "conversions": { "type": "number" },
+              "reach": { "type": "number" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "byAgeGender": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "ageRange",
+              "gender",
+              "spend",
+              "impressions",
+              "clicks",
+              "conversions",
+              "reach"
+            ],
+            "properties": {
+              "ageRange": { "type": "string" },
+              "gender": { "type": "string" },
+              "spend": { "type": "number" },
+              "impressions": { "type": "number" },
+              "clicks": { "type": "number" },
+              "conversions": { "type": "number" },
+              "reach": { "type": "number" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["byAge", "byGender", "byAgeGender"],
+      "additionalProperties": false
+    },
+    "platforms": {
+      "type": "object",
+      "properties": {
+        "byPlatform": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["platform", "spend", "impressions", "clicks", "conversions", "reach"],
+            "properties": {
+              "platform": { "type": "string" },
+              "spend": { "type": "number" },
+              "impressions": { "type": "number" },
+              "clicks": { "type": "number" },
+              "conversions": { "type": "number" },
+              "reach": { "type": "number" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "byDevice": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["device", "spend", "impressions", "clicks", "conversions", "reach"],
+            "properties": {
+              "device": { "type": "string" },
+              "spend": { "type": "number" },
+              "impressions": { "type": "number" },
+              "clicks": { "type": "number" },
+              "conversions": { "type": "number" },
+              "reach": { "type": "number" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "byPlatformDevice": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "platform",
+              "device",
+              "spend",
+              "impressions",
+              "clicks",
+              "conversions",
+              "reach"
+            ],
+            "properties": {
+              "platform": { "type": "string" },
+              "device": { "type": "string" },
+              "spend": { "type": "number" },
+              "impressions": { "type": "number" },
+              "clicks": { "type": "number" },
+              "conversions": { "type": "number" },
+              "reach": { "type": "number" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["byPlatform", "byDevice", "byPlatformDevice"],
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

@@ -15,10 +15,11 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 
 - Multi-tenant auth scaffolding, tenant context middleware, RLS enforcement.
 - Tenant onboarding: signup, invites, role assignment, password reset, tenant switch.
-- Service account API keys + audit log endpoints for key actions.
+- Service account API keys + audit log endpoints for key actions (with pagination, date-range filtering, CSV export).
 - Core health endpoints: `/api/health/`, `/api/health/airbyte/`, `/api/health/dbt/`, `/api/timezone/`.
 - Celery task wiring with observability hooks and test coverage.
 - AES-GCM secrets encryption with per-tenant DEKs + rotation script.
+- Encrypted Slack/webhook notification destinations with masked API/UI channel status.
 - Production-ready API edge controls: explicit CORS allowlist middleware + auth/public endpoint throttling.
 
 ### Data/Analytics
@@ -27,6 +28,8 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - SCD2 snapshots for mutable dimensions.
 - Metrics aggregation views, metrics macros + glossary, and contract tests.
 - Warehouse snapshot persistence (`TenantMetricsSnapshot`) + aggregate snapshot API.
+- Tenant-scoped generic CSV/PDF/PNG report export artifacts with verified downloads.
+- Scheduled aggregate daily-summary email delivery through active tenant email channels.
 
 ### Frontend
 
@@ -35,49 +38,34 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Dataset toggle (default live), snapshot freshness banner, tenant switcher, global filters.
 - Campaign/creative detail routes with saved layout + share links.
 - Data sources management UI and CSV upload wizard.
-- Data Sources connector status cards and provider actions (Connect, Run initial sync, View sync health).
-- Dashboard library API integration (`/api/dashboards/library/`).
-- Post-MVP operations and productivity routes:
-  - `/ops/sync-health`
-  - `/ops/health`
-  - `/reports`, `/reports/new`, `/reports/:id`
-  - `/alerts`, `/alerts/:id`
-  - `/summaries`, `/summaries/:id`
-  - `/ops/audit`
+- Dashboard library (API-backed with saved dashboards CRUD).
 - Frontend design system tokens + docs.
+- Profile page (`/me`) with user, tenant, theme, and session controls.
+- Report inline editing (name/description) and report scheduling.
+- Audit log view with pagination, date-range filtering, and CSV export.
+- Sync health/telemetry view with connection detail page (`/ops/sync-health/:connectionId`).
+- Health overview with auto-refresh (30s interval).
+- Global error boundary and 404 catch-all page.
+- Skeleton loader components for loading states.
+- Unified toast notification system (Zustand `useToastStore`).
+- Google Ads workspace pages with error states via shared component.
+- Alerts CRUD and notification channel management UI.
+- Alert history/runs view and alert pause/resume controls.
+- AI summary badges on dashboard cards.
+- CSV upload detail page with summary and preview tables.
 
 ### Integrations
 
 - Airbyte infrastructure and declarative source templates.
 - Airbyte telemetry endpoints and health checks.
 - Airbyte connection lifecycle APIs (list/create/update/sync) + summary endpoint.
-- Meta Marketing API/Facebook Graph integration:
-  - `GET /api/integrations/meta/setup/`
-  - `POST /api/integrations/meta/oauth/start/`
-  - `POST /api/integrations/meta/oauth/exchange/`
-  - `POST /api/integrations/meta/pages/connect/`
-  - `POST /api/integrations/meta/provision/`
-  - `POST /api/integrations/meta/sync/`
-- Data Sources UI flow for Meta:
-  - Facebook OAuth connect
-  - business page selection
-  - ad account selection (required for Marketing API insights)
-  - Instagram business account selection (optional)
-  - Airbyte source/connection auto-provision + initial sync trigger
-- Social connection status center:
-  - Home quick action routes to `/dashboards/data-sources?sources=social`
-  - Data Sources social status cards for Meta + Instagram
-  - Canonical 4-state checker: `not_connected`, `started_not_complete`, `complete`, `active`
-  - Placeholder cards for LinkedIn/TikTok marked coming soon
-- Facebook Page Insights + Post Insights dashboard slice:
-  - Canonical dashboard routes: `/dashboards/meta/pages`, `/dashboards/meta/pages/:pageId/overview`, `/dashboards/meta/pages/:pageId/posts`, `/dashboards/meta/posts/:postId`
-  - Direct-link aliases: `/meta/pages*` redirecting to canonical dashboard routes
-  - Canonical API routes: `/api/meta/pages*`, `/api/meta/posts*`, `/api/meta/connect/*`
-  - Metric availability and unsupported-metric fallback behavior for Page/Post widgets
-- Google Ads direct credential + local Airbyte connection linking flow.
+- Airbyte trigger-sync endpoint (full integration with audit logging).
 - Production readiness verifier for Meta/Google connection credentials and tenant config sanity.
-- Canonical integration data-contract matrix (Meta/Google/GA4/Search Console/CSV) plus automated contract gate script.
-- Phase 2 pilot source templates for GA4 + Search Console with env-driven placeholders.
+- Meta Marketing API + Page Insights OAuth flows with scope validation.
+- Google Ads SDK migration (SDK with Airbyte fallback).
+- GA4 tenant-scoped OAuth setup, property discovery, and KPI fetch.
+- Search Console pilot integration endpoints.
+- Provider-generic connector lifecycle for Airbyte-managed Google providers.
 
 ### Observability/Runbooks
 
@@ -91,9 +79,38 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 
 ## In Progress
 
+### Frontend
+
+- Sync health filters (advanced filtering).
+- Report editing beyond inline metadata fields.
+
 ### Data/Analytics
 
-- GA4/Search Console credential validation in staging and production-like environments.
+- Attribution window documentation expansion.
+
+### Content Operations
+
+- Backend foundation for the planned Meta/Facebook/Instagram organic content operations module:
+  tenant-scoped `content_ops` app models, initial migration, serializers, DRF routes under
+  `/api/content-ops/`, and workflow skeletons for draft versions, approvals, decisions,
+  scheduling, unscheduling, generation-job cancellation, role-gated mutations, and separated
+  readiness axes for Meta auth/Page selection/Instagram linkage/publishing/reporting. Basic
+  aggregate overview/post reports and client-safe JSON content-plan export are available over
+  stored Content Ops records. Caption generation can create queued jobs and generated drafts through
+  a fakeable disabled-by-default provider boundary, and the local golden caption eval harness covers
+  schema, redaction, policy, and no-side-effect cases. Caption job quotas enforce active-job and
+  rolling 24-hour candidate limits before provider handoff; no live AI provider is active. Due
+  schedule dispatch, retry requeue, queue filters, every-minute due/retry/process beat scans,
+  fakeable Facebook Page and Instagram processor boundaries, persisted export artifacts, and an
+  aggregate organic metric refresh worker exist. A `/content` frontend foundation exists with mock
+  fallback and partial live API wiring, but workflow state mapping and export history need hardening
+  before operator rollout. No live Meta Graph publishing, live AI provider, dbt mart, or OAuth scope
+  activation is available yet.
+
+### Pilot Activation
+
+- Meta and Google Ads live credential/sync evidence, secure alert evidence, SES delivery evidence,
+  and staging go/no-go validation as defined in `docs/project/usable-pilot-delivery-spec.md`.
 
 ## Planned (short list)
 
@@ -110,10 +127,26 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 
 ### Frontend/UX
 
-- Enhanced export workflows and reporting UX.
-- Report builder + exports (PDF/PNG/CSV) with entitlements.
-- Alerts and AI summaries management UI.
-- Admin/sync health console for telemetry and health checks.
+- Reporting enhancements beyond the pilot artifact reliability fix.
+- Enterprise UAC UX (agency admin, approvals, MFA, impersonation).
+
+### Content Operations
+
+- Meta/Facebook/Instagram organic content operations module: content workspaces, briefs, AI caption
+  generation, AI graphic generation, asset library, internal/client approval, app-owned scheduling,
+  Facebook Page publishing, Instagram publishing beta, content exports, and aggregate organic
+  reporting. Backend data/API/caption/scheduler foundations are in progress; remaining product
+  surfaces are planned and ordered in the build control sheet.
+  Planning docs:
+  `docs/project/content-operations-current-state.md`,
+  `docs/project/content-operations-meta-publishing-spec.md`,
+  `docs/project/content-operations-architecture-sprint-plan.md`, and
+  `docs/project/content-operations-implementation-backlog.md`.
+
+### Deferred Integrations
+
+- GA4 live tenant onboarding completion and Search Console tenant onboarding are explicitly
+  deferred from the usable-pilot gate.
 
 ### Security/UAC
 
@@ -126,9 +159,11 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Task sequencing + gaps: `docs/task_breakdown.md`
 - Finished frontend scope: `docs/project/frontend-finished-product-spec.md`
 - Integration roadmap: `docs/project/integration-roadmap.md`
+- Content Operations tickets: `docs/project/content-operations-implementation-backlog.md`
 - Live backlog: `docs/project/phase1-execution-backlog.md`
 - UAC epics: `docs/project/uac-epics.md`
 - Vertical slice: `docs/project/vertical_slice_plan.md`
+- Usable pilot delivery: `docs/project/usable-pilot-delivery-spec.md`
 
 ## Update rules
 

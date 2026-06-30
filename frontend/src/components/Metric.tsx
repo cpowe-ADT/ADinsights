@@ -7,6 +7,7 @@ export type MetricBadge = 'New' | 'Paused' | 'Limited data';
 type MetricProps = {
   label: string;
   value: string | number;
+  tooltip?: string;
   delta?: string;
   deltaDirection?: DeltaDirection;
   hint?: string;
@@ -26,6 +27,7 @@ const clampTrend = (trend?: number[]) => {
 const Metric = ({
   label,
   value,
+  tooltip,
   delta,
   deltaDirection = 'flat',
   hint,
@@ -68,7 +70,9 @@ const Metric = ({
   return (
     <article className={mergedClassName}>
       <header className="metric-card__header">
-        <p className="metric-card__label">{label}</p>
+        <p className="metric-card__label" title={tooltip ?? undefined}>
+          {label}
+        </p>
         {badge ? (
           <span
             className={`metric-card__badge metric-card__badge--${badge.replace(/\s+/g, '-').toLowerCase()}`}

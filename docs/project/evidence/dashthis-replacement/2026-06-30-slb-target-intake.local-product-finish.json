@@ -1,0 +1,221 @@
+{
+  "datasets": {
+    "active": ["content_ops", "organic_facebook_page", "paid_meta_ads"],
+    "by_widget": [
+      {
+        "dataset": "content_ops",
+        "type": "report_section",
+        "widget_id": "cover_period"
+      },
+      {
+        "dataset": "paid_meta_ads",
+        "type": "kpi",
+        "widget_id": "paid_summary"
+      },
+      {
+        "dataset": "paid_meta_ads",
+        "type": "line_chart",
+        "widget_id": "paid_spend_trend"
+      },
+      {
+        "dataset": "paid_meta_ads",
+        "type": "data_table",
+        "widget_id": "paid_campaign_table"
+      },
+      {
+        "dataset": "organic_facebook_page",
+        "type": "kpi",
+        "widget_id": "organic_page_summary"
+      },
+      {
+        "dataset": "organic_facebook_page",
+        "type": "kpi",
+        "widget_id": "organic_post_engagement_summary"
+      },
+      {
+        "dataset": "organic_facebook_page",
+        "type": "line_chart",
+        "widget_id": "organic_engagement_trend"
+      },
+      {
+        "dataset": "content_ops",
+        "type": "report_section",
+        "widget_id": "organic_reach_impressions_note"
+      },
+      {
+        "dataset": "organic_facebook_page",
+        "type": "data_table",
+        "widget_id": "top_posts_table"
+      },
+      {
+        "dataset": "content_ops",
+        "type": "kpi",
+        "widget_id": "content_activity_summary"
+      },
+      {
+        "dataset": "content_ops",
+        "type": "report_section",
+        "widget_id": "recommendations"
+      },
+      {
+        "dataset": "content_ops",
+        "type": "report_section",
+        "widget_id": "appendix_data_notes"
+      }
+    ],
+    "missing_required_active_v1": [],
+    "required_active_v1_present": ["content_ops", "organic_facebook_page", "paid_meta_ads"]
+  },
+  "date_range": {
+    "layout_filters": [
+      {
+        "date_range": "last_month",
+        "end_date": "",
+        "start_date": "",
+        "widget_id": "cover_period"
+      },
+      {
+        "date_range": "custom",
+        "end_date": "2026-05-31",
+        "start_date": "2026-05-01",
+        "widget_id": "paid_summary"
+      },
+      {
+        "date_range": "custom",
+        "end_date": "2026-05-31",
+        "start_date": "2026-05-01",
+        "widget_id": "paid_spend_trend"
+      },
+      {
+        "date_range": "custom",
+        "end_date": "2026-05-31",
+        "start_date": "2026-05-01",
+        "widget_id": "paid_campaign_table"
+      },
+      {
+        "date_range": "custom",
+        "end_date": "2026-05-31",
+        "start_date": "2026-05-01",
+        "widget_id": "organic_page_summary"
+      },
+      {
+        "date_range": "custom",
+        "end_date": "2026-05-31",
+        "start_date": "2026-05-01",
+        "widget_id": "organic_post_engagement_summary"
+      },
+      {
+        "date_range": "custom",
+        "end_date": "2026-05-31",
+        "start_date": "2026-05-01",
+        "widget_id": "organic_engagement_trend"
+      },
+      {
+        "date_range": "last_month",
+        "end_date": "",
+        "start_date": "",
+        "widget_id": "organic_reach_impressions_note"
+      },
+      {
+        "date_range": "custom",
+        "end_date": "2026-05-31",
+        "start_date": "2026-05-01",
+        "widget_id": "top_posts_table"
+      },
+      {
+        "date_range": "custom",
+        "end_date": "2026-05-31",
+        "start_date": "2026-05-01",
+        "widget_id": "content_activity_summary"
+      },
+      {
+        "date_range": "last_month",
+        "end_date": "",
+        "start_date": "",
+        "widget_id": "recommendations"
+      },
+      {
+        "date_range": "last_month",
+        "end_date": "",
+        "start_date": "",
+        "widget_id": "appendix_data_notes"
+      }
+    ],
+    "report_filter": {
+      "date_range": "custom",
+      "end_date": "2026-05-31",
+      "start_date": "2026-05-01"
+    }
+  },
+  "guardrails": {
+    "instagram_deferred": true,
+    "no_live_provider_check": "not_applicable_offline_metadata_only",
+    "no_sensitive_patterns_detected": true,
+    "report_v1": true,
+    "slb_template": true
+  },
+  "operator_fields_still_required": [
+    "target_environment",
+    "backend_url",
+    "frontend_url",
+    "safe_tenant_identifier",
+    "safe_client_identifier",
+    "primary_date_range_confirmation",
+    "timezone",
+    "currency",
+    "paid_meta_account_scope",
+    "organic_facebook_page_scope",
+    "content_ops_workspace_scope",
+    "dashthis_source_comparison_owner",
+    "dashthis_source_evidence_location",
+    "recipient_assumption",
+    "dashthis_active_confirmation",
+    "raj_mira_g0_clearance"
+  ],
+  "pages": {
+    "count": 8,
+    "ids": [
+      "cover",
+      "executive_summary",
+      "paid_meta_ads",
+      "organic_facebook",
+      "top_posts",
+      "content_activity",
+      "recommendations",
+      "appendix"
+    ],
+    "required_slb_pages_present": true
+  },
+  "report": {
+    "catalog_schema_version": "reporting_catalog.v1",
+    "id": "09c96ea9-a9e5-4283-aa29-401179ab05dc",
+    "is_active": true,
+    "schema_version": "report.v1",
+    "template_key": "slb_monthly_social_report",
+    "tenant_id": "ee1c8c78-d77f-4c65-ad37-ccf7a896f4c2"
+  },
+  "schedule": {
+    "last_scheduled_at": "2026-06-30T05:22:46.079532+00:00",
+    "schedule_cron_present": false,
+    "schedule_enabled": false
+  },
+  "schema_version": "slb_target_intake.v1",
+  "source_scope_presence": {
+    "account_id_present": true,
+    "client_id_present": false,
+    "delivery_recipient_count": 0,
+    "page_id_present": false,
+    "workspace_id_present": false
+  },
+  "status": "candidate_ready_for_operator_confirmation",
+  "validation_errors": [],
+  "widgets": {
+    "by_type": {
+      "data_table": 2,
+      "kpi": 4,
+      "line_chart": 2,
+      "report_section": 4
+    },
+    "count": 12
+  }
+}

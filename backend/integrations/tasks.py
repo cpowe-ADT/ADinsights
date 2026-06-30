@@ -81,7 +81,8 @@ from core.tasks import BaseAdInsightsTask
 
 logger = logging.getLogger(__name__)
 DEFAULT_META_INSIGHTS_LOOKBACK_DAYS = 3
-META_DIRECT_SYNC_LOOKBACK_DAYS = 7
+META_DIRECT_SYNC_LOOKBACK_DAYS = 30
+META_DIRECT_SYNC_EXTENDED_LOOKBACK_DAYS = 90
 DEFAULT_META_INSIGHTS_LEVEL = "ad"
 RETRY_REASON_GOOGLE_OAUTH_CONFIGURATION = "google_oauth_configuration_error"
 RETRY_REASON_AIRBYTE_CLIENT_CONFIGURATION = "airbyte_client_configuration_error"
@@ -192,6 +193,45 @@ def _current_task_id(task) -> str | None:
     return None
 
 
+def _is_task_dispatch_error(exc: Exception) -> bool:
+    module_name = type(exc).__module__.lower()
+    if module_name.startswith("kombu") or module_name.startswith("amqp"):
+        return True
+
+    message = str(exc).lower()
+    return any(
+        fragment in message
+        for fragment in (
+            "redis",
+            "broker",
+            "transport",
+            "connection refused",
+            "connection reset",
+            "connection closed",
+        )
+    )
+
+
+def _trigger_warehouse_snapshot_refresh(*, tenant_id: str) -> str:
+    if not getattr(settings, "ENABLE_WAREHOUSE_ADAPTER", False):
+        return "disabled"
+
+    from analytics.tasks import sync_metrics_snapshots
+
+    try:
+        sync_metrics_snapshots.apply_async(kwargs={"tenant_ids": [tenant_id]})
+        return "queued"
+    except Exception as exc:
+        if _is_task_dispatch_error(exc):
+            logger.warning(
+                "analytics.snapshot_refresh.inline_fallback",
+                extra={"tenant_id": tenant_id, "error": str(exc)},
+            )
+            sync_metrics_snapshots.run(tenant_ids=[tenant_id])
+            return "inline"
+        raise
+
+
 def _resolve_google_sync_state(
     *,
     tenant,
@@ -292,88 +332,65 @@ def sync_google_ads_sdk_incremental(
                     credential=credential,
                     login_customer_id=getattr(settings, "GOOGLE_ADS_LOGIN_CUSTOMER_ID", None),
                 )
-                campaign_rows = client.fetch_campaign_daily(
-                    customer_id=account_id,
-                    start_date=window_start,
-                    end_date=window_end,
-                )
-                ad_rows = client.fetch_ad_group_ad_daily(
-                    customer_id=account_id,
-                    start_date=window_start,
-                    end_date=window_end,
-                )
-                geo_rows = client.fetch_geographic_daily(
-                    customer_id=account_id,
-                    start_date=window_start,
-                    end_date=window_end,
-                )
+
+                # Enumerate child customers under the credential. When the
+                # credential's account_id is a manager (MCC) the Google Ads
+                # API rejects metric queries against it (REQUESTED_METRICS_FOR_MANAGER),
+                # so we must fan out to each non-manager child. When the
+                # account is a leaf customer, accessible_rows typically
+                # contains only itself and we sync that one.
                 accessible_rows = client.fetch_accessible_customers(customer_id=account_id)
+                upsert_accessible_customer_rows(tenant=credential.tenant, rows=accessible_rows)
+
+                child_customer_ids = [
+                    _normalize_google_customer_id(row.customer_id)
+                    for row in accessible_rows
+                    if getattr(row, "customer_id", None) and not getattr(row, "is_manager", False)
+                ]
+                child_customer_ids = [cid for cid in child_customer_ids if cid]
+                # If the list is empty (e.g. a leaf account that didn't
+                # surface itself via customer_client), fall back to the
+                # credential's own account_id.
+                target_customer_ids = child_customer_ids or [account_id]
+
+                campaign_rows: list[Any] = []
+                ad_rows: list[Any] = []
+                geo_rows: list[Any] = []
+                per_child_errors: dict[str, str] = {}
+                for target in target_customer_ids:
+                    try:
+                        campaign_rows.extend(
+                            client.fetch_campaign_daily(
+                                customer_id=target,
+                                start_date=window_start,
+                                end_date=window_end,
+                            )
+                        )
+                        ad_rows.extend(
+                            client.fetch_ad_group_ad_daily(
+                                customer_id=target,
+                                start_date=window_start,
+                                end_date=window_end,
+                            )
+                        )
+                        geo_rows.extend(
+                            client.fetch_geographic_daily(
+                                customer_id=target,
+                                start_date=window_start,
+                                end_date=window_end,
+                            )
+                        )
+                    except GoogleAdsSdkError as child_exc:
+                        # Skip unreachable / not-enabled children but don't
+                        # fail the whole sync for one bad child.
+                        per_child_errors[target] = f"{child_exc.classification}: {child_exc}"
+                        continue
 
                 upsert_campaign_daily_rows(tenant=credential.tenant, rows=campaign_rows)
                 upsert_ad_group_ad_daily_rows(tenant=credential.tenant, rows=ad_rows)
                 upsert_geographic_daily_rows(tenant=credential.tenant, rows=geo_rows)
-                upsert_accessible_customer_rows(tenant=credential.tenant, rows=accessible_rows)
 
                 optional_errors: dict[str, dict[str, Any]] = {}
-                try:
-                    keyword_rows = client.fetch_keyword_daily(
-                        customer_id=account_id,
-                        start_date=window_start,
-                        end_date=window_end,
-                    )
-                    upsert_keyword_daily_rows(tenant=credential.tenant, rows=keyword_rows)
-                except GoogleAdsSdkError as exc:
-                    optional_errors["keyword_daily"] = {
-                        "classification": exc.classification,
-                        "request_id": exc.request_id,
-                        "message": str(exc),
-                    }
-
-                try:
-                    search_term_rows = client.fetch_search_term_daily(
-                        customer_id=account_id,
-                        start_date=window_start,
-                        end_date=window_end,
-                    )
-                    upsert_search_term_daily_rows(tenant=credential.tenant, rows=search_term_rows)
-                except GoogleAdsSdkError as exc:
-                    optional_errors["search_term_daily"] = {
-                        "classification": exc.classification,
-                        "request_id": exc.request_id,
-                        "message": str(exc),
-                    }
-
-                try:
-                    asset_group_rows = client.fetch_asset_group_daily(
-                        customer_id=account_id,
-                        start_date=window_start,
-                        end_date=window_end,
-                    )
-                    upsert_asset_group_daily_rows(tenant=credential.tenant, rows=asset_group_rows)
-                except GoogleAdsSdkError as exc:
-                    optional_errors["asset_group_daily"] = {
-                        "classification": exc.classification,
-                        "request_id": exc.request_id,
-                        "message": str(exc),
-                    }
-
-                try:
-                    conversion_action_rows = client.fetch_conversion_action_daily(
-                        customer_id=account_id,
-                        start_date=window_start,
-                        end_date=window_end,
-                    )
-                    upsert_conversion_action_daily_rows(
-                        tenant=credential.tenant,
-                        rows=conversion_action_rows,
-                    )
-                except GoogleAdsSdkError as exc:
-                    optional_errors["conversion_action_daily"] = {
-                        "classification": exc.classification,
-                        "request_id": exc.request_id,
-                        "message": str(exc),
-                    }
-
                 change_window_start = datetime.combine(
                     window_start,
                     datetime.min.time(),
@@ -384,28 +401,100 @@ def sync_google_ads_sdk_incremental(
                     datetime.min.time(),
                     tzinfo=dt_timezone.utc,
                 )
-                try:
-                    change_event_rows = client.fetch_change_events(
-                        customer_id=account_id,
-                        start_datetime=change_window_start,
-                        end_datetime=change_window_end,
-                    )
-                    upsert_change_event_rows(tenant=credential.tenant, rows=change_event_rows)
-                except GoogleAdsSdkError as exc:
-                    optional_errors["change_events"] = {
-                        "classification": exc.classification,
-                        "request_id": exc.request_id,
-                        "message": str(exc),
-                    }
 
-                try:
-                    recommendation_rows = client.fetch_recommendations(customer_id=account_id)
-                    upsert_recommendation_rows(tenant=credential.tenant, rows=recommendation_rows)
-                except GoogleAdsSdkError as exc:
-                    optional_errors["recommendations"] = {
-                        "classification": exc.classification,
-                        "request_id": exc.request_id,
-                        "message": str(exc),
+                keyword_rows_all: list[Any] = []
+                search_term_rows_all: list[Any] = []
+                asset_group_rows_all: list[Any] = []
+                conversion_action_rows_all: list[Any] = []
+                change_event_rows_all: list[Any] = []
+                recommendation_rows_all: list[Any] = []
+
+                for target in target_customer_ids:
+                    for label, fetch in (
+                        (
+                            "keyword_daily",
+                            lambda t=target: keyword_rows_all.extend(
+                                client.fetch_keyword_daily(
+                                    customer_id=t,
+                                    start_date=window_start,
+                                    end_date=window_end,
+                                )
+                            ),
+                        ),
+                        (
+                            "search_term_daily",
+                            lambda t=target: search_term_rows_all.extend(
+                                client.fetch_search_term_daily(
+                                    customer_id=t,
+                                    start_date=window_start,
+                                    end_date=window_end,
+                                )
+                            ),
+                        ),
+                        (
+                            "asset_group_daily",
+                            lambda t=target: asset_group_rows_all.extend(
+                                client.fetch_asset_group_daily(
+                                    customer_id=t,
+                                    start_date=window_start,
+                                    end_date=window_end,
+                                )
+                            ),
+                        ),
+                        (
+                            "conversion_action_daily",
+                            lambda t=target: conversion_action_rows_all.extend(
+                                client.fetch_conversion_action_daily(
+                                    customer_id=t,
+                                    start_date=window_start,
+                                    end_date=window_end,
+                                )
+                            ),
+                        ),
+                        (
+                            "change_events",
+                            lambda t=target: change_event_rows_all.extend(
+                                client.fetch_change_events(
+                                    customer_id=t,
+                                    start_datetime=change_window_start,
+                                    end_datetime=change_window_end,
+                                )
+                            ),
+                        ),
+                        (
+                            "recommendations",
+                            lambda t=target: recommendation_rows_all.extend(
+                                client.fetch_recommendations(customer_id=t)
+                            ),
+                        ),
+                    ):
+                        try:
+                            fetch()
+                        except GoogleAdsSdkError as exc:
+                            # Record the first failure per resource label;
+                            # one bad child must not sink the whole sync.
+                            if label not in optional_errors:
+                                optional_errors[label] = {
+                                    "classification": exc.classification,
+                                    "request_id": exc.request_id,
+                                    "message": str(exc),
+                                    "customer_id": target,
+                                }
+
+                upsert_keyword_daily_rows(tenant=credential.tenant, rows=keyword_rows_all)
+                upsert_search_term_daily_rows(tenant=credential.tenant, rows=search_term_rows_all)
+                upsert_asset_group_daily_rows(tenant=credential.tenant, rows=asset_group_rows_all)
+                upsert_conversion_action_daily_rows(
+                    tenant=credential.tenant,
+                    rows=conversion_action_rows_all,
+                )
+                upsert_change_event_rows(tenant=credential.tenant, rows=change_event_rows_all)
+                upsert_recommendation_rows(tenant=credential.tenant, rows=recommendation_rows_all)
+
+                if per_child_errors:
+                    optional_errors["per_child_metric_errors"] = {
+                        "count": len(per_child_errors),
+                        "details": per_child_errors,
                     }
 
                 if optional_errors:
@@ -451,6 +540,25 @@ def sync_google_ads_sdk_incremental(
                     "last_sync_error",
                     "updated_at",
                 ]
+            )
+
+    # Sprint 9a: after Google Ads accounts land, refresh the Client suggestion
+    # snapshot so the banner can surface cross-platform grouping hints.
+    if synced:
+        from integrations.clients.tasks import (
+            enqueue_refresh_client_suggestions,
+        )
+        from integrations.models import ClientSuggestionSnapshot
+
+        seen_tenants: set[str] = set()
+        for credential in credentials:
+            tenant_key = str(credential.tenant_id)
+            if tenant_key in seen_tenants:
+                continue
+            seen_tenants.add(tenant_key)
+            enqueue_refresh_client_suggestions(
+                tenant_key,
+                trigger_reason=ClientSuggestionSnapshot.REASON_GOOGLE_SYNC,
             )
 
     return {
@@ -740,6 +848,144 @@ def refresh_airbyte_sync_health(self):  # noqa: ANN001
         "workspace_id": workspace_id or None,
         "stale_minutes": stale_minutes,
         "force_stale_failure": force_stale_failure,
+    }
+
+
+FX_DEFAULT_SYMBOLS: tuple[str, ...] = ("USD", "GBP", "CAD", "JPY", "EUR")
+FX_DEFAULT_BASE_CURRENCY = "USD"
+FX_DEFAULT_ENDPOINT = "https://api.frankfurter.app/latest"
+
+
+def _fetch_frankfurter_rates(
+    *,
+    base: str,
+    symbols: tuple[str, ...],
+    endpoint: str,
+    timeout: float,
+) -> tuple[date, dict[str, Decimal]]:
+    """Pull one day of pivoted rates from the Frankfurter public API.
+
+    Frankfurter returns ``{"base": "USD", "date": "2026-04-11", "rates": {...}}``.
+    Non-target currencies in the response are ignored; missing symbols surface
+    as an empty dict entry so callers can log which pairs were unavailable.
+    """
+
+    params = {
+        "base": base,
+        "symbols": ",".join(s for s in symbols if s and s.upper() != base.upper()),
+    }
+    response = httpx.get(endpoint, params=params, timeout=timeout)
+    response.raise_for_status()
+    payload = response.json()
+    rate_date = date.fromisoformat(str(payload.get("date") or ""))
+    raw_rates = payload.get("rates") or {}
+    result: dict[str, Decimal] = {}
+    for quote, value in raw_rates.items():
+        try:
+            result[str(quote).upper()] = Decimal(str(value))
+        except (InvalidOperation, TypeError, ValueError):
+            continue
+    return rate_date, result
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=3, name="integrations.tasks.refresh_fx_rates")
+def refresh_fx_rates(  # noqa: ANN001
+    self,
+    base_currency: str | None = None,
+    symbols: list[str] | None = None,
+    *,
+    manual_rows: list[dict] | None = None,
+):
+    """Upsert :class:`DailyFxRate` rows from the configured FX provider.
+
+    The task is intentionally single-provider (Frankfurter — free, no API key,
+    ECB-backed) for the initial roll-out. Tenants needing JMD pairs continue
+    to rely on manually-inserted rows (``SOURCE_MANUAL``) until a Jamaica
+    provider is wired up.
+
+    ``manual_rows`` is an escape hatch for tests and ops backfills — when
+    provided, bypass the HTTP fetch and upsert the supplied rows directly.
+    Each row must be ``{"rate_date": ISO-str, "base_currency": str,
+    "quote_currency": str, "rate": number, "source": str}``.
+    """
+
+    from analytics.models import DailyFxRate
+
+    base = (base_currency or FX_DEFAULT_BASE_CURRENCY).upper()
+    symbol_tuple = tuple(
+        s.upper() for s in (symbols or FX_DEFAULT_SYMBOLS) if s
+    )
+    upserts = 0
+    skipped = 0
+
+    if manual_rows is not None:
+        for row in manual_rows:
+            try:
+                rate_date = date.fromisoformat(str(row["rate_date"]))
+                rate_value = Decimal(str(row["rate"]))
+            except (KeyError, InvalidOperation, TypeError, ValueError):
+                skipped += 1
+                continue
+            with transaction.atomic():
+                DailyFxRate.objects.update_or_create(
+                    rate_date=rate_date,
+                    base_currency=str(row["base_currency"]).upper(),
+                    quote_currency=str(row["quote_currency"]).upper(),
+                    defaults={
+                        "rate": rate_value,
+                        "source": str(
+                            row.get("source") or DailyFxRate.SOURCE_MANUAL
+                        ),
+                    },
+                )
+            upserts += 1
+        return {"upserted": upserts, "skipped": skipped, "source": "manual"}
+
+    timeout_seconds = float(getattr(settings, "FX_PROVIDER_TIMEOUT_SECONDS", 10.0))
+    endpoint = (
+        getattr(settings, "FX_PROVIDER_ENDPOINT", "") or FX_DEFAULT_ENDPOINT
+    )
+
+    try:
+        rate_date, rates = _fetch_frankfurter_rates(
+            base=base,
+            symbols=symbol_tuple,
+            endpoint=endpoint,
+            timeout=timeout_seconds,
+        )
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning(
+            "fx.refresh.provider_error",
+            extra={"base": base, "endpoint": endpoint, "error": str(exc)},
+        )
+        raise self.retry(exc=exc, countdown=300)
+
+    for quote_currency, rate_value in rates.items():
+        with transaction.atomic():
+            DailyFxRate.objects.update_or_create(
+                rate_date=rate_date,
+                base_currency=base,
+                quote_currency=quote_currency,
+                defaults={
+                    "rate": rate_value,
+                    "source": DailyFxRate.SOURCE_ECB,  # Frankfurter pivots ECB data
+                },
+            )
+        upserts += 1
+
+    logger.info(
+        "fx.refresh.completed",
+        extra={
+            "base": base,
+            "rate_date": rate_date.isoformat(),
+            "upserted": upserts,
+        },
+    )
+    return {
+        "upserted": upserts,
+        "skipped": skipped,
+        "rate_date": rate_date.isoformat(),
+        "source": "frankfurter",
     }
 
 
@@ -1061,7 +1307,11 @@ def sync_meta_reporting_slice(
     """Run the direct Meta reporting slice end to end for one tenant/account."""
 
     normalized_account_id = _normalize_meta_account_id(account_id)
-    since_date, until_date = _resolve_meta_window(since=since, until=until, lookback_days=META_DIRECT_SYNC_LOOKBACK_DAYS)
+    since_date, until_date = _resolve_meta_window(
+        since=since,
+        until=until,
+        lookback_days=META_DIRECT_SYNC_LOOKBACK_DAYS,
+    )
     credential = (
         PlatformCredential.all_objects.select_related("tenant")
         .filter(
@@ -1154,15 +1404,33 @@ def sync_meta_reporting_slice(
             raise self.retry_with_backoff(exc=exc, reason=reason)
         raise
 
+    rows_synced = int(insights_result.get("insights_synced", 0))
+    final_since_date = since_date
+    if (
+        rows_synced <= 0
+        and _window_span_days(since_date=since_date, until_date=until_date)
+        < META_DIRECT_SYNC_EXTENDED_LOOKBACK_DAYS
+    ):
+        final_since_date = until_date - timedelta(days=META_DIRECT_SYNC_EXTENDED_LOOKBACK_DAYS - 1)
+        insights_result = _sync_meta_insights_core(
+            task=self,
+            tenant_id=tenant_id,
+            account_id=normalized_account_id,
+            level=level,
+            since=final_since_date.isoformat(),
+            until=until_date.isoformat(),
+            raise_on_error=True,
+        )
+        rows_synced = int(insights_result.get("insights_synced", 0))
+
     records_queryset = RawPerformanceRecord.all_objects.filter(
         tenant_id=tenant_id,
         source="meta",
         ad_account__external_id=normalized_account_id,
-        date__gte=since_date,
+        date__gte=final_since_date,
         date__lte=until_date,
     )
     last_data_date = records_queryset.order_by("-date").values_list("date", flat=True).first()
-    rows_synced = int(insights_result.get("insights_synced", 0))
     _touch_meta_sync_state(
         tenant=credential.tenant,
         account_id=normalized_account_id,
@@ -1171,13 +1439,14 @@ def sync_meta_reporting_slice(
         job_status="succeeded",
         job_error="",
         sync_completed_at=timezone.now(),
-        window_start=since_date,
+        window_start=final_since_date,
         window_end=until_date,
         sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
         rows_synced=rows_synced,
         data_date=last_data_date,
         error_category="",
     )
+    snapshot_refresh_mode = _trigger_warehouse_snapshot_refresh(tenant_id=tenant_id)
     return {
         "tenant_id": tenant_id,
         "account_id": normalized_account_id,
@@ -1188,7 +1457,12 @@ def sync_meta_reporting_slice(
         "ads_synced": int(hierarchy_result.get("ads_synced", 0)),
         "insights_synced": rows_synced,
         "last_data_date": last_data_date.isoformat() if last_data_date else None,
+        "snapshot_refresh_mode": snapshot_refresh_mode,
     }
+
+
+def _window_span_days(*, since_date: date, until_date: date) -> int:
+    return (until_date - since_date).days + 1
 
 
 def _sync_meta_accounts_core(
@@ -1271,21 +1545,24 @@ def _sync_meta_accounts_core(
 
                 batch_count = 0
                 for row in rows:
-                    if not isinstance(row, dict):
+                    payload = row.as_public_dict() if hasattr(row, "as_public_dict") else row
+                    if not isinstance(payload, dict):
                         continue
-                    external_id = _normalize_meta_account_id(str(row.get("id") or row.get("account_id") or "").strip())
+                    external_id = _normalize_meta_account_id(
+                        str(payload.get("id") or payload.get("account_id") or "").strip()
+                    )
                     if not external_id:
                         continue
-                    account_id = str(row.get("account_id") or "").strip()
-                    status_value = row.get("account_status")
+                    account_id = str(payload.get("account_id") or "").strip() or external_id.replace("act_", "")
+                    status_value = payload.get("account_status")
                     status_text = str(status_value) if status_value is not None else ""
                     defaults = {
                         "account_id": account_id,
-                        "name": str(row.get("name") or "").strip(),
-                        "currency": str(row.get("currency") or "").strip(),
+                        "name": str(payload.get("name") or "").strip(),
+                        "currency": str(payload.get("currency") or "").strip(),
                         "status": status_text,
-                        "business_name": str(row.get("business_name") or "").strip(),
-                        "metadata": row,
+                        "business_name": str(payload.get("business_name") or "").strip(),
+                        "metadata": payload,
                         "updated_time": timezone.now(),
                     }
                     AdAccount.all_objects.update_or_create(
@@ -1305,6 +1582,26 @@ def _sync_meta_accounts_core(
                     sync_engine=MetaAccountSyncState.SYNC_ENGINE_DIRECT,
                     error_category="",
                 )
+
+    # Sprint 9a: refresh Client suggestion snapshot after Meta accounts land
+    # so the dashboard banner can surface cross-platform grouping hints.
+    if accounts_synced:
+        from integrations.clients.tasks import (
+            enqueue_refresh_client_suggestions,
+        )
+        from integrations.models import ClientSuggestionSnapshot
+
+        seen_tenants: set[str] = set()
+        for credential in credentials:
+            tenant_key = str(credential.tenant_id)
+            if tenant_key in seen_tenants:
+                continue
+            seen_tenants.add(tenant_key)
+            enqueue_refresh_client_suggestions(
+                tenant_key,
+                trigger_reason=ClientSuggestionSnapshot.REASON_META_SYNC,
+            )
+
     return {
         "processed": processed,
         "succeeded": succeeded,
@@ -1697,6 +1994,75 @@ def _sync_meta_insights_core(
                     insights_synced += 1
                     if latest_record_date is None or record_date > latest_record_date:
                         latest_record_date = record_date
+                # --- Geographic (region) breakdown for parish map ---
+                try:
+                    region_rows = client.list_insights_by_region(
+                        account_id=account_external_id,
+                        user_access_token=access_token,
+                        since=since_date.isoformat(),
+                        until=until_date.isoformat(),
+                    )
+                except MetaGraphClientError as exc:
+                    logger.warning(
+                        "meta.sync.insights_by_region.failed",
+                        extra={"account_id": account_external_id, "error": str(exc)},
+                    )
+                    region_rows = []
+
+                if region_rows:
+                    _upsert_meta_region_rows(
+                        tenant=credential.tenant,
+                        account_id=account_external_id,
+                        rows=region_rows,
+                        currency=ad_account.currency or "",
+                    )
+
+                # --- Age + gender breakdown for demographics ---
+                try:
+                    age_gender_rows = client.list_insights_by_age_gender(
+                        account_id=account_external_id,
+                        user_access_token=access_token,
+                        since=since_date.isoformat(),
+                        until=until_date.isoformat(),
+                    )
+                except MetaGraphClientError as exc:
+                    logger.warning(
+                        "meta.sync.insights_by_age_gender.failed",
+                        extra={"account_id": account_external_id, "error": str(exc)},
+                    )
+                    age_gender_rows = []
+
+                if age_gender_rows:
+                    _upsert_meta_age_gender_rows(
+                        tenant=credential.tenant,
+                        account_id=account_external_id,
+                        rows=age_gender_rows,
+                        currency=ad_account.currency or "",
+                    )
+
+                # --- Platform breakdown for platform analytics ---
+                try:
+                    platform_rows = client.list_insights_by_platform(
+                        account_id=account_external_id,
+                        user_access_token=access_token,
+                        since=since_date.isoformat(),
+                        until=until_date.isoformat(),
+                    )
+                except MetaGraphClientError as exc:
+                    logger.warning(
+                        "meta.sync.insights_by_platform.failed",
+                        extra={"account_id": account_external_id, "error": str(exc)},
+                    )
+                    platform_rows = []
+
+                if platform_rows:
+                    _upsert_meta_platform_rows(
+                        tenant=credential.tenant,
+                        account_id=account_external_id,
+                        rows=platform_rows,
+                        currency=ad_account.currency or "",
+                    )
+
                 succeeded += 1
                 _touch_meta_sync_state(
                     tenant=credential.tenant,
@@ -1717,6 +2083,136 @@ def _sync_meta_insights_core(
         "failed": failed,
         "insights_synced": insights_synced,
     }
+
+
+def _upsert_meta_region_rows(
+    *,
+    tenant: object,
+    account_id: str,
+    rows: list[dict[str, Any]],
+    currency: str,
+) -> int:
+    from integrations.models import MetaRegionDaily
+
+    persisted = 0
+    for row in rows:
+        region = (row.get("region") or "").strip()
+        if not region:
+            continue
+        record_date = _parse_iso_date(str(row.get("date_start") or ""))
+        if not record_date:
+            continue
+        campaign_id = str(row.get("campaign_id") or "")
+        actions = row.get("actions") if isinstance(row.get("actions"), list) else []
+        try:
+            MetaRegionDaily.all_objects.update_or_create(
+                tenant=tenant,
+                account_id=account_id,
+                campaign_id=campaign_id,
+                date_day=record_date,
+                region=region,
+                defaults={
+                    "country": str(row.get("country") or ""),
+                    "currency": currency,
+                    "impressions": _int_value(row.get("impressions")),
+                    "reach": _int_value(row.get("reach")),
+                    "clicks": _int_value(row.get("clicks")),
+                    "spend": _decimal(row.get("spend")),
+                    "conversions": _insight_conversions(actions),
+                    "actions": actions,
+                    "raw_payload": row,
+                },
+            )
+            persisted += 1
+        except Exception:
+            logger.exception("Failed to upsert MetaRegionDaily row for region=%s date=%s", region, record_date)
+    return persisted
+
+
+def _upsert_meta_age_gender_rows(
+    *,
+    tenant: object,
+    account_id: str,
+    rows: list[dict[str, Any]],
+    currency: str,
+) -> int:
+    from integrations.models import MetaAgeGenderDaily
+
+    persisted = 0
+    for row in rows:
+        age_range = (row.get("age") or "").strip()
+        gender = (row.get("gender") or "").strip()
+        if not age_range or not gender:
+            continue
+        record_date = _parse_iso_date(str(row.get("date_start") or ""))
+        if not record_date:
+            continue
+        actions = row.get("actions") if isinstance(row.get("actions"), list) else []
+        try:
+            MetaAgeGenderDaily.all_objects.update_or_create(
+                tenant=tenant,
+                account_id=account_id,
+                date_day=record_date,
+                age_range=age_range,
+                gender=gender,
+                defaults={
+                    "currency": currency,
+                    "impressions": _int_value(row.get("impressions")),
+                    "reach": _int_value(row.get("reach")),
+                    "clicks": _int_value(row.get("clicks")),
+                    "spend": _decimal(row.get("spend")),
+                    "conversions": _insight_conversions(actions),
+                    "actions": actions,
+                    "raw_payload": row,
+                },
+            )
+            persisted += 1
+        except Exception:
+            logger.exception("Failed to upsert MetaAgeGenderDaily row for age=%s gender=%s date=%s", age_range, gender, record_date)
+    return persisted
+
+
+def _upsert_meta_platform_rows(
+    *,
+    tenant: object,
+    account_id: str,
+    rows: list[dict[str, Any]],
+    currency: str,
+) -> int:
+    from integrations.models import MetaPlatformDaily
+
+    persisted = 0
+    for row in rows:
+        publisher_platform = (row.get("publisher_platform") or "").strip()
+        device_platform = (row.get("device_platform") or "").strip()
+        if not publisher_platform or not device_platform:
+            continue
+        record_date = _parse_iso_date(str(row.get("date_start") or ""))
+        if not record_date:
+            continue
+        actions = row.get("actions") if isinstance(row.get("actions"), list) else []
+        try:
+            MetaPlatformDaily.all_objects.update_or_create(
+                tenant=tenant,
+                account_id=account_id,
+                date_day=record_date,
+                publisher_platform=publisher_platform,
+                device_platform=device_platform,
+                defaults={
+                    "currency": currency,
+                    "impressions": _int_value(row.get("impressions")),
+                    "reach": _int_value(row.get("reach")),
+                    "clicks": _int_value(row.get("clicks")),
+                    "spend": _decimal(row.get("spend")),
+                    "conversions": _insight_conversions(actions),
+                    "actions": actions,
+                    "raw_payload": row,
+                },
+            )
+            persisted += 1
+        except Exception:
+            logger.exception("Failed to upsert MetaPlatformDaily row for platform=%s device=%s date=%s", publisher_platform, device_platform, record_date)
+    return persisted
 
 
 def _resolve_meta_window(
@@ -2055,6 +2551,8 @@ def sync_meta_page_insights(  # noqa: ANN001
     page_pk: str | None = None,
     mode: str = "incremental",
     metrics: list[str] | None = None,
+    since: str | None = None,
+    until: str | None = None,
 ):
     """Sync Meta Page Insights from Graph API into MetaInsightPoint."""
 
@@ -2092,10 +2590,15 @@ def sync_meta_page_insights(  # noqa: ANN001
                     if not registry_metrics:
                         continue
 
-                    since, until = _resolve_sync_window(mode=mode, now=now)
+                    since_date, until_date = _resolve_sync_window(
+                        mode=mode,
+                        now=now,
+                        since=since,
+                        until=until,
+                    )
                     chunk_size = max(int(getattr(settings, "META_PAGE_INSIGHTS_METRIC_CHUNK_SIZE", 10)), 1)
 
-                    for window_since, window_until in _window_chunks(since=since, until=until, max_days=90):
+                    for window_since, window_until in _window_chunks(since=since_date, until=until_date, max_days=90):
                         rows_processed = _sync_page_metric_window(
                             client=client,
                             page=page,
@@ -2149,6 +2652,8 @@ def sync_meta_post_insights(  # noqa: ANN001
     page_pk: str | None = None,
     mode: str = "incremental",
     metrics: list[str] | None = None,
+    since: str | None = None,
+    until: str | None = None,
 ):
     """Sync Meta Page Post Insights from Graph API into MetaPostInsightPoint."""
 
@@ -2178,13 +2683,18 @@ def sync_meta_post_insights(  # noqa: ANN001
                     if not page_tokens:
                         continue
 
-                    since, until = _resolve_sync_window(mode=mode, now=now)
+                    since_date, until_date = _resolve_sync_window(
+                        mode=mode,
+                        now=now,
+                        since=since,
+                        until=until,
+                    )
                     posts_payload = _fetch_page_posts_with_fallback(
                         client=client,
                         page=page,
                         page_tokens=page_tokens,
-                        since=since,
-                        until=until,
+                        since=since_date,
+                        until=until_date,
                     )
                     posts = _upsert_meta_posts(page=page, rows=posts_payload)
                     if not posts:
@@ -2205,8 +2715,8 @@ def sync_meta_post_insights(  # noqa: ANN001
                             post=post,
                             page_tokens=page_tokens,
                             metrics=registry_metrics,
-                            since=since,
-                            until=until,
+                            since=since_date,
+                            until=until_date,
                             chunk_size=chunk_size,
                         )
                         total_rows_processed += rows_processed
@@ -2333,19 +2843,31 @@ def discover_supported_metrics(self, page_id: str | None = None):  # noqa: ANN00
 
 
 @shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
-def sync_page_insights(self, page_id: str | None = None, mode: str = "backfill"):  # noqa: ANN001
+def sync_page_insights(  # noqa: ANN001
+    self,
+    page_id: str | None = None,
+    mode: str = "backfill",
+    since: str | None = None,
+    until: str | None = None,
+):
     """Compatibility task wrapper for syncing page insights by page_id."""
 
     if page_id:
         page = _resolve_page(page_id)
         if page is None:
             return {"page_id": page_id, "rows_processed": 0, "detail": "Page not found"}
-        return sync_meta_page_insights.run(page_pk=str(page.pk), mode=mode)
-    return sync_meta_page_insights.run(mode=mode)
+        return sync_meta_page_insights.run(page_pk=str(page.pk), mode=mode, since=since, until=until)
+    return sync_meta_page_insights.run(mode=mode, since=since, until=until)
 
 
 @shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
-def sync_page_posts(self, page_id: str | None = None, mode: str = "incremental"):  # noqa: ANN001
+def sync_page_posts(  # noqa: ANN001
+    self,
+    page_id: str | None = None,
+    mode: str = "incremental",
+    since: str | None = None,
+    until: str | None = None,
+):
     """Sync recent posts for a page without post-level insight metrics."""
 
     if not bool(getattr(settings, "META_PAGE_INSIGHTS_ENABLED", True)):
@@ -2359,12 +2881,19 @@ def sync_page_posts(self, page_id: str | None = None, mode: str = "incremental")
         pages = list(MetaPage.all_objects.filter(can_analyze=True).select_related("tenant"))
 
     now = timezone.now()
-    if mode == "backfill":
-        since, until = _resolve_sync_window(mode="backfill", now=now)
+    if since or until:
+        since_date, until_date = _resolve_sync_window(
+            mode=mode,
+            now=now,
+            since=since,
+            until=until,
+        )
+    elif mode == "backfill":
+        since_date, until_date = _resolve_sync_window(mode="backfill", now=now)
     else:
-        until = now.date()
+        until_date = now.date()
         lookback_days = max(int(getattr(settings, "META_PAGE_INSIGHTS_POST_RECENCY_DAYS", 28)), 1)
-        since = until - timedelta(days=lookback_days)
+        since_date = until_date - timedelta(days=lookback_days)
 
     total_posts = 0
     try:
@@ -2377,8 +2906,8 @@ def sync_page_posts(self, page_id: str | None = None, mode: str = "incremental")
                     client=client,
                     page=page,
                     page_tokens=page_tokens,
-                    since=since,
-                    until=until,
+                    since=since_date,
+                    until=until_date,
                 )
                 posts = _upsert_meta_posts(page=page, rows=payload)
                 total_posts += len(posts)
@@ -2405,15 +2934,86 @@ def sync_page_posts(self, page_id: str | None = None, mode: str = "incremental")
 
 
 @shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
-def sync_post_insights(self, page_id: str | None = None, mode: str = "incremental"):  # noqa: ANN001
+def sync_post_insights(  # noqa: ANN001
+    self,
+    page_id: str | None = None,
+    mode: str = "incremental",
+    since: str | None = None,
+    until: str | None = None,
+):
     """Compatibility task wrapper for syncing post insight metrics by page_id."""
 
     if page_id:
         page = _resolve_page(page_id)
         if page is None:
             return {"page_id": page_id, "rows_processed": 0, "detail": "Page not found"}
-        return sync_meta_post_insights.run(page_pk=str(page.pk), mode=mode)
-    return sync_meta_post_insights.run(mode=mode)
+        return sync_meta_post_insights.run(page_pk=str(page.pk), mode=mode, since=since, until=until)
+    return sync_meta_post_insights.run(mode=mode, since=since, until=until)
+
+
+@shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
+def sync_meta_organic_reporting_bundle(  # noqa: ANN001
+    self,
+    page_id: str,
+    mode: str = "backfill",
+    since: str | None = None,
+    until: str | None = None,
+):
+    """Run the ordered organic Facebook sync needed by reporting surfaces."""
+
+    page = _resolve_page(page_id)
+    if page is None:
+        return {
+            "page_id": page_id,
+            "status": "blocked",
+            "reason": "facebook_page_missing",
+            "posts_processed": 0,
+            "page_insight_rows_processed": 0,
+            "post_insight_rows_processed": 0,
+        }
+
+    posts_result = sync_page_posts.run(
+        page_id=page.page_id,
+        mode=mode,
+        since=since,
+        until=until,
+    )
+    discovery_result = discover_supported_metrics.run(page_id=page.page_id)
+    page_result = sync_page_insights.run(
+        page_id=page.page_id,
+        mode=mode,
+        since=since,
+        until=until,
+    )
+    post_result = sync_post_insights.run(
+        page_id=page.page_id,
+        mode=mode,
+        since=since,
+        until=until,
+    )
+
+    posts_processed = _safe_int(posts_result.get("posts_processed") if isinstance(posts_result, dict) else 0)
+    page_rows = _safe_int(page_result.get("rows_processed") if isinstance(page_result, dict) else 0)
+    post_rows = _safe_int(post_result.get("rows_processed") if isinstance(post_result, dict) else 0)
+    status = "completed" if posts_processed or page_rows or post_rows else "completed_no_rows"
+    reason = "" if status == "completed" else "graph_returned_no_page_or_post_rows"
+    return {
+        "page_id": page.page_id,
+        "status": status,
+        "reason": reason,
+        "mode": mode,
+        "since": since,
+        "until": until,
+        "posts_processed": posts_processed,
+        "page_insight_rows_processed": page_rows,
+        "post_insight_rows_processed": post_rows,
+        "tasks": {
+            "sync_page_posts": posts_result,
+            "discover_supported_metrics": discovery_result,
+            "sync_page_insights": page_result,
+            "sync_post_insights": post_result,
+        },
+    }
 
 
 @shared_task(bind=True, base=BaseAdInsightsTask, max_retries=5)
@@ -2428,6 +3028,13 @@ def _resolve_page(page_id: str) -> MetaPage | None:
     if page is not None:
         return page
     return MetaPage.all_objects.filter(pk=page_id).select_related("tenant").first()
+
+
+def _safe_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _sync_page_metric_window(
@@ -2743,7 +3350,18 @@ def _sync_post_metric_chunk(
 def _candidate_page_tokens(page: MetaPage) -> list[str]:
     tokens: list[str] = []
 
-    page_token = page.decrypt_page_token()
+    try:
+        page_token = page.decrypt_page_token()
+    except Exception as exc:
+        logger.warning(
+            "meta.page_token.decrypt_failed",
+            extra={
+                "tenant_id": str(page.tenant_id),
+                "page_id": page.page_id,
+                "error_type": type(exc).__name__,
+            },
+        )
+        page_token = None
     if isinstance(page_token, str) and page_token.strip():
         tokens.append(page_token.strip())
 
@@ -2760,7 +3378,20 @@ def _candidate_page_tokens(page: MetaPage) -> list[str]:
         candidates.append(latest_connection)
 
     for candidate in candidates:
-        token = candidate.decrypt_token()
+        try:
+            token = candidate.decrypt_token()
+        except Exception as exc:
+            log_method = logger.debug if tokens else logger.warning
+            log_method(
+                "meta.connection_token.decrypt_failed",
+                extra={
+                    "tenant_id": str(page.tenant_id),
+                    "page_id": page.page_id,
+                    "connection_id": str(candidate.pk),
+                    "error_type": type(exc).__name__,
+                },
+            )
+            continue
         if not isinstance(token, str):
             continue
         normalized = token.strip()
@@ -2931,6 +3562,7 @@ def _upsert_meta_posts(*, page: MetaPage, rows: list[dict[str, Any]]) -> list[Me
             "permalink_url": str(row.get("permalink_url") or ""),
             "created_time": _coerce_graph_datetime(row.get("created_time")),
             "updated_time": _coerce_graph_datetime(row.get("updated_time")),
+            "thumbnail_url": _extract_thumbnail_url(row),
             "last_synced_at": timezone.now(),
             "metadata": row,
         }
@@ -2944,7 +3576,19 @@ def _upsert_meta_posts(*, page: MetaPage, rows: list[dict[str, Any]]) -> list[Me
     return posts
 
 
-def _resolve_sync_window(*, mode: str, now: datetime) -> tuple[date, date]:
+def _resolve_sync_window(
+    *,
+    mode: str,
+    now: datetime,
+    since: str | None = None,
+    until: str | None = None,
+) -> tuple[date, date]:
+    if since or until:
+        return _resolve_meta_window(
+            since=since,
+            until=until,
+            lookback_days=max(int(getattr(settings, "META_PAGE_INSIGHTS_BACKFILL_DAYS", 90)), 1),
+        )
     end_date = timezone.localdate() - timedelta(days=1)
     if mode == "backfill":
         backfill_days = max(int(getattr(settings, "META_PAGE_INSIGHTS_BACKFILL_DAYS", 90)), 1)
@@ -2983,4 +3627,34 @@ def _extract_media_type(row: dict[str, Any]) -> str:
                 media_type = first.get("media_type") or first.get("type")
                 if isinstance(media_type, str) and media_type.strip():
                     return media_type.strip().upper()
+    return ""
+
+
+def _extract_thumbnail_url(row: dict[str, Any]) -> str:
+    """Extract a thumbnail URL from Graph API post attachments.
+
+    Priority: attachments.data[0].picture (pre-rendered thumbnail),
+    then attachments.data[0].media.image.src as fallback.
+    """
+    attachments = row.get("attachments")
+    if not isinstance(attachments, dict):
+        return ""
+    data = attachments.get("data")
+    if not isinstance(data, list) or not data:
+        return ""
+    first = data[0]
+    if not isinstance(first, dict):
+        return ""
+    # Prefer .picture (pre-rendered thumbnail)
+    picture = first.get("picture")
+    if isinstance(picture, str) and picture.strip():
+        return picture.strip()[:500]
+    # Fallback to .media.image.src
+    media = first.get("media")
+    if isinstance(media, dict):
+        image = media.get("image")
+        if isinstance(image, dict):
+            src = image.get("src")
+            if isinstance(src, str) and src.strip():
+                return src.strip()[:500]
     return ""
