@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DashboardLayout from '../DashboardLayout';
+import { listClients } from '../../lib/clients';
 import { loadMetaAccounts } from '../../lib/meta';
 
 const pendingAsync = () => new Promise<never>(() => {});
@@ -137,6 +138,10 @@ vi.mock('../../lib/meta', () => ({
   }),
 }));
 
+vi.mock('../../lib/clients', () => ({
+  listClients: vi.fn().mockImplementation(() => pendingAsync()),
+}));
+
 vi.mock('../../components/DatasetToggle', () => ({
   default: () => <div data-testid="dataset-toggle" />,
 }));
@@ -198,6 +203,7 @@ describe('DashboardLayout', () => {
     };
     airbyteMock.loadSocialConnectionStatus.mockImplementation(() => pendingAsync());
     vi.mocked(loadMetaAccounts).mockImplementation(() => pendingAsync());
+    vi.mocked(listClients).mockImplementation(() => pendingAsync());
   });
 
   it('deduplicates repeated dashboard error messages', () => {
