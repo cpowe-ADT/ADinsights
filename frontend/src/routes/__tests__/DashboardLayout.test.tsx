@@ -142,6 +142,11 @@ vi.mock('../../lib/clients', () => ({
   listClients: vi.fn().mockImplementation(() => pendingAsync()),
 }));
 
+vi.mock('../../lib/layoutPreferences', () => ({
+  loadDashboardLayout: vi.fn().mockReturnValue(null),
+  saveDashboardLayout: vi.fn(),
+}));
+
 vi.mock('../../components/DatasetToggle', () => ({
   default: () => <div data-testid="dataset-toggle" />,
 }));
@@ -657,7 +662,7 @@ describe('DashboardLayout', () => {
       campaignQuery: '',
     };
 
-    render(
+    const { unmount } = render(
       <MemoryRouter initialEntries={['/dashboards/meta/accounts']}>
         <Routes>
           <Route path="/dashboards" element={<DashboardLayout />}>
@@ -673,7 +678,10 @@ describe('DashboardLayout', () => {
       );
     });
 
-    // Cleanup: reset the meta store accountId
+    unmount();
+
+    // Cleanup: reset the meta store accountId after unmount so the real store
+    // does not trigger an update on a mounted DashboardLayout instance.
     useMetaStore.setState((s) => ({ filters: { ...s.filters, accountId: '' } }));
   });
 });

@@ -9,7 +9,9 @@ from uuid import uuid4
 
 import pytest
 from django.core.cache import cache
+from django.db import connection
 from django.core.management import call_command
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -862,7 +864,9 @@ def test_report_data_availability_returns_stored_source_scope(api_client, user, 
     assert payload["requested"]["page_id"] == "page-123"
     assert payload["datasets"]["paid_meta_ads"]["row_count"] == 2
     assert payload["datasets"]["paid_meta_ads"]["coverage_status"] == "partial"
-    assert payload["datasets"]["paid_meta_ads"]["coverage_gap"]["missing_day_count"] == 29
+    assert (
+        payload["datasets"]["paid_meta_ads"]["coverage_gap"]["missing_day_count"] == 29
+    )
     assert payload["datasets"]["paid_meta_ads"]["coverage_note"] == (
         "Stored rows are missing 29 requested days "
         "from 2026-05-02 through 2026-05-30."
@@ -878,9 +882,7 @@ def test_report_data_availability_returns_stored_source_scope(api_client, user, 
     assert paid_metrics["ctr"]["availability_state"] == "available"
     assert paid_metrics["conversion_value"]["availability_state"] == "callable_no_data"
     assert payload["datasets"]["organic_facebook_page"]["row_count"] == 2
-    assert (
-        payload["datasets"]["organic_facebook_page"]["coverage_status"] == "partial"
-    )
+    assert payload["datasets"]["organic_facebook_page"]["coverage_status"] == "partial"
     assert (
         payload["datasets"]["organic_facebook_page"]["coverage_gap"][
             "missing_day_count"
@@ -1023,10 +1025,10 @@ def test_report_data_availability_blocks_partial_required_source(
     assert response.status_code == 200
     payload = response.json()
     assert payload["datasets"]["paid_meta_ads"]["coverage_status"] == "partial"
-    assert payload["datasets"]["paid_meta_ads"]["coverage_gap"]["missing_day_count"] == 29
     assert (
-        payload["datasets"]["organic_facebook_page"]["coverage_status"] == "partial"
+        payload["datasets"]["paid_meta_ads"]["coverage_gap"]["missing_day_count"] == 29
     )
+    assert payload["datasets"]["organic_facebook_page"]["coverage_status"] == "partial"
     assert (
         payload["datasets"]["organic_facebook_page"]["coverage_gap"][
             "missing_day_count"
@@ -2269,6 +2271,69 @@ def test_report_diagnostics_returns_aggregate_dataset_status(api_client, user, t
     ).exists()
 
 
+def test_report_diagnostics_query_count_stays_bounded_with_cached_preview(
+    api_client, user, tenant
+):
+    authenticate(api_client, user)
+    cache.clear()
+    generated_at = timezone.now()
+    PlatformCredential.objects.create(
+        tenant=tenant,
+        provider=PlatformCredential.META,
+        account_id="act_123",
+        access_token_enc=b"encrypted",
+        access_token_nonce=b"nonce",
+        access_token_tag=b"tag",
+        dek_key_version="test",
+        token_status=PlatformCredential.TOKEN_STATUS_REAUTH_REQUIRED,
+        granted_scopes=["ads_read", "pages_show_list"],
+        last_validated_at=generated_at,
+    )
+    AirbyteConnection.objects.create(
+        tenant=tenant,
+        provider=PlatformCredential.META,
+        name="Meta destination",
+        connection_id=uuid4(),
+        schedule_type=AirbyteConnection.SCHEDULE_INTERVAL,
+        interval_minutes=60,
+        is_active=True,
+        last_job_status="failed",
+        last_job_error="Connection to host.docker.internal:5435 refused.",
+    )
+    TenantMetricsSnapshot.objects.create(
+        tenant=tenant,
+        source="warehouse",
+        generated_at=generated_at,
+        payload={
+            "campaign": {
+                "summary": {"totalSpend": 1200, "totalClicks": 80},
+                "trend": [{"date": "2026-05-31", "spend": 1200, "clicks": 80}],
+                "rows": [
+                    {"date": "2026-05-31", "campaign": "SLB Awareness", "spend": 1200}
+                ],
+            }
+        },
+    )
+    report = ReportDefinition.objects.create(
+        tenant=tenant,
+        name="SLB diagnostics query bound",
+        filters={"date_range": "last_month"},
+        layout=build_slb_monthly_report_layout(date_range="last_month"),
+    )
+    preview_response = api_client.post(
+        reverse("report-definition-preview", args=[report.id]), {}, format="json"
+    )
+
+    with CaptureQueriesContext(connection) as queries:
+        response = api_client.get(
+            reverse("report-definition-diagnostics", args=[report.id])
+        )
+
+    assert preview_response.status_code == 200
+    assert response.status_code == 200
+    assert len(queries) <= 22, [query["sql"] for query in queries.captured_queries]
+
+
 def test_report_diagnostics_prefers_valid_meta_credential_over_stale_reauth_records(
     api_client, user, tenant
 ):
@@ -2735,7 +2800,8 @@ def test_scheduled_report_dry_run_creates_sanitized_export_evidence(
     assert payload["metadata"]["report_preview"]["report_snapshot"]["preview_hash"]
     assert payload["metadata"]["report_layout"]["governed_widget_append_count"] == 4
     scheduled_widget_ids = [
-        widget["id"] for widget in payload["metadata"]["report_layout"]["config"]["widgets"]
+        widget["id"]
+        for widget in payload["metadata"]["report_layout"]["config"]["widgets"]
     ]
     assert "paid_summary-spend" in scheduled_widget_ids
     report.refresh_from_db()
@@ -4421,9 +4487,7 @@ def test_slb_report_export_evidence_command_generates_fixed_target_exports(
         png_path = command[command.index("--png") + 1]
         assert render_payload["template"] == "report_v1_snapshot"
         assert render_payload["reportLayout"]["source"] == "shared_saved_layout"
-        assert (
-            render_payload["reportLayout"]["governed_widget_append_count"] > 0
-        )
+        assert render_payload["reportLayout"]["governed_widget_append_count"] > 0
         widget_ids = [
             widget["id"]
             for widget in render_payload["reportLayout"]["config"]["widgets"]
@@ -5573,9 +5637,10 @@ def test_slb_report_evidence_validate_product_finish_makes_parity_optional(
     strict_payload = json.loads(strict_output.getvalue())
     assert strict_payload["validation_mode"] == "cancellation"
     assert strict_payload["readiness_status"] == "blocked"
-    assert {"code": "parity", "message": "Parity comparison artifact is required."} in strict_payload[
-        "blockers"
-    ]
+    assert {
+        "code": "parity",
+        "message": "Parity comparison artifact is required.",
+    } in strict_payload["blockers"]
     product_output = StringIO()
 
     call_command(
@@ -6011,7 +6076,8 @@ def test_slb_report_evidence_validate_does_not_count_dry_run_as_completed_export
     } in payload["blockers"]
     assert "scheduled_dry_run" not in {row["code"] for row in payload["blockers"]}
     assert {
-        row["format"] for row in payload["export_evidence"]["selected_completed_exports"]
+        row["format"]
+        for row in payload["export_evidence"]["selected_completed_exports"]
     } == {"csv", "png"}
 
 
