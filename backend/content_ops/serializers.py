@@ -98,6 +98,7 @@ class ContentWorkspaceSerializer(
             "brand_profile",
             "target_channels",
             "timezone",
+            "quick_post_approval_mode",
             "created_by",
             "archived_at",
             "created_at",
