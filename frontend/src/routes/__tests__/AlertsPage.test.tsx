@@ -33,10 +33,10 @@ describe('AlertsPage', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => expect(phase2ApiMock.listAlerts).toHaveBeenCalled());
     expect(
-      screen.getByText('Set up your first alert rule to monitor metric thresholds.'),
+      await screen.findByText('Set up your first alert rule to monitor metric thresholds.'),
     ).toBeInTheDocument();
+    expect(phase2ApiMock.listAlerts).toHaveBeenCalled();
   });
 
   it('shows the create action for non-viewer users', async () => {
@@ -46,8 +46,8 @@ describe('AlertsPage', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => expect(phase2ApiMock.listAlerts).toHaveBeenCalled());
-    expect(screen.getByRole('button', { name: /create alert rule/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /create alert rule/i })).toBeInTheDocument();
+    expect(phase2ApiMock.listAlerts).toHaveBeenCalled();
   });
 
   it('hides the create action for viewer-only users', async () => {

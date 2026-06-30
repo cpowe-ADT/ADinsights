@@ -21,12 +21,12 @@ ADinsights is a self-hosted, multi-tenant marketing analytics platform for Jamai
 
 ## Runtime Topology
 
-| Service | Local URL | Notes |
-|---------|-----------|-------|
-| Frontend dev | `http://localhost:5173` | Vite dev server |
-| Backend dev | `http://localhost:8000` | Django runserver (or 8010 via launcher) |
-| API proxy | `/api` on frontend → backend | Configured in `frontend/vite.config.ts` |
-| Meta OAuth redirect | `http://localhost:5173/dashboards/data-sources` | Pinned in `backend/.env` |
+| Service             | Local URL                                       | Notes                                   |
+| ------------------- | ----------------------------------------------- | --------------------------------------- |
+| Frontend dev        | `http://localhost:5173`                         | Vite dev server                         |
+| Backend dev         | `http://localhost:8000`                         | Django runserver (or 8010 via launcher) |
+| API proxy           | `/api` on frontend → backend                    | Configured in `frontend/vite.config.ts` |
+| Meta OAuth redirect | `http://localhost:5173/dashboards/data-sources` | Pinned in `backend/.env`                |
 
 ## Auth
 
@@ -38,17 +38,18 @@ ADinsights is a self-hosted, multi-tenant marketing analytics platform for Jamai
 
 The combined metrics endpoint `/api/metrics/combined/` dispatches to an adapter selected by environment flags:
 
-| Adapter | Env Flag | What It Does |
-|---------|----------|-------------|
-| `warehouse` | `ENABLE_WAREHOUSE_ADAPTER` | Reads dbt mart views via SQL |
+| Adapter       | Env Flag                     | What It Does                                         |
+| ------------- | ---------------------------- | ---------------------------------------------------- |
+| `warehouse`   | `ENABLE_WAREHOUSE_ADAPTER`   | Reads dbt mart views via SQL                         |
 | `meta_direct` | `ENABLE_META_DIRECT_ADAPTER` | Reads synced Meta ORM tables directly (bypasses dbt) |
-| `demo` | `ENABLE_DEMO_ADAPTER` | Seeded demo data |
-| `fake` | `ENABLE_FAKE_ADAPTER` | Generated fake data |
-| `upload` | `ENABLE_UPLOAD_ADAPTER` | CSV upload snapshots |
+| `demo`        | `ENABLE_DEMO_ADAPTER`        | Seeded demo data                                     |
+| `fake`        | `ENABLE_FAKE_ADAPTER`        | Generated fake data                                  |
+| `upload`      | `ENABLE_UPLOAD_ADAPTER`      | CSV upload snapshots                                 |
 
 Priority: warehouse > meta_direct > demo > fake. Default local dev has all disabled except what `.env` sets.
 
 Key files:
+
 - `backend/adapters/meta_direct.py` — MetaDirectAdapter
 - `backend/analytics/combined_metrics_service.py` — orchestrator
 - `backend/analytics/views.py` — CombinedMetricsView
@@ -116,5 +117,5 @@ scripts/dev-launch.sh --profile 1 --non-interactive --no-update --no-pull --no-o
 - Phase 1 execution backlog: complete
 - Phase 2 features substantially built; polish sprint completed (alerts CRUD, notification channels, AI summary badges, report scheduling, sync re-sync controls, audit CSV export, toast system wired across all CRUD)
 - Active work area: remaining polish items (/me profile page, alert history/runs, CSV upload detail, sync health filters, alert pause/resume, report editing)
-- Google Ads SDK migration in progress (SDK with Airbyte fallback)
+- Google Ads surface complete through Phase B (SDK primary, Airbyte fallback); see `docs/runbooks/google-ads-operations.md`
 - GA4 and Search Console are Phase 2 pilot contracts

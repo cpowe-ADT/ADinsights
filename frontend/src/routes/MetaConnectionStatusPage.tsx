@@ -33,11 +33,17 @@ const MetaConnectionStatusPage = () => {
 
   const hasActive = useMemo(() => rows.some((row) => row.status === 'active'), [rows]);
   const metaPermissionGap = useMemo(
-    () => rows.find((row) => row.platform === 'meta' && row.reason.code === 'page_insights_permissions_missing'),
+    () =>
+      rows.find(
+        (row) => row.platform === 'meta' && row.reason.code === 'page_insights_permissions_missing',
+      ),
     [rows],
   );
   const orphanedMarketingAccess = useMemo(
-    () => rows.find((row) => row.platform === 'meta' && row.reason.code === 'orphaned_marketing_access'),
+    () =>
+      rows.find(
+        (row) => row.platform === 'meta' && row.reason.code === 'orphaned_marketing_access',
+      ),
     [rows],
   );
   const metaReportingReadiness = useMemo(
@@ -72,7 +78,11 @@ const MetaConnectionStatusPage = () => {
             </button>
           ) : null}
           {metaPermissionGap ? (
-            <button type="button" className="button secondary" onClick={() => void handleReconnectMeta()}>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => void handleReconnectMeta()}
+            >
               Reconnect Meta
             </button>
           ) : null}

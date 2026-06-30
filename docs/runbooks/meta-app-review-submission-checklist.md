@@ -36,6 +36,7 @@ Complete all rows below before submission.
 ## 3) Release-Gate Rule: Scope Changes
 
 Any modification to the following backend constants **MUST** be reflected in the `docs/project/meta-permissions-catalog.yaml` and this checklist before the PR is merged:
+
 - `DEFAULT_META_OAUTH_SCOPES`
 - `DEFAULT_META_PAGE_INSIGHTS_OAUTH_SCOPES`
 - `DEFAULT_META_REQUIRED_SCOPES`
@@ -86,10 +87,34 @@ Never include raw access tokens.
 - Optional permission requested without active feature:
   - Remove from submission scope until feature activation.
 
-## 7) Final QA Gate Before Submit
+## 7) Content Ops Publishing Submission Items
+
+Use this section only for the Content Ops live-publishing submission. Do not add these permissions
+to the baseline Facebook Login evidence unless Content Ops publishing is the active review scope.
+
+| Permission                                      | Feature gate condition                                                                                                                                | Use case text must include                                                                                                                                                        | Screencast proof must include                                                                                                                                                          |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pages_manage_posts`                            | Facebook Page organic publishing adapter is implemented behind a disabled-by-default flag and staging proof exists.                                   | ADinsights publishes approved organic Facebook Page posts on behalf of onboarded business customers after internal/client approval and operator confirmation.                     | Complete Facebook login process, Page selection, approved draft/version, schedule or publish confirmation, Production Queue lifecycle, and visible Facebook Page post.                 |
+| `instagram_business_basic`                      | Instagram publishing uses the current Instagram API with Instagram Login product path.                                                                | ADinsights identifies the Instagram professional account selected for approved Content Ops publishing on behalf of onboarded business customers.                                  | Instagram professional account connection, selected account identity/readiness in ADinsights, and blocked state when the account is unavailable.                                       |
+| `instagram_business_content_publish`            | Instagram publishing adapter is implemented behind a disabled-by-default flag, public media URL proof exists, and staging proof exists.               | ADinsights publishes approved organic Instagram feed media on behalf of onboarded business customers after media validation, internal/client approval, and operator confirmation. | Approved media asset, public-media readiness proof, approval snapshot, schedule or publish confirmation, container lifecycle, published Instagram media, and aggregate reporting link. |
+| `instagram_basic` + `instagram_content_publish` | Legacy fallback only when the Meta app console and implementation path explicitly use the older Facebook Login / Instagram Graph API publishing flow. | Same Content Ops approval and publishing narrative, but tied to the confirmed legacy Instagram Graph API product path.                                                            | Complete Facebook login process with the legacy permission family, linked Instagram professional account, container lifecycle, and published media.                                    |
+
+Content Ops submission packet must also include:
+
+- Meta product path selected: `facebook_login_pages_api`, `instagram_business_login`, or documented
+  legacy fallback.
+- Redacted app ID, tenant ID, Page ID, IG user ID, post ID, and media ID.
+- Feature flags and rollback flags proving live publishing can be disabled.
+- Public media URL proof for Instagram before requesting Instagram publishing review.
+- Log/evidence review confirming no raw access tokens, app secrets, credential refs, private storage
+  keys, signed URL secrets, or user-level engagement identities.
+
+## 8) Final QA Gate Before Submit
 
 - `required_now` permissions are complete and justified.
 - Optional permissions are requested only for active features.
+- Content Ops publishing permissions are requested only after the matching adapter, staging proof,
+  public media proof, and redacted evidence packet exist.
 - Runtime gate in backend matches runbook/profile wording.
 - Use-case and screencast wording is pulled from `docs/runbooks/meta-app-review-copy-pack.md` (or intentionally justified as custom text).
 - Evidence artifact is stored and redacted.

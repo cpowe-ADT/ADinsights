@@ -11,6 +11,9 @@ on:
       - '.github/workflows/deploy-smoke.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   smoke:
     name: docker compose smoke

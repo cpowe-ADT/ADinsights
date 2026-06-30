@@ -1,21 +1,21 @@
 from __future__ import annotations
 
-import json
+import logging
+from dataclasses import dataclass
 from typing import Dict
-
-from airbyte_cdk.logger import AirbyteLogger
-from airbyte_cdk.models import ConfiguredAirbyteCatalog, ConfiguredAirbyteStream, DestinationSyncMode, SyncMode
-from airbyte_cdk.test.entrypoint_wrapper import read
-from airbyte_cdk.test.mock_http import HttpMocker, HttpRequest, HttpResponse
 
 from infrastructure.airbyte.sources.tiktok_ads import SourceTiktokAds
 
 
-def _config() -> Dict[str, str]:
+LOGGER = logging.getLogger("test.tiktok_ads_source")
+
+
+def _config() -> Dict[str, object]:
     return {
         "advertiser_id": "67890",
         "access_token": "test-token",
         "start_date": "2024-07-01",
+        "end_date": "2024-07-01",
         "lookback_window_days": 0,
         "slice_span_days": 1,
         "page_size": 200,
@@ -23,24 +23,17 @@ def _config() -> Dict[str, str]:
     }
 
 
-def _configured_catalog(source: SourceTiktokAds, config: Dict[str, str]) -> ConfiguredAirbyteCatalog:
-    catalog = source.discover(AirbyteLogger(), config)
-    configured_streams = [
-        ConfiguredAirbyteStream(
-            stream=stream,
-            sync_mode=SyncMode.incremental,
-            destination_sync_mode=DestinationSyncMode.append_dedup,
-            cursor_field=stream.default_cursor_field or ["date"],
-            primary_key=stream.source_defined_primary_key or [["ad_id"], ["date"]],
-        )
-        for stream in catalog.streams
-    ]
-    return ConfiguredAirbyteCatalog(streams=configured_streams)
+@dataclass
+class _JsonResponse:
+    payload: Dict[str, object]
+
+    def json(self) -> Dict[str, object]:
+        return self.payload
 
 
 def test_discover_defines_incremental_cursor() -> None:
     source = SourceTiktokAds()
-    catalog = source.discover(AirbyteLogger(), _config())
+    catalog = source.discover(LOGGER, _config())
     assert len(catalog.streams) == 1
     stream = catalog.streams[0]
     assert stream.default_cursor_field == ["date"]
@@ -48,11 +41,14 @@ def test_discover_defines_incremental_cursor() -> None:
     assert "spend" in stream.json_schema["properties"]
 
 
-def test_incremental_sync_uses_state_checkpoint() -> None:
+def test_request_body_targets_slice_window() -> None:
     source = SourceTiktokAds()
-    config = _config()
-    catalog = _configured_catalog(source, config)
-    expected_body = {
+    stream = source.streams(_config())[0]
+    body = stream.request_body_json(
+        stream_state=None,
+        stream_slice={"start_date": "2024-07-01", "end_date": "2024-07-01"},
+    )
+    assert body == {
         "advertiser_id": "67890",
         "report_type": "BASIC",
         "data_level": "AUCTION_AD",
@@ -77,6 +73,11 @@ def test_incremental_sync_uses_state_checkpoint() -> None:
         "page_size": 200,
         "timezone": "America/Jamaica",
     }
+
+
+def test_parse_response_normalizes_records_and_state() -> None:
+    source = SourceTiktokAds()
+    stream = source.streams(_config())[0]
     api_response = {
         "data": {
             "list": [
@@ -98,25 +99,13 @@ def test_incremental_sync_uses_state_checkpoint() -> None:
         }
     }
 
-    with HttpMocker() as http_mocker:
-        http_mocker.get(
-            HttpRequest(
-                "https://business-api.tiktok.com/open_api/v1.3/report/integrated/get/",
-                headers={"Access-Token": "test-token"},
-            ),
-            HttpResponse(body=json.dumps(api_response)),
+    records = list(
+        stream.parse_response(
+            _JsonResponse(api_response),
+            stream_state={},
+            stream_slice={"start_date": "2024-07-01", "end_date": "2024-07-01"},
         )
-        http_mocker.post(
-            HttpRequest(
-                "https://business-api.tiktok.com/open_api/v1.3/report/integrated/get/",
-                    headers={"Access-Token": "test-token"},
-                    body=expected_body,
-                ),
-                HttpResponse(body=json.dumps(api_response)),
-            )
-        output = read(source, config, catalog)
-
-    records = [message.record.data for message in output.records]
+    )
     assert records == [
         {
             "platform": "tiktok",
@@ -135,5 +124,25 @@ def test_incremental_sync_uses_state_checkpoint() -> None:
             "currency": "USD",
         }
     ]
-    latest_state = output.state_messages[-1].state.stream.stream_state  # type: ignore[attr-defined]
+
+    latest_state = stream.get_updated_state({}, records[0])
     assert latest_state == {"date": "2024-07-01"}
+
+
+def test_incremental_state_replays_with_lookback() -> None:
+    config = _config()
+    config["lookback_window_days"] = 2
+    config["slice_span_days"] = 30
+    config["end_date"] = "2024-07-31"
+    source = SourceTiktokAds()
+    stream = source.streams(config)[0]
+
+    slices = list(
+        stream.stream_slices(
+            sync_mode=None,
+            stream_state={"date": "2024-07-10"},
+        )
+    )
+
+    # Resume replays lookback_window_days before the checkpoint (2024-07-10 - 2d).
+    assert slices[0]["start_date"] == "2024-07-08"

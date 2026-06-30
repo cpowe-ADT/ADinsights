@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { formatCurrency, formatNumber, formatPercent, formatRatio } from '../lib/format';
-import useDashboardStore, { normalizeParishValue } from '../state/useDashboardStore';
+import useDashboardStore, {
+  normalizeParishValue,
+  type ParishAggregate,
+} from '../state/useDashboardStore';
 import DashboardState from './DashboardState';
 import FilterStatus from './FilterStatus';
 import Skeleton from './Skeleton';
@@ -20,18 +24,20 @@ type RegionBreakdownTableProps = {
   onReload?: () => void;
 };
 
+const EMPTY_REGION_ROWS: ParishAggregate[] = [];
+
 const classNames = (...values: Array<string | false | null | undefined>) =>
   values.filter(Boolean).join(' ');
 
 const RegionBreakdownTable = ({ onReload }: RegionBreakdownTableProps) => {
   const { rows, status, selectedParish, setSelectedParish, currency } = useDashboardStore(
-    (state) => ({
-      rows: state.parish.data ?? [],
+    useShallow((state) => ({
+      rows: state.parish.data ?? EMPTY_REGION_ROWS,
       status: state.parish.status,
       selectedParish: state.selectedParish,
       setSelectedParish: state.setSelectedParish,
       currency: state.campaign.data?.summary.currency ?? 'USD',
-    }),
+    })),
   );
   const [sorting, setSorting] = useState<{ key: SortKey; desc: boolean }>({
     key: 'spend',
@@ -129,7 +135,9 @@ const RegionBreakdownTable = ({ onReload }: RegionBreakdownTableProps) => {
           </thead>
           <tbody>
             {sortedRows.map((row, index) => {
-              const isSelected = !!selectedParish && normalizeParishValue(selectedParish) === normalizeParishValue(row.parish);
+              const isSelected =
+                !!selectedParish &&
+                normalizeParishValue(selectedParish) === normalizeParishValue(row.parish);
               return (
                 <tr
                   key={row.parish}

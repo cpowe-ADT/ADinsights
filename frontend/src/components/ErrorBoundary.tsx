@@ -48,9 +48,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             style={{ maxWidth: '32rem', width: '100%', textAlign: 'center' }}
           >
             <h1 style={{ margin: 0 }}>Something went wrong</h1>
-            <p className="phase2-note">
-              An unexpected error occurred. Please try again.
-            </p>
+            <p className="phase2-note">An unexpected error occurred. Please try again.</p>
             {import.meta.env.DEV && this.state.error && (
               <pre
                 className="phase2-json"

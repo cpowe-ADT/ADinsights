@@ -5,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, MutableMapping, Optional
 
-from airbyte_cdk.logger import AirbyteLogger
 from airbyte_cdk.models import AirbyteConnectionStatus, ConnectorSpecification, Status
 from airbyte_cdk.sources import AbstractSource
 from airbyte_cdk.sources.streams.availability_strategy import AvailabilityStrategy
@@ -25,6 +24,7 @@ class TiktokAdsStream(HttpStream):
     url_base = "https://business-api.tiktok.com/open_api/v1.3/"
 
     def __init__(self, config: Mapping[str, Any]):
+        self._name = "tiktok_ads_performance"
         super().__init__()
         self._config = config
         self._advertiser_id = config["advertiser_id"]
@@ -34,7 +34,6 @@ class TiktokAdsStream(HttpStream):
         self._slice_span_days = int(config.get("slice_span_days", 7))
         self._page_size = int(config.get("page_size", 500))
         self._timezone = config.get("timezone", "America/Jamaica")
-        self._name = "tiktok_ads_performance"
 
     @property
     def name(self) -> str:
@@ -194,7 +193,7 @@ class TiktokAdsStream(HttpStream):
 
 
 class SourceTiktokAds(AbstractSource):
-    def check(self, logger: AirbyteLogger, config: Mapping[str, Any]) -> AirbyteConnectionStatus:
+    def check(self, logger: Any, config: Mapping[str, Any]) -> AirbyteConnectionStatus:
         missing = [field for field in ("advertiser_id", "access_token", "start_date") if field not in config]
         if missing:
             return AirbyteConnectionStatus(status=Status.FAILED, message=f"Missing required fields: {', '.join(missing)}")
@@ -204,14 +203,14 @@ class SourceTiktokAds(AbstractSource):
             return AirbyteConnectionStatus(status=Status.FAILED, message=f"Invalid start_date: {exc}")
         return AirbyteConnectionStatus(status=Status.SUCCEEDED)
 
-    def check_connection(self, logger: AirbyteLogger, config: Mapping[str, Any]):
+    def check_connection(self, logger: Any, config: Mapping[str, Any]):
         status = self.check(logger, config)
         return status.status == Status.SUCCEEDED, status.message
 
     def streams(self, config: Mapping[str, Any]):
         return [TiktokAdsStream(config)]
 
-    def spec(self, logger: AirbyteLogger) -> ConnectorSpecification:
+    def spec(self, logger: Any) -> ConnectorSpecification:
         spec_path = Path(__file__).with_name("spec.json")
         specification = json.loads(spec_path.read_text())
-        return ConnectorSpecification.parse_obj(specification)
+        return ConnectorSpecification(**specification)

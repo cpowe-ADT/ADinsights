@@ -120,11 +120,7 @@ const AuditLogPage = () => {
           <button type="button" className="button secondary" onClick={() => void load()}>
             Refresh
           </button>
-          <button
-            type="button"
-            className="button tertiary"
-            onClick={exportCsv}
-          >
+          <button type="button" className="button tertiary" onClick={exportCsv}>
             Export CSV
           </button>
           <button

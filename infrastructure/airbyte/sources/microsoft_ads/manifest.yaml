@@ -1,0 +1,6 @@
+version: 0.1.0
+name: microsoft-ads-custom
+sourceDefinitionId: 9f2f9b3d-6b8a-45d1-a39c-2e0c9b6c2d31
+releaseStage: alpha
+pythonModule: infrastructure.airbyte.sources.microsoft_ads.source
+specPath: ./spec.json

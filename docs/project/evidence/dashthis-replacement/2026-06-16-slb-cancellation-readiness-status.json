@@ -1,0 +1,213 @@
+{
+  "schema_version": "slb_cancellation_readiness_status.v1",
+  "generated_at": "2026-06-17T11:01:58-05:00",
+  "timezone": "America/Jamaica",
+  "decision": {
+    "implementation_readiness": "partial",
+    "cancellation_review_readiness": "no_go",
+    "dashthis_cancellation": "no_go",
+    "reason": "G0 Raj/Mira review is conditionally approved for fixed-target evidence capture. G1 fixed runtime target, fixed-range coverage/history, DashThis/source parity, adversarial review, hardening, and final recommendation remain incomplete."
+  },
+  "guardrails": {
+    "instagram_v1": "deferred",
+    "render_export_data_source": "stored_aggregate_adinsights_data_only",
+    "live_provider_calls_at_render_export_time": "forbidden",
+    "dashthis_status": "keep_active_until_evidence_passes"
+  },
+  "sub_goals": [
+    {
+      "id": "G0",
+      "name": "Raj/Mira architecture and scope review",
+      "status": "passed",
+      "blocked_by": ["BLK-001"],
+      "primary_evidence": "docs/project/evidence/dashthis-replacement/2026-06-17-g0-raj-mira-agent-review-decision.json"
+    },
+    {
+      "id": "G1",
+      "name": "Fixed SLB proof target and date range",
+      "status": "blocked_external",
+      "blocked_by": ["BLK-002"],
+      "primary_evidence": "docs/project/evidence/dashthis-replacement/2026-06-16-g1-runtime-target-intake-checklist.md"
+    },
+    {
+      "id": "G2",
+      "name": "Stored data coverage proof",
+      "status": "evidence_pending",
+      "blocked_by": ["BLK-005"],
+      "primary_evidence": "docs/project/evidence/dashthis-replacement/2026-06-16-g2-g3-coverage-retained-history-proof.md"
+    },
+    {
+      "id": "G3",
+      "name": "Monthly and 90-day retained-history proof",
+      "status": "evidence_pending",
+      "blocked_by": ["BLK-005"],
+      "primary_evidence": "docs/project/evidence/dashthis-replacement/2026-06-16-g2-g3-coverage-retained-history-proof.md"
+    },
+    {
+      "id": "G4",
+      "name": "Saved dashboard.v1 and SLB report.v1 rendering proof",
+      "status": "evidence_pending",
+      "blocked_by": ["BLK-006"],
+      "primary_evidence": "docs/project/evidence/dashthis-replacement/2026-06-16-g4-g5-render-export-reproducibility-proof.md"
+    },
+    {
+      "id": "G5",
+      "name": "CSV/PDF/PNG export reproducibility proof",
+      "status": "evidence_pending",
+      "blocked_by": ["BLK-006"],
+      "primary_evidence": "docs/project/evidence/dashthis-replacement/2026-06-16-g4-g5-render-export-reproducibility-proof.md"
+    },
+    {
+      "id": "G6",
+      "name": "Parity worksheet against DashThis/source values",
+      "status": "evidence_pending",
+      "blocked_by": ["BLK-004"],
+      "primary_evidence": "docs/project/evidence/dashthis-replacement/2026-06-16-g6-parity-worksheet-proof.md"
+    },
+    {
+      "id": "G7",
+      "name": "Scheduled delivery dry-run proof",
+      "status": "evidence_pending",
+      "blocked_by": ["BLK-007"],
+      "primary_evidence": "docs/project/evidence/dashthis-replacement/2026-06-16-g7-g8-delivery-diagnostics-proof.md"
+    },
+    {
+      "id": "G8",
+      "name": "Diagnostics and support proof",
+      "status": "evidence_pending",
+      "blocked_by": ["BLK-007"],
+      "primary_evidence": "docs/project/evidence/dashthis-replacement/2026-06-16-g7-g8-delivery-diagnostics-proof.md"
+    },
+    {
+      "id": "G9",
+      "name": "Permissions, tenant isolation, audit, quota, and aggregate-only proof",
+      "status": "evidence_pending",
+      "blocked_by": ["BLK-008"],
+      "primary_evidence": "docs/project/evidence/dashthis-replacement/2026-06-16-g9-safety-controls-proof.md"
+    },
+    {
+      "id": "G10",
+      "name": "Adversarial review",
+      "status": "not_started",
+      "blocked_by": ["BLK-009"],
+      "primary_evidence": "docs/project/evidence/dashthis-replacement/2026-06-16-g10-adversarial-review.md"
+    },
+    {
+      "id": "G11",
+      "name": "24-48 hour hardening window",
+      "status": "not_started",
+      "blocked_by": ["BLK-003", "BLK-010"],
+      "primary_evidence": "docs/project/evidence/dashthis-replacement/2026-06-16-g11-hardening-window.md"
+    },
+    {
+      "id": "G12",
+      "name": "Final keep/cancel DashThis recommendation",
+      "status": "not_started",
+      "blocked_by": ["BLK-011"],
+      "primary_evidence": "docs/project/evidence/dashthis-replacement/2026-06-16-g12-final-cancellation-recommendation.md"
+    }
+  ],
+  "active_blockers": [
+    {
+      "id": "BLK-001",
+      "status": "resolved",
+      "owner_route": ["Raj", "Mira"],
+      "unblock_action": "Resolved by validated G0 Raj/Mira agent review decision. Evidence capture may proceed with followups; DashThis cancellation remains no_go."
+    },
+    {
+      "id": "BLK-002",
+      "status": "waiting_external",
+      "owner_route": ["Operator", "Hannah", "Raj"],
+      "unblock_action": "Fill target environment, safe tenant/client, ReportDefinition.id, template key, report.v1 status, date range, source scopes, delivery assumptions, Instagram deferral, and DashThis active status."
+    },
+    {
+      "id": "BLK-003",
+      "status": "waiting_external",
+      "owner_route": ["Raj", "Mira", "Carlos", "Mei"],
+      "unblock_action": "Configure AIRBYTE_TEMPLATE_META_METRICS_CONNECTION_ID or approve an alternate production-readiness bootstrap path."
+    },
+    {
+      "id": "BLK-004",
+      "status": "waiting_external",
+      "owner_route": ["DashThis/source owner", "Andre", "Raj", "Business owner"],
+      "unblock_action": "Provide fixed-range DashThis/source values, tolerances, and explanations for required non-Instagram metrics."
+    },
+    {
+      "id": "BLK-005",
+      "status": "evidence_needed",
+      "owner_route": ["Sofia", "Andre", "Omar", "Priya/Martin if retention gap appears"],
+      "unblock_action": "Run fixed-range preview, diagnostics, evidence bundle, and history probe after G1 is approved."
+    },
+    {
+      "id": "BLK-006",
+      "status": "evidence_needed",
+      "owner_route": ["Lina", "Joel", "Sofia", "Omar", "Nina if artifact sensitivity appears"],
+      "unblock_action": "Capture fixed-range render proof, CSV/PDF/PNG export jobs, non-empty downloads, and matching preview/snapshot hashes."
+    },
+    {
+      "id": "BLK-007",
+      "status": "evidence_needed",
+      "owner_route": ["Omar", "Hannah", "Sofia"],
+      "unblock_action": "Capture fixed-range scheduled dry-run proof, diagnostics payloads, no-client-email proof, and sanitized support next actions."
+    },
+    {
+      "id": "BLK-008",
+      "status": "evidence_needed",
+      "owner_route": ["Sofia", "Nina", "Omar", "Raj"],
+      "unblock_action": "Fill permission, tenant-isolation, audit, quota, aggregate-only, and evidence-hygiene matrices against the fixed target."
+    },
+    {
+      "id": "BLK-009",
+      "status": "evidence_needed",
+      "owner_route": ["Raj", "Mira", "Omar", "Hannah", "Nina"],
+      "unblock_action": "Run adversarial review after G0-G9 evidence exists and convert every issue into a fix, accepted note, waiver, or cancellation blocker."
+    },
+    {
+      "id": "BLK-010",
+      "status": "evidence_needed",
+      "owner_route": ["Raj", "Mira", "Omar"],
+      "unblock_action": "Start and record the 24-48 hour hardening window only after G10 has no unresolved blocker."
+    },
+    {
+      "id": "BLK-011",
+      "status": "open",
+      "owner_route": ["Raj", "Mira", "Business owner"],
+      "unblock_action": "Complete or explicitly waive G0-G11, then write the final keep/cancel recommendation."
+    }
+  ],
+  "next_execution": {
+    "preferred_next_action": "Fill and validate the G1 fixed credentialed staging runtime target.",
+    "next_without_external_input": "Continue improving evidence automation or documentation only; do not mark G1-G12 sub-goals passed without fixed-target evidence.",
+    "g0_g1_external_handoff": "docs/project/evidence/dashthis-replacement/2026-06-16-g0-g1-external-handoff.md",
+    "g0_review_template": "docs/project/evidence/dashthis-replacement/2026-06-16-g0-raj-mira-review-decision.template.json",
+    "g0_review_validator": "python3 scripts/validate_slb_g0_raj_mira_review.py --review-file <filled-g0-raj-mira-review-decision.json>",
+    "examples_readme": "docs/project/evidence/dashthis-replacement/examples/README.md",
+    "g0_valid_example": "docs/project/evidence/dashthis-replacement/examples/g0-raj-mira-review-decision.valid-example.json",
+    "g1_valid_example": "docs/project/evidence/dashthis-replacement/examples/g1-runtime-target-intake.valid-example.json",
+    "g1_intake_template": "docs/project/evidence/dashthis-replacement/2026-06-16-g1-runtime-target-intake.template.json",
+    "g1_intake_draft_helper": "python3 scripts/slb_g1_intake_draft.py --target-intake-output <redacted-slb-target-intake-output.json> --output <draft-g1-runtime-target-intake.json>",
+    "g1_intake_validator": "python3 scripts/validate_slb_g1_runtime_target_intake.py --intake-file <filled-g1-runtime-target-intake.json>",
+    "g0_g1_handoff_validator": "python3 scripts/validate_slb_g0_g1_handoff.py --g0-review-file <filled-g0-raj-mira-review-decision.json> --g1-intake-file <filled-g1-runtime-target-intake.json>",
+    "g2_g9_run_template": "docs/project/evidence/dashthis-replacement/2026-06-16-g2-g9-fixed-range-evidence-run.template.json",
+    "g2_g9_run_validator": "python3 scripts/validate_slb_g2_g9_evidence_run.py --run-file <filled-g2-g9-evidence-run.json> --intake-file <filled-g1-runtime-target-intake.json>",
+    "g10_adversarial_template": "docs/project/evidence/dashthis-replacement/2026-06-16-g10-adversarial-review.template.json",
+    "g10_adversarial_validator": "python3 scripts/validate_slb_g10_adversarial_review.py --review-file <filled-g10-adversarial-review.json> --g2-g9-run-file <filled-g2-g9-evidence-run.json> --intake-file <filled-g1-runtime-target-intake.json>",
+    "g11_hardening_template": "docs/project/evidence/dashthis-replacement/2026-06-16-g11-hardening-window.template.json",
+    "g11_hardening_validator": "python3 scripts/validate_slb_g11_hardening_window.py --window-file <filled-g11-hardening-window.json> --g10-review-file <filled-g10-adversarial-review.json>",
+    "g12_recommendation_template": "docs/project/evidence/dashthis-replacement/2026-06-16-g12-final-recommendation.template.json",
+    "g12_recommendation_validator": "python3 scripts/validate_slb_g12_final_recommendation.py --recommendation-file <filled-g12-final-recommendation.json> --status-manifest-file docs/project/evidence/dashthis-replacement/2026-06-16-slb-cancellation-readiness-status.json --g11-window-file <filled-g11-hardening-window.json>",
+    "g12_approval_signoff_preflight": "docs/project/evidence/dashthis-replacement/preflight/2026-06-17-slb-g12-approval-signoffs/",
+    "evidence_chain_validator": "python3 scripts/validate_slb_evidence_chain.py --g0-review-file <filled-g0-raj-mira-review-decision.json> --g1-intake-file <filled-g1-runtime-target-intake.json> --g2-g9-run-file <filled-g2-g9-evidence-run.json> --g10-review-file <filled-g10-adversarial-review.json> --g11-window-file <filled-g11-hardening-window.json> --g12-recommendation-file <filled-g12-final-recommendation.json> --status-manifest-file docs/project/evidence/dashthis-replacement/2026-06-16-slb-cancellation-readiness-status.json",
+    "status_validator": "python3 scripts/validate_slb_cancellation_readiness_status.py",
+    "status_validator_preflight": "docs/project/evidence/dashthis-replacement/preflight/2026-06-16-slb-status-validator-drift-checks/",
+    "single_run_controller": "docs/project/evidence/dashthis-replacement/2026-06-16-g2-g9-evidence-execution-checklist.md",
+    "offline_validator": "backend/.venv/bin/python backend/manage.py slb_report_evidence_validate"
+  },
+  "required_updates_when_status_changes": [
+    "docs/project/evidence/dashthis-replacement/2026-06-16-slb-cancellation-readiness-status.json",
+    "docs/project/evidence/dashthis-replacement/2026-06-16-slb-cancellation-readiness-goals.md",
+    "docs/project/evidence/dashthis-replacement/2026-06-16-slb-reporting-render-export-parity-evidence.md",
+    "docs/project/evidence/dashthis-replacement/2026-06-16-slb-cancellation-readiness-blocker-register.md",
+    "docs/ops/agent-activity-log.md"
+  ]
+}

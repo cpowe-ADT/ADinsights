@@ -98,3 +98,65 @@ export const createTooltipProps = ({
 
 export const axisTickFormatter = (value: ValueType | undefined) =>
   value !== undefined ? formatCompactNumber(value) : '';
+
+/**
+ * CSS variable names for the viz kit. Primitives under
+ * `components/viz/` should prefer these CSS custom properties on
+ * Recharts SVG attributes (`stroke="var(--viz-series-0)"`) so that
+ * theme switches cascade correctly. Fall back to literal hex from
+ * `chartPalette` only inside `<defs>` blocks where the cascade may
+ * not resolve in time (e.g. gradient stops).
+ */
+export const VIZ_CSS_VARS = {
+  seriesPalette: [
+    '--viz-series-0',
+    '--viz-series-1',
+    '--viz-series-2',
+    '--viz-series-3',
+    '--viz-series-4',
+    '--viz-series-5',
+  ] as const,
+  axisLine: '--viz-axis-line',
+  axisTick: '--viz-axis-tick',
+  grid: '--viz-grid',
+  gridStrong: '--viz-grid-strong',
+  peerAvg: '--viz-platform-peer-avg',
+  pointFocus: '--viz-point-focus',
+  tooltipSurface: '--viz-tooltip-surface',
+  tooltipText: '--viz-tooltip-text',
+  legendText: '--viz-legend-text',
+} as const;
+
+/**
+ * Semantic platform-specific chart colors. Uses literal hex from
+ * `chartPalette` for backward compatibility with domain wrappers that
+ * already rely on these values. New viz primitives should prefer the
+ * `var(--viz-platform-*)` tokens so the dark theme cascade applies.
+ */
+export const PLATFORM_CHART_TOKENS = {
+  meta_ads: chartPalette[0],
+  google_ads: chartPalette[1],
+  peer_avg: 'rgba(148, 163, 184, 0.55)',
+} as const;
+
+/**
+ * Campaign status colors. Matches `--viz-status-*` tokens but exposed
+ * as literal hex for use in Recharts `<Cell>` fills where the CSS
+ * cascade does not resolve (inline SVG attributes in <defs>).
+ */
+export const STATUS_COLORS = {
+  ENABLED: chartPalette[3],
+  PAUSED: '#b45309',
+  REMOVED: chartPalette[5],
+} as const;
+
+/**
+ * Round-robin palette lookup for unspecified series colors. Pass the
+ * series index; returns a stable hex from `chartPalette`.
+ */
+export function resolveSeriesColor(index: number): string {
+  if (!Number.isFinite(index) || index < 0) {
+    return chartPalette[0];
+  }
+  return chartPalette[index % chartPalette.length];
+}

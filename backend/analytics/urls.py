@@ -28,12 +28,14 @@ from .google_ads_views import (
     GoogleAdsExportStatusView,
     GoogleAdsKeywordsView,
     GoogleAdsPmaxAssetGroupsView,
+    GoogleAdsRecommendationDismissView,
     GoogleAdsRecommendationsView,
     GoogleAdsSavedViewViewSet,
     GoogleAdsSearchTermInsightsView,
     GoogleAdsSearchTermsView,
     GoogleAdsWorkspaceSummaryView,
 )
+from .report_layout_views import SavedReportLayoutViewSet
 from .web_views import GA4WebInsightsView, SearchConsoleInsightsView
 
 router = ADinsightsDefaultRouter()
@@ -54,6 +56,11 @@ router.register(
     r"google-ads/account-assignments",
     GoogleAdsAccountAssignmentViewSet,
     basename="analytics-google-ads-account-assignment",
+)
+router.register(
+    r"report-layouts",
+    SavedReportLayoutViewSet,
+    basename="analytics-report-layout",
 )
 
 urlpatterns = [
@@ -105,6 +112,11 @@ urlpatterns = [
         "google-ads/recommendations/",
         GoogleAdsRecommendationsView.as_view(),
         name="google-ads-recommendations",
+    ),
+    path(
+        "google-ads/recommendations/<int:pk>/dismiss/",
+        GoogleAdsRecommendationDismissView.as_view(),
+        name="google-ads-recommendation-dismiss",
     ),
     path("google-ads/exports/", GoogleAdsExportCreateView.as_view(), name="google-ads-exports"),
     path(

@@ -129,9 +129,7 @@ describe('AlertRunsPage', () => {
     expect(screen.getByText('1.3s')).toBeInTheDocument();
     expect(screen.getByText('340ms')).toBeInTheDocument();
     // llm_summary
-    expect(
-      screen.getByText(/Spend exceeded threshold across 3 campaigns/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Spend exceeded threshold across 3 campaigns/)).toBeInTheDocument();
   });
 
   it('shows error state when API fails', async () => {

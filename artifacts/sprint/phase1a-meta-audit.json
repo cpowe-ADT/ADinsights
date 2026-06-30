@@ -1,0 +1,239 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "C1A",
+  "timestamp": "2026-04-14T00:00:00Z",
+  "inputs_cited": [
+    "/Users/thristannewman/ADinsights/artifacts/verify/meta-verification.json",
+    "/Users/thristannewman/ADinsights/artifacts/synthesis/synthesis-report.md",
+    "/Users/thristannewman/ADinsights/artifacts/audit/audit-report.json"
+  ],
+  "routes": [
+    {
+      "route": "/dashboards/meta/accounts",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaAccountsPage.tsx",
+      "filterbar_visible": true,
+      "account_propagation": "confirmed",
+      "endpoint_scope_correct": "not_applicable",
+      "empty_state_handled": true,
+      "status": "yellow",
+      "bugs_confirmed": [],
+      "new_bugs": [
+        {
+          "id": "C1A-NEW-01",
+          "severity": "medium",
+          "description": "The M2 row-click fix at line 295 calls setFilters({ accountId: account.external_id }) unconditionally for ALL visible rows, including recovery-fallback rows (showRecoveryFallback=true). The audit plan's pseudo_diff explicitly stated 'only call setFilters when !showRecoveryFallback' because recovery rows have IDs not in the ORM — downstream loadInsights/loadCampaigns calls will return 0 rows when a recovery account is clicked. The guard is missing from the applied patch.",
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaAccountsPage.tsx",
+          "line": 295
+        },
+        {
+          "id": "C1A-NEW-02",
+          "severity": "low",
+          "description": "The R7 reconciliation effect in DashboardLayout fires only when location.pathname changes (dep array: [location.pathname, setFilters]). It does NOT fire reactively when useMetaStore.filters.accountId changes within the same route (e.g., user opens /dashboards/meta/accounts, clicks account A, then clicks account B). The second click updates useMetaStore but the DashboardLayout effect does not re-run because pathname has not changed. The bridge is therefore one-shot per navigation, not live-synced. This means the global FilterBar may show a stale accountId for the duration of the Meta workspace session.",
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/DashboardLayout.tsx",
+          "line": 275
+        }
+      ],
+      "fix_required": true
+    },
+    {
+      "route": "/dashboards/meta/insights",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaInsightsDashboardPage.tsx",
+      "filterbar_visible": true,
+      "account_propagation": "confirmed",
+      "endpoint_scope_correct": true,
+      "empty_state_handled": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": [],
+      "fix_required": false,
+      "notes": "M4 handled by DashboardLayout R7 effect (no per-file change needed — confirmed). M5 loading guard confirmed applied at line 287 (accounts.status !== 'error' && accounts.status !== 'loading' && ...). All fetches go to useMetaStore endpoints, not /api/metrics/combined/. Account selection propagates via DashboardLayout reconciliation (one-shot per navigation — see C1A-NEW-02 cross-cutting note)."
+    },
+    {
+      "route": "/dashboards/meta/campaigns",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaCampaignOverviewPage.tsx",
+      "filterbar_visible": true,
+      "account_propagation": "confirmed",
+      "endpoint_scope_correct": true,
+      "empty_state_handled": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": [],
+      "fix_required": false,
+      "notes": "M6 handled by DashboardLayout R7 effect. M7 loading guard confirmed applied at line 160 (campaigns.status !== 'error' && campaigns.status !== 'loading' && ...). All fetches go to useMetaStore endpoints only."
+    },
+    {
+      "route": "/dashboards/meta/status",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaConnectionStatusPage.tsx",
+      "filterbar_visible": true,
+      "account_propagation": "not_applicable",
+      "endpoint_scope_correct": true,
+      "empty_state_handled": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": [],
+      "fix_required": false,
+      "notes": "M8 status confirmed clean. Page calls only /api/integrations/social/status/ via loadSocialConnectionStatus(). No combined metrics call. Uses local state (no Zustand store). Error and empty states handled correctly."
+    },
+    {
+      "route": "/dashboards/meta/pages",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPagesListPage.tsx",
+      "filterbar_visible": false,
+      "account_propagation": "not_applicable",
+      "endpoint_scope_correct": true,
+      "empty_state_handled": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": [],
+      "fix_required": false,
+      "notes": "M9 clean — no /api/metrics/combined/ call. FilterBar hidden: hideGlobalFilters=true because pathname starts with /dashboards/meta/pages. resolveRoutePlatformScope still returns ['meta_ads'] for this prefix, so filters.platforms is set correctly even though FilterBar is hidden. Empty states for loading/error/empty-loaded all handled. pagesStatus=loaded with 0 pages shows EmptyState. Orphaned access warning panel also rendered."
+    },
+    {
+      "route": "/dashboards/meta/pages/:pageId/overview",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPageOverviewPage.tsx",
+      "filterbar_visible": false,
+      "account_propagation": "not_applicable",
+      "endpoint_scope_correct": true,
+      "empty_state_handled": true,
+      "status": "yellow",
+      "bugs_confirmed": [],
+      "new_bugs": [
+        {
+          "id": "C1A-NEW-03",
+          "severity": "medium",
+          "description": "Synthesis report claims M12 APPLIED — 'period-reset useEffect no longer calls loadTimeseries directly'. The period-reset useEffect at line 133-143 is confirmed fixed: it no longer calls loadTimeseries when it resets the period. HOWEVER, handleMetricChange (line 154-161) and handlePeriodChange (line 163-168) both call setFilters() followed immediately by void loadTimeseries(pageId) — the same race pattern as the original M12 bug but in different code paths. setFilters writes Zustand state synchronously but loadTimeseries reads get().filters, which is the same store object. In Zustand, set() is synchronous so by the time loadTimeseries executes, the filters should be updated. However, these handlers do NOT update filters.period via the primary loadOverviewAndTimeseries dep array (filters.datePreset/since/until/compareTo) — they short-circuit through loadTimeseries directly. This is a partial M12 fix: the autoReset effect path is clean, but user-driven metric/period changes still use a direct loadTimeseries path that bypasses the primary data effect.",
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPageOverviewPage.tsx",
+          "line": 154
+        }
+      ],
+      "fix_required": true
+    },
+    {
+      "route": "/dashboards/meta/pages/:pageId/posts",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPagePostsPage.tsx",
+      "filterbar_visible": false,
+      "account_propagation": "not_applicable",
+      "endpoint_scope_correct": true,
+      "empty_state_handled": false,
+      "status": "yellow",
+      "bugs_confirmed": [
+        {
+          "id": "M14",
+          "severity": "low",
+          "description": "Confirmed still present. postsStatus=loaded with 0 results renders a raw <div className='panel meta-warning-panel'> at line 305-310, not an EmptyState component. This is inconsistent with the cluster pattern. The synthesis report lists M14 as 'APPLIED (no changes needed)' — this is incorrect. The code was NOT changed; the raw div pattern remains.",
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPagePostsPage.tsx",
+          "line": 305,
+          "evidence": "postsStatus === 'loaded' && posts && posts.results.length === 0 shows <div className='panel meta-warning-panel'> not EmptyState"
+        }
+      ],
+      "new_bugs": [],
+      "fix_required": true
+    },
+    {
+      "route": "/dashboards/meta/posts/:postId",
+      "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPostDetailPage.tsx",
+      "filterbar_visible": false,
+      "account_propagation": "not_applicable",
+      "endpoint_scope_correct": true,
+      "empty_state_handled": true,
+      "status": "green",
+      "bugs_confirmed": [],
+      "new_bugs": [],
+      "fix_required": false,
+      "notes": "M16 CONFIRMED APPLIED. loadPostTimeseries now accepts overrides?: { metric?: string; period?: string } (line 85 of useMetaPageInsightsStore.ts). MetaPostDetailPage at line 69 passes { metric, period } directly: void loadPostTimeseries(postId, { metric, period }). Store uses overrides?.metric ?? filters.metric (line 333) so the stale-state race is resolved. postStatus=loading and postStatus=error both have proper render guards."
+    }
+  ],
+  "cross_cutting": [
+    {
+      "concern": "R7 reconciliation effect is one-shot per navigation, not reactive to intra-route account changes. The DashboardLayout useEffect dep array is [location.pathname, setFilters]. When a user stays on /dashboards/meta/accounts and clicks a second account row, useMetaStore.filters.accountId is updated but the reconciliation effect does not re-fire (pathname unchanged). The global FilterBar shows a stale accountId until the user navigates away and back. This is an incomplete R7 fix: the initial navigation case works but the intra-route selection case does not.",
+      "files_affected": [
+        "/Users/thristannewman/ADinsights/frontend/src/routes/DashboardLayout.tsx",
+        "/Users/thristannewman/ADinsights/frontend/src/routes/MetaAccountsPage.tsx",
+        "/Users/thristannewman/ADinsights/frontend/src/routes/MetaInsightsDashboardPage.tsx",
+        "/Users/thristannewman/ADinsights/frontend/src/routes/MetaCampaignOverviewPage.tsx"
+      ],
+      "severity": "medium"
+    },
+    {
+      "concern": "EmptyState reasonCode prop is present in the component interface (line 15 of EmptyState.tsx: reasonCode?: string) and renders as data-reason-code attribute (line 39). R5 is confirmed APPLIED at the component level. However, zero Meta-cluster callers pass a reasonCode — neither MetaAccountsPage, MetaInsightsDashboardPage, MetaCampaignOverviewPage, MetaPagesListPage, nor MetaPostDetailPage pass the reasonCode prop to any EmptyState instance. The prop exists but is dead at all call sites.",
+      "files_affected": [
+        "/Users/thristannewman/ADinsights/frontend/src/components/EmptyState.tsx",
+        "/Users/thristannewman/ADinsights/frontend/src/routes/MetaAccountsPage.tsx",
+        "/Users/thristannewman/ADinsights/frontend/src/routes/MetaInsightsDashboardPage.tsx",
+        "/Users/thristannewman/ADinsights/frontend/src/routes/MetaCampaignOverviewPage.tsx",
+        "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPagesListPage.tsx"
+      ],
+      "severity": "low"
+    },
+    {
+      "concern": "resolveRoutePlatformScope and arePlatformArraysEqual are confirmed extracted to /Users/thristannewman/ADinsights/frontend/src/lib/dashboardFilters.ts (lines 355-388) and imported by DashboardLayout. R6 is APPLIED. The META_ROUTE_PREFIX is '/dashboards/meta/' (with trailing slash), which correctly scopes all /dashboards/meta/* sub-routes including /pages and /posts. FilterBar is hidden on those sub-routes via the hideGlobalFilters predicate but the platform scope is still applied to the store.",
+      "files_affected": [
+        "/Users/thristannewman/ADinsights/frontend/src/lib/dashboardFilters.ts",
+        "/Users/thristannewman/ADinsights/frontend/src/routes/DashboardLayout.tsx"
+      ],
+      "severity": "info"
+    },
+    {
+      "concern": "The synthesis report marks M14 as 'APPLIED (no changes needed)' but this is wrong. The raw <div className='panel meta-warning-panel'> for zero posts in MetaPagePostsPage.tsx at line 305 was not changed. The synthesis report grouped M8-M11 and M13-M15 as 'clean, no changes needed' — but M14 is a genuine inconsistency (raw div instead of EmptyState) that was documented as a fix_patch in the verification report. The synthesis report's 'no changes needed' classification for M14 contradicts the verification report's 'fix_patches' section.",
+      "files_affected": [
+        "/Users/thristannewman/ADinsights/frontend/src/routes/MetaPagePostsPage.tsx"
+      ],
+      "severity": "low"
+    }
+  ],
+  "synthesis_claim_verification": {
+    "M1": {
+      "claimed": "APPLIED",
+      "actual": "APPLIED — confirmed in DashboardLayout.tsx lines 275-287"
+    },
+    "M2": {
+      "claimed": "APPLIED",
+      "actual": "PARTIALLY APPLIED — row onClick added (line 295) but recovery-fallback guard missing (C1A-NEW-01)"
+    },
+    "M3": {
+      "claimed": "APPLIED",
+      "actual": "APPLIED — accounts.status !== 'loading' guard confirmed at MetaAccountsPage.tsx line 238"
+    },
+    "M4": {
+      "claimed": "APPLIED (via DashboardLayout)",
+      "actual": "APPLIED — R7 effect handles it"
+    },
+    "M5": {
+      "claimed": "APPLIED",
+      "actual": "APPLIED — insights.status !== 'loading' guard confirmed at MetaInsightsDashboardPage.tsx line 287"
+    },
+    "M6": {
+      "claimed": "APPLIED (via DashboardLayout)",
+      "actual": "APPLIED — R7 effect handles it"
+    },
+    "M7": {
+      "claimed": "APPLIED",
+      "actual": "APPLIED — campaigns.status !== 'loading' guard confirmed at MetaCampaignOverviewPage.tsx line 160"
+    },
+    "M12": {
+      "claimed": "APPLIED",
+      "actual": "PARTIALLY APPLIED — period-reset useEffect fixed; but handleMetricChange and handlePeriodChange still call loadTimeseries directly after setFilters (C1A-NEW-03)"
+    },
+    "M14": {
+      "claimed": "APPLIED (no changes needed)",
+      "actual": "NOT APPLIED — raw div panel remains at MetaPagePostsPage.tsx line 305; synthesis incorrectly classified as clean"
+    },
+    "M16": {
+      "claimed": "FIXED-BY-RECOVERY",
+      "actual": "APPLIED — confirmed in useMetaPageInsightsStore.ts line 328 and MetaPostDetailPage.tsx line 69"
+    },
+    "R5": {
+      "claimed": "APPLIED",
+      "actual": "PARTIALLY APPLIED — reasonCode prop added to EmptyState component but zero Meta-cluster callers use it"
+    },
+    "R6": {
+      "claimed": "APPLIED",
+      "actual": "APPLIED — resolveRoutePlatformScope exported from dashboardFilters.ts, imported by DashboardLayout"
+    },
+    "R7": {
+      "claimed": "APPLIED",
+      "actual": "PARTIALLY APPLIED — one-shot per navigation; not reactive within a route (C1A-NEW-02)"
+    }
+  },
+  "summary_verdict": "yellow",
+  "verdict_rationale": "High-severity bugs M1/R7 are functionally addressed (DashboardLayout reconciliation effect present and correct for the navigation-entry case). All loading guards (M3/M5/M7) are confirmed applied. M16 post timeseries override is clean. Three residual issues prevent a GREEN verdict: (1) C1A-NEW-01 (medium): recovery-fallback row click guard missing from M2 fix; (2) C1A-NEW-02 (medium): R7 reconciliation is not reactive to intra-route account changes — the dep array omits useMetaStore subscription so only the first navigation into a Meta route syncs the account; (3) M14 (low): raw div panel for zero posts in MetaPagePostsPage not converted to EmptyState, despite synthesis claiming it was clean. C1A-NEW-03 (medium) is a partial M12 — the auto-reset path is fixed but user-driven metric/period changes in handleMetricChange/handlePeriodChange still call loadTimeseries directly without observable functional breakage in the synchronous Zustand model, but is an architectural inconsistency."
+}

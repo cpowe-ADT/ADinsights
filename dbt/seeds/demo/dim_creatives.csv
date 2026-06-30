@@ -1,3 +1,135 @@
 tenant_id,campaign_id,channel,creative_id,creative_name,creative_type
-bank-of-jamaica,BOJ-001,Meta,CR-BOJ-001,BOJ Video,video
-grace-kennedy,GK-001,Google Ads,CR-GK-001,GK Search,image
+bank-of-jamaica,BAN-002,Meta,CR-BAN-002-01,BAN-002 Video 01,video
+bank-of-jamaica,BAN-002,Meta,CR-BAN-002-02,BAN-002 Carousel 02,carousel
+bank-of-jamaica,BAN-002,Meta,CR-BAN-002-03,BAN-002 Image 03,image
+bank-of-jamaica,BAN-002,Meta,CR-BAN-002-04,BAN-002 Image 04,image
+bank-of-jamaica,BAN-002,Meta,CR-BAN-002-05,BAN-002 Video 05,video
+bank-of-jamaica,BAN-002,Meta,CR-BAN-002-06,BAN-002 Image 06,image
+bank-of-jamaica,BAN-002,Meta,CR-BAN-002-07,BAN-002 Image 07,image
+bank-of-jamaica,BAN-003,TikTok,CR-BAN-003-01,BAN-003 Image 01,image
+bank-of-jamaica,BAN-003,TikTok,CR-BAN-003-02,BAN-003 Video 02,video
+bank-of-jamaica,BAN-003,TikTok,CR-BAN-003-03,BAN-003 Video 03,video
+bank-of-jamaica,BAN-003,TikTok,CR-BAN-003-04,BAN-003 Carousel 04,carousel
+bank-of-jamaica,BAN-003,TikTok,CR-BAN-003-05,BAN-003 Image 05,image
+bank-of-jamaica,BAN-003,TikTok,CR-BAN-003-06,BAN-003 Carousel 06,carousel
+bank-of-jamaica,BAN-003,TikTok,CR-BAN-003-07,BAN-003 Video 07,video
+bank-of-jamaica,BAN-004,TikTok,CR-BAN-004-01,BAN-004 Carousel 01,carousel
+bank-of-jamaica,BAN-004,TikTok,CR-BAN-004-02,BAN-004 Carousel 02,carousel
+bank-of-jamaica,BAN-004,TikTok,CR-BAN-004-03,BAN-004 Video 03,video
+bank-of-jamaica,BAN-004,TikTok,CR-BAN-004-04,BAN-004 Carousel 04,carousel
+bank-of-jamaica,BAN-005,TikTok,CR-BAN-005-01,BAN-005 Video 01,video
+bank-of-jamaica,BAN-005,TikTok,CR-BAN-005-02,BAN-005 Image 02,image
+bank-of-jamaica,BAN-005,TikTok,CR-BAN-005-03,BAN-005 Image 03,image
+bank-of-jamaica,BAN-005,TikTok,CR-BAN-005-04,BAN-005 Carousel 04,carousel
+bank-of-jamaica,BAN-005,TikTok,CR-BAN-005-05,BAN-005 Video 05,video
+bank-of-jamaica,BAN-005,TikTok,CR-BAN-005-06,BAN-005 Video 06,video
+bank-of-jamaica,BAN-006,YouTube,CR-BAN-006-01,BAN-006 Image 01,image
+bank-of-jamaica,BAN-006,YouTube,CR-BAN-006-02,BAN-006 Video 02,video
+bank-of-jamaica,BAN-006,YouTube,CR-BAN-006-03,BAN-006 Image 03,image
+bank-of-jamaica,BAN-007,Google Ads,CR-BAN-007-01,BAN-007 Image 01,image
+bank-of-jamaica,BAN-007,Google Ads,CR-BAN-007-02,BAN-007 Carousel 02,carousel
+bank-of-jamaica,BAN-007,Google Ads,CR-BAN-007-03,BAN-007 Video 03,video
+bank-of-jamaica,BAN-007,Google Ads,CR-BAN-007-04,BAN-007 Carousel 04,carousel
+bank-of-jamaica,BAN-007,Google Ads,CR-BAN-007-05,BAN-007 Carousel 05,carousel
+bank-of-jamaica,BAN-008,Meta,CR-BAN-008-01,BAN-008 Carousel 01,carousel
+bank-of-jamaica,BAN-008,Meta,CR-BAN-008-02,BAN-008 Image 02,image
+bank-of-jamaica,BAN-008,Meta,CR-BAN-008-03,BAN-008 Image 03,image
+bank-of-jamaica,BAN-008,Meta,CR-BAN-008-04,BAN-008 Image 04,image
+bank-of-jamaica,BAN-008,Meta,CR-BAN-008-05,BAN-008 Carousel 05,carousel
+bank-of-jamaica,BAN-008,Meta,CR-BAN-008-06,BAN-008 Image 06,image
+bank-of-jamaica,BAN-009,YouTube,CR-BAN-009-01,BAN-009 Image 01,image
+bank-of-jamaica,BAN-009,YouTube,CR-BAN-009-02,BAN-009 Video 02,video
+bank-of-jamaica,BAN-009,YouTube,CR-BAN-009-03,BAN-009 Carousel 03,carousel
+bank-of-jamaica,BAN-009,YouTube,CR-BAN-009-04,BAN-009 Carousel 04,carousel
+bank-of-jamaica,BAN-009,YouTube,CR-BAN-009-05,BAN-009 Image 05,image
+bank-of-jamaica,BAN-009,YouTube,CR-BAN-009-06,BAN-009 Video 06,video
+bank-of-jamaica,BAN-009,YouTube,CR-BAN-009-07,BAN-009 Image 07,image
+grace-kennedy,GRA-001,YouTube,CR-GRA-001-01,GRA-001 Video 01,video
+grace-kennedy,GRA-001,YouTube,CR-GRA-001-02,GRA-001 Video 02,video
+grace-kennedy,GRA-001,YouTube,CR-GRA-001-03,GRA-001 Image 03,image
+grace-kennedy,GRA-002,YouTube,CR-GRA-002-01,GRA-002 Image 01,image
+grace-kennedy,GRA-002,YouTube,CR-GRA-002-02,GRA-002 Carousel 02,carousel
+grace-kennedy,GRA-002,YouTube,CR-GRA-002-03,GRA-002 Image 03,image
+grace-kennedy,GRA-002,YouTube,CR-GRA-002-04,GRA-002 Carousel 04,carousel
+grace-kennedy,GRA-002,YouTube,CR-GRA-002-05,GRA-002 Image 05,image
+grace-kennedy,GRA-003,TikTok,CR-GRA-003-01,GRA-003 Carousel 01,carousel
+grace-kennedy,GRA-003,TikTok,CR-GRA-003-02,GRA-003 Video 02,video
+grace-kennedy,GRA-003,TikTok,CR-GRA-003-03,GRA-003 Carousel 03,carousel
+grace-kennedy,GRA-003,TikTok,CR-GRA-003-04,GRA-003 Carousel 04,carousel
+grace-kennedy,GRA-003,TikTok,CR-GRA-003-05,GRA-003 Image 05,image
+grace-kennedy,GRA-004,Meta,CR-GRA-004-01,GRA-004 Image 01,image
+grace-kennedy,GRA-004,Meta,CR-GRA-004-02,GRA-004 Image 02,image
+grace-kennedy,GRA-004,Meta,CR-GRA-004-03,GRA-004 Video 03,video
+grace-kennedy,GRA-004,Meta,CR-GRA-004-04,GRA-004 Image 04,image
+grace-kennedy,GRA-005,Meta,CR-GRA-005-01,GRA-005 Carousel 01,carousel
+grace-kennedy,GRA-005,Meta,CR-GRA-005-02,GRA-005 Video 02,video
+grace-kennedy,GRA-005,Meta,CR-GRA-005-03,GRA-005 Video 03,video
+grace-kennedy,GRA-005,Meta,CR-GRA-005-04,GRA-005 Carousel 04,carousel
+grace-kennedy,GRA-006,Meta,CR-GRA-006-01,GRA-006 Video 01,video
+grace-kennedy,GRA-006,Meta,CR-GRA-006-02,GRA-006 Image 02,image
+grace-kennedy,GRA-006,Meta,CR-GRA-006-03,GRA-006 Carousel 03,carousel
+grace-kennedy,GRA-006,Meta,CR-GRA-006-04,GRA-006 Image 04,image
+grace-kennedy,GRA-007,YouTube,CR-GRA-007-01,GRA-007 Image 01,image
+grace-kennedy,GRA-007,YouTube,CR-GRA-007-02,GRA-007 Video 02,video
+grace-kennedy,GRA-007,YouTube,CR-GRA-007-03,GRA-007 Image 03,image
+grace-kennedy,GRA-007,YouTube,CR-GRA-007-04,GRA-007 Image 04,image
+grace-kennedy,GRA-007,YouTube,CR-GRA-007-05,GRA-007 Video 05,video
+grace-kennedy,GRA-007,YouTube,CR-GRA-007-06,GRA-007 Video 06,video
+grace-kennedy,GRA-008,YouTube,CR-GRA-008-01,GRA-008 Image 01,image
+grace-kennedy,GRA-008,YouTube,CR-GRA-008-02,GRA-008 Image 02,image
+grace-kennedy,GRA-008,YouTube,CR-GRA-008-03,GRA-008 Image 03,image
+grace-kennedy,GRA-008,YouTube,CR-GRA-008-04,GRA-008 Carousel 04,carousel
+grace-kennedy,GRA-008,YouTube,CR-GRA-008-05,GRA-008 Image 05,image
+grace-kennedy,GRA-009,Meta,CR-GRA-009-01,GRA-009 Video 01,video
+grace-kennedy,GRA-009,Meta,CR-GRA-009-02,GRA-009 Video 02,video
+grace-kennedy,GRA-009,Meta,CR-GRA-009-03,GRA-009 Image 03,image
+grace-kennedy,GRA-009,Meta,CR-GRA-009-04,GRA-009 Video 04,video
+grace-kennedy,GRA-009,Meta,CR-GRA-009-05,GRA-009 Video 05,video
+grace-kennedy,GRA-009,Meta,CR-GRA-009-06,GRA-009 Carousel 06,carousel
+grace-kennedy,GRA-010,YouTube,CR-GRA-010-01,GRA-010 Video 01,video
+grace-kennedy,GRA-010,YouTube,CR-GRA-010-02,GRA-010 Carousel 02,carousel
+grace-kennedy,GRA-010,YouTube,CR-GRA-010-03,GRA-010 Carousel 03,carousel
+grace-kennedy,GRA-010,YouTube,CR-GRA-010-04,GRA-010 Video 04,video
+grace-kennedy,GRA-010,YouTube,CR-GRA-010-05,GRA-010 Image 05,image
+grace-kennedy,GRA-010,YouTube,CR-GRA-010-06,GRA-010 Image 06,image
+grace-kennedy,GRA-010,YouTube,CR-GRA-010-07,GRA-010 Video 07,video
+jdic,JDI-001,Meta,CR-JDI-001-01,JDI-001 Carousel 01,carousel
+jdic,JDI-001,Meta,CR-JDI-001-02,JDI-001 Video 02,video
+jdic,JDI-001,Meta,CR-JDI-001-03,JDI-001 Image 03,image
+jdic,JDI-001,Meta,CR-JDI-001-04,JDI-001 Image 04,image
+jdic,JDI-002,YouTube,CR-JDI-002-01,JDI-002 Video 01,video
+jdic,JDI-002,YouTube,CR-JDI-002-02,JDI-002 Video 02,video
+jdic,JDI-002,YouTube,CR-JDI-002-03,JDI-002 Carousel 03,carousel
+jdic,JDI-002,YouTube,CR-JDI-002-04,JDI-002 Video 04,video
+jdic,JDI-002,YouTube,CR-JDI-002-05,JDI-002 Video 05,video
+jdic,JDI-002,YouTube,CR-JDI-002-06,JDI-002 Carousel 06,carousel
+jdic,JDI-002,YouTube,CR-JDI-002-07,JDI-002 Carousel 07,carousel
+jdic,JDI-003,Meta,CR-JDI-003-01,JDI-003 Video 01,video
+jdic,JDI-003,Meta,CR-JDI-003-02,JDI-003 Carousel 02,carousel
+jdic,JDI-003,Meta,CR-JDI-003-03,JDI-003 Image 03,image
+jdic,JDI-004,YouTube,CR-JDI-004-01,JDI-004 Image 01,image
+jdic,JDI-004,YouTube,CR-JDI-004-02,JDI-004 Carousel 02,carousel
+jdic,JDI-004,YouTube,CR-JDI-004-03,JDI-004 Video 03,video
+jdic,JDI-004,YouTube,CR-JDI-004-04,JDI-004 Image 04,image
+jdic,JDI-004,YouTube,CR-JDI-004-05,JDI-004 Carousel 05,carousel
+jdic,JDI-005,YouTube,CR-JDI-005-01,JDI-005 Carousel 01,carousel
+jdic,JDI-005,YouTube,CR-JDI-005-02,JDI-005 Carousel 02,carousel
+jdic,JDI-005,YouTube,CR-JDI-005-03,JDI-005 Carousel 03,carousel
+jdic,JDI-005,YouTube,CR-JDI-005-04,JDI-005 Carousel 04,carousel
+jdic,JDI-005,YouTube,CR-JDI-005-05,JDI-005 Carousel 05,carousel
+jdic,JDI-005,YouTube,CR-JDI-005-06,JDI-005 Image 06,image
+jdic,JDI-005,YouTube,CR-JDI-005-07,JDI-005 Video 07,video
+jdic,JDI-006,Google Ads,CR-JDI-006-01,JDI-006 Image 01,image
+jdic,JDI-006,Google Ads,CR-JDI-006-02,JDI-006 Carousel 02,carousel
+jdic,JDI-006,Google Ads,CR-JDI-006-03,JDI-006 Video 03,video
+jdic,JDI-006,Google Ads,CR-JDI-006-04,JDI-006 Carousel 04,carousel
+jdic,JDI-006,Google Ads,CR-JDI-006-05,JDI-006 Video 05,video
+jdic,JDI-006,Google Ads,CR-JDI-006-06,JDI-006 Carousel 06,carousel
+jdic,JDI-007,Google Ads,CR-JDI-007-01,JDI-007 Carousel 01,carousel
+jdic,JDI-007,Google Ads,CR-JDI-007-02,JDI-007 Video 02,video
+jdic,JDI-007,Google Ads,CR-JDI-007-03,JDI-007 Carousel 03,carousel
+jdic,JDI-008,Google Ads,CR-JDI-008-01,JDI-008 Carousel 01,carousel
+jdic,JDI-008,Google Ads,CR-JDI-008-02,JDI-008 Video 02,video
+jdic,JDI-008,Google Ads,CR-JDI-008-03,JDI-008 Video 03,video
+jdic,JDI-008,Google Ads,CR-JDI-008-04,JDI-008 Video 04,video
+jdic,JDI-008,Google Ads,CR-JDI-008-05,JDI-008 Carousel 05,carousel

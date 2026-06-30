@@ -1,7 +1,6 @@
 {
   "documentationUrl": "https://docs.adinsights.example.com/airbyte/linkedin",
   "supportsIncremental": true,
-  "supportsNamespaces": false,
   "connectionSpecification": {
     "type": "object",
     "title": "LinkedIn Ads Source Spec",

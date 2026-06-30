@@ -1,6 +1,7 @@
 # Scope Freeze + Split Ownership (2026-02-20)
 
 This effort is a **cross-stream integration change** spanning:
+
 - `backend/`
 - `frontend/`
 - `dbt/`
@@ -10,6 +11,7 @@ This effort is a **cross-stream integration change** spanning:
 - `.github/` and root governance files
 
 Per repository guardrails, review ownership is assigned up front:
+
 - **Raj**: Cross-Stream Integration Lead (required co-review for multi-folder integration sequencing)
 - **Mira**: Architecture/Refactor reviewer (required for codebase-wide refactor/scope-control risk)
 

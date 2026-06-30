@@ -1,0 +1,5 @@
+platform,date,account_id,campaign_id,ad_group_id,ad_id,region,device,spend,impressions,clicks,conversions,conversion_value,currency,_airbyte_emitted_at
+tiktok,2024-01-01,tt-adv-001,tt-cmp-001,tt-adgrp-001,tt-ad-001,Corporate Area,MOBILE,110.25,900,40,5,250.00,USD,2024-01-02T00:00:00Z
+tiktok,2024-01-01,tt-adv-001,tt-cmp-001,tt-adgrp-001,tt-ad-002,South Coast,DESKTOP,85.50,700,30,3,150.00,USD,2024-01-02T00:00:00Z
+tiktok,2024-01-02,tt-adv-001,tt-cmp-001,tt-adgrp-001,tt-ad-001,Corporate Area,MOBILE,95.00,820,35,4,200.00,USD,2024-01-03T00:00:00Z
+tiktok,2024-01-02,tt-adv-001,tt-cmp-002,tt-adgrp-002,tt-ad-003,South Coast,MOBILE,140.75,1100,55,7,360.00,USD,2024-01-03T00:00:00Z

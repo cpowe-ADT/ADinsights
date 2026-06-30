@@ -31,7 +31,9 @@ const PostsTable = ({ rows, onSelectPost, selectedPostId }: PostsTableProps) => 
                 }`}
               >
                 <td className="dashboard-table__cell">{row.post_id}</td>
-                <td className="dashboard-table__cell">{row.created_time ? row.created_time.slice(0, 10) : '—'}</td>
+                <td className="dashboard-table__cell">
+                  {row.created_time ? row.created_time.slice(0, 10) : '—'}
+                </td>
                 <td className="dashboard-table__cell">{row.message || '—'}</td>
                 <td className="dashboard-table__cell">
                   {typeof row.metrics.post_reactions_like_total === 'number' ||
@@ -40,7 +42,11 @@ const PostsTable = ({ rows, onSelectPost, selectedPostId }: PostsTableProps) => 
                     : '—'}
                 </td>
                 <td className="dashboard-table__cell">
-                  <button className="button tertiary" type="button" onClick={() => onSelectPost(row.post_id)}>
+                  <button
+                    className="button tertiary"
+                    type="button"
+                    onClick={() => onSelectPost(row.post_id)}
+                  >
                     Drill down
                   </button>
                 </td>

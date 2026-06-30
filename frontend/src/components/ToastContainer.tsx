@@ -12,12 +12,7 @@ const ToastContainer = () => {
   return (
     <div className="toast-viewport" role="region" aria-live="polite" aria-atomic="true">
       {toasts.map((toast) => (
-        <div
-          key={toast.id}
-          className="toast"
-          data-variant={toast.variant}
-          role="status"
-        >
+        <div key={toast.id} className="toast" data-variant={toast.variant} role="status">
           <span className="toast__message">{toast.message}</span>
           <button
             type="button"

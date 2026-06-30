@@ -59,10 +59,7 @@ const SyncConnectionDetailPage = () => {
       addToast('Re-sync triggered successfully.', 'success');
       void load();
     } catch (err) {
-      addToast(
-        err instanceof Error ? err.message : 'Failed to trigger re-sync.',
-        'error',
-      );
+      addToast(err instanceof Error ? err.message : 'Failed to trigger re-sync.', 'error');
     } finally {
       setResyncing(false);
     }

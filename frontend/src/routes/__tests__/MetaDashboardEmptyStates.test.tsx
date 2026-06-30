@@ -115,7 +115,12 @@ vi.mock('../../state/useDatasetStore', () => ({
       mode: 'live' | 'dummy';
       source?: 'warehouse' | 'meta_direct' | null;
       adapters: string[];
-      liveReason?: 'adapter_disabled' | 'missing_snapshot' | 'stale_snapshot' | 'default_snapshot' | 'ready';
+      liveReason?:
+        | 'adapter_disabled'
+        | 'missing_snapshot'
+        | 'stale_snapshot'
+        | 'default_snapshot'
+        | 'ready';
       liveDetail?: string;
     }) => unknown,
   ) => selector(datasetStoreMock.state),
@@ -232,9 +237,9 @@ describe('Meta dashboard empty states', () => {
     renderWithAuth(<CampaignDashboard />);
 
     expect(screen.getByText('Live reporting disabled')).toBeInTheDocument();
-    expect(
-      screen.getAllByText('Live reporting is not enabled in this environment.'),
-    ).toHaveLength(2);
+    expect(screen.getAllByText('Live reporting is not enabled in this environment.')).toHaveLength(
+      2,
+    );
   });
 
   it('shows the exact warehouse blocker detail on the budget dashboard', () => {

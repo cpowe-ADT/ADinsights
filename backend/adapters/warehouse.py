@@ -114,6 +114,31 @@ class WarehouseAdapter(MetricsAdapter):
         return None
 
     @staticmethod
+    def _empty_payload_like(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Preserve top-level metadata (snapshot_generated_at etc.) but empty
+        the data sections. Used when a Client's scoping resolves to zero
+        linked accounts — the dashboard needs an empty-but-structured payload
+        rather than a null."""
+
+        preserved = {
+            key: value
+            for key, value in payload.items()
+            if key in {"snapshot_generated_at"}
+            or key.startswith("_")
+        }
+        preserved.update(
+            {
+                "campaign": {"trend": [], "rows": [], "metrics": {}},
+                "creative": {"rows": []},
+                "audience": {"rows": []},
+                "geo": {"rows": []},
+                "parish": {"rows": []},
+                "metrics": {},
+            }
+        )
+        return preserved
+
+    @staticmethod
     def _normalize_parishes(parish: Any) -> list[str]:
         if parish is None:
             return []
@@ -238,6 +263,31 @@ class WarehouseAdapter(MetricsAdapter):
         end_date = self._parse_date(options.get("end_date"))
         parishes = self._normalize_parishes(options.get("parish"))
         account_ids = self._normalize_account_ids(options.get("account_id"))
+
+        # Sprint 10: honour client_scoping produced by
+        # :func:`analytics.combined_metrics_service.resolve_client_scoping`.
+        # Those keys carry the per-platform account id sets a Client groups.
+        # We fold them into ``account_ids`` so the existing filter logic (by
+        # adAccountId) naturally restricts the warehouse payload to that
+        # Client's accounts. ``client_scope_requested=True`` with empty lists
+        # means "scoping was requested but returned no accounts" — in that
+        # case we surface an empty payload instead of falling back to "no
+        # filter" (which would leak the whole tenant's data).
+        client_scope_requested = bool(options.get("client_scope_requested"))
+        scoped_google = self._normalize_account_ids(
+            options.get("client_scoped_google_customer_ids")
+        )
+        scoped_meta = self._normalize_account_ids(
+            options.get("client_scoped_meta_ad_account_ids")
+        )
+        if client_scope_requested:
+            client_account_ids = scoped_google + scoped_meta
+            if not client_account_ids:
+                # The caller asked for a Client that has no linked accounts
+                # (or no enabled platforms resolve). Return an empty-shaped
+                # payload rather than the unfiltered one.
+                return self._empty_payload_like(payload)
+            account_ids = sorted(set(account_ids + client_account_ids))
 
         if not start_date and not end_date and not parishes and not account_ids:
             return payload

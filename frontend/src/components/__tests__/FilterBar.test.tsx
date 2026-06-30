@@ -61,16 +61,39 @@ describe('FilterBar', () => {
 
   it('renders account select when availableAccounts are provided', () => {
     const accounts = [
-      { value: 'acc-1', label: 'Client A' },
-      { value: 'acc-2', label: 'Client B' },
+      { value: 'acc-1', label: 'Account A' },
+      { value: 'acc-2', label: 'Account B' },
     ];
     render(<FilterBar availableAccounts={accounts} />);
-    expect(screen.getByLabelText('Client')).toBeInTheDocument();
+    expect(screen.getByLabelText('Account')).toBeInTheDocument();
   });
 
   it('does not render account select when no accounts are provided', () => {
     render(<FilterBar />);
-    expect(screen.queryByLabelText('Client')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Account')).not.toBeInTheDocument();
+  });
+
+  it('renders the client selector when availableClients are provided', () => {
+    const clients = [
+      { value: 'c1', label: 'JDIC' },
+      { value: 'c2', label: 'BOJ' },
+    ];
+    render(<FilterBar availableClients={clients} />);
+    expect(screen.getByLabelText('Client')).toBeInTheDocument();
+  });
+
+  it('renders platform toggles when availablePlatforms are provided', () => {
+    render(
+      <FilterBar
+        availablePlatforms={[
+          { value: 'meta_ads', label: 'Meta Ads' },
+          { value: 'google_ads', label: 'Google Ads' },
+        ]}
+      />,
+    );
+    expect(screen.getByRole('group', { name: 'Platforms' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Meta Ads' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Google Ads' })).toBeInTheDocument();
   });
 
   it('renders clear all button', () => {

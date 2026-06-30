@@ -29,6 +29,7 @@ from integrations.airbyte.client import (
     AirbyteClient,
     AirbyteClientConfigurationError,
     AirbyteClientError,
+    client_safe_detail,
 )
 from integrations.google_ads.gaql_templates import get_gaql_template
 from integrations.google_ads.catalog import load_reference_catalog
@@ -347,12 +348,16 @@ def _configured_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
 
 
 def _airbyte_exception_response(exc: AirbyteClientError) -> Response:
+    # Full error (incl. any upstream Airbyte body) logged server-side; only a
+    # length-bounded detail is returned to the client.
+    logger.warning("airbyte.api_error", exc_info=exc)
+    detail = client_safe_detail(str(exc))
     status_code = (
         status.HTTP_504_GATEWAY_TIMEOUT
         if isinstance(exc.__cause__, httpx.TimeoutException)
         else status.HTTP_502_BAD_GATEWAY
     )
-    return Response({"detail": str(exc)}, status=status_code)
+    return Response({"detail": detail}, status=status_code)
 
 
 def _is_connection_active(connection: AirbyteConnection | None, now) -> bool:
@@ -878,46 +883,39 @@ class GoogleAdsProvisionView(APIView):
         source_name = f"Google Ads Source {customer_id}"
         source_reused = False
         connection_reused = False
+        # Airbyte's current Google Ads connector (sourceDefinitionId
+        # 253487c0-2246-43ba-a21f-5116b20a2c50) requires credentials nested
+        # under a "credentials" object and uses conversion_window_days.
+        # custom_queries items take {query, table_name}; cursor/primary_key are
+        # managed by the connector. lookback_window and include_zero_impressions
+        # are not part of the current spec.
+        _ = lookback_window  # retained for future compatibility, unused below
+        base_credentials = {
+            "developer_token": developer_token,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "refresh_token": refresh_token,
+        }
         source_config_candidates = [
             {
-                "developer_token": developer_token,
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "refresh_token": refresh_token,
+                "credentials": base_credentials,
                 "customer_id": customer_id,
                 "login_customer_id": login_customer_id,
                 "start_date": start_date,
-                "conversion_window": conversion_window,
-                "lookback_window": lookback_window,
-                "use_resource_custom_queries": True,
+                "conversion_window_days": conversion_window,
                 "custom_queries": [
                     {
-                        "name": "ad_group_ad_performance_daily",
                         "query": runtime_query,
-                        "primary_key": ["campaign.id", "ad_group.id", "ad_group_ad.ad.id", "segments.date"],
-                        "cursor_field": "segments.date",
-                        "destination_sync_mode": "append_dedup",
+                        "table_name": "ad_group_ad_performance_daily",
                     }
                 ],
             },
             {
-                "developer_token": developer_token,
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "refresh_token": refresh_token,
+                "credentials": base_credentials,
                 "customer_id": customer_id,
                 "login_customer_id": login_customer_id,
                 "start_date": start_date,
-                "conversion_window": conversion_window,
-                "lookback_window": lookback_window,
-                "include_zero_impressions": True,
-                "custom_queries": [
-                    {
-                        "query": runtime_query,
-                        "cursor_field": "segments.date",
-                        "primary_key": ["campaign.id", "ad_group.id", "ad_group_ad.ad.id", "segments.date"],
-                    }
-                ],
+                "conversion_window_days": conversion_window,
             },
         ]
 
@@ -963,10 +961,31 @@ class GoogleAdsProvisionView(APIView):
                     if not isinstance(candidate_source_id, str) or not candidate_source_id:
                         raise ValueError("Airbyte source create/list response missing sourceId.")
 
-                    check_payload = client.check_source(candidate_source_id)
-                    check_status = str(check_payload.get("status", "")).lower()
-                    if check_status and check_status not in {"succeeded", "success"}:
-                        continue
+                    # check_source runs the connector to validate credentials and
+                    # can be slow / flaky on cold workspaces. Treat timeouts and
+                    # transient Airbyte errors as non-fatal — discover_source_schema
+                    # re-validates the credentials and will surface a clearer error
+                    # if they are actually broken.
+                    try:
+                        check_payload = client.check_source(candidate_source_id)
+                        check_status = str(check_payload.get("status", "")).lower()
+                        if check_status and check_status not in {"succeeded", "success"}:
+                            logger.warning(
+                                "google_ads.provision.check_source.rejected",
+                                extra={
+                                    "source_id": candidate_source_id,
+                                    "status": check_status,
+                                    "message": check_payload.get("message"),
+                                },
+                            )
+                            continue
+                    except AirbyteClientError as check_exc:
+                        logger.warning(
+                            "google_ads.provision.check_source.error",
+                            extra={"source_id": candidate_source_id, "error": str(check_exc)},
+                        )
+                        # Fall through to discover, which will raise a cleaner
+                        # error if credentials are truly invalid.
 
                     discovered = client.discover_source_schema(candidate_source_id)
                     catalog = discovered.get("catalog") if isinstance(discovered, dict) else None

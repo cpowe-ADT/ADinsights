@@ -108,7 +108,7 @@ test.describe('meta integration flows', () => {
     );
     await page.goto('/dashboards/data-sources?code=oauth-code&state=oauth-state');
     await ensureSignedIn(page, '/dashboards/data-sources?code=oauth-code&state=oauth-state');
-    await expect(page.getByText(/required permissions are missing/i)).toBeVisible();
+    await expect(page.getByText(/required permissions are missing/i).first()).toBeVisible();
   });
 
   test('oauth callback success shows page and ad-account selection', async ({ page, mockMode }) => {
@@ -180,7 +180,9 @@ test.describe('meta integration flows', () => {
     );
     await page.goto('/dashboards/data-sources?code=oauth-code&state=oauth-state');
     await ensureSignedIn(page, '/dashboards/data-sources?code=oauth-code&state=oauth-state');
-    await expect(page.getByText(/save selected business page/i)).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Finish setup and save Meta assets' }),
+    ).toBeVisible();
   });
 
   test('meta account list renders and insights dashboard displays 30-day records', async ({
@@ -274,8 +276,8 @@ test.describe('meta integration flows', () => {
     await page.goto('/dashboards/meta/insights');
     await ensureSignedIn(page, '/dashboards/meta/insights');
     await expect(page.getByRole('heading', { name: /insights dashboard/i })).toBeVisible();
-    await expect(page.getByText('ad-1')).toBeVisible();
-    await expect(page.getByText('ad-2')).toBeVisible();
+    await expect(page.getByRole('rowheader', { name: 'ad-1' }).first()).toBeVisible();
+    await expect(page.getByRole('rowheader', { name: 'ad-2' }).first()).toBeVisible();
   });
 
   test('insights page shows retry UI for 429 and recovers on retry', async ({ page, mockMode }) => {
@@ -336,7 +338,7 @@ test.describe('meta integration flows', () => {
     await ensureSignedIn(page, '/dashboards/meta/insights');
     await expect(page.getByText(/unable to load insights/i)).toBeVisible();
     await page.getByRole('button', { name: /retry/i }).click();
-    await expect(page.getByText('ad-3')).toBeVisible();
+    await expect(page.getByRole('rowheader', { name: 'ad-3' }).first()).toBeVisible();
   });
 
   test('insights page shows permission guidance on 403', async ({ page, mockMode }) => {

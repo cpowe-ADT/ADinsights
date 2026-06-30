@@ -439,6 +439,22 @@ function resolveChannelFilters(filters: FilterBarState): string[] {
   return filters.channels.map(normalizeChannelValue).filter(Boolean);
 }
 
+// FP-CAMP-01/FP-CREA-01/FP-BUDG-02: Map filters.platforms (route-scope axis) to
+// channel-key equivalents for row-level filtering in parish selectors.
+// Returns an empty array when platforms is empty (no scoping), which means "allow all".
+function resolvePlatformFilters(filters: FilterBarState): string[] {
+  if (!filters.platforms || filters.platforms.length === 0) {
+    return [];
+  }
+  const platformToChannelKey: Record<string, string> = {
+    meta_ads: 'meta',
+    google_ads: 'google_ads',
+    tiktok: 'tiktok',
+    linkedin: 'linkedin',
+  };
+  return filters.platforms.map((p) => platformToChannelKey[p] ?? p.toLowerCase()).filter(Boolean);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -669,9 +685,22 @@ function normalizeParishAggregates(
       }
     }
 
+    // Derive CTR (clicks / impressions, expressed as a fraction for
+    // formatPercent) when upstream omits it. The warehouse/meta adapters do
+    // not always include a per-parish ctr column, which otherwise renders as
+    // 0% in the region breakdown table even though clicks and impressions are
+    // present.
+    const ctr =
+      typeof row.ctr === 'number' && Number.isFinite(row.ctr)
+        ? row.ctr
+        : row.impressions > 0
+          ? row.clicks / row.impressions
+          : 0;
+
     return {
       ...row,
       currency,
+      ctr,
     };
   });
 }
@@ -751,12 +780,10 @@ function parseTenantMetrics(snapshot: TenantMetricsSnapshot): TenantMetricsResol
     [];
 
   const demographics: DemographicsData | undefined =
-    source.demographics ??
-    (record['demographics'] as DemographicsData | undefined);
+    source.demographics ?? (record['demographics'] as DemographicsData | undefined);
 
   const platforms: PlatformsData | undefined =
-    source.platforms ??
-    (record['platforms'] as PlatformsData | undefined);
+    source.platforms ?? (record['platforms'] as PlatformsData | undefined);
 
   const normalizedCampaign = assertValidSchema(
     'metrics',
@@ -842,10 +869,7 @@ function mapError(reason: unknown): { message: string; kind: ErrorKind } {
         reason.payload?.reason === 'default_snapshot')
     ) {
       return {
-        message: messageForLiveDatasetReason(
-          reason.payload.reason,
-          getLiveDatasetDetail(),
-        ),
+        message: messageForLiveDatasetReason(reason.payload.reason, getLiveDatasetDetail()),
         kind: 'generic',
       };
     }
@@ -1151,7 +1175,12 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       creative: { ...state.creative, status: 'loading', error: undefined, errorKind: undefined },
       budget: { ...state.budget, status: 'loading', error: undefined, errorKind: undefined },
       parish: { ...state.parish, status: 'loading', error: undefined, errorKind: undefined },
-      demographics: { ...state.demographics, status: 'loading', error: undefined, errorKind: undefined },
+      demographics: {
+        ...state.demographics,
+        status: 'loading',
+        error: undefined,
+        errorKind: undefined,
+      },
       platforms: { ...state.platforms, status: 'loading', error: undefined, errorKind: undefined },
     }));
 
@@ -1165,12 +1194,42 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
           coverage: resolved.coverage ?? state.coverage,
           availability: resolved.availability ?? state.availability,
-          campaign: { status: 'loaded', data: resolved.campaign, error: undefined, errorKind: undefined },
-          creative: { status: 'loaded', data: resolved.creative, error: undefined, errorKind: undefined },
-          budget: { status: 'loaded', data: resolved.budget, error: undefined, errorKind: undefined },
-          parish: { status: 'loaded', data: resolved.parish, error: undefined, errorKind: undefined },
-          demographics: { status: 'loaded', data: resolved.demographics, error: undefined, errorKind: undefined },
-          platforms: { status: 'loaded', data: resolved.platforms, error: undefined, errorKind: undefined },
+          campaign: {
+            status: 'loaded',
+            data: resolved.campaign,
+            error: undefined,
+            errorKind: undefined,
+          },
+          creative: {
+            status: 'loaded',
+            data: resolved.creative,
+            error: undefined,
+            errorKind: undefined,
+          },
+          budget: {
+            status: 'loaded',
+            data: resolved.budget,
+            error: undefined,
+            errorKind: undefined,
+          },
+          parish: {
+            status: 'loaded',
+            data: resolved.parish,
+            error: undefined,
+            errorKind: undefined,
+          },
+          demographics: {
+            status: 'loaded',
+            data: resolved.demographics,
+            error: undefined,
+            errorKind: undefined,
+          },
+          platforms: {
+            status: 'loaded',
+            data: resolved.platforms,
+            error: undefined,
+            errorKind: undefined,
+          },
           metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
         }));
       } catch (error) {
@@ -1180,8 +1239,18 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           creative: { status: 'error', data: state.creative.data, error: message, errorKind: kind },
           budget: { status: 'error', data: state.budget.data, error: message, errorKind: kind },
           parish: { status: 'error', data: state.parish.data, error: message, errorKind: kind },
-          demographics: { status: 'error', data: state.demographics.data, error: message, errorKind: kind },
-          platforms: { status: 'error', data: state.platforms.data, error: message, errorKind: kind },
+          demographics: {
+            status: 'error',
+            data: state.demographics.data,
+            error: message,
+            errorKind: kind,
+          },
+          platforms: {
+            status: 'error',
+            data: state.platforms.data,
+            error: message,
+            errorKind: kind,
+          },
         }));
       }
       return;
@@ -1201,12 +1270,32 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
             )
           : 'Demo dataset is unavailable.';
       set((state) => ({
-        campaign: { status: 'error', data: state.campaign.data, error: message, errorKind: 'generic' },
-        creative: { status: 'error', data: state.creative.data, error: message, errorKind: 'generic' },
+        campaign: {
+          status: 'error',
+          data: state.campaign.data,
+          error: message,
+          errorKind: 'generic',
+        },
+        creative: {
+          status: 'error',
+          data: state.creative.data,
+          error: message,
+          errorKind: 'generic',
+        },
         budget: { status: 'error', data: state.budget.data, error: message, errorKind: 'generic' },
         parish: { status: 'error', data: state.parish.data, error: message, errorKind: 'generic' },
-        demographics: { status: 'error', data: state.demographics.data, error: message, errorKind: 'generic' },
-        platforms: { status: 'error', data: state.platforms.data, error: message, errorKind: 'generic' },
+        demographics: {
+          status: 'error',
+          data: state.demographics.data,
+          error: message,
+          errorKind: 'generic',
+        },
+        platforms: {
+          status: 'error',
+          data: state.platforms.data,
+          error: message,
+          errorKind: 'generic',
+        },
       }));
       return;
     }
@@ -1234,12 +1323,42 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
           coverage: resolved.coverage ?? state.coverage,
           availability: resolved.availability ?? state.availability,
-          campaign: { status: 'loaded', data: resolved.campaign, error: undefined, errorKind: undefined },
-          creative: { status: 'loaded', data: resolved.creative, error: undefined, errorKind: undefined },
-          budget: { status: 'loaded', data: resolved.budget, error: undefined, errorKind: undefined },
-          parish: { status: 'loaded', data: resolved.parish, error: undefined, errorKind: undefined },
-          demographics: { status: 'loaded', data: resolved.demographics, error: undefined, errorKind: undefined },
-          platforms: { status: 'loaded', data: resolved.platforms, error: undefined, errorKind: undefined },
+          campaign: {
+            status: 'loaded',
+            data: resolved.campaign,
+            error: undefined,
+            errorKind: undefined,
+          },
+          creative: {
+            status: 'loaded',
+            data: resolved.creative,
+            error: undefined,
+            errorKind: undefined,
+          },
+          budget: {
+            status: 'loaded',
+            data: resolved.budget,
+            error: undefined,
+            errorKind: undefined,
+          },
+          parish: {
+            status: 'loaded',
+            data: resolved.parish,
+            error: undefined,
+            errorKind: undefined,
+          },
+          demographics: {
+            status: 'loaded',
+            data: resolved.demographics,
+            error: undefined,
+            errorKind: undefined,
+          },
+          platforms: {
+            status: 'loaded',
+            data: resolved.platforms,
+            error: undefined,
+            errorKind: undefined,
+          },
           metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
         }));
       } catch (error) {
@@ -1249,8 +1368,18 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           creative: { status: 'error', data: state.creative.data, error: message, errorKind: kind },
           budget: { status: 'error', data: state.budget.data, error: message, errorKind: kind },
           parish: { status: 'error', data: state.parish.data, error: message, errorKind: kind },
-          demographics: { status: 'error', data: state.demographics.data, error: message, errorKind: kind },
-          platforms: { status: 'error', data: state.platforms.data, error: message, errorKind: kind },
+          demographics: {
+            status: 'error',
+            data: state.demographics.data,
+            error: message,
+            errorKind: kind,
+          },
+          platforms: {
+            status: 'error',
+            data: state.platforms.data,
+            error: message,
+            errorKind: kind,
+          },
         }));
       }
 
@@ -1273,12 +1402,42 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
             lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
             coverage: resolved.coverage ?? state.coverage,
             availability: resolved.availability ?? state.availability,
-            campaign: { status: 'loaded', data: resolved.campaign, error: undefined, errorKind: undefined },
-            creative: { status: 'loaded', data: resolved.creative, error: undefined, errorKind: undefined },
-            budget: { status: 'loaded', data: resolved.budget, error: undefined, errorKind: undefined },
-            parish: { status: 'loaded', data: resolved.parish, error: undefined, errorKind: undefined },
-          demographics: { status: 'loaded', data: resolved.demographics, error: undefined, errorKind: undefined },
-          platforms: { status: 'loaded', data: resolved.platforms, error: undefined, errorKind: undefined },
+            campaign: {
+              status: 'loaded',
+              data: resolved.campaign,
+              error: undefined,
+              errorKind: undefined,
+            },
+            creative: {
+              status: 'loaded',
+              data: resolved.creative,
+              error: undefined,
+              errorKind: undefined,
+            },
+            budget: {
+              status: 'loaded',
+              data: resolved.budget,
+              error: undefined,
+              errorKind: undefined,
+            },
+            parish: {
+              status: 'loaded',
+              data: resolved.parish,
+              error: undefined,
+              errorKind: undefined,
+            },
+            demographics: {
+              status: 'loaded',
+              data: resolved.demographics,
+              error: undefined,
+              errorKind: undefined,
+            },
+            platforms: {
+              status: 'loaded',
+              data: resolved.platforms,
+              error: undefined,
+              errorKind: undefined,
+            },
             metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
           }));
           return;
@@ -1303,12 +1462,42 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           lastSnapshotGeneratedAt: resolved.snapshotGeneratedAt ?? state.lastSnapshotGeneratedAt,
           coverage: resolved.coverage ?? state.coverage,
           availability: resolved.availability ?? state.availability,
-          campaign: { status: 'loaded', data: resolved.campaign, error: undefined, errorKind: undefined },
-          creative: { status: 'loaded', data: resolved.creative, error: undefined, errorKind: undefined },
-          budget: { status: 'loaded', data: resolved.budget, error: undefined, errorKind: undefined },
-          parish: { status: 'loaded', data: resolved.parish, error: undefined, errorKind: undefined },
-          demographics: { status: 'loaded', data: resolved.demographics, error: undefined, errorKind: undefined },
-          platforms: { status: 'loaded', data: resolved.platforms, error: undefined, errorKind: undefined },
+          campaign: {
+            status: 'loaded',
+            data: resolved.campaign,
+            error: undefined,
+            errorKind: undefined,
+          },
+          creative: {
+            status: 'loaded',
+            data: resolved.creative,
+            error: undefined,
+            errorKind: undefined,
+          },
+          budget: {
+            status: 'loaded',
+            data: resolved.budget,
+            error: undefined,
+            errorKind: undefined,
+          },
+          parish: {
+            status: 'loaded',
+            data: resolved.parish,
+            error: undefined,
+            errorKind: undefined,
+          },
+          demographics: {
+            status: 'loaded',
+            data: resolved.demographics,
+            error: undefined,
+            errorKind: undefined,
+          },
+          platforms: {
+            status: 'loaded',
+            data: resolved.platforms,
+            error: undefined,
+            errorKind: undefined,
+          },
           metricsCache: { ...state.metricsCache, [tenantKey]: resolved },
         }));
       } catch (error) {
@@ -1318,8 +1507,18 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
           creative: { status: 'error', data: state.creative.data, error: message, errorKind: kind },
           budget: { status: 'error', data: state.budget.data, error: message, errorKind: kind },
           parish: { status: 'error', data: state.parish.data, error: message, errorKind: kind },
-          demographics: { status: 'error', data: state.demographics.data, error: message, errorKind: kind },
-          platforms: { status: 'error', data: state.platforms.data, error: message, errorKind: kind },
+          demographics: {
+            status: 'error',
+            data: state.demographics.data,
+            error: message,
+            errorKind: kind,
+          },
+          platforms: {
+            status: 'error',
+            data: state.platforms.data,
+            error: message,
+            errorKind: kind,
+          },
         }));
       }
 
@@ -1422,7 +1621,12 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
         availability: normalizedResolved?.availability ?? state.availability,
         campaign:
           campaignResult.status === 'fulfilled'
-            ? { status: 'loaded', data: normalizedCampaign!, error: undefined, errorKind: undefined }
+            ? {
+                status: 'loaded',
+                data: normalizedCampaign!,
+                error: undefined,
+                errorKind: undefined,
+              }
             : {
                 status: 'error',
                 data: state.campaign.data,
@@ -1430,7 +1634,12 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
               },
         creative:
           creativeResult.status === 'fulfilled'
-            ? { status: 'loaded', data: normalizedCreative!, error: undefined, errorKind: undefined }
+            ? {
+                status: 'loaded',
+                data: normalizedCreative!,
+                error: undefined,
+                errorKind: undefined,
+              }
             : {
                 status: 'error',
                 data: state.creative.data,
@@ -1469,11 +1678,19 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     const rows = campaignSlice.data?.rows ?? [];
     const query = normalizeFilterQuery(filters.campaignQuery);
     const channelFilters = resolveChannelFilters(filters);
+    // FP-CAMP-01: also gate on filters.platforms (route-scope axis) so google_ads
+    // rows are excluded when platform scope = meta_ads, even when channels filter is empty.
+    const platformFilters = resolvePlatformFilters(filters);
     if (!selectedParish) {
       return rows.filter((row) => {
+        const platformKey = normalizeChannelValue(row.platform ?? '');
         if (channelFilters.length > 0) {
-          const platformKey = normalizeChannelValue(row.platform ?? '');
           if (!platformKey || !channelFilters.includes(platformKey)) {
+            return false;
+          }
+        }
+        if (platformFilters.length > 0) {
+          if (!platformKey || !platformFilters.includes(platformKey)) {
             return false;
           }
         }
@@ -1485,9 +1702,14 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       if (!row.parishes?.some((parish) => normalizeParishValue(parish) === parishKey)) {
         return false;
       }
+      const platformKey = normalizeChannelValue(row.platform ?? '');
       if (channelFilters.length > 0) {
-        const platformKey = normalizeChannelValue(row.platform ?? '');
         if (!platformKey || !channelFilters.includes(platformKey)) {
+          return false;
+        }
+      }
+      if (platformFilters.length > 0) {
+        if (!platformKey || !platformFilters.includes(platformKey)) {
           return false;
         }
       }
@@ -1499,11 +1721,18 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     const rows = creativeSlice.data ?? [];
     const query = normalizeFilterQuery(filters.campaignQuery);
     const channelFilters = resolveChannelFilters(filters);
+    // FP-CREA-01: gate on filters.platforms (route-scope axis), same as FP-CAMP-01.
+    const platformFilters = resolvePlatformFilters(filters);
     if (!selectedParish) {
       return rows.filter((row) => {
+        const platformKey = normalizeChannelValue(row.platform ?? '');
         if (channelFilters.length > 0) {
-          const platformKey = normalizeChannelValue(row.platform ?? '');
           if (!platformKey || !channelFilters.includes(platformKey)) {
+            return false;
+          }
+        }
+        if (platformFilters.length > 0) {
+          if (!platformKey || !platformFilters.includes(platformKey)) {
             return false;
           }
         }
@@ -1518,9 +1747,14 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       if (!row.parishes?.some((parish) => normalizeParishValue(parish) === parishKey)) {
         return false;
       }
+      const platformKey = normalizeChannelValue(row.platform ?? '');
       if (channelFilters.length > 0) {
-        const platformKey = normalizeChannelValue(row.platform ?? '');
         if (!platformKey || !channelFilters.includes(platformKey)) {
+          return false;
+        }
+      }
+      if (platformFilters.length > 0) {
+        if (!platformKey || !platformFilters.includes(platformKey)) {
           return false;
         }
       }
@@ -1535,11 +1769,18 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     const rows = budgetSlice.data ?? [];
     const query = normalizeFilterQuery(filters.campaignQuery);
     const channelFilters = resolveChannelFilters(filters);
+    // FP-BUDG-02: gate on filters.platforms (route-scope axis), same as FP-CAMP-01.
+    const platformFilters = resolvePlatformFilters(filters);
     if (!selectedParish) {
       return rows.filter((row) => {
+        const platformKey = normalizeChannelValue(row.platform ?? '');
         if (channelFilters.length > 0) {
-          const platformKey = normalizeChannelValue(row.platform ?? '');
           if (!platformKey || !channelFilters.includes(platformKey)) {
+            return false;
+          }
+        }
+        if (platformFilters.length > 0) {
+          if (!platformKey || !platformFilters.includes(platformKey)) {
             return false;
           }
         }
@@ -1551,9 +1792,14 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       if (!row.parishes?.some((parish) => normalizeParishValue(parish) === parishKey)) {
         return false;
       }
+      const platformKey = normalizeChannelValue(row.platform ?? '');
       if (channelFilters.length > 0) {
-        const platformKey = normalizeChannelValue(row.platform ?? '');
         if (!platformKey || !channelFilters.includes(platformKey)) {
+          return false;
+        }
+      }
+      if (platformFilters.length > 0) {
+        if (!platformKey || !platformFilters.includes(platformKey)) {
           return false;
         }
       }

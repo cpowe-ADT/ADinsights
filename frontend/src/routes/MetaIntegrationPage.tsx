@@ -71,7 +71,9 @@ const MetaIntegrationPage = () => {
   }, [oauthCode, oauthState, connectOAuthCallback]);
 
   const selectedPage = useMemo(
-    () => pages.find((page) => page.page_id === selectedPageId) ?? pages.find((page) => page.is_default),
+    () =>
+      pages.find((page) => page.page_id === selectedPageId) ??
+      pages.find((page) => page.is_default),
     [pages, selectedPageId],
   );
   const requiresPermissionReconnect = missingRequiredPermissions.length > 0;
@@ -104,7 +106,10 @@ const MetaIntegrationPage = () => {
             </button>
           ) : null}
           {selectedPage ? (
-            <Link className="button tertiary" to={`/dashboards/meta/pages/${selectedPage.page_id}/overview`}>
+            <Link
+              className="button tertiary"
+              to={`/dashboards/meta/pages/${selectedPage.page_id}/overview`}
+            >
               Open dashboard
             </Link>
           ) : null}
@@ -160,11 +165,13 @@ const MetaIntegrationPage = () => {
           title="No pages found"
           message={
             orphanedMarketingAccess
-              ? metaStatus?.reason.message ??
-                'Restore Meta marketing access to recover ad accounts and reporting.'
+              ? (metaStatus?.reason.message ??
+                'Restore Meta marketing access to recover ad accounts and reporting.')
               : 'Connect Meta and select a page with ANALYZE permission.'
           }
-          actionLabel={orphanedMarketingAccess ? 'Restore Meta marketing access' : 'Connect socials'}
+          actionLabel={
+            orphanedMarketingAccess ? 'Restore Meta marketing access' : 'Connect socials'
+          }
           onAction={() => navigate('/dashboards/data-sources?sources=social')}
           secondaryActionLabel="Home"
           onSecondaryAction={() => navigate('/')}
@@ -199,9 +206,11 @@ const MetaIntegrationPage = () => {
                         type="button"
                         disabled={!page.can_analyze}
                         onClick={() => {
-                          void selectDefaultPage(page.page_id).then(() => {
-                            navigate(`/dashboards/meta/pages/${page.page_id}/overview`);
-                          }).catch(() => undefined);
+                          void selectDefaultPage(page.page_id)
+                            .then(() => {
+                              navigate(`/dashboards/meta/pages/${page.page_id}/overview`);
+                            })
+                            .catch(() => undefined);
                         }}
                       >
                         Select & Open

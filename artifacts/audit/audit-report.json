@@ -1,0 +1,291 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "A0",
+  "inputs_ref": "artifacts/plan.md",
+  "summary": "The backend platform-scoping pipeline (Sprint 10 _resolve_platform_only_scoping + warehouse adapter) is well-exercised, but three open risks remain: (R1) no front-end selector guard drops stale cross-platform store rows between route changes; (R3) demo, fake, and upload adapters silently ignore client_scoped_* keys so they always return unscoped payloads; and (R8) the X-Adinsights-Resolved-Via header is never consumed or parsed by any frontend code, leaving contract regressions invisible.",
+  "findings": [
+    {
+      "risk_id": "R1",
+      "status": "partial",
+      "severity": "high",
+      "evidence": [
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/DashboardLayout.tsx",
+          "line": 65,
+          "snippet": "function resolveRoutePlatformScope(pathname: string): string[] | null { ... }",
+          "note": "Function exists and is invoked at line 229; correct prefix rules for meta/ and google-ads."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/DashboardLayout.tsx",
+          "line": 247,
+          "snippet": "useEffect(() => { if (!routePlatformScope) { return; } ... setFilters({ ...filters, platforms: [...routePlatformScope] }); }, [filters, routePlatformScope, setFilters]);",
+          "note": "Effect rewrites filters.platforms on route change — fires AFTER the child page renders, so one render cycle with stale data is possible."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/state/useDashboardStore.ts",
+          "line": 1473,
+          "snippet": "return rows.filter((row) => { ... });",
+          "note": "Row-level filter inside store selectors is for channels/campaigns, NOT for platform. No platform-guard drops stale cross-platform rows before fetch completes."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/DashboardLayout.tsx",
+          "line": 261,
+          "snippet": "useEffect(() => { ... setFilters(urlFilters); }, [isSavedDashboardRoute, setFilters, urlFilters]);",
+          "note": "URL-sync effect runs in parallel with the platform-scope effect; ordering is not guaranteed, creating a potential double-write race."
+        }
+      ],
+      "mitigation": "Add a per-row selector guard in useDashboardStore selectors (campaign.data, creative.data, etc.) that drops rows where row.platform is not in filters.platforms, OR clear those slices synchronously inside resolveRoutePlatformScope when the scope changes. Add a DashboardLayout test asserting no stale-platform rows appear before the first re-fetch.",
+      "owner_agent": "A3-combined"
+    },
+    {
+      "risk_id": "R2",
+      "status": "partial",
+      "severity": "medium",
+      "evidence": [
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/DashboardLayout.tsx",
+          "line": 247,
+          "snippet": "useEffect(() => { ... setFilters({ ...filters, platforms: [...routePlatformScope] }); }, [filters, routePlatformScope, setFilters]);",
+          "note": "DashboardLayout is the intended sole writer to filters.platforms, consistent with the plan."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/DashboardLayout.tsx",
+          "line": 261,
+          "snippet": "useEffect(() => { if (isSavedDashboardRoute) { return; } ... setFilters(urlFilters); }, [isSavedDashboardRoute, setFilters, urlFilters]);",
+          "note": "Second effect also calls setFilters from URL. If URL contains a platforms param the URL-sync fires and may conflict with platform-scope effect, creating a two-effect race on mount."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/SavedDashboardPage.tsx",
+          "line": 129,
+          "snippet": "setFilters(normalizedFilters);",
+          "note": "SavedDashboardPage writes to filters directly (via useDashboardStore.setFilters); DashboardLayout skips URL sync for saved routes but the platform-scope effect still fires."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/state/useMetaStore.ts",
+          "line": 48,
+          "snippet": "setFilters: (value: Partial<MetaFilters>) => void;",
+          "note": "useMetaStore has its own setFilters that writes to MetaFilters (accountId, since, until, etc.) — does NOT write to useDashboardStore.filters.platforms, so no cross-store conflict."
+        }
+      ],
+      "mitigation": "Merge the two setFilters effects in DashboardLayout into one effect that applies routePlatformScope then URL params in a single pass. Add a Vitest that mounts DashboardLayout at /dashboards/meta/accounts with a stale platforms=google_ads URL param and asserts setFilters is called exactly once with platforms=['meta_ads'].",
+      "owner_agent": "A1-meta"
+    },
+    {
+      "risk_id": "R3",
+      "status": "open",
+      "severity": "high",
+      "evidence": [
+        {
+          "file": "/Users/thristannewman/ADinsights/backend/adapters/warehouse.py",
+          "line": 272,
+          "snippet": "client_scope_requested = bool(options.get('client_scope_requested'))",
+          "note": "Only warehouse adapter reads and applies client_scoped_* keys. All other adapters silently ignore them."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/backend/adapters/fake.py",
+          "line": 249,
+          "snippet": "def fetch_metrics(self, *, tenant_id: str, options: Mapping[str, Any] | None = None) -> Mapping[str, Any]:  # noqa: ARG002 - options reserved",
+          "note": "FakeAdapter ignores options entirely (ARG002 suppression confirms). client_scope_requested is never checked."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/backend/adapters/upload.py",
+          "line": 21,
+          "snippet": "def fetch_metrics(self, *, tenant_id: str, options: Mapping[str, Any] | None = None) -> Mapping[str, Any]:",
+          "note": "UploadAdapter returns TenantMetricsSnapshot payload without any platform/account filtering of rows."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/backend/adapters/demo.py",
+          "line": 1418,
+          "snippet": "def fetch_metrics(self, *, tenant_id: str, options: Mapping[str, Any] | None = None) -> Mapping[str, Any]:",
+          "note": "DemoAdapter reads start_date, end_date, parish, demo_tenant from options but not client_scoped_* keys."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/backend/adapters/meta_direct.py",
+          "line": 87,
+          "snippet": "scoped_meta_account_ids: tuple[str, ...] = ()",
+          "note": "meta_direct parses client_scoped_meta_ad_account_ids from options and filters on it (line 321). Google IDs field also silently ignored (no Google rows in this adapter)."
+        }
+      ],
+      "mitigation": "For demo and fake adapters: implement a post-fetch row filter that slices campaign/creative/budget rows by client_scoped_meta_ad_account_ids when client_scope_requested is True, or return a 400 if scope keys arrive at an adapter that cannot honour them. For upload: same approach — rows in the CSV snapshot should be filtered by account_id list. Add parameterized pytest across all adapters in test_combined_platforms_only.py.",
+      "owner_agent": "multiple"
+    },
+    {
+      "risk_id": "R4",
+      "status": "partial",
+      "severity": "medium",
+      "evidence": [
+        {
+          "file": "/Users/thristannewman/ADinsights/backend/analytics/views.py",
+          "line": 112,
+          "snippet": "class TenantScopedModelViewSet(viewsets.ModelViewSet): ... queryset.filter(tenant=tenant)",
+          "note": "CampaignViewSet, AdSetViewSet, AdViewSet, RawPerformanceRecordViewSet all inherit TenantScopedModelViewSet — CRUD viewsets are now correctly scoped."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/backend/analytics/views.py",
+          "line": 207,
+          "snippet": "return Response(build_dataset_status_payload(tenant=request.user.tenant))",
+          "note": "request.user.tenant used directly at two call sites (207, 312). If impersonation changes the tenant on the session but not on request.user.tenant, scoping diverges."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/backend/analytics/combined_metrics_service.py",
+          "line": 127,
+          "snippet": "def _collect_tenant_platform_accounts(*, tenant_id: str) -> tuple[list[str], list[str]]:",
+          "note": "Single resolution point — takes tenant_id as str, not request.user.tenant. Consistent with the plan's 'single source of truth' requirement."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/backend/docs/tenant_context_audit.md",
+          "line": 11,
+          "snippet": "Analytics CRUD APIs | ... | Still using all_objects so the DRF base queryset ignores the tenant filter.",
+          "note": "Audit doc marked this as fixed (TenantScopedModelViewSet) but the document still says 'Still using all_objects' — audit doc is stale."
+        }
+      ],
+      "mitigation": "Audit tenant_context_audit.md for staleness — TenantScopedModelViewSet appears to have superseded all_objects for CRUD views. Add an impersonation integration test asserting _collect_tenant_platform_accounts returns only the impersonated tenant's accounts. Verify request.user.tenant is set by the same middleware that sets tenant_id to ensure the two values are always in sync.",
+      "owner_agent": "A3-combined"
+    },
+    {
+      "risk_id": "R5",
+      "status": "partial",
+      "severity": "medium",
+      "evidence": [
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/components/EmptyState.tsx",
+          "line": 3,
+          "snippet": "interface EmptyStateProps { icon: ReactNode; title: string; message: string; ... }",
+          "note": "Shared EmptyState component exists and is used by Meta pages (MetaAccountsPage, MetaCampaignOverviewPage, MetaInsightsDashboardPage, PlatformDashboard, CampaignDashboard, AudienceDashboard, BudgetDashboard)."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/components/EmptyState.tsx",
+          "line": 3,
+          "snippet": "interface EmptyStateProps { icon, title, message, actionLabel?, onAction? }",
+          "note": "No reason_code prop — callers pass free-text strings; plan calls for standard reason codes (no_accounts, no_data_for_range, adapter_error) but these are not enforced at the component level."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/PlatformDashboard.tsx",
+          "line": 161,
+          "snippet": "if (platforms.status === 'error' && !hasData) { ... variant='empty' ... }",
+          "note": "PlatformDashboard shows a StatusCard with variant=empty on error but not on status=loaded with 0 rows (silent blank chart risk)."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaInsightsDashboardPage.tsx",
+          "line": 277,
+          "snippet": "<EmptyState ... />",
+          "note": "Meta Insights correctly renders EmptyState for empty insights array. Pattern varies per page."
+        }
+      ],
+      "mitigation": "Add a reasonCode prop to EmptyState and a standard set of constants (no_accounts, no_data_for_range, adapter_error). Audit PlatformDashboard, CampaignDashboard, and AudienceDashboard to ensure status=loaded with 0 rows triggers EmptyState rather than a blank chart. Add a Vitest for each with a zero-row fixture.",
+      "owner_agent": "A3-combined"
+    },
+    {
+      "risk_id": "R6",
+      "status": "open",
+      "severity": "medium",
+      "evidence": [
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/DashboardLayout.tsx",
+          "line": 65,
+          "snippet": "function resolveRoutePlatformScope(pathname: string): string[] | null { ... }",
+          "note": "resolveRoutePlatformScope is a private function inside DashboardLayout.tsx — no direct unit test exists for it in any test file."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/__tests__/DashboardLayout.test.tsx",
+          "line": 193,
+          "snippet": "it('deduplicates repeated dashboard error messages', ...) ... it('waits for Meta status before auto-selecting the preferred credential account', ...)",
+          "note": "10 tests in DashboardLayout.test.tsx; none assert platform scope behaviour (setFilters called with meta_ads or google_ads based on pathname)."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/router.tsx",
+          "line": 319,
+          "snippet": "path: 'google-ads', element: GOOGLE_ADS_WORKSPACE_UNIFIED ? <GoogleAdsWorkspacePage /> : <Navigate ... />",
+          "note": "GoogleAdsWorkspacePage.tsx has no matching __tests__ file in either routes/__tests__/ or routes/google-ads/__tests__/."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/google-ads",
+          "line": 0,
+          "snippet": "GoogleAdsWorkspacePage.tsx — no GoogleAdsWorkspacePage.test.tsx in routes/google-ads/__tests__/",
+          "note": "GoogleAdsWorkspacePage.test.tsx does exist in google-ads/__tests__ — but no test for workspace unified flag mode toggling."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/qa/tests",
+          "line": 0,
+          "snippet": "Playwright spec files: campaigns, dashboard, export, health, map, meta-integration, meta-page-insights, meta-reporting-readiness, tenant-switch",
+          "note": "No Playwright spec for /dashboards/google-ads (workspace), /dashboards/platforms, /dashboards/creatives, /dashboards/budget, /dashboards/audience, /dashboards/web/ga4, /dashboards/web/search-console."
+        }
+      ],
+      "mitigation": "Extract resolveRoutePlatformScope to a separate importable module (e.g. lib/routePlatformScope.ts) and add a table-driven Vitest covering all 20+ route prefixes. Add DashboardLayout integration tests asserting setFilters is called with the correct platforms array when mounted at /dashboards/meta/*, /dashboards/google-ads, and /dashboards/platforms. Add Playwright specs for missing routes.",
+      "owner_agent": "multiple"
+    },
+    {
+      "risk_id": "R7",
+      "status": "open",
+      "severity": "high",
+      "evidence": [
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/state/useMetaStore.ts",
+          "line": 31,
+          "snippet": "export type MetaFilters = { accountId: string; campaignId: string; adsetId: string; ... };",
+          "note": "useMetaStore has its own accountId in MetaFilters — entirely separate from useDashboardStore.filters.accountId."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/state/useDashboardStore.ts",
+          "line": 986,
+          "snippet": "setFilters: (nextFilters) => { ... }",
+          "note": "useDashboardStore.filters does not include accountId at the type level (no accountId in FilterBarState grep results for DashboardStore), but DashboardLayout reads/writes filters.accountId at line 199 and 425."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaInsightsDashboardPage.tsx",
+          "line": 92,
+          "snippet": "const { filters, setFilters, accounts, insights } = useMetaStore((state) => ...)",
+          "note": "MetaInsightsDashboardPage uses only useMetaStore.filters.accountId. Navigating from Meta Insights to /dashboards/platforms would show DashboardStore's accountId, which may differ."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/routes/MetaAccountsPage.tsx",
+          "line": 27,
+          "snippet": "const { accounts, filters, setFilters, loadAccounts } = useMetaStore(...)",
+          "note": "MetaAccountsPage uses only useMetaStore — no sync back to useDashboardStore when user clicks an account row."
+        }
+      ],
+      "mitigation": "Define clear store ownership: useMetaStore.accountId is Meta workspace's local selection; useDashboardStore.filters.accountId is the global bar selection. Add a reconciliation effect in DashboardLayout that, when entering a /dashboards/meta/* route, mirrors useDashboardStore.filters.accountId into useMetaStore.filters.accountId (and vice versa on exit). Add a Vitest covering the round-trip.",
+      "owner_agent": "A1-meta"
+    },
+    {
+      "risk_id": "R8",
+      "status": "open",
+      "severity": "low",
+      "evidence": [
+        {
+          "file": "/Users/thristannewman/ADinsights/backend/analytics/views.py",
+          "line": 338,
+          "snippet": "response['X-Adinsights-Resolved-Via'] = 'platforms:' + ','.join(enabled) if enabled else 'platforms:'",
+          "note": "Backend now emits two formats: 'platforms:<enabled>' (Sprint 10) and 'client:<id>' (Sprint 6)."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/backend/analytics/views.py",
+          "line": 343,
+          "snippet": "response['X-Adinsights-Resolved-Via'] = f'client:{client_id_val}'",
+          "note": "Original client: prefix format."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src/lib/apiClient.ts",
+          "line": 134,
+          "snippet": "const contentType = response.headers.get('content-type');",
+          "note": "apiClient.ts reads only content-type and content-disposition headers. X-Adinsights-Resolved-Via is never read in any frontend source file."
+        },
+        {
+          "file": "/Users/thristannewman/ADinsights/frontend/src",
+          "line": 0,
+          "snippet": "grep -rn 'X-Adinsights' frontend/src/ → (no matches)",
+          "note": "No frontend consumer of the header exists. The contract cannot regress if it is not consumed, but any future consumer will only know about the client: format."
+        }
+      ],
+      "mitigation": "Document the two-format contract (client:<id> and platforms:<list>) in a shared constants file and in the API response schema. Add a backend contract test asserting both formats are stable. When the frontend begins consuming the header (e.g. for debugging UI), parse both prefixes from the start.",
+      "owner_agent": "A3-combined"
+    }
+  ],
+  "open_questions": [
+    "R1: Is there a window (between route change and the platform-scope useEffect firing) where useDashboardStore still holds the previous platform's campaign/creative rows and a child page renders them? Need a Playwright timing test to quantify the duration.",
+    "R3: The demo adapter is the adapter used in QA fixtures. If it silently ignores client_scoped_* keys, all QA tests that assert scoped data against the demo adapter are testing unscoped payloads — this could mask R1 in E2E.",
+    "R4: tenant_context_audit.md line 11 says CampaignViewSet 'Still using all_objects' but the current code uses TenantScopedModelViewSet with .objects. The audit doc appears stale. Verifiers should confirm whether the doc was not updated or whether there is a regression in the viewset.",
+    "R7: useDashboardStore.filters does not appear to have a top-level accountId field according to the store type definitions, yet DashboardLayout accesses filters.accountId at lines 199 and 425. This may rely on FilterBarState extending a different type — verifiers should confirm the runtime type of filters.accountId in useDashboardStore.",
+    "R6: GOOGLE_ADS_WORKSPACE_UNIFIED is resolved at module load time from an env var with default true. There is no test that flips the flag to false and exercises the legacy GoogleAdsExecutivePage / GoogleAdsCampaignsPage paths within the current test suite."
+  ]
+}

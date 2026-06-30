@@ -8,6 +8,8 @@ from analytics.snapshots import SnapshotMetrics
 from analytics.summaries import build_daily_summary_payload, summarize_daily_metrics
 from analytics.tasks import generate_daily_summaries_for_tenants
 from accounts.models import AuditLog
+from analytics.models import AISummary
+from integrations.models import NotificationChannel
 
 
 def test_build_daily_summary_payload_sorts_parishes():
@@ -92,6 +94,44 @@ def test_generate_daily_summaries_for_tenants(monkeypatch, tenant):
 
     assert outcomes[0].tenant_id == str(tenant.id)
     assert outcomes[0].summary == "Summary"
-    audit = AuditLog.objects.get(action="daily_summary_email_stubbed")
+    audit = AuditLog.objects.get(action="daily_summary_email_delivery")
     assert audit.tenant_id == tenant.id
     assert audit.resource_type == "daily_summary"
+    assert audit.metadata["delivery"] == "skipped_no_recipients"
+
+
+@pytest.mark.django_db
+def test_daily_summary_is_sent_to_active_email_channels(monkeypatch, tenant):
+    NotificationChannel.objects.create(
+        tenant=tenant,
+        name="Summary Recipients",
+        channel_type=NotificationChannel.CHANNEL_EMAIL,
+        config={"emails": ["ops@example.com", "analyst@example.com"]},
+    )
+    metrics = SnapshotMetrics(
+        tenant_id=str(tenant.id),
+        generated_at=datetime(2024, 9, 1, tzinfo=dt_timezone.utc),
+        campaign_metrics={"summary": {"currency": "USD", "totalSpend": 10}},
+        creative_metrics=[],
+        budget_metrics=[],
+        parish_metrics=[],
+    )
+    sent = []
+    monkeypatch.setattr("analytics.tasks.fetch_snapshot_metrics", lambda tenant_id: metrics)
+    monkeypatch.setattr("analytics.tasks.summarize_daily_metrics", lambda payload: "Summary")
+    monkeypatch.setattr(
+        "analytics.notifications.send_email",
+        lambda payload: sent.append(payload) or "sent",
+    )
+
+    generate_daily_summaries_for_tenants([str(tenant.id)])
+    generate_daily_summaries_for_tenants([str(tenant.id)])
+
+    assert len(sent) == 1
+    assert sent[0].to == ["analyst@example.com", "ops@example.com"]
+    assert sent[0].body == "Summary"
+    assert AISummary.objects.filter(tenant=tenant, source="daily_summary").count() == 1
+    audits = list(AuditLog.objects.filter(action="daily_summary_email_delivery").order_by("created_at"))
+    assert [audit.metadata["delivery"] for audit in audits] == ["delivered", "delivered"]
+    assert audits[-1].metadata["provider_result"] == "already_delivered"
+    assert audits[-1].metadata["recipient_count"] == 2

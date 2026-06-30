@@ -58,9 +58,7 @@ describe('MetaPagesListPage', () => {
     );
 
     expect(await screen.findByText('No Pages available')).toBeInTheDocument();
-    expect(
-      screen.getByText(/This screen lists Facebook Pages only\./i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/This screen lists Facebook Pages only\./i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Connect socials' })).toHaveAttribute(
       'href',
       '/dashboards/data-sources?sources=social',
@@ -121,6 +119,29 @@ describe('MetaPagesListPage', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Reconnect Meta' }));
     expect(storeMock.state.connectOAuthStart).toHaveBeenCalledWith({ authType: 'rerequest' });
+  });
+
+  it('renders AccessibleTableToggle wrapping the default and viz-kit table views', async () => {
+    storeMock.state.pages = [
+      {
+        id: '1',
+        page_id: 'page-1',
+        name: 'Page 1',
+        can_analyze: true,
+        is_default: true,
+        last_synced_at: '2026-04-04T10:00:00Z',
+      },
+    ];
+
+    render(
+      <MemoryRouter>
+        <MetaPagesListPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId('meta-pages-default-view')).toBeInTheDocument();
+    expect(screen.getByTestId('meta-pages-viz-table')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show data table/i })).toBeInTheDocument();
   });
 
   it('shows restore CTA when marketing access is orphaned', async () => {

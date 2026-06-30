@@ -123,6 +123,10 @@ class MetaInsightSerializer(serializers.ModelSerializer):
 
 class MetaInsightsQuerySerializer(serializers.Serializer):
     account_id = serializers.CharField(required=False, allow_blank=False)
+    # Sprint 5 of Client grouping: when provided, the Meta read endpoints scope
+    # the query to the Client's Meta ad account external_ids. If both
+    # ``client_id`` and ``account_id`` are passed the intersection is used.
+    client_id = serializers.UUIDField(required=False)
     level = serializers.ChoiceField(
         required=False,
         choices=["account", "campaign", "adset", "ad"],

@@ -29,8 +29,8 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     env_file:
       - ./backend/.env.dev
     environment:
@@ -39,10 +39,15 @@ services:
       DEV_BACKEND_URL: ${DEV_BACKEND_URL:-}
       DEV_FRONTEND_URL: ${DEV_FRONTEND_URL:-}
       DEV_ACTIVE_PROFILE: ${DEV_ACTIVE_PROFILE:-}
+      REPORT_EXPORTER_DIR: /opt/adinsights/exporter
+      REPORT_EXPORT_ARTIFACT_ROOT: /var/lib/adinsights/report-exports
+      PROMETHEUS_MULTIPROC_DIR: /var/lib/adinsights/prometheus-multiprocess
     volumes:
       - ./backend:/app
       - ./scripts:/app/scripts:ro
       - ./dbt:/app/dbt
+      - report_export_artifacts:/var/lib/adinsights/report-exports
+      - prometheus_multiprocess:/var/lib/adinsights/prometheus-multiprocess
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,8 +64,8 @@ services:
 
   celery_worker:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     env_file:
       - ./backend/.env.dev
     environment:
@@ -69,8 +74,10 @@ services:
       DEV_BACKEND_URL: ${DEV_BACKEND_URL:-}
       DEV_FRONTEND_URL: ${DEV_FRONTEND_URL:-}
       DEV_ACTIVE_PROFILE: ${DEV_ACTIVE_PROFILE:-}
+      PROMETHEUS_MULTIPROC_DIR: /var/lib/adinsights/prometheus-multiprocess
     volumes:
       - ./backend:/app
+      - prometheus_multiprocess:/var/lib/adinsights/prometheus-multiprocess
     depends_on:
       backend:
         condition: service_started
@@ -88,8 +95,8 @@ services:
 
   celery_worker_snapshot:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     env_file:
       - ./backend/.env.dev
     environment:
@@ -98,8 +105,10 @@ services:
       DEV_BACKEND_URL: ${DEV_BACKEND_URL:-}
       DEV_FRONTEND_URL: ${DEV_FRONTEND_URL:-}
       DEV_ACTIVE_PROFILE: ${DEV_ACTIVE_PROFILE:-}
+      PROMETHEUS_MULTIPROC_DIR: /var/lib/adinsights/prometheus-multiprocess
     volumes:
       - ./backend:/app
+      - prometheus_multiprocess:/var/lib/adinsights/prometheus-multiprocess
     depends_on:
       backend:
         condition: service_started
@@ -117,8 +126,8 @@ services:
 
   celery_worker_summary:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     env_file:
       - ./backend/.env.dev
     environment:
@@ -127,8 +136,13 @@ services:
       DEV_BACKEND_URL: ${DEV_BACKEND_URL:-}
       DEV_FRONTEND_URL: ${DEV_FRONTEND_URL:-}
       DEV_ACTIVE_PROFILE: ${DEV_ACTIVE_PROFILE:-}
+      REPORT_EXPORTER_DIR: /opt/adinsights/exporter
+      REPORT_EXPORT_ARTIFACT_ROOT: /var/lib/adinsights/report-exports
+      PROMETHEUS_MULTIPROC_DIR: /var/lib/adinsights/prometheus-multiprocess
     volumes:
       - ./backend:/app
+      - report_export_artifacts:/var/lib/adinsights/report-exports
+      - prometheus_multiprocess:/var/lib/adinsights/prometheus-multiprocess
     depends_on:
       backend:
         condition: service_started
@@ -146,8 +160,8 @@ services:
 
   celery_beat:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     env_file:
       - ./backend/.env.dev
     environment:
@@ -176,6 +190,10 @@ services:
     working_dir: /usr/src/app
     env_file:
       - ./frontend/.env
+    environment:
+      VITE_DEV_HTTPS: ${VITE_DEV_HTTPS:-0}
+      VITE_DEV_HTTPS_KEY: ${VITE_DEV_HTTPS_KEY:-}
+      VITE_DEV_HTTPS_CERT: ${VITE_DEV_HTTPS_CERT:-}
     volumes:
       - ./frontend:/usr/src/app
       - frontend_node_modules:/usr/src/app/node_modules
@@ -195,3 +213,5 @@ services:
 volumes:
   pgdata:
   frontend_node_modules:
+  report_export_artifacts:
+  prometheus_multiprocess:

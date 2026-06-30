@@ -9,6 +9,9 @@ on:
       - 'scripts/ci/**'
       - '.github/workflows/frontend.yml'
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Test and build frontend
@@ -17,6 +20,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

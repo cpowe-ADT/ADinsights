@@ -3,7 +3,12 @@ import { Link } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
 import SkeletonLoader from '../components/SkeletonLoader';
-import { fetchSyncHealth, triggerResync, type SyncHealthResponse, type SyncHealthRow } from '../lib/phase2Api';
+import {
+  fetchSyncHealth,
+  triggerResync,
+  type SyncHealthResponse,
+  type SyncHealthRow,
+} from '../lib/phase2Api';
 import { ApiError } from '../lib/apiClient';
 import { formatAbsoluteTime, formatRelativeTime } from '../lib/format';
 import { useToastStore } from '../stores/useToastStore';
@@ -18,20 +23,23 @@ const SyncHealthPage = () => {
   const [error, setError] = useState<string>('Unable to load sync health.');
   const [syncingId, setSyncingId] = useState<string | null>(null);
 
-  const load = useCallback(async (notify = false) => {
-    setState('loading');
-    setError('Unable to load sync health.');
-    try {
-      const data = await fetchSyncHealth();
-      setPayload(data);
-      setState('ready');
-      if (notify) addToast('Re-sync triggered');
-    } catch (err) {
-      setState('error');
-      setError(err instanceof Error ? err.message : 'Unable to load sync health.');
-      if (notify) addToast('Re-sync failed', 'error');
-    }
-  }, [addToast]);
+  const load = useCallback(
+    async (notify = false) => {
+      setState('loading');
+      setError('Unable to load sync health.');
+      try {
+        const data = await fetchSyncHealth();
+        setPayload(data);
+        setState('ready');
+        if (notify) addToast('Re-sync triggered');
+      } catch (err) {
+        setState('error');
+        setError(err instanceof Error ? err.message : 'Unable to load sync health.');
+        if (notify) addToast('Re-sync failed', 'error');
+      }
+    },
+    [addToast],
+  );
 
   const handleResync = useCallback(
     async (connectionId: string) => {
@@ -64,7 +72,12 @@ const SyncHealthPage = () => {
   const [activeStatusFilter, setActiveStatusFilter] = useState<string>('all');
   const [activeProvider, setActiveProvider] = useState<string>('');
 
-  const providers = useMemo(() => [...new Set(rows.map((r: SyncHealthRow) => r.provider).filter((v): v is string => Boolean(v)))], [rows]);
+  const providers = useMemo(
+    () => [
+      ...new Set(rows.map((r: SyncHealthRow) => r.provider).filter((v): v is string => Boolean(v))),
+    ],
+    [rows],
+  );
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { all: rows.length, fresh: 0, stale: 0, failed: 0 };
@@ -77,7 +90,8 @@ const SyncHealthPage = () => {
 
   const filteredRows = useMemo(() => {
     return rows.filter((r: SyncHealthRow) => {
-      if (activeStatusFilter !== 'all' && r.state?.toLowerCase() !== activeStatusFilter) return false;
+      if (activeStatusFilter !== 'all' && r.state?.toLowerCase() !== activeStatusFilter)
+        return false;
       if (activeProvider && r.provider !== activeProvider) return false;
       return true;
     });
@@ -181,7 +195,9 @@ const SyncHealthPage = () => {
           >
             <option value="">All providers</option>
             {providers.map((p: string) => (
-              <option key={p} value={p}>{p}</option>
+              <option key={p} value={p}>
+                {p}
+              </option>
             ))}
           </select>
         ) : null}

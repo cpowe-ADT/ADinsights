@@ -69,7 +69,8 @@ describe('MetaConnectionStatusPage', () => {
           status: 'started_not_complete',
           reason: {
             code: 'page_insights_permissions_missing',
-            message: 'Meta Page Insights is connected, but required permissions are missing: pages_show_list.',
+            message:
+              'Meta Page Insights is connected, but required permissions are missing: pages_show_list.',
           },
           last_checked_at: '2026-04-04T15:00:00Z',
           last_synced_at: null,
@@ -145,7 +146,8 @@ describe('MetaConnectionStatusPage', () => {
           actions: ['sync_now', 'view'],
           reporting_readiness: {
             stage: 'waiting_for_warehouse_snapshot',
-            message: 'Meta connected. Direct sync complete. Waiting for the first warehouse snapshot.',
+            message:
+              'Meta connected. Direct sync complete. Waiting for the first warehouse snapshot.',
             auth_status: 'active',
             direct_sync_status: 'complete',
             warehouse_status: 'waiting_snapshot',
@@ -167,7 +169,9 @@ describe('MetaConnectionStatusPage', () => {
     expect(await screen.findByText('Reporting stage')).toBeInTheDocument();
     expect(screen.getByText('waiting_for_warehouse_snapshot')).toBeInTheDocument();
     expect(
-      screen.getByText('Meta connected. Direct sync complete. Waiting for the first warehouse snapshot.'),
+      screen.getByText(
+        'Meta connected. Direct sync complete. Waiting for the first warehouse snapshot.',
+      ),
     ).toBeInTheDocument();
   });
 });

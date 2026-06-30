@@ -6,6 +6,8 @@ Use this guide to validate that Prometheus can scrape the backend metrics endpoi
 
 - Backend metrics endpoint: `https://api.<env>.adinsights.com/metrics/app/`
 - Prometheus target group: `adinsights-backend` (or the environment-specific job name)
+- Containerized backend and Celery workers must use the same writable
+  `PROMETHEUS_MULTIPROC_DIR`; the backend endpoint aggregates the worker-produced files.
 
 ## Quick smoke check
 
@@ -38,6 +40,8 @@ curl -sI https://api.<env>.adinsights.com/metrics/app/ | rg -i "content-type: te
 - **403/401**: The metrics endpoint should be accessible to the Prometheus network. Confirm ingress or auth settings.
 - **404**: Ensure the backend route `/metrics/app/` is present in the deployed URL config.
 - **Empty payload**: Verify workers have executed at least one Celery task or Airbyte/dbt sync. Metrics emit on activity.
+- **Missing Celery labels after live task logs exist**: Verify every worker and the backend share
+  the configured `PROMETHEUS_MULTIPROC_DIR` volume and that queued tasks carry `published_at`.
 - **High cardinality**: If label explosion occurs, review the label sets in `backend/core/metrics.py` and apply aggregation rules in your dashboards.
 
 ## Verification checklist

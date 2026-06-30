@@ -270,7 +270,15 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["ageRange", "gender", "spend", "impressions", "clicks", "conversions", "reach"],
+            "required": [
+              "ageRange",
+              "gender",
+              "spend",
+              "impressions",
+              "clicks",
+              "conversions",
+              "reach"
+            ],
             "properties": {
               "ageRange": { "type": "string" },
               "gender": { "type": "string" },
@@ -326,7 +334,15 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["platform", "device", "spend", "impressions", "clicks", "conversions", "reach"],
+            "required": [
+              "platform",
+              "device",
+              "spend",
+              "impressions",
+              "clicks",
+              "conversions",
+              "reach"
+            ],
             "properties": {
               "platform": { "type": "string" },
               "device": { "type": "string" },

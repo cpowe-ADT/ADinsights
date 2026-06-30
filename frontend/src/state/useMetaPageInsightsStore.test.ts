@@ -105,7 +105,9 @@ describe('useMetaPageInsightsStore', () => {
   });
 
   it('captures errors on posts load', async () => {
-    apiMocks.loadMetaPagePosts.mockRejectedValue(new ApiError('Forbidden', 403, { detail: 'Forbidden' }));
+    apiMocks.loadMetaPagePosts.mockRejectedValue(
+      new ApiError('Forbidden', 403, { detail: 'Forbidden' }),
+    );
     const { default: useMetaPageInsightsStore } = await import('./useMetaPageInsightsStore');
     await useMetaPageInsightsStore.getState().loadPosts('page-1', { offset: 0 });
     const state = useMetaPageInsightsStore.getState();
@@ -115,7 +117,9 @@ describe('useMetaPageInsightsStore', () => {
 
   it('persists default page selection through API', async () => {
     apiMocks.loadMetaPages.mockResolvedValue({
-      results: [{ id: '1', page_id: 'page-1', name: 'Page 1', can_analyze: true, is_default: true }],
+      results: [
+        { id: '1', page_id: 'page-1', name: 'Page 1', can_analyze: true, is_default: true },
+      ],
       count: 1,
     });
     apiMocks.selectMetaPage.mockResolvedValue({ page_id: 'page-1', selected: true });

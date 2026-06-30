@@ -26,7 +26,11 @@ const WorkspaceHeader = ({
   const viewOptions = Array.isArray(savedViews) ? savedViews : [];
 
   return (
-    <div className="panel gads-workspace__header" role="region" aria-label="Google Ads workspace filters">
+    <div
+      className="panel gads-workspace__header"
+      role="region"
+      aria-label="Google Ads workspace filters"
+    >
       <div className="gads-workspace__filters-grid">
         <label className="dashboard-field" htmlFor="gads-start-date">
           <span className="dashboard-field__label">Start</span>
@@ -64,16 +68,6 @@ const WorkspaceHeader = ({
             <option value="mom">MoM</option>
             <option value="yoy">YoY</option>
           </select>
-        </label>
-        <label className="dashboard-field" htmlFor="gads-customer-id">
-          <span className="dashboard-field__label">Account ID</span>
-          <input
-            id="gads-customer-id"
-            type="text"
-            placeholder="Optional"
-            value={filters.customerId}
-            onChange={(event) => onFiltersChange({ ...filters, customerId: event.target.value })}
-          />
         </label>
         <label className="dashboard-field" htmlFor="gads-campaign-id">
           <span className="dashboard-field__label">Campaign ID</span>
@@ -114,10 +108,20 @@ const WorkspaceHeader = ({
         >
           Update view
         </button>
-        <button className="button secondary" type="button" onClick={() => onExport('csv')} disabled={busy}>
+        <button
+          className="button secondary"
+          type="button"
+          onClick={() => onExport('csv')}
+          disabled={busy}
+        >
           Export CSV
         </button>
-        <button className="button secondary" type="button" onClick={() => onExport('pdf')} disabled={busy}>
+        <button
+          className="button secondary"
+          type="button"
+          onClick={() => onExport('pdf')}
+          disabled={busy}
+        >
           Export PDF
         </button>
       </div>

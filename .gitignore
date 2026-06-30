@@ -18,6 +18,7 @@ frontend/frontend-dist.zip
 frontend/coverage/
 frontend/test-results/
 frontend/frontend-ci-artifacts.json
+frontend/.dev-certs/
 qa/test-results/
 qa/playwright-report/
 .dist/
@@ -64,3 +65,10 @@ output/
 
 # Claude Code local config
 .claude/launch.json
+.claude/worktrees/
+
+# Storybook build output
+frontend/storybook-static/
+
+# Local developer scratch (Instagram diff scripts etc.)
+/tools/

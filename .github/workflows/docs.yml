@@ -12,6 +12,9 @@ on:
       - '.github/workflows/docs.yml'
       - 'scripts/ci/check-markdown.sh'
 
+permissions:
+  contents: read
+
 jobs:
   markdown:
     name: Check documentation

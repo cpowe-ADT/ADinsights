@@ -1,15 +1,19 @@
 import { useMemo } from 'react';
 import type { ComponentType } from 'react';
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 import { normalizeParishValue } from '../state/useDashboardStore';
 import type { ParishAggregate } from '../state/useDashboardStore';
-import {
-  chartMargins,
-  chartPalette,
-  chartTheme,
-  createTooltipProps,
-} from '../styles/chartTheme';
+import { chartMargins, chartPalette, chartTheme, createTooltipProps } from '../styles/chartTheme';
 import { formatCurrency, formatNumber, formatRatio } from '../lib/format';
 
 type MetricKey = 'spend' | 'impressions' | 'clicks' | 'conversions' | 'roas';
@@ -39,9 +43,7 @@ const ParishComparisonChart = ({
   currency,
   selectedParish,
 }: ParishComparisonChartProps) => {
-  const metricKey = (
-    Object.keys(METRIC_LABELS).includes(metric) ? metric : 'spend'
-  ) as MetricKey;
+  const metricKey = (Object.keys(METRIC_LABELS).includes(metric) ? metric : 'spend') as MetricKey;
 
   const chartData = useMemo(
     () =>
@@ -115,7 +117,8 @@ const ParishComparisonChart = ({
             <Cell
               key={entry.parish}
               fill={
-                !selectedParish || normalizeParishValue(entry.parish) === normalizeParishValue(selectedParish)
+                !selectedParish ||
+                normalizeParishValue(entry.parish) === normalizeParishValue(selectedParish)
                   ? primaryColor
                   : dimmedColor
               }

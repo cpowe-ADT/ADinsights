@@ -43,17 +43,16 @@ import {
   type PlatformCredentialRecord,
   type SocialConnectionStatus,
   type SocialPlatformStatusRecord,
+  type IntegrationProviderSlug,
 } from '../lib/airbyte';
+import { ConnectorLifecycleControls } from '../components/ConnectorLifecycleControls';
 import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
 import {
   callbackMetaOAuth,
   META_OAUTH_FLOW_PAGE_INSIGHTS,
   META_OAUTH_FLOW_SESSION_KEY,
 } from '../lib/metaPageInsights';
-import {
-  loadDatasetStatus,
-  type DatasetLiveReason,
-} from '../lib/datasetStatus';
+import { loadDatasetStatus, type DatasetLiveReason } from '../lib/datasetStatus';
 import { buildRuntimeContextPayload } from '../lib/runtimeContext';
 import { useDatasetStore } from '../state/useDatasetStore';
 
@@ -98,6 +97,16 @@ type Ga4ConnectStep = 'idle' | 'oauth-pending' | 'property-selection' | 'connect
 type SocialStatusLoad = 'loading' | 'loaded' | 'error';
 type MetaReportingNoteTone = 'success' | 'info' | 'warning';
 
+interface MetaOrganicSyncSummary {
+  status?: string;
+  reason?: string;
+  page_count?: number;
+  total_analyzable_page_count?: number;
+  page_limit?: number;
+  task_dispatch_mode?: string;
+  tasks?: Array<Record<string, unknown>>;
+}
+
 interface ConnectFormState {
   accountId: string;
   loginCustomerId: string;
@@ -140,6 +149,17 @@ interface SocialPlatformCard extends Omit<SocialPlatformStatusRecord, 'platform'
 }
 
 const CONNECT_OAUTH_PROVIDER_KEY = 'adinsights.connect.oauth.provider';
+const EMPTY_META_OAUTH_SELECTION: MetaOAuthSelectionState = {
+  selectionToken: null,
+  pages: [],
+  adAccounts: [],
+  instagramAccounts: [],
+  selectedPageId: '',
+  selectedAdAccountId: '',
+  selectedInstagramAccountId: '',
+  source: null,
+  recoveredFromExistingToken: false,
+};
 const EMPTY_META_PERMISSION_DIAGNOSTICS: MetaPermissionDiagnosticsState = {
   grantedPermissions: [],
   declinedPermissions: [],
@@ -152,6 +172,14 @@ const CONNECT_PROVIDER_LABELS: Record<ConnectProvider, string> = {
   META: 'Meta (Facebook & Instagram)',
   GOOGLE: 'Google Ads',
   GA4: 'Google Analytics 4',
+};
+
+// Maps the connect-panel provider keys to the generic lifecycle API slugs
+// served by `api/integrations/<provider>/*`.
+const CONNECT_PROVIDER_SLUGS: Record<ConnectProvider, IntegrationProviderSlug> = {
+  META: 'meta_ads',
+  GOOGLE: 'google_ads',
+  GA4: 'ga4',
 };
 
 const CONNECT_PROVIDER_ACCOUNT_LABELS: Record<'GOOGLE', string> = {
@@ -293,6 +321,29 @@ const resolveStateTone = (state: ConnectionState): 'success' | 'warning' | 'erro
   }
 };
 
+const canTriggerAdvancedAirbyteSync = (state: ConnectionState): boolean =>
+  state === 'healthy' || state === 'stale';
+
+const formatAirbyteSyncError = (error: unknown): string => {
+  const fallback =
+    'Airbyte sync could not start. Check the advanced connection row or local Airbyte service.';
+  if (!(error instanceof Error)) {
+    return fallback;
+  }
+  const message = error.message.trim();
+  if (!message) {
+    return fallback;
+  }
+  if (
+    /host\.docker\.internal|\/api\/v1\/connections\/sync|500 Internal Server Error|Failed to trigger sync/i.test(
+      message,
+    )
+  ) {
+    return fallback;
+  }
+  return message;
+};
+
 const resolveSocialStatusTone = (
   value: SocialConnectionStatus,
 ): 'success' | 'warning' | 'error' | 'muted' => {
@@ -325,7 +376,7 @@ const resolveSocialPrimaryAction = (platformStatus: SocialPlatformCard): string 
   const { platform, status, actions } = platformStatus;
   if (platform === 'instagram') {
     if (actions.includes('open_meta_setup')) {
-      return status === 'not_connected' ? 'Open Meta setup' : 'Link in Meta setup';
+      return status === 'not_connected' ? 'Link Instagram via Meta' : 'Link in Meta setup';
     }
     if (actions.includes('view')) {
       return 'View Meta status';
@@ -335,21 +386,49 @@ const resolveSocialPrimaryAction = (platformStatus: SocialPlatformCard): string 
     return 'Restore Meta marketing access';
   }
   if (actions.includes('connect_oauth')) {
-    return 'Connect with Facebook';
+    return 'Open Meta setup';
   }
   if (actions.includes('select_assets')) {
-    return 'Continue setup';
+    return 'Finish Meta setup';
   }
   if (actions.includes('provision')) {
-    return 'Continue setup';
-  }
-  if (status === 'complete') {
-    return 'Activate sync';
+    return 'Finish Meta setup';
   }
   if (actions.includes('sync_now')) {
-    return 'Run sync now';
+    return platform === 'meta' ? 'Run Meta sync' : 'Run sync now';
+  }
+  if (status === 'complete') {
+    return platform === 'meta' ? 'Check Meta reporting data' : 'View details';
   }
   return 'View details';
+};
+
+const formatPageCount = (count?: number): string => {
+  const safeCount = typeof count === 'number' && Number.isFinite(count) ? count : 0;
+  return `${safeCount} page${safeCount === 1 ? '' : 's'}`;
+};
+
+const formatMetaOrganicSyncToast = (organicSync?: MetaOrganicSyncSummary): string => {
+  const status = organicSync?.status;
+  if (!status) {
+    return '';
+  }
+  if (status === 'queued') {
+    return ` Organic Page/Post sync queued for ${formatPageCount(organicSync.page_count)}.`;
+  }
+  if (status === 'completed') {
+    return ` Organic Page/Post sync completed for ${formatPageCount(organicSync.page_count)}.`;
+  }
+  if (status === 'completed_no_rows') {
+    return ' Organic Page/Post sync ran but found no report rows.';
+  }
+  if (status === 'skipped') {
+    return ' No analyzable Facebook Page is selected for organic reporting.';
+  }
+  if (status === 'partial' || status === 'failed') {
+    return ' Organic Page/Post sync needs attention.';
+  }
+  return '';
 };
 
 const resolveDirectSyncStatusLabel = (value?: string): string => {
@@ -369,10 +448,10 @@ const resolveDirectSyncStatusLabel = (value?: string): string => {
     return 'Paused';
   }
   if (value === 'complete_no_data') {
-    return 'Complete (no data)';
+    return 'Sync complete, no report rows';
   }
   if (value === 'complete') {
-    return 'Complete';
+    return 'Sync complete';
   }
   return 'Unknown';
 };
@@ -394,6 +473,24 @@ const resolveWarehouseStatusLabel = (value?: string): string => {
     return 'Ready';
   }
   return 'Unknown';
+};
+
+const resolveSocialRepairHint = (platformStatus: SocialPlatformCard): string | null => {
+  if (platformStatus.platform !== 'meta') {
+    return null;
+  }
+  const reasonCode = platformStatus.reason?.code;
+  const reasonMessage = String(platformStatus.reason?.message ?? '');
+  if (
+    reasonCode === 'credential_reauth_required' &&
+    reasonMessage.includes('App_id in the input_token did not match')
+  ) {
+    return 'The saved token belongs to a different Meta app than this runtime is using. Reconnect with Facebook from this screen so the token, app ID, ad account, and Page selection are issued by the same Meta app.';
+  }
+  if (reasonCode === 'credential_reauth_required') {
+    return 'Reconnect with Facebook to replace the expired or invalid marketing credential before running fresh Meta syncs.';
+  }
+  return null;
 };
 
 const resolveGa4PrimaryAction = (status: GoogleAnalyticsStatusResponse['status']): string => {
@@ -438,10 +535,7 @@ const DataSources = () => {
 
   const addToast = useToastStore((s) => s.addToast);
   const datasetSource = useDatasetStore((state) => state.source);
-  const runtimeContext = useMemo(
-    () => buildRuntimeContextPayload(datasetSource),
-    [datasetSource],
-  );
+  const runtimeContext = useMemo(() => buildRuntimeContextPayload(datasetSource), [datasetSource]);
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [connections, setConnections] = useState<AirbyteConnectionRecord[]>([]);
   const [summary, setSummary] = useState<AirbyteConnectionsSummary | null>(null);
@@ -454,17 +548,9 @@ const DataSources = () => {
   const [connectForm, setConnectForm] = useState<ConnectFormState>(buildInitialConnectForm('META'));
   const [savingConnect, setSavingConnect] = useState(false);
   const [metaConnectStep, setMetaConnectStep] = useState<MetaConnectStep>('idle');
-  const [metaOAuthSelection, setMetaOAuthSelection] = useState<MetaOAuthSelectionState>({
-    selectionToken: null,
-    pages: [],
-    adAccounts: [],
-    instagramAccounts: [],
-    selectedPageId: '',
-    selectedAdAccountId: '',
-    selectedInstagramAccountId: '',
-    source: null,
-    recoveredFromExistingToken: false,
-  });
+  const [metaOAuthSelection, setMetaOAuthSelection] = useState<MetaOAuthSelectionState>(
+    EMPTY_META_OAUTH_SELECTION,
+  );
   const [metaOAuthStarting, setMetaOAuthStarting] = useState(false);
   const [metaOAuthExchanging, setMetaOAuthExchanging] = useState(false);
   const [metaOAuthSavingPage, setMetaOAuthSavingPage] = useState(false);
@@ -480,10 +566,10 @@ const DataSources = () => {
     tone: MetaReportingNoteTone;
     message: string;
   } | null>(null);
-  const [googleAdsConnectStep, setGoogleAdsConnectStep] =
-    useState<GoogleAdsConnectStep>('idle');
-  const [googleAdsCredential, setGoogleAdsCredential] =
-    useState<PlatformCredentialRecord | null>(null);
+  const [googleAdsConnectStep, setGoogleAdsConnectStep] = useState<GoogleAdsConnectStep>('idle');
+  const [googleAdsCredential, setGoogleAdsCredential] = useState<PlatformCredentialRecord | null>(
+    null,
+  );
   const [googleAdsSetupStatus, setGoogleAdsSetupStatus] =
     useState<GoogleAdsSetupStatusResponse | null>(null);
   const [googleAdsSetupLoading, setGoogleAdsSetupLoading] = useState(false);
@@ -560,7 +646,9 @@ const DataSources = () => {
         setGoogleAdsStatusLoad('loaded');
       } catch (googleAdsError) {
         const googleAdsMessage =
-          googleAdsError instanceof Error ? googleAdsError.message : 'Unable to load Google Ads status.';
+          googleAdsError instanceof Error
+            ? googleAdsError.message
+            : 'Unable to load Google Ads status.';
         setGoogleAdsStatus(null);
         setGoogleAdsStatusLoad('error');
         setGoogleAdsStatusError(googleAdsMessage);
@@ -741,17 +829,7 @@ const DataSources = () => {
 
   const resetMetaOAuthState = useCallback(() => {
     setMetaConnectStep('idle');
-    setMetaOAuthSelection({
-      selectionToken: null,
-      pages: [],
-      adAccounts: [],
-      instagramAccounts: [],
-      selectedPageId: '',
-      selectedAdAccountId: '',
-      selectedInstagramAccountId: '',
-      source: null,
-      recoveredFromExistingToken: false,
-    });
+    setMetaOAuthSelection(EMPTY_META_OAUTH_SELECTION);
     setMetaConnectedCredential(null);
     setMetaConnectedInstagramAccount(null);
     setMetaPermissionDiagnostics(EMPTY_META_PERMISSION_DIAGNOSTICS);
@@ -795,7 +873,8 @@ const DataSources = () => {
         setMetaConnectStep('oauth-pending');
         addToast(
           options?.missingPermissionsMessage ??
-            'Meta OAuth connected, but required permissions are missing. Re-request permissions and reconnect.', 'error',
+            'Meta OAuth connected, but required permissions are missing. Re-request permissions and reconnect.',
+          'error',
         );
         return false;
       }
@@ -821,14 +900,16 @@ const DataSources = () => {
       if (!response.ad_accounts.length) {
         setMetaConnectStep('oauth-pending');
         addToast(
-          'Meta OAuth complete, but no ad accounts were returned. Add ad account access in Meta Business Manager and reconnect.', 'error',
+          'Meta OAuth complete, but no ad accounts were returned. Add ad account access in Meta Business Manager and reconnect.',
+          'error',
         );
         return false;
       }
       setMetaConnectStep('page-selection');
       addToast(
         options?.successMessage ??
-          'Meta OAuth complete. Select your business page and ad account to finish setup.', 'success',
+          'Meta OAuth complete. Select your business page and ad account to finish setup.',
+        'success',
       );
       return true;
     },
@@ -856,18 +937,19 @@ const DataSources = () => {
         const payload = await loadGoogleAnalyticsProperties(
           options?.credentialId ? { credential_id: options.credentialId } : undefined,
         );
-        setGa4Credential((previous) =>
-          previous ?? {
-            id: payload.credential_id,
-            provider: 'GOOGLE_ANALYTICS',
-            account_id: '',
-          },
+        setGa4Credential(
+          (previous) =>
+            previous ?? {
+              id: payload.credential_id,
+              provider: 'GOOGLE_ANALYTICS',
+              account_id: '',
+            },
         );
         applyGa4Properties(payload.properties ?? []);
         if ((payload.properties ?? []).length > 0) {
           setGa4ConnectStep('property-selection');
         } else if (options?.showToastOnEmpty) {
-          addToast('Google Analytics connected, but no GA4 properties were returned.', 'error',);
+          addToast('Google Analytics connected, but no GA4 properties were returned.', 'error');
         }
       } catch (ga4PropertiesError) {
         applyGa4Properties([]);
@@ -902,13 +984,11 @@ const DataSources = () => {
       const hasRuntimeContext = Boolean(
         runtimeContext.client_origin || runtimeContext.client_port || runtimeContext.dataset_source,
       );
-      const response = await startGoogleAdsOAuth(
-        {
-          customer_id: customerId,
-          login_customer_id: connectForm.loginCustomerId.trim() || undefined,
-          ...(hasRuntimeContext ? { runtime_context: runtimeContext } : {}),
-        },
-      );
+      const response = await startGoogleAdsOAuth({
+        customer_id: customerId,
+        login_customer_id: connectForm.loginCustomerId.trim() || undefined,
+        ...(hasRuntimeContext ? { runtime_context: runtimeContext } : {}),
+      });
       if (typeof window !== 'undefined') {
         if (import.meta.env.MODE === 'test') {
           return;
@@ -1019,6 +1099,30 @@ const DataSources = () => {
     const oauthFlow = window.sessionStorage.getItem(META_OAUTH_FLOW_SESSION_KEY);
     const oauthProvider = window.sessionStorage.getItem(CONNECT_OAUTH_PROVIDER_KEY);
 
+    // Breadcrumb so we can trace every OAuth callback in the browser console.
+    console.info('[OAuth callback effect]', {
+      hasCode: Boolean(code),
+      hasState: Boolean(state),
+      oauthError,
+      oauthProvider,
+      oauthFlow,
+      url: window.location.href,
+    });
+
+    // If code+state are present but sessionStorage has no provider marker,
+    // surface that loudly instead of silently falling through to Meta.
+    if (!oauthError && code && state && !oauthProvider) {
+      console.error(
+        '[OAuth callback] Missing CONNECT_OAUTH_PROVIDER_KEY in sessionStorage. ' +
+          'OAuth params received but no provider context — defaulting to Meta handler ' +
+          'which will likely fail. Retry from the Data Sources panel.',
+      );
+      addToast(
+        'OAuth return missing context (sessionStorage cleared). Click Connect again to retry.',
+        'error',
+      );
+    }
+
     const isWrongOAuthFlowError = (error: unknown): boolean => {
       if (error instanceof ApiError) {
         const code = (error.payload as { code?: unknown } | undefined)?.code;
@@ -1041,9 +1145,7 @@ const DataSources = () => {
       const response = await callbackMetaOAuth(code ?? '', state ?? '');
       const missingPermissions = response.missing_required_permissions ?? [];
       if (missingPermissions.length > 0) {
-        addToast(
-          `Missing required permissions: ${missingPermissions.join(', ')}`, 'error',
-        );
+        addToast(`Missing required permissions: ${missingPermissions.join(', ')}`, 'error');
         return;
       }
       const pageCount = response.pages?.length ?? 0;
@@ -1053,7 +1155,8 @@ const DataSources = () => {
       addToast(
         pageCount > 0
           ? 'Meta Page Insights connected. Loading page dashboard.'
-          : 'Meta connected, but no eligible Pages were returned.', pageCount > 0 ? 'success' : 'error',
+          : 'Meta connected, but no eligible Pages were returned.',
+        pageCount > 0 ? 'success' : 'error',
       );
       if (import.meta.env.MODE === 'test') {
         return;
@@ -1080,7 +1183,7 @@ const DataSources = () => {
         credentialId: response.credential.id,
         showToastOnEmpty: true,
       });
-      addToast('Google Analytics connected. Select a GA4 property to finish setup.', 'success',);
+      addToast('Google Analytics connected. Select a GA4 property to finish setup.', 'success');
     };
 
     const handleGoogleAdsCallback = async () => {
@@ -1103,7 +1206,8 @@ const DataSources = () => {
       addToast(
         response.refresh_token_received
           ? 'Google Ads connected. Save the connection to finish provisioning.'
-          : 'Google Ads connected, but no refresh token was returned. Reconnect if sync fails.', response.refresh_token_received ? 'success' : 'error',
+          : 'Google Ads connected, but no refresh token was returned. Reconnect if sync fails.',
+        response.refresh_token_received ? 'success' : 'error',
       );
     };
 
@@ -1130,7 +1234,8 @@ const DataSources = () => {
       addToast(
         oauthErrorDescription?.trim()
           ? `${providerLabel} failed: ${oauthErrorDescription}`
-          : `${providerLabel} failed: ${oauthError}`, 'error',
+          : `${providerLabel} failed: ${oauthError}`,
+        'error',
       );
       if (oauthProvider === 'GA4') {
         clearOAuthParams();
@@ -1222,8 +1327,8 @@ const DataSources = () => {
         }
         const hasRuntimeContext = Boolean(
           runtimeContext.client_origin ||
-            runtimeContext.client_port ||
-            runtimeContext.dataset_source,
+          runtimeContext.client_port ||
+          runtimeContext.dataset_source,
         );
         const response = await startMetaOAuth(
           options?.authType || hasRuntimeContext
@@ -1335,7 +1440,7 @@ const DataSources = () => {
 
   const handleMetaPageConnect = useCallback(async () => {
     if (metaPermissionDiagnostics.missingRequiredPermissions.length) {
-      addToast('Required Meta permissions are missing. Re-request permissions first.', 'error',);
+      addToast('Required Meta permissions are missing. Re-request permissions first.', 'error');
       return;
     }
     if (
@@ -1363,6 +1468,7 @@ const DataSources = () => {
       setMetaConnectedCredential(response.credential);
       setMetaConnectedInstagramAccount(response.instagram_account ?? null);
       setMetaConnectStep('credential-connected');
+      setMetaOAuthSelection(EMPTY_META_OAUTH_SELECTION);
       setConnectForm((previous) => ({
         ...previous,
         accountId: response.credential.account_id,
@@ -1372,7 +1478,8 @@ const DataSources = () => {
           ? ` Instagram linked: ${response.instagram_account?.username?.trim() || response.instagram_account?.id}.`
           : '';
       addToast(
-        `Connected Meta business asset ${response.credential.account_id}.${instagramSuffix}`, 'success',
+        `Connected Meta business asset ${response.credential.account_id}.${instagramSuffix}`,
+        'success',
       );
       if (metaOAuthSelection.recoveredFromExistingToken) {
         let provisionError: string | null = null;
@@ -1389,8 +1496,7 @@ const DataSources = () => {
               is_active: connectForm.isActive,
               interval_minutes:
                 scheduleType === 'interval' ? Number(connectForm.intervalMinutes) : null,
-              cron_expression:
-                scheduleType === 'cron' ? connectForm.cronExpression.trim() : '',
+              cron_expression: scheduleType === 'cron' ? connectForm.cronExpression.trim() : '',
             });
           }
         } catch (error) {
@@ -1404,10 +1510,12 @@ const DataSources = () => {
           const syncPayload = await syncMetaIntegration();
           syncCompleted = true;
           if (syncPayload.job_id) {
+            const organicMessage = formatMetaOrganicSyncToast(syncPayload.organic_sync);
             addToast(
               syncPayload.task_dispatch_mode === 'inline'
-                ? `Meta restore completed and sync ran inline (job ${syncPayload.job_id}).`
-                : `Meta restore completed and sync started (job ${syncPayload.job_id}).`, 'success',
+                ? `Meta restore completed and sync ran inline (job ${syncPayload.job_id}).${organicMessage}`
+                : `Meta restore completed and sync started (job ${syncPayload.job_id}).${organicMessage}`,
+              'success',
             );
           }
         } catch (error) {
@@ -1420,10 +1528,11 @@ const DataSources = () => {
 
         if (provisionError !== null && syncCompleted) {
           addToast(
-            `Meta marketing access restored; Airbyte connection was not provisioned. ${provisionError}`, 'info',
+            `Meta marketing access restored; Airbyte connection was not provisioned. ${provisionError}`,
+            'info',
           );
         } else if (provisionError === null) {
-          addToast('Meta marketing access restored.', 'success',);
+          addToast('Meta marketing access restored.', 'success');
         }
         void loadData();
       }
@@ -1469,6 +1578,8 @@ const DataSources = () => {
     }
   }, [loadData, addToast, resetMetaOAuthState]);
 
+  const connectFormRef = useRef<HTMLFormElement>(null);
+
   const openConnectPanel = useCallback(
     (provider: ConnectProvider) => {
       setConnectProvider(provider);
@@ -1480,6 +1591,12 @@ const DataSources = () => {
     },
     [resetGa4State, resetGoogleAdsState, resetMetaOAuthState],
   );
+
+  useEffect(() => {
+    if (connectProvider && connectFormRef.current) {
+      connectFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [connectProvider]);
 
   const closeConnectPanel = useCallback(() => {
     setConnectProvider(null);
@@ -1499,11 +1616,10 @@ const DataSources = () => {
       try {
         const response = await triggerAirbyteSync(connection.id);
         const jobId = response?.job_id;
-        addToast(jobId ? `Sync triggered (job ${jobId}).` : 'Sync triggered.', 'success',);
+        addToast(jobId ? `Sync triggered (job ${jobId}).` : 'Sync triggered.', 'success');
         void loadData();
       } catch (syncError) {
-        const message = syncError instanceof Error ? syncError.message : 'Sync failed to start.';
-        addToast(message, 'error');
+        addToast(formatAirbyteSyncError(syncError), 'error');
       } finally {
         setSyncingId(null);
       }
@@ -1548,27 +1664,38 @@ const DataSources = () => {
         return;
       }
       if (platformStatus.actions.includes('sync_now')) {
-        const metaConnection = normalizedConnections
-          .filter((connection) => connection.provider === 'META')
-          .sort((a, b) => {
-            const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-            const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-            return bTime - aTime;
-          })[0];
-        if (metaConnection) {
-          await handleRunNow(metaConnection);
+        if (platformStatus.platform === 'meta') {
+          setSocialActionPendingPlatform(platformStatus.platform);
+          try {
+            const syncPayload = await syncMetaIntegration();
+            const jobId = syncPayload.job_id;
+            const statusLabel =
+              syncPayload.sync_status === 'already_running'
+                ? 'already running'
+                : syncPayload.task_dispatch_mode === 'inline'
+                  ? 'ran inline'
+                  : 'queued';
+            const organicMessage = formatMetaOrganicSyncToast(syncPayload.organic_sync);
+            addToast(
+              jobId
+                ? `Meta data check ${statusLabel} (job ${jobId}).${organicMessage}`
+                : `Meta data check ${statusLabel}.${organicMessage}`,
+              'success',
+            );
+            void loadData();
+          } catch (syncError) {
+            const message =
+              syncError instanceof Error ? syncError.message : 'Meta data check failed to start.';
+            addToast(message, 'error');
+          } finally {
+            setSocialActionPendingPlatform(null);
+          }
           return;
         }
       }
       openConnectPanel('META');
     },
-    [
-      handleRunNow,
-      handleStartMetaOAuth,
-      handleStartMetaRecovery,
-      normalizedConnections,
-      openConnectPanel,
-    ],
+    [handleStartMetaOAuth, handleStartMetaRecovery, loadData, addToast, openConnectPanel],
   );
 
   const handleConnectSubmit = useCallback(
@@ -1612,7 +1739,7 @@ const DataSources = () => {
       try {
         if (connectProvider === 'META') {
           if (metaPermissionDiagnostics.missingRequiredPermissions.length) {
-            addToast('Re-request required Meta permissions before provisioning or sync.', 'error',);
+            addToast('Re-request required Meta permissions before provisioning or sync.', 'error');
             return;
           }
           if (!metaConnectedCredential) {
@@ -1635,7 +1762,12 @@ const DataSources = () => {
             });
             const syncPayload = await syncMetaIntegration();
             if (syncPayload.job_id) {
-              addToast(`Meta insights sync started (job ${syncPayload.job_id}).`, 'success',);
+              addToast(
+                `Meta insights sync started (job ${syncPayload.job_id}).${formatMetaOrganicSyncToast(
+                  syncPayload.organic_sync,
+                )}`,
+                'success',
+              );
             }
             await applyMetaReportingStatusNote({ syncCompleted: true });
           }
@@ -1699,9 +1831,10 @@ const DataSources = () => {
               ? connectForm.linkConnection
                 ? 'Google Ads connected and provisioned.'
                 : 'Google Ads OAuth connected.'
-            : connectForm.linkConnection
-              ? `${CONNECT_PROVIDER_LABELS[connectProvider]} connected and linked.`
-              : `${CONNECT_PROVIDER_LABELS[connectProvider]} credentials saved.`, 'success',
+              : connectForm.linkConnection
+                ? `${CONNECT_PROVIDER_LABELS[connectProvider]} connected and linked.`
+                : `${CONNECT_PROVIDER_LABELS[connectProvider]} credentials saved.`,
+          'success',
         );
         closeConnectPanel();
         void loadData();
@@ -1856,13 +1989,16 @@ const DataSources = () => {
       return summary;
     }
     const total = normalizedConnections.length;
-    const active = normalizedConnections.filter((connection) => connection.is_active !== false).length;
+    const active = normalizedConnections.filter(
+      (connection) => connection.is_active !== false,
+    ).length;
     return {
       total,
       active,
       inactive: total - active,
-      due: normalizedConnections.filter((connection) => resolveConnectionState(connection) === 'stale')
-        .length,
+      due: normalizedConnections.filter(
+        (connection) => resolveConnectionState(connection) === 'stale',
+      ).length,
       by_provider: {},
     };
   }, [normalizedConnections, summary]);
@@ -1883,7 +2019,8 @@ const DataSources = () => {
             ) : null}
           </div>
           <p className="status-message muted">
-            Canonical setup and management hub for social, paid media, and web analytics connections.
+            Canonical setup and management hub for social, paid media, and web analytics
+            connections.
           </p>
         </header>
 
@@ -1899,7 +2036,8 @@ const DataSources = () => {
             </span>
           </div>
           <p className="status-message muted">
-            Connect and manage Meta here, then link Instagram inside the Meta asset-selection flow. There is no separate Instagram OAuth path in ADinsights.
+            Connect and manage Meta here, then link Instagram inside the Meta asset-selection flow.
+            There is no separate Instagram OAuth path in ADinsights.
           </p>
           <div className="dashboard-header__actions-row" style={{ marginBottom: '0.75rem' }}>
             <Link className="button tertiary" to="/">
@@ -1941,6 +2079,7 @@ const DataSources = () => {
                 platformStatus.reporting_readiness.message !== platformStatus.reason.message
                   ? platformStatus.reporting_readiness.message
                   : null;
+              const repairHint = resolveSocialRepairHint(platformStatus);
               return (
                 <article key={platformStatus.platform} className="social-connection-card">
                   <div className="social-connection-card__header">
@@ -1948,6 +2087,11 @@ const DataSources = () => {
                     <span className={`status-pill ${statusTone}`}>{statusLabel}</span>
                   </div>
                   <p className="status-message muted">{platformStatus.reason.message}</p>
+                  {repairHint ? (
+                    <p className="status-message warning">
+                      <strong>Fix:</strong> {repairHint}
+                    </p>
+                  ) : null}
                   {reportingMessage ? (
                     <p className="status-message muted">
                       <strong>Reporting stage:</strong> {reportingMessage}
@@ -1955,8 +2099,8 @@ const DataSources = () => {
                   ) : null}
                   {platformStatus.platform === 'instagram' ? (
                     <p className="status-message muted">
-                      Instagram business linking is completed in Meta setup, not through a
-                      separate Instagram login.
+                      Instagram business linking is completed in Meta setup, not through a separate
+                      Instagram login.
                     </p>
                   ) : null}
                   <dl className="social-connection-card__meta">
@@ -2006,7 +2150,10 @@ const DataSources = () => {
                         : socialActionPendingPlatform === platformStatus.platform &&
                             platformStatus.actions.includes('connect_oauth')
                           ? 'Redirecting…'
-                          : primaryActionLabel}
+                          : socialActionPendingPlatform === platformStatus.platform &&
+                              platformStatus.actions.includes('sync_now')
+                            ? 'Checking…'
+                            : primaryActionLabel}
                     </button>
                   </div>
                 </article>
@@ -2083,8 +2230,8 @@ const DataSources = () => {
             </span>
           </div>
           <p className="status-message muted">
-            Use Google Ads for paid campaign performance. Connect a Google Ads account when you
-            want spend, clicks, impressions, conversions, and campaign-level delivery metrics.
+            Use Google Ads for paid campaign performance. Connect a Google Ads account when you want
+            spend, clicks, impressions, conversions, and campaign-level delivery metrics.
           </p>
           {googleAdsStatusLoad === 'loading' ? (
             <p className="status-message muted">Loading Google Ads status…</p>
@@ -2123,7 +2270,8 @@ const DataSources = () => {
                 >
                   {googleAdsOAuthStarting ? 'Redirecting…' : googleAdsPrimaryActionLabel}
                 </button>
-                {(googleAdsStatus?.status === 'complete' || googleAdsStatus?.status === 'active') && (
+                {(googleAdsStatus?.status === 'complete' ||
+                  googleAdsStatus?.status === 'active') && (
                   <a className="button tertiary" href="/dashboards/google-ads">
                     Open dashboard
                   </a>
@@ -2150,6 +2298,18 @@ const DataSources = () => {
             <p className="summary-card__label">Due for sync</p>
             <p className="summary-card__value">{summaryCounts.due}</p>
           </div>
+        </div>
+
+        <div className="data-sources-advanced-intro">
+          <div>
+            <h3>Advanced sync connections</h3>
+            <p className="status-message muted">
+              These rows are low-level Airbyte connector records. Use the social cards above for
+              normal Meta reconnect and data checks; use these controls only when you are operating
+              the sync service directly.
+            </p>
+          </div>
+          <span className="status-pill muted">Airbyte records</span>
         </div>
 
         <div className="data-sources-controls">
@@ -2191,27 +2351,6 @@ const DataSources = () => {
             />
           </label>
           <div className="data-sources-actions">
-            <button
-              type="button"
-              className="button secondary"
-              onClick={() => openConnectPanel('META')}
-            >
-              Connect Meta
-            </button>
-            <button
-              type="button"
-              className="button secondary"
-              onClick={() => openConnectPanel('GOOGLE')}
-            >
-              Connect Google Ads
-            </button>
-            <button
-              type="button"
-              className="button secondary"
-              onClick={() => openConnectPanel('GA4')}
-            >
-              Connect Google Analytics
-            </button>
             <button type="button" className="button secondary" onClick={handleRefresh}>
               Refresh
             </button>
@@ -2225,15 +2364,17 @@ const DataSources = () => {
         </div>
 
         <p className="status-message muted">
-          Meta connects through Facebook OAuth so you can select a business page, ad account, and
-          optional Instagram business account, then provision insights sync. Google Analytics 4
-          handles website analytics at the property level. Google Ads handles paid media
-          performance at the ad account level. They both use Google OAuth but remain separate
-          integrations because they serve different reporting jobs.
+          Airbyte connection rows can fail even when Meta OAuth and direct sync are healthy. A
+          failed connector row means warehouse refresh needs operator attention; it does not mean
+          the Meta login has to be repeated.
         </p>
 
         {connectProvider ? (
-          <form className="data-sources-connect-form" onSubmit={handleConnectSubmit}>
+          <form
+            ref={connectFormRef}
+            className="data-sources-connect-form"
+            onSubmit={handleConnectSubmit}
+          >
             <header className="data-sources-connect-form__header">
               <div>
                 <h3>{`Connect ${CONNECT_PROVIDER_LABELS[connectProvider]}`}</h3>
@@ -2242,9 +2383,9 @@ const DataSources = () => {
                     ? 'Complete Facebook OAuth, pick business assets, and optionally auto-provision the sync.'
                     : connectProvider === 'GOOGLE'
                       ? 'Use this flow for Google Ads campaign performance. Enter a Google Ads customer ID, complete Google OAuth, then optionally provision the sync connection.'
-                    : connectProvider === 'GA4'
-                      ? 'Use this flow for website analytics. Complete Google OAuth, select the GA4 property that owns your site data, and save the tenant-scoped analytics connection.'
-                      : 'Save API credentials and optionally link an existing Airbyte connection record.'}
+                      : connectProvider === 'GA4'
+                        ? 'Use this flow for website analytics. Complete Google OAuth, select the GA4 property that owns your site data, and save the tenant-scoped analytics connection.'
+                        : 'Save API credentials and optionally link an existing Airbyte connection record.'}
                 </p>
               </div>
               <button
@@ -2256,6 +2397,12 @@ const DataSources = () => {
                 Cancel
               </button>
             </header>
+
+            <ConnectorLifecycleControls
+              provider={CONNECT_PROVIDER_SLUGS[connectProvider]}
+              label={CONNECT_PROVIDER_LABELS[connectProvider]}
+              onChanged={() => void loadData()}
+            />
 
             {connectProvider === 'META' && metaReportingStatusNote ? (
               <p
@@ -2384,8 +2531,7 @@ const DataSources = () => {
                             ) : null}
                             {metaSetupStatus.runtime_context.dataset_source ? (
                               <p className="status-message muted">
-                                Dataset source:{' '}
-                                {metaSetupStatus.runtime_context.dataset_source}
+                                Dataset source: {metaSetupStatus.runtime_context.dataset_source}
                               </p>
                             ) : null}
                           </>
@@ -2396,7 +2542,7 @@ const DataSources = () => {
                 </div>
 
                 <div className="data-sources-connect-form__grid">
-                  <label className="dashboard-field">
+                  <div className="dashboard-field">
                     <span className="dashboard-field__label">Meta OAuth</span>
                     {metaSocialStatus?.reason.code === 'orphaned_marketing_access' ? (
                       <p className="status-message warning">
@@ -2411,7 +2557,7 @@ const DataSources = () => {
                       disabled={metaOAuthStarting || metaOAuthExchanging || metaOAuthSavingPage}
                       aria-busy={metaOAuthStarting || metaOAuthExchanging}
                     >
-                      {metaOAuthStarting ? 'Redirecting…' : 'Connect with Facebook'}
+                      {metaOAuthStarting ? 'Redirecting…' : 'Open Meta setup'}
                     </button>
                     <button
                       type="button"
@@ -2437,7 +2583,7 @@ const DataSources = () => {
                     >
                       Disconnect Meta
                     </button>
-                  </label>
+                  </div>
                   <label className="dashboard-field">
                     <span className="dashboard-field__label">OAuth status</span>
                     <input type="text" value={metaConnectStep} readOnly aria-label="OAuth status" />
@@ -2463,6 +2609,15 @@ const DataSources = () => {
 
                 {metaOAuthSelection.selectionToken ? (
                   <>
+                    <div className="data-sources-connect-form__grid">
+                      <div className="dashboard-field">
+                        <span className="dashboard-field__label">Finish setup</span>
+                        <p className="status-message warning">
+                          Facebook OAuth returned your assets, but reporting is not connected until
+                          you save the selected business Page and ad account below.
+                        </p>
+                      </div>
+                    </div>
                     {metaOAuthSelection.recoveredFromExistingToken ? (
                       <div className="data-sources-connect-form__grid">
                         <div className="dashboard-field">
@@ -2507,7 +2662,9 @@ const DataSources = () => {
                         >
                           {(metaOAuthSelection.adAccounts ?? []).map((account) => (
                             <option key={account.id} value={account.id}>
-                              {account.name?.trim() ? `${account.name} (${account.id})` : account.id}
+                              {account.name?.trim()
+                                ? `${account.name} (${account.id})`
+                                : account.id}
                             </option>
                           ))}
                         </select>
@@ -2537,7 +2694,7 @@ const DataSources = () => {
                           ))}
                         </select>
                       </label>
-                      <label className="dashboard-field">
+                      <div className="dashboard-field">
                         <span className="dashboard-field__label">Confirm selection</span>
                         <button
                           type="button"
@@ -2555,14 +2712,14 @@ const DataSources = () => {
                             ? 'Saving…'
                             : metaOAuthSelection.recoveredFromExistingToken
                               ? 'Restore Meta marketing access'
-                              : 'Save selected business page'}
+                              : 'Finish setup and save Meta assets'}
                         </button>
                         {!metaOAuthSelection.selectedAdAccountId ? (
                           <p className="status-message error">
                             Meta Marketing API provisioning requires an ad account selection.
                           </p>
                         ) : null}
-                      </label>
+                      </div>
                     </div>
                   </>
                 ) : null}
@@ -2615,7 +2772,8 @@ const DataSources = () => {
                     ) : null}
                     {!ga4SetupLoading && !ga4SetupStatus ? (
                       <p className="status-message error">
-                        Could not load GA4 setup status. Confirm backend is running and authenticated.
+                        Could not load GA4 setup status. Confirm backend is running and
+                        authenticated.
                       </p>
                     ) : null}
                     {ga4SetupStatus ? (
@@ -2664,10 +2822,7 @@ const DataSources = () => {
                       className="button secondary"
                       onClick={() => void handleStartGoogleAnalyticsOAuth()}
                       disabled={
-                        ga4OAuthStarting ||
-                        ga4OAuthExchanging ||
-                        ga4SetupLoading ||
-                        !ga4OauthReady
+                        ga4OAuthStarting || ga4OAuthExchanging || ga4SetupLoading || !ga4OauthReady
                       }
                       aria-busy={ga4OAuthStarting || ga4OAuthExchanging}
                     >
@@ -2682,7 +2837,12 @@ const DataSources = () => {
                   </div>
                   <label className="dashboard-field">
                     <span className="dashboard-field__label">OAuth status</span>
-                    <input type="text" value={ga4ConnectStep} readOnly aria-label="GA4 OAuth status" />
+                    <input
+                      type="text"
+                      value={ga4ConnectStep}
+                      readOnly
+                      aria-label="GA4 OAuth status"
+                    />
                   </label>
                 </div>
 
@@ -2735,7 +2895,8 @@ const DataSources = () => {
                     ) : null}
                     {!googleAdsSetupLoading && !googleAdsSetupStatus ? (
                       <p className="status-message error">
-                        Could not load Google Ads setup status. Confirm backend is running and authenticated.
+                        Could not load Google Ads setup status. Confirm backend is running and
+                        authenticated.
                       </p>
                     ) : null}
                     {googleAdsSetupStatus ? (
@@ -2753,7 +2914,9 @@ const DataSources = () => {
                           <span
                             className={`status-pill ${googleAdsSetupStatus.ready_for_provisioning_defaults ? 'success' : 'error'}`}
                           >
-                            {googleAdsSetupStatus.ready_for_provisioning_defaults ? 'Ready' : 'Needs config'}
+                            {googleAdsSetupStatus.ready_for_provisioning_defaults
+                              ? 'Ready'
+                              : 'Needs config'}
                           </span>
                         </p>
                         <p className="status-message muted">
@@ -2800,7 +2963,9 @@ const DataSources = () => {
                     <input
                       type="text"
                       value={connectForm.accountId}
-                      onChange={(event) => handleConnectFieldChange('accountId', event.target.value)}
+                      onChange={(event) =>
+                        handleConnectFieldChange('accountId', event.target.value)
+                      }
                       placeholder="1234567890"
                       required
                     />
@@ -3089,6 +3254,7 @@ const DataSources = () => {
               const providerLabel = resolveProviderLabel(connection.provider);
               const scheduleLabel = formatSchedule(connection);
               const isSyncing = syncingId === connection.id;
+              const canRunAirbyteSync = canTriggerAdvancedAirbyteSync(state);
 
               return (
                 <article key={connection.id} className="data-source-card">
@@ -3118,17 +3284,29 @@ const DataSources = () => {
                     </div>
                   </div>
                   {connection.last_job_error ? (
-                    <p className="status-message error">{connection.last_job_error}</p>
+                    <p className="status-message error">
+                      <strong>Last Airbyte job:</strong> {connection.last_job_error}
+                    </p>
                   ) : null}
+                  <p className="status-message muted">
+                    Advanced action: starts this Airbyte connector. Use the Meta card above for
+                    normal OAuth and direct Meta data checks.
+                  </p>
                   <div className="data-source-card__actions">
                     <button
                       type="button"
                       className="button secondary"
                       onClick={() => void handleRunNow(connection)}
-                      disabled={connection.is_active === false || isSyncing}
+                      disabled={!canRunAirbyteSync || isSyncing}
                       aria-busy={isSyncing}
                     >
-                      {isSyncing ? 'Starting sync…' : 'Run now'}
+                      {isSyncing
+                        ? 'Starting Airbyte sync…'
+                        : canRunAirbyteSync
+                          ? 'Trigger Airbyte sync'
+                          : state === 'paused'
+                            ? 'Paused'
+                            : 'Fix connection first'}
                     </button>
                   </div>
                 </article>

@@ -4,27 +4,35 @@ Purpose: single source of truth for what is built, in progress, and planned.
 This catalog consolidates the roadmap, backlog, and workstream docs into one view.
 
 ## Status legend
+
 - **Built**: implemented and available in code.
 - **In Progress**: active or partially implemented work.
 - **Planned**: defined but not yet implemented.
 
 ## Built (by domain)
+
 ### Platform/Core
+
 - Multi-tenant auth scaffolding, tenant context middleware, RLS enforcement.
 - Tenant onboarding: signup, invites, role assignment, password reset, tenant switch.
 - Service account API keys + audit log endpoints for key actions (with pagination, date-range filtering, CSV export).
 - Core health endpoints: `/api/health/`, `/api/health/airbyte/`, `/api/health/dbt/`, `/api/timezone/`.
 - Celery task wiring with observability hooks and test coverage.
 - AES-GCM secrets encryption with per-tenant DEKs + rotation script.
+- Encrypted Slack/webhook notification destinations with masked API/UI channel status.
 - Production-ready API edge controls: explicit CORS allowlist middleware + auth/public endpoint throttling.
 
 ### Data/Analytics
+
 - dbt staging + marts for campaigns/creatives/pacing/parish aggregates.
 - SCD2 snapshots for mutable dimensions.
 - Metrics aggregation views, metrics macros + glossary, and contract tests.
 - Warehouse snapshot persistence (`TenantMetricsSnapshot`) + aggregate snapshot API.
+- Tenant-scoped generic CSV/PDF/PNG report export artifacts with verified downloads.
+- Scheduled aggregate daily-summary email delivery through active tenant email channels.
 
 ### Frontend
+
 - Dashboard shell (campaigns/creatives/budget pacing).
 - KPI cards, chart cards, data tables, choropleth map.
 - Dataset toggle (default live), snapshot freshness banner, tenant switcher, global filters.
@@ -47,6 +55,7 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - CSV upload detail page with summary and preview tables.
 
 ### Integrations
+
 - Airbyte infrastructure and declarative source templates.
 - Airbyte telemetry endpoints and health checks.
 - Airbyte connection lifecycle APIs (list/create/update/sync) + summary endpoint.
@@ -59,48 +68,104 @@ This catalog consolidates the roadmap, backlog, and workstream docs into one vie
 - Provider-generic connector lifecycle for Airbyte-managed Google providers.
 
 ### Observability/Runbooks
+
 - Stale snapshot monitoring spec, alert thresholds/escalation runbook.
 - Deployment runbook rollback + health checklist.
 
 ### BI/Deployment
+
 - Superset exports in version control (`docs/BI/`).
 - Release checklist + demo smoke checklists.
 
 ## In Progress
+
 ### Frontend
+
 - Sync health filters (advanced filtering).
 - Report editing beyond inline metadata fields.
 
 ### Data/Analytics
+
 - Attribution window documentation expansion.
 
+### Content Operations
+
+- Backend foundation for the planned Meta/Facebook/Instagram organic content operations module:
+  tenant-scoped `content_ops` app models, initial migration, serializers, DRF routes under
+  `/api/content-ops/`, and workflow skeletons for draft versions, approvals, decisions,
+  scheduling, unscheduling, generation-job cancellation, role-gated mutations, and separated
+  readiness axes for Meta auth/Page selection/Instagram linkage/publishing/reporting. Basic
+  aggregate overview/post reports and client-safe JSON content-plan export are available over
+  stored Content Ops records. Caption generation can create queued jobs and generated drafts through
+  a fakeable disabled-by-default provider boundary, and the local golden caption eval harness covers
+  schema, redaction, policy, and no-side-effect cases. Caption job quotas enforce active-job and
+  rolling 24-hour candidate limits before provider handoff; no live AI provider is active. Due
+  schedule dispatch, retry requeue, queue filters, every-minute due/retry/process beat scans,
+  fakeable Facebook Page and Instagram processor boundaries, persisted export artifacts, and an
+  aggregate organic metric refresh worker exist. A `/content` frontend foundation exists with mock
+  fallback and partial live API wiring, but workflow state mapping and export history need hardening
+  before operator rollout. No live Meta Graph publishing, live AI provider, dbt mart, or OAuth scope
+  activation is available yet.
+
+### Pilot Activation
+
+- Meta and Google Ads live credential/sync evidence, secure alert evidence, SES delivery evidence,
+  and staging go/no-go validation as defined in `docs/project/usable-pilot-delivery-spec.md`.
+
 ## Planned (short list)
+
 ### Airbyte
+
 - LinkedIn and TikTok connector implementations (replace placeholders).
 - Improved Airbyte cron parsing in health check script.
 - Connector roadmap beyond Meta/Google (see `docs/project/integration-roadmap.md`).
 
 ### Backend
+
 - SES sender identity + DMARC/DKIM verification for outbound email.
 - Postgres grants + `seed_roles` command/fixtures for new installs.
 
 ### Frontend/UX
-- Enhanced export workflows and reporting UX.
+
+- Reporting enhancements beyond the pilot artifact reliability fix.
 - Enterprise UAC UX (agency admin, approvals, MFA, impersonation).
 
+### Content Operations
+
+- Meta/Facebook/Instagram organic content operations module: content workspaces, briefs, AI caption
+  generation, AI graphic generation, asset library, internal/client approval, app-owned scheduling,
+  Facebook Page publishing, Instagram publishing beta, content exports, and aggregate organic
+  reporting. Backend data/API/caption/scheduler foundations are in progress; remaining product
+  surfaces are planned and ordered in the build control sheet.
+  Planning docs:
+  `docs/project/content-operations-current-state.md`,
+  `docs/project/content-operations-meta-publishing-spec.md`,
+  `docs/project/content-operations-architecture-sprint-plan.md`, and
+  `docs/project/content-operations-implementation-backlog.md`.
+
+### Deferred Integrations
+
+- GA4 live tenant onboarding completion and Search Console tenant onboarding are explicitly
+  deferred from the usable-pilot gate.
+
 ### Security/UAC
+
 - UAC rollout phases U0–U4 (agency admin, approvals, MFA, impersonation).
 
 ## Sources of truth
+
 - Workstreams + owners: `docs/workstreams.md`
 - Roadmap phases: `README.md`
 - Task sequencing + gaps: `docs/task_breakdown.md`
 - Finished frontend scope: `docs/project/frontend-finished-product-spec.md`
 - Integration roadmap: `docs/project/integration-roadmap.md`
+- Content Operations tickets: `docs/project/content-operations-implementation-backlog.md`
 - Live backlog: `docs/project/phase1-execution-backlog.md`
 - UAC epics: `docs/project/uac-epics.md`
 - Vertical slice: `docs/project/vertical_slice_plan.md`
+- Usable pilot delivery: `docs/project/usable-pilot-delivery-spec.md`
 
 ## Update rules
+
 - Update this catalog when a feature moves between Built/In Progress/Planned.
 - Keep owners and dependencies in the workstream/backlog docs; this catalog remains high-level.

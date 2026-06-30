@@ -76,7 +76,10 @@ const MetaPagesFilterBar = ({
 
       <label className="dashboard-field">
         <span className="dashboard-field__label">Date range</span>
-        <select value={presetValue} onChange={(event) => onPresetChange(event.target.value as MetaPageDatePreset)}>
+        <select
+          value={presetValue}
+          onChange={(event) => onPresetChange(event.target.value as MetaPageDatePreset)}
+        >
           {presets.map((preset) => (
             <option key={preset.value} value={preset.value}>
               {preset.label}
@@ -89,11 +92,19 @@ const MetaPagesFilterBar = ({
         <>
           <label className="dashboard-field">
             <span className="dashboard-field__label">Since</span>
-            <input type="date" value={since} onChange={(event) => onChangeSince(event.target.value)} />
+            <input
+              type="date"
+              value={since}
+              onChange={(event) => onChangeSince(event.target.value)}
+            />
           </label>
           <label className="dashboard-field">
             <span className="dashboard-field__label">Until</span>
-            <input type="date" value={until} onChange={(event) => onChangeUntil(event.target.value)} />
+            <input
+              type="date"
+              value={until}
+              onChange={(event) => onChangeUntil(event.target.value)}
+            />
           </label>
         </>
       ) : null}

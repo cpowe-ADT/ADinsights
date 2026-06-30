@@ -1,0 +1,382 @@
+{
+  "schema_version": "slb_comparison_values.v1",
+  "source_reference": "SLB Monthly Report - May 2026 Editable v2 PDF. Aggregate source values extracted from rendered pages; unmatched rows are documented without invented values. Gmail and Google Drive searches on 2026-06-26, the narrowed 2026-06-27 connected-source pass, and 2026-06-28 Gmail/Drive rechecks found no approved paid Meta Ads, aggregate Page/Post, DashThis/source, or Content Ops May 2026 source export. Partial Meta receipt facts are preserved as unmatched source values only because they are not approved May 1-31 paid performance exports.",
+  "source_documents": [
+    {
+      "label": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "path": "tmp/pdfs/SLB Monthly Report - May 2026 Editable v2 (1).pdf",
+      "pages_reviewed": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "extraction_methods": [
+        "pdftotext -layout full-document keyword scan",
+        "pdftoppm rendered PNG visual review"
+      ]
+    }
+  ],
+  "source_search_provenance": [
+    {
+      "searched_at": "2026-06-26T07:39:45-0500",
+      "source": "Gmail",
+      "queries": [
+        "\"791712443035541\" OR \"act_791712443035541\" -in:spam -in:trash",
+        "(\"SLB\" OR \"Students Loan Bureau\" OR \"Students' Loan Bureau\") (\"Amount spent\" OR \"Reach\" OR \"Clicks\" OR \"Meta Ads\" OR \"Facebook Ads\") \"May 2026\" has:attachment -in:spam -in:trash",
+        "(\"SLB\" OR \"Students Loan Bureau\" OR \"Students' Loan Bureau\") (csv OR xlsx OR export OR dashboard OR DashThis OR \"May 2026\") after:2026/05/01 before:2026/07/01 -in:spam -in:trash"
+      ],
+      "result": "Found the already-reviewed May 2026 SLB PDF, Meta billing receipts/disabled-account notices for the selected ad account, and operational/creative/client threads. No approved daily paid Meta Ads export, DashThis value export, or Content Ops total export was found."
+    },
+    {
+      "searched_at": "2026-06-26T07:39:45-0500",
+      "source": "Google Drive",
+      "queries": [
+        "SLB May 2026",
+        "DashThis SLB",
+        "791712443035541",
+        "SLB paid May",
+        "SLB Monthly Report"
+      ],
+      "result": "Found operations, proposal, budget/rate-sheet, and creative treatment files. No approved May 2026 source export for selected-account paid spend/reach/clicks or Content Ops totals was found."
+    },
+    {
+      "searched_at": "2026-06-27T00:09:37-0500",
+      "source": "Local PDF full-text scan",
+      "queries": [
+        "published OR posts OR content OR created OR total",
+        "amount spent OR spend OR paid OR Meta Ads",
+        "reach OR clicks OR comments OR shares OR reactions OR follows"
+      ],
+      "result": "The full 14-page SLB May 2026 PDF scan confirmed Facebook follows/reach/views/interactions and top-post example values, but found no approved selected-account paid spend/reach/clicks export and no aggregate Content Ops published-post or content-items-created totals. Page 6 contains a numbered content-support category list, not a safe count of published posts or created content items."
+    },
+    {
+      "searched_at": "2026-06-27T00:36:25-0500",
+      "source": "Local filesystem common-document search",
+      "queries": [
+        "workspace tmp and /tmp files matching SLB, Students Loan, DashThis, May 2026, Meta export, Facebook export",
+        "Downloads, Desktop, and Documents files matching SLB, Students Loan, DashThis, May 2026, Meta export, Facebook export",
+        "CSV/XLSX/PDF candidates matching SLB or reporting terms; spot-check Copy of SLB Calculation.xlsx shared strings"
+      ],
+      "result": "Found SLB tender, proposal, pricing, creative, brand, and the already-reviewed May 2026 monthly PDF artifacts. The ambiguous Copy of SLB Calculation.xlsx is a proposal/pricing workbook that mentions campaign reports as deliverables, not actual May 2026 performance values. No approved daily paid Meta Ads export, DashThis value export, Meta/Facebook May export, or aggregate Content Ops totals file was found in the searched local locations."
+    },
+    {
+      "searched_at": "2026-06-27T01:19:36-0500",
+      "source": "Narrowed connected Gmail/Drive source search",
+      "queries": [
+        "Gmail: act_791712443035541 / 791712443035541 after 2026-05-01 before 2026-07-15",
+        "Gmail: SLB/Students Loan Bureau Meta Ads/paid/spend/reach/clicks May 2026 with attachments",
+        "Gmail: SLB/Students Loan Bureau Content Ops/published posts/content items/post reactions/Facebook export with attachments",
+        "Gmail: SLB Monthly Report / SLB May Report / SLB Report May 2026",
+        "Google Drive: SLB paid, Students Loan Bureau May 2026, 791712443035541, SLB Content Ops, SLB Facebook export, SLB DashThis, SLB Monthly May 2026, SLB Report"
+      ],
+      "result": "Found the exact May 2026 SLB report email with the already-reviewed PDF attachment, Meta billing receipts for selected-account partial billing windows May 21-24 and May 26-31, a selected-account disabled notice, daily task/status notes, proposals, operational documents, and creative assets. The Meta receipts show partial billed spend/impression subtotals but are not approved May 1-31 paid performance exports and do not provide paid reach or clicks. No approved full-month paid Meta Ads export, DashThis/source export, aggregate Page/Post export, or aggregate Content Ops total export was found."
+    },
+    {
+      "searched_at": "2026-06-28T17:13:57-0500",
+      "source": "Gmail current-state recheck",
+      "queries": [
+        "(\"791712443035541\" OR \"act_791712443035541\") after:2026/05/01 before:2026/07/15 -in:spam -in:trash",
+        "(\"SLB\" OR \"Students Loan Bureau\" OR \"Students' Loan Bureau\") (\"Amount spent\" OR \"Reach\" OR \"Clicks\" OR \"Meta Ads\" OR \"Facebook Ads\" OR export OR csv OR xlsx) after:2026/05/01 before:2026/07/15 has:attachment -in:spam -in:trash",
+        "(\"SLB\" OR \"Students Loan Bureau\" OR \"Students' Loan Bureau\") (\"post reactions\" OR \"post comments\" OR \"post shares\" OR \"published posts\" OR \"content items\" OR \"Content Ops\" OR \"Facebook export\") after:2026/05/01 before:2026/07/15 -in:spam -in:trash",
+        "(\"SLB\" OR \"Students Loan Bureau\" OR \"Students' Loan Bureau\") (DashThis OR \"source values\" OR \"monthly report\" OR \"May report\" OR \"May 2026 report\") after:2026/05/01 before:2026/07/15 -in:spam -in:trash"
+      ],
+      "result": "The selected-account search still found only Meta receipts and the selected-account disabled notice, including the partial May 21-24 and May 26-31 receipt windows already preserved as unmatched source facts. The paid/source attachment search was noisy with creative, quotation, treatment, podcast, and March-April report threads, but no approved May 1-31 paid performance export was visible from the returned subjects/snippets/attachment names. The organic/content aggregate query returned no messages. The DashThis/source report query found the already-reviewed May 2026 SLB report PDF email, task notes, and drafts/previews, but no DashThis/source export or additional aggregate paid, Page/Post, or Content Ops values."
+    },
+    {
+      "searched_at": "2026-06-28T18:00:15-0500",
+      "source": "Narrowed Google Drive and Gmail source recheck",
+      "queries": [
+        "Google Drive: SLB reactions",
+        "Google Drive: SLB comments",
+        "Google Drive: SLB shares",
+        "Google Drive: SLB export",
+        "Google Drive: 791712443035541",
+        "Google Drive: SLB paid",
+        "Google Drive: SLB May 2026",
+        "Google Drive: SLB Content Ops",
+        "Google Drive: SLB published posts",
+        "Gmail: (SLB/Students Loan Bureau) post reactions/comments/shares/published posts/content items/Content Ops/Facebook export/Meta export/DashThis after 2026-05-01 before 2026-07-31",
+        "Gmail: 791712443035541/act_791712443035541/SLB paid Amount spent/Reach/Clicks/Meta Ads/Facebook Ads/Ads Manager/export/csv/xlsx after 2026-05-01 before 2026-07-31 with attachments"
+      ],
+      "result": "Drive searches returned creative treatment/storyboard/proposal/rate-sheet/quote files, task logs, operational trackers/maps, an operations report, and budget collections; the account-id query returned no files. The Gmail organic/content/export query returned no messages, and the paid/account attachment query returned banner, creative-treatment, podcast quotation/treatment, unrelated bid, and March-April report threads. No approved May 1-31 selected-account paid export, aggregate Page/Post export, DashThis/source export, or aggregate Content Ops total export was found, so the unresolved parity rows remain null."
+    }
+  ],
+  "rows": [
+    {
+      "dataset": "organic_facebook_page",
+      "widget_id": "organic_page_summary",
+      "metric": "page_reach",
+      "label": "Page Reach",
+      "source_value": 63700,
+      "accepted_tolerance_percent": 2.0,
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_pages": [7, 10],
+      "source_label": "Facebook Viewers / Reach",
+      "source_display_value": "63.7K",
+      "explanation": "Facebook Reach is shown as 63.7K on page 10 of the May 2026 SLB source report."
+    },
+    {
+      "dataset": "organic_facebook_page",
+      "widget_id": "organic_page_summary",
+      "metric": "page_impressions",
+      "label": "Page Impressions",
+      "source_value": 145000,
+      "accepted_tolerance_percent": 2.0,
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_pages": [7, 10],
+      "source_label": "Facebook Views",
+      "source_display_value": "145K",
+      "explanation": "Facebook Views is shown as 145K on pages 7 and 10 of the May 2026 SLB source report; reviewer must confirm views versus impressions semantics."
+    },
+    {
+      "dataset": "organic_facebook_page",
+      "widget_id": "organic_page_summary",
+      "metric": "page_engagements",
+      "label": "Page Engagements",
+      "source_value": 55,
+      "accepted_tolerance_absolute": 0,
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_pages": [10],
+      "source_label": "Content Interactions",
+      "source_display_value": "55",
+      "explanation": "Facebook Content Interactions is shown as 55 on page 10 of the May 2026 SLB source report."
+    },
+    {
+      "dataset": "organic_facebook_page",
+      "widget_id": "organic_page_summary",
+      "metric": "page_follows",
+      "label": "Page Follows",
+      "source_value": 19,
+      "accepted_tolerance_absolute": 0,
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_pages": [10],
+      "source_label": "Follows",
+      "source_display_value": "19",
+      "explanation": "Facebook Follows is shown as 19 on page 10 of the May 2026 SLB source report."
+    },
+    {
+      "dataset": "organic_facebook_page",
+      "widget_id": "organic_post_engagement_summary",
+      "metric": "post_reactions",
+      "label": "Post Reactions",
+      "source_value": null,
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_pages_reviewed": [10, 11, 12, 13, 14],
+      "explanation": "The PDF shows top-performer reactions on page 11 but does not provide a May 2026 aggregate post reactions total; connected Gmail/Drive searches found no approved aggregate Page/Post export."
+    },
+    {
+      "dataset": "organic_facebook_page",
+      "widget_id": "organic_post_engagement_summary",
+      "metric": "post_comments",
+      "label": "Post Comments",
+      "source_value": null,
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_pages_reviewed": [10, 11, 12, 13, 14],
+      "explanation": "The PDF shows comments for a top static post on page 11 but does not provide a May 2026 aggregate post comments total; connected Gmail/Drive searches found no approved aggregate Page/Post export."
+    },
+    {
+      "dataset": "organic_facebook_page",
+      "widget_id": "organic_post_engagement_summary",
+      "metric": "post_shares",
+      "label": "Post Shares",
+      "source_value": null,
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_pages_reviewed": [10, 11, 12, 13, 14],
+      "explanation": "The PDF shows shares for top-performing posts on pages 11 and 14 but does not provide a May 2026 aggregate post shares total; connected Gmail/Drive searches found no approved aggregate Page/Post export."
+    },
+    {
+      "dataset": "paid_meta_ads",
+      "widget_id": "paid_summary",
+      "metric": "spend",
+      "label": "Spend",
+      "source_value": null,
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_pages_reviewed": [7, 10, 11, 12, 13, 14],
+      "explanation": "No approved May 1-31 paid spend value was found in the reviewed SLB source PDF pages or connected Gmail/Drive source-artifact searches. The narrowed 2026-06-27 Gmail pass found selected-account Meta billing receipts for partial May 21-24 and May 26-31 billing windows, but those receipt subtotals are not a full-month paid performance export."
+    },
+    {
+      "dataset": "paid_meta_ads",
+      "widget_id": "paid_summary",
+      "metric": "reach",
+      "label": "Reach",
+      "source_value": null,
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_pages_reviewed": [7, 10, 11, 12, 13, 14],
+      "explanation": "The PDF shows organic/social reach values, but no paid Meta Ads reach value safely maps to this row; connected Gmail/Drive searches found no approved paid reach export. The selected-account Meta receipts found on 2026-06-27 report billed partial-window spend/impressions, not paid reach."
+    },
+    {
+      "dataset": "paid_meta_ads",
+      "widget_id": "paid_summary",
+      "metric": "clicks",
+      "label": "Clicks",
+      "source_value": null,
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_pages_reviewed": [7, 10, 11, 12, 13, 14],
+      "explanation": "The PDF shows Facebook Link Clicks as organic/social performance, not paid_meta_ads.clicks; connected Gmail/Drive searches found no approved paid clicks export. The selected-account Meta receipts found on 2026-06-27 report billed partial-window spend/impressions, not paid clicks."
+    },
+    {
+      "dataset": "content_ops",
+      "widget_id": "content_activity_summary",
+      "metric": "published_posts",
+      "label": "Published Posts",
+      "source_value": null,
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_pages_reviewed": [2, 3, 4, 5, 6, 11, 12, 13, 14],
+      "explanation": "The PDF describes content support and top performers but does not provide a total published-post count for May 2026. Page 6 contains a numbered content-support category list, not a safe count of published posts. Connected Gmail/Drive searches found no approved Content Ops total export."
+    },
+    {
+      "dataset": "content_ops",
+      "widget_id": "content_activity_summary",
+      "metric": "content_items_created",
+      "label": "Content Items Created",
+      "source_value": null,
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_pages_reviewed": [2, 3, 4, 5, 6, 11, 12, 13, 14],
+      "explanation": "The PDF describes campaign/content development work but does not provide a total content-items-created count for May 2026. Page 6 contains a numbered content-support category list, not a safe count of created content items. Connected Gmail/Drive searches found no approved Content Ops total export."
+    }
+  ],
+  "unmatched_source_values": [
+    {
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_page": 10,
+      "source_label": "Facebook Visits",
+      "source_value": 778,
+      "reason_not_in_parity_rows": "The current ADinsights parity rows do not include a Facebook visits/profile-visits metric."
+    },
+    {
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_page": 10,
+      "source_label": "Facebook Link Clicks",
+      "source_value": 889,
+      "reason_not_in_parity_rows": "The current parity row named clicks is paid_meta_ads.clicks, not organic Facebook link clicks."
+    },
+    {
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_page": 11,
+      "source_label": "Top static post views/interactions/likes/comments/shares/saves",
+      "source_value": {
+        "views": 7900,
+        "interactions": 165,
+        "likes_and_reactions": 87,
+        "comments": 16,
+        "shares": 24,
+        "saves": 36
+      },
+      "reason_not_in_parity_rows": "The current evidence bundle emits only summary parity rows, not top-post parity rows."
+    },
+    {
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_page": 12,
+      "source_label": "Top carousel post views/interactions",
+      "source_value": {
+        "views": 12300,
+        "interactions": 164
+      },
+      "reason_not_in_parity_rows": "The current evidence bundle emits only summary parity rows, not top-post parity rows."
+    },
+    {
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_page": 13,
+      "source_label": "Top digital ad carousel views/interactions",
+      "source_value": {
+        "views": 17100,
+        "interactions": 174
+      },
+      "reason_not_in_parity_rows": "These are top-performer creative values and cannot be mapped to paid_meta_ads spend, reach, or clicks."
+    },
+    {
+      "source_document": "SLB Monthly Report - May 2026 Editable v2 PDF",
+      "source_page": 14,
+      "source_label": "Top digital ad graphic views/interactions/shares/saves",
+      "source_value": {
+        "views": 12800,
+        "interactions": 204,
+        "shares": 38,
+        "saves": 51
+      },
+      "reason_not_in_parity_rows": "These are top-performer creative values and cannot be mapped to paid_meta_ads spend, reach, or clicks."
+    },
+    {
+      "source_document": "Meta billing receipt email for selected SLB paid account",
+      "source_label": "Partial paid receipt window",
+      "source_date_range": {
+        "start": "2026-05-21",
+        "end": "2026-05-24"
+      },
+      "source_value": {
+        "billed_spend_usd": 31.74,
+        "receipt_impressions": 63900,
+        "campaign_receipt_rows": 2
+      },
+      "reason_not_in_parity_rows": "This receipt covers only May 21-24 and is billing evidence, not an approved full May 1-31 paid performance export. It does not provide paid reach or clicks and cannot clear paid_meta_ads parity rows."
+    },
+    {
+      "source_document": "Meta billing receipt email for selected SLB paid account",
+      "source_label": "Partial paid receipt window",
+      "source_date_range": {
+        "start": "2026-05-26",
+        "end": "2026-05-31"
+      },
+      "source_value": {
+        "billed_spend_usd": 44.16,
+        "receipt_impressions": 82669,
+        "campaign_receipt_rows": 2
+      },
+      "reason_not_in_parity_rows": "This receipt covers only May 26-31 and is billing evidence, not an approved full May 1-31 paid performance export. It does not provide paid reach or clicks and cannot clear paid_meta_ads parity rows."
+    }
+  ],
+  "missing_source_values": [
+    {
+      "dataset": "paid_meta_ads",
+      "widget_id": "paid_summary",
+      "metric": "spend",
+      "label": "Spend",
+      "reason": "No approved May 1-31 paid spend value was found in the reviewed SLB source PDF pages or connected Gmail/Drive source-artifact searches. The narrowed 2026-06-27 Gmail pass found selected-account Meta billing receipts for partial May 21-24 and May 26-31 billing windows, but those receipt subtotals are not a full-month paid performance export."
+    },
+    {
+      "dataset": "paid_meta_ads",
+      "widget_id": "paid_summary",
+      "metric": "reach",
+      "label": "Reach",
+      "reason": "The PDF shows organic/social reach values, but no paid Meta Ads reach value safely maps to this row; connected Gmail/Drive searches found no approved paid reach export. The selected-account Meta receipts found on 2026-06-27 report billed partial-window spend/impressions, not paid reach."
+    },
+    {
+      "dataset": "paid_meta_ads",
+      "widget_id": "paid_summary",
+      "metric": "clicks",
+      "label": "Clicks",
+      "reason": "The PDF shows Facebook Link Clicks as organic/social performance, not paid_meta_ads.clicks; connected Gmail/Drive searches found no approved paid clicks export. The selected-account Meta receipts found on 2026-06-27 report billed partial-window spend/impressions, not paid clicks."
+    },
+    {
+      "dataset": "organic_facebook_page",
+      "widget_id": "organic_post_engagement_summary",
+      "metric": "post_reactions",
+      "label": "Post Reactions",
+      "reason": "The PDF shows top-performer reactions on page 11 but does not provide a May 2026 aggregate post reactions total, and connected Gmail/Drive searches found no approved aggregate Page/Post export."
+    },
+    {
+      "dataset": "organic_facebook_page",
+      "widget_id": "organic_post_engagement_summary",
+      "metric": "post_comments",
+      "label": "Post Comments",
+      "reason": "The PDF shows comments for a top static post on page 11 but does not provide a May 2026 aggregate post comments total, and connected Gmail/Drive searches found no approved aggregate Page/Post export."
+    },
+    {
+      "dataset": "organic_facebook_page",
+      "widget_id": "organic_post_engagement_summary",
+      "metric": "post_shares",
+      "label": "Post Shares",
+      "reason": "The PDF shows shares for top-performing posts on pages 11 and 14 but does not provide a May 2026 aggregate post shares total, and connected Gmail/Drive searches found no approved aggregate Page/Post export."
+    },
+    {
+      "dataset": "content_ops",
+      "widget_id": "content_activity_summary",
+      "metric": "published_posts",
+      "label": "Published Posts",
+      "reason": "The PDF describes content support and top performers but does not provide a total published-post count for May 2026. Page 6 contains a numbered content-support category list, not a safe count of published posts. Connected Gmail/Drive searches found no approved Content Ops total export."
+    },
+    {
+      "dataset": "content_ops",
+      "widget_id": "content_activity_summary",
+      "metric": "content_items_created",
+      "label": "Content Items Created",
+      "reason": "The PDF describes campaign/content development work but does not provide a total content-items-created count for May 2026. Page 6 contains a numbered content-support category list, not a safe count of created content items. Connected Gmail/Drive searches found no approved Content Ops total export."
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "sourceDefinitionId": "9f2f9b3d-6b8a-45d1-a39c-2e0c9b6c2d31",
+  "workspaceId": "{{ env['AIRBYTE_WORKSPACE_ID'] }}",
+  "name": "Microsoft Ads Incremental",
+  "connectionConfiguration": {
+    "account_id": "{{ env['AIRBYTE_MICROSOFT_ADS_ACCOUNT_ID'] }}",
+    "developer_token": "{{ env['AIRBYTE_MICROSOFT_ADS_DEVELOPER_TOKEN'] }}",
+    "access_token": "{{ env['AIRBYTE_MICROSOFT_ADS_ACCESS_TOKEN'] }}",
+    "start_date": "{{ env.get('AIRBYTE_MICROSOFT_ADS_START_DATE', '2023-01-01') }}",
+    "lookback_window_days": {{ env.get('AIRBYTE_MICROSOFT_ADS_LOOKBACK_DAYS', 3) }},
+    "slice_span_days": 7,
+    "page_size": 500,
+    "timezone": "America/Jamaica"
+  },
+  "streams": [
+    {
+      "name": "microsoft_ads_performance",
+      "syncMode": "incremental",
+      "cursorField": [
+        "date"
+      ],
+      "primaryKey": [
+        [
+          "ad_id"
+        ],
+        [
+          "date"
+        ]
+      ],
+      "destinationSyncMode": "append_dedup"
+    }
+  ]
+}

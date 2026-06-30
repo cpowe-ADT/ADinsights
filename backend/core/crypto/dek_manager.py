@@ -115,7 +115,7 @@ def _rotate_tenant_key(
     *,
     rotation_source: str,
 ) -> bool:
-    from integrations.models import PlatformCredential
+    from integrations.models import NotificationChannel, PlatformCredential
 
     tenant_id = str(tenant_key.tenant_id)
     previous_version = tenant_key.dek_key_version
@@ -169,6 +169,32 @@ def _rotate_tenant_key(
                         "updated_at",
                     ]
                 )
+
+            for channel in NotificationChannel.all_objects.filter(
+                tenant=tenant_key.tenant,
+                secret_config_enc__isnull=False,
+            ):
+                secret_plain = decrypt_value(
+                    channel.secret_config_enc,
+                    channel.secret_config_nonce,
+                    channel.secret_config_tag,
+                    old_key,
+                )
+                encrypted_secret = encrypt_value(secret_plain, new_key)
+                if encrypted_secret:
+                    channel.secret_config_enc = encrypted_secret.ciphertext
+                    channel.secret_config_nonce = encrypted_secret.nonce
+                    channel.secret_config_tag = encrypted_secret.tag
+                    channel.secret_dek_key_version = version
+                    channel.save(
+                        update_fields=[
+                            "secret_config_enc",
+                            "secret_config_nonce",
+                            "secret_config_tag",
+                            "secret_dek_key_version",
+                            "updated_at",
+                        ]
+                    )
 
             tenant_key.dek_ciphertext = ciphertext
             tenant_key.dek_key_version = version

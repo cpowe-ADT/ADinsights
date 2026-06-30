@@ -49,11 +49,12 @@ const NotificationChannelsPage = () => {
     if (!name.trim() || !configValue.trim()) return;
     setSubmitting(true);
     try {
-      const configKey = channelType === 'email' ? 'emails' : 'url';
       await createNotificationChannel({
         name: name.trim(),
         channel_type: channelType,
-        config: { [configKey]: configValue.trim() },
+        ...(channelType === 'email'
+          ? { config: { emails: configValue.trim() } }
+          : { secret_config: { url: configValue.trim() } }),
       });
       setName('');
       setConfigValue('');
@@ -115,14 +116,18 @@ const NotificationChannelsPage = () => {
           <p className="dashboardEyebrow">Settings</p>
           <h1 className="dashboardHeading">Notification Channels</h1>
           <p className="phase2-page__subhead">
-            Configure where alert notifications are delivered.
+            Configure where alert notifications are delivered. Webhook destinations are stored
+            encrypted and shown only as configured status.
           </p>
         </div>
       </header>
 
       <article className="phase2-card">
         <h3>Create channel</h3>
-        <form onSubmit={(e) => void handleCreate(e)} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 480 }}>
+        <form
+          onSubmit={(e) => void handleCreate(e)}
+          style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 480 }}
+        >
           <label>
             Name
             <input
@@ -138,7 +143,9 @@ const NotificationChannelsPage = () => {
             Type
             <select
               value={channelType}
-              onChange={(e) => setChannelType(e.target.value as NotificationChannel['channel_type'])}
+              onChange={(e) =>
+                setChannelType(e.target.value as NotificationChannel['channel_type'])
+              }
               className="phase2-input"
             >
               {CHANNEL_TYPES.map((ct) => (
@@ -154,7 +161,11 @@ const NotificationChannelsPage = () => {
               type="text"
               value={configValue}
               onChange={(e) => setConfigValue(e.target.value)}
-              placeholder={channelType === 'email' ? 'a@example.com, b@example.com' : 'https://hooks.example.com/...'}
+              placeholder={
+                channelType === 'email'
+                  ? 'a@example.com, b@example.com'
+                  : 'https://hooks.example.com/...'
+              }
               required
               className="phase2-input"
             />
@@ -178,6 +189,7 @@ const NotificationChannelsPage = () => {
             <tr>
               <th>Name</th>
               <th>Type</th>
+              <th>Destination</th>
               <th>Active</th>
               <th></th>
             </tr>
@@ -187,6 +199,7 @@ const NotificationChannelsPage = () => {
               <tr key={ch.id}>
                 <td>{ch.name}</td>
                 <td>{ch.channel_type}</td>
+                <td>{ch.masked_destination}</td>
                 <td>{ch.is_active ? 'Yes' : 'No'}</td>
                 <td>
                   <button

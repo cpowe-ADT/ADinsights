@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { fetchGoogleAdsCampaignDetail } from '../../lib/googleAdsDashboard';
+import useDashboardStore from '../../state/useDashboardStore';
 
 const GoogleAdsCampaignDetailPage = () => {
   const { campaignId = '' } = useParams();
@@ -21,7 +22,11 @@ const GoogleAdsCampaignDetailPage = () => {
       setStatus('loading');
       setError('');
       try {
-        const response = await fetchGoogleAdsCampaignDetail(campaignId);
+        const { filters } = useDashboardStore.getState();
+        const response = await fetchGoogleAdsCampaignDetail(campaignId, {
+          platforms: 'google_ads',
+          customer_id: filters.accountId || undefined,
+        });
         if (!active) {
           return;
         }
@@ -48,12 +53,14 @@ const GoogleAdsCampaignDetailPage = () => {
         <p className="dashboardEyebrow">Google Ads</p>
         <h1 className="dashboardHeading">Campaign Drilldown</h1>
         <p className="dashboardSubtitle">Campaign ID: {campaignId}</p>
-        <Link className="button tertiary" to="/dashboards/google-ads/campaigns">
+        <Link className="button tertiary" to="/dashboards/google-ads?tab=campaigns">
           Back to Google Ads campaigns
         </Link>
       </header>
 
-      {status === 'loading' ? <div className="dashboard-state dashboard-state--page">Loading campaign...</div> : null}
+      {status === 'loading' ? (
+        <div className="dashboard-state dashboard-state--page">Loading campaign...</div>
+      ) : null}
       {status === 'error' ? (
         <div className="dashboard-state dashboard-state--page" role="alert">
           {error}

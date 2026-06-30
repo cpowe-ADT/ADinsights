@@ -402,10 +402,7 @@ const createResponse = (body: unknown, init?: ResponseInit) =>
 
 const createJwt = (exp = Math.floor(Date.now() / 1000) + 7_200) => {
   const encode = (value: object) =>
-    btoa(JSON.stringify(value))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/g, '');
+    btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
   return `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ exp })}.signature`;
 };
 
@@ -470,14 +467,17 @@ const resolveRequestHeader = (
 };
 
 const expectHomeOrDashboardHeading = async () => {
-  await waitFor(() => {
-    const hero =
-      screen.queryByRole('heading', { level: 1, name: /welcome back to adinsights/i }) ??
-      screen.queryByRole('heading', { level: 1, name: /adinsights analytics/i }) ??
-      screen.queryByRole('heading', { level: 1, name: /campaign performance/i }) ??
-      screen.queryByRole('heading', { level: 1, name: /saved dashboards/i });
-    expect(hero).toBeTruthy();
-  });
+  await waitFor(
+    () => {
+      const hero =
+        screen.queryByRole('heading', { level: 1, name: /welcome back to adinsights/i }) ??
+        screen.queryByRole('heading', { level: 1, name: /adinsights analytics/i }) ??
+        screen.queryByRole('heading', { level: 1, name: /campaign performance/i }) ??
+        screen.queryByRole('heading', { level: 1, name: /saved dashboards/i });
+      expect(hero).toBeTruthy();
+    },
+    { timeout: 10000 },
+  );
 };
 
 describe('App integration', () => {

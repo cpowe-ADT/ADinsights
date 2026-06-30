@@ -9,7 +9,9 @@ type Props = {
 
 function asRows(data: unknown): Record<string, unknown>[] {
   if (Array.isArray(data)) {
-    return data.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object');
+    return data.filter(
+      (row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object',
+    );
   }
   if (data && typeof data === 'object') {
     const payload = data as { results?: unknown };
@@ -93,7 +95,10 @@ const GenericTabSection = ({
             </thead>
             <tbody>
               {rows.map((row, index) => (
-                <tr key={`${index}-${String(row.id ?? row.campaign_id ?? row.resource_name ?? '')}`} className="dashboard-table__row dashboard-table__row--zebra">
+                <tr
+                  key={`${index}-${String(row.id ?? row.campaign_id ?? row.resource_name ?? '')}`}
+                  className="dashboard-table__row dashboard-table__row--zebra"
+                >
                   {columns.map((column) => (
                     <td key={column} className="dashboard-table__cell">
                       {String(row[column] ?? '—')}

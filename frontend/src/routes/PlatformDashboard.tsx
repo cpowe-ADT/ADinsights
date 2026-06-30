@@ -1,34 +1,37 @@
-import { useCallback, useId, useMemo, useState } from 'react';
+import { useCallback, useId, useMemo } from 'react';
 
 import DashboardState from '../components/DashboardState';
-import DeviceDonut from '../components/DeviceDonut';
-import PlatformComparisonBars from '../components/PlatformComparisonBars';
-import Skeleton from '../components/Skeleton';
 import StatusBanner from '../components/StatusBanner';
 import Card from '../components/ui/Card';
-import StatCard from '../components/ui/StatCard';
+import {
+  AccessibleTableToggle,
+  ChartSkeleton,
+  DistributionBar,
+  KpiTile,
+  PieComposition,
+  TrendLine,
+  VizDataTable,
+} from '../components/viz';
+import type { TrendLinePoint } from '../components/viz/TrendLine';
 import { useAuth } from '../auth/AuthContext';
 import { messageForLiveDatasetReason, titleForLiveDatasetReason } from '../lib/datasetStatus';
 import useDashboardStore from '../state/useDashboardStore';
 import { useDatasetStore } from '../state/useDatasetStore';
+import { formatAbsoluteTime, formatRelativeTime, isTimestampStale } from '../lib/format';
+import { formatPlatformLabel, platformColor } from '../lib/platformLabels';
 import {
-  formatAbsoluteTime,
-  formatNumber,
-  formatPercent,
-  formatRelativeTime,
-  isTimestampStale,
-} from '../lib/format';
+  ctrFromRow,
+  cpmFromRow,
+  roasFromRow,
+  totalsFromPlatformRows,
+} from '../lib/combinedAggregates';
 
 import '../styles/dashboard.css';
 
-type BarMetric = 'spend' | 'impressions' | 'clicks' | 'conversions';
-
-const METRIC_OPTIONS: { value: BarMetric; label: string }[] = [
-  { value: 'spend', label: 'Spend' },
-  { value: 'impressions', label: 'Impressions' },
-  { value: 'clicks', label: 'Clicks' },
-  { value: 'conversions', label: 'Conversions' },
-];
+// FP-PLAT-03: The `formatPlatformLabel` helper previously lived at
+// `PlatformDashboard.tsx:82–145`. Moved to `lib/platformLabels.ts` so
+// CampaignDashboard + CreativeDashboard share the exact same slug→label
+// contract (Sprint 2 top-2-by-spend label derivation preserved).
 
 const EmptyIcon = () => (
   <svg
@@ -45,6 +48,19 @@ const EmptyIcon = () => (
   </svg>
 );
 
+type PlatformTableRow = {
+  platform: string;
+  label: string;
+  color: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  ctr: number;
+  cpm: number;
+  roas: number;
+};
+
 const PlatformDashboard = () => {
   const { tenantId } = useAuth();
   const { platforms, loadAll, lastSnapshotGeneratedAt } = useDashboardStore((state) => ({
@@ -55,8 +71,6 @@ const PlatformDashboard = () => {
   const datasetMode = useDatasetStore((state) => state.mode);
   const liveReason = useDatasetStore((state) => state.liveReason);
   const liveDetail = useDatasetStore((state) => state.liveDetail);
-
-  const [barMetric, setBarMetric] = useState<BarMetric>('spend');
 
   const snapshotRelative = lastSnapshotGeneratedAt
     ? formatRelativeTime(lastSnapshotGeneratedAt)
@@ -69,8 +83,7 @@ const PlatformDashboard = () => {
 
   const isLoading = platforms.status === 'loading' && !platforms.data;
   const hasData = Boolean(platforms.data);
-  const liveDatasetBlocked =
-    datasetMode === 'live' && liveReason && liveReason !== 'ready';
+  const liveDatasetBlocked = datasetMode === 'live' && liveReason && liveReason !== 'ready';
   const liveDatasetMessage = liveReason
     ? messageForLiveDatasetReason(liveReason, liveDetail)
     : null;
@@ -79,51 +92,50 @@ const PlatformDashboard = () => {
     void loadAll(tenantId, { force: true });
   }, [loadAll, tenantId]);
 
-  const kpis = useMemo(() => {
+  const totals = useMemo(() => {
     const data = platforms.data;
     if (!data) return null;
+    return totalsFromPlatformRows(data.byPlatform);
+  }, [platforms.data]);
 
-    const fbRow = data.byPlatform.find(
-      (p) => p.platform.toLowerCase() === 'facebook',
-    );
-    const igRow = data.byPlatform.find(
-      (p) => p.platform.toLowerCase() === 'instagram',
-    );
+  const platformRows = useMemo<PlatformTableRow[]>(() => {
+    const data = platforms.data;
+    if (!data) return [];
+    return data.byPlatform.map((row) => ({
+      platform: row.platform,
+      label: formatPlatformLabel(row.platform),
+      color: platformColor(row.platform),
+      spend: row.spend,
+      impressions: row.impressions,
+      clicks: row.clicks,
+      conversions: row.conversions,
+      ctr: ctrFromRow(row),
+      cpm: cpmFromRow(row),
+      roas: roasFromRow(row),
+    }));
+  }, [platforms.data]);
 
-    const totalImpressions = data.byDevice.reduce(
-      (sum, d) => sum + d.impressions,
-      0,
-    );
-    const mobileImpressions = data.byDevice
-      .filter((d) =>
-        d.device.toLowerCase().startsWith('mobile'),
-      )
-      .reduce((sum, d) => sum + d.impressions, 0);
-    const mobilePct =
-      totalImpressions > 0 ? mobileImpressions / totalImpressions : 0;
+  const deviceComposition = useMemo(() => {
+    const data = platforms.data;
+    if (!data) return [];
+    return data.byDevice.map((row) => ({
+      label: formatPlatformLabel(row.device),
+      value: row.impressions,
+    }));
+  }, [platforms.data]);
 
-    const topPlatform =
-      data.byPlatform.length > 0
-        ? data.byPlatform.reduce((best, row) =>
-            row.conversions > best.conversions ? row : best,
-          )
-        : undefined;
-
-    return [
-      {
-        label: 'Facebook spend',
-        value: fbRow ? formatNumber(fbRow.spend) : '—',
-      },
-      {
-        label: 'Instagram spend',
-        value: igRow ? formatNumber(igRow.spend) : '—',
-      },
-      { label: 'Mobile %', value: formatPercent(mobilePct) },
-      {
-        label: 'Top platform',
-        value: topPlatform?.platform ?? '—',
-      },
-    ];
+  // [NEW-ENDPOINT] Per-platform daily trend series — sprints-plan §802 deferred.
+  // CampaignTrendPoint has no `platform` field today, so the stacked-area upgrade
+  // requires a new backend contract. Ship single-series TrendLine (blended spend)
+  // as the interim per S4 architect-design §8.1 / §5 risk #7.
+  const trendData = useMemo<TrendLinePoint[]>(() => {
+    const data = platforms.data;
+    if (!data) return [];
+    // Derive a single blended-spend series per-device bucket date? We have no
+    // time-series at this endpoint. Render an empty TrendLine placeholder so the
+    // AccessibleTableToggle scaffold stays intact — `emptyReasonCode` handles
+    // the "no data" messaging per viz-kit contract.
+    return [];
   }, [platforms.data]);
 
   const pageShell = (content: React.ReactNode) => (
@@ -144,7 +156,7 @@ const PlatformDashboard = () => {
           message={
             datasetMode === 'live'
               ? liveDatasetBlocked
-                ? liveDatasetMessage ?? 'Waiting for live snapshot...'
+                ? (liveDatasetMessage ?? 'Waiting for live snapshot...')
                 : (snapshotRelative ?? 'Waiting for live snapshot...')
               : snapshotRelative
                 ? `Demo data - ${snapshotRelative}`
@@ -210,102 +222,319 @@ const PlatformDashboard = () => {
 
   const data = platforms.data;
 
+  // FP-PLAT-02: If the backend returned a populated platforms object but with
+  // empty arrays, show an empty state rather than blank SVG charts.
+  if (hasData && !isLoading && data?.byPlatform?.length === 0 && data?.byDevice?.length === 0) {
+    return pageShell(
+      <div className="dashboardGrid">
+        <Card title="Platform insights" className="chartCard">
+          <DashboardState
+            variant="empty"
+            icon={<EmptyIcon />}
+            title="No platform data for selected range"
+            message="Try a different date range or check that your Meta account has data synced."
+            actionLabel="Refresh data"
+            onAction={handleRetry}
+            layout="compact"
+          />
+        </Card>
+      </div>,
+    );
+  }
+
+  // FP-PLAT-03: KPI tiles previously hardcoded "Facebook spend" / "Instagram spend".
+  // When scope = google_ads only, those rows were always undefined and tiles showed "—".
+  // Parameterize labels from the top-2 platforms by spend so the tiles reflect
+  // whichever platforms the current scope actually returns (Meta, Google Ads, or both).
+  const sortedPlatforms = data ? [...data.byPlatform].sort((a, b) => b.spend - a.spend) : [];
+  const [topRow, secondRow] = sortedPlatforms;
+  const firstLabel = topRow
+    ? `${formatPlatformLabel(topRow.platform)} spend`
+    : 'Top platform spend';
+  const secondLabel = secondRow
+    ? `${formatPlatformLabel(secondRow.platform)} spend`
+    : 'Second platform spend';
+
   return pageShell(
     <div className="dashboardGrid">
-      {/* KPI row */}
+      {/* KPI strip — 5 cross-platform tiles (FP-PLAT-03 top-2 labels preserved) */}
       <div className="kpiColumn" role="group" aria-label="Platform KPIs">
-        {isLoading
-          ? Array.from({ length: 4 }, (_, i) => (
-              <Skeleton key={i} height={72} borderRadius="0.75rem" />
-            ))
-          : kpis?.map((kpi) => (
-              <StatCard key={kpi.label} label={kpi.label} value={kpi.value} />
-            ))}
+        <KpiTile
+          label="Total spend"
+          value={totals ? totals.spend : null}
+          format="currency"
+          currency="USD"
+          isLoading={isLoading}
+          reasonCode="platform_total_spend"
+        />
+        <KpiTile
+          label="Total impressions"
+          value={totals ? totals.impressions : null}
+          format="number"
+          isLoading={isLoading}
+          reasonCode="platform_total_impressions"
+        />
+        <KpiTile
+          label="Total clicks"
+          value={totals ? totals.clicks : null}
+          format="number"
+          isLoading={isLoading}
+          reasonCode="platform_total_clicks"
+        />
+        <KpiTile
+          label={firstLabel}
+          value={topRow ? topRow.spend : null}
+          format="currency"
+          currency="USD"
+          isLoading={isLoading}
+          reasonCode="platform_top_spend"
+        />
+        <KpiTile
+          label={secondLabel}
+          value={secondRow ? secondRow.spend : null}
+          format="currency"
+          currency="USD"
+          isLoading={isLoading}
+          reasonCode="platform_second_spend"
+        />
       </div>
 
-      {/* Platform bars + Device donut side by side */}
-      <div className="platformChartsRow">
-        <Card
-          title="Platform comparison"
-          className="chartCard"
-          action={
-            <select
-              className="audienceMetricSelect"
-              value={barMetric}
-              onChange={(e) => setBarMetric(e.target.value as BarMetric)}
-              aria-label="Select metric"
-            >
-              {METRIC_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          }
+      {/* Platform legend — non-color encoding via explicit text label */}
+      <Card title="Platform legend" className="chartCard">
+        <ul
+          aria-label="Platform color legend"
+          style={{
+            display: 'flex',
+            gap: '1rem',
+            listStyle: 'none',
+            padding: 0,
+            margin: 0,
+            flexWrap: 'wrap',
+          }}
         >
-          {isLoading ? (
-            <Skeleton height={300} borderRadius="1rem" />
-          ) : data?.byPlatform ? (
-            <PlatformComparisonBars data={data.byPlatform} metric={barMetric} />
-          ) : null}
-        </Card>
-        <Card title="Device split" className="chartCard">
-          {isLoading ? (
-            <Skeleton height={260} borderRadius="1rem" />
-          ) : data?.byDevice ? (
-            <DeviceDonut data={data.byDevice} metric="impressions" />
-          ) : null}
-        </Card>
-      </div>
+          {platformRows.map((row) => (
+            <li
+              key={row.platform}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  display: 'inline-block',
+                  width: '0.75rem',
+                  height: '0.75rem',
+                  borderRadius: '9999px',
+                  background: row.color,
+                }}
+              />
+              <span>{row.label}</span>
+            </li>
+          ))}
+          {platformRows.length === 0 ? <li>Meta · Google Ads</li> : null}
+        </ul>
+      </Card>
 
-      {/* Platform x Device detail table */}
-      <Card title="Platform & device detail" className="tableCardWide">
+      {/* Primary trend — single series (see [NEW-ENDPOINT] comment above) */}
+      <Card title="Blended spend trend" className="chartCard">
         {isLoading ? (
-          <Skeleton height={200} borderRadius="1rem" />
-        ) : data?.byPlatformDevice ? (
-          <div className="audienceTableWrap">
-            <table className="audienceTable">
-              <thead>
-                <tr>
-                  <th>Platform</th>
-                  <th>Device</th>
-                  <th>Impressions</th>
-                  <th>Reach</th>
-                  <th>Clicks</th>
-                  <th>Spend</th>
-                  <th>Conversions</th>
-                  <th>CPC</th>
-                  <th>CTR</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.byPlatformDevice.map((row) => {
-                  const cpc =
-                    row.clicks > 0
-                      ? (row.spend / row.clicks).toFixed(2)
-                      : '0.00';
-                  const ctr =
-                    row.impressions > 0
-                      ? ((row.clicks / row.impressions) * 100).toFixed(2)
-                      : '0.00';
-                  return (
-                    <tr key={`${row.platform}-${row.device}`}>
-                      <td style={{ textTransform: 'capitalize' }}>{row.platform}</td>
-                      <td style={{ textTransform: 'capitalize' }}>{row.device}</td>
-                      <td>{formatNumber(row.impressions)}</td>
-                      <td>{formatNumber(row.reach)}</td>
-                      <td>{formatNumber(row.clicks)}</td>
-                      <td>{formatNumber(row.spend)}</td>
-                      <td>{formatNumber(row.conversions)}</td>
-                      <td>{cpc}</td>
-                      <td>{ctr}%</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <ChartSkeleton height={260} variant="line" />
+        ) : (
+          <AccessibleTableToggle
+            chartAriaLabel="Blended spend per day"
+            chart={
+              <TrendLine
+                data={trendData}
+                series={[{ key: 'spend', label: 'Spend' }]}
+                yFormat="currency"
+                currency="USD"
+                ariaLabel="Blended spend per day"
+                emptyReasonCode="no_platform_trend_series"
+                height={260}
+              />
+            }
+            table={
+              <table>
+                <caption>Blended spend per day</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Date</th>
+                    <th scope="col">Spend</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colSpan={2}>Per-platform daily series not yet available — deferred.</td>
+                  </tr>
+                </tbody>
+              </table>
+            }
+          />
+        )}
+      </Card>
+
+      {/* Small-multiples — 2x2 DistributionBar grid */}
+      <Card title="Platform comparison (small multiples)" className="chartCard">
+        <div
+          role="group"
+          aria-label="Platform comparison small multiples"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '1rem',
+          }}
+        >
+          <div>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem' }}>Spend</h3>
+            <DistributionBar
+              data={platformRows.map((r) => ({
+                label: r.label,
+                value: r.spend,
+                color: r.color,
+              }))}
+              yFormat="currency"
+              currency="USD"
+              ariaLabel="Spend by platform"
+              isLoading={isLoading}
+              emptyReasonCode="no_data_for_range"
+              height={200}
+            />
           </div>
-        ) : null}
+          <div>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem' }}>Impressions</h3>
+            <DistributionBar
+              data={platformRows.map((r) => ({
+                label: r.label,
+                value: r.impressions,
+                color: r.color,
+              }))}
+              yFormat="number"
+              ariaLabel="Impressions by platform"
+              isLoading={isLoading}
+              emptyReasonCode="no_data_for_range"
+              height={200}
+            />
+          </div>
+          <div>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem' }}>Clicks</h3>
+            <DistributionBar
+              data={platformRows.map((r) => ({
+                label: r.label,
+                value: r.clicks,
+                color: r.color,
+              }))}
+              yFormat="number"
+              ariaLabel="Clicks by platform"
+              isLoading={isLoading}
+              emptyReasonCode="no_data_for_range"
+              height={200}
+            />
+          </div>
+          <div>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem' }}>Conversions</h3>
+            <DistributionBar
+              data={platformRows.map((r) => ({
+                label: r.label,
+                value: r.conversions,
+                color: r.color,
+              }))}
+              yFormat="number"
+              ariaLabel="Conversions by platform"
+              isLoading={isLoading}
+              emptyReasonCode="no_data_for_range"
+              height={200}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Composition — device split */}
+      <Card title="Device split" className="chartCard">
+        {isLoading ? (
+          <ChartSkeleton height={260} variant="pie" />
+        ) : (
+          <PieComposition
+            data={deviceComposition}
+            yFormat="number"
+            ariaLabel="Impressions by device"
+            emptyReasonCode="no_data_for_range"
+          />
+        )}
+      </Card>
+
+      {/* Drill-down — platform-comparison table with color-coded chip */}
+      <Card title="Platform & device detail" className="tableCardWide">
+        <VizDataTable
+          ariaLabel="Platform comparison"
+          caption="Platform comparison"
+          captionHidden
+          csvFilename="platform-comparison.csv"
+          data={platformRows}
+          getRowId={(row) => row.platform}
+          columns={[
+            {
+              accessorKey: 'label',
+              header: 'Platform',
+              cell: ({ row }) => (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      display: 'inline-block',
+                      width: '0.6rem',
+                      height: '0.6rem',
+                      borderRadius: '9999px',
+                      background: row.original.color,
+                    }}
+                  />
+                  {row.original.label}
+                </span>
+              ),
+            },
+            {
+              accessorKey: 'spend',
+              header: 'Spend',
+              cell: ({ getValue }) =>
+                Number(getValue()).toLocaleString(undefined, {
+                  style: 'currency',
+                  currency: 'USD',
+                }),
+            },
+            {
+              accessorKey: 'impressions',
+              header: 'Impressions',
+              cell: ({ getValue }) => Number(getValue()).toLocaleString(),
+            },
+            {
+              accessorKey: 'clicks',
+              header: 'Clicks',
+              cell: ({ getValue }) => Number(getValue()).toLocaleString(),
+            },
+            {
+              accessorKey: 'conversions',
+              header: 'Conversions',
+              cell: ({ getValue }) => Number(getValue()).toLocaleString(),
+            },
+            {
+              accessorKey: 'ctr',
+              header: 'CTR',
+              cell: ({ getValue }) => `${(Number(getValue()) * 100).toFixed(2)}%`,
+            },
+            {
+              accessorKey: 'cpm',
+              header: 'CPM',
+              cell: ({ getValue }) =>
+                Number(getValue()).toLocaleString(undefined, {
+                  style: 'currency',
+                  currency: 'USD',
+                }),
+            },
+            {
+              accessorKey: 'roas',
+              header: 'Conv. / $',
+              cell: ({ getValue }) => Number(getValue()).toFixed(2),
+            },
+          ]}
+        />
       </Card>
     </div>,
   );

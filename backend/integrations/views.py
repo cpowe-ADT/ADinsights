@@ -13,6 +13,7 @@ from django.core import signing
 from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -92,6 +93,7 @@ META_OAUTH_FLOW_PAGE_INSIGHTS = "page_insights"
 DEFAULT_CONNECTOR_CRON_EXPRESSION = "0 6-22 * * *"
 DEFAULT_CONNECTOR_TIMEZONE = "America/Jamaica"
 META_DIRECT_SYNC_FRESHNESS_GRACE_HOUR = 6
+META_ORGANIC_SYNC_PAGE_LIMIT = 5
 # Airbyte OSS source definition ID for Facebook Marketing.
 DEFAULT_META_SOURCE_DEFINITION_ID = "e7778cfc-e97c-4458-9ecb-b4f2bba8946c"
 DEFAULT_META_REQUIRED_SCOPE_ANY = ("ads_read", "ads_management")
@@ -864,14 +866,28 @@ def _upsert_meta_account_sync_state(
 
 
 def _airbyte_exception_response(exc: AirbyteClientError) -> Response:
+    # Log the full, untruncated error (incl. any upstream Airbyte body) server-side;
+    # return only a stable, non-upstream detail to the client.
+    logger.warning("airbyte.api_error", exc_info=exc)
     if getattr(exc, "status_code", None) is not None:
-        return Response({"detail": str(exc)}, status=int(exc.status_code))
+        upstream_status = int(exc.status_code)
+        if 400 <= upstream_status < 500:
+            return Response(
+                {"detail": "Airbyte rejected the request."},
+                status=upstream_status,
+            )
+        gateway_status = (
+            status.HTTP_504_GATEWAY_TIMEOUT
+            if upstream_status == status.HTTP_504_GATEWAY_TIMEOUT
+            else status.HTTP_502_BAD_GATEWAY
+        )
+        return Response({"detail": "Airbyte request failed."}, status=gateway_status)
     status_code = (
         status.HTTP_504_GATEWAY_TIMEOUT
         if isinstance(exc.__cause__, httpx.TimeoutException)
         else status.HTTP_502_BAD_GATEWAY
     )
-    return Response({"detail": str(exc)}, status=status_code)
+    return Response({"detail": "Airbyte request failed."}, status=status_code)
 
 
 def _looks_like_airbyte_source_config_error(message: str) -> bool:
@@ -1055,6 +1071,154 @@ def _select_preferred_meta_credential(
         )
 
     return sorted(credentials, key=score, reverse=True)[0]
+
+
+def _meta_organic_sync_response(
+    *,
+    status_value: str,
+    reason: str = "",
+    page_count: int,
+    total_analyzable_page_count: int,
+    task_dispatch_mode: str,
+    tasks: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "status": status_value,
+        "reason": reason,
+        "page_count": page_count,
+        "total_analyzable_page_count": total_analyzable_page_count,
+        "page_limit": META_ORGANIC_SYNC_PAGE_LIMIT,
+        "task_dispatch_mode": task_dispatch_mode,
+        "tasks": tasks,
+    }
+
+
+def _summarize_meta_organic_sync_tasks(tasks: list[dict[str, Any]]) -> tuple[str, str]:
+    statuses = {str(row.get("status") or "").strip() for row in tasks}
+    if not statuses:
+        return "skipped", "no_analyzable_facebook_page"
+    if statuses == {"queued"}:
+        return "queued", ""
+    if "failed" in statuses:
+        return "partial", "one_or_more_page_syncs_failed"
+    if statuses <= {"completed_no_rows"}:
+        return "completed_no_rows", "graph_returned_no_page_or_post_rows"
+    if statuses <= {"completed", "completed_no_rows"}:
+        return "completed", ""
+    if "blocked" in statuses:
+        return "partial", "one_or_more_page_syncs_blocked"
+    return "partial", "mixed_page_sync_states"
+
+
+def _dispatch_meta_organic_reporting_sync(*, tenant, task) -> dict[str, Any]:  # noqa: ANN001
+    page_queryset = MetaPage.objects.filter(tenant=tenant, can_analyze=True).order_by(
+        "-is_default",
+        "name",
+        "page_id",
+    )
+    total_page_count = page_queryset.count()
+    pages = list(page_queryset[:META_ORGANIC_SYNC_PAGE_LIMIT])
+    if not pages:
+        return _meta_organic_sync_response(
+            status_value="skipped",
+            reason="no_analyzable_facebook_page",
+            page_count=0,
+            total_analyzable_page_count=total_page_count,
+            task_dispatch_mode="unavailable",
+            tasks=[],
+        )
+
+    task_summaries: list[dict[str, Any]] = []
+    dispatch_mode = "queued"
+    for page in pages:
+        task_id = str(uuid.uuid4())
+        task_kwargs = {"page_id": page.page_id, "mode": "backfill"}
+        try:
+            result = task.apply_async(kwargs=task_kwargs, task_id=task_id)
+            task_summaries.append(
+                {
+                    "page_id": page.page_id,
+                    "task_id": str(getattr(result, "id", "") or task_id),
+                    "status": "queued",
+                }
+            )
+        except Exception as exc:
+            if _is_meta_task_dispatch_error(exc):
+                logger.warning(
+                    "meta.sync.organic_inline_fallback",
+                    extra={
+                        "tenant_id": str(tenant.id),
+                        "page_id": page.page_id,
+                        "task_id": task_id,
+                        "error_type": type(exc).__name__,
+                    },
+                )
+                try:
+                    result_payload = task.run(**task_kwargs)
+                except Exception as inline_exc:
+                    logger.exception(
+                        "meta.sync.organic_inline_failed",
+                        extra={
+                            "tenant_id": str(tenant.id),
+                            "page_id": page.page_id,
+                            "task_id": task_id,
+                            "error_type": type(inline_exc).__name__,
+                        },
+                    )
+                    dispatch_mode = "inline"
+                    task_summaries.append(
+                        {
+                            "page_id": page.page_id,
+                            "task_id": task_id,
+                            "status": "failed",
+                            "error_type": type(inline_exc).__name__,
+                        }
+                    )
+                    continue
+
+                dispatch_mode = "inline"
+                result_status = (
+                    str(result_payload.get("status") or "completed")
+                    if isinstance(result_payload, dict)
+                    else "completed"
+                )
+                task_summaries.append(
+                    {
+                        "page_id": page.page_id,
+                        "task_id": task_id,
+                        "status": result_status,
+                        "result": result_payload if isinstance(result_payload, dict) else {},
+                    }
+                )
+                continue
+
+            logger.exception(
+                "meta.sync.organic_task_dispatch_failed",
+                extra={
+                    "tenant_id": str(tenant.id),
+                    "page_id": page.page_id,
+                    "task_id": task_id,
+                    "error_type": type(exc).__name__,
+                },
+            )
+            task_summaries.append(
+                {
+                    "page_id": page.page_id,
+                    "task_id": task_id,
+                    "status": "failed",
+                    "error_type": type(exc).__name__,
+                }
+            )
+
+    status_value, reason = _summarize_meta_organic_sync_tasks(task_summaries)
+    return _meta_organic_sync_response(
+        status_value=status_value,
+        reason=reason,
+        page_count=len(pages),
+        total_analyzable_page_count=total_page_count,
+        task_dispatch_mode=dispatch_mode,
+        tasks=task_summaries,
+    )
 
 
 def _resolve_meta_status(
@@ -2138,6 +2302,23 @@ class MetaPageConnectView(APIView):
                 ad_accounts=ad_accounts,
             )
 
+        # Sprint 9a follow-up: Meta OAuth completion is the *first* moment
+        # AdAccount + MetaPage rows land for a new tenant — the scheduled
+        # ``sync_meta_accounts`` beat won't fire for up to its interval, so
+        # without this dispatch the suggestion banner would stay empty for
+        # hours after a fresh connect. Fire-and-forget; swallow dispatch
+        # errors so OAuth never fails on suggestion bookkeeping.
+        if upserted_accounts or pages:
+            from integrations.clients.tasks import (
+                enqueue_refresh_client_suggestions,
+            )
+            from integrations.models import ClientSuggestionSnapshot
+
+            enqueue_refresh_client_suggestions(
+                str(request.user.tenant_id),
+                trigger_reason=ClientSuggestionSnapshot.REASON_META_SYNC,
+            )
+
         cache.delete(cache_key)
         log_audit_event(
             tenant=request.user.tenant,
@@ -2513,7 +2694,11 @@ class MetaSyncView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):  # noqa: ANN001 - DRF signature
-        from .tasks import META_DIRECT_SYNC_LOOKBACK_DAYS, sync_meta_reporting_slice
+        from .tasks import (
+            META_DIRECT_SYNC_LOOKBACK_DAYS,
+            sync_meta_organic_reporting_bundle,
+            sync_meta_reporting_slice,
+        )
 
         tenant_id = request.user.tenant_id
         now = timezone.now()
@@ -2614,6 +2799,11 @@ class MetaSyncView(APIView):
                         },
                     )
 
+        organic_sync = _dispatch_meta_organic_reporting_sync(
+            tenant=request.user.tenant,
+            task=sync_meta_organic_reporting_bundle,
+        )
+
         log_audit_event(
             tenant=request.user.tenant,
             user=request.user,
@@ -2628,6 +2818,8 @@ class MetaSyncView(APIView):
                 "reused_existing_job": reused_existing_job,
                 "sync_engine": MetaAccountSyncState.SYNC_ENGINE_DIRECT,
                 "task_dispatch_mode": task_dispatch_mode,
+                "organic_sync_status": organic_sync["status"],
+                "organic_sync_page_count": organic_sync["page_count"],
             },
         )
 
@@ -2639,6 +2831,7 @@ class MetaSyncView(APIView):
                 "reused_existing_job": reused_existing_job,
                 "sync_status": "already_running" if reused_existing_job else "queued",
                 "task_dispatch_mode": task_dispatch_mode,
+                "organic_sync": organic_sync,
             },
             status=status.HTTP_202_ACCEPTED if job_id is not None else status.HTTP_200_OK,
         )
@@ -3249,14 +3442,9 @@ class AirbyteConnectionViewSet(viewsets.ModelViewSet):
             )
 
     def _error_response(self, exc: AirbyteClientError) -> Response:
-        if getattr(exc, "status_code", None) is not None:
-            return Response({"detail": str(exc)}, status=int(exc.status_code))
-        status_code = (
-            status.HTTP_504_GATEWAY_TIMEOUT
-            if isinstance(exc.__cause__, httpx.TimeoutException)
-            else status.HTTP_502_BAD_GATEWAY
-        )
-        return Response({"detail": str(exc)}, status=status_code)
+        # Delegate to the hardened module-level handler (logs full detail
+        # server-side, returns only a length-bounded client detail).
+        return _airbyte_exception_response(exc)
 
     def _serialize_connection(
         self, connection: AirbyteConnection, client: AirbyteClient
@@ -3681,6 +3869,94 @@ class AlertRuleDefinitionViewSet(viewsets.ModelViewSet):
             resource_type="alert_rule_definition",
             resource_id=alert_rule.id,
             metadata=self._audit_metadata(serializer),
+        )
+
+    @action(detail=True, methods=["post"], url_path="pause")
+    def pause(self, request, pk=None):
+        rule = self.get_object()
+        pause_until_raw = request.data.get("pause_until")
+        duration_hours_raw = request.data.get("duration_hours")
+
+        if pause_until_raw is not None and duration_hours_raw is not None:
+            return Response(
+                {"detail": "Provide pause_until OR duration_hours, not both."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        resolved_paused_until = None
+
+        if pause_until_raw is not None:
+            parsed = parse_datetime(pause_until_raw) if isinstance(pause_until_raw, str) else None
+            if parsed is None:
+                return Response(
+                    {"detail": "pause_until must be an ISO 8601 datetime string."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if timezone.is_naive(parsed):
+                return Response(
+                    {"detail": "pause_until must be timezone-aware."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if parsed <= timezone.now():
+                return Response(
+                    {"detail": "pause_until must be in the future."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            resolved_paused_until = parsed
+        elif duration_hours_raw is not None:
+            if isinstance(duration_hours_raw, bool) or not isinstance(duration_hours_raw, int):
+                return Response(
+                    {"detail": "duration_hours must be an integer between 1 and 720."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if duration_hours_raw < 1 or duration_hours_raw > 720:
+                return Response(
+                    {"detail": "duration_hours must be an integer between 1 and 720."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            resolved_paused_until = timezone.now() + timedelta(hours=duration_hours_raw)
+
+        rule.is_active = False
+        rule.paused_until = resolved_paused_until
+        rule.save(update_fields=["is_active", "paused_until", "updated_at"])
+
+        actor = request.user if request.user.is_authenticated else None
+        log_audit_event(
+            tenant=rule.tenant,
+            user=actor,
+            action="alert_rule_paused",
+            resource_type="alert_rule_definition",
+            resource_id=rule.id,
+            metadata={
+                "paused_until": rule.paused_until.isoformat() if rule.paused_until else None,
+            },
+        )
+
+        return Response(
+            AlertRuleDefinitionSerializer(rule).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["post"], url_path="resume")
+    def resume(self, request, pk=None):
+        rule = self.get_object()
+        rule.is_active = True
+        rule.paused_until = None
+        rule.save(update_fields=["is_active", "paused_until", "updated_at"])
+
+        actor = request.user if request.user.is_authenticated else None
+        log_audit_event(
+            tenant=rule.tenant,
+            user=actor,
+            action="alert_rule_resumed",
+            resource_type="alert_rule_definition",
+            resource_id=rule.id,
+            metadata={"resumed_at": timezone.now().isoformat()},
+        )
+
+        return Response(
+            AlertRuleDefinitionSerializer(rule).data,
+            status=status.HTTP_200_OK,
         )
 
 

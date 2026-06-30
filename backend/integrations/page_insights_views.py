@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import date, datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal
 import logging
 from typing import Any
@@ -20,7 +20,10 @@ from core.db_error_responses import schema_out_of_date_response
 from integrations.meta_page_insights.metric_pack_loader import is_blocked_metric
 from integrations.meta_page_views import MetaOAuthCallbackView
 from integrations.meta_page_views import _dispatch_meta_page_task
+from integrations.clients.resolver import resolve_client_accounts
 from integrations.models import (
+    Client as IntegrationsClient,
+    ClientPlatformAccount,
     MetaConnection,
     MetaInsightPoint,
     MetaMetricRegistry,
@@ -37,7 +40,10 @@ from integrations.page_insights_serializers import (
     SyncTriggerSerializer,
     resolve_date_range,
 )
-from integrations.services.metric_registry import get_default_metric_keys, resolve_metric_key
+from integrations.services.metric_registry import (
+    get_default_metric_keys,
+    resolve_metric_key,
+)
 from integrations.tasks import (
     discover_supported_metrics,
     sync_page_insights,
@@ -48,6 +54,7 @@ from integrations.views import MetaOAuthStartView
 
 logger = logging.getLogger(__name__)
 REQUIRED_INSIGHTS_SCOPES = {"pages_read_engagement"}
+AUTH_OR_PERMISSION_ERROR_CODES = {10, 190, 200}
 
 
 def _schema_response(request, exc: Exception, endpoint: str) -> Response | None:
@@ -75,15 +82,42 @@ class MetaPagesInsightsListView(APIView):
         try:
             return self._get(request, *args, **kwargs)
         except Exception as exc:  # pragma: no cover - exercised by API tests
-            schema_response = _schema_response(request, exc, "integrations.meta_pages.list")
+            schema_response = _schema_response(
+                request, exc, "integrations.meta_pages.list"
+            )
             if schema_response is not None:
                 return schema_response
             raise
 
     def _get(self, request, *args, **kwargs):  # noqa: ANN001
-        pages = list(
-            MetaPage.objects.filter(tenant=request.user.tenant).order_by("-is_default", "name")
-        )
+        # Sprint 5 of Client grouping: optional ``client_id`` scopes the listing
+        # to the Client's Meta pages.
+        client_id_raw = (request.query_params.get("client_id") or "").strip()
+        resolution_meta: dict[str, Any] | None = None
+        page_qs = MetaPage.objects.filter(tenant=request.user.tenant)
+        if client_id_raw:
+            try:
+                bundle = resolve_client_accounts(
+                    str(request.user.tenant_id),
+                    client_id_raw,
+                    platforms={ClientPlatformAccount.PLATFORM_META_PAGE},
+                )
+                linked_page_ids = list(bundle.meta_page_ids)
+                resolution_meta = {
+                    "client_id": client_id_raw,
+                    "meta_page_ids": linked_page_ids,
+                    "reason": None if linked_page_ids else "no_meta_pages_for_client",
+                }
+                page_qs = page_qs.filter(page_id__in=linked_page_ids)
+            except (IntegrationsClient.DoesNotExist, ValueError):
+                resolution_meta = {
+                    "client_id": client_id_raw,
+                    "meta_page_ids": [],
+                    "reason": "client_not_found",
+                }
+                page_qs = page_qs.none()
+
+        pages = list(page_qs.order_by("-is_default", "name"))
         connection = (
             MetaConnection.objects.filter(tenant=request.user.tenant, is_active=True)
             .order_by("-updated_at")
@@ -107,13 +141,18 @@ class MetaPagesInsightsListView(APIView):
             }
             for page in pages
         ]
-        return Response(
-            {
-                "results": payload,
-                "count": len(payload),
-                "missing_required_permissions": missing_required_permissions,
-            }
-        )
+        body: dict[str, Any] = {
+            "results": payload,
+            "count": len(payload),
+            "missing_required_permissions": missing_required_permissions,
+        }
+        response = Response(body)
+        if resolution_meta is not None:
+            body["client_resolution"] = resolution_meta
+            response["X-Adinsights-Resolved-Via"] = (
+                f"client:{resolution_meta['client_id']}"
+            )
+        return response
 
 
 class MetaPageInsightsSyncView(APIView):
@@ -124,7 +163,9 @@ class MetaPageInsightsSyncView(APIView):
         try:
             return self._post(request, page_id, *args, **kwargs)
         except Exception as exc:  # pragma: no cover - exercised by API tests
-            schema_response = _schema_response(request, exc, "integrations.meta_pages.sync")
+            schema_response = _schema_response(
+                request, exc, "integrations.meta_pages.sync"
+            )
             if schema_response is not None:
                 return schema_response
             raise
@@ -132,9 +173,13 @@ class MetaPageInsightsSyncView(APIView):
     def _post(self, request, page_id: str, *args, **kwargs):  # noqa: ANN001
         serializer = SyncTriggerSerializer(data=request.data or {})
         serializer.is_valid(raise_exception=True)
-        page = MetaPage.objects.filter(tenant=request.user.tenant, page_id=page_id).first()
+        page = MetaPage.objects.filter(
+            tenant=request.user.tenant, page_id=page_id
+        ).first()
         if page is None:
-            return Response({"detail": "Page not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Page not found."}, status=status.HTTP_404_NOT_FOUND
+            )
         if not page.can_analyze:
             return Response(
                 {
@@ -213,7 +258,13 @@ class MetaPageInsightsSyncView(APIView):
                 },
                 "task_dispatch_mode": (
                     "inline"
-                    if "inline" in {posts_dispatch, discovery_dispatch, page_dispatch, post_dispatch}
+                    if "inline"
+                    in {
+                        posts_dispatch,
+                        discovery_dispatch,
+                        page_dispatch,
+                        post_dispatch,
+                    }
                     else "queued"
                 ),
             },
@@ -229,7 +280,9 @@ class MetaPageOverviewInsightsView(APIView):
         try:
             return self._get(request, page_id, *args, **kwargs)
         except Exception as exc:  # pragma: no cover - exercised by API tests
-            schema_response = _schema_response(request, exc, "integrations.meta_pages.overview")
+            schema_response = _schema_response(
+                request, exc, "integrations.meta_pages.overview"
+            )
             if schema_response is not None:
                 return schema_response
             raise
@@ -238,9 +291,13 @@ class MetaPageOverviewInsightsView(APIView):
         query = DateRangeQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
 
-        page = MetaPage.objects.filter(tenant=request.user.tenant, page_id=page_id).first()
+        page = MetaPage.objects.filter(
+            tenant=request.user.tenant, page_id=page_id
+        ).first()
         if page is None:
-            return Response({"detail": "Page not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Page not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         date_preset = query.validated_data.get("date_preset", "last_28d")
         since, until = resolve_date_range(
@@ -259,9 +316,23 @@ class MetaPageOverviewInsightsView(APIView):
             prior_since = None
             prior_until = None
 
-        metric_keys = [metric for metric in get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE) if not is_blocked_metric(metric)]
-        availability = _metric_availability(page=page, level=MetaMetricRegistry.LEVEL_PAGE, metric_keys=metric_keys)
-        supported_metrics = [metric for metric in metric_keys if availability.get(metric, {}).get("supported")]
+        metric_keys = [
+            metric
+            for metric in get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE)
+            if not is_blocked_metric(metric)
+        ]
+        availability = _metric_availability(
+            page=page,
+            level=MetaMetricRegistry.LEVEL_PAGE,
+            metric_keys=metric_keys,
+            since=since,
+            until=until,
+        )
+        supported_metrics = [
+            metric
+            for metric in metric_keys
+            if availability.get(metric, {}).get("supported")
+        ]
 
         kpis: list[dict[str, Any]] = []
         trends: dict[str, list[dict[str, Any]]] = {}
@@ -276,7 +347,11 @@ class MetaPageOverviewInsightsView(APIView):
                 end_time__date__lte=until,
             )
             range_total = base_qs.aggregate(total=Sum("value_num")).get("total")
-            today_total = base_qs.filter(end_time__date=until).aggregate(total=Sum("value_num")).get("total")
+            today_total = (
+                base_qs.filter(end_time__date=until)
+                .aggregate(total=Sum("value_num"))
+                .get("total")
+            )
 
             prior_value = None
             change_pct = None
@@ -291,11 +366,19 @@ class MetaPageOverviewInsightsView(APIView):
                 )
                 prior_raw = prior_qs.aggregate(total=Sum("value_num")).get("total")
                 prior_value = _decimal_to_number(prior_raw)
-                if prior_value is not None and prior_value != 0 and range_total is not None:
+                if (
+                    prior_value is not None
+                    and prior_value != 0
+                    and range_total is not None
+                ):
                     change_pct = round(
                         (float(range_total) - prior_value) / prior_value * 100, 2
                     )
-                elif prior_value == 0 and range_total is not None and float(range_total) != 0:
+                elif (
+                    prior_value == 0
+                    and range_total is not None
+                    and float(range_total) != 0
+                ):
                     change_pct = None  # Undefined when prior is 0
 
             kpis.append(
@@ -316,7 +399,9 @@ class MetaPageOverviewInsightsView(APIView):
             )
             trends[metric_key] = [
                 {
-                    "date": row["end_time__date"].isoformat() if row["end_time__date"] else None,
+                    "date": row["end_time__date"].isoformat()
+                    if row["end_time__date"]
+                    else None,
                     "value": _decimal_to_number(row["value"]),
                 }
                 for row in series_rows
@@ -354,13 +439,19 @@ class MetaPageOverviewInsightsView(APIView):
             for row in breakdown_rows:
                 metric = row["metric_key"]
                 engagement_breakdown.setdefault(metric, []).append(
-                    {"type": row["breakdown_key"], "value": _decimal_to_number(row["total"])}
+                    {
+                        "type": row["breakdown_key"],
+                        "value": _decimal_to_number(row["total"]),
+                    }
                 )
 
-        last_synced_at = page.last_synced_at or MetaInsightPoint.objects.filter(
-            tenant=request.user.tenant,
-            page=page,
-        ).aggregate(value=Max("updated_at"))["value"]
+        last_synced_at = (
+            page.last_synced_at
+            or MetaInsightPoint.objects.filter(
+                tenant=request.user.tenant,
+                page=page,
+            ).aggregate(value=Max("updated_at"))["value"]
+        )
         return Response(
             {
                 "page_id": page.page_id,
@@ -386,7 +477,9 @@ class MetaPagePostsInsightsView(APIView):
         try:
             return self._get(request, page_id, *args, **kwargs)
         except Exception as exc:  # pragma: no cover - exercised by API tests
-            schema_response = _schema_response(request, exc, "integrations.meta_pages.posts")
+            schema_response = _schema_response(
+                request, exc, "integrations.meta_pages.posts"
+            )
             if schema_response is not None:
                 return schema_response
             raise
@@ -395,9 +488,13 @@ class MetaPagePostsInsightsView(APIView):
         query = DateRangeQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
 
-        page = MetaPage.objects.filter(tenant=request.user.tenant, page_id=page_id).first()
+        page = MetaPage.objects.filter(
+            tenant=request.user.tenant, page_id=page_id
+        ).first()
         if page is None:
-            return Response({"detail": "Page not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Page not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         date_preset = query.validated_data.get("date_preset", "last_28d")
         since, until = resolve_date_range(
@@ -420,14 +517,15 @@ class MetaPagePostsInsightsView(APIView):
         )
         if search:
             posts_qs = posts_qs.filter(
-                Q(message__icontains=search)
-                | Q(post_id__icontains=search)
+                Q(message__icontains=search) | Q(post_id__icontains=search)
             )
         if media_type:
             posts_qs = posts_qs.filter(media_type__iexact=media_type)
 
         if sort in {"metric_desc", "metric_asc"}:
-            resolved_sort_metric = resolve_metric_key(MetaMetricRegistry.LEVEL_POST, sort_metric)
+            resolved_sort_metric = resolve_metric_key(
+                MetaMetricRegistry.LEVEL_POST, sort_metric
+            )
             sort_value_sq = (
                 MetaPostInsightPoint.objects.filter(
                     tenant=request.user.tenant,
@@ -440,7 +538,9 @@ class MetaPagePostsInsightsView(APIView):
             posts_qs = posts_qs.annotate(
                 _sort_value=Subquery(sort_value_sq, output_field=DecimalField())
             ).order_by(
-                OrderBy(F("_sort_value"), descending=sort == "metric_desc", nulls_last=True),
+                OrderBy(
+                    F("_sort_value"), descending=sort == "metric_desc", nulls_last=True
+                ),
                 OrderBy(F("created_time"), descending=True, nulls_last=True),
                 "pk",
             )
@@ -451,15 +551,28 @@ class MetaPagePostsInsightsView(APIView):
 
         count = posts_qs.count()
         posts = list(posts_qs[offset : offset + limit])
-        metric_keys = [metric for metric in get_default_metric_keys(MetaMetricRegistry.LEVEL_POST) if not is_blocked_metric(metric)]
-        availability = _metric_availability(page=page, level=MetaMetricRegistry.LEVEL_POST, metric_keys=metric_keys)
+        metric_keys = [
+            metric
+            for metric in get_default_metric_keys(MetaMetricRegistry.LEVEL_POST)
+            if not is_blocked_metric(metric)
+        ]
+        availability = _metric_availability(
+            page=page,
+            level=MetaMetricRegistry.LEVEL_POST,
+            metric_keys=metric_keys,
+            since=since,
+            until=until,
+        )
 
         latest_values: dict[tuple[str, str], Decimal | None] = {}
         for row in (
             MetaPostInsightPoint.objects.filter(
                 tenant=request.user.tenant,
                 post__in=posts,
-                metric_key__in=[resolve_metric_key(MetaMetricRegistry.LEVEL_POST, metric) for metric in metric_keys],
+                metric_key__in=[
+                    resolve_metric_key(MetaMetricRegistry.LEVEL_POST, metric)
+                    for metric in metric_keys
+                ],
             )
             .order_by("post_id", "metric_key", "-end_time")
             .values("post_id", "metric_key", "value_num")
@@ -474,7 +587,9 @@ class MetaPagePostsInsightsView(APIView):
             metrics_payload: dict[str, float | None] = {}
             for metric in metric_keys:
                 resolved = resolve_metric_key(MetaMetricRegistry.LEVEL_POST, metric)
-                metrics_payload[metric] = _decimal_to_number(latest_values.get((str(post.pk), resolved)))
+                metrics_payload[metric] = _decimal_to_number(
+                    latest_values.get((str(post.pk), resolved))
+                )
             results.append(
                 {
                     "post_id": post.post_id,
@@ -489,10 +604,13 @@ class MetaPagePostsInsightsView(APIView):
                 }
             )
 
-        last_synced_at = page.last_posts_synced_at or MetaPost.objects.filter(
-            tenant=request.user.tenant,
-            page=page,
-        ).aggregate(value=Max("last_synced_at"))["value"]
+        last_synced_at = (
+            page.last_posts_synced_at
+            or MetaPost.objects.filter(
+                tenant=request.user.tenant,
+                page=page,
+            ).aggregate(value=Max("last_synced_at"))["value"]
+        )
         next_offset = offset + limit if offset + limit < count else None
         prev_offset = max(offset - limit, 0) if offset > 0 else None
         return Response(
@@ -521,7 +639,9 @@ class MetaPostDetailInsightsView(APIView):
         try:
             return self._get(request, post_id, *args, **kwargs)
         except Exception as exc:  # pragma: no cover - exercised by API tests
-            schema_response = _schema_response(request, exc, "integrations.meta_posts.detail")
+            schema_response = _schema_response(
+                request, exc, "integrations.meta_posts.detail"
+            )
             if schema_response is not None:
                 return schema_response
             raise
@@ -533,19 +653,29 @@ class MetaPostDetailInsightsView(APIView):
             .first()
         )
         if post is None:
-            return Response({"detail": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Post not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
-        metric_keys = [metric for metric in get_default_metric_keys(MetaMetricRegistry.LEVEL_POST) if not is_blocked_metric(metric)]
+        metric_keys = [
+            metric
+            for metric in get_default_metric_keys(MetaMetricRegistry.LEVEL_POST)
+            if not is_blocked_metric(metric)
+        ]
         availability = _metric_availability(
             page=post.page,
             level=MetaMetricRegistry.LEVEL_POST,
             metric_keys=metric_keys,
+            post=post,
         )
         latest_rows = (
             MetaPostInsightPoint.objects.filter(
                 tenant=request.user.tenant,
                 post=post,
-                metric_key__in=[resolve_metric_key(MetaMetricRegistry.LEVEL_POST, metric) for metric in metric_keys],
+                metric_key__in=[
+                    resolve_metric_key(MetaMetricRegistry.LEVEL_POST, metric)
+                    for metric in metric_keys
+                ],
             )
             .order_by("metric_key", "-end_time")
             .values("metric_key", "value_num")
@@ -558,7 +688,11 @@ class MetaPostDetailInsightsView(APIView):
             latest_values[metric_key] = row["value_num"]
 
         metrics = {
-            metric: _decimal_to_number(latest_values.get(resolve_metric_key(MetaMetricRegistry.LEVEL_POST, metric)))
+            metric: _decimal_to_number(
+                latest_values.get(
+                    resolve_metric_key(MetaMetricRegistry.LEVEL_POST, metric)
+                )
+            )
             for metric in metric_keys
         }
         return Response(
@@ -585,7 +719,9 @@ class MetaPostTimeseriesInsightsView(APIView):
         try:
             return self._get(request, post_id, *args, **kwargs)
         except Exception as exc:  # pragma: no cover - exercised by API tests
-            schema_response = _schema_response(request, exc, "integrations.meta_posts.timeseries")
+            schema_response = _schema_response(
+                request, exc, "integrations.meta_posts.timeseries"
+            )
             if schema_response is not None:
                 return schema_response
             raise
@@ -600,13 +736,20 @@ class MetaPostTimeseriesInsightsView(APIView):
             .first()
         )
         if post is None:
-            return Response({"detail": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Post not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         requested_metric = query.validated_data["metric"]
+        since = query.validated_data.get("since")
+        until = query.validated_data.get("until")
         availability = _metric_availability(
             page=post.page,
             level=MetaMetricRegistry.LEVEL_POST,
             metric_keys=[requested_metric],
+            post=post,
+            since=since,
+            until=until,
         )
         if not availability.get(requested_metric, {}).get("supported"):
             return Response(
@@ -619,16 +762,15 @@ class MetaPostTimeseriesInsightsView(APIView):
                 }
             )
 
-        period = query.validated_data.get("period") or "lifetime"
-        resolved_metric = resolve_metric_key(MetaMetricRegistry.LEVEL_POST, requested_metric)
+        resolved_metric = resolve_metric_key(
+            MetaMetricRegistry.LEVEL_POST, requested_metric
+        )
         filters: dict[str, Any] = {
             "tenant": request.user.tenant,
             "post": post,
             "metric_key": resolved_metric,
-            "period": period,
+            "period": query.validated_data.get("period") or "lifetime",
         }
-        since = query.validated_data.get("since")
-        until = query.validated_data.get("until")
         if since is not None:
             filters["end_time__date__gte"] = since
         if until is not None:
@@ -653,7 +795,7 @@ class MetaPostTimeseriesInsightsView(APIView):
                 "page_id": post.page.page_id,
                 "metric": requested_metric,
                 "resolved_metric": resolved_metric,
-                "period": period,
+                "period": filters["period"],
                 "metric_availability": availability,
                 "points": points,
             }
@@ -668,7 +810,9 @@ class MetaPageTimeseriesInsightsView(APIView):
         try:
             return self._get(request, page_id, *args, **kwargs)
         except Exception as exc:  # pragma: no cover - exercised by API tests
-            schema_response = _schema_response(request, exc, "integrations.meta_pages.timeseries")
+            schema_response = _schema_response(
+                request, exc, "integrations.meta_pages.timeseries"
+            )
             if schema_response is not None:
                 return schema_response
             raise
@@ -677,15 +821,28 @@ class MetaPageTimeseriesInsightsView(APIView):
         query = PageTimeseriesQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
 
-        page = MetaPage.objects.filter(tenant=request.user.tenant, page_id=page_id).first()
+        page = MetaPage.objects.filter(
+            tenant=request.user.tenant, page_id=page_id
+        ).first()
         if page is None:
-            return Response({"detail": "Page not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Page not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         requested_metric = query.validated_data["metric"]
+        date_preset = query.validated_data.get("date_preset", "last_28d")
+        since, until = resolve_date_range(
+            date_preset=date_preset,
+            since=query.validated_data.get("since"),
+            until=query.validated_data.get("until"),
+        )
+        period = query.validated_data.get("period") or "day"
         availability = _metric_availability(
             page=page,
             level=MetaMetricRegistry.LEVEL_PAGE,
             metric_keys=[requested_metric],
+            since=since,
+            until=until,
         )
         if not availability.get(requested_metric, {}).get("supported"):
             return Response(
@@ -696,15 +853,9 @@ class MetaPageTimeseriesInsightsView(APIView):
                     "points": [],
                 }
             )
-
-        date_preset = query.validated_data.get("date_preset", "last_28d")
-        since, until = resolve_date_range(
-            date_preset=date_preset,
-            since=query.validated_data.get("since"),
-            until=query.validated_data.get("until"),
+        resolved_metric = resolve_metric_key(
+            MetaMetricRegistry.LEVEL_PAGE, requested_metric
         )
-        period = query.validated_data.get("period") or "day"
-        resolved_metric = resolve_metric_key(MetaMetricRegistry.LEVEL_PAGE, requested_metric)
 
         rows = (
             MetaInsightPoint.objects.filter(
@@ -752,7 +903,9 @@ class MetaMetricsListView(APIView):
                 {"detail": "level must be PAGE or POST."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        include_all = str(request.query_params.get("include_all") or "").strip().lower() in {
+        include_all = str(
+            request.query_params.get("include_all") or ""
+        ).strip().lower() in {
             "1",
             "true",
             "yes",
@@ -763,7 +916,10 @@ class MetaMetricsListView(APIView):
         queryset = MetaMetricRegistry.objects.filter(level=level)
         if not include_all:
             queryset = queryset.exclude(
-                status__in=[MetaMetricRegistry.STATUS_INVALID, MetaMetricRegistry.STATUS_DEPRECATED]
+                status__in=[
+                    MetaMetricRegistry.STATUS_INVALID,
+                    MetaMetricRegistry.STATUS_DEPRECATED,
+                ]
             )
 
         rows = list(
@@ -779,11 +935,17 @@ class MetaMetricsListView(APIView):
                 "is_default",
             )
         )
-        rows = [row for row in rows if not is_blocked_metric(str(row.get("metric_key") or ""))]
+        rows = [
+            row
+            for row in rows
+            if not is_blocked_metric(str(row.get("metric_key") or ""))
+        ]
         return Response({"results": rows, "count": len(rows)})
 
 
-def _get_or_create_meta_page_export_report(*, tenant_id: str, page: MetaPage) -> ReportDefinition:
+def _get_or_create_meta_page_export_report(
+    *, tenant_id: str, page: MetaPage
+) -> ReportDefinition:
     name = f"internal:meta_pages:{page.page_id}"
     report, _ = ReportDefinition.objects.update_or_create(
         tenant_id=tenant_id,
@@ -809,12 +971,20 @@ class MetaPageExportsView(APIView):
     schema = AutoSchema(operation_id_base="MetaPageExports")
 
     def get(self, request, page_id: str, *args, **kwargs):  # noqa: ANN001
-        page = MetaPage.objects.filter(tenant=request.user.tenant, page_id=page_id).first()
+        page = MetaPage.objects.filter(
+            tenant=request.user.tenant, page_id=page_id
+        ).first()
         if page is None:
-            return Response({"detail": "Page not found."}, status=status.HTTP_404_NOT_FOUND)
-        report = _get_or_create_meta_page_export_report(tenant_id=str(request.user.tenant_id), page=page)
+            return Response(
+                {"detail": "Page not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        report = _get_or_create_meta_page_export_report(
+            tenant_id=str(request.user.tenant_id), page=page
+        )
         jobs = list(
-            ReportExportJob.objects.filter(tenant_id=request.user.tenant_id, report=report).order_by("-created_at")[:25]
+            ReportExportJob.objects.filter(
+                tenant_id=request.user.tenant_id, report=report
+            ).order_by("-created_at")[:25]
         )
         return Response(ReportExportJobSerializer(jobs, many=True).data)
 
@@ -827,16 +997,22 @@ class MetaPageExportsView(APIView):
             if hasattr(value, "isoformat"):
                 request_payload[key] = value.isoformat()
 
-        page = MetaPage.objects.filter(tenant=request.user.tenant, page_id=page_id).first()
+        page = MetaPage.objects.filter(
+            tenant=request.user.tenant, page_id=page_id
+        ).first()
         if page is None:
-            return Response({"detail": "Page not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Page not found."}, status=status.HTTP_404_NOT_FOUND
+            )
         if not page.can_analyze:
             return Response(
                 {"detail": "Selected page is not eligible for insights exports."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        report = _get_or_create_meta_page_export_report(tenant_id=str(request.user.tenant_id), page=page)
+        report = _get_or_create_meta_page_export_report(
+            tenant_id=str(request.user.tenant_id), page=page
+        )
         job = ReportExportJob.objects.create(
             tenant=request.user.tenant,
             report=report,
@@ -873,9 +1049,13 @@ class MetaPageExportsView(APIView):
             job.status = ReportExportJob.STATUS_FAILED
             job.error_message = str(exc)
             job.completed_at = timezone.now()
-            job.save(update_fields=["status", "error_message", "completed_at", "updated_at"])
+            job.save(
+                update_fields=["status", "error_message", "completed_at", "updated_at"]
+            )
 
-        return Response(ReportExportJobSerializer(job).data, status=status.HTTP_201_CREATED)
+        return Response(
+            ReportExportJobSerializer(job).data, status=status.HTTP_201_CREATED
+        )
 
 
 def _metric_availability(
@@ -883,42 +1063,148 @@ def _metric_availability(
     page: MetaPage,
     level: str,
     metric_keys: list[str],
+    since: date | None = None,
+    until: date | None = None,
+    post: MetaPost | None = None,
 ) -> dict[str, dict[str, Any]]:
     registry = {
         row.metric_key: row
-        for row in MetaMetricRegistry.objects.filter(level=level, metric_key__in=metric_keys)
+        for row in MetaMetricRegistry.objects.filter(
+            level=level, metric_key__in=metric_keys
+        )
     }
     support_rows = {
         row.metric_key: row
-        for row in MetaMetricSupportStatus.objects.filter(page=page, level=level, metric_key__in=metric_keys)
+        for row in MetaMetricSupportStatus.objects.filter(
+            page=page, level=level, metric_key__in=metric_keys
+        )
     }
 
     availability: dict[str, dict[str, Any]] = {}
+    missing_scopes = _missing_required_scopes_for_page(page)
     for metric in metric_keys:
         status_row = registry.get(metric)
         support_row = support_rows.get(metric)
-        status_value = status_row.status if status_row is not None else MetaMetricRegistry.STATUS_UNKNOWN
-        supported = (
-            bool(support_row.supported)
-            if support_row is not None
-            else status_value not in {MetaMetricRegistry.STATUS_INVALID, MetaMetricRegistry.STATUS_DEPRECATED}
-            and not is_blocked_metric(metric)
+        status_value = (
+            status_row.status
+            if status_row is not None
+            else MetaMetricRegistry.STATUS_UNKNOWN
         )
+        registry_supported = status_value not in {
+            MetaMetricRegistry.STATUS_INVALID,
+            MetaMetricRegistry.STATUS_DEPRECATED,
+        } and not is_blocked_metric(metric)
 
         reason = ""
-        if not supported:
+        availability_state = "available"
+        if not registry_supported:
+            supported = False
+            availability_state = "unsupported"
+            reason = "Metric is not supported by the current Meta Page/Post registry."
+        elif support_row is not None and not support_row.supported:
+            supported = False
+            availability_state = (
+                "permission_gated"
+                if _support_error_is_permission_gated(support_row.last_error)
+                else "unsupported"
+            )
             if support_row is not None and isinstance(support_row.last_error, dict):
                 reason = str(support_row.last_error.get("message") or "").strip()
             if not reason:
                 reason = "Not available for this Page"
+        elif missing_scopes:
+            supported = False
+            availability_state = "permission_gated"
+            reason = (
+                "Missing required Page permission(s): " f"{', '.join(missing_scopes)}."
+            )
+        else:
+            supported = True
+            has_data = _metric_has_stored_data(
+                page=page,
+                level=level,
+                metric=metric,
+                since=since,
+                until=until,
+                post=post,
+            )
+            if not has_data:
+                availability_state = "callable_no_data"
+                reason = (
+                    "Metric is callable for this Page, but no stored data is available "
+                    "for the selected range."
+                )
 
         availability[metric] = {
             "supported": supported,
             "status": status_value,
-            "last_checked_at": _to_iso(support_row.last_checked_at if support_row is not None else None),
+            "last_checked_at": _to_iso(
+                support_row.last_checked_at if support_row is not None else None
+            ),
             "reason": reason,
+            "availability_state": availability_state,
+            "availability_note": _metric_availability_note(
+                availability_state=availability_state,
+                reason=reason,
+            ),
         }
     return availability
+
+
+def _metric_has_stored_data(
+    *,
+    page: MetaPage,
+    level: str,
+    metric: str,
+    since: date | None,
+    until: date | None,
+    post: MetaPost | None,
+) -> bool:
+    resolved_metric = resolve_metric_key(level, metric)
+    metric_keys = {metric, resolved_metric}
+    if level == MetaMetricRegistry.LEVEL_POST:
+        queryset = MetaPostInsightPoint.objects.filter(
+            tenant=page.tenant,
+            metric_key__in=metric_keys,
+        )
+        if post is not None:
+            queryset = queryset.filter(post=post)
+        else:
+            queryset = queryset.filter(post__page=page)
+    else:
+        queryset = MetaInsightPoint.objects.filter(
+            tenant=page.tenant,
+            page=page,
+            metric_key__in=metric_keys,
+        )
+    if since is not None:
+        queryset = queryset.filter(end_time__date__gte=since)
+    if until is not None:
+        queryset = queryset.filter(end_time__date__lte=until)
+    return queryset.exists()
+
+
+def _support_error_is_permission_gated(last_error: object) -> bool:
+    if not isinstance(last_error, dict):
+        return False
+    try:
+        error_code = int(last_error.get("error_code") or 0)
+    except (TypeError, ValueError):
+        error_code = 0
+    if error_code in AUTH_OR_PERMISSION_ERROR_CODES:
+        return True
+    message = str(last_error.get("message") or "").lower()
+    return "permission" in message or "oauth" in message or "token" in message
+
+
+def _metric_availability_note(*, availability_state: str, reason: str) -> str:
+    if availability_state == "available":
+        return "Stored metric rows are available for the selected Page scope."
+    if availability_state == "callable_no_data":
+        return reason
+    if availability_state == "permission_gated":
+        return reason or "Metric is gated by missing Meta Page permissions."
+    return reason or "Metric is unsupported for this Page."
 
 
 def _missing_required_scopes_for_page(page: MetaPage) -> list[str]:
@@ -926,18 +1212,32 @@ def _missing_required_scopes_for_page(page: MetaPage) -> list[str]:
     if page.connection_id:
         connection = MetaConnection.all_objects.filter(pk=page.connection_id).first()
         if connection is not None and isinstance(connection.scopes, list):
-            scopes = [str(scope).strip() for scope in connection.scopes if isinstance(scope, str)]
+            scopes = [
+                str(scope).strip()
+                for scope in connection.scopes
+                if isinstance(scope, str)
+            ]
     if not scopes:
         latest_connection = (
-            MetaConnection.all_objects.filter(tenant=page.tenant, is_active=True).order_by("-updated_at").first()
+            MetaConnection.all_objects.filter(tenant=page.tenant, is_active=True)
+            .order_by("-updated_at")
+            .first()
         )
         if latest_connection is not None and isinstance(latest_connection.scopes, list):
-            scopes = [str(scope).strip() for scope in latest_connection.scopes if isinstance(scope, str)]
+            scopes = [
+                str(scope).strip()
+                for scope in latest_connection.scopes
+                if isinstance(scope, str)
+            ]
     return _missing_required_scopes_for_scopes(scopes)
 
 
-def _missing_required_scopes_for_page_connection(connection: MetaConnection) -> list[str]:
-    return _missing_required_scopes_for_scopes(connection.scopes if isinstance(connection.scopes, list) else [])
+def _missing_required_scopes_for_page_connection(
+    connection: MetaConnection,
+) -> list[str]:
+    return _missing_required_scopes_for_scopes(
+        connection.scopes if isinstance(connection.scopes, list) else []
+    )
 
 
 def _missing_required_scopes_for_scopes(scopes: list[str]) -> list[str]:

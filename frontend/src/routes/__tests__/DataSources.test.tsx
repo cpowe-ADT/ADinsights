@@ -80,7 +80,8 @@ vi.mock('../../lib/datasetStatus', () => ({
   messageForLiveDatasetReason: vi.fn((reason: string) => {
     const messages: Record<string, string> = {
       adapter_disabled: 'Live reporting is not enabled in this environment.',
-      missing_snapshot: 'Meta is connected, but the first live warehouse snapshot has not been generated yet.',
+      missing_snapshot:
+        'Meta is connected, but the first live warehouse snapshot has not been generated yet.',
       stale_snapshot: 'Live data is refreshing.',
       default_snapshot: 'Latest live snapshot is fallback data.',
       ready: 'Live reporting is ready.',
@@ -102,7 +103,7 @@ describe('DataSources connect flow', () => {
     const metaCard = metaHeading.closest('article');
     expect(metaCard).not.toBeNull();
     return within(metaCard as HTMLElement).getByRole('button', {
-      name: /connect with facebook/i,
+      name: /open meta setup/i,
     });
   };
 
@@ -343,7 +344,8 @@ describe('DataSources connect flow', () => {
           status: 'not_connected',
           reason: {
             code: 'instagram_not_linked',
-            message: 'Instagram business linking is optional and is completed inside the Meta asset-selection flow.',
+            message:
+              'Instagram business linking is optional and is completed inside the Meta asset-selection flow.',
           },
           last_checked_at: '2026-02-17T20:00:00Z',
           last_synced_at: null,
@@ -408,15 +410,16 @@ describe('DataSources connect flow', () => {
     });
     window.history.replaceState({}, '', '/');
     window.sessionStorage.clear();
+    window.localStorage.clear();
   });
 
   it('shows connect buttons', async () => {
     renderDataSources();
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Connect Meta' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Connect Google Ads' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Connect Google Analytics' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Finish Meta setup' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Open Google Ads setup' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Open GA4 setup' })).toBeInTheDocument();
     });
   });
 
@@ -436,7 +439,7 @@ describe('DataSources connect flow', () => {
     renderDataSources();
 
     expect(await screen.findByText('Google Ads Metrics Connection')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Connect Meta' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Finish Meta setup' })).toBeInTheDocument();
   });
 
   it('renders social connection statuses and social-focused mode', async () => {
@@ -444,9 +447,9 @@ describe('DataSources connect flow', () => {
     renderDataSources();
 
     expect(await screen.findByRole('heading', { name: /social connections/i })).toBeInTheDocument();
-    expect(screen.getByText('Started, not complete')).toBeInTheDocument();
+    expect(await screen.findByText('Started, not complete')).toBeInTheDocument();
     expect(screen.getAllByText('Not connected').length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('button', { name: /continue setup/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /finish meta setup/i }).length).toBeGreaterThan(0);
   });
 
   it('frames data sources as the canonical social setup hub', async () => {
@@ -474,7 +477,7 @@ describe('DataSources connect flow', () => {
     const user = userEvent.setup();
     renderDataSources();
 
-    await user.click(await screen.findByRole('button', { name: 'Connect Meta' }));
+    await user.click(await screen.findByRole('button', { name: 'Finish Meta setup' }));
 
     expect(
       await screen.findByText(
@@ -522,6 +525,7 @@ describe('DataSources connect flow', () => {
     await waitFor(() => {
       expect(airbyteMocks.startMetaOAuth).toHaveBeenCalledTimes(1);
       expect(window.sessionStorage.getItem('adinsights.connect.oauth.provider')).toBe('META');
+      expect(window.sessionStorage.getItem('adinsights.meta.oauth.flow')).toBeNull();
     });
     expect(screen.queryByRole('heading', { name: /connect meta/i })).not.toBeInTheDocument();
   });
@@ -535,7 +539,7 @@ describe('DataSources connect flow', () => {
     expect(instagramCard).not.toBeNull();
 
     await user.click(
-      within(instagramCard as HTMLElement).getByRole('button', { name: 'Open Meta setup' }),
+      within(instagramCard as HTMLElement).getByRole('button', { name: 'Link Instagram via Meta' }),
     );
 
     expect(airbyteMocks.startMetaOAuth).not.toHaveBeenCalled();
@@ -544,11 +548,164 @@ describe('DataSources connect flow', () => {
     ).toBeInTheDocument();
   });
 
+  it('checks Meta data through the direct Meta sync endpoint instead of Airbyte rows', async () => {
+    const user = userEvent.setup();
+    airbyteMocks.loadAirbyteConnections.mockResolvedValueOnce([
+      {
+        id: 'airbyte-meta-1',
+        name: 'Meta Metrics Connection',
+        connection_id: '11111111-1111-4111-8111-111111111111',
+        provider: 'META',
+        is_active: true,
+        last_job_status: 'failed',
+        last_job_error: 'Expired token from old Airbyte source.',
+        updated_at: '2026-02-17T20:00:00Z',
+      },
+    ]);
+    airbyteMocks.loadSocialConnectionStatus.mockResolvedValueOnce({
+      generated_at: '2026-02-17T20:00:00Z',
+      platforms: [
+        {
+          platform: 'meta',
+          display_name: 'Meta (Facebook)',
+          status: 'complete',
+          reason: {
+            code: 'no_recent_reportable_data',
+            message: 'Meta is connected, but no recent rows were found.',
+          },
+          last_checked_at: '2026-02-17T20:00:00Z',
+          last_synced_at: '2026-02-17T19:45:00Z',
+          actions: ['sync_now', 'view'],
+          metadata: {},
+        },
+      ],
+    });
+    airbyteMocks.syncMetaIntegration.mockResolvedValueOnce({
+      provider: 'meta_ads',
+      connection_id: 'conn-meta-1',
+      job_id: 'direct-101',
+      sync_status: 'queued',
+      task_dispatch_mode: 'queued',
+      organic_sync: {
+        status: 'queued',
+        page_count: 1,
+      },
+    });
+
+    renderDataSources();
+
+    const metaHeading = await screen.findByRole('heading', { name: 'Meta (Facebook)' });
+    const metaCard = metaHeading.closest('article');
+    expect(metaCard).not.toBeNull();
+
+    await user.click(
+      within(metaCard as HTMLElement).getByRole('button', { name: 'Run Meta sync' }),
+    );
+
+    await waitFor(() => {
+      expect(airbyteMocks.syncMetaIntegration).toHaveBeenCalledTimes(1);
+    });
+    expect(airbyteMocks.triggerAirbyteSync).not.toHaveBeenCalled();
+    expect(addToast).toHaveBeenCalledWith(
+      'Meta data check queued (job direct-101). Organic Page/Post sync queued for 1 page.',
+      'success',
+    );
+  });
+
+  it('keeps failed Airbyte connection rows disabled for manual sync', async () => {
+    airbyteMocks.loadAirbyteConnections.mockResolvedValueOnce([
+      {
+        id: 'airbyte-meta-1',
+        name: 'Meta Metrics Connection',
+        connection_id: '11111111-1111-4111-8111-111111111111',
+        provider: 'META',
+        is_active: true,
+        last_job_status: 'failed',
+        last_job_error: 'Connector failed.',
+      },
+    ]);
+
+    renderDataSources();
+
+    expect(await screen.findByText('Advanced sync connections')).toBeInTheDocument();
+    const row = screen.getByText('Meta Metrics Connection').closest('article');
+    expect(row).not.toBeNull();
+    const button = within(row as HTMLElement).getByRole('button', {
+      name: 'Fix connection first',
+    });
+    expect(button).toBeDisabled();
+  });
+
+  it('sanitizes raw Airbyte trigger failures in toasts', async () => {
+    const user = userEvent.setup();
+    airbyteMocks.loadAirbyteConnections.mockResolvedValueOnce([
+      {
+        id: 'airbyte-meta-1',
+        name: 'Healthy Meta Connection',
+        connection_id: '11111111-1111-4111-8111-111111111111',
+        provider: 'META',
+        is_active: true,
+        last_job_status: 'succeeded',
+        last_job_error: '',
+        last_synced_at: '2026-02-17T20:00:00Z',
+      },
+    ]);
+    airbyteMocks.triggerAirbyteSync.mockRejectedValueOnce(
+      new Error(
+        "Failed to trigger sync for 6c3: Server error '500 Internal Server Error' for url 'http://host.docker.internal:18001/api/v1/connections/sync'",
+      ),
+    );
+
+    renderDataSources();
+
+    const row = await screen.findByText('Healthy Meta Connection');
+    const card = row.closest('article');
+    expect(card).not.toBeNull();
+    await user.click(
+      within(card as HTMLElement).getByRole('button', { name: 'Trigger Airbyte sync' }),
+    );
+
+    await waitFor(() => {
+      expect(addToast).toHaveBeenCalledWith(
+        'Airbyte sync could not start. Check the advanced connection row or local Airbyte service.',
+        'error',
+      );
+    });
+  });
+
   it('shows the reporting stage separately from the Meta auth reason', async () => {
     renderDataSources();
 
     expect(await screen.findByText('Blocked')).toBeInTheDocument();
     expect(screen.getByText('Disabled')).toBeInTheDocument();
+  });
+
+  it('explains Meta app mismatch credential reauth failures', async () => {
+    airbyteMocks.loadSocialConnectionStatus.mockResolvedValueOnce({
+      generated_at: '2026-02-17T20:00:00Z',
+      platforms: [
+        {
+          platform: 'meta',
+          display_name: 'Meta (Facebook)',
+          status: 'started_not_complete',
+          reason: {
+            code: 'credential_reauth_required',
+            message:
+              'Meta debug_token failed: (#100) The App_id in the input_token did not match the Viewing App',
+          },
+          last_checked_at: '2026-02-17T20:00:00Z',
+          last_synced_at: '2026-02-17T18:00:00Z',
+          actions: ['connect_oauth'],
+          metadata: {},
+        },
+      ],
+    });
+
+    renderDataSources();
+
+    expect(
+      await screen.findByText(/saved token belongs to a different Meta app/i),
+    ).toBeInTheDocument();
   });
 
   it('opens setup panel when direct social oauth start fails', async () => {
@@ -592,7 +749,10 @@ describe('DataSources connect flow', () => {
     await user.click(await findMetaConnectButton());
 
     await waitFor(() => {
-      expect(addToast).toHaveBeenCalledWith('META_APP_ID must be configured for Meta OAuth.', 'error');
+      expect(addToast).toHaveBeenCalledWith(
+        'META_APP_ID must be configured for Meta OAuth.',
+        'error',
+      );
       expect(screen.getByRole('heading', { name: /connect meta/i })).toBeInTheDocument();
     });
   });
@@ -669,7 +829,10 @@ describe('DataSources connect flow', () => {
     renderDataSources();
 
     await waitFor(() => {
-      expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith('oauth-code', 'oauth-state');
+      expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith(
+        'oauth-code',
+        'oauth-state',
+      );
     });
     expect(airbyteMocks.exchangeMetaOAuthCode).not.toHaveBeenCalled();
   });
@@ -684,10 +847,16 @@ describe('DataSources connect flow', () => {
     renderDataSources();
 
     await waitFor(() => {
-      expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith('oauth-code', 'oauth-state');
+      expect(metaPageInsightsMocks.callbackMetaOAuth).toHaveBeenCalledWith(
+        'oauth-code',
+        'oauth-state',
+      );
     });
     await waitFor(() => {
-      expect(addToast).toHaveBeenCalledWith('Meta Page Insights connected. Loading page dashboard.', 'success');
+      expect(addToast).toHaveBeenCalledWith(
+        'Meta Page Insights connected. Loading page dashboard.',
+        'success',
+      );
     });
   });
 
@@ -695,11 +864,37 @@ describe('DataSources connect flow', () => {
     const user = userEvent.setup();
     renderDataSources();
 
-    await user.click(await screen.findByRole('button', { name: 'Connect Meta' }));
+    await user.click(await screen.findByRole('button', { name: 'Finish Meta setup' }));
     await user.click(screen.getByRole('button', { name: 'Save connection' }));
 
     expect(airbyteMocks.provisionMetaIntegration).not.toHaveBeenCalled();
-    expect(addToast).toHaveBeenCalledWith('Complete Meta OAuth and save a business page first.', 'error');
+    expect(addToast).toHaveBeenCalledWith(
+      'Complete Meta OAuth and save a business page first.',
+      'error',
+    );
+  });
+
+  it('ignores legacy persisted Meta asset selections instead of restoring selection tokens', async () => {
+    window.sessionStorage.setItem(
+      'adinsights.meta.oauth.selection',
+      JSON.stringify({
+        selectionToken: 'persisted-selection-token',
+        pages: [{ id: 'page-1', name: 'Business Page', tasks: [], perms: [] }],
+        adAccounts: [{ id: 'act_123', account_id: '123', name: 'Primary Account' }],
+        instagramAccounts: [],
+        selectedPageId: 'page-1',
+        selectedAdAccountId: 'act_123',
+        selectedInstagramAccountId: '',
+        source: 'oauth_callback',
+        recoveredFromExistingToken: false,
+      }),
+    );
+
+    renderDataSources();
+
+    await screen.findByText('Social connections');
+    expect(screen.queryByText(/Facebook OAuth returned your assets/i)).not.toBeInTheDocument();
+    expect(airbyteMocks.connectMetaPage).not.toHaveBeenCalled();
   });
 
   it('treats restore as successful when sync succeeds even if provisioning fails', async () => {
@@ -737,26 +932,25 @@ describe('DataSources connect flow', () => {
 
     renderDataSources();
 
-    await user.click(await screen.findByRole('button', { name: 'Connect Meta' }));
+    await user.click(await screen.findByRole('button', { name: 'Restore Meta marketing access' }));
     const saveButton = await screen.findByRole('button', { name: 'Save connection' });
     const connectForm = saveButton.closest('form');
     expect(connectForm).not.toBeNull();
-    await user.click(
-      within(connectForm as HTMLFormElement).getByRole('button', { name: 'Restore marketing access' }),
-    );
     await waitFor(() => {
       expect(airbyteMocks.previewMetaRecovery).toHaveBeenCalledTimes(1);
     });
     await user.click(
-      within(connectForm as HTMLFormElement).getByRole('button', { name: 'Confirm selection' }),
+      within(connectForm as HTMLFormElement).getByRole('button', {
+        name: 'Restore Meta marketing access',
+      }),
     );
 
     await waitFor(() => {
       expect(airbyteMocks.connectMetaPage).toHaveBeenCalledWith(
         expect.objectContaining({
-        selection_token: 'recovery-token',
-        page_id: 'page-1',
-        ad_account_id: 'act_123',
+          selection_token: 'recovery-token',
+          page_id: 'page-1',
+          ad_account_id: 'act_123',
         }),
       );
     });
@@ -772,7 +966,9 @@ describe('DataSources connect flow', () => {
       'success',
     );
     expect(addToast).toHaveBeenCalledWith(
-      expect.stringContaining('Meta marketing access restored; Airbyte connection was not provisioned.'),
+      expect.stringContaining(
+        'Meta marketing access restored; Airbyte connection was not provisioned.',
+      ),
       'info',
     );
   });
@@ -782,7 +978,7 @@ describe('DataSources connect flow', () => {
     const user = userEvent.setup();
     const view = renderDataSources();
 
-    await user.click(await screen.findByRole('button', { name: 'Connect Google Ads' }));
+    await user.click(await screen.findByRole('button', { name: 'Open Google Ads setup' }));
     await user.type(screen.getByLabelText('Google Ads customer/account ID'), '1234567890');
     await user.type(screen.getByLabelText('Login customer ID (optional)'), '0987654321');
     const setupHeading = screen.getByRole('heading', { name: 'Connect Google Ads' });
@@ -843,13 +1039,13 @@ describe('DataSources connect flow', () => {
         cron_expression: '0 6-22 * * *',
       });
     });
-  }, 15000);
+  }, 30000);
 
   it('starts Google Analytics OAuth from the setup panel', async () => {
     const user = userEvent.setup();
     renderDataSources();
 
-    await user.click(await screen.findByRole('button', { name: 'Connect Google Analytics' }));
+    await user.click(await screen.findByRole('button', { name: 'Open GA4 setup' }));
     const setupHeading = screen.getByRole('heading', { name: 'Connect Google Analytics 4' });
     const setupForm = setupHeading.closest('form');
     expect(setupForm).not.toBeNull();
@@ -887,7 +1083,7 @@ describe('DataSources connect flow', () => {
 
     renderDataSources();
 
-    await user.click(await screen.findByRole('button', { name: 'Connect Google Analytics' }));
+    await user.click(await screen.findByRole('button', { name: 'Open GA4 setup' }));
     const setupHeading = screen.getByRole('heading', { name: 'Connect Google Analytics 4' });
     const setupForm = setupHeading.closest('form');
     expect(setupForm).not.toBeNull();

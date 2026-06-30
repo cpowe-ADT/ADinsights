@@ -100,11 +100,25 @@ describe('DashboardLibrary', () => {
     });
   });
 
+  it('renders the S4c library summary KPI strip with template / saved / recent counts', async () => {
+    renderLibrary();
+
+    const strip = await screen.findByRole('group', { name: /dashboard library summary/i });
+    expect(strip).toBeInTheDocument();
+    // 3 KpiTile instances — each renders a `.metric-card` element.
+    expect(strip.querySelectorAll('.metric-card').length).toBe(3);
+    expect(strip).toHaveTextContent(/System templates/i);
+    expect(strip).toHaveTextContent(/Saved dashboards/i);
+    expect(strip).toHaveTextContent(/Updated in last 7 days/i);
+  });
+
   it('renders split system-template and saved-dashboard sections', async () => {
     renderLibrary();
 
     expect(await screen.findByRole('heading', { name: 'System templates' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Saved dashboards' })).toBeInTheDocument();
+    // FP-LIB-01: h1 was renamed to "Saved dashboards"; there is now also an h2 section
+    // label with the same text. Use getAllByRole and assert at least one match.
+    expect(screen.getAllByRole('heading', { name: 'Saved dashboards' }).length).toBeGreaterThan(0);
     expect(screen.getByText('Meta campaign performance')).toBeInTheDocument();
     expect(screen.getByText('JDIC creative review')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Use template' })).toHaveAttribute(
@@ -190,9 +204,7 @@ describe('DashboardLibrary', () => {
     expect(screen.queryByText('JDIC renamed Copy')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Delete' }));
-    await waitFor(() =>
-      expect(apiMocks.deleteDashboardDefinition).toHaveBeenCalledWith('dash-1'),
-    );
+    await waitFor(() => expect(apiMocks.deleteDashboardDefinition).toHaveBeenCalledWith('dash-1'));
     expect(screen.queryByText('JDIC renamed')).not.toBeInTheDocument();
 
     expect(promptSpy).toHaveBeenCalled();

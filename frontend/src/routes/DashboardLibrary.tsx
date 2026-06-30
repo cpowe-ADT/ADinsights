@@ -18,8 +18,13 @@ import {
   type DashboardDefinition,
 } from '../lib/phase2Api';
 import { getDashboardTemplate } from '../lib/dashboardTemplates';
+import { KpiTile } from '../components/viz';
 
 import '../styles/dashboard.css';
+
+// S4c: 7-day lookback for the "Recently updated" summary tile. Using a
+// constant avoids "magic-number" churn in tests.
+const RECENTLY_UPDATED_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 type LoadState = 'loading' | 'ready' | 'error';
 type DashboardAction = 'rename' | 'duplicate' | 'archive' | 'delete';
@@ -189,8 +194,22 @@ const DashboardLibrary = () => {
 
   const hasFilters = search.trim().length > 0 || typeFilter !== 'all' || ownerFilter !== 'all';
   const hasAnyItems = allItems.length > 0;
-  const hasMatches =
-    filteredSystemTemplates.length > 0 || filteredSavedDashboards.length > 0;
+  const hasMatches = filteredSystemTemplates.length > 0 || filteredSavedDashboards.length > 0;
+
+  // S4c: summary KPI strip — counts are derived from the unfiltered library
+  // payload so the tiles remain stable as search/filter controls mutate.
+  const librarySummary = useMemo(() => {
+    const now = Date.now();
+    const recentCount = baseSavedDashboards.filter((item) => {
+      const parsed = new Date(item.updatedAt).getTime();
+      return Number.isFinite(parsed) && now - parsed <= RECENTLY_UPDATED_WINDOW_MS;
+    }).length;
+    return {
+      systemTemplateCount: baseSystemTemplates.length,
+      savedDashboardCount: baseSavedDashboards.length,
+      recentCount,
+    };
+  }, [baseSavedDashboards, baseSystemTemplates]);
 
   const handleClearFilters = useCallback(() => {
     setSearch('');
@@ -220,11 +239,7 @@ const DashboardLibrary = () => {
   );
 
   const runSavedDashboardAction = useCallback(
-    async (
-      item: DashboardLibraryItem,
-      action: DashboardAction,
-      callback: () => Promise<void>,
-    ) => {
+    async (item: DashboardLibraryItem, action: DashboardAction, callback: () => Promise<void>) => {
       setActionError(undefined);
       setPendingActionKey(`${action}:${item.id}`);
       try {
@@ -248,9 +263,7 @@ const DashboardLibrary = () => {
       await runSavedDashboardAction(item, 'rename', async () => {
         const updated = await updateDashboardDefinition(item.id, { name: trimmed });
         updateSavedDashboards((current) =>
-          current.map((entry) =>
-            entry.id === item.id ? toSavedDashboardItem(updated) : entry,
-          ),
+          current.map((entry) => (entry.id === item.id ? toSavedDashboardItem(updated) : entry)),
         );
       });
     },
@@ -328,7 +341,7 @@ const DashboardLibrary = () => {
       <header className="dashboard-library__header">
         <div>
           <p className="dashboardEyebrow">Dashboard library</p>
-          <h1 className="dashboardHeading">Meta dashboards</h1>
+          <h1 className="dashboardHeading">Saved dashboards</h1>
           <p className="dashboard-library__subhead">
             Start from a system template or open a saved dashboard backed by live warehouse data.
           </p>
@@ -343,6 +356,34 @@ const DashboardLibrary = () => {
       {actionError ? (
         <div className="dashboard-library__banner" role="alert">
           {actionError}
+        </div>
+      ) : null}
+
+      {/* S4c: summary KPI strip using the shared viz kit (`KpiTile`). Mounted
+          only when the library has content so the empty-state path above is
+          untouched. Uses `role="group"` + accessible heading on each tile. */}
+      {hasAnyItems ? (
+        <div
+          className="dashboard-library__kpi-strip"
+          role="group"
+          aria-label="Dashboard library summary"
+        >
+          <KpiTile
+            label="System templates"
+            value={librarySummary.systemTemplateCount}
+            format="number"
+          />
+          <KpiTile
+            label="Saved dashboards"
+            value={librarySummary.savedDashboardCount}
+            format="number"
+          />
+          <KpiTile
+            label="Updated in last 7 days"
+            value={librarySummary.recentCount}
+            format="number"
+            hint="Saved dashboards edited or synced within the last week."
+          />
         </div>
       ) : null}
 

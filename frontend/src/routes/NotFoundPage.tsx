@@ -19,9 +19,7 @@ export default function NotFoundPage() {
         style={{ maxWidth: '32rem', width: '100%', textAlign: 'center' }}
       >
         <h1 style={{ margin: 0 }}>Page not found</h1>
-        <p className="phase2-note">
-          The page you're looking for doesn't exist or has been moved.
-        </p>
+        <p className="phase2-note">The page you're looking for doesn't exist or has been moved.</p>
         <div>
           <Link to="/dashboards" className="button primary">
             Go to dashboard

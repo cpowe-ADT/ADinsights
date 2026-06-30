@@ -111,11 +111,11 @@ live in the repository.
 
 - **Current State**: React + Vite dashboards load live combined metrics with demo/upload fallback,
   and include global filters, dataset toggle, snapshot freshness, tenant switcher, detail routes,
-  data sources UI, CSV upload wizard, and dashboard library shell.
+  data sources UI, CSV upload wizard, API-backed dashboard library, report/alert/summary routes,
+  sync health, health overview, and audit export UI.
 - **Next Actions**:
-  - Replace remaining mock-backed screens (dashboard library) with API data.
-  - Align remaining routes, empty states, and snapshot freshness UX with the finished frontend
-    spec in `docs/project/frontend-finished-product-spec.md` and review with Lina/Joel.
+  - Capture staging evidence for the usable-pilot workflows in
+    `docs/project/usable-pilot-delivery-spec.md`.
 
 ### 5.2 BI Tool Configuration
 
@@ -125,10 +125,11 @@ live in the repository.
 
 ### 5.3 Alerts & Summaries
 
+- **Current State**: Tenant rule evaluation, alert history, encrypted Slack/webhook channel
+  destinations, real generic report artifacts, and scheduled daily-summary email delivery are
+  implemented in the repository. Credentialed staging delivery evidence remains outstanding.
 - **Next Actions**:
-  - Define SQL alert templates and schedule definitions.
-  - Draft LLM prompt templates and safety guardrails; note dependency on metrics layer.
-  - Prototype Canva integration workflow for shareable summaries.
+  - Collect real Meta/Google Ads, alert delivery, and summary email evidence in staging.
 
 ### 5.4 Finished Frontend Scope (MVP -> Post-MVP -> Enterprise)
 
@@ -140,8 +141,10 @@ live in the repository.
   - Global filters and snapshot freshness indicators applied consistently across dashboards.
   - Acceptance checklist (MVP section) verified before widening Post-MVP scope.
 - **Post-MVP expansion**:
-  - Data sources management UI and CSV upload wizard are now implemented.
-  - Report builder and exports (PDF/PNG), alerts, AI summaries, and admin/sync health views.
+  - Data sources management, CSV upload, report builder, alert/summaries, audit, sync health, and
+    health overview UI are implemented.
+  - Generic report artifacts, notification destination encryption, and scheduled summary delivery
+    are implemented; staging activation remains governed by the usable-pilot specification.
 - **Enterprise rollout**:
   - UAC-driven approvals, board packs, impersonation, access review, and "why denied" UI tied to
     `docs/security/uac-spec.md`.
@@ -149,10 +152,11 @@ live in the repository.
 
 ## 6. Prioritized Immediate Next Steps
 
-1. Complete Phase 1 connector API validation (Microsoft, LinkedIn, TikTok) and confirm OAuth scopes/limits.
+1. Obtain Raj/Mira review and complete staging activation evidence defined in
+   `docs/project/usable-pilot-delivery-spec.md`.
 2. Configure Airbyte Meta/Google connections with real credentials and verify incremental syncs.
-3. Provision production KMS keys + Secrets Manager/SSM wiring; verify rotation reminders in prod.
-4. Verify SES sender identity + DMARC/DKIM and confirm final "from" address.
+3. Provision production KMS keys + Secrets Manager/SSM wiring; verify encrypted alert delivery.
+4. Verify SES sender identity + DMARC/DKIM and scheduled summary delivery.
 5. Confirm production env values for CORS/throttles match runbook and perform `429` smoke checks.
 
 Track progress via the project management tool (Jira/Linear) linked to these workstreams.
@@ -164,10 +168,10 @@ Track progress via the project management tool (Jira/Linear) linked to these wor
 The vertical slice surfaced a handful of outstanding gaps. Document them here so they can be
 scheduled deliberately instead of rediscovered during reviews:
 
-- **Secrets production wiring** – code/config validation is complete; remaining work is external
-  provisioning of KMS keys and secrets manager bindings in production.
-- **Email deliverability** – runbook/env are ready; remaining work is external SES identity
-  verification + sandbox exit for `adtelligent.net`.
+- **Secrets production wiring** – platform-token and notification-channel encryption exist;
+  production KMS provisioning and dispatch evidence remain external.
+- **Email deliverability** – scheduled summary delivery is implemented; SES identity verification
+  and sandbox exit for `adtelligent.net` remain external.
 - **RLS/roles bootstrap** – document Postgres grants and add a `seed_roles` fixture/command.
 
 ---
@@ -184,13 +188,13 @@ Review basis: `docs/project/frontend-finished-product-spec.md` and
   - API deps: `GET /api/airbyte/connections/`, `GET /api/airbyte/connections/summary/`.
   - Acceptance: supports empty/error/loading; last sync timestamp; stale warning; clear CTA to docs.
   - Owner/tests: Lina; `npm run lint && npm test -- --run && npm run build`.
-- **Pick B: Sync health + telemetry view (Estimate: S-M)**
+- **Pick B: Sync health + telemetry view (Estimate: S-M)** — Done
   - Sub-tasks: telemetry table with pagination; job detail panel; API cost summaries; error banner
     for failed syncs; health endpoint cross-link.
   - API deps: `GET /api/airbyte/telemetry/`, `GET /api/health/airbyte/`.
   - Acceptance: paginated job list, status pills, error details, stale banner tied to last sync.
   - Owner/tests: Lina; `npm run lint && npm test -- --run && npm run build`.
-- **Pick C: Health checks overview (Estimate: S)**
+- **Pick C: Health checks overview (Estimate: S)** — Done
   - Sub-tasks: cards for /health, /health/airbyte, /health/dbt, /timezone; timestamps; runbook
     links for failures.
   - API deps: `GET /api/health/`, `GET /api/health/airbyte/`, `GET /api/health/dbt/`,
@@ -206,6 +210,7 @@ adding new picks.
 ## 6.3 Sprint Checklist: Dashboard Live Data + Filters (Completed)
 
 Delivered:
+
 - API contract alignment for `/api/metrics/combined/` and typed dashboard data flow.
 - Live data default with demo opt-in only.
 - FilterBar wiring + URL state + drill-down routes.
@@ -213,16 +218,24 @@ Delivered:
 
 ## 6.4 Frontend Spec Punch List (MVP/Post-MVP)
 
-### MVP gaps
-- [ ] Home page: replace static recent dashboards with API-driven data + true empty state logic.
+### MVP delivered
 
-### Post-MVP gaps
-- [ ] Dashboard library: replace mock data with real API listing + error/empty states.
-- [ ] Sync health/telemetry view (`/ops/sync-health`).
-- [ ] Health checks overview (`/ops/health`).
-- [ ] Reports/report builder + exports (`/reports`, `/reports/new`, `/reports/:id`).
-- [ ] Alerts + AI summaries UI (`/alerts`, `/summaries`).
-- [ ] Admin audit log view + export.
+- [x] Home page: replace static recent dashboards with API-driven data + true empty state logic.
+
+### Post-MVP delivered UI
+
+- [x] Dashboard library: API listing + error/empty states.
+- [x] Sync health/telemetry view (`/ops/sync-health`).
+- [x] Health checks overview (`/ops/health`).
+- [x] Reports/report builder routes (`/reports`, `/reports/new`, `/reports/:id`).
+- [x] Alerts + AI summaries UI (`/alerts`, `/summaries`).
+- [x] Admin audit log view + export.
+
+### Usable-pilot behavior gaps
+
+- [x] Real generic report artifact generation (`csv`, `pdf`, `png`).
+- [x] Encrypted Slack/webhook notification destinations and safe API/UI status.
+- [x] Scheduled daily-summary email delivery through active email channels.
 
 ## 7. User Access Control (UAC) Rollout Plan
 

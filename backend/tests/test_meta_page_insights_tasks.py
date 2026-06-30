@@ -4,6 +4,7 @@ from datetime import datetime, timezone as dt_timezone
 
 import pytest
 
+import integrations.services.metric_registry as metric_registry
 from integrations.models import (
     MetaConnection,
     MetaInsightPoint,
@@ -14,6 +15,7 @@ from integrations.models import (
     MetaPostInsightPoint,
 )
 from integrations.services.meta_graph_client import MetaInsightsGraphClientError
+from integrations.services.metric_registry import get_default_metric_keys, seed_default_metrics
 from integrations.tasks import (
     RETRY_REASON_META_GRAPH_CLIENT_ERROR,
     RETRY_REASON_META_GRAPH_RATE_LIMITED,
@@ -53,6 +55,49 @@ def _create_page(user) -> MetaPage:
 
 
 @pytest.mark.django_db
+def test_default_metric_seed_refreshes_existing_stale_registry_rows():
+    MetaMetricRegistry.objects.update_or_create(
+        level=MetaMetricRegistry.LEVEL_PAGE,
+        metric_key="page_views_total",
+        defaults={
+            "supported_periods": ["day"],
+            "supports_breakdowns": [],
+            "status": MetaMetricRegistry.STATUS_ACTIVE,
+            "is_default": True,
+        },
+    )
+
+    seed_default_metrics()
+
+    metric = MetaMetricRegistry.objects.get(
+        level=MetaMetricRegistry.LEVEL_PAGE,
+        metric_key="page_views_total",
+    )
+    assert metric.status == MetaMetricRegistry.STATUS_UNKNOWN
+    assert metric.is_default is False
+    assert "page_views_total" not in get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE)
+
+
+@pytest.mark.django_db
+def test_default_metric_keys_include_governed_reporting_sources_without_legacy_impressions():
+    MetaMetricRegistry.objects.all().delete()
+    metric_registry._metrics_seeded = False
+
+    page_metrics = get_default_metric_keys(MetaMetricRegistry.LEVEL_PAGE)
+    post_metrics = get_default_metric_keys(MetaMetricRegistry.LEVEL_POST)
+
+    assert "page_media_view" in page_metrics
+    assert "page_total_media_view_unique" in page_metrics
+    assert "page_post_engagements" in page_metrics
+    assert "page_impressions" not in page_metrics
+    assert "page_impressions_unique" not in page_metrics
+    assert "page_views_total" not in page_metrics
+    assert "post_reactions_by_type_total" in post_metrics
+    assert "post_impressions" not in post_metrics
+    assert "post_impressions_unique" not in post_metrics
+
+
+@pytest.mark.django_db
 def test_sync_meta_page_insights_handles_empty_dataset(monkeypatch, user):
     page = _create_page(user)
 
@@ -71,6 +116,48 @@ def test_sync_meta_page_insights_handles_empty_dataset(monkeypatch, user):
     result = sync_meta_page_insights.run(page_pk=str(page.pk), mode="incremental", metrics=["page_post_engagements"])
     assert result["rows_processed"] == 0
     assert MetaInsightPoint.all_objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_sync_meta_page_insights_skips_unreadable_connection_token(monkeypatch, user):
+    page = _create_page(user)
+    connection = page.connection
+    connection.token_tag = b"0" * 16
+    connection.save(update_fields=["token_tag"])
+
+    seen_tokens: list[str] = []
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def fetch_page_insights(self, **kwargs):  # noqa: ANN003
+            seen_tokens.append(kwargs["token"])
+            return {
+                "data": [
+                    {
+                        "name": "page_post_engagements",
+                        "period": "day",
+                        "values": [
+                            {
+                                "value": 12,
+                                "end_time": "2026-02-18T08:00:00+0000",
+                            }
+                        ],
+                    }
+                ]
+            }
+
+    monkeypatch.setattr("integrations.tasks.MetaInsightsGraphClient.from_settings", lambda: DummyClient())
+
+    result = sync_meta_page_insights.run(page_pk=str(page.pk), mode="incremental", metrics=["page_post_engagements"])
+
+    assert result["rows_processed"] == 1
+    assert seen_tokens == ["page-token"]
+    assert MetaInsightPoint.all_objects.filter(page=page, metric_key="page_post_engagements").exists()
 
 
 @pytest.mark.django_db
@@ -98,7 +185,7 @@ def test_sync_meta_page_insights_marks_invalid_metric_on_100(monkeypatch, user):
 
     metric = MetaMetricRegistry.objects.get(level=MetaMetricRegistry.LEVEL_PAGE, metric_key="page_impressions_unique")
     assert metric.status == MetaMetricRegistry.STATUS_INVALID
-    assert metric.replacement_metric_key == "page_views_total"
+    assert metric.replacement_metric_key == "page_total_media_view_unique"
 
 
 @pytest.mark.django_db
@@ -161,6 +248,50 @@ def test_sync_meta_page_insights_upsert_is_idempotent(monkeypatch, user):
     assert first["rows_processed"] == 1
     assert second["rows_processed"] == 1
     assert MetaInsightPoint.all_objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_sync_meta_page_insights_uses_fixed_date_window(monkeypatch, user):
+    page = _create_page(user)
+    captured: dict[str, str] = {}
+
+    class DummyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001, ANN204
+            return None
+
+        def fetch_page_insights(self, **kwargs):  # noqa: ANN003
+            captured["since"] = kwargs["since"]
+            captured["until"] = kwargs["until"]
+            return {
+                "data": [
+                    {
+                        "name": "page_post_engagements",
+                        "period": "day",
+                        "values": [
+                            {
+                                "value": 42,
+                                "end_time": "2026-05-31T08:00:00+0000",
+                            }
+                        ],
+                    }
+                ]
+            }
+
+    monkeypatch.setattr("integrations.tasks.MetaInsightsGraphClient.from_settings", lambda: DummyClient())
+
+    result = sync_meta_page_insights.run(
+        page_pk=str(page.pk),
+        mode="backfill",
+        metrics=["page_post_engagements"],
+        since="2026-05-01",
+        until="2026-05-31",
+    )
+
+    assert result["rows_processed"] == 1
+    assert captured == {"since": "2026-05-01", "until": "2026-05-31"}
 
 
 @pytest.mark.django_db

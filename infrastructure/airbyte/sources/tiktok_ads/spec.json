@@ -1,7 +1,6 @@
 {
   "documentationUrl": "https://docs.adinsights.example.com/airbyte/tiktok",
   "supportsIncremental": true,
-  "supportsNamespaces": false,
   "connectionSpecification": {
     "type": "object",
     "title": "TikTok Ads Source Spec",

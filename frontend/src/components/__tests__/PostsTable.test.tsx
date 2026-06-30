@@ -22,13 +22,7 @@ describe('PostsTable', () => {
       thumbnail_url: 'https://scontent.xx.fbcdn.net/v/thumb.jpg',
     };
 
-    render(
-      <PostsTable
-        rows={[row]}
-        metricKey="post_media_view"
-        onOpenPost={vi.fn()}
-      />,
-    );
+    render(<PostsTable rows={[row]} metricKey="post_media_view" onOpenPost={vi.fn()} />);
 
     const img = document.querySelector('img[src="https://scontent.xx.fbcdn.net/v/thumb.jpg"]');
     expect(img).toBeInTheDocument();
@@ -38,13 +32,7 @@ describe('PostsTable', () => {
   });
 
   it('renders media type text only when no thumbnail_url', () => {
-    render(
-      <PostsTable
-        rows={[baseRow]}
-        metricKey="post_media_view"
-        onOpenPost={vi.fn()}
-      />,
-    );
+    render(<PostsTable rows={[baseRow]} metricKey="post_media_view" onOpenPost={vi.fn()} />);
 
     expect(document.querySelector('img')).not.toBeInTheDocument();
     expect(screen.getByText('PHOTO')).toBeInTheDocument();

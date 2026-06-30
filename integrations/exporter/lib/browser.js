@@ -8,6 +8,34 @@ async function ensureDir(filePath) {
   await fs.mkdir(dir, { recursive: true });
 }
 
+async function getLaunchOptions() {
+  if (process.env.CHROMIUM_EXECUTABLE_PATH) {
+    return {
+      args: ['--no-sandbox', '--disable-dev-shm-usage'],
+      executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
+      headless: true,
+    };
+  }
+
+  if (process.platform !== 'linux') {
+    return {
+      executablePath: chromium.executablePath(),
+      headless: true,
+    };
+  }
+
+  const launchOptions = {
+    args: chromiumBinary.args,
+    executablePath: await chromiumBinary.executablePath(),
+  };
+
+  if (chromiumBinary.headless !== undefined) {
+    launchOptions.headless = chromiumBinary.headless;
+  }
+
+  return launchOptions;
+}
+
 async function renderToFiles(html, { pdfPath, pngPath }) {
   if (!pdfPath && !pngPath) {
     throw new Error('At least one output option (--out or --png) must be provided.');
@@ -15,16 +43,7 @@ async function renderToFiles(html, { pdfPath, pngPath }) {
 
   let browser;
   try {
-    const launchOptions = {
-      args: chromiumBinary.args,
-      executablePath: await chromiumBinary.executablePath(),
-    };
-
-    if (chromiumBinary.headless !== undefined) {
-      launchOptions.headless = chromiumBinary.headless;
-    }
-
-    browser = await chromium.launch(launchOptions);
+    browser = await chromium.launch(await getLaunchOptions());
 
     const page = await browser.newPage();
     await page.setViewportSize({ width: 1280, height: 720 });
@@ -52,5 +71,6 @@ async function renderToFiles(html, { pdfPath, pngPath }) {
 }
 
 module.exports = {
+  getLaunchOptions,
   renderToFiles,
 };

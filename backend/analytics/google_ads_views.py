@@ -16,6 +16,7 @@ from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -33,8 +34,11 @@ from analytics.google_ads_serializers import (
     GoogleAdsSavedViewSerializer,
 )
 from analytics.models import GoogleAdsExportJob, GoogleAdsSavedView
+from integrations.clients.resolver import resolve_client_accounts
 from integrations.models import (
     CampaignBudget,
+    Client as IntegrationsClient,
+    ClientPlatformAccount,
     GoogleAdsAccountAssignment,
     GoogleAdsSdkAdGroupAdDaily,
     GoogleAdsSdkAssetGroupDaily,
@@ -47,6 +51,99 @@ from integrations.models import (
     GoogleAdsSdkSearchTermDaily,
     GoogleAdsSyncState,
 )
+
+
+# --- Sprint 4: Client grouping support ---------------------------------------
+#
+# When a request includes ``client_id``, the Google Ads views expand it into the
+# Client's Google customer_ids (MCC-aware) via the resolver, and restrict the
+# query to that set. If ``customer_id`` is ALSO present, the intersection wins
+# — a caller can say "within this client, just this one account." An empty
+# intersection yields ``[]`` which the ``__in=[]`` filter translates to an
+# empty queryset; the response surfaces a ``client_resolution`` object so the
+# dashboard can render an honest empty state rather than an error.
+
+
+def _resolve_google_customer_ids(
+    user, validated: dict[str, Any]
+) -> tuple[list[str] | None, dict[str, Any] | None]:
+    """Resolve the set of customer_ids to scope the query by.
+
+    Returns
+    -------
+    (scoped_ids, resolution_meta)
+        * ``scoped_ids=None`` means "no id-based restriction beyond the user's
+          accessible scope" — preserves today's behavior when neither
+          ``customer_id`` nor ``client_id`` is passed.
+        * ``scoped_ids=[...]`` means filter by ``customer_id__in=[...]``.
+        * ``scoped_ids=[]`` means the client/customer combination resolved to
+          zero accounts — the query runs but returns nothing.
+        * ``resolution_meta`` is a small dict describing the resolution for
+          the response payload + ``X-Adinsights-Resolved-Via`` header. It is
+          ``None`` when no client-level resolution happened.
+    """
+
+    client_id_raw = validated.get("client_id")
+    explicit_customer = (validated.get("customer_id") or "").strip()
+
+    if not client_id_raw:
+        return ([explicit_customer] if explicit_customer else None, None)
+
+    client_id = str(client_id_raw)
+    try:
+        bundle = resolve_client_accounts(
+            str(user.tenant_id),
+            client_id,
+            platforms={ClientPlatformAccount.PLATFORM_GOOGLE_ADS},
+        )
+    except IntegrationsClient.DoesNotExist:
+        return (
+            [],
+            {
+                "client_id": client_id,
+                "reason": "client_not_found",
+                "google_customer_ids": [],
+                "mcc_expansions": [],
+            },
+        )
+
+    google_ids = list(bundle.google_customer_ids)
+
+    meta: dict[str, Any] = {
+        "client_id": client_id,
+        "google_customer_ids": google_ids,
+        "mcc_expansions": [
+            {
+                "manager_customer_id": exp.manager_customer_id,
+                "child_customer_ids": list(exp.child_customer_ids),
+            }
+            for exp in bundle.mcc_expansions
+        ],
+        "reason": None,
+    }
+
+    if explicit_customer:
+        # Intersect explicit customer_id with the client's accounts.
+        if explicit_customer in google_ids:
+            return [explicit_customer], {**meta, "reason": "client_plus_customer"}
+        # Explicit customer isn't in the client's accounts — empty intersection.
+        return [], {**meta, "reason": "customer_not_in_client"}
+
+    if not google_ids:
+        return [], {**meta, "reason": "no_google_accounts_for_client"}
+
+    return google_ids, meta
+
+
+def _attach_client_resolution(response: Response, meta: dict[str, Any] | None) -> Response:
+    """Decorate a Response with client-resolution metadata (header + body)."""
+
+    if meta is None:
+        return response
+    response["X-Adinsights-Resolved-Via"] = f"client:{meta.get('client_id', '')}"
+    if isinstance(response.data, dict):
+        response.data["client_resolution"] = meta
+    return response
 
 
 def _to_decimal(value: Any) -> Decimal:
@@ -97,15 +194,43 @@ def _apply_customer_scope(queryset, user, field_name: str = "customer_id"):
     return queryset.filter(**{f"{field_name}__in": list(allowed)})
 
 
-def _apply_date_and_common_filters(queryset, validated: dict[str, Any], *, customer_field: str = "customer_id"):
+def _apply_date_and_common_filters(
+    queryset,
+    validated: dict[str, Any],
+    *,
+    customer_field: str = "customer_id",
+    scoped_customer_ids: list[str] | None = None,
+):
     scoped = queryset.filter(date_day__gte=validated["start_date"], date_day__lte=validated["end_date"])
-    customer_id = (validated.get("customer_id") or "").strip()
-    if customer_id:
-        scoped = scoped.filter(**{customer_field: customer_id})
+    if scoped_customer_ids is not None:
+        # The resolver has already normalized ``client_id`` + ``customer_id`` into
+        # this list. An empty list means the combination resolved to zero
+        # accounts — the ``__in=[]`` filter returns an empty queryset, which is
+        # the behavior we want (surface empty state, not error).
+        scoped = scoped.filter(**{f"{customer_field}__in": scoped_customer_ids})
+    else:
+        customer_id = (validated.get("customer_id") or "").strip()
+        if customer_id:
+            scoped = scoped.filter(**{customer_field: customer_id})
     campaign_id = (validated.get("campaign_id") or "").strip()
     if campaign_id:
         scoped = scoped.filter(campaign_id=campaign_id)
     return scoped
+
+
+def _apply_customer_id_filter(queryset, scoped_customer_ids: list[str] | None, validated: dict[str, Any], *, field: str = "customer_id"):
+    """Apply customer_id scoping to queries that don't use _apply_date_and_common_filters.
+
+    Same semantics as the ``scoped_customer_ids`` kwarg above: ``None`` falls back
+    to legacy ``customer_id`` param; list applies ``field__in=...``.
+    """
+
+    if scoped_customer_ids is not None:
+        return queryset.filter(**{f"{field}__in": scoped_customer_ids})
+    customer_id = (validated.get("customer_id") or "").strip()
+    if customer_id:
+        return queryset.filter(**{field: customer_id})
+    return queryset
 
 
 def _period_compare_window(start_date: date, end_date: date) -> tuple[date, date]:
@@ -143,9 +268,18 @@ def _metric_payload(*, spend: Decimal, impressions: Decimal, clicks: Decimal, co
     }
 
 
-def _build_executive_payload(*, user, validated: dict[str, Any], cache_key_prefix: str) -> dict[str, Any]:
+def _build_executive_payload(
+    *,
+    user,
+    validated: dict[str, Any],
+    cache_key_prefix: str,
+    scoped_customer_ids: list[str] | None = None,
+    resolution_meta: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     cache_ttl = int(getattr(settings, "GOOGLE_ADS_TODAY_CACHE_TTL_SECONDS", 300) or 300)
-    cache_key_src = f"{user.tenant_id}:{validated}"
+    # Fold the resolved scope into the cache key so client_id-scoped results
+    # don't collide with unscoped ones.
+    cache_key_src = f"{user.tenant_id}:{validated}:scope={scoped_customer_ids}"
     cache_key = f"{cache_key_prefix}:{hashlib.sha256(cache_key_src.encode('utf-8')).hexdigest()}"
     cached = cache.get(cache_key)
     if isinstance(cached, dict):
@@ -153,7 +287,7 @@ def _build_executive_payload(*, user, validated: dict[str, Any], cache_key_prefi
 
     qs = GoogleAdsSdkCampaignDaily.objects.filter(tenant_id=user.tenant_id)
     qs = _apply_customer_scope(qs, user)
-    qs = _apply_date_and_common_filters(qs, validated)
+    qs = _apply_date_and_common_filters(qs, validated, scoped_customer_ids=scoped_customer_ids)
 
     current = qs.aggregate(
         spend_micros=Sum("cost_micros"),
@@ -176,9 +310,12 @@ def _build_executive_payload(*, user, validated: dict[str, Any], cache_key_prefi
         date_day__lte=compare_end,
     )
     prev_qs = _apply_customer_scope(prev_qs, user)
-    customer_id = (validated.get("customer_id") or "").strip()
-    if customer_id:
-        prev_qs = prev_qs.filter(customer_id=customer_id)
+    if scoped_customer_ids is not None:
+        prev_qs = prev_qs.filter(customer_id__in=scoped_customer_ids)
+    else:
+        customer_id = (validated.get("customer_id") or "").strip()
+        if customer_id:
+            prev_qs = prev_qs.filter(customer_id=customer_id)
     campaign_id = (validated.get("campaign_id") or "").strip()
     if campaign_id:
         prev_qs = prev_qs.filter(campaign_id=campaign_id)
@@ -249,6 +386,10 @@ def _build_executive_payload(*, user, validated: dict[str, Any], cache_key_prefi
         date_day__lte=validated["end_date"],
     )
     month_qs = _apply_customer_scope(month_qs, user)
+    if scoped_customer_ids is not None:
+        month_qs = month_qs.filter(customer_id__in=scoped_customer_ids)
+    elif (validated.get("customer_id") or "").strip():
+        month_qs = month_qs.filter(customer_id=(validated.get("customer_id") or "").strip())
     spend_mtd = _micros_to_currency(month_qs.aggregate(spend_micros=Sum("cost_micros"))["spend_micros"])
     budget_total = _to_decimal(
         CampaignBudget.objects.filter(tenant_id=user.tenant_id, is_active=True).aggregate(
@@ -287,14 +428,17 @@ def _build_executive_payload(*, user, validated: dict[str, Any], cache_key_prefi
         "data_freshness_ts": current["updated_at"].isoformat() if current["updated_at"] else None,
         "source_engine": _source_engine_for_tenant(str(user.tenant_id)),
     }
+    if resolution_meta is not None:
+        payload["client_resolution"] = resolution_meta
     cache.set(cache_key, payload, timeout=cache_ttl)
     return payload
 
 
 def _campaign_rows_for_export(user, filters: dict[str, Any]) -> list[dict[str, Any]]:  # noqa: ANN001
+    scoped_ids, _meta = _resolve_google_customer_ids(user, filters)
     qs = GoogleAdsSdkCampaignDaily.objects.filter(tenant_id=user.tenant_id)
     qs = _apply_customer_scope(qs, user)
-    qs = _apply_date_and_common_filters(qs, filters)
+    qs = _apply_date_and_common_filters(qs, filters, scoped_customer_ids=scoped_ids)
     rows = (
         qs.values(
             "customer_id",
@@ -346,12 +490,16 @@ class GoogleAdsExecutiveView(APIView):
     def get(self, request) -> Response:  # noqa: D401
         serializer = GoogleAdsExecutiveQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
         payload = _build_executive_payload(
             user=request.user,
-            validated=serializer.validated_data,
+            validated=validated,
             cache_key_prefix="gads-exec",
+            scoped_customer_ids=scoped_ids,
+            resolution_meta=resolution_meta,
         )
-        return Response(payload)
+        return _attach_client_resolution(Response(payload), resolution_meta)
 
 
 class GoogleAdsWorkspaceSummaryView(APIView):
@@ -361,11 +509,14 @@ class GoogleAdsWorkspaceSummaryView(APIView):
         serializer = GoogleAdsExecutiveQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         payload = _build_executive_payload(
             user=request.user,
             validated=validated,
             cache_key_prefix="gads-workspace-summary",
+            scoped_customer_ids=scoped_ids,
+            resolution_meta=resolution_meta,
         ).copy()
 
         end_date = validated["end_date"]
@@ -377,18 +528,15 @@ class GoogleAdsWorkspaceSummaryView(APIView):
             change_date_time__date__lte=end_date,
         )
         changes_qs = _apply_customer_scope(changes_qs, request.user)
-        customer_id = (validated.get("customer_id") or "").strip()
-        if customer_id:
-            changes_qs = changes_qs.filter(customer_id=customer_id)
+        changes_qs = _apply_customer_id_filter(changes_qs, scoped_ids, validated)
 
         recs_qs = GoogleAdsSdkRecommendation.objects.filter(tenant_id=request.user.tenant_id)
         recs_qs = _apply_customer_scope(recs_qs, request.user)
-        if customer_id:
-            recs_qs = recs_qs.filter(customer_id=customer_id)
+        recs_qs = _apply_customer_id_filter(recs_qs, scoped_ids, validated)
 
         disapproved_qs = GoogleAdsSdkAdGroupAdDaily.objects.filter(tenant_id=request.user.tenant_id)
         disapproved_qs = _apply_customer_scope(disapproved_qs, request.user)
-        disapproved_qs = _apply_date_and_common_filters(disapproved_qs, validated)
+        disapproved_qs = _apply_date_and_common_filters(disapproved_qs, validated, scoped_customer_ids=scoped_ids)
         disapproved_count = disapproved_qs.filter(policy_approval_status="DISAPPROVED").values("ad_id").distinct().count()
 
         metrics = payload.get("metrics", {})
@@ -457,7 +605,7 @@ class GoogleAdsWorkspaceSummaryView(APIView):
         }
         payload["top_insights"] = top_insights[:3]
         payload["workspace_generated_at"] = timezone.now().isoformat()
-        return Response(payload)
+        return _attach_client_resolution(Response(payload), resolution_meta)
 
 
 class GoogleAdsCampaignListView(APIView):
@@ -467,10 +615,11 @@ class GoogleAdsCampaignListView(APIView):
         serializer = GoogleAdsListQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         qs = GoogleAdsSdkCampaignDaily.objects.filter(tenant_id=request.user.tenant_id)
         qs = _apply_customer_scope(qs, request.user)
-        qs = _apply_date_and_common_filters(qs, validated)
+        qs = _apply_date_and_common_filters(qs, validated, scoped_customer_ids=scoped_ids)
 
         rows = list(
             qs.values(
@@ -537,15 +686,18 @@ class GoogleAdsCampaignListView(APIView):
 
         paginator = Paginator(payload, validated["page_size"])
         page_obj = paginator.get_page(validated["page"])
-        return Response(
-            {
-                "count": paginator.count,
-                "page": page_obj.number,
-                "page_size": validated["page_size"],
-                "num_pages": paginator.num_pages,
-                "results": list(page_obj.object_list),
-                "source_engine": _source_engine_for_tenant(str(request.user.tenant_id)),
-            }
+        return _attach_client_resolution(
+            Response(
+                {
+                    "count": paginator.count,
+                    "page": page_obj.number,
+                    "page_size": validated["page_size"],
+                    "num_pages": paginator.num_pages,
+                    "results": list(page_obj.object_list),
+                    "source_engine": _source_engine_for_tenant(str(request.user.tenant_id)),
+                }
+            ),
+            resolution_meta,
         )
 
 
@@ -556,13 +708,14 @@ class GoogleAdsCampaignDetailView(APIView):
         serializer = GoogleAdsDateRangeQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         qs = GoogleAdsSdkCampaignDaily.objects.filter(
             tenant_id=request.user.tenant_id,
             campaign_id=campaign_id,
         )
         qs = _apply_customer_scope(qs, request.user)
-        qs = _apply_date_and_common_filters(qs, validated)
+        qs = _apply_date_and_common_filters(qs, validated, scoped_customer_ids=scoped_ids)
 
         aggregate = qs.aggregate(
             spend_micros=Sum("cost_micros"),
@@ -605,22 +758,25 @@ class GoogleAdsCampaignDetailView(APIView):
                 }
             )
 
-        return Response(
-            {
-                "campaign_id": campaign_id,
-                "campaign_name": aggregate["campaign_name"] or campaign_id,
-                "campaign_status": aggregate["campaign_status"] or "",
-                "channel_type": aggregate["channel_type"] or "",
-                "metrics": _metric_payload(
-                    spend=spend,
-                    impressions=impressions,
-                    clicks=clicks,
-                    conversions=conversions,
-                    conv_value=conversion_value,
-                ),
-                "trend": trend,
-                "source_engine": _source_engine_for_tenant(str(request.user.tenant_id)),
-            }
+        return _attach_client_resolution(
+            Response(
+                {
+                    "campaign_id": campaign_id,
+                    "campaign_name": aggregate["campaign_name"] or campaign_id,
+                    "campaign_status": aggregate["campaign_status"] or "",
+                    "channel_type": aggregate["channel_type"] or "",
+                    "metrics": _metric_payload(
+                        spend=spend,
+                        impressions=impressions,
+                        clicks=clicks,
+                        conversions=conversions,
+                        conv_value=conversion_value,
+                    ),
+                    "trend": trend,
+                    "source_engine": _source_engine_for_tenant(str(request.user.tenant_id)),
+                }
+            ),
+            resolution_meta,
         )
 
 
@@ -631,10 +787,11 @@ class GoogleAdsAdGroupsView(APIView):
         serializer = GoogleAdsListQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         qs = GoogleAdsSdkAdGroupAdDaily.objects.filter(tenant_id=request.user.tenant_id)
         qs = _apply_customer_scope(qs, request.user)
-        qs = _apply_date_and_common_filters(qs, validated)
+        qs = _apply_date_and_common_filters(qs, validated, scoped_customer_ids=scoped_ids)
 
         rows = (
             qs.values("customer_id", "campaign_id", "ad_group_id")
@@ -669,7 +826,9 @@ class GoogleAdsAdGroupsView(APIView):
                     "roas": float(_safe_div(conversion_value, spend)),
                 }
             )
-        return Response({"count": len(payload), "results": payload})
+        return _attach_client_resolution(
+            Response({"count": len(payload), "results": payload}), resolution_meta
+        )
 
 
 class GoogleAdsAdsView(APIView):
@@ -679,10 +838,11 @@ class GoogleAdsAdsView(APIView):
         serializer = GoogleAdsListQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         qs = GoogleAdsSdkAdGroupAdDaily.objects.filter(tenant_id=request.user.tenant_id)
         qs = _apply_customer_scope(qs, request.user)
-        qs = _apply_date_and_common_filters(qs, validated)
+        qs = _apply_date_and_common_filters(qs, validated, scoped_customer_ids=scoped_ids)
 
         rows = (
             qs.values(
@@ -725,7 +885,9 @@ class GoogleAdsAdsView(APIView):
                     "cpa": float(_safe_div(spend, conversions)),
                 }
             )
-        return Response({"count": len(payload), "results": payload})
+        return _attach_client_resolution(
+            Response({"count": len(payload), "results": payload}), resolution_meta
+        )
 
 
 class GoogleAdsAssetsView(APIView):
@@ -735,9 +897,10 @@ class GoogleAdsAssetsView(APIView):
         serializer = GoogleAdsListQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
         qs = GoogleAdsSdkAdGroupAdDaily.objects.filter(tenant_id=request.user.tenant_id)
         qs = _apply_customer_scope(qs, request.user)
-        qs = _apply_date_and_common_filters(qs, validated)
+        qs = _apply_date_and_common_filters(qs, validated, scoped_customer_ids=scoped_ids)
         rows = (
             qs.values("ad_id", "ad_name", "policy_approval_status", "policy_review_status")
             .annotate(
@@ -760,7 +923,9 @@ class GoogleAdsAssetsView(APIView):
             }
             for row in rows
         ]
-        return Response({"count": len(payload), "results": payload})
+        return _attach_client_resolution(
+            Response({"count": len(payload), "results": payload}), resolution_meta
+        )
 
 
 class GoogleAdsKeywordsView(APIView):
@@ -770,10 +935,11 @@ class GoogleAdsKeywordsView(APIView):
         serializer = GoogleAdsListQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         qs = GoogleAdsSdkKeywordDaily.objects.filter(tenant_id=request.user.tenant_id)
         qs = _apply_customer_scope(qs, request.user)
-        qs = _apply_date_and_common_filters(qs, validated)
+        qs = _apply_date_and_common_filters(qs, validated, scoped_customer_ids=scoped_ids)
 
         rows = (
             qs.values(
@@ -826,7 +992,9 @@ class GoogleAdsKeywordsView(APIView):
                 }
             )
 
-        return Response({"count": len(payload), "results": payload})
+        return _attach_client_resolution(
+            Response({"count": len(payload), "results": payload}), resolution_meta
+        )
 
 
 class GoogleAdsSearchTermsView(APIView):
@@ -836,10 +1004,11 @@ class GoogleAdsSearchTermsView(APIView):
         serializer = GoogleAdsListQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         qs = GoogleAdsSdkSearchTermDaily.objects.filter(tenant_id=request.user.tenant_id)
         qs = _apply_customer_scope(qs, request.user)
-        qs = _apply_date_and_common_filters(qs, validated)
+        qs = _apply_date_and_common_filters(qs, validated, scoped_customer_ids=scoped_ids)
 
         rows = (
             qs.values(
@@ -879,7 +1048,9 @@ class GoogleAdsSearchTermsView(APIView):
                     "cpa": float(_safe_div(spend, conversions)),
                 }
             )
-        return Response({"count": len(payload), "results": payload})
+        return _attach_client_resolution(
+            Response({"count": len(payload), "results": payload}), resolution_meta
+        )
 
 
 class GoogleAdsSearchTermInsightsView(APIView):
@@ -889,10 +1060,11 @@ class GoogleAdsSearchTermInsightsView(APIView):
         serializer = GoogleAdsDateRangeQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         qs = GoogleAdsSdkSearchTermDaily.objects.filter(tenant_id=request.user.tenant_id)
         qs = _apply_customer_scope(qs, request.user)
-        qs = _apply_date_and_common_filters(qs, validated)
+        qs = _apply_date_and_common_filters(qs, validated, scoped_customer_ids=scoped_ids)
 
         current_terms = list(qs.values("search_term", "cost_micros", "clicks", "impressions", "conversions"))
         categories: dict[str, dict[str, Decimal]] = {}
@@ -922,6 +1094,7 @@ class GoogleAdsSearchTermInsightsView(APIView):
             date_day__lte=compare_end,
         )
         prev_qs = _apply_customer_scope(prev_qs, request.user)
+        prev_qs = _apply_customer_id_filter(prev_qs, scoped_ids, validated)
         previous_terms = list(prev_qs.values("search_term", "clicks"))
         prev_clicks_by_category: dict[str, Decimal] = {}
         for row in previous_terms:
@@ -954,17 +1127,20 @@ class GoogleAdsSearchTermInsightsView(APIView):
         rising = [row for row in category_rows if (row["click_growth_ratio"] or 0) > 0.5][:10]
         new_queries = [row for row in category_rows if row["is_new"]][:10]
 
-        return Response(
-            {
-                "count": len(category_rows),
-                "results": category_rows[:100],
-                "rising": rising,
-                "new": new_queries,
-                "availability": {
-                    "source": "search_term_view_grouping",
-                    "native_search_term_insights": False,
-                },
-            }
+        return _attach_client_resolution(
+            Response(
+                {
+                    "count": len(category_rows),
+                    "results": category_rows[:100],
+                    "rising": rising,
+                    "new": new_queries,
+                    "availability": {
+                        "source": "search_term_view_grouping",
+                        "native_search_term_insights": False,
+                    },
+                }
+            ),
+            resolution_meta,
         )
 
 
@@ -975,10 +1151,11 @@ class GoogleAdsPmaxAssetGroupsView(APIView):
         serializer = GoogleAdsListQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         qs = GoogleAdsSdkAssetGroupDaily.objects.filter(tenant_id=request.user.tenant_id)
         qs = _apply_customer_scope(qs, request.user)
-        qs = _apply_date_and_common_filters(qs, validated)
+        qs = _apply_date_and_common_filters(qs, validated, scoped_customer_ids=scoped_ids)
 
         rows = (
             qs.values(
@@ -1020,7 +1197,9 @@ class GoogleAdsPmaxAssetGroupsView(APIView):
                 }
             )
 
-        return Response({"count": len(payload), "results": payload})
+        return _attach_client_resolution(
+            Response({"count": len(payload), "results": payload}), resolution_meta
+        )
 
 
 class GoogleAdsBreakdownsView(APIView):
@@ -1030,24 +1209,28 @@ class GoogleAdsBreakdownsView(APIView):
         serializer = GoogleAdsBreakdownQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         dimension = validated["dimension"]
         if dimension != "location":
-            return Response(
-                {
-                    "dimension": dimension,
-                    "count": 0,
-                    "results": [],
-                    "availability": {
-                        "supported": False,
-                        "reason": "dimension_not_ingested_yet",
-                    },
-                }
+            return _attach_client_resolution(
+                Response(
+                    {
+                        "dimension": dimension,
+                        "count": 0,
+                        "results": [],
+                        "availability": {
+                            "supported": False,
+                            "reason": "dimension_not_ingested_yet",
+                        },
+                    }
+                ),
+                resolution_meta,
             )
 
         qs = GoogleAdsSdkGeographicDaily.objects.filter(tenant_id=request.user.tenant_id)
         qs = _apply_customer_scope(qs, request.user)
-        qs = _apply_date_and_common_filters(qs, validated)
+        qs = _apply_date_and_common_filters(qs, validated, scoped_customer_ids=scoped_ids)
 
         rows = (
             qs.values("geo_target_country", "geo_target_region", "geo_target_city")
@@ -1072,7 +1255,10 @@ class GoogleAdsBreakdownsView(APIView):
             }
             for row in rows
         ]
-        return Response({"dimension": "location", "count": len(payload), "results": payload})
+        return _attach_client_resolution(
+            Response({"dimension": "location", "count": len(payload), "results": payload}),
+            resolution_meta,
+        )
 
 
 class GoogleAdsConversionsByActionView(APIView):
@@ -1082,10 +1268,11 @@ class GoogleAdsConversionsByActionView(APIView):
         serializer = GoogleAdsDateRangeQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         qs = GoogleAdsSdkConversionActionDaily.objects.filter(tenant_id=request.user.tenant_id)
         qs = _apply_customer_scope(qs, request.user)
-        qs = _apply_date_and_common_filters(qs, validated)
+        qs = _apply_date_and_common_filters(qs, validated, scoped_customer_ids=scoped_ids)
 
         rows = (
             qs.values(
@@ -1114,16 +1301,21 @@ class GoogleAdsConversionsByActionView(APIView):
             }
             for row in rows
         ]
-        return Response({"count": len(payload), "results": payload})
+        return _attach_client_resolution(
+            Response({"count": len(payload), "results": payload}), resolution_meta
+        )
 
 
 class GoogleAdsBudgetPacingView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    CACHE_TTL_SECONDS = 900
+
     def get(self, request) -> Response:  # noqa: D401
         serializer = GoogleAdsDateRangeQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         month_end = validated["end_date"]
         month_start = month_end.replace(day=1)
@@ -1133,6 +1325,27 @@ class GoogleAdsBudgetPacingView(APIView):
             date_day__lte=month_end,
         )
         qs = _apply_customer_scope(qs, request.user)
+        qs = _apply_customer_id_filter(qs, scoped_ids, validated)
+
+        # Derive the effective customer_ids visible to this user for this query,
+        # so the cache key reflects the actual scope (tenant isolation preserved).
+        effective_customer_ids = sorted(
+            set(qs.values_list("customer_id", flat=True))
+        )
+        cache_key = (
+            f"ga_pacing_v1:{request.user.tenant_id}:"
+            f"{hashlib.sha1(repr(effective_customer_ids).encode()).hexdigest()[:12]}:"
+            f"{month_end.isoformat()}"
+        )
+        cached_payload = cache.get(cache_key)
+        if cached_payload is not None:
+            payload = dict(cached_payload)
+            payload["cache"] = {
+                "served_from_cache": True,
+                "ttl_seconds": self.CACHE_TTL_SECONDS,
+            }
+            return _attach_client_resolution(Response(payload), resolution_meta)
+
         spend_mtd = _micros_to_currency(qs.aggregate(spend_micros=Sum("cost_micros"))["spend_micros"])
 
         budget_total = _to_decimal(
@@ -1147,22 +1360,73 @@ class GoogleAdsBudgetPacingView(APIView):
         overspend_risk = forecast_month_end > (budget_total * Decimal("1.10")) if budget_total > 0 else False
         underdelivery = forecast_month_end < (budget_total * Decimal("0.80")) if budget_total > 0 else False
 
-        return Response(
-            {
-                "month": month_end.strftime("%Y-%m"),
-                "spend_mtd": float(spend_mtd),
-                "budget_month": float(budget_total),
-                "forecast_month_end": float(forecast_month_end),
-                "over_under": float(forecast_month_end - budget_total),
-                "runway_days": float(_safe_div((budget_total - spend_mtd), _safe_div(spend_mtd, Decimal(elapsed_days))))
-                if spend_mtd > 0
-                else None,
-                "alerts": {
-                    "overspend_risk": overspend_risk,
-                    "underdelivery": underdelivery,
-                },
-            }
+        # Per-campaign rows — aggregate daily spend by campaign, best-effort
+        # budget match by name (CampaignBudget has no campaign_id FK).
+        campaign_rows = (
+            qs.values("campaign_id", "campaign_name", "customer_id")
+            .annotate(spend_micros=Sum("cost_micros"))
+            .order_by("-spend_micros")
         )
+
+        # Pre-fetch all active budgets for this tenant once to avoid N+1 lookups.
+        budget_by_name: dict[str, Decimal] = {}
+        for budget in CampaignBudget.objects.filter(
+            tenant_id=request.user.tenant_id, is_active=True
+        ):
+            budget_by_name[budget.name.lower()] = _to_decimal(budget.monthly_target)
+
+        campaigns_payload: list[dict[str, Any]] = []
+        for row in campaign_rows:
+            campaign_name = row["campaign_name"] or ""
+            campaign_spend = _micros_to_currency(row["spend_micros"])
+            projected_eom = campaign_spend / Decimal(elapsed_days) * Decimal(total_days)
+            matched_budget = budget_by_name.get(campaign_name.lower())
+            if matched_budget is not None and matched_budget > 0:
+                pace_pct = float(campaign_spend / matched_budget)
+                variance = float(projected_eom - matched_budget)
+                budget_amount: float | None = float(matched_budget)
+            else:
+                pace_pct = None
+                variance = None
+                budget_amount = None
+            campaigns_payload.append(
+                {
+                    "campaign_id": row["campaign_id"],
+                    "campaign_name": campaign_name,
+                    "customer_id": row["customer_id"],
+                    "budget_amount": budget_amount,
+                    "spend_mtd": float(campaign_spend),
+                    "pace_pct": pace_pct,
+                    "projected_eom": float(projected_eom),
+                    "variance": variance,
+                }
+            )
+
+        payload = {
+            "month": month_end.strftime("%Y-%m"),
+            "spend_mtd": float(spend_mtd),
+            "budget_month": float(budget_total),
+            "forecast_month_end": float(forecast_month_end),
+            "over_under": float(forecast_month_end - budget_total),
+            "runway_days": float(
+                _safe_div((budget_total - spend_mtd), _safe_div(spend_mtd, Decimal(elapsed_days)))
+            )
+            if spend_mtd > 0
+            else None,
+            "alerts": {
+                "overspend_risk": overspend_risk,
+                "underdelivery": underdelivery,
+            },
+            "campaigns": campaigns_payload,
+        }
+        cache.set(cache_key, payload, self.CACHE_TTL_SECONDS)
+
+        response_payload = dict(payload)
+        response_payload["cache"] = {
+            "served_from_cache": False,
+            "ttl_seconds": self.CACHE_TTL_SECONDS,
+        }
+        return _attach_client_resolution(Response(response_payload), resolution_meta)
 
 
 class GoogleAdsChangeEventsView(APIView):
@@ -1172,6 +1436,7 @@ class GoogleAdsChangeEventsView(APIView):
         serializer = GoogleAdsListQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         page = validated["page"]
         page_size = validated["page_size"]
@@ -1182,9 +1447,7 @@ class GoogleAdsChangeEventsView(APIView):
             change_date_time__date__lte=validated["end_date"],
         )
         qs = _apply_customer_scope(qs, request.user)
-        customer_id = (validated.get("customer_id") or "").strip()
-        if customer_id:
-            qs = qs.filter(customer_id=customer_id)
+        qs = _apply_customer_id_filter(qs, scoped_ids, validated)
 
         rows = qs.order_by("-change_date_time")
         paginator = Paginator(rows, page_size)
@@ -1204,14 +1467,19 @@ class GoogleAdsChangeEventsView(APIView):
             }
             for row in page_obj.object_list
         ]
-        return Response(
-            {
-                "count": paginator.count,
-                "page": page_obj.number,
-                "page_size": page_size,
-                "num_pages": paginator.num_pages,
-                "results": payload,
-            }
+        next_cursor = str(page_obj.number + 1) if page_obj.has_next() else None
+        return _attach_client_resolution(
+            Response(
+                {
+                    "count": paginator.count,
+                    "page": page_obj.number,
+                    "page_size": page_size,
+                    "num_pages": paginator.num_pages,
+                    "next_cursor": next_cursor,
+                    "results": payload,
+                }
+            ),
+            resolution_meta,
         )
 
 
@@ -1222,28 +1490,86 @@ class GoogleAdsRecommendationsView(APIView):
         serializer = GoogleAdsListQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         qs = GoogleAdsSdkRecommendation.objects.filter(tenant_id=request.user.tenant_id)
         qs = _apply_customer_scope(qs, request.user)
-        customer_id = (validated.get("customer_id") or "").strip()
-        if customer_id:
-            qs = qs.filter(customer_id=customer_id)
+        qs = _apply_customer_id_filter(qs, scoped_ids, validated)
 
         rows = qs.order_by("dismissed", "-last_seen_at")
         payload = [
             {
+                "id": row.id,
                 "customer_id": row.customer_id,
                 "recommendation_type": row.recommendation_type,
                 "resource_name": row.resource_name,
                 "campaign_id": row.campaign_id,
                 "ad_group_id": row.ad_group_id,
                 "dismissed": row.dismissed,
+                "dismissed_at": row.dismissed_at.isoformat() if row.dismissed_at else None,
+                "dismissed_by_user_id": row.dismissed_by_id,
                 "impact_metadata": row.impact_metadata,
                 "last_seen_at": row.last_seen_at.isoformat(),
             }
             for row in rows
         ]
-        return Response({"count": len(payload), "results": payload})
+        return _attach_client_resolution(
+            Response({"count": len(payload), "results": payload}), resolution_meta
+        )
+
+
+class GoogleAdsRecommendationDismissView(APIView):
+    """POST endpoint to dismiss a Google Ads recommendation LOCALLY.
+
+    No upstream Google Ads SDK call is made — this is a purely local
+    audit/state toggle. Idempotent: re-dismissing an already-dismissed
+    recommendation returns 200, overwrites the timestamp, and writes a fresh
+    audit entry.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk: int) -> Response:  # noqa: D401
+        rec = get_object_or_404(
+            GoogleAdsSdkRecommendation.objects.filter(tenant_id=request.user.tenant_id),
+            pk=pk,
+        )
+        now = timezone.now()
+        rec.dismissed = True
+        rec.dismissed_at = now
+        rec.dismissed_by = request.user if request.user.is_authenticated else None
+        rec.save(update_fields=["dismissed", "dismissed_at", "dismissed_by", "updated_at"])
+
+        actor = request.user if request.user.is_authenticated else None
+        log_audit_event(
+            tenant=rec.tenant,
+            user=actor,
+            action="google_ads_recommendation_dismissed",
+            resource_type="google_ads_recommendation",
+            resource_id=rec.id,
+            metadata={
+                "resource_name": rec.resource_name,
+                "customer_id": rec.customer_id,
+                "recommendation_type": rec.recommendation_type,
+            },
+        )
+
+        return Response(
+            {
+                "id": rec.id,
+                "customer_id": rec.customer_id,
+                "recommendation_type": rec.recommendation_type,
+                "resource_name": rec.resource_name,
+                "campaign_id": rec.campaign_id,
+                "ad_group_id": rec.ad_group_id,
+                "dismissed": rec.dismissed,
+                "dismissed_at": rec.dismissed_at.isoformat() if rec.dismissed_at else None,
+                "dismissed_by_user_id": rec.dismissed_by_id,
+                "impact_metadata": rec.impact_metadata,
+                "last_seen_at": rec.last_seen_at.isoformat(),
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class GoogleAdsChannelPerformanceView(APIView):
@@ -1253,10 +1579,11 @@ class GoogleAdsChannelPerformanceView(APIView):
         serializer = GoogleAdsDateRangeQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
+        scoped_ids, resolution_meta = _resolve_google_customer_ids(request.user, validated)
 
         qs = GoogleAdsSdkCampaignDaily.objects.filter(tenant_id=request.user.tenant_id)
         qs = _apply_customer_scope(qs, request.user)
-        qs = _apply_date_and_common_filters(qs, validated)
+        qs = _apply_date_and_common_filters(qs, validated, scoped_customer_ids=scoped_ids)
 
         rows = (
             qs.values("advertising_channel_type")
@@ -1284,7 +1611,62 @@ class GoogleAdsChannelPerformanceView(APIView):
                     "roas": float(_safe_div(conversion_value, spend)),
                 }
             )
-        return Response({"count": len(payload), "results": payload})
+        return _attach_client_resolution(
+            Response({"count": len(payload), "results": payload}), resolution_meta
+        )
+
+
+# --- Saved-view reconciliation (GA-B2) --------------------------------------
+#
+# Known filter keys and column keys for Google Ads saved views. These are used
+# by the ``verify`` action on ``GoogleAdsSavedViewViewSet`` to detect drift in
+# persisted saved views — i.e. a saved view that references a filter/column
+# key the current backend no longer recognizes (or never recognized).
+#
+# IMPORTANT: these whitelists are maintained MANUALLY. Whenever we ship a new
+# filter key on ``GoogleAdsListQuerySerializer`` (or its parent
+# ``GoogleAdsDateRangeQuerySerializer``) or a new column key returned by any
+# Google Ads endpoint (campaigns, keywords, changes, etc.), the corresponding
+# set below MUST be updated in the same change. Otherwise stale saved views
+# will look "fine" while new ones look "drifted", which defeats the purpose
+# of the reconciliation check.
+KNOWN_FILTER_KEYS: frozenset[str] = frozenset(
+    {
+        # From GoogleAdsDateRangeQuerySerializer
+        "start_date",
+        "end_date",
+        "customer_id",
+        "campaign_id",
+        "client_id",
+        "compare",
+        # Added by GoogleAdsListQuerySerializer
+        "page",
+        "page_size",
+        "sort",
+        "q",
+    }
+)
+KNOWN_COLUMN_KEYS: frozenset[str] = frozenset(
+    {
+        "customer_id",
+        "campaign_id",
+        "campaign_name",
+        "ad_group_id",
+        "ad_group_name",
+        "keyword",
+        "query_text",
+        "resource_change_operation",
+        "change_date_time",
+        "clicks",
+        "impressions",
+        "cost_micros",
+        "conversions",
+        "conversion_value",
+        "ctr",
+        "cpc",
+        "cpm",
+    }
+)
 
 
 class GoogleAdsSavedViewViewSet(viewsets.ModelViewSet):
@@ -1297,6 +1679,29 @@ class GoogleAdsSavedViewViewSet(viewsets.ModelViewSet):
         if _is_admin(user):
             return queryset.order_by("-updated_at")
         return queryset.filter(Q(is_shared=True) | Q(created_by_id=user.id)).order_by("-updated_at")
+
+    @action(detail=True, methods=["get"], url_path="verify")
+    def verify(self, request, pk=None):  # noqa: D401, ARG002
+        """Return a reconciliation report for a saved view (GA-B2).
+
+        Compares ``instance.filters.keys()`` against ``KNOWN_FILTER_KEYS`` and
+        ``instance.columns`` against ``KNOWN_COLUMN_KEYS``. Read-only — no
+        audit log entry. Cross-tenant PK raises 404 via ``get_object()``.
+        """
+        instance = self.get_object()
+        unknown_filter_keys = sorted(set((instance.filters or {}).keys()) - KNOWN_FILTER_KEYS)
+        unknown_columns = sorted(set(instance.columns or []) - KNOWN_COLUMN_KEYS)
+        drift = bool(unknown_filter_keys or unknown_columns)
+        return Response(
+            {
+                "id": str(instance.id),
+                "name": instance.name,
+                "drift": drift,
+                "unknown_filter_keys": unknown_filter_keys,
+                "unknown_columns": unknown_columns,
+                "checked_against_version": "google-ads-v23",
+            }
+        )
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -1397,6 +1802,12 @@ class GoogleAdsAccountAssignmentViewSet(viewsets.ModelViewSet):
         )
 
 
+def _safe_export_csv_value(value: Any) -> Any:
+    if isinstance(value, str) and value[:1] in {"=", "+", "-", "@"}:
+        return f"'{value}"
+    return value
+
+
 class GoogleAdsExportCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1420,7 +1831,7 @@ class GoogleAdsExportCreateView(APIView):
             normalized_filters.is_valid(raise_exception=True)
             rows = _campaign_rows_for_export(request.user, normalized_filters.validated_data)
 
-            output_dir = Path(settings.BASE_DIR) / "integrations" / "exporter" / "out" / "google_ads"
+            output_dir = Path(settings.REPORT_EXPORT_ARTIFACT_ROOT) / "google_ads"
             output_dir.mkdir(parents=True, exist_ok=True)
             file_name = f"google_ads_export_{job.id}.csv"
             artifact_path = output_dir / file_name
@@ -1446,7 +1857,13 @@ class GoogleAdsExportCreateView(APIView):
                     ],
                 )
                 writer.writeheader()
-                writer.writerows(rows)
+                writer.writerows(
+                    {
+                        field: _safe_export_csv_value(value)
+                        for field, value in row.items()
+                    }
+                    for row in rows
+                )
 
             metadata = {
                 "row_count": len(rows),
@@ -1464,7 +1881,7 @@ class GoogleAdsExportCreateView(APIView):
             job.save(update_fields=["status", "artifact_path", "completed_at", "metadata", "error_message", "updated_at"])
         except Exception as exc:  # pragma: no cover - defensive
             job.status = GoogleAdsExportJob.STATUS_FAILED
-            job.error_message = str(exc)
+            job.error_message = f"Export generation failed ({type(exc).__name__})."
             job.completed_at = timezone.now()
             job.save(update_fields=["status", "error_message", "completed_at", "updated_at"])
 
@@ -1502,10 +1919,12 @@ class GoogleAdsExportDownloadView(APIView):
         if not job.artifact_path.startswith("/google_ads/"):
             return Response({"detail": "Export artifact path is invalid."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        base_dir = Path(settings.BASE_DIR) / "integrations" / "exporter" / "out"
+        base_dir = Path(settings.REPORT_EXPORT_ARTIFACT_ROOT)
         artifact_path = (base_dir / job.artifact_path.lstrip("/")).resolve()
-        if not str(artifact_path).startswith(str(base_dir.resolve())) or not artifact_path.exists():
-            return Response({"detail": "Export artifact file was not found."}, status=status.HTTP_404_NOT_FOUND)
+        if not artifact_path.is_relative_to(base_dir.resolve()):
+            return Response({"detail": "Export artifact path is unsafe."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if not artifact_path.exists() or artifact_path.stat().st_size == 0:
+            return Response({"detail": "Export artifact file was not found or is empty."}, status=status.HTTP_404_NOT_FOUND)
 
         response = FileResponse(artifact_path.open("rb"), content_type="text/csv")
         response["Content-Disposition"] = f'attachment; filename="{artifact_path.name}"'

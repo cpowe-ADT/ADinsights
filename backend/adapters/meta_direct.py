@@ -20,6 +20,14 @@ META_CHANNEL_ALIASES = {"meta", "meta_ads"}
 META_PLATFORM_LABEL = "Meta Ads"
 FALLBACK_CURRENCY = "USD"
 JAMAICA_PARISH_COUNT = 14
+MANUAL_PAID_CSV_SOURCE = "manual_meta_paid_csv"
+MANUAL_PAID_METRIC_COLUMNS = {
+    "spend": {"spend", "amount_spent", "cost"},
+    "impressions": {"impressions"},
+    "reach": {"reach"},
+    "clicks": {"clicks"},
+    "conversions": {"conversions"},
+}
 
 # Best-effort mapping: Meta region name (lowercased) → canonical parish name from jm_parishes.json.
 META_REGION_TO_PARISH: dict[str, str] = {
@@ -84,10 +92,23 @@ class MetaDirectFilters:
     account_id: str | None = None
     channels: tuple[str, ...] = ()
     campaign_search: str | None = None
+    # Sprint 6: populated when the Combined view is scoped to a Client. Carries
+    # variant-expanded Meta ad account external_ids (both ``act_`` and bare
+    # forms) so the queryset filter can use ``__in`` permissively.
+    scoped_meta_account_ids: tuple[str, ...] = ()
+    # Sprint 6: ``True`` when the caller passed ``client_id`` — separate from
+    # ``scoped_meta_account_ids`` being non-empty because the client might
+    # resolve to zero Meta accounts (client_not_found, or Meta toggled off).
+    # When True and the id list is empty, the filter should return zero rows.
+    client_scope_requested: bool = False
 
     @property
     def excludes_meta_channel(self) -> bool:
         return bool(self.channels) and not any(channel in META_CHANNEL_ALIASES for channel in self.channels)
+
+    @property
+    def is_client_scoped(self) -> bool:
+        return self.client_scope_requested
 
 
 def _normalize_account_aliases(value: str | None) -> set[str]:
@@ -128,6 +149,12 @@ def _to_float(value: Decimal | float | int | None) -> float:
     return float(value)
 
 
+def _to_optional_float(value: Decimal | float | int | None) -> float | None:
+    if value is None:
+        return None
+    return float(value)
+
+
 def _to_int(value: Any) -> int:
     if value is None:
         return 0
@@ -137,14 +164,77 @@ def _to_int(value: Any) -> int:
         return 0
 
 
-def _safe_divide(numerator: float, denominator: float) -> float:
+def _to_optional_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_divide(
+    numerator: float | int | None, denominator: float | int | None
+) -> float | None:
+    if numerator is None or denominator is None:
+        return None
     if denominator <= 0:
         return 0.0
     return numerator / denominator
 
 
+def _sum_optional(
+    current: float | int | None, value: float | int | None
+) -> float | int | None:
+    if value is None:
+        return current
+    return value if current is None else current + value
+
+
+def _sum_optional_values(values: Iterable[float | int | None]) -> float | int | None:
+    total = None
+    for value in values:
+        total = _sum_optional(total, value)
+    return total
+
+
+def _manual_metric_was_supplied(record: RawPerformanceRecord, metric: str) -> bool:
+    raw_payload = record.raw_payload if isinstance(record.raw_payload, Mapping) else {}
+    if raw_payload.get("source") != MANUAL_PAID_CSV_SOURCE:
+        return True
+    metric_columns = raw_payload.get("metric_columns")
+    if not isinstance(metric_columns, (list, tuple, set)):
+        return True
+    supplied = {str(column).strip().lower() for column in metric_columns}
+    aliases = MANUAL_PAID_METRIC_COLUMNS.get(metric, {metric})
+    return bool(supplied & aliases)
+
+
+def _record_float_metric(record: RawPerformanceRecord, metric: str) -> float | None:
+    if not _manual_metric_was_supplied(record, metric):
+        return None
+    return _to_optional_float(getattr(record, metric, None))
+
+
+def _record_int_metric(record: RawPerformanceRecord, metric: str) -> int | None:
+    if not _manual_metric_was_supplied(record, metric):
+        return None
+    return _to_optional_int(getattr(record, metric, None))
+
+
 def _validated_filters(options: Mapping[str, Any] | None) -> MetaDirectFilters:
     serializer_input = options.dict() if options is not None and hasattr(options, "dict") else dict(options or {})
+
+    # Sprint 6: extract the client-scoping keys BEFORE the serializer pass —
+    # they carry list values that the CombinedMetricsQueryParamsSerializer
+    # doesn't know about. We pop them so the list-flattening loop doesn't
+    # collapse them to a single element or route them through "channels".
+    scoped_meta_raw = serializer_input.pop("client_scoped_meta_ad_account_ids", None)
+    serializer_input.pop("client_scoped_google_customer_ids", None)
+    client_scope_requested = bool(serializer_input.pop("client_scope_requested", False))
+    # ``client_id`` and ``platforms`` are metadata the adapter doesn't need.
+    serializer_input.pop("platforms", None)
+
     for key, value in list(serializer_input.items()):
         if isinstance(value, (list, tuple)):
             cleaned = [item.strip() for item in value if isinstance(item, str) and item.strip()]
@@ -156,12 +246,24 @@ def _validated_filters(options: Mapping[str, Any] | None) -> MetaDirectFilters:
     serializer = CombinedMetricsQueryParamsSerializer(data=serializer_input)
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
+
+    if isinstance(scoped_meta_raw, (list, tuple)):
+        scoped_meta = tuple(
+            str(item).strip()
+            for item in scoped_meta_raw
+            if isinstance(item, str) and item.strip()
+        )
+    else:
+        scoped_meta = ()
+
     return MetaDirectFilters(
         start_date=data.get("start_date"),
         end_date=data.get("end_date"),
         account_id=data.get("account_id"),
         channels=_normalize_channels(data.get("channels")),
         campaign_search=data.get("campaign_search"),
+        scoped_meta_account_ids=scoped_meta,
+        client_scope_requested=client_scope_requested,
     )
 
 
@@ -282,7 +384,21 @@ class MetaDirectAdapter(MetricsAdapter):
             queryset = queryset.filter(date__gte=filters.start_date)
         if filters.end_date:
             queryset = queryset.filter(date__lte=filters.end_date)
-        if filters.account_id:
+        if filters.is_client_scoped:
+            # Sprint 6: Client-scoped filter wins over single-account filter —
+            # the resolver already intersected with ``account_id`` if both were
+            # provided, so we only filter on the full scoped id set here.
+            aliases = set(filters.scoped_meta_account_ids)
+            numeric_aliases = {
+                alias[4:] if alias.startswith("act_") else alias
+                for alias in aliases
+            }
+            queryset = queryset.filter(
+                Q(ad_account__external_id__in=aliases)
+                | Q(ad_account__account_id__in=numeric_aliases)
+                | Q(campaign__account_external_id__in=aliases)
+            )
+        elif filters.account_id:
             aliases = _normalize_account_aliases(filters.account_id)
             numeric_aliases = {alias[4:] if alias.startswith("act_") else alias for alias in aliases}
             queryset = queryset.filter(
@@ -329,11 +445,11 @@ class MetaDirectAdapter(MetricsAdapter):
         campaign_budgets: dict[str, dict[str, float]] = defaultdict(dict)
 
         for record in records:
-            spend = _to_float(record.spend)
-            impressions = _to_int(record.impressions)
-            reach = _to_int(record.reach)
-            clicks = _to_int(record.clicks)
-            conversions = _to_int(record.conversions)
+            spend = _record_float_metric(record, "spend")
+            impressions = _record_int_metric(record, "impressions")
+            reach = _record_int_metric(record, "reach")
+            clicks = _record_int_metric(record, "clicks")
+            conversions = _record_int_metric(record, "conversions")
             ad_account_id = (
                 record.ad_account.external_id
                 if record.ad_account_id and record.ad_account is not None
@@ -347,19 +463,23 @@ class MetaDirectAdapter(MetricsAdapter):
                 trend_key,
                 {
                     "date": trend_key,
-                    "spend": 0.0,
-                    "impressions": 0,
-                    "reach": 0,
-                    "clicks": 0,
-                    "conversions": 0,
+                    "spend": None,
+                    "impressions": None,
+                    "reach": None,
+                    "clicks": None,
+                    "conversions": None,
                     "adAccountId": ad_account_id or None,
                 },
             )
-            trend_point["spend"] += spend
-            trend_point["impressions"] += impressions
-            trend_point["reach"] += reach
-            trend_point["clicks"] += clicks
-            trend_point["conversions"] += conversions
+            trend_point["spend"] = _sum_optional(trend_point["spend"], spend)
+            trend_point["impressions"] = _sum_optional(
+                trend_point["impressions"], impressions
+            )
+            trend_point["reach"] = _sum_optional(trend_point["reach"], reach)
+            trend_point["clicks"] = _sum_optional(trend_point["clicks"], clicks)
+            trend_point["conversions"] = _sum_optional(
+                trend_point["conversions"], conversions
+            )
 
             if record.campaign_id and record.campaign is not None:
                 campaign_key = record.campaign.external_id
@@ -373,20 +493,26 @@ class MetaDirectAdapter(MetricsAdapter):
                         "status": record.campaign.status or "Unknown",
                         "objective": record.campaign.objective or None,
                         "parishes": [],
-                        "spend": 0.0,
-                        "impressions": 0,
-                        "reach": 0,
-                        "clicks": 0,
-                        "conversions": 0,
+                        "spend": None,
+                        "impressions": None,
+                        "reach": None,
+                        "clicks": None,
+                        "conversions": None,
                         "startDate": record.date.isoformat(),
                         "endDate": record.date.isoformat(),
                     },
                 )
-                campaign_group["spend"] += spend
-                campaign_group["impressions"] += impressions
-                campaign_group["reach"] += reach
-                campaign_group["clicks"] += clicks
-                campaign_group["conversions"] += conversions
+                campaign_group["spend"] = _sum_optional(campaign_group["spend"], spend)
+                campaign_group["impressions"] = _sum_optional(
+                    campaign_group["impressions"], impressions
+                )
+                campaign_group["reach"] = _sum_optional(campaign_group["reach"], reach)
+                campaign_group["clicks"] = _sum_optional(
+                    campaign_group["clicks"], clicks
+                )
+                campaign_group["conversions"] = _sum_optional(
+                    campaign_group["conversions"], conversions
+                )
                 campaign_group["startDate"] = min(campaign_group["startDate"], record.date.isoformat())
                 campaign_group["endDate"] = max(campaign_group["endDate"], record.date.isoformat())
 
@@ -407,11 +533,11 @@ class MetaDirectAdapter(MetricsAdapter):
                         "campaignName": record.campaign.name,
                         "platform": META_PLATFORM_LABEL,
                         "parishes": [],
-                        "spend": 0.0,
-                        "impressions": 0,
-                        "reach": 0,
-                        "clicks": 0,
-                        "conversions": 0,
+                        "spend": None,
+                        "impressions": None,
+                        "reach": None,
+                        "clicks": None,
+                        "conversions": None,
                         "startDate": record.date.isoformat(),
                         "endDate": record.date.isoformat(),
                         "thumbnailUrl": (
@@ -422,11 +548,17 @@ class MetaDirectAdapter(MetricsAdapter):
                         ),
                     },
                 )
-                creative_group["spend"] += spend
-                creative_group["impressions"] += impressions
-                creative_group["reach"] += reach
-                creative_group["clicks"] += clicks
-                creative_group["conversions"] += conversions
+                creative_group["spend"] = _sum_optional(creative_group["spend"], spend)
+                creative_group["impressions"] = _sum_optional(
+                    creative_group["impressions"], impressions
+                )
+                creative_group["reach"] = _sum_optional(creative_group["reach"], reach)
+                creative_group["clicks"] = _sum_optional(
+                    creative_group["clicks"], clicks
+                )
+                creative_group["conversions"] = _sum_optional(
+                    creative_group["conversions"], conversions
+                )
                 creative_group["startDate"] = min(creative_group["startDate"], record.date.isoformat())
                 creative_group["endDate"] = max(creative_group["endDate"], record.date.isoformat())
 
@@ -440,7 +572,9 @@ class MetaDirectAdapter(MetricsAdapter):
             row["roas"] = _safe_divide(conversions, spend)
             row["ctr"] = _safe_divide(clicks, impressions)
             row["cpc"] = _safe_divide(spend, clicks)
-            row["cpm"] = _safe_divide(spend * 1000, impressions)
+            row["cpm"] = _safe_divide(
+                spend * 1000 if spend is not None else None, impressions
+            )
             row["cpa"] = _safe_divide(spend, conversions)
             row["frequency"] = _safe_divide(impressions, reach)
 
@@ -454,7 +588,9 @@ class MetaDirectAdapter(MetricsAdapter):
             row["roas"] = _safe_divide(conversions, spend)
             row["ctr"] = _safe_divide(clicks, impressions)
             row["cpc"] = _safe_divide(spend, clicks)
-            row["cpm"] = _safe_divide(spend * 1000, impressions)
+            row["cpm"] = _safe_divide(
+                spend * 1000 if spend is not None else None, impressions
+            )
             row["cpa"] = _safe_divide(spend, conversions)
             row["frequency"] = _safe_divide(impressions, reach)
             if row["thumbnailUrl"] is None:
@@ -471,7 +607,7 @@ class MetaDirectAdapter(MetricsAdapter):
             spend_to_date = campaign_row["spend"]
             projected_spend = (
                 _safe_divide(spend_to_date, elapsed_days) * window_days
-                if coverage_end >= today
+                if coverage_end >= today and spend_to_date is not None
                 else spend_to_date
             )
             budget_rows.append(
@@ -493,11 +629,15 @@ class MetaDirectAdapter(MetricsAdapter):
             )
 
         trend_rows = [trend_by_date[key] for key in sorted(trend_by_date)]
-        total_spend = sum(point["spend"] for point in trend_rows)
-        total_impressions = sum(point["impressions"] for point in trend_rows)
-        total_reach = sum(point["reach"] for point in trend_rows)
-        total_clicks = sum(point["clicks"] for point in trend_rows)
-        total_conversions = sum(point["conversions"] for point in trend_rows)
+        total_spend = _sum_optional_values(point["spend"] for point in trend_rows)
+        total_impressions = _sum_optional_values(
+            point["impressions"] for point in trend_rows
+        )
+        total_reach = _sum_optional_values(point["reach"] for point in trend_rows)
+        total_clicks = _sum_optional_values(point["clicks"] for point in trend_rows)
+        total_conversions = _sum_optional_values(
+            point["conversions"] for point in trend_rows
+        )
         summary = {
             "currency": currency,
             "totalSpend": total_spend,
@@ -508,7 +648,10 @@ class MetaDirectAdapter(MetricsAdapter):
             "averageRoas": _safe_divide(total_conversions, total_spend),
             "ctr": _safe_divide(total_clicks, total_impressions),
             "cpc": _safe_divide(total_spend, total_clicks),
-            "cpm": _safe_divide(total_spend * 1000, total_impressions),
+            "cpm": _safe_divide(
+                total_spend * 1000 if total_spend is not None else None,
+                total_impressions,
+            ),
             "cpa": _safe_divide(total_spend, total_conversions),
             "frequency": _safe_divide(total_impressions, total_reach),
         }
@@ -521,7 +664,9 @@ class MetaDirectAdapter(MetricsAdapter):
             region_qs = region_qs.filter(date_day__gte=filters.start_date)
         if filters.end_date:
             region_qs = region_qs.filter(date_day__lte=filters.end_date)
-        if filters.account_id:
+        if filters.is_client_scoped:
+            region_qs = region_qs.filter(account_id__in=set(filters.scoped_meta_account_ids))
+        elif filters.account_id:
             aliases = _normalize_account_aliases(filters.account_id)
             region_qs = region_qs.filter(account_id__in=aliases)
 
@@ -590,7 +735,9 @@ class MetaDirectAdapter(MetricsAdapter):
             demo_qs = demo_qs.filter(date_day__gte=filters.start_date)
         if filters.end_date:
             demo_qs = demo_qs.filter(date_day__lte=filters.end_date)
-        if filters.account_id:
+        if filters.is_client_scoped:
+            demo_qs = demo_qs.filter(account_id__in=set(filters.scoped_meta_account_ids))
+        elif filters.account_id:
             aliases = _normalize_account_aliases(filters.account_id)
             demo_qs = demo_qs.filter(account_id__in=aliases)
 
@@ -643,7 +790,9 @@ class MetaDirectAdapter(MetricsAdapter):
             plat_qs = plat_qs.filter(date_day__gte=filters.start_date)
         if filters.end_date:
             plat_qs = plat_qs.filter(date_day__lte=filters.end_date)
-        if filters.account_id:
+        if filters.is_client_scoped:
+            plat_qs = plat_qs.filter(account_id__in=set(filters.scoped_meta_account_ids))
+        elif filters.account_id:
             aliases = _normalize_account_aliases(filters.account_id)
             plat_qs = plat_qs.filter(account_id__in=aliases)
 

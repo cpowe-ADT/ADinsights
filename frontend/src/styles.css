@@ -880,7 +880,7 @@ label,
   background: var(--nav-active-bg);
 }
 
-.dashboard-nav__trigger[aria-expanded="true"] {
+.dashboard-nav__trigger[aria-expanded='true'] {
   background: rgba(37, 99, 235, 0.12);
   color: var(--nav-active-text);
 }
@@ -897,7 +897,7 @@ label,
   transition: transform var(--motion-duration-short) var(--motion-ease-out);
 }
 
-.dashboard-nav__trigger[aria-expanded="true"] .dashboard-nav__chevron {
+.dashboard-nav__trigger[aria-expanded='true'] .dashboard-nav__chevron {
   transform: rotate(180deg);
 }
 
@@ -918,8 +918,14 @@ label,
 }
 
 @keyframes nav-dropdown-enter {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .dashboard-nav__dropdown a {
@@ -1219,6 +1225,25 @@ label,
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
+.data-sources-advanced-intro {
+  align-items: flex-start;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+  padding-top: var(--space-5);
+}
+
+.data-sources-advanced-intro h3 {
+  color: var(--text-primary);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.data-sources-advanced-intro .status-message {
+  margin-bottom: 0;
+}
+
 .summary-card {
   padding: var(--space-4);
   border-radius: var(--radius-md);
@@ -1290,6 +1315,51 @@ label,
   align-items: flex-start;
   gap: var(--space-3);
   flex-wrap: wrap;
+}
+
+.connector-lifecycle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 var(--space-3);
+}
+
+.connector-lifecycle__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.connector-lifecycle__jobs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.connector-lifecycle__job-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.connector-lifecycle__job {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.connector-lifecycle__job-status {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.connector-lifecycle__job-meta {
+  color: var(--color-text-muted, #64748b);
 }
 
 .data-sources-connect-form__grid {
@@ -2653,6 +2723,81 @@ th.pinned {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--color-text-muted);
+}
+
+.filter-toggle-group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.filter-toggle-group__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.client-suggestion-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.1rem;
+  background: var(--color-surface-subtle, #f5f7ff);
+  border: 1px solid var(--color-border, #d8ddf1);
+  border-radius: 0.75rem;
+}
+
+.client-suggestion-banner__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 20rem;
+}
+
+.client-suggestion-banner__title {
+  font-weight: 600;
+}
+
+.client-suggestion-banner__detail {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.client-suggestion-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.client-suggestion-banner__review {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.5rem;
+  background: var(--color-accent, #3651d4);
+  color: #fff;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.client-suggestion-banner__review:hover {
+  filter: brightness(1.05);
+}
+
+.client-suggestion-banner__dismiss {
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.5rem;
+  background: transparent;
+  border: 1px solid var(--color-border, #d8ddf1);
+  color: var(--color-text, inherit);
+  cursor: pointer;
+}
+
+.client-suggestion-banner__dismiss:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .empty-state {

@@ -44,6 +44,7 @@ const mockSummaries = [
 
 describe('SummariesPage', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     phase2ApiMock.listSummaries.mockResolvedValue(mockSummaries);
     phase2ApiMock.refreshSummary.mockResolvedValue(mockSummaries[0]);
   });
@@ -82,9 +83,7 @@ describe('SummariesPage', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => expect(phase2ApiMock.listSummaries).toHaveBeenCalled());
-
-    const button = screen.getByRole('button', { name: /generate new summary/i });
+    const button = await screen.findByRole('button', { name: /generate new summary/i });
     await user.click(button);
 
     expect(screen.getByText('Generating…')).toBeInTheDocument();
