@@ -410,6 +410,7 @@ describe('DataSources connect flow', () => {
     });
     window.history.replaceState({}, '', '/');
     window.sessionStorage.clear();
+    window.localStorage.clear();
   });
 
   it('shows connect buttons', async () => {
@@ -446,7 +447,7 @@ describe('DataSources connect flow', () => {
     renderDataSources();
 
     expect(await screen.findByRole('heading', { name: /social connections/i })).toBeInTheDocument();
-    expect(screen.getByText('Started, not complete')).toBeInTheDocument();
+    expect(await screen.findByText('Started, not complete')).toBeInTheDocument();
     expect(screen.getAllByText('Not connected').length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: /finish meta setup/i }).length).toBeGreaterThan(0);
   });
