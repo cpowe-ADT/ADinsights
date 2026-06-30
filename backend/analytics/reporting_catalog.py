@@ -40,6 +40,31 @@ FUTURE_GATED_DATASETS = frozenset(
     {"organic_instagram", "combined_social", "ga4_web", "search_console"}
 )
 FUTURE_GATED_WIDGETS = frozenset({"scatter_chart"})
+METRIC_AVAILABILITY_STATES = frozenset(
+    {
+        "available",
+        "callable_no_data",
+        "permission_gated",
+        "unsupported",
+    }
+)
+PERMISSION_GATED_ORGANIC_FACEBOOK_METRICS = frozenset(
+    {
+        "page_reach",
+        "page_impressions",
+        "page_engagements",
+        "page_actions",
+        "page_fans",
+        "page_reactions_like",
+        "page_reactions_love",
+        "page_reactions_wow",
+        "post_impressions",
+        "post_reach",
+        "post_clicks",
+        "post_reactions_like",
+        "post_reactions_love",
+    }
+)
 COVERAGE_STATUSES = frozenset(
     {
         "fresh",
@@ -260,7 +285,11 @@ METRIC_DEFINITIONS: tuple[MetricDefinition, ...] = tuple(
                 "page_reactions_like",
                 "page_reactions_love",
                 "page_reactions_wow",
+                "post_reactions",
+                "post_comments",
+                "post_shares",
                 "post_impressions",
+                "post_reach",
                 "post_clicks",
                 "post_reactions_like",
                 "post_reactions_love",
@@ -366,6 +395,8 @@ def get_reporting_catalog() -> dict[str, object]:
                 "widgets": sorted(definition.widgets),
                 "dimensions": sorted(definition.dimensions),
                 "is_future_gated": definition.dataset in FUTURE_GATED_DATASETS,
+                "availability_state": _metric_availability_state(definition),
+                "availability_note": _metric_availability_note(definition),
             }
             for definition in sorted(
                 METRIC_DEFINITIONS,
@@ -415,6 +446,7 @@ def get_reporting_catalog() -> dict[str, object]:
             "source_label_datasets": sorted(SOURCE_LABEL_DATASETS),
             "future_gated_datasets": sorted(FUTURE_GATED_DATASETS),
             "future_gated_widgets": sorted(FUTURE_GATED_WIDGETS),
+            "metric_availability_states": sorted(METRIC_AVAILABILITY_STATES),
             "relative_date_ranges": sorted(RELATIVE_DATE_RANGES),
             "table": {"requires_row_limit": True, "max_row_limit": 500},
             "line_chart": {"requires_one_of_dimensions": sorted(TIME_DIMENSIONS)},
@@ -427,6 +459,33 @@ def get_reporting_catalog() -> dict[str, object]:
             "deprecated_or_unknown_page_metrics": sorted(DEPRECATED_OR_UNKNOWN_PAGE_METRICS),
         },
     }
+
+
+def _metric_availability_state(definition: MetricDefinition) -> str:
+    if definition.dataset in FUTURE_GATED_DATASETS:
+        return "unsupported"
+    if (
+        definition.dataset == "organic_facebook_page"
+        and definition.key in PERMISSION_GATED_ORGANIC_FACEBOOK_METRICS
+    ):
+        return "permission_gated"
+    return "available"
+
+
+def _metric_availability_note(definition: MetricDefinition) -> str:
+    state = _metric_availability_state(definition)
+    if state == "permission_gated":
+        return (
+            "Requires Meta organic insights access that ADinsights does not request today; "
+            "use page_follows plus edge-sourced post reactions, comments, and shares until "
+            "Meta approval or a manual import path is available."
+        )
+    if state == "unsupported":
+        return "Metric belongs to a future-gated dataset and is not selectable in governed layouts."
+    return (
+        "Metric is usable through the current stored reporting path; "
+        "tenant/date coverage is reported separately."
+    )
 
 
 def validate_dashboard_layout(layout: object) -> dict[str, Any]:

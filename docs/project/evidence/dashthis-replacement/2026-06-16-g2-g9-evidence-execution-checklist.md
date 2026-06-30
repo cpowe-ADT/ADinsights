@@ -91,8 +91,9 @@ worksheet from a different report preview, date range, tenant/client, or source-
 The artifact's `row_count` and `result_summary` must match the actual `rows` content; a summary-only
 pass is not valid evidence.
 Allowed row results are `pass`, `fail`, `blocked_missing_dashthis_value`,
-`blocked_missing_source_value`, and `blocked_metric_semantics`. Unsupported manual labels are blocked,
-and at least one row must pass before G10 can start.
+`blocked_missing_source_value`, `blocked_missing_adinsights_value`, and
+`blocked_metric_semantics`. Unsupported manual labels are blocked, and at least one row must pass
+before G10 can start.
 Each `pass` row must include metric identity, ADinsights value, source value, absolute delta,
 accepted tolerance, and an explanation.
 
@@ -190,6 +191,23 @@ date range, and preview hash used by the G2-G9 run record.
 It must also pass the diagnostics `source_health` check so G8 support proof includes
 stored-aggregate/no-live-provider guardrails, Meta credential state, Page connection state,
 Airbyte state, stored row counts, and recommended next actions.
+When the bundle includes compact `data_availability`, the validator checks that requested dates
+match the bundle, export eligibility matches `export_ready`, and blocked `paid_meta_ads` includes
+scope diagnostics. `data_availability_paid_credential` means the selected SLB ad account still must
+be reconnected/selected and paid backfill or approved daily import rerun before paid coverage or
+parity can pass. It does not by itself invalidate warning-only SLB export evidence when the bundle
+is `export_ready=true`, has no top-level `blocking_reasons`, and visibly preserves selected-account
+no-data warnings.
+For SLB v1, the offline validator honors the template's warning-only export policy only when the
+bundle itself is `export_ready=true` and has no top-level `blocking_reasons`; stale historical
+export rows from older preview hashes do not count for or against G5. Missing real DashThis/source
+values still block G6 and therefore keep G2-G9 from passing.
+
+Latest local fixed-target status note:
+`docs/project/evidence/dashthis-replacement/2026-06-26-slb-fixed-target-export-warning-evidence.md`
+records a local May 2026 run where CSV/PDF/PNG plus dry-run validate, selected-account paid no-data
+and organic/content missing-history states are warning-only, and parity remains blocked because real
+DashThis/source values are unavailable.
 
 ## Execution Order
 
@@ -219,11 +237,15 @@ Record:
 - Report ID, template key, catalog schema version, date range, and preview hash.
 - Rendering summary: page count, widget count, ordered page IDs/titles, and per-page widget states.
 - Coverage summary and diagnostics dataset rows for the same custom date range.
+- Compact `data_availability`: canonical export eligibility, requested scope, per-dataset coverage
+  status, and any `paid_meta_ads.scope_diagnostic.credential_status` needed to prove a selected
+  account reconnect/backfill blocker.
 - Diagnostics `source_health`: stored-aggregate/no-live-provider flags, Meta credential health,
   Page connection health, Airbyte health, stored row counts, and recommended next actions.
 - Export summary: export job IDs, formats, statuses, non-empty artifact byte counts where available,
   preview hashes, snapshot preview hashes, and sanitized delivery status.
-- Parity row count and `blocked_missing_dashthis_value` rows for manual DashThis/source comparison.
+- Parity row count and blocked source-value rows (`blocked_missing_dashthis_value` or
+  `blocked_missing_source_value`) for manual DashThis/source comparison.
 - Audit evidence for `report_evidence_bundle_generated`.
 
 Stop condition:
@@ -321,9 +343,22 @@ Record:
 - Primary-month dataset status, row count, and retained range.
 - 90-day retained-history dataset status, row count, and retained range.
 - `decision` for `paid_meta_ads`, `organic_facebook_page`, and `content_ops`.
+- `primary_coverage_gap` and `history_coverage_gap` for partial datasets, especially
+  `paid_meta_ads`, including missing day counts and exact missing dates for the monthly/90-day
+  evidence windows.
+- `probes.primary_month.data_availability` and `probes.retained_90_day.data_availability`,
+  including requested `account_id`/`client_id` and any `paid_meta_ads.scope_diagnostic` needed to
+  prove a selected paid-account reconnect/backfill blocker.
 - `source_health` credential, Page connection, Airbyte, stored asset, and stored row summaries.
+- `source_health.report_scope.paid_meta_ads` for the fixed SLB report, including redacted
+  selected-account `credential_status`, `scoped_rows.row_count`, and `backfill_status` so support
+  evidence distinguishes missing selected-account paid coverage from unrelated tenant paid rows.
 - `source_health.recommended_next_actions` for reauth, sync repair, Page/Post backfill, and
   Content Ops snapshot gaps.
+- `source_health.remediation_actions` command templates for manual organic CSV import, Page/Post
+  backfill, paid selected-account backfill, manual paid CSV import, and Content Ops snapshot
+  refresh. These templates must stay redacted with placeholders such as `<tenant_uuid>`,
+  `<report_uuid>`, `<facebook_page_id>`, and `<meta_ad_account_id>`.
 - Any `blocked_retained_history` or `blocked_no_aggregate_rows` row as a G2/G3 blocker.
 - Any `meta_credentials.has_reauth_required`, Airbyte sync failure category, missing Page rows,
   missing post rows, or missing Content Ops rows as a G2/G3/G8 blocker or operator action.
@@ -447,6 +482,33 @@ Detailed packet:
 `docs/project/evidence/dashthis-replacement/2026-06-16-g4-g5-render-export-reproducibility-proof.md`
 
 Command shape:
+
+```bash
+backend/.venv/bin/python backend/manage.py slb_report_export_evidence \
+  --report-id <report-id> \
+  --start-date 2026-05-01 \
+  --end-date 2026-05-31 \
+  > docs/project/evidence/dashthis-replacement/<run-id>/export-evidence.json
+```
+
+The command creates normal `ReportExportJob` rows for CSV/PDF/PNG when coverage is export-ready,
+runs the export task synchronously, verifies non-empty artifacts under
+`REPORT_EXPORT_ARTIFACT_ROOT`, and creates a sanitized scheduled dry-run without sending client
+email. Successful `slb_export_evidence_run.v1` output must include `export_ready=true`,
+`coverage_summary`, empty `blocking_reasons`, non-empty CSV/PDF/PNG byte counts, and any visible
+warnings. For SLB v1, organic Facebook/Page, organic post, and Content Ops `missing_history` or
+`not_previously_synced` states may appear as warning-only sections, but missing paid rows,
+permission gaps, and unsupported metrics remain blockers. If coverage is still blocked, the command
+exits non-zero after writing the same
+`slb_export_evidence_run.v1` schema with `status: "blocked_by_coverage"`, the requested formats
+marked blocked, the preview hash, coverage summary including any `coverage_gap` diagnostics,
+compact `data_availability` diagnostics, blocking reasons, warnings, and a sanitized
+`blocked_by_coverage` scheduled dry-run. For scoped SLB paid misses, retain the
+`data_availability.datasets.paid_meta_ads.scope_diagnostic` block, including
+`credential_status`, so the packet distinguishes a selected-account reconnect/backfill blocker
+from unrelated tenant paid rows. Keep that blocked JSON with the run packet and do not proceed to
+G10/G11 until the missing backfill/import or explicit scope decision is resolved.
+Use the API flow below only when the operator needs to exercise the HTTP route explicitly:
 
 ```bash
 for format in csv pdf png; do
@@ -586,6 +648,9 @@ Fill this matrix after routing evidence. Any `No` blocks G10.
 
 G10 adversarial review can start only after:
 
+- The G10 validator is run with both
+  `--g2-g9-run-file <filled-g2-g9-evidence-run.json>` and
+  `--intake-file <filled-g1-runtime-target-intake.json>`.
 - G2-G9 packets all have fixed-range evidence for the same G1 target.
 - Any failed or blocked row is converted into a fix, reviewer-approved waiver, evidence note, or
   explicit cancellation blocker.

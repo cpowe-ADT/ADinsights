@@ -112,20 +112,34 @@ Recommended implementation shape:
 
 Metric fields:
 
-| Field                   | Meaning                                                                         |
-| ----------------------- | ------------------------------------------------------------------------------- |
-| `key`                   | Product-facing stable key used by widget configs.                               |
-| `source_metric`         | Provider/dbt/API field or expression.                                           |
-| `dataset`               | Dataset key where metric is valid.                                              |
-| `label`                 | UI/report label.                                                                |
-| `value_type`            | `currency`, `count`, `decimal`, `percent`, `ratio`, or `text`.                  |
-| `aggregation`           | `sum`, `avg`, `weighted_avg`, `latest`, `count_distinct`, `derived`, or `none`. |
-| `format`                | UI/export formatting hint.                                                      |
-| `grains`                | Supported grains: `day`, `week`, `month`, `lifetime`, `selected_range`.         |
-| `dimensions`            | Allowed dimension keys.                                                         |
-| `widgets`               | Allowed widget types.                                                           |
-| `required_status`       | Required source/catalog status such as `active_v1` or `future_gated`.           |
-| `source_label_required` | Whether widgets must show source label.                                         |
+| Field                   | Meaning                                                                                                  |
+| ----------------------- | -------------------------------------------------------------------------------------------------------- |
+| `key`                   | Product-facing stable key used by widget configs.                                                        |
+| `source_metric`         | Provider/dbt/API field or expression.                                                                    |
+| `dataset`               | Dataset key where metric is valid.                                                                       |
+| `label`                 | UI/report label.                                                                                         |
+| `value_type`            | `currency`, `count`, `decimal`, `percent`, `ratio`, or `text`.                                           |
+| `aggregation`           | `sum`, `avg`, `weighted_avg`, `latest`, `count_distinct`, `derived`, or `none`.                          |
+| `format`                | UI/export formatting hint.                                                                               |
+| `grains`                | Supported grains: `day`, `week`, `month`, `lifetime`, `selected_range`.                                  |
+| `dimensions`            | Allowed dimension keys.                                                                                  |
+| `widgets`               | Allowed widget types.                                                                                    |
+| `required_status`       | Required source/catalog status such as `active_v1` or `future_gated`.                                    |
+| `source_label_required` | Whether widgets must show source label.                                                                  |
+| `availability_state`    | Provider/runtime usability state: `available`, `callable_no_data`, `permission_gated`, or `unsupported`. |
+| `availability_note`     | Operator-facing explanation for gated or unsupported metrics.                                            |
+
+Metric availability state is separate from tenant/date data coverage. `availability_state` answers
+"can this metric be used by the governed reporting path at all today?" while widget preview and
+`GET /api/reports/data-availability/` answer "does this tenant/date/account/page have stored rows?"
+The frontend builder should not offer `permission_gated` or `unsupported` metrics as default
+choices. Missing stored values must remain `null`/unavailable, never synthetic zeroes.
+For paid Meta readiness, `GET /api/reports/data-availability/` must apply `client_id` to the
+client's linked Meta ad accounts and intersect it with `account_id` when both are present. When a
+scoped paid request has no rows but tenant-wide Meta rows exist elsewhere, the `paid_meta_ads`
+dataset includes additive `scope_diagnostic` guidance instead of falling back to unscoped rows.
+Account-scoped diagnostics may include safe `credential_status` metadata so operators can
+distinguish missing retained rows from a missing/reconnect-required Meta credential.
 
 ### Paid Meta Ads Metrics
 
@@ -165,7 +179,11 @@ unless explicitly enabled for internal validation.
 | `page_reactions_love` | `page_actions_post_reactions_love_total`                                              | count        | sum                     | KPI, bar, table       | Reaction breakdown.                                                      |
 | `page_reactions_wow`  | `page_actions_post_reactions_wow_total`                                               | count        | sum                     | KPI, bar, table       | Reaction breakdown.                                                      |
 | `post_impressions`    | `post_media_view`; historical stored rows may still contain legacy `post_impressions` | count        | sum                     | KPI, bar, table       | Top post table metric. Do not request deprecated direct keys by default. |
+| `post_reach`          | `post_total_media_view_unique` fallback `post_impressions_unique`                     | count        | sum or latest by period | KPI, bar, table       | Permission-gated unless hydrated by approved manual import.              |
 | `post_clicks`         | `post_clicks`                                                                         | count        | sum                     | KPI, bar, table       | Top post table metric.                                                   |
+| `post_reactions`      | `post_reactions_total`                                                                | count        | sum                     | KPI, bar, table       | Edge-sourced post reaction total available without `read_insights`.      |
+| `post_comments`       | `post_comments_total` fallback `post_comments`                                        | count        | sum                     | KPI, bar, table       | Edge-sourced post comment total available without `read_insights`.       |
+| `post_shares`         | `post_shares_total` fallback `post_shares`                                            | count        | sum                     | KPI, bar, table       | Edge-sourced post share total available without `read_insights`.         |
 | `post_reactions_like` | `post_reactions_by_type_total[like]` fallback `post_reactions_like_total`             | count        | sum                     | KPI, bar, table       | Top post table metric.                                                   |
 | `post_reactions_love` | `post_reactions_by_type_total[love]` fallback `post_reactions_love_total`             | count        | sum                     | KPI, bar, table       | Top post table metric.                                                   |
 | `post_activity`       | `post_activity_by_action_type`                                                        | count/object | derived or exploded     | table                 | Requires backend normalization before broad chart use.                   |
@@ -180,6 +198,12 @@ exposed additively from `GET /api/dashboards/reporting-catalog/` as `source_metr
 When synced posts exist but Graph returns no Page/Post insight metric rows, top-post tables may
 render stored post activity fields such as `date`, `content`, and `permalink`; metric cells remain
 unavailable rather than zero, and coverage stays partial or blocked as appropriate.
+For the current no-`read_insights` SLB path, `page_follows`, `post_reactions`, `post_comments`, and
+`post_shares` are the available organic report metrics. Organic reach, impressions, clicks, and
+reaction breakdowns remain `permission_gated` until Meta approval or a manual import fallback exists.
+The backend `import_meta_organic_csv` command can hydrate approved aggregate reach/impression CSV
+exports into the same `MetaInsightPoint` / `MetaPostInsightPoint` tables without changing the
+`read_insights` OAuth policy.
 
 ### Content Ops Metrics
 
@@ -300,16 +324,16 @@ Required shared widget fields:
 
 Allowed examples:
 
-| Use case              | Dataset                 | x                        | y                                            | Widget                                  |
-| --------------------- | ----------------------- | ------------------------ | -------------------------------------------- | --------------------------------------- |
-| Spend trend           | `paid_meta_ads`         | `date`                   | `spend`                                      | `line_chart`                            |
-| Campaign performance  | `paid_meta_ads`         | `campaign`               | `spend`, `clicks`, `ctr`                     | `bar_chart` or `data_table`             |
-| Creative efficiency   | `paid_meta_ads`         | `creative`               | `ctr`, `cpc`, `conversions`                  | `data_table`; scatter later             |
-| Parish performance    | `paid_meta_ads`         | `parish`                 | `spend`, `reach`, `conversions`              | `map` or `data_table`                   |
-| Page engagement trend | `organic_facebook_page` | `date`                   | `page_engagements`                           | `line_chart`                            |
-| Top posts             | `organic_facebook_page` | `post`                   | `post_impressions`, `post_clicks`, reactions | `data_table`                            |
-| Content production    | `content_ops`           | `date` or `content_type` | `published_posts`, `content_items_created`   | `line_chart`, `bar_chart`, `data_table` |
-| Paid platform split   | `combined_paid_media`   | `platform`               | `spend`, `clicks`, `conversions`             | `bar_chart`, `data_table`               |
+| Use case             | Dataset                 | x                        | y                                                | Widget                                  |
+| -------------------- | ----------------------- | ------------------------ | ------------------------------------------------ | --------------------------------------- |
+| Spend trend          | `paid_meta_ads`         | `date`                   | `spend`                                          | `line_chart`                            |
+| Campaign performance | `paid_meta_ads`         | `campaign`               | `spend`, `clicks`, `ctr`                         | `bar_chart` or `data_table`             |
+| Creative efficiency  | `paid_meta_ads`         | `creative`               | `ctr`, `cpc`, `conversions`                      | `data_table`; scatter later             |
+| Parish performance   | `paid_meta_ads`         | `parish`                 | `spend`, `reach`, `conversions`                  | `map` or `data_table`                   |
+| Page follows trend   | `organic_facebook_page` | `date`                   | `page_follows`                                   | `line_chart`                            |
+| Top posts            | `organic_facebook_page` | `post`                   | `post_reactions`, `post_comments`, `post_shares` | `data_table`                            |
+| Content production   | `content_ops`           | `date` or `content_type` | `published_posts`, `content_items_created`       | `line_chart`, `bar_chart`, `data_table` |
+| Paid platform split  | `combined_paid_media`   | `platform`               | `spend`, `clicks`, `conversions`                 | `bar_chart`, `data_table`               |
 
 General rules:
 
@@ -346,16 +370,16 @@ metadata. The builder should not need to infer freshness from chart data.
 
 Coverage status values:
 
-| Status                  | Meaning                                                                        | Render rule                                                    |
-| ----------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| `fresh`                 | Source connected and data covers requested range within freshness SLA.         | Render normally.                                               |
-| `stale`                 | Historical data exists, but latest sync is outside freshness SLA.              | Render with freshness note.                                    |
-| `partial`               | Some requested dates are available, but not the full range.                    | Render with warning or block based on widget/report policy.    |
-| `source_disconnected`   | Provider/OAuth/connector cannot fetch fresh data, but retained data may exist. | Render only if `history_status=available`; show clear note.    |
-| `missing_history`       | Source may be connected, but requested range is not retained in ADinsights.    | Block or require smaller date range.                           |
-| `not_previously_synced` | The source/account/page was never synced for the requested range.              | Block and show setup/backfill action.                          |
-| `permission_missing`    | Required provider scope/permission is missing.                                 | Block fresh sync; render retained data only if policy permits. |
-| `unsupported_metric`    | Metric is not valid for dataset/source status.                                 | Block.                                                         |
+| Status                  | Meaning                                                                                                                | Render rule                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `fresh`                 | Source connected and data covers requested range within freshness SLA.                                                 | Render normally.                                               |
+| `stale`                 | Historical data exists, but latest sync is outside freshness SLA.                                                      | Render with freshness note.                                    |
+| `partial`               | Some requested dates are available, but not the full range, including internal missing days between covered endpoints. | Render with warning or block based on widget/report policy.    |
+| `source_disconnected`   | Provider/OAuth/connector cannot fetch fresh data, but retained data may exist.                                         | Render only if `history_status=available`; show clear note.    |
+| `missing_history`       | Source may be connected, but requested range is not retained in ADinsights.                                            | Block or require smaller date range.                           |
+| `not_previously_synced` | The source/account/page was never synced for the requested range.                                                      | Block and show setup/backfill action.                          |
+| `permission_missing`    | Required provider scope/permission is missing.                                                                         | Block fresh sync; render retained data only if policy permits. |
+| `unsupported_metric`    | Metric is not valid for dataset/source status.                                                                         | Block.                                                         |
 
 Recommended coverage payload shape:
 
@@ -441,6 +465,14 @@ Backend validation should keep legacy template dashboards valid while rejecting 
 {
   "schema_version": "report.v1",
   "template_key": "slb_monthly_social_report",
+  "export_policy": {
+    "warning_only_coverage_statuses": {
+      "paid_meta_ads": ["partial"],
+      "organic_facebook_page": ["missing_history", "not_previously_synced"],
+      "organic_facebook_posts": ["missing_history", "not_previously_synced"],
+      "content_ops": ["missing_history", "not_previously_synced"]
+    }
+  },
   "pages": [
     {
       "id": "paid_media",
@@ -472,17 +504,17 @@ Rules:
 Use SLB as the first proof template because it exercises paid, organic, top-content, and narrative
 report needs.
 
-| Report page                       | Dataset                                                 | Widgets                           | Required metrics                                                   | Coverage policy                                                   |
-| --------------------------------- | ------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| Cover + period                    | all bound datasets                                      | `report_section`                  | reporting period, client, source coverage summary                  | `render_with_warning`                                             |
-| Executive summary                 | `paid_meta_ads`, `organic_facebook_page`, `content_ops` | KPI group, narrative section      | spend, reach, clicks, page engagements, published posts            | `render_with_warning`                                             |
-| Paid Meta Ads performance         | `paid_meta_ads`                                         | KPI, line, bar, table             | spend, impressions, reach, clicks, ctr, cpc, cpm, conversions      | `require_full_coverage` for cancellation proof; otherwise warning |
-| Organic Facebook/Page performance | `organic_facebook_page`                                 | KPI, line, table                  | page reach, impressions, engagements, actions, follows, fans       | `render_with_warning`                                             |
-| Top posts                         | `organic_facebook_page`                                 | data table                        | post impressions, clicks, reactions, activity                      | `render_with_warning`                                             |
-| Content activity/work completed   | `content_ops`                                           | KPI, bar/table, narrative section | content items created, published posts, scheduled posts, approvals | `render_with_warning`                                             |
-| Instagram performance             | `organic_instagram`                                     | KPI, line, table                  | future-gated Instagram metrics                                     | Block until dataset is active.                                    |
-| Recommendations                   | bound source datasets                                   | `report_section`                  | data-backed highlights and next actions                            | Must disclose source coverage.                                    |
-| Appendix/data notes               | all bound datasets                                      | coverage table                    | source status, freshness, retained range, row counts               | Always required for v1 exports.                                   |
+| Report page                       | Dataset                                                 | Widgets                           | Required metrics                                                               | Coverage policy                                                   |
+| --------------------------------- | ------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| Cover + period                    | all bound datasets                                      | `report_section`                  | reporting period, client, source coverage summary                              | `render_with_warning`                                             |
+| Executive summary                 | `paid_meta_ads`, `organic_facebook_page`, `content_ops` | KPI group, narrative section      | spend, paid reach, paid clicks, Page follows, post engagement, published posts | `render_with_warning`                                             |
+| Paid Meta Ads performance         | `paid_meta_ads`                                         | KPI, line, bar, table             | spend, impressions, reach, clicks, ctr, cpc, cpm, conversions                  | `require_full_coverage` for cancellation proof; otherwise warning |
+| Organic Facebook/Page performance | `organic_facebook_page`                                 | KPI, line, table, report note     | Page follows; reach/impressions unavailable note                               | `render_with_warning`                                             |
+| Top posts                         | `organic_facebook_page`                                 | data table                        | post reactions, comments, shares, activity                                     | `render_with_warning`                                             |
+| Content activity/work completed   | `content_ops`                                           | KPI, bar/table, narrative section | content items created, published posts, scheduled posts, approvals             | `render_with_warning`                                             |
+| Instagram performance             | `organic_instagram`                                     | KPI, line, table                  | future-gated Instagram metrics                                                 | Block until dataset is active.                                    |
+| Recommendations                   | bound source datasets                                   | `report_section`                  | data-backed highlights and next actions                                        | Must disclose source coverage.                                    |
+| Appendix/data notes               | all bound datasets                                      | coverage table                    | source status, freshness, retained range, row counts                           | Always required for v1 exports.                                   |
 
 Minimum SLB v1 without Instagram:
 
@@ -491,6 +523,14 @@ Minimum SLB v1 without Instagram:
 - Top posts table.
 - Content activity/work completed section.
 - Recommendations section with data coverage notes.
+- SLB export policy: missing organic Facebook/Page, organic post, Content Ops, and scoped
+  selected-account paid history may render as explicit warning-only no-data sections when no
+  permission, unsupported-metric, or unscoped paid blocker is present. This keeps exports truthful
+  but does not satisfy parity or cancellation readiness.
+- SLB paid Meta widgets must be scoped by `account_id` or `client_id` before preview/export. A fixed
+  SLB report must not aggregate every retained Meta row for the tenant; if the scoped account/client
+  has no retained rows, export may proceed only as warning-only no-data evidence until
+  backfill/source repair or approved daily paid CSV import supplies real selected-account values.
 
 ## Backend Validation Acceptance Criteria
 
@@ -509,9 +549,11 @@ Future backend implementation must satisfy these criteria:
     explicitly allows more.
 11. Coverage metadata must be computed or attached before report preview/export.
 12. `require_full_coverage` blocks partial or missing history at widget preview time.
-13. For `report.v1` export readiness, `missing_history`, `not_previously_synced`,
-    `permission_missing`, and `unsupported_metric` are hard blockers even when widget preview uses
-    `render_with_warning`; preview may still render available stored data with notes.
+13. For `report.v1` export readiness, `permission_missing` and `unsupported_metric` are hard
+    blockers. `missing_history` and `not_previously_synced` are hard blockers unless the active
+    template `export_policy.warning_only_coverage_statuses` explicitly downgrades the
+    dataset/status pair to a visible warning; preview may still render available stored data with
+    notes.
 14. `render_with_warning` must return visible coverage notes to the frontend/export renderer.
 15. Existing template dashboards remain backward-compatible.
 16. Dashboard/report create, update, duplicate, export, and schedule actions continue to audit

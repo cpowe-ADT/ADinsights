@@ -56,6 +56,32 @@ Machine-readable intake template:
 
 `docs/project/evidence/dashthis-replacement/2026-06-16-g1-runtime-target-intake.template.json`
 
+Draft a machine-readable intake from a redacted `slb_report_target_intake` output:
+
+```bash
+python3 scripts/slb_g1_intake_draft.py \
+  --target-intake-output <redacted-slb-target-intake-output.json> \
+  --environment <target-env> \
+  --backend-url <target-backend-url> \
+  --frontend-url <target-frontend-url> \
+  --safe-tenant-identifier <safe-tenant-label> \
+  --currency <currency> \
+  --paid-meta-account-scope <safe-paid-account-label> \
+  --organic-facebook-page-scope <safe-page-label> \
+  --content-ops-workspace-scope <safe-workspace-label> \
+  --recipient-assumption <safe-recipient-group> \
+  --operator-notes <safe-notes> \
+  --output <draft-g1-runtime-target-intake.json>
+```
+
+The draft helper is read-only. It copies the report ID, SLB template key, `report.v1` schema, date
+range, and target-intake evidence path from the redacted target-intake output, then leaves
+operator-owned fields as `Pending` unless safe CLI values are supplied. The emitted draft remains
+`pending_operator_input`; it is not a passing G1 artifact until an operator reviews it, records G0
+clearance, confirms comparison tolerances, changes the status to `candidate_ready_for_review`, and
+runs the validator below successfully. When `--output` is used, the helper prints a JSON summary of
+remaining `pending_fields`, `false_confirmation_fields`, and the next required review actions.
+
 Validate the filled JSON intake before G2-G11 evidence capture:
 
 ```bash
@@ -66,6 +92,40 @@ python3 scripts/validate_slb_g1_runtime_target_intake.py \
 The checked-in template is intentionally invalid until an operator replaces the pending values,
 records G0 clearance, confirms DashThis remains active, keeps delivery dry-run only, and attaches
 the redacted `slb_report_target_intake` output path.
+
+## 2026-06-30 Local Product-Finish Draft
+
+Local product-finish evidence now has a machine-readable G1 draft, but G1 is still not passed.
+
+Artifacts:
+
+- `docs/project/evidence/dashthis-replacement/2026-06-30-slb-target-intake.local-product-finish.json`
+- `docs/project/evidence/dashthis-replacement/2026-06-30-g1-runtime-target-intake.local-draft.json`
+
+Draft helper result:
+
+- `draft_status`: `pending_operator_input`
+- `candidate_ready_for_review`: `false`
+- Pending fields:
+  - `target.backend_url`
+  - `target.frontend_url`
+  - `target.currency`
+  - `target.organic_facebook_page_scope`
+  - `target.content_ops_workspace_scope`
+  - `comparison.dashthis_source_comparison_owner`
+- False confirmation fields:
+  - `comparison.tolerances_confirmed`
+
+Validator result:
+
+```bash
+python3 scripts/validate_slb_g1_runtime_target_intake.py \
+  --intake-file docs/project/evidence/dashthis-replacement/2026-06-30-g1-runtime-target-intake.local-draft.json
+```
+
+The validator correctly returns invalid until the pending fields above are filled and the target
+intake output proves `source_scope_presence.page_id_present=true` and
+`source_scope_presence.workspace_id_present=true`.
 
 Local demo bridge:
 
@@ -103,6 +163,12 @@ Use the exact values from this checklist.
 ```bash
 backend/.venv/bin/python backend/manage.py slb_report_target_intake \
   --report-id <slb-report-id>
+```
+
+```bash
+python3 scripts/slb_g1_intake_draft.py \
+  --target-intake-output <redacted-slb-target-intake-output.json> \
+  --output <draft-g1-runtime-target-intake.json>
 ```
 
 ```bash

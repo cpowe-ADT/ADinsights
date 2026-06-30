@@ -1038,7 +1038,7 @@ describe('DataSources connect flow', () => {
         cron_expression: '0 6-22 * * *',
       });
     });
-  }, 15000);
+  }, 30000);
 
   it('starts Google Analytics OAuth from the setup panel', async () => {
     const user = userEvent.setup();

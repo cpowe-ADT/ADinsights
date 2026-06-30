@@ -89,6 +89,44 @@ backend/.venv/bin/python backend/manage.py slb_report_parity_compare \
 
 The comparator calculates absolute delta, percent delta, tolerance outcome, and result state. It
 does not replace reviewer approval or DashThis/source evidence.
+Do not enter placeholders such as `NaN`, `Infinity`, `n/a`, or invented zeroes for missing values.
+The comparator treats blank strings and placeholders such as `n/a`, `none`, `null`, `tbd`, and `-`
+as missing source values; if a numeric fallback field exists on the same row, it uses that fallback,
+otherwise the row remains `blocked_missing_source_value`. It treats non-finite values as
+non-numeric, and the offline validator blocks any `pass` row with non-finite or non-numeric
+ADinsights values, source values, deltas, or tolerances.
+
+When no source export can be found, keep the affected `source_value` fields `null` and record a
+redacted `source_search_provenance` array in the comparison-values JSON. The comparator carries that
+provenance into `slb_parity_comparison.v1` output so G6 evidence can show which Gmail/Drive/local
+searches were checked without exposing tokens, email addresses, or raw secrets.
+The offline validator requires that provenance whenever parity rows are
+`blocked_missing_source_value`; unresolved source rows without search proof stay blocked even if the
+export artifacts are otherwise present. Comparator output also carries `unresolved_row_count`,
+`unresolved_summary`, and `unresolved_rows`; validator output mirrors the same audit shape as
+`unresolved_parity`. Use that inventory to separate rows that need approved source values from rows
+that already have a source value but lack retained ADinsights report data
+(`blocked_missing_adinsights_value`).
+Every `blocked_missing_source_value` row must also have a matching row-level entry in
+`missing_source_values` keyed to the same dataset, widget, and metric, with a concrete `reason`.
+This prevents a broad "searched but not found" note from standing in for the per-metric source
+accounting required by G6/SLB-004.
+If the reviewed source artifact has real aggregate values that do not safely map to current parity
+rows, put them in `unmatched_source_values` with a `reason_not_in_parity_rows`; keep unavailable
+rows in `missing_source_values`. The comparator carries both arrays into the parity artifact after
+sanitizing sensitive-looking text, and the validator mirrors them under `source_value_inventory`.
+Those unmatched facts are audit evidence only; they do not count as parity passes.
+Blank or placeholder unmatched entries are dropped because they are not source facts.
+Every unresolved parity row also includes `recommended_next_action`. Treat that field as an
+operator handoff hint, not an approval override: source-missing rows still need approved source
+values, source-backed organic rows still need retained/imported ADinsights values and reviewer
+semantic confirmation, and no row passes until the comparator calculates an accepted delta.
+Comparator and validator output also includes `parity_completion_requirements`. Use this grouped
+handoff before assigning the next repair task: it separates selected-account paid source-export
+needs, tenant-owned SLB Page prerequisites for organic import, Content Ops source-total needs,
+metric/tolerance review, and parity-delta investigation. `can_run_now=false` means the operator must
+first satisfy the listed prerequisite, such as reconnecting the selected paid account or selecting
+the correct tenant-owned SLB Page.
 
 ## Comparison Decision
 

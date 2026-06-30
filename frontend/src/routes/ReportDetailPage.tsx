@@ -2,6 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import DashboardState from '../components/DashboardState';
+import {
+  GridCanvas,
+  reportLayoutId,
+  reportPreviewToLayout,
+  widgetSourceSignature,
+  type DashboardLayoutConfig,
+  type DashboardWidget,
+} from '../components/report-layout';
+import { listSavedLayouts } from '../components/report-layout/savedReportLayouts';
 import GovernedWidgetRenderer from '../components/reporting/GovernedWidgetRenderer';
 import SkeletonLoader from '../components/SkeletonLoader';
 import {
@@ -105,6 +114,23 @@ function exportReadiness(preview: ReportPreviewResponse): {
     : { label: 'export ready', tone: 'fresh' };
 }
 
+function reportSectionCount(preview: ReportPreviewResponse | null): number | null {
+  if (!preview) return null;
+  return preview.pages.reduce((total, page) => total + page.sections.length, 0);
+}
+
+function reportIssueCount(
+  preview: ReportPreviewResponse | null,
+  diagnostics: ReportDiagnosticsResponse | null,
+): number | null {
+  if (!preview && !diagnostics) return null;
+  return new Set([
+    ...(preview?.warnings ?? []),
+    ...(preview?.blocking_reasons ?? []),
+    ...(diagnostics?.blocking_reasons ?? []),
+  ]).size;
+}
+
 function sourceHealthTone(value: boolean): 'fresh' | 'failed' {
   return value ? 'fresh' : 'failed';
 }
@@ -135,6 +161,16 @@ function metaSetupPath(reportId?: string): string {
   return `/dashboards/data-sources?sources=social&returnTo=${encodeURIComponent(`/reports/${reportId}`)}`;
 }
 
+function isSlbMonthlyReport(
+  report: ReportDefinition,
+  preview: ReportPreviewResponse | null,
+): boolean {
+  return (
+    preview?.report.template_key === 'slb_monthly_social_report' ||
+    report.layout?.template_key === 'slb_monthly_social_report'
+  );
+}
+
 function storedRowCount(
   sourceHealth: ReportDiagnosticsResponse['source_health'],
   key: string,
@@ -144,6 +180,28 @@ function storedRowCount(
   const count = row.row_count;
   return typeof count === 'number' ? numberFormatter.format(count) : '0';
 }
+
+const MetricAvailabilityNotice = ({
+  report,
+  preview,
+}: {
+  report: ReportDefinition;
+  preview: ReportPreviewResponse | null;
+}) => {
+  if (!isSlbMonthlyReport(report, preview)) {
+    return null;
+  }
+  return (
+    <div className="report-client-availability-note" role="note">
+      <span>Metric availability</span>
+      <p>
+        Organic reach and impressions are unavailable without Meta approval or approved manual
+        import. This report uses Page follows and post reactions, comments, and shares where
+        available.
+      </p>
+    </div>
+  );
+};
 
 const ReportClientHero = ({
   report,
@@ -157,6 +215,9 @@ const ReportClientHero = ({
   const readiness = preview ? exportReadiness(preview) : null;
   const sourceHealth = diagnostics?.source_health;
   const needsMeta = sourceHealth ? !sourceHealth.meta_credentials.has_valid_credential : false;
+  const sections = reportSectionCount(preview);
+  const issueCount = reportIssueCount(preview, diagnostics);
+  const storedOnly = sourceHealth?.stored_aggregate_only !== false;
   return (
     <section className="report-client-hero" aria-label="Report cover summary">
       <div className="report-client-hero__copy">
@@ -168,11 +229,12 @@ const ReportClientHero = ({
         </p>
         <div className="report-client-hero__meta" aria-label="Report metadata">
           <span>{reportDateRangeLabel(report, preview)}</span>
-          <span>{preview?.report.catalog_schema_version ?? 'Catalog pending'}</span>
+          <span>{storedOnly ? 'Stored aggregate data' : 'Source status pending'}</span>
           <span>
             {preview ? `Generated ${formatRelativeTime(preview.generated_at)}` : 'Preview loading'}
           </span>
         </div>
+        <MetricAvailabilityNotice report={report} preview={preview} />
       </div>
       <div className="report-client-hero__aside">
         <span className={`phase2-pill phase2-pill--${readiness?.tone ?? 'stale'}`}>
@@ -184,12 +246,12 @@ const ReportClientHero = ({
             <strong>{preview?.pages.length ?? '-'}</strong>
           </div>
           <div>
-            <span>Datasets</span>
-            <strong>{preview?.coverage_summary.datasets.length ?? '-'}</strong>
+            <span>Sections</span>
+            <strong>{sections ?? '-'}</strong>
           </div>
           <div>
-            <span>Preview hash</span>
-            <strong>{preview?.preview_hash ? preview.preview_hash.slice(0, 8) : '-'}</strong>
+            <span>Warnings</span>
+            <strong>{issueCount ?? '-'}</strong>
           </div>
         </div>
         {needsMeta ? (
@@ -467,6 +529,7 @@ const DiagnosticsPanel = ({
   const metaCredentials = sourceHealth?.meta_credentials;
   const metaPageConnection = sourceHealth?.meta_page_connection;
   const metaAirbyte = sourceHealth?.meta_airbyte;
+  const remediationActions = sourceHealth?.remediation_actions ?? [];
   const hasUsablePageToken =
     metaPageConnection?.has_usable_page_auth ?? Boolean(metaPageConnection?.has_active_connection);
   const pageTokenProblemCount =
@@ -567,20 +630,89 @@ const DiagnosticsPanel = ({
               <span>{action}</span>
             </div>
           ))}
+          {remediationActions.length > 0 ? (
+            <>
+              <h4>Remediation commands</h4>
+              {remediationActions.slice(0, 5).map((action) => (
+                <div className="reporting-coverage-note" key={`${action.dataset}-${action.code}`}>
+                  <span>{datasetLabel(action.dataset)}</span>
+                  <span>{action.label}</span>
+                  {action.dry_run_command_template ? (
+                    <>
+                      <span className="reporting-command-label">Dry run</span>
+                      <code className="reporting-command-template">
+                        {action.dry_run_command_template}
+                      </code>
+                    </>
+                  ) : null}
+                  {action.command_template ? (
+                    <>
+                      <span className="reporting-command-label">
+                        {action.dry_run_command_template ? 'Write' : 'Command'}
+                      </span>
+                      <code className="reporting-command-template">{action.command_template}</code>
+                    </>
+                  ) : null}
+                  {action.prerequisites && action.prerequisites.length > 0 ? (
+                    <span>Prerequisite: {action.prerequisites.join(' ')}</span>
+                  ) : null}
+                </div>
+              ))}
+            </>
+          ) : null}
         </div>
       ) : null}
     </details>
   );
 };
 
+function appendMissingGovernedWidgets(
+  layout: DashboardLayoutConfig,
+  generatedLayout: DashboardLayoutConfig,
+): DashboardLayoutConfig {
+  const existingIds = new Set(layout.widgets.map((widget) => widget.id));
+  const existingSignatures = new Set(
+    layout.widgets.flatMap((widget) => {
+      const signature = widgetSourceSignature(widget);
+      return signature ? [signature] : [];
+    }),
+  );
+  const missingWidgets = generatedLayout.widgets.filter((widget) => {
+    if (existingIds.has(widget.id)) return false;
+    const signature = widgetSourceSignature(widget);
+    return !signature || !existingSignatures.has(signature);
+  });
+  if (missingWidgets.length === 0) return layout;
+
+  const minGeneratedY = Math.min(...missingWidgets.map((widget) => widget.y));
+  const currentBottomY = layout.widgets.reduce(
+    (bottom, widget) => Math.max(bottom, widget.y + widget.h - 1),
+    0,
+  );
+  const yOffset = currentBottomY + 1 - minGeneratedY;
+
+  return {
+    ...layout,
+    widgets: [
+      ...layout.widgets,
+      ...missingWidgets.map((widget) => ({
+        ...widget,
+        y: widget.y + yOffset,
+      })),
+    ],
+  };
+}
+
 const ReportPreviewPanel = ({
   preview,
   status,
   error,
+  customLayout,
 }: {
   preview: ReportPreviewResponse | null;
   status: 'idle' | 'loading' | 'ready' | 'error';
   error: string;
+  customLayout: DashboardLayoutConfig | null;
 }) => {
   if (status === 'idle') {
     return null;
@@ -604,16 +736,57 @@ const ReportPreviewPanel = ({
     );
   }
   const readiness = exportReadiness(preview);
+  const generatedLayout = reportPreviewToLayout(preview);
+  const layout = customLayout
+    ? appendMissingGovernedWidgets(customLayout, generatedLayout)
+    : generatedLayout;
+  const generatedWidgetsById = new Map(
+    generatedLayout.widgets.map((widget) => [widget.id, widget] as const),
+  );
+  const generatedWidgetsBySource = new Map(
+    generatedLayout.widgets.flatMap((widget) => {
+      const signature = widgetSourceSignature(widget);
+      return signature ? ([[signature, widget]] as const) : [];
+    }),
+  );
+  const resolveLayoutData = (widget: DashboardWidget): unknown => {
+    const idMatch = generatedWidgetsById.get(widget.id);
+    if (idMatch) return idMatch.data;
+    const signature = widgetSourceSignature(widget);
+    const sourceMatch = signature ? generatedWidgetsBySource.get(signature) : undefined;
+    if (sourceMatch) return sourceMatch.data;
+    return widget.data;
+  };
   return (
     <section className="reporting-report-preview">
-      <article className="phase2-card reporting-preview-summary">
-        <div className="reporting-widget__header">
+      <section
+        className="reporting-report-page"
+        aria-label={customLayout ? 'Custom report layout' : 'Generated report layout'}
+      >
+        <header className="reporting-report-page__header">
+          <p className="dashboardEyebrow">Monthly report</p>
+          <h2>{layout.title}</h2>
+          <p className="phase2-note">
+            {customLayout
+              ? 'Saved presentation layout with current approved values.'
+              : 'Current approved report sections and metrics.'}
+          </p>
+        </header>
+        <GridCanvas
+          layout={layout}
+          resolveData={resolveLayoutData}
+          className="reporting-report-grid-canvas"
+        />
+      </section>
+
+      <details className="phase2-card reporting-preview-summary report-coverage-review">
+        <summary className="report-coverage-review__summary">
           <div>
-            <p className="dashboardEyebrow">Report preview</p>
-            <h3>Coverage and export readiness</h3>
+            <p className="dashboardEyebrow">Quality check</p>
+            <h3>Data coverage and warnings</h3>
           </div>
           <span className={`phase2-pill phase2-pill--${readiness.tone}`}>{readiness.label}</span>
-        </div>
+        </summary>
         {preview.blocking_reasons.length > 0 ? (
           <ul className="reporting-widget__warnings">
             {preview.blocking_reasons.map((reason) => (
@@ -645,28 +818,95 @@ const ReportPreviewPanel = ({
             );
           })}
         </div>
-      </article>
+      </details>
 
-      <div className="reporting-report-pages" aria-label="Rendered report pages">
-        {preview.pages.map((page) => (
-          <section className="reporting-report-page" key={page.id} aria-label={page.title}>
-            <header className="reporting-report-page__header">
-              <p className="dashboardEyebrow">Report page</p>
-              <h2>{page.title}</h2>
-            </header>
-            <div className="reporting-report-page__body">
-              {page.sections.map((section) => (
-                <div className="reporting-grid" key={section.id}>
-                  {section.widgets.map((widget) => (
-                    <GovernedWidgetRenderer key={widget.widget_id} widget={widget} />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
+      <details className="report-governed-source">
+        <summary className="report-governed-source__summary">
+          <div>
+            <p className="dashboardEyebrow">Governed source</p>
+            <h3>Source widgets and coverage notes</h3>
+          </div>
+          <span className={`phase2-pill phase2-pill--${readiness.tone}`}>{readiness.label}</span>
+        </summary>
+        <div className="reporting-report-pages" aria-label="Rendered report source widgets">
+          {preview.pages.map((page) => (
+            <section className="reporting-report-page" key={page.id} aria-label={page.title}>
+              <header className="reporting-report-page__header">
+                <p className="dashboardEyebrow">Report page</p>
+                <h2>{page.title}</h2>
+              </header>
+              <div className="reporting-report-page__body">
+                {page.sections.map((section) => (
+                  <div className="reporting-grid" key={section.id}>
+                    {section.widgets.map((widget) => (
+                      <GovernedWidgetRenderer key={widget.widget_id} widget={widget} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </details>
     </section>
+  );
+};
+
+const SupportDiagnosticsPanel = ({
+  reportId,
+  preview,
+  exports,
+  diagnostics,
+  diagnosticsStatus,
+  onToggle,
+}: {
+  reportId: string;
+  preview: ReportPreviewResponse | null;
+  exports: ReportExportJob[];
+  diagnostics: ReportDiagnosticsResponse | null;
+  diagnosticsStatus: 'idle' | 'loading' | 'ready' | 'error';
+  onToggle: (open: boolean) => void;
+}) => {
+  const exportReady = Boolean(preview?.export_ready && diagnostics?.export_ready);
+  const statusTone =
+    diagnosticsStatus === 'ready'
+      ? exportReady
+        ? 'fresh'
+        : 'stale'
+      : diagnosticsStatus === 'error'
+        ? 'failed'
+        : 'stale';
+  const statusLabel =
+    diagnosticsStatus === 'ready'
+      ? exportReady
+        ? 'ready'
+        : 'review'
+      : diagnosticsStatus === 'error'
+        ? 'retry'
+        : 'load on open';
+  return (
+    <details
+      className="report-support-diagnostics"
+      onToggle={(event) => onToggle(event.currentTarget.open)}
+    >
+      <summary className="report-support-diagnostics__summary">
+        <div>
+          <p className="dashboardEyebrow">Support diagnostics</p>
+          <h3>Source readiness, data path, and evidence</h3>
+          <p className="phase2-note">
+            Operational details for support and QA are collapsed so the rendered client report stays
+            first.
+          </p>
+        </div>
+        <span className={`phase2-pill phase2-pill--${statusTone}`}>{statusLabel}</span>
+      </summary>
+      <div className="report-support-diagnostics__body">
+        <ReportReadinessHero preview={preview} diagnostics={diagnostics} />
+        <DataPathPanel reportId={reportId} diagnostics={diagnostics} />
+        <SnapshotPanel preview={preview} exports={exports} />
+        <DiagnosticsPanel diagnostics={diagnostics} status={diagnosticsStatus} />
+      </div>
+    </details>
   );
 };
 
@@ -677,6 +917,7 @@ const ReportDetailPage = () => {
   const [report, setReport] = useState<ReportDefinition | null>(null);
   const [exports, setExports] = useState<ReportExportJob[]>([]);
   const [preview, setPreview] = useState<ReportPreviewResponse | null>(null);
+  const [customLayout, setCustomLayout] = useState<DashboardLayoutConfig | null>(null);
   const [previewStatus, setPreviewStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(
     'idle',
   );
@@ -699,6 +940,24 @@ const ReportDetailPage = () => {
   const [editDescription, setEditDescription] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const loadDiagnostics = useCallback(async () => {
+    if (!reportId) return;
+    if (diagnosticsStatus === 'loading' || diagnosticsStatus === 'ready') return;
+    setDiagnosticsStatus('loading');
+    try {
+      const diagnosticsPayload = await fetchReportDiagnostics(reportId);
+      setDiagnostics(diagnosticsPayload);
+      setDiagnosticsStatus('ready');
+    } catch (diagnosticsError) {
+      setDiagnosticsStatus('error');
+      setPreviewError(
+        diagnosticsError instanceof Error
+          ? diagnosticsError.message
+          : 'Unable to load report diagnostics.',
+      );
+    }
+  }, [diagnosticsStatus, reportId]);
+
   const load = useCallback(async () => {
     if (!reportId) {
       setState('error');
@@ -715,32 +974,33 @@ const ReportDetailPage = () => {
       setReport(reportPayload);
       setExports(exportsPayload);
       setPreview(null);
+      setCustomLayout(null);
       setDiagnostics(null);
+      setPreviewError('');
       if (reportPayload.layout?.schema_version === 'report.v1') {
         setPreviewStatus('loading');
-        setDiagnosticsStatus('loading');
+        setDiagnosticsStatus('idle');
         try {
-          const [previewPayload, diagnosticsPayload] = await Promise.all([
+          const [previewPayload, savedLayouts] = await Promise.all([
             previewReport(reportId),
-            fetchReportDiagnostics(reportId),
+            listSavedLayouts({ configId: reportLayoutId(reportId) }).catch(() => []),
           ]);
           setPreview(previewPayload);
-          setDiagnostics(diagnosticsPayload);
+          setCustomLayout(savedLayouts[0]?.config ?? null);
           setPreviewStatus('ready');
-          setDiagnosticsStatus('ready');
-          setPreviewError('');
         } catch (previewLoadError) {
           setPreviewStatus('error');
-          setDiagnosticsStatus('error');
           setPreviewError(
             previewLoadError instanceof Error
               ? previewLoadError.message
               : 'Unable to preview report.',
           );
+          setCustomLayout(null);
         }
       } else {
         setPreviewStatus('idle');
         setDiagnosticsStatus('idle');
+        setCustomLayout(null);
       }
       setState('ready');
     } catch (err) {
@@ -906,11 +1166,193 @@ const ReportDetailPage = () => {
   }
 
   const reportActionsBlocked =
-    isReportV1(report) &&
-    (previewStatus !== 'ready' ||
-      diagnosticsStatus !== 'ready' ||
-      preview?.export_ready !== true ||
-      diagnostics?.export_ready !== true);
+    isReportV1(report) && (previewStatus !== 'ready' || preview?.export_ready !== true);
+
+  const builderPath = `/reports/${report.id}/builder`;
+  const operationsPanels = (
+    <section className="reporting-ops-grid" aria-label="Report operations">
+      {isReportV1(report) ? (
+        <article className="phase2-card reporting-ops-panel">
+          <div>
+            <p className="dashboardEyebrow">Report management</p>
+            <h3>Layout and status</h3>
+          </div>
+          <p className="phase2-note">
+            Edit internal report metadata, open the governed layout builder, or reload the latest
+            source status.
+          </p>
+          <div className="phase2-row-actions">
+            <button type="button" className="button secondary" onClick={startEditing}>
+              Edit report details
+            </button>
+            <Link to={builderPath} className="button secondary">
+              {customLayout ? 'Edit custom layout' : 'Customize layout'}
+            </Link>
+            <button type="button" className="button secondary" onClick={() => void load()}>
+              Refresh report status
+            </button>
+          </div>
+        </article>
+      ) : null}
+
+      <article className="phase2-card reporting-ops-panel">
+        <div>
+          <p className="dashboardEyebrow">Exports</p>
+          <h3>Export actions</h3>
+        </div>
+        <p className="phase2-note">
+          Generate CSV, PDF, or PNG exports for this report.
+          {isReportV1(report) && preview && !preview.export_ready
+            ? ' Export is blocked until coverage issues are resolved.'
+            : ''}
+        </p>
+        <div className="phase2-row-actions">
+          {exportFormats.map((format) => (
+            <button
+              key={format}
+              type="button"
+              className="button secondary"
+              onClick={() => void requestExport(format)}
+              disabled={creatingFormat !== null || reportActionsBlocked}
+            >
+              {creatingFormat === format
+                ? `Generating ${format.toUpperCase()}…`
+                : `Generate ${format.toUpperCase()} export`}
+            </button>
+          ))}
+        </div>
+      </article>
+
+      <article className="phase2-card reporting-ops-panel">
+        <div>
+          <p className="dashboardEyebrow">Delivery</p>
+          <h3>Scheduled delivery</h3>
+        </div>
+        <p className="phase2-note">Configure automated report delivery via email.</p>
+        <div className="phase2-row-actions reporting-schedule-toggle">
+          <label>
+            <input
+              type="checkbox"
+              checked={report.schedule_enabled}
+              onChange={(e) => void handleToggleSchedule(e.target.checked)}
+            />{' '}
+            Enable schedule
+          </label>
+        </div>
+        {report.schedule_enabled && (
+          <div className="phase2-form">
+            <label className="phase2-form__field">
+              <span>Cron expression</span>
+              <input
+                type="text"
+                value={scheduleCron}
+                onChange={(e) => setScheduleCron(e.target.value)}
+                placeholder="0 8 * * 1"
+              />
+              <span className="phase2-note">e.g. &quot;0 8 * * 1&quot; = 8 AM every Monday</span>
+            </label>
+            <label className="phase2-form__field">
+              <span>Delivery emails (comma-separated)</span>
+              <input
+                type="text"
+                value={scheduleEmails}
+                onChange={(e) => setScheduleEmails(e.target.value)}
+                placeholder="team@example.com, boss@example.com"
+              />
+            </label>
+            <div className="phase2-row-actions">
+              <button
+                type="button"
+                className="button primary"
+                onClick={() => void handleSaveSchedule()}
+                disabled={savingSchedule}
+              >
+                {savingSchedule ? 'Saving…' : 'Save schedule'}
+              </button>
+              {isReportV1(report) ? (
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => void runDryRun()}
+                  disabled={runningDryRun || reportActionsBlocked}
+                >
+                  {runningDryRun ? 'Testing scheduled delivery...' : 'Test scheduled delivery'}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        )}
+        {report.last_scheduled_at && (
+          <p className="phase2-note">
+            Last scheduled: {formatRelativeTime(report.last_scheduled_at)} (
+            {formatAbsoluteTime(report.last_scheduled_at)})
+          </p>
+        )}
+      </article>
+    </section>
+  );
+  const exportHistory =
+    exports.length === 0 ? (
+      <DashboardState
+        variant="empty"
+        layout="page"
+        title="No export jobs yet"
+        message="Request an export to begin tracking job progress."
+      />
+    ) : (
+      <div className="phase2-table-wrap">
+        <table className="phase2-table">
+          <thead>
+            <tr>
+              <th>Format</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Completed</th>
+              <th>Artifact</th>
+            </tr>
+          </thead>
+          <tbody>
+            {exports.map((job) => (
+              <tr key={job.id}>
+                <td>{job.export_format.toUpperCase()}</td>
+                <td>
+                  <span className={`phase2-pill phase2-pill--${job.status}`}>{job.status}</span>
+                </td>
+                <td>
+                  {formatRelativeTime(job.created_at)} ({formatAbsoluteTime(job.created_at)})
+                </td>
+                <td>
+                  {job.completed_at
+                    ? `${formatRelativeTime(job.completed_at)} (${formatAbsoluteTime(job.completed_at)})`
+                    : 'In progress'}
+                </td>
+                <td>
+                  {job.status === 'completed' && job.artifact_path ? (
+                    <button
+                      type="button"
+                      className="button tertiary"
+                      disabled={downloadingId === job.id}
+                      onClick={() => void downloadExport(job)}
+                    >
+                      {downloadingId === job.id ? 'Downloading...' : 'Download'}
+                    </button>
+                  ) : (
+                    'Pending'
+                  )}
+                  {job.error_message ? <div>{job.error_message}</div> : null}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  const operationsAndHistory = (
+    <>
+      {operationsPanels}
+      {exportHistory}
+    </>
+  );
 
   return (
     <section className="phase2-page">
@@ -970,7 +1412,7 @@ const ReportDetailPage = () => {
                 {saving ? 'Saving…' : 'Save'}
               </button>
             </>
-          ) : (
+          ) : isReportV1(report) ? null : (
             <>
               <button type="button" className="button secondary" onClick={startEditing}>
                 Edit report details
@@ -986,165 +1428,47 @@ const ReportDetailPage = () => {
       {isReportV1(report) ? (
         <>
           <ReportClientHero report={report} preview={preview} diagnostics={diagnostics} />
-          <ReportReadinessHero preview={preview} diagnostics={diagnostics} />
-          <DataPathPanel reportId={report.id} diagnostics={diagnostics} />
-          <ReportPreviewPanel preview={preview} status={previewStatus} error={previewError} />
-          <SnapshotPanel preview={preview} exports={exports} />
-          <DiagnosticsPanel diagnostics={diagnostics} status={diagnosticsStatus} />
+          <ReportPreviewPanel
+            preview={preview}
+            status={previewStatus}
+            error={previewError}
+            customLayout={customLayout}
+          />
+          <SupportDiagnosticsPanel
+            reportId={report.id}
+            preview={preview}
+            exports={exports}
+            diagnostics={diagnostics}
+            diagnosticsStatus={diagnosticsStatus}
+            onToggle={(open) => {
+              if (open) {
+                void loadDiagnostics();
+              }
+            }}
+          />
         </>
       ) : null}
 
-      <section className="reporting-ops-grid" aria-label="Report operations">
-        <article className="phase2-card reporting-ops-panel">
-          <div>
-            <p className="dashboardEyebrow">Exports</p>
-            <h3>Export actions</h3>
-          </div>
-          <p className="phase2-note">
-            Generate CSV, PDF, or PNG exports for this report.
-            {isReportV1(report) && preview && !preview.export_ready
-              ? ' Export is blocked until coverage issues are resolved.'
-              : ''}
-          </p>
-          <div className="phase2-row-actions">
-            {exportFormats.map((format) => (
-              <button
-                key={format}
-                type="button"
-                className="button secondary"
-                onClick={() => void requestExport(format)}
-                disabled={creatingFormat !== null || reportActionsBlocked}
-              >
-                {creatingFormat === format
-                  ? `Generating ${format.toUpperCase()}…`
-                  : `Generate ${format.toUpperCase()} export`}
-              </button>
-            ))}
-          </div>
-        </article>
-
-        <article className="phase2-card reporting-ops-panel">
-          <div>
-            <p className="dashboardEyebrow">Delivery</p>
-            <h3>Scheduled delivery</h3>
-          </div>
-          <p className="phase2-note">Configure automated report delivery via email.</p>
-          <div className="phase2-row-actions reporting-schedule-toggle">
-            <label>
-              <input
-                type="checkbox"
-                checked={report.schedule_enabled}
-                onChange={(e) => void handleToggleSchedule(e.target.checked)}
-              />{' '}
-              Enable schedule
-            </label>
-          </div>
-          {report.schedule_enabled && (
-            <div className="phase2-form">
-              <label className="phase2-form__field">
-                <span>Cron expression</span>
-                <input
-                  type="text"
-                  value={scheduleCron}
-                  onChange={(e) => setScheduleCron(e.target.value)}
-                  placeholder="0 8 * * 1"
-                />
-                <span className="phase2-note">e.g. &quot;0 8 * * 1&quot; = 8 AM every Monday</span>
-              </label>
-              <label className="phase2-form__field">
-                <span>Delivery emails (comma-separated)</span>
-                <input
-                  type="text"
-                  value={scheduleEmails}
-                  onChange={(e) => setScheduleEmails(e.target.value)}
-                  placeholder="team@example.com, boss@example.com"
-                />
-              </label>
-              <div className="phase2-row-actions">
-                <button
-                  type="button"
-                  className="button primary"
-                  onClick={() => void handleSaveSchedule()}
-                  disabled={savingSchedule}
-                >
-                  {savingSchedule ? 'Saving\u2026' : 'Save schedule'}
-                </button>
-                {isReportV1(report) ? (
-                  <button
-                    type="button"
-                    className="button secondary"
-                    onClick={() => void runDryRun()}
-                    disabled={runningDryRun || reportActionsBlocked}
-                  >
-                    {runningDryRun ? 'Testing scheduled delivery...' : 'Test scheduled delivery'}
-                  </button>
-                ) : null}
-              </div>
+      {isReportV1(report) ? (
+        <details className="report-operator-controls">
+          <summary className="report-operator-controls__summary">
+            <div>
+              <p className="dashboardEyebrow">Operator controls</p>
+              <h3>Export and delivery controls</h3>
+              <p className="phase2-note">
+                Export history and delivery actions are collapsed to keep the client report focused.
+              </p>
             </div>
-          )}
-          {report.last_scheduled_at && (
-            <p className="phase2-note">
-              Last scheduled: {formatRelativeTime(report.last_scheduled_at)} (
-              {formatAbsoluteTime(report.last_scheduled_at)})
-            </p>
-          )}
-        </article>
-      </section>
-
-      {exports.length === 0 ? (
-        <DashboardState
-          variant="empty"
-          layout="page"
-          title="No export jobs yet"
-          message="Request an export to begin tracking job progress."
-        />
+            <span
+              className={`phase2-pill phase2-pill--${reportActionsBlocked ? 'stale' : 'fresh'}`}
+            >
+              {reportActionsBlocked ? 'review' : 'ready'}
+            </span>
+          </summary>
+          <div className="report-operator-controls__body">{operationsAndHistory}</div>
+        </details>
       ) : (
-        <div className="phase2-table-wrap">
-          <table className="phase2-table">
-            <thead>
-              <tr>
-                <th>Format</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Completed</th>
-                <th>Artifact</th>
-              </tr>
-            </thead>
-            <tbody>
-              {exports.map((job) => (
-                <tr key={job.id}>
-                  <td>{job.export_format.toUpperCase()}</td>
-                  <td>
-                    <span className={`phase2-pill phase2-pill--${job.status}`}>{job.status}</span>
-                  </td>
-                  <td>
-                    {formatRelativeTime(job.created_at)} ({formatAbsoluteTime(job.created_at)})
-                  </td>
-                  <td>
-                    {job.completed_at
-                      ? `${formatRelativeTime(job.completed_at)} (${formatAbsoluteTime(job.completed_at)})`
-                      : 'In progress'}
-                  </td>
-                  <td>
-                    {job.status === 'completed' && job.artifact_path ? (
-                      <button
-                        type="button"
-                        className="button tertiary"
-                        disabled={downloadingId === job.id}
-                        onClick={() => void downloadExport(job)}
-                      >
-                        {downloadingId === job.id ? 'Downloading...' : 'Download'}
-                      </button>
-                    ) : (
-                      'Pending'
-                    )}
-                    {job.error_message ? <div>{job.error_message}</div> : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        operationsAndHistory
       )}
     </section>
   );

@@ -37,18 +37,18 @@ Local runtime:
 
 Stored rows for the report tenant:
 
-| Area | Current finding |
-| --- | --- |
-| Meta marketing credentials | 1 valid credential |
-| Meta Page connection | Active and usable |
-| Paid Meta rows | 464 total stored rows, 116 rows in May 2026 availability check |
-| Paid Meta coverage | Partial for fixed May range, rows cover `2026-05-02` through `2026-05-31` |
-| Facebook Page insight rows | 0 |
-| Facebook posts | 0 |
-| Facebook post insight rows | 0 |
-| Content Ops published posts | 0 |
-| Content Ops metric snapshots | 0 |
-| Airbyte Meta connection | Active row exists, last job failed historically with sanitized `meta_token_expired` |
+| Area                         | Current finding                                                                     |
+| ---------------------------- | ----------------------------------------------------------------------------------- |
+| Meta marketing credentials   | 1 valid credential                                                                  |
+| Meta Page connection         | Active and usable                                                                   |
+| Paid Meta rows               | 464 total stored rows, 116 rows in May 2026 availability check                      |
+| Paid Meta coverage           | Partial for fixed May range, rows cover `2026-05-02` through `2026-05-31`           |
+| Facebook Page insight rows   | 0                                                                                   |
+| Facebook posts               | 0                                                                                   |
+| Facebook post insight rows   | 0                                                                                   |
+| Content Ops published posts  | 0                                                                                   |
+| Content Ops metric snapshots | 0                                                                                   |
+| Airbyte Meta connection      | Active row exists, last job failed historically with sanitized `meta_token_expired` |
 
 API evidence:
 

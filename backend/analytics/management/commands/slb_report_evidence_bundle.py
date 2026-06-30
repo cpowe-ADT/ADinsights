@@ -6,11 +6,15 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from accounts.audit import log_audit_event
 from accounts.tenant_context import tenant_context
 from analytics.models import ReportDefinition
+from analytics.reporting_evidence_availability import (
+    build_report_data_availability_evidence_summary,
+)
 from analytics.reporting_report_preview import (
     ReportingReportPreviewError,
     build_report_diagnostics,
@@ -45,7 +49,9 @@ class Command(BaseCommand):
         with tenant_context(str(report.tenant_id)):
             try:
                 preview = build_report_preview(report=report, payload=preview_payload)
-                diagnostics = build_report_diagnostics(report=report, payload=preview_payload)
+                diagnostics = build_report_diagnostics(
+                    report=report, payload=preview_payload
+                )
             except ReportingReportPreviewError as exc:
                 raise CommandError("; ".join(exc.errors)) from exc
 
@@ -57,9 +63,13 @@ class Command(BaseCommand):
                 "preview_hash": preview["preview_hash"],
                 "export_ready": preview["export_ready"],
                 "coverage_summary": preview["coverage_summary"],
+                "data_availability": build_report_data_availability_evidence_summary(
+                    report=report,
+                    payload=preview_payload,
+                ),
                 "blocking_reasons": preview["blocking_reasons"],
                 "warnings": preview["warnings"],
-                "rendering": _rendering_summary(preview),
+                "rendering": _rendering_summary(preview, report.layout),
                 "diagnostics": _diagnostics_summary(diagnostics),
                 "exports": _export_summary(report),
                 "parity_rows": _evidence_rows(preview),
@@ -82,8 +92,13 @@ class Command(BaseCommand):
         self.stdout.write(json.dumps(bundle, indent=2, sort_keys=True, default=str))
 
 
-def _rendering_summary(preview: Mapping[str, Any]) -> dict[str, Any]:
+def _rendering_summary(
+    preview: Mapping[str, Any],
+    layout: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    layout_widgets = _layout_widgets_by_id(layout)
     pages = []
+    widgets = []
     widget_count = 0
     for page in preview.get("pages", []):
         if not isinstance(page, Mapping):
@@ -102,6 +117,15 @@ def _rendering_summary(preview: Mapping[str, Any]) -> dict[str, Any]:
                 widget_count += 1
                 status = str(widget.get("status") or "unknown")
                 statuses[status] = statuses.get(status, 0) + 1
+                widget_id = str(widget.get("widget_id") or "")
+                widgets.append(
+                    _rendered_widget_inventory(
+                        page=page,
+                        section=section,
+                        widget=widget,
+                        declared_widget=layout_widgets.get(widget_id),
+                    )
+                )
         pages.append(
             {
                 "id": str(page.get("id") or ""),
@@ -115,7 +139,83 @@ def _rendering_summary(preview: Mapping[str, Any]) -> dict[str, Any]:
         "page_count": len(pages),
         "widget_count": widget_count,
         "pages": pages,
+        "widgets": widgets,
     }
+
+
+def _layout_widgets_by_id(
+    layout: Mapping[str, Any] | None,
+) -> dict[str, Mapping[str, Any]]:
+    if not isinstance(layout, Mapping):
+        return {}
+    widgets = layout.get("widgets")
+    if not isinstance(widgets, list):
+        return {}
+    return {
+        str(widget.get("id") or ""): widget
+        for widget in widgets
+        if isinstance(widget, Mapping) and str(widget.get("id") or "")
+    }
+
+
+def _rendered_widget_inventory(
+    *,
+    page: Mapping[str, Any],
+    section: Mapping[str, Any],
+    widget: Mapping[str, Any],
+    declared_widget: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    data = widget.get("data") if isinstance(widget.get("data"), Mapping) else {}
+    coverage = (
+        widget.get("coverage") if isinstance(widget.get("coverage"), Mapping) else {}
+    )
+    warnings = widget.get("warnings") if isinstance(widget.get("warnings"), list) else []
+    inventory = {
+        "page_id": str(page.get("id") or ""),
+        "section_id": str(section.get("id") or ""),
+        "widget_id": str(widget.get("widget_id") or ""),
+        "dataset": str(widget.get("dataset") or coverage.get("dataset") or ""),
+        "type": str(widget.get("type") or ""),
+        "status": str(widget.get("status") or "unknown"),
+        "declared_metrics": _declared_list(declared_widget, "metrics"),
+        "declared_dimensions": _declared_list(declared_widget, "dimensions"),
+        "data_kind": str(data.get("kind") or ""),
+        "coverage_status": str(coverage.get("coverage_status") or ""),
+        "coverage_row_count": int(coverage.get("row_count") or 0),
+        "source_label": str(coverage.get("source_label") or ""),
+        "coverage_note_present": bool(str(coverage.get("coverage_note") or "").strip()),
+        "warning_count": len(warnings),
+    }
+    if str(widget.get("type") or "") == "report_section":
+        body = str(data.get("body") or "")
+        inventory["note"] = {
+            "title": str(data.get("title") or ""),
+            "body_present": bool(body.strip()),
+            "mentions_reach_impressions_unavailable": _mentions_reach_impressions_unavailable(
+                body
+            ),
+        }
+    return inventory
+
+
+def _declared_list(
+    widget: Mapping[str, Any] | None,
+    key: str,
+) -> list[str]:
+    if not isinstance(widget, Mapping):
+        return []
+    value = widget.get(key)
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if str(item or "").strip()]
+
+
+def _mentions_reach_impressions_unavailable(text: str) -> bool:
+    normalized = " ".join(text.lower().split())
+    return all(
+        phrase in normalized
+        for phrase in ("reach", "impressions", "unavailable", "meta")
+    )
 
 
 def _diagnostics_summary(diagnostics: Mapping[str, Any]) -> dict[str, Any]:
@@ -134,9 +234,15 @@ def _diagnostics_summary(diagnostics: Mapping[str, Any]) -> dict[str, Any]:
 
 def _export_summary(report: ReportDefinition) -> list[dict[str, Any]]:
     rows = []
-    for job in report.export_jobs.filter(tenant_id=report.tenant_id).order_by("-created_at")[:20]:
+    for job in report.export_jobs.filter(tenant_id=report.tenant_id).order_by(
+        "-created_at"
+    )[:20]:
         metadata = job.metadata if isinstance(job.metadata, Mapping) else {}
-        report_preview = metadata.get("report_preview") if isinstance(metadata.get("report_preview"), Mapping) else {}
+        report_preview = (
+            metadata.get("report_preview")
+            if isinstance(metadata.get("report_preview"), Mapping)
+            else {}
+        )
         report_snapshot = (
             report_preview.get("report_snapshot")
             if isinstance(report_preview.get("report_snapshot"), Mapping)
@@ -144,8 +250,10 @@ def _export_summary(report: ReportDefinition) -> list[dict[str, Any]]:
         )
         artifact_exists = False
         artifact_size = None
+        artifact_path = ""
         if job.artifact_path:
-            artifact = Path(job.artifact_path)
+            artifact_path = str(job.artifact_path)
+            artifact = _artifact_file_path(job.artifact_path)
             if artifact.exists() and artifact.is_file():
                 artifact_exists = True
                 artifact_size = artifact.stat().st_size
@@ -155,12 +263,26 @@ def _export_summary(report: ReportDefinition) -> list[dict[str, Any]]:
                 "format": job.export_format,
                 "status": job.status,
                 "created_at": job.created_at.isoformat(),
-                "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+                "completed_at": job.completed_at.isoformat()
+                if job.completed_at
+                else None,
+                "artifact_path": artifact_path,
                 "artifact_present": artifact_exists,
                 "artifact_size_bytes": artifact_size,
-                "preview_hash": metadata.get("preview_hash") or report_preview.get("preview_hash"),
+                "source": metadata.get("source") or "",
+                "row_count": metadata.get("row_count"),
+                "preview_hash": metadata.get("preview_hash")
+                or report_preview.get("preview_hash"),
                 "snapshot_preview_hash": report_snapshot.get("preview_hash"),
-                "delivery_status": _safe_delivery_status(metadata.get("delivery_status")),
+                "report_layout_source": str(
+                    metadata.get("report_layout_source") or ""
+                ),
+                "report_layout_governed_widget_append_count": _report_layout_append_count(
+                    metadata.get("report_layout")
+                ),
+                "delivery_status": _safe_delivery_status(
+                    metadata.get("delivery_status")
+                ),
                 "blocking_reasons": (
                     metadata.get("blocking_reasons")
                     or report_preview.get("blocking_reasons")
@@ -169,6 +291,22 @@ def _export_summary(report: ReportDefinition) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+def _report_layout_append_count(value: object) -> int | None:
+    if not isinstance(value, Mapping):
+        return None
+    try:
+        return int(value.get("governed_widget_append_count") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _artifact_file_path(artifact_path: str) -> Path:
+    path = Path(artifact_path)
+    if artifact_path.startswith("/exports/"):
+        return Path(settings.REPORT_EXPORT_ARTIFACT_ROOT) / artifact_path.lstrip("/")
+    return path
 
 
 def _safe_delivery_status(value: object) -> dict[str, Any]:

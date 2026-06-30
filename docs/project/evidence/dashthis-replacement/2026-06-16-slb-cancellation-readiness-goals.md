@@ -48,6 +48,34 @@ Print the next actionable blocker and commands:
 python3 scripts/slb_cancellation_readiness_doctor.py
 ```
 
+The doctor also prints a fixed-target prerequisite row and an objective map for the active
+SLB/RPT/META/UX/OPS IDs. The map is intentionally conservative: it only ties each user-facing
+objective to its governing G0-G12 goals and active blockers. It does not mark an objective complete
+from local implementation work while G1, parity, fixed-range evidence, hardening, or G12 remain
+unproven.
+The doctor also emits a separate `product_capability_assessment` lane so implementation confidence
+is not confused with human/source inputs. Missing target intake, runtime release configuration, real
+DashThis/source values, and final business sign-off are tracked as comparison/release/decision
+inputs, not product-capability defects. They still block parity or cancellation claims when required,
+and missing source values must remain missing rather than invented. Internal product confidence is
+blocked only by product evidence still under our control: fixed-range preview/history diagnostics,
+CSV/PDF/PNG export proof, scheduled dry-run/support diagnostics, tenant-safety proof, adversarial
+review, and hardening.
+Each objective row also carries a fixed-target prerequisite gate. Until G1 is passed, the doctor
+sets `can_start_fixed_target_evidence=false` and repeats the G1 status on every SLB/RPT/META/UX/OPS
+row so `evidence_pending` cannot be mistaken for permission to start cancellation-grade proof.
+The status validator runs the doctor against the same manifest and fails if this objective map is
+missing, malformed, or no longer lists the active SLB/RPT/META/UX/OPS IDs in order.
+It also fails if any objective row drops or misstates the fixed-target prerequisite gate.
+The doctor also reads the linked G1 intake template and lists the remaining placeholder fields plus
+false confirmations such as `comparison.tolerances_confirmed`; the status validator fails if that
+G1 intake summary disappears or no longer points at the active template.
+The status validator also runs `slb_g1_intake_draft.py` against the checked-in redacted target
+example using the checked-in G1 valid-example values. It fails if the helper disappears, stops
+writing the draft, leaves example fields pending, marks a draft candidate-ready, or produces a
+draft that fails the final G1 validator for any reason beyond the required operator status
+promotion.
+
 The validator checks JSON schema, G0-G12 ordering/statuses, BLK-001 through BLK-011
 ordering/statuses, evidence paths, no-go/pass invariants, and drift between this goal table and the
 machine-readable manifest. It also fails if a sub-goal is marked `passed` while its linked blocker
@@ -64,6 +92,15 @@ example artifacts with the current G0, G1, and combined handoff validators so ex
 after schema hardening. It also requires the G12 approval/signoff preflight packet to stay linked
 from `next_execution`, so the final recommendation handoff cannot drop the explicit reviewer
 approval-value gate.
+It also inspects the G11 and G12 JSON templates directly to make sure their `references` blocks keep
+the upstream G1 intake, G2-G9 evidence-run, G10 review, and G11 window handoff fields with pending
+boolean defaults, so template drift cannot silently detach downstream evidence from the fixed-target
+chain.
+The advertised G11/G12 validator commands must also keep their upstream artifact arguments:
+`--g10-review-file` for G11, and `--status-manifest-file` plus `--g11-window-file` for G12.
+The full evidence-chain command must keep the complete handoff argument set:
+`--status-manifest-file`, `--g1-intake-file`, `--g2-g9-run-file`, `--g10-review-file`,
+`--g11-window-file`, and `--g12-recommendation-file`.
 Finally, the status validator scans the machine-readable manifest, this goal controller, and the
 blocker register for secret, raw-payload, email, and user-level identifier patterns. This keeps the
 cancellation-readiness control plane itself safe before later G8/G9 evidence is collected.
@@ -81,7 +118,8 @@ validity, G1 intake handoff links, G2-G9 run handoff links, combined G0/G1 hando
 G10 adversarial handoff links, premature DashThis cancellation claims, G11 hardening handoff links,
 G12 final-recommendation handoff links, passed-goal/unresolved-blocker conflicts, and
 cancellation-review-readiness claims with unresolved G0-G11 blockers. It also covers sensitive
-value rejection in the status manifest, goal doc, and blocker register.
+value rejection in the status manifest, goal doc, and blocker register, plus status-level drift in
+the G1 draft helper's checked-in example output.
 
 G0 Raj/Mira review validator:
 
@@ -136,6 +174,9 @@ The G2-G9 validator requires each active dataset coverage row to use valid order
 Fresh, stale, and source-disconnected-with-history rows must span the fixed target date range.
 Stale, partial, source-disconnected, and source-disconnected-with-history rows must include an
 explicit reviewer note before G10 can start.
+It now requires `--intake-file` and refuses to pass unless the referenced G1 runtime target intake
+is `candidate_ready_for_review`, has confirmed tolerances, preserves dry-run delivery and active
+DashThis status, and keeps Instagram deferred with stored-aggregate/no-live-render guardrails.
 It also requires filled `evidence_files` entries to point at existing, non-empty repo-relative
 artifacts under `docs/project/evidence/dashthis-replacement/`; text artifacts are parsed or scanned
 for invalid JSON, secrets, emails, raw provider payloads, and user-level identifiers.
@@ -149,8 +190,13 @@ G10 adversarial review validator:
 ```bash
 python3 scripts/validate_slb_g10_adversarial_review.py \
   --review-file <filled-g10-adversarial-review.json> \
-  --g2-g9-run-file <filled-g2-g9-evidence-run.json>
+  --g2-g9-run-file <filled-g2-g9-evidence-run.json> \
+  --intake-file <filled-g1-runtime-target-intake.json>
 ```
+
+The validator requires both upstream artifacts: the same candidate-ready G1 runtime target intake
+used by G2-G9, and the validated G2-G9 evidence run. Do not start G10 from a standalone adversarial
+checklist or a G2-G9 packet that has not been bound back to the approved G1 target.
 
 Accepted or waived adversarial risks must include structured approval metadata: risk owner,
 accepted-by route including Raj and Mira, expiry/review date, and rationale. These rows remain
@@ -174,9 +220,11 @@ python3 scripts/validate_slb_g11_hardening_window.py \
 The G11 validator requires ISO-8601 window and checkpoint timestamps, verifies the elapsed window
 actually spans the declared 24-48 hour length, and rejects out-of-order checkpoint timestamps before
 G12 can be written.
-It also requires filled checkpoint, final evidence-validation, redaction-scan, and export-snapshot
-artifact paths under `docs/project/evidence/dashthis-replacement/`; JSON artifacts must parse and
-text artifacts are scanned for secrets, emails, raw provider payloads, and user-level identifiers.
+It also requires the supplied G10 review to carry the same validated G1 runtime intake and G2-G9
+evidence-run references as the G11 window, plus filled checkpoint, final evidence-validation,
+redaction-scan, and export-snapshot artifact paths under
+`docs/project/evidence/dashthis-replacement/`; JSON artifacts must parse and text artifacts are
+scanned for secrets, emails, raw provider payloads, and user-level identifiers.
 
 Template:
 
@@ -190,6 +238,10 @@ python3 scripts/validate_slb_g12_final_recommendation.py \
   --status-manifest-file docs/project/evidence/dashthis-replacement/2026-06-16-slb-cancellation-readiness-status.json \
   --g11-window-file <filled-g11-hardening-window.json>
 ```
+
+The G12 validator requires the supplied G11 window to carry the same validated G1 runtime intake,
+G2-G9 evidence-run, and G10 review references as the final recommendation packet, so the final
+decision cannot be detached from the fixed-target evidence chain.
 
 Full evidence-chain validator:
 
@@ -205,8 +257,10 @@ python3 scripts/validate_slb_evidence_chain.py \
 ```
 
 The chain validator runs the stage validators in order and fails when downstream evidence is
-provided without the required upstream artifact. It is the final local consistency command before a
-future session can claim the filled G0-G12 packet is ready for cancellation review.
+provided without the required upstream artifact. It passes the same G1 runtime target intake into
+both G2-G9 and G10 validation, so the adversarial review cannot detach from the approved fixed
+target. It is the final local consistency command before a future session can claim the filled
+G0-G12 packet is ready for cancellation review.
 
 If G12 recommends cancellation, the validator requires a concrete DashThis cancellation date on or
 after the decision effective date. If G12 recommends keeping DashThis active, the cancellation date
@@ -571,6 +625,14 @@ python3 scripts/validate_slb_g1_runtime_target_intake.py \
   --intake-file <filled-g1-runtime-target-intake.json>
 ```
 
+G1 intake draft helper:
+
+```bash
+python3 scripts/slb_g1_intake_draft.py \
+  --target-intake-output <redacted-slb-target-intake-output.json> \
+  --output <draft-g1-runtime-target-intake.json>
+```
+
 The G1 validator rejects blocked reviewer decisions, missing conditional approval notes, and G1
 intakes that collapse Raj/Mira conditional approval or followups into a clean proceed state.
 It also loads `evidence.slb_report_target_intake_output` and verifies the referenced
@@ -661,6 +723,14 @@ that are not available from the report object itself. It rejects pending placeho
 clearance, non-dry-run delivery, inactive DashThis, Instagram included in v1,
 live-provider/render-export violations, missing comparison ownership, mismatched target-intake
 output, and sensitive values.
+The `slb_g1_intake_draft.py` helper can now prefill a draft G1 intake from a redacted
+`slb_target_intake.v1` output plus safe CLI-supplied environment/scope notes. It remains a
+read-only drafting aid and intentionally emits `status=pending_operator_input`, so it cannot close
+G1 or start G2-G11 evidence without operator review, G0 clearance, confirmed tolerances, and a
+passing `validate_slb_g1_runtime_target_intake.py` run. Its `--output` result packet lists remaining
+pending fields, false confirmations, and next required review actions for the operator handoff.
+The status validator now exercises this helper against the checked-in redacted example and verifies
+that the helper-generated draft is still blocked only by operator status promotion.
 After adding the target intake command, preflight was rerun and persisted at
 `docs/project/evidence/dashthis-replacement/preflight/2026-06-16-slb-target-intake-command/`.
 The result remains release `GATE_BLOCK`: router action `clarify`, scope `ESCALATE_ARCH_RISK`,
@@ -736,6 +806,9 @@ missing source values or missing tolerances, redacts sensitive-looking source re
 without live network/provider calls. This strengthens G6 calculation quality but does not close
 fixed-target parity because real DashThis/source values, approved tolerances, explanations, and
 reviewer approvals remain missing.
+Comparator and validator coverage now also rejects non-finite placeholder values such as `NaN` or
+`Infinity` in source values, deltas, and tolerances, so a `pass` row still requires finite numeric
+evidence.
 
 ## Current G7/G8 Evidence
 
@@ -860,7 +933,10 @@ redaction scan, and checkpoint result template so the hardening window can be ru
 G0-G10 pass. This is preparation only; it does not start or satisfy G11.
 The machine-readable G11 validator now requires the filled window to reference existing checkpoint,
 final validation, redaction-scan, and export-snapshot artifacts under the DashThis evidence tree.
-This makes hardening evidence reproducible for G12, but current G11 status remains `not_started`.
+The final validation artifact must now be `slb_evidence_validation.v1` JSON from
+`slb_report_evidence_validate` for the same target, with zero blockers, zero unresolved parity rows,
+zero missing/unmatched source values, and no remaining parity-completion requirements. This makes
+hardening evidence reproducible for G12, but current G11 status remains `not_started`.
 
 ## Current G12 Evidence
 
@@ -879,6 +955,9 @@ The machine-readable G12 validator now requires each G0-G11 evidence rollup link
 existing, non-empty artifact under the DashThis evidence tree, with JSON parsing and sensitive
 pattern scans for text artifacts. This prevents a final keep/cancel recommendation from passing with
 dead evidence links.
+For G6, the rollup link must now be the `slb_evidence_validation.v1` JSON generated by
+`slb_report_evidence_validate` for the same target, with zero blockers, zero unresolved parity rows,
+zero missing/unmatched source values, and no remaining parity-completion requirements.
 It also rejects denied, pending, or review-pending approval/signoff values in the G0-G11 rollup,
 reviewer signoff table, and business-owner final decision fields.
 

@@ -46,4 +46,34 @@ describe('WidgetConfigPanel', () => {
     fireEvent.click(screen.getByLabelText('Close settings'));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('shows governed source metric availability', () => {
+    render(
+      <WidgetConfigPanel
+        widget={{
+          ...widget,
+          source: {
+            dataset: 'organic_facebook_page',
+            widgetId: 'organic_summary',
+            metrics: ['page_follows'],
+            availability: [
+              {
+                key: 'page_follows',
+                state: 'available',
+                note: 'Stored Page follows rows exist.',
+                rowCount: 31,
+              },
+            ],
+          },
+        }}
+        onChange={() => {}}
+        onClose={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('organic_facebook_page / organic_summary')).toBeInTheDocument();
+    expect(screen.getByText('Metrics: page_follows')).toBeInTheDocument();
+    expect(screen.getByText('page_follows: available (31 rows)')).toBeInTheDocument();
+    expect(screen.getByText('Stored Page follows rows exist.')).toBeInTheDocument();
+  });
 });

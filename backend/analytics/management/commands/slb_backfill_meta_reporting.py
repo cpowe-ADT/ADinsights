@@ -21,7 +21,12 @@ from content_ops.models import (
     PublishingIdentity,
 )
 from content_ops.tasks import refresh_content_published_post_metrics
-from integrations.models import AirbyteConnection, MetaPage, MetaPost, PlatformCredential
+from integrations.models import (
+    AirbyteConnection,
+    MetaPage,
+    MetaPost,
+    PlatformCredential,
+)
 from integrations.meta_page_insights.engagement_edges import ingest_engagement_edges
 from integrations.tasks import (
     _candidate_page_tokens,
@@ -62,8 +67,15 @@ class Command(BaseCommand):
             default=",".join(DEFAULT_DATASETS),
             help="Comma-separated datasets: paid_meta_ads,organic_facebook_page,organic_facebook_posts,content_ops.",
         )
-        parser.add_argument("--account-id", default="", help="Optional Meta ad account ID override.")
-        parser.add_argument("--page-id", action="append", dest="page_ids", help="Optional Facebook Page ID. Repeatable.")
+        parser.add_argument(
+            "--account-id", default="", help="Optional Meta ad account ID override."
+        )
+        parser.add_argument(
+            "--page-id",
+            action="append",
+            dest="page_ids",
+            help="Optional Facebook Page ID. Repeatable.",
+        )
         parser.add_argument(
             "--dispatch-mode",
             choices=("queue", "inline", "dry-run"),
@@ -98,7 +110,9 @@ class Command(BaseCommand):
             raise CommandError("start-date must be on or before end-date.")
 
         datasets = _parse_datasets(options["datasets"])
-        dispatch_mode = "dry-run" if options.get("dry_run") else options["dispatch_mode"]
+        dispatch_mode = (
+            "dry-run" if options.get("dry_run") else options["dispatch_mode"]
+        )
         report = (
             ReportDefinition.all_objects.select_related("tenant")
             .filter(id=options["report_id"])
@@ -171,20 +185,24 @@ class Command(BaseCommand):
                     dispatch_mode=dispatch_mode,
                 )
             if "organic_facebook_page" in datasets:
-                result["datasets"]["organic_facebook_page"] = _backfill_organic_facebook_page(
-                    report=report,
-                    page_ids=requested_page_ids,
-                    start_date=start_date,
-                    end_date=end_date,
-                    dispatch_mode=dispatch_mode,
+                result["datasets"]["organic_facebook_page"] = (
+                    _backfill_organic_facebook_page(
+                        report=report,
+                        page_ids=requested_page_ids,
+                        start_date=start_date,
+                        end_date=end_date,
+                        dispatch_mode=dispatch_mode,
+                    )
                 )
             if "organic_facebook_posts" in datasets:
-                result["datasets"]["organic_facebook_posts"] = _backfill_organic_facebook_posts(
-                    report=report,
-                    page_ids=requested_page_ids,
-                    start_date=start_date,
-                    end_date=end_date,
-                    dispatch_mode=dispatch_mode,
+                result["datasets"]["organic_facebook_posts"] = (
+                    _backfill_organic_facebook_posts(
+                        report=report,
+                        page_ids=requested_page_ids,
+                        start_date=start_date,
+                        end_date=end_date,
+                        dispatch_mode=dispatch_mode,
+                    )
                 )
             if "content_ops" in datasets:
                 result["datasets"]["content_ops"] = _refresh_content_ops(
@@ -193,7 +211,9 @@ class Command(BaseCommand):
                     start_date=start_date,
                     end_date=end_date,
                     dispatch_mode=dispatch_mode,
-                    import_synced_posts=bool(options.get("import_synced_posts_to_content_ops")),
+                    import_synced_posts=bool(
+                        options.get("import_synced_posts_to_content_ops")
+                    ),
                 )
 
             if options.get("refresh_snapshots"):
@@ -202,21 +222,25 @@ class Command(BaseCommand):
                     dispatch_mode=dispatch_mode,
                 )
 
-            log_audit_event(
-                tenant=report.tenant,
-                user=None,
-                action="slb_backfill_meta_reporting_requested",
-                resource_type="report_definition",
-                resource_id=report.id,
-                metadata={
-                    "start_date": start_date.isoformat(),
-                    "end_date": end_date.isoformat(),
-                    "datasets": list(datasets),
-                    "dispatch_mode": dispatch_mode,
-                    "refresh_snapshots": bool(options.get("refresh_snapshots")),
-                    "redacted": True,
-                },
-            )
+            if dispatch_mode == "dry-run":
+                result["audit_event"] = {"status": "skipped", "reason": "dry_run"}
+            else:
+                log_audit_event(
+                    tenant=report.tenant,
+                    user=None,
+                    action="slb_backfill_meta_reporting_requested",
+                    resource_type="report_definition",
+                    resource_id=report.id,
+                    metadata={
+                        "start_date": start_date.isoformat(),
+                        "end_date": end_date.isoformat(),
+                        "datasets": list(datasets),
+                        "dispatch_mode": dispatch_mode,
+                        "refresh_snapshots": bool(options.get("refresh_snapshots")),
+                        "redacted": True,
+                    },
+                )
+                result["audit_event"] = {"status": "recorded"}
 
         self.stdout.write(json.dumps(result, indent=2, sort_keys=True, default=str))
 
@@ -229,12 +253,17 @@ def _backfill_paid_meta_ads(
     end_date: date,
     dispatch_mode: str,
 ) -> dict[str, Any]:
-    credential = _select_meta_credential(tenant_id=str(report.tenant_id), account_id=account_id)
+    credential = _select_meta_credential(
+        tenant_id=str(report.tenant_id), account_id=account_id
+    )
     if credential is None:
         return {
             "status": "blocked",
             "reason": "meta_ad_account_credential_missing",
             "required_action": "Reconnect Meta/Facebook and select the SLB ad account before backfill.",
+            "fallback_actions": [
+                _manual_paid_csv_import_action(tenant_id=str(report.tenant_id))
+            ],
         }
     if credential.token_status in META_TOKEN_BLOCKING_STATUSES:
         return {
@@ -242,12 +271,18 @@ def _backfill_paid_meta_ads(
             "reason": "meta_credential_reauth_required",
             "token_status": credential.token_status,
             "required_action": "Reconnect Meta/Facebook before backfill.",
+            "fallback_actions": [
+                _manual_paid_csv_import_action(tenant_id=str(report.tenant_id))
+            ],
         }
     if not credential.decrypt_access_token():
         return {
             "status": "blocked",
             "reason": "meta_access_token_missing",
             "required_action": "Reconnect Meta/Facebook before backfill.",
+            "fallback_actions": [
+                _manual_paid_csv_import_action(tenant_id=str(report.tenant_id))
+            ],
         }
 
     connection = (
@@ -371,6 +406,22 @@ def _backfill_organic_facebook_posts(
     # discovery so MetaPost rows exist for the window. Best-effort: never fail
     # the backfill on an enrichment error.
     engagement_edges: dict[str, Any] = {}
+    if dispatch_mode == "dry-run":
+        for page in pages:
+            engagement_edges[page.page_id] = {
+                "status": "planned",
+                "no_live_provider_calls": True,
+                "source_path": "meta_page_post_engagement_edges",
+                "since": start_date.isoformat(),
+                "until": end_date.isoformat(),
+            }
+        return {
+            "status": _status_from_tasks(tasks),
+            "source_path": "meta_post_insights",
+            "page_count": len(pages),
+            "tasks": tasks,
+            "engagement_edges": engagement_edges,
+        }
     for page in pages:
         try:
             engagement_edges[page.page_id] = ingest_engagement_edges(
@@ -679,7 +730,9 @@ def _refresh_snapshots(*, tenant_id: str, dispatch_mode: str) -> dict[str, Any]:
     }
 
 
-def _dispatch_task(*, task, dispatch_mode: str, kwargs: dict[str, Any]) -> dict[str, Any]:  # noqa: ANN001
+def _dispatch_task(
+    *, task, dispatch_mode: str, kwargs: dict[str, Any]
+) -> dict[str, Any]:  # noqa: ANN001
     safe_kwargs = dict(kwargs)
     if dispatch_mode == "dry-run":
         return {
@@ -707,7 +760,9 @@ def _dispatch_task(*, task, dispatch_mode: str, kwargs: dict[str, Any]) -> dict[
     }
 
 
-def _select_meta_credential(*, tenant_id: str, account_id: str) -> PlatformCredential | None:
+def _select_meta_credential(
+    *, tenant_id: str, account_id: str
+) -> PlatformCredential | None:
     queryset = PlatformCredential.all_objects.filter(
         tenant_id=tenant_id,
         provider=PlatformCredential.META,
@@ -715,11 +770,15 @@ def _select_meta_credential(*, tenant_id: str, account_id: str) -> PlatformCrede
     if account_id:
         normalized = _normalize_meta_account_id(account_id)
         numeric = normalized[4:] if normalized.startswith("act_") else normalized
-        queryset = queryset.filter(account_id__in=sorted({account_id, normalized, numeric}))
+        queryset = queryset.filter(
+            account_id__in=sorted({account_id, normalized, numeric})
+        )
     return queryset.order_by("-updated_at").first()
 
 
-def _select_meta_pages(*, report: ReportDefinition, page_ids: list[str]) -> list[MetaPage]:
+def _select_meta_pages(
+    *, report: ReportDefinition, page_ids: list[str]
+) -> list[MetaPage]:
     queryset = MetaPage.all_objects.filter(
         tenant_id=report.tenant_id,
         can_analyze=True,
@@ -768,7 +827,9 @@ def _status_from_tasks(tasks: list[Mapping[str, Any]]) -> str:
     return "partial"
 
 
-def _post_backfill_commands(*, report_id: str, tenant_id: str, start_date: date, end_date: date) -> dict[str, str]:
+def _post_backfill_commands(
+    *, report_id: str, tenant_id: str, start_date: date, end_date: date
+) -> dict[str, str]:
     history_start_date = end_date - timedelta(days=89)
     return {
         "history_probe": (
@@ -786,7 +847,44 @@ def _post_backfill_commands(*, report_id: str, tenant_id: str, start_date: date,
             f"--end-date {end_date.isoformat()}"
         ),
         "snapshot_refresh": f"backend/manage.py snapshot_metrics --tenant-id {tenant_id}",
+        "manual_paid_csv_import": _manual_paid_csv_import_command(tenant_id=tenant_id),
+        "manual_paid_csv_import_dry_run": _manual_paid_csv_import_command(
+            tenant_id=tenant_id,
+            dry_run=True,
+        ),
     }
+
+
+def _manual_paid_csv_import_action(*, tenant_id: str) -> dict[str, Any]:
+    return {
+        "code": "manual_meta_paid_csv_import",
+        "dataset": "paid_meta_ads",
+        "label": "Import approved daily Meta Ads UI/export rows for the selected account.",
+        "command_template": _manual_paid_csv_import_command(tenant_id=tenant_id),
+        "dry_run_command_template": _manual_paid_csv_import_command(
+            tenant_id=tenant_id,
+            dry_run=True,
+        ),
+        "prerequisites": [
+            "Use an approved Meta Ads daily export for the selected SLB ad account.",
+            "The target AdAccount must already exist for this tenant.",
+        ],
+        "no_live_provider_calls": True,
+        "aggregate_only": True,
+        "requires_daily_rows": True,
+    }
+
+
+def _manual_paid_csv_import_command(*, tenant_id: str, dry_run: bool = False) -> str:
+    command = (
+        "backend/manage.py import_meta_paid_csv "
+        f"--tenant-id {tenant_id} "
+        "--account-id <meta_ad_account_id> "
+        "--file <path-to-meta-paid-daily-export.csv>"
+    )
+    if dry_run:
+        command = f"{command} --dry-run"
+    return command
 
 
 def _parse_date(value: str, label: str) -> date:

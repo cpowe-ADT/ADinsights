@@ -19,12 +19,19 @@ Do not start the G11 clock.
 
 Current blockers:
 
-- G0 Raj/Mira architecture/scope review is still `review_pending`.
-- G1 fixed SLB runtime target is still `blocked_external`.
-- G2-G9 fixed-target evidence is incomplete.
+- G0 Raj/Mira architecture/scope review is conditionally cleared for fixed-target evidence capture,
+  but release handoff still routes cross-scope/contract-sensitive work through Raj/Mira review.
+- G1 fixed SLB runtime target is still `blocked_external`: local evidence uses report
+  `09c96ea9-a9e5-4283-aa29-401179ab05dc` for 2026-05-01 through 2026-05-31, but the operator-owned
+  G1 runtime intake JSON is not filled, validated, and approved.
+- G2-G9 fixed-target evidence is incomplete. Current local CSV/PDF/PNG exports are non-empty
+  warning-backed artifacts, but the same evidence chain remains blocked by selected-account paid
+  source/credential, tenant-owned SLB Page/import, aggregate Page/Post source, Content Ops source,
+  and final parity prerequisites.
 - G10 has only a pre-adversarial implementation review; it has not run against the fixed evidence
   chain.
-- DashThis/source parity values are not attached.
+- DashThis/source parity remains blocked; the latest `slb_report_evidence_validate` result is still
+  `readiness_status="blocked"` with unresolved parity rows and non-runnable `blocking_next_actions`.
 
 This packet is therefore a runbook and readiness checklist only. It is not hardening evidence.
 
@@ -40,9 +47,14 @@ python3 scripts/validate_slb_g11_hardening_window.py \
   --g10-review-file <filled-g10-adversarial-review.json>
 ```
 
-The validator checks the same fixed target as G10, 24-48 hour duration, required checkpoints,
+The validator checks the same fixed target as G10, requires G10 to reference the same validated G1
+runtime intake and G2-G9 evidence run, validates 24-48 hour duration, required checkpoints,
 preview/diagnostics/export/dry-run pass states, CSV/PDF/PNG non-empty artifact and hash proof,
-DashThis active status, no reset conditions, Raj/Mira acceptance, and sensitive-value hygiene.
+DashThis active status, no reset conditions, Raj/Mira acceptance, and sensitive-value hygiene. The
+`final_evidence_validation` link must be `slb_evidence_validation.v1` JSON from
+`slb_report_evidence_validate` for the same report/date/preview, with no blockers, unresolved parity
+rows, missing/unmatched source values, remaining parity-completion requirements, or
+`blocking_next_actions`.
 
 ## Start Conditions
 
@@ -79,18 +91,18 @@ Do not start G11 until all are true:
 Fill this table immediately before starting the 24-48 hour clock. Any `No` answer means G11 cannot
 start.
 
-| Gate                  | Required evidence                                                                                                                  | Status  | Link/notes                                                |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------- | --------------------------------------------------------- |
-| G0 cleared            | Raj/Mira classify or approve the architecture/scope `GATE_BLOCK`.                                                                  | Pending | `2026-06-16-g0-raj-mira-review-packet.md`                 |
-| G1 locked             | Fixed environment, tenant/client, report ID, template key, date range, source scope, delivery assumptions, DashThis active status. | Pending | `2026-06-16-g1-runtime-target-intake-checklist.md`        |
-| G2/G3 passed          | Stored coverage and monthly/90-day retained-history proof for paid Meta Ads, organic Facebook/Page, and Content Ops.               | Pending | `2026-06-16-g2-g3-coverage-retained-history-proof.md`     |
-| G4/G5 passed          | Saved dashboard/report rendering and CSV/PDF/PNG export reproducibility proof.                                                     | Pending | `2026-06-16-g4-g5-render-export-reproducibility-proof.md` |
-| G6 passed or accepted | Parity worksheet completed with DashThis/source values, deltas, tolerances, pass/fail, and explanations.                           | Pending | `2026-06-16-g6-parity-worksheet-proof.md`                 |
-| G7/G8 passed          | Scheduled dry-run and diagnostics/support proof complete without real client delivery or sensitive data.                           | Pending | `2026-06-16-g7-g8-delivery-diagnostics-proof.md`          |
-| G9 passed             | Fixed-target permission, tenant-isolation, audit, quota, aggregate-only, and evidence-file hygiene proof complete.                 | Pending | `2026-06-16-g9-safety-controls-proof.md`                  |
-| G10 passed            | Adversarial review has no unresolved blocker/high-risk issue.                                                                      | Pending | `2026-06-16-g10-adversarial-review.md`                    |
-| DashThis active       | DashThis remains active and available as rollback/fallback during the window.                                                      | Pending | Operator confirmation                                     |
-| Observer assigned     | Operator and reviewer route named for checkpoint execution and escalation.                                                         | Pending | Raj/Omar/Hannah                                           |
+| Gate                  | Required evidence                                                                                                                  | Status                                                                   | Link/notes                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------- |
+| G0 cleared            | Raj/Mira classify or approve the architecture/scope `GATE_BLOCK`.                                                                  | Cleared for fixed-target evidence capture; release review still required | `2026-06-17-g0-raj-mira-agent-review-decision.json`       |
+| G1 locked             | Fixed environment, tenant/client, report ID, template key, date range, source scope, delivery assumptions, DashThis active status. | Pending                                                                  | `2026-06-16-g1-runtime-target-intake-checklist.md`        |
+| G2/G3 passed          | Stored coverage and monthly/90-day retained-history proof for paid Meta Ads, organic Facebook/Page, and Content Ops.               | Pending                                                                  | `2026-06-16-g2-g3-coverage-retained-history-proof.md`     |
+| G4/G5 passed          | Saved dashboard/report rendering and CSV/PDF/PNG export reproducibility proof.                                                     | Pending                                                                  | `2026-06-16-g4-g5-render-export-reproducibility-proof.md` |
+| G6 passed or accepted | Parity worksheet completed with DashThis/source values, deltas, tolerances, pass/fail, and explanations.                           | Pending                                                                  | `2026-06-16-g6-parity-worksheet-proof.md`                 |
+| G7/G8 passed          | Scheduled dry-run and diagnostics/support proof complete without real client delivery or sensitive data.                           | Pending                                                                  | `2026-06-16-g7-g8-delivery-diagnostics-proof.md`          |
+| G9 passed             | Fixed-target permission, tenant-isolation, audit, quota, aggregate-only, and evidence-file hygiene proof complete.                 | Pending                                                                  | `2026-06-16-g9-safety-controls-proof.md`                  |
+| G10 passed            | Adversarial review has no unresolved blocker/high-risk issue.                                                                      | Pending                                                                  | `2026-06-16-g10-adversarial-review.md`                    |
+| DashThis active       | DashThis remains active and available as rollback/fallback during the window.                                                      | Pending                                                                  | Operator confirmation                                     |
+| Observer assigned     | Operator and reviewer route named for checkpoint execution and escalation.                                                         | Pending                                                                  | Raj/Omar/Hannah                                           |
 
 ## Checkpoint Command Pack
 
@@ -168,12 +180,14 @@ backend/.venv/bin/python backend/manage.py slb_report_evidence_validate \
   --parity-comparison "$ADI_EVIDENCE_TMP/parity-comparison.json" \
   --expected-start-date "$ADI_START_DATE" \
   --expected-end-date "$ADI_END_DATE" \
-  --format markdown \
-  > /tmp/adinsights-slb-evidence-validation.md
+  --format json \
+  > "$ADI_EVIDENCE_TMP/final-evidence-validation.json"
 ```
 
-The validation result must be `pass` before the hardening clock starts and at the final checkpoint.
-If it returns `blocked`, reset the hardening clock and route the blocker to the owning G# packet.
+The validation result must be `pass` or warning-only with `blocker_count=0` before the hardening
+clock starts and at the final checkpoint. It must also have no unresolved parity rows, missing or
+unmatched source values, remaining parity-completion requirements, or `blocking_next_actions`. If it returns `blocked`, reset
+the hardening clock and route the blocker to the owning G# packet.
 
 Redaction scan before copying summaries into docs:
 
@@ -314,6 +328,8 @@ G11 can move to `passed` only when all are true:
 - No reset condition remains unresolved.
 - Final preview, diagnostics, exports, scheduled dry-run, safety checks, and gate snapshot are
   attached for the same fixed G1 report/date range.
+- Final `slb_report_evidence_validate` JSON matches the same fixed G1 report/date/preview and has
+  no blockers, unresolved parity rows, source-value gaps, or parity-completion requirements.
 - DashThis remained active throughout the window.
 - Raj, Mira, and Omar agree the hardening evidence is sufficient for G12 final recommendation.
 

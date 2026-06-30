@@ -10,10 +10,12 @@ no `read_insights`) is **done and shipping**; everything below is what comes nex
 ## Now → Next → Later
 
 ### NOW (shipping in this PR)
+
 - Edge-sourced organic engagement ingestion (`engagement_edges.py`) wired into `slb_backfill_meta_reporting`.
 - Data-path map + Graph v24 verification docs.
 
 ### NEXT (highest leverage, unblocked)
+
 1. **Config-driven report layout (foundation for drag-and-drop).**
    - Define a layout schema: `[{ id, type: 'kpi'|'bar'|'line'|'table'|'map', metric, x, y, w, h, options }]`.
    - Render it from the existing viz kit (`KpiTile`, `DistributionBar`, `PieComposition`, `DataTable`, `GaugeRing`, `BubbleScatter`).
@@ -23,6 +25,7 @@ no `read_insights`) is **done and shipping**; everything below is what comes nex
    real current value + a "no prior-period comparison" caveat. No faked data either way.
 
 ### LATER (bigger builds / external gates)
+
 3. **Drag-and-drop view editor** on the config-driven layout (`react-grid-layout`): drag, resize, add/remove
    widgets, a widget palette + metric picker, save per-user / per-tenant views. Reuses the existing dashboard
    builder + saved-dashboard plumbing.
@@ -34,7 +37,9 @@ no `read_insights`) is **done and shipping**; everything below is what comes nex
    report on followers + engagement only (recommended for now).
 
 ## Refactor pass (do as ONE focused sweep, not piecemeal)
+
 From `meta-reporting-data-path.md` — none are breakage; bundle them:
+
 1. Dedupe `REQUIRED_INSIGHTS_SCOPES` + `_missing_insights_scopes` (`meta_page_views.py` ↔ `page_insights_views.py`) into a shared leaf module.
 2. Verify/remove `legacy_source_config` in `views.py` (currently still a live fallback — confirm before removing).
 3. Decide the fate of the `/insights` sync path once `read_insights` is settled (overlaps the edges path for engagement).
@@ -42,5 +47,6 @@ From `meta-reporting-data-path.md` — none are breakage; bundle them:
 5. General dead-code sweep across `integrations/` flagged during the refactor.
 
 ## Guardrails carried forward
+
 No `read_insights`/IG scopes un-filtered before App Review (would break live FB login). No faked values. No live
 Meta calls in preview/export. Tenant-scoped, aggregate-only. Never log raw tokens.

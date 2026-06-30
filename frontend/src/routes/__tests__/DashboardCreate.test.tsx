@@ -189,6 +189,7 @@ describe('DashboardCreate', () => {
           widgets: ['kpi', 'line_chart', 'bar_chart', 'data_table'],
           dimensions: ['date', 'campaign'],
           is_future_gated: false,
+          availability_state: 'available',
         },
         {
           key: 'clicks',
@@ -196,6 +197,15 @@ describe('DashboardCreate', () => {
           widgets: ['kpi', 'line_chart', 'bar_chart', 'data_table'],
           dimensions: ['date', 'campaign'],
           is_future_gated: false,
+          availability_state: 'available',
+        },
+        {
+          key: 'page_follows',
+          dataset: 'organic_facebook_page',
+          widgets: ['kpi', 'line_chart'],
+          dimensions: ['date', 'page'],
+          is_future_gated: false,
+          availability_state: 'available',
         },
         {
           key: 'page_engagements',
@@ -203,6 +213,7 @@ describe('DashboardCreate', () => {
           widgets: ['kpi', 'line_chart'],
           dimensions: ['date', 'page'],
           is_future_gated: false,
+          availability_state: 'permission_gated',
         },
       ],
       dimensions: [
@@ -224,6 +235,12 @@ describe('DashboardCreate', () => {
         source_label_datasets: ['combined_paid_media', 'combined_social'],
         future_gated_datasets: ['organic_instagram'],
         future_gated_widgets: ['scatter_chart'],
+        metric_availability_states: [
+          'available',
+          'callable_no_data',
+          'permission_gated',
+          'unsupported',
+        ],
         relative_date_ranges: ['last_30d', 'last_90d'],
         table: { requires_row_limit: true, max_row_limit: 500 },
         line_chart: { requires_one_of_dimensions: ['date'] },
@@ -328,6 +345,17 @@ describe('DashboardCreate', () => {
       expect(screen.getByLabelText('X dimension')).toHaveValue('date');
     });
     expect(await screen.findByText('Fresh')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Dataset'), {
+      target: { value: 'organic_facebook_page' },
+    });
+    await waitFor(() => {
+      expect(screen.getByLabelText('Metric')).toHaveValue('page_follows');
+    });
+    expect(
+      Array.from((screen.getByLabelText('Metric') as HTMLSelectElement).options).map(
+        (option) => option.value,
+      ),
+    ).toEqual(['page_follows']);
     expect(apiMocks.previewDashboardWidget).toHaveBeenCalledWith(
       expect.objectContaining({
         widget: expect.objectContaining({

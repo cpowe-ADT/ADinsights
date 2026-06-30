@@ -1,7 +1,15 @@
 import type { ReactElement } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 
-import { DistributionBar, GaugeRing, KpiTile, PieComposition, VizDataTable } from '../viz';
+import {
+  DistributionBar,
+  GaugeRing,
+  KpiTile,
+  PieComposition,
+  TrendLine,
+  VizDataTable,
+} from '../viz';
+import type { TrendLinePoint, TrendLineSeries } from '../viz/TrendLine';
 import type { DashboardWidget } from './layoutSchema';
 
 export interface WidgetRendererProps {
@@ -15,6 +23,20 @@ type TableRow = Record<string, unknown>;
 
 const asChartData = (value: unknown): ChartDatum[] =>
   Array.isArray(value) ? (value as ChartDatum[]) : [];
+
+const asTrendRows = (value: unknown): TrendLinePoint[] =>
+  Array.isArray(value) ? (value as TrendLinePoint[]) : [];
+
+const inferTrendSeries = (rows: TrendLinePoint[]): TrendLineSeries[] => {
+  const first = rows[0];
+  if (!first) return [];
+  return Object.keys(first)
+    .filter((key) => key !== 'date')
+    .map((key) => ({
+      key,
+      label: key.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()),
+    }));
+};
 
 /**
  * Maps a {@link DashboardWidget} to a shared viz-kit component. Pure and
@@ -47,6 +69,19 @@ const WidgetRenderer = ({ widget, data }: WidgetRendererProps): ReactElement => 
           height={opts.height}
         />
       );
+    case 'line': {
+      const rows = asTrendRows(value);
+      return (
+        <TrendLine
+          data={rows}
+          series={opts.series ?? inferTrendSeries(rows)}
+          ariaLabel={title || 'Trend'}
+          yFormat={opts.yFormat ?? 'number'}
+          currency={opts.currency}
+          height={opts.height}
+        />
+      );
+    }
     case 'pie':
       return (
         <PieComposition

@@ -18,6 +18,15 @@ See also:
 
 ## Now
 
+- [x] Complete the SLB product-finish lane in
+      `docs/project/evidence/dashthis-replacement/2026-06-30-product-finish-goals.md`: freeze the
+      current local target, prove truthful data semantics, rerun/export non-empty CSV/PDF/PNG plus
+      dry-run evidence, verify client-facing UX, prove safety/supportability, and run product
+      confidence hardening. Treat missing DashThis/source values as optional parity inputs, not
+      product blockers. `slb_report_evidence_validate --validation-mode product_finish` now returns
+      warning with zero blockers for this lane. Scope: `backend/`, `frontend/`, `docs/`,
+      `integrations/exporter/`. Status: `repo-ready` (done locally for PFG-001 through PFG-006 on
+      2026-06-30; PFG-007 remains optional if approved source files appear).
 - [x] Document Postgres grants for RLS and confirm the deploy pipeline runs both `manage.py seed_roles` and `manage.py enable_rls`. Scope: `docs/`, `deploy/`. Status: `repo-ready`.
 - [x] Replace the Home page recent dashboards/static empty state with API-driven data and true empty-state logic. Scope: `frontend/`, `backend/`. Status: `repo-ready`.
 - [x] Baseline `docs/project/meta-permissions-catalog.yaml` against runtime/default scope docs and make it the maintained source of truth. Scope: `docs/`. Status: `repo-ready`.

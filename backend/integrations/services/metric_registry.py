@@ -125,11 +125,17 @@ FALLBACK_METRIC_DEFINITIONS: list[dict[str, Any]] = [
 
 REPLACEMENT_CANDIDATES: dict[tuple[str, str], str] = {
     (MetaMetricRegistry.LEVEL_PAGE, "page_impressions"): "page_media_view",
-    (MetaMetricRegistry.LEVEL_PAGE, "page_impressions_unique"): "page_total_media_view_unique",
+    (
+        MetaMetricRegistry.LEVEL_PAGE,
+        "page_impressions_unique",
+    ): "page_total_media_view_unique",
     (MetaMetricRegistry.LEVEL_PAGE, "page_fans"): "page_follows",
     (MetaMetricRegistry.LEVEL_PAGE, "page_video_views_10s"): "page_video_views",
     (MetaMetricRegistry.LEVEL_POST, "post_impressions"): "post_media_view",
-    (MetaMetricRegistry.LEVEL_POST, "post_impressions_unique"): "post_total_media_view_unique",
+    (
+        MetaMetricRegistry.LEVEL_POST,
+        "post_impressions_unique",
+    ): "post_total_media_view_unique",
     (MetaMetricRegistry.LEVEL_POST, "post_video_views_10s"): "post_video_views",
 }
 
@@ -171,12 +177,30 @@ POST_PRODUCT_METRIC_SOURCE_KEYS: dict[str, tuple[str, ...]] = {
         "post_impressions_organic_unique",
     ),
     "post_clicks": ("post_clicks",),
-    "post_reactions_like": ("post_reactions_by_type_total", "post_reactions_like_total"),
-    "post_reactions_love": ("post_reactions_by_type_total", "post_reactions_love_total"),
+    "post_reactions": ("post_reactions_total",),
+    "post_comments": ("post_comments_total", "post_comments"),
+    "post_shares": ("post_shares_total", "post_shares"),
+    "post_reactions_like": (
+        "post_reactions_by_type_total",
+        "post_reactions_like_total",
+    ),
+    "post_reactions_love": (
+        "post_reactions_by_type_total",
+        "post_reactions_love_total",
+    ),
     "post_reactions_wow": ("post_reactions_by_type_total", "post_reactions_wow_total"),
-    "post_reactions_haha": ("post_reactions_by_type_total", "post_reactions_haha_total"),
-    "post_reactions_sorry": ("post_reactions_by_type_total", "post_reactions_sorry_total"),
-    "post_reactions_anger": ("post_reactions_by_type_total", "post_reactions_anger_total"),
+    "post_reactions_haha": (
+        "post_reactions_by_type_total",
+        "post_reactions_haha_total",
+    ),
+    "post_reactions_sorry": (
+        "post_reactions_by_type_total",
+        "post_reactions_sorry_total",
+    ),
+    "post_reactions_anger": (
+        "post_reactions_by_type_total",
+        "post_reactions_anger_total",
+    ),
 }
 
 CONTENT_OPS_POST_SOURCE_KEYS: dict[str, tuple[str, ...]] = {
@@ -200,7 +224,11 @@ def _reporting_default_source_keys(level: str) -> tuple[str, ...]:
     keys: list[str] = []
     for source_keys in mappings:
         for source_key in source_keys:
-            if source_key and source_key not in keys and not is_blocked_metric(source_key):
+            if (
+                source_key
+                and source_key not in keys
+                and not is_blocked_metric(source_key)
+            ):
                 keys.append(source_key)
     return tuple(keys)
 
@@ -251,12 +279,22 @@ def map_reporting_source_metric_to_product_metric(
     breakdown_key: str | None = None,
     level: str | None = None,
 ) -> str | None:
-    if dataset == "organic_facebook_page" and source_metric == "post_reactions_by_type_total":
+    if source_metric in get_reporting_metric_source_map(dataset, level=level):
+        return source_metric
+    if (
+        dataset == "organic_facebook_page"
+        and source_metric == "post_reactions_by_type_total"
+    ):
         normalized_breakdown = (breakdown_key or "").strip().lower()
         return POST_REACTION_PRODUCT_BREAKDOWN_KEYS.get(normalized_breakdown)
 
-    for product_metric, source_keys in get_reporting_metric_source_map(dataset, level=level).items():
-        if source_metric in source_keys and source_metric != "post_reactions_by_type_total":
+    for product_metric, source_keys in get_reporting_metric_source_map(
+        dataset, level=level
+    ).items():
+        if (
+            source_metric in source_keys
+            and source_metric != "post_reactions_by_type_total"
+        ):
             return product_metric
     return None
 
@@ -287,7 +325,14 @@ def seed_default_metrics() -> None:
         metric.is_default = False
         if replacement:
             metric.replacement_metric_key = replacement
-        metric.save(update_fields=["status", "is_default", "replacement_metric_key", "updated_at"])
+        metric.save(
+            update_fields=[
+                "status",
+                "is_default",
+                "replacement_metric_key",
+                "updated_at",
+            ]
+        )
 
 
 def _sync_canonical_metric_catalog() -> int:
@@ -344,14 +389,26 @@ def get_default_metric_keys(level: str) -> list[str]:
         MetaMetricRegistry.objects.filter(
             level=level,
         )
-        .exclude(status__in=[MetaMetricRegistry.STATUS_INVALID, MetaMetricRegistry.STATUS_DEPRECATED])
+        .exclude(
+            status__in=[
+                MetaMetricRegistry.STATUS_INVALID,
+                MetaMetricRegistry.STATUS_DEPRECATED,
+            ]
+        )
         .filter(is_default=True)
         .order_by("metric_key")
         .values_list("metric_key", flat=True)
     )
     reporting_rows = set(
-        MetaMetricRegistry.objects.filter(level=level, metric_key__in=reporting_source_keys)
-        .exclude(status__in=[MetaMetricRegistry.STATUS_INVALID, MetaMetricRegistry.STATUS_DEPRECATED])
+        MetaMetricRegistry.objects.filter(
+            level=level, metric_key__in=reporting_source_keys
+        )
+        .exclude(
+            status__in=[
+                MetaMetricRegistry.STATUS_INVALID,
+                MetaMetricRegistry.STATUS_DEPRECATED,
+            ]
+        )
         .values_list("metric_key", flat=True)
     )
     keys = [row for row in rows if not is_blocked_metric(row)]
@@ -366,9 +423,16 @@ def get_active_metric_keys(level: str, *, include_all: bool = False) -> list[str
     queryset = MetaMetricRegistry.objects.filter(level=level)
     if not include_all:
         queryset = queryset.exclude(
-            status__in=[MetaMetricRegistry.STATUS_INVALID, MetaMetricRegistry.STATUS_DEPRECATED]
+            status__in=[
+                MetaMetricRegistry.STATUS_INVALID,
+                MetaMetricRegistry.STATUS_DEPRECATED,
+            ]
         )
-    return [row for row in queryset.values_list("metric_key", flat=True) if not is_blocked_metric(row)]
+    return [
+        row
+        for row in queryset.values_list("metric_key", flat=True)
+        if not is_blocked_metric(row)
+    ]
 
 
 def resolve_metric_key(level: str, metric_key: str) -> str:
@@ -376,10 +440,15 @@ def resolve_metric_key(level: str, metric_key: str) -> str:
         replacement = REPLACEMENT_CANDIDATES.get((level, metric_key))
         return replacement or metric_key
     ensure_default_metrics_seeded()
-    metric = MetaMetricRegistry.objects.filter(level=level, metric_key=metric_key).first()
+    metric = MetaMetricRegistry.objects.filter(
+        level=level, metric_key=metric_key
+    ).first()
     if metric is None:
         return metric_key
-    if metric.status in {MetaMetricRegistry.STATUS_INVALID, MetaMetricRegistry.STATUS_DEPRECATED}:
+    if metric.status in {
+        MetaMetricRegistry.STATUS_INVALID,
+        MetaMetricRegistry.STATUS_DEPRECATED,
+    }:
         replacement = (metric.replacement_metric_key or "").strip()
         if replacement:
             return replacement
@@ -403,11 +472,15 @@ def mark_metric_invalid(level: str, metric_key: str) -> MetaMetricRegistry:
     metric.is_default = False
     if replacement and not metric.replacement_metric_key:
         metric.replacement_metric_key = replacement
-    metric.save(update_fields=["status", "is_default", "replacement_metric_key", "updated_at"])
+    metric.save(
+        update_fields=["status", "is_default", "replacement_metric_key", "updated_at"]
+    )
     return metric
 
 
-def mark_metric_deprecated(level: str, metric_key: str, replacement_metric_key: str | None = None) -> None:
+def mark_metric_deprecated(
+    level: str, metric_key: str, replacement_metric_key: str | None = None
+) -> None:
     metric, _ = MetaMetricRegistry.objects.get_or_create(
         metric_key=metric_key,
         level=level,
@@ -420,7 +493,9 @@ def mark_metric_deprecated(level: str, metric_key: str, replacement_metric_key: 
     metric.is_default = False
     if replacement_metric_key:
         metric.replacement_metric_key = replacement_metric_key
-    metric.save(update_fields=["status", "is_default", "replacement_metric_key", "updated_at"])
+    metric.save(
+        update_fields=["status", "is_default", "replacement_metric_key", "updated_at"]
+    )
 
 
 def mark_metric_unknown(level: str, metric_key: str) -> None:
@@ -432,7 +507,10 @@ def mark_metric_unknown(level: str, metric_key: str) -> None:
             "supports_breakdowns": [],
         },
     )
-    if metric.status in {MetaMetricRegistry.STATUS_INVALID, MetaMetricRegistry.STATUS_DEPRECATED}:
+    if metric.status in {
+        MetaMetricRegistry.STATUS_INVALID,
+        MetaMetricRegistry.STATUS_DEPRECATED,
+    }:
         return
     metric.status = MetaMetricRegistry.STATUS_UNKNOWN
     metric.save(update_fields=["status", "updated_at"])
@@ -447,7 +525,9 @@ def update_metric_metadata(
     periods: Iterable[str] | None = None,
 ) -> None:
     if is_blocked_metric(metric_key):
-        mark_metric_deprecated(level, metric_key, REPLACEMENT_CANDIDATES.get((level, metric_key)))
+        mark_metric_deprecated(
+            level, metric_key, REPLACEMENT_CANDIDATES.get((level, metric_key))
+        )
         return
 
     metric, _ = MetaMetricRegistry.objects.get_or_create(
@@ -468,7 +548,9 @@ def update_metric_metadata(
         metric.description = description
         changed.append("description")
     if periods:
-        normalized = sorted({str(period).strip() for period in periods if str(period).strip()})
+        normalized = sorted(
+            {str(period).strip() for period in periods if str(period).strip()}
+        )
         if normalized and sorted(metric.supported_periods or []) != normalized:
             metric.supported_periods = normalized
             changed.append("supported_periods")

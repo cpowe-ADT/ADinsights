@@ -10,7 +10,14 @@
 import type { KpiFormat } from '../viz';
 
 /** Widget kinds the renderer can draw. */
-export type WidgetType = 'kpi' | 'bar' | 'pie' | 'gauge' | 'table' | 'note';
+export type WidgetType = 'kpi' | 'bar' | 'line' | 'pie' | 'gauge' | 'table' | 'note';
+
+export interface LineSeries {
+  key: string;
+  label: string;
+  color?: string;
+  dashed?: boolean;
+}
 
 export interface TableColumn {
   /** Key into each row object. */
@@ -36,10 +43,34 @@ export interface WidgetOptions {
   centerLabel?: string;
   /** chart height in px */
   height?: number;
+  /** line: series definitions keyed into each data row */
+  series?: LineSeries[];
+  /** line: axis/tooltip value format */
+  yFormat?: 'number' | 'currency' | 'percent';
   /** table: column definitions */
   columns?: TableColumn[];
   /** note: plain text */
   text?: string;
+}
+
+export type WidgetMetricAvailabilityState =
+  | 'available'
+  | 'callable_no_data'
+  | 'permission_gated'
+  | 'unsupported';
+
+export interface WidgetMetricAvailability {
+  key: string;
+  state: WidgetMetricAvailabilityState;
+  note?: string;
+  rowCount?: number;
+}
+
+export interface WidgetSourceBinding {
+  dataset?: string;
+  widgetId?: string;
+  metrics?: string[];
+  availability?: WidgetMetricAvailability[];
 }
 
 /** Grid placement: 1-based column/row start, span in grid units. */
@@ -59,6 +90,8 @@ export interface DashboardWidget extends WidgetPlacement {
   /** Inline data; used when no resolver supplies data for this widget. */
   data?: unknown;
   options?: WidgetOptions;
+  /** Optional governed report source metadata used by the builder UI. */
+  source?: WidgetSourceBinding;
 }
 
 export interface DashboardLayoutConfig {
@@ -73,6 +106,26 @@ export interface DashboardLayoutConfig {
 
 export const DEFAULT_GRID_COLS = 12;
 export const DEFAULT_ROW_HEIGHT = 64;
+
+/**
+ * Stable identity for governed report widgets across saved-layout edits. Widget
+ * ids can change when a layout is imported or customized, but source-bound
+ * widgets should still rebind to the current governed preview when dataset,
+ * metric set, and renderer type match.
+ */
+export function widgetSourceSignature(widget: DashboardWidget): string | null {
+  const source = widget.source;
+  if (!source) return null;
+  const dataset = source.dataset ?? '';
+  const metrics = [...(source.metrics ?? [])].filter(Boolean).sort();
+  if (metrics.length > 0) {
+    return `${widget.type}|${dataset}|metrics:${metrics.join(',')}`;
+  }
+  if (source.widgetId) {
+    return `${widget.type}|${dataset}|widget:${source.widgetId}`;
+  }
+  return null;
+}
 
 /** Lightweight structural validation — useful for the editor and saved configs. */
 export function isDashboardLayoutConfig(value: unknown): value is DashboardLayoutConfig {

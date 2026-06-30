@@ -82,6 +82,22 @@ These are the shortest external actions that unblock the most downstream work:
 | 2        | DashThis/source comparison owner + Andre | Provide redacted DashThis/source values, tolerances, and explanations for required non-Instagram SLB metrics.                                               | BLK-004; G6, G10-G12 |
 | 3        | Runtime owner + Raj/Mira                 | Resolve `AIRBYTE_TEMPLATE_META_METRICS_CONNECTION_ID` or approve an alternate bootstrap path.                                                               | BLK-003; G11-G12     |
 
+## 2026-06-30 Local G1 Draft
+
+Local product-finish evidence has produced a G1 draft, but BLK-002 remains `waiting_external`.
+
+Artifacts:
+
+- `docs/project/evidence/dashthis-replacement/2026-06-30-slb-target-intake.local-product-finish.json`
+- `docs/project/evidence/dashthis-replacement/2026-06-30-g1-runtime-target-intake.local-draft.json`
+
+The draft fills the report ID, template, schema, date range, safe tenant/client labels, selected
+paid account scope, dry-run recipient assumption, G0 conditional approval values, and source
+comparison file path. It still fails `validate_slb_g1_runtime_target_intake.py` with 10 expected
+errors: missing backend URL, frontend URL, currency, tenant-owned SLB Page scope, Content Ops
+workspace scope, comparison owner, tolerance confirmation, `candidate_ready_for_review` status, and
+target-intake source-scope evidence for Page/workspace.
+
 After G0/G1 are complete, use `2026-06-16-g2-g9-evidence-execution-checklist.md` as the single-run
 fixed-target evidence controller. It now includes a run sheet, temporary output naming convention,
 and pre-G10 completion matrix.
@@ -194,7 +210,8 @@ and reviewer approvals are complete.
 Added `slb_report_parity_compare` to merge evidence-bundle parity rows with a redacted
 comparison-values JSON file and compute absolute deltas, percentage deltas, pass/fail outcomes, and
 blocked states. Focused tests verify pass/fail behavior for percent and absolute tolerances,
-`blocked_missing_dashthis_value` for missing source values, `blocked_metric_semantics` for missing
+`blocked_missing_dashthis_value` for missing source values, `blocked_missing_adinsights_value` for
+source-present/report-missing rows, `blocked_metric_semantics` for missing
 tolerance, sensitive source-reference redaction, and no-live-provider behavior. BLK-004 remains open
 until real DashThis/source values, approved tolerances, explanations, and reviewer approvals are
 attached for the fixed G1 report/date range.

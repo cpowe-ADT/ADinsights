@@ -17,6 +17,17 @@ path and replace every example runtime value with approved, safe, redacted value
 
 ## Validate Examples
 
+Draft an intake from the redacted target-intake example:
+
+```bash
+python3 scripts/slb_g1_intake_draft.py \
+  --target-intake-output docs/project/evidence/dashthis-replacement/examples/slb-report-target-intake-output.redacted-example.json \
+  --output /tmp/slb-g1-runtime-target-intake.draft-example.json
+```
+
+The draft output should still report `candidate_ready_for_review=false`; examples and drafts are
+not runtime evidence.
+
 ```bash
 python3 scripts/validate_slb_g0_raj_mira_review.py \
   --review-file docs/project/evidence/dashthis-replacement/examples/g0-raj-mira-review-decision.valid-example.json

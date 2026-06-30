@@ -113,7 +113,7 @@ const LinePreview = ({ widget }: { widget: DashboardWidgetPreviewResponse }) => 
   }));
   const data: TrendLinePoint[] = rows.map((row) => ({
     date: String(row.date ?? row[String(widget.data.x ?? 'date')] ?? ''),
-    ...Object.fromEntries(metricKeys.map((key) => [key, numberValue(row[key]) ?? 0])),
+    ...Object.fromEntries(metricKeys.map((key) => [key, numberValue(row[key])])),
   }));
   return (
     <TrendLine
@@ -130,10 +130,17 @@ const BarPreview = ({ widget }: { widget: DashboardWidgetPreviewResponse }) => {
   const xKey = String(widget.data.x ?? 'label');
   const metricKey =
     rows.length > 0 ? (Object.keys(rows[0]).find((key) => key !== xKey) ?? 'value') : 'value';
-  const data = rows.map((row) => ({
-    label: String(row[xKey] ?? row.label ?? 'Unspecified'),
-    value: numberValue(row[metricKey]) ?? 0,
-  }));
+  const data = rows.flatMap((row) => {
+    const value = numberValue(row[metricKey]);
+    return value === null
+      ? []
+      : [
+          {
+            label: String(row[xKey] ?? row.label ?? 'Unspecified'),
+            value,
+          },
+        ];
+  });
   return (
     <DistributionBar
       data={data}

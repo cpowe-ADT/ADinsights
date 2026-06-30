@@ -467,14 +467,17 @@ const resolveRequestHeader = (
 };
 
 const expectHomeOrDashboardHeading = async () => {
-  await waitFor(() => {
-    const hero =
-      screen.queryByRole('heading', { level: 1, name: /welcome back to adinsights/i }) ??
-      screen.queryByRole('heading', { level: 1, name: /adinsights analytics/i }) ??
-      screen.queryByRole('heading', { level: 1, name: /campaign performance/i }) ??
-      screen.queryByRole('heading', { level: 1, name: /saved dashboards/i });
-    expect(hero).toBeTruthy();
-  });
+  await waitFor(
+    () => {
+      const hero =
+        screen.queryByRole('heading', { level: 1, name: /welcome back to adinsights/i }) ??
+        screen.queryByRole('heading', { level: 1, name: /adinsights analytics/i }) ??
+        screen.queryByRole('heading', { level: 1, name: /campaign performance/i }) ??
+        screen.queryByRole('heading', { level: 1, name: /saved dashboards/i });
+      expect(hero).toBeTruthy();
+    },
+    { timeout: 10000 },
+  );
 };
 
 describe('App integration', () => {

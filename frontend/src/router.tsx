@@ -169,6 +169,10 @@ export const router = createBrowserRouter(
           element: withRouteLoader(<ReportDetailPage />, 'Loading report…'),
         },
         {
+          path: '/reports/:reportId/builder',
+          element: withRouteLoader(<ReportLayoutPreview />, 'Loading report builder…'),
+        },
+        {
           path: '/alerts',
           element: withRouteLoader(<AlertsPage />, 'Loading alerts…'),
         },

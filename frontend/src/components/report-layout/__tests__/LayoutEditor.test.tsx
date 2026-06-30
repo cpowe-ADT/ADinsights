@@ -76,4 +76,129 @@ describe('LayoutEditor', () => {
     const next = onChange.mock.calls.at(-1)?.[0] as DashboardLayoutConfig;
     expect(next.widgets[0].title).toBe('Renamed');
   });
+
+  it('restores available governed widgets and blocks gated governed widgets', () => {
+    const onChange = vi.fn();
+    render(
+      <LayoutEditor
+        layout={baseLayout}
+        onChange={onChange}
+        placeholderWidgetTypes={['note']}
+        availableWidgets={[
+          {
+            id: 'page-follows',
+            type: 'kpi',
+            title: 'Page follows',
+            x: 1,
+            y: 1,
+            w: 3,
+            h: 2,
+            data: 6023,
+            source: {
+              dataset: 'organic_facebook_page',
+              widgetId: 'organic_summary',
+              metrics: ['page_follows'],
+              availability: [
+                {
+                  key: 'page_follows',
+                  state: 'available',
+                  note: 'Stored rows exist.',
+                  rowCount: 31,
+                },
+              ],
+            },
+          },
+          {
+            id: 'page-reach',
+            type: 'kpi',
+            title: 'Page reach',
+            x: 1,
+            y: 3,
+            w: 3,
+            h: 2,
+            data: null,
+            source: {
+              dataset: 'organic_facebook_page',
+              widgetId: 'organic_summary',
+              metrics: ['page_reach'],
+              availability: [
+                {
+                  key: 'page_reach',
+                  state: 'permission_gated',
+                  note: 'Requires Meta read_insights approval.',
+                  rowCount: 0,
+                },
+              ],
+            },
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByLabelText('Add KPI widget')).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Page follows (available)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Page reach (gated)' })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText('Governed report widget'), {
+      target: { value: 'page-reach' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add governed widget' }));
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('Governed report widget'), {
+      target: { value: 'page-follows' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add governed widget' }));
+
+    const next = onChange.mock.calls[0][0] as DashboardLayoutConfig;
+    expect(next.widgets.at(-1)).toMatchObject({
+      id: 'page-follows',
+      title: 'Page follows',
+      source: expect.objectContaining({
+        availability: [expect.objectContaining({ key: 'page_follows', state: 'available' })],
+      }),
+    });
+  });
+
+  it('does not offer governed widgets already present under a custom id', () => {
+    render(
+      <LayoutEditor
+        layout={{
+          ...baseLayout,
+          widgets: [
+            {
+              ...baseLayout.widgets[0],
+              id: 'custom-followers',
+              source: {
+                dataset: 'organic_facebook_page',
+                widgetId: 'saved_custom',
+                metrics: ['page_follows'],
+              },
+            },
+          ],
+        }}
+        onChange={() => {}}
+        availableWidgets={[
+          {
+            id: 'catalog-page-follows',
+            type: 'kpi',
+            title: 'Page follows',
+            x: 1,
+            y: 1,
+            w: 3,
+            h: 2,
+            data: null,
+            source: {
+              dataset: 'organic_facebook_page',
+              widgetId: 'catalog:organic_facebook_page:page_follows',
+              metrics: ['page_follows'],
+              availability: [{ key: 'page_follows', state: 'available' }],
+            },
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByLabelText('Governed report widget')).not.toBeInTheDocument();
+  });
 });

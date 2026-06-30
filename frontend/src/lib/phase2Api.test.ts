@@ -82,6 +82,8 @@ describe('phase2Api', () => {
             widgets: ['kpi', 'line_chart', 'data_table'],
             dimensions: ['date', 'campaign'],
             is_future_gated: false,
+            availability_state: 'available',
+            availability_note: 'Metric is usable through the current stored reporting path.',
           },
         ],
         dimensions: [
@@ -100,6 +102,12 @@ describe('phase2Api', () => {
           source_label_datasets: ['combined_paid_media', 'combined_social'],
           future_gated_datasets: ['combined_social'],
           future_gated_widgets: ['scatter_chart'],
+          metric_availability_states: [
+            'available',
+            'callable_no_data',
+            'permission_gated',
+            'unsupported',
+          ],
           relative_date_ranges: ['last_30d', 'last_90d'],
           table: { requires_row_limit: true, max_row_limit: 500 },
           line_chart: { requires_one_of_dimensions: ['date', 'week', 'month'] },
@@ -124,7 +132,9 @@ describe('phase2Api', () => {
       expect(catalog.metrics[0]).toMatchObject({
         key: 'spend',
         dataset: 'paid_meta_ads',
+        availability_state: 'available',
       });
+      expect(catalog.compatibility.metric_availability_states).toContain('permission_gated');
       expect(catalog.compatibility.table).toEqual({
         requires_row_limit: true,
         max_row_limit: 500,

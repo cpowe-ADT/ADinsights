@@ -14,9 +14,11 @@ from django.utils.dateparse import parse_date, parse_datetime
 
 from adapters.meta_direct import MetaDirectAdapter
 from analytics.models import AdAccount, TenantMetricsSnapshot
+from integrations.clients.resolver import resolve_client_accounts
 from integrations.models import (
     AirbyteConnection,
     Client,
+    ClientPlatformAccount,
     MetaInsightPoint,
     MetaMetricRegistry,
     MetaPage,
@@ -67,7 +69,11 @@ SUMMARY_KEYS = {
     "reach": ("totalReach", "reach"),
     "clicks": ("totalClicks", "clicks"),
     "conversions": ("totalConversions", "conversions"),
-    "conversion_value": ("totalConversionValue", "conversion_value", "conversions_value"),
+    "conversion_value": (
+        "totalConversionValue",
+        "conversion_value",
+        "conversions_value",
+    ),
     "ctr": ("ctr",),
     "cpc": ("averageCpc", "cpc"),
     "cpm": ("averageCpm", "cpm"),
@@ -105,7 +111,12 @@ def _source_keys_for_metrics(
 ) -> list[str]:
     keys: list[str] = []
     for metric in metrics:
-        for source_key in mapping.get(metric, ()):
+        source_keys = mapping.get(metric)
+        if source_keys is None:
+            continue
+        if metric not in keys:
+            keys.append(metric)
+        for source_key in source_keys:
             if source_key not in keys:
                 keys.append(source_key)
     return keys
@@ -150,7 +161,9 @@ def build_widget_preview(*, tenant, payload: Mapping[str, Any]) -> dict[str, Any
     date_range = _resolve_date_range(widget.get("filters"))
     dataset = str(widget["dataset"])
 
-    result = _preview_dataset(tenant=tenant, widget=widget, date_range=date_range, payload=payload)
+    result = _preview_dataset(
+        tenant=tenant, widget=widget, date_range=date_range, payload=payload
+    )
 
     coverage = result["coverage"]
     policy = str(widget.get("coverage_policy") or "render_with_warning")
@@ -162,10 +175,18 @@ def build_widget_preview(*, tenant, payload: Mapping[str, Any]) -> dict[str, Any
         "widget_id": widget["id"],
         "dataset": dataset,
         "type": widget["type"],
+        "metrics": _string_list(widget.get("metrics")),
+        "dimensions": _string_list(widget.get("dimensions")),
         "data": result["data"],
         "coverage": coverage,
         "warnings": result["warnings"],
     }
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if str(item)]
 
 
 def _preview_dataset(
@@ -178,24 +199,40 @@ def _preview_dataset(
     dataset = str(widget["dataset"])
     adapter = DATASET_PREVIEW_ADAPTERS.get(dataset)
     if adapter is None:
-        raise ReportingWidgetPreviewError([f"dataset '{dataset}' is unsupported for preview."])
+        raise ReportingWidgetPreviewError(
+            [f"dataset '{dataset}' is unsupported for preview."]
+        )
     return adapter(tenant=tenant, widget=widget, date_range=date_range, payload=payload)
 
 
-def _validate_tenant_references(*, tenant, payload: Mapping[str, Any], widget: Mapping[str, Any]) -> None:
+def _validate_tenant_references(
+    *, tenant, payload: Mapping[str, Any], widget: Mapping[str, Any]
+) -> None:
     errors: list[str] = []
-    filters = widget.get("filters") if isinstance(widget.get("filters"), Mapping) else {}
+    filters = (
+        widget.get("filters") if isinstance(widget.get("filters"), Mapping) else {}
+    )
 
     client_id = str(payload.get("client_id") or filters.get("client_id") or "").strip()
-    if client_id and not Client.all_objects.filter(id=client_id, tenant=tenant).exists():
+    if (
+        client_id
+        and not Client.all_objects.filter(id=client_id, tenant=tenant).exists()
+    ):
         errors.append("client_id does not belong to the authenticated tenant.")
 
-    account_id = str(payload.get("account_id") or filters.get("account_id") or "").strip()
-    if account_id and not _account_belongs_to_tenant(tenant=tenant, account_id=account_id):
+    account_id = str(
+        payload.get("account_id") or filters.get("account_id") or ""
+    ).strip()
+    if account_id and not _account_belongs_to_tenant(
+        tenant=tenant, account_id=account_id
+    ):
         errors.append("account_id does not belong to the authenticated tenant.")
 
     page_id = str(payload.get("page_id") or filters.get("page_id") or "").strip()
-    if page_id and not MetaPage.all_objects.filter(tenant=tenant, page_id=page_id).exists():
+    if (
+        page_id
+        and not MetaPage.all_objects.filter(tenant=tenant, page_id=page_id).exists()
+    ):
         errors.append("page_id does not belong to the authenticated tenant.")
 
     if errors:
@@ -203,23 +240,33 @@ def _validate_tenant_references(*, tenant, payload: Mapping[str, Any], widget: M
 
 
 def _account_belongs_to_tenant(*, tenant, account_id: str) -> bool:
+    aliases = _account_aliases(account_id)
+    return (
+        AdAccount.all_objects.filter(
+            tenant=tenant,
+            external_id__in=aliases,
+        ).exists()
+        or AdAccount.all_objects.filter(
+            tenant=tenant,
+            account_id__in=aliases,
+        ).exists()
+    )
+
+
+def _account_aliases(account_id: str) -> set[str]:
     aliases = {account_id}
     if account_id.startswith("act_") and account_id[4:]:
         aliases.add(account_id[4:])
     elif account_id.isdigit():
         aliases.add(f"act_{account_id}")
-    return AdAccount.all_objects.filter(
-        tenant=tenant,
-        external_id__in=aliases,
-    ).exists() or AdAccount.all_objects.filter(
-        tenant=tenant,
-        account_id__in=aliases,
-    ).exists()
+    return {alias for alias in aliases if alias}
 
 
 def _resolve_date_range(filters: object) -> PreviewDateRange:
     if not isinstance(filters, Mapping):
-        raise ReportingWidgetPreviewError(["widget.filters must include a bounded date range."])
+        raise ReportingWidgetPreviewError(
+            ["widget.filters must include a bounded date range."]
+        )
 
     today = timezone.localdate()
     date_range = str(filters.get("date_range") or "").strip()
@@ -233,12 +280,18 @@ def _resolve_date_range(filters: object) -> PreviewDateRange:
         return _bounded_range(start=start, end=end, label=date_range or "custom")
 
     if date_range == "last_7d":
-        return _bounded_range(start=today - timedelta(days=6), end=today, label=date_range)
+        return _bounded_range(
+            start=today - timedelta(days=6), end=today, label=date_range
+        )
     if date_range in {"last_28d", "last_30d"}:
         days = 27 if date_range == "last_28d" else 29
-        return _bounded_range(start=today - timedelta(days=days), end=today, label=date_range)
+        return _bounded_range(
+            start=today - timedelta(days=days), end=today, label=date_range
+        )
     if date_range == "last_90d":
-        return _bounded_range(start=today - timedelta(days=89), end=today, label=date_range)
+        return _bounded_range(
+            start=today - timedelta(days=89), end=today, label=date_range
+        )
     if date_range in {"mtd", "this_month"}:
         return _bounded_range(start=today.replace(day=1), end=today, label=date_range)
     if date_range == "last_month":
@@ -249,7 +302,9 @@ def _resolve_date_range(filters: object) -> PreviewDateRange:
             end=last_month_end,
             label=date_range,
         )
-    raise ReportingWidgetPreviewError(["widget.filters must include a bounded date range."])
+    raise ReportingWidgetPreviewError(
+        ["widget.filters must include a bounded date range."]
+    )
 
 
 def _parse_required_date(value: object, *, field: str) -> date:
@@ -263,38 +318,56 @@ def _bounded_range(*, start: date, end: date, label: str) -> PreviewDateRange:
     if end < start:
         raise ReportingWidgetPreviewError(["end_date must be on or after start_date."])
     if (end - start).days > 397:
-        raise ReportingWidgetPreviewError(["date range cannot exceed 13 months for dashboard preview."])
+        raise ReportingWidgetPreviewError(
+            ["date range cannot exceed 13 months for dashboard preview."]
+        )
     return PreviewDateRange(start_date=start, end_date=end, label=label)
 
 
-def _preview_paid_dataset(*, tenant, widget: Mapping[str, Any], date_range: PreviewDateRange) -> dict[str, Any]:
+def _preview_paid_dataset(
+    *, tenant, widget: Mapping[str, Any], date_range: PreviewDateRange
+) -> dict[str, Any]:
     source = "meta_direct"
     snapshot = None
-    payload = _paid_direct_payload_for_range(tenant=tenant, widget=widget, date_range=date_range)
+    payload = _paid_direct_payload_for_range(
+        tenant=tenant, widget=widget, date_range=date_range
+    )
     payload_generated_at = _generated_at_from_payload(payload)
 
     if payload is None:
-        source, snapshot = _select_paid_snapshot(tenant=tenant, dataset=str(widget["dataset"]))
+        source, snapshot = _select_paid_snapshot(
+            tenant=tenant, dataset=str(widget["dataset"])
+        )
         payload = snapshot.payload if snapshot else {}
 
     payload = _snapshot_payload(payload)
-    campaign = payload.get("campaign") if isinstance(payload.get("campaign"), Mapping) else {}
-    snapshot_summary = campaign.get("summary") if isinstance(campaign.get("summary"), Mapping) else {}
+    campaign = (
+        payload.get("campaign") if isinstance(payload.get("campaign"), Mapping) else {}
+    )
+    snapshot_summary = (
+        campaign.get("summary") if isinstance(campaign.get("summary"), Mapping) else {}
+    )
     rows = _filter_rows_by_date_range(
-        rows=_normalize_paid_rows([row for row in campaign.get("rows", []) if isinstance(row, Mapping)]),
+        rows=_normalize_paid_rows(
+            [row for row in campaign.get("rows", []) if isinstance(row, Mapping)]
+        ),
         date_range=date_range,
     )
     trend = _filter_rows_by_date_range(
         rows=[row for row in campaign.get("trend", []) if isinstance(row, Mapping)],
         date_range=date_range,
     )
-    summary = _paid_summary_for_range(snapshot_summary=snapshot_summary, rows=rows, trend=trend)
+    summary = _paid_summary_for_range(
+        snapshot_summary=snapshot_summary, rows=rows, trend=trend
+    )
 
     data = _render_widget_data(widget=widget, summary=summary, rows=rows, trend=trend)
     row_count = len(rows) or len(trend) or (1 if summary else 0)
     coverage = _build_snapshot_coverage(
         dataset=str(widget["dataset"]),
-        source_label=PAID_SNAPSHOT_SOURCE_LABELS.get(source, "Stored aggregate metrics"),
+        source_label=PAID_SNAPSHOT_SOURCE_LABELS.get(
+            source, "Stored aggregate metrics"
+        ),
         requested=date_range,
         snapshot=snapshot,
         generated_at=payload_generated_at,
@@ -302,11 +375,21 @@ def _preview_paid_dataset(*, tenant, widget: Mapping[str, Any], date_range: Prev
         data_dates=_dates_from_rows([*rows, *trend]),
         source_disconnected=_has_inactive_meta_connection(tenant=tenant),
     )
-    return {"data": data, "coverage": coverage, "warnings": _warnings_for_coverage(coverage)}
+    return {
+        "data": data,
+        "coverage": coverage,
+        "warnings": _warnings_for_coverage(coverage),
+    }
 
 
-def _select_paid_snapshot(*, tenant, dataset: str) -> tuple[str, TenantMetricsSnapshot | None]:
-    sources = ("upload",) if dataset == "csv_upload" else ("meta_direct", "warehouse", "upload")
+def _select_paid_snapshot(
+    *, tenant, dataset: str
+) -> tuple[str, TenantMetricsSnapshot | None]:
+    sources = (
+        ("upload",)
+        if dataset == "csv_upload"
+        else ("meta_direct", "warehouse", "upload")
+    )
     candidates: list[tuple[str, TenantMetricsSnapshot, int]] = []
     for source in sources:
         snapshot = TenantMetricsSnapshot.latest_for(tenant=tenant, source=source)
@@ -330,8 +413,12 @@ def _paid_snapshot_row_count(snapshot: TenantMetricsSnapshot) -> int:
 
 
 def _paid_payload_row_count(payload: Mapping[str, Any]) -> int:
-    campaign = payload.get("campaign") if isinstance(payload.get("campaign"), Mapping) else {}
-    summary = campaign.get("summary") if isinstance(campaign.get("summary"), Mapping) else {}
+    campaign = (
+        payload.get("campaign") if isinstance(payload.get("campaign"), Mapping) else {}
+    )
+    summary = (
+        campaign.get("summary") if isinstance(campaign.get("summary"), Mapping) else {}
+    )
     rows = [row for row in campaign.get("rows", []) if isinstance(row, Mapping)]
     trend = [row for row in campaign.get("trend", []) if isinstance(row, Mapping)]
     return len(rows) or len(trend) or (1 if summary else 0)
@@ -346,7 +433,9 @@ def _paid_direct_payload_for_range(
     if str(widget["dataset"]) == "csv_upload":
         return None
 
-    filters = widget.get("filters") if isinstance(widget.get("filters"), Mapping) else {}
+    filters = (
+        widget.get("filters") if isinstance(widget.get("filters"), Mapping) else {}
+    )
     options: dict[str, Any] = {
         "start_date": date_range.start_date.isoformat(),
         "end_date": date_range.end_date.isoformat(),
@@ -355,16 +444,59 @@ def _paid_direct_payload_for_range(
         value = filters.get(key)
         if value:
             options[key] = value
+    options.update(
+        _client_meta_scoping_options(
+            tenant=tenant,
+            client_id=str(filters.get("client_id") or "").strip(),
+            account_id=str(filters.get("account_id") or "").strip(),
+        )
+    )
 
-    payload = dict(MetaDirectAdapter().fetch_metrics(tenant_id=str(tenant.id), options=options))
+    payload = dict(
+        MetaDirectAdapter().fetch_metrics(tenant_id=str(tenant.id), options=options)
+    )
     normalized_payload = _snapshot_payload(payload)
     if not _paid_payload_has_rows(normalized_payload):
-        return None
+        has_specific_filters = any(
+            filters.get(key)
+            for key in ("account_id", "client_id", "channels", "campaign_search")
+        )
+        return normalized_payload if has_specific_filters else None
     return normalized_payload
 
 
+def _client_meta_scoping_options(
+    *, tenant, client_id: str, account_id: str
+) -> dict[str, Any]:
+    if not client_id:
+        return {}
+    try:
+        bundle = resolve_client_accounts(
+            str(tenant.id),
+            client_id,
+            platforms={ClientPlatformAccount.PLATFORM_META_ADS},
+        )
+    except (Client.DoesNotExist, ValueError):
+        return {
+            "client_scoped_meta_ad_account_ids": [],
+            "client_scope_requested": True,
+        }
+
+    scoped_aliases: set[str] = set()
+    for linked_account_id in bundle.meta_ad_account_ids:
+        scoped_aliases.update(_account_aliases(str(linked_account_id)))
+    if account_id:
+        scoped_aliases &= _account_aliases(account_id)
+    return {
+        "client_scoped_meta_ad_account_ids": sorted(scoped_aliases),
+        "client_scope_requested": True,
+    }
+
+
 def _paid_payload_has_rows(payload: Mapping[str, Any]) -> bool:
-    campaign = payload.get("campaign") if isinstance(payload.get("campaign"), Mapping) else {}
+    campaign = (
+        payload.get("campaign") if isinstance(payload.get("campaign"), Mapping) else {}
+    )
     rows = [row for row in campaign.get("rows", []) if isinstance(row, Mapping)]
     trend = [row for row in campaign.get("trend", []) if isinstance(row, Mapping)]
     return bool(rows or trend)
@@ -404,7 +536,9 @@ def _filter_rows_by_date_range(
     return filtered
 
 
-def _row_overlaps_date_range(*, row: Mapping[str, Any], date_range: PreviewDateRange) -> bool:
+def _row_overlaps_date_range(
+    *, row: Mapping[str, Any], date_range: PreviewDateRange
+) -> bool:
     row_date = _row_date(row)
     if row_date is not None:
         return date_range.start_date <= row_date <= date_range.end_date
@@ -455,31 +589,52 @@ def _paid_summary_for_range(
         return {}
 
     summary = dict(snapshot_summary)
-    totals: dict[str, float] = {}
+    totals: dict[str, float | None] = {}
     for metric, summary_key in PAID_SUMMARY_TOTAL_KEYS.items():
-        total = sum(float(_metric_value(row, metric) or 0) for row in source_rows)
+        total = _sum_metric_values(rows=source_rows, metric=metric)
         totals[metric] = total
         summary[summary_key] = total
         summary[metric] = total
 
-    impressions = totals.get("impressions") or 0
-    reach = totals.get("reach") or 0
-    clicks = totals.get("clicks") or 0
-    spend = totals.get("spend") or 0
-    conversions = totals.get("conversions") or 0
-    conversion_value = totals.get("conversion_value") or 0
+    impressions = totals.get("impressions")
+    reach = totals.get("reach")
+    clicks = totals.get("clicks")
+    spend = totals.get("spend")
+    conversions = totals.get("conversions")
+    conversion_value = totals.get("conversion_value")
 
-    summary["ctr"] = clicks / impressions if impressions else 0
-    summary["averageCpc"] = spend / clicks if clicks else 0
+    summary["ctr"] = _metric_ratio(clicks, impressions)
+    summary["averageCpc"] = _metric_ratio(spend, clicks)
     summary["cpc"] = summary["averageCpc"]
-    summary["averageCpm"] = (spend / impressions) * 1000 if impressions else 0
+    summary["averageCpm"] = _metric_ratio(spend, impressions, scale=1000)
     summary["cpm"] = summary["averageCpm"]
-    summary["averageCpa"] = spend / conversions if conversions else 0
+    summary["averageCpa"] = _metric_ratio(spend, conversions)
     summary["cpa"] = summary["averageCpa"]
-    summary["averageRoas"] = conversion_value / spend if spend else 0
+    summary["averageRoas"] = _metric_ratio(conversion_value, spend)
     summary["roas"] = summary["averageRoas"]
-    summary["frequency"] = impressions / reach if reach else 0
+    summary["frequency"] = _metric_ratio(impressions, reach)
     return summary
+
+
+def _sum_metric_values(
+    *, rows: list[Mapping[str, Any]], metric: str
+) -> float | None:
+    values = [
+        float(value)
+        for row in rows
+        if (value := _metric_value(row, metric)) is not None
+    ]
+    return sum(values) if values else None
+
+
+def _metric_ratio(
+    numerator: float | None, denominator: float | None, *, scale: float = 1.0
+) -> float | None:
+    if numerator is None or denominator is None:
+        return None
+    if denominator == 0:
+        return 0.0
+    return (numerator / denominator) * scale
 
 
 def _preview_organic_page_dataset(
@@ -492,8 +647,12 @@ def _preview_organic_page_dataset(
     metrics = [str(metric) for metric in widget.get("metrics", [])]
     dimensions = [str(dimension) for dimension in widget.get("dimensions", [])]
     page_filter = {"page__page_id": page_id} if page_id else {}
-    page_metric_keys = _source_keys_for_metrics(metrics=metrics, mapping=PAGE_METRIC_SOURCE_KEYS)
-    post_metric_keys = _source_keys_for_metrics(metrics=metrics, mapping=POST_METRIC_SOURCE_KEYS)
+    page_metric_keys = _source_keys_for_metrics(
+        metrics=metrics, mapping=PAGE_METRIC_SOURCE_KEYS
+    )
+    post_metric_keys = _source_keys_for_metrics(
+        metrics=metrics, mapping=POST_METRIC_SOURCE_KEYS
+    )
 
     if "post" in dimensions or post_metric_keys:
         rows = _post_rows(
@@ -505,7 +664,9 @@ def _preview_organic_page_dataset(
             limit=_row_limit(widget),
         )
         summary = _sum_rows(rows=rows, metrics=metrics)
-        data = _render_widget_data(widget=widget, summary=summary, rows=rows, trend=rows)
+        data = _render_widget_data(
+            widget=widget, summary=summary, rows=rows, trend=rows
+        )
         data_dates = [row["date"] for row in rows if row.get("date")]
         has_metric_values = any(
             row.get(metric) is not None
@@ -526,7 +687,9 @@ def _preview_organic_page_dataset(
             page_filter=page_filter,
         )
         summary = _sum_rows(rows=rows, metrics=metrics)
-        data = _render_widget_data(widget=widget, summary=summary, rows=rows, trend=rows)
+        data = _render_widget_data(
+            widget=widget, summary=summary, rows=rows, trend=rows
+        )
         data_dates = [row["date"] for row in rows if row.get("date")]
         source_label = "Facebook Page Insights stored rows"
 
@@ -547,10 +710,16 @@ def _preview_organic_page_dataset(
                 "for this range."
             ),
         }
-    return {"data": data, "coverage": coverage, "warnings": _warnings_for_coverage(coverage)}
+    return {
+        "data": data,
+        "coverage": coverage,
+        "warnings": _warnings_for_coverage(coverage),
+    }
 
 
-def _preview_content_ops_dataset(*, tenant, widget: Mapping[str, Any], date_range: PreviewDateRange) -> dict[str, Any]:
+def _preview_content_ops_dataset(
+    *, tenant, widget: Mapping[str, Any], date_range: PreviewDateRange
+) -> dict[str, Any]:
     from content_ops.models import OrganicPostMetricSnapshot, PublishedPost
 
     metrics = [str(metric) for metric in widget.get("metrics", [])]
@@ -583,7 +752,12 @@ def _preview_content_ops_dataset(*, tenant, widget: Mapping[str, Any], date_rang
         published_at__date__lte=date_range.end_date,
     ).count()
     if "published_posts" in metrics:
-        rows.append({"date": date_range.end_date.isoformat(), "published_posts": published_count})
+        rows.append(
+            {
+                "date": date_range.end_date.isoformat(),
+                "published_posts": published_count,
+            }
+        )
 
     summary = _sum_rows(rows=rows, metrics=metrics)
     if "published_posts" in metrics:
@@ -617,7 +791,11 @@ def _preview_content_ops_dataset(*, tenant, widget: Mapping[str, Any], date_rang
             ),
         }
     data = _render_widget_data(widget=widget, summary=summary, rows=rows, trend=rows)
-    return {"data": data, "coverage": coverage, "warnings": _warnings_for_coverage(coverage)}
+    return {
+        "data": data,
+        "coverage": coverage,
+        "warnings": _warnings_for_coverage(coverage),
+    }
 
 
 def _preview_paid_adapter(
@@ -638,7 +816,9 @@ def _preview_organic_page_adapter(
     date_range: PreviewDateRange,
     payload: Mapping[str, Any],
 ) -> dict[str, Any]:
-    filters = widget.get("filters") if isinstance(widget.get("filters"), Mapping) else {}
+    filters = (
+        widget.get("filters") if isinstance(widget.get("filters"), Mapping) else {}
+    )
     return _preview_organic_page_dataset(
         tenant=tenant,
         widget=widget,
@@ -655,7 +835,9 @@ def _preview_content_ops_adapter(
     payload: Mapping[str, Any],
 ) -> dict[str, Any]:
     del payload
-    return _preview_content_ops_dataset(tenant=tenant, widget=widget, date_range=date_range)
+    return _preview_content_ops_dataset(
+        tenant=tenant, widget=widget, date_range=date_range
+    )
 
 
 DATASET_PREVIEW_ADAPTERS = {
@@ -692,7 +874,11 @@ def _render_widget_data(
         return {
             "kind": "kpi",
             "metrics": [
-                {"key": metric, "label": _label(metric), "value": _metric_value(summary, metric)}
+                {
+                    "key": metric,
+                    "label": _label(metric),
+                    "value": _metric_value(summary, metric),
+                }
                 for metric in metrics
             ],
         }
@@ -700,7 +886,9 @@ def _render_widget_data(
         return {
             "kind": "timeseries",
             "x": dimensions[0] if dimensions else "date",
-            "rows": [_project_row(row, dimensions=["date"], metrics=metrics) for row in trend],
+            "rows": [
+                _project_row(row, dimensions=["date"], metrics=metrics) for row in trend
+            ],
         }
     if widget_type == "bar_chart":
         dimension = dimensions[0] if dimensions else "source"
@@ -722,7 +910,11 @@ def _render_widget_data(
         ]
         if extra_columns:
             if "post" in columns:
-                columns = ["post", *extra_columns, *[column for column in columns if column != "post"]]
+                columns = [
+                    "post",
+                    *extra_columns,
+                    *[column for column in columns if column != "post"],
+                ]
             else:
                 columns = [*dimensions, *extra_columns, *metrics]
         return {
@@ -767,7 +959,10 @@ def _page_metric_rows(
             str(point["metric_key"]),
             level=MetaMetricRegistry.LEVEL_PAGE,
         )
-        row[product_metric or point["metric_key"]] = _number(point["value"])
+        target_metric = product_metric or point["metric_key"]
+        value = _number(point["value"])
+        if value is not None or row.get(target_metric) is None:
+            row[target_metric] = value
     return list(by_date.values())
 
 
@@ -824,12 +1019,18 @@ def _post_rows(
         product_metric = map_reporting_source_metric_to_product_metric(
             "organic_facebook_page",
             str(point["metric_key"]),
-            breakdown_key=str(point.get("breakdown_key_normalized") or point.get("breakdown_key") or ""),
+            breakdown_key=str(
+                point.get("breakdown_key_normalized")
+                or point.get("breakdown_key")
+                or ""
+            ),
             level=MetaMetricRegistry.LEVEL_POST,
         )
         if product_metric is None:
             continue
-        row[product_metric] = _number(point["value"])
+        value = _number(point["value"])
+        if value is not None or row.get(product_metric) is None:
+            row[product_metric] = value
     rendered_rows = list(rows.values())[:limit]
     if rendered_rows:
         return rendered_rows
@@ -850,15 +1051,12 @@ def _post_activity_rows(
     page_filter: dict[str, str],
     limit: int,
 ) -> list[dict[str, Any]]:
-    posts = (
-        MetaPost.all_objects.filter(
-            tenant=tenant,
-            created_time__date__gte=date_range.start_date,
-            created_time__date__lte=date_range.end_date,
-            **page_filter,
-        )
-        .order_by("-created_time", "post_id")[:limit]
-    )
+    posts = MetaPost.all_objects.filter(
+        tenant=tenant,
+        created_time__date__gte=date_range.start_date,
+        created_time__date__lte=date_range.end_date,
+        **page_filter,
+    ).order_by("-created_time", "post_id")[:limit]
     rows: list[dict[str, Any]] = []
     for post in posts:
         row: dict[str, Any] = {
@@ -874,7 +1072,9 @@ def _post_activity_rows(
     return rows
 
 
-def _sum_rows(*, rows: list[Mapping[str, Any]], metrics: list[str]) -> dict[str, float | None]:
+def _sum_rows(
+    *, rows: list[Mapping[str, Any]], metrics: list[str]
+) -> dict[str, float | None]:
     summary: dict[str, float | None] = {}
     for metric in metrics:
         values = [
@@ -897,7 +1097,12 @@ def _group_rows(
         key = str(row.get(dimension) or row.get(_camel(dimension)) or "Unspecified")
         target = grouped.setdefault(key, {dimension: key})
         for metric in metrics:
-            target[metric] = float(target.get(metric) or 0) + float(_metric_value(row, metric) or 0)
+            value = _metric_value(row, metric)
+            if value is None:
+                target.setdefault(metric, None)
+                continue
+            current = target.get(metric)
+            target[metric] = float(value) if current is None else float(current) + float(value)
     return list(grouped.values())
 
 
@@ -920,8 +1125,14 @@ def _metric_value(source: Mapping[str, Any], metric: str) -> Any:
         if key in source and source[key] is not None:
             return _number(source[key])
     if metric in CONTENT_OPS_METRIC_FIELDS:
-        return _number(source.get(metric) or source.get(CONTENT_OPS_METRIC_FIELDS[metric]))
-    return _number(source.get(metric) or source.get(_camel(metric)))
+        for key in (metric, CONTENT_OPS_METRIC_FIELDS[metric]):
+            if key in source and source[key] is not None:
+                return _number(source[key])
+        return None
+    for key in (metric, _camel(metric)):
+        if key in source and source[key] is not None:
+            return _number(source[key])
+    return None
 
 
 def _number(value: Any) -> Any:
@@ -1025,10 +1236,20 @@ def _coverage_status_from_dates(
 ) -> str:
     if row_count <= 0:
         return "missing_history"
-    parsed = sorted(parse_date(value[:10]) for value in data_dates if parse_date(value[:10]))
+    parsed = sorted(
+        parse_date(value[:10]) for value in data_dates if parse_date(value[:10])
+    )
     if not parsed:
         return "fresh"
     if parsed[0] > requested.start_date or parsed[-1] < requested.end_date:
+        return "partial"
+    covered_dates = {
+        value for value in parsed if requested.start_date <= value <= requested.end_date
+    }
+    if any(
+        value not in covered_dates
+        for value in _date_range(requested.start_date, requested.end_date)
+    ):
         return "partial"
     return "fresh"
 
@@ -1045,19 +1266,25 @@ def _coverage_payload(
     data_dates: list[str] | None = None,
 ) -> dict[str, Any]:
     parsed_dates = (
-        sorted(parse_date(value[:10]) for value in (data_dates or []) if parse_date(value[:10]))
+        sorted(
+            parse_date(value[:10])
+            for value in (data_dates or [])
+            if parse_date(value[:10])
+        )
         if row_count > 0
         else []
     )
     covered_start = parsed_dates[0] if parsed_dates else None
     covered_end = parsed_dates[-1] if parsed_dates else None
     status = status if status in COVERAGE_STATUSES else "unsupported_metric"
+    coverage_gap = _coverage_gap_payload(requested=requested, data_dates=parsed_dates)
     coverage_note = note or _coverage_note(
         status=status,
         source_label=source_label,
         covered_end=covered_end,
+        coverage_gap=coverage_gap,
     )
-    return {
+    payload = {
         "dataset": dataset,
         "requested_start_date": requested.start_date.isoformat(),
         "requested_end_date": requested.end_date.isoformat(),
@@ -1065,21 +1292,80 @@ def _coverage_payload(
         "covered_end_date": covered_end.isoformat() if covered_end else None,
         "coverage_status": status,
         "history_status": "available" if row_count else "missing",
-        "freshness_status": "stale" if status in {"stale", "source_disconnected"} else status,
+        "freshness_status": "stale"
+        if status in {"stale", "source_disconnected"}
+        else status,
         "last_successful_sync_at": generated_at.isoformat() if generated_at else None,
         "row_count": row_count,
         "source_label": source_label,
         "coverage_note": coverage_note,
     }
+    if status == "partial" and coverage_gap:
+        payload["coverage_gap"] = coverage_gap
+    return payload
 
 
-def _coverage_note(*, status: str, source_label: str, covered_end: date | None) -> str:
+def _coverage_gap_payload(
+    *,
+    requested: PreviewDateRange,
+    data_dates: list[date],
+) -> dict[str, Any]:
+    requested_dates = list(_date_range(requested.start_date, requested.end_date))
+    covered_dates = {
+        value
+        for value in data_dates
+        if requested.start_date <= value <= requested.end_date
+    }
+    missing_dates = [value for value in requested_dates if value not in covered_dates]
+    if not missing_dates:
+        return {}
+
+    include_missing_dates = len(requested_dates) <= 92
+    return {
+        "requested_day_count": len(requested_dates),
+        "covered_day_count": len(covered_dates),
+        "missing_day_count": len(missing_dates),
+        "missing_start_date": missing_dates[0].isoformat(),
+        "missing_end_date": missing_dates[-1].isoformat(),
+        "missing_dates": [value.isoformat() for value in missing_dates]
+        if include_missing_dates
+        else [],
+        "missing_dates_truncated": not include_missing_dates,
+        "has_leading_gap": requested.start_date in missing_dates,
+        "has_trailing_gap": requested.end_date in missing_dates,
+    }
+
+
+def _date_range(start: date, end: date):
+    current = start
+    while current <= end:
+        yield current
+        current += timedelta(days=1)
+
+
+def _coverage_note(
+    *,
+    status: str,
+    source_label: str,
+    covered_end: date | None,
+    coverage_gap: Mapping[str, Any] | None = None,
+) -> str:
     if status == "fresh":
         return f"{source_label} covers the requested range."
     if status == "source_disconnected":
         suffix = f" through {covered_end.isoformat()}" if covered_end else ""
         return f"{source_label} is disconnected. This preview uses stored data{suffix}."
     if status == "partial":
+        if coverage_gap:
+            missing_count = int(coverage_gap.get("missing_day_count") or 0)
+            missing_start = str(coverage_gap.get("missing_start_date") or "")
+            missing_end = str(coverage_gap.get("missing_end_date") or "")
+            if missing_count and missing_start and missing_end:
+                day_label = "day" if missing_count == 1 else "days"
+                return (
+                    f"{source_label} is missing {missing_count} requested {day_label} "
+                    f"from {missing_start} through {missing_end}."
+                )
         return f"{source_label} has partial retained history for the requested range."
     if status == "stale":
         return f"{source_label} is stale. This preview uses the latest stored snapshot."
@@ -1124,7 +1410,9 @@ def _has_inactive_meta_connection(*, tenant) -> bool:
 
 
 def _is_stale(generated_at) -> bool:
-    ttl_seconds = max(int(getattr(settings, "METRICS_SNAPSHOT_STALE_TTL_SECONDS", 3600) or 3600), 1)
+    ttl_seconds = max(
+        int(getattr(settings, "METRICS_SNAPSHOT_STALE_TTL_SECONDS", 3600) or 3600), 1
+    )
     return (timezone.now() - generated_at).total_seconds() > ttl_seconds
 
 

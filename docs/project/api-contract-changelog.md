@@ -13,6 +13,532 @@ Keep this brief and link to PRs or commits when available.
 
 ## Entries
 
+- **2026-06-30**
+  - Endpoint: management command `slb_report_evidence_validate`.
+  - Change: Added `--validation-mode product_finish` beside the default strict
+    `cancellation` mode. Product-finish mode keeps product/safety/export
+    blockers strict but treats missing or unresolved parity comparison artifacts
+    as warning-only optional evidence. The default mode still requires parity
+    and remains the path for G6/G12 cancellation evidence.
+  - Impact: SLB product-readiness runs can now prove internal report capability
+    with `blocker_count=0` while preserving formal DashThis/source parity as a
+    separate cancellation gate. Existing callers keep strict behavior because
+    `cancellation` remains the default.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Raj review
+
+- **2026-06-28**
+  - Endpoint: `POST /api/dashboards/widget-preview/`;
+    `GET /api/reports/data-availability/`.
+  - Change: Stored-data coverage now treats missing internal requested dates as
+    `partial` coverage even when retained rows exist on both the requested
+    start and end dates. Existing `coverage_gap` details now surface for those
+    internal gaps, and `coverage_note` names the missing date span instead of
+    implying endpoint rows cover the full period.
+  - Impact: SLB May paid coverage and report-builder availability can no longer
+    appear `fresh` from endpoint-only rows. Warning-only exports remain allowed
+    where the SLB export policy permits `partial`, but parity and cancellation
+    evidence must still account for every missing day or import/backfill the
+    selected scope.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Raj review
+
+- **2026-06-28**
+  - Endpoint: management commands `import_meta_paid_csv` and
+    `import_meta_organic_csv`.
+  - Change: Manual Meta CSV fallback imports now reject non-finite metric
+    tokens such as `NaN` and `Infinity` with the same numeric-validation error
+    used for other invalid metric values.
+  - Impact: Approved paid or organic fallback files cannot seed impossible
+    aggregate values into stored report preview/export data, runtime
+    availability states, or SLB parity evidence. Blank cells are still skipped
+    and rendered as null/no-data; valid finite aggregate source values remain
+    importable.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Raj review
+
+- **2026-06-28**
+  - Endpoint: management command `slb_report_parity_compare`.
+  - Change: Blank or placeholder comparison inputs such as empty strings,
+    `n/a`, `none`, `null`, `tbd`, and `-` are now treated as missing source
+    values. If a row provides a blank higher-priority value plus a numeric
+    fallback (`dashthis_value`, `source_value`, or `comparison_value`), the
+    comparator uses the numeric fallback; if every source value is blank, the
+    row stays `blocked_missing_source_value` and blank unmatched rows are not
+    emitted as source facts.
+  - Impact: G6/SLB parity evidence can no longer mistake spreadsheet blanks or
+    placeholder strings for metric-semantics blockers or unmatched source
+    evidence. Missing source values remain explicit missing-source blockers
+    until approved real values are provided.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Raj review
+
+- **2026-06-28**
+  - Endpoint: management commands `slb_report_parity_compare` and
+    `slb_report_evidence_validate`.
+  - Change: Parity comparison now treats non-finite numeric inputs such as
+    `NaN` and `Infinity` as non-numeric source values, leaving the row blocked
+    for metric semantics instead of computing a delta. Offline evidence
+    validation now rejects `pass` rows whose ADinsights value, source value,
+    delta, percent delta, or accepted tolerance is non-finite or non-numeric.
+  - Impact: G6/SLB parity evidence cannot pass on placeholder or hand-edited
+    non-finite values. Real source values and retained ADinsights values are
+    still required; missing values remain null/no-data rather than zero.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Raj review
+
+- **2026-06-28**
+  - Endpoint: `POST /api/dashboards/widget-preview/`;
+    `GET /api/reports/data-availability/`; report.v1 preview/export snapshots
+    that consume Meta direct paid rows.
+  - Change: Manual paid CSV rows now preserve blank metric cells as `null`
+    preview values by honoring the row's stored `metric_columns` metadata.
+    Paid summary totals and derived metrics also remain `null` when every
+    source row lacks the required input, instead of using model-default zeroes.
+    Report data availability uses the same supplied-column metadata, and
+    derived metric states such as `ctr`, `cpc`, and `frequency` require their
+    base inputs before being marked `available`.
+  - Impact: Selected-account SLB paid fallback imports no longer imply measured
+    zero reach/click/conversion or derived-rate values when an approved Meta
+    Ads UI/export file omitted those columns. Runtime metric availability chips
+    now stay `callable_no_data` for blank manual paid metrics and derived rates
+    whose inputs were not supplied. Existing fields are unchanged; consumers
+    should continue treating `null` as no-data with the visible
+    warning/availability metadata.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Raj review
+
+- **2026-06-28**
+  - Endpoint: `POST /api/dashboards/widget-preview/`; report.v1 preview/export
+    snapshots that consume grouped bar rows.
+  - Change: Grouped preview rows now preserve `null` for metrics that have no
+    retained source value in a group instead of aggregating missing values as
+    `0`.
+  - Impact: Organic Facebook/Page bar widgets and downstream report snapshots
+    no longer imply measured zero reach/impression/click values when Graph
+    returned only synced post activity without metric rows. Existing payload
+    fields are unchanged; consumers should continue treating `null` as no-data
+    and warning/availability metadata as the source of truth.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Raj review
+
+- **2026-06-28**
+  - Endpoint: management command `slb_report_evidence_validate`.
+  - Change: G6 parity validation now requires each
+    `blocked_missing_source_value` row to have a matching
+    `missing_source_values` inventory entry keyed by dataset, widget, and
+    metric, with non-empty reason text.
+  - Impact: Missing-source parity rows can no longer rely only on broad search
+    provenance; reviewers get row-level source-value accounting before
+    G11/G12 can treat parity evidence as complete. Existing output fields are
+    unchanged, and real source values are still required before parity can
+    pass.
+  - Owner: Sofia (Backend API) + Hannah (evidence/runbooks) + Raj review
+
+- **2026-06-28**
+  - Endpoint: `POST /api/reports/{id}/preview/`; report export job
+    `metadata.report_preview.report_snapshot` consumed by saved-layout
+    PDF/PNG rendering.
+  - Change: `report.v1` preview widgets now include additive `metrics` and
+    `dimensions` arrays copied from the governed widget definition. The
+    frontend report-builder adapter and backend saved-layout snapshot adapter
+    use those declared metric keys for source signatures before falling back to
+    row-key inference.
+  - Impact: Governed table widgets keep dimensions such as `campaign`, `post`,
+    and `content` as display columns without treating them as metric bindings.
+    Stale-layout merge, runtime availability annotation, and PDF/PNG saved-grid
+    exports now match by declared metrics only. Existing preview fields and
+    rendered values are unchanged, missing values remain null/blank, and no
+    live provider calls are added.
+  - Owner: Sofia (Backend API) + Lina/Joel (report UX) + Raj review
+
+- **2026-06-28**
+  - Endpoint: management command `slb_report_evidence_validate`.
+  - Change: Scheduled dry-run export rows
+    (`delivery_status.mode="dry_run"`) no longer count toward required
+    completed CSV/PDF/PNG export coverage and are excluded from additive
+    `export_evidence.selected_completed_exports`. Rendered scheduled dry-run
+    evidence is still required and validated separately.
+  - Impact: G5/G7 evidence can no longer mistake a scheduled dry-run PDF for
+    the manual completed PDF artifact. Existing output fields are unchanged;
+    consumers that read selected completed exports now receive only non-dry-run
+    completed artifacts.
+  - Owner: Sofia (Backend API) + Hannah (evidence/runbooks) + Raj review
+
+- **2026-06-27**
+  - Endpoint: management commands `slb_report_export_evidence` and
+    `slb_report_evidence_bundle`; management command
+    `slb_report_evidence_validate`.
+  - Change: Fixed-target SLB CSV/PDF/PNG export jobs created by the command now
+    attach the same matching `metadata.report_layout` snapshot used by API
+    report exports before running the export task. Successful
+    `slb_export_evidence_run.v1` export rows include additive
+    `report_layout_source` and `report_layout_governed_widget_append_count`
+    fields copied from completed job metadata. The fixed-range
+    `slb_evidence_bundle.v1` export summary now carries the same fields for
+    completed export jobs. Offline validation now keeps the newest reproducible
+    completed export row per format and emits additive `export_evidence`
+    selected-export inventory with the selected layout source and append count.
+  - Impact: G5/G7 evidence can prove fixed-target PDF/PNG artifacts used the
+    governed saved-layout path, including stale-layout governed widget
+    augmentation, both in the standalone export run and the bundled G2-G9
+    evidence packet. Newer same-hash layout-backed exports are not hidden by
+    older same-hash historical rows. Offline validation also emits additive
+    `blocking_next_actions` derived from parity completion requirements so G6
+    reviewers can distinguish runnable imports from blocked prerequisites
+    without weakening parity readiness. No live provider calls are added and CSV
+    row auditability is unchanged. Existing evidence consumers can ignore the
+    new fields.
+  - Owner: Sofia (Backend API) + Hannah (evidence/runbooks) + Raj review
+
+- **2026-06-27**
+  - Endpoint: `POST /api/reports/{id}/exports/`,
+    `POST /api/reports/{id}/scheduled-dry-run/`, and report export job
+    metadata consumed by the PDF/PNG exporter.
+  - Change: Matching `metadata.report_layout` snapshots now append any governed
+    `report.v1` preview widgets missing from the saved `report-<report_id>`
+    grid before PDF/PNG rendering. The merge matches existing saved widgets by
+    widget id and dataset/widget/metric source signature, places appended
+    widgets below the custom grid, and includes additive
+    `report_layout.governed_widget_append_count`. Missing metric values remain
+    `null`/blank render values rather than synthetic zeros.
+  - Impact: Stale client-customized saved layouts can no longer hide newly
+    governed SLB warning notes or metrics in PDF/PNG exports. Existing consumers
+    can ignore the appended widgets/count, CSV remains the governed row snapshot,
+    no live provider calls are introduced, and tenant isolation remains enforced
+    by the tenant-scoped saved-layout lookup.
+  - Owner: Sofia (Backend API) + Lina/Joel (report UX) + Raj review
+
+- **2026-06-27**
+  - Endpoint: management command `slb_report_parity_compare`; management
+    command `slb_report_evidence_validate`.
+  - Change: Added additive parity result label
+    `blocked_missing_adinsights_value` for rows where an approved numeric
+    DashThis/source value exists but the fixed ADinsights report snapshot has no
+    retained value to compare. The existing `blocked_metric_semantics` label now
+    remains reserved for non-numeric values or missing tolerance/semantic
+    confirmation. Completion requirements group the new label into executable
+    import/backfill prerequisites such as tenant-owned SLB Page selection before
+    manual organic CSV import.
+  - Impact: G6/OPS evidence can distinguish "source exists but ADinsights still
+    lacks report data" from true metric-semantics/tolerance uncertainty, without
+    inventing values or weakening parity blockers. Existing `pass`, `fail`,
+    `blocked_missing_dashthis_value`, `blocked_missing_source_value`, and
+    `blocked_metric_semantics` labels remain valid.
+  - Owner: Sofia (Backend API) + Hannah (evidence/runbooks) + Raj review
+
+- **2026-06-27**
+  - Endpoint: management command `import_meta_organic_csv`;
+    `GET /api/reports/data-availability/`; report widget preview internals for
+    organic Facebook Page/Post datasets.
+  - Change: Approved manual organic CSV product columns such as `page_reach`,
+    `page_impressions`, `post_reach`, and `post_impressions` are now persisted
+    as product metric keys. Source-key columns such as `page_media_view` and
+    `post_media_view` remain accepted, but they persist as source rows and do
+    not by themselves clear `permission_gated` reach/impression product-metric
+    availability. Report preview and data availability now include explicit
+    product-key rows in their source lookup path so approved manual imports can
+    make gated product metrics available without treating replacement media-view
+    rows as proof of approval.
+  - Impact: META-002 manual organic fallback can load approved aggregate Meta
+    UI/export values into the same tenant-scoped reporting tables without
+    `read_insights`, provider calls, user-level data, or synthetic zeros. Existing
+    source-key imports remain compatible, but operators must import approved
+    product metric columns to clear gated reach/impression availability.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Raj review
+
+- **2026-06-27**
+  - Endpoint: management command `slb_report_evidence_bundle`.
+  - Change: The compact `data_availability.datasets.paid_meta_ads` evidence
+    summary now includes additive `out_of_scope_retained_rows` when the
+    requested SLB paid account/client scope has zero retained rows but other
+    tenant Meta accounts have retained rows in the same requested date range.
+    The summary is aggregate-only (`account_count`, `row_count`, date span,
+    selected-scope row count, and exclusion reason) and intentionally omits the
+    out-of-scope account IDs/names already stripped from evidence bundles.
+    `slb_report_evidence_validate` now blocks malformed
+    `out_of_scope_retained_rows` summaries that expose account identifiers,
+    account names, row-level account details, or a nonzero selected-scope row
+    count.
+  - Impact: SLB-002 fixed-target evidence can prove why May paid data remains
+    warning-only for the selected SLB account without substituting unrelated
+    tenant paid rows or exposing account identifiers. Existing export
+    eligibility, scoped row counts, and credential diagnostics are unchanged.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Raj review
+
+- **2026-06-26**
+  - Endpoint: `GET /api/reports/data-availability/`.
+  - Change: Each dataset payload now includes additive
+    `metric_availability` with schema `report_metric_availability.v1`,
+    canonical states (`available`, `callable_no_data`, `permission_gated`,
+    `unsupported`), state summary counts, and per-metric source-key row counts.
+    Runtime states are scoped to the requested tenant/date/account/Page and keep
+    missing stored values as no-data/null rather than zero. Permission-gated
+    organic reach/impression product metrics stay gated unless explicit stored
+    product-metric rows exist; replacement rows such as media views do not make
+    them available.
+  - Impact: Report-builder and SLB readiness UX can distinguish supported
+    metrics with no retained data from permission-gated or unsupported metrics
+    before preview/export. Existing dataset coverage fields, paid
+    `scope_diagnostic`, and export eligibility fields are unchanged.
+  - Owner: Sofia (Backend API) + Lina/Joel (frontend reporting UX) + Raj review
+
+- **2026-06-26**
+  - Endpoint: canonical Meta Page/Post Insights responses under
+    `GET /api/meta/pages/{page_id}/overview/`,
+    `GET /api/meta/pages/{page_id}/timeseries/`,
+    `GET /api/meta/pages/{page_id}/posts/`,
+    `GET /api/meta/posts/{post_id}/`, and
+    `GET /api/meta/posts/{post_id}/timeseries/`.
+  - Change: Each `metric_availability[metric]` entry now includes additive
+    `availability_state` and `availability_note` fields. States are
+    `available`, `callable_no_data`, `permission_gated`, and `unsupported`.
+    Existing `supported`, `status`, `last_checked_at`, and `reason` fields are
+    unchanged. Metrics with a valid registry/support path but no retained rows
+    for the requested scope/range now remain `supported=true` while reporting
+    `availability_state="callable_no_data"` instead of looking equivalent to a
+    measured zero or a normal available metric. Missing Page permissions and
+    auth/permission support errors report `permission_gated`; invalid,
+    deprecated, blocked, or non-permission support failures report
+    `unsupported`.
+  - Impact: Frontend Meta Page dashboards and report-builder source selection
+    can distinguish "callable but no retained data" from unsupported or
+    permission-gated metrics without breaking existing consumers that still read
+    the boolean `supported` field. No live provider calls are added, no
+    `read_insights` scope is introduced, and missing stored values remain null.
+  - Owner: Sofia (Backend API) + Lina/Joel (frontend reporting UX) + Raj review
+
+- **2026-06-26**
+  - Endpoint: `GET /api/reports/{id}/diagnostics/`; management command
+    `slb_backfill_meta_reporting`.
+  - Change: SLB `source_health.remediation_actions` now include additive
+    `dry_run_command_template` values next to existing write-capable
+    `command_template` values for paid backfill, manual paid CSV import, manual
+    organic CSV import, organic Page/Post backfill, and Content Ops refresh
+    actions. `slb_backfill_meta_reporting` also emits additive
+    `post_backfill_commands.manual_paid_csv_import_dry_run`, and
+    `fallback_actions[].code=manual_meta_paid_csv_import` includes the same
+    dry-run import template. Fixed-range `slb_backfill_meta_reporting`
+    dry-runs now skip the request audit row and emit additive
+    `audit_event={"status":"skipped","reason":"dry_run"}`; non-dry-run
+    executions still record the redacted audit event and emit
+    `audit_event={"status":"recorded"}`. Organic post backfill dry-runs also
+    keep edge-sourced engagement enrichment plan-only, returning
+    `engagement_edges[page_id].status="planned"` with `no_live_provider_calls`
+    instead of calling Meta edge endpoints.
+  - Impact: Support/evidence packets can tell operators to validate candidate
+    paid or organic source files and write-capable backfill commands before
+    mutating stored reporting rows, audit logs, or upstream provider state.
+    Existing command fields are unchanged and remain redacted with
+    placeholders.
+  - Owner: Sofia (Backend API) + Hannah (evidence/runbooks) + Raj review
+
+- **2026-06-26**
+  - Endpoint: management command `slb_report_parity_compare`; management
+    command `slb_report_evidence_validate`.
+  - Change: `slb_parity_comparison.v1` output now includes additive
+    `source_search_provenance` copied from the comparison-values JSON after
+    sanitizing sensitive-looking source text in `source`, `queries`, and
+    `result` fields. The evidence validator now requires substantive
+    `source_search_provenance` whenever parity rows contain
+    `blocked_missing_source_value`. The parity comparison also emits additive
+    `unresolved_row_count`, `unresolved_summary`, and `unresolved_rows`; the
+    offline validator mirrors that inventory as `unresolved_parity` so the
+    remaining G6 rows can be audited by dataset, metric, and result. The
+    comparator now also carries sanitized `missing_source_values` and
+    `unmatched_source_values` from the comparison-values JSON; the validator
+    mirrors those counts and rows as `source_value_inventory`. Unresolved rows
+    now include additive `recommended_next_action` text that distinguishes
+    missing source exports, selected-account paid backfill, manual organic
+    import prerequisites, and Content Ops aggregate-source needs. Comparator
+    and validator outputs also include additive
+    `parity_completion_requirements`, grouping unresolved rows into executable
+    requirement codes such as selected-account paid source export, tenant-owned
+    SLB Page selection before organic import, and approved Content Ops source
+    totals. These groups include redacted `source_health.report_scope`
+    evidence and `can_run_now=false` when prerequisites are still absent.
+  - Impact: G6 parity evidence can prove which local/Gmail/Drive/source
+    searches were checked when paid/content source values remain unavailable and
+    which reviewed source facts were intentionally not mapped to current parity
+    rows, without turning missing values into zeroes or leaking emails, tokens,
+    or secrets. Missing-source parity rows without search proof stay blocked,
+    and unresolved organic/source rows remain visible as explicit inventory
+    instead of narrative-only blockers. The recommended actions make the
+    remaining blocker list executable without treating any row as passing. The
+    grouped completion requirements let G6/G1 reviewers see which blocker type
+    must be satisfied next without weakening the parity gate. Existing
+    consumers can ignore the new fields.
+  - Owner: Sofia (Backend API) + Hannah (evidence/runbooks) + Raj review
+
+- **2026-06-26**
+  - Endpoint: `POST /api/reports/{id}/exports/`,
+    `POST /api/reports/{id}/scheduled-dry-run/`, and report export job
+    metadata consumed by the PDF/PNG exporter.
+  - Change: `report.v1` export jobs now include an additive
+    `metadata.report_layout` snapshot when a matching saved
+    `SavedReportLayout.config.id == report-<report_id>` exists. Manual exports
+    prefer the requester-owned layout and fall back to the newest shared tenant
+    layout; scheduled dry-runs use the requester-owned layout when present, then
+    the newest shared tenant layout. The snapshot carries only layout id/name,
+    sharing/source metadata, update timestamp, and the aggregate-only grid
+    `config`. PDF/PNG render payloads now pass that saved grid config to the
+    `report_v1_snapshot` renderer; CSV remains the governed row snapshot so
+    coverage/status audit columns are preserved.
+  - Impact: Edited report-builder layouts can now affect client-facing visual
+    exports without live provider calls or invented data. Existing consumers can
+    ignore `metadata.report_layout`; no fields were removed and tenant isolation
+    remains enforced by tenant-scoped saved-layout lookup.
+  - Owner: Sofia (Backend API) + Lina/Joel (report UX) + Raj review
+
+- **2026-06-26**
+  - Endpoint: management commands `slb_report_export_evidence` and
+    `slb_report_evidence_bundle`; management command `slb_report_history_probe`;
+    management command `slb_report_evidence_validate`;
+    management command `slb_backfill_meta_reporting`;
+    management command `import_meta_paid_csv`;
+    `GET /api/reports/{id}/diagnostics/`.
+  - Change: `slb_export_evidence_run.v1` output and `slb_evidence_bundle.v1`
+    output now include an additive compact
+    `data_availability` summary. The summary preserves the canonical
+    `report_data_availability.v1` eligibility flags, requested scope,
+    per-dataset coverage statuses, coverage-gap counts without exact
+    `missing_dates`, and any `paid_meta_ads.scope_diagnostic.credential_status`
+    guidance. `slb_history_probe.v1` now includes the same summary inside each
+    probe window (`primary_month` and `retained_90_day`). The offline validator
+    consumes that summary when present and emits `data_availability_paid_credential`
+    when the selected paid Meta account is missing a retained credential.
+    Diagnostics `source_health` now also includes an additive redacted
+    `report_scope.paid_meta_ads` block for SLB reports, with scoped row counts,
+    redacted selected-account credential status, backfill status, and a
+    placeholder `slb_paid_meta_backfill` remediation command. It also includes
+    additive `report_scope.organic_facebook_page` diagnostics with Page scope
+    presence, matched/available/analyzable Page counts, scoped row counts,
+    backfill status, and required action; organic import/backfill remediation
+    actions now require selecting the tenant-owned SLB Facebook Page when the
+    report has no explicit Page scope. Added an
+    operator-only `import_meta_paid_csv` command that imports approved daily
+    Meta Ads UI/export aggregate rows into tenant-scoped `RawPerformanceRecord`
+    and `Campaign` rows without live provider calls; multi-day aggregate rows
+    are rejected so coverage cannot be overstated. The command now supports
+    `--dry-run`, which validates the same selected-account daily CSV/campaign/record mapping and
+    emits additive `dry_run=true` without writing paid records, creating campaigns, or recording an
+    import audit event. `slb_backfill_meta_reporting`
+    now also returns the redacted manual paid CSV import command in
+    `post_backfill_commands.manual_paid_csv_import` and as a structured
+    `manual_meta_paid_csv_import` fallback action when paid API backfill is
+    blocked by a missing/reauth-required Meta credential. For the SLB template,
+    scoped `paid_meta_ads` `missing_history`/`not_previously_synced` coverage is
+    now warning-only, and `slb_history_probe.v1` classifies those retained-history
+    rows as `warning_only_no_aggregate_rows` when no selected-account rows exist.
+  - Impact: G2-G9/G5/G7 evidence packets can now show whether scoped SLB paid
+    values are absent because the selected ad account lacks retained rows and a
+    retained Meta credential, without falling back to unrelated tenant paid
+    accounts, exposing secrets, or requiring a separate data-availability API
+    lookup. Operators can dry-run a candidate selected-account daily paid export before committing
+    rows. Retained-history evidence carries the same selected-account diagnostic
+    for both date windows. G8 support diagnostics can point operators to the paid
+    reconnect/backfill action without exposing account IDs, or to a manual daily
+    paid CSV import when live reconnect/backfill is unavailable. The fixed-range
+    backfill dry-run gives the same manual fallback hint at the point of failure.
+    CSV/PDF/PNG export evidence can now complete with explicit no-data warnings
+    for the selected paid account while preserving the reconnect/backfill
+    diagnostic. Existing fields were not removed.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Raj review
+
+- **2026-06-26**
+  - Endpoint: `GET /api/reports/data-availability/`.
+  - Change: Paid Meta availability now applies `client_id` by resolving the
+    client's linked Meta ad accounts, intersecting with `account_id` when both
+    are present. The `paid_meta_ads` dataset may include an additive
+    `scope_diagnostic` object when the selected account/client scope has no
+    retained rows. Account-scoped diagnostics include additive safe
+    `credential_status` metadata (`status`, provider, matched account id, token
+    status, and last validation timestamp) without tokens or raw provider
+    errors. Current diagnostic codes include `requested_account_no_rows`,
+    `client_scope_no_rows`, `client_has_no_meta_ad_accounts`, and
+    `requested_account_not_in_client`.
+  - Impact: Readiness checks now match report preview/export scoping more
+    closely. A tenant with paid rows for another account no longer satisfies the
+    scoped SLB paid dataset; operators get a safe required action for
+    reconnecting/linking the intended Meta ad account and running paid backfill.
+    For the SLB monthly template, missing selected-account paid rows/credentials
+    are warning-only export states with explicit no-data diagnostics, not a
+    license to reuse unrelated paid rows. No existing fields were removed.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Raj review
+
+- **2026-06-26**
+  - Endpoint: `POST /api/reports/{id}/preview/`, `POST /api/reports/{id}/exports/`,
+    and dashboard/report widget preview internals for `paid_meta_ads`.
+  - Change: SLB `report.v1` paid Meta widgets now require explicit `account_id`
+    or `client_id` scope before preview/export. Unscoped SLB paid widgets render
+    as blocked widgets instead of reading every retained Meta row for the tenant.
+    The paid widget preview path also expands `client_id` into linked Meta ad
+    accounts before calling the direct stored-row adapter, and scoped direct
+    previews no longer fall back to an unscoped tenant snapshot when the selected
+    account/client has no rows.
+  - Impact: Existing scoped SLB reports remain compatible. Unscoped SLB reports
+    now fail closed with a clear blocker, preventing cross-client paid campaign
+    leakage in previews and export evidence. Client-scoped report/widget previews
+    now match combined-metrics scoping semantics more closely. No response fields
+    were removed; clients should already handle blocked widget status and
+    `export_ready=false`.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Raj review
+
+- **2026-06-26**
+  - Endpoint: management command `import_meta_organic_csv`,
+    management command `slb_report_export_evidence`,
+    `GET /api/dashboards/reporting-catalog/`,
+    `GET /api/reports/data-availability/`, `POST /api/reports/from-template/`,
+    `POST /api/reports/slb-monthly-template/`, and `POST /api/reports/{id}/exports/`.
+  - Change: Added an operator-only `import_meta_organic_csv` path that reads a
+    tenant-scoped Meta UI/export CSV and upserts numeric Page/Post organic values into
+    existing `MetaInsightPoint` / `MetaPostInsightPoint` reporting rows without live
+    provider calls. Blank metric cells are skipped instead of converted to zero, and
+    missing posts are created under an existing tenant-owned `MetaPage`. The command now supports
+    `--dry-run`, which validates the same CSV/page/post/metric mapping and emits the same aggregate
+    count summary with additive `dry_run=true` without writing reporting rows, creating posts, or
+    recording an import audit event. The reporting
+    catalog now exposes additive per-metric `availability_state` and `availability_note`
+    fields plus `compatibility.metric_availability_states` (`available`,
+    `callable_no_data`, `permission_gated`, `unsupported`). Organic Facebook
+    reach/impression/click metrics that depend on Meta organic insights access are
+    marked `permission_gated`; Page follows plus edge-sourced post reactions, comments,
+    and shares are marked `available` and exposed through `source_metric_semantics`.
+    SLB monthly templates now use those available organic metrics and include a report
+    note that organic reach/impressions are unavailable until Meta approval or manual
+    import. SLB templates and the reporting catalog now carry an additive `export_policy` whose
+    `warning_only_coverage_statuses` allow `missing_history`/`not_previously_synced` organic
+    Facebook, Content Ops, and scoped paid Meta sections to export as visible warnings when
+    no permission, unsupported-metric, or unscoped paid-account blocker is present. Report data
+    availability adds `warning_datasets`; partial, missing, and never-synced scoped
+    `paid_meta_ads` coverage is warning-only, so exports can complete with explicit warnings.
+    Partial retained-history summaries now include an additive
+    `coverage_gap` object with requested/covered/missing day counts, leading/trailing gap flags,
+    and exact missing dates for monthly/90-day evidence windows. Report diagnostics/source-health
+    payloads now include additive redacted `remediation_actions` with safe command templates for
+    `import_meta_organic_csv` and `slb_backfill_meta_reporting` so operators can choose manual
+    organic import, live backfill, or Content Ops snapshot refresh without exposing tenant/Page IDs.
+    `report.v1` export jobs now render CSV/PDF/PNG from
+    `metadata.report_preview.report_snapshot`, set `metadata.source` to
+    `report_v1_snapshot`, and emit report-snapshot CSV rows keyed by page, widget,
+    metric, value, coverage status, and warning text instead of the generic paid-campaign
+    CSV shape. `slb_report_export_evidence` creates fixed-range CSV/PDF/PNG export jobs plus a
+    sanitized scheduled dry-run from the same stored report snapshot and emits redacted job ids,
+    artifact paths, byte counts, preview hashes, source, row counts, warning list, and delivery
+    status for G5/G7 evidence. When required stored coverage still blocks export, the command now
+    exits non-zero after emitting the same schema with `status: "blocked_by_coverage"`, blocked
+    requested formats, preview hash, coverage summary, blocking reasons, warnings, and a sanitized
+    blocked dry-run job.
+  - Impact: The frontend report builder can avoid offering permission-gated metrics as
+    normal governed choices, Reports can label partial or missing selected-account paid May
+    coverage as "ready with warnings," and CSV/PDF/PNG export jobs can produce non-empty artifacts
+    when SLB paid/organic/content missing-history sections are downgraded to honest notes.
+    Operators can dry-run and then backfill approved manual
+    reach/impression exports into the same stored reporting tables that preview/export
+    already read, diagnose whether paid May gaps are missing-leading-date, trailing-date, or wider
+    stored-row issues, follow redacted source-health remediation commands for remaining
+    organic/content blockers, and generate fixed-target export evidence without manually polling
+    each export job. Blocked export attempts now produce reusable evidence without creating
+    incomplete CSV/PDF/PNG artifacts. Existing clients can ignore the new fields. No live provider
+    call is introduced during import, preview, or export, no `read_insights` scope is added, and
+    tenant-scoped stored aggregate data plus the queued durable report snapshot remain
+    the only report-render sources.
+  - Owner: Sofia (Backend API) + Andre (metric/data correctness) + Lina/Joel (report UX)
+    - Maya/Leo (Meta sync path) + Raj/Mira review
+
 - **2026-06-25**
   - Endpoint: `GET/POST /api/analytics/report-layouts/` (+ `GET/PATCH/PUT/DELETE
 .../{id}/`).

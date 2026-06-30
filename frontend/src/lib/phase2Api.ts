@@ -164,6 +164,8 @@ export type ReportingCatalogMetric = {
   widgets: string[];
   dimensions: string[];
   is_future_gated: boolean;
+  availability_state?: 'available' | 'callable_no_data' | 'permission_gated' | 'unsupported';
+  availability_note?: string;
 };
 
 export type ReportingCatalogDimension = {
@@ -183,6 +185,7 @@ export type ReportingCatalogCompatibility = {
   source_label_datasets: string[];
   future_gated_datasets: string[];
   future_gated_widgets: string[];
+  metric_availability_states?: string[];
   relative_date_ranges: string[];
   table: {
     requires_row_limit: boolean;
@@ -231,6 +234,29 @@ export type ReportTemplateRegistryResponse = {
   templates: ReportTemplateDefinition[];
 };
 
+export type ReportMetricAvailabilityState =
+  | 'available'
+  | 'callable_no_data'
+  | 'permission_gated'
+  | 'unsupported';
+
+export type ReportMetricAvailabilityEntry = {
+  key: string;
+  catalog_dataset: string;
+  availability_state: ReportMetricAvailabilityState;
+  availability_note: string;
+  row_count: number;
+  source_metric_keys: string[];
+  supported: boolean;
+};
+
+export type ReportMetricAvailability = {
+  schema_version: 'report_metric_availability.v1';
+  states: ReportMetricAvailabilityState[];
+  summary: Record<ReportMetricAvailabilityState, number>;
+  metrics: ReportMetricAvailabilityEntry[];
+};
+
 export type ReportDataAvailabilityDataset = {
   dataset: string;
   label: string;
@@ -240,6 +266,29 @@ export type ReportDataAvailabilityDataset = {
   coverage_status: string;
   coverage_note: string;
   source_label: string;
+  metric_availability?: ReportMetricAvailability;
+  scope_diagnostic?: {
+    code: string;
+    message: string;
+    required_action: string;
+    available_account_count?: number;
+    client_id?: string;
+    linked_meta_ad_account_ids?: string[];
+    requested_account?: {
+      id?: string;
+      account_id: string;
+      external_id?: string;
+      name?: string;
+      currency?: string;
+    };
+    credential_status?: {
+      status: string;
+      provider: string;
+      matched_account_id: string | null;
+      token_status: string | null;
+      last_validated_at: string | null;
+    };
+  };
   available_accounts?: Array<{
     id: string;
     account_id: string;
@@ -282,6 +331,7 @@ export type ReportDataAvailabilityResponse = {
   };
   datasets: Record<string, ReportDataAvailabilityDataset>;
   blocking_datasets: string[];
+  warning_datasets: string[];
   eligible_for_report_export: boolean;
   recommended_next_actions: string[];
 };
@@ -317,6 +367,8 @@ export type DashboardWidgetPreviewResponse = {
   dataset: string;
   type: string;
   status?: 'rendered' | 'blocked' | 'error';
+  metrics?: string[];
+  dimensions?: string[];
   data: Record<string, unknown>;
   coverage: DashboardWidgetCoverage | null;
   warnings: string[];
@@ -409,6 +461,19 @@ export type ReportSourceHealth = {
   stored_assets: Record<string, number>;
   stored_rows: Record<string, unknown>;
   recommended_next_actions: string[];
+  remediation_actions?: Array<{
+    dataset: string;
+    code: string;
+    label: string;
+    command_template: string;
+    dry_run_command_template?: string;
+    no_live_provider_calls?: boolean;
+    no_render_export_provider_calls?: boolean;
+    live_provider_calls_during_backfill?: boolean;
+    aggregate_only?: boolean;
+    notes?: string[];
+    prerequisites?: string[];
+  }>;
 };
 
 export type ReportDiagnosticsResponse = {

@@ -40,6 +40,67 @@
   font-size: 0.85rem;
 }
 
+.report-builder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.report-layout-manager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.report-layout-manager__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: min(100%, 18rem);
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.78rem;
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.report-layout-manager__field select {
+  min-height: 2.25rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--color-border-subtle, #e5e7eb);
+  border-radius: var(--radius-sm, 0.4rem);
+  background: var(--color-surface-card, #ffffff);
+  color: var(--color-text-primary, #111827);
+  font: inherit;
+}
+
+.report-layout-manager__field select:focus-visible {
+  outline: var(--focus-outline, 2px solid #0b756f);
+  outline-offset: 1px;
+}
+
+.report-layout-manager__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  color: var(--color-text-primary, #111827);
+  font-size: 0.85rem;
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.report-layout-manager__toggle input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-accent, #0b756f);
+}
+
+.report-layout-manager__toggle:has(input:disabled) {
+  color: var(--color-text-muted, #6b7280);
+}
+
 /* Flatten to a single column on small screens — placement is ignored. */
 @media (max-width: 767px) {
   .report-grid {
@@ -90,6 +151,38 @@
   background: var(--color-surface-muted, #f3f4f6);
 }
 
+.report-editor__add:disabled,
+.report-editor__save:disabled {
+  color: var(--color-text-muted, #6b7280);
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.report-editor__catalog {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+}
+
+.report-editor__catalog-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: min(100%, 28rem);
+}
+
+.report-editor__catalog-field select {
+  min-width: 12rem;
+  max-width: 18rem;
+  padding: 0.32rem 0.6rem;
+  border: 1px solid var(--color-border-subtle, #e5e7eb);
+  border-radius: var(--radius-sm, 0.375rem);
+  background: var(--color-surface-card, #ffffff);
+  color: var(--color-text-primary, #111827);
+  font-size: 0.8rem;
+}
+
 .report-editor__save {
   margin-left: auto;
   background: var(--color-accent, #0b756f);
@@ -132,6 +225,42 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.report-editor__availability,
+.report-config__availability {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill, 9999px);
+  padding: 0.1rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: 1.25;
+}
+
+.report-editor__availability--available,
+.report-config__availability--available {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.report-editor__availability--warning,
+.report-config__availability--warning {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.report-editor__availability--blocked,
+.report-config__availability--blocked {
+  color: #991b1b;
+  background: #fef2f2;
+  border-color: #fecaca;
 }
 
 .report-editor__remove {
@@ -245,6 +374,42 @@
 
 .report-config__field--wide {
   grid-column: 1 / -1;
+}
+
+.report-config__source {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--color-border-subtle, #e5e7eb);
+  border-radius: var(--radius-sm, 0.4rem);
+  background: var(--color-surface-muted, #f3f4f6);
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.78rem;
+}
+
+.report-config__source p {
+  margin: 0;
+}
+
+.report-config__source-label {
+  color: var(--color-text-primary, #111827);
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.report-config__availability-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-config__availability {
+  flex-wrap: wrap;
+  white-space: normal;
 }
 
 .report-config__field input,

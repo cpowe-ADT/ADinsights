@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Validate the filled SLB cancellation-readiness evidence chain in order."""
 
+# ruff: noqa: E402
+
 from __future__ import annotations
 
 import argparse
@@ -119,6 +121,8 @@ def main(argv: list[str]) -> int:
                 args.g10_review_file,
                 "--g2-g9-run-file",
                 args.g2_g9_run_file or "",
+                "--intake-file",
+                args.g1_intake_file or "",
                 "--format",
                 "json",
             ],
@@ -191,6 +195,7 @@ def _validate_dependencies(args: argparse.Namespace, errors: list[str]) -> None:
     required_upstream = [
         ("g2_g9_run_file", "g1_intake_file", "G2-G9 validation requires --g1-intake-file."),
         ("g10_review_file", "g2_g9_run_file", "G10 validation requires --g2-g9-run-file."),
+        ("g10_review_file", "g1_intake_file", "G10 validation requires --g1-intake-file."),
         ("g11_window_file", "g10_review_file", "G11 validation requires --g10-review-file."),
         ("g12_recommendation_file", "g11_window_file", "G12 validation requires --g11-window-file."),
         ("g12_recommendation_file", "status_manifest_file", "G12 validation requires --status-manifest-file."),

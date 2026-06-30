@@ -69,23 +69,17 @@ const TrendPlaceholderIcon = () => (
 
 const CampaignDashboard = () => {
   const { tenantId } = useAuth();
-  const {
-    campaign,
-    parish,
-    loadAll,
-    lastSnapshotGeneratedAt,
-    availability,
-    coverage,
-  } = useDashboardStore(
-    useShallow((state) => ({
-      campaign: state.campaign,
-      parish: state.parish,
-      loadAll: state.loadAll,
-      lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
-      availability: state.availability,
-      coverage: state.coverage,
-    })),
-  );
+  const { campaign, parish, loadAll, lastSnapshotGeneratedAt, availability, coverage } =
+    useDashboardStore(
+      useShallow((state) => ({
+        campaign: state.campaign,
+        parish: state.parish,
+        loadAll: state.loadAll,
+        lastSnapshotGeneratedAt: state.lastSnapshotGeneratedAt,
+        availability: state.availability,
+        coverage: state.coverage,
+      })),
+    );
   const campaignRows = useDashboardStore(
     useShallow((state) => state.getCampaignRowsForSelectedParish()),
   );

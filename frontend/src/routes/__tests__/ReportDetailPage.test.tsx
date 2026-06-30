@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -37,6 +37,10 @@ const downloadMock = vi.hoisted(() => ({
   saveBlobAsFile: vi.fn(),
 }));
 
+const savedLayoutsMock = vi.hoisted(() => ({
+  listSavedLayouts: vi.fn(),
+}));
+
 const toastMock = vi.hoisted(() => ({
   addToast: vi.fn(),
   removeToast: vi.fn(),
@@ -60,6 +64,10 @@ vi.mock('../../lib/download', () => ({
   saveBlobAsFile: downloadMock.saveBlobAsFile,
 }));
 
+vi.mock('../../components/report-layout/savedReportLayouts', () => ({
+  listSavedLayouts: savedLayoutsMock.listSavedLayouts,
+}));
+
 vi.mock('../../stores/useToastStore', () => ({
   useToastStore: (selector: (state: typeof toastMock) => unknown) => selector(toastMock),
 }));
@@ -79,6 +87,7 @@ describe('ReportDetailPage inline editing', () => {
     vi.clearAllMocks();
     phase2ApiMock.getReport.mockResolvedValue({ ...mockReport });
     phase2ApiMock.listReportExports.mockResolvedValue([]);
+    savedLayoutsMock.listSavedLayouts.mockResolvedValue([]);
     phase2ApiMock.previewReport.mockResolvedValue({
       report: {
         id: 'r1',
@@ -235,6 +244,31 @@ describe('ReportDetailPage inline editing', () => {
         recommended_next_actions: [
           'Reconnect Meta OAuth credentials before running fresh Facebook/Meta reporting.',
           'Backfill Facebook Page Insights stored rows for the fixed SLB Page/date range.',
+        ],
+        remediation_actions: [
+          {
+            dataset: 'organic_facebook_page',
+            code: 'manual_meta_organic_csv_import',
+            label: 'Import approved aggregate Meta Page organic values.',
+            command_template:
+              'backend/.venv/bin/python backend/manage.py import_meta_organic_csv --tenant-id <tenant_uuid> --page-id <facebook_page_id> --file <path-to-meta-organic-csv>',
+            dry_run_command_template:
+              'backend/.venv/bin/python backend/manage.py import_meta_organic_csv --tenant-id <tenant_uuid> --page-id <facebook_page_id> --file <path-to-meta-organic-csv> --dry-run',
+            no_live_provider_calls: true,
+            aggregate_only: true,
+          },
+          {
+            dataset: 'content_ops',
+            code: 'content_ops_from_synced_posts',
+            label: 'Refresh Content Ops aggregate snapshots from synced Meta posts.',
+            command_template:
+              'backend/.venv/bin/python backend/manage.py slb_backfill_meta_reporting --report-id <report_uuid> --start-date <YYYY-MM-DD> --end-date <YYYY-MM-DD> --datasets content_ops --page-id <facebook_page_id> --import-synced-posts-to-content-ops --dispatch-mode inline',
+            dry_run_command_template:
+              'backend/.venv/bin/python backend/manage.py slb_backfill_meta_reporting --report-id <report_uuid> --start-date <YYYY-MM-DD> --end-date <YYYY-MM-DD> --datasets content_ops --page-id <facebook_page_id> --import-synced-posts-to-content-ops --dispatch-mode dry-run',
+            no_render_export_provider_calls: true,
+            aggregate_only: true,
+            prerequisites: ['Run organic_facebook_posts backfill or manual post CSV import first.'],
+          },
         ],
       },
       export_history: [],
@@ -396,13 +430,49 @@ describe('ReportDetailPage inline editing', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Coverage and export readiness')).toBeInTheDocument();
+    expect(await screen.findByText('Data coverage and warnings')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Cover and period' })).toBeInTheDocument();
     expect(
       screen.getAllByText('Report narrative section is manually authored.').length,
     ).toBeGreaterThan(0);
     expect(phase2ApiMock.previewReport).toHaveBeenCalledWith('r1');
-    expect(phase2ApiMock.fetchReportDiagnostics).toHaveBeenCalledWith('r1');
+    expect(phase2ApiMock.fetchReportDiagnostics).not.toHaveBeenCalled();
+    const pageHeader = screen.getByText('Reporting').closest('header');
+    expect(pageHeader).not.toBeNull();
+    expect(
+      within(pageHeader as HTMLElement).queryByRole('button', { name: 'Edit report details' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(pageHeader as HTMLElement).queryByRole('link', { name: 'Customize layout' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(pageHeader as HTMLElement).queryByRole('button', { name: 'Refresh report status' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('Monthly report')).toBeInTheDocument();
+    expect(screen.getByText('SLB Monthly Social Report layout')).toBeInTheDocument();
+    const clientHero = screen.getByLabelText('Report cover summary');
+    expect(within(clientHero).getByText('Metric availability')).toBeInTheDocument();
+    expect(
+      within(clientHero).getByText(
+        /Organic reach and impressions are unavailable without Meta approval/,
+      ),
+    ).toBeInTheDocument();
+    expect(within(clientHero).getByText('Stored aggregate data')).toBeInTheDocument();
+    expect(within(clientHero).getByText('Sections')).toBeInTheDocument();
+    expect(within(clientHero).getByText('Warnings')).toBeInTheDocument();
+    expect(within(clientHero).queryByText('Preview hash')).not.toBeInTheDocument();
+    expect(within(clientHero).queryByText('reporting_catalog.v1')).not.toBeInTheDocument();
+    const coverageDetails = screen.getByText('Data coverage and warnings').closest('details');
+    expect(coverageDetails).not.toHaveAttribute('open');
+    await userEvent.click(screen.getByText('Data coverage and warnings'));
+    expect(coverageDetails).toHaveAttribute('open');
+    const supportDetails = screen
+      .getByText('Source readiness, data path, and evidence')
+      .closest('details');
+    expect(supportDetails).not.toHaveAttribute('open');
+    await userEvent.click(screen.getByText('Source readiness, data path, and evidence'));
+    await waitFor(() => expect(phase2ApiMock.fetchReportDiagnostics).toHaveBeenCalledWith('r1'));
+    expect(supportDetails).toHaveAttribute('open');
     expect(screen.getByText('Stored data and delivery readiness')).toBeInTheDocument();
     expect(screen.getByText('Source health')).toBeInTheDocument();
     expect(screen.getByText('Ready to export')).toBeInTheDocument();
@@ -425,6 +495,153 @@ describe('ReportDetailPage inline editing', () => {
         'Reconnect Meta OAuth credentials before running fresh Facebook/Meta reporting.',
       ).length,
     ).toBeGreaterThan(0);
+    expect(screen.getByText('Remediation commands')).toBeInTheDocument();
+    expect(
+      screen.getByText('Import approved aggregate Meta Page organic values.'),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText('Dry run').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('Write').length).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getByText(/import_meta_organic_csv --tenant-id <tenant_uuid>.*--dry-run/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/import_meta_organic_csv --tenant-id <tenant_uuid>.*meta-organic-csv>$/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /slb_backfill_meta_reporting --report-id <report_uuid>.*--dispatch-mode dry-run/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /slb_backfill_meta_reporting --report-id <report_uuid>.*--dispatch-mode inline/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Prerequisite: Run organic_facebook_posts backfill/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/page-current|page-123|ee1c8c78/)).not.toBeInTheDocument();
+    const operatorDetails = screen.getByText('Export and delivery controls').closest('details');
+    expect(operatorDetails).not.toHaveAttribute('open');
+    expect(within(operatorDetails as HTMLElement).getByText('Export actions')).not.toBeVisible();
+    await userEvent.click(screen.getByText('Export and delivery controls'));
+    expect(operatorDetails).toHaveAttribute('open');
+    expect(within(operatorDetails as HTMLElement).getByText('Layout and status')).toBeVisible();
+    expect(
+      within(operatorDetails as HTMLElement).getByRole('button', { name: 'Edit report details' }),
+    ).toBeVisible();
+    expect(
+      within(operatorDetails as HTMLElement).getByRole('link', { name: 'Customize layout' }),
+    ).toHaveAttribute('href', '/reports/r1/builder');
+    expect(
+      within(operatorDetails as HTMLElement).getByRole('button', {
+        name: 'Refresh report status',
+      }),
+    ).toBeVisible();
+    expect(within(operatorDetails as HTMLElement).getByText('Export actions')).toBeVisible();
+  });
+
+  it('renders a saved report layout on detail while rebinding values from the current preview', async () => {
+    phase2ApiMock.getReport.mockResolvedValue({
+      ...mockReport,
+      name: 'SLB Monthly Social Report',
+      layout: { schema_version: 'report.v1' },
+    });
+    phase2ApiMock.previewReport.mockResolvedValue({
+      ...(await phase2ApiMock.previewReport()),
+      pages: [
+        {
+          id: 'summary',
+          title: 'Summary',
+          sections: [
+            {
+              id: 'summary_widgets',
+              type: 'widget_group',
+              widgets: [
+                {
+                  widget_id: 'organic_summary',
+                  dataset: 'organic_facebook_page',
+                  type: 'kpi',
+                  status: 'rendered',
+                  data: {
+                    title: 'Organic summary',
+                    metrics: [{ key: 'page_follows', label: 'Page follows', value: 6023 }],
+                  },
+                  coverage: null,
+                  warnings: [],
+                },
+                {
+                  widget_id: 'organic_reach_impressions_note',
+                  dataset: 'organic_facebook_page',
+                  type: 'report_section',
+                  status: 'rendered',
+                  data: {
+                    title: 'Reach and impressions availability',
+                    body: 'Reach unavailable without Meta approval.',
+                  },
+                  coverage: null,
+                  warnings: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    savedLayoutsMock.listSavedLayouts.mockResolvedValue([
+      {
+        id: 'layout-1',
+        name: 'Custom SLB layout',
+        description: '',
+        is_shared: false,
+        created_at: '2026-06-01T00:00:00Z',
+        updated_at: '2026-06-01T00:00:00Z',
+        config: {
+          id: 'report-r1',
+          title: 'Custom SLB layout',
+          cols: 12,
+          rowHeight: 64,
+          widgets: [
+            {
+              id: 'custom-followers-kpi',
+              type: 'kpi',
+              title: 'Saved followers',
+              x: 1,
+              y: 1,
+              w: 3,
+              h: 2,
+              data: 1,
+              options: { format: 'number' },
+              source: {
+                dataset: 'organic_facebook_page',
+                widgetId: 'custom_followers',
+                metrics: ['page_follows'],
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText('Monthly report')).toBeInTheDocument();
+    expect(screen.getByText('Custom SLB layout')).toBeInTheDocument();
+    await userEvent.click(await screen.findByText('Export and delivery controls'));
+    expect(screen.getByRole('link', { name: 'Edit custom layout' })).toHaveAttribute(
+      'href',
+      '/reports/r1/builder',
+    );
+    expect(screen.getByText('Saved followers')).toBeInTheDocument();
+    expect(screen.getAllByText('6K').length).toBeGreaterThan(0);
+    const customReport = screen.getAllByLabelText('Custom report layout')[0];
+    expect(
+      within(customReport).getByText('Reach and impressions availability'),
+    ).toBeInTheDocument();
+    expect(
+      within(customReport).getByText('Reach unavailable without Meta approval.'),
+    ).toBeInTheDocument();
+    expect(savedLayoutsMock.listSavedLayouts).toHaveBeenCalledWith({ configId: 'report-r1' });
   });
 
   it('shows missing-history widget coverage as export blocked', async () => {
@@ -550,8 +767,9 @@ describe('ReportDetailPage inline editing', () => {
 
     renderPage();
 
-    expect(await screen.findByRole('heading', { name: 'Top posts table' })).toBeInTheDocument();
-    expect(screen.getAllByRole('heading', { name: 'Top posts table' })).toHaveLength(1);
+    expect(
+      (await screen.findAllByRole('heading', { name: 'Top posts table' })).length,
+    ).toBeGreaterThan(0);
     expect(screen.queryByText('Top posts table table')).not.toBeInTheDocument();
   });
 
@@ -602,6 +820,7 @@ describe('ReportDetailPage inline editing', () => {
 
     renderPage();
 
+    await userEvent.click(await screen.findByText('Source readiness, data path, and evidence'));
     expect(await screen.findByText('Reproducibility')).toBeInTheDocument();
     expect(screen.getByText('matches preview')).toBeInTheDocument();
     expect(screen.getAllByText('hash-1').length).toBeGreaterThan(0);
@@ -619,6 +838,7 @@ describe('ReportDetailPage inline editing', () => {
 
     renderPage();
 
+    await userEvent.click(await screen.findByText('Export and delivery controls'));
     const dryRunButton = await screen.findByRole('button', { name: /test scheduled delivery/i });
     await userEvent.click(dryRunButton);
 
@@ -644,6 +864,7 @@ describe('ReportDetailPage inline editing', () => {
 
     renderPage();
 
+    await userEvent.click(await screen.findByText('Export and delivery controls'));
     const csvButton = await screen.findByRole('button', { name: /generate csv export/i });
     expect(csvButton).toBeDisabled();
     expect(screen.getAllByText(/require_full_coverage/).length).toBeGreaterThan(0);

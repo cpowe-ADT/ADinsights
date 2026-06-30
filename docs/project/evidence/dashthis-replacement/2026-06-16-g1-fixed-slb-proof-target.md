@@ -111,6 +111,30 @@ Use the confirmed G1 values for every following packet:
 If any later evidence uses a different report, tenant, account, Page, or date range, it does not
 count toward this cancellation-readiness chain until G1 is updated.
 
+## 2026-06-30 Local Product-Finish Candidate
+
+Local product-finish evidence has now narrowed the candidate target:
+
+| Field             | Local candidate value                      |
+| ----------------- | ------------------------------------------ |
+| Report ID         | `09c96ea9-a9e5-4283-aa29-401179ab05dc`     |
+| Tenant ID         | `ee1c8c78-d77f-4c65-ad37-ccf7a896f4c2`     |
+| Template key      | `slb_monthly_social_report`                |
+| Schema            | `report.v1`                                |
+| Primary range     | `2026-05-01` through `2026-05-31`          |
+| Paid account      | `act_791712443035541` present in the scope |
+| Facebook Page     | Pending; target intake has no `page_id`    |
+| Content workspace | Pending; target intake has no workspace    |
+
+Artifacts:
+
+- `docs/project/evidence/dashthis-replacement/2026-06-30-slb-target-intake.local-product-finish.json`
+- `docs/project/evidence/dashthis-replacement/2026-06-30-g1-runtime-target-intake.local-draft.json`
+
+This does not close G1. The draft remains `pending_operator_input` and fails validation until the
+backend/frontend URLs, currency, tenant-owned SLB Page scope, Content Ops workspace scope,
+comparison owner, source-scope presence, and tolerance confirmation are supplied.
+
 ## Source Evidence
 
 - `docs/project/evidence/dashthis-replacement/2026-06-15-report-inventory-from-gmail.md`

@@ -466,7 +466,15 @@ const MetaPageOverviewPage = () => {
               >
                 {kpis.map((kpi) => {
                   const availability = overview.metric_availability[kpi.resolved_metric];
-                  const unsupported = availability && availability.supported === false;
+                  const availabilityState =
+                    availability?.availability_state ??
+                    (availability?.supported === false ? 'unsupported' : 'available');
+                  const unavailable =
+                    availabilityState === 'permission_gated' || availabilityState === 'unsupported';
+                  const availabilityHint =
+                    availabilityState !== 'available'
+                      ? availability?.availability_note || availability?.reason
+                      : undefined;
                   return (
                     <KpiTile
                       key={kpi.metric}
@@ -475,8 +483,8 @@ const MetaPageOverviewPage = () => {
                       format="number"
                       change={kpi.change_pct ?? null}
                       reasonCode={`meta_page_${kpi.resolved_metric}`}
-                      isFaded={Boolean(unsupported)}
-                      hint={unsupported ? availability?.reason : undefined}
+                      isFaded={Boolean(unavailable)}
+                      hint={availabilityHint}
                     />
                   );
                 })}

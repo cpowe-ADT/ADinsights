@@ -53,7 +53,53 @@ def test_chain_rejects_downstream_without_upstream(capsys, tmp_path):
     assert exit_code == 1
     assert result["valid"] is False
     assert "G10 validation requires --g2-g9-run-file." in result["errors"]
+    assert "G10 validation requires --g1-intake-file." in result["errors"]
     assert "g10_review has a missing required upstream argument." in result["errors"]
+
+
+def test_chain_passes_g1_intake_to_g10(capsys, monkeypatch, tmp_path):
+    captured: dict[str, list[str]] = {}
+
+    def fake_main(name):
+        def _main(args):
+            captured[name] = args
+            print(json.dumps({"valid": True, "errors": [], "warnings": []}))
+            return 0
+
+        return _main
+
+    monkeypatch.setattr(cli.g1_validator, "main", fake_main("g1_intake"))
+    monkeypatch.setattr(cli.g2_g9_validator, "main", fake_main("g2_g9_run"))
+    monkeypatch.setattr(cli.g10_validator, "main", fake_main("g10_review"))
+
+    g1_path = tmp_path / "g1.json"
+    g2_g9_path = tmp_path / "g2-g9.json"
+    g10_path = tmp_path / "g10.json"
+
+    exit_code, result = _run_validator(
+        [
+            "--g1-intake-file",
+            str(g1_path),
+            "--g2-g9-run-file",
+            str(g2_g9_path),
+            "--g10-review-file",
+            str(g10_path),
+        ],
+        capsys,
+    )
+
+    assert exit_code == 0
+    assert result["valid"] is True
+    assert captured["g10_review"] == [
+        "--review-file",
+        str(g10_path),
+        "--g2-g9-run-file",
+        str(g2_g9_path),
+        "--intake-file",
+        str(g1_path),
+        "--format",
+        "json",
+    ]
 
 
 def test_chain_prefixes_underlying_validator_errors(capsys, tmp_path):

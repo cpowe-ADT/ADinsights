@@ -20,6 +20,14 @@ META_CHANNEL_ALIASES = {"meta", "meta_ads"}
 META_PLATFORM_LABEL = "Meta Ads"
 FALLBACK_CURRENCY = "USD"
 JAMAICA_PARISH_COUNT = 14
+MANUAL_PAID_CSV_SOURCE = "manual_meta_paid_csv"
+MANUAL_PAID_METRIC_COLUMNS = {
+    "spend": {"spend", "amount_spent", "cost"},
+    "impressions": {"impressions"},
+    "reach": {"reach"},
+    "clicks": {"clicks"},
+    "conversions": {"conversions"},
+}
 
 # Best-effort mapping: Meta region name (lowercased) → canonical parish name from jm_parishes.json.
 META_REGION_TO_PARISH: dict[str, str] = {
@@ -141,6 +149,12 @@ def _to_float(value: Decimal | float | int | None) -> float:
     return float(value)
 
 
+def _to_optional_float(value: Decimal | float | int | None) -> float | None:
+    if value is None:
+        return None
+    return float(value)
+
+
 def _to_int(value: Any) -> int:
     if value is None:
         return 0
@@ -150,10 +164,62 @@ def _to_int(value: Any) -> int:
         return 0
 
 
-def _safe_divide(numerator: float, denominator: float) -> float:
+def _to_optional_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_divide(
+    numerator: float | int | None, denominator: float | int | None
+) -> float | None:
+    if numerator is None or denominator is None:
+        return None
     if denominator <= 0:
         return 0.0
     return numerator / denominator
+
+
+def _sum_optional(
+    current: float | int | None, value: float | int | None
+) -> float | int | None:
+    if value is None:
+        return current
+    return value if current is None else current + value
+
+
+def _sum_optional_values(values: Iterable[float | int | None]) -> float | int | None:
+    total = None
+    for value in values:
+        total = _sum_optional(total, value)
+    return total
+
+
+def _manual_metric_was_supplied(record: RawPerformanceRecord, metric: str) -> bool:
+    raw_payload = record.raw_payload if isinstance(record.raw_payload, Mapping) else {}
+    if raw_payload.get("source") != MANUAL_PAID_CSV_SOURCE:
+        return True
+    metric_columns = raw_payload.get("metric_columns")
+    if not isinstance(metric_columns, (list, tuple, set)):
+        return True
+    supplied = {str(column).strip().lower() for column in metric_columns}
+    aliases = MANUAL_PAID_METRIC_COLUMNS.get(metric, {metric})
+    return bool(supplied & aliases)
+
+
+def _record_float_metric(record: RawPerformanceRecord, metric: str) -> float | None:
+    if not _manual_metric_was_supplied(record, metric):
+        return None
+    return _to_optional_float(getattr(record, metric, None))
+
+
+def _record_int_metric(record: RawPerformanceRecord, metric: str) -> int | None:
+    if not _manual_metric_was_supplied(record, metric):
+        return None
+    return _to_optional_int(getattr(record, metric, None))
 
 
 def _validated_filters(options: Mapping[str, Any] | None) -> MetaDirectFilters:
@@ -379,11 +445,11 @@ class MetaDirectAdapter(MetricsAdapter):
         campaign_budgets: dict[str, dict[str, float]] = defaultdict(dict)
 
         for record in records:
-            spend = _to_float(record.spend)
-            impressions = _to_int(record.impressions)
-            reach = _to_int(record.reach)
-            clicks = _to_int(record.clicks)
-            conversions = _to_int(record.conversions)
+            spend = _record_float_metric(record, "spend")
+            impressions = _record_int_metric(record, "impressions")
+            reach = _record_int_metric(record, "reach")
+            clicks = _record_int_metric(record, "clicks")
+            conversions = _record_int_metric(record, "conversions")
             ad_account_id = (
                 record.ad_account.external_id
                 if record.ad_account_id and record.ad_account is not None
@@ -397,19 +463,23 @@ class MetaDirectAdapter(MetricsAdapter):
                 trend_key,
                 {
                     "date": trend_key,
-                    "spend": 0.0,
-                    "impressions": 0,
-                    "reach": 0,
-                    "clicks": 0,
-                    "conversions": 0,
+                    "spend": None,
+                    "impressions": None,
+                    "reach": None,
+                    "clicks": None,
+                    "conversions": None,
                     "adAccountId": ad_account_id or None,
                 },
             )
-            trend_point["spend"] += spend
-            trend_point["impressions"] += impressions
-            trend_point["reach"] += reach
-            trend_point["clicks"] += clicks
-            trend_point["conversions"] += conversions
+            trend_point["spend"] = _sum_optional(trend_point["spend"], spend)
+            trend_point["impressions"] = _sum_optional(
+                trend_point["impressions"], impressions
+            )
+            trend_point["reach"] = _sum_optional(trend_point["reach"], reach)
+            trend_point["clicks"] = _sum_optional(trend_point["clicks"], clicks)
+            trend_point["conversions"] = _sum_optional(
+                trend_point["conversions"], conversions
+            )
 
             if record.campaign_id and record.campaign is not None:
                 campaign_key = record.campaign.external_id
@@ -423,20 +493,26 @@ class MetaDirectAdapter(MetricsAdapter):
                         "status": record.campaign.status or "Unknown",
                         "objective": record.campaign.objective or None,
                         "parishes": [],
-                        "spend": 0.0,
-                        "impressions": 0,
-                        "reach": 0,
-                        "clicks": 0,
-                        "conversions": 0,
+                        "spend": None,
+                        "impressions": None,
+                        "reach": None,
+                        "clicks": None,
+                        "conversions": None,
                         "startDate": record.date.isoformat(),
                         "endDate": record.date.isoformat(),
                     },
                 )
-                campaign_group["spend"] += spend
-                campaign_group["impressions"] += impressions
-                campaign_group["reach"] += reach
-                campaign_group["clicks"] += clicks
-                campaign_group["conversions"] += conversions
+                campaign_group["spend"] = _sum_optional(campaign_group["spend"], spend)
+                campaign_group["impressions"] = _sum_optional(
+                    campaign_group["impressions"], impressions
+                )
+                campaign_group["reach"] = _sum_optional(campaign_group["reach"], reach)
+                campaign_group["clicks"] = _sum_optional(
+                    campaign_group["clicks"], clicks
+                )
+                campaign_group["conversions"] = _sum_optional(
+                    campaign_group["conversions"], conversions
+                )
                 campaign_group["startDate"] = min(campaign_group["startDate"], record.date.isoformat())
                 campaign_group["endDate"] = max(campaign_group["endDate"], record.date.isoformat())
 
@@ -457,11 +533,11 @@ class MetaDirectAdapter(MetricsAdapter):
                         "campaignName": record.campaign.name,
                         "platform": META_PLATFORM_LABEL,
                         "parishes": [],
-                        "spend": 0.0,
-                        "impressions": 0,
-                        "reach": 0,
-                        "clicks": 0,
-                        "conversions": 0,
+                        "spend": None,
+                        "impressions": None,
+                        "reach": None,
+                        "clicks": None,
+                        "conversions": None,
                         "startDate": record.date.isoformat(),
                         "endDate": record.date.isoformat(),
                         "thumbnailUrl": (
@@ -472,11 +548,17 @@ class MetaDirectAdapter(MetricsAdapter):
                         ),
                     },
                 )
-                creative_group["spend"] += spend
-                creative_group["impressions"] += impressions
-                creative_group["reach"] += reach
-                creative_group["clicks"] += clicks
-                creative_group["conversions"] += conversions
+                creative_group["spend"] = _sum_optional(creative_group["spend"], spend)
+                creative_group["impressions"] = _sum_optional(
+                    creative_group["impressions"], impressions
+                )
+                creative_group["reach"] = _sum_optional(creative_group["reach"], reach)
+                creative_group["clicks"] = _sum_optional(
+                    creative_group["clicks"], clicks
+                )
+                creative_group["conversions"] = _sum_optional(
+                    creative_group["conversions"], conversions
+                )
                 creative_group["startDate"] = min(creative_group["startDate"], record.date.isoformat())
                 creative_group["endDate"] = max(creative_group["endDate"], record.date.isoformat())
 
@@ -490,7 +572,9 @@ class MetaDirectAdapter(MetricsAdapter):
             row["roas"] = _safe_divide(conversions, spend)
             row["ctr"] = _safe_divide(clicks, impressions)
             row["cpc"] = _safe_divide(spend, clicks)
-            row["cpm"] = _safe_divide(spend * 1000, impressions)
+            row["cpm"] = _safe_divide(
+                spend * 1000 if spend is not None else None, impressions
+            )
             row["cpa"] = _safe_divide(spend, conversions)
             row["frequency"] = _safe_divide(impressions, reach)
 
@@ -504,7 +588,9 @@ class MetaDirectAdapter(MetricsAdapter):
             row["roas"] = _safe_divide(conversions, spend)
             row["ctr"] = _safe_divide(clicks, impressions)
             row["cpc"] = _safe_divide(spend, clicks)
-            row["cpm"] = _safe_divide(spend * 1000, impressions)
+            row["cpm"] = _safe_divide(
+                spend * 1000 if spend is not None else None, impressions
+            )
             row["cpa"] = _safe_divide(spend, conversions)
             row["frequency"] = _safe_divide(impressions, reach)
             if row["thumbnailUrl"] is None:
@@ -521,7 +607,7 @@ class MetaDirectAdapter(MetricsAdapter):
             spend_to_date = campaign_row["spend"]
             projected_spend = (
                 _safe_divide(spend_to_date, elapsed_days) * window_days
-                if coverage_end >= today
+                if coverage_end >= today and spend_to_date is not None
                 else spend_to_date
             )
             budget_rows.append(
@@ -543,11 +629,15 @@ class MetaDirectAdapter(MetricsAdapter):
             )
 
         trend_rows = [trend_by_date[key] for key in sorted(trend_by_date)]
-        total_spend = sum(point["spend"] for point in trend_rows)
-        total_impressions = sum(point["impressions"] for point in trend_rows)
-        total_reach = sum(point["reach"] for point in trend_rows)
-        total_clicks = sum(point["clicks"] for point in trend_rows)
-        total_conversions = sum(point["conversions"] for point in trend_rows)
+        total_spend = _sum_optional_values(point["spend"] for point in trend_rows)
+        total_impressions = _sum_optional_values(
+            point["impressions"] for point in trend_rows
+        )
+        total_reach = _sum_optional_values(point["reach"] for point in trend_rows)
+        total_clicks = _sum_optional_values(point["clicks"] for point in trend_rows)
+        total_conversions = _sum_optional_values(
+            point["conversions"] for point in trend_rows
+        )
         summary = {
             "currency": currency,
             "totalSpend": total_spend,
@@ -558,7 +648,10 @@ class MetaDirectAdapter(MetricsAdapter):
             "averageRoas": _safe_divide(total_conversions, total_spend),
             "ctr": _safe_divide(total_clicks, total_impressions),
             "cpc": _safe_divide(total_spend, total_clicks),
-            "cpm": _safe_divide(total_spend * 1000, total_impressions),
+            "cpm": _safe_divide(
+                total_spend * 1000 if total_spend is not None else None,
+                total_impressions,
+            ),
             "cpa": _safe_divide(total_spend, total_conversions),
             "frequency": _safe_divide(total_impressions, total_reach),
         }

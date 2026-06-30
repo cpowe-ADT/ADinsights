@@ -89,4 +89,23 @@ describe('KPIGrid', () => {
     );
     expect(screen.queryByText(/Prior:/)).toBeNull();
   });
+
+  it('surfaces callable metrics with no stored data', () => {
+    render(
+      <KPIGrid
+        kpis={[buildKpi({ value: null, today_value: null })]}
+        metricAvailability={{
+          page_post_engagements: {
+            supported: true,
+            last_checked_at: null,
+            reason: 'Metric is callable, but no stored data is available.',
+            availability_state: 'callable_no_data',
+            availability_note: 'Metric is callable, but no stored data is available.',
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText('No stored data')).toBeInTheDocument();
+  });
 });
