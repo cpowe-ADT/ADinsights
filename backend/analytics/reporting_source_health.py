@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
-from typing import Any, Mapping
+from typing import Any, Callable, Iterable, Mapping
 
 from django.db.models import Count, Max, Min, Q
 from django.utils.dateparse import parse_date
@@ -21,27 +22,68 @@ from integrations.models import (
 from analytics.reporting_templates import SLB_MONTHLY_TEMPLATE_KEY
 
 
+@dataclass
+class SourceHealthContext:
+    credential_rows: list[PlatformCredential]
+    credential_count: int
+    credential_token_status_counts: dict[str, int]
+    credential_scopes: set[str]
+    credential_latest_validated_at: Any
+    credential_latest_expires_at: Any
+    page_connection_count: int
+    page_connection_active_count: int
+    page_connection_inactive_count: int
+    page_connection_scopes: set[str]
+    page_connection_latest_token_expires_at: Any
+    page_auth_counts: dict[str, int]
+    page_count: int
+    analyzable_page_count: int
+    selected_default_page_count: int
+    page_ids: set[str]
+    has_synced_pages_without_rows: bool
+    has_post_sync_without_rows: bool
+    airbyte_connection_count: int
+    airbyte_active_count: int
+    airbyte_inactive_count: int
+    airbyte_last_job_status_counts: dict[str, int]
+    airbyte_latest_synced_at: Any
+    airbyte_latest_completed_at: Any
+    airbyte_error_categories: dict[str, int]
+    ad_account_count: int
+    stored_rows: dict[str, Any]
+    has_page_rows: bool
+    has_post_rows: bool
+    has_meta_posts: bool
+    has_content_rows: bool
+    has_published_posts: bool
+
+
 def build_reporting_source_health(
     *, tenant, report_context: Mapping[str, Any] | None = None
 ) -> dict[str, Any]:
     """Return redacted source health used by report diagnostics and evidence commands."""
 
-    report_scope = _report_scope_health(tenant=tenant, report_context=report_context)
+    context = _build_source_health_context(tenant=tenant)
+    report_scope = _report_scope_health(
+        tenant=tenant,
+        report_context=report_context,
+        context=context,
+    )
     payload = {
         "schema_version": "slb_source_health.v1",
         "stored_aggregate_only": True,
         "no_live_provider_calls": True,
-        "meta_credentials": _meta_credential_health(tenant=tenant),
-        "meta_page_connection": _meta_page_connection_health(tenant=tenant),
-        "meta_airbyte": _meta_airbyte_health(tenant=tenant),
-        "stored_assets": _stored_asset_health(tenant=tenant),
-        "stored_rows": _stored_row_health(tenant=tenant),
+        "meta_credentials": _meta_credential_health(context=context),
+        "meta_page_connection": _meta_page_connection_health(context=context),
+        "meta_airbyte": _meta_airbyte_health(context=context),
+        "stored_assets": _stored_asset_health(context=context),
+        "stored_rows": context.stored_rows,
         "recommended_next_actions": _recommended_source_actions(
-            tenant=tenant,
+            context=context,
             report_scope=report_scope,
         ),
         "remediation_actions": _remediation_actions(
-            tenant=tenant,
+            context=context,
             report_scope=report_scope,
         ),
     }
@@ -50,112 +92,175 @@ def build_reporting_source_health(
     return payload
 
 
-def _meta_credential_health(*, tenant) -> dict[str, Any]:
-    credentials = PlatformCredential.all_objects.filter(
-        tenant=tenant,
-        provider=PlatformCredential.META,
+def _build_source_health_context(*, tenant) -> SourceHealthContext:
+    credential_rows = list(
+        PlatformCredential.all_objects.filter(
+            tenant=tenant,
+            provider=PlatformCredential.META,
+        )
     )
-    scopes = set()
-    for granted in credentials.values_list("granted_scopes", flat=True):
-        if isinstance(granted, list):
-            scopes.update(str(scope) for scope in granted)
+    credential_scopes = _scope_set(row.granted_scopes for row in credential_rows)
+    credential_token_status_counts = _count_rows_by(
+        credential_rows, lambda row: row.token_status
+    )
+
+    page_connection_rows = list(MetaConnection.all_objects.filter(tenant=tenant))
+    page_connection_scopes = _scope_set(row.scopes for row in page_connection_rows)
+
+    pages = list(MetaPage.all_objects.filter(tenant=tenant))
+    page_auth_counts = _page_auth_status_counts(pages)
+    page_ids = {str(page.page_id) for page in pages if str(page.page_id).strip()}
+
+    airbyte_rows = list(
+        AirbyteConnection.all_objects.filter(
+            tenant=tenant,
+            provider=PlatformCredential.META,
+        )
+    )
+    airbyte_error_categories: dict[str, int] = {}
+    for row in airbyte_rows:
+        category = _airbyte_error_category(str(row.last_job_error or ""))
+        if category:
+            airbyte_error_categories[category] = (
+                airbyte_error_categories.get(category, 0) + 1
+            )
+
+    meta_post_count = MetaPost.all_objects.filter(tenant=tenant).count()
+    stored_rows = _stored_row_health(tenant=tenant, meta_post_count=meta_post_count)
+    has_page_rows = int(stored_rows["organic_facebook_page"]["row_count"] or 0) > 0
+    has_post_rows = int(stored_rows["organic_facebook_posts"]["row_count"] or 0) > 0
+    has_meta_posts = meta_post_count > 0
+    content_ops_rows = stored_rows["content_ops"]
+    has_content_rows = int(content_ops_rows.get("row_count") or 0) > 0
+    has_published_posts = int(content_ops_rows.get("published_post_count") or 0) > 0
+
+    return SourceHealthContext(
+        credential_rows=credential_rows,
+        credential_count=len(credential_rows),
+        credential_token_status_counts=credential_token_status_counts,
+        credential_scopes=credential_scopes,
+        credential_latest_validated_at=_max_attr(credential_rows, "last_validated_at"),
+        credential_latest_expires_at=_max_attr(credential_rows, "expires_at"),
+        page_connection_count=len(page_connection_rows),
+        page_connection_active_count=sum(
+            1 for row in page_connection_rows if bool(row.is_active)
+        ),
+        page_connection_inactive_count=sum(
+            1 for row in page_connection_rows if not bool(row.is_active)
+        ),
+        page_connection_scopes=page_connection_scopes,
+        page_connection_latest_token_expires_at=_max_attr(
+            page_connection_rows, "token_expires_at"
+        ),
+        page_auth_counts=page_auth_counts,
+        page_count=len(pages),
+        analyzable_page_count=sum(1 for page in pages if bool(page.can_analyze)),
+        selected_default_page_count=sum(1 for page in pages if bool(page.is_default)),
+        page_ids=page_ids,
+        has_synced_pages_without_rows=any(page.last_synced_at for page in pages),
+        has_post_sync_without_rows=any(page.last_posts_synced_at for page in pages),
+        airbyte_connection_count=len(airbyte_rows),
+        airbyte_active_count=sum(1 for row in airbyte_rows if bool(row.is_active)),
+        airbyte_inactive_count=sum(
+            1 for row in airbyte_rows if not bool(row.is_active)
+        ),
+        airbyte_last_job_status_counts=_count_rows_by(
+            airbyte_rows, lambda row: row.last_job_status
+        ),
+        airbyte_latest_synced_at=_max_attr(airbyte_rows, "last_synced_at"),
+        airbyte_latest_completed_at=_max_attr(airbyte_rows, "last_job_completed_at"),
+        airbyte_error_categories=airbyte_error_categories,
+        ad_account_count=AdAccount.all_objects.filter(tenant=tenant).count(),
+        stored_rows=stored_rows,
+        has_page_rows=has_page_rows,
+        has_post_rows=has_post_rows,
+        has_meta_posts=has_meta_posts,
+        has_content_rows=has_content_rows,
+        has_published_posts=has_published_posts,
+    )
+
+
+def _meta_credential_health(*, context: SourceHealthContext) -> dict[str, Any]:
     required_scopes = {
         "ads_read",
         "business_management",
         "pages_read_engagement",
         "pages_show_list",
     }
-    token_status_counts = _count_by(credentials, "token_status")
     return {
-        "credential_count": credentials.count(),
-        "token_status_counts": token_status_counts,
+        "credential_count": context.credential_count,
+        "token_status_counts": context.credential_token_status_counts,
         "has_valid_credential": bool(
-            token_status_counts.get(PlatformCredential.TOKEN_STATUS_VALID)
+            context.credential_token_status_counts.get(
+                PlatformCredential.TOKEN_STATUS_VALID
+            )
         ),
         "has_reauth_required": bool(
-            token_status_counts.get(PlatformCredential.TOKEN_STATUS_REAUTH_REQUIRED)
+            context.credential_token_status_counts.get(
+                PlatformCredential.TOKEN_STATUS_REAUTH_REQUIRED
+            )
         ),
         "required_scope_coverage": {
-            "present": sorted(required_scopes & scopes),
-            "missing": sorted(required_scopes - scopes),
+            "present": sorted(required_scopes & context.credential_scopes),
+            "missing": sorted(required_scopes - context.credential_scopes),
         },
-        "latest_validated_at": _latest_iso(
-            credentials.aggregate(value=Max("last_validated_at"))["value"]
-        ),
-        "latest_expires_at": _latest_iso(
-            credentials.aggregate(value=Max("expires_at"))["value"]
-        ),
+        "latest_validated_at": _latest_iso(context.credential_latest_validated_at),
+        "latest_expires_at": _latest_iso(context.credential_latest_expires_at),
     }
 
 
-def _meta_page_connection_health(*, tenant) -> dict[str, Any]:
-    connections = MetaConnection.all_objects.filter(tenant=tenant)
-    pages = MetaPage.all_objects.filter(tenant=tenant)
-    scopes = set()
-    for granted in connections.values_list("scopes", flat=True):
-        if isinstance(granted, list):
-            scopes.update(str(scope) for scope in granted)
+def _meta_page_connection_health(*, context: SourceHealthContext) -> dict[str, Any]:
     required_scopes = {"pages_show_list", "pages_read_engagement"}
-    active_count = connections.filter(is_active=True).count()
-    page_auth_counts = _page_auth_status_counts(pages)
-    usable_page_auth_count = int(page_auth_counts.get("usable", 0))
+    usable_page_auth_count = int(context.page_auth_counts.get("usable", 0))
     return {
-        "connection_count": connections.count(),
-        "active_count": active_count,
-        "inactive_count": connections.filter(is_active=False).count(),
-        "has_active_connection": active_count > 0,
+        "connection_count": context.page_connection_count,
+        "active_count": context.page_connection_active_count,
+        "inactive_count": context.page_connection_inactive_count,
+        "has_active_connection": context.page_connection_active_count > 0,
         "has_usable_page_auth": usable_page_auth_count > 0,
         "usable_page_auth_count": usable_page_auth_count,
         "unusable_page_auth_count": int(
-            page_auth_counts.get("missing", 0) + page_auth_counts.get("unreadable", 0)
+            context.page_auth_counts.get("missing", 0)
+            + context.page_auth_counts.get("unreadable", 0)
         ),
-        "page_auth_status_counts": page_auth_counts,
+        "page_auth_status_counts": context.page_auth_counts,
         "required_scope_coverage": {
-            "present": sorted(required_scopes & scopes),
-            "missing": sorted(required_scopes - scopes),
+            "present": sorted(required_scopes & context.page_connection_scopes),
+            "missing": sorted(required_scopes - context.page_connection_scopes),
         },
         "latest_token_expires_at": _latest_iso(
-            connections.aggregate(value=Max("token_expires_at"))["value"]
+            context.page_connection_latest_token_expires_at
         ),
     }
 
 
-def _meta_airbyte_health(*, tenant) -> dict[str, Any]:
-    connections = AirbyteConnection.all_objects.filter(
-        tenant=tenant,
-        provider=PlatformCredential.META,
+def _meta_airbyte_health(*, context: SourceHealthContext) -> dict[str, Any]:
+    return {
+        "connection_count": context.airbyte_connection_count,
+        "active_count": context.airbyte_active_count,
+        "inactive_count": context.airbyte_inactive_count,
+        "last_job_status_counts": context.airbyte_last_job_status_counts,
+        "latest_synced_at": _latest_iso(context.airbyte_latest_synced_at),
+        "latest_completed_at": _latest_iso(context.airbyte_latest_completed_at),
+        "sanitized_error_categories": context.airbyte_error_categories,
+    }
+
+
+def _stored_asset_health(*, context: SourceHealthContext) -> dict[str, Any]:
+    return {
+        "ad_account_count": context.ad_account_count,
+        "meta_page_count": context.page_count,
+        "analyzable_page_count": context.analyzable_page_count,
+        "selected_default_page_count": context.selected_default_page_count,
+    }
+
+
+def _stored_row_health(*, tenant, meta_post_count: int | None = None) -> dict[str, Any]:
+    resolved_meta_post_count = (
+        meta_post_count
+        if meta_post_count is not None
+        else MetaPost.all_objects.filter(tenant=tenant).count()
     )
-    error_categories: dict[str, int] = {}
-    for error in connections.values_list("last_job_error", flat=True):
-        category = _airbyte_error_category(str(error or ""))
-        if category:
-            error_categories[category] = error_categories.get(category, 0) + 1
-    return {
-        "connection_count": connections.count(),
-        "active_count": connections.filter(is_active=True).count(),
-        "inactive_count": connections.filter(is_active=False).count(),
-        "last_job_status_counts": _count_by(connections, "last_job_status"),
-        "latest_synced_at": _latest_iso(
-            connections.aggregate(value=Max("last_synced_at"))["value"]
-        ),
-        "latest_completed_at": _latest_iso(
-            connections.aggregate(value=Max("last_job_completed_at"))["value"]
-        ),
-        "sanitized_error_categories": error_categories,
-    }
-
-
-def _stored_asset_health(*, tenant) -> dict[str, Any]:
-    pages = MetaPage.all_objects.filter(tenant=tenant)
-    return {
-        "ad_account_count": AdAccount.all_objects.filter(tenant=tenant).count(),
-        "meta_page_count": pages.count(),
-        "analyzable_page_count": pages.filter(can_analyze=True).count(),
-        "selected_default_page_count": pages.filter(is_default=True).count(),
-    }
-
-
-def _stored_row_health(*, tenant) -> dict[str, Any]:
     return {
         "paid_meta_ads": _row_summary(
             RawPerformanceRecord.all_objects.filter(
@@ -174,7 +279,7 @@ def _stored_row_health(*, tenant) -> dict[str, Any]:
             MetaPostInsightPoint.all_objects.filter(tenant=tenant),
             min_field="end_time",
             max_field="end_time",
-            extra_count=MetaPost.all_objects.filter(tenant=tenant).count(),
+            extra_count=resolved_meta_post_count,
             extra_count_label="post_count",
         ),
         "content_ops": _content_ops_row_summary(tenant=tenant),
@@ -220,7 +325,7 @@ def _content_ops_row_summary(*, tenant) -> dict[str, Any]:
 
 
 def _recommended_source_actions(
-    *, tenant, report_scope: Mapping[str, Any] | None = None
+    *, context: SourceHealthContext, report_scope: Mapping[str, Any] | None = None
 ) -> list[str]:
     actions: list[str] = []
     paid_scope = (
@@ -243,12 +348,7 @@ def _recommended_source_actions(
             actions.append(
                 "Run fixed-range paid Meta backfill for the selected SLB ad account before export evidence."
             )
-    meta_statuses = _count_by(
-        PlatformCredential.all_objects.filter(
-            tenant=tenant, provider=PlatformCredential.META
-        ),
-        "token_status",
-    )
+    meta_statuses = context.credential_token_status_counts
     has_valid_meta_credential = bool(
         meta_statuses.get(PlatformCredential.TOKEN_STATUS_VALID)
     )
@@ -259,32 +359,19 @@ def _recommended_source_actions(
         actions.append(
             "Reconnect Meta OAuth credentials before running fresh Facebook/Meta reporting."
         )
-    airbyte_errors = [
-        _airbyte_error_category(str(error or ""))
-        for error in AirbyteConnection.all_objects.filter(
-            tenant=tenant,
-            provider=PlatformCredential.META,
-        ).values_list("last_job_error", flat=True)
-    ]
-    if "destination_connection_refused" in airbyte_errors:
+    if "destination_connection_refused" in context.airbyte_error_categories:
         actions.append(
             "Fix the Airbyte destination/Postgres connectivity before rerunning Meta sync."
         )
-    page_auth_counts = _page_auth_status_counts(
-        MetaPage.all_objects.filter(tenant=tenant)
-    )
+    page_auth_counts = context.page_auth_counts
     if (
         page_auth_counts.get("missing") or page_auth_counts.get("unreadable")
     ) and not page_auth_counts.get("usable"):
         actions.append(
             "Reconnect/select the Facebook Page because the stored Page authorization cannot be used for Page Insights backfill."
         )
-    if not MetaInsightPoint.all_objects.filter(tenant=tenant).exists():
-        synced_pages_without_rows = MetaPage.all_objects.filter(
-            tenant=tenant,
-            last_synced_at__isnull=False,
-        ).exists()
-        if synced_pages_without_rows:
+    if not context.has_page_rows:
+        if context.has_synced_pages_without_rows:
             actions.append(
                 "Meta Page Insights sync has run, but Graph returned no Page insight metric rows; "
                 "verify the selected Page/date range in Meta or upload fallback organic values."
@@ -293,16 +380,11 @@ def _recommended_source_actions(
             actions.append(
                 "Backfill Facebook Page Insights stored rows for the fixed SLB Page/date range."
             )
-    has_meta_posts = MetaPost.all_objects.filter(tenant=tenant).exists()
     post_sync_ran_without_rows = (
-        not has_meta_posts
-        and MetaPage.all_objects.filter(
-            tenant=tenant,
-            last_posts_synced_at__isnull=False,
-        ).exists()
+        not context.has_meta_posts and context.has_post_sync_without_rows
     )
-    if not MetaPostInsightPoint.all_objects.filter(tenant=tenant).exists():
-        if has_meta_posts:
+    if not context.has_post_rows:
+        if context.has_meta_posts:
             actions.append(
                 "Facebook posts are stored, but Meta returned no post insight metric rows; "
                 "top-post activity can render from stored posts while post metrics remain unavailable."
@@ -317,18 +399,8 @@ def _recommended_source_actions(
             actions.append(
                 "Backfill Facebook post insight rows for top-post reporting."
             )
-    try:
-        from content_ops.models import OrganicPostMetricSnapshot, PublishedPost
-
-        has_content_rows = OrganicPostMetricSnapshot.all_objects.filter(
-            tenant=tenant
-        ).exists()
-        has_published_posts = PublishedPost.all_objects.filter(tenant=tenant).exists()
-    except Exception:  # pragma: no cover - defensive for optional app import drift
-        has_content_rows = False
-        has_published_posts = False
-    if not has_content_rows:
-        if has_published_posts:
+    if not context.has_content_rows:
+        if context.has_published_posts:
             actions.append(
                 "Content Ops has Meta-linked published posts, but no aggregate metric snapshots; "
                 "keep this section activity-only until post insight rows are available."
@@ -350,13 +422,13 @@ def _recommended_source_actions(
 
 
 def _remediation_actions(
-    *, tenant, report_scope: Mapping[str, Any] | None = None
+    *, context: SourceHealthContext, report_scope: Mapping[str, Any] | None = None
 ) -> list[dict[str, Any]]:
     actions: list[dict[str, Any]] = []
-    has_page = MetaPage.all_objects.filter(tenant=tenant).exists()
-    has_page_rows = MetaInsightPoint.all_objects.filter(tenant=tenant).exists()
-    has_posts = MetaPost.all_objects.filter(tenant=tenant).exists()
-    has_post_rows = MetaPostInsightPoint.all_objects.filter(tenant=tenant).exists()
+    has_page = context.page_count > 0
+    has_page_rows = context.has_page_rows
+    has_posts = context.has_meta_posts
+    has_post_rows = context.has_post_rows
     paid_scope = (
         report_scope.get("paid_meta_ads")
         if isinstance(report_scope, Mapping)
@@ -516,14 +588,7 @@ def _remediation_actions(
             }
         )
 
-    try:
-        from content_ops.models import OrganicPostMetricSnapshot
-
-        has_content_rows = OrganicPostMetricSnapshot.all_objects.filter(
-            tenant=tenant
-        ).exists()
-    except Exception:  # pragma: no cover - defensive for optional app import drift
-        has_content_rows = False
+    has_content_rows = context.has_content_rows
     if not has_content_rows:
         actions.append(
             {
@@ -597,7 +662,7 @@ def _manual_organic_csv_import_command_template(*, dry_run: bool = False) -> str
 
 
 def _report_scope_health(
-    *, tenant, report_context: Mapping[str, Any] | None
+    *, tenant, report_context: Mapping[str, Any] | None, context: SourceHealthContext
 ) -> dict[str, Any] | None:
     if not isinstance(report_context, Mapping):
         return None
@@ -615,6 +680,7 @@ def _report_scope_health(
     client_id = str(report_context.get("client_id") or "").strip()
     paid_scope = _paid_report_scope_health(
         tenant=tenant,
+        context=context,
         account_id=account_id,
         client_id=client_id,
         start_date=start_date,
@@ -622,6 +688,7 @@ def _report_scope_health(
     )
     organic_page_scope = _organic_page_report_scope_health(
         tenant=tenant,
+        context=context,
         page_id=page_id,
         start_date=start_date,
         end_date=end_date,
@@ -641,13 +708,14 @@ def _report_scope_health(
 def _paid_report_scope_health(
     *,
     tenant,
+    context: SourceHealthContext,
     account_id: str,
     client_id: str,
     start_date: date | None,
     end_date: date | None,
 ) -> dict[str, Any]:
     credential_status = _redacted_meta_credential_status(
-        tenant=tenant,
+        context=context,
         account_id=account_id,
     )
     scoped_rows = _paid_scoped_row_summary(
@@ -713,14 +781,11 @@ def _paid_scoped_row_summary(
 def _organic_page_report_scope_health(
     *,
     tenant,
+    context: SourceHealthContext,
     page_id: str,
     start_date: date | None,
     end_date: date | None,
 ) -> dict[str, Any]:
-    pages = MetaPage.all_objects.filter(tenant=tenant)
-    scoped_pages = (
-        pages.filter(page_id=page_id) if page_id else MetaPage.all_objects.none()
-    )
     scoped_rows = _organic_page_scoped_row_summary(
         tenant=tenant,
         page_id=page_id,
@@ -728,31 +793,27 @@ def _organic_page_report_scope_health(
         end_date=end_date,
     )
     has_page_scope = bool(page_id)
-    matched_page = scoped_pages.exists()
+    matched_page = page_id in context.page_ids if page_id else False
     has_rows = int(scoped_rows.get("row_count") or 0) > 0
     if not has_page_scope:
         backfill_status = "blocked_missing_scope"
-        required_action = (
-            "Select the tenant-owned SLB Facebook Page before organic import or backfill."
-        )
+        required_action = "Select the tenant-owned SLB Facebook Page before organic import or backfill."
     elif not matched_page:
         backfill_status = "blocked_page_not_found"
-        required_action = (
-            "Reconnect/select the tenant-owned SLB Facebook Page; the requested Page is not retained for this tenant."
-        )
+        required_action = "Reconnect/select the tenant-owned SLB Facebook Page; the requested Page is not retained for this tenant."
     elif not has_rows:
         backfill_status = "blocked_no_scoped_rows"
-        required_action = (
-            "Run fixed-range organic Page backfill or approved manual organic CSV import for the selected SLB Page."
-        )
+        required_action = "Run fixed-range organic Page backfill or approved manual organic CSV import for the selected SLB Page."
     else:
         backfill_status = "ready_with_scoped_rows"
-        required_action = "No organic Page backfill action required for the selected scope."
+        required_action = (
+            "No organic Page backfill action required for the selected scope."
+        )
     return {
         "page_scope_present": has_page_scope,
-        "matched_page_count": scoped_pages.count(),
-        "available_page_count": pages.count(),
-        "analyzable_page_count": pages.filter(can_analyze=True).count(),
+        "matched_page_count": 1 if matched_page else 0,
+        "available_page_count": context.page_count,
+        "analyzable_page_count": context.analyzable_page_count,
         "date_filter_applied": bool(start_date and end_date),
         "scoped_rows": scoped_rows,
         "backfill_status": backfill_status,
@@ -800,7 +861,9 @@ def _organic_page_prerequisites(
     ]
 
 
-def _redacted_meta_credential_status(*, tenant, account_id: str) -> dict[str, Any]:
+def _redacted_meta_credential_status(
+    *, context: SourceHealthContext, account_id: str
+) -> dict[str, Any]:
     if not account_id:
         return {
             "status": "not_scoped",
@@ -809,14 +872,17 @@ def _redacted_meta_credential_status(*, tenant, account_id: str) -> dict[str, An
             "token_status": None,
             "last_validated_at": None,
         }
-    credential = (
-        PlatformCredential.all_objects.filter(
-            tenant=tenant,
-            provider=PlatformCredential.META,
-            account_id__in=_account_aliases(account_id),
-        )
-        .order_by("account_id")
-        .first()
+    aliases = _account_aliases(account_id)
+    credential = next(
+        (
+            row
+            for row in sorted(
+                context.credential_rows,
+                key=lambda item: str(item.account_id or ""),
+            )
+            if str(row.account_id or "") in aliases
+        ),
+        None,
     )
     if credential is None:
         return {
@@ -903,7 +969,17 @@ def _count_by(queryset, field: str) -> dict[str, int]:
     return counts
 
 
-def _page_auth_status_counts(queryset) -> dict[str, int]:
+def _count_rows_by(
+    rows: Iterable[Any], value_getter: Callable[[Any], object]
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        key = str(value_getter(row) or "blank")
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _page_auth_status_counts(queryset: Iterable[Any]) -> dict[str, int]:
     counts = {"usable": 0, "missing": 0, "unreadable": 0}
     for page in queryset:
         try:
@@ -920,6 +996,21 @@ def _page_auth_status_counts(queryset) -> dict[str, int]:
 
 def _safe_len(value: object) -> int:
     return len(value) if isinstance(value, list) else 0
+
+
+def _scope_set(values: Iterable[Any]) -> set[str]:
+    scopes: set[str] = set()
+    for granted in values:
+        if isinstance(granted, list):
+            scopes.update(str(scope) for scope in granted)
+    return scopes
+
+
+def _max_attr(rows: Iterable[Any], attr: str) -> Any:
+    values = [
+        getattr(row, attr, None) for row in rows if getattr(row, attr, None) is not None
+    ]
+    return max(values) if values else None
 
 
 def _latest_iso(value: object) -> str | None:
