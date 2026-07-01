@@ -134,6 +134,10 @@ class FacebookPagePublishPayload:
     publishing_identity_id: str
     meta_page_id: str
     caption: str
+    # Optional single image. When set, the post is published as a Page photo
+    # (``/photos``) instead of a text-only feed post (``/feed``).
+    media_url: str = ""
+    media_type: str = ""
 
 
 @dataclass(frozen=True)
@@ -1211,6 +1215,8 @@ def _mark_instagram_container_expired(
 
 def _facebook_payload(attempt: PublishAttempt) -> FacebookPagePublishPayload:
     identity = attempt.publishing_identity
+    media_assets = list(attempt.version.media_assets.all())
+    media_asset = media_assets[0] if media_assets else None
     return FacebookPagePublishPayload(
         tenant_id=str(attempt.tenant_id),
         attempt_id=str(attempt.id),
@@ -1219,6 +1225,8 @@ def _facebook_payload(attempt: PublishAttempt) -> FacebookPagePublishPayload:
         publishing_identity_id=str(attempt.publishing_identity_id),
         meta_page_id=identity.meta_page_id if identity else "",
         caption=str(attempt.version.caption or "").strip(),
+        media_url=public_media_fetch_url(media_asset) if media_asset else "",
+        media_type=media_asset.mime_type if media_asset else "",
     )
 
 

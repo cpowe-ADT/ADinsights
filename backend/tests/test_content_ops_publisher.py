@@ -1045,6 +1045,74 @@ def test_process_facebook_page_attempt_with_graph_publisher_posts_safely(tenant)
     ]
 
 
+@pytest.mark.django_db
+def test_process_facebook_page_attempt_with_media_publishes_photo(tenant, settings, tmp_path):
+    settings.CONTENT_OPS_ASSET_ROOT = tmp_path
+    attempt = _publish_attempt_graph(tenant=tenant)
+    _meta_page_for_attempt(attempt=attempt, tenant=tenant, token="page-live-token")
+    asset = _media_asset(
+        tenant=tenant,
+        workspace=attempt.draft.workspace,
+        tmp_path=tmp_path,
+        renditions={"public_url": "https://cdn.example.com/content/image.png"},
+    )
+    attempt.version.media_assets.add(asset)
+    graph_client = _FakeFacebookGraphClient(post_id="page_post_photo_1")
+
+    result = process_facebook_page_publish_attempt(
+        tenant=tenant,
+        attempt_id=attempt.id,
+        publisher=FacebookGraphPagePublisher(graph_client=graph_client, enabled=True),
+        readiness=_ready_readiness(),
+    )
+
+    attempt.refresh_from_db()
+    assert result.status == PROCESS_STATUS_PUBLISHED
+    assert attempt.state == PublishAttempt.STATE_PUBLISHED
+    assert attempt.meta_post_id == "page_post_photo_1"
+    # A photo post is published via /photos with the media URL, not a text feed post.
+    assert graph_client.calls == [
+        {
+            "page_id": attempt.publishing_identity.meta_page_id,
+            "caption": "Approved Facebook Page caption",
+            "media_url": "https://cdn.example.com/content/image.png",
+            "page_token": "page-live-token",
+        }
+    ]
+
+
+def test_facebook_graph_client_posts_page_photo_without_token_in_url():
+    captured: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(request)
+        return httpx.Response(200, json={"id": "photo_1", "post_id": "page_123_post_789"})
+
+    client = FacebookGraphPageClient(graph_version="v24.0")
+    client._client.close()
+    client._client = httpx.Client(transport=httpx.MockTransport(handler))
+
+    result = client.publish_page_photo(
+        page_id="page_123",
+        caption="Approved post",
+        media_url="https://cdn.example.com/content/image.png",
+        page_token="page-live-token",
+    )
+
+    client.close()
+    assert result.post_id == "page_123_post_789"
+    assert len(captured) == 1
+    request = captured[0]
+    assert request.method == "POST"
+    assert request.url.path == "/v24.0/page_123/photos"
+    assert "page-live-token" not in str(request.url)
+    body = parse_qs(request.content.decode("utf-8"))
+    assert body["url"] == ["https://cdn.example.com/content/image.png"]
+    assert body["caption"] == ["Approved post"]
+    assert body["published"] == ["true"]
+    assert body["access_token"] == ["page-live-token"]
+
+
 def test_facebook_graph_client_posts_page_feed_without_token_in_url():
     captured: list[httpx.Request] = []
 
@@ -1837,6 +1905,31 @@ class _FakeFacebookGraphClient:
             {
                 "page_id": page_id,
                 "message": message,
+                "page_token": page_token,
+            }
+        )
+        return type(
+            "GraphResult",
+            (),
+            {
+                "post_id": self.post_id,
+                "permalink": f"https://facebook.example/{self.post_id}",
+            },
+        )()
+
+    def publish_page_photo(
+        self,
+        *,
+        page_id: str,
+        caption: str,
+        media_url: str,
+        page_token: str,
+    ):
+        self.calls.append(
+            {
+                "page_id": page_id,
+                "caption": caption,
+                "media_url": media_url,
                 "page_token": page_token,
             }
         )

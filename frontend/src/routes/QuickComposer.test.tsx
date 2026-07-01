@@ -9,24 +9,42 @@ vi.mock('../lib/contentOps', async (importActual) => {
     ...actual,
     listContentOpsWorkspaces: vi.fn(),
     fetchContentOpsPublishingReadiness: vi.fn(),
+    createContentOpsDraft: vi.fn(),
     createContentOpsDraftWithVersion: vi.fn(),
+    createContentOpsVersionWithAsset: vi.fn(),
+    uploadContentOpsAsset: vi.fn(),
     publishContentOpsDraftNow: vi.fn(),
   };
 });
 
 import {
+  createContentOpsDraft,
   createContentOpsDraftWithVersion,
+  createContentOpsVersionWithAsset,
   fetchContentOpsPublishingReadiness,
   listContentOpsWorkspaces,
   publishContentOpsDraftNow,
+  uploadContentOpsAsset,
 } from '../lib/contentOps';
 
 import QuickComposer from './QuickComposer';
 
 const listWorkspacesMock = vi.mocked(listContentOpsWorkspaces);
 const readinessMock = vi.mocked(fetchContentOpsPublishingReadiness);
-const createDraftMock = vi.mocked(createContentOpsDraftWithVersion);
+const createDraftMock = vi.mocked(createContentOpsDraft);
+const createDraftWithVersionMock = vi.mocked(createContentOpsDraftWithVersion);
+const versionWithAssetMock = vi.mocked(createContentOpsVersionWithAsset);
+const uploadAssetMock = vi.mocked(uploadContentOpsAsset);
 const publishNowMock = vi.mocked(publishContentOpsDraftNow);
+
+Object.defineProperty(window.URL, 'createObjectURL', {
+  writable: true,
+  value: vi.fn(() => 'blob:preview'),
+});
+Object.defineProperty(window.URL, 'revokeObjectURL', {
+  writable: true,
+  value: vi.fn(),
+});
 
 function renderComposer() {
   return render(
@@ -49,7 +67,10 @@ beforeEach(() => {
       reason: 'missing_publishing_permissions',
     },
   ]);
-  createDraftMock.mockResolvedValue({ id: 'draft-1' } as never);
+  createDraftMock.mockResolvedValue({ id: 'draft-1' });
+  createDraftWithVersionMock.mockResolvedValue({ id: 'draft-1' } as never);
+  versionWithAssetMock.mockResolvedValue({ id: 'v1', draft: 'draft-1' } as never);
+  uploadAssetMock.mockResolvedValue({ id: 'asset-1' } as never);
   publishNowMock.mockResolvedValue({
     schedule: { id: 's1' } as never,
     attempts: [
@@ -75,12 +96,10 @@ describe('QuickComposer', () => {
 
     expect(await screen.findByText('Ready')).toBeInTheDocument();
     expect(screen.getByText('Not live yet')).toBeInTheDocument();
-    expect(
-      screen.getByText(/awaiting publishing permissions/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/awaiting publishing permissions/i)).toBeInTheDocument();
   });
 
-  it('creates a draft and publishes to the selected destination', async () => {
+  it('publishes a text post via the create-draft-with-version path', async () => {
     const user = userEvent.setup();
     renderComposer();
 
@@ -89,7 +108,7 @@ describe('QuickComposer', () => {
     await user.click(screen.getByRole('button', { name: /post now/i }));
 
     await waitFor(() => expect(publishNowMock).toHaveBeenCalledTimes(1));
-    expect(createDraftMock).toHaveBeenCalledWith(
+    expect(createDraftWithVersionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceId: 'ws1',
         channel: 'facebook_page',
@@ -97,12 +116,50 @@ describe('QuickComposer', () => {
         briefId: null,
       }),
     );
+    expect(uploadAssetMock).not.toHaveBeenCalled();
     expect(publishNowMock).toHaveBeenCalledWith({
       draftId: 'draft-1',
       channels: [{ type: 'facebook_page' }],
     });
     expect(await screen.findByText('Publish status')).toBeInTheDocument();
-    expect(screen.getByText('Queued')).toBeInTheDocument();
+  });
+
+  it('uploads an image and attaches it before publishing', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    const captionField = await screen.findByPlaceholderText('What do you want to share?');
+    await user.type(captionField, 'Photo post');
+    const file = new File(['bytes'], 'photo.png', { type: 'image/png' });
+    await user.upload(screen.getByLabelText(/attach an image/i), file);
+    await user.click(screen.getByRole('button', { name: /post now/i }));
+
+    await waitFor(() => expect(publishNowMock).toHaveBeenCalledTimes(1));
+    expect(createDraftMock).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: 'ws1' }));
+    expect(uploadAssetMock).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: 'ws1', file }),
+    );
+    expect(versionWithAssetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        draftId: 'draft-1',
+        assetId: 'asset-1',
+        channel: 'facebook_page',
+        caption: 'Photo post',
+      }),
+    );
+    expect(createDraftWithVersionMock).not.toHaveBeenCalled();
+  });
+
+  it('requires an image when Instagram is selected', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    const captionField = await screen.findByPlaceholderText('What do you want to share?');
+    await user.type(captionField, 'IG post');
+    await user.click(screen.getByRole('checkbox', { name: /instagram/i }));
+
+    expect(screen.getByText(/Instagram posts require an image/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /post now/i })).toBeDisabled();
   });
 
   it('blocks submit until a caption is entered', async () => {

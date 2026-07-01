@@ -414,6 +414,23 @@ export async function createContentOpsBrief({
   return mapBrief(brief, workspaceName);
 }
 
+export async function createContentOpsDraft({
+  workspaceId,
+  title,
+  briefId = null,
+}: {
+  workspaceId: string;
+  title: string;
+  briefId?: string | null;
+}): Promise<{ id: string }> {
+  const draft = await apiClient.post<{ id: string }>('/content-ops/drafts/', {
+    workspace: workspaceId,
+    brief: briefId,
+    title: title.trim(),
+  });
+  return { id: draft.id };
+}
+
 export async function createContentOpsDraftWithVersion({
   workspaceId,
   briefId,
