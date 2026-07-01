@@ -29,6 +29,8 @@ def _meta_page(
     is_default: bool = False,
     perms=None,
     tasks=None,
+    instagram_business_account_id: str = "",
+    instagram_username: str = "",
 ) -> MetaPage:
     page = MetaPage(
         tenant=tenant,
@@ -38,6 +40,8 @@ def _meta_page(
         is_default=is_default,
         perms=perms if perms is not None else [],
         tasks=tasks if tasks is not None else [],
+        instagram_business_account_id=instagram_business_account_id,
+        instagram_username=instagram_username,
     )
     page.set_raw_page_token("page-access-token")
     page.save()
@@ -78,7 +82,53 @@ def test_sync_creates_selected_facebook_identities_for_publishable_pages(tenant)
     )
     assert identities["page_default"].credential_ref_id == credential.id
     assert identities["page_default"].display_name == "Default Page"
-    # Facebook only — Instagram identities are not invented without a linked id.
+    # No Instagram identities are invented for pages without a linked IG account.
+    assert not PublishingIdentity.all_objects.filter(
+        tenant=tenant, platform=PublishingIdentity.PLATFORM_INSTAGRAM
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_sync_creates_instagram_identity_for_linked_page(tenant):
+    _meta_credential(tenant)
+    _meta_page(
+        tenant,
+        page_id="page_ig",
+        name="Linked Page",
+        is_default=True,
+        instagram_business_account_id="ig_17900000000000000",
+        instagram_username="brand.jamaica",
+    )
+
+    result = sync_publishing_identities_for_tenant(tenant=tenant)
+
+    # One page -> one Facebook identity + one Instagram identity.
+    assert result.total_pages == 1
+    assert result.created == 2
+    fb = PublishingIdentity.all_objects.get(
+        tenant=tenant, platform=PublishingIdentity.PLATFORM_FACEBOOK_PAGE
+    )
+    ig = PublishingIdentity.all_objects.get(
+        tenant=tenant, platform=PublishingIdentity.PLATFORM_INSTAGRAM
+    )
+    assert fb.meta_page_id == "page_ig"
+    assert ig.meta_page_id == "page_ig"
+    assert ig.ig_user_id == "ig_17900000000000000"
+    assert ig.display_name == "brand.jamaica"
+    assert ig.selection_state == PublishingIdentity.SELECTION_SELECTED
+
+    # Idempotent: re-running creates nothing new.
+    rerun = sync_publishing_identities_for_tenant(tenant=tenant)
+    assert rerun.created == 0
+    assert PublishingIdentity.all_objects.filter(tenant=tenant).count() == 2
+
+
+@pytest.mark.django_db
+def test_sync_without_instagram_link_creates_no_instagram_identity(tenant):
+    _meta_page(tenant, page_id="page_plain", name="Plain Page", is_default=True)
+
+    sync_publishing_identities_for_tenant(tenant=tenant)
+
     assert not PublishingIdentity.all_objects.filter(
         tenant=tenant, platform=PublishingIdentity.PLATFORM_INSTAGRAM
     ).exists()

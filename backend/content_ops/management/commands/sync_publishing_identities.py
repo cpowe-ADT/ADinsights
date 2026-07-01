@@ -9,8 +9,8 @@ from content_ops.identity_sync import sync_publishing_identities_for_tenant
 
 class Command(BaseCommand):
     help = (
-        "Provision Content Ops Facebook Page publishing identities from "
-        "connected Meta pages so they appear as composer destinations."
+        "Provision Content Ops Facebook Page and linked Instagram publishing "
+        "identities from connected Meta pages so they appear as composer destinations."
     )
 
     def add_arguments(self, parser):

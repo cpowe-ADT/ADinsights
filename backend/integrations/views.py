@@ -2235,6 +2235,21 @@ class MetaPageConnectView(APIView):
         declined_permissions = _normalize_scopes(cached_payload.get("declined_permissions"))
         selected_page_id = str(selected_page.get("id") or "").strip()
         private_pages = _cached_private_page_records(cached_payload)
+        # Map each Page to its linked Instagram professional account (if any) so
+        # the linkage is persisted on MetaPage for Content Ops publishing.
+        ig_by_page: dict[str, dict[str, str]] = {}
+        cached_ig_accounts = cached_payload.get("instagram_accounts")
+        if isinstance(cached_ig_accounts, list):
+            for ig_account in cached_ig_accounts:
+                if not isinstance(ig_account, dict):
+                    continue
+                ig_source_page_id = str(ig_account.get("source_page_id") or "").strip()
+                ig_id = str(ig_account.get("id") or "").strip()
+                if ig_source_page_id and ig_id and ig_source_page_id not in ig_by_page:
+                    ig_by_page[ig_source_page_id] = {
+                        "id": ig_id,
+                        "username": str(ig_account.get("username") or "").strip(),
+                    }
         app_scoped_user_id = str(cached_payload.get("app_scoped_user_id") or request.user.id).strip()
         if not app_scoped_user_id:
             app_scoped_user_id = str(request.user.id)
@@ -2316,6 +2331,9 @@ class MetaPageConnectView(APIView):
                 page_record.tasks = tasks
                 page_record.perms = perms
                 page_record.is_default = page_id == selected_page_id
+                ig_link = ig_by_page.get(page_id, {})
+                page_record.instagram_business_account_id = ig_link.get("id", "")
+                page_record.instagram_username = ig_link.get("username", "")
                 page_record.set_raw_page_token(page_token)
                 page_record.save()
 
