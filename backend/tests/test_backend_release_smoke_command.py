@@ -379,6 +379,51 @@ def test_backend_release_smoke_command_strict_observability_passes(monkeypatch):
 
 
 @pytest.mark.django_db
+def test_backend_release_smoke_command_strict_observability_initializes_queue_labels():
+    reset_metrics()
+
+    stdout = StringIO()
+    call_command("backend_release_smoke", "--strict-observability", stdout=stdout)
+
+    payload = json.loads(stdout.getvalue())
+    assert payload["ok"] is True
+    assert payload["strict_observability"] is True
+    assert payload["missing_metric_labels"] == []
+    assert payload["retry_total"] == pytest.approx(0.0)
+
+
+@pytest.mark.django_db
+@override_settings(
+    CELERY_QUEUE_SYNC="priority-sync",
+    CELERY_QUEUE_SNAPSHOT="priority-snapshot",
+    CELERY_QUEUE_SUMMARY="priority-summary",
+)
+def test_backend_release_smoke_command_strict_observability_uses_configured_queue_labels():
+    reset_metrics()
+
+    stdout = StringIO()
+    call_command("backend_release_smoke", "--strict-observability", stdout=stdout)
+
+    payload = json.loads(stdout.getvalue())
+    assert payload["ok"] is True
+    assert payload["missing_metric_labels"] == []
+    assert payload["expected_metric_labels"] == [
+        {
+            "metric_name": "celery_task_queue_starts_total",
+            "labels": {"queue_name": "priority-sync"},
+        },
+        {
+            "metric_name": "celery_task_queue_starts_total",
+            "labels": {"queue_name": "priority-snapshot"},
+        },
+        {
+            "metric_name": "celery_task_queue_starts_total",
+            "labels": {"queue_name": "priority-summary"},
+        },
+    ]
+
+
+@pytest.mark.django_db
 def test_backend_release_smoke_command_strict_observability_fails_missing_queue_label(monkeypatch):
     from analytics.management.commands import backend_release_smoke as command_module
 

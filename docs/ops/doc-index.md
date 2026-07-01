@@ -58,6 +58,8 @@ Linkage reminders:
 - agent-activity-log shows what changed last session to avoid duplication.
 - README.md is the quick repo map and command cheat-sheet.
 - runbooks/orchestration must be updated when behavior or observability changes.
+- Strict observability smoke behavior is documented in `docs/runbooks/release-checklist.md` and
+  `docs/orchestration.md`; keep local label-parity notes separate from live worker evidence.
 
 Navigation checklist for cold starts:
 

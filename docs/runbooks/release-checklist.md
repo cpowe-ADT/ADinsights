@@ -21,6 +21,8 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
   - `backend/.venv/bin/python backend/manage.py backend_release_preflight`
 - [ ] Live-runtime strict observability smoke is captured after worker/task activity exists:
   - `python3 backend/manage.py backend_release_smoke --strict-observability`
+  - The command initializes zero-valued configured queue-start label series for local
+    metric-label parity; staging evidence still requires real worker/task samples.
 - [ ] Any API contract changes recorded in `docs/project/api-contract-changelog.md`.
 - [ ] Runbooks updated for behavior changes.
 - [ ] Design system docs updated for UI changes.
@@ -33,7 +35,8 @@ External production actions must be tracked in `docs/runbooks/external-actions-a
 - [ ] Backend observability metrics are present and labeled as expected:
   - `curl -fsS http://localhost:8000/metrics/app/ | rg 'celery_task_executions_total|celery_task_retries_total|celery_task_queue_starts_total|celery_task_queue_wait_seconds|combined_metrics_request_duration_seconds|airbyte_sync_latency_seconds|dbt_run_duration_seconds'`
 - [ ] Backend and task workers share `PROMETHEUS_MULTIPROC_DIR`; real queue activity appears from
-      `sync`, `snapshot`, and `summary` in the backend `/metrics/app/` payload.
+      the configured sync, snapshot, and summary queues in the backend `/metrics/app/` payload.
+      Do not treat zero-valued strict-smoke label initialization as proof of live worker activity.
 - [ ] Post-MVP ops endpoints return 200 with expected payload shape:
   - `/api/ops/sync-health/`, `/api/ops/health-overview/`
 - [ ] Connector lifecycle endpoints return expected status and sync behavior:

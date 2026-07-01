@@ -11,6 +11,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.test import Client
 
+from core.metrics import ensure_task_queue_start_series
+
 
 DEFAULT_REQUIRED_METRICS = [
     "celery_task_executions_total",
@@ -21,11 +23,6 @@ DEFAULT_REQUIRED_METRICS = [
     "airbyte_sync_latency_seconds",
     "dbt_run_duration_seconds",
 ]
-DEFAULT_STRICT_OBSERVABILITY_METRIC_LABELS = [
-    ("celery_task_queue_starts_total", {"queue_name": "sync"}),
-    ("celery_task_queue_starts_total", {"queue_name": "snapshot"}),
-    ("celery_task_queue_starts_total", {"queue_name": "summary"}),
-]
 DEFAULT_STRICT_OBSERVABILITY_MAX_UNKNOWN_RETRY_SHARE = 0.10
 DEFAULT_UNKNOWN_RETRY_REASON_LABELS = (
     "unknown",
@@ -33,6 +30,12 @@ DEFAULT_UNKNOWN_RETRY_REASON_LABELS = (
     "meta_graph_unknown_error",
     "meta_page_insights_unknown",
 )
+STRICT_OBSERVABILITY_QUEUE_SETTINGS = (
+    ("CELERY_QUEUE_SYNC", "sync"),
+    ("CELERY_QUEUE_SNAPSHOT", "snapshot"),
+    ("CELERY_QUEUE_SUMMARY", "summary"),
+)
+STRICT_OBSERVABILITY_SERIES_TASK_NAME = "backend_release_smoke.strict_observability"
 
 
 @dataclass(frozen=True)
@@ -115,6 +118,31 @@ def _resolve_client_http_host() -> str:
         if normalized:
             return normalized
     return "localhost"
+
+
+def _normalize_queue_label(queue_name: str | None) -> str:
+    return (queue_name or "unknown").strip().lower() or "unknown"
+
+
+def _strict_observability_queue_names() -> tuple[str, ...]:
+    return tuple(
+        str(getattr(settings, setting_name, default_name))
+        for setting_name, default_name in STRICT_OBSERVABILITY_QUEUE_SETTINGS
+    )
+
+
+def _default_strict_observability_metric_labels() -> list[tuple[str, dict[str, str]]]:
+    return [
+        ("celery_task_queue_starts_total", {"queue_name": _normalize_queue_label(queue_name)})
+        for queue_name in _strict_observability_queue_names()
+    ]
+
+
+def _ensure_strict_observability_series() -> None:
+    ensure_task_queue_start_series(
+        task_name=STRICT_OBSERVABILITY_SERIES_TASK_NAME,
+        queue_names=_strict_observability_queue_names(),
+    )
 
 
 def _configured_rate(scope: str) -> str:
@@ -274,7 +302,7 @@ class Command(BaseCommand):
                 if metric_name not in expected_metrics:
                     expected_metrics.append(metric_name)
             if not expected_metric_labels:
-                expected_metric_labels = list(DEFAULT_STRICT_OBSERVABILITY_METRIC_LABELS)
+                expected_metric_labels = _default_strict_observability_metric_labels()
             if max_unknown_retry_share is None:
                 max_unknown_retry_share = DEFAULT_STRICT_OBSERVABILITY_MAX_UNKNOWN_RETRY_SHARE
             if not unknown_retry_reason_labels:
@@ -288,6 +316,9 @@ class Command(BaseCommand):
             raise CommandError("--max-rate-limit-smoke-attempts must be at least 1.")
         if max_unknown_retry_share is not None and not unknown_retry_reason_labels:
             unknown_retry_reason_labels = list(DEFAULT_UNKNOWN_RETRY_REASON_LABELS)
+
+        if strict_observability:
+            _ensure_strict_observability_series()
 
         external_statuses = (200,) if strict_external else (200, 502, 503)
         checks = [

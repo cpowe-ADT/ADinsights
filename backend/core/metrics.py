@@ -249,6 +249,14 @@ def observe_task_queue_start(
         )
 
 
+def ensure_task_queue_start_series(*, task_name: str, queue_names: Iterable[str | None]) -> None:
+    """Expose zero-valued queue-start series so strict smoke checks can verify labels."""
+
+    for queue_name in queue_names:
+        queue_label = (queue_name or "unknown").strip().lower() or "unknown"
+        CELERY_TASK_QUEUE_START_TOTAL.labels(task_name=task_name, queue_name=queue_label)
+
+
 def observe_airbyte_sync(
     *,
     tenant_id: str,
