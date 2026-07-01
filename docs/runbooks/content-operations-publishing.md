@@ -171,7 +171,9 @@ Required preconditions:
 
 1. Meta test/staging app has the `pages_manage_posts` path approved or otherwise available for the
    controlled test user and Page.
-2. Runtime OAuth scopes include `pages_manage_posts` only in the gated staging environment.
+2. Runtime OAuth scopes include `pages_manage_posts` only in the gated staging environment: set
+   `META_ENABLE_PUBLISH_SCOPES=true` and have the test user reconnect Meta so the granted token
+   carries the scope.
 3. `CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING=true` is enabled only for the staging validation window.
 4. The selected staging tenant has a tenant-local selected `MetaPage` with a decryptable Page token
    and valid Page task access.

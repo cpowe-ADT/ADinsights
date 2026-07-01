@@ -144,6 +144,67 @@ def test_meta_oauth_start_returns_authorize_url(api_client, user, settings):
 
 
 @pytest.mark.django_db
+def test_meta_setup_includes_publish_scopes_when_enabled(api_client, user, settings):
+    _authenticate(api_client, user)
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_APP_SECRET = "meta-app-secret"
+    settings.META_LOGIN_CONFIG_ID = "2323589144820085"
+    settings.META_LOGIN_CONFIG_REQUIRED = True
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+    settings.META_OAUTH_SCOPES = ["ads_read", "pages_show_list"]
+    settings.META_ENABLE_PUBLISH_SCOPES = True
+
+    response = api_client.get(reverse("meta-setup"))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "pages_manage_posts" in payload["oauth_scopes"]
+    assert "instagram_content_publish" in payload["oauth_scopes"]
+    # instagram_basic is normally login-ignored, but is requested for publishing.
+    assert "instagram_basic" in payload["oauth_scopes"]
+    assert "instagram_basic" not in payload["oauth_ignored_scopes"]
+
+
+@pytest.mark.django_db
+def test_meta_setup_excludes_publish_scopes_by_default(api_client, user, settings):
+    _authenticate(api_client, user)
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_APP_SECRET = "meta-app-secret"
+    settings.META_LOGIN_CONFIG_ID = "2323589144820085"
+    settings.META_LOGIN_CONFIG_REQUIRED = True
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+    settings.META_OAUTH_SCOPES = ["ads_read", "pages_show_list"]
+    settings.META_ENABLE_PUBLISH_SCOPES = False
+
+    response = api_client.get(reverse("meta-setup"))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "pages_manage_posts" not in payload["oauth_scopes"]
+    assert "instagram_content_publish" not in payload["oauth_scopes"]
+
+
+@pytest.mark.django_db
+def test_meta_oauth_start_requests_publish_scopes_when_enabled(api_client, user, settings):
+    _authenticate(api_client, user)
+    settings.META_APP_ID = "meta-app-id"
+    settings.META_LOGIN_CONFIG_REQUIRED = True
+    settings.META_LOGIN_CONFIG_ID = "2323589144820085"
+    settings.META_OAUTH_REDIRECT_URI = "http://localhost:5173/dashboards/data-sources"
+    settings.META_GRAPH_API_VERSION = "v24.0"
+    settings.META_ENABLE_PUBLISH_SCOPES = True
+
+    response = api_client.post(reverse("meta-oauth-start"), {}, format="json")
+
+    assert response.status_code == 200
+    payload = response.json()
+    scope_param = parse_qs(urlparse(payload["authorize_url"]).query)["scope"][0]
+    assert "pages_manage_posts" in scope_param
+    assert "instagram_content_publish" in scope_param
+    assert "instagram_basic" in scope_param
+
+
+@pytest.mark.django_db
 def test_meta_oauth_start_uses_localhost_origin_when_redirect_not_explicit(api_client, user, settings):
     _authenticate(api_client, user)
     settings.META_APP_ID = "meta-app-id"

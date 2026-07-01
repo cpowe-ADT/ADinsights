@@ -13,6 +13,14 @@ existing ADinsights reporting permission baseline.
 Do not add publishing scopes to default runtime OAuth until the active Content Operations feature
 requires them and App Review evidence is ready.
 
+The runtime mechanism is the `META_ENABLE_PUBLISH_SCOPES` flag (default off; see
+`docs/project/feature-flags-reference.md`). When off, the authorize request is exactly today's
+reporting baseline. When on, `pages_manage_posts` / `instagram_basic` / `instagram_content_publish`
+(overridable via `META_PUBLISH_SCOPES`) are appended to the authorize request and `instagram_basic`
+is exempted from the login-ignored filter. Enabling the flag only changes what is _requested_ — the
+permissions are still granted only after App Review approval or for an approved test user, and live
+publishing remains separately gated by the `CONTENT_OPS_LIVE_*` flags.
+
 Existing reporting/onboarding permissions remain governed by:
 
 - `docs/project/meta-permission-profile.md`

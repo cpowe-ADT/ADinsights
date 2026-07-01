@@ -32,6 +32,14 @@ Purpose: summarize feature flags/entitlements for AI and humans.
 - `CONTENT_OPS_LIVE_FACEBOOK_PUBLISHING` gates the implemented live Facebook Page provider adapter.
   Default is off. It must stay off for production tenants until App Review evidence, token-handling
   proof, observability, rollback, staging proof, and Raj/Maya/Nina signoff are complete.
+- `META_ENABLE_PUBLISH_SCOPES` gates whether the advanced publishing permissions
+  (`pages_manage_posts`, `instagram_basic`, `instagram_content_publish`, overridable via
+  `META_PUBLISH_SCOPES`) are added to the Meta authorize request. Default is off, so the
+  reporting/onboarding OAuth baseline is unchanged. When on, the publish scopes are appended to the
+  authorize request and `instagram_basic` is exempted from the login-ignored filter. This only
+  controls what is _requested_ — a user must reconnect Meta for a token to actually carry the granted
+  scopes, and the `CONTENT_OPS_LIVE_*` flags still independently gate live publishing. Keep off until
+  App Review approves the permissions (or a test user is approved for them).
 - `CONTENT_OPS_LIVE_AI_GENERATION` gates future live caption/graphic provider calls after quota,
   redaction, eval, and billing controls are approved.
 
