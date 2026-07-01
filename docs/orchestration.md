@@ -104,5 +104,6 @@ Tune via `backend/.env.dev` / `backend/.env.sample`:
   - `backend/.venv/bin/python backend/manage.py backend_release_preflight`
 - After live workers have emitted queue metrics, capture strict observability evidence:
   - `python3 backend/manage.py backend_release_smoke --strict-observability`
-  - This requires real `sync`, `snapshot`, `summary`, combined-metrics, Airbyte, dbt, and retry
-    samples to have occurred in the observed runtime.
+  - The command initializes zero-valued configured queue-start label series so local
+    `/metrics/app/` label checks are deterministic. Staging evidence still requires real queue
+    activity plus combined-metrics, Airbyte, dbt, and retry samples in the observed runtime.

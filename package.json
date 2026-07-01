@@ -31,7 +31,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "openai": "^6.9.0"
+    "openai": "^6.45.0"
   },
   "overrides": {
     "axios": "^1.13.5",
