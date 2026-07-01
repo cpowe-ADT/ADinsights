@@ -611,6 +611,71 @@ export async function retryContentOpsPublishAttempt(
   );
 }
 
+export type ContentOpsPublishTarget = {
+  type: ContentOpsChannel;
+  page_id?: string;
+  ig_user_id?: string;
+};
+
+export type ContentOpsPublishNowResult = {
+  schedule: ContentOpsSchedulePayload;
+  attempts: ContentOpsPublishAttemptPayload[];
+  dispatch: {
+    scanned: number;
+    schedules_dispatched?: number;
+    attempts_created: number;
+    attempts_existing: number;
+    attempts_blocked: number;
+  };
+  approval_mode: string;
+};
+
+export async function publishContentOpsDraftNow({
+  draftId,
+  channels,
+}: {
+  draftId: string;
+  channels?: ContentOpsPublishTarget[];
+}): Promise<ContentOpsPublishNowResult> {
+  return apiClient.post<ContentOpsPublishNowResult>(
+    `/content-ops/drafts/${draftId}/publish-now/`,
+    channels && channels.length > 0 ? { channels } : {},
+  );
+}
+
+export type ContentOpsPublishingReadiness = {
+  channel: ContentOpsChannel;
+  label: string;
+  ready: boolean;
+  reason: string | null;
+};
+
+export async function fetchContentOpsPublishingReadiness(
+  signal?: AbortSignal,
+): Promise<ContentOpsPublishingReadiness[]> {
+  const payload = await apiClient.get<Record<string, BackendReadinessAxis>>(
+    '/content-ops/readiness/',
+    { signal },
+  );
+  const axisFor = (key: string): BackendReadinessAxis => payload?.[key] ?? {};
+  const facebook = axisFor('facebook_page_publishing');
+  const instagram = axisFor('instagram_publishing');
+  return [
+    {
+      channel: 'facebook_page',
+      label: channelLabel('facebook_page'),
+      ready: facebook.state === 'ready',
+      reason: facebook.state === 'ready' ? null : facebook.reason ?? 'not_ready',
+    },
+    {
+      channel: 'instagram',
+      label: channelLabel('instagram'),
+      ready: instagram.state === 'ready',
+      reason: instagram.state === 'ready' ? null : instagram.reason ?? 'not_ready',
+    },
+  ];
+}
+
 export async function exportContentOpsPlan({
   workspaceId,
   states = [],

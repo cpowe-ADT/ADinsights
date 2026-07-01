@@ -28,6 +28,7 @@ const ClientsPage = lazy(() => import('./routes/ClientsPage'));
 const ClientDetailPage = lazy(() => import('./routes/ClientDetailPage'));
 const ClientSuggestPage = lazy(() => import('./routes/ClientSuggestPage'));
 const ContentOpsPage = lazy(() => import('./routes/ContentOpsPage'));
+const QuickComposerPage = lazy(() => import('./routes/QuickComposer'));
 const RegionalAgentsPage = lazy(() => import('./routes/RegionalAgentsPage'));
 const CreativeDashboard = lazy(() => import('./routes/CreativeDashboard'));
 const CreativeDetail = lazy(() => import('./routes/CreativeDetail'));
@@ -239,6 +240,10 @@ export const router = createBrowserRouter(
         {
           path: '/content',
           element: withRouteLoader(<ContentOpsPage />, 'Loading content operations…'),
+        },
+        {
+          path: '/content/compose',
+          element: withRouteLoader(<QuickComposerPage />, 'Loading composer…'),
         },
         {
           path: '/content/agents',
