@@ -8,11 +8,10 @@ without anyone hand-creating identities through the API.
 Scope notes:
 
 * Integrations models are read **read-only** here; only ``content_ops`` rows are
-  written, keeping this change within the ``content_ops`` folder boundary.
-* Instagram identities require the linked IG business-account id, which is not
-  yet persisted in the integrations layer (it is only fetched live from the
-  Graph API). Until that linkage is stored, Instagram destinations are
-  provisioned separately, so this sync covers Facebook Pages only.
+  written.
+* Pages with a persisted linked Instagram professional account
+  (``MetaPage.instagram_business_account_id``) also get an Instagram identity, so
+  the composer can target Instagram once publishing scopes are granted.
 """
 
 from __future__ import annotations
@@ -72,9 +71,67 @@ def _active_meta_credential(*, tenant) -> PlatformCredential | None:
     )
 
 
-def sync_publishing_identities_for_tenant(*, tenant) -> IdentitySyncResult:
-    """Upsert Facebook Page publishing identities for one tenant.
+def _upsert_publishing_identity(
+    *,
+    tenant,
+    platform: str,
+    meta_page_id: str,
+    ig_user_id: str,
+    display_name: str,
+    credential: PlatformCredential | None,
+    publishable: bool,
+) -> tuple[int, int, int]:
+    """Create or refresh one publishing identity.
 
+    Returns ``(created, updated, selected)`` deltas. Idempotent, and never
+    overrides an explicit user revoke.
+    """
+
+    identity, was_created = PublishingIdentity.all_objects.get_or_create(
+        tenant=tenant,
+        platform=platform,
+        meta_page_id=meta_page_id,
+        ig_user_id=ig_user_id,
+        defaults={
+            "display_name": display_name,
+            "credential_ref": credential,
+            "selection_state": (
+                PublishingIdentity.SELECTION_SELECTED
+                if publishable
+                else PublishingIdentity.SELECTION_NOT_SELECTED
+            ),
+            "publish_readiness_state": PublishingIdentity.READINESS_READY,
+        },
+    )
+    if was_created:
+        was_selected = identity.selection_state == PublishingIdentity.SELECTION_SELECTED
+        return (1, 0, 1 if was_selected else 0)
+
+    changed_fields: list[str] = []
+    if display_name and identity.display_name != display_name:
+        identity.display_name = display_name
+        changed_fields.append("display_name")
+    if credential is not None and identity.credential_ref_id != credential.id:
+        identity.credential_ref = credential
+        changed_fields.append("credential_ref")
+    selected_delta = 0
+    # Promote a never-decided destination, but respect an explicit revoke.
+    if publishable and identity.selection_state == PublishingIdentity.SELECTION_NOT_SELECTED:
+        identity.selection_state = PublishingIdentity.SELECTION_SELECTED
+        changed_fields.append("selection_state")
+        selected_delta = 1
+    if changed_fields:
+        changed_fields.append("updated_at")
+        identity.save(update_fields=changed_fields)
+        return (0, 1, selected_delta)
+    return (0, 0, selected_delta)
+
+
+def sync_publishing_identities_for_tenant(*, tenant) -> IdentitySyncResult:
+    """Upsert Facebook Page and linked Instagram publishing identities for a tenant.
+
+    Every connected Page becomes a Facebook Page identity; Pages with a persisted
+    linked Instagram professional account also get an Instagram identity.
     Idempotent: re-running refreshes the display name and credential link and
     promotes never-decided destinations to selected, but it never overrides a
     destination a user has explicitly revoked.
@@ -89,47 +146,34 @@ def sync_publishing_identities_for_tenant(*, tenant) -> IdentitySyncResult:
     selected = 0
     for page in pages:
         publishable = _page_is_publishable(page)
-        identity, was_created = PublishingIdentity.all_objects.get_or_create(
+        page_created, page_updated, page_selected = _upsert_publishing_identity(
             tenant=tenant,
             platform=PublishingIdentity.PLATFORM_FACEBOOK_PAGE,
             meta_page_id=page.page_id,
             ig_user_id="",
-            defaults={
-                "display_name": page.name,
-                "credential_ref": credential,
-                "selection_state": (
-                    PublishingIdentity.SELECTION_SELECTED
-                    if publishable
-                    else PublishingIdentity.SELECTION_NOT_SELECTED
-                ),
-                "publish_readiness_state": PublishingIdentity.READINESS_READY,
-            },
+            display_name=page.name,
+            credential=credential,
+            publishable=publishable,
         )
-        if was_created:
-            created += 1
-            if identity.selection_state == PublishingIdentity.SELECTION_SELECTED:
-                selected += 1
-            continue
+        created += page_created
+        updated += page_updated
+        selected += page_selected
 
-        changed_fields: list[str] = []
-        if identity.display_name != page.name:
-            identity.display_name = page.name
-            changed_fields.append("display_name")
-        if credential is not None and identity.credential_ref_id != credential.id:
-            identity.credential_ref = credential
-            changed_fields.append("credential_ref")
-        # Promote a never-decided destination, but respect an explicit revoke.
-        if (
-            publishable
-            and identity.selection_state == PublishingIdentity.SELECTION_NOT_SELECTED
-        ):
-            identity.selection_state = PublishingIdentity.SELECTION_SELECTED
-            changed_fields.append("selection_state")
-            selected += 1
-        if changed_fields:
-            changed_fields.append("updated_at")
-            identity.save(update_fields=changed_fields)
-            updated += 1
+        ig_user_id = str(getattr(page, "instagram_business_account_id", "") or "").strip()
+        if ig_user_id:
+            ig_name = str(getattr(page, "instagram_username", "") or "").strip() or page.name
+            ig_created, ig_updated, ig_selected = _upsert_publishing_identity(
+                tenant=tenant,
+                platform=PublishingIdentity.PLATFORM_INSTAGRAM,
+                meta_page_id=page.page_id,
+                ig_user_id=ig_user_id,
+                display_name=ig_name,
+                credential=credential,
+                publishable=publishable,
+            )
+            created += ig_created
+            updated += ig_updated
+            selected += ig_selected
 
     return IdentitySyncResult(
         total_pages=len(pages),

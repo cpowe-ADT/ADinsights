@@ -867,6 +867,50 @@ def test_meta_page_connect_creates_meta_credential(api_client, user):
 
 
 @pytest.mark.django_db
+def test_meta_page_connect_persists_linked_instagram_account(api_client, user):
+    _authenticate(api_client, user)
+    selection_token = "selection-token-ig"
+    cache.set(
+        f"{META_OAUTH_SELECTION_CACHE_PREFIX}{selection_token}",
+        {
+            "tenant_id": str(user.tenant_id),
+            "user_id": str(user.id),
+            "user_access_token": "long-user-token",
+            "granted_permissions": ["ads_read", "business_management", "pages_manage_posts"],
+            "declined_permissions": [],
+            "missing_required_permissions": [],
+            "pages": [{"id": "page-1", "name": "Business Page", "tasks": [], "perms": []}],
+            "ad_accounts": [{"id": "act_123", "account_id": "123", "name": "Primary Account"}],
+            "instagram_accounts": [
+                {
+                    "id": "ig-1",
+                    "username": "brandhandle",
+                    "name": "Brand Handle",
+                    "source_page_id": "page-1",
+                }
+            ],
+        },
+        timeout=600,
+    )
+
+    response = api_client.post(
+        reverse("meta-page-connect"),
+        {
+            "selection_token": selection_token,
+            "page_id": "page-1",
+            "ad_account_id": "act_123",
+            "instagram_account_id": "ig-1",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    page = MetaPage.objects.get(tenant=user.tenant, page_id="page-1")
+    assert page.instagram_business_account_id == "ig-1"
+    assert page.instagram_username == "brandhandle"
+
+
+@pytest.mark.django_db
 def test_meta_page_connect_triggers_client_suggestion_refresh(
     api_client, user, monkeypatch
 ):

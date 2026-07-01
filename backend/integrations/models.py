@@ -586,6 +586,11 @@ class MetaPage(models.Model):
     tasks = models.JSONField(default=list, blank=True)
     perms = models.JSONField(default=list, blank=True)
     is_default = models.BooleanField(default=False)
+    # Linked Instagram professional (business) account, when the Page has one.
+    # Persisted from Meta OAuth discovery so Content Ops can publish to Instagram
+    # without re-resolving the linkage live on every attempt.
+    instagram_business_account_id = models.CharField(max_length=128, blank=True)
+    instagram_username = models.CharField(max_length=255, blank=True)
     last_synced_at = models.DateTimeField(null=True, blank=True)
     last_posts_synced_at = models.DateTimeField(null=True, blank=True)
     dek_key_version = models.CharField(max_length=128, blank=True)
