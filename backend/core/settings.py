@@ -90,6 +90,19 @@ env = environ.Env(
             "pages_manage_metadata",
         ],
     ),
+    # Content Ops publishing permissions. Default OFF: these are advanced
+    # permissions that require Meta App Review, so they are only added to the
+    # authorize request once the app is approved (or under review with a test
+    # user). See docs/runbooks/meta-publishing-app-review.md.
+    META_ENABLE_PUBLISH_SCOPES=(bool, False),
+    META_PUBLISH_SCOPES=(
+        list,
+        [
+            "pages_manage_posts",
+            "instagram_basic",
+            "instagram_content_publish",
+        ],
+    ),
     # Keep the repo pin stable until an explicit Meta API version migration is validated end-to-end.
     META_GRAPH_API_VERSION=(str, "v24.0"),
     META_GRAPH_TIMEOUT_SECONDS=(float, 10.0),
@@ -889,6 +902,8 @@ META_LOGIN_CONFIG_ID = _optional(env("META_LOGIN_CONFIG_ID", default=None))
 META_LOGIN_CONFIG_REQUIRED = env.bool("META_LOGIN_CONFIG_REQUIRED", default=True)
 META_OAUTH_SCOPES = env.list("META_OAUTH_SCOPES")
 META_PAGE_INSIGHTS_OAUTH_SCOPES = env.list("META_PAGE_INSIGHTS_OAUTH_SCOPES")
+META_ENABLE_PUBLISH_SCOPES = env.bool("META_ENABLE_PUBLISH_SCOPES")
+META_PUBLISH_SCOPES = env.list("META_PUBLISH_SCOPES")
 META_GRAPH_API_VERSION = env("META_GRAPH_API_VERSION", default="v24.0")
 META_GRAPH_TIMEOUT_SECONDS = env.float("META_GRAPH_TIMEOUT_SECONDS", default=10.0)
 META_GRAPH_MAX_ATTEMPTS = env.int("META_GRAPH_MAX_ATTEMPTS", default=5)

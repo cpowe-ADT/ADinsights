@@ -133,6 +133,15 @@ DEFAULT_META_LOGIN_IGNORED_SCOPES = {
     "instagram_manage_insights",
     "read_insights",
 }
+# Advanced Content Ops publishing permissions. These require Meta App Review, so
+# they are only added to the authorize request when META_ENABLE_PUBLISH_SCOPES is
+# on. When enabled they also bypass DEFAULT_META_LOGIN_IGNORED_SCOPES (so
+# ``instagram_basic`` is actually requested for Instagram publishing).
+DEFAULT_META_PUBLISH_SCOPES = [
+    "pages_manage_posts",
+    "instagram_basic",
+    "instagram_content_publish",
+]
 DEFAULT_META_PAGE_INSIGHTS_TASKS = {"ANALYZE", "MANAGE", "ADVERTISE"}
 DEFAULT_META_PAGE_INSIGHTS_PERMS = {"ADMINISTER", "BASIC_ADMIN", "CREATE_ADS"}
 SOCIAL_STATUS_STALE_THRESHOLD_MINUTES = 60
@@ -719,6 +728,19 @@ def _resolve_meta_login_scopes(*, flow: str = META_OAUTH_FLOW_MARKETING) -> tupl
                 configured_scopes.append(required_scope)
     else:
         configured_scopes = getattr(settings, "META_OAUTH_SCOPES", DEFAULT_META_OAUTH_SCOPES)
+
+    # Advanced publishing permissions are opt-in (Meta App Review gated). When
+    # enabled they are appended to the authorize request and exempted from the
+    # login-ignored filter so Instagram publishing scopes are actually requested.
+    publish_scopes: set[str] = set()
+    if bool(getattr(settings, "META_ENABLE_PUBLISH_SCOPES", False)):
+        publish_scopes = {
+            str(scope).strip().lower()
+            for scope in getattr(settings, "META_PUBLISH_SCOPES", DEFAULT_META_PUBLISH_SCOPES)
+            if isinstance(scope, str) and str(scope).strip()
+        }
+        configured_scopes = [*configured_scopes, *sorted(publish_scopes)]
+
     resolved: list[str] = []
     ignored: list[str] = []
     seen: set[str] = set()
@@ -732,7 +754,7 @@ def _resolve_meta_login_scopes(*, flow: str = META_OAUTH_FLOW_MARKETING) -> tupl
         if candidate in seen:
             continue
         seen.add(candidate)
-        if candidate in DEFAULT_META_LOGIN_IGNORED_SCOPES:
+        if candidate in DEFAULT_META_LOGIN_IGNORED_SCOPES and candidate not in publish_scopes:
             ignored.append(candidate)
             continue
         resolved.append(candidate)
