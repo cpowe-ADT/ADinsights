@@ -685,6 +685,13 @@ const DashboardLayout = () => {
         ],
       },
       {
+        label: 'Content',
+        links: [
+          { label: 'Create post', to: '/content/compose', end: false },
+          { label: 'Content studio', to: '/content', end: true },
+        ],
+      },
+      {
         label: 'Integrations',
         links: [
           { label: 'Clients', to: '/clients', end: false },
