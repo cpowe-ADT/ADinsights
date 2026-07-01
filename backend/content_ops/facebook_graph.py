@@ -79,6 +79,40 @@ class FacebookGraphPageClient:
             raise _provider_error(retryable=False)
         return FacebookGraphPagePostResponse(post_id=post_id.strip())
 
+    def publish_page_photo(
+        self,
+        *,
+        page_id: str,
+        caption: str,
+        media_url: str,
+        page_token: str,
+    ) -> FacebookGraphPagePostResponse:
+        try:
+            response = self._client.post(
+                f"{self.base_url}/{page_id}/photos",
+                data={
+                    "url": media_url,
+                    "caption": caption,
+                    "published": "true",
+                    "access_token": page_token,
+                },
+            )
+        except httpx.HTTPError as exc:
+            raise _provider_error(retryable=True) from exc
+
+        payload = _safe_json(response)
+        if not response.is_success:
+            raise _provider_error(retryable=_is_retryable(response.status_code, payload))
+
+        # ``/photos`` returns {"id": <photo_id>, "post_id": <page_post_id>}; the
+        # page post id is the durable object we record and report metrics against.
+        post_id = ""
+        if isinstance(payload, dict):
+            post_id = str(payload.get("post_id") or payload.get("id") or "").strip()
+        if not post_id:
+            raise _provider_error(retryable=False)
+        return FacebookGraphPagePostResponse(post_id=post_id)
+
 
 class FacebookGraphPagePublisher:
     def __init__(self, *, graph_client=None, enabled: bool | None = None) -> None:
@@ -111,21 +145,32 @@ class FacebookGraphPagePublisher:
             raise _provider_error(retryable=False)
 
         if self.graph_client is not None:
-            response = self.graph_client.publish_page_feed(
-                page_id=payload.meta_page_id,
-                message=payload.caption,
-                page_token=page_token.strip(),
-            )
+            response = self._dispatch(self.graph_client, payload, page_token.strip())
         else:
             with FacebookGraphPageClient.from_settings() as client:
-                response = client.publish_page_feed(
-                    page_id=payload.meta_page_id,
-                    message=payload.caption,
-                    page_token=page_token.strip(),
-                )
+                response = self._dispatch(client, payload, page_token.strip())
         return FacebookPagePublishResult(
             meta_post_id=response.post_id,
             permalink=response.permalink,
+        )
+
+    @staticmethod
+    def _dispatch(
+        client: "FacebookGraphPageClient",
+        payload: FacebookPagePublishPayload,
+        page_token: str,
+    ) -> FacebookGraphPagePostResponse:
+        if payload.media_url:
+            return client.publish_page_photo(
+                page_id=payload.meta_page_id,
+                caption=payload.caption,
+                media_url=payload.media_url,
+                page_token=page_token,
+            )
+        return client.publish_page_feed(
+            page_id=payload.meta_page_id,
+            message=payload.caption,
+            page_token=page_token,
         )
 
 

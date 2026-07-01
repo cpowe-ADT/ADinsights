@@ -1,13 +1,23 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Link } from 'react-router-dom';
 
 import { ApiError } from '../lib/apiClient';
 import {
   channelLabel,
+  createContentOpsDraft,
   createContentOpsDraftWithVersion,
+  createContentOpsVersionWithAsset,
   fetchContentOpsPublishingReadiness,
   listContentOpsWorkspaces,
   publishContentOpsDraftNow,
+  uploadContentOpsAsset,
   type ContentOpsPublishingReadiness,
   type ContentOpsPublishNowResult,
   type ContentOpsWorkspaceSummary,
@@ -18,6 +28,8 @@ import './QuickComposer.css';
 
 const CHANNELS: ContentOpsChannel[] = ['facebook_page', 'instagram'];
 const CAPTION_MAX = 2200;
+const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp';
 
 const REASON_LABELS: Record<string, string> = {
   publishing_identity_missing: 'No destination is connected for this channel yet.',
@@ -97,6 +109,9 @@ export default function QuickComposer() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<ContentOpsPublishNowResult | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -126,20 +141,48 @@ export default function QuickComposer() {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(imageFile);
+    setImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
+
   const readinessByChannel = useMemo(
     () => new Map(readiness.map((axis) => [axis.channel, axis])),
     [readiness],
   );
 
   const selectedChannels = CHANNELS.filter((channel) => selected[channel]);
+  const instagramNeedsImage = selected.instagram && !imageFile;
   const canSubmit =
     !submitting &&
     Boolean(workspaceId) &&
     caption.trim().length > 0 &&
-    selectedChannels.length > 0;
+    selectedChannels.length > 0 &&
+    !instagramNeedsImage;
 
   const toggleChannel = (channel: ContentOpsChannel) => {
     setSelected((current) => ({ ...current, [channel]: !current[channel] }));
+  };
+
+  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (file && file.size > IMAGE_MAX_BYTES) {
+      addToast('That image is larger than 8 MB — please choose a smaller file.', 'error');
+      return;
+    }
+    setImageFile(file);
+  };
+
+  const clearImage = () => {
+    setImageFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -148,15 +191,36 @@ export default function QuickComposer() {
     setSubmitting(true);
     setResult(null);
     try {
-      const draft = await createContentOpsDraftWithVersion({
-        workspaceId,
-        briefId: null,
-        title: deriveTitle(caption),
-        channel: selectedChannels[0],
-        caption,
-      });
+      const title = deriveTitle(caption);
+      const primaryChannel = selectedChannels[0];
+      let draftId: string;
+      if (imageFile) {
+        const draft = await createContentOpsDraft({ workspaceId, title });
+        const asset = await uploadContentOpsAsset({
+          workspaceId,
+          file: imageFile,
+          altText: caption.slice(0, 120),
+        });
+        await createContentOpsVersionWithAsset({
+          draftId: draft.id,
+          caption,
+          channel: primaryChannel,
+          mediaAssetIds: [],
+          assetId: asset.id,
+        });
+        draftId = draft.id;
+      } else {
+        const draft = await createContentOpsDraftWithVersion({
+          workspaceId,
+          briefId: null,
+          title,
+          channel: primaryChannel,
+          caption,
+        });
+        draftId = draft.id;
+      }
       const publishResult = await publishContentOpsDraftNow({
-        draftId: draft.id,
+        draftId,
         channels: selectedChannels.map((channel) => ({ type: channel })),
       });
       setResult(publishResult);
@@ -169,6 +233,7 @@ export default function QuickComposer() {
         addToast('Post queued for publishing.', 'info');
       }
       setCaption('');
+      clearImage();
     } catch (error) {
       addToast(describeError(error, 'Could not publish the post.'), 'error');
     } finally {
@@ -235,6 +300,30 @@ export default function QuickComposer() {
             </span>
           </label>
 
+          <div className="composer__field">
+            <span className="composer__label">Image (optional)</span>
+            {imagePreview ? (
+              <div className="composer__image-preview">
+                <img src={imagePreview} alt="Selected post media preview" />
+                <button type="button" className="button tertiary" onClick={clearImage}>
+                  Remove image
+                </button>
+              </div>
+            ) : (
+              <input
+                ref={fileInputRef}
+                className="composer__input"
+                type="file"
+                accept={IMAGE_ACCEPT}
+                aria-label="Attach an image"
+                onChange={handleImageChange}
+              />
+            )}
+            <span className="composer__hint">
+              JPEG, PNG or WebP up to 8&nbsp;MB. Required for Instagram.
+            </span>
+          </div>
+
           <fieldset className="composer__field composer__destinations">
             <legend className="composer__label">Destinations</legend>
             {CHANNELS.map((channel) => {
@@ -265,11 +354,17 @@ export default function QuickComposer() {
             })}
           </fieldset>
 
+          {instagramNeedsImage ? (
+            <p className="composer__warning" role="alert">
+              Instagram posts require an image — attach one above, or unselect Instagram.
+            </p>
+          ) : null}
+
           <div className="composer__actions">
             <button className="button primary" type="submit" disabled={!canSubmit}>
               {submitting ? 'Posting…' : 'Post now'}
             </button>
-            <span className="composer__hint">Scheduling and image upload are coming next.</span>
+            <span className="composer__hint">Scheduling is coming next.</span>
           </div>
         </form>
       )}
